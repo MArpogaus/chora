@@ -47,8 +47,9 @@ The compositor binary `chora`. Its tasks, and nothing more:
 - The IPC socket.
 - The safety layer (see below).
 - The startup command: `chora -- <command>` runs one command with
-  `WAYLAND_DISPLAY` and `CHORA_SOCKET` set. Without a command, the core shows
-  a black screen.
+  `WAYLAND_DISPLAY` and `CHORA_SOCKET` set. The command does not get the
+  variables that reach a host compositor, for example `WAYLAND_SOCKET` and
+  `SWAYSOCK`. Without a command, the core shows a black screen.
 
 The core places popups, subsurfaces and layer surfaces itself, because the
 protocols define their position. Smithay's `PopupManager` and `LayerMap` do
@@ -160,8 +161,8 @@ sequenceDiagram
    events go to the topmost node under the cursor that accepts input. The
    inverse of the camera maps the cursor to scene coordinates.
 
-Focus is state in the scene, and plugins set it. The core never sets focus by
-itself. The core still implements the protocol mechanisms around focus:
+Focus is state in the scene, and plugins set it. Outside the safety layer,
+the core never sets focus by itself. The core still implements the protocol mechanisms around focus:
 popup grabs, `xdg-activation` requests, `pointer-constraints` and
 `input-method`.
 
@@ -176,7 +177,8 @@ The safety layer is the only built-in behavior (see
 - **Emergency reset.** The core disconnects all plugins, removes all effects,
   restores the default cameras and puts all surfaces in a simple grid. This
   grid is the one layout in the core. It is hardcoded, so a broken
-  configuration cannot break it.
+  configuration cannot break it. The first surface gets the focus, and a
+  click on a surface without an owner focuses it.
 - **Session lock.** The core enforces `ext-session-lock`. The lock surface is
   above every plugin node.
 - **Watchdog.** When frames miss their deadline repeatedly, the core removes

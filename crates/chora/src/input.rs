@@ -91,7 +91,7 @@ fn press_action(state: &State, mods: &ModifiersState, syms: &[Keysym]) -> Option
 
 fn motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionAbsoluteEvent) {
     let pos = event.position_transformed(state.output_size());
-    let under = render::surface_under(state, pos);
+    let under = render::surface_under(state, pos).map(|u| (u.surface, u.location));
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     pointer.motion(
         state,
@@ -108,6 +108,9 @@ fn motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionAbsoluteEv
 fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     let button_state: ButtonState = event.state();
+    if button_state == ButtonState::Pressed {
+        focus_ownerless(state, pointer.current_location());
+    }
     pointer.button(
         state,
         &ButtonEvent {
@@ -118,6 +121,21 @@ fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
         },
     );
     pointer.frame(state);
+}
+
+/// The one focus rule of the core, part of the safety layer: a click on a
+/// surface without an owner, for example in the reset grid, focuses it.
+fn focus_ownerless(state: &mut State, pos: smithay::utils::Point<f64, smithay::utils::Logical>) {
+    let Some(under) = render::surface_under(state, pos) else {
+        return;
+    };
+    if state
+        .scene
+        .node(&under.node)
+        .is_some_and(|n| n.owner.is_none())
+    {
+        state.focus(Some(&under.node));
+    }
 }
 
 fn axis<I: InputBackend>(state: &mut State, event: &I::PointerAxisEvent) {

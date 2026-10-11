@@ -21,8 +21,9 @@ pub fn reset_on_signal(
 }
 
 impl State {
-    /// The emergency reset: disconnects all clients of the IPC socket and
-    /// puts all surfaces in a grid that fills the output.
+    /// The emergency reset: disconnects all clients of the IPC socket, puts
+    /// all surfaces in a grid that fills the output and focuses the first
+    /// one.
     pub fn reset(&mut self) {
         for conn in self.ipc.conn_ids() {
             self.ipc_close(conn, true);
@@ -30,7 +31,11 @@ impl State {
         let size = self.output_size();
         let effects = self.scene.reset([f64::from(size.w), f64::from(size.h)]);
         self.send_configures(&effects);
-        self.focus(None);
+        let first = self
+            .scene
+            .node(chora_scene::ROOT)
+            .and_then(|r| r.children.first().cloned());
+        self.focus(first.as_deref());
         tracing::info!("emergency reset");
     }
 

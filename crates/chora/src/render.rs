@@ -126,21 +126,34 @@ pub fn window_origin(state: &State, id: &str) -> Option<Point<i32, Logical>> {
 /// The surface under a point of the scene and the position of that surface
 /// in the scene. A node with `block` that the point hits takes the input and
 /// gives it to nobody; a node with `pass` lets it through.
-pub fn surface_under(
-    state: &State,
-    pos: Point<f64, Logical>,
-) -> Option<(WlSurface, Point<f64, Logical>)> {
+pub fn surface_under(state: &State, pos: Point<f64, Logical>) -> Option<Under> {
     for placed in state.scene.draw_list().iter().rev() {
         let Some(hit) = hit(state, placed, pos) else {
             continue;
         };
         match (placed.input, hit) {
             (InputMode::Pass, _) => {}
-            (InputMode::Accept, Hit::Surface(surface, loc)) => return Some((surface, loc)),
+            (InputMode::Accept, Hit::Surface(surface, location)) => {
+                return Some(Under {
+                    surface,
+                    location,
+                    node: placed.node.id.clone(),
+                });
+            }
             (InputMode::Block | InputMode::Accept, _) => return None,
         }
     }
     None
+}
+
+/// The surface under the pointer.
+pub struct Under {
+    /// The surface, possibly a subsurface or a popup.
+    pub surface: WlSurface,
+    /// The position of the surface in the scene.
+    pub location: Point<f64, Logical>,
+    /// The surface node.
+    pub node: String,
 }
 
 /// What a point hits.
