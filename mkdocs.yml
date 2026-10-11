@@ -1,5 +1,5 @@
-site_name: Chora
-site_description: Chora is the space where forms appear. A Wayland compositor without policy.
+site_name: chora
+site_description: chora is the space where forms appear. A Wayland compositor without policy.
 site_url: https://marpogaus.github.io/void/
 repo_url: https://github.com/MArpogaus/void
 docs_dir: docs

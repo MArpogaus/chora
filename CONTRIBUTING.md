@@ -53,3 +53,13 @@ Write in Simplified Technical English:
 - no em or en dashes, no first person
 
 Keep each fact in one place and link to it.
+
+## Copied code
+
+The core is GPL-3.0-or-later, so it can reuse code from GPL projects such as
+Pinnacle and niri.
+
+- Keep the copyright notice of the source file.
+- Add one line with the source: `// Adapted from <project>, <path>`.
+- Never copy code under GPL-3.0-only. A hook rejects files with a
+  GPL-3.0-only header.

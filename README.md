@@ -1,11 +1,11 @@
-# Chora
+# chora
 
-*Chora is the space where forms appear.*
+*chora is the space where forms appear.*
 
-Chora is a Wayland compositor without policy. It is a programmable scene, not
+chora is a Wayland compositor without policy. It is a programmable scene, not
 a desktop.
 
-Chora has no window manager, no layout, no keybindings and no look. The core
+chora has no window manager, no layout, no keybindings and no look. The core
 renders a small scene of primitives and offers one API. Plugins add all other
 behavior. A plugin can supply a stacking desktop, a tiling workflow, or a view
 that an agent arranges live by voice. Only a small safety layer is built in.

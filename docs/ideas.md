@@ -19,12 +19,12 @@ All ideas that are not decisions yet. An idea moves to
 
 - Effects like in Hyprland and Compiz: blur, shadows, rounded corners, wobbly
   windows, cube, overview, transitions.
-- An infinite zoomable canvas through viewports.
+- An infinite zoomable canvas through cameras.
 - Surfaces as 3D objects.
 - Pixel-perfect copies of existing desktops (Windows XP, KDE Plasma) as
   flavors. They prove the flexibility. They are not a goal.
 
-## Agents and the ecosystem around Chora
+## Agents and the ecosystem around chora
 
 - An inventory: a local, git-versioned store of reusable elements. Code for
   one-time use goes away, useful code stays.
@@ -36,9 +36,11 @@ All ideas that are not decisions yet. An idea moves to
 
 - In-process WASM plugins on wasmtime with the Component Model, for effects
   that need code in every frame, for example wobbly windows. Only after a
-  measurement shows the need (D27).
+  measurement shows the need (D28).
 - A portal backend of its own, so that screen sharing can share a group or a
   canvas instead of a whole output or window.
+- Restricted IPC sockets for containers: a socket that only offers a subset
+  of the API to the clients behind it.
 
 ## Services
 
@@ -53,3 +55,4 @@ All ideas that are not decisions yet. An idea moves to
 - Flavors as installable bundles: classic, tiling, agentic.
 - A later registry for plugins and flavors, possibly as OCI artifacts. OCI
   fits the container world of the host.
+- A Copr repository, so that `dnf` updates chora like every other package.

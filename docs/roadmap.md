@@ -1,104 +1,138 @@
 # Roadmap
 
-!!! note "Draft"
-    A first proposal. The order and the scope of the milestones are open for
-    discussion.
-
 Each milestone has a goal, a scope and an exit criterion. A milestone is done
-when its exit criterion holds on the real setup of the author. After M6 the
-core is feature complete, and testing starts (D3).
+when its exit criterion holds. After M4 the core is feature complete, and
+testing starts (D3). M5 and M6 build on the core.
 
 ## M0: Workspace and tooling
 
-**Goal:** the first line of Rust already meets all guards.
+**Goal:** the first line of Rust meets all guards, and a tag produces a
+package.
 
-- Cargo workspace with `chora-scene`, `chora` and `choractl` (D33).
-- Workspace lints: clippy `pedantic`, `cognitive_complexity`,
+- Cargo workspace with `chora-scene`, `chora`, `choractl` and the reference
+  plugins in `plugins/` (D36).
+- Workspace lints: clippy `pedantic`, `cognitive_complexity` and
   `excessive_nesting`; `unsafe_code` denied. `clippy.toml` sets the limits.
-- A CI workflow for `cargo test`, and `cargo-deny` for licenses and advisories.
-  The license check keeps GPL-3.0-only code out (D8).
-- Dependabot for Cargo. A pinned Smithay revision (D15).
+- CI: build and `cargo test` in a Fedora 43 container; `cargo-deny` for the
+  licenses and advisories of the dependencies.
+- A pre-commit hook that rejects files with a GPL-3.0-only header (D8).
+- A pinned Smithay revision (D16), Dependabot for Cargo.
+- commitizen for version bumps and the changelog.
+- A release workflow: a `v*` tag builds the RPM in Fedora 43 and attaches it
+  with its SHA256 sum to a GitHub pre-release (D14).
 
-**Exit:** CI is green. `chora` opens an empty winit window.
+**Exit:** CI is green. The RPM of a test build installs in a Fedora 43
+container, and `chora --version` runs there.
 
 ## M1: Nested proof of concept
 
 **Goal:** the smallest proof of the concept, inside an existing session.
 
-- winit backend, `xdg-shell` toplevels and popups.
-- Scene with group, surface and rect nodes, 2D transforms (D17, D18).
-- Transactions that wait for client commits (D21).
-- IPC socket with `scene.query`, `scene.apply`, `events.subscribe` and
-  `input.grab`.
-- Safety layer: quit and emergency reset (D22).
-- `choractl` with basic commands.
-- A tiling plugin as IPC client, as reference.
+- winit backend.
+- Protocols: `xdg-shell` with popups, subsurfaces, `xdg-decoration`,
+  `linux-dmabuf`, `viewporter`, `presentation-time`, `xdg-output`,
+  `cursor-shape`, data device and `primary-selection`.
+- Scene with group, surface and rect nodes, 2D transforms (D18, D19).
+- Transactions that wait for client commits (D22).
+- IPC socket (D29) with `hello`, `scene.query`, `scene.apply`,
+  `events.subscribe` and `input.grab`.
+- Ownership (D31).
+- The startup command (D30).
+- Safety layer: quit and emergency reset (D23).
+- `choractl` with `query`, `apply` and `events`.
+- `chora-tiling`: a reference plugin with a master and stack layout and
+  keybindings to start a terminal, close a window and move the focus.
 
-**Exit:** the tiling plugin arranges terminal windows in the nested session.
-A crash of the plugin leaves the core running. The reset works.
+**Exit:** an automated test in a headless sway passes:
+
+1. `chora -- chora-tiling` starts nested.
+2. Three foot windows appear without overlap. `scene.query` and a screenshot
+   confirm the layout.
+3. After `kill` of `chora-tiling`, `chora` still runs, and the three surfaces
+   are detached.
+4. Ctrl+Alt+Escape puts the three surfaces in the grid.
 
 ## M2: Session on real hardware
 
-**Goal:** Chora runs as a login session on AMD and Intel (D11).
+**Goal:** chora runs as a login session on AMD and Intel (D11).
 
-- udev, DRM/KMS, libinput and libseat backends, copied from Pinnacle.
-- Several outputs with viewports (D19), `wlr-output-management` (D26).
-- `wlr-layer-shell`, so waybar, fuzzel and Quickshell work.
-- `ext-session-lock`, idle protocols, `xwayland-satellite` (D25).
-- `chora.desktop` session file.
+- udev, DRM/KMS, libinput and libseat backends; the VT switch bindings.
+- Several outputs, cameras (D20) and the `camera` command;
+  `wlr-output-management` (D27).
+- Protocols: `wlr-layer-shell`, `ext-session-lock`, `ext-idle-notify`,
+  `idle-inhibit`, `text-input`, `input-method`, `pointer-constraints`,
+  `relative-pointer`, `ext-foreign-toplevel-list`,
+  `wlr-foreign-toplevel-management`, `xdg-activation`, `fractional-scale`.
+- `xwayland-satellite` (D26).
+- `chora.desktop`, `chora-flavor` and a tiling flavor with a systemd target.
 
-**Exit:** a tiling session with bar and launcher runs for a full workday.
+**Exit:**
+
+1. Automated, nested: waybar, fuzzel and swaylock work.
+2. On the hardware of the author: a tiling session with bar and launcher runs
+   for 8 hours on an AMD and on an Intel machine, without a crash or a
+   restart of the core.
 
 ## M3: Agent interface
 
 **Goal:** an agent sees and changes the screen.
 
-- `choractl mcp` over stdio, with tools for whole tasks (D31).
-- `screen.capture` and `input.inject`, both with approval (D30).
-- Node ownership and plugin methods (D28).
-- `choractl` loads and saves YAML views (D32).
+- Grants for `input.inject` and `screen.capture` (D33). Open question 1 in
+  [Decisions](decisions.md) must have an answer first.
+- `ext-image-copy-capture` and `wlr-screencopy`; `xdg-desktop-portal-wlr`
+  for screen sharing (D37).
+- Plugin methods: `methods.export` and `methods.call` (D31).
+- `choractl view load` and `choractl view save` with YAML views (D35).
+- `choractl mcp` over stdio, with tools for whole tasks (D34).
 - `wp-security-context-v1`.
 
-**Exit:** an agent rearranges views over MCP and checks the result with
-screenshots.
+**Exit:** an automated test passes: an MCP client asks for "describe the
+screen", calls `tiling.set_layout`, and the next screenshot shows the new
+layout.
 
 ## M4: Effects
 
 **Goal:** the game-engine half of the idea.
 
-- Shader nodes, effects and shaders that read nodes as textures (D17).
+- Shader nodes, effects and shaders that read nodes as textures (D18).
 - GLSL hot reload; compile errors as `transaction.rejected`.
-- The `animate` command (D27).
-- Damage tracking for static and animated shaders, direct scanout (D23).
+- The `animate` command (D28).
+- Damage tracking for static and animated shaders, direct scanout (D24).
 - The watchdog of the safety layer.
+- A measurement of the IPC round trip for effects in every frame. The result
+  decides on in-process WASM plugins (D28).
 
-**Exit:** blur, rounded corners and animated transitions run at the full
-frame rate of the output.
+**Exit:** on the Intel machine at 60 Hz, four windows with blur and rounded
+corners and a 300 ms transition: `presentation-time` shows at least 99
+percent of the frames on time over 60 seconds.
 
 ## M5: Packaging
 
-**Goal:** Chora installs like every other desktop on the host.
+**Goal:** chora installs like every other desktop on the host.
 
-- A derived secureblue image with the Chora session (D10).
-- Flavors as directories with systemd targets: tiling first (D32).
+- A derived secureblue image with the chora package (D10, D14).
+- The tiling flavor in the image, and a classic flavor.
 - Services as Quadlet units (D12).
 
-**Exit:** after an image update, the login screen offers Chora.
+**Exit:** after an image update, the login screen offers chora. The tiling
+flavor starts, and one Quadlet service connects to the IPC socket.
 
 ## M6: Agentic flavor
 
 **Goal:** the agentic workday scenario works end to end.
 
 - Speech services: whisper.cpp or faster-whisper, piper.
-- A browser in app mode as service for HTML content (D35).
-- Morning view and task views.
+- A browser in app mode as service for HTML content (D38).
+- A morning view and task views.
+- Task and email sources are MCP servers of the agent, outside chora.
 
-**Exit:** the user plans the day by voice, and the agent builds the views
-for the tasks.
+**Exit:** the user says "show my tasks for today", and the agent opens a
+morning view with the tasks from an MCP source. Then the user says "open a
+view for the first task", and the agent opens a view with at least two
+surfaces.
 
 ## After M6
 
 - Conformance tests with wlcs, as Pinnacle does.
 - Hardening and testing on the daily system.
-- Items from the [Idea backlog](ideas.md), for example in-process WASM
-  plugins or a portal backend of its own.
+- Items from the [Idea backlog](ideas.md).

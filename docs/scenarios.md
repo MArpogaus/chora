@@ -8,7 +8,7 @@ work unchanged.
 ## 1. Classic desktop
 
 A Windows-like desktop with taskbar, start menu and overlapping windows,
-driven by mouse and keyboard. This is not the goal of Chora, but it must be
+driven by mouse and keyboard. This is not the goal of chora, but it must be
 possible.
 
 | Part | Source | Effort |
@@ -64,12 +64,11 @@ agent, and the agent arranges content for each task.
 | Rich content: greeting, plots, email | the agent writes HTML, a browser in app mode shows it as a surface | generated content |
 | Data exploration | Jupyter, marimo or a plot web app as surfaces | existing tools |
 | One view per task | YAML views that `choractl` loads, saves and changes live | coordinator tool |
-| Inventory, memory | opinionated layer above Chora | later |
+| Inventory, memory | opinionated layer above chora | later |
 
 **Result:** the largest scenario, but mostly integration of existing parts.
 The core must supply scene queries and changes, screenshots and input
-injection. Input injection and screen capture need the approval of the user.
-The agent needs screenshots to see the result of its changes.
+injection. The agent needs screenshots to see the result of its changes.
 
 ## Conclusions
 

@@ -1,16 +1,16 @@
 # Dependencies
 
-The parts that Chora reuses. [Alternatives](alternatives.md) records the
+The parts that chora reuses. [Alternatives](alternatives.md) records the
 check of each choice. [Decisions](decisions.md) records the result.
 
 ## Core
 
 | Dependency | Purpose | Notes |
 |------------|---------|-------|
-| [Smithay](https://github.com/Smithay/smithay) | Wayland protocols, backends, GLES renderer, input | a library without policy; used by niri, cosmic-comp and Pinnacle; the latest release is 0.7.0 (June 2025), so Chora pins a git revision |
+| [Smithay](https://github.com/Smithay/smithay) | Wayland protocols, backends, GLES renderer, input | a library without policy; used by niri, cosmic-comp and Pinnacle; the latest release is 0.7.0 (June 2025), so chora pins a git revision |
 | libinput, libseat, udev, GBM, Mesa | hardware access | through Smithay |
-| calloop | event loop | Smithay is built on it; the IPC socket shares it |
-| serde, schemars | API types, generated JSON Schemas | |
+| calloop | event loop | Smithay uses it; the IPC socket runs in the same loop |
+| serde, serde_json, schemars | API types, JSON-RPC, generated JSON Schemas | |
 
 ## choractl
 
@@ -19,14 +19,24 @@ check of each choice. [Decisions](decisions.md) records the result.
 | a maintained YAML crate | views | `serde_yaml` is unmaintained |
 | [rmcp](https://github.com/modelcontextprotocol/rust-sdk) | `choractl mcp` | the official Rust MCP SDK, version 3.x |
 
+## Build and release
+
+| Tool | Purpose |
+|------|---------|
+| [cargo-generate-rpm](https://github.com/cat-in-136/cargo-generate-rpm) | builds the RPM from the Cargo metadata, without a spec file |
+| cargo-deny | license and advisory checks of the dependencies |
+| commitizen | version bump, tag and changelog |
+
 ## Code to copy
 
 The core is GPL-3.0-or-later, so it can reuse GPL code. Code under
 GPL-3.0-only stays out, for example `src/protocol/drm.rs` of Pinnacle.
+[CONTRIBUTING](https://github.com/MArpogaus/void/blob/main/CONTRIBUTING.md)
+says how to mark copied code.
 
 | Source | Parts |
 |--------|-------|
-| [Pinnacle](https://github.com/pinnacle-comp/pinnacle) | transactions (`util/transaction.rs`, `hook.rs`), wlr protocol implementations (`protocol/`), udev and winit backends, the handoff from the IPC thread to the event loop (`api.rs`), the wlcs test adapter |
+| [Pinnacle](https://github.com/pinnacle-comp/pinnacle) | transactions (`util/transaction.rs`, `hook.rs`), wlr protocol implementations (`protocol/`), udev and winit backends, the wlcs test adapter |
 | [niri](https://github.com/YaLTeR/niri) | custom shaders, blur, offscreen rendering, animations |
 | anvil and smallvil (Smithay) | minimal compositor structure |
 
@@ -44,6 +54,8 @@ The core speaks these protocols, so existing tools work unchanged:
   `relative-pointer`, `wlr-output-management`.
 - **Capture:** `ext-image-copy-capture` and `wlr-screencopy`.
 - **Isolation:** `wp-security-context-v1`.
+
+[Roadmap](roadmap.md) assigns each protocol to a milestone.
 
 ## Outside the core
 

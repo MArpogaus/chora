@@ -10,8 +10,10 @@ chora/
 │   ├── chora-scene/   # scene model, commands, events, transactions, selectors; no Smithay
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
-├── plugins/           # reference plugins: tiling, stacking, keybindings
-├── dist/              # chora.desktop session file, packaging
+├── plugins/
+│   └── chora-tiling/  # reference plugin: master and stack layout, keybindings
+├── dist/              # chora.desktop, chora-flavor, the tiling flavor
+├── deny.toml          # cargo-deny: allowed licenses, advisories
 ├── docs/              # this documentation (MkDocs)
 ├── mkdocs.yml
 └── Cargo.toml         # workspace, lints
@@ -22,8 +24,8 @@ chora/
 - **`chora-scene` has no Smithay dependency.** Tests of the data model and
   the transaction logic need no GPU and no compositor. The core, `choractl`
   and plugins share this one definition of the API.
-- **Reference plugins live in this repository** first. They keep the API
-  honest. They can move out when the API is stable.
+- **Reference plugins live in this repository** first, as workspace members.
+  They keep the API honest. They can move out when the API is stable.
 - **The build generates the schemas** from the Rust types. The repository
   does not contain them. Docs, validation and agents then see the same
   contract.
@@ -32,6 +34,6 @@ chora/
 
 | Repository | Role |
 |------------|------|
-| `secureblue-images` | derived image that installs Chora as an additional session |
+| `secureblue-images` | derived image that installs chora as an additional session |
 | `image-builder-action` | builds and signs that image |
 | `distrobox-images` | container images for services |

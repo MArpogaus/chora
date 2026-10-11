@@ -1,10 +1,10 @@
 # Vision and principles
 
-*Chora is the space where forms appear.*
+*chora is the space where forms appear.*
 
 ## The name
 
-Plato calls the space in which things come into being *chora* (χώρα). Chora
+Plato calls the space in which things come into being *chora* (χώρα). chora
 is neither form nor matter. It only gives the forms a place. The compositor
 works the same way: it has no content and no policy of its own. Plugins,
 clients and agents bring the forms.
@@ -12,7 +12,7 @@ clients and agents bring the forms.
 ## The idea
 
 A desktop decides the arrangement of the content: windows, panels,
-workspaces. Chora takes this decision out of the compositor. Chora is a
+workspaces. chora takes this decision out of the compositor. chora is a
 programmable scene. It works more like a game engine than like a window
 manager. The core renders a scene of nodes every frame. One API changes the
 scene live.
@@ -25,7 +25,7 @@ and a coding view. The agent changes the arrangement while the user works.
 Agents are the motivation, not a requirement. The same scene can host a
 pixel-perfect Windows XP desktop, a keyboard-driven tiling setup or a
 KDE-like workflow. It can also host a kind of human-machine interaction that
-does not exist yet. Chora ships none of them. Chora makes all of them
+does not exist yet. chora ships none of them. chora makes all of them
 possible.
 
 ## Principles
@@ -40,7 +40,7 @@ possible.
    fast. Then the project hardens it. Features grow in plugins, not in the
    core.
 4. **Reuse before writing.** Wayland protocol handling, rendering, widgets,
-   shells and services already exist. Chora connects these parts and writes
+   shells and services already exist. chora connects these parts and writes
    only what is missing. Fixes go upstream. Every decision gets a check for
    existing alternatives.
 5. **One API for every caller.** Plugins, scripts, the CLI, services and
@@ -52,8 +52,8 @@ possible.
    views in YAML, and flavors as bundles of files. A diff shows each change.
    An agent can read and write the files easily.
 8. **Isolation by default.** Plugins run as separate processes, services in
-   containers. Input injection and screen capture need the approval of the
-   user.
+   containers. Input injection and screen capture through the API need a
+   grant of the user (D33).
 
 ## Goals
 
@@ -74,6 +74,6 @@ possible.
 - A usable desktop out of the box. A flavor can supply one. The core never
   does.
 - Agent memory and a local inventory of reusable elements. These form a
-  separate, opinionated layer on top of Chora (see [Idea backlog](ideas.md)).
+  separate, opinionated layer on top of chora (see [Idea backlog](ideas.md)).
 - Distributions other than Fedora and secureblue, and GPUs other than AMD and
   Intel, until the core is stable.
