@@ -13,7 +13,8 @@ that an agent arranges live by voice. Only a small safety layer is built in.
 ## Status
 
 Early development. chora runs nested inside another Wayland session, and a
-reference plugin tiles the windows. The
+reference plugin tiles the windows. A login session on real hardware exists,
+but nobody tested it on hardware yet. The
 [roadmap](https://marpogaus.github.io/void/roadmap/) shows the next steps.
 APIs change without notice before version 1.0.
 
