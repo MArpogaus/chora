@@ -1,14 +1,18 @@
 #!/bin/bash
 # End-to-end test of the XP flavor: chora runs nested in a headless sway
 # with chora-xp. The taskbar and the start button show, two foot windows
-# get title bars, a drag of a title bar moves its window, the minimize
-# button and the task button hide and show a window, the start menu opens
-# and starts a terminal, and the buttons of the title bar maximize and
-# close a window.
+# get title bars, a drag of a title bar moves its window and bends its
+# mesh, the minimize button sends the window through the magic lamp and
+# the task button brings it back, the start menu opens and starts a
+# terminal, the buttons of the title bar maximize and close a window, and
+# the desktop buttons turn the cube to another desktop and back.
 #
 # A virtual pointer of the host drives chora, as in tests/nested.sh. Its
 # coordinates are those of the 1280x800 output, which shows the scene
-# from its origin.
+# from its origin. The effects run five times slower, so that screenshots
+# catch them half way; they go to OUT_DIR as wobbly.png, lamp.png,
+# restore.png, cube.png and cube-back.png. The software renderer of the
+# host is slow, so a frame budget keeps the watchdog of the core calm.
 #
 # Usage: tests/xp.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-xp and chora-probe
@@ -54,7 +58,8 @@ wait_for test -S "$XDG_RUNTIME_DIR/wayland-1"
 export WAYLAND_DISPLAY=wayland-1
 
 step "1. chora -- chora-xp starts nested"
-"$bin/chora" -- "$bin/chora-xp" --theme "$theme" >"$out/chora.log" 2>&1 &
+CHORA_FRAME_BUDGET_US=500000 "$bin/chora" -- "$bin/chora-xp" --theme "$theme" --slow-motion 5 \
+    >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
 wait_for compgen -G "$XDG_RUNTIME_DIR/chora/*.sock"
@@ -63,6 +68,7 @@ export CHORA_SOCKET
 inner=$(basename "$CHORA_SOCKET" .sock)
 query() { "$bin/choractl" query "$@"; }
 has_node() { test "$(query "$1" | jq length)" = 1; }
+has_node_count() { test "$(query "$2" | jq length)" = "$1"; }
 wait_for has_node id:xp-tray-winit
 
 # Prints the color of a pixel of a new screenshot as "r g b". The header
@@ -98,10 +104,12 @@ sleep 0.5
 query kind:surface >"$out/surfaces.json"
 query meta:xp=window >"$out/windows.json"
 grim "$out/windows.png"
-# Prints "x y w" of the frame of a surface: the translation of its group,
-# and the width of the client plus the borders.
+# Prints "x y" of the frame of a surface: the translation of its group,
+# which starts at the 10 pixel shadow. frame_width prints the width of the
+# client plus the borders.
 frame() {
-    query "id:xp-win-$1" | jq -r '.[0].transform.matrix | "\(.[12] | floor) \(.[13] | floor)"'
+    query "id:xp-win-$1" |
+        jq -r '.[0].transform.matrix | "\(.[12] + 10 | floor) \(.[13] + 10 | floor)"'
 }
 frame_width() { query "id:$1" | jq -r '.[0].surface.size[0] + 8'; }
 mapfile -t ids < <(jq -r '[.[] | select(.owner == "xp") | .id] | sort_by(.[1:] | tonumber) | .[]' \
@@ -115,13 +123,33 @@ for id in "${ids[@]}"; do
     wait_for pixel_is $((x + w / 2)) $((y + 3)) "$blue"
 done
 
-step "4. a drag of a title bar moves the window"
+# Succeeds when a point of the mesh of a window group lies more than N
+# pixels from its place in the flat grid.
+bent() {
+    query "id:xp-win-$1" | jq -e --argjson n "$2" '.[0] | .mesh as $m | .size as $s
+      | $m != null and ([range(0; $m.points | length) as $i
+          | ($m.points[$i][0] - $s[0] * ($i % ($m.cols + 1)) / $m.cols | fabs)
+          + ($m.points[$i][1] - $s[1] * (($i / ($m.cols + 1)) | floor) / $m.rows | fabs)]
+          | max > $n)' >/dev/null
+}
+flat() { query "id:xp-win-$1" | jq -e '.[0].mesh == null' >/dev/null; }
+
+step "4. a drag of a title bar moves the window and bends it like jelly"
 top=${ids[1]}
 read -r x y <<<"$(frame "$top")"
-timeout 20 "$bin/chora-probe" drag $((x + 60)) $((y + 15)) $((x + 260)) $((y + 115)) \
-    >>"$out/probe.log" 2>&1 || fail "the drag failed: $out/probe.log"
+# The button stays down for 1.5 s while the pointer circles.
+timeout 20 "$bin/chora-probe" wiggle $((x + 60)) $((y + 15)) $((x + 260)) $((y + 115)) 1500 \
+    >>"$out/probe.log" 2>&1 &
+wiggle=$!
+pids+=("$wiggle")
+wait_for bent "$top" 5
+grim "$out/wobbly.png"
+query "id:xp-win-$top" >"$out/wobbly.json"
+wait "$wiggle" || fail "the drag failed: $out/probe.log"
 moved() { test "$(frame "$top")" = "$((x + 200)) $((y + 100))"; }
 wait_for moved
+# The window settles and loses its mesh.
+wait_for flat "$top"
 read -r x y <<<"$(frame "$top")"
 w=$(frame_width "$top")
 wait_for pixel_is $((x + w / 2)) $((y + 3)) "$blue"
@@ -134,11 +162,25 @@ click() { timeout 20 "$bin/chora-probe" drag "$1" "$2" "$1" "$2" >>"$out/probe.l
 # the right edge, 2 pixels apart, 5 pixels from the top.
 title_button() { click $(($2 + $4 - 17 - 24 * $1)) $(($3 + 16)) || fail "the click failed"; }
 visible() { test "$(query "id:xp-win-$top" | jq '.[0].visible')" = "$1"; }
-title_button 2 "$x" "$y" "$w"
+title_button 2 "$x" "$y" "$w" &
+job=$!
+wait_for bent "$top" 50
+# The lamp takes 2 s in slow motion; this is about half way.
+sleep 0.7
+grim "$out/lamp.png"
+query "id:xp-win-$top" >"$out/lamp.json"
+wait "$job" || fail "the click failed"
 wait_for visible false
+wait_for flat "$top"
 # The task buttons follow the start button, 163 pixels apart.
-click $((106 + 163 + 80)) 785 || fail "the click failed"
+click $((106 + 163 + 80)) 785 &
+job=$!
+wait_for bent "$top" 50
+sleep 0.7
+grim "$out/restore.png"
+wait "$job" || fail "the click failed"
 wait_for visible true
+wait_for flat "$top"
 
 step "6. the start button opens the start menu"
 click 50 785 || fail "the click failed"
@@ -176,6 +218,41 @@ grim "$out/maximized.png"
 step "9. the close button closes the window"
 title_button 0 0 0 1280
 wait_for count_is 2
+
+step "10. the desktop buttons turn the cube to the second desktop and back"
+desk_visible() { test "$(query "id:xp-desk-$1" | jq '.[0].visible')" = "$2"; }
+# Succeeds while two faces show and one of them turned far enough that
+# its matrix divides by the depth along x: about 30 degrees.
+turning() {
+    query "id:xp-face-$1" | jq -e '.[0] | .visible and
+        (.transform.matrix | (.[3] / .[15]) | fabs > 2.5e-4)' >/dev/null &&
+        query "id:xp-face-$2" | jq -e '.[0].visible' >/dev/null
+}
+background='r > 45 && r < 70 && g > 98 && g < 122 && b > 152 && b < 178'
+# The four desktop buttons sit left of the 82 pixel tray, 24 pixels apart.
+pager() { click $((1280 - 82 - 100 + 24 * ($1 - 1) + 11)) 785 || fail "the click failed"; }
+pager 2 &
+job=$!
+wait_for turning 0 1
+# Half way the cube moved back: the corner shows the background, no
+# wallpaper.
+wait_for pixel_is 5 5 "$background"
+grim "$out/cube.png"
+query "id:xp-face-0" >"$out/cube.json"
+wait "$job" || fail "the click failed"
+wait_for desk_visible 1 true
+wait_for has_node_count 0 id:xp-face-0
+desk_visible 0 false || fail "the first desktop still shows"
+grim "$out/desktop2.png"
+# The second desktop has no windows; the wallpaper shows at the corner.
+pixel_is 5 5 "$background" && fail "the cube stayed: $(pixel 5 5)"
+pager 1 &
+job=$!
+wait_for turning 1 0
+grim "$out/cube-back.png"
+wait "$job" || fail "the click failed"
+wait_for desk_visible 0 true
+wait_for has_node_count 0 id:xp-face-1
 kill -0 "$chora_pid" || fail "chora died"
 pgrep -x chora-xp >/dev/null || fail "chora-xp died: $out/chora.log"
 

@@ -14,6 +14,9 @@
 //! - `drag X0 Y0 X1 Y1`: drags with the left button from one point of the
 //!   first output to another, through a virtual pointer of the host
 //!   compositor, which has no pointer device of its own.
+//! - `wiggle X0 Y0 X1 Y1 MS`: presses at the first point, moves to the
+//!   second one, keeps circling around it with the button down for MS
+//!   milliseconds, and releases there; the drag of a wobbly window.
 
 use std::{
     fs::File,
@@ -117,6 +120,7 @@ fn main() -> ExitCode {
         "popup-grab" => popup_grab(&mut queue, &mut probe),
         "presentation" => presentation(&mut queue, &mut probe),
         "drag" => drag(&mut queue, &mut probe),
+        "wiggle" => wiggle(&mut queue, &mut probe),
         "held-commit" => match size_args() {
             Some(size) => held_commit(&mut queue, &mut probe, size),
             None => Err("usage: held-commit W H".into()),
@@ -301,6 +305,66 @@ fn drag(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     pointer.destroy();
     queue.roundtrip(probe).map_err(|e| e.to_string())?;
     Ok(format!("dragged from {x0},{y0} to {x1},{y1}"))
+}
+
+/// Holds the left button while the pointer moves to a point and circles
+/// around it, then releases there.
+fn wiggle(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
+    let args: Vec<u32> = std::env::args()
+        .skip(2)
+        .filter_map(|a| a.parse().ok())
+        .collect();
+    let [x0, y0, x1, y1, ms] = args[..] else {
+        return Err("usage: wiggle X0 Y0 X1 Y1 MS".into());
+    };
+    let manager = probe.pointer_manager.clone().ok_or("no virtual pointer")?;
+    let pointer = manager.create_virtual_pointer(probe.seat.as_ref(), &queue.handle(), ());
+    let start = Instant::now();
+    let time = || u32::try_from(start.elapsed().as_millis()).unwrap_or(u32::MAX);
+    let to = |x: f64, y: f64| {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // clamped
+        let (x, y) = (
+            x.clamp(0.0, f64::from(EXTENT[0] - 1)) as u32,
+            y.clamp(0.0, f64::from(EXTENT[1] - 1)) as u32,
+        );
+        pointer.motion_absolute(time(), x, y, EXTENT[0], EXTENT[1]);
+        pointer.frame();
+    };
+    let (a, b) = (
+        [f64::from(x0), f64::from(y0)],
+        [f64::from(x1), f64::from(y1)],
+    );
+    // As in drag: the client under the pointer sees the new seat capability
+    // first, then the first point, then the press.
+    dispatch_until(queue, probe, Duration::from_millis(150), |_| false);
+    to(a[0], a[1]);
+    dispatch_until(queue, probe, Duration::from_millis(150), |_| false);
+    pointer.button(time(), BTN_LEFT, wl_pointer::ButtonState::Pressed);
+    pointer.frame();
+    dispatch_until(queue, probe, Duration::from_millis(150), |_| false);
+    let held = Instant::now();
+    while held.elapsed() < Duration::from_millis(u64::from(ms)) {
+        let s = held.elapsed().as_secs_f64();
+        // A quarter of a second to the point, then circles around it.
+        let reach = (s / 0.25).min(1.0);
+        let (sin, cos) = (s * 9.0).sin_cos();
+        let swing = 70.0 * reach;
+        to(
+            a[0] + (b[0] - a[0]) * reach + swing * cos,
+            a[1] + (b[1] - a[1]) * reach + swing * sin,
+        );
+        dispatch_until(queue, probe, Duration::from_millis(16), |_| false);
+    }
+    to(b[0], b[1]);
+    dispatch_until(queue, probe, Duration::from_millis(100), |_| false);
+    pointer.button(time(), BTN_LEFT, wl_pointer::ButtonState::Released);
+    pointer.frame();
+    dispatch_until(queue, probe, Duration::from_millis(150), |_| false);
+    pointer.destroy();
+    queue.roundtrip(probe).map_err(|e| e.to_string())?;
+    Ok(format!(
+        "wiggled from {x0},{y0} around {x1},{y1} for {ms} ms"
+    ))
 }
 
 /// The width and the height in the arguments after the mode.
