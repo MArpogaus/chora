@@ -95,7 +95,7 @@ client sends `hello` first. The core answers every request.
 
 | Method | Purpose |
 |--------|---------|
-| `hello(name, keep_nodes)` | name the client; `keep_nodes` keeps its nodes after the disconnect |
+| `hello(name, keep_nodes)` | name the client; `keep_nodes` keeps its nodes and cameras after the disconnect |
 | `scene.query(selector)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications |

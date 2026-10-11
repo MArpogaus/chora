@@ -41,7 +41,9 @@ The compositor binary `chora`. Its tasks, and nothing more:
 
 - Wayland protocol handling and the client lifecycle, through Smithay.
 - Backends: DRM/KMS and libinput on real hardware, through libseat. A winit
-  window for development inside another compositor.
+  window for development inside another compositor. chora uses winit when
+  `WAYLAND_DISPLAY` or `DISPLAY` is set, and the hardware otherwise. On
+  hardware it draws the cursor of the xcursor theme in `XCURSOR_THEME`.
 - The scene, rendered every frame.
 - Input routing (see below).
 - The IPC socket.
@@ -53,9 +55,14 @@ The compositor binary `chora`. Its tasks, and nothing more:
 
 The core places popups, subsurfaces and layer surfaces itself, because the
 protocols define their position. Smithay's `PopupManager` and `LayerMap` do
-this work. Only toplevels wait for a plugin: the core creates a detached
-surface node and sends `surface.created`. A plugin decides where the surface
-appears, or if it appears at all.
+this work. Layer surfaces, for example panels and launchers, sit in the
+coordinates of their output, outside its camera, so a panel stays in place
+when a plugin pans the scene. The background and bottom layers are below the
+scene, the top and overlay layers above it. A panel reserves an exclusive
+zone; the rest of the output is its **work area**. Only toplevels wait for
+a plugin: the core creates a detached surface node and sends
+`surface.created`. A plugin decides where the surface appears, or if it
+appears at all.
 
 ### Scene
 
@@ -90,10 +97,10 @@ The output scale then gives the pixels.
   An output at position (x, y) shows the scene area from (x, y) with the
   logical size of the output. Scene and layout coordinates then agree.
 - The `camera` command replaces the default, for example to pan or zoom. A
-  camera is a 2D translation and a positive scale. The first client that
-  sets the camera of an output owns it. When the owner disconnects, the
-  output gets its default camera back. The reset restores all default
-  cameras.
+  camera is a 2D translation of at most 10^7 and a scale from 1/64 to 64.
+  The first client that sets the camera of an output owns it. When the owner
+  disconnects, the output gets its default camera back, unless the owner
+  keeps its nodes with `keep_nodes`. The reset restores all default cameras.
 - Two outputs side by side get two adjacent default cameras. A window across
   two outputs then needs no special case.
 
@@ -135,6 +142,7 @@ Limits keep a buggy client from exhausting the core:
 | output buffer of a connection | 8 MiB | the core closes the connection |
 | waiting transactions of a connection | 16 | the core rejects the transaction |
 | groups and rects in the scene | 16,384 | the core rejects the `create` |
+| cameras | 64 | the core rejects the `camera` |
 
 A plugin can export **methods**, for example `tiling.set_layout`. The core
 forwards a method call to the plugin and returns the answer. An agent then
@@ -189,9 +197,12 @@ Plugins set the focus. The core changes it in three cases only:
 - A click on a surface without an owner focuses it.
 - A surface that becomes detached loses the focus.
 
-The core still implements the protocol mechanisms around focus:
-popup grabs, `xdg-activation` requests, `pointer-constraints` and
-`input-method`.
+The core still implements the protocol mechanisms around focus: popup
+grabs, the keyboard interactivity of `wlr-layer-shell`, `ext-session-lock`,
+`xdg-activation` requests, `pointer-constraints` and `input-method`. A layer
+surface that takes the keyboard exclusively, for example a launcher, has it
+while it is mapped. A click gives the keyboard to a layer surface that
+accepts it on demand, until the next click elsewhere.
 
 ## Safety layer
 
@@ -206,8 +217,10 @@ The safety layer is the only built-in behavior (see
   grid is the one layout in the core. It is hardcoded, so a broken
   configuration cannot break it. The reset also changes the focus (see
   [Input flow](#input-flow)).
-- **Session lock.** The core enforces `ext-session-lock`. The lock surface is
-  above every plugin node.
+- **Session lock.** The core enforces `ext-session-lock`. While the session
+  is locked, each output shows only its lock surface, or black. Only the
+  lock surfaces get input, and grabs pause. When the lock client crashes,
+  the session stays locked, and a new lock client can take over.
 - **Watchdog.** When frames miss their deadline repeatedly, the core removes
   the effects first and then disconnects the plugins.
 
