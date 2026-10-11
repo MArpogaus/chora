@@ -2,8 +2,8 @@
 # End-to-end test of milestone M1: chora runs nested in a headless sway,
 # chora-tiling tiles three foot windows, a crash of the plugin leaves the
 # core running, and the emergency reset puts the windows in the grid.
-# Further steps check fixed regressions, and the nested exit of M2: waybar,
-# fuzzel and swaylock work.
+# Further steps check fixed regressions, a taskbar, and the nested exit of
+# M2: waybar, fuzzel and swaylock work.
 #
 # The test starts the reset with SIGUSR1. Ctrl+Alt+Escape runs the same
 # code, but synthetic keys from wtype carry their own keymap, which a nested
@@ -13,7 +13,7 @@
 #   BIN_DIR  holds chora, choractl and chora-tiling
 #   OUT_DIR  receives the logs and screenshots (default: a temp dir)
 # Needs: sway, foot, grim, jq, python3, pgrep and pkill, a Mesa driver,
-# waybar with dbus-run-session, fuzzel and swaylock.
+# waybar with dbus-run-session, fuzzel, wlrctl and swaylock.
 set -euo pipefail
 
 bin=$(realpath "$1")
@@ -217,7 +217,27 @@ kill -0 "$fuzzel_pid" || fail "fuzzel exited: $out/fuzzel.log"
 test "$(colors "$out/launcher.png")" -gt 3 || fail "the launcher view is empty"
 kill "$fuzzel_pid"
 
-step "12. the lock screen hides the scene and survives a crash of its client"
+step "12. a taskbar lists the windows, and plugins get its requests"
+"$bin/choractl" events surface.requested >"$out/taskbar-events.jsonl" &
+events_pid=$!
+pids+=("$events_pid")
+sleep 0.3
+taskbar() { WAYLAND_DISPLAY=$inner wlrctl toplevel "$@"; }
+taskbar list >"$out/toplevels.txt" || fail "no toplevel list"
+test "$(grep -c '^foot: ' "$out/toplevels.txt")" = 3 || fail "toplevels: $out/toplevels.txt"
+# The reset focused one surface, so one toplevel is active.
+taskbar find state:active || fail "no active toplevel"
+taskbar focus app_id:foot || fail "the activation failed"
+wait_for grep -q '"request":"activate"' "$out/taskbar-events.jsonl"
+# Since the reset, no plugin runs, and the core does not close a window by
+# itself.
+taskbar close app_id:foot || fail "the close request failed"
+wait_for grep -q '"request":"close"' "$out/taskbar-events.jsonl"
+sleep 0.3
+count_is 3 true || fail "the core closed a window"
+kill "$events_pid"
+
+step "13. the lock screen hides the scene and survives a crash of its client"
 # Prints the most frequent color of a new screenshot as "r g b".
 top_color() {
     grim -t ppm - | tail -c +17 | od -An -v -tu1 -w3 | sort | uniq -c | sort -rn |
@@ -232,7 +252,7 @@ kill -KILL "$swaylock_pid"
 wait_for color_is "0 0 0"
 kill -0 "$chora_pid" || fail "chora died"
 
-step "13. a fullscreen request reaches plugins after surface.created"
+step "14. a fullscreen request reaches plugins after surface.created"
 "$bin/choractl" events surface.created surface.requested >"$out/requests.jsonl" &
 events_pid=$!
 pids+=("$events_pid")
