@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, ffi::OsString, sync::Arc, time::Instant};
 
-use chora_scene::{Effect, Event, Scene, SurfaceInfo, ToplevelState};
+use chora_scene::{Effect, Event, OutputInfo, Scene, SurfaceInfo, ToplevelState};
 use smithay::{
     backend::renderer::element::solid::SolidColorBuffer,
     desktop::{PopupManager, Window},
@@ -17,7 +17,7 @@ use smithay::{
             protocol::wl_surface::WlSurface,
         },
     },
-    utils::{SERIAL_COUNTER, Serial},
+    utils::{Logical, SERIAL_COUNTER, Serial, Size},
     wayland::{
         compositor::{CompositorClientState, CompositorState, with_states},
         output::OutputManagerState,
@@ -110,15 +110,16 @@ impl State {
         }
     }
 
-    /// Registers a new toplevel as a detached surface node.
+    /// Registers a new toplevel. Its surface node follows with the first
+    /// commit, so that no client configures it before the initial
+    /// configure.
     pub fn add_window(&mut self, window: Window) {
         let mut id = format!("s{}", self.next_surface);
-        while self.scene.node(&id).is_some() {
+        while self.scene.node(&id).is_some() || self.windows.contains_key(&id) {
             self.next_surface += 1;
             id = format!("s{}", self.next_surface);
         }
         self.next_surface += 1;
-        self.scene.add_surface(&id, SurfaceInfo::default());
         self.windows.insert(id, window);
     }
 
@@ -151,6 +152,31 @@ impl State {
         })
     }
 
+    /// The logical size of the output.
+    pub fn output_size(&self) -> Size<i32, Logical> {
+        self.output
+            .as_ref()
+            .and_then(Output::current_mode)
+            .map_or((0, 0).into(), |m| m.size.to_logical(1))
+    }
+
+    /// The outputs as the API describes them.
+    pub fn output_info(&self) -> Vec<OutputInfo> {
+        let size = self.output_size();
+        self.output
+            .iter()
+            .map(|output| {
+                let position = output.current_location();
+                OutputInfo {
+                    name: output.name(),
+                    position: [position.x, position.y],
+                    size: [size.w, size.h],
+                    scale: output.current_scale().fractional_scale(),
+                }
+            })
+            .collect()
+    }
+
     /// Sends an event to all subscribed clients.
     pub fn emit(&mut self, event: &Event) {
         self.ipc.broadcast(event);
@@ -160,6 +186,7 @@ impl State {
     pub fn execute(&mut self, effects: Vec<Effect>) {
         for effect in effects {
             match effect {
+                // The transaction sent its configure events when it started.
                 Effect::Configure { .. } => {}
                 Effect::Focus(surface) => self.focus(surface.as_deref()),
                 Effect::Close(surface) => {
@@ -167,7 +194,12 @@ impl State {
                         t.send_close();
                     }
                 }
-                Effect::Detached(surface) => self.emit(&Event::SurfaceDetached { surface }),
+                Effect::Detached(surface) => {
+                    if self.focused_surface().as_deref() == Some(surface.as_str()) {
+                        self.focus(None);
+                    }
+                    self.emit(&Event::SurfaceDetached { surface });
+                }
             }
         }
     }
@@ -187,6 +219,12 @@ impl State {
             }
         });
         toplevel.send_pending_configure()
+    }
+
+    /// The surface node with the keyboard focus.
+    pub fn focused_surface(&self) -> Option<String> {
+        let keyboard = self.seat.get_keyboard()?;
+        self.surface_id(&keyboard.current_focus()?)
     }
 
     /// Sets the keyboard focus to a surface node, or to nothing.

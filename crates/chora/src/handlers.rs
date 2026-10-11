@@ -87,7 +87,7 @@ impl State {
         if !toplevel.is_initial_configure_sent() {
             toplevel.send_configure();
             let info = self.surface_info(id);
-            self.scene.set_surface_info(id, info.clone());
+            self.scene.add_surface(id, info.clone());
             self.emit(&Event::SurfaceCreated {
                 surface: id.into(),
                 app_id: info.app_id,
@@ -220,24 +220,19 @@ impl State {
 
     /// Keeps a popup inside the output that shows its toplevel.
     fn unconstrain_popup(&self, popup: &PopupSurface) {
-        let Ok(root) = find_popup_root_surface(&PopupKind::Xdg(popup.clone())) else {
+        let kind = PopupKind::Xdg(popup.clone());
+        let Ok(root) = find_popup_root_surface(&kind) else {
             return;
         };
-        let (Some(id), Some(output)) = (self.surface_id(&root), self.output.as_ref()) else {
+        let Some(origin) = self
+            .surface_id(&root)
+            .and_then(|id| crate::render::window_origin(self, &id))
+        else {
             return;
         };
-        let Some(origin) = crate::render::window_origin(self, &id) else {
-            return;
-        };
-        let window = &self.windows[&id];
-        let mut target = smithay::utils::Rectangle::from_size(
-            output
-                .current_mode()
-                .map_or_else(|| (0, 0).into(), |m| m.size.to_logical(1)),
-        );
+        let mut target = smithay::utils::Rectangle::from_size(self.output_size());
         target.loc -= origin;
-        target.loc -= get_popup_toplevel_coords(&PopupKind::Xdg(popup.clone()));
-        target.loc += window.geometry().loc;
+        target.loc -= get_popup_toplevel_coords(&kind);
         popup.with_pending_state(|state| {
             state.geometry = state.positioner.get_unconstrained_geometry(target);
         });

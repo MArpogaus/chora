@@ -27,7 +27,8 @@ impl State {
         for conn in self.ipc.conn_ids() {
             self.ipc_close(conn, true);
         }
-        let effects = self.scene.reset(self.output_area());
+        let size = self.output_size();
+        let effects = self.scene.reset([f64::from(size.w), f64::from(size.h)]);
         self.send_configures(&effects);
         self.focus(None);
         tracing::info!("emergency reset");
@@ -44,15 +45,5 @@ impl State {
                 self.configure(surface, *size, states);
             }
         }
-    }
-
-    /// The logical size of the output.
-    fn output_area(&self) -> [f64; 2] {
-        let size = self
-            .output
-            .as_ref()
-            .and_then(smithay::output::Output::current_mode)
-            .map_or((0, 0).into(), |m| m.size.to_logical(1));
-        [f64::from(size.w), f64::from(size.h)]
     }
 }

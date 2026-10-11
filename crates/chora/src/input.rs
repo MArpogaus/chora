@@ -90,13 +90,7 @@ fn press_action(state: &State, mods: &ModifiersState, syms: &[Keysym]) -> Option
 }
 
 fn motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionAbsoluteEvent) {
-    let Some(output) = state.output.as_ref() else {
-        return;
-    };
-    let size = output
-        .current_mode()
-        .map_or((0, 0).into(), |m| m.size.to_logical(1));
-    let pos = event.position_transformed(size);
+    let pos = event.position_transformed(state.output_size());
     let under = render::surface_under(state, pos);
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     pointer.motion(

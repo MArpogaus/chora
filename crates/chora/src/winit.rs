@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use chora_scene::{Event, OutputInfo};
+use chora_scene::Event;
 use smithay::{
     backend::{
         allocator::dmabuf::Dmabuf,
@@ -22,6 +22,8 @@ use crate::{render, state::State};
 
 /// The name of the one output of the winit backend.
 const OUTPUT: &str = "winit";
+/// The refresh rate that the winit output reports, in mHz.
+const REFRESH: i32 = 60_000;
 
 /// The parts of the winit backend that outlive one event.
 pub struct Backend {
@@ -36,7 +38,7 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
     let (mut graphics, events) = winit::init::<GlesRenderer>()?;
     let mode = Mode {
         size: graphics.window_size(),
-        refresh: 60_000,
+        refresh: REFRESH,
     };
     let output = Output::new(
         OUTPUT.into(),
@@ -92,33 +94,20 @@ fn handle(state: &mut State, event: WinitEvent) {
             output.change_current_state(
                 Some(Mode {
                     size,
-                    refresh: 60_000,
+                    refresh: REFRESH,
                 }),
                 None,
                 None,
                 None,
             );
-            let info = output_info(output);
-            state.emit(&Event::OutputChanged { output: info });
+            for output in state.output_info() {
+                state.emit(&Event::OutputChanged { output });
+            }
         }
         WinitEvent::Input(event) => crate::input::process(state, event),
         WinitEvent::Redraw => redraw(state),
         WinitEvent::CloseRequested => state.loop_signal.stop(),
         WinitEvent::Focus(_) => {}
-    }
-}
-
-/// The output as the API describes it.
-pub fn output_info(output: &Output) -> OutputInfo {
-    let size = output
-        .current_mode()
-        .map_or((0, 0).into(), |m| m.size.to_logical(1));
-    let position = output.current_location();
-    OutputInfo {
-        name: output.name(),
-        position: [position.x, position.y],
-        size: [size.w, size.h],
-        scale: output.current_scale().fractional_scale(),
     }
 }
 
