@@ -10,8 +10,8 @@ use chora_scene::{
 use clap::{Parser, ValueEnum};
 use serde_json::Value;
 
-/// The group that holds the tiled surfaces.
-const GROUP: &str = "tiling";
+/// The client name, and the group that holds the tiled surfaces.
+const NAME: &str = "tiling";
 
 /// Tile the windows of chora in a master and stack layout.
 #[derive(Parser)]
@@ -20,15 +20,15 @@ struct Args {
     /// The modifier of all bindings.
     #[arg(long = "mod", value_enum, default_value_t = Modifier::Super)]
     modifier: Modifier,
-    /// The terminal that MOD+Return starts.
+    /// The shell command that MOD+Return runs, for example "foot -e htop".
     #[arg(long, default_value = "foot")]
     terminal: String,
     /// The gap around each window, in logical pixels.
     #[arg(long, default_value_t = 4)]
-    gap: i32,
+    gap: u16,
 }
 
-#[derive(Clone, Copy, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 enum Modifier {
     Super,
     Alt,
@@ -48,8 +48,9 @@ struct Tiling {
     args: Args,
     bindings: Vec<(String, Action)>,
     area: [i32; 4],
+    /// The tiled surfaces; the first one is the master.
     windows: Vec<String>,
-    focused: usize,
+    focused: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -64,7 +65,7 @@ fn main() -> ExitCode {
 
 fn run(args: Args) -> Result<(), ClientError> {
     let hello = Hello {
-        name: "tiling".into(),
+        name: NAME.into(),
         keep_nodes: false,
     };
     let mut tiling = Tiling {
@@ -73,7 +74,7 @@ fn run(args: Args) -> Result<(), ClientError> {
         bindings: Vec::new(),
         area: [0; 4],
         windows: Vec::new(),
-        focused: 0,
+        focused: None,
     };
     tiling.start()?;
     loop {
@@ -86,32 +87,21 @@ impl Tiling {
     fn start(&mut self) -> Result<(), ClientError> {
         let outputs: Vec<OutputInfo> = self.client.call("output.list", Value::Null)?;
         self.area = outputs.first().map_or([0; 4], area_of);
-        let group = Command::Create {
-            id: GROUP.into(),
-            kind: NodeKind::Group,
-            parent: ROOT.into(),
-            props: PropsUpdate::default(),
-        };
-        self.apply(vec![group])?;
-        let modifier = match self.args.modifier {
-            Modifier::Super => "Super",
-            Modifier::Alt => "Alt",
-        };
-        for (key, action) in [
-            ("Return", Action::Terminal),
-            ("q", Action::Close),
-            ("j", Action::FocusNext),
-            ("k", Action::FocusPrevious),
-        ] {
-            let binding: Binding = format!("{modifier}+{key}").parse().expect("valid bindings");
+        if self.query(&format!("id:{NAME}"))?.is_empty() {
+            let group = Command::Create {
+                id: NAME.into(),
+                kind: NodeKind::Group,
+                parent: ROOT.into(),
+                props: PropsUpdate::default(),
+            };
             self.client.call::<_, Value>(
-                "input.grab",
-                Grab {
-                    binding: binding.clone(),
+                "scene.apply",
+                Apply {
+                    commands: vec![group],
                 },
             )?;
-            self.bindings.push((binding.to_string(), action));
         }
+        self.grab_all()?;
         let events = [
             "surface.created",
             "surface.destroyed",
@@ -124,30 +114,58 @@ impl Tiling {
                 events: events.map(String::from).to_vec(),
             },
         )?;
-        let free: Vec<Value> = self.client.call(
-            "scene.query",
-            Query {
-                selector: "kind:surface".into(),
-            },
-        )?;
-        for node in free.iter().filter(|n| n["owner"].is_null()) {
-            if let Some(id) = node["id"].as_str() {
-                self.adopt(id)?;
+        for node in self.query("kind:surface")? {
+            let Some(id) = node["id"].as_str() else {
+                continue;
+            };
+            match node["owner"].as_str() {
+                None => self.adopt(id)?,
+                Some(NAME) => self.windows.push(id.into()),
+                Some(_) => {}
             }
         }
+        self.focused = self.windows.last().cloned();
         self.relayout()
+    }
+
+    fn grab_all(&mut self) -> Result<(), ClientError> {
+        for (key, action) in [
+            ("Return", Action::Terminal),
+            ("q", Action::Close),
+            ("j", Action::FocusNext),
+            ("k", Action::FocusPrevious),
+        ] {
+            let binding: Binding = format!("{:?}+{key}", self.args.modifier)
+                .parse()
+                .expect("valid bindings");
+            let normal: String = self.client.call("input.grab", Grab { binding })?;
+            self.bindings.push((normal, action));
+        }
+        Ok(())
+    }
+
+    fn query(&mut self, selector: &str) -> Result<Vec<Value>, ClientError> {
+        self.client.call(
+            "scene.query",
+            Query {
+                selector: selector.into(),
+            },
+        )
     }
 
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
-            Event::SurfaceCreated { surface, .. } => {
+            // A detached surface has no owner any more, so it is free to take.
+            Event::SurfaceCreated { surface, .. } | Event::SurfaceDetached { surface } => {
+                self.windows.retain(|w| *w != surface);
                 self.adopt(&surface)?;
-                self.focused = self.windows.len().saturating_sub(1);
                 self.relayout()
             }
-            Event::SurfaceDestroyed { surface } | Event::SurfaceDetached { surface } => {
+            Event::SurfaceDestroyed { surface } => {
                 self.windows.retain(|w| *w != surface);
-                self.focused = self.focused.min(self.windows.len().saturating_sub(1));
+                if self.focused.as_ref() == Some(&surface) {
+                    self.focused = self.windows.last().cloned();
+                }
                 self.relayout()
             }
             Event::OutputChanged { output } => {
@@ -163,45 +181,77 @@ impl Tiling {
         let Some((_, action)) = self.bindings.iter().find(|(b, _)| b == binding) else {
             return Ok(());
         };
-        let n = self.windows.len().max(1);
         match action {
             Action::Terminal => {
                 // `&` lets the shell exit at once, so the terminal never
                 // becomes a zombie of this plugin.
-                std::process::Command::new("sh")
+                let spawned = std::process::Command::new("sh")
                     .args(["-c", &format!("{} &", self.args.terminal)])
-                    .status()?;
-                return Ok(());
-            }
-            Action::Close => {
-                if let Some(surface) = self.windows.get(self.focused).cloned() {
-                    return self.apply(vec![Command::Close { surface }]);
+                    .status();
+                if let Err(err) = spawned {
+                    eprintln!("chora-tiling: cannot run {:?}: {err}", self.args.terminal);
                 }
                 return Ok(());
             }
-            Action::FocusNext => self.focused = (self.focused + 1) % n,
-            Action::FocusPrevious => self.focused = (self.focused + n - 1) % n,
+            Action::Close => {
+                if let Some(surface) = self.focused.clone() {
+                    self.apply(vec![Command::Close { surface }])?;
+                }
+                return Ok(());
+            }
+            Action::FocusNext => self.move_focus(1),
+            Action::FocusPrevious => self.move_focus(self.windows.len().saturating_sub(1)),
         }
         self.relayout()
     }
 
+    /// Moves the focus `steps` windows forward, wrapping around.
+    fn move_focus(&mut self, steps: usize) {
+        let n = self.windows.len();
+        if n == 0 {
+            return;
+        }
+        let current = self
+            .focused
+            .as_ref()
+            .and_then(|f| self.windows.iter().position(|w| w == f))
+            .unwrap_or(0);
+        self.focused = Some(self.windows[(current + steps) % n].clone());
+    }
+
+    /// Takes a surface without an owner and focuses it. A surface that
+    /// another client took first stays out of the layout.
     fn adopt(&mut self, surface: &str) -> Result<(), ClientError> {
         let attach = Command::Attach {
             surface: surface.into(),
-            parent: GROUP.into(),
+            parent: NAME.into(),
         };
-        self.apply(vec![attach])?;
-        self.windows.push(surface.into());
-        Ok(())
+        match self.client.call::<_, Value>(
+            "scene.apply",
+            Apply {
+                commands: vec![attach],
+            },
+        ) {
+            Ok(_) => {
+                self.windows.push(surface.into());
+                self.focused = Some(surface.into());
+                Ok(())
+            }
+            Err(ClientError::Rpc(err)) => {
+                eprintln!("chora-tiling: {surface}: {err}");
+                Ok(())
+            }
+            Err(err) => Err(err),
+        }
     }
 
     /// Places every window and moves the focus, in one transaction.
     fn relayout(&mut self) -> Result<(), ClientError> {
-        let cells = master_stack(self.windows.len(), self.area, self.args.gap);
+        let cells = master_stack(self.windows.len(), self.area, i32::from(self.args.gap));
         let mut commands = Vec::new();
-        for (i, (surface, [x, y, w, h])) in self.windows.iter().zip(cells).enumerate() {
+        for (surface, [x, y, w, h]) in self.windows.iter().zip(cells) {
             let mut states = vec![ToplevelState::Tiled];
-            if i == self.focused {
+            if self.focused.as_ref() == Some(surface) {
                 states.push(ToplevelState::Activated);
             }
             commands.push(Command::Configure {
@@ -218,13 +268,14 @@ impl Tiling {
             });
         }
         commands.push(Command::Focus {
-            surface: self.windows.get(self.focused).cloned(),
+            surface: self.focused.clone(),
         });
         self.apply(commands)
     }
 
     /// Applies a transaction. A rejected transaction only logs: a surface
-    /// can disappear between an event and the answer to it.
+    /// can disappear between an event and the answer to it, and the event
+    /// that follows corrects the layout.
     fn apply(&mut self, commands: Vec<Command>) -> Result<(), ClientError> {
         match self
             .client
@@ -246,14 +297,12 @@ fn area_of(output: &OutputInfo) -> [i32; 4] {
 
 /// The cells of a master and stack layout: the first window takes the left
 /// half, the others share the right half. Each cell is x, y, width, height.
+/// A gap shrinks each cell on all sides, but never below 1 pixel and never
+/// out of its cell.
 fn master_stack(n: usize, [left, top, width, height]: [i32; 4], gap: i32) -> Vec<[i32; 4]> {
     let inset = |[cx, cy, cw, ch]: [i32; 4]| {
-        [
-            cx + gap,
-            cy + gap,
-            (cw - 2 * gap).max(1),
-            (ch - 2 * gap).max(1),
-        ]
+        let (gx, gy) = (gap.min((cw - 1) / 2).max(0), gap.min((ch - 1) / 2).max(0));
+        [cx + gx, cy + gy, (cw - 2 * gx).max(1), (ch - 2 * gy).max(1)]
     };
     match n {
         0 => Vec::new(),
@@ -292,5 +341,13 @@ mod tests {
     #[test]
     fn gaps_shrink_every_cell() {
         assert_eq!(master_stack(1, [0, 0, 100, 50], 5), vec![[5, 5, 90, 40]]);
+    }
+
+    #[test]
+    fn a_huge_gap_stays_inside_the_cell() {
+        let [[x, y, w, h]] = master_stack(1, [0, 0, 100, 50], 700)[..] else {
+            panic!("one cell")
+        };
+        assert!(x + w <= 100 && y + h <= 50 && w >= 1 && h >= 1);
     }
 }
