@@ -54,6 +54,14 @@ clients and presentation times.
 tests/nested.sh target/debug
 ```
 
+`tests/xp.sh` checks the XP flavor in the same way: the taskbar, title bars,
+the drag of a window, minimize, maximize, close and the start menu. It needs
+sway, foot, grim, jq and pgrep.
+
+```bash
+tests/xp.sh target/debug
+```
+
 CI runs `cargo clippy`, `cargo test` and the end-to-end test with `--locked`
 in a Fedora 44 container, and `cargo deny` in a separate job.
 

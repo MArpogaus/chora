@@ -31,9 +31,12 @@ repos:
   - id: check-yaml
     # syntax-only: mkdocs.yml needs the !!python/name mermaid-fence tag
     args: [--unsafe]
+  # The vendored theme of the XP flavor stays byte for byte as upstream.
   - id: end-of-file-fixer
+    exclude: ^flavors/xp/theme/(cursors|expose|fonts|winxp)/
   - id: mixed-line-ending
   - id: trailing-whitespace
+    exclude: ^flavors/xp/theme/(cursors|expose|fonts|winxp)/
 
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
   rev: v2.16.0

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=chora (Windows XP)
+Comment=A programmable Wayland compositor, with the XP flavor
+Exec=env XCURSOR_THEME=ModernXP chora-session xp
+Type=Application
+DesktopNames=chora

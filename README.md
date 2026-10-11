@@ -51,9 +51,14 @@ to use Alt instead. `chora-tiling --help` lists all options.
 The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
 and Ctrl+Alt+BackSpace quits chora.
 
+To try the XP flavor, a stacking desktop in the style of Windows XP, start
+`chora -- chora-xp`. From a source tree, point it at the theme:
+`target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme`.
+
 To log in to chora on real hardware, choose the session "chora" on the
 login screen. It starts the tiling flavor with waybar and X11 support
-through xwayland-satellite. The hardware session is not tested yet.
+through xwayland-satellite. The session "chora (Windows XP)" starts the XP
+flavor. The hardware session is not tested yet.
 
 Programs inside chora find its IPC socket in `CHORA_SOCKET`. For example, a
 terminal in chora shows the scene with `choractl query`, and

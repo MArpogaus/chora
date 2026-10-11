@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Original artwork: slanted, waving four-pane flag in the spirit of the Luna "start" button. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="48" height="48" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="r" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#ffb07a"/><stop offset="0.35" stop-color="#ff6a2b"/><stop offset="1" stop-color="#d23c0c"/>
+    </linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#d9f77c"/><stop offset="0.35" stop-color="#8fd12a"/><stop offset="1" stop-color="#4f9a0c"/>
+    </linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#b6d0ff"/><stop offset="0.35" stop-color="#6d98f7"/><stop offset="1" stop-color="#2f5fd6"/>
+    </linearGradient>
+    <linearGradient id="y" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#fff0a0"/><stop offset="0.35" stop-color="#ffcf2e"/><stop offset="1" stop-color="#e09a00"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <path id="tl" d="M10.5,8.5 C14.5,5.6 19,5.4 23.6,7.6 L21.6,21.4 C17.2,19.2 12.6,19.4 8.4,22.2 Z"/>
+    <path id="tr" d="M25.8,8.6 C30.4,10.8 35,10.9 40.6,7.4 L38.6,21.2 C33.1,24.6 28.4,24.5 23.8,22.4 Z"/>
+    <path id="bl" d="M8.1,24.4 C12.4,21.6 17,21.4 21.3,23.6 L19.3,37.4 C15,35.2 10.4,35.4 6,38.3 Z"/>
+    <path id="br" d="M23.5,24.6 C28.1,26.8 32.8,26.9 38.3,23.4 L36.3,37.2 C30.8,40.6 26.1,40.5 21.5,38.4 Z"/>
+  </defs>
+  <!-- drop shadow -->
+  <g fill="#000" opacity="0.38" transform="translate(1.6,1.8)">
+    <use xlink:href="#tl"/><use xlink:href="#tr"/><use xlink:href="#bl"/><use xlink:href="#br"/>
+  </g>
+  <g stroke="#000" stroke-opacity="0.22" stroke-width="0.6" stroke-linejoin="round">
+    <use xlink:href="#tl" fill="url(#r)"/>
+    <use xlink:href="#tr" fill="url(#g)"/>
+    <use xlink:href="#bl" fill="url(#b)"/>
+    <use xlink:href="#br" fill="url(#y)"/>
+  </g>
+  <!-- glossy highlights -->
+  <g fill="url(#gloss)">
+    <path d="M11,9.2 C14.8,6.6 19,6.4 23.2,8.4 L22.4,13.6 C18.4,11.8 14.4,12 10.2,14.6 Z"/>
+    <path d="M26.2,9.4 C30.6,11.4 35,11.5 40,8.3 L39.3,13.4 C34.4,16.4 30,16.3 25.5,14.4 Z"/>
+    <path d="M8.6,25.1 C12.7,22.5 17,22.4 20.9,24.4 L20.2,29.5 C16.4,27.6 12.4,27.8 7.9,30.4 Z"/>
+    <path d="M23.9,25.4 C28.4,27.4 32.8,27.5 37.8,24.3 L37.1,29.4 C32.2,32.4 27.8,32.3 23.2,30.4 Z"/>
+  </g>
+</svg>
