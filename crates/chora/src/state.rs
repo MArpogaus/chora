@@ -103,6 +103,8 @@ pub struct State {
     /// The rect or image node of a press and its button, until the button
     /// goes up.
     pub node_grab: Option<(String, u32)>,
+    /// The node of the last `pointer.entered`.
+    pub hovered: Option<String>,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
     /// The last configure of each surface node: size and states.
@@ -189,6 +191,7 @@ impl State {
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
             node_grab: None,
+            hovered: None,
             watchdog: Watchdog::from_env(),
             layer_focus: None,
             configured: HashMap::new(),
