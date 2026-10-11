@@ -13,15 +13,15 @@ package.
   plugins in `plugins/` (D36).
 - Workspace lints: clippy `pedantic`, `cognitive_complexity` and
   `excessive_nesting`; `unsafe_code` denied. `clippy.toml` sets the limits.
-- CI: build and `cargo test` in a Fedora 43 container; `cargo-deny` for the
+- CI: build and `cargo test` in a Fedora 44 container; `cargo-deny` for the
   licenses and advisories of the dependencies.
 - A pre-commit hook that rejects files with a GPL-3.0-only header (D8).
 - Dependabot for Cargo.
 - commitizen for version bumps and the changelog.
-- A release workflow: a `v*` tag builds the RPM in Fedora 43 and attaches it
+- A release workflow: a `v*` tag builds the RPM in Fedora 44 and attaches it
   with its SHA256 sum to a GitHub pre-release (D14).
 
-**Exit:** CI is green. The RPM of a test build installs in a Fedora 43
+**Exit:** CI is green. The RPM of a test build installs in a Fedora 44
 container, and `chora --version` runs there.
 
 ## M1: Nested proof of concept

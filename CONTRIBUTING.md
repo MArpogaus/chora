@@ -52,7 +52,7 @@ tests/nested.sh target/debug
 ```
 
 CI runs `cargo clippy`, `cargo test` and the end-to-end test with `--locked`
-in a Fedora 43 container, and `cargo deny` in a separate job.
+in a Fedora 44 container, and `cargo deny` in a separate job.
 
 ## Releases
 

@@ -1,4 +1,4 @@
-# A v* tag builds the RPM in Fedora 43, installs it once as a check, and
+# A v* tag builds the RPM in Fedora 44, installs it once as a check, and
 # attaches it with its SHA256 sums to a GitHub release. Versions below 1.0
 # are pre-releases. Only the short last job holds a write token; the build
 # runs the build scripts of all dependencies with a read token.
@@ -13,7 +13,7 @@ permissions: {}
 jobs:
   rpm:
     runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora:43
+    container: registry.fedoraproject.org/fedora:44
     timeout-minutes: 45
     permissions:
       contents: read

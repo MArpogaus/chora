@@ -20,11 +20,11 @@ The decision log. Nothing here is final. Every entry can come back for review.
 
 | # | Decision | Reason |
 |---|----------|--------|
-| D10 | Fedora 43 and secureblue as host; a derived image offers chora as an additional session | The system and the image tooling of the author. |
+| D10 | Fedora 44 and secureblue as host; a derived image offers chora as an additional session | The system and the image tooling of the author. |
 | D11 | AMD and Intel GPUs first, NVIDIA later | The hardware of the author. Mesa drivers need no special paths. |
 | D12 | Services run as Quadlet units with Podman or in distrobox | Isolation. systemd handles start, restart and order. |
 | D13 | The coordinator is the user first, later an agent with special permissions | A gradual path to control by agents. |
-| D14 | Releases are RPM packages for Fedora 43, attached with SHA256 sums to a GitHub release; a `v*` tag starts the release; versions below 1.0 are pre-releases | `dnf5 install <url>` installs them by hand and in the image build. |
+| D14 | Releases are RPM packages for Fedora 44, attached with SHA256 sums to a GitHub release; a `v*` tag starts the release; versions below 1.0 are pre-releases | `dnf5 install <url>` installs them by hand and in the image build. |
 
 ## Core
 

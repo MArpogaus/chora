@@ -20,7 +20,7 @@ APIs change without notice before version 1.0.
 ## Install
 
 Each [release](https://github.com/MArpogaus/void/releases) has an RPM for
-Fedora 43, with SHA256 sums:
+Fedora 44, with SHA256 sums:
 
 ```bash
 sha256sum -c SHA256SUMS
