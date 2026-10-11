@@ -65,9 +65,8 @@ enum Key {
     Carry(i32),
 }
 
-/// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. The core
-/// keeps Ctrl+Alt for its safety layer, so Super+Ctrl stands in when it
-/// refuses them.
+/// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
+/// stands in when another client holds them.
 const KEYS: [(&str, &str, Key); 6] = [
     ("Alt+F4", "", Key::Close),
     ("Super+e", "", Key::Terminal),

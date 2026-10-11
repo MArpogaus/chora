@@ -273,6 +273,17 @@ grim "$out/cube-back.png"
 wait "$job" || fail "the click failed"
 wait_for desk_visible 0 true
 wait_for has_node_count 0 id:xp-face-1
+
+step "12. Ctrl+Alt+Right turns the cube, and Ctrl+Alt+Left turns it back"
+# A virtual keyboard of the host with its keymap: left Ctrl 29, left Alt
+# 56, Right 106, Left 105.
+keys() { timeout 20 "$bin/chora-probe" keys "$1" >>"$out/probe.log" 2>&1; }
+keys 29+56+106 || fail "the keys failed: $out/probe.log"
+wait_for desk_visible 1 true
+wait_for has_node_count 0 id:xp-face-0
+desk_visible 0 false || fail "the first desktop still shows"
+keys 29+56+105 || fail "the keys failed: $out/probe.log"
+wait_for desk_visible 0 true
 kill -0 "$chora_pid" || fail "chora died"
 pgrep -x chora-xp >/dev/null || fail "chora-xp died: $out/chora.log"
 

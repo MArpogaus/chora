@@ -5,11 +5,12 @@
 # Further steps check fixed regressions, a taskbar, and the nested exit of
 # M2: waybar, fuzzel and swaylock work, wlr-randr configures the output,
 # the lock holds against other clients, and frames report their
-# presentation time. The last step checks image nodes of M3.
+# presentation time. The later steps check the images, animations, pointer
+# events, layers, effects, safety bindings and the watchdog of M3.
 #
-# The test starts the reset with SIGUSR1. Ctrl+Alt+Escape runs the same
-# code, but synthetic keys from wtype carry their own keymap, which a nested
-# compositor cannot see.
+# Step 8 starts the reset with SIGUSR1; a later step presses
+# Ctrl+Alt+Escape through a virtual keyboard of the host (tests/probe),
+# whose keymap is the default one of chora.
 #
 # Usage: tests/nested.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
@@ -508,7 +509,17 @@ EOF
 jq -se '.[1] | has("result")' "$out/grabs.json" >/dev/null || fail "Ctrl+Alt+Left: $out/grabs.json"
 jq -se '.[2:] | all(has("error"))' "$out/grabs.json" >/dev/null || fail "safety: $out/grabs.json"
 
-step "24. the watchdog removes the effects of slow frames, and then resets"
+step "24. Ctrl+Alt+Escape starts the emergency reset"
+# A virtual keyboard of the host with the default keymap: left Ctrl 29,
+# left Alt 56, Escape 1.
+resets() { grep -c "emergency reset" "$out/chora.log"; }
+before=$(resets)
+timeout 20 "$bin/chora-probe" keys 29+56+1 >>"$out/probe.log" 2>&1 || fail "the keys failed"
+more_resets() { test "$(resets)" -gt "$before"; }
+wait_for more_resets
+kill -0 "$chora_pid" || fail "chora died"
+
+step "25. the watchdog removes the effects of slow frames, and then resets"
 # A second chora with a budget that every frame misses; it shares the
 # output of the host, so this step comes last.
 CHORA_FRAME_BUDGET_US=1 "$bin/chora" -- sleep 60 >"$out/chora-watchdog.log" 2>&1 &

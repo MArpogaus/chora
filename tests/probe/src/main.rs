@@ -14,6 +14,10 @@
 //! - `drag X0 Y0 X1 Y1`: drags with the left button from one point of the
 //!   first output to another, through a virtual pointer of the host
 //!   compositor, which has no pointer device of its own.
+//! - `keys CODE+CODE+...`: holds evdev keys down in order and lets them go
+//!   in reverse, through a virtual keyboard of the host with the default
+//!   US keymap, so that a nested compositor with the same default keymap
+//!   reads the same keys.
 //! - `wiggle X0 Y0 X1 Y1 MS`: presses at the first point, moves to the
 //!   second one, keeps circling around it with the button down for MS
 //!   milliseconds, and releases there; the drag of a wobbly window.
@@ -57,6 +61,10 @@ use wayland_protocols::{
         xdg_wm_base::{self, XdgWmBase},
     },
 };
+use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
+    zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1,
+    zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
+};
 use wayland_protocols_wlr::virtual_pointer::v1::client::{
     zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1,
     zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1,
@@ -82,6 +90,7 @@ struct Probe {
     lock_manager: Option<ExtSessionLockManagerV1>,
     presentation: Option<WpPresentation>,
     pointer_manager: Option<ZwlrVirtualPointerManagerV1>,
+    keyboard_manager: Option<ZwpVirtualKeyboardManagerV1>,
     /// `Some(true)` after `locked`, `Some(false)` after `finished`.
     locked: Option<bool>,
     /// The xdg surfaces that got a configure, by their number.
@@ -122,6 +131,7 @@ fn main() -> ExitCode {
         "popup-grab" => popup_grab(&mut queue, &mut probe),
         "presentation" => presentation(&mut queue, &mut probe),
         "drag" => drag(&mut queue, &mut probe),
+        "keys" => keys(&mut queue, &mut probe),
         "wiggle" => wiggle(&mut queue, &mut probe),
         "point" => point(&mut queue, &mut probe),
         "held-commit" => match size_args() {
@@ -394,6 +404,57 @@ fn point(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     Ok(format!("pointed at {x},{y} for {ms} ms"))
 }
 
+/// The default keymap of xkbcommon, US with evdev keycodes: the one of a
+/// compositor without XKB variables.
+const KEYMAP: &str = "xkb_keymap {
+    xkb_keycodes { include \"evdev+aliases(qwerty)\" };
+    xkb_types { include \"complete\" };
+    xkb_compat { include \"complete\" };
+    xkb_symbols { include \"pc+us+inet(evdev)\" };
+};
+";
+
+/// Holds keys down in order and lets them go in reverse.
+fn keys(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
+    let combo = std::env::args().nth(2).unwrap_or_default();
+    let codes: Vec<u32> = combo.split('+').filter_map(|c| c.parse().ok()).collect();
+    if codes.is_empty() {
+        return Err("usage: keys CODE+CODE+...".into());
+    }
+    let qh = queue.handle();
+    let seat = probe.seat.clone().ok_or("no seat")?;
+    let manager = probe
+        .keyboard_manager
+        .clone()
+        .ok_or("no virtual keyboard")?;
+    let keyboard = manager.create_virtual_keyboard(&seat, &qh, ());
+    // The keymap ends with a nul byte, which its size counts.
+    let fd = memfd_create("chora-probe-keymap", MemfdFlags::CLOEXEC).map_err(|e| e.to_string())?;
+    let mut file = File::from(fd);
+    file.write_all(KEYMAP.as_bytes())
+        .and_then(|()| file.write_all(&[0]))
+        .map_err(|e| e.to_string())?;
+    let size = u32::try_from(KEYMAP.len() + 1).unwrap_or(0);
+    keyboard.keymap(wl_keyboard::KeymapFormat::XkbV1.into(), file.as_fd(), size);
+    let start = Instant::now();
+    let time = || u32::try_from(start.elapsed().as_millis()).unwrap_or(u32::MAX);
+    let pause = |queue: &mut Queue, probe: &mut Probe| {
+        dispatch_until(queue, probe, Duration::from_millis(100), |_| false);
+    };
+    pause(queue, probe);
+    for code in &codes {
+        keyboard.key(time(), *code, wl_keyboard::KeyState::Pressed.into());
+        pause(queue, probe);
+    }
+    for code in codes.iter().rev() {
+        keyboard.key(time(), *code, wl_keyboard::KeyState::Released.into());
+        pause(queue, probe);
+    }
+    keyboard.destroy();
+    queue.roundtrip(probe).map_err(|e| e.to_string())?;
+    Ok(format!("pressed {combo}"))
+}
+
 /// The width and the height in the arguments after the mode.
 fn size_args() -> Option<[i32; 2]> {
     let mut args = std::env::args().skip(2).map(|a| a.parse().ok());
@@ -508,6 +569,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
                 probe.lock_manager = Some(registry.bind(name, 1, qh, ()));
             }
             "wp_presentation" => probe.presentation = Some(registry.bind(name, 1, qh, ())),
+            "zwp_virtual_keyboard_manager_v1" => {
+                probe.keyboard_manager = Some(registry.bind(name, 1, qh, ()));
+            }
             "zwlr_virtual_pointer_manager_v1" => {
                 probe.pointer_manager = Some(registry.bind(name, 1, qh, ()));
             }
@@ -649,4 +713,6 @@ delegate_noop!(Probe: ignore XdgPopup);
 delegate_noop!(Probe: ignore XdgPositioner);
 delegate_noop!(Probe: ignore ExtSessionLockManagerV1);
 delegate_noop!(Probe: ignore ZwlrVirtualPointerManagerV1);
+delegate_noop!(Probe: ignore ZwpVirtualKeyboardManagerV1);
+delegate_noop!(Probe: ignore ZwpVirtualKeyboardV1);
 delegate_noop!(Probe: ignore ZwlrVirtualPointerV1);
