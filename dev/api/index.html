@@ -1264,8 +1264,10 @@ or an empty list. It always sees the current titles.</p>
 <p>The response of <code>scene.apply</code> reports the result of a transaction: <code>null</code>
 when it applied, an error with the index of the failed command when not.
 A request that a client makes before its first commit follows its
-<code>surface.created</code>. Later milestones add events for size limits and pointer
-grabs.</p>
+<code>surface.created</code>. A taskbar asks through <code>wlr-foreign-toplevel-management</code>.
+The core does not act on a request, also not on <code>close</code>. A plugin answers
+with commands, for example <code>close</code>. Later milestones add events for size
+limits and pointer grabs.</p>
 <h2 id="ipc-methods">IPC methods<a class="headerlink" href="#ipc-methods" title="Permanent link">&para;</a></h2>
 <p>JSON-RPC 2.0, one message per line, on the socket in <code>CHORA_SOCKET</code>. Every
 client sends <code>hello</code> first. The core answers every request.</p>

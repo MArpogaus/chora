@@ -1291,6 +1291,13 @@ zone; the rest of the output is its <strong>work area</strong>. Only toplevels w
 a plugin: the core creates a detached surface node and sends
 <code>surface.created</code>. A plugin decides where the surface appears, or if it
 appears at all.</p>
+<p>Taskbars see the toplevels through <code>ext-foreign-toplevel-list</code> and
+<code>wlr-foreign-toplevel-management</code>. A handle of the second protocol reports
+the title, the application id and the outputs that show the surface. Its
+states are <code>activated</code> for the surface that plugins focused, and <code>maximized</code>
+and <code>fullscreen</code> from the last configure. The core never reports
+<code>minimized</code>. The requests of a taskbar, <code>close</code> included, go to plugins as
+<code>surface.requested</code>.</p>
 <h3 id="scene">Scene<a class="headerlink" href="#scene" title="Permanent link">&para;</a></h3>
 <p>The scene is a tree of nodes with stable ids. <a href="../api/#nodes">API</a> lists the
 node properties. The order of the children sets the stacking order. The crate
@@ -1441,11 +1448,12 @@ thus delays the queue once, not once per transaction.</p>
 grabs, the keyboard interactivity of <code>wlr-layer-shell</code> and
 <code>ext-session-lock</code>, the locks and confinements of <code>pointer-constraints</code>,
 and <code>text-input</code> with <code>input-method</code>. Activation requests of
-<code>xdg-activation</code> go to plugins as <code>surface.requested</code>. A layer surface that takes the keyboard
-exclusively, for example a launcher, has it from its first commit until it
-goes away, and it ends a popup grab. A click gives the keyboard to a layer
-surface that accepts it on demand, until the next click elsewhere. A popup
-grabs the input only with the serial of the press that opened it.</p>
+<code>xdg-activation</code> and of taskbars go to plugins as <code>surface.requested</code>. A
+layer surface that takes the keyboard exclusively, for example a launcher,
+has it from its first commit until it goes away, and it ends a popup grab.
+A click gives the keyboard to a layer surface that accepts it on demand,
+until the next click elsewhere. A popup grabs the input only with the serial
+of the press that opened it.</p>
 <h2 id="safety-layer">Safety layer<a class="headerlink" href="#safety-layer" title="Permanent link">&para;</a></h2>
 <p>The safety layer is the only built-in behavior (see
 <a href="../vision/#principles">Vision</a>). No plugin and no IPC client can change it.</p>
