@@ -3,17 +3,15 @@
 
 use std::path::PathBuf;
 
-use chora_scene::{Command, Easing, PropsUpdate, ToplevelState, Transform};
+use chora_scene::{Command, Mesh, PropsUpdate, ToplevelState, Transform};
 
 use crate::{
-    decoration::{self, Button, Look},
+    decoration::{self, Button, Look, SHADOW},
     theme::{Rect, Theme},
 };
 
-/// How long minimizing and restoring take, in milliseconds.
-const MINIMIZE_TIME: f64 = 250.0;
-
 /// A window that the plugin manages.
+#[allow(clippy::struct_excessive_bools)] // independent states of a window
 pub struct Window {
     /// The surface node.
     pub surface: String,
@@ -31,6 +29,10 @@ pub struct Window {
     pub restore: Option<Rect>,
     /// The window is minimized.
     pub minimized: bool,
+    /// The desktop of the window, a face of the cube.
+    pub desktop: usize,
+    /// An effect moves the group: the magic lamp or the cube.
+    pub held: bool,
     /// The window shows: it has a size and a place.
     pub shown: bool,
     /// The button of the title bar that is down.
@@ -49,6 +51,8 @@ impl Window {
             size: None,
             restore: None,
             minimized: false,
+            desktop: 0,
+            held: false,
             shown: false,
             pressed: None,
         }
@@ -109,68 +113,63 @@ impl Window {
             return Vec::new();
         }
         let mut commands = decoration::update(theme, &self.surface, &self.look(active));
-        if !self.minimized {
+        if !self.minimized && !self.held {
             commands.push(self.place());
         }
         commands
     }
 
-    /// Moves the group to the position of the window.
+    /// Moves the group flat to the position of the window.
     pub fn place(&self) -> Command {
         Command::Update {
             id: decoration::group_id(&self.surface),
             props: PropsUpdate {
                 transform: Some(self.transform()),
                 visible: Some(self.shown && !self.minimized),
+                size: Some(self.area()),
                 ..PropsUpdate::default()
             },
         }
     }
 
-    fn transform(&self) -> Transform {
-        Transform::translate(f64::from(self.pos[0]), f64::from(self.pos[1]), 0.0)
-    }
-
-    /// Shrinks the window into a rectangle, then hides it.
-    pub fn minimize(&mut self, target: [f64; 4]) -> Command {
-        self.minimized = true;
-        let [x, y, w, h] = target;
-        let [ow, oh] = self.outer().map(f64::from);
-        let shrink = Transform::translate(x, y, 0.0).then(&Transform::scale(w / ow, h / oh, 1.0));
-        Command::Animate {
+    /// Removes the mesh of the group, at the end of an effect.
+    pub fn unmesh(&self) -> Command {
+        Command::Update {
             id: decoration::group_id(&self.surface),
             props: PropsUpdate {
-                transform: Some(shrink),
-                visible: Some(false),
+                mesh: Some(Mesh {
+                    cols: 1,
+                    rows: 1,
+                    points: Vec::new(),
+                }),
                 ..PropsUpdate::default()
             },
-            duration: MINIMIZE_TIME,
-            easing: Easing::EaseIn,
         }
     }
 
-    /// Shows a minimized window again and grows it to its place.
-    pub fn unminimize(&mut self) -> Vec<Command> {
-        self.minimized = false;
-        let id = decoration::group_id(&self.surface);
-        vec![
-            Command::Update {
-                id: id.clone(),
-                props: PropsUpdate {
-                    visible: Some(self.shown),
-                    ..PropsUpdate::default()
-                },
-            },
-            Command::Animate {
-                id,
-                props: PropsUpdate {
-                    transform: Some(self.transform()),
-                    ..PropsUpdate::default()
-                },
-                duration: MINIMIZE_TIME,
-                easing: Easing::EaseOut,
-            },
+    /// The top-left corner of the group: the corner of the shadow.
+    pub fn origin(&self) -> [f64; 2] {
+        [
+            f64::from(self.pos[0] - SHADOW),
+            f64::from(self.pos[1] - SHADOW),
         ]
+    }
+
+    /// The size of the group, the frame with its shadow.
+    pub fn area(&self) -> [f64; 2] {
+        decoration::area(self.outer())
+    }
+
+    /// The group in scene coordinates: x, y, width and height.
+    pub fn bounds(&self) -> [f64; 4] {
+        let ([x, y], [w, h]) = (self.origin(), self.area());
+        [x, y, w, h]
+    }
+
+    /// The flat transform of the group.
+    pub fn transform(&self) -> Transform {
+        let [x, y] = self.origin();
+        Transform::translate(x, y, 0.0)
     }
 
     /// Fills an area, keeping the old frame to restore it.

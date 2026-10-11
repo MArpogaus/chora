@@ -1,8 +1,9 @@
 //! Window decorations: the frame of Exposé around a window, with its title
 //! and its buttons, as image nodes in the group of the window.
 //!
-//! The group sits at the top-left corner of the frame. The shadow of the
-//! frame reaches [`SHADOW`] pixels beyond it. The layout follows
+//! The group sits at the top-left corner of the shadow of the frame, which
+//! reaches [`SHADOW`] pixels beyond the frame. So a layer of the size of
+//! the group, for the effects, holds the whole window. The layout follows
 //! `exposerc`: 4 pixel borders, a 30 pixel title bar, 22 pixel buttons.
 
 use std::path::Path;
@@ -19,7 +20,7 @@ pub const BORDER: i32 = 4;
 /// The height of the title bar.
 pub const TITLE: i32 = 30;
 /// The shadow around the frame in the frame elements.
-const SHADOW: i32 = 10;
+pub const SHADOW: i32 = 10;
 /// The size of a button.
 const BUTTON: i32 = 22;
 /// The space above the buttons.
@@ -239,7 +240,10 @@ fn frame(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
     };
     Command::Update {
         id: frame_id(surface),
-        props,
+        props: PropsUpdate {
+            visible: Some(true),
+            ..props
+        },
     }
 }
 
@@ -273,6 +277,7 @@ fn title(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
         id: title_id(surface),
         props: PropsUpdate {
             image: Some(theme.render(&picture)),
+            visible: Some(true),
             ..at([f64::from(EDGE), 0.0])
         },
     }
@@ -296,17 +301,25 @@ fn button(theme: &mut Theme, surface: &str, look: &Look<'_>, button: Button) -> 
         props: PropsUpdate {
             image: Some(theme.render(&picture)),
             input: Some(InputMode::Accept),
+            visible: Some(true),
             ..at([f64::from(button.x(w)), f64::from(BUTTON_TOP)])
         },
     }
 }
 
-/// Props that put a node at a position.
+/// Props that put a node at a position relative to the top-left corner of
+/// the frame.
 fn at([x, y]: [f64; 2]) -> PropsUpdate {
+    let shadow = f64::from(SHADOW);
     PropsUpdate {
-        transform: Some(Transform::translate(x, y, 0.0)),
+        transform: Some(Transform::translate(x + shadow, y + shadow, 0.0)),
         ..PropsUpdate::default()
     }
+}
+
+/// The size of the group of a frame of a size: the frame with its shadow.
+pub fn area([w, h]: [i32; 2]) -> [f64; 2] {
+    [f64::from(w + 2 * SHADOW), f64::from(h + 2 * SHADOW)]
 }
 
 #[cfg(test)]

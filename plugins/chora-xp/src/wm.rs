@@ -1,5 +1,10 @@
 //! The window manager: a stack of windows with one focus, the taskbars,
 //! the start menu and the wallpapers, driven by the events of the core.
+//! The effects live in [`effects`], the desktops of the cube in
+//! [`desktops`].
+
+mod desktops;
+mod effects;
 
 use std::{
     path::PathBuf,
@@ -12,8 +17,10 @@ use chora_scene::{
 };
 use serde_json::Value;
 
+use self::{desktops::desk_id, effects::Effects};
 use crate::{
     conn::Conn,
+    cube::DESKTOPS,
     decoration::{self, Button, Part},
     icons::Icons,
     startmenu::{Action, Menu},
@@ -42,6 +49,9 @@ pub struct Config {
     pub clock: String,
     /// The wallpaper file.
     pub wallpaper: PathBuf,
+    /// Stretches the time of the magic lamp and of the cube, for tests
+    /// and demos; 1 is the normal speed.
+    pub slow: f64,
 }
 
 /// What a key binding does.
@@ -49,7 +59,31 @@ pub struct Config {
 enum Key {
     Close,
     Terminal,
+    /// Turns the cube by quarter turns.
+    Turn(i32),
+    /// Moves the focused window along with a turn.
+    Carry(i32),
 }
+
+/// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. The core
+/// keeps Ctrl+Alt for its safety layer, so Super+Ctrl stands in when it
+/// refuses them.
+const KEYS: [(&str, &str, Key); 6] = [
+    ("Alt+F4", "", Key::Close),
+    ("Super+e", "", Key::Terminal),
+    ("Ctrl+Alt+Left", "Super+Ctrl+Left", Key::Turn(-1)),
+    ("Ctrl+Alt+Right", "Super+Ctrl+Right", Key::Turn(1)),
+    (
+        "Ctrl+Alt+Shift+Left",
+        "Super+Ctrl+Shift+Left",
+        Key::Carry(-1),
+    ),
+    (
+        "Ctrl+Alt+Shift+Right",
+        "Super+Ctrl+Shift+Right",
+        Key::Carry(1),
+    ),
+];
 
 /// A title bar that the pointer drags.
 struct Drag {
@@ -58,6 +92,9 @@ struct Drag {
     start: [f64; 2],
     /// The window at the press.
     origin: [i32; 2],
+    /// The pointer of the last move. The core reports the pointer again
+    /// after each transaction, also when it did not move.
+    last: [f64; 2],
 }
 
 /// The state of the window manager.
@@ -78,6 +115,9 @@ pub struct Wm {
     keys: Vec<(String, Key)>,
     cascade: i32,
     clock: String,
+    /// The desktop that shows.
+    desktop: usize,
+    effects: Effects,
     /// Turn Off ended the plugin.
     pub done: bool,
 }
@@ -107,6 +147,8 @@ impl Wm {
             last_title: None,
             keys: Vec::new(),
             cascade: 0,
+            desktop: 0,
+            effects: Effects::default(),
             done: false,
         };
         wm.clock = wm.now();
@@ -124,6 +166,7 @@ impl Wm {
             "output.changed",
             "output.removed",
             "input.key",
+            "effects.dropped",
         ];
         wm.conn.call::<_, Value>(
             "events.subscribe",
@@ -154,6 +197,18 @@ impl Wm {
         for id in [WALLPAPERS, WINDOWS, BARS, MENUS] {
             commands.push(group(id, NAME));
         }
+        for desktop in 0..DESKTOPS {
+            commands.push(group(&desk_id(desktop), WINDOWS));
+            if desktop != self.desktop {
+                commands.push(Command::Update {
+                    id: desk_id(desktop),
+                    props: PropsUpdate {
+                        visible: Some(false),
+                        ..PropsUpdate::default()
+                    },
+                });
+            }
+        }
         for output in &outputs {
             commands.extend(self.add_output(output));
         }
@@ -168,19 +223,24 @@ impl Wm {
         let mut commands =
             wallpaper::create(&mut self.theme, &self.config.wallpaper, output, WALLPAPERS);
         let bar = Bar::new(output);
-        commands.extend(bar.create(&mut self.theme, BARS, &self.clock));
+        commands.extend(bar.create(&mut self.theme, BARS, &self.clock, self.desktop));
         self.bars.push(bar);
         commands
     }
 
     fn grab(&mut self) -> Result<(), ClientError> {
-        for (binding, key) in [("Alt+F4", Key::Close), ("Super+e", Key::Terminal)] {
-            let binding: Binding = binding.parse().expect("valid bindings");
-            match self.conn.call::<_, String>("input.grab", Grab { binding }) {
-                Ok(normal) => self.keys.push((normal, key)),
-                // Another client may own the binding.
-                Err(ClientError::Rpc(err)) => eprintln!("chora-xp: {err}"),
-                Err(err) => return Err(err),
+        for (binding, fallback, key) in KEYS {
+            for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
+                let binding: Binding = binding.parse().expect("valid bindings");
+                match self.conn.call::<_, String>("input.grab", Grab { binding }) {
+                    Ok(normal) => {
+                        self.keys.push((normal, key));
+                        break;
+                    }
+                    // Another client may own the binding.
+                    Err(ClientError::Rpc(err)) => eprintln!("chora-xp: {err}"),
+                    Err(err) => return Err(err),
+                }
             }
         }
         Ok(())
@@ -211,8 +271,15 @@ impl Wm {
                 surface,
                 app_id,
                 title,
+                size,
                 ..
-            } => self.retitle(&surface, app_id, title.as_deref()),
+            } => {
+                let mut commands = self.retitle(&surface, app_id, title.as_deref());
+                if let Some(size) = size.filter(|[w, h]| *w > 0 && *h > 0) {
+                    commands.extend(self.resized(&surface, size));
+                }
+                commands
+            }
             Event::SurfaceRequested { surface, request } => self.request(&surface, request),
             Event::PointerPressed {
                 node,
@@ -224,15 +291,14 @@ impl Wm {
             Event::OutputChanged { output } => self.output_changed(&output),
             Event::OutputRemoved { name } => self.output_removed(&name),
             Event::InputKey { binding } => self.key(&binding),
+            Event::EffectsDropped => self.effects_dropped(),
             _ => Vec::new(),
         };
         self.conn.apply(commands)
     }
 
-    /// Updates the clock and the frames of windows that changed their
-    /// size.
+    /// Updates the clock.
     pub fn tick(&mut self) -> Result<(), ClientError> {
-        self.sync_sizes()?;
         let now = self.now();
         if now != self.clock {
             self.clock = now;
@@ -274,9 +340,10 @@ impl Wm {
         let previous = self.focused.clone();
         let mut window = Window::new(surface, app_id, title);
         window.icon = window.app_id.as_deref().and_then(|a| self.icons.find(a));
+        window.desktop = self.desktop;
         self.windows.push(window);
         self.opened.push(surface.into());
-        let mut commands = decoration::create(surface, WINDOWS);
+        let mut commands = decoration::create(surface, &desk_id(self.desktop));
         commands.extend(self.focus(Some(surface)));
         if let Some(err) = self.conn.try_apply(commands)? {
             // Another client took it first.
@@ -286,40 +353,28 @@ impl Wm {
             self.focused = previous;
             return Ok(());
         }
-        // The transaction waited for the client to commit its size.
-        self.sync_sizes()
-    }
-
-    /// Learns the sizes of the clients: new windows show, and frames follow
-    /// clients that resized themselves. Titles that no event brought, for
-    /// example of a surface that another client gave up, follow too.
-    fn sync_sizes(&mut self) -> Result<(), ClientError> {
-        let nodes = self.conn.query(&format!("kind:surface owner:{NAME}"))?;
-        let mut commands = Vec::new();
-        let mut shown = false;
-        for node in nodes {
-            let info = node.surface.unwrap_or_default();
-            commands.extend(self.retitle(&node.id, info.app_id, info.title.as_deref()));
-            if let Some(size) = info.size.filter(|[w, h]| *w > 0 && *h > 0) {
-                let (resize, first) = self.resized(&node.id, size);
-                commands.extend(resize);
-                shown |= first;
-            }
-        }
-        if shown {
-            commands.extend(self.sync_tasks());
+        // The transaction waited for the client to commit its size, or the
+        // size follows with surface.changed. The title of a surface that
+        // another client gave up comes with the query too.
+        let Some(node) = self.conn.query(&format!("id:{surface}"))?.pop() else {
+            return Ok(());
+        };
+        let info = node.surface.unwrap_or_default();
+        let mut commands = self.retitle(surface, info.app_id, info.title.as_deref());
+        if let Some(size) = info.size.filter(|[w, h]| *w > 0 && *h > 0) {
+            commands.extend(self.resized(surface, size));
         }
         self.conn.apply(commands)
     }
 
-    /// The commands for a new client size; and whether the window shows for
-    /// the first time.
-    fn resized(&mut self, surface: &str, size: [i32; 2]) -> (Vec<Command>, bool) {
+    /// The commands for a new client size: a new window shows, and the
+    /// frame follows a client that resized itself.
+    fn resized(&mut self, surface: &str, size: [i32; 2]) -> Vec<Command> {
         let Some(i) = self.index(surface) else {
-            return (Vec::new(), false);
+            return Vec::new();
         };
         if self.windows[i].size == Some(size) && self.windows[i].shown {
-            return (Vec::new(), false);
+            return Vec::new();
         }
         let first = !self.windows[i].shown;
         self.windows[i].size = Some(size);
@@ -330,7 +385,11 @@ impl Wm {
             self.windows[i].shown = true;
         }
         let active = self.is_active(surface);
-        (self.windows[i].style(&mut self.theme, active), first)
+        let mut commands = self.windows[i].style(&mut self.theme, active);
+        if first {
+            commands.extend(self.sync_tasks());
+        }
+        commands
     }
 
     /// Moves the focus: the old and the new window change their look.
@@ -359,18 +418,24 @@ impl Wm {
         commands
     }
 
-    /// Raises, restores and focuses a window.
+    /// Raises, restores and focuses a window; a window of another desktop
+    /// turns the cube to it.
     fn activate(&mut self, surface: &str) -> Vec<Command> {
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
-        let mut window = self.windows.remove(i);
-        let mut commands = if window.minimized {
-            window.unminimize()
-        } else {
-            Vec::new()
-        };
+        let window = self.windows.remove(i);
+        let (desktop, minimized) = (window.desktop, window.minimized);
         self.windows.push(window);
+        let mut commands = if desktop == self.desktop {
+            Vec::new()
+        } else {
+            self.turn_to(desktop)
+        };
+        if minimized {
+            let button = self.task_button(surface);
+            commands.extend(self.lamp_in(surface, button));
+        }
         commands.push(Command::Move {
             id: decoration::group_id(surface),
             parent: None,
@@ -381,13 +446,21 @@ impl Wm {
         commands
     }
 
-    /// The topmost window that shows, other than one.
+    /// The topmost window of the desktop that shows, other than one.
     fn topmost_except(&self, surface: &str) -> Option<String> {
         self.windows
             .iter()
             .rev()
-            .find(|w| w.surface != surface && w.shown && !w.minimized)
+            .find(|w| w.surface != surface && w.shown && !w.minimized && w.desktop == self.desktop)
             .map(|w| w.surface.clone())
+    }
+
+    /// The task button of a window in scene coordinates.
+    fn task_button(&self, surface: &str) -> [f64; 4] {
+        self.index(surface)
+            .and_then(|i| self.bar_at(self.windows[i].rect()))
+            .and_then(|b| b.task_target(surface))
+            .unwrap_or([0.0, 0.0, 160.0, 25.0])
     }
 
     fn minimize(&mut self, surface: &str) -> Vec<Command> {
@@ -397,11 +470,8 @@ impl Wm {
         if self.windows[i].minimized || !self.windows[i].shown {
             return Vec::new();
         }
-        let target = self
-            .bar_at(self.windows[i].rect())
-            .and_then(|b| b.task_target(surface))
-            .unwrap_or([0.0, 0.0, 160.0, 25.0]);
-        let mut commands = vec![self.windows[i].minimize(target)];
+        let button = self.task_button(surface);
+        let mut commands = self.lamp_out(surface, button);
         if self.is_active(surface) {
             let next = self.topmost_except(surface);
             commands.extend(self.focus(next.as_deref()));
@@ -439,6 +509,8 @@ impl Wm {
         if self.drag.as_ref().is_some_and(|d| d.surface == surface) {
             self.drag = None;
         }
+        self.effects.wobbles.remove(surface);
+        self.effects.lamps.remove(surface);
         let mut commands = vec![Command::Remove {
             id: decoration::group_id(surface),
         }];
@@ -505,7 +577,7 @@ impl Wm {
             .iter()
             .filter_map(|surface| {
                 let w = &self.windows[self.windows.iter().position(|w| &w.surface == surface)?];
-                w.shown.then(|| Task {
+                (w.shown && w.desktop == self.desktop).then(|| Task {
                     surface,
                     title: &w.title,
                     icon: w.icon.clone(),
@@ -534,6 +606,7 @@ impl Wm {
             output,
         )];
         commands.extend(self.bars[i].resize(&mut self.theme, output.work_area, &self.clock));
+        commands.extend(self.bars[i].pager(&mut self.theme, self.desktop));
         let area = self.bars[i].usable();
         // Maximized windows of the output fill its new area.
         for w in self
@@ -578,6 +651,8 @@ impl Wm {
                 spawn(&self.config.terminal);
                 Vec::new()
             }
+            Some(Key::Turn(steps)) => self.turn(steps),
+            Some(Key::Carry(steps)) => self.carry(steps),
             None => Vec::new(),
         }
     }
@@ -639,13 +714,15 @@ impl Wm {
         self.last_title = Some((surface.into(), now));
         if let Some(i) = self
             .index(surface)
-            .filter(|i| !self.windows[*i].maximized())
+            .filter(|i| !self.windows[*i].maximized() && !self.windows[*i].held)
         {
             self.drag = Some(Drag {
                 surface: surface.into(),
                 start: position,
                 origin: self.windows[i].pos,
+                last: position,
             });
+            self.start_wobble(surface, position);
         }
         Vec::new()
     }
@@ -663,6 +740,7 @@ impl Wm {
                 commands.extend(self.menu.open(&output, bar.origin()));
                 commands
             }
+            taskbar::Part::Pager(desktop) => self.turn_to(desktop),
             taskbar::Part::Task(surface) => {
                 let minimized = self
                     .index(&surface)
@@ -677,25 +755,37 @@ impl Wm {
     }
 
     fn dragged(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
-        let Some(drag) = &self.drag else {
+        let Some(drag) = &mut self.drag else {
             return Vec::new();
         };
-        let Some(i) = self.index(&drag.surface) else {
+        // The same position again, exactly as the core sent it before.
+        #[allow(clippy::float_cmp)]
+        if drag.last == [px, py] {
+            return Vec::new();
+        }
+        drag.last = [px, py];
+        let (surface, start, origin) = (drag.surface.clone(), drag.start, drag.origin);
+        let Some(i) = self.index(&surface) else {
             return Vec::new();
         };
         #[allow(clippy::cast_possible_truncation)]
         let pos = [
-            drag.origin[0] + (px - drag.start[0]).round() as i32,
-            drag.origin[1] + (py - drag.start[1]).round() as i32,
+            origin[0] + (px - start[0]).round() as i32,
+            origin[1] + (py - start[1]).round() as i32,
         ];
         // The title bar stays below the top edge of the outputs.
         let top = self.bars.iter().map(|b| b.usable()[1]).min().unwrap_or(0);
         self.windows[i].pos = [pos[0], pos[1].max(top)];
-        vec![self.windows[i].place()]
+        // The mesh moves with the group, so that the frame does not jump.
+        let mut commands = vec![self.windows[i].place()];
+        commands.extend(self.wobble_mesh(&surface));
+        commands
     }
 
     fn released(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
-        self.drag = None;
+        if let Some(drag) = self.drag.take() {
+            self.release_wobble(&drag.surface);
+        }
         if let Some(Part::Button(surface, button)) = Part::of(node) {
             return self.release_button(&surface, button, position);
         }

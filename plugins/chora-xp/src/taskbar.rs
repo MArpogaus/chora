@@ -7,6 +7,7 @@ use std::{collections::HashMap, path::PathBuf};
 use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, Transform};
 
 use crate::{
+    cube::DESKTOPS,
     text::{Font, Text},
     theme::{Picture, Rect, Sheet, Theme},
 };
@@ -21,6 +22,12 @@ const TASK_HEIGHT: i32 = 25;
 const TASK_GAP: i32 = 3;
 const TASK_WIDTH: i32 = 160;
 const TRAY_WIDTH: i32 = 82;
+/// The buttons of the desktops, left of the tray, as in the virtual
+/// desktop manager of the power toys for XP.
+const PAGER_BUTTON: i32 = 22;
+const PAGER_GAP: i32 = 2;
+#[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)] // four
+const PAGER_WIDTH: i32 = DESKTOPS as i32 * PAGER_BUTTON + (DESKTOPS as i32 - 1) * PAGER_GAP + 6;
 const WHITE: [u8; 4] = [255, 255, 255, 255];
 
 /// A window as its task button shows it.
@@ -44,6 +51,8 @@ pub enum Part {
     Start(String),
     /// The task button of a surface.
     Task(String),
+    /// The button of a desktop.
+    Pager(usize),
 }
 
 impl Part {
@@ -51,6 +60,10 @@ impl Part {
     pub fn of(node: &str) -> Option<Self> {
         if let Some(output) = node.strip_prefix("xp-start-") {
             return Some(Self::Start(output.into()));
+        }
+        if let Some(rest) = node.strip_prefix("xp-pager-") {
+            let (desktop, _output) = rest.split_once('-')?;
+            return desktop.parse().ok().map(Self::Pager);
         }
         let rest = node.strip_prefix("xp-task-")?;
         let (surface, _output) = rest.split_once('-')?;
@@ -89,6 +102,11 @@ impl Bar {
         format!("xp-task-{surface}-{}", self.output)
     }
 
+    /// The work area of the output, with the taskbar.
+    pub fn area(&self) -> Rect {
+        self.area
+    }
+
     /// The part of the work area above the taskbar.
     pub fn usable(&self) -> Rect {
         let [x, y, w, h] = self.area;
@@ -107,8 +125,15 @@ impl Bar {
         [x, y + h - HEIGHT]
     }
 
-    /// Creates the taskbar with its background, start button and tray.
-    pub fn create(&self, theme: &mut Theme, parent: &str, clock: &str) -> Vec<Command> {
+    /// Creates the taskbar with its background, start button, desktop
+    /// buttons and tray.
+    pub fn create(
+        &self,
+        theme: &mut Theme,
+        parent: &str,
+        clock: &str,
+        desktop: usize,
+    ) -> Vec<Command> {
         let image = |id: String| Command::Create {
             id,
             kind: NodeKind::Image,
@@ -126,9 +151,11 @@ impl Bar {
             image(format!("xp-start-{}", self.output)),
             image(format!("xp-tray-{}", self.output)),
         ];
+        commands.extend((0..DESKTOPS).map(|d| image(self.pager_id(d))));
         commands.extend(self.layout(theme));
         commands.push(self.start(theme, false));
         commands.push(self.tray(theme, clock));
+        commands.extend(self.pager(theme, desktop));
         commands
     }
 
@@ -184,6 +211,45 @@ impl Bar {
                 ..PropsUpdate::default()
             },
         )
+    }
+
+    fn pager_id(&self, desktop: usize) -> String {
+        format!("xp-pager-{desktop}-{}", self.output)
+    }
+
+    /// The buttons of the desktops, the current one down.
+    pub fn pager(&self, theme: &mut Theme, current: usize) -> Vec<Command> {
+        let left = self.area[2] - TRAY_WIDTH - PAGER_WIDTH;
+        (0..DESKTOPS)
+            .zip(0..)
+            .map(|(desktop, i)| {
+                let prefix = if desktop == current {
+                    "focus"
+                } else {
+                    "normal"
+                };
+                let label = Text::new(
+                    &(i + 1).to_string(),
+                    Font::UiBold,
+                    WHITE,
+                    [0, 0, PAGER_BUTTON, TASK_HEIGHT],
+                )
+                .centered();
+                let picture = Picture::new(PAGER_BUTTON, TASK_HEIGHT)
+                    .frame(Sheet::Tasks, prefix, [0, 0, PAGER_BUTTON, TASK_HEIGHT])
+                    .text(label);
+                update(
+                    &self.pager_id(desktop),
+                    PropsUpdate {
+                        image: Some(theme.render(&picture)),
+                        ..at(
+                            f64::from(left + i * (PAGER_BUTTON + PAGER_GAP)),
+                            f64::from(TASK_TOP),
+                        )
+                    },
+                )
+            })
+            .collect()
     }
 
     /// The notification area with the clock, at the right edge.
@@ -271,7 +337,7 @@ impl Bar {
     fn task_rect(&self, index: usize) -> Rect {
         let n = i32::try_from(self.tasks.len().max(1)).unwrap_or(i32::MAX);
         let i = i32::try_from(index).unwrap_or(0);
-        let room = self.area[2] - TRAY_WIDTH - 6 - TASKS_LEFT;
+        let room = self.area[2] - TRAY_WIDTH - PAGER_WIDTH - 6 - TASKS_LEFT;
         let width = ((room - (n - 1) * TASK_GAP) / n).clamp(24, TASK_WIDTH);
         [
             TASKS_LEFT + i * (width + TASK_GAP),
@@ -327,6 +393,7 @@ mod tests {
         assert_eq!(Part::of("xp-start-DP-1"), Some(Part::Start("DP-1".into())));
         assert_eq!(Part::of("xp-task-s4-DP-1"), Some(Part::Task("s4".into())));
         assert_eq!(Part::of("xp-tray-DP-1"), None);
+        assert_eq!(Part::of("xp-pager-2-DP-1"), Some(Part::Pager(2)));
     }
 
     #[test]
@@ -334,7 +401,10 @@ mod tests {
         assert_eq!(bar(2).task_rect(1), [106 + 163, 3, 160, 25]);
         let crowded = bar(40);
         let [x, _, w, _] = crowded.task_rect(39);
-        assert!(x + w <= 1280 - TRAY_WIDTH || w == 24, "{x} {w}");
+        assert!(
+            x + w <= 1280 - TRAY_WIDTH - PAGER_WIDTH || w == 24,
+            "{x} {w}"
+        );
         assert_eq!(bar(1).task_target("s0"), Some([106.0, 773.0, 160.0, 25.0]));
     }
 }

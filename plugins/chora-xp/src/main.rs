@@ -1,11 +1,14 @@
 //! chora-xp: a stacking window manager in the style of Windows XP, the
 //! showroom flavor of chora. Window frames, the taskbar and the start menu
 //! are image nodes that the plugin rasterizes from the SVG files of the
-//! Exposé theme and of the Windows XP pack.
+//! Exposé theme and of the Windows XP pack. Windows wobble, minimize
+//! through a magic lamp, and live on the four faces of a desktop cube.
 
 mod conn;
+mod cube;
 mod decoration;
 mod icons;
+mod lamp;
 mod startmenu;
 mod taskbar;
 mod text;
@@ -13,6 +16,7 @@ mod theme;
 mod wallpaper;
 mod window;
 mod wm;
+mod wobbly;
 
 use std::{
     path::PathBuf,
@@ -25,8 +29,10 @@ use clap::Parser;
 
 use crate::{conn::Conn, icons::Icons, startmenu::Menu, theme::Theme, wm::Wm};
 
-/// How often the plugin checks the clock and the sizes of the windows.
-const TICK: Duration = Duration::from_millis(250);
+/// How often the plugin checks the clock.
+const TICK: Duration = Duration::from_secs(1);
+/// The time between two frames of an effect: 60 Hz.
+const FRAME: Duration = Duration::from_micros(16_667);
 
 /// A stacking window manager in the style of Windows XP.
 #[derive(Parser)]
@@ -55,6 +61,10 @@ struct Args {
     /// The wallpaper, a PNG or SVG file; Bløff of the theme by default.
     #[arg(long)]
     wallpaper: Option<PathBuf>,
+    /// Stretches the time of the magic lamp and of the cube by a factor,
+    /// to show them slowly.
+    #[arg(long, value_name = "FACTOR", default_value_t = 1.0)]
+    slow_motion: f64,
 }
 
 fn main() -> ExitCode {
@@ -79,22 +89,34 @@ fn run(args: &Args) -> Result<(), String> {
             .wallpaper
             .clone()
             .unwrap_or_else(|| theme.path("wallpaper/bloff.png")),
+        slow: args.slow_motion,
     };
     let mut wm = Wm::start(conn, theme, menu, icons, config).map_err(|e| e.to_string())?;
     event_loop(&mut wm).map_err(|e| e.to_string())
 }
 
-/// Handles events until Turn Off; ticks in between.
+/// Handles events until Turn Off. In between, the clock ticks, and while
+/// an effect runs, frames follow each other at 60 Hz.
 fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
-    let mut next = Instant::now() + TICK;
+    let mut tick = Instant::now() + TICK;
+    let mut frame = Instant::now();
     while !wm.done {
-        let wait = next.saturating_duration_since(Instant::now());
-        if let Some(event) = wm.conn_event(wait)? {
+        let until = if wm.animating() {
+            frame.min(tick)
+        } else {
+            tick
+        };
+        if let Some(event) = wm.conn_event(until.saturating_duration_since(Instant::now()))? {
             wm.handle(event)?;
         }
-        if Instant::now() >= next {
+        let now = Instant::now();
+        if wm.animating() && now >= frame {
+            wm.frame(now)?;
+            frame = now + FRAME;
+        }
+        if now >= tick {
             wm.tick()?;
-            next = Instant::now() + TICK;
+            tick = now + TICK;
         }
     }
     Ok(())

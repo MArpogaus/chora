@@ -46,3 +46,8 @@ pub fn update(theme: &mut Theme, file: &Path, output: &OutputInfo) -> Command {
         },
     }
 }
+
+/// The PNG file of the wallpaper at a size, for the faces of the cube.
+pub fn image(theme: &mut Theme, file: &Path, [w, h]: [i32; 2]) -> String {
+    theme.render(&Picture::new(w, h).cover(file))
+}
