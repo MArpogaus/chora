@@ -1,6 +1,6 @@
 //! The scene tree and the rules that change it.
 
-use std::collections::BTreeMap;
+use imbl::OrdMap;
 
 use crate::{
     Command, Effect, InputMode, Node, NodeKind, Props, PropsUpdate, ROOT, Selector, SurfaceInfo,
@@ -62,7 +62,7 @@ pub struct Placed<'a> {
 /// The scene tree.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scene {
-    nodes: BTreeMap<String, Node>,
+    nodes: OrdMap<String, Node>,
 }
 
 impl Default for Scene {
@@ -77,7 +77,7 @@ impl Default for Scene {
             surface: None,
         };
         Self {
-            nodes: BTreeMap::from([(ROOT.into(), root)]),
+            nodes: OrdMap::unit(ROOT.into(), root),
         }
     }
 }
@@ -317,8 +317,10 @@ impl Scene {
             .filter(|n| n.kind == NodeKind::Surface)
             .map(|n| n.id.clone())
             .collect();
-        self.nodes
-            .retain(|id, n| id == ROOT || n.kind == NodeKind::Surface);
+        self.nodes = std::mem::take(&mut self.nodes)
+            .into_iter()
+            .filter(|(id, n)| id == ROOT || n.kind == NodeKind::Surface)
+            .collect();
         let root = self.nodes.get_mut(ROOT).expect("the root always exists");
         root.children.clone_from(&surfaces);
         root.props = Props::default();
