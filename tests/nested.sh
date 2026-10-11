@@ -2,7 +2,8 @@
 # End-to-end test of milestone M1: chora runs nested in a headless sway,
 # chora-tiling tiles three foot windows, a crash of the plugin leaves the
 # core running, and the emergency reset puts the windows in the grid.
-# Further steps check fixed regressions.
+# Further steps check fixed regressions, and the nested exit of M2: waybar,
+# fuzzel and swaylock work.
 #
 # The test starts the reset with SIGUSR1. Ctrl+Alt+Escape runs the same
 # code, but synthetic keys from wtype carry their own keymap, which a nested
@@ -11,7 +12,8 @@
 # Usage: tests/nested.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl and chora-tiling
 #   OUT_DIR  receives the logs and screenshots (default: a temp dir)
-# Needs: sway, foot, grim, jq, python3, pgrep and pkill, and a Mesa driver.
+# Needs: sway, foot, grim, jq, python3, pgrep and pkill, a Mesa driver,
+# waybar with dbus-run-session, fuzzel and swaylock.
 set -euo pipefail
 
 bin=$(realpath "$1")
@@ -177,5 +179,39 @@ grep -Eq 'SigBlk:[[:space:]]*0+$' "$out/sigblk" || fail "blocked signals: $(cat 
 kill -USR1 "$signal_pid"
 wait_for grep -q "emergency reset" "$out/chora-signal.log"
 kill -0 "$signal_pid" || fail "chora died of SIGUSR1"
+# Gives the whole host output back to the first chora.
+kill "$signal_pid"
+
+step "10. a panel reserves its zone of the work area"
+echo '{"layer": "top", "position": "top", "height": 30, "modules-center": ["clock"]}' \
+    >"$out/waybar.json"
+WAYLAND_DISPLAY=$inner dbus-run-session waybar -c "$out/waybar.json" >"$out/waybar.log" 2>&1 &
+pids+=($!)
+work_area_is() { test "$(work_area)" = "$1"; }
+wait_for work_area_is "[0,30,1280,770]"
+
+step "11. a launcher shows above the scene"
+WAYLAND_DISPLAY=$inner fuzzel >"$out/fuzzel.log" 2>&1 &
+fuzzel_pid=$!
+pids+=("$fuzzel_pid")
+sleep 1
+kill -0 "$fuzzel_pid" || fail "fuzzel exited: $out/fuzzel.log"
+test "$(colors "$out/launcher.png")" -gt 3 || fail "the launcher view is empty"
+kill "$fuzzel_pid"
+
+step "12. the lock screen hides the scene and survives a crash of its client"
+# Prints the most frequent color of a new screenshot as "r g b".
+top_color() {
+    grim -t ppm - | tail -c +17 | od -An -v -tu1 -w3 | sort | uniq -c | sort -rn |
+        head -1 | awk '{print $2, $3, $4}'
+}
+WAYLAND_DISPLAY=$inner swaylock -c ff0000 >"$out/swaylock.log" 2>&1 &
+swaylock_pid=$!
+pids+=("$swaylock_pid")
+color_is() { test "$(top_color)" = "$1"; }
+wait_for color_is "255 0 0"
+kill -KILL "$swaylock_pid"
+wait_for color_is "0 0 0"
+kill -0 "$chora_pid" || fail "chora died"
 
 echo "PASS (logs and screenshots in $out)"
