@@ -221,7 +221,15 @@ impl Client {
     ///
     /// The connection or the `hello` request fails.
     pub fn connect(path: impl AsRef<Path>, hello: &Hello) -> Result<Self, ClientError> {
-        let writer = UnixStream::connect(path)?;
+        Self::from_stream(UnixStream::connect(path)?, hello)
+    }
+
+    /// Uses a connected stream and sends `hello`.
+    ///
+    /// # Errors
+    ///
+    /// The `hello` request fails.
+    pub fn from_stream(writer: UnixStream, hello: &Hello) -> Result<Self, ClientError> {
         let reader = BufReader::new(writer.try_clone()?);
         let mut client = Self {
             reader,
@@ -257,8 +265,14 @@ impl Client {
         self.writer.write_all(line.as_bytes())?;
         loop {
             let message = self.read()?;
-            if message.id.as_ref().and_then(Value::as_u64) != Some(id) {
-                self.queue(message)?;
+            // An error without id answers a request that the core could not
+            // parse, so it belongs to this call.
+            let mine = match &message.id {
+                Some(v) => v.as_u64() == Some(id),
+                None => message.error.is_some(),
+            };
+            if !mine {
+                self.queue(message);
                 continue;
             }
             if let Some(error) = message.error {
@@ -281,15 +295,19 @@ impl Client {
                 return Ok(event);
             }
             let message = self.read()?;
-            self.queue(message)?;
+            self.queue(message);
         }
     }
 
-    fn queue(&mut self, message: Message) -> Result<(), ClientError> {
-        if let Some(params) = message.params {
-            self.events.push_back(serde_json::from_value(params)?);
+    /// Keeps an event notification. Events of a newer core that this crate
+    /// does not know are skipped.
+    fn queue(&mut self, message: Message) {
+        if message.method.as_deref() != Some("event") {
+            return;
         }
-        Ok(())
+        if let Some(event) = message.params.and_then(|p| serde_json::from_value(p).ok()) {
+            self.events.push_back(event);
+        }
     }
 
     fn read(&mut self) -> Result<Message, ClientError> {
@@ -298,5 +316,64 @@ impl Client {
             return Err(ClientError::Closed);
         }
         Ok(serde_json::from_str(&line)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{io::BufRead, thread};
+
+    use super::*;
+
+    /// A fake core that answers `hello`, then writes `lines` after the next
+    /// request.
+    fn fake_core(lines: &'static [&'static str]) -> UnixStream {
+        let (client, server) = UnixStream::pair().unwrap();
+        thread::spawn(move || {
+            let mut reader = BufReader::new(server.try_clone().unwrap());
+            let mut writer = server;
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            writeln!(writer, r#"{{"jsonrpc":"2.0","id":1,"result":null}}"#).unwrap();
+            line.clear();
+            reader.read_line(&mut line).unwrap();
+            for l in lines {
+                writeln!(writer, "{l}").unwrap();
+            }
+        });
+        client
+    }
+
+    fn hello() -> Hello {
+        Hello {
+            name: "test".into(),
+            keep_nodes: false,
+        }
+    }
+
+    #[test]
+    fn unknown_events_do_not_break_a_call() {
+        let stream = fake_core(&[
+            r#"{"jsonrpc":"2.0","method":"event","params":{"event":"output.added"}}"#,
+            r#"{"jsonrpc":"2.0","id":2,"result":[]}"#,
+        ]);
+        let mut client = Client::from_stream(stream, &hello()).unwrap();
+        let nodes: Vec<Value> = client.call("scene.query", Value::Null).unwrap();
+        assert!(nodes.is_empty());
+    }
+
+    #[test]
+    fn an_error_without_id_ends_the_call() {
+        let stream = fake_core(&[
+            r#"{"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"parse error"}}"#,
+        ]);
+        let mut client = Client::from_stream(stream, &hello()).unwrap();
+        let err = client
+            .call::<_, Value>("scene.query", Value::Null)
+            .unwrap_err();
+        assert!(
+            matches!(err, ClientError::Rpc(RpcError { code: -32700, .. })),
+            "{err}"
+        );
     }
 }
