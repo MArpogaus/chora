@@ -17,12 +17,14 @@ All ideas that are not decisions yet. An idea moves to
 
 ## Visuals
 
-- Effects like in Hyprland and Compiz: blur, shadows, rounded corners, wobbly
-  windows, cube, overview, transitions.
+- Effects like in Hyprland and Compiz: blur, shadows, rounded corners, an
+  overview, transitions. Wobbly windows, the magic lamp and the cube are
+  part of M3 (D39).
 - An infinite zoomable canvas through cameras.
 - Surfaces as 3D objects.
-- Pixel-perfect copies of existing desktops (Windows XP, KDE Plasma) as
-  flavors. They prove the flexibility. They are not a goal.
+- Pixel-perfect copies of existing desktops as flavors, for example KDE
+  Plasma. The XP showroom of M3 is the first (D39). They prove the
+  flexibility. They are not a goal.
 
 ## Agents and the ecosystem around chora
 

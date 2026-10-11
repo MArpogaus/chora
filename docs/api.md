@@ -129,7 +129,7 @@ subscribe: [surface.created, surface.detached, surface.destroyed, output.changed
 grabs: [Super+Return, Super+q, Super+j, Super+k]
 ```
 
-`choractl` reads the manifest when it loads a view. Before views exist (M3),
+`choractl` reads the manifest when it loads a view. Before views exist (M4),
 the startup command starts plugins directly.
 
 ## MCP tools

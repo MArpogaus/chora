@@ -79,7 +79,37 @@ The test, `tests/nested.sh`, also checks fixed regressions.
    for 8 hours on an AMD and on an Intel machine, without a crash or a
    restart of the core.
 
-## M3: Agent interface
+## M3: Effects and the XP showroom
+
+**Goal:** the game-engine half of the idea, shown in a flavor in the style of
+Windows XP (D39). The flavor is a demo, not a daily driver.
+
+- Image nodes for assets, and shader nodes, effects and shaders that read
+  nodes as textures (D18).
+- Rendering of a node into a texture, and a mesh that deforms that texture.
+  Wobbly windows and the magic lamp minimize use the mesh.
+- Perspective for the 4x4 transforms, and depth, for a 3D desktop cube with
+  flying windows.
+- The `animate` command (D28).
+- GLSL hot reload; compile errors as `transaction.rejected`.
+- Damage tracking for static and animated shaders, direct scanout (D24).
+- The watchdog of the safety layer.
+- A measurement of the IPC round trip for effects in every frame. The result
+  decides on in-process WASM plugins (D28).
+- An XP flavor: a stacking window manager with title bars, a taskbar and a
+  start menu, with the assets of `kde-plasma-winxp-launcher`.
+
+**Exit:**
+
+1. Automated, nested: the XP flavor starts. A screenshot shows the taskbar,
+   the start button and two windows with title bars. A drag of a window
+   deforms its mesh. A minimize runs the magic lamp. A key binding turns
+   the desktop cube with four desktops.
+2. On the Intel machine at 60 Hz, four windows with blur and rounded
+   corners and a 300 ms transition: `presentation-time` shows at least 99
+   percent of the frames on time over 60 seconds.
+
+## M4: Agent interface
 
 **Goal:** an agent sees and changes the screen.
 
@@ -95,22 +125,6 @@ The test, `tests/nested.sh`, also checks fixed regressions.
 **Exit:** an automated test passes: an MCP client asks for "describe the
 screen", calls `tiling.set_layout`, and the next screenshot shows the new
 layout.
-
-## M4: Effects
-
-**Goal:** the game-engine half of the idea.
-
-- Shader nodes, effects and shaders that read nodes as textures (D18).
-- GLSL hot reload; compile errors as `transaction.rejected`.
-- The `animate` command (D28).
-- Damage tracking for static and animated shaders, direct scanout (D24).
-- The watchdog of the safety layer.
-- A measurement of the IPC round trip for effects in every frame. The result
-  decides on in-process WASM plugins (D28).
-
-**Exit:** on the Intel machine at 60 Hz, four windows with blur and rounded
-corners and a 300 ms transition: `presentation-time` shows at least 99
-percent of the frames on time over 60 seconds.
 
 ## M5: Packaging
 

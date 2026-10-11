@@ -64,6 +64,7 @@ The decision log. Nothing here is final. Every entry can come back for review.
 |---|----------|--------|
 | D37 | Screen sharing through `xdg-desktop-portal-wlr` first | No code. A portal backend of its own is in the [Idea backlog](ideas.md). |
 | D38 | HTML content from agents runs in a browser in app mode, as a service | No code. chora places toplevels anywhere. |
+| D39 | The first showcase is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it comes right after M2, before the agent interface | It proves that the scene model carries classic mouse-driven desktops and their effects. The assets come from `kde-plasma-winxp-launcher`. It is a demo, not a daily driver. |
 
 ## Rejected review findings
 
@@ -77,6 +78,6 @@ The decision log. Nothing here is final. Every entry can come back for review.
 
 1. **Grants.** How does the user grant `input.inject` and `screen.capture`?
    A `choractl grant` command is the simplest option, because the core draws
-   no text. Decide before M3.
-2. **YAML crate.** Which maintained crate replaces `serde_yaml`? Decide in M3.
+   no text. Decide before M4.
+2. **YAML crate.** Which maintained crate replaces `serde_yaml`? Decide in M4.
 3. **Repository name.** The GitHub repository still has the name `void`.
