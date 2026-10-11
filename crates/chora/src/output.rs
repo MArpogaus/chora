@@ -15,7 +15,7 @@ use smithay::{
     utils::{self, Logical, Physical, Point, Rectangle, Size},
 };
 
-use crate::state::State;
+use crate::{backend::Backend, state::State};
 
 /// The scales that a client can give an output.
 const SCALES: RangeInclusive<f64> = 0.1..=10.0;
@@ -59,6 +59,16 @@ struct Target {
     position: Point<i32, Logical>,
     transform: utils::Transform,
     scale: f64,
+}
+
+/// A change that the backend makes for a configuration.
+enum Change {
+    /// Turns an output off.
+    Disable(Output),
+    /// Gives an output that is on a new mode.
+    Mode(Output, Mode),
+    /// Turns an output on in a mode.
+    Enable(Output, Mode),
 }
 
 impl State {
@@ -133,27 +143,15 @@ impl State {
         if !untouched && targets.iter().all(|t| t.mode.is_none()) {
             return Err("one output must stay on".into());
         }
-        self.test_targets(&targets)?;
+        let changes = changes(&self.outputs, &targets);
+        let backend = self.backend.as_mut().ok_or("no backend")?;
+        for (change, _) in &changes {
+            change.test(backend)?;
+        }
         if apply {
+            run(backend, &changes)?;
             for target in &targets {
                 self.place(target);
-            }
-        }
-        Ok(())
-    }
-
-    /// Asks the backend whether it can make the mode changes of the
-    /// targets, and turn outputs on and off.
-    fn test_targets(&self, targets: &[Target]) -> Result<(), String> {
-        let backend = self.backend.as_ref().ok_or("no backend")?;
-        for target in targets {
-            let same = if self.outputs.contains(&target.output) {
-                target.mode == target.output.current_mode()
-            } else {
-                target.mode.is_none()
-            };
-            if !same {
-                backend.test_output(&target.output, target.mode)?;
             }
         }
         Ok(())
@@ -370,6 +368,88 @@ fn pick_mode(output: &Output, choice: ModeChoice) -> Result<Mode, String> {
             size.h
         )
     })
+}
+
+impl Change {
+    /// Asks the backend whether it can make the change.
+    fn test(&self, backend: &Backend) -> Result<(), String> {
+        match self {
+            Self::Disable(output) => backend.test_output(output, None),
+            Self::Mode(output, mode) | Self::Enable(output, mode) => {
+                backend.test_output(output, Some(*mode))
+            }
+        }
+    }
+
+    /// Makes the change in the backend.
+    fn run(&self, backend: &mut Backend) -> Result<(), String> {
+        match self {
+            Self::Disable(output) => backend.disable_output(output),
+            Self::Mode(output, mode) => backend.set_mode(output, *mode),
+            Self::Enable(output, mode) => backend.enable_output(output, *mode),
+        }
+    }
+
+    /// The order of the changes. Outputs turn off first, so that the others
+    /// find free bandwidth.
+    fn rank(&self) -> u8 {
+        match self {
+            Self::Disable(_) => 0,
+            Self::Mode(..) => 1,
+            Self::Enable(..) => 2,
+        }
+    }
+}
+
+/// The backend changes of a configuration, each with the change that
+/// undoes it. `on` holds the outputs that are on.
+fn changes(on: &[Output], targets: &[Target]) -> Vec<(Change, Option<Change>)> {
+    let mut changes: Vec<_> = targets
+        .iter()
+        .filter_map(|t| change(on.contains(&t.output), t))
+        .collect();
+    changes.sort_by_key(|(change, _)| change.rank());
+    changes
+}
+
+/// The backend change for one target and the change that undoes it, if
+/// the target needs a change.
+fn change(on: bool, target: &Target) -> Option<(Change, Option<Change>)> {
+    let output = &target.output;
+    let old = output.current_mode();
+    let undo = |undo: fn(Output, Mode) -> Change| old.map(|m| undo(output.clone(), m));
+    match (on, target.mode) {
+        (true, None) => Some((Change::Disable(output.clone()), undo(Change::Enable))),
+        (true, Some(mode)) if Some(mode) != old => {
+            Some((Change::Mode(output.clone(), mode), undo(Change::Mode)))
+        }
+        (false, Some(mode)) => Some((
+            Change::Enable(output.clone(), mode),
+            Some(Change::Disable(output.clone())),
+        )),
+        _ => None,
+    }
+}
+
+/// Makes the changes in the backend. After a failure, it undoes the
+/// changes before it, the last one first.
+fn run(backend: &mut Backend, changes: &[(Change, Option<Change>)]) -> Result<(), String> {
+    for (i, (change, _)) in changes.iter().enumerate() {
+        if let Err(err) = change.run(backend) {
+            for undo in changes[..i].iter().rev().filter_map(|(_, u)| u.as_ref()) {
+                undo_change(backend, undo);
+            }
+            return Err(err);
+        }
+    }
+    Ok(())
+}
+
+/// Undoes a change. After a failure, the output keeps the new state.
+fn undo_change(backend: &mut Backend, undo: &Change) {
+    if let Err(err) = undo.run(backend) {
+        tracing::warn!(%err, "undoing an output change failed");
+    }
 }
 
 impl Target {

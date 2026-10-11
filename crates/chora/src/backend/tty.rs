@@ -7,6 +7,10 @@
 //!
 //! Each output renders when its last frame reached the screen, or one frame
 //! duration after a render without damage.
+//!
+//! Output configuration can give a connector another of its modes, and turn
+//! an output off and on again. An output that is off keeps its connector
+//! and its CRTC, but has no global.
 
 use std::{collections::HashMap, path::Path, time::Duration};
 
@@ -37,13 +41,13 @@ use smithay::{
     output::{Mode, Output, PhysicalProperties},
     reexports::{
         calloop::{
-            RegistrationToken,
+            LoopHandle, RegistrationToken,
             timer::{TimeoutAction, Timer},
         },
-        drm::control::{ModeTypeFlags, connector, crtc},
+        drm::control::{self, ModeTypeFlags, connector, crtc},
         input::Libinput,
         rustix::fs::OFlags,
-        wayland_server::backend::GlobalId,
+        wayland_server::{DisplayHandle, backend::GlobalId},
     },
     utils::{DeviceFd, Logical, Point},
     wayland::dmabuf::DmabufFeedbackBuilder,
@@ -80,6 +84,10 @@ pub struct Tty {
     gpus: GpuManager<Gles>,
     devices: HashMap<DrmNode, Device>,
     cursors: Cursors,
+    /// For the globals of outputs that turn on again.
+    display: DisplayHandle,
+    /// For the renders and timers of outputs that turn on or off.
+    loop_handle: LoopHandle<'static, State>,
 }
 
 /// One GPU with its connectors.
@@ -88,12 +96,17 @@ struct Device {
     scanner: DrmScanner,
     render_node: DrmNode,
     surfaces: HashMap<crtc::Handle, Surface>,
+    /// The outputs that output configuration turned off, with their
+    /// connectors. The CRTC of each stays reserved for it.
+    disabled: HashMap<crtc::Handle, (Output, connector::Info)>,
     token: RegistrationToken,
 }
 
 /// One output on a connector.
 struct Surface {
     output: Output,
+    /// The connector, for its modes.
+    connector: connector::Info,
     compositor: DrmOutput<Allocator, Exporter, (), DrmDeviceFd>,
     global: GlobalId,
     /// A frame waits for its vblank.
@@ -127,6 +140,8 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
         gpus,
         devices: HashMap::new(),
         cursors: Cursors::from_env(),
+        display: state.display_handle.clone(),
+        loop_handle: state.loop_handle.clone(),
     })));
     for (id, path) in devices {
         log_error("a GPU failed", add_device(state, id, &path));
@@ -160,11 +175,172 @@ impl Tty {
         log_error("changing the VT failed", self.session.change_vt(vt));
     }
 
-    /// Refuses mode changes, and outputs that turn on or off.
-    #[allow(clippy::unused_self)]
-    pub fn test_output(&self, output: &Output, _mode: Option<Mode>) -> Result<(), String> {
-        Err(format!("{} keeps its mode", output.name()))
+    /// Checks that the connector of an output has a mode. An output can
+    /// always turn off. Both need an active session.
+    pub fn test_output(&self, output: &Output, mode: Option<Mode>) -> Result<(), String> {
+        if !self.session.is_active() {
+            return Err("the session is paused".into());
+        }
+        let Some(mode) = mode else {
+            return Ok(());
+        };
+        let connector = self
+            .devices
+            .values()
+            .find_map(|d| d.connector(output))
+            .ok_or_else(|| format!("{} has no connector", output.name()))?;
+        drm_mode(connector, mode).map(drop)
     }
+
+    /// Gives an output that is on a new mode. The mode set happens with
+    /// the next frame.
+    pub fn set_mode(&mut self, output: &Output, mode: Mode) -> Result<(), String> {
+        let (node, crtc) = self.find_on(output)?;
+        let device = self.devices.get_mut(&node).ok_or("the GPU is gone")?;
+        let surface = device.surfaces.get_mut(&crtc).ok_or("the output is gone")?;
+        let mode = drm_mode(&surface.connector, mode)?;
+        let mut renderer = self
+            .gpus
+            .single_renderer(&device.render_node)
+            .map_err(|e| format!("{e:?}"))?;
+        surface
+            .compositor
+            .use_mode::<_, SceneElement<TtyRenderer<'_>>>(
+                mode,
+                &mut renderer,
+                &DrmOutputRenderElements::default(),
+            )
+            .map_err(|e| format!("{}: {e:?}", output.name()))
+    }
+
+    /// Turns an output on again in a mode, with a new global.
+    pub fn enable_output(&mut self, output: &Output, mode: Mode) -> Result<(), String> {
+        let (node, crtc) = self.find_off(output)?;
+        let connector = self
+            .devices
+            .get(&node)
+            .and_then(|d| d.disabled.get(&crtc))
+            .map(|(_, c)| c.clone())
+            .ok_or("the output is gone")?;
+        let drm = drm_mode(&connector, mode)?;
+        // The new compositor takes the mode of the output.
+        output.change_current_state(Some(mode), None, None, None);
+        let surface = self.start((node, crtc), output, &connector, drm)?;
+        let device = self.devices.get_mut(&node).ok_or("the GPU is gone")?;
+        device.disabled.remove(&crtc);
+        device.surfaces.insert(crtc, surface);
+        self.loop_handle
+            .insert_idle(move |state| render(state, node, crtc));
+        Ok(())
+    }
+
+    /// Turns an output off: its CRTC stops and its global goes away. The
+    /// connector stays for [`Self::enable_output`].
+    pub fn disable_output(&mut self, output: &Output) -> Result<(), String> {
+        let (node, crtc) = self.find_on(output)?;
+        let device = self.devices.get_mut(&node).ok_or("the GPU is gone")?;
+        let surface = device.surfaces.remove(&crtc).ok_or("the output is gone")?;
+        if let Some(timer) = surface.timer {
+            self.loop_handle.remove(timer);
+        }
+        self.display.remove_global::<State>(surface.global);
+        device
+            .disabled
+            .insert(crtc, (surface.output, surface.connector));
+        // The drop of the DrmOutput turns the CRTC off.
+        drop(surface.compositor);
+        Ok(())
+    }
+
+    /// The GPU and the CRTC of an output that is on.
+    fn find_on(&self, output: &Output) -> Result<(DrmNode, crtc::Handle), String> {
+        self.devices
+            .iter()
+            .find_map(|(node, device)| {
+                let mut surfaces = device.surfaces.iter();
+                let (crtc, _) = surfaces.find(|(_, s)| s.output == *output)?;
+                Some((*node, *crtc))
+            })
+            .ok_or_else(|| format!("{} is not on", output.name()))
+    }
+
+    /// The GPU and the CRTC of an output that is off.
+    fn find_off(&self, output: &Output) -> Result<(DrmNode, crtc::Handle), String> {
+        self.devices
+            .iter()
+            .find_map(|(node, device)| {
+                let mut disabled = device.disabled.iter();
+                let (crtc, _) = disabled.find(|(_, (o, _))| o == output)?;
+                Some((*node, *crtc))
+            })
+            .ok_or_else(|| format!("{} is not off", output.name()))
+    }
+
+    /// Drives a connector of a GPU with a CRTC in a mode, and creates the
+    /// global of its output.
+    fn start(
+        &mut self,
+        (node, crtc): (DrmNode, crtc::Handle),
+        output: &Output,
+        connector: &connector::Info,
+        mode: control::Mode,
+    ) -> Result<Surface, String> {
+        let device = self.devices.get_mut(&node).ok_or("the GPU is gone")?;
+        let planes = device.manager.device().planes(&crtc).ok();
+        let mut renderer = self
+            .gpus
+            .single_renderer(&device.render_node)
+            .map_err(|e| format!("{e:?}"))?;
+        let compositor = device
+            .manager
+            .lock()
+            .initialize_output::<_, SceneElement<TtyRenderer<'_>>>(
+                crtc,
+                mode,
+                &[connector.handle()],
+                output,
+                planes,
+                &mut renderer,
+                &DrmOutputRenderElements::default(),
+            )
+            .map_err(|e| format!("{}: {e:?}", output.name()))?;
+        Ok(Surface {
+            output: output.clone(),
+            connector: connector.clone(),
+            compositor,
+            global: output.create_global::<State>(&self.display),
+            queued: false,
+            timer: None,
+        })
+    }
+}
+
+impl Device {
+    /// The connector of an output of this GPU, on or off.
+    fn connector(&self, output: &Output) -> Option<&connector::Info> {
+        let on = self.surfaces.values().find(|s| s.output == *output);
+        on.map(|s| &s.connector).or_else(|| {
+            self.disabled
+                .values()
+                .find(|(o, _)| o == output)
+                .map(|(_, c)| c)
+        })
+    }
+}
+
+/// The mode of a connector that matches a mode of its output.
+fn drm_mode(connector: &connector::Info, mode: Mode) -> Result<control::Mode, String> {
+    connector
+        .modes()
+        .iter()
+        .copied()
+        .find(|m| Mode::from(*m) == mode)
+        .ok_or_else(|| {
+            format!(
+                "the connector has no mode {}x{} at {} mHz",
+                mode.size.w, mode.size.h, mode.refresh
+            )
+        })
 }
 
 fn tty(state: &mut State) -> Option<&mut Tty> {
@@ -284,6 +460,7 @@ fn add_device(state: &mut State, id: u64, path: &Path) -> Result<(), String> {
         scanner: DrmScanner::new(),
         render_node,
         surfaces: HashMap::new(),
+        disabled: HashMap::new(),
         token,
     };
     tty.devices.insert(node, device);
@@ -295,7 +472,13 @@ fn add_device(state: &mut State, id: u64, path: &Path) -> Result<(), String> {
 fn remove_device(state: &mut State, node: DrmNode) {
     let crtcs: Vec<_> = tty(state)
         .and_then(|t| t.devices.get(&node))
-        .map(|d| d.surfaces.keys().copied().collect())
+        .map(|d| {
+            d.surfaces
+                .keys()
+                .chain(d.disabled.keys())
+                .copied()
+                .collect()
+        })
         .unwrap_or_default();
     for crtc in crtcs {
         disconnect(state, node, crtc);
@@ -358,47 +541,18 @@ fn create_output(
         .find(|m| m.mode_type().contains(ModeTypeFlags::PREFERRED))
         .or(modes.first())
         .ok_or_else(|| format!("{name} has no mode"))?;
-    let State {
-        backend,
-        display_handle,
-        ..
-    } = state;
-    let Some(Backend::Tty(tty)) = backend else {
-        return Err("no tty backend".into());
-    };
-    let device = tty.devices.get_mut(&node).ok_or("the GPU is gone")?;
+    let tty = tty(state).ok_or("no tty backend")?;
+    let device = tty.devices.get(&node).ok_or("the GPU is gone")?;
     let output = Output::new(name, properties(device, connector));
     for mode in modes {
         output.add_mode(Mode::from(*mode));
     }
     output.set_preferred(Mode::from(mode));
     output.change_current_state(Some(Mode::from(mode)), None, None, None);
-    let planes = device.manager.device().planes(&crtc).ok();
-    let mut renderer = tty
-        .gpus
-        .single_renderer(&device.render_node)
-        .map_err(|e| format!("{e:?}"))?;
-    let compositor = device
-        .manager
-        .lock()
-        .initialize_output::<_, SceneElement<TtyRenderer<'_>>>(
-            crtc,
-            mode,
-            &[connector.handle()],
-            &output,
-            planes,
-            &mut renderer,
-            &DrmOutputRenderElements::default(),
-        )
-        .map_err(|e| format!("{}: {e:?}", output.name()))?;
-    let surface = Surface {
-        output: output.clone(),
-        compositor,
-        global: output.create_global::<State>(display_handle),
-        queued: false,
-        timer: None,
-    };
-    device.surfaces.insert(crtc, surface);
+    let surface = tty.start((node, crtc), &output, connector, mode)?;
+    if let Some(device) = tty.devices.get_mut(&node) {
+        device.surfaces.insert(crtc, surface);
+    }
     Ok(output)
 }
 
@@ -420,11 +574,16 @@ fn properties(device: &Device, connector: &connector::Info) -> PhysicalPropertie
     }
 }
 
+/// Removes the output of a connector that went away, on or off.
 fn disconnect(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
-    let Some(surface) = tty(state)
-        .and_then(|t| t.devices.get_mut(&node))
-        .and_then(|d| d.surfaces.remove(&crtc))
-    else {
+    let Some(device) = tty(state).and_then(|t| t.devices.get_mut(&node)) else {
+        return;
+    };
+    if let Some((output, _)) = device.disabled.remove(&crtc) {
+        state.remove_output(&output);
+        return;
+    }
+    let Some(surface) = device.surfaces.remove(&crtc) else {
         return;
     };
     if let Some(timer) = surface.timer {

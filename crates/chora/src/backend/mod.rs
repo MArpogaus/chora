@@ -44,6 +44,31 @@ impl Backend {
             Self::Tty(tty) => tty.test_output(output, mode),
         }
     }
+
+    /// Gives an output that is on a new mode.
+    pub fn set_mode(&mut self, output: &Output, mode: Mode) -> Result<(), String> {
+        match self {
+            Self::Winit(_) => Err(winit::FIXED_MODE.into()),
+            Self::Tty(tty) => tty.set_mode(output, mode),
+        }
+    }
+
+    /// Turns an output on in a mode.
+    pub fn enable_output(&mut self, output: &Output, mode: Mode) -> Result<(), String> {
+        match self {
+            Self::Winit(_) => Err(winit::ALWAYS_ON.into()),
+            Self::Tty(tty) => tty.enable_output(output, mode),
+        }
+    }
+
+    /// Turns an output off. Its connector stays, so that the output can
+    /// turn on again.
+    pub fn disable_output(&mut self, output: &Output) -> Result<(), String> {
+        match self {
+            Self::Winit(_) => Err(winit::ALWAYS_ON.into()),
+            Self::Tty(tty) => tty.disable_output(output),
+        }
+    }
 }
 
 /// Starts the backend that fits: winit inside another session, else the

@@ -20,6 +20,10 @@ use crate::{render, state::State};
 const OUTPUT: &str = "winit";
 /// The refresh rate that the winit output reports, in mHz.
 const REFRESH: i32 = 60_000;
+/// The answer to a mode change.
+pub const FIXED_MODE: &str = "the window decides the mode of the winit output";
+/// The answer to a request to turn the output off.
+pub const ALWAYS_ON: &str = "the winit output cannot turn off";
 
 /// The parts of the winit backend that outlive one event.
 pub struct Winit {
@@ -221,8 +225,8 @@ impl Winit {
     pub fn test_output(&self, mode: Option<Mode>) -> Result<(), String> {
         match mode {
             Some(mode) if Some(mode) == self.output.current_mode() => Ok(()),
-            Some(_) => Err("the window decides the mode of the winit output".into()),
-            None => Err("the winit output cannot turn off".into()),
+            Some(_) => Err(FIXED_MODE.into()),
+            None => Err(ALWAYS_ON.into()),
         }
     }
 }
