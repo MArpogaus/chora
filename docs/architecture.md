@@ -247,9 +247,10 @@ The safety layer is the only built-in behavior (see
   the lock; other clients cannot lock or unlock while it lives. While the
   session is locked, each output shows only its lock surface, or black.
   Only the lock client gets input; popup and pointer grabs end, and plugin
-  grabs pause. The core confirms the lock after each output showed a locked
-  frame. When the lock client crashes, the session stays locked, and only
-  then can a new lock client take over.
+  grabs pause; a keyboard grab, for example of an input method, ends before
+  each key. The core confirms the lock after each output showed a frame
+  that it rendered under this lock. When the lock client crashes, the
+  session stays locked, and only then can a new lock client take over.
 - **Watchdog.** When frames miss their deadline repeatedly, the core removes
   the effects first and then disconnects the plugins.
 
@@ -257,8 +258,9 @@ The safety layer is the only built-in behavior (see
 
 Version 1 trusts every client of the same user (D33):
 
-- Unsandboxed Wayland clients get all protocols, as in sway.
-  `wp-security-context-v1` hides privileged protocols, for example
+- Unsandboxed Wayland clients get all protocols, as in sway. So any client
+  can, for example, take the keyboard as an input method, or configure the
+  outputs. `wp-security-context-v1` hides privileged protocols, for example
   screencopy, from sandboxed clients.
 - The IPC methods `input.inject` and `screen.capture` need a **grant** of the
   user for the client name. A grant protects against mistakes of agents. It

@@ -72,8 +72,8 @@ type Gles = GbmGlesBackend<GlesRenderer, DrmDeviceFd>;
 type Allocator = GbmAllocator<DrmDeviceFd>;
 type Exporter = GbmFramebufferExporter<DrmDeviceFd>;
 type TtyRenderer<'a> = MultiRenderer<'a, 'a, Gles, Gles>;
-/// The presentation feedback that a queued frame carries to its vblank.
-type Feedback = Option<OutputPresentationFeedback>;
+/// What a queued frame carries to its vblank.
+type Feedback = Option<Frame>;
 type Manager = DrmOutputManager<Allocator, Exporter, Feedback, DrmDeviceFd>;
 
 /// The scan-out formats, in the order of preference.
@@ -107,6 +107,13 @@ struct Device {
     token: RegistrationToken,
 }
 
+/// A queued frame: the presentation feedback of its surfaces, and the
+/// generation of the lock that it rendered under.
+struct Frame {
+    feedback: OutputPresentationFeedback,
+    lock: Option<u64>,
+}
+
 /// One output on a connector.
 struct Surface {
     output: Output,
@@ -116,6 +123,8 @@ struct Surface {
     global: GlobalId,
     /// A frame waits for its vblank.
     queued: bool,
+    /// The generation of the lock of the frame on the screen.
+    shown_lock: Option<u64>,
     /// The timer of the next render after a frame without damage.
     timer: Option<RegistrationToken>,
 }
@@ -315,6 +324,7 @@ impl Tty {
             compositor,
             global: output.create_global::<State>(&self.display),
             queued: false,
+            shown_lock: None,
             timer: None,
         })
     }
@@ -622,6 +632,12 @@ fn render(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
             false
         });
     if !queued {
+        // Without damage, the screen keeps the frame of an earlier lock,
+        // and that hides the session as well.
+        if surface(state, node, crtc).is_some_and(|s| s.shown_lock.is_some()) {
+            let generation = state.lock_generation();
+            state.frame_shown(&output, generation);
+        }
         schedule(state, node, crtc, frame_duration(&output));
     }
     render::send_frames(state, &output);
@@ -727,13 +743,16 @@ fn queue(
     crtc: crtc::Handle,
     output: &Output,
 ) -> Result<bool, String> {
-    let feedback = render::take_feedback(state, output);
+    let frame = Frame {
+        feedback: render::take_feedback(state, output),
+        lock: state.lock_generation(),
+    };
     let Some(surface) = surface(state, node, crtc) else {
         return Ok(false);
     };
     surface
         .compositor
-        .queue_frame(Some(feedback))
+        .queue_frame(Some(frame))
         .map_err(|e| format!("{e:?}"))?;
     surface.queued = true;
     Ok(true)
@@ -761,15 +780,17 @@ fn vblank(state: &mut State, node: DrmNode, crtc: crtc::Handle, meta: Option<&Dr
     surface.queued = false;
     let output = surface.output.clone();
     match surface.compositor.frame_submitted() {
-        Ok(Some(Some(mut feedback))) => {
+        Ok(Some(Some(mut frame))) => {
             let (time, flags) = presentation_time(meta, now);
             let seq = meta.map_or(0, |m| u64::from(m.sequence));
-            feedback.presented(time, Refresh::fixed(frame_duration(&output)), seq, flags);
+            let refresh = Refresh::fixed(frame_duration(&output));
+            frame.feedback.presented(time, refresh, seq, flags);
+            surface.shown_lock = frame.lock;
+            state.frame_shown(&output, frame.lock);
         }
         Ok(_) => {}
         Err(err) => tracing::warn!(?err, "a frame failed"),
     }
-    state.frame_shown(&output);
     render(state, node, crtc);
 }
 

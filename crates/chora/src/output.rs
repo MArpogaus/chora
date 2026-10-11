@@ -93,6 +93,7 @@ impl State {
         }
         self.output_management.remove_head(output);
         self.output_management.update(&self.outputs);
+        self.resize_lock_surfaces();
     }
 
     /// Takes an output out of the layout and announces it. A client can

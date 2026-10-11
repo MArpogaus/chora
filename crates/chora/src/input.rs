@@ -59,6 +59,11 @@ pub fn process<I: InputBackend>(state: &mut State, event: InputEvent<I>) {
 
 fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
     let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+    // A grab that a client took in this loop iteration, for example of an
+    // input method, must not see a key of the lock screen.
+    if state.lock.is_some() && keyboard.is_grabbed() {
+        keyboard.unset_grab(state);
+    }
     let (code, key_state) = (event.key_code(), event.state());
     let serial = SERIAL_COUNTER.next_serial();
     let action = keyboard.input(

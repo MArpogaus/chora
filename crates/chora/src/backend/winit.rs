@@ -121,7 +121,8 @@ fn redraw(state: &mut State) {
         return;
     };
     if warn_on_error(&render_frame(state, &output)) {
-        state.frame_shown(&output);
+        let generation = state.lock_generation();
+        state.frame_shown(&output, generation);
     }
     render::send_frames(state, &output);
     if let Some(backend) = winit(state) {
