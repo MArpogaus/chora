@@ -22,6 +22,20 @@ check of each choice. [Decisions](decisions.md) records the result.
 | a maintained YAML crate | views | `serde_yaml` is unmaintained |
 | [rmcp](https://github.com/modelcontextprotocol/rust-sdk) | `choractl mcp` | the official Rust MCP SDK, version 3.x |
 
+## Plugins
+
+| Dependency | Purpose | Notes |
+|------------|---------|-------|
+| [resvg](https://github.com/linebender/resvg) | `chora-xp` rasterizes the SVG files of its theme into PNG files for image nodes | Apache-2.0 OR MIT; brings usvg (Apache-2.0 OR MIT) and tiny-skia (BSD-3-Clause) |
+| fontdb, harfrust, skrifa | text of `chora-xp` through usvg: the bundled Tahoma and the system fonts | fontdb and harfrust MIT; skrifa and read-fonts MIT OR Apache-2.0 |
+| chrono | the clock of the taskbar of `chora-xp`, in local time | MIT OR Apache-2.0; with iana-time-zone (MIT OR Apache-2.0) |
+
+The theme of the XP flavor is artwork, not code: SVG files of Exposé and of
+the Windows XP pack of `kde-plasma-winxp-launcher`, two fonts, a wallpaper
+and cursors. `flavors/xp/theme/README.md` lists each file with its license.
+Debug builds compile the image, font and SVG crates optimized, so that
+`chora-xp` starts in a second.
+
 ## Build and release
 
 | Tool | Purpose |
