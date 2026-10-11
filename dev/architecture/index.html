@@ -1344,7 +1344,7 @@ the connection.</p>
 <tr>
 <th>Limit</th>
 <th>Value</th>
-<th>When it is reached</th>
+<th>Effect</th>
 </tr>
 </thead>
 <tbody>
@@ -1416,10 +1416,13 @@ thus delays the queue once, not once per transaction.</p>
    events go to the topmost node under the cursor that accepts input. The
    inverse of the camera maps the cursor to scene coordinates.</li>
 </ol>
-<p>Plugins set the focus. The core changes it in three cases only: the reset
-focuses the first surface, a click on a surface without an owner focuses it,
-and a surface that becomes detached loses it. The core still implements the
-protocol mechanisms around focus:
+<p>Plugins set the focus. The core changes it in three cases only:</p>
+<ul>
+<li>The emergency reset focuses the first surface.</li>
+<li>A click on a surface without an owner focuses it.</li>
+<li>A surface that becomes detached loses the focus.</li>
+</ul>
+<p>The core still implements the protocol mechanisms around focus:
 popup grabs, <code>xdg-activation</code> requests, <code>pointer-constraints</code> and
 <code>input-method</code>.</p>
 <h2 id="safety-layer">Safety layer<a class="headerlink" href="#safety-layer" title="Permanent link">&para;</a></h2>
@@ -1432,8 +1435,8 @@ popup grabs, <code>xdg-activation</code> requests, <code>pointer-constraints</co
 <li><strong>Emergency reset.</strong> The core disconnects all plugins, removes all effects,
   restores the default cameras and puts all surfaces in a simple grid. This
   grid is the one layout in the core. It is hardcoded, so a broken
-  configuration cannot break it. The first surface gets the focus, and a
-  click on a surface without an owner focuses it.</li>
+  configuration cannot break it. The reset also changes the focus (see
+  <a href="#input-flow">Input flow</a>).</li>
 <li><strong>Session lock.</strong> The core enforces <code>ext-session-lock</code>. The lock surface is
   above every plugin node.</li>
 <li><strong>Watchdog.</strong> When frames miss their deadline repeatedly, the core removes

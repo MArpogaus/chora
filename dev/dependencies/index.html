@@ -1055,7 +1055,7 @@ check of each choice. <a href="../decisions/">Decisions</a> records the result.<
 <tr>
 <td><a href="https://github.com/jneem/imbl">imbl</a></td>
 <td>the node map of the scene</td>
-<td>a persistent map, so the copy of the scene for each transaction costs no time</td>
+<td>a persistent map, so each transaction copies the scene in O(1)</td>
 </tr>
 <tr>
 <td>serde, serde_json, thiserror</td>

@@ -1237,7 +1237,7 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>surface.destroyed</code>, <code>surface.detached</code></td>
-<td>surface id</td>
+<td>surface id; <code>surface.destroyed</code> follows only a <code>surface.created</code></td>
 </tr>
 <tr>
 <td><code>input.key</code></td>
@@ -1310,7 +1310,7 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </tr>
 </tbody>
 </table>
-<p>A connection sends <code>hello</code> once. Connections with the same name share their
+<p>A connection sends <code>hello</code> once, within 5 s. Connections with the same name share their
 nodes, so they must agree on <code>keep_nodes</code>. The core refuses a <code>hello</code> with a
 different value. For example, <code>choractl --name tiling</code> fails while the tiling
 plugin runs.</p>
@@ -1325,7 +1325,6 @@ configure the outputs. The API has no output configuration of its own.</p>
 <span class="nt">exec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora-tiling</span>
 <span class="nt">subscribe</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">surface.created</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">surface.detached</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">surface.destroyed</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">output.changed</span><span class="p p-Indicator">]</span>
 <span class="nt">grabs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Super+Return</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+q</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+j</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+k</span><span class="p p-Indicator">]</span>
-<span class="nt">methods</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">set_layout</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">resize</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p><code>choractl</code> reads the manifest when it loads a view. Before views exist (M3),
 the startup command starts plugins directly.</p>
