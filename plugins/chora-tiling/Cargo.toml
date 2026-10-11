@@ -1,0 +1,11 @@
+[lints]
+workspace = true
+
+[package]
+description = "Reference tiling plugin for chora"
+edition.workspace = true
+license.workspace = true
+name = "chora-tiling"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true

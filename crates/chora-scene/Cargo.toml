@@ -1,0 +1,11 @@
+[lints]
+workspace = true
+
+[package]
+description = "Scene model, commands, events and IPC types of the chora compositor"
+edition.workspace = true
+license.workspace = true
+name = "chora-scene"
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
