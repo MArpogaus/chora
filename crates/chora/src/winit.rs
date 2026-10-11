@@ -1,6 +1,6 @@
 //! The winit backend: chora as a window inside another session.
 
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 
 use chora_scene::Event;
 use smithay::{
@@ -10,7 +10,7 @@ use smithay::{
         renderer::{ImportDma, damage::OutputDamageTracker, gles::GlesRenderer},
         winit::{self, WinitEvent, WinitGraphicsBackend},
     },
-    desktop::utils::output_update,
+    desktop::space::SpaceElement,
     output::{Mode, Output, PhysicalProperties, Subpixel},
     utils::{Rectangle, Transform},
     wayland::dmabuf::{
@@ -112,12 +112,8 @@ fn handle(state: &mut State, event: WinitEvent) {
 }
 
 fn redraw(state: &mut State) {
-    let damage = render_frame(state);
-    let Some(backend) = state.backend.as_mut() else {
-        return;
-    };
-    if let Err(err) = backend.graphics.submit(damage.as_deref()) {
-        tracing::warn!(?err, "submitting the frame failed");
+    if let Err(err) = render_frame(state) {
+        tracing::warn!("{err}");
     }
     send_frames(state);
     state.popups.cleanup();
@@ -126,8 +122,8 @@ fn redraw(state: &mut State) {
     }
 }
 
-/// Renders the scene into the window and returns the damage.
-fn render_frame(state: &mut State) -> Option<Vec<Rectangle<i32, smithay::utils::Physical>>> {
+/// Renders the damaged parts of the scene into the window and shows them.
+fn render_frame(state: &mut State) -> Result<(), String> {
     let State {
         backend,
         scene,
@@ -135,43 +131,59 @@ fn render_frame(state: &mut State) -> Option<Vec<Rectangle<i32, smithay::utils::
         rects,
         ..
     } = state;
-    let backend = backend.as_mut()?;
-    let (renderer, mut framebuffer) = backend.graphics.bind().ok()?;
-    let elements = render::elements(scene, windows, rects, renderer);
-    // A full redraw: winit surfaces report no buffer age before a bind.
-    let result = backend.damage_tracker.render_output(
-        renderer,
-        &mut framebuffer,
-        0,
-        &elements,
-        [0.0, 0.0, 0.0, 1.0],
-    );
-    match result {
-        Ok(result) => result.damage.cloned(),
-        Err(err) => {
-            tracing::warn!(?err, "rendering failed");
-            None
-        }
-    }
+    let Some(backend) = backend.as_mut() else {
+        return Ok(());
+    };
+    // The first query fails before the first bind; 0 means a full redraw.
+    let age = backend.graphics.buffer_age().unwrap_or(0);
+    let damage = {
+        let (renderer, mut framebuffer) =
+            backend.graphics.bind().map_err(|e| format!("bind: {e}"))?;
+        let elements = render::elements(scene, windows, rects, renderer);
+        let result = backend
+            .damage_tracker
+            .render_output(
+                renderer,
+                &mut framebuffer,
+                age,
+                &elements,
+                [0.0, 0.0, 0.0, 1.0],
+            )
+            .map_err(|e| format!("rendering failed: {e:?}"))?;
+        result.damage.cloned()
+    };
+    backend
+        .graphics
+        .submit(damage.as_deref())
+        .map_err(|e| format!("submitting the frame failed: {e}"))
 }
 
-/// Sends frame callbacks and output enter events to all toplevels.
+/// Sends frame callbacks: every frame to the visible toplevels, once per
+/// second to the others, so that hidden clients do not draw for nothing.
 fn send_frames(state: &State) {
     let Some(output) = state.output.as_ref() else {
         return;
     };
+    let visible: HashSet<&str> = state
+        .scene
+        .draw_list()
+        .iter()
+        .map(|p| p.node.id.as_str())
+        .collect();
     let time = state.start_time.elapsed();
-    for window in state.windows.values() {
-        if let Some(toplevel) = window.toplevel() {
-            output_update(
-                output,
-                Some(Rectangle::from_size(window.bbox().size)),
-                toplevel.wl_surface(),
-            );
+    for (id, window) in &state.windows {
+        let shown = visible.contains(id.as_str());
+        if shown {
+            window.output_enter(output, Rectangle::from_size(window.bbox().size));
+        } else {
+            window.output_leave(output);
         }
-        window.send_frame(output, time, Some(Duration::ZERO), |_, _| {
-            Some(output.clone())
-        });
+        let throttle = if shown {
+            Duration::ZERO
+        } else {
+            Duration::from_secs(1)
+        };
+        window.send_frame(output, time, Some(throttle), |_, _| Some(output.clone()));
     }
 }
 
