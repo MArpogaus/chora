@@ -1,5 +1,6 @@
 //! Reference tiling plugin for chora: a master and stack layout with
-//! keybindings to start a terminal, close a window and move the focus.
+//! keybindings to start a terminal and a launcher, close a window and move
+//! the focus.
 
 use std::process::ExitCode;
 
@@ -24,6 +25,9 @@ struct Args {
     /// The shell command that MOD+Return runs, for example "foot -e htop".
     #[arg(long, default_value = "foot")]
     terminal: String,
+    /// The shell command that MOD+d runs.
+    #[arg(long, default_value = "fuzzel")]
+    launcher: String,
     /// The gap around each window, in logical pixels.
     #[arg(long, default_value_t = 4)]
     gap: u16,
@@ -39,6 +43,7 @@ enum Modifier {
 #[derive(Clone, Copy)]
 enum Action {
     Terminal,
+    Launcher,
     Close,
     FocusNext,
     FocusPrevious,
@@ -133,6 +138,7 @@ impl Tiling {
     fn grab_all(&mut self) -> Result<(), ClientError> {
         for (key, action) in [
             ("Return", Action::Terminal),
+            ("d", Action::Launcher),
             ("q", Action::Close),
             ("j", Action::FocusNext),
             ("k", Action::FocusPrevious),
@@ -198,14 +204,11 @@ impl Tiling {
         };
         match action {
             Action::Terminal => {
-                // `&` lets the shell exit at once, so the terminal never
-                // becomes a zombie of this plugin.
-                let spawned = std::process::Command::new("sh")
-                    .args(["-c", &format!("{} &", self.args.terminal)])
-                    .status();
-                if let Err(err) = spawned {
-                    eprintln!("chora-tiling: cannot run {:?}: {err}", self.args.terminal);
-                }
+                spawn(&self.args.terminal);
+                return Ok(());
+            }
+            Action::Launcher => {
+                spawn(&self.args.launcher);
                 return Ok(());
             }
             Action::Close => {
@@ -331,6 +334,17 @@ fn master_stack(n: usize, [left, top, width, height]: [i32; 4], gap: i32) -> Vec
             }
             cells
         }
+    }
+}
+
+/// Runs a shell command. `&` lets the shell exit at once, so the command
+/// never becomes a zombie of this plugin.
+fn spawn(command: &str) {
+    let spawned = std::process::Command::new("sh")
+        .args(["-c", &format!("{command} &")])
+        .status();
+    if let Err(err) = spawned {
+        eprintln!("chora-tiling: cannot run {command:?}: {err}");
     }
 }
 

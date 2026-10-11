@@ -40,6 +40,7 @@ A window opens. The plugin uses these bindings:
 | Binding | Action |
 |---------|--------|
 | Super+Return | start a terminal (foot) |
+| Super+d | start a launcher (fuzzel) |
 | Super+q | close the focused window |
 | Super+j, Super+k | focus the next or previous window |
 

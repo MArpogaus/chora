@@ -130,7 +130,7 @@ A plugin is a client with a manifest:
 name: tiling
 exec: chora-tiling
 subscribe: [surface.created, surface.detached, surface.destroyed, output.changed]
-grabs: [Super+Return, Super+q, Super+j, Super+k]
+grabs: [Super+Return, Super+d, Super+q, Super+j, Super+k]
 ```
 
 `choractl` reads the manifest when it loads a view. Before views exist (M4),
