@@ -1,8 +1,24 @@
 //! The safety layer: the only built-in behavior (D23).
 
+use calloop::{
+    LoopHandle,
+    signals::{Signal, Signals},
+};
 use chora_scene::Effect;
 
 use crate::state::State;
+
+/// SIGUSR1 starts the emergency reset, for example from a text console when
+/// the keyboard no longer reaches the compositor.
+pub fn reset_on_signal(
+    handle: &LoopHandle<'static, State>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let signals = Signals::new(&[Signal::SIGUSR1])?;
+    handle
+        .insert_source(signals, |_, (), state| state.reset())
+        .map_err(|e| e.error)?;
+    Ok(())
+}
 
 impl State {
     /// The emergency reset: disconnects all clients of the IPC socket and

@@ -171,6 +171,8 @@ The safety layer is the only built-in behavior (see
 [Vision](vision.md#principles)). No plugin and no IPC client can change it.
 
 - **Fixed bindings** (D23). Injected input never triggers them.
+- **SIGUSR1** starts the emergency reset too, for example from a text
+  console when the keyboard no longer reaches the compositor.
 - **Emergency reset.** The core disconnects all plugins, removes all effects,
   restores the default cameras and puts all surfaces in a simple grid. This
   grid is the one layout in the core. It is hardcoded, so a broken

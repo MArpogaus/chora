@@ -1,4 +1,5 @@
 [dependencies]
+calloop.workspace = true
 chora-scene.workspace = true
 serde.workspace = true
 serde_json.workspace = true

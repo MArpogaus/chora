@@ -38,7 +38,7 @@ The decision log. Nothing here is final. Every entry can come back for review.
 | D20 | One logical scene; each output shows it through a camera | Pan, zoom and the infinite canvas need no extra mechanism. |
 | D21 | The core places popups, subsurfaces and layer surfaces; toplevels wait for a plugin | The protocols define these positions. Smithay implements them. |
 | D22 | A transaction completes when all affected clients commit, or after a deadline | A resize needs a client round trip. |
-| D23 | A hardcoded safety layer with fixed bindings: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT | A recovery path must not depend on a file that an agent can break. |
+| D23 | A hardcoded safety layer with fixed bindings: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT; SIGUSR1 resets too | A recovery path must not depend on a file that an agent can break. |
 | D24 | Shaders declare static or animated; fullscreen surfaces without effects use direct scanout | Damage tracking and battery life. |
 | D25 | No undo history and no plugin state store in the core | A destroyed client cannot come back. The reset and the views in git cover recovery. The scene holds all state. |
 | D26 | Xwayland through `xwayland-satellite` | Keeps the core small. |

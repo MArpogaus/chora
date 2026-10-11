@@ -6,6 +6,7 @@ members = ["crates/*", "plugins/*"]
 resolver = "3"
 
 [workspace.dependencies]
+calloop = { version = "0.14", features = ["signals"] }
 chora-scene = { path = "crates/chora-scene" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }

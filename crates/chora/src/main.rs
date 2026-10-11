@@ -43,6 +43,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some((program, args)) = command.split_first() {
         spawn(program, args, &state.socket_name, &socket);
     }
+    // After the spawn: the signal source blocks SIGUSR1, and children
+    // inherit the signal mask.
+    safety::reset_on_signal(&state.loop_handle)?;
     event_loop.run(None, &mut state, |state| {
         state.ipc_flush();
         if let Err(err) = state.display_handle.flush_clients() {
