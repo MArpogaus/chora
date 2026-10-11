@@ -55,15 +55,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Variables of the host session that would let the startup command reach
+/// the host compositor instead of this one.
+const HOST_VARIABLES: [&str; 6] = [
+    "WAYLAND_SOCKET",
+    "DISPLAY",
+    "SWAYSOCK",
+    "I3SOCK",
+    "NIRI_SOCKET",
+    "HYPRLAND_INSTANCE_SIGNATURE",
+];
+
 /// Starts the startup command with the environment of this compositor
-/// (D30).
+/// (D30). A thread waits for it, so that it never stays a zombie.
 fn spawn(program: &str, args: &[String], wayland: &OsStr, socket: &Path) {
-    let result = Command::new(program)
+    let mut command = Command::new(program);
+    command
         .args(args)
         .env("WAYLAND_DISPLAY", wayland)
-        .env(chora_scene::ipc::SOCKET_ENV, socket)
-        .spawn();
-    if let Err(err) = result {
-        tracing::error!(%err, program, "the startup command failed");
+        .env(chora_scene::ipc::SOCKET_ENV, socket);
+    for variable in HOST_VARIABLES {
+        command.env_remove(variable);
+    }
+    match command.spawn() {
+        Ok(mut child) => {
+            std::thread::spawn(move || child.wait());
+        }
+        Err(err) => tracing::error!(%err, program, "the startup command failed"),
     }
 }
