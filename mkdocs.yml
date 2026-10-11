@@ -1,0 +1,49 @@
+site_name: Void
+site_description: A Wayland compositor without policy, programmable by people and agents
+site_url: https://marpogaus.github.io/void/
+repo_url: https://github.com/MArpogaus/void
+edit_uri: blob/main/
+docs_dir: docs
+# a link to a page that moved is only a log line otherwise
+strict: true
+exclude_docs: |
+  requirements.txt
+
+theme:
+  name: material
+  features: [navigation.sections, navigation.top, content.code.copy, toc.follow]
+  palette:
+  - scheme: default
+    toggle: {icon: material/brightness-7, name: dark mode}
+  - scheme: slate
+    toggle: {icon: material/brightness-4, name: light mode}
+
+nav:
+- Home: index.md
+- Concept:
+  - Vision and principles: vision.md
+  - Glossary: glossary.md
+  - Scenarios: scenarios.md
+- Design:
+  - Architecture: architecture.md
+  - API: api.md
+  - Configuration: configuration.md
+  - Project structure: project-structure.md
+- Context:
+  - Dependencies: dependencies.md
+  - Alternatives: alternatives.md
+  - Decisions and open questions: decisions.md
+  - Idea backlog: ideas.md
+
+markdown_extensions:
+- admonition
+- toc: {permalink: true}
+- pymdownx.snippets
+- pymdownx.superfences:
+    custom_fences:
+    - name: mermaid
+      class: mermaid
+      format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra:
+  version: {provider: mike}

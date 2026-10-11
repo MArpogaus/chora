@@ -1,0 +1,3 @@
+# the docs toolchain for the workflow and for local builds
+mkdocs-material>=9.6
+mike>=2.1
