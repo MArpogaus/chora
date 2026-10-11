@@ -589,3 +589,19 @@ fn an_update_or_a_removal_ends_an_animation() {
     assert!(!scene.animating());
     assert!(scene.advance(200.0).is_empty());
 }
+
+#[test]
+fn a_node_reads_back_from_its_json() {
+    let mut scene = Scene::default();
+    let rect = Command::Create {
+        id: "r".into(),
+        kind: NodeKind::Rect,
+        parent: ROOT.into(),
+        props: PropsUpdate::default(),
+    };
+    scene.apply("wm", &[rect]).unwrap();
+    let node = scene.node("r").unwrap();
+    let json = serde_json::to_value(node).unwrap();
+    let back: crate::Node = serde_json::from_value(json).unwrap();
+    assert_eq!(&back, node);
+}

@@ -209,7 +209,7 @@ pub struct Props {
     /// A grid that deforms the node and its descendants.
     pub mesh: Option<Mesh>,
     /// Shaders that change how the node and its descendants look.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<ShaderEffect>,
 }
 
