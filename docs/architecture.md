@@ -156,7 +156,7 @@ transaction until all affected clients commit, or until a deadline of 150 ms
 passes. Then the core shows all changes in the same frame (D22).
 
 A surface that misses the deadline is late. No transaction waits for it
-until it commits a buffer for the configure that it missed. A hung client
+until it commits a buffer for its newest configure. A hung client
 thus delays the queue once, not once per transaction.
 
 ## Frame flow

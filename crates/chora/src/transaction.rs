@@ -6,8 +6,8 @@
 //! Transactions run one after the other, in the order of their arrival.
 //!
 //! A surface that misses a deadline is late. No transaction waits for it
-//! until it commits a buffer for the configure that it missed, so a hung
-//! client delays the queue once, not once per transaction.
+//! until it commits a buffer for its newest configure, so a hung client
+//! delays the queue once, not once per transaction.
 
 use std::{
     collections::{HashMap, VecDeque},
@@ -33,7 +33,7 @@ const MAX_PENDING: usize = 16;
 #[derive(Default)]
 pub struct Transactions {
     queue: VecDeque<Pending>,
-    /// The late surfaces, and the configure serial that each one missed.
+    /// The late surfaces, and the newest configure serial of each.
     late: HashMap<String, Serial>,
 }
 
@@ -68,6 +68,17 @@ impl Transactions {
         self.late.remove(id);
         for pending in &mut self.queue {
             pending.waiting.remove(id);
+        }
+    }
+
+    /// Notes a configure that a transaction sent. The transaction waits for
+    /// it, unless the surface is late; a late surface must then catch up
+    /// with this newer configure.
+    fn configured(&mut self, waiting: &mut HashMap<String, Serial>, surface: &str, serial: Serial) {
+        if let Some(missed) = self.late.get_mut(surface) {
+            *missed = serial;
+        } else {
+            waiting.insert(surface.into(), serial);
         }
     }
 
@@ -150,9 +161,9 @@ impl State {
                 states,
             } = effect
                 && let Some(serial) = self.configure(surface, *size, states)
-                && !self.transactions.late.contains_key(surface)
             {
-                head.waiting.insert(surface.clone(), serial);
+                self.transactions
+                    .configured(&mut head.waiting, surface, serial);
             }
         }
         let deadline = Instant::now() + DEADLINE;
