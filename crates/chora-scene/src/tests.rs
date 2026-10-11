@@ -1,8 +1,8 @@
 //! Tests of the scene rules.
 
 use crate::{
-    Command, Effect, MAX_NODES, NodeKind, PropsUpdate, ROOT, Scene, SceneError, Selector,
-    SurfaceInfo, Transform,
+    Command, Effect, MAX_CAMERAS, MAX_NODES, NodeKind, PropsUpdate, ROOT, Scene, SceneError,
+    Selector, SurfaceInfo, Transform,
 };
 
 fn group(id: &str, parent: &str) -> Command {
@@ -358,11 +358,11 @@ fn the_scene_has_a_node_limit() {
     let groups = |range: std::ops::Range<usize>| -> Vec<Command> {
         range.map(|i| group(&format!("g{i}"), ROOT)).collect()
     };
-    // Surfaces do not count; the root does.
+    // Neither surfaces nor the root count.
     for i in 1..=10 {
         scene.add_surface(&format!("s{i}"), SurfaceInfo::default());
     }
-    scene.apply("wm", &groups(1..MAX_NODES)).unwrap();
+    scene.apply("wm", &groups(0..MAX_NODES)).unwrap();
     let err = scene
         .apply("wm", &groups(MAX_NODES..MAX_NODES + 1))
         .unwrap_err();
@@ -408,10 +408,21 @@ fn a_disconnect_restores_the_default_camera() {
 #[test]
 fn a_camera_needs_a_positive_2d_scale() {
     let mut scene = Scene::default();
+    let mut perspective = [0.0; 16];
+    for i in [0, 5, 10, 15] {
+        perspective[i] = 1.0;
+    }
+    perspective[11] = 0.5;
+    let perspective: Transform =
+        serde_json::from_value(serde_json::json!({ "matrix": perspective })).unwrap();
     for transform in [
         Transform::scale(0.0, 1.0, 1.0),
+        Transform::scale(1e-9, 1e-9, 1.0),
         Transform::rotate_z(30.0),
         Transform::translate(f64::NAN, 0.0, 0.0),
+        Transform::translate(1e12, 0.0, 0.0),
+        Transform::translate(0.0, 0.0, 5.0),
+        perspective,
     ] {
         let err = scene
             .apply("wm", &[camera("DP-1", Some(transform))])
@@ -430,4 +441,20 @@ fn adding_a_surface_again_keeps_its_node() {
     assert_eq!(scene.node("s1").unwrap().parent.as_deref(), Some("g"));
     scene.remove_surface("s1");
     assert!(scene.draw_list().iter().all(|p| p.node.id != "s1"));
+}
+
+#[test]
+fn the_number_of_cameras_has_a_limit() {
+    let mut scene = Scene::default();
+    let pan = Some(Transform::translate(-10.0, 0.0, 0.0));
+    let cameras: Vec<Command> = (0..MAX_CAMERAS)
+        .map(|i| camera(&format!("out-{i}"), pan))
+        .collect();
+    scene.apply("wm", &cameras).unwrap();
+    // A camera of a known output can still change.
+    scene
+        .apply("wm", &[camera("out-0", None), camera("out-0", pan)])
+        .unwrap();
+    let err = scene.apply("wm", &[camera("one-more", pan)]).unwrap_err();
+    assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
 }

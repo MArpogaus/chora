@@ -62,8 +62,27 @@ pub struct Placed<'a> {
     pub input: InputMode,
 }
 
-/// The limit of the nodes that clients create, the root included. Surfaces
-/// do not count, so that Wayland clients cannot use up the limit. The limit
+/// The limit of the cameras that clients set.
+pub const MAX_CAMERAS: usize = 64;
+/// The largest translation of a camera, in logical pixels.
+const MAX_PAN: f64 = 1e7;
+/// The largest zoom of a camera, and the inverse of the smallest.
+const MAX_ZOOM: f64 = 64.0;
+
+/// Whether a transform is a camera: exactly a translation in x and y after
+/// a scale in x and y, within the limits.
+#[allow(clippy::float_cmp)] // the other entries of such a matrix are exactly 0 or 1
+fn valid_camera(t: &Transform) -> bool {
+    let m = t.matrix();
+    let zero = [1, 2, 3, 4, 6, 7, 8, 9, 11, 14];
+    let plain = zero.iter().all(|&i| m[i] == 0.0) && m[10] == 1.0 && m[15] == 1.0;
+    let zoom = |s: f64| (1.0 / MAX_ZOOM..=MAX_ZOOM).contains(&s);
+    let pan = |p: f64| (-MAX_PAN..=MAX_PAN).contains(&p);
+    plain && zoom(m[0]) && zoom(m[5]) && pan(m[12]) && pan(m[13])
+}
+
+/// The limit of the groups and rects that clients create. Surfaces do not
+/// count, so that Wayland clients cannot use up the limit. The limit
 /// keeps a buggy client from growing the scene, and with it each frame,
 /// without bound.
 pub const MAX_NODES: usize = 16_384;
@@ -276,10 +295,15 @@ impl Scene {
             self.cameras.remove(output);
             return Ok(());
         };
-        let positive = t.scale_2d().is_some_and(|(x, y)| x > 0.0 && y > 0.0);
-        if !positive || t.matrix().iter().any(|n| !n.is_finite()) {
+        if !valid_camera(&t) {
             return Err(SceneError::Invalid(format!(
-                "the camera of {output:?} needs a finite 2D translation and a positive scale"
+                "the camera of {output:?} needs a 2D translation within {MAX_PAN} and a \
+                 scale from 1/{MAX_ZOOM} to {MAX_ZOOM}"
+            )));
+        }
+        if !self.cameras.contains_key(output) && self.cameras.len() >= MAX_CAMERAS {
+            return Err(SceneError::Invalid(format!(
+                "{output:?}: the scene holds {MAX_CAMERAS} cameras, its limit"
             )));
         }
         self.cameras.insert(output.into(), (owner.into(), t));
@@ -296,7 +320,8 @@ impl Scene {
         if self.nodes.contains_key(&id) {
             return Err(SceneError::Exists(id));
         }
-        if self.nodes.len() - self.surfaces >= MAX_NODES {
+        // The root and the surfaces do not count.
+        if self.nodes.len() - self.surfaces > MAX_NODES {
             return Err(SceneError::Invalid(format!(
                 "{id:?}: the scene holds {MAX_NODES} nodes, its limit"
             )));
