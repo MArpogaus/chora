@@ -1306,14 +1306,17 @@ name, not a connection, so several <code>choractl</code> calls share their nodes
 </ul>
 <h3 id="cameras">Cameras<a class="headerlink" href="#cameras" title="Permanent link">&para;</a></h3>
 <p>All outputs show one logical scene. Each output has a <strong>camera</strong>: a
-transform from scene coordinates to output pixels.</p>
+transform from scene coordinates to the logical coordinates of the output.
+The output scale then gives the pixels.</p>
 <ul>
 <li>The default camera follows the output layout of <code>wlr-output-management</code>.
-  An output at position (x, y) with scale s shows the scene area from (x, y)
-  with the size of the output divided by s.</li>
-<li>The <code>camera</code> command replaces the default, for example to pan or zoom. The
-  first client that sets the camera of an output owns it. When the owner
-  disconnects, the output gets its default camera back.</li>
+  An output at position (x, y) shows the scene area from (x, y) with the
+  logical size of the output. Scene and layout coordinates then agree.</li>
+<li>The <code>camera</code> command replaces the default, for example to pan or zoom. A
+  camera is a 2D translation and a positive scale. The first client that
+  sets the camera of an output owns it. When the owner disconnects, the
+  output gets its default camera back. The reset restores all default
+  cameras.</li>
 <li>Two outputs side by side get two adjacent default cameras. A window across
   two outputs then needs no special case.</li>
 </ul>
@@ -1374,7 +1377,7 @@ the connection.</p>
 <td>the core rejects the transaction</td>
 </tr>
 <tr>
-<td>nodes in the scene, surfaces included</td>
+<td>groups and rects in the scene</td>
 <td>16,384</td>
 <td>the core rejects the <code>create</code></td>
 </tr>
@@ -1394,7 +1397,7 @@ the client must answer with a new buffer. The core therefore holds the
 transaction until all affected clients commit, or until a deadline of 150 ms
 passes. Then the core shows all changes in the same frame (D22).</p>
 <p>A surface that misses the deadline is late. No transaction waits for it
-until it commits a buffer for the configure that it missed. A hung client
+until it commits a buffer for its newest configure. A hung client
 thus delays the queue once, not once per transaction.</p>
 <h2 id="frame-flow">Frame flow<a class="headerlink" href="#frame-flow" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>sequenceDiagram
