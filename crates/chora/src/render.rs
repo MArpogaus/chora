@@ -123,11 +123,11 @@ pub fn window_origin(state: &State, id: &str) -> Option<Point<i32, Logical>> {
 /// gives it to nobody; a node with `pass` lets it through.
 pub fn surface_under(state: &State, pos: Point<f64, Logical>) -> Option<Under> {
     let draw_list = state.scene.draw_list();
-    let mut candidates = draw_list
+    let (placed, hit) = draw_list
         .iter()
         .rev()
-        .filter(|p| p.input != InputMode::Pass);
-    let (placed, hit) = candidates.find_map(|p| Some((p, hit(state, p, pos)?)))?;
+        .filter(|p| p.input != InputMode::Pass)
+        .find_map(|p| Some((p, hit(state, p, pos)?)))?;
     match (placed.input, hit) {
         (InputMode::Accept, Hit::Surface(surface, location)) => Some(Under {
             surface,
