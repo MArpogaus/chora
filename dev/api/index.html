@@ -1269,11 +1269,11 @@ or an empty list. It always sees the current titles.</p>
 <tbody>
 <tr>
 <td><code>surface.created</code></td>
-<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title</td>
+<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title, and <code>decoration</code>: <code>server</code> when the client asked for a frame of the plugins through <code>xdg-decoration</code>, <code>client</code> when it draws its own</td>
 </tr>
 <tr>
 <td><code>surface.changed</code></td>
-<td>surface id, <code>app_id</code>, title and size, after any of them changed</td>
+<td>surface id, <code>app_id</code>, title, size and <code>decoration</code>, after any of them changed</td>
 </tr>
 <tr>
 <td><code>surface.destroyed</code>, <code>surface.detached</code></td>
