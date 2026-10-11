@@ -72,20 +72,19 @@ pub enum Event {
 }
 
 impl Event {
-    /// The name of the event, for example `surface.created`.
+    /// The name of the event, for example `surface.created`: the value of
+    /// the field `event` in the JSON form.
+    ///
+    /// # Panics
+    ///
+    /// Never: every event serializes with its name.
     #[must_use]
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::SurfaceCreated { .. } => "surface.created",
-            Self::SurfaceChanged { .. } => "surface.changed",
-            Self::SurfaceDestroyed { .. } => "surface.destroyed",
-            Self::SurfaceDetached { .. } => "surface.detached",
-            Self::InputKey { .. } => "input.key",
-            Self::OutputChanged { .. } => "output.changed",
-            Self::OutputRemoved { .. } => "output.removed",
-            Self::ClientConnected { .. } => "client.connected",
-            Self::ClientDisconnected { .. } => "client.disconnected",
-        }
+    pub fn name(&self) -> String {
+        let json = serde_json::to_value(self).expect("events always serialize");
+        json["event"]
+            .as_str()
+            .expect("every event has a name")
+            .to_owned()
     }
 }
 
@@ -107,11 +106,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn name_matches_the_json_tag() {
+    fn name_is_the_json_tag() {
         let e = Event::SurfaceDetached {
             surface: "s1".into(),
         };
-        let json = serde_json::to_value(&e).unwrap();
-        assert_eq!(json["event"], e.name());
+        assert_eq!(e.name(), "surface.detached");
     }
 }

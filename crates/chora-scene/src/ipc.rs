@@ -24,7 +24,7 @@ pub struct Request {
     /// Always `2.0`.
     pub jsonrpc: String,
     /// The request id; missing for notifications.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Value>,
     /// The method name, for example `scene.apply`.
     pub method: String,
@@ -39,19 +39,19 @@ pub struct Message {
     /// Always `2.0`.
     pub jsonrpc: String,
     /// The id of the request; missing for notifications.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Value>,
     /// The result of a successful request.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<Value>,
     /// The error of a failed request.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<RpcError>,
     /// `event` for notifications.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
     /// The event of a notification.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub params: Option<Value>,
 }
 
@@ -143,12 +143,8 @@ pub struct Hello {
 #[serde(deny_unknown_fields)]
 pub struct Query {
     /// See [`crate::Selector`]; every node if missing.
-    #[serde(default = "all")]
+    #[serde(default)]
     pub selector: String,
-}
-
-fn all() -> String {
-    "*".into()
 }
 
 /// Parameters of `scene.apply`.

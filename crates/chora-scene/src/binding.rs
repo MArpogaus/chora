@@ -19,7 +19,7 @@ pub struct Modifiers {
 }
 
 /// Modifiers and one key, for example `Super+Shift+Return`. The key is an
-/// XKB keysym name; the core compares it without case.
+/// XKB keysym name; the core resolves it without case.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct Binding {

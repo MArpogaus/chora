@@ -91,12 +91,13 @@ impl Ipc {
     /// Sends an event to every connection that subscribed to it.
     pub fn broadcast(&mut self, event: &Event) {
         let line = line(&Message::event(event));
+        let name = event.name();
         for conn in self.conns.values_mut() {
-            if conn
+            let wanted = conn
                 .events
                 .as_ref()
-                .is_some_and(|e| e.is_empty() || e.iter().any(|n| n == event.name()))
-            {
+                .is_some_and(|e| e.is_empty() || e.contains(&name));
+            if wanted {
                 conn.output.extend_from_slice(&line);
             }
         }

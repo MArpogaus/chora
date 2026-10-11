@@ -40,11 +40,9 @@ pub enum Command {
         /// The node.
         id: String,
         /// The new parent; the old parent if missing.
-        #[serde(default)]
         parent: Option<String>,
         /// The new position among the siblings, 0 at the bottom; the top if
         /// missing.
-        #[serde(default)]
         index: Option<usize>,
     },
     /// Removes a node and its descendants. Surfaces become detached.
@@ -57,7 +55,6 @@ pub enum Command {
         /// The surface node.
         surface: String,
         /// Width and height in logical pixels; the client decides if missing.
-        #[serde(default)]
         size: Option<[i32; 2]>,
         /// The toplevel states.
         #[serde(default)]
@@ -66,7 +63,6 @@ pub enum Command {
     /// Sets the keyboard focus.
     Focus {
         /// The surface node; no focus if missing.
-        #[serde(default)]
         surface: Option<String>,
     },
     /// Asks a client to close a surface.

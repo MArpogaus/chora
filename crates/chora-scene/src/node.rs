@@ -106,25 +106,25 @@ impl Default for Props {
 #[serde(deny_unknown_fields)]
 pub struct PropsUpdate {
     /// See [`Props::transform`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub transform: Option<Transform>,
     /// See [`Props::opacity`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub opacity: Option<f64>,
     /// See [`Props::visible`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub visible: Option<bool>,
     /// See [`Props::input`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<InputMode>,
     /// Keys to set; an empty value removes the key.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<BTreeMap<String, String>>,
     /// See [`Props::size`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<[f64; 2]>,
     /// See [`Props::color`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<[f64; 4]>,
 }
 

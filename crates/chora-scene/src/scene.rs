@@ -233,9 +233,10 @@ impl Scene {
         index: Option<usize>,
     ) -> Result<(), SceneError> {
         let node = self.owned_mut(owner, id)?;
-        let Some(parent) = parent.map(str::to_owned).or_else(|| node.parent.clone()) else {
-            return Err(SceneError::Missing(format!("parent of {id}")));
-        };
+        let parent = parent
+            .map(str::to_owned)
+            .or_else(|| node.parent.clone())
+            .ok_or_else(|| SceneError::WrongKind(id.into(), "node with a parent"))?;
         self.group(&parent)?;
         if self.ancestors(&parent).any(|a| a == id) {
             return Err(SceneError::Cycle(id.into()));
