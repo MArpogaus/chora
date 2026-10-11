@@ -183,6 +183,11 @@ impl Tiling {
                 self.focused = Some(surface);
                 self.relayout()
             }
+            // For example a click on the close button of a taskbar.
+            Event::SurfaceRequested {
+                surface,
+                request: SurfaceRequest::Close,
+            } if self.windows.contains(&surface) => self.apply(vec![Command::Close { surface }]),
             _ => Ok(()),
         }
     }
