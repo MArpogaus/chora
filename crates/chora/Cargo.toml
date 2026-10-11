@@ -31,4 +31,8 @@ assets = [
   { source = "../../README.md", dest = "/usr/share/doc/chora/README.md", mode = "644", doc = true }
 ]
 auto-req = "auto"
+# The default terminal of chora-tiling.
+recommends = { foot = "*" }
+# Smithay loads libEGL at runtime, so auto-req does not see it.
+requires = { mesa-libEGL = "*" }
 summary = "Wayland compositor without policy, programmable by plugins and agents"
