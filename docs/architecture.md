@@ -275,9 +275,12 @@ Version 1 trusts every client of the same user (D33):
 - Without `XKB_DEFAULT_LAYOUT`, `chora-session` takes the keyboard layout of
   the system from `localectl`.
 - `chora@.service` runs `chora -- chora-flavor <name>` as part of
-  `graphical-session.target`.
+  `graphical-session.target`. It drops `WAYLAND_DISPLAY` and `DISPLAY` that
+  an earlier session left in the user manager, which would make chora run
+  nested.
 - `chora-flavor <name>` imports `WAYLAND_DISPLAY` and `CHORA_SOCKET` into the
-  systemd user manager, links the units of the flavor until the next boot,
+  systemd user manager, and `DISPLAY` when `xwayland-satellite` is
+  installed. It links the units of the flavor until the next boot,
   tells systemd that chora is ready, and starts the target of the flavor.
   Units of the flavor then find the compositor and the IPC socket. The
   script is not for nested use: the variables would reach the units of the

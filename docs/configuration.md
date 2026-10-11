@@ -55,8 +55,10 @@ plugin and its configuration.
 A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target `chora-<name>.target`. `chora-flavor <name>` looks for
 the directory in `~/.config/chora/flavors/` first and then in
-`/usr/share/chora/flavors/`. It imports `WAYLAND_DISPLAY` and `CHORA_SOCKET`
-into the systemd user manager, links the units of the directory, and starts
+`/usr/share/chora/flavors/`. It imports `WAYLAND_DISPLAY`, `CHORA_SOCKET` and
+the X11 `DISPLAY` of `xwayland-satellite` into the systemd user manager, so
+that every unit of the flavor starts with them. It links the units of the
+directory, and starts
 the target. The target starts the services and the plugins. systemd handles
 start, restart and order, so chora needs no service manager.
 

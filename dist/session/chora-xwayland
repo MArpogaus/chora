@@ -1,17 +1,20 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Runs xwayland-satellite on a free X11 display and gives DISPLAY to the
-# units of the session, so that X11 programs work in chora (D26).
+# Runs xwayland-satellite, so that X11 programs work in chora (D26), on the
+# display that chora-flavor chose. Without one, it chooses a free display
+# and gives DISPLAY to the units that start later.
 set -eu
 
-n=0
-while [ -e "/tmp/.X11-unix/X$n" ] || [ -e "/tmp/.X$n-lock" ]; do
-    n=$((n + 1))
-done
-
-systemctl --user set-environment "DISPLAY=:$n"
-if command -v dbus-update-activation-environment >/dev/null; then
-    dbus-update-activation-environment "DISPLAY=:$n"
+if [ -z "${DISPLAY:-}" ]; then
+    n=0
+    while [ -e "/tmp/.X11-unix/X$n" ] || [ -e "/tmp/.X$n-lock" ]; do
+        n=$((n + 1))
+    done
+    DISPLAY=:$n
+    systemctl --user set-environment "DISPLAY=$DISPLAY"
+    if command -v dbus-update-activation-environment >/dev/null; then
+        dbus-update-activation-environment "DISPLAY=$DISPLAY"
+    fi
 fi
-exec xwayland-satellite ":$n"
+exec xwayland-satellite "$DISPLAY"

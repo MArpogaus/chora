@@ -24,6 +24,17 @@ if [ -z "$dir" ]; then
 fi
 
 variables="WAYLAND_DISPLAY CHORA_SOCKET XDG_CURRENT_DESKTOP XDG_SESSION_TYPE"
+# The X11 display of chora-xwayland, chosen now, so that every unit of the
+# flavor starts with it.
+if command -v xwayland-satellite >/dev/null; then
+    n=0
+    while [ -e "/tmp/.X11-unix/X$n" ] || [ -e "/tmp/.X$n-lock" ]; do
+        n=$((n + 1))
+    done
+    DISPLAY=:$n
+    export DISPLAY
+    variables="$variables DISPLAY"
+fi
 # shellcheck disable=SC2086 # one word per variable name
 systemctl --user import-environment $variables
 if command -v dbus-update-activation-environment >/dev/null; then

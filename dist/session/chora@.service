@@ -13,4 +13,6 @@ Slice=session.slice
 Type=notify
 NotifyAccess=all
 Environment=XDG_CURRENT_DESKTOP=chora XDG_SESSION_TYPE=wayland
+# Values of an earlier session would make chora run nested.
+UnsetEnvironment=WAYLAND_DISPLAY WAYLAND_SOCKET DISPLAY
 ExecStart=/usr/bin/chora -- /usr/bin/chora-flavor %i
