@@ -3,7 +3,7 @@
 # chora-tiling tiles three foot windows, a crash of the plugin leaves the
 # core running, and the emergency reset puts the windows in the grid.
 # Further steps check fixed regressions, and the nested exit of M2: waybar,
-# fuzzel and swaylock work.
+# fuzzel and swaylock work. wlr-randr configures the output.
 #
 # The test starts the reset with SIGUSR1. Ctrl+Alt+Escape runs the same
 # code, but synthetic keys from wtype carry their own keymap, which a nested
@@ -13,7 +13,7 @@
 #   BIN_DIR  holds chora, choractl and chora-tiling
 #   OUT_DIR  receives the logs and screenshots (default: a temp dir)
 # Needs: sway, foot, grim, jq, python3, pgrep and pkill, a Mesa driver,
-# waybar with dbus-run-session, fuzzel and swaylock.
+# waybar with dbus-run-session, fuzzel, swaylock and wlr-randr.
 set -euo pipefail
 
 bin=$(realpath "$1")
@@ -217,7 +217,22 @@ kill -0 "$fuzzel_pid" || fail "fuzzel exited: $out/fuzzel.log"
 test "$(colors "$out/launcher.png")" -gt 3 || fail "the launcher view is empty"
 kill "$fuzzel_pid"
 
-step "12. the lock screen hides the scene and survives a crash of its client"
+step "12. wlr-randr lists the output and changes its scale and position"
+randr() { WAYLAND_DISPLAY=$inner wlr-randr "$@"; }
+# Succeeds when the jq condition holds for the first output.
+output_has() { "$bin/choractl" outputs | jq -e ".[0] | $1" >/dev/null; }
+randr >"$out/randr.txt" || fail "wlr-randr cannot list the outputs"
+grep -q '^winit ' "$out/randr.txt" || fail "no head for winit: $out/randr.txt"
+randr --output winit --scale 2 || fail "the scale change failed"
+wait_for output_has '.scale == 2 and .size == [640, 400]'
+randr --output winit --pos 100,50 --scale 1 || fail "the position change failed"
+wait_for output_has '.position == [100, 50] and .size == [1280, 800]'
+# The only output cannot turn off, and the window decides its mode.
+if randr --output winit --off 2>>"$out/randr.txt"; then fail "the winit output turned off"; fi
+randr --output winit --pos 0,0 || fail "the position reset failed"
+wait_for output_has '.position == [0, 0] and .work_area == [0, 0, 1280, 800]'
+
+step "13. the lock screen hides the scene and survives a crash of its client"
 # Prints the most frequent color of a new screenshot as "r g b".
 top_color() {
     grim -t ppm - | tail -c +17 | od -An -v -tu1 -w3 | sort | uniq -c | sort -rn |
@@ -232,7 +247,7 @@ kill -KILL "$swaylock_pid"
 wait_for color_is "0 0 0"
 kill -0 "$chora_pid" || fail "chora died"
 
-step "13. a fullscreen request reaches plugins after surface.created"
+step "14. a fullscreen request reaches plugins after surface.created"
 "$bin/choractl" events surface.created surface.requested >"$out/requests.jsonl" &
 events_pid=$!
 pids+=("$events_pid")
