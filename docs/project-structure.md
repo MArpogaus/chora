@@ -7,7 +7,7 @@ needs it.
 ```text
 chora/
 ├── crates/
-│   ├── chora-scene/   # scene model, commands, events, transactions, selectors; no Smithay
+│   ├── chora-scene/   # scene model, commands, events, selectors, IPC types and client; no Smithay
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/

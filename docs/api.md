@@ -14,13 +14,15 @@ travel in **transactions** (see [Architecture](architecture.md#transactions)).
 ```yaml
 # one transaction
 - create: {id: work, kind: group, parent: root}
-- create: {id: bg, kind: shader, parent: work, shader: aurora.frag}
+- create: {id: bar, kind: rect, parent: work, props: {size: [1280, 30], color: [0.2, 0.4, 0.8, 1]}}
 - attach: {surface: s42, parent: work}
 - configure: {surface: s42, size: [900, 600], states: [activated]}
-- update: {id: s42, transform: {translate: [40, 40, 0]}}
-- update: {id: work, effects: [{shader: blur.frag, uniforms: {radius: 8}}]}
+- update: {id: s42, props: {transform: {translate: [40, 40]}}}
 - focus: {surface: s42}
 ```
+
+`create` and `update` take the node properties in `props`. Unknown fields
+are errors, so a typo never passes silently.
 
 ## Nodes
 
@@ -34,7 +36,7 @@ This table is the one list of node properties.
 | `opacity`, `visible` | all | |
 | `clip` | all | rectangle, optionally rounded |
 | `effects` | all | list of shaders with uniforms |
-| `input` | all | `accept`, `pass` or `block` |
+| `input` | all | `accept`, `pass` or `block`; `pass` and `block` apply to all descendants |
 | `meta` | all | free key/value pairs to tag and find nodes |
 | `size` | rect, shader | width and height |
 | `color`, `radius`, `border` | rect | |
@@ -48,7 +50,7 @@ the client for a new size.
 | Command | Purpose |
 |---------|---------|
 | `create` | create a group, rect or shader node under a parent |
-| `attach` | put a detached surface node under a parent |
+| `attach` | put a surface without an owner under a parent; the caller becomes its owner |
 | `update` | change node properties |
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
@@ -62,34 +64,40 @@ the client for a new size.
 
 ## Selectors
 
-A selector finds nodes: `id:work`, `app_id:firefox`, `title~:Inbox`,
-`meta:role=editor`, `kind:surface`. Selectors work in queries only. A query
-returns all current matches, or an empty list. It always sees the current
-titles.
+A selector finds nodes: `id:work`, `kind:surface`, `owner:tiling`,
+`app_id:firefox`, `title:"make test"` (exact), `title~:Inbox` (contains),
+`meta:role=editor`. Conditions separated by spaces must all match. A value
+with spaces goes in double quotes. An empty selector or `*` matches every
+node. Selectors work in queries only. A query returns all current matches,
+or an empty list. It always sees the current titles.
 
 ## Events
 
 | Event | Data |
 |-------|------|
-| `surface.created`, `surface.destroyed` | surface id, `app_id`, title, role (toplevel, layer, popup) |
-| `surface.changed` | title, `app_id`, min and max size, requests for maximize, fullscreen and activation |
-| `surface.detached` | surface id |
-| `input.key`, `input.pointer`, `input.touch`, `input.gesture` | event data for grabs |
-| `output.added`, `output.removed`, `output.changed` | output, mode, scale, position |
+| `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title |
+| `surface.changed` | surface id, `app_id`, title |
+| `surface.destroyed`, `surface.detached` | surface id |
+| `input.key` | the grabbed binding |
+| `output.changed`, `output.removed` | output name, position, size, scale |
 | `client.connected`, `client.disconnected` | client name |
-| `transaction.applied`, `transaction.rejected` | id, error, for example a shader compile error |
+
+The response of `scene.apply` reports the result of a transaction: `null`
+when it applied, an error with the index of the failed command when not.
+Later milestones add events for size limits, activation requests and
+pointer grabs.
 
 ## IPC methods
 
 JSON-RPC 2.0, one message per line, on the socket in `CHORA_SOCKET`. Every
-client sends `hello` first.
+client sends `hello` first. The core answers every request.
 
 | Method | Purpose |
 |--------|---------|
 | `hello(name, keep_nodes)` | name the client; `keep_nodes` keeps its nodes after the disconnect |
 | `scene.query(selector)` | read nodes |
-| `scene.apply(transaction)` | apply a transaction |
-| `events.subscribe(filter)` | stream events as notifications |
+| `scene.apply(commands)` | apply a transaction |
+| `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications |
 | `input.grab(binding)` | get the events of a key, a button or a gesture |
 | `input.inject(events)` | send synthetic input; needs a grant |
 | `screen.capture(target)` | capture an output, a group or a surface; needs a grant |

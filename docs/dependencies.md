@@ -10,7 +10,7 @@ check of each choice. [Decisions](decisions.md) records the result.
 | [Smithay](https://github.com/Smithay/smithay) | Wayland protocols, backends, GLES renderer, input | a library without policy; used by niri, cosmic-comp and Pinnacle; the latest release is 0.7.0 (June 2025), so chora pins a git revision |
 | libinput, libseat, udev, GBM, Mesa | hardware access | through Smithay |
 | calloop | event loop | Smithay uses it; the IPC socket runs in the same loop |
-| serde, serde_json, schemars | API types, JSON-RPC, generated JSON Schemas | |
+| serde, serde_json, thiserror | API types, JSON-RPC, error types | |
 
 ## choractl
 

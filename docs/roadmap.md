@@ -30,8 +30,8 @@ container, and `chora --version` runs there.
 
 - winit backend on a pinned Smithay revision (D16).
 - Protocols: `xdg-shell` with popups, subsurfaces, `xdg-decoration`,
-  `linux-dmabuf`, `viewporter`, `presentation-time`, `xdg-output`,
-  `cursor-shape`, data device and `primary-selection`.
+  `linux-dmabuf`, `viewporter`, `xdg-output`, data device and
+  `primary-selection`.
 - Scene with group, surface and rect nodes, 2D transforms (D18, D19).
 - Transactions that wait for client commits (D22).
 - IPC socket (D29) with `hello`, `scene.query`, `scene.apply`,
@@ -59,7 +59,10 @@ container, and `chora --version` runs there.
 - udev, DRM/KMS, libinput and libseat backends; the VT switch bindings.
 - Several outputs, cameras (D20) and the `camera` command;
   `wlr-output-management` (D27).
-- Protocols: `wlr-layer-shell`, `ext-session-lock`, `ext-idle-notify`,
+- Commit blockers, as in niri and Pinnacle, so that the new buffers of a
+  transaction appear in the same frame.
+- Protocols: `cursor-shape`, `presentation-time`, `wlr-layer-shell`,
+  `ext-session-lock`, `ext-idle-notify`,
   `idle-inhibit`, `text-input`, `input-method`, `pointer-constraints`,
   `relative-pointer`, `ext-foreign-toplevel-list`,
   `wlr-foreign-toplevel-management`, `xdg-activation`, `fractional-scale`.
