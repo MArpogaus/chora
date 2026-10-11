@@ -35,11 +35,11 @@ container, and `chora --version` runs there.
 - Scene with group, surface and rect nodes, 2D transforms (D18, D19).
 - Transactions that wait for client commits (D22).
 - IPC socket (D29) with `hello`, `scene.query`, `scene.apply`,
-  `events.subscribe` and `input.grab`.
+  `events.subscribe`, `input.grab` and `output.list`.
 - Ownership (D31).
 - The startup command (D30).
 - Safety layer: quit and emergency reset (D23).
-- `choractl` with `query`, `apply` and `events`.
+- `choractl` with `query`, `apply`, `events` and `outputs`.
 - `chora-tiling`: a reference plugin with a master and stack layout and
   keybindings to start a terminal, close a window and move the focus.
 
@@ -50,7 +50,8 @@ container, and `chora --version` runs there.
    confirm the layout.
 3. After `kill` of `chora-tiling`, `chora` still runs, and the three surfaces
    are detached.
-4. Ctrl+Alt+Escape puts the three surfaces in the grid.
+4. The emergency reset puts the three surfaces in the grid. The test sends
+   SIGUSR1, because synthetic keys do not reach a nested compositor.
 
 ## M2: Session on real hardware
 

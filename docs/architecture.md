@@ -118,6 +118,15 @@ calloop serves the socket in the event loop of the core, so no thread
 handoff is necessary. Events are JSON-RPC notifications on the same
 connection.
 
+Limits keep a buggy client from exhausting the core:
+
+| Limit | Value | When it is reached |
+|-------|-------|--------------------|
+| connections | 128 | the core refuses new connections |
+| line length | 1 MiB | the core closes the connection |
+| output buffer of a connection | 8 MiB | the core closes the connection |
+| waiting transactions of a connection | 16 | the core rejects the transaction |
+
 A plugin can export **methods**, for example `tiling.set_layout`. The core
 forwards a method call to the plugin and returns the answer. An agent then
 asks the window manager for a change instead of fighting it.
@@ -161,8 +170,10 @@ sequenceDiagram
    events go to the topmost node under the cursor that accepts input. The
    inverse of the camera maps the cursor to scene coordinates.
 
-Focus is state in the scene, and plugins set it. Outside the safety layer,
-the core never sets focus by itself. The core still implements the protocol mechanisms around focus:
+Plugins set the focus. The core changes it in three cases only: the reset
+focuses the first surface, a click on a surface without an owner focuses it,
+and a surface that becomes detached loses it. The core still implements the
+protocol mechanisms around focus:
 popup grabs, `xdg-activation` requests, `pointer-constraints` and
 `input-method`.
 

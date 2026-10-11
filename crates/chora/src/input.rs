@@ -1,5 +1,9 @@
 //! Input routing: the safety layer first, then grabs, then the focused
-//! surface. The core never changes the focus by itself.
+//! surface.
+//!
+//! Plugins set the focus. The core changes it in three cases only: the
+//! reset focuses the first surface, a click on a surface without an owner
+//! focuses it, and a surface that becomes detached loses it.
 
 use smithay::{
     backend::input::{
@@ -123,8 +127,8 @@ fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
     pointer.frame(state);
 }
 
-/// The one focus rule of the core, part of the safety layer: a click on a
-/// surface without an owner, for example in the reset grid, focuses it.
+/// A click on a surface without an owner, for example in the reset grid,
+/// focuses it. The module docs list all focus changes of the core.
 fn focus_ownerless(state: &mut State, pos: smithay::utils::Point<f64, smithay::utils::Logical>) {
     let Some(under) = render::surface_under(state, pos) else {
         return;

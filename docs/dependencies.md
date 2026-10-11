@@ -11,11 +11,13 @@ check of each choice. [Decisions](decisions.md) records the result.
 | libinput, libseat, udev, GBM, Mesa | hardware access | through Smithay |
 | calloop | event loop | Smithay uses it; the IPC socket runs in the same loop |
 | serde, serde_json, thiserror | API types, JSON-RPC, error types | |
+| tracing, tracing-subscriber | logs | Smithay logs through tracing too |
 
 ## choractl
 
 | Dependency | Purpose | Notes |
 |------------|---------|-------|
+| clap | command line arguments | also for the plugins |
 | a maintained YAML crate | views | `serde_yaml` is unmaintained |
 | [rmcp](https://github.com/modelcontextprotocol/rust-sdk) | `choractl mcp` | the official Rust MCP SDK, version 3.x |
 

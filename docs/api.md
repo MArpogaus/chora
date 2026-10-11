@@ -30,7 +30,7 @@ This table is the one list of node properties.
 
 | Property | Nodes | Meaning |
 |----------|-------|---------|
-| `id` | all | stable id; the core assigns ids to surfaces |
+| `id` | all | stable id; ids of the form `s1`, `s2` belong to surfaces, and the core assigns them |
 | `owner` | all | client name of the owner; read-only |
 | `transform` | all | a 4x4 matrix, or the short form translate, scale, rotate |
 | `opacity`, `visible` | all | |
@@ -98,12 +98,21 @@ client sends `hello` first. The core answers every request.
 | `scene.query(selector)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications |
-| `input.grab(binding)` | get the events of a key, a button or a gesture |
+| `input.grab(binding)` | get the events of a key, a button or a gesture; returns the binding as `input.key` names it |
 | `input.inject(events)` | send synthetic input; needs a grant |
 | `screen.capture(target)` | capture an output, a group or a surface; needs a grant |
 | `output.list` | list the outputs and their cameras |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.call(client, method, params)` | call a method of another client |
+
+A connection sends `hello` once. Connections with the same name share their
+nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
+different value. For example, `choractl --name tiling` fails while the tiling
+plugin runs.
+
+A key binding needs Ctrl, Alt or Super, so that typing still works. Ctrl+Alt
+belongs to the safety layer, so no client can grab it. A binding has one
+owner at a time.
 
 The core implements `wlr-output-management`, so kanshi and wlr-randr
 configure the outputs. The API has no output configuration of its own.
@@ -115,8 +124,8 @@ A plugin is a client with a manifest:
 ```yaml
 name: tiling
 exec: chora-tiling
-subscribe: [surface.created, surface.destroyed, output.changed]
-grabs: [Super+h, Super+l]
+subscribe: [surface.created, surface.detached, surface.destroyed, output.changed]
+grabs: [Super+Return, Super+q, Super+j, Super+k]
 methods: [set_layout, resize]
 ```
 
