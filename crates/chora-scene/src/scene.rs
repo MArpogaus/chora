@@ -348,6 +348,7 @@ impl Scene {
             if node.kind == NodeKind::Surface {
                 node.parent = None;
                 node.owner = None;
+                node.props = Props::default();
                 detached.push(current);
             } else {
                 self.nodes.remove(&current);

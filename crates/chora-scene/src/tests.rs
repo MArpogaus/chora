@@ -253,3 +253,18 @@ fn remove_reports_the_surfaces_it_detaches() {
         .unwrap();
     assert_eq!(effects, vec![Effect::Detached("s1".into())]);
 }
+
+#[test]
+fn a_detached_surface_forgets_the_properties_of_its_old_owner() {
+    let mut scene = scene_with_surface();
+    let hide = Command::Update {
+        id: "s1".into(),
+        props: PropsUpdate {
+            visible: Some(false),
+            ..PropsUpdate::default()
+        },
+    };
+    scene.apply("wm", &[attach("s1", ROOT), hide]).unwrap();
+    scene.disconnect("wm");
+    assert!(scene.node("s1").unwrap().props.visible);
+}
