@@ -3,6 +3,7 @@
 mod backend;
 mod cursor;
 mod foreign_toplevel;
+mod gl;
 mod handlers;
 mod images;
 mod input;
@@ -68,6 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
     event_loop.run(None, &mut state, |state| {
         state.advance_animations();
+        state.report_effect_errors();
         state.popups.cleanup();
         // The focus follows the protocols, for example after a popup grab
         // ended.

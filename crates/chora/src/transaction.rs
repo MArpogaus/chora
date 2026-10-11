@@ -189,6 +189,7 @@ impl State {
             .check(&head.owner, &head.commands)
             .map_err(|e| e.to_string())?;
         self.assets.images.load_for(&head.commands)?;
+        self.check_effects(&head.commands)?;
         for effect in &effects {
             if let Effect::Configure {
                 surface,
@@ -222,6 +223,34 @@ impl State {
                 "no deadline timer; the transaction waits for its clients"
             );
         }
+    }
+
+    /// Compiles the shaders of the effects that the commands name, unless
+    /// they compiled before in their current version. Without a backend,
+    /// for example before the first output, the check waits for the
+    /// first frame.
+    fn check_effects(&mut self, commands: &[Command]) -> Result<(), String> {
+        for command in commands {
+            let (Command::Create { props, .. }
+            | Command::Update { props, .. }
+            | Command::Animate { props, .. }) = command
+            else {
+                continue;
+            };
+            for effect in props.effects.iter().flatten() {
+                let path = &effect.shader;
+                let modified = std::fs::metadata(path).and_then(|m| m.modified()).ok();
+                let checked = self.assets.checked_effects.get(path);
+                if modified.is_some() && checked == Some(&modified) {
+                    continue;
+                }
+                if let Some(backend) = &mut self.backend {
+                    backend.check_effect(path)?;
+                    self.assets.checked_effects.insert(path.clone(), modified);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Holds a commit of a toplevel that answers the transaction at the

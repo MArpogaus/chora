@@ -62,6 +62,10 @@ pub struct Assets {
     pub images: Images,
     pub cells: HashMap<String, Vec<Id>>,
     pub layers: Layers,
+    /// Errors of effect shaders since the last report.
+    pub effect_errors: Vec<String>,
+    /// The time of each shader file that compiled in a check.
+    pub checked_effects: HashMap<String, Option<std::time::SystemTime>>,
 }
 
 /// How an output shows the scene: its camera and its scale factor.
@@ -185,11 +189,19 @@ fn layer<R: MeshRenderer>(
     let gles = renderer.gles();
     let mut content = elements(parts, gles, rest, &inner);
     content.extend(node_elements(parts, gles, first, &inner));
-    let mut texture = parts.assets.layers.texture(gles, &node.id, size).ok()?;
+    let mut texture = parts.assets.layers.texture(gles, &node.id, 0, size).ok()?;
     if let Err(err) = mesh::render_into(gles, &mut texture, view.scale, &content) {
         tracing::warn!(%err, "a layer failed");
         return None;
     }
+    let assets = &mut *parts.assets;
+    let texture = mesh::apply_effects(
+        gles,
+        &mut assets.layers,
+        node,
+        texture,
+        &mut assets.effect_errors,
+    );
     let transform = view.camera.then(&placed.transform);
     #[allow(clippy::cast_possible_truncation)]
     let alpha = placed.opacity as f32;

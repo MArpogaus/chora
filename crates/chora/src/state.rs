@@ -206,6 +206,15 @@ impl State {
         }
     }
 
+    /// Tells the plugins about shaders of effects that failed in the last
+    /// frames.
+    pub fn report_effect_errors(&mut self) {
+        for error in std::mem::take(&mut self.assets.effect_errors) {
+            tracing::warn!(%error, "an effect failed");
+            self.emit(&Event::EffectFailed { error });
+        }
+    }
+
     /// Moves the animations of the scene forward to now, and tells the
     /// plugins which ended.
     pub fn advance_animations(&mut self) {

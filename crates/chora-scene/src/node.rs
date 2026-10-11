@@ -82,6 +82,45 @@ impl Mesh {
     }
 }
 
+/// The most effects of one node.
+pub const MAX_EFFECTS: usize = 8;
+/// The most uniforms of one effect.
+pub const MAX_UNIFORMS: usize = 16;
+
+/// A fragment shader that changes how a layer looks, with its inputs. The
+/// core applies the effects of a node one after another to its texture.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShaderEffect {
+    /// The absolute path of a GLSL ES fragment shader.
+    pub shader: String,
+    /// Values of uniforms of the shader by name: a number for a `float`,
+    /// two to four for a `vec2` to `vec4`.
+    #[serde(default)]
+    pub uniforms: BTreeMap<String, Uniform>,
+}
+
+/// The value of a uniform of a shader.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Uniform {
+    /// A `float`.
+    Float(f64),
+    /// A `vec2`, `vec3` or `vec4`.
+    Vector(Vec<f64>),
+}
+
+impl Uniform {
+    /// The numbers of the value.
+    #[must_use]
+    pub fn values(&self) -> &[f64] {
+        match self {
+            Self::Float(v) => std::slice::from_ref(v),
+            Self::Vector(v) => v,
+        }
+    }
+}
+
 /// What the client tells about a surface.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SurfaceInfo {
@@ -123,7 +162,9 @@ impl Node {
     pub fn is_layer(&self) -> bool {
         self.id != ROOT
             && self.props.size.is_some()
-            && (self.props.mesh.is_some() || self.props.transform.scale_2d().is_none())
+            && (self.props.mesh.is_some()
+                || !self.props.effects.is_empty()
+                || self.props.transform.scale_2d().is_none())
     }
 }
 
@@ -154,6 +195,9 @@ pub struct Props {
     pub slice: Option<[f64; 4]>,
     /// A grid that deforms the node and its descendants.
     pub mesh: Option<Mesh>,
+    /// Shaders that change how the node and its descendants look.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<ShaderEffect>,
 }
 
 impl Default for Props {
@@ -169,6 +213,7 @@ impl Default for Props {
             image: None,
             slice: None,
             mesh: None,
+            effects: Vec::new(),
         }
     }
 }
@@ -208,6 +253,9 @@ pub struct PropsUpdate {
     /// See [`Props::mesh`]; a mesh without points removes the mesh.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mesh: Option<Mesh>,
+    /// See [`Props::effects`]; an empty list removes the effects.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effects: Option<Vec<ShaderEffect>>,
 }
 
 impl Props {
@@ -251,6 +299,9 @@ impl Props {
         }
         if let Some(mesh) = &update.mesh {
             self.mesh = (!mesh.points.is_empty()).then(|| mesh.clone());
+        }
+        if let Some(effects) = &update.effects {
+            self.effects.clone_from(effects);
         }
     }
 }

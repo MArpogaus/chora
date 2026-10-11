@@ -3,8 +3,9 @@
 use imbl::OrdMap;
 
 use crate::{
-    Command, Effect, InputMode, MAX_DURATION, MAX_MESH_CELLS, Node, NodeKind, Props, PropsUpdate,
-    ROOT, Selector, SurfaceInfo, ToplevelState, Transform, animation::Animation,
+    Command, Effect, InputMode, MAX_DURATION, MAX_EFFECTS, MAX_MESH_CELLS, MAX_UNIFORMS, Node,
+    NodeKind, Props, PropsUpdate, ROOT, Selector, ShaderEffect, SurfaceInfo, ToplevelState,
+    Transform, Uniform, animation::Animation,
 };
 
 /// Why a command failed.
@@ -585,19 +586,20 @@ impl Scene {
         done
     }
 
-    /// Removes the effects of all nodes, for the watchdog: the meshes, and
-    /// the animations that move meshes.
+    /// Removes the effects of all nodes, for the watchdog: the meshes, the
+    /// shaders, and the animations of them.
     pub fn drop_effects(&mut self) {
         let ids: Vec<String> = self.nodes.keys().cloned().collect();
         for id in ids {
             if let Some(node) = self.nodes.get_mut(&id) {
                 node.props.mesh = None;
+                node.props.effects.clear();
             }
         }
         let meshes: Vec<String> = self
             .animations
             .iter()
-            .filter(|(_, a)| a.to.mesh.is_some())
+            .filter(|(_, a)| a.to.mesh.is_some() || a.to.effects.is_some())
             .map(|(id, _)| id.clone())
             .collect();
         for id in meshes {
@@ -741,6 +743,13 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
         .chain(props.color.iter().flatten())
         .chain(props.slice.iter().flatten())
         .chain(props.mesh.iter().flat_map(|m| m.points.iter().flatten()))
+        .chain(
+            props
+                .effects
+                .iter()
+                .flatten()
+                .flat_map(|e| e.uniforms.values().flat_map(Uniform::values)),
+        )
         .chain(props.opacity.iter());
     if numbers.copied().any(|n| !n.is_finite()) {
         return Err(SceneError::Invalid(format!(
@@ -764,6 +773,9 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
             "the mesh of {id:?} needs 1 to {MAX_MESH_CELLS} cells per side and a point per grid point"
         )));
     }
+    if let Some(effects) = &props.effects {
+        check_effects(id, effects)?;
+    }
     if props
         .image
         .as_ref()
@@ -772,6 +784,34 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
         return Err(SceneError::Invalid(format!(
             "the image of {id:?} needs an absolute path"
         )));
+    }
+    Ok(())
+}
+
+/// At most 8 effects with absolute paths, at most 16 uniforms each, with
+/// names of GLSL identifiers and one to four numbers.
+fn check_effects(id: &str, effects: &[ShaderEffect]) -> Result<(), SceneError> {
+    let invalid = |what: &str| Err(SceneError::Invalid(format!("{id:?}: {what}")));
+    if effects.len() > MAX_EFFECTS {
+        return invalid(&format!("at most {MAX_EFFECTS} effects"));
+    }
+    for effect in effects {
+        if !effect.shader.starts_with('/') || effect.shader.len() > MAX_PATH {
+            return invalid("a shader needs an absolute path");
+        }
+        if effect.uniforms.len() > MAX_UNIFORMS {
+            return invalid(&format!("at most {MAX_UNIFORMS} uniforms per effect"));
+        }
+        for (name, value) in &effect.uniforms {
+            let identifier = name.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
+                && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                && name.len() <= 64;
+            if !identifier || !(1..=4).contains(&value.values().len()) {
+                return invalid(&format!(
+                    "the uniform {name:?} needs a name and 1 to 4 numbers"
+                ));
+            }
+        }
     }
     Ok(())
 }

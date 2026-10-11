@@ -96,6 +96,13 @@ pub enum Event {
     /// reset follows.
     #[serde(rename = "effects.dropped")]
     EffectsDropped,
+    /// The shader of an effect failed after a change of its file. The
+    /// effect keeps its last working version, or shows nothing.
+    #[serde(rename = "effect.failed")]
+    EffectFailed {
+        /// The path and the log of the compiler.
+        error: String,
+    },
     /// An animation reached its targets.
     #[serde(rename = "animation.done")]
     AnimationDone {

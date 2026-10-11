@@ -199,6 +199,15 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 impl Tty {
+    /// Compiles the shader of an effect on the render GPU, to check it.
+    pub fn check_effect(&mut self, path: &str) -> Result<(), String> {
+        let mut renderer = self
+            .gpus
+            .single_renderer(&self.primary_gpu)
+            .map_err(|e| format!("{e:?}"))?;
+        crate::gl::check_effect(renderer.as_mut(), path)
+    }
+
     /// Whether the primary GPU can use a buffer of a client.
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
         self.gpus

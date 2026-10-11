@@ -263,6 +263,11 @@ fn flipped(transform: Transform) -> Transform {
 }
 
 impl Winit {
+    /// Compiles the shader of an effect, to check it.
+    pub fn check_effect(&mut self, path: &str) -> Result<(), String> {
+        crate::gl::check_effect(self.graphics.renderer(), path)
+    }
+
     /// Whether the GPU can use a buffer of a client.
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
         self.graphics.renderer().import_dmabuf(dmabuf, None).is_ok()

@@ -29,6 +29,14 @@ impl Backend {
         }
     }
 
+    /// Compiles the shader of an effect on the renderer, to check it.
+    pub fn check_effect(&mut self, path: &str) -> Result<(), String> {
+        match self {
+            Backend::Winit(winit) => winit.check_effect(path),
+            Backend::Tty(tty) => tty.check_effect(path),
+        }
+    }
+
     /// Switches to another virtual terminal. Only the tty backend can.
     pub fn change_vt(&mut self, vt: i32) {
         if let Self::Tty(tty) = self {

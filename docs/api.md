@@ -35,7 +35,7 @@ This table is the one list of node properties.
 | `transform` | all | a 4x4 matrix, or the short form translate, scale, rotate |
 | `opacity`, `visible` | all | |
 | `clip` | all | rectangle, optionally rounded |
-| `effects` | all | list of shaders with uniforms |
+| `effects` | group, rect, image | up to 8 effects `{"shader": path, "uniforms": {name: number or 2 to 4 numbers}}`; the node becomes a layer, and the core applies the shaders in order; `[]` removes them |
 | `input` | all | `accept`, `pass` or `block`; `pass` and `block` apply to all descendants |
 | `meta` | all | free key/value pairs to tag and find nodes |
 | `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
@@ -52,6 +52,15 @@ A node with a size and a mesh, or with a transform that is not a plain 2D
 translation and scale, for example a rotation or a perspective, is a layer
 (see [Architecture](architecture.md#renderer)). `animate` moves the points
 of a mesh of the same grid, for example for a magic lamp minimize.
+
+An effect is a GLSL ES fragment shader with absolute path. It reads the
+layer in `uniform sampler2D tex` at `varying vec2 v_uv`, and may use
+`uniform float alpha`, `uniform vec2 size` (the texture size in pixels),
+`uniform float time` (seconds) and its own `float` and `vec2` to `vec4`
+uniforms. A transaction that names a shader that does not compile fails
+with the log of the compiler. The core compiles a shader again when its
+file changes. The package installs examples in `/usr/share/chora/shaders/`:
+`grayscale.frag`, `rounded.frag` and `blur.frag` (with `radius`).
 
 The core loads the file of an image when a transaction names it. A file
 that does not load, that is larger than 32 MiB or larger than 8192 pixels
@@ -108,6 +117,7 @@ or an empty list. It always sees the current titles.
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates |
 | `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node and position; `pointer.released` with the button |
 | `animation.done` | the node whose animation reached its targets |
+| `effect.failed` | the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version |
 | `effects.dropped` | the watchdog removed the effects of all nodes, because frames were slow for two seconds |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels |
 | `output.removed` | output name |

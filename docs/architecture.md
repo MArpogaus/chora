@@ -127,10 +127,13 @@ output cannot turn off. No backend has adaptive sync.
 ### Renderer
 
 The core uses Smithay's GLES renderer through Smithay's own renderer traits.
-Custom texture and pixel shaders give blur, rounded corners, shadows, color
-effects and transitions. niri shows what this approach can do. Shaders are
-GLSL ES. The core compiles them at runtime and reloads them when they change.
-A shader can read other nodes as textures.
+Custom shaders give blur, rounded corners, shadows, color effects and
+transitions. niri shows what this approach can do. An effect is a GLSL ES
+fragment shader that a node names; the node becomes a layer, and each
+effect is one pass over its texture. The core compiles a shader when a
+transaction names it, rejects the transaction on an error, and compiles it
+again when the file changes. Shader nodes that draw without a texture, and
+uniforms that name other nodes as textures, come later.
 
 Transforms are 4x4 matrices, so 3D effects need no API change. A node with
 a size and a mesh, or with a transform that is not a plain 2D translation

@@ -443,7 +443,45 @@ pixel_is 825 500 "0 0 255" || fail "the turned blue: $(pixel 825 500)"
 pixel_is 975 700 "0 255 0" || fail "the turned green: $(pixel 975 700)"
 grim "$out/layer.png"
 
-step "22. the watchdog removes the effects of slow frames, and then resets"
+step "22. an effect shades a layer, reloads its shader and rejects a broken one"
+# The quarter turned layer of step 21 shows red at 975,500.
+cp "$(realpath dist/shaders/grayscale.frag)" "$out/effect.frag"
+effect() { echo "[{\"update\": {\"id\": \"layer\", \"props\": {\"effects\": [{\"shader\": \"$1\"}]}}}]"; }
+"$bin/choractl" events effect.failed >"$out/effects.jsonl" &
+events_pid=$!
+pids+=("$events_pid")
+sleep 0.3
+rpc "$(effect "$out/effect.frag")" >"$out/effect.json"
+all_results "$out/effect.json" || fail "answers: $out/effect.json"
+# Gray of red: 0.299 * 255.
+wait_for pixel_is 975 500 "76 76 76"
+# A change of the file loads again: now the effect inverts the colors.
+sed -i 's/gl_FragColor = .*/gl_FragColor = vec4(vec3(1.0) - color.rgb, color.a) * alpha;/' \
+    "$out/effect.frag"
+wait_for pixel_is 975 500 "0 255 255"
+# A broken change keeps the last version and tells the plugins.
+echo "broken" >>"$out/effect.frag"
+wait_for grep -q '"event":"effect.failed"' "$out/effects.jsonl"
+pixel_is 975 500 "0 255 255" || fail "the effect changed: $(pixel 975 500)"
+kill "$events_pid"
+# A broken shader in a transaction rejects it.
+printf 'void main() { broken }\n' >"$out/broken.frag"
+rpc "$(effect "$out/broken.frag")" >"$out/broken.json"
+jq -se '.[1].error.message | test("broken.frag")' "$out/broken.json" >/dev/null ||
+    fail "a broken shader applied: $out/broken.json"
+# The shaders of the package compile, as a chain of two effects.
+rpc "[{\"update\": {\"id\": \"layer\", \"props\": {\"effects\": [
+       {\"shader\": \"$(realpath dist/shaders/rounded.frag)\", \"uniforms\": {\"radius\": 24}},
+       {\"shader\": \"$(realpath dist/shaders/blur.frag)\", \"uniforms\": {\"radius\": 4}}]}}}]" \
+    >"$out/chain.json"
+all_results "$out/chain.json" || fail "answers: $out/chain.json"
+# The rounded corner empties the corner of the layer at 1000,450, and
+# the blur keeps the red inside.
+wait_for pixel_is 997 453 "0 0 0"
+pixel_is 975 500 "255 0 0" || fail "the chain: $(pixel 975 500)"
+grim "$out/effects.png"
+
+step "23. the watchdog removes the effects of slow frames, and then resets"
 # A second chora with a budget that every frame misses; it shares the
 # output of the host, so this step comes last.
 CHORA_FRAME_BUDGET_US=1 "$bin/chora" -- sleep 60 >"$out/chora-watchdog.log" 2>&1 &

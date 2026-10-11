@@ -12,21 +12,23 @@
 //! texture maps correctly under perspective. Nodes in a layer have no depth
 //! test; the order of the siblings decides what is in front.
 //!
-//! Drawing a mesh needs raw GL calls, which are `unsafe`; this module is the
-//! one place with them.
-#![allow(unsafe_code)]
+//! A layer with effects goes through their shaders first, one pass per
+//! effect. The raw GL calls are in [`crate::gl`].
 
 use std::collections::HashMap;
 
-use chora_scene::{Mesh, Node, Transform};
+use crate::gl;
+
+use chora_scene::{Mesh, Node, ShaderEffect, Transform};
 use smithay::{
     backend::{
         allocator::Fourcc,
         renderer::{
-            Bind, ImportAll, ImportMem, Offscreen, Renderer, RendererSuper,
+            Bind, Color32F, Frame, ImportAll, ImportMem, Offscreen, Renderer, RendererSuper,
+            Texture,
             damage::OutputDamageTracker,
             element::{Element, Id, Kind, RenderElement},
-            gles::{Capability, GlesError, GlesFrame, GlesRenderer, GlesTexture, ffi},
+            gles::{GlesError, GlesFrame, GlesRenderer, GlesTexture},
             utils::{CommitCounter, DamageSet, OpaqueRegions},
         },
     },
@@ -70,35 +72,39 @@ impl MeshRenderer for GlesRenderer {
     }
 }
 
-/// The textures and the ids of the layers by node, kept between frames.
+/// The textures and the ids of the layers by node, kept between frames:
+/// slot 0 holds the content of a layer, slots 1 and 2 the passes of its
+/// effects.
 #[derive(Default)]
 pub struct Layers {
-    textures: HashMap<String, GlesTexture>,
+    textures: HashMap<(String, usize), GlesTexture>,
     ids: HashMap<String, (Id, CommitCounter)>,
 }
 
 impl Layers {
     /// Drops the layers of nodes that are gone or no layers any more.
     pub fn retain(&mut self, mut keep: impl FnMut(&str) -> bool) {
-        self.textures.retain(|id, _| keep(id));
+        self.textures.retain(|(id, _), _| keep(id));
         self.ids.retain(|id, _| keep(id));
     }
 
-    /// A texture for a layer of a size, the one of the last frame if it
-    /// fits.
+    /// A texture of a slot of a layer of a size, the one of the last frame
+    /// if it fits.
     pub fn texture(
         &mut self,
         gles: &mut GlesRenderer,
         node: &str,
+        slot: usize,
         size: Size<i32, BufferCoords>,
     ) -> Result<GlesTexture, GlesError> {
-        if let Some(texture) = self.textures.get(node)
-            && smithay::backend::renderer::Texture::size(texture) == size
+        let key = (node.to_string(), slot);
+        if let Some(texture) = self.textures.get(&key)
+            && Texture::size(texture) == size
         {
             return Ok(texture.clone());
         }
         let texture: GlesTexture = gles.create_buffer(Fourcc::Abgr8888, size)?;
-        self.textures.insert(node.into(), texture.clone());
+        self.textures.insert(key, texture.clone());
         Ok(texture)
     }
 
@@ -133,7 +139,7 @@ pub fn render_into<E>(
 where
     E: RenderElement<GlesRenderer>,
 {
-    let size = smithay::backend::renderer::Texture::size(texture);
+    let size = Texture::size(texture);
     let mut target = gles.bind(texture).map_err(|e| e.to_string())?;
     let mut tracker =
         OutputDamageTracker::new((size.w, size.h), scale, smithay::utils::Transform::Normal);
@@ -261,7 +267,7 @@ impl Element for MeshElement {
     }
 
     fn src(&self) -> Rectangle<f64, BufferCoords> {
-        let size = smithay::backend::renderer::Texture::size(&self.texture);
+        let size = Texture::size(&self.texture);
         Rectangle::from_size(size.to_f64())
     }
 
@@ -301,49 +307,26 @@ impl<R: MeshRenderer> RenderElement<R> for MeshElement {
         _cache: Option<&smithay::utils::user_data::UserDataMap>,
     ) -> Result<(), R::Error> {
         let frame = R::gles_frame(frame);
-        draw(frame, self).map_err(R::from_gles)
+        let program = gl::plain_program(frame).map_err(R::from_gles)?;
+        let (clip, uv) = clip_space(&self.vertices, frame.projection());
+        let call = gl::Draw {
+            clip: &clip,
+            uv: &uv,
+            indices: &self.indices,
+            texture: self.texture.tex_id(),
+            alpha: self.alpha,
+            size: float_size(&self.texture),
+            uniforms: None,
+        };
+        gl::draw(frame, &program, &call).map_err(R::from_gles)
     }
 }
 
-/// The GL program of meshes, once per EGL context.
-#[derive(Clone, Copy)]
-struct Program {
-    id: ffi::types::GLuint,
-    position: ffi::types::GLint,
-    uv: ffi::types::GLint,
-    tex: ffi::types::GLint,
-    alpha: ffi::types::GLint,
-}
-
-const VERTEX: &str = "
-attribute vec4 position;
-attribute vec2 uv;
-varying vec2 v_uv;
-void main() {
-    gl_Position = position;
-    v_uv = uv;
-}
-";
-
-const FRAGMENT: &str = "
-precision mediump float;
-uniform sampler2D tex;
-uniform float alpha;
-varying vec2 v_uv;
-void main() {
-    gl_FragColor = texture2D(tex, v_uv) * alpha;
-}
-";
-
-/// Draws a mesh element: maps its vertices through the projection of the
-/// frame into clip space and draws its triangles with the texture.
-fn draw(frame: &mut GlesFrame<'_, '_>, mesh: &MeshElement) -> Result<(), GlesError> {
-    let program = program(frame)?;
-    let p = *frame.projection();
-    // Column-major 3x3: the projection maps physical (x, y, 1) to clip
-    // space; for (x, y, w) it gives the clip position before the divide.
-    let clip: Vec<f32> = mesh
-        .vertices
+/// The clip positions and the texture coordinates of vertices for the
+/// projection of a frame. The 3x3 projection maps physical (x, y, 1) to
+/// clip space; for (x, y, w) it gives the clip position before the divide.
+fn clip_space(vertices: &[Vertex], p: &[f32; 9]) -> (Vec<f32>, Vec<f32>) {
+    let clip = vertices
         .iter()
         .flat_map(|([x, y, w], _)| {
             [
@@ -354,112 +337,81 @@ fn draw(frame: &mut GlesFrame<'_, '_>, mesh: &MeshElement) -> Result<(), GlesErr
             ]
         })
         .collect();
-    let uv: Vec<f32> = mesh.vertices.iter().flat_map(|(_, uv)| *uv).collect();
-    let texture = mesh.texture.tex_id();
-    let count = i32::try_from(mesh.indices.len()).unwrap_or(0);
-    // Smithay's instanced draws leave divisors on attribute indices.
-    let instancing = frame.capabilities().contains(&Capability::Instancing);
-    frame.with_context(|gl| unsafe {
-        // SAFETY: the arrays outlive the draw call, and the state that
-        // changes here goes back to what Smithay sets before its own draws:
-        // its draw calls bind their program, texture and arrays each time.
-        gl.UseProgram(program.id);
-        gl.ActiveTexture(ffi::TEXTURE0);
-        gl.BindTexture(ffi::TEXTURE_2D, texture);
-        gl.TexParameteri(
-            ffi::TEXTURE_2D,
-            ffi::TEXTURE_MIN_FILTER,
-            ffi::LINEAR.cast_signed(),
-        );
-        gl.TexParameteri(
-            ffi::TEXTURE_2D,
-            ffi::TEXTURE_MAG_FILTER,
-            ffi::LINEAR.cast_signed(),
-        );
-        gl.Uniform1i(program.tex, 0);
-        gl.Uniform1f(program.alpha, mesh.alpha);
-        gl.BindBuffer(ffi::ARRAY_BUFFER, 0);
-        let attributes = [(program.position, 4, &clip), (program.uv, 2, &uv)];
-        for (attribute, size, data) in attributes {
-            #[allow(clippy::cast_sign_loss)] // a found attribute is not negative
-            let index = attribute as u32;
-            gl.EnableVertexAttribArray(index);
-            if instancing {
-                gl.VertexAttribDivisor(index, 0);
-            }
-            gl.VertexAttribPointer(index, size, ffi::FLOAT, ffi::FALSE, 0, data.as_ptr().cast());
-        }
-        gl.DrawElements(
-            ffi::TRIANGLES,
-            count,
-            ffi::UNSIGNED_SHORT,
-            mesh.indices.as_ptr().cast(),
-        );
-        for attribute in [program.position, program.uv] {
-            #[allow(clippy::cast_sign_loss)]
-            gl.DisableVertexAttribArray(attribute as u32);
-        }
-        gl.BindTexture(ffi::TEXTURE_2D, 0);
-    })
+    let uv = vertices.iter().flat_map(|(_, uv)| *uv).collect();
+    (clip, uv)
 }
 
-/// The mesh program of the EGL context of a frame, compiled on first use.
-fn program(frame: &mut GlesFrame<'_, '_>) -> Result<Program, GlesError> {
-    if let Some(program) = frame.egl_context().user_data().get::<Program>() {
-        return Ok(*program);
+/// The size of a texture as 32-bit floats.
+#[allow(clippy::cast_precision_loss)] // at most 8192
+fn float_size(texture: &GlesTexture) -> [f32; 2] {
+    let size = Texture::size(texture);
+    [size.w as f32, size.h as f32]
+}
+
+/// Applies the effects of a layer node to its texture, one pass per
+/// effect, and returns the texture of the last pass. An effect whose
+/// shader fails is left out; its error goes to `errors`.
+pub fn apply_effects(
+    gles: &mut GlesRenderer,
+    layers: &mut Layers,
+    node: &Node,
+    mut texture: GlesTexture,
+    errors: &mut Vec<String>,
+) -> GlesTexture {
+    for (i, effect) in node.props.effects.iter().enumerate() {
+        let (program, error) = gl::effect_program(gles, &effect.shader);
+        errors.extend(error);
+        let Some(program) = program else {
+            continue;
+        };
+        let size = Texture::size(&texture);
+        // Two textures take turns, so that no pass reads its own target.
+        let Ok(mut target) = layers.texture(gles, &node.id, 1 + i % 2, size) else {
+            continue;
+        };
+        match pass(gles, &program, &texture, &mut target, effect) {
+            Ok(()) => texture = target,
+            Err(err) => errors.push(err),
+        }
     }
-    let program = frame
-        .with_context(|gl| unsafe { compile(gl) })?
-        .ok_or(GlesError::ShaderCompileError)?;
+    texture
+}
+
+/// Draws a texture through the shader of an effect into another one.
+fn pass(
+    gles: &mut GlesRenderer,
+    program: &gl::Program,
+    source: &GlesTexture,
+    target: &mut GlesTexture,
+    effect: &ShaderEffect,
+) -> Result<(), String> {
+    let size = Texture::size(target);
+    let mut framebuffer = gles.bind(target).map_err(|e| e.to_string())?;
+    let mut frame = gles
+        .render(
+            &mut framebuffer,
+            (size.w, size.h).into(),
+            smithay::utils::Transform::Normal,
+        )
+        .map_err(|e| e.to_string())?;
+    let all = Rectangle::from_size((size.w, size.h).into());
     frame
-        .egl_context()
-        .user_data()
-        .insert_if_missing_threadsafe(|| program);
-    Ok(program)
-}
-
-/// Compiles and links the mesh program.
-unsafe fn compile(gl: &ffi::Gles2) -> Option<Program> {
-    // SAFETY: plain GL calls on the current context with valid strings.
-    unsafe {
-        let shader = |kind, source: &str| {
-            let shader = gl.CreateShader(kind);
-            let source = std::ffi::CString::new(source).ok()?;
-            gl.ShaderSource(shader, 1, &source.as_ptr(), std::ptr::null());
-            gl.CompileShader(shader);
-            let mut ok = 0;
-            gl.GetShaderiv(shader, ffi::COMPILE_STATUS, &raw mut ok);
-            (ok != 0).then_some(shader)
-        };
-        let vertex = shader(ffi::VERTEX_SHADER, VERTEX)?;
-        let fragment = shader(ffi::FRAGMENT_SHADER, FRAGMENT)?;
-        let program = gl.CreateProgram();
-        gl.AttachShader(program, vertex);
-        gl.AttachShader(program, fragment);
-        gl.LinkProgram(program);
-        let mut ok = 0;
-        gl.GetProgramiv(program, ffi::LINK_STATUS, &raw mut ok);
-        gl.DeleteShader(vertex);
-        gl.DeleteShader(fragment);
-        if ok == 0 {
-            return None;
-        }
-        let location = |name: &str, uniform: bool| {
-            let name = std::ffi::CString::new(name).expect("no nul");
-            if uniform {
-                gl.GetUniformLocation(program, name.as_ptr())
-            } else {
-                gl.GetAttribLocation(program, name.as_ptr())
-            }
-        };
-        Some(Program {
-            id: program,
-            position: location("position", false),
-            uv: location("uv", false),
-            tex: location("tex", true),
-            alpha: location("alpha", true),
-        })
-    }
+        .clear(Color32F::TRANSPARENT, &[all])
+        .map_err(|e| e.to_string())?;
+    let quad = Mesh::flat(1, 1, [f64::from(size.w), f64::from(size.h)]);
+    let (vertices, _) = project(&quad, &Transform::IDENTITY, 1.0).ok_or("an empty pass")?;
+    let (clip, uv) = clip_space(&vertices, frame.projection());
+    let call = gl::Draw {
+        clip: &clip,
+        uv: &uv,
+        indices: &triangles(1, 1),
+        texture: source.tex_id(),
+        alpha: 1.0,
+        size: float_size(source),
+        uniforms: Some(&effect.uniforms),
+    };
+    gl::draw(&mut frame, program, &call).map_err(|e| e.to_string())?;
+    frame.finish().map(drop).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
