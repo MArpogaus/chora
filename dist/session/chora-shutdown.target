@@ -1,0 +1,8 @@
+# chora-session starts this target after chora ends, so that the units of
+# the graphical session stop too.
+[Unit]
+Description=The end of a chora session
+DefaultDependencies=no
+StopWhenUnneeded=true
+Conflicts=graphical-session.target graphical-session-pre.target
+After=graphical-session.target graphical-session-pre.target

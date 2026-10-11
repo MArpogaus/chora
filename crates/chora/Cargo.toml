@@ -30,11 +30,20 @@ assets = [
   { source = "target/release/choractl", dest = "/usr/bin/choractl", mode = "755" },
   { source = "target/release/chora-tiling", dest = "/usr/bin/chora-tiling", mode = "755" },
   { source = "../../LICENSE", dest = "/usr/share/licenses/chora/LICENSE", mode = "644" },
-  { source = "../../README.md", dest = "/usr/share/doc/chora/README.md", mode = "644", doc = true }
+  { source = "../../README.md", dest = "/usr/share/doc/chora/README.md", mode = "644", doc = true },
+  { source = "../../LICENSES/MIT-Smithay.txt", dest = "/usr/share/licenses/chora/MIT-Smithay.txt", mode = "644" },
+  { source = "../../dist/session/chora.desktop", dest = "/usr/share/wayland-sessions/chora.desktop", mode = "644" },
+  { source = "../../dist/session/chora-session", dest = "/usr/bin/chora-session", mode = "755" },
+  { source = "../../dist/session/chora-flavor", dest = "/usr/bin/chora-flavor", mode = "755" },
+  { source = "../../dist/session/chora-xwayland", dest = "/usr/libexec/chora/chora-xwayland", mode = "755" },
+  { source = "../../dist/session/chora@.service", dest = "/usr/lib/systemd/user/chora@.service", mode = "644" },
+  { source = "../../dist/session/chora-shutdown.target", dest = "/usr/lib/systemd/user/chora-shutdown.target", mode = "644" },
+  { source = "../../flavors/tiling/*", dest = "/usr/share/chora/flavors/tiling/", mode = "644" }
 ]
 auto-req = "auto"
-# The default terminal of chora-tiling.
-recommends = { foot = "*" }
+# The terminal, the launcher and the panel of the tiling flavor, and X11
+# programs.
+recommends = { foot = "*", fuzzel = "*", waybar = "*", xwayland-satellite = "*" }
 # Smithay loads libEGL at runtime, so auto-req does not see it.
 requires = { mesa-libEGL = "*" }
 summary = "Wayland compositor without policy, programmable by plugins and agents"

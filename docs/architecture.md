@@ -243,8 +243,20 @@ Version 1 trusts every client of the same user (D33):
 
 ## Sessions and flavors
 
-- A session file `chora.desktop` starts `chora -- chora-flavor tiling`.
+- The session file `chora.desktop` runs `chora-session tiling`. The script
+  imports the environment of the login into the systemd user manager and
+  starts the user service `chora@tiling.service`. It waits until chora
+  ends, and then stops the units of the graphical session.
+- Without `XKB_DEFAULT_LAYOUT`, `chora-session` takes the keyboard layout of
+  the system from `localectl`.
+- `chora@.service` runs `chora -- chora-flavor <name>` as part of
+  `graphical-session.target`.
 - `chora-flavor <name>` imports `WAYLAND_DISPLAY` and `CHORA_SOCKET` into the
-  systemd user manager. Then it starts the target of the flavor. Units of the
-  flavor then find the compositor and the IPC socket.
+  systemd user manager, links the units of the flavor until the next boot,
+  tells systemd that chora is ready, and starts the target of the flavor.
+  Units of the flavor then find the compositor and the IPC socket. The
+  script is not for nested use: the variables would reach the units of the
+  host session.
+- The tiling flavor starts `chora-tiling`, waybar if it is installed, and
+  `xwayland-satellite` on a free X11 display for X11 programs (D26).
 - A derived secureblue image installs the package (D10, D14).

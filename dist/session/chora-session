@@ -1,0 +1,40 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Starts a chora session from a display manager: chora runs as the systemd
+# user service chora@FLAVOR.service, and this script waits until it ends.
+# Usage: chora-session [FLAVOR]   (default: tiling)
+set -eu
+
+flavor=${1:-tiling}
+
+if systemctl --user -q is-active 'chora@*.service'; then
+    echo "chora-session: chora runs already" >&2
+    exit 1
+fi
+
+# chora reads no configuration (D35); the keyboard layout comes from the
+# variables of xkbcommon. Without them, take the layout of the system.
+if [ -z "${XKB_DEFAULT_LAYOUT:-}" ] && command -v localectl >/dev/null; then
+    settings=$(localectl status)
+    layout=$(printf '%s\n' "$settings" | sed -n 's/^ *X11 Layout: //p')
+    variant=$(printf '%s\n' "$settings" | sed -n 's/^ *X11 Variant: //p')
+    options=$(printf '%s\n' "$settings" | sed -n 's/^ *X11 Options: //p')
+    if [ -n "$layout" ]; then export XKB_DEFAULT_LAYOUT="$layout"; fi
+    if [ -n "$variant" ]; then export XKB_DEFAULT_VARIANT="$variant"; fi
+    if [ -n "$options" ]; then export XKB_DEFAULT_OPTIONS="$options"; fi
+fi
+
+# The units of the session get the environment of the login.
+systemctl --user reset-failed
+systemctl --user import-environment
+if command -v dbus-update-activation-environment >/dev/null; then
+    dbus-update-activation-environment --all
+fi
+
+systemctl --user --wait start "chora@$flavor.service" || true
+
+# Stop the units of the session, and forget its variables.
+systemctl --user start --job-mode=replace-irreversibly chora-shutdown.target
+systemctl --user unset-environment WAYLAND_DISPLAY CHORA_SOCKET DISPLAY \
+    XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
