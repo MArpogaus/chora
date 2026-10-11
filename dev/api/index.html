@@ -1127,8 +1127,8 @@ are errors, so a typo never passes silently.</p>
 </tr>
 <tr>
 <td><code>effects</code></td>
-<td>all</td>
-<td>list of shaders with uniforms</td>
+<td>group, rect, image</td>
+<td>up to 8 effects <code>{"shader": path, "uniforms": {name: number or 2 to 4 numbers}}</code>; the node becomes a layer, and the core applies the shaders in order; <code>[]</code> removes them</td>
 </tr>
 <tr>
 <td><code>input</code></td>
@@ -1178,6 +1178,14 @@ the client for a new size.</p>
 translation and scale, for example a rotation or a perspective, is a layer
 (see <a href="../architecture/#renderer">Architecture</a>). <code>animate</code> moves the points
 of a mesh of the same grid, for example for a magic lamp minimize.</p>
+<p>An effect is a GLSL ES fragment shader with absolute path. It reads the
+layer in <code>uniform sampler2D tex</code> at <code>varying vec2 v_uv</code>, and may use
+<code>uniform float alpha</code>, <code>uniform vec2 size</code> (the texture size in pixels),
+<code>uniform float time</code> (seconds) and its own <code>float</code> and <code>vec2</code> to <code>vec4</code>
+uniforms. A transaction that names a shader that does not compile fails
+with the log of the compiler. The core compiles a shader again when its
+file changes. The package installs examples in <code>/usr/share/chora/shaders/</code>:
+<code>grayscale.frag</code>, <code>rounded.frag</code> and <code>blur.frag</code> (with <code>radius</code>).</p>
 <p>The core loads the file of an image when a transaction names it. A file
 that does not load, that is larger than 32 MiB or larger than 8192 pixels
 on a side rejects the transaction. A plugin in a container shares its
@@ -1290,6 +1298,10 @@ or an empty list. It always sees the current titles.</p>
 <tr>
 <td><code>animation.done</code></td>
 <td>the node whose animation reached its targets</td>
+</tr>
+<tr>
+<td><code>effect.failed</code></td>
+<td>the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version</td>
 </tr>
 <tr>
 <td><code>effects.dropped</code></td>
