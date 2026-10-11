@@ -1439,8 +1439,9 @@ thus delays the queue once, not once per transaction.</p>
 </ul>
 <p>The core still implements the protocol mechanisms around focus: popup
 grabs, the keyboard interactivity of <code>wlr-layer-shell</code> and
-<code>ext-session-lock</code>. <code>xdg-activation</code>, <code>pointer-constraints</code> and
-<code>input-method</code> follow in M2. A layer surface that takes the keyboard
+<code>ext-session-lock</code>, the locks and confinements of <code>pointer-constraints</code>,
+and <code>text-input</code> with <code>input-method</code>. Activation requests of
+<code>xdg-activation</code> go to plugins as <code>surface.requested</code>. A layer surface that takes the keyboard
 exclusively, for example a launcher, has it from its first commit until it
 goes away, and it ends a popup grab. A click gives the keyboard to a layer
 surface that accepts it on demand, until the next click elsewhere. A popup

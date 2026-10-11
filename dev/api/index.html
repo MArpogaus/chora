@@ -1240,6 +1240,10 @@ or an empty list. It always sees the current titles.</p>
 <td>surface id; <code>surface.destroyed</code> follows only a <code>surface.created</code></td>
 </tr>
 <tr>
+<td><code>surface.requested</code></td>
+<td>surface id and <code>request</code>: <code>activate</code>, <code>close</code>, <code>fullscreen</code>, <code>unfullscreen</code>, <code>maximize</code>, <code>unmaximize</code> or <code>minimize</code>; a client or a taskbar asks, and plugins decide</td>
+</tr>
+<tr>
 <td><code>input.key</code></td>
 <td>the grabbed binding</td>
 </tr>
@@ -1259,8 +1263,9 @@ or an empty list. It always sees the current titles.</p>
 </table>
 <p>The response of <code>scene.apply</code> reports the result of a transaction: <code>null</code>
 when it applied, an error with the index of the failed command when not.
-Later milestones add events for size limits, activation requests and
-pointer grabs.</p>
+A request that a client makes before its first commit follows its
+<code>surface.created</code>. Later milestones add events for size limits and pointer
+grabs.</p>
 <h2 id="ipc-methods">IPC methods<a class="headerlink" href="#ipc-methods" title="Permanent link">&para;</a></h2>
 <p>JSON-RPC 2.0, one message per line, on the socket in <code>CHORA_SOCKET</code>. Every
 client sends <code>hello</code> first. The core answers every request.</p>
