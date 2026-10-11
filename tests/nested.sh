@@ -288,6 +288,9 @@ wait_for grep -q '"request":"fullscreen"' "$out/requests.jsonl"
 jq -se 'map(.event) | index("surface.created") < index("surface.requested")' \
     "$out/requests.jsonl" >/dev/null || fail "order: $out/requests.jsonl"
 kill "$events_pid"
+# foot asks for a frame of the plugins through xdg-decoration.
+jq -se 'map(select(.event == "surface.created"))[0].decoration == "server"' \
+    "$out/requests.jsonl" >/dev/null || fail "decoration: $out/requests.jsonl"
 
 step "16. a frame tells its client when it showed"
 probe presentation >>"$out/probe.log" 2>&1 &
@@ -295,6 +298,9 @@ probe_pid=$!
 pids+=("$probe_pid")
 probe_surface() { "$bin/choractl" query app_id:chora-probe | jq -er '.[0].id'; }
 wait_for probe_surface
+# The probe knows no xdg-decoration, so it draws its own frame.
+"$bin/choractl" query app_id:chora-probe | jq -e '.[0].surface.decoration == "client"' \
+    >/dev/null || fail "the probe has no client decoration"
 echo "[{\"attach\": {\"surface\": \"$(probe_surface)\", \"parent\": \"root\"}}]" |
     "$bin/choractl" --name e2e apply || fail "attaching the probe failed"
 wait "$probe_pid" || fail "presentation time: $out/probe.log"

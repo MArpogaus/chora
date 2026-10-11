@@ -198,7 +198,7 @@ fn selectors_combine_conditions() {
         SurfaceInfo {
             app_id: Some("foot".into()),
             title: Some("make test".into()),
-            size: None,
+            ..SurfaceInfo::default()
         },
     );
     scene.add_surface("s2", SurfaceInfo::default());

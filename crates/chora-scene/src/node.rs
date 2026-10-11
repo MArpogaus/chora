@@ -121,6 +121,16 @@ impl Uniform {
     }
 }
 
+/// Who draws the frame of a window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Decoration {
+    /// A plugin: the client asked for it through `xdg-decoration`.
+    Server,
+    /// The client itself, for example a GTK program.
+    Client,
+}
+
 /// What the client tells about a surface.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SurfaceInfo {
@@ -130,6 +140,9 @@ pub struct SurfaceInfo {
     pub title: Option<String>,
     /// The size of the window geometry, in logical pixels.
     pub size: Option<[i32; 2]>,
+    /// Who draws the frame of the window.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decoration: Option<Decoration>,
 }
 
 /// One element of the scene.

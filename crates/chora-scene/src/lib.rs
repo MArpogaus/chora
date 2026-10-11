@@ -18,8 +18,8 @@ pub use binding::{Binding, BindingError, Modifiers};
 pub use command::{Command, Effect, ToplevelState};
 pub use event::{Event, OutputInfo, SurfaceRequest};
 pub use node::{
-    InputMode, MAX_EFFECTS, MAX_MESH_CELLS, MAX_UNIFORMS, Mesh, Node, NodeKind, Props, PropsUpdate,
-    ROOT, ShaderEffect, SurfaceInfo, Uniform,
+    Decoration, InputMode, MAX_EFFECTS, MAX_MESH_CELLS, MAX_UNIFORMS, Mesh, Node, NodeKind, Props,
+    PropsUpdate, ROOT, ShaderEffect, SurfaceInfo, Uniform,
 };
 pub use scene::{MAX_CAMERAS, MAX_NODES, Placed, Scene, SceneError, TransactionError};
 pub use selector::{Selector, SelectorError};

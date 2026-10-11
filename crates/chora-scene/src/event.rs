@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::Transform;
+use crate::{Decoration, Transform};
 
 /// One event. The JSON form carries the name in the field `event`, for
 /// example `{"event": "surface.created", "surface": "s1", ...}`.
@@ -18,8 +18,12 @@ pub enum Event {
         app_id: Option<String>,
         /// The window title.
         title: Option<String>,
+        /// Who draws the frame of the window.
+        #[serde(default)]
+        decoration: Option<Decoration>,
     },
-    /// The title, the application id or the size of a surface changed.
+    /// The title, the application id, the size or the decoration of a
+    /// surface changed.
     #[serde(rename = "surface.changed")]
     SurfaceChanged {
         /// The surface node.
@@ -31,6 +35,9 @@ pub enum Event {
         /// The size of the window geometry, in logical pixels.
         #[serde(default)]
         size: Option<[i32; 2]>,
+        /// Who draws the frame of the window.
+        #[serde(default)]
+        decoration: Option<Decoration>,
     },
     /// The client destroyed a surface.
     #[serde(rename = "surface.destroyed")]

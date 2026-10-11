@@ -114,6 +114,7 @@ impl State {
                     surface: id.into(),
                     app_id: info.app_id,
                     title: info.title,
+                    decoration: info.decoration,
                 });
                 self.send_early_requests(id);
             }
@@ -132,6 +133,7 @@ impl State {
                 app_id: info.app_id,
                 title: info.title,
                 size: info.size,
+                decoration: info.decoration,
             });
         }
     }
@@ -335,6 +337,7 @@ impl State {
             app_id: info.app_id,
             title: info.title,
             size: info.size,
+            decoration: info.decoration,
         });
     }
 
@@ -382,10 +385,12 @@ impl XdgDecorationHandler for State {
             .with_pending_state(|state| state.decoration_mode = Some(DecorationMode::ClientSide));
     }
 
+    /// Grants the mode that the client asks for, and tells the plugins.
     fn request_mode(&mut self, toplevel: ToplevelSurface, mode: DecorationMode) {
         toplevel.with_pending_state(|state| state.decoration_mode = Some(mode));
         if toplevel.is_initial_configure_sent() {
             toplevel.send_pending_configure();
+            self.surface_changed(&toplevel);
         }
     }
 
@@ -394,6 +399,7 @@ impl XdgDecorationHandler for State {
             .with_pending_state(|state| state.decoration_mode = Some(DecorationMode::ClientSide));
         if toplevel.is_initial_configure_sent() {
             toplevel.send_pending_configure();
+            self.surface_changed(&toplevel);
         }
     }
 }

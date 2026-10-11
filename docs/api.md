@@ -109,8 +109,8 @@ or an empty list. It always sees the current titles.
 
 | Event | Data |
 |-------|------|
-| `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title |
-| `surface.changed` | surface id, `app_id`, title and size, after any of them changed |
+| `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own |
+| `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
 | `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `input.key` | the grabbed binding |

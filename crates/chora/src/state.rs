@@ -7,14 +7,17 @@ use std::{
     time::Instant,
 };
 
-use chora_scene::{Effect, Event, Scene, SurfaceInfo, SurfaceRequest, ToplevelState};
+use chora_scene::{Decoration, Effect, Event, Scene, SurfaceInfo, SurfaceRequest, ToplevelState};
 use smithay::{
     desktop::{PopupManager, Window},
     input::{Seat, SeatState, keyboard::Keycode, pointer::CursorImageStatus},
     output::Output,
     reexports::{
         calloop::{Interest, LoopHandle, LoopSignal, Mode, PostAction, generic::Generic},
-        wayland_protocols::xdg::shell::server::xdg_toplevel,
+        wayland_protocols::xdg::{
+            decoration::zv1::server::zxdg_toplevel_decoration_v1 as xdg_toplevel_decoration,
+            shell::server::xdg_toplevel,
+        },
         wayland_server::{
             Display, DisplayHandle, Resource, backend::ClientData, protocol::wl_surface::WlSurface,
         },
@@ -254,6 +257,14 @@ impl State {
             return SurfaceInfo::default();
         };
         let size = self.windows[id].geometry().size;
+        let server = toplevel.with_pending_state(|state| {
+            state.decoration_mode == Some(xdg_toplevel_decoration::Mode::ServerSide)
+        });
+        let decoration = Some(if server {
+            Decoration::Server
+        } else {
+            Decoration::Client
+        });
         with_states(toplevel.wl_surface(), |states| {
             let data = states
                 .data_map
@@ -265,6 +276,7 @@ impl State {
                 app_id: data.app_id.clone(),
                 title: data.title.clone(),
                 size: Some([size.w, size.h]),
+                decoration,
             }
         })
     }

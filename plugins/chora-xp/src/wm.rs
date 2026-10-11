@@ -198,6 +198,7 @@ impl Wm {
                 surface,
                 app_id,
                 title,
+                ..
             } => return self.adopt(&surface, app_id, title.as_deref()),
             Event::SurfaceDetached { surface } => {
                 let commands = self.forget(&surface);
