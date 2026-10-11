@@ -18,7 +18,7 @@ assets = [
   { source = "target/release/chora", dest = "/usr/bin/chora", mode = "755" },
   { source = "target/release/choractl", dest = "/usr/bin/choractl", mode = "755" },
   { source = "target/release/chora-tiling", dest = "/usr/bin/chora-tiling", mode = "755" },
-  { source = "../../LICENSE", dest = "/usr/share/licenses/chora/LICENSE", mode = "644", doc = true },
+  { source = "../../LICENSE", dest = "/usr/share/licenses/chora/LICENSE", mode = "644" },
   { source = "../../README.md", dest = "/usr/share/doc/chora/README.md", mode = "644", doc = true }
 ]
 auto-req = "auto"
