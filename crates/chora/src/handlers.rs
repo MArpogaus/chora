@@ -120,7 +120,20 @@ impl State {
             return;
         }
         let info = self.surface_info(id);
-        self.scene.set_surface_info(id, info);
+        let resized = self
+            .scene
+            .node(id)
+            .and_then(|n| n.surface.as_ref())
+            .is_some_and(|old| old.size != info.size);
+        self.scene.set_surface_info(id, info.clone());
+        if resized {
+            self.emit(&Event::SurfaceChanged {
+                surface: id.into(),
+                app_id: info.app_id,
+                title: info.title,
+                size: info.size,
+            });
+        }
     }
 }
 
@@ -321,6 +334,7 @@ impl State {
             surface: id,
             app_id: info.app_id,
             title: info.title,
+            size: info.size,
         });
     }
 

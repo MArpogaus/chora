@@ -19,7 +19,7 @@ pub enum Event {
         /// The window title.
         title: Option<String>,
     },
-    /// The title or the application id of a surface changed.
+    /// The title, the application id or the size of a surface changed.
     #[serde(rename = "surface.changed")]
     SurfaceChanged {
         /// The surface node.
@@ -28,6 +28,9 @@ pub enum Event {
         app_id: Option<String>,
         /// The window title.
         title: Option<String>,
+        /// The size of the window geometry, in logical pixels.
+        #[serde(default)]
+        size: Option<[i32; 2]>,
     },
     /// The client destroyed a surface.
     #[serde(rename = "surface.destroyed")]

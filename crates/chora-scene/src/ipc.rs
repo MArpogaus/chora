@@ -8,6 +8,7 @@ use std::{
     io::{self, BufRead, BufReader, Write},
     os::unix::net::UnixStream,
     path::Path,
+    time::{Duration, Instant},
 };
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -198,6 +199,8 @@ pub struct Client {
     writer: UnixStream,
     next_id: u64,
     events: VecDeque<Event>,
+    /// The start of a line that a timeout interrupted.
+    partial: String,
 }
 
 impl Client {
@@ -232,6 +235,7 @@ impl Client {
             writer,
             next_id: 1,
             events: VecDeque::new(),
+            partial: String::new(),
         };
         client.call::<_, Value>("hello", hello)?;
         Ok(client)
@@ -295,6 +299,43 @@ impl Client {
         }
     }
 
+    /// The next event, or `None` when none arrives within a time, for
+    /// example for the frames of an effect.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails or closes.
+    pub fn next_event_timeout(&mut self, timeout: Duration) -> Result<Option<Event>, ClientError> {
+        if let Some(event) = self.events.pop_front() {
+            return Ok(Some(event));
+        }
+        let deadline = Instant::now() + timeout;
+        loop {
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                return Ok(None);
+            }
+            self.reader.get_ref().set_read_timeout(Some(left))?;
+            let message = self.read();
+            self.reader.get_ref().set_read_timeout(None)?;
+            match message {
+                Ok(message) => self.queue(message),
+                Err(ClientError::Io(e))
+                    if matches!(
+                        e.kind(),
+                        io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
+                    ) =>
+                {
+                    return Ok(None);
+                }
+                Err(e) => return Err(e),
+            }
+            if let Some(event) = self.events.pop_front() {
+                return Ok(Some(event));
+            }
+        }
+    }
+
     /// Keeps an event notification. Events of a newer core that this crate
     /// does not know are skipped.
     fn queue(&mut self, message: Message) {
@@ -307,10 +348,11 @@ impl Client {
     }
 
     fn read(&mut self) -> Result<Message, ClientError> {
-        let mut line = String::new();
-        if self.reader.read_line(&mut line)? == 0 {
+        // A timeout keeps the bytes of the line so far for the next read.
+        if self.reader.read_line(&mut self.partial)? == 0 {
             return Err(ClientError::Closed);
         }
+        let line = std::mem::take(&mut self.partial);
         Ok(serde_json::from_str(&line)?)
     }
 }
@@ -371,5 +413,31 @@ mod tests {
             matches!(err, ClientError::Rpc(RpcError { code: -32700, .. })),
             "{err}"
         );
+    }
+
+    #[test]
+    fn a_timeout_keeps_the_start_of_a_line() {
+        let (client, server) = UnixStream::pair().unwrap();
+        let mut writer = server.try_clone().unwrap();
+        let core = thread::spawn(move || {
+            let mut reader = BufReader::new(server);
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            writeln!(writer, r#"{{"jsonrpc":"2.0","id":1,"result":null}}"#).unwrap();
+            write!(writer, r#"{{"jsonrpc":"2.0","method":"event","#).unwrap();
+            writer.flush().unwrap();
+            writer
+        });
+        let mut client = Client::from_stream(client, &hello()).unwrap();
+        let mut writer = core.join().unwrap();
+        let short = Duration::from_millis(50);
+        assert!(client.next_event_timeout(short).unwrap().is_none());
+        writeln!(
+            writer,
+            r#""params":{{"event":"animation.done","node":"n"}}}}"#
+        )
+        .unwrap();
+        let event = client.next_event_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(event, Some(Event::AnimationDone { node: "n".into() }));
     }
 }

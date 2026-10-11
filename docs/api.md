@@ -101,7 +101,7 @@ or an empty list. It always sees the current titles.
 | Event | Data |
 |-------|------|
 | `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title |
-| `surface.changed` | surface id, `app_id`, title |
+| `surface.changed` | surface id, `app_id`, title and size, after any of them changed |
 | `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `input.key` | the grabbed binding |

@@ -210,6 +210,7 @@ impl Wm {
                 surface,
                 app_id,
                 title,
+                ..
             } => self.retitle(&surface, app_id, title.as_deref()),
             Event::SurfaceRequested { surface, request } => self.request(&surface, request),
             Event::PointerPressed {
