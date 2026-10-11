@@ -1150,8 +1150,9 @@ Windows XP (D39). The flavor is a demo, not a daily driver.</p>
   nodes as textures (D18).</li>
 <li>Rendering of a node into a texture, and a mesh that deforms that texture.
   Wobbly windows and the magic lamp minimize use the mesh.</li>
-<li>Perspective for the 4x4 transforms, and depth, for a 3D desktop cube with
-  flying windows.</li>
+<li>Perspective for the 4x4 transforms, for a 3D desktop cube with flying
+  windows. Layers have no depth test: the order of the siblings decides
+  what is in front.</li>
 <li>The <code>animate</code> command (D28).</li>
 <li>GLSL hot reload; compile errors as <code>transaction.rejected</code>.</li>
 <li>Damage tracking for static and animated shaders, direct scanout (D24).</li>
