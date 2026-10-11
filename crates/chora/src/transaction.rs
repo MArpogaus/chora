@@ -22,6 +22,8 @@ use crate::{ipc::rejected, state::State};
 
 /// How long a transaction waits for its clients.
 const DEADLINE: Duration = Duration::from_millis(150);
+/// How many transactions of one connection can wait in the queue.
+const MAX_PENDING: usize = 16;
 
 /// The queue of transactions.
 #[derive(Default)]
@@ -77,6 +79,17 @@ impl State {
         owner: String,
         commands: Vec<Command>,
     ) {
+        let waiting = self
+            .transactions
+            .queue
+            .iter()
+            .filter(|p| p.conn == conn)
+            .count();
+        if waiting >= MAX_PENDING {
+            let error = rejected("too many waiting transactions");
+            self.ipc.respond(conn, &Message::error(id, error));
+            return;
+        }
         self.transactions.queue.push_back(Pending {
             conn,
             id,
@@ -113,8 +126,7 @@ impl State {
     fn start(&mut self, head: &mut Pending) -> Result<(), String> {
         let effects = self
             .scene
-            .clone()
-            .apply(&head.owner, &head.commands)
+            .check(&head.owner, &head.commands)
             .map_err(|e| e.to_string())?;
         for effect in &effects {
             if let Effect::Configure {

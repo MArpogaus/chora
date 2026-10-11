@@ -137,12 +137,32 @@ impl Scene {
         commands: &[Command],
     ) -> Result<Vec<Effect>, TransactionError> {
         let mut next = self.clone();
+        let effects = next.run(owner, commands)?;
+        *self = next;
+        Ok(effects)
+    }
+
+    /// The effects that [`Scene::apply`] would return, without a change of
+    /// the scene.
+    ///
+    /// # Errors
+    ///
+    /// The first command that breaks a rule.
+    pub fn check(
+        &self,
+        owner: &str,
+        commands: &[Command],
+    ) -> Result<Vec<Effect>, TransactionError> {
+        self.clone().run(owner, commands)
+    }
+
+    /// Runs the commands in place; a failure leaves a partial change.
+    fn run(&mut self, owner: &str, commands: &[Command]) -> Result<Vec<Effect>, TransactionError> {
         let mut effects = Vec::new();
         for (index, command) in commands.iter().enumerate() {
-            next.apply_one(owner, command, &mut effects)
+            self.apply_one(owner, command, &mut effects)
                 .map_err(|error| TransactionError { index, error })?;
         }
-        *self = next;
         Ok(effects)
     }
 
