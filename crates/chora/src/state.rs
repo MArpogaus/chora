@@ -24,7 +24,10 @@ use smithay::{
         session_lock::SessionLockManagerState,
         shell::{
             wlr_layer::WlrLayerShellState,
-            xdg::{XdgShellState, XdgToplevelSurfaceData, decoration::XdgDecorationState},
+            xdg::{
+                ToplevelSurface, XdgShellState, XdgToplevelSurfaceData,
+                decoration::XdgDecorationState,
+            },
         },
         shm::ShmState,
         socket::ListeningSocketSource,
@@ -69,6 +72,8 @@ pub struct State {
     focus_wanted: Option<String>,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
+    /// The last configure of each surface node: size and states.
+    configured: HashMap<String, (Option<[i32; 2]>, Vec<ToplevelState>)>,
 
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
@@ -125,6 +130,7 @@ impl State {
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
             layer_focus: None,
+            configured: HashMap::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
             rects: HashMap::new(),
@@ -207,20 +213,32 @@ impl State {
     }
 
     /// Sends a configure event and returns its serial, if the state changed.
+    /// The configure stays known, for a client that maps the surface again.
     pub fn configure(
-        &self,
+        &mut self,
         surface: &str,
         size: Option<[i32; 2]>,
         states: &[ToplevelState],
     ) -> Option<Serial> {
         let toplevel = self.windows.get(surface)?.toplevel()?;
-        toplevel.with_pending_state(|pending| {
-            pending.size = size.map(|[w, h]| (w, h).into());
-            for (state, xdg) in xdg_states() {
-                set_xdg_states(&mut pending.states, xdg, states.contains(&state));
-            }
-        });
+        set_pending(toplevel, size, states);
+        self.configured
+            .insert(surface.into(), (size, states.to_vec()));
         toplevel.send_pending_configure()
+    }
+
+    /// Forgets the configure of a destroyed surface.
+    pub fn configured_forget(&mut self, surface: &str) {
+        self.configured.remove(surface);
+    }
+
+    /// Prepares the initial configure of a surface that a client maps again:
+    /// the last configure of its plugin.
+    pub fn reconfigure(&self, surface: &str) {
+        let toplevel = self.windows.get(surface).and_then(Window::toplevel);
+        if let (Some(toplevel), Some((size, states))) = (toplevel, self.configured.get(surface)) {
+            set_pending(toplevel, *size, states);
+        }
     }
 
     /// The surface node that has the focus, as plugins set it.
@@ -274,6 +292,15 @@ impl State {
             keyboard.set_focus(self, target, SERIAL_COUNTER.next_serial());
         }
     }
+}
+
+fn set_pending(toplevel: &ToplevelSurface, size: Option<[i32; 2]>, states: &[ToplevelState]) {
+    toplevel.with_pending_state(|pending| {
+        pending.size = size.map(|[w, h]| (w, h).into());
+        for (state, xdg) in xdg_states() {
+            set_xdg_states(&mut pending.states, xdg, states.contains(&state));
+        }
+    });
 }
 
 fn set_xdg_states(

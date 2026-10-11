@@ -38,7 +38,7 @@ impl State {
         tracing::info!("emergency reset");
     }
 
-    fn send_configures(&self, effects: &[Effect]) {
+    fn send_configures(&mut self, effects: &[Effect]) {
         for effect in effects {
             if let Effect::Configure {
                 surface,

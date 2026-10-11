@@ -194,6 +194,7 @@ impl State {
         let message = match self.scene.apply(&head.owner, &head.commands) {
             Ok(effects) => {
                 self.execute(effects);
+                self.refresh_pointer();
                 Message::result(head.id, Value::Null)
             }
             Err(error) => Message::error(head.id, rejected(error.to_string())),

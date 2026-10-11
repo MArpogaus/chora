@@ -127,8 +127,17 @@ fn motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionAbsoluteEv
     let Some(area) = state.outputs.first().map(output_area) else {
         return;
     };
-    let layout = area.loc.to_f64() + event.position_transformed(area.size);
+    // A drag past the edge of the window reports points outside of it.
+    let layout = state.clamp_to_outputs(area.loc.to_f64() + event.position_transformed(area.size));
     move_pointer(state, layout, event.time());
+}
+
+impl State {
+    /// Tells the surface under the pointer after the scene moved under it,
+    /// for example after a transaction or a camera change.
+    pub fn refresh_pointer(&mut self) {
+        move_pointer(self, self.pointer_layout, InputTime::now());
+    }
 }
 
 /// Moves the pointer to a point of the layout and tells the surface under

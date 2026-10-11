@@ -97,9 +97,10 @@ impl State {
             .expect("windows are toplevels")
             .clone();
         if !toplevel.is_initial_configure_sent() {
-            toplevel.send_configure();
             // A client that maps a surface again after it unmapped it, with
-            // a commit without a buffer, keeps its node.
+            // a commit without a buffer, keeps its node and its configure.
+            self.reconfigure(id);
+            toplevel.send_configure();
             let info = self.surface_info(id);
             if self.scene.add_surface(id, info.clone()) {
                 self.emit(&Event::SurfaceCreated {
@@ -183,6 +184,7 @@ impl XdgShellHandler for State {
             return;
         };
         self.windows.remove(&id);
+        self.configured_forget(&id);
         let existed = self.scene.remove_surface(&id);
         self.transactions.forget(&id);
         self.complete_transactions();
