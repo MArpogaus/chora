@@ -8,9 +8,9 @@ use smithay::{
         winit::{self, WinitEvent, WinitGraphicsBackend},
     },
     desktop::layer_map_for_output,
-    output::{Mode, Output, PhysicalProperties, Subpixel},
+    output::{Mode, Output, OutputModeSource, PhysicalProperties, Subpixel},
     reexports::wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
-    utils::Transform,
+    utils::{Physical, Size, Transform},
     wayland::{dmabuf::DmabufFeedbackBuilder, presentation::Refresh},
 };
 
@@ -21,10 +21,16 @@ use crate::{output::frame_duration, render, state::State};
 const OUTPUT: &str = "winit";
 /// The refresh rate that the winit output reports, in mHz.
 const REFRESH: i32 = 60_000;
+/// The answer to a mode change.
+pub const FIXED_MODE: &str = "the window decides the mode of the winit output";
+/// The answer to a request to turn the output off.
+pub const ALWAYS_ON: &str = "the winit output cannot turn off";
 
 /// The parts of the winit backend that outlive one event.
 pub struct Winit {
     graphics: WinitGraphicsBackend<GlesRenderer>,
+    /// Follows the mode, the scale and the transform of the window, see
+    /// [`window_mode`].
     damage_tracker: OutputDamageTracker,
     /// The one output: the window.
     output: Output,
@@ -48,7 +54,7 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
         },
     );
     output.create_global::<State>(&state.display_handle);
-    output.change_current_state(Some(mode), Some(Transform::Flipped180), None, None);
+    output.change_current_state(Some(mode), None, None, None);
     output.set_preferred(mode);
 
     let formats = graphics.renderer().dmabuf_formats();
@@ -69,7 +75,7 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
 
     state.backend = Some(Backend::Winit(Box::new(Winit {
         graphics,
-        damage_tracker: OutputDamageTracker::from_output(&output),
+        damage_tracker: OutputDamageTracker::from_mode_source(window_mode(&output)),
         output: output.clone(),
     })));
     state.add_output(output);
@@ -83,14 +89,7 @@ fn handle(state: &mut State, event: WinitEvent) {
     match event {
         WinitEvent::Resized { size, .. } => {
             if let Some(backend) = winit(state) {
-                let mode = Mode {
-                    size,
-                    refresh: REFRESH,
-                };
-                backend
-                    .output
-                    .change_current_state(Some(mode), None, None, None);
-                layer_map_for_output(&backend.output).arrange();
+                resize(&backend.output, size);
             }
             state.output_changed();
         }
@@ -99,6 +98,22 @@ fn handle(state: &mut State, event: WinitEvent) {
         WinitEvent::CloseRequested => state.loop_signal.stop(),
         WinitEvent::Focus(_) => {}
     }
+}
+
+/// Gives the output the size of the window as its one mode, so that output
+/// configuration shows no old sizes.
+fn resize(output: &Output, size: Size<i32, Physical>) {
+    let old = output.current_mode();
+    let mode = Mode {
+        size,
+        refresh: REFRESH,
+    };
+    output.change_current_state(Some(mode), None, None, None);
+    output.set_preferred(mode);
+    if let Some(old) = old.filter(|o| *o != mode) {
+        output.delete_mode(old);
+    }
+    layer_map_for_output(output).arrange();
 }
 
 fn redraw(state: &mut State) {
@@ -139,6 +154,10 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
     let Some(Backend::Winit(backend)) = backend else {
         return Ok(());
     };
+    let mode = window_mode(output);
+    if *backend.damage_tracker.mode() != mode {
+        backend.damage_tracker = OutputDamageTracker::from_mode_source(mode);
+    }
     // The first query fails before the first bind; 0 means a full redraw.
     let age = backend.graphics.buffer_age().unwrap_or(0);
     let damage = {
@@ -184,10 +203,47 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
     Ok(())
 }
 
+/// How the window shows the output: in its mode and scale, and with its
+/// transform followed by a vertical flip. GL draws the window upside down,
+/// and the flip corrects that. The output itself keeps the transform that
+/// clients see.
+fn window_mode(output: &Output) -> OutputModeSource {
+    OutputModeSource::Static {
+        size: output.current_mode().map(|m| m.size).unwrap_or_default(),
+        scale: output.current_scale().fractional_scale().into(),
+        transform: flipped(output.current_transform()),
+    }
+}
+
+/// The transform that shows an output transform in the window: the same
+/// rotation and mirror, and the vertical flip that GL needs for a window.
+fn flipped(transform: Transform) -> Transform {
+    match transform {
+        Transform::Normal => Transform::Flipped180,
+        Transform::_90 => Transform::Flipped90,
+        Transform::_180 => Transform::Flipped,
+        Transform::_270 => Transform::Flipped270,
+        Transform::Flipped => Transform::_180,
+        Transform::Flipped90 => Transform::_90,
+        Transform::Flipped180 => Transform::Normal,
+        Transform::Flipped270 => Transform::_270,
+    }
+}
+
 impl Winit {
     /// Whether the GPU can use a buffer of a client.
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
         self.graphics.renderer().import_dmabuf(dmabuf, None).is_ok()
+    }
+
+    /// Accepts the current mode only: the window decides the size, and the
+    /// output cannot turn off.
+    pub fn test_output(&self, mode: Option<Mode>) -> Result<(), String> {
+        match mode {
+            Some(mode) if Some(mode) == self.output.current_mode() => Ok(()),
+            Some(_) => Err(FIXED_MODE.into()),
+            None => Err(ALWAYS_ON.into()),
+        }
     }
 }
 

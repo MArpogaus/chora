@@ -112,6 +112,18 @@ The output scale then gives the pixels.
 - Two outputs side by side get two adjacent default cameras. A window across
   two outputs then needs no special case.
 
+### Output configuration
+
+The core implements `wlr-output-management` (D27), so kanshi and wlr-randr
+configure the outputs. Every output of the backend is a head of the
+protocol, also while it is off. A head can get a mode, a position, a
+transform and a scale, or turn off. The core tests a configuration as a
+whole before it applies it. If one part fails, the core changes nothing and
+answers `failed`. One output must stay on. After a change, the core places
+the layer surfaces again and announces the outputs to plugins (see
+[API](api.md#ipc-methods)). On winit, the window decides the mode, and the
+output cannot turn off. No backend has adaptive sync.
+
 ### Renderer
 
 The core uses Smithay's GLES renderer through Smithay's own renderer traits.

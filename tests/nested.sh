@@ -3,8 +3,9 @@
 # chora-tiling tiles three foot windows, a crash of the plugin leaves the
 # core running, and the emergency reset puts the windows in the grid.
 # Further steps check fixed regressions, a taskbar, and the nested exit of
-# M2: waybar, fuzzel and swaylock work, the lock holds against other
-# clients, and frames report their presentation time.
+# M2: waybar, fuzzel and swaylock work, wlr-randr configures the output,
+# the lock holds against other clients, and frames report their
+# presentation time.
 #
 # The test starts the reset with SIGUSR1. Ctrl+Alt+Escape runs the same
 # code, but synthetic keys from wtype carry their own keymap, which a nested
@@ -14,7 +15,7 @@
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
 #   OUT_DIR  receives the logs and screenshots (default: a temp dir)
 # Needs: sway, foot, grim, jq, python3, pgrep and pkill, a Mesa driver,
-# waybar with dbus-run-session, fuzzel, wlrctl and swaylock.
+# waybar with dbus-run-session, fuzzel, wlrctl, swaylock and wlr-randr.
 set -euo pipefail
 
 bin=$(realpath "$1")
@@ -238,7 +239,22 @@ sleep 0.3
 count_is 3 true || fail "the core closed a window"
 kill "$events_pid"
 
-step "13. the lock screen hides the scene and survives a crash of its client"
+step "13. wlr-randr lists the output and changes its scale and position"
+randr() { WAYLAND_DISPLAY=$inner wlr-randr "$@"; }
+# Succeeds when the jq condition holds for the first output.
+output_has() { "$bin/choractl" outputs | jq -e ".[0] | $1" >/dev/null; }
+randr >"$out/randr.txt" || fail "wlr-randr cannot list the outputs"
+grep -q '^winit ' "$out/randr.txt" || fail "no head for winit: $out/randr.txt"
+randr --output winit --scale 2 || fail "the scale change failed"
+wait_for output_has '.scale == 2 and .size == [640, 400]'
+randr --output winit --pos 100,50 --scale 1 || fail "the position change failed"
+wait_for output_has '.position == [100, 50] and .size == [1280, 800]'
+# The only output cannot turn off, and the window decides its mode.
+if randr --output winit --off 2>>"$out/randr.txt"; then fail "the winit output turned off"; fi
+randr --output winit --pos 0,0 || fail "the position reset failed"
+wait_for output_has '.position == [0, 0] and .work_area == [0, 0, 1280, 800]'
+
+step "14. the lock screen hides the scene and survives a crash of its client"
 # Prints the most frequent color of a new screenshot as "r g b".
 top_color() {
     grim -t ppm - | tail -c +17 | od -An -v -tu1 -w3 | sort | uniq -c | sort -rn |
@@ -261,7 +277,7 @@ probe take-lock >>"$out/probe.log" 2>&1 || fail "the takeover: $out/probe.log"
 not_black() { test "$(pixel 100 100)" != "0 0 0"; }
 wait_for not_black
 
-step "14. a fullscreen request reaches plugins after surface.created"
+step "15. a fullscreen request reaches plugins after surface.created"
 "$bin/choractl" events surface.created surface.requested >"$out/requests.jsonl" &
 events_pid=$!
 pids+=("$events_pid")
@@ -273,7 +289,7 @@ jq -se 'map(.event) | index("surface.created") < index("surface.requested")' \
     "$out/requests.jsonl" >/dev/null || fail "order: $out/requests.jsonl"
 kill "$events_pid"
 
-step "15. a frame tells its client when it showed"
+step "16. a frame tells its client when it showed"
 probe presentation >>"$out/probe.log" 2>&1 &
 probe_pid=$!
 pids+=("$probe_pid")
@@ -283,7 +299,7 @@ echo "[{\"attach\": {\"surface\": \"$(probe_surface)\", \"parent\": \"root\"}}]"
     "$bin/choractl" --name e2e apply || fail "attaching the probe failed"
 wait "$probe_pid" || fail "presentation time: $out/probe.log"
 
-step "16. the new buffer of a transaction shows with the transaction"
+step "17. the new buffer of a transaction shows with the transaction"
 probe held-commit 300 300 >"$out/held.log" 2>&1 &
 probe_pid=$!
 pids+=("$probe_pid")

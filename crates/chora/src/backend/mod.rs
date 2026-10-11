@@ -6,6 +6,7 @@ pub mod winit;
 
 use smithay::{
     backend::allocator::dmabuf::Dmabuf,
+    output::{Mode, Output},
     wayland::dmabuf::{DmabufGlobal, DmabufHandler, DmabufState, ImportNotifier},
 };
 
@@ -32,6 +33,40 @@ impl Backend {
     pub fn change_vt(&mut self, vt: i32) {
         if let Self::Tty(tty) = self {
             tty.change_vt(vt);
+        }
+    }
+
+    /// Checks, without a change, whether an output can show a mode, or
+    /// turn off for `None`.
+    pub fn test_output(&self, output: &Output, mode: Option<Mode>) -> Result<(), String> {
+        match self {
+            Self::Winit(winit) => winit.test_output(mode),
+            Self::Tty(tty) => tty.test_output(output, mode),
+        }
+    }
+
+    /// Gives an output that is on a new mode.
+    pub fn set_mode(&mut self, output: &Output, mode: Mode) -> Result<(), String> {
+        match self {
+            Self::Winit(_) => Err(winit::FIXED_MODE.into()),
+            Self::Tty(tty) => tty.set_mode(output, mode),
+        }
+    }
+
+    /// Turns an output on in a mode.
+    pub fn enable_output(&mut self, output: &Output, mode: Mode) -> Result<(), String> {
+        match self {
+            Self::Winit(_) => Err(winit::ALWAYS_ON.into()),
+            Self::Tty(tty) => tty.enable_output(output, mode),
+        }
+    }
+
+    /// Turns an output off. Its connector stays, so that the output can
+    /// turn on again.
+    pub fn disable_output(&mut self, output: &Output) -> Result<(), String> {
+        match self {
+            Self::Winit(_) => Err(winit::ALWAYS_ON.into()),
+            Self::Tty(tty) => tty.disable_output(output),
         }
     }
 }

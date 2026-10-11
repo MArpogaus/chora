@@ -120,7 +120,11 @@ belongs to the safety layer, so no client can grab it. A binding has one
 owner at a time.
 
 The core implements `wlr-output-management`, so kanshi and wlr-randr
-configure the outputs. The API has no output configuration of its own.
+configure the outputs (see
+[Architecture](architecture.md#output-configuration)). The API has no output
+configuration of its own. After a new mode, position, transform or scale,
+the core sends `output.changed`. For an output that turns off, it sends
+`output.removed`, and `output.list` no longer lists the output.
 
 ## Plugins
 

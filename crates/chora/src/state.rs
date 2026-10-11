@@ -53,7 +53,7 @@ use smithay::{
 
 use crate::{
     backend::Backend, foreign_toplevel::ForeignToplevelManagerState, ipc::Ipc, lock::Lock,
-    transaction::Transactions,
+    output_management::OutputManagement, transaction::Transactions,
 };
 
 /// The state of the compositor, passed to every callback of the event loop.
@@ -78,8 +78,10 @@ pub struct State {
 
     pub backend: Option<Backend>,
     pub dmabuf_state: DmabufState,
-    /// The outputs, in the order of their arrival.
+    /// The outputs that are on, in the order of their arrival. Outputs that
+    /// a client turned off have a head in `output_management` only.
     pub outputs: Vec<Output>,
+    pub output_management: OutputManagement,
     /// The pointer in layout coordinates. Smithay keeps it in scene
     /// coordinates; the two differ under a camera that is not the default.
     pub pointer_layout: Point<f64, Logical>,
@@ -172,6 +174,7 @@ impl State {
             backend: None,
             dmabuf_state: DmabufState::new(),
             outputs: Vec::new(),
+            output_management: OutputManagement::new(&dh),
             pointer_layout: Point::default(),
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
