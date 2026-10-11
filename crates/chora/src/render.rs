@@ -16,7 +16,7 @@ use smithay::{
     desktop::{Window, WindowSurfaceType},
     reexports::wayland_server::protocol::wl_surface::WlSurface,
     render_elements,
-    utils::{Logical, Physical, Point, Scale},
+    utils::{Logical, Point, Scale},
 };
 
 use crate::state::State;
@@ -58,7 +58,7 @@ where
                     window
                         .render_elements::<WaylandSurfaceRenderElement<R>>(
                             renderer,
-                            to_physical(loc),
+                            loc.to_physical_precise_round(1.0),
                             scale.into(),
                             alpha,
                         )
@@ -95,7 +95,7 @@ where
     buffer.update(size, color);
     Some(SceneElement::Solid(SolidColorRenderElement::from_buffer(
         buffer,
-        to_physical(offset),
+        offset.to_physical_precise_round(1.0),
         Scale::from(scale),
         alpha,
         Kind::Unspecified,
@@ -107,11 +107,6 @@ where
 fn location_and_scale(t: &Transform) -> Option<(Point<f64, Logical>, (f64, f64))> {
     let (sx, sy) = t.scale_2d().filter(|(sx, sy)| *sx > 0.0 && *sy > 0.0)?;
     Some((t.translation_2d().into(), (sx, sy)))
-}
-
-#[allow(clippy::cast_possible_truncation)]
-fn to_physical(p: Point<f64, Logical>) -> Point<i32, Physical> {
-    (p.x.round() as i32, p.y.round() as i32).into()
 }
 
 /// The position of the window geometry of a surface node in the scene.

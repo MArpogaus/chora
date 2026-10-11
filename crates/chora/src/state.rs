@@ -12,9 +12,7 @@ use smithay::{
         calloop::{Interest, LoopHandle, LoopSignal, Mode, PostAction, generic::Generic},
         wayland_protocols::xdg::shell::server::xdg_toplevel,
         wayland_server::{
-            Display, DisplayHandle,
-            backend::{ClientData, ClientId, DisconnectReason},
-            protocol::wl_surface::WlSurface,
+            Display, DisplayHandle, backend::ClientData, protocol::wl_surface::WlSurface,
         },
     },
     utils::{Logical, SERIAL_COUNTER, Serial, Size},
@@ -42,13 +40,10 @@ pub struct State {
 
     pub compositor_state: CompositorState,
     pub xdg_shell_state: XdgShellState,
-    pub _xdg_decoration_state: XdgDecorationState,
     pub shm_state: ShmState,
-    pub _output_manager_state: OutputManagerState,
     pub seat_state: SeatState<State>,
     pub data_device_state: DataDeviceState,
     pub primary_selection_state: PrimarySelectionState,
-    pub _viewporter_state: ViewporterState,
     pub popups: PopupManager,
     pub seat: Seat<State>,
 
@@ -81,16 +76,18 @@ impl State {
             .expect("the default keymap compiles");
         seat.add_pointer();
         let socket_name = listen(display, &loop_handle);
+        // These globals live as long as the display; nothing reads their
+        // state.
+        XdgDecorationState::new::<Self>(&dh);
+        OutputManagerState::new_with_xdg_output::<Self>(&dh);
+        ViewporterState::new::<Self>(&dh);
         Self {
             start_time: Instant::now(),
             compositor_state: CompositorState::new::<Self>(&dh),
             xdg_shell_state: XdgShellState::new::<Self>(&dh),
-            _xdg_decoration_state: XdgDecorationState::new::<Self>(&dh),
             shm_state: ShmState::new::<Self>(&dh, vec![]),
-            _output_manager_state: OutputManagerState::new_with_xdg_output::<Self>(&dh),
             data_device_state: DataDeviceState::new::<Self>(&dh),
             primary_selection_state: PrimarySelectionState::new::<Self>(&dh),
-            _viewporter_state: ViewporterState::new::<Self>(&dh),
             popups: PopupManager::default(),
             seat_state,
             seat,
@@ -131,7 +128,7 @@ impl State {
             .map(|(id, _)| id.clone())
     }
 
-    /// Reads the app id and the title of a toplevel into its surface node.
+    /// The app id, the title and the size of a toplevel.
     pub fn surface_info(&self, id: &str) -> SurfaceInfo {
         let Some(toplevel) = self.windows.get(id).and_then(Window::toplevel) else {
             return SurfaceInfo::default();
@@ -303,7 +300,4 @@ pub struct ClientState {
     pub compositor_state: CompositorClientState,
 }
 
-impl ClientData for ClientState {
-    fn initialized(&self, _client_id: ClientId) {}
-    fn disconnected(&self, _client_id: ClientId, _reason: DisconnectReason) {}
-}
+impl ClientData for ClientState {}

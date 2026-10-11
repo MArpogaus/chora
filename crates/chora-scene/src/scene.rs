@@ -264,7 +264,7 @@ impl Scene {
         let parent = parent
             .map(str::to_owned)
             .or_else(|| node.parent.clone())
-            .ok_or_else(|| SceneError::WrongKind(id.into(), "node with a parent"))?;
+            .expect("every owned node has a parent");
         self.group(&parent)?;
         if self.ancestors(&parent).any(|a| a == id) {
             return Err(SceneError::Cycle(id.into()));

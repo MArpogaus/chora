@@ -41,7 +41,7 @@ pub struct SurfaceInfo {
     pub app_id: Option<String>,
     /// The window title.
     pub title: Option<String>,
-    /// The size of the last committed buffer, in logical pixels.
+    /// The size of the window geometry, in logical pixels.
     pub size: Option<[i32; 2]>,
 }
 
