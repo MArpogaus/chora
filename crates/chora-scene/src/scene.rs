@@ -586,25 +586,25 @@ impl Scene {
         done
     }
 
-    /// Removes the effects of all nodes, for the watchdog: the meshes, the
-    /// shaders, and the animations of them.
-    pub fn drop_effects(&mut self) {
+    /// Removes the effects of all nodes, for the watchdog: the meshes and
+    /// the shaders, also at the start and the end of animations. Returns
+    /// whether there were some.
+    pub fn drop_effects(&mut self) -> bool {
+        let mut found = false;
         let ids: Vec<String> = self.nodes.keys().cloned().collect();
         for id in ids {
             if let Some(node) = self.nodes.get_mut(&id) {
-                node.props.mesh = None;
-                node.props.effects.clear();
+                found |= strip(&mut node.props);
             }
         }
-        let meshes: Vec<String> = self
-            .animations
-            .iter()
-            .filter(|(_, a)| a.to.mesh.is_some() || a.to.effects.is_some())
-            .map(|(id, _)| id.clone())
-            .collect();
-        for id in meshes {
-            self.animations.remove(&id);
+        let ids: Vec<String> = self.animations.keys().cloned().collect();
+        for id in ids {
+            if let Some(animation) = self.animations.get_mut(&id) {
+                found |= strip(&mut animation.from);
+                found |= animation.to.mesh.take().is_some() | animation.to.effects.take().is_some();
+            }
         }
+        found
     }
 
     /// Whether an animation runs.
@@ -786,6 +786,15 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
         )));
     }
     Ok(())
+}
+
+/// Removes the mesh and the effects of properties. Returns whether there
+/// were some.
+fn strip(props: &mut Props) -> bool {
+    let found = props.mesh.is_some() || !props.effects.is_empty();
+    props.mesh = None;
+    props.effects.clear();
+    found
 }
 
 /// At most 8 effects with absolute paths, at most 16 uniforms each, with

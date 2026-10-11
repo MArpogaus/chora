@@ -8,12 +8,15 @@ use std::{
 
 use chora_scene::{InputMode, NodeKind, Placed, Scene, Transform};
 use smithay::{
-    backend::renderer::element::{
-        AsRenderElements, Id, Kind,
-        memory::MemoryRenderBufferRenderElement,
-        solid::{SolidColorBuffer, SolidColorRenderElement},
-        surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
-        utils::RescaleRenderElement,
+    backend::renderer::{
+        element::{
+            AsRenderElements, Id, Kind,
+            memory::MemoryRenderBufferRenderElement,
+            solid::{SolidColorBuffer, SolidColorRenderElement},
+            surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
+            utils::RescaleRenderElement,
+        },
+        gles::{GlesRenderer, GlesTexture},
     },
     desktop::{
         Window, WindowSurfaceType, layer_map_for_output,
@@ -60,7 +63,8 @@ render_elements! {
 pub struct Assets {
     pub rects: HashMap<String, SolidColorBuffer>,
     pub images: Images,
-    pub cells: HashMap<String, Vec<Id>>,
+    /// The version of the image and the ids of the cells by node.
+    pub cells: HashMap<String, (Option<Id>, Vec<Id>)>,
     pub layers: Layers,
     /// Errors of effect shaders since the last report.
     pub effect_errors: Vec<String>,
@@ -68,12 +72,35 @@ pub struct Assets {
     pub checked_effects: HashMap<String, Option<std::time::SystemTime>>,
 }
 
-/// How an output shows the scene: its camera and its scale factor.
+/// How an output shows the scene: its camera, its scale factor and its size.
 pub struct View {
     /// The transform from scene coordinates to logical output coordinates.
     pub camera: Transform,
     /// Physical pixels per logical pixel.
     pub scale: f64,
+    /// The size of the target in physical pixels.
+    pub size: smithay::utils::Size<i32, smithay::utils::Physical>,
+}
+
+impl View {
+    /// The view of an output.
+    pub fn of(state: &State, output: &Output) -> Self {
+        Self {
+            camera: state.camera(output),
+            scale: output.current_scale().fractional_scale(),
+            size: physical_size(output),
+        }
+    }
+}
+
+/// The size of an output in physical pixels, after its transform.
+pub fn physical_size(output: &Output) -> smithay::utils::Size<i32, smithay::utils::Physical> {
+    let scale = output.current_scale().fractional_scale();
+    output_area(output)
+        .size
+        .to_f64()
+        .to_physical(scale)
+        .to_i32_ceil()
 }
 
 /// The parts of the state that rendering reads. A struct of borrows, so
@@ -178,39 +205,60 @@ fn layer<R: MeshRenderer>(
     view: &View,
 ) -> Option<SceneElement<R>> {
     let node = placed.node;
+    let transform = view.camera.then(&placed.transform);
+    let at = Placing {
+        transform: &transform,
+        scale: view.scale,
+    };
+    // A layer outside of the output renders nothing.
+    let shape = mesh::shape(node, &at)?;
+    if !shape.bounds.overlaps(Rectangle::from_size(view.size)) {
+        return None;
+    }
     let size = mesh::texture_size(node, view.scale)?;
+    let textures = 1 + node.props.effects.len().min(2);
+    if !parts.assets.layers.spend(size, textures) {
+        return None;
+    }
+    let texture = layer_texture(parts, renderer.gles(), node, size, view.scale)?;
+    #[allow(clippy::cast_possible_truncation)]
+    let alpha = placed.opacity as f32;
+    let element = MeshElement::new(&mut parts.assets.layers, node, texture, shape, alpha);
+    Some(SceneElement::Mesh(element))
+}
+
+/// Renders a layer node with its descendants into its texture, and applies
+/// its effects.
+fn layer_texture(
+    parts: &mut Parts<'_>,
+    gles: &mut GlesRenderer,
+    node: &chora_scene::Node,
+    size: smithay::utils::Size<i32, smithay::utils::Buffer>,
+    scale: f64,
+) -> Option<GlesTexture> {
     let inner = View {
         camera: Transform::IDENTITY,
-        scale: view.scale,
+        scale,
+        size: (size.w, size.h).into(),
     };
     let scene = parts.scene;
     let list = scene.layer_list(&node.id);
     let (first, rest) = list.split_first()?;
-    let gles = renderer.gles();
     let mut content = elements(parts, gles, rest, &inner);
     content.extend(node_elements(parts, gles, first, &inner));
     let mut texture = parts.assets.layers.texture(gles, &node.id, 0, size).ok()?;
-    if let Err(err) = mesh::render_into(gles, &mut texture, view.scale, &content) {
+    if let Err(err) = mesh::render_into(gles, &mut texture, scale, &content) {
         tracing::warn!(%err, "a layer failed");
         return None;
     }
     let assets = &mut *parts.assets;
-    let texture = mesh::apply_effects(
+    Some(mesh::apply_effects(
         gles,
         &mut assets.layers,
         node,
         texture,
         &mut assets.effect_errors,
-    );
-    let transform = view.camera.then(&placed.transform);
-    #[allow(clippy::cast_possible_truncation)]
-    let alpha = placed.opacity as f32;
-    let at = Placing {
-        transform: &transform,
-        scale: view.scale,
-        alpha,
-    };
-    MeshElement::new(&mut parts.assets.layers, node, texture, &at).map(SceneElement::Mesh)
+    ))
 }
 
 /// The render elements of one node that is not a layer, front first. The
@@ -314,7 +362,7 @@ where
 fn image<R>(
     placed: &Placed<'_>,
     images: &Images,
-    cells: &mut HashMap<String, Vec<Id>>,
+    cells: &mut HashMap<String, (Option<Id>, Vec<Id>)>,
     renderer: &mut R,
     at: &Placement,
 ) -> Vec<SceneElement<R>>
@@ -329,7 +377,11 @@ where
         .size
         .unwrap_or([f64::from(image.size[0]), f64::from(image.size[1])]);
     let parts = images::cells(image.size, size, props.slice);
-    let ids = cells.entry(placed.node.id.clone()).or_default();
+    let (version, ids) = cells.entry(placed.node.id.clone()).or_default();
+    if version.as_ref() != Some(&image.version) {
+        *version = Some(image.version.clone());
+        ids.clear();
+    }
     images::elements(renderer, image, &parts, ids, at)
         .into_iter()
         .map(SceneElement::Image)
@@ -450,7 +502,9 @@ enum Hit {
 }
 
 fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<Hit> {
-    let (offset, (sx, sy)) = location_and_scale(&placed.transform)?;
+    let Some((offset, (sx, sy))) = location_and_scale(&placed.transform) else {
+        return layer_hit(placed, pos);
+    };
     let local = Point::<f64, Logical>::from(((pos.x - offset.x) / sx, (pos.y - offset.y) / sy));
     match placed.node.kind {
         NodeKind::Surface => {
@@ -469,6 +523,22 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
         }
         NodeKind::Group => None,
     }
+}
+
+/// What a point hits of a node under a transform that is not a plain 2D
+/// one: the bounding box of a layer takes the input, so that it does not
+/// fall through to the nodes behind.
+fn layer_hit(placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<Hit> {
+    if !placed.node.is_layer() {
+        return None;
+    }
+    let at = Placing {
+        transform: &placed.transform,
+        scale: 1.0,
+    };
+    let bounds = mesh::shape(placed.node, &at)?.bounds;
+    let pos = pos.to_physical(1.0).to_i32_round();
+    bounds.contains(pos).then_some(Hit::Area)
 }
 
 /// The size of a rect or an image node; an image without a size has the

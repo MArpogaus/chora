@@ -35,6 +35,8 @@ const MAX_SIDE: u32 = 8192;
 const MAX_FILE: u64 = 32 << 20;
 /// The most images in the cache at once.
 const MAX_IMAGES: usize = 1024;
+/// The most bytes of decoded pixels of all images.
+const MAX_DECODED: u64 = 512 << 20;
 
 /// A loaded image.
 pub struct Image {
@@ -42,6 +44,9 @@ pub struct Image {
     /// Width and height in pixels.
     pub size: [u32; 2],
     modified: Option<SystemTime>,
+    /// New with each load, so that the cells of a reloaded image get new
+    /// ids and show again.
+    pub version: Id,
 }
 
 /// The loaded images by path.
@@ -55,7 +60,10 @@ impl Images {
     /// unchanged.
     pub fn load_for(&mut self, commands: &[Command]) -> Result<(), String> {
         for command in commands {
-            let (Command::Create { props, .. } | Command::Update { props, .. }) = command else {
+            let (Command::Create { props, .. }
+            | Command::Update { props, .. }
+            | Command::Animate { props, .. }) = command
+            else {
                 continue;
             };
             if let Some(path) = &props.image {
@@ -77,7 +85,14 @@ impl Images {
         if !self.cache.contains_key(path) && self.cache.len() >= MAX_IMAGES {
             return Err(format!("{path}: the core holds {MAX_IMAGES} images"));
         }
-        let (pixels, size) = decode(path).map_err(|e| format!("{path}: {e}"))?;
+        let others: u64 = self
+            .cache
+            .iter()
+            .filter(|(p, _)| p.as_str() != path)
+            .map(|(_, i)| u64::from(i.size[0]) * u64::from(i.size[1]) * 4)
+            .sum();
+        let budget = MAX_DECODED.saturating_sub(others);
+        let (pixels, size) = decode(path, budget).map_err(|e| format!("{path}: {e}"))?;
         #[allow(clippy::cast_possible_wrap)] // at most MAX_SIDE
         let buffer = MemoryRenderBuffer::from_slice(
             &pixels,
@@ -91,6 +106,7 @@ impl Images {
             buffer,
             size,
             modified,
+            version: Id::new(),
         };
         self.cache.insert(path.into(), image);
         Ok(())
@@ -112,8 +128,9 @@ impl Images {
     }
 }
 
-/// Decodes a PNG file into premultiplied RGBA pixels.
-fn decode(path: &str) -> Result<(Vec<u8>, [u32; 2]), String> {
+/// Decodes a PNG file into premultiplied RGBA pixels, if they fit into a
+/// budget of bytes.
+fn decode(path: &str, budget: u64) -> Result<(Vec<u8>, [u32; 2]), String> {
     let file = File::open(path).map_err(|e| e.to_string())?;
     let mut decoder = png::Decoder::new(BufReader::new(file));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
@@ -121,6 +138,11 @@ fn decode(path: &str) -> Result<(Vec<u8>, [u32; 2]), String> {
     let (w, h) = reader.info().size();
     if w == 0 || h == 0 || w > MAX_SIDE || h > MAX_SIDE {
         return Err(format!("{w}x{h} pixels; at most {MAX_SIDE} on a side"));
+    }
+    if u64::from(w) * u64::from(h) * 4 > budget {
+        return Err(format!(
+            "{w}x{h} pixels exceed the {MAX_DECODED} bytes of all images"
+        ));
     }
     let len = reader.output_buffer_size().ok_or("too large")?;
     let mut data = vec![0; len];

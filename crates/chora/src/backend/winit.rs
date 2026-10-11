@@ -124,7 +124,7 @@ fn redraw(state: &mut State) {
     };
     let start = std::time::Instant::now();
     let rendered = render_frame(state, &output);
-    state.frame_rendered(frame_duration(&output), start.elapsed());
+    state.frame_rendered(&output.name(), frame_duration(&output), start.elapsed());
     let submitted = shown(state, &output, rendered);
     render::send_frames(state, &output);
     if submitted {
@@ -171,10 +171,7 @@ fn redraw_later(state: &mut State, delay: std::time::Duration) {
 /// Renders the damaged parts of the scene into the window and shows them.
 /// Returns whether a frame with damage went to the host.
 fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
-    let view = render::View {
-        camera: state.camera(output),
-        scale: output.current_scale().fractional_scale(),
-    };
+    let view = render::View::of(state, output);
     let State {
         backend,
         scene,

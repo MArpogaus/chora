@@ -165,6 +165,9 @@ impl State {
             if head.deadline.is_none()
                 && let Err(error) = self.start(&mut head)
             {
+                // No other transaction started, so no other needs the
+                // images that this one loaded.
+                self.assets.images.prune(&self.scene);
                 self.ipc
                     .respond(head.conn, &Message::error(head.id, rejected(error)));
                 continue;
@@ -296,9 +299,10 @@ impl State {
     /// Applies the transaction to the scene, answers the client, and then
     /// applies the commits that the transaction held.
     fn finish(&mut self, mut head: Pending) {
-        let message = match self.scene.apply(&head.owner, &head.commands) {
+        let applied = self.scene.apply(&head.owner, &head.commands);
+        self.assets.images.prune(&self.scene);
+        let message = match applied {
             Ok(effects) => {
-                self.assets.images.prune(&self.scene);
                 self.execute(effects);
                 self.refresh_pointer();
                 Message::result(head.id, Value::Null)

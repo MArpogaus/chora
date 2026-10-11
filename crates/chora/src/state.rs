@@ -68,12 +68,18 @@ pub struct NodeGrab {
     pub position: [f64; 2],
 }
 
+/// The shortest time between two refreshes of the pointer while animations
+/// run.
+const POINTER_REFRESH: std::time::Duration = std::time::Duration::from_millis(8);
+
 /// The state of the compositor, passed to every callback of the event loop.
 #[allow(clippy::struct_field_names)] // the names of Smithay's handler traits
 pub struct State {
     pub start_time: Instant,
     /// The time to which the animations of the scene advanced.
     animated_at: Instant,
+    /// The last refresh of the pointer after a step of the animations.
+    pointer_refreshed: Instant,
     /// The clock of presentation times.
     pub clock: Clock<Monotonic>,
     pub display_handle: DisplayHandle,
@@ -176,6 +182,7 @@ impl State {
         Self {
             start_time: Instant::now(),
             animated_at: Instant::now(),
+            pointer_refreshed: Instant::now(),
             clock,
             compositor_state: CompositorState::new::<Self>(&dh),
             layer_shell_state: WlrLayerShellState::new::<Self>(&dh),
@@ -242,7 +249,11 @@ impl State {
         for node in self.scene.advance(ms) {
             self.emit(&Event::AnimationDone { node });
         }
-        self.refresh_pointer();
+        // The loop can run far more often than frames show.
+        if now - self.pointer_refreshed >= POINTER_REFRESH {
+            self.pointer_refreshed = now;
+            self.refresh_pointer();
+        }
     }
 
     /// Registers a new toplevel. Its surface node follows with the first

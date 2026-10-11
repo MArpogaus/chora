@@ -15,7 +15,10 @@
 //! A layer with effects goes through their shaders first, one pass per
 //! effect. The raw GL calls are in [`crate::gl`].
 
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use crate::gl;
 
@@ -36,7 +39,11 @@ use smithay::{
 };
 
 /// The largest side of a layer texture, in pixels.
-const MAX_SIDE: f64 = 8192.0;
+const MAX_SIDE: f64 = 4096.0;
+/// The most pixels of layer textures in one frame of an output.
+const FRAME_PIXELS: u64 = 64 << 20;
+/// How long an unused layer texture stays.
+const UNUSED_FOR: Duration = Duration::from_secs(2);
 
 /// A renderer that can draw meshes: the GLES renderer of the nested
 /// backend, and the multi-GPU renderer of the tty backend, which renders
@@ -77,19 +84,45 @@ impl MeshRenderer for GlesRenderer {
 /// effects.
 #[derive(Default)]
 pub struct Layers {
-    textures: HashMap<(String, usize), GlesTexture>,
+    /// By node, slot and size, so that outputs of other scales keep their
+    /// own; with the time of the last use.
+    textures: HashMap<(String, usize, i32, i32), (GlesTexture, Instant)>,
     ids: HashMap<String, (Id, CommitCounter)>,
+    /// The pixels of layer textures in the current frame.
+    pixels: u64,
+    /// The budget ran out in this frame, and the log tells it once.
+    told: bool,
 }
 
 impl Layers {
-    /// Drops the layers of nodes that are gone or no layers any more.
+    /// Drops the layers of nodes that are gone or no layers any more, and
+    /// textures that no frame used for a while; starts the budget of a new
+    /// frame.
     pub fn retain(&mut self, mut keep: impl FnMut(&str) -> bool) {
-        self.textures.retain(|(id, _), _| keep(id));
+        let now = Instant::now();
+        self.textures
+            .retain(|(id, ..), (_, used)| keep(id) && now - *used < UNUSED_FOR);
         self.ids.retain(|id, _| keep(id));
+        self.pixels = 0;
     }
 
-    /// A texture of a slot of a layer of a size, the one of the last frame
-    /// if it fits.
+    /// Takes pixels of the budget of the frame for the textures of a layer.
+    /// Returns `false` when they do not fit.
+    pub fn spend(&mut self, size: Size<i32, BufferCoords>, textures: usize) -> bool {
+        let area = u64::try_from(size.w * size.h).unwrap_or(u64::MAX);
+        let pixels = area.saturating_mul(textures as u64);
+        if self.pixels.saturating_add(pixels) > FRAME_PIXELS {
+            if !std::mem::replace(&mut self.told, true) {
+                tracing::warn!("layers exceed {FRAME_PIXELS} pixels in a frame; some stay out");
+            }
+            return false;
+        }
+        self.pixels += pixels;
+        true
+    }
+
+    /// A texture of a slot of a layer of a size, the one of an earlier
+    /// frame if there is one.
     pub fn texture(
         &mut self,
         gles: &mut GlesRenderer,
@@ -97,14 +130,14 @@ impl Layers {
         slot: usize,
         size: Size<i32, BufferCoords>,
     ) -> Result<GlesTexture, GlesError> {
-        let key = (node.to_string(), slot);
-        if let Some(texture) = self.textures.get(&key)
-            && Texture::size(texture) == size
-        {
+        let key = (node.to_string(), slot, size.w, size.h);
+        let now = Instant::now();
+        if let Some((texture, used)) = self.textures.get_mut(&key) {
+            *used = now;
             return Ok(texture.clone());
         }
         let texture: GlesTexture = gles.create_buffer(Fourcc::Abgr8888, size)?;
-        self.textures.insert(key, texture.clone());
+        self.textures.insert(key, (texture.clone(), now));
         Ok(texture)
     }
 
@@ -153,12 +186,11 @@ where
 /// homogeneous form (x, y, w), and the texture coordinates.
 type Vertex = ([f32; 3], [f32; 2]);
 
-/// Where a layer shows: the transform to logical output coordinates, the
-/// output scale and the opacity.
+/// Where a layer shows: the transform to logical output coordinates and
+/// the output scale.
 pub struct Placing<'a> {
     pub transform: &'a Transform,
     pub scale: f64,
-    pub alpha: f32,
 }
 
 /// A layer texture drawn through a mesh.
@@ -173,33 +205,52 @@ pub struct MeshElement {
     alpha: f32,
 }
 
+/// Where the mesh of a layer lands on an output.
+pub struct Shape {
+    vertices: Vec<Vertex>,
+    indices: Vec<u16>,
+    /// The bounding box in physical output coordinates.
+    pub bounds: Rectangle<i32, Physical>,
+}
+
+/// The shape of a layer node: its mesh, or a quad, with a transform to
+/// logical output coordinates. `None` when a point is behind the viewer.
+pub fn shape(node: &Node, at: &Placing<'_>) -> Option<Shape> {
+    let size = node.props.size?;
+    let flat;
+    let mesh = if let Some(mesh) = &node.props.mesh {
+        mesh
+    } else {
+        flat = Mesh::flat(1, 1, size);
+        &flat
+    };
+    let (vertices, bounds) = project(mesh, at.transform, at.scale)?;
+    Some(Shape {
+        vertices,
+        indices: triangles(mesh.cols, mesh.rows),
+        bounds,
+    })
+}
+
 impl MeshElement {
-    /// The element of a layer node: its texture through its mesh, or a
-    /// quad, with a transform to logical output coordinates. `None` when a
-    /// point is behind the viewer.
+    /// The element of a layer node: its texture through its shape.
     pub fn new(
         layers: &mut Layers,
         node: &Node,
         texture: GlesTexture,
-        at: &Placing<'_>,
-    ) -> Option<Self> {
-        let size = node.props.size?;
-        let mesh = node
-            .props
-            .mesh
-            .clone()
-            .unwrap_or_else(|| Mesh::flat(1, 1, size));
-        let (vertices, bounds) = project(&mesh, at.transform, at.scale)?;
+        shape: Shape,
+        alpha: f32,
+    ) -> Self {
         let (id, commit) = layers.next(&node.id);
-        Some(Self {
+        Self {
             id,
             commit,
             texture,
-            vertices,
-            indices: triangles(mesh.cols, mesh.rows),
-            geometry: bounds,
-            alpha: at.alpha,
-        })
+            vertices: shape.vertices,
+            indices: shape.indices,
+            geometry: shape.bounds,
+            alpha,
+        }
     }
 }
 
@@ -358,19 +409,25 @@ pub fn apply_effects(
     mut texture: GlesTexture,
     errors: &mut Vec<String>,
 ) -> GlesTexture {
-    for (i, effect) in node.props.effects.iter().enumerate() {
+    // The slot of the current texture: 0 for the content, then the two
+    // textures of passes take turns, so that no pass reads its own target.
+    let mut slot = 0;
+    for effect in &node.props.effects {
         let (program, error) = gl::effect_program(gles, &effect.shader);
         errors.extend(error);
         let Some(program) = program else {
             continue;
         };
         let size = Texture::size(&texture);
-        // Two textures take turns, so that no pass reads its own target.
-        let Ok(mut target) = layers.texture(gles, &node.id, 1 + i % 2, size) else {
+        let next = if slot == 1 { 2 } else { 1 };
+        let Ok(mut target) = layers.texture(gles, &node.id, next, size) else {
             continue;
         };
         match pass(gles, &program, &texture, &mut target, effect) {
-            Ok(()) => texture = target,
+            Ok(()) => {
+                texture = target;
+                slot = next;
+            }
             Err(err) => errors.push(err),
         }
     }

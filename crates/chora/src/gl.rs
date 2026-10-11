@@ -86,6 +86,10 @@ pub fn draw(
         for parameter in [ffi::TEXTURE_MIN_FILTER, ffi::TEXTURE_MAG_FILTER] {
             gl.TexParameteri(ffi::TEXTURE_2D, parameter, ffi::LINEAR.cast_signed());
         }
+        // Samples past an edge take the edge, not the opposite side.
+        for parameter in [ffi::TEXTURE_WRAP_S, ffi::TEXTURE_WRAP_T] {
+            gl.TexParameteri(ffi::TEXTURE_2D, parameter, ffi::CLAMP_TO_EDGE.cast_signed());
+        }
         gl.Uniform1i(program.tex, 0);
         gl.Uniform1f(program.alpha, call.alpha);
         gl.Uniform2f(program.size, call.size[0], call.size[1]);
@@ -185,7 +189,12 @@ pub fn effect_program(gles: &mut GlesRenderer, path: &str) -> (Option<Program>, 
     });
     let old = cached.and_then(|(_, p)| p);
     let (program, error) = match compiled {
-        Ok(program) => (Some(program), None),
+        Ok(program) => {
+            if let Some(old) = old {
+                let _ = gles.with_context(|gl| unsafe { gl.DeleteProgram(old.id) });
+            }
+            (Some(program), None)
+        }
         Err(error) => (old, Some(format!("{path}: {error}"))),
     };
     let programs = gles

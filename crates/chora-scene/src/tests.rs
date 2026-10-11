@@ -605,3 +605,32 @@ fn a_node_reads_back_from_its_json() {
     let back: crate::Node = serde_json::from_value(json).unwrap();
     assert_eq!(&back, node);
 }
+
+#[test]
+fn dropped_effects_stay_gone_during_an_animation() {
+    let mut scene = Scene::default();
+    let rect = Command::Create {
+        id: "r".into(),
+        kind: NodeKind::Rect,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            size: Some([10.0, 10.0]),
+            mesh: Some(crate::Mesh::flat(1, 1, [10.0, 10.0])),
+            ..PropsUpdate::default()
+        },
+    };
+    let fade = Command::Animate {
+        id: "r".into(),
+        props: PropsUpdate {
+            opacity: Some(0.0),
+            ..PropsUpdate::default()
+        },
+        duration: 1000.0,
+        easing: Easing::Linear,
+    };
+    scene.apply("wm", &[rect, fade]).unwrap();
+    assert!(scene.drop_effects());
+    scene.advance(100.0);
+    assert!(scene.node("r").unwrap().props.mesh.is_none());
+    assert!(!scene.drop_effects());
+}

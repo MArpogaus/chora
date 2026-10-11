@@ -147,6 +147,8 @@ struct Surface {
     queued: bool,
     /// The generation of the lock of the frame on the screen.
     shown_lock: Option<u64>,
+    /// The start of the render of the queued frame, for the watchdog.
+    rendered_at: Option<std::time::Instant>,
     /// The timer of the next render after a frame without damage.
     timer: Option<RegistrationToken>,
 }
@@ -356,6 +358,7 @@ impl Tty {
             global: output.create_global::<State>(&self.display),
             queued: false,
             shown_lock: None,
+            rendered_at: None,
             timer: None,
         })
     }
@@ -702,20 +705,18 @@ fn render(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
     else {
         return;
     };
-    let view = View {
-        camera: state.camera(&output),
-        scale: output.current_scale().fractional_scale(),
-    };
+    let view = View::of(state, &output);
     let pointer = pointer_on(state, &output);
     let start = std::time::Instant::now();
-    let drawn = draw(state, node, crtc, &view, pointer);
-    state.frame_rendered(frame_duration(&output), start.elapsed());
-    let queued = drawn
+    let queued = draw(state, node, crtc, &view, pointer)
         .and_then(|damaged| Ok(damaged && queue(state, node, crtc, &output)?))
         .unwrap_or_else(|err| {
             log_error::<(), _>("rendering failed", Err(err));
             false
         });
+    if queued && let Some(surface) = surface(state, node, crtc) {
+        surface.rendered_at = Some(start);
+    }
     if !queued {
         // Without damage, the screen keeps the frame of an earlier lock,
         // and that hides the session as well.
@@ -859,11 +860,20 @@ fn test_failed(err: &(dyn std::error::Error + 'static)) -> bool {
 /// can render again.
 fn vblank(state: &mut State, node: DrmNode, crtc: crtc::Handle, meta: Option<&DrmEventMetadata>) {
     let now = state.clock.now();
+    let Some(entry) = surface(state, node, crtc) else {
+        return;
+    };
+    entry.queued = false;
+    let output = entry.output.clone();
+    // The GPU work and the wait for the vblank count; one refresh of wait
+    // is normal.
+    if let Some(start) = entry.rendered_at.take() {
+        let budget = frame_duration(&output) * 2;
+        state.frame_rendered(&output.name(), budget, start.elapsed());
+    }
     let Some(surface) = surface(state, node, crtc) else {
         return;
     };
-    surface.queued = false;
-    let output = surface.output.clone();
     match surface.compositor.frame_submitted() {
         Ok(Some(Some(mut frame))) => {
             let (time, flags) = presentation_time(meta, now);

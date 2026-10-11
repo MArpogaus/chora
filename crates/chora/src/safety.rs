@@ -1,16 +1,19 @@
 //! The safety layer: the only built-in behavior (D23).
 //!
-//! Besides the bindings and the reset, a watchdog watches frames that take
-//! longer to render than a refresh of their output. After two seconds of
-//! slow frames it removes the effects; after two more, it starts the
-//! emergency reset. `CHORA_FRAME_BUDGET_US` sets a fixed budget in
+//! Besides the bindings and the reset, a watchdog watches the frames of
+//! each output. After two seconds of slow frames it removes the effects;
+//! when there were some and frames stay slow for two more seconds, it
+//! starts the emergency reset, at most once a minute. `CHORA_FRAME_BUDGET_US` sets a fixed budget in
 //! microseconds, for tests.
 
 use calloop::{
     LoopHandle,
     signals::{Signal, Signals},
 };
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use chora_scene::{Effect, Event};
 
@@ -33,18 +36,28 @@ const SLOW_FOR: Duration = Duration::from_secs(2);
 /// How long frames stay fast before removed effects may come back without
 /// a reset.
 const CALM_FOR: Duration = Duration::from_secs(10);
+/// The shortest time between two resets of the watchdog.
+const RESET_PAUSE: Duration = Duration::from_secs(60);
 
 /// The watchdog of the render times.
 #[derive(Default)]
 pub struct Watchdog {
-    /// The first frame of the current run of slow frames.
-    slow_since: Option<Instant>,
-    /// The last slow frame.
-    last_slow: Option<Instant>,
-    /// The effects are gone; slow frames now start the reset.
+    /// The slow frames of each output.
+    outputs: HashMap<String, Run>,
+    /// The watchdog removed effects; slow frames now start the reset.
     dropped: bool,
+    last_reset: Option<Instant>,
     /// A fixed budget from `CHORA_FRAME_BUDGET_US`.
     budget: Option<Duration>,
+}
+
+/// The slow frames of one output.
+#[derive(Default)]
+struct Run {
+    /// The first frame of the current run of slow frames.
+    since: Option<Instant>,
+    /// The last slow frame.
+    last: Option<Instant>,
 }
 
 impl Watchdog {
@@ -60,28 +73,40 @@ impl Watchdog {
         }
     }
 
-    /// Counts a frame that took a time to render, against the refresh
-    /// period of its output.
-    fn note(&mut self, refresh: Duration, took: Duration, now: Instant) -> Option<Action> {
-        if took <= self.budget.unwrap_or(refresh) {
-            self.slow_since = None;
-            if self.last_slow.is_some_and(|t| now - t >= CALM_FOR) {
+    /// Counts a frame of an output that took a time, against a budget.
+    fn note(
+        &mut self,
+        output: &str,
+        budget: Duration,
+        took: Duration,
+        now: Instant,
+    ) -> Option<Action> {
+        let run = self.outputs.entry(output.into()).or_default();
+        if took <= self.budget.unwrap_or(budget) {
+            run.since = None;
+            if run.last.is_some_and(|t| now - t >= CALM_FOR) {
                 self.dropped = false;
             }
             return None;
         }
-        self.last_slow = Some(now);
-        let since = *self.slow_since.get_or_insert(now);
+        run.last = Some(now);
+        let since = *run.since.get_or_insert(now);
         if now - since < SLOW_FOR {
             return None;
         }
-        self.slow_since = None;
-        self.dropped = !self.dropped;
-        Some(if self.dropped {
-            Action::DropEffects
-        } else {
-            Action::Reset
-        })
+        run.since = None;
+        if !self.dropped {
+            return Some(Action::DropEffects);
+        }
+        // Without effects, the plugins may still overload the scene; a
+        // reset helps once, but not again and again, for example on a slow
+        // GPU.
+        if self.last_reset.is_some_and(|t| now - t < RESET_PAUSE) {
+            return None;
+        }
+        self.last_reset = Some(now);
+        self.dropped = false;
+        Some(Action::Reset)
     }
 }
 
@@ -93,10 +118,11 @@ enum Action {
 }
 
 impl State {
-    /// Notes how long a frame of an output with a refresh period took to
-    /// render, and acts on slow frames.
-    pub fn frame_rendered(&mut self, refresh: Duration, took: Duration) {
-        match self.watchdog.note(refresh, took, Instant::now()) {
+    /// Notes how long a frame of an output took against a budget, and acts
+    /// on slow frames: the nested backend measures the render, the tty
+    /// backend the time from the render to the vblank.
+    pub fn frame_rendered(&mut self, output: &str, budget: Duration, took: Duration) {
+        match self.watchdog.note(output, budget, took, Instant::now()) {
             Some(Action::DropEffects) => self.drop_effects(),
             Some(Action::Reset) => {
                 watchdog_resets();
@@ -106,10 +132,14 @@ impl State {
         }
     }
 
-    /// Removes the effects of all nodes and tells the plugins.
+    /// Removes the effects of all nodes and tells the plugins. Without
+    /// effects, the slow frames have another cause, and no reset follows.
     fn drop_effects(&mut self) {
+        if !self.scene.drop_effects() {
+            return;
+        }
         tracing::warn!("frames are slow; the watchdog removes the effects");
-        self.scene.drop_effects();
+        self.watchdog.dropped = true;
         self.emit(&Event::EffectsDropped);
     }
 
@@ -156,30 +186,51 @@ mod tests {
     const REFRESH: Duration = Duration::from_millis(16);
     const SLOW: Duration = Duration::from_millis(20);
 
-    /// Notes slow frames at 60 Hz for a time, and returns the actions.
-    fn slow_for(watchdog: &mut Watchdog, start: Instant, ms: u64) -> Vec<Action> {
-        (0..ms / 16)
-            .filter_map(|i| watchdog.note(REFRESH, SLOW, start + Duration::from_millis(i * 16)))
-            .collect()
+    /// Notes slow frames of an output at 60 Hz for a time, from a start,
+    /// and returns the actions; a drop of effects removes some if `found`.
+    fn slow_for(watchdog: &mut Watchdog, start: Instant, ms: u64, found: bool) -> Vec<Action> {
+        let mut actions = Vec::new();
+        for i in 0..ms / 16 {
+            let now = start + Duration::from_millis(i * 16);
+            if let Some(action) = watchdog.note("out", REFRESH, SLOW, now) {
+                if action == Action::DropEffects {
+                    watchdog.dropped = found;
+                }
+                actions.push(action);
+            }
+        }
+        actions
     }
 
     #[test]
-    fn slow_frames_drop_the_effects_and_then_reset() {
+    fn slow_frames_drop_the_effects_and_then_reset_once() {
         let mut watchdog = Watchdog::default();
-        let actions = slow_for(&mut watchdog, Instant::now(), 4100);
+        let start = Instant::now();
+        let actions = slow_for(&mut watchdog, start, 4100, true);
         assert_eq!(actions, vec![Action::DropEffects, Action::Reset]);
+        // Slow again soon after: a drop, but no second reset.
+        let later = start + Duration::from_millis(4200);
+        let actions = slow_for(&mut watchdog, later, 4100, true);
+        assert_eq!(actions, vec![Action::DropEffects]);
+    }
+
+    #[test]
+    fn without_effects_slow_frames_never_reset() {
+        let mut watchdog = Watchdog::default();
+        let actions = slow_for(&mut watchdog, Instant::now(), 20_000, false);
+        assert!(actions.iter().all(|a| *a == Action::DropEffects));
     }
 
     #[test]
     fn a_fast_frame_starts_the_time_again() {
         let mut watchdog = Watchdog::default();
         let start = Instant::now();
-        assert!(slow_for(&mut watchdog, start, 1900).is_empty());
+        assert!(slow_for(&mut watchdog, start, 1900, true).is_empty());
         let later = start + Duration::from_millis(1950);
         assert_eq!(
-            watchdog.note(REFRESH, Duration::from_millis(5), later),
+            watchdog.note("out", REFRESH, Duration::from_millis(5), later),
             None
         );
-        assert!(slow_for(&mut watchdog, later, 1900).is_empty());
+        assert!(slow_for(&mut watchdog, later, 1900, true).is_empty());
     }
 }

@@ -199,8 +199,9 @@ pub struct Client {
     writer: UnixStream,
     next_id: u64,
     events: VecDeque<Event>,
-    /// The start of a line that a timeout interrupted.
-    partial: String,
+    /// The start of a line that a timeout interrupted, as bytes, since a
+    /// timeout can split a character.
+    partial: Vec<u8>,
 }
 
 impl Client {
@@ -235,7 +236,7 @@ impl Client {
             writer,
             next_id: 1,
             events: VecDeque::new(),
-            partial: String::new(),
+            partial: Vec::new(),
         };
         client.call::<_, Value>("hello", hello)?;
         Ok(client)
@@ -349,11 +350,14 @@ impl Client {
 
     fn read(&mut self) -> Result<Message, ClientError> {
         // A timeout keeps the bytes of the line so far for the next read.
-        if self.reader.read_line(&mut self.partial)? == 0 {
+        if self.reader.read_until(b'\n', &mut self.partial)? == 0 {
+            return Err(ClientError::Closed);
+        }
+        if self.partial.last() != Some(&b'\n') {
             return Err(ClientError::Closed);
         }
         let line = std::mem::take(&mut self.partial);
-        Ok(serde_json::from_str(&line)?)
+        Ok(serde_json::from_slice(&line)?)
     }
 }
 
@@ -439,5 +443,35 @@ mod tests {
         .unwrap();
         let event = client.next_event_timeout(Duration::from_secs(5)).unwrap();
         assert_eq!(event, Some(Event::AnimationDone { node: "n".into() }));
+    }
+
+    #[test]
+    fn a_timeout_inside_a_character_keeps_its_bytes() {
+        let (client, server) = UnixStream::pair().unwrap();
+        let mut writer = server.try_clone().unwrap();
+        let core = thread::spawn(move || {
+            let mut reader = BufReader::new(server);
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            writeln!(writer, r#"{{"jsonrpc":"2.0","id":1,"result":null}}"#).unwrap();
+            let event = r#"{"jsonrpc":"2.0","method":"event","params":{"event":"animation.done","node":"é"}}"#;
+            let bytes = event.as_bytes();
+            let cut = event.find('é').unwrap() + 1;
+            writer.write_all(&bytes[..cut]).unwrap();
+            writer.flush().unwrap();
+            (writer, bytes[cut..].to_vec())
+        });
+        let mut client = Client::from_stream(client, &hello()).unwrap();
+        let (mut writer, rest) = core.join().unwrap();
+        assert!(
+            client
+                .next_event_timeout(Duration::from_millis(50))
+                .unwrap()
+                .is_none()
+        );
+        writer.write_all(&rest).unwrap();
+        writer.write_all(b"\n").unwrap();
+        let event = client.next_event_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(event, Some(Event::AnimationDone { node: "é".into() }));
     }
 }
