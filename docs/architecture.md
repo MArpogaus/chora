@@ -11,7 +11,7 @@ flowchart TB
     subgraph core["chora (Rust, Smithay)"]
         protocols["Wayland protocols"]
         backends["Backends: DRM/KMS and libinput, winit for development"]
-        scene["Scene: group, surface, rect, shader"]
+        scene["Scene: group, surface, rect, image, shader"]
         render["Renderer: GLES and GLSL shaders"]
         input["Input router"]
         ipc["IPC socket: JSON-RPC"]

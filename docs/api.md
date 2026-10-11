@@ -38,18 +38,25 @@ This table is the one list of node properties.
 | `effects` | all | list of shaders with uniforms |
 | `input` | all | `accept`, `pass` or `block`; `pass` and `block` apply to all descendants |
 | `meta` | all | free key/value pairs to tag and find nodes |
-| `size` | rect, shader | width and height |
+| `size` | rect, image, shader | width and height; an image without a size has the size of its file |
 | `color`, `radius`, `border` | rect | |
+| `image` | image | absolute path of a PNG file; the core loads it again after a change |
+| `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch |
 | `shader`, `uniforms` | shader | GLSL ES file and its inputs; a uniform can name another node as a texture |
 
 A surface node gets its size from its client. The `configure` command asks
 the client for a new size.
 
+The core loads the file of an image when a transaction names it. A file
+that does not load, that is larger than 32 MiB or larger than 8192 pixels
+on a side rejects the transaction. A plugin in a container shares its
+asset directory with the core, as it shares the socket directory.
+
 ## Commands
 
 | Command | Purpose |
 |---------|---------|
-| `create` | create a group, rect or shader node under a parent |
+| `create` | create a group, rect, image or shader node under a parent |
 | `attach` | put a surface without an owner under a parent; the caller becomes its owner |
 | `update` | change node properties |
 | `animate` | change properties over a duration with an easing curve |

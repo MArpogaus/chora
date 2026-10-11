@@ -5,7 +5,7 @@
 # Further steps check fixed regressions, a taskbar, and the nested exit of
 # M2: waybar, fuzzel and swaylock work, wlr-randr configures the output,
 # the lock holds against other clients, and frames report their
-# presentation time.
+# presentation time. The last step checks image nodes of M3.
 #
 # The test starts the reset with SIGUSR1. Ctrl+Alt+Escape runs the same
 # code, but synthetic keys from wtype carry their own keymap, which a nested
@@ -318,5 +318,57 @@ rpc "[{\"configure\": {\"surface\": \"$held\", \"size\": [300, 300]}},
 kill -CONT "${feet[@]}"
 wait "$probe_pid" || fail "the held commit: $out/held.log"
 all_results "$out/held-configure.json" || fail "answers: $out/held-configure.json"
+
+step "18. an image node stretches a PNG file by its slice"
+# Writes a 3x3 PNG file: red corners, green edges and a center of the
+# color "r,g,b".
+png() {
+    python3 -I - "$1" "$2" <<'EOF'
+import struct, sys, zlib
+center = tuple(int(c) for c in sys.argv[2].split(",")) + (255,)
+red, green = (255, 0, 0, 255), (0, 255, 0, 255)
+rows = [[red, green, red], [green, center, green], [red, green, red]]
+raw = b"".join(b"\0" + bytes(c for px in row for c in px) for row in rows)
+def chunk(kind, data):
+    crc = zlib.crc32(kind + data) & 0xFFFFFFFF
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", crc)
+header = struct.pack(">IIBBBBB", 3, 3, 8, 6, 0, 0, 0)
+with open(sys.argv[1], "wb") as f:
+    f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header)
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+EOF
+}
+# Prints the props of the image node for a file.
+image_props() {
+    echo "{\"image\": \"$1\", \"size\": [300, 200], \"slice\": [1, 1, 1, 1],
+           \"transform\": {\"translate\": [700, 450]}}"
+}
+png "$out/frame.png" 0,0,255
+rpc "[{\"create\": {\"id\": \"frame\", \"kind\": \"image\", \"parent\": \"root\",
+       \"props\": $(image_props "$out/frame.png")}}]" >"$out/image.json"
+all_results "$out/image.json" || fail "answers: $out/image.json"
+# Succeeds when a pixel is within 8 of the color "r g b" in each channel;
+# texture filtering of the GPU may differ by a little.
+pixel_is() {
+    local got want d i
+    read -ra got <<<"$(pixel "$1" "$2")"
+    read -ra want <<<"$3"
+    for i in 0 1 2; do
+        d=$((got[i] - want[i]))
+        test "${d#-}" -le 8 || return 1
+    done
+}
+wait_for pixel_is 850 550 "0 0 255"
+pixel_is 700 450 "255 0 0" || fail "corner: $(pixel 700 450)"
+pixel_is 850 450 "0 255 0" || fail "edge: $(pixel 850 450)"
+# A changed file loads again; a missing file rejects the transaction.
+png "$out/frame.png" 255,255,0
+update_image() { rpc "[{\"update\": {\"id\": \"frame\", \"props\": $(image_props "$1")}}]"; }
+update_image "$out/frame.png" >"$out/image-reload.json"
+all_results "$out/image-reload.json" || fail "answers: $out/image-reload.json"
+wait_for pixel_is 850 550 "255 255 0"
+update_image "$out/missing.png" >"$out/image-missing.json"
+jq -se '.[1] | has("error")' "$out/image-missing.json" >/dev/null ||
+    fail "a missing file applied: $out/image-missing.json"
 
 echo "PASS (logs and screenshots in $out)"

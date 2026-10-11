@@ -33,7 +33,7 @@ The decision log. Nothing here is final. Every entry can come back for review.
 | D15 | Build on Smithay; copy from Pinnacle, niri and anvil; no fork | A fork of Pinnacle keeps less than half of its code. See [Alternatives](alternatives.md#pinnacle-code-review). |
 | D16 | Pin a Smithay git revision | No Smithay release since 0.7.0. All major users track git. |
 | D17 | GLES renderer and GLSL shaders through Smithay's renderer traits | Proven in niri. No Smithay compositor uses wgpu. |
-| D18 | Four node kinds: group, surface, rect, shader | Text, images and widgets come from Wayland clients. A shader can read another node as a texture. |
+| D18 | Five node kinds: group, surface, rect, image, shader | Text and widgets come from Wayland clients. An image node shows a PNG asset, for example a window border, without a client per window. A shader can read another node as a texture. |
 | D19 | Transforms are 4x4 matrices; the first milestones test 2D cases only | 3D effects need no API change later. |
 | D20 | One logical scene; each output shows it through a camera | Pan, zoom and the infinite canvas need no extra mechanism. |
 | D21 | The core places popups, subsurfaces and layer surfaces; toplevels wait for a plugin | The protocols define these positions. Smithay implements them. |
