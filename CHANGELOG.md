@@ -1,3 +1,48 @@
+## v0.2.0 (2026-10-11)
+
+The session on real hardware (milestone M2): log in to chora with the
+tiling flavor, with a panel, a launcher, a lock screen and X11 programs.
+Nested, `tests/nested.sh` checks waybar, fuzzel, swaylock, wlrctl and
+wlr-randr.
+
+### Known issues
+
+- Nobody has run this release on real hardware yet: the tty backend, the
+  login session and the tiling flavor are untested there.
+- On the tty backend, a mode change through wlr-output-management that
+  fails at the next frame is not reported to the client.
+- Every client of the user can take the keyboard as an input method and
+  configure the outputs, as in sway; sandboxed clients lose this with
+  `wp-security-context-v1` in M4.
+- Taskbars never see a toplevel as minimized.
+
+### Feat
+
+- change modes and turn outputs off on the tty backend
+- implement wlr-output-management in the core
+- **tiling**: start a launcher with MOD+d
+- show the new buffers of a transaction with it
+- **tiling**: close a window when a taskbar asks
+- add wlr-foreign-toplevel-management for taskbars
+- report presentation times
+- add a login session with the tiling flavor
+- add input, idle, scale and toplevel protocols
+- **scene**: add the surface.requested event
+- run on real hardware, with panels and a lock screen
+
+### Fix
+
+- **session**: give X11 programs DISPLAY and drop a stale environment
+- **tty**: keep removed output globals, unique names, dark off outputs
+- **lock**: confirm a lock only with frames rendered under it
+- keep the GL flip of the winit window out of the output
+- **layers**: announce the work area when a panel goes away
+- **input**: switch the VT by the modified keysyms
+- harden the lock screen, popup grabs and the tty backend
+- refresh the pointer after transactions and keep re-map sizes
+- **scene**: validate cameras strictly and limit them to 64
+- **render**: scale windows by the scale of their node and camera
+
 ## v0.1.0 (2026-10-11)
 
 The nested proof of concept (milestone M1): run `chora -- chora-tiling`
