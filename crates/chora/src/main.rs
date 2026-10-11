@@ -9,7 +9,11 @@ mod state;
 mod transaction;
 mod winit;
 
-use std::{ffi::OsStr, path::Path, process::Command};
+use std::{
+    ffi::OsStr,
+    path::Path,
+    process::{Child, Command},
+};
 
 use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 
@@ -35,19 +39,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     let mut event_loop: EventLoop<State> = EventLoop::try_new()?;
-    // Before any thread starts, Mesa's included: the signal source blocks
-    // SIGUSR1 in this thread only, and new threads inherit the mask. A
-    // thread without it would receive SIGUSR1 and end the process.
-    // Children start with an empty mask, because std resets it.
-    safety::reset_on_signal(&event_loop.handle())?;
     let display: Display<State> = Display::new()?;
     let mut state = State::new(display, event_loop.handle(), event_loop.get_signal());
-    winit::init(&mut state)?;
     let socket = ipc::listen(&mut state)?;
-    tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
-    if let Some((program, args)) = command.split_first() {
-        spawn(program, args, &state.socket_name, &socket);
+    // The order matters. No thread exists yet, so the startup command gets
+    // an empty signal mask; std does not reset the mask everywhere. Then
+    // the signal source blocks SIGUSR1 in this thread, and all later
+    // threads inherit the block, Mesa's included. A thread without it would
+    // receive SIGUSR1, and its default action ends the process.
+    let child = command
+        .split_first()
+        .and_then(|(program, args)| spawn(program, args, &state.socket_name, &socket));
+    safety::reset_on_signal(&event_loop.handle())?;
+    if let Some(mut child) = child {
+        // Waits for the command, so that it never stays a zombie.
+        std::thread::spawn(move || child.wait());
     }
+    winit::init(&mut state)?;
+    tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
     event_loop.run(None, &mut state, |state| {
         state.ipc_flush();
         if let Err(err) = state.display_handle.flush_clients() {
@@ -69,8 +78,8 @@ const HOST_VARIABLES: [&str; 6] = [
 ];
 
 /// Starts the startup command with the environment of this compositor
-/// (D30). A thread waits for it, so that it never stays a zombie.
-fn spawn(program: &str, args: &[String], wayland: &OsStr, socket: &Path) {
+/// (D30).
+fn spawn(program: &str, args: &[String], wayland: &OsStr, socket: &Path) -> Option<Child> {
     let mut command = Command::new(program);
     command
         .args(args)
@@ -79,10 +88,8 @@ fn spawn(program: &str, args: &[String], wayland: &OsStr, socket: &Path) {
     for variable in HOST_VARIABLES {
         command.env_remove(variable);
     }
-    match command.spawn() {
-        Ok(mut child) => {
-            std::thread::spawn(move || child.wait());
-        }
-        Err(err) => tracing::error!(%err, program, "the startup command failed"),
-    }
+    command
+        .spawn()
+        .inspect_err(|err| tracing::error!(%err, program, "the startup command failed"))
+        .ok()
 }
