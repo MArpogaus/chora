@@ -1,11 +1,14 @@
 # A v* tag builds the RPM in Fedora 43, installs it once as a check, and
 # attaches it with its SHA256 sums to a GitHub release. Versions below 1.0
-# are pre-releases.
+# are pre-releases. Only the short last job holds a write token; the build
+# runs the build scripts of all dependencies with a read token.
 name: release
 
 on:
   push:
     tags: [v*]
+
+permissions: {}
 
 jobs:
   rpm:
@@ -13,17 +16,33 @@ jobs:
     container: registry.fedoraproject.org/fedora:43
     timeout-minutes: 45
     permissions:
-      contents: write   # create the release
+      contents: read
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
-    - run: dnf install -y $(cat dist/fedora-build-requires.txt) rpm-build gh
-    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
+      with:
+        persist-credentials: false
+    - run: dnf install -y $(cat dist/fedora-build-requires.txt) rpm-build
     - run: cargo install --locked cargo-generate-rpm@0.21.0
-    - run: dist/build-rpm.sh target/rpm
+    - run: PATH="$HOME/.cargo/bin:$PATH" dist/build-rpm.sh target/rpm
     - name: install the package once
       run: |
         dnf install -y target/rpm/*.rpm
         chora --version
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      with:
+        name: rpm
+        path: target/rpm/
+
+  release:
+    needs: rpm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create the release
+    steps:
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c   # v8.0.1
+      with:
+        name: rpm
+        path: rpm
     - name: create the release
       env:
         GH_TOKEN: ${{ github.token }}
@@ -32,6 +51,6 @@ jobs:
         set -euo pipefail
         prerelease=()
         case "$TAG" in v0.*) prerelease=(--prerelease) ;; esac
-        gh release create "$TAG" target/rpm/*.rpm target/rpm/SHA256SUMS \
+        gh release create "$TAG" rpm/*.rpm rpm/SHA256SUMS \
           --repo "$GITHUB_REPOSITORY" --title "$TAG" --verify-tag \
           --notes "See CHANGELOG.md for this release." "${prerelease[@]}"

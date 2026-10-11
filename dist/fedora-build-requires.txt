@@ -1,7 +1,6 @@
 cargo
 clippy
 gcc
-git
 libdisplay-info-devel
 libdrm-devel
 libinput-devel
