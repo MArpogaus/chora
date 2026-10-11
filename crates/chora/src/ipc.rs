@@ -443,14 +443,12 @@ impl State {
         if !(m.ctrl || m.alt || m.logo) {
             return Err(rejected(format!("{binding} needs Ctrl, Alt or Super")));
         }
-        if m.ctrl && m.alt {
-            return Err(rejected(format!(
-                "{binding}: Ctrl+Alt belongs to the safety layer"
-            )));
-        }
         let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
         if sym.raw() == 0 {
             return Err(rejected(format!("unknown key {:?}", binding.key)));
+        }
+        if m.ctrl && m.alt && is_safety_key(sym) {
+            return Err(rejected(format!("{binding} belongs to the safety layer")));
         }
         if self
             .ipc
@@ -537,4 +535,13 @@ fn params_of<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
 
 pub fn rejected(message: impl Into<String>) -> RpcError {
     RpcError::new(RpcError::REJECTED, message)
+}
+
+/// Whether Ctrl+Alt with a key is a binding of the safety layer (D23):
+/// `BackSpace` quits, `Escape` resets, `F1` to `F12` switch the VT.
+fn is_safety_key(sym: xkb::Keysym) -> bool {
+    use xkb::Keysym;
+    sym == Keysym::BackSpace
+        || sym == Keysym::Escape
+        || (Keysym::F1.raw()..=Keysym::F12.raw()).contains(&sym.raw())
 }

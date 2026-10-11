@@ -157,9 +157,9 @@ nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
 different value. For example, `choractl --name tiling` fails while the tiling
 plugin runs.
 
-A key binding needs Ctrl, Alt or Super, so that typing still works. Ctrl+Alt
-belongs to the safety layer, so no client can grab it. A binding has one
-owner at a time.
+A key binding needs Ctrl, Alt or Super, so that typing still works. The
+bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
+belong to no client. A binding has one owner at a time.
 
 The core implements `wlr-output-management`, so kanshi and wlr-randr
 configure the outputs (see

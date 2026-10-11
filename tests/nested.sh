@@ -492,7 +492,23 @@ wait_for pixel_is 997 453 "0 0 0"
 pixel_is 975 500 "255 0 0" || fail "the chain: $(pixel 975 500)"
 grim "$out/effects.png"
 
-step "23. the watchdog removes the effects of slow frames, and then resets"
+step "23. plugins grab Ctrl+Alt keys, but not the bindings of the safety layer"
+timeout 20 python3 -I - "$CHORA_SOCKET" >"$out/grabs.json" <<'EOF'
+import json, socket, sys
+s = socket.socket(socket.AF_UNIX)
+s.settimeout(10)
+s.connect(sys.argv[1])
+f = s.makefile()
+calls = [("hello", {"name": "grabber"}), ("input.grab", {"binding": "Ctrl+Alt+Left"}),
+         ("input.grab", {"binding": "Ctrl+Alt+BackSpace"}), ("input.grab", {"binding": "Ctrl+Alt+F3"})]
+for i, (method, params) in enumerate(calls):
+    s.sendall(json.dumps({"jsonrpc": "2.0", "id": i, "method": method, "params": params}).encode() + b"\n")
+    print(f.readline().strip())
+EOF
+jq -se '.[1] | has("result")' "$out/grabs.json" >/dev/null || fail "Ctrl+Alt+Left: $out/grabs.json"
+jq -se '.[2:] | all(has("error"))' "$out/grabs.json" >/dev/null || fail "safety: $out/grabs.json"
+
+step "24. the watchdog removes the effects of slow frames, and then resets"
 # A second chora with a budget that every frame misses; it shares the
 # output of the host, so this step comes last.
 CHORA_FRAME_BUDGET_US=1 "$bin/chora" -- sleep 60 >"$out/chora-watchdog.log" 2>&1 &
