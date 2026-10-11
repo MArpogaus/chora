@@ -31,6 +31,27 @@ Run all hooks on all files before a push:
 pre-commit run --all-files
 ```
 
+## Build and test
+
+The build needs the system libraries in `dist/fedora-build-requires.txt`, or
+their equivalents on other distributions.
+
+```bash
+cargo build --workspace
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cargo deny check
+```
+
+CI runs the same commands in a Fedora 43 container.
+
+## Releases
+
+`cz bump` sets the version, writes `CHANGELOG.md` and creates the annotated
+tag. A pushed `v*` tag starts `.github/workflows/release.yaml`. The workflow
+builds the RPM with `dist/build-rpm.sh` and attaches it with its SHA256 sums
+to a GitHub release. Versions below 1.0 are pre-releases.
+
 ## Commits
 
 Use [conventional commits](https://www.conventionalcommits.org/):
