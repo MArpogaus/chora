@@ -66,6 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     backend::init(&mut state)?;
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
     event_loop.run(None, &mut state, |state| {
+        state.advance_animations();
         state.popups.cleanup();
         // The focus follows the protocols, for example after a popup grab
         // ended.

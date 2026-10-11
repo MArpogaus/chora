@@ -182,6 +182,12 @@ impl Transform {
     pub fn matrix(&self) -> &[f64; 16] {
         &self.m
     }
+
+    /// The transform of a column-major matrix.
+    #[must_use]
+    pub fn from_matrix(m: [f64; 16]) -> Self {
+        Self { m }
+    }
 }
 
 #[cfg(test)]

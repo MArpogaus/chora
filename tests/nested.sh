@@ -371,4 +371,17 @@ update_image "$out/missing.png" >"$out/image-missing.json"
 jq -se '.[1] | has("error")' "$out/image-missing.json" >/dev/null ||
     fail "a missing file applied: $out/image-missing.json"
 
+step "19. an animation moves a node and tells when it ends"
+"$bin/choractl" events animation.done >"$out/animation.jsonl" &
+events_pid=$!
+pids+=("$events_pid")
+sleep 0.3
+rpc '[{"animate": {"id": "frame", "props": {"transform": {"translate": [900, 450]}},
+                   "duration": 300, "easing": "ease_out"}}]' >"$out/animate.json"
+all_results "$out/animate.json" || fail "answers: $out/animate.json"
+wait_for grep -q '"node":"frame"' "$out/animation.jsonl"
+kill "$events_pid"
+pixel_is 1050 550 "255 255 0" || fail "the moved center: $(pixel 1050 550)"
+pixel_is 750 550 "0 0 0" || fail "the old place: $(pixel 750 550)"
+
 echo "PASS (logs and screenshots in $out)"

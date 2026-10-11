@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{NodeKind, PropsUpdate, Transform};
+use crate::{Easing, NodeKind, PropsUpdate, Transform};
 
 /// One command of a transaction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -34,6 +34,20 @@ pub enum Command {
         id: String,
         /// The new values.
         props: PropsUpdate,
+    },
+    /// Moves properties of a node to new values over a duration. A later
+    /// `animate` or `update` of the node ends the animation where it is.
+    /// The core sends `animation.done` at the end.
+    Animate {
+        /// The node.
+        id: String,
+        /// The targets.
+        props: PropsUpdate,
+        /// In milliseconds, at most one minute.
+        duration: f64,
+        /// The curve; linear if missing.
+        #[serde(default)]
+        easing: Easing,
     },
     /// Changes the parent or the position among the siblings.
     Move {

@@ -56,6 +56,12 @@ pub enum Event {
         /// The binding as the client grabbed it.
         binding: String,
     },
+    /// An animation reached its targets.
+    #[serde(rename = "animation.done")]
+    AnimationDone {
+        /// The node.
+        node: String,
+    },
     /// An output appeared or changed its mode, scale or position.
     #[serde(rename = "output.changed")]
     OutputChanged {

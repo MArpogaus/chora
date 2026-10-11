@@ -59,6 +59,8 @@ use crate::{
 #[allow(clippy::struct_field_names)] // the names of Smithay's handler traits
 pub struct State {
     pub start_time: Instant,
+    /// The time to which the animations of the scene advanced.
+    animated_at: Instant,
     /// The clock of presentation times.
     pub clock: Clock<Monotonic>,
     pub display_handle: DisplayHandle,
@@ -153,6 +155,7 @@ impl State {
         create_globals(&dh, &clock);
         Self {
             start_time: Instant::now(),
+            animated_at: Instant::now(),
             clock,
             compositor_state: CompositorState::new::<Self>(&dh),
             layer_shell_state: WlrLayerShellState::new::<Self>(&dh),
@@ -193,6 +196,21 @@ impl State {
             transactions: Transactions::default(),
             suppressed_keys: Vec::new(),
         }
+    }
+
+    /// Moves the animations of the scene forward to now, and tells the
+    /// plugins which ended.
+    pub fn advance_animations(&mut self) {
+        let now = Instant::now();
+        let last = std::mem::replace(&mut self.animated_at, now);
+        if !self.scene.animating() {
+            return;
+        }
+        let ms = now.duration_since(last).as_secs_f64() * 1000.0;
+        for node in self.scene.advance(ms) {
+            self.emit(&Event::AnimationDone { node });
+        }
+        self.refresh_pointer();
     }
 
     /// Registers a new toplevel. Its surface node follows with the first

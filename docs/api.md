@@ -67,7 +67,19 @@ asset directory with the core, as it shares the socket directory.
 | `close` | ask a client to close a surface |
 | `camera` | set the camera of an output, or restore its default camera without a transform |
 
-`animate` lets plugins and agents animate without code in every frame.
+`animate` lets plugins and agents animate without code in every frame:
+
+```json
+{"animate": {"id": "frame", "props": {"opacity": 0, "visible": false},
+             "duration": 300, "easing": "ease_out"}}
+```
+
+The core moves `transform`, `opacity`, `size` and `color` toward the
+targets along the curve: `linear` (the default), `ease_in`, `ease_out` or
+`ease_in_out`. The other properties change at the end, so this example
+fades the node out and then hides it. The duration is in milliseconds, at
+most one minute. A later `animate` or `update` of the node ends the
+animation where it is. The end sends `animation.done`.
 
 ## Selectors
 
@@ -87,6 +99,7 @@ or an empty list. It always sees the current titles.
 | `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `input.key` | the grabbed binding |
+| `animation.done` | the node whose animation reached its targets |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |

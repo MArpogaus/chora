@@ -3,6 +3,7 @@
 //! This crate has no Smithay dependency. The core, `choractl` and plugins
 //! share it as the one definition of the API.
 
+mod animation;
 mod binding;
 mod command;
 mod event;
@@ -12,6 +13,7 @@ mod scene;
 mod selector;
 mod transform;
 
+pub use animation::{Easing, MAX_DURATION};
 pub use binding::{Binding, BindingError, Modifiers};
 pub use command::{Command, Effect, ToplevelState};
 pub use event::{Event, OutputInfo, SurfaceRequest};

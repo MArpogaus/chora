@@ -3,8 +3,8 @@
 use imbl::OrdMap;
 
 use crate::{
-    Command, Effect, InputMode, Node, NodeKind, Props, PropsUpdate, ROOT, Selector, SurfaceInfo,
-    ToplevelState, Transform,
+    Command, Effect, InputMode, MAX_DURATION, Node, NodeKind, Props, PropsUpdate, ROOT, Selector,
+    SurfaceInfo, ToplevelState, Transform, animation::Animation,
 };
 
 /// Why a command failed.
@@ -95,6 +95,8 @@ pub struct Scene {
     cameras: OrdMap<String, (String, Transform)>,
     /// The number of surface nodes, which the node limit leaves out.
     surfaces: usize,
+    /// The running animations by node.
+    animations: OrdMap<String, Animation>,
 }
 
 impl Default for Scene {
@@ -112,6 +114,7 @@ impl Default for Scene {
             nodes: OrdMap::unit(ROOT.into(), root),
             cameras: OrdMap::new(),
             surfaces: 0,
+            animations: OrdMap::new(),
         }
     }
 }
@@ -239,12 +242,7 @@ impl Scene {
                 self.create(owned_node(owner, id, *kind, props), parent)
             }
             Command::Attach { surface, parent } => self.attach(owner, surface, parent),
-            Command::Update { id, props } => {
-                let node = self.owned_mut(owner, id)?;
-                check_props(id, node.kind, props)?;
-                node.props.apply(props);
-                Ok(())
-            }
+            Command::Update { .. } | Command::Animate { .. } => self.change_props(owner, command),
             Command::Move { id, parent, index } => {
                 self.move_node(owner, id, parent.as_deref(), *index)
             }
@@ -433,6 +431,7 @@ impl Scene {
         root.children.clone_from(&surfaces);
         root.props = Props::default();
         self.cameras = OrdMap::new();
+        self.animations = OrdMap::new();
         let cells = grid(surfaces.len(), area);
         surfaces
             .iter()
@@ -489,6 +488,71 @@ impl Scene {
         out
     }
 
+    /// Runs `update` and `animate`. Either ends a running animation of the
+    /// node where it is.
+    fn change_props(&mut self, owner: &str, command: &Command) -> Result<(), SceneError> {
+        let (id, props, timing) = match command {
+            Command::Update { id, props } => (id, props, None),
+            Command::Animate {
+                id,
+                props,
+                duration,
+                easing,
+            } => (id, props, Some((*duration, *easing))),
+            _ => unreachable!("only update and animate"),
+        };
+        if timing.is_some_and(|(d, _)| !(0.0..=MAX_DURATION).contains(&d)) {
+            return Err(SceneError::Invalid(format!(
+                "the duration of {id:?} is not from 0 to {MAX_DURATION} ms"
+            )));
+        }
+        let node = self.owned_mut(owner, id)?;
+        check_props(id, node.kind, props)?;
+        self.animations.remove(id);
+        let node = self.nodes.get_mut(id).expect("owned above");
+        let Some((duration, easing)) = timing else {
+            node.props.apply(props);
+            return Ok(());
+        };
+        let animation = Animation {
+            from: node.props.clone(),
+            to: props.clone(),
+            duration,
+            elapsed: 0.0,
+            easing,
+        };
+        self.animations.insert(id.clone(), animation);
+        Ok(())
+    }
+
+    /// Moves the animations forward by a time in milliseconds. Returns the
+    /// nodes whose animations ended.
+    pub fn advance(&mut self, ms: f64) -> Vec<String> {
+        let ids: Vec<String> = self.animations.keys().cloned().collect();
+        let mut done = Vec::new();
+        for id in ids {
+            let Some(animation) = self.animations.get_mut(&id) else {
+                continue;
+            };
+            animation.elapsed += ms;
+            let (props, ended) = (animation.props(), animation.progress() >= 1.0);
+            if let Some(node) = self.nodes.get_mut(&id) {
+                node.props = props;
+            }
+            if ended {
+                self.animations.remove(&id);
+                done.push(id);
+            }
+        }
+        done
+    }
+
+    /// Whether an animation runs.
+    #[must_use]
+    pub fn animating(&self) -> bool {
+        !self.animations.is_empty()
+    }
+
     /// Removes a node and its descendants. Surfaces become detached and
     /// lose their owner. Returns the detached surfaces.
     fn remove_subtree(&mut self, id: &str) -> Vec<String> {
@@ -496,6 +560,7 @@ impl Scene {
         let mut detached = Vec::new();
         let mut stack = vec![id.to_owned()];
         while let Some(current) = stack.pop() {
+            self.animations.remove(&current);
             let Some(node) = self.nodes.get_mut(&current) else {
                 continue;
             };

@@ -1,8 +1,8 @@
 //! Tests of the scene rules.
 
 use crate::{
-    Command, Effect, Event, MAX_CAMERAS, MAX_NODES, NodeKind, PropsUpdate, ROOT, Scene, SceneError,
-    Selector, SurfaceInfo, SurfaceRequest, Transform,
+    Command, Easing, Effect, Event, MAX_CAMERAS, MAX_NODES, NodeKind, PropsUpdate, ROOT, Scene,
+    SceneError, Selector, SurfaceInfo, SurfaceRequest, Transform,
 };
 
 fn group(id: &str, parent: &str) -> Command {
@@ -502,4 +502,92 @@ fn a_request_event_names_the_request() {
         serde_json::to_value(&event).unwrap(),
         serde_json::json!({"event": "surface.requested", "surface": "s1", "request": "fullscreen"})
     );
+}
+
+#[test]
+fn an_animation_moves_a_node_and_ends_with_the_targets() {
+    let mut scene = Scene::default();
+    let rect = Command::Create {
+        id: "r".into(),
+        kind: NodeKind::Rect,
+        parent: ROOT.into(),
+        props: PropsUpdate::default(),
+    };
+    let animate = |x: f64, duration: f64| Command::Animate {
+        id: "r".into(),
+        props: PropsUpdate {
+            transform: Some(Transform::translate(x, 0.0, 0.0)),
+            visible: Some(false),
+            ..PropsUpdate::default()
+        },
+        duration,
+        easing: Easing::Linear,
+    };
+    scene.apply("wm", &[rect, animate(100.0, 200.0)]).unwrap();
+    assert!(scene.animating());
+    assert!(scene.advance(100.0).is_empty());
+    let props = &scene.node("r").unwrap().props;
+    assert_eq!(props.transform.translation_2d(), (50.0, 0.0));
+    assert!(props.visible);
+    assert_eq!(scene.advance(150.0), vec!["r".to_string()]);
+    let props = &scene.node("r").unwrap().props;
+    assert_eq!(props.transform.translation_2d(), (100.0, 0.0));
+    assert!(!props.visible);
+    assert!(!scene.animating());
+}
+
+#[test]
+fn an_animation_needs_a_duration_up_to_a_minute_and_the_owner() {
+    let mut scene = Scene::default();
+    let rect = Command::Create {
+        id: "r".into(),
+        kind: NodeKind::Rect,
+        parent: ROOT.into(),
+        props: PropsUpdate::default(),
+    };
+    scene.apply("wm", &[rect]).unwrap();
+    let animate = |duration: f64| Command::Animate {
+        id: "r".into(),
+        props: PropsUpdate::default(),
+        duration,
+        easing: Easing::Linear,
+    };
+    for duration in [-1.0, 60_001.0, f64::NAN] {
+        let err = scene.apply("wm", &[animate(duration)]).unwrap_err();
+        assert!(matches!(err.error, SceneError::Invalid(_)));
+    }
+    let err = scene.apply("other", &[animate(10.0)]).unwrap_err();
+    assert!(matches!(err.error, SceneError::NotOwner(..)));
+}
+
+#[test]
+fn an_update_or_a_removal_ends_an_animation() {
+    let mut scene = Scene::default();
+    let rect = Command::Create {
+        id: "r".into(),
+        kind: NodeKind::Rect,
+        parent: ROOT.into(),
+        props: PropsUpdate::default(),
+    };
+    let animate = Command::Animate {
+        id: "r".into(),
+        props: PropsUpdate {
+            opacity: Some(0.0),
+            ..PropsUpdate::default()
+        },
+        duration: 100.0,
+        easing: Easing::EaseOut,
+    };
+    let update = Command::Update {
+        id: "r".into(),
+        props: PropsUpdate::default(),
+    };
+    scene.apply("wm", &[rect, animate.clone(), update]).unwrap();
+    assert!(!scene.animating());
+    scene.apply("wm", &[animate]).unwrap();
+    scene
+        .apply("wm", &[Command::Remove { id: "r".into() }])
+        .unwrap();
+    assert!(!scene.animating());
+    assert!(scene.advance(200.0).is_empty());
 }
