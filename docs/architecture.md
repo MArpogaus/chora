@@ -198,11 +198,13 @@ Plugins set the focus. The core changes it in three cases only:
 - A surface that becomes detached loses the focus.
 
 The core still implements the protocol mechanisms around focus: popup
-grabs, the keyboard interactivity of `wlr-layer-shell`, `ext-session-lock`,
-`xdg-activation` requests, `pointer-constraints` and `input-method`. A layer
-surface that takes the keyboard exclusively, for example a launcher, has it
-while it is mapped. A click gives the keyboard to a layer surface that
-accepts it on demand, until the next click elsewhere.
+grabs, the keyboard interactivity of `wlr-layer-shell` and
+`ext-session-lock`. `xdg-activation`, `pointer-constraints` and
+`input-method` follow in M2. A layer surface that takes the keyboard
+exclusively, for example a launcher, has it from its first commit until it
+goes away, and it ends a popup grab. A click gives the keyboard to a layer
+surface that accepts it on demand, until the next click elsewhere. A popup
+grabs the input only with the serial of the press that opened it.
 
 ## Safety layer
 
@@ -217,10 +219,13 @@ The safety layer is the only built-in behavior (see
   grid is the one layout in the core. It is hardcoded, so a broken
   configuration cannot break it. The reset also changes the focus (see
   [Input flow](#input-flow)).
-- **Session lock.** The core enforces `ext-session-lock`. While the session
-  is locked, each output shows only its lock surface, or black. Only the
-  lock surfaces get input, and grabs pause. When the lock client crashes,
-  the session stays locked, and a new lock client can take over.
+- **Session lock.** The core enforces `ext-session-lock`. One client owns
+  the lock; other clients cannot lock or unlock while it lives. While the
+  session is locked, each output shows only its lock surface, or black.
+  Only the lock client gets input; popup and pointer grabs end, and plugin
+  grabs pause. The core confirms the lock after each output showed a locked
+  frame. When the lock client crashes, the session stays locked, and only
+  then can a new lock client take over.
 - **Watchdog.** When frames miss their deadline repeatedly, the core removes
   the effects first and then disconnects the plugins.
 
