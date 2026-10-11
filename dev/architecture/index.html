@@ -1517,8 +1517,10 @@ of the press that opened it.</p>
   each key. The core confirms the lock after each output showed a frame
   that it rendered under this lock. When the lock client crashes, the
   session stays locked, and only then can a new lock client take over.</li>
-<li><strong>Watchdog.</strong> When frames miss their deadline repeatedly, the core removes
-  the effects first and then disconnects the plugins.</li>
+<li><strong>Watchdog.</strong> When frames take longer to render than a refresh of their
+  output for two seconds, the core removes the effects, the meshes, and
+  sends <code>effects.dropped</code>. When they stay slow for two more seconds, it
+  starts the emergency reset, which disconnects the plugins.</li>
 </ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
 <p>Version 1 trusts every client of the same user (D33):</p>
