@@ -32,6 +32,11 @@ impl State {
     /// Removes an output and announces it.
     pub fn remove_output(&mut self, output: &Output) {
         self.outputs.retain(|o| o != output);
+        // Layer surfaces of a removed output close; a client can open them
+        // again on another output.
+        for layer in layer_map_for_output(output).layers() {
+            layer.layer_surface().send_close();
+        }
         for window in self.windows.values() {
             window.output_leave(output);
         }

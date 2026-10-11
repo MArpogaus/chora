@@ -193,13 +193,20 @@ kill -0 "$signal_pid" || fail "chora died of SIGUSR1"
 # Gives the whole host output back to the first chora.
 kill "$signal_pid"
 
-step "10. a panel reserves its zone of the work area"
+step "10. a panel reserves its zone of the work area until it exits"
 echo '{"layer": "top", "position": "top", "height": 30, "modules-center": ["clock"]}' \
     >"$out/waybar.json"
 WAYLAND_DISPLAY=$inner dbus-run-session waybar -c "$out/waybar.json" >"$out/waybar.log" 2>&1 &
 pids+=($!)
 work_area_is() { test "$(work_area)" = "$1"; }
 wait_for work_area_is "[0,30,1280,770]"
+"$bin/choractl" events output.changed >"$out/panel-events.jsonl" &
+events_pid=$!
+pids+=("$events_pid")
+sleep 0.3
+pkill -x waybar
+wait_for grep -q '"work_area":\[0,0,1280,800\]' "$out/panel-events.jsonl"
+kill "$events_pid"
 
 step "11. a launcher shows above the scene"
 WAYLAND_DISPLAY=$inner fuzzel >"$out/fuzzel.log" 2>&1 &

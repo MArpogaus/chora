@@ -10,7 +10,7 @@ use smithay::{
     desktop::{LayerSurface, WindowSurfaceType, layer_map_for_output},
     output::Output,
     reexports::wayland_server::protocol::{wl_output::WlOutput, wl_surface::WlSurface},
-    utils::{Logical, Point},
+    utils::{Logical, Point, Rectangle},
     wayland::{
         compositor::with_states,
         shell::{
@@ -45,7 +45,8 @@ impl WlrLayerShellHandler for State {
         let output = output
             .as_ref()
             .and_then(Output::from_resource)
-            .or_else(|| self.outputs.first().cloned());
+            .or_else(|| self.outputs.first().cloned())
+            .filter(|o| self.outputs.contains(o));
         let Some(output) = output else {
             surface.send_close();
             return;
@@ -69,9 +70,12 @@ impl WlrLayerShellHandler for State {
                 .find(|l| l.layer_surface() == &surface)
                 .cloned();
             if let Some(layer) = layer {
+                // The unmap places the other layers again, so the zone
+                // before it decides whether the work area changed.
+                let before = map.non_exclusive_zone();
                 map.unmap_layer(&layer);
                 drop(map);
-                self.layers_changed(&output);
+                self.announce_zone(&output, before);
             }
         }
     }
@@ -117,8 +121,14 @@ impl State {
     /// Places the layers of an output again, for example after a mode
     /// change, and announces a new work area.
     pub fn layers_changed(&mut self, output: &Output) {
+        let before = layer_map_for_output(output).non_exclusive_zone();
+        self.announce_zone(output, before);
+    }
+
+    /// Places the layers of an output and announces a work area that
+    /// differs from the zone before.
+    fn announce_zone(&mut self, output: &Output, before: Rectangle<i32, Logical>) {
         let mut map = layer_map_for_output(output);
-        let before = map.non_exclusive_zone();
         map.arrange();
         let changed = map.non_exclusive_zone() != before;
         drop(map);
