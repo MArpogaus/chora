@@ -2,7 +2,6 @@ site_name: Void
 site_description: A Wayland compositor without policy, programmable by people and agents
 site_url: https://marpogaus.github.io/void/
 repo_url: https://github.com/MArpogaus/void
-edit_uri: blob/main/
 docs_dir: docs
 # a link to a page that moved is only a log line otherwise
 strict: true
