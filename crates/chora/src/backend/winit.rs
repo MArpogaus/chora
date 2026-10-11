@@ -7,13 +7,13 @@ use smithay::{
         renderer::{ImportDma, damage::OutputDamageTracker, gles::GlesRenderer},
         winit::{self, WinitEvent, WinitGraphicsBackend},
     },
+    desktop::layer_map_for_output,
     output::{Mode, Output, PhysicalProperties, Subpixel},
     utils::Transform,
-    wayland::dmabuf::{
-        DmabufFeedbackBuilder, DmabufGlobal, DmabufHandler, DmabufState, ImportNotifier,
-    },
+    wayland::dmabuf::DmabufFeedbackBuilder,
 };
 
+use super::Backend;
 use crate::{render, state::State};
 
 /// The name of the one output of the winit backend.
@@ -22,11 +22,9 @@ const OUTPUT: &str = "winit";
 const REFRESH: i32 = 60_000;
 
 /// The parts of the winit backend that outlive one event.
-pub struct Backend {
+pub struct Winit {
     graphics: WinitGraphicsBackend<GlesRenderer>,
     damage_tracker: OutputDamageTracker,
-    dmabuf_state: DmabufState,
-    _dmabuf_global: DmabufGlobal,
     /// The one output: the window.
     output: Output,
 }
@@ -53,11 +51,12 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
     output.set_preferred(mode);
 
     let formats = graphics.renderer().dmabuf_formats();
-    let mut dmabuf_state = DmabufState::new();
+    let dmabuf_state = &mut state.dmabuf_state;
     let node = EGLDevice::device_for_display(graphics.renderer().egl_context().display())
         .ok()
         .and_then(|d| d.try_get_render_node().ok().flatten());
-    let dmabuf_global = match node.and_then(|n| {
+    // The global stays when its handle drops.
+    match node.and_then(|n| {
         DmabufFeedbackBuilder::new(n.dev_id(), formats.clone())
             .build()
             .ok()
@@ -67,13 +66,11 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
         None => dmabuf_state.create_global::<State>(&state.display_handle, formats),
     };
 
-    state.backend = Some(Backend {
+    state.backend = Some(Backend::Winit(Box::new(Winit {
         graphics,
         damage_tracker: OutputDamageTracker::from_output(&output),
-        dmabuf_state,
-        _dmabuf_global: dmabuf_global,
         output: output.clone(),
-    });
+    })));
     state.add_output(output);
     state
         .loop_handle
@@ -84,7 +81,7 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
 fn handle(state: &mut State, event: WinitEvent) {
     match event {
         WinitEvent::Resized { size, .. } => {
-            if let Some(backend) = &state.backend {
+            if let Some(backend) = winit(state) {
                 let mode = Mode {
                     size,
                     refresh: REFRESH,
@@ -92,6 +89,7 @@ fn handle(state: &mut State, event: WinitEvent) {
                 backend
                     .output
                     .change_current_state(Some(mode), None, None, None);
+                layer_map_for_output(&backend.output).arrange();
             }
             state.output_changed();
         }
@@ -103,13 +101,13 @@ fn handle(state: &mut State, event: WinitEvent) {
 }
 
 fn redraw(state: &mut State) {
-    let Some(output) = state.backend.as_ref().map(|b| b.output.clone()) else {
+    let Some(output) = winit(state).map(|w| w.output.clone()) else {
         return;
     };
     warn_on_error(render_frame(state, &output));
     render::send_frames(state, &output);
     state.popups.cleanup();
-    if let Some(backend) = state.backend.as_ref() {
+    if let Some(backend) = winit(state) {
         backend.graphics.window().request_redraw();
     }
 }
@@ -131,9 +129,10 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
         scene,
         windows,
         rects,
+        lock,
         ..
     } = state;
-    let Some(backend) = backend.as_mut() else {
+    let Some(Backend::Winit(backend)) = backend else {
         return Ok(());
     };
     // The first query fails before the first bind; 0 means a full redraw.
@@ -141,7 +140,13 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
     let damage = {
         let (renderer, mut framebuffer) =
             backend.graphics.bind().map_err(|e| format!("bind: {e}"))?;
-        let elements = render::elements(scene, windows, rects, renderer, &view);
+        let mut parts = render::Parts {
+            scene,
+            windows,
+            rects,
+            lock: lock.as_ref(),
+        };
+        let elements = render::output_elements(&mut parts, renderer, output, &view);
         let result = backend
             .damage_tracker
             .render_output(
@@ -160,31 +165,16 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
         .map_err(|e| format!("submitting the frame failed: {e}"))
 }
 
-impl DmabufHandler for State {
-    fn dmabuf_state(&mut self) -> &mut DmabufState {
-        &mut self
-            .backend
-            .as_mut()
-            .expect("the backend exists")
-            .dmabuf_state
+impl Winit {
+    /// Whether the GPU can use a buffer of a client.
+    pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
+        self.graphics.renderer().import_dmabuf(dmabuf, None).is_ok()
     }
+}
 
-    fn dmabuf_imported(
-        &mut self,
-        _global: &DmabufGlobal,
-        dmabuf: Dmabuf,
-        notifier: ImportNotifier,
-    ) {
-        let backend = self.backend.as_mut().expect("the backend exists");
-        if backend
-            .graphics
-            .renderer()
-            .import_dmabuf(&dmabuf, None)
-            .is_ok()
-        {
-            let _ = notifier.successful::<State>();
-        } else {
-            notifier.failed();
-        }
+fn winit(state: &State) -> Option<&Winit> {
+    match &state.backend {
+        Some(Backend::Winit(winit)) => Some(winit),
+        _ => None,
     }
 }

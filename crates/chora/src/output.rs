@@ -8,6 +8,7 @@
 
 use chora_scene::{Event, OutputInfo, Transform};
 use smithay::{
+    desktop::{layer_map_for_output, space::SpaceElement},
     output::Output,
     utils::{Logical, Point, Rectangle},
 };
@@ -28,6 +29,17 @@ impl State {
         self.output_changed();
     }
 
+    /// Removes an output and announces it.
+    pub fn remove_output(&mut self, output: &Output) {
+        self.outputs.retain(|o| o != output);
+        for window in self.windows.values() {
+            window.output_leave(output);
+        }
+        self.emit(&Event::OutputRemoved {
+            name: output.name(),
+        });
+    }
+
     /// Announces new modes, scales or positions of the outputs.
     pub fn output_changed(&mut self) {
         for output in self.output_info() {
@@ -42,13 +54,14 @@ impl State {
             .map(|output| {
                 let area = output_area(output);
                 let camera = self.camera(output);
+                let zone = layer_map_for_output(output).non_exclusive_zone();
                 OutputInfo {
                     name: output.name(),
                     position: [area.loc.x, area.loc.y],
                     size: [area.size.w, area.size.h],
                     scale: output.current_scale().fractional_scale(),
                     camera,
-                    work_area: scene_area(&camera, area.size),
+                    work_area: scene_area(&camera, zone),
                 }
             })
             .collect()
@@ -65,15 +78,29 @@ impl State {
             })
     }
 
-    /// The output at a point of the layout, and the point in scene
-    /// coordinates.
-    pub fn output_at(&self, layout: Point<f64, Logical>) -> Option<(&Output, Point<f64, Logical>)> {
+    /// The output at a point of the layout, and the point in output and in
+    /// scene coordinates.
+    pub fn spot(&self, layout: Point<f64, Logical>) -> Option<Spot> {
         let output = self
             .outputs
             .iter()
             .find(|o| output_area(o).to_f64().contains(layout))?;
         let local = layout - output_area(output).loc.to_f64();
-        Some((output, to_scene(&self.camera(output), local)))
+        Some(Spot {
+            output: output.clone(),
+            local,
+            scene: to_scene(&self.camera(output), local),
+        })
+    }
+
+    /// Moves a layout point into the nearest output.
+    pub fn clamp_to_outputs(&self, layout: Point<f64, Logical>) -> Point<f64, Logical> {
+        let nearest = self
+            .outputs
+            .iter()
+            .map(output_area)
+            .min_by(|a, b| distance(layout, *a).total_cmp(&distance(layout, *b)));
+        nearest.map_or(layout, |area| clamp(layout, area))
     }
 
     /// The area that the first output shows with its default camera: the
@@ -91,7 +118,7 @@ impl State {
         let areas: Vec<_> = self
             .outputs
             .iter()
-            .map(|o| scene_area(&self.camera(o), output_area(o).size))
+            .map(|o| scene_area(&self.camera(o), Rectangle::from_size(output_area(o).size)))
             .map(|[x, y, w, h]| Rectangle::new((x, y).into(), (w, h).into()))
             .collect();
         areas
@@ -103,13 +130,24 @@ impl State {
     }
 }
 
+/// A point of the layout on an output.
+pub struct Spot {
+    pub output: Output,
+    /// The point in logical output coordinates.
+    pub local: Point<f64, Logical>,
+    /// The point in scene coordinates.
+    pub scene: Point<f64, Logical>,
+}
+
 /// The area of an output in the layout, in logical pixels.
 pub fn output_area(output: &Output) -> Rectangle<i32, Logical> {
     let size = output.current_mode().map_or((0, 0).into(), |mode| {
-        mode.size
+        let size = mode
+            .size
             .to_f64()
             .to_logical(output.current_scale().fractional_scale())
-            .to_i32_round()
+            .to_i32_round();
+        output.current_transform().transform_size(size)
     });
     Rectangle::new(output.current_location(), size)
 }
@@ -122,11 +160,28 @@ pub fn to_scene(camera: &Transform, local: Point<f64, Logical>) -> Point<f64, Lo
     ((local.x - tx) / sx, (local.y - ty) / sy).into()
 }
 
-/// The scene area that a camera shows on an output of this size, as x, y,
+/// The scene area that a camera shows in an area of the output, as x, y,
 /// width and height.
 #[allow(clippy::cast_possible_truncation)]
-fn scene_area(camera: &Transform, size: smithay::utils::Size<i32, Logical>) -> [i32; 4] {
-    let origin = to_scene(camera, (0.0, 0.0).into());
-    let end = to_scene(camera, size.to_f64().to_point());
+fn scene_area(camera: &Transform, local: Rectangle<i32, Logical>) -> [i32; 4] {
+    let local = local.to_f64();
+    let origin = to_scene(camera, local.loc);
+    let end = to_scene(camera, local.loc + local.size.to_point());
     [origin.x, origin.y, end.x - origin.x, end.y - origin.y].map(|v| v.round() as i32)
+}
+
+fn distance(point: Point<f64, Logical>, area: Rectangle<i32, Logical>) -> f64 {
+    let nearest = clamp(point, area);
+    (nearest.x - point.x).hypot(nearest.y - point.y)
+}
+
+/// The nearest point inside an area.
+fn clamp(point: Point<f64, Logical>, area: Rectangle<i32, Logical>) -> Point<f64, Logical> {
+    let area = area.to_f64();
+    let max = area.loc + area.size.to_point() - Point::from((1.0, 1.0));
+    (
+        point.x.clamp(area.loc.x, max.x.max(area.loc.x)),
+        point.y.clamp(area.loc.y, max.y.max(area.loc.y)),
+    )
+        .into()
 }

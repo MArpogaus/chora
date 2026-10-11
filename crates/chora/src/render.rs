@@ -12,19 +12,26 @@ use smithay::{
         ImportAll, ImportMem, Renderer,
         element::{
             AsRenderElements, Kind,
+            memory::MemoryRenderBufferRenderElement,
             solid::{SolidColorBuffer, SolidColorRenderElement},
-            surface::WaylandSurfaceRenderElement,
+            surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
         },
     },
-    desktop::{Window, WindowSurfaceType, space::SpaceElement},
+    desktop::{
+        Window, WindowSurfaceType, layer_map_for_output, space::SpaceElement,
+        utils::send_frames_surface_tree,
+    },
     output::Output,
     reexports::wayland_server::protocol::wl_surface::WlSurface,
     render_elements,
     utils::{Logical, Point, Rectangle, Scale, Size},
+    wayland::shell::wlr_layer::Layer,
 };
 
 use crate::{
-    output::{output_area, to_scene},
+    layers,
+    lock::Lock,
+    output::{Spot, output_area, to_scene},
     state::State,
 };
 
@@ -32,6 +39,7 @@ render_elements! {
     pub SceneElement<R> where R: ImportAll + ImportMem;
     Surface = WaylandSurfaceRenderElement<R>,
     Solid = SolidColorRenderElement,
+    Cursor = MemoryRenderBufferRenderElement<R>,
 }
 
 /// How an output shows the scene: its camera and its scale factor.
@@ -42,22 +50,93 @@ pub struct View {
     pub scale: f64,
 }
 
-/// The render elements of the scene for one output, front first. `rects`
-/// keeps one buffer per rect node, so that damage tracking sees unchanged
-/// rects as unchanged.
-pub fn elements<R>(
-    scene: &Scene,
-    windows: &HashMap<String, Window>,
-    rects: &mut HashMap<String, SolidColorBuffer>,
+/// The parts of the state that rendering reads. A struct of borrows, so
+/// that a backend can borrow its own state at the same time.
+pub struct Parts<'a> {
+    pub scene: &'a Scene,
+    pub windows: &'a HashMap<String, Window>,
+    /// One color buffer per rect node.
+    pub rects: &'a mut HashMap<String, SolidColorBuffer>,
+    pub lock: Option<&'a Lock>,
+}
+
+/// The render elements of one output, front first: the layer surfaces above
+/// the scene, the scene, and the layer surfaces below it. A locked session
+/// shows only the lock surface.
+pub fn output_elements<R>(
+    parts: &mut Parts<'_>,
     renderer: &mut R,
+    output: &Output,
     view: &View,
 ) -> Vec<SceneElement<R>>
 where
     R: Renderer + ImportAll + ImportMem,
-    R::TextureId: Clone + 'static,
+    R::TextureId: Clone + Send + 'static,
 {
-    let list = scene.draw_list();
-    rects.retain(|id, _| scene.node(id).is_some_and(|n| n.kind == NodeKind::Rect));
+    if let Some(lock) = parts.lock {
+        return lock.surface(output).map_or_else(Vec::new, |surface| {
+            render_elements_from_surface_tree(
+                renderer,
+                surface,
+                (0, 0),
+                view.scale,
+                1.0,
+                Kind::Unspecified,
+            )
+            .into_iter()
+            .map(SceneElement::Surface)
+            .collect()
+        });
+    }
+    let mut out = layer_elements(renderer, output, &layers::ABOVE, view.scale);
+    out.extend(elements(parts, renderer, view));
+    out.extend(layer_elements(renderer, output, &layers::BELOW, view.scale));
+    out
+}
+
+/// The layer surfaces of an output on some layers, front first.
+fn layer_elements<R>(
+    renderer: &mut R,
+    output: &Output,
+    layers: &[Layer],
+    scale: f64,
+) -> Vec<SceneElement<R>>
+where
+    R: Renderer + ImportAll + ImportMem,
+    R::TextureId: Clone + Send + 'static,
+{
+    let map = layer_map_for_output(output);
+    let mut out = Vec::new();
+    for layer in layers {
+        for surface in map.layers_on(*layer).rev() {
+            let Some(geo) = map.layer_geometry(surface) else {
+                continue;
+            };
+            let elements = surface.render_elements::<WaylandSurfaceRenderElement<R>>(
+                renderer,
+                geo.loc.to_physical_precise_round(scale),
+                Scale::from(scale),
+                1.0,
+            );
+            out.extend(elements.into_iter().map(SceneElement::Surface));
+        }
+    }
+    out
+}
+
+/// The render elements of the scene for one output, front first. The rects
+/// keep one buffer per rect node, so that damage tracking sees unchanged
+/// rects as unchanged.
+fn elements<R>(parts: &mut Parts<'_>, renderer: &mut R, view: &View) -> Vec<SceneElement<R>>
+where
+    R: Renderer + ImportAll + ImportMem,
+    R::TextureId: Clone + Send + 'static,
+{
+    let list = parts.scene.draw_list();
+    let scene = parts.scene;
+    parts
+        .rects
+        .retain(|id, _| scene.node(id).is_some_and(|n| n.kind == NodeKind::Rect));
     let mut out = Vec::new();
     for placed in list.iter().rev() {
         let transform = view.camera.then(&placed.transform);
@@ -71,7 +150,7 @@ where
         let alpha = placed.opacity as f32;
         match placed.node.kind {
             NodeKind::Surface => {
-                let Some(window) = windows.get(&placed.node.id) else {
+                let Some(window) = parts.windows.get(&placed.node.id) else {
                     continue;
                 };
                 let loc = offset - window.geometry().loc.to_f64().upscale(scale);
@@ -87,7 +166,7 @@ where
                         .map(SceneElement::Surface),
                 );
             }
-            NodeKind::Rect => out.extend(rect(placed, rects, offset, scale, alpha)),
+            NodeKind::Rect => out.extend(rect(placed, parts.rects, offset, scale, alpha)),
             NodeKind::Group => {}
         }
     }
@@ -103,7 +182,7 @@ fn rect<R>(
 ) -> Option<SceneElement<R>>
 where
     R: Renderer + ImportAll + ImportMem,
-    R::TextureId: Clone + 'static,
+    R::TextureId: Clone + Send + 'static,
 {
     let props = &placed.node.props;
     let [width, height] = props.size?;
@@ -139,23 +218,64 @@ pub fn window_origin(state: &State, id: &str) -> Option<Point<i32, Logical>> {
     Some((x.round() as i32, y.round() as i32).into())
 }
 
-/// The surface under a point of the scene and the position of that surface
-/// in the scene. A node with `block` that the point hits takes the input and
-/// gives it to nobody; a node with `pass` lets it through.
-pub fn surface_under(state: &State, pos: Point<f64, Logical>) -> Option<Under> {
+/// The surface under the pointer: a layer surface above the scene, a
+/// surface of the scene, or a layer surface below the scene.
+pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
+    // Layer and lock surfaces sit in output coordinates; this offset moves
+    // them into scene coordinates, exactly for cameras without zoom.
+    let offset = spot.scene - spot.local;
+    if let Some(lock) = &state.lock {
+        return lock.surface(&spot.output).map(|surface| Under {
+            surface: surface.clone(),
+            location: offset,
+            node: None,
+        });
+    }
+    let layer = |layers: &[Layer]| {
+        layers::surface_under(&spot.output, layers, spot.local).map(|(surface, loc, _)| Under {
+            surface,
+            location: loc.to_f64() + offset,
+            node: None,
+        })
+    };
+    if let Some(under) = layer(&layers::ABOVE) {
+        return Some(under);
+    }
+    match scene_under(state, spot.scene) {
+        Target::Surface(under) => Some(under),
+        Target::Blocked => None,
+        Target::Nothing => layer(&layers::BELOW),
+    }
+}
+
+/// What a point of the scene hits.
+enum Target {
+    Surface(Under),
+    /// A rect, or a node with `block`, which takes the input and gives it to
+    /// nobody.
+    Blocked,
+    Nothing,
+}
+
+/// The surface of the scene under a point. A node with `pass` lets the
+/// input through.
+fn scene_under(state: &State, pos: Point<f64, Logical>) -> Target {
     let draw_list = state.scene.draw_list();
-    let (placed, hit) = draw_list
+    let found = draw_list
         .iter()
         .rev()
         .filter(|p| p.input != InputMode::Pass)
-        .find_map(|p| Some((p, hit(state, p, pos)?)))?;
-    match (placed.input, hit) {
-        (InputMode::Accept, Hit::Surface(surface, location)) => Some(Under {
-            surface,
-            location,
-            node: placed.node.id.clone(),
-        }),
-        _ => None,
+        .find_map(|p| Some((p, hit(state, p, pos)?)));
+    match found {
+        Some((placed, Hit::Surface(surface, location))) if placed.input == InputMode::Accept => {
+            Target::Surface(Under {
+                surface,
+                location,
+                node: Some(placed.node.id.clone()),
+            })
+        }
+        Some(_) => Target::Blocked,
+        None => Target::Nothing,
     }
 }
 
@@ -165,8 +285,8 @@ pub struct Under {
     pub surface: WlSurface,
     /// The position of the surface in the scene.
     pub location: Point<f64, Logical>,
-    /// The surface node.
-    pub node: String,
+    /// The surface node; `None` for a layer surface.
+    pub node: Option<String>,
 }
 
 /// What a point hits.
@@ -231,6 +351,16 @@ pub fn send_frames(state: &State, output: &Output) {
             Duration::from_secs(1)
         };
         window.send_frame(output, time, Some(throttle), |_, _| Some(output.clone()));
+    }
+    for layer in layer_map_for_output(output).layers() {
+        layer.send_frame(output, time, Some(Duration::ZERO), |_, _| {
+            Some(output.clone())
+        });
+    }
+    if let Some(surface) = state.lock.as_ref().and_then(|l| l.surface(output)) {
+        send_frames_surface_tree(surface, output, time, Some(Duration::ZERO), |_, _| {
+            Some(output.clone())
+        });
     }
 }
 

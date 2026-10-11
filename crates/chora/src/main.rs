@@ -1,14 +1,17 @@
 //! The chora Wayland compositor.
 
+mod backend;
+mod cursor;
 mod handlers;
 mod input;
 mod ipc;
+mod layers;
+mod lock;
 mod output;
 mod render;
 mod safety;
 mod state;
 mod transaction;
-mod winit;
 
 use std::{
     ffi::OsStr,
@@ -56,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Waits for the command, so that it never stays a zombie.
         std::thread::spawn(move || child.wait());
     }
-    winit::init(&mut state)?;
+    backend::init(&mut state)?;
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
     event_loop.run(None, &mut state, |state| {
         state.ipc_flush();

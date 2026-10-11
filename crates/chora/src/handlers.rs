@@ -7,7 +7,8 @@ use smithay::{
     delegate_dispatch2,
     desktop::{
         PopupKeyboardGrab, PopupKind, PopupPointerGrab, PopupUngrabStrategy, Window,
-        find_popup_root_surface, get_popup_toplevel_coords,
+        WindowSurfaceType, find_popup_root_surface, get_popup_toplevel_coords,
+        layer_map_for_output,
     },
     input::{
         Seat, SeatHandler, SeatState,
@@ -20,7 +21,7 @@ use smithay::{
             protocol::{wl_buffer::WlBuffer, wl_seat::WlSeat, wl_surface::WlSurface},
         },
     },
-    utils::Serial,
+    utils::{Logical, Point, Rectangle, Serial},
     wayland::{
         buffer::BufferHandler,
         compositor::{
@@ -45,7 +46,10 @@ use smithay::{
     },
 };
 
-use crate::state::{ClientState, State};
+use crate::{
+    output::output_area,
+    state::{ClientState, State},
+};
 
 impl CompositorHandler for State {
     fn compositor_state(&mut self) -> &mut CompositorState {
@@ -69,6 +73,8 @@ impl CompositorHandler for State {
             if let Some(id) = self.surface_id(&root) {
                 self.windows[&id].on_commit();
                 self.toplevel_committed(&id);
+            } else {
+                self.layer_committed(&root);
             }
         }
         self.popups.commit(surface);
@@ -130,7 +136,9 @@ impl SeatHandler for State {
         &mut self.seat_state
     }
 
-    fn cursor_image(&mut self, _seat: &Seat<Self>, _image: CursorImageStatus) {}
+    fn cursor_image(&mut self, _seat: &Seat<Self>, image: CursorImageStatus) {
+        self.cursor_status = image;
+    }
 
     fn focus_changed(&mut self, seat: &Seat<Self>, focused: Option<&WlSurface>) {
         let dh = &self.display_handle;
@@ -256,24 +264,41 @@ impl State {
         });
     }
 
-    /// Keeps a popup inside the output that shows its toplevel.
-    fn unconstrain_popup(&self, popup: &PopupSurface) {
+    /// Keeps a popup inside the output that shows its toplevel or its
+    /// layer surface.
+    pub fn unconstrain_popup(&self, popup: &PopupSurface) {
         let kind = PopupKind::Xdg(popup.clone());
-        let Ok(root) = find_popup_root_surface(&kind) else {
-            return;
-        };
-        let Some(origin) = self
-            .surface_id(&root)
-            .and_then(|id| crate::render::window_origin(self, &id))
+        let Some(mut target) = find_popup_root_surface(&kind)
+            .ok()
+            .and_then(|root| self.popup_area(&root))
         else {
             return;
         };
-        let mut target = self.scene_area_at(origin.to_f64());
-        target.loc -= origin;
         target.loc -= get_popup_toplevel_coords(&kind);
         popup.with_pending_state(|state| {
             state.geometry = state.positioner.get_unconstrained_geometry(target);
         });
+    }
+
+    /// The area for the popups of a toplevel or a layer surface, relative to
+    /// that surface: the area of the output that shows it.
+    fn popup_area(&self, root: &WlSurface) -> Option<Rectangle<i32, Logical>> {
+        if let Some(origin) = self
+            .surface_id(root)
+            .and_then(|id| crate::render::window_origin(self, &id))
+        {
+            let mut area = self.scene_area_at(origin.to_f64());
+            area.loc -= origin;
+            return Some(area);
+        }
+        let output = self.output_of_layer(root)?;
+        let map = layer_map_for_output(&output);
+        let layer = map.layer_for_surface(root, WindowSurfaceType::TOPLEVEL)?;
+        let geo = map.layer_geometry(layer)?;
+        Some(Rectangle::new(
+            Point::default() - geo.loc,
+            output_area(&output).size,
+        ))
     }
 }
 

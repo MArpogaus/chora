@@ -15,10 +15,26 @@ serde_json = "1"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+xcursor = "0.3"
 
 [workspace.dependencies.smithay]
 default-features = false
-features = ["backend_drm", "backend_winit", "desktop", "wayland_frontend"]
+features = [
+  "backend_drm",
+  "backend_gbm",
+  "backend_libinput",
+  "backend_session_libseat",
+  "backend_udev",
+  "backend_winit",
+  "desktop",
+  "renderer_multi",
+  "wayland_frontend"
+]
+git = "https://github.com/Smithay/smithay"
+rev = "cf43a02acd6b5863909665c67f289f6f3478823a"
+
+# The same revision as smithay.
+[workspace.dependencies.smithay-drm-extras]
 git = "https://github.com/Smithay/smithay"
 rev = "cf43a02acd6b5863909665c67f289f6f3478823a"
 

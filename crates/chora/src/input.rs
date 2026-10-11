@@ -3,18 +3,21 @@
 //!
 //! Plugins set the focus. The core changes it in three cases only: the
 //! reset focuses the first surface, a click on a surface without an owner
-//! focuses it, and a surface that becomes detached loses it.
+//! focuses it, and a surface that becomes detached loses it. Protocols take
+//! the keyboard for a while: a popup grab, a layer surface such as a
+//! launcher, and the lock screen.
 
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
-        KeyState, KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
+        InputTime, KeyState, KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
+        PointerMotionEvent,
     },
     input::{
         keyboard::{FilterResult, Keysym, ModifiersState},
         pointer::{AxisFrame, ButtonEvent, MotionEvent},
     },
-    utils::SERIAL_COUNTER,
+    utils::{Logical, Point, SERIAL_COUNTER},
 };
 
 use crate::{output::output_area, render, state::State};
@@ -27,6 +30,8 @@ enum KeyAction {
     Quit,
     /// The emergency reset.
     Reset,
+    /// Switch to another virtual terminal.
+    SwitchVt(i32),
     /// Send `input.key` to the client that grabbed the binding.
     Grab(u64, String),
 }
@@ -34,6 +39,7 @@ enum KeyAction {
 pub fn process<I: InputBackend>(state: &mut State, event: InputEvent<I>) {
     match event {
         InputEvent::Keyboard { event } => keyboard::<I>(state, &event),
+        InputEvent::PointerMotion { event } => relative_motion::<I>(state, &event),
         InputEvent::PointerMotionAbsolute { event } => motion::<I>(state, &event),
         InputEvent::PointerButton { event } => button::<I>(state, &event),
         InputEvent::PointerAxis { event } => axis::<I>(state, &event),
@@ -72,6 +78,11 @@ fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
     match action {
         Some(KeyAction::Quit) => state.loop_signal.stop(),
         Some(KeyAction::Reset) => state.reset(),
+        Some(KeyAction::SwitchVt(vt)) => {
+            if let Some(backend) = state.backend.as_mut() {
+                backend.change_vt(vt);
+            }
+        }
         Some(KeyAction::Grab(conn, binding)) => state
             .ipc
             .send_to(conn, &chora_scene::Event::InputKey { binding }),
@@ -79,8 +90,16 @@ fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
     }
 }
 
-/// The fixed bindings of the safety layer (D23), then the grabs.
+/// The fixed bindings of the safety layer (D23), then the grabs. The keymap
+/// turns Ctrl+Alt+F1 to F12 into the keys that switch the VT.
 fn press_action(state: &State, mods: &ModifiersState, syms: &[Keysym]) -> Option<KeyAction> {
+    let first = Keysym::XF86_Switch_VT_1.raw();
+    if let Some(vt) = syms
+        .iter()
+        .find_map(|s| s.raw().checked_sub(first).filter(|n| *n < 12))
+    {
+        return Some(KeyAction::SwitchVt(i32::try_from(vt).ok()? + 1));
+    }
     if mods.ctrl && mods.alt {
         if syms.contains(&Keysym::BackSpace) {
             return Some(KeyAction::Quit);
@@ -89,8 +108,18 @@ fn press_action(state: &State, mods: &ModifiersState, syms: &[Keysym]) -> Option
             return Some(KeyAction::Reset);
         }
     }
+    if state.lock.is_some() {
+        return None;
+    }
     let (conn, binding) = state.ipc.grab_for(mods, syms)?;
     Some(KeyAction::Grab(conn, binding))
+}
+
+/// Relative motion, as from a mouse on real hardware. The pointer stays on
+/// the outputs.
+fn relative_motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionEvent) {
+    let layout = state.clamp_to_outputs(state.pointer_layout + event.delta());
+    move_pointer(state, layout, event.time());
 }
 
 /// Absolute motion, as from the winit window, which shows the first output.
@@ -99,18 +128,25 @@ fn motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionAbsoluteEv
         return;
     };
     let layout = area.loc.to_f64() + event.position_transformed(area.size);
-    let Some((_, pos)) = state.output_at(layout) else {
+    move_pointer(state, layout, event.time());
+}
+
+/// Moves the pointer to a point of the layout and tells the surface under
+/// it.
+fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime) {
+    state.pointer_layout = layout;
+    let Some(spot) = state.spot(layout) else {
         return;
     };
-    let under = render::surface_under(state, pos).map(|u| (u.surface, u.location));
+    let under = render::surface_under(state, &spot).map(|u| (u.surface, u.location));
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     pointer.motion(
         state,
         under,
         &MotionEvent {
-            location: pos,
+            location: spot.scene,
             serial: SERIAL_COUNTER.next_serial(),
-            time: event.time(),
+            time,
         },
     );
     pointer.frame(state);
@@ -120,7 +156,7 @@ fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     let button_state: ButtonState = event.state();
     if button_state == ButtonState::Pressed {
-        focus_ownerless(state, pointer.current_location());
+        click_focus(state);
     }
     pointer.button(
         state,
@@ -134,18 +170,24 @@ fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
     pointer.frame(state);
 }
 
-/// A click on a surface without an owner, for example in the reset grid,
-/// focuses it. The module docs list all focus changes of the core.
-fn focus_ownerless(state: &mut State, pos: smithay::utils::Point<f64, smithay::utils::Logical>) {
-    let Some(under) = render::surface_under(state, pos) else {
-        return;
-    };
-    if state
-        .scene
-        .node(&under.node)
-        .is_some_and(|n| n.owner.is_none())
-    {
-        state.focus(Some(&under.node));
+/// The focus changes of a click. A layer surface that accepts the keyboard,
+/// for example the search field of a panel, keeps it until a click
+/// elsewhere. A click on a surface without an owner, for example in the
+/// reset grid, focuses it. The module docs list all focus changes.
+fn click_focus(state: &mut State) {
+    let under = state
+        .spot(state.pointer_layout)
+        .and_then(|spot| render::surface_under(state, &spot));
+    let layer = under
+        .as_ref()
+        .filter(|u| u.node.is_none())
+        .and_then(|u| state.keyboard_layer(&u.surface));
+    state.set_layer_focus(layer);
+    let ownerless = under
+        .and_then(|u| u.node)
+        .filter(|id| state.scene.node(id).is_some_and(|n| n.owner.is_none()));
+    if let Some(id) = ownerless {
+        state.focus(Some(&id));
     }
 }
 

@@ -6,28 +6,33 @@ use chora_scene::{Effect, Event, Scene, SurfaceInfo, ToplevelState};
 use smithay::{
     backend::renderer::element::solid::SolidColorBuffer,
     desktop::{PopupManager, Window},
-    input::{Seat, SeatState, keyboard::Keycode},
+    input::{Seat, SeatState, keyboard::Keycode, pointer::CursorImageStatus},
     output::Output,
     reexports::{
         calloop::{Interest, LoopHandle, LoopSignal, Mode, PostAction, generic::Generic},
         wayland_protocols::xdg::shell::server::xdg_toplevel,
         wayland_server::{
-            Display, DisplayHandle, backend::ClientData, protocol::wl_surface::WlSurface,
+            Display, DisplayHandle, Resource, backend::ClientData, protocol::wl_surface::WlSurface,
         },
     },
-    utils::{SERIAL_COUNTER, Serial},
+    utils::{Logical, Point, SERIAL_COUNTER, Serial},
     wayland::{
         compositor::{CompositorClientState, CompositorState, with_states},
+        dmabuf::DmabufState,
         output::OutputManagerState,
         selection::{data_device::DataDeviceState, primary_selection::PrimarySelectionState},
-        shell::xdg::{XdgShellState, XdgToplevelSurfaceData, decoration::XdgDecorationState},
+        session_lock::SessionLockManagerState,
+        shell::{
+            wlr_layer::WlrLayerShellState,
+            xdg::{XdgShellState, XdgToplevelSurfaceData, decoration::XdgDecorationState},
+        },
         shm::ShmState,
         socket::ListeningSocketSource,
         viewporter::ViewporterState,
     },
 };
 
-use crate::{ipc::Ipc, transaction::Transactions, winit::Backend};
+use crate::{backend::Backend, ipc::Ipc, lock::Lock, transaction::Transactions};
 
 /// The state of the compositor, passed to every callback of the event loop.
 #[allow(clippy::struct_field_names)] // the names of Smithay's handler traits
@@ -48,8 +53,22 @@ pub struct State {
     pub seat: Seat<State>,
 
     pub backend: Option<Backend>,
+    pub dmabuf_state: DmabufState,
     /// The outputs, in the order of their arrival.
     pub outputs: Vec<Output>,
+    /// The pointer in layout coordinates. Smithay keeps it in scene
+    /// coordinates; the two differ under a camera that is not the default.
+    pub pointer_layout: Point<f64, Logical>,
+    /// The cursor that the client under the pointer asks for.
+    pub cursor_status: CursorImageStatus,
+    pub layer_shell_state: WlrLayerShellState,
+    pub lock_state: SessionLockManagerState,
+    /// The lock screen, while the session is locked.
+    pub lock: Option<Lock>,
+    /// The surface node that plugins focused.
+    focus_wanted: Option<String>,
+    /// A layer surface that a click focused.
+    layer_focus: Option<WlSurface>,
 
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
@@ -85,6 +104,9 @@ impl State {
         Self {
             start_time: Instant::now(),
             compositor_state: CompositorState::new::<Self>(&dh),
+            layer_shell_state: WlrLayerShellState::new::<Self>(&dh),
+            lock_state: SessionLockManagerState::new::<Self, _>(&dh, |_| true),
+            lock: None,
             xdg_shell_state: XdgShellState::new::<Self>(&dh),
             shm_state: ShmState::new::<Self>(&dh, vec![]),
             data_device_state: DataDeviceState::new::<Self>(&dh),
@@ -97,7 +119,12 @@ impl State {
             loop_signal,
             socket_name,
             backend: None,
+            dmabuf_state: DmabufState::new(),
             outputs: Vec::new(),
+            pointer_layout: Point::default(),
+            cursor_status: CursorImageStatus::default_named(),
+            focus_wanted: None,
+            layer_focus: None,
             scene: Scene::default(),
             windows: HashMap::new(),
             rects: HashMap::new(),
@@ -196,20 +223,56 @@ impl State {
         toplevel.send_pending_configure()
     }
 
-    /// The surface node with the keyboard focus.
+    /// The surface node that has the focus, as plugins set it.
     pub fn focused_surface(&self) -> Option<String> {
-        let keyboard = self.seat.get_keyboard()?;
-        self.surface_id(&keyboard.current_focus()?)
+        self.focus_wanted.clone()
     }
 
-    /// Sets the keyboard focus to a surface node, or to nothing.
+    /// Focuses a surface node, or nothing. A layer surface that a click
+    /// focused gives the keyboard back.
     pub fn focus(&mut self, surface: Option<&str>) {
-        let target = surface
+        self.focus_wanted = surface.map(Into::into);
+        self.layer_focus = None;
+        self.update_focus();
+    }
+
+    /// Gives the keyboard to a layer surface after a click, or takes it
+    /// back.
+    pub fn set_layer_focus(&mut self, layer: Option<WlSurface>) {
+        if self.layer_focus != layer {
+            self.layer_focus = layer;
+            self.update_focus();
+        }
+    }
+
+    /// Moves the keyboard to the surface that should have it: the lock
+    /// screen, a layer surface that takes it exclusively, a layer surface
+    /// after a click, or the focused surface node. A popup grab keeps the
+    /// keyboard, unless the session locks.
+    pub fn update_focus(&mut self) {
+        let keyboard = self.seat.get_keyboard().expect("the seat has a keyboard");
+        if self.lock.is_some() {
+            let target = self.lock_focus();
+            keyboard.unset_grab(self);
+            if keyboard.current_focus() != target {
+                keyboard.set_focus(self, target, SERIAL_COUNTER.next_serial());
+            }
+            return;
+        }
+        if keyboard.is_grabbed() {
+            return;
+        }
+        let window = self
+            .focus_wanted
+            .as_ref()
             .and_then(|s| self.windows.get(s))
             .and_then(Window::toplevel)
             .map(|t| t.wl_surface().clone());
-        let keyboard = self.seat.get_keyboard().expect("the seat has a keyboard");
-        keyboard.set_focus(self, target, SERIAL_COUNTER.next_serial());
+        let clicked = self.layer_focus.clone().filter(Resource::is_alive);
+        let target = self.exclusive_layer().or(clicked).or(window);
+        if keyboard.current_focus() != target {
+            keyboard.set_focus(self, target, SERIAL_COUNTER.next_serial());
+        }
     }
 }
 

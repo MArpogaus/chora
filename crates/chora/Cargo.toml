@@ -4,8 +4,10 @@ chora-scene.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 smithay.workspace = true
+smithay-drm-extras.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+xcursor.workspace = true
 
 [lints]
 workspace = true
