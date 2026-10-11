@@ -290,48 +290,44 @@ impl Scene {
     }
 
     /// The visible nodes below the root, bottom first, with their absolute
-    /// transforms.
+    /// transforms. The walk uses a stack, so deep trees cannot overflow the
+    /// call stack.
     #[must_use]
     pub fn draw_list(&self) -> Vec<Placed<'_>> {
         let mut out = Vec::new();
-        let root = &self.nodes[ROOT];
-        self.collect(
-            root,
-            (Transform::IDENTITY, 1.0, InputMode::Accept),
-            &mut out,
-        );
+        let mut stack = vec![(
+            &self.nodes[ROOT],
+            Transform::IDENTITY,
+            1.0,
+            InputMode::Accept,
+        )];
+        while let Some((node, parent, opacity, input)) = stack.pop() {
+            if !node.props.visible {
+                continue;
+            }
+            let placed = Placed {
+                node,
+                transform: parent.then(&node.props.transform),
+                opacity: opacity * node.props.opacity,
+                input: if input == InputMode::Accept {
+                    node.props.input
+                } else {
+                    input
+                },
+            };
+            for child in node.children.iter().rev() {
+                stack.push((
+                    &self.nodes[child],
+                    placed.transform,
+                    placed.opacity,
+                    placed.input,
+                ));
+            }
+            if node.id != ROOT {
+                out.push(placed);
+            }
+        }
         out
-    }
-
-    /// Adds `node` and its visible descendants; `inherited` holds the
-    /// transform, opacity and input mode of the parent.
-    fn collect<'a>(
-        &'a self,
-        node: &'a Node,
-        inherited: (Transform, f64, InputMode),
-        out: &mut Vec<Placed<'a>>,
-    ) {
-        let (parent, opacity, input) = inherited;
-        if !node.props.visible {
-            return;
-        }
-        let placed = Placed {
-            node,
-            transform: parent.then(&node.props.transform),
-            opacity: opacity * node.props.opacity,
-            input: if input == InputMode::Accept {
-                node.props.input
-            } else {
-                input
-            },
-        };
-        let inherited = (placed.transform, placed.opacity, placed.input);
-        if node.id != ROOT {
-            out.push(placed);
-        }
-        for child in &node.children {
-            self.collect(&self.nodes[child], inherited, out);
-        }
     }
 
     /// Removes a node and its descendants. Surfaces become detached and

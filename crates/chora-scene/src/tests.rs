@@ -216,3 +216,20 @@ fn commands_reject_unknown_fields() {
     let json = r#"[{"update": {"id": "a", "props": {"opacity": 0.5}}}]"#;
     assert!(serde_json::from_str::<Vec<Command>>(json).is_ok());
 }
+
+#[test]
+fn deep_trees_do_not_overflow_the_stack() {
+    let mut scene = Scene::default();
+    let commands: Vec<Command> = (0..100_000)
+        .map(|i| {
+            let parent = if i == 0 {
+                ROOT.to_owned()
+            } else {
+                format!("g{}", i - 1)
+            };
+            group(&format!("g{i}"), &parent)
+        })
+        .collect();
+    scene.apply("wm", &commands).unwrap();
+    assert_eq!(scene.draw_list().len(), 100_000);
+}
