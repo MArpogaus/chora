@@ -1438,11 +1438,13 @@ thus delays the queue once, not once per transaction.</p>
 <li>A surface that becomes detached loses the focus.</li>
 </ul>
 <p>The core still implements the protocol mechanisms around focus: popup
-grabs, the keyboard interactivity of <code>wlr-layer-shell</code>, <code>ext-session-lock</code>,
-<code>xdg-activation</code> requests, <code>pointer-constraints</code> and <code>input-method</code>. A layer
-surface that takes the keyboard exclusively, for example a launcher, has it
-while it is mapped. A click gives the keyboard to a layer surface that
-accepts it on demand, until the next click elsewhere.</p>
+grabs, the keyboard interactivity of <code>wlr-layer-shell</code> and
+<code>ext-session-lock</code>. <code>xdg-activation</code>, <code>pointer-constraints</code> and
+<code>input-method</code> follow in M2. A layer surface that takes the keyboard
+exclusively, for example a launcher, has it from its first commit until it
+goes away, and it ends a popup grab. A click gives the keyboard to a layer
+surface that accepts it on demand, until the next click elsewhere. A popup
+grabs the input only with the serial of the press that opened it.</p>
 <h2 id="safety-layer">Safety layer<a class="headerlink" href="#safety-layer" title="Permanent link">&para;</a></h2>
 <p>The safety layer is the only built-in behavior (see
 <a href="../vision/#principles">Vision</a>). No plugin and no IPC client can change it.</p>
@@ -1455,10 +1457,13 @@ accepts it on demand, until the next click elsewhere.</p>
   grid is the one layout in the core. It is hardcoded, so a broken
   configuration cannot break it. The reset also changes the focus (see
   <a href="#input-flow">Input flow</a>).</li>
-<li><strong>Session lock.</strong> The core enforces <code>ext-session-lock</code>. While the session
-  is locked, each output shows only its lock surface, or black. Only the
-  lock surfaces get input, and grabs pause. When the lock client crashes,
-  the session stays locked, and a new lock client can take over.</li>
+<li><strong>Session lock.</strong> The core enforces <code>ext-session-lock</code>. One client owns
+  the lock; other clients cannot lock or unlock while it lives. While the
+  session is locked, each output shows only its lock surface, or black.
+  Only the lock client gets input; popup and pointer grabs end, and plugin
+  grabs pause. The core confirms the lock after each output showed a locked
+  frame. When the lock client crashes, the session stays locked, and only
+  then can a new lock client take over.</li>
 <li><strong>Watchdog.</strong> When frames miss their deadline repeatedly, the core removes
   the effects first and then disconnects the plugins.</li>
 </ul>
