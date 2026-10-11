@@ -228,6 +228,11 @@ impl Scene {
 
     fn create(&mut self, node: Node, parent: &str) -> Result<(), SceneError> {
         let id = node.id.clone();
+        if is_surface_id(&id) {
+            return Err(SceneError::Invalid(format!(
+                "{id:?}: ids of the form s1, s2 belong to surfaces"
+            )));
+        }
         if self.nodes.contains_key(&id) {
             return Err(SceneError::Exists(id));
         }
@@ -468,6 +473,13 @@ impl Scene {
             Some(_) => Err(SceneError::WrongKind(id.into(), "group")),
         }
     }
+}
+
+/// Whether the id has the form of a surface id: `s` and digits. The core
+/// gives these ids to surfaces before their nodes exist.
+fn is_surface_id(id: &str) -> bool {
+    id.strip_prefix('s')
+        .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
 }
 
 /// Only rects have a size and a color; sizes are not negative, and all

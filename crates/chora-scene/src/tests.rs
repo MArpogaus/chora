@@ -340,3 +340,13 @@ fn invalid_sizes_and_transforms_are_rejected() {
         assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
     }
 }
+
+#[test]
+fn surface_ids_are_reserved_for_surfaces() {
+    let mut scene = Scene::default();
+    let err = scene.apply("wm", &[group("s7", ROOT)]).unwrap_err();
+    assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
+    for id in ["s", "sx", "s1a", "work"] {
+        scene.apply("wm", &[group(id, ROOT)]).unwrap();
+    }
+}

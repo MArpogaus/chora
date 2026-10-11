@@ -109,13 +109,10 @@ impl State {
 
     /// Registers a new toplevel. Its surface node follows with the first
     /// commit, so that no client configures it before the initial
-    /// configure.
+    /// configure. Clients cannot create ids of the form `s1`, so the id
+    /// stays free until then.
     pub fn add_window(&mut self, window: Window) {
-        let mut id = format!("s{}", self.next_surface);
-        while self.scene.node(&id).is_some() || self.windows.contains_key(&id) {
-            self.next_surface += 1;
-            id = format!("s{}", self.next_surface);
-        }
+        let id = format!("s{}", self.next_surface);
         self.next_surface += 1;
         self.windows.insert(id, window);
     }
