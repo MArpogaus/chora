@@ -1117,7 +1117,7 @@
 <tbody>
 <tr>
 <td>D10</td>
-<td>Fedora 43 and secureblue as host; a derived image offers chora as an additional session</td>
+<td>Fedora 44 and secureblue as host; a derived image offers chora as an additional session</td>
 <td>The system and the image tooling of the author.</td>
 </tr>
 <tr>
@@ -1137,7 +1137,7 @@
 </tr>
 <tr>
 <td>D14</td>
-<td>Releases are RPM packages for Fedora 43, attached with SHA256 sums to a GitHub release; a <code>v*</code> tag starts the release; versions below 1.0 are pre-releases</td>
+<td>Releases are RPM packages for Fedora 44, attached with SHA256 sums to a GitHub release; a <code>v*</code> tag starts the release; versions below 1.0 are pre-releases</td>
 <td><code>dnf5 install &lt;url&gt;</code> installs them by hand and in the image build.</td>
 </tr>
 </tbody>
@@ -1296,6 +1296,11 @@
 <td>HTML content from agents runs in a browser in app mode, as a service</td>
 <td>No code. chora places toplevels anywhere.</td>
 </tr>
+<tr>
+<td>D39</td>
+<td>The first showcase is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it comes right after M2, before the agent interface</td>
+<td>It proves that the scene model carries classic mouse-driven desktops and their effects. The assets come from <code>kde-plasma-winxp-launcher</code>. It is a demo, not a daily driver.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="rejected-review-findings">Rejected review findings<a class="headerlink" href="#rejected-review-findings" title="Permanent link">&para;</a></h2>
@@ -1325,8 +1330,8 @@
 <ol>
 <li><strong>Grants.</strong> How does the user grant <code>input.inject</code> and <code>screen.capture</code>?
    A <code>choractl grant</code> command is the simplest option, because the core draws
-   no text. Decide before M3.</li>
-<li><strong>YAML crate.</strong> Which maintained crate replaces <code>serde_yaml</code>? Decide in M3.</li>
+   no text. Decide before M4.</li>
+<li><strong>YAML crate.</strong> Which maintained crate replaces <code>serde_yaml</code>? Decide in M4.</li>
 <li><strong>Repository name.</strong> The GitHub repository still has the name <code>void</code>.</li>
 </ol>
 

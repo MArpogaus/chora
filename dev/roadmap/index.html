@@ -836,10 +836,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#m3-agent-interface" class="md-nav__link">
+  <a href="#m3-effects-and-the-xp-showroom" class="md-nav__link">
     <span class="md-ellipsis">
       
-        M3: Agent interface
+        M3: Effects and the XP showroom
       
     </span>
   </a>
@@ -847,10 +847,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#m4-effects" class="md-nav__link">
+  <a href="#m4-agent-interface" class="md-nav__link">
     <span class="md-ellipsis">
       
-        M4: Effects
+        M4: Agent interface
       
     </span>
   </a>
@@ -994,10 +994,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#m3-agent-interface" class="md-nav__link">
+  <a href="#m3-effects-and-the-xp-showroom" class="md-nav__link">
     <span class="md-ellipsis">
       
-        M3: Agent interface
+        M3: Effects and the XP showroom
       
     </span>
   </a>
@@ -1005,10 +1005,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#m4-effects" class="md-nav__link">
+  <a href="#m4-agent-interface" class="md-nav__link">
     <span class="md-ellipsis">
       
-        M4: Effects
+        M4: Agent interface
       
     </span>
   </a>
@@ -1080,15 +1080,15 @@ package.</p>
   plugins in <code>plugins/</code> (D36).</li>
 <li>Workspace lints: clippy <code>pedantic</code>, <code>cognitive_complexity</code> and
   <code>excessive_nesting</code>; <code>unsafe_code</code> denied. <code>clippy.toml</code> sets the limits.</li>
-<li>CI: build and <code>cargo test</code> in a Fedora 43 container; <code>cargo-deny</code> for the
+<li>CI: build and <code>cargo test</code> in a Fedora 44 container; <code>cargo-deny</code> for the
   licenses and advisories of the dependencies.</li>
 <li>A pre-commit hook that rejects files with a GPL-3.0-only header (D8).</li>
 <li>Dependabot for Cargo.</li>
 <li>commitizen for version bumps and the changelog.</li>
-<li>A release workflow: a <code>v*</code> tag builds the RPM in Fedora 43 and attaches it
+<li>A release workflow: a <code>v*</code> tag builds the RPM in Fedora 44 and attaches it
   with its SHA256 sum to a GitHub pre-release (D14).</li>
 </ul>
-<p><strong>Exit:</strong> CI is green. The RPM of a test build installs in a Fedora 43
+<p><strong>Exit:</strong> CI is green. The RPM of a test build installs in a Fedora 44
 container, and <code>chora --version</code> runs there.</p>
 <h2 id="m1-nested-proof-of-concept">M1: Nested proof of concept<a class="headerlink" href="#m1-nested-proof-of-concept" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the smallest proof of the concept, inside an existing session.</p>
@@ -1142,7 +1142,36 @@ container, and <code>chora --version</code> runs there.</p>
    for 8 hours on an AMD and on an Intel machine, without a crash or a
    restart of the core.</li>
 </ol>
-<h2 id="m3-agent-interface">M3: Agent interface<a class="headerlink" href="#m3-agent-interface" title="Permanent link">&para;</a></h2>
+<h2 id="m3-effects-and-the-xp-showroom">M3: Effects and the XP showroom<a class="headerlink" href="#m3-effects-and-the-xp-showroom" title="Permanent link">&para;</a></h2>
+<p><strong>Goal:</strong> the game-engine half of the idea, shown in a flavor in the style of
+Windows XP (D39). The flavor is a demo, not a daily driver.</p>
+<ul>
+<li>Image nodes for assets, and shader nodes, effects and shaders that read
+  nodes as textures (D18).</li>
+<li>Rendering of a node into a texture, and a mesh that deforms that texture.
+  Wobbly windows and the magic lamp minimize use the mesh.</li>
+<li>Perspective for the 4x4 transforms, and depth, for a 3D desktop cube with
+  flying windows.</li>
+<li>The <code>animate</code> command (D28).</li>
+<li>GLSL hot reload; compile errors as <code>transaction.rejected</code>.</li>
+<li>Damage tracking for static and animated shaders, direct scanout (D24).</li>
+<li>The watchdog of the safety layer.</li>
+<li>A measurement of the IPC round trip for effects in every frame. The result
+  decides on in-process WASM plugins (D28).</li>
+<li>An XP flavor: a stacking window manager with title bars, a taskbar and a
+  start menu, with the assets of <code>kde-plasma-winxp-launcher</code>.</li>
+</ul>
+<p><strong>Exit:</strong></p>
+<ol>
+<li>Automated, nested: the XP flavor starts. A screenshot shows the taskbar,
+   the start button and two windows with title bars. A drag of a window
+   deforms its mesh. A minimize runs the magic lamp. A key binding turns
+   the desktop cube with four desktops.</li>
+<li>On the Intel machine at 60 Hz, four windows with blur and rounded
+   corners and a 300 ms transition: <code>presentation-time</code> shows at least 99
+   percent of the frames on time over 60 seconds.</li>
+</ol>
+<h2 id="m4-agent-interface">M4: Agent interface<a class="headerlink" href="#m4-agent-interface" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> an agent sees and changes the screen.</p>
 <ul>
 <li>Grants for <code>input.inject</code> and <code>screen.capture</code> (D33). Open question 1 in
@@ -1157,20 +1186,6 @@ container, and <code>chora --version</code> runs there.</p>
 <p><strong>Exit:</strong> an automated test passes: an MCP client asks for "describe the
 screen", calls <code>tiling.set_layout</code>, and the next screenshot shows the new
 layout.</p>
-<h2 id="m4-effects">M4: Effects<a class="headerlink" href="#m4-effects" title="Permanent link">&para;</a></h2>
-<p><strong>Goal:</strong> the game-engine half of the idea.</p>
-<ul>
-<li>Shader nodes, effects and shaders that read nodes as textures (D18).</li>
-<li>GLSL hot reload; compile errors as <code>transaction.rejected</code>.</li>
-<li>The <code>animate</code> command (D28).</li>
-<li>Damage tracking for static and animated shaders, direct scanout (D24).</li>
-<li>The watchdog of the safety layer.</li>
-<li>A measurement of the IPC round trip for effects in every frame. The result
-  decides on in-process WASM plugins (D28).</li>
-</ul>
-<p><strong>Exit:</strong> on the Intel machine at 60 Hz, four windows with blur and rounded
-corners and a 300 ms transition: <code>presentation-time</code> shows at least 99
-percent of the frames on time over 60 seconds.</p>
 <h2 id="m5-packaging">M5: Packaging<a class="headerlink" href="#m5-packaging" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> chora installs like every other desktop on the host.</p>
 <ul>
