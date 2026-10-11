@@ -1329,7 +1329,11 @@ plugin runs.</p>
 belongs to the safety layer, so no client can grab it. A binding has one
 owner at a time.</p>
 <p>The core implements <code>wlr-output-management</code>, so kanshi and wlr-randr
-configure the outputs. The API has no output configuration of its own.</p>
+configure the outputs (see
+<a href="../architecture/#output-configuration">Architecture</a>). The API has no output
+configuration of its own. After a new mode, position, transform or scale,
+the core sends <code>output.changed</code>. For an output that turns off, it sends
+<code>output.removed</code>, and <code>output.list</code> no longer lists the output.</p>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
 <p>A plugin is a client with a manifest:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>

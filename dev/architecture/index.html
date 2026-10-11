@@ -615,6 +615,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#output-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#renderer" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1111,6 +1122,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#output-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#renderer" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1334,6 +1356,16 @@ The output scale then gives the pixels.</p>
 <li>Two outputs side by side get two adjacent default cameras. A window across
   two outputs then needs no special case.</li>
 </ul>
+<h3 id="output-configuration">Output configuration<a class="headerlink" href="#output-configuration" title="Permanent link">&para;</a></h3>
+<p>The core implements <code>wlr-output-management</code> (D27), so kanshi and wlr-randr
+configure the outputs. Every output of the backend is a head of the
+protocol, also while it is off. A head can get a mode, a position, a
+transform and a scale, or turn off. The core tests a configuration as a
+whole before it applies it. If one part fails, the core changes nothing and
+answers <code>failed</code>. One output must stay on. After a change, the core places
+the layer surfaces again and announces the outputs to plugins (see
+<a href="../api/#ipc-methods">API</a>). On winit, the window decides the mode, and the
+output cannot turn off. No backend has adaptive sync.</p>
 <h3 id="renderer">Renderer<a class="headerlink" href="#renderer" title="Permanent link">&para;</a></h3>
 <p>The core uses Smithay's GLES renderer through Smithay's own renderer traits.
 Custom texture and pixel shaders give blur, rounded corners, shadows, color
