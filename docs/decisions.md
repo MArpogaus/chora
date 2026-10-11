@@ -48,7 +48,7 @@ The decision log. Nothing here is final. Every entry can come back for review.
 
 | # | Decision | Reason |
 |---|----------|--------|
-| D28 | Plugins are IPC clients; the core offers `animate`; in-process WASM plugins come only after a measurement shows the need | Agents work in seconds, not frames. One mechanism, any language, crash isolation by the OS. |
+| D28 | Plugins are IPC clients; the core offers `animate`; in-process WASM plugins come only after a measurement shows the need | Agents work in seconds, not frames. One mechanism, any language, crash isolation by the OS. The M3 measurement (`tests/ipc-bench.sh`, nested, software rendering) shows no need yet: a transaction with a mesh of 8x8 cells takes 0.17 ms in the median and 3.6 ms at the 99th percentile, well inside a 60 Hz frame. |
 | D29 | JSON-RPC 2.0 with one message per line on a Unix socket in `$XDG_RUNTIME_DIR/chora/`; the core serves it from the calloop event loop | No extra runtime and no thread handoff. A container mounts the directory. |
 | D30 | The core starts one startup command with `WAYLAND_DISPLAY` and `CHORA_SOCKET` set | The startup command starts the plugins, or a systemd target. |
 | D31 | A client names itself when it connects; the owner of a node is a client name; only the owner changes a node; plugins export methods | An agent asks the window manager instead of fighting it. |
