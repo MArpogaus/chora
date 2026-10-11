@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A Wayland compositor without policy, programmable by people and agents">
+        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Scenarios - Void</title>
+        <title>Scenarios - Chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Void" class="md-header__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Void
+            Chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Void" class="md-nav__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Void
+    Chora
   </label>
   
     <div class="md-nav__source">
@@ -813,7 +813,35 @@
   <span class="md-ellipsis">
     
   
-    Decisions and open questions
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
   
 
     
@@ -959,7 +987,7 @@ Wayland protocols (see <a href="../dependencies/">Dependencies</a>), so existing
 work unchanged.</p>
 <h2 id="1-classic-desktop">1. Classic desktop<a class="headerlink" href="#1-classic-desktop" title="Permanent link">&para;</a></h2>
 <p>A Windows-like desktop with taskbar, start menu and overlapping windows,
-driven by mouse and keyboard. This is not the goal of Void, but it must be
+driven by mouse and keyboard. This is not the goal of Chora, but it must be
 possible.</p>
 <table>
 <thead>
@@ -977,7 +1005,7 @@ possible.</p>
 </tr>
 <tr>
 <td>Window decorations: title bar, buttons</td>
-<td>plugin with rect and image nodes, or client-side decorations</td>
+<td>plugin with rect and shader nodes, a decoration surface of the plugin, or client-side decorations</td>
 <td>small to medium</td>
 </tr>
 <tr>
@@ -996,6 +1024,11 @@ possible.</p>
 <td>configuration</td>
 </tr>
 <tr>
+<td>Wallpaper</td>
+<td>swaybg or swww</td>
+<td>configuration</td>
+</tr>
+<tr>
 <td>Pixel-perfect XP look</td>
 <td>theme assets, shaders, decorations</td>
 <td>much detail work, little difficulty</td>
@@ -1003,8 +1036,7 @@ possible.</p>
 </tbody>
 </table>
 <p>The taskbar needs the foreign-toplevel protocols to see the windows. The
-launcher and the bar need <code>wlr-layer-shell</code>. <a href="../dependencies/">Dependencies</a>
-lists all protocols.</p>
+launcher and the bar need <code>wlr-layer-shell</code>.</p>
 <p><strong>Result:</strong> medium effort, almost all of it in one window manager plugin.</p>
 <h2 id="2-keyboard-driven-tiling">2. Keyboard-driven tiling<a class="headerlink" href="#2-keyboard-driven-tiling" title="Permanent link">&para;</a></h2>
 <p>A Linux-style tiling workflow with workspaces. The user configures it.</p>
@@ -1039,7 +1071,7 @@ lists all protocols.</p>
 </tr>
 <tr>
 <td>Animations</td>
-<td>plugin that animates group transforms</td>
+<td>the <code>animate</code> command of the core</td>
 <td>small</td>
 </tr>
 </tbody>
@@ -1051,13 +1083,14 @@ agent, and the agent arranges content for each task.</p>
 <ol>
 <li><strong>Morning view.</strong> The agent greets the user and shows the current tasks.
    It sorts the email. User and agent plan and prioritize the day together.</li>
-<li><strong>Task views.</strong> The agent builds a new canvas for each task and fills
-   it. A data analysis gets prepared data, plots and interactive exploration.
+<li><strong>Task views.</strong> The agent builds a new canvas for each task and fills it.
+   A data analysis gets prepared data, plots and interactive exploration.
    Email, web research and coding get their own views.</li>
 <li><strong>Reuse.</strong> The inventory keeps useful elements in git for later use. The
    agent discards code for one-time use.</li>
 <li><strong>Live change by voice.</strong> "Make the plot bigger." "Put the terminal next to
-   the notebook." "Dim everything except the editor."</li>
+   the notebook." "Dim everything except the editor." The agent calls the
+   methods of the window manager plugin for these changes.</li>
 </ol>
 <table>
 <thead>
@@ -1070,7 +1103,7 @@ agent, and the agent arranges content for each task.</p>
 <tbody>
 <tr>
 <td>Scene access for the agent</td>
-<td>core IPC and MCP bridge</td>
+<td>IPC socket and <code>choractl mcp</code></td>
 <td>part of the API</td>
 </tr>
 <tr>
@@ -1085,8 +1118,8 @@ agent, and the agent arranges content for each task.</p>
 </tr>
 <tr>
 <td>Rich content: greeting, plots, email</td>
-<td>the agent writes HTML, a webview host shows it as a surface</td>
-<td>small service, generated content</td>
+<td>the agent writes HTML, a browser in app mode shows it as a surface</td>
+<td>generated content</td>
 </tr>
 <tr>
 <td>Data exploration</td>
@@ -1095,25 +1128,25 @@ agent, and the agent arranges content for each task.</p>
 </tr>
 <tr>
 <td>One view per task</td>
-<td>YAML views, loaded, saved and changed live</td>
-<td>coordinator feature</td>
+<td>YAML views that <code>choractl</code> loads, saves and changes live</td>
+<td>coordinator tool</td>
 </tr>
 <tr>
 <td>Inventory, memory</td>
-<td>opinionated layer above Void</td>
+<td>opinionated layer above Chora</td>
 <td>later</td>
 </tr>
 </tbody>
 </table>
 <p><strong>Result:</strong> the largest scenario, but mostly integration of existing parts.
 The core must supply scene queries and changes, screenshots and input
-injection. Input injection and screen capture need an explicit grant. The agent needs screenshots to see the
-result of its changes.</p>
+injection. Input injection and screen capture need the approval of the user.
+The agent needs screenshots to see the result of its changes.</p>
 <h2 id="conclusions">Conclusions<a class="headerlink" href="#conclusions" title="Permanent link">&para;</a></h2>
 <ul>
-<li>The five node kinds cover all three scenarios.</li>
-<li>Text and widgets do not need to live in the core. Existing shells and a
-  webview host supply them.</li>
+<li>The four node kinds cover all three scenarios.</li>
+<li>Text, images and widgets do not need to live in the core. Existing shells,
+  wallpaper tools and a browser in app mode supply them.</li>
 <li>Two core features decide the success. The protocol coverage lets existing
   tools work. The API lets plugins and agents arrange everything.</li>
 </ul>

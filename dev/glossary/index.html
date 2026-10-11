@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A Wayland compositor without policy, programmable by people and agents">
+        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Glossary - Void</title>
+        <title>Glossary - Chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Void" class="md-header__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Void
+            Chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Void" class="md-nav__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Void
+    Chora
   </label>
   
     <div class="md-nav__source">
@@ -732,7 +732,35 @@
   <span class="md-ellipsis">
     
   
-    Decisions and open questions
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
   
 
     
@@ -820,7 +848,7 @@
 
 
 <h1 id="glossary">Glossary<a class="headerlink" href="#glossary" title="Permanent link">&para;</a></h1>
-<p>The shared vocabulary of Void. Code, docs and prompts to agents use these
+<p>The shared vocabulary of Chora. Code, docs and prompts to agents use these
 terms and no synonyms.</p>
 <table>
 <thead>
@@ -832,7 +860,7 @@ terms and no synonyms.</p>
 <tbody>
 <tr>
 <td><strong>Core</strong></td>
-<td>The compositor process. It handles the Wayland protocols, the backends (DRM/KMS, libinput), the scene, the renderer, the input routing, the IPC socket and the safety layer. It contains no policy.</td>
+<td>The compositor process <code>chora</code>. It handles the Wayland protocols, the backends (DRM/KMS, libinput), the scene, the renderer, the input routing, the IPC socket and the safety layer. It contains no policy.</td>
 </tr>
 <tr>
 <td><strong>Scene</strong></td>
@@ -840,7 +868,7 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Node</strong></td>
-<td>One element of the scene. The kinds are <strong>group</strong>, <strong>surface</strong>, <strong>rect</strong>, <strong>image</strong> and <strong>shader</strong>. Every node has an id, a transform, an opacity and optional effects.</td>
+<td>One element of the scene. The kinds are <strong>group</strong>, <strong>surface</strong>, <strong>rect</strong> and <strong>shader</strong>. Every node has an id, an owner, a transform, an opacity and optional effects.</td>
 </tr>
 <tr>
 <td><strong>Group</strong></td>
@@ -852,23 +880,27 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Surface</strong></td>
-<td>A node that shows a Wayland client: an application window, a layer-shell widget or a webview. For the core, a surface is a texture source and an input target.</td>
+<td>A node that shows a Wayland client: an application window, a layer-shell widget or a browser window. For the core, a surface is a texture source and an input target.</td>
 </tr>
 <tr>
 <td><strong>Rect</strong></td>
 <td>A colored rectangle with optional rounded corners and border.</td>
 </tr>
 <tr>
-<td><strong>Image</strong></td>
-<td>A texture from a file or a buffer.</td>
-</tr>
-<tr>
 <td><strong>Shader</strong></td>
-<td>A node that a fragment shader draws completely. A shader can also be an <strong>effect</strong>.</td>
+<td>A node that a fragment shader draws completely. A shader can read other nodes as textures. A shader can also be an <strong>effect</strong>.</td>
 </tr>
 <tr>
 <td><strong>Effect</strong></td>
 <td>A shader that changes how a node and its children look, for example blur or a color change. Every node can have effects.</td>
+</tr>
+<tr>
+<td><strong>Viewport</strong></td>
+<td>The part of the scene that one output shows. A viewport is a transform from scene coordinates to output pixels.</td>
+</tr>
+<tr>
+<td><strong>Owner</strong></td>
+<td>The client that created or attached a node. Only the owner changes the node.</td>
 </tr>
 <tr>
 <td><strong>Toplevel</strong></td>
@@ -884,11 +916,11 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Plugin</strong></td>
-<td>Logic that reacts to events and changes the scene. A window manager, a layout, an animation and a keybinding set are plugins. See <a href="../decisions/">Decisions</a> for the plugin runtime.</td>
+<td>A process that reacts to events, changes the scene through the IPC socket and can export methods. A window manager, a layout, an animation set and a keybinding set are plugins.</td>
 </tr>
 <tr>
 <td><strong>Service</strong></td>
-<td>A process in a container, outside the core. Examples are speech recognition, a local LLM, a webview host and a development environment. <a href="../configuration/#services">Configuration</a> shows how services run.</td>
+<td>A process in a container, outside the core. Examples are speech recognition, a local LLM and a development environment. <a href="../configuration/#services">Configuration</a> shows how services run.</td>
 </tr>
 <tr>
 <td><strong>Flavor</strong></td>
@@ -900,11 +932,7 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Inventory</strong></td>
-<td>A local, git-versioned store of reusable elements (views, plugins, widgets). It belongs to the opinionated layer above Void, not to the core.</td>
-</tr>
-<tr>
-<td><strong>Capability</strong></td>
-<td>A permission of an IPC client or a plugin, for example to read the scene, to inject input or to capture the screen.</td>
+<td>A local, git-versioned store of reusable elements (views, plugins, widgets). It belongs to the opinionated layer above Chora, not to the core.</td>
 </tr>
 <tr>
 <td><strong>Command</strong></td>
@@ -919,12 +947,12 @@ terms and no synonyms.</p>
 <td>An expression that finds nodes without an id, for example <code>app_id:firefox</code>.</td>
 </tr>
 <tr>
-<td><strong>Safety layer</strong></td>
-<td>The only built-in behavior of the core: fixed bindings, emergency reset, session lock, watchdog.</td>
+<td><strong>Transaction</strong></td>
+<td>A batch of commands that the core applies as one unit. If one command fails, the core applies none of them.</td>
 </tr>
 <tr>
-<td><strong>Transaction</strong></td>
-<td>A batch of scene commands that the core applies as one unit. If one command fails, the core applies none of them.</td>
+<td><strong>Safety layer</strong></td>
+<td>The only built-in behavior of the core: fixed bindings, emergency reset, session lock, watchdog.</td>
 </tr>
 </tbody>
 </table>

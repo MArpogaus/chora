@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A Wayland compositor without policy, programmable by people and agents">
+        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Project structure - Void</title>
+        <title>Project structure - Chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Void" class="md-header__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Void
+            Chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Void" class="md-nav__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Void
+    Chora
   </label>
   
     <div class="md-nav__source">
@@ -791,7 +791,35 @@
   <span class="md-ellipsis">
     
   
-    Decisions and open questions
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
   
 
     
@@ -912,22 +940,22 @@
 <p>The planned layout of this repository: one Cargo workspace with as few crates
 as possible. A module moves into its own crate only when a second consumer
 needs it. No crate exists yet.</p>
-<div class="highlight"><pre><span></span><code>void/
+<div class="highlight"><pre><span></span><code>chora/
 ├── crates/
-│   ├── void-scene/   # scene model, commands, events, transactions, selectors; no Smithay
-│   ├── void/         # the compositor: Smithay, backends, renderer, input, safety, IPC, plugin host
-│   └── voidctl/      # CLI over the IPC socket; `voidctl mcp` is the MCP bridge
-├── plugins/          # reference plugins: tiling, stacking, keybindings
-├── dist/             # void.desktop session file, packaging
-├── docs/             # this documentation (MkDocs)
+│   ├── chora-scene/   # scene model, commands, events, transactions, selectors; no Smithay
+│   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
+│   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
+├── plugins/           # reference plugins: tiling, stacking, keybindings
+├── dist/              # chora.desktop session file, packaging
+├── docs/              # this documentation (MkDocs)
 ├── mkdocs.yml
-└── Cargo.toml        # workspace, lints
+└── Cargo.toml         # workspace, lints
 </code></pre></div>
 <h2 id="reasons-for-this-split">Reasons for this split<a class="headerlink" href="#reasons-for-this-split" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong><code>void-scene</code> has no Smithay dependency.</strong> Tests of the data model and the
-  transaction logic need no GPU and no compositor. The core, <code>voidctl</code> and
-  plugins share this one definition of the API.</li>
+<li><strong><code>chora-scene</code> has no Smithay dependency.</strong> Tests of the data model and
+  the transaction logic need no GPU and no compositor. The core, <code>choractl</code>
+  and plugins share this one definition of the API.</li>
 <li><strong>Reference plugins live in this repository</strong> first. They keep the API
   honest. They can move out when the API is stable.</li>
 <li><strong>The build generates the schemas</strong> from the Rust types. The repository
@@ -945,7 +973,7 @@ needs it. No crate exists yet.</p>
 <tbody>
 <tr>
 <td><code>secureblue-images</code></td>
-<td>derived image that installs Void as an additional session</td>
+<td>derived image that installs Chora as an additional session</td>
 </tr>
 <tr>
 <td><code>image-builder-action</code></td>

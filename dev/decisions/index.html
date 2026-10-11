@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A Wayland compositor without policy, programmable by people and agents">
+        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -16,7 +16,7 @@
         <link rel="prev" href="../alternatives/">
       
       
-        <link rel="next" href="../ideas/">
+        <link rel="next" href="../roadmap/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Decisions and open questions - Void</title>
+        <title>Decisions - Chora</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#decisions-and-open-questions" class="md-skip">
+        <a href="#decisions" class="md-skip">
           Skip to content
         </a>
       
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Void" class="md-header__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,13 +112,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Void
+            Chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Decisions and open questions
+              Decisions
             
           </span>
         </div>
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Void" class="md-nav__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Void
+    Chora
   </label>
   
     <div class="md-nav__source">
@@ -731,7 +731,7 @@
   <span class="md-ellipsis">
     
   
-    Decisions and open questions
+    Decisions
   
 
     
@@ -749,7 +749,7 @@
   <span class="md-ellipsis">
     
   
-    Decisions and open questions
+    Decisions
   
 
     
@@ -775,10 +775,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#decided" class="md-nav__link">
+  <a href="#principles-and-scope" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decided
+        Principles and scope
       
     </span>
   </a>
@@ -786,10 +786,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proposed-before-the-review" class="md-nav__link">
+  <a href="#platform" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Proposed before the review
+        Platform
       
     </span>
   </a>
@@ -797,10 +797,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#accepted-after-review" class="md-nav__link">
+  <a href="#core" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Accepted after review
+        Core
       
     </span>
   </a>
@@ -808,10 +808,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proposed-after-review" class="md-nav__link">
+  <a href="#plugins-and-api" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Proposed after review
+        Plugins and API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tools-around-the-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools around the core
       
     </span>
   </a>
@@ -844,6 +855,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -911,10 +950,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#decided" class="md-nav__link">
+  <a href="#principles-and-scope" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decided
+        Principles and scope
       
     </span>
   </a>
@@ -922,10 +961,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proposed-before-the-review" class="md-nav__link">
+  <a href="#platform" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Proposed before the review
+        Platform
       
     </span>
   </a>
@@ -933,10 +972,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#accepted-after-review" class="md-nav__link">
+  <a href="#core" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Accepted after review
+        Core
       
     </span>
   </a>
@@ -944,10 +983,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proposed-after-review" class="md-nav__link">
+  <a href="#plugins-and-api" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Proposed after review
+        Plugins and API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tools-around-the-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools around the core
       
     </span>
   </a>
@@ -996,15 +1046,9 @@
   
 
 
-<h1 id="decisions-and-open-questions">Decisions and open questions<a class="headerlink" href="#decisions-and-open-questions" title="Permanent link">&para;</a></h1>
+<h1 id="decisions">Decisions<a class="headerlink" href="#decisions" title="Permanent link">&para;</a></h1>
 <p>The decision log. Nothing here is final. Every entry can come back for review.</p>
-<ul>
-<li><strong>Decided:</strong> agreed in discussion.</li>
-<li><strong>Accepted after review:</strong> corrections from the first review. They follow
-  from the decided principles or from Wayland facts.</li>
-<li><strong>Proposed:</strong> recommendations from the review. They wait for a decision.</li>
-</ul>
-<h2 id="decided">Decided<a class="headerlink" href="#decided" title="Permanent link">&para;</a></h2>
+<h2 id="principles-and-scope">Principles and scope<a class="headerlink" href="#principles-and-scope" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1031,226 +1075,211 @@
 </tr>
 <tr>
 <td>D4</td>
-<td>Fedora and secureblue as host; a derived image offers Void as an additional session</td>
-<td>The system and the image tooling of the author.</td>
+<td>Reuse before writing; check alternatives for every decision</td>
+<td>Little code to maintain.</td>
 </tr>
 <tr>
 <td>D5</td>
-<td>Services in containers (Podman, distrobox)</td>
-<td>Isolation, easy to add and remove.</td>
-</tr>
-<tr>
-<td>D6</td>
-<td>The coordinator is the user first, later an agent with special permissions</td>
-<td>A gradual path to control by agents.</td>
-</tr>
-<tr>
-<td>D7</td>
-<td>Two access levels: the IPC socket, and in-process plugins for work in every frame</td>
-<td>Low latency where it matters, robustness everywhere else. R1 challenges the second level.</td>
-</tr>
-<tr>
-<td>D8</td>
-<td>A scene of five primitives; text and widgets come from existing Wayland clients</td>
-<td>No text stack in the core.</td>
-</tr>
-<tr>
-<td>D9</td>
-<td>YAML for views and flavors, with strict schema validation</td>
-<td>Readability. The schema catches the YAML traps. R2 makes a flavor a directory with a systemd target.</td>
-</tr>
-<tr>
-<td>D10</td>
 <td>One vocabulary, defined in the <a href="../glossary/">Glossary</a></td>
 <td>One language for people and agents.</td>
 </tr>
 <tr>
-<td>D11</td>
+<td>D6</td>
 <td>Inventory and agent memory form a separate layer, not part of the core</td>
 <td>The platform stays neutral.</td>
 </tr>
 <tr>
-<td>D12</td>
-<td>Reuse before writing; check alternatives for every decision</td>
-<td>Little code to maintain.</td>
+<td>D7</td>
+<td>The name is Chora</td>
+<td>Plato's χώρα is the space that gives forms a place. It has no form of its own.</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>The core is GPL-3.0-or-later</td>
+<td>The core can then reuse code from Pinnacle and niri. Code under GPL-3.0-only stays out.</td>
+</tr>
+<tr>
+<td>D9</td>
+<td>English for code and documentation</td>
+<td>The documentation is public.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="proposed-before-the-review">Proposed before the review<a class="headerlink" href="#proposed-before-the-review" title="Permanent link">&para;</a></h2>
+<h2 id="platform">Platform<a class="headerlink" href="#platform" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>#</th>
-<th>Proposal</th>
+<th>Decision</th>
 <th>Reason</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>P2</td>
-<td>MCP outside the core</td>
-<td>Keeps the core small. Now <code>voidctl mcp</code> over stdio.</td>
+<td>D10</td>
+<td>Fedora and secureblue as host; a derived image offers Chora as an additional session</td>
+<td>The system and the image tooling of the author.</td>
 </tr>
 <tr>
-<td>P3</td>
-<td>GLES renderer and GLSL shaders</td>
+<td>D11</td>
+<td>AMD and Intel GPUs first, NVIDIA later</td>
+<td>The hardware of the author. Mesa drivers need no special paths.</td>
+</tr>
+<tr>
+<td>D12</td>
+<td>Services run as Quadlet units with Podman or in distrobox; a container gets the IPC socket through a bind mount</td>
+<td>Isolation. systemd handles start, restart and order.</td>
+</tr>
+<tr>
+<td>D13</td>
+<td>The coordinator is the user first, later an agent with special permissions</td>
+<td>A gradual path to control by agents.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="core">Core<a class="headerlink" href="#core" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Decision</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D14</td>
+<td>Build on Smithay; copy from Pinnacle, niri and anvil; no fork</td>
+<td>A fork of Pinnacle keeps less than half of its code. Its spine (<code>Space</code>, tags, the gRPC API) is what Chora replaces. See <a href="../alternatives/#pinnacle-code-review">Alternatives</a>.</td>
+</tr>
+<tr>
+<td>D15</td>
+<td>Pin a Smithay git revision</td>
+<td>No Smithay release since 0.7.0. All major users track git.</td>
+</tr>
+<tr>
+<td>D16</td>
+<td>GLES renderer and GLSL shaders through Smithay's renderer traits</td>
 <td>Proven in niri. No Smithay compositor uses wgpu.</td>
 </tr>
 <tr>
-<td>P4</td>
-<td>Build on Smithay and copy from niri and Pinnacle</td>
-<td>Full control of the scene and the plugin model.</td>
+<td>D17</td>
+<td>Four node kinds: group, surface, rect, shader</td>
+<td>Text, images and widgets come from Wayland clients. A shader can read another node as a texture.</td>
 </tr>
 <tr>
-<td>P8</td>
+<td>D18</td>
+<td>Transforms are 4x4 matrices; the first milestone tests 2D cases only</td>
+<td>3D effects need no API change later.</td>
+</tr>
+<tr>
+<td>D19</td>
+<td>One logical scene; each output shows it through a viewport</td>
+<td>Pan, zoom and the infinite canvas need no extra mechanism.</td>
+</tr>
+<tr>
+<td>D20</td>
+<td>The core places popups, subsurfaces and layer surfaces; toplevels wait for a plugin</td>
+<td>The protocols define these positions. Smithay implements them.</td>
+</tr>
+<tr>
+<td>D21</td>
+<td>A transaction completes when all affected clients commit, or after a deadline</td>
+<td>A resize needs a client round trip. Sway, niri, River and Pinnacle do the same.</td>
+</tr>
+<tr>
+<td>D22</td>
+<td>A hardcoded safety layer</td>
+<td>A recovery path must not depend on a file that an agent can break.</td>
+</tr>
+<tr>
+<td>D23</td>
+<td>Shaders declare static or animated; fullscreen surfaces without effects use direct scanout</td>
+<td>Damage tracking and battery life.</td>
+</tr>
+<tr>
+<td>D24</td>
+<td>No undo history and no plugin state store in the core</td>
+<td>A destroyed client cannot come back. The reset and the views in git cover recovery. The scene holds all state.</td>
+</tr>
+<tr>
+<td>D25</td>
 <td>Xwayland through <code>xwayland-satellite</code></td>
 <td>Keeps the core small.</td>
 </tr>
 <tr>
-<td>P10</td>
-<td>English for code and documentation</td>
-<td>The docs become public documentation.</td>
-</tr>
-</tbody>
-</table>
-<p>P1 (plugin runtime), P5 (safety), P6 (transactions), P7 (capabilities) and P9
-(Smithay pin) moved into the lists below.</p>
-<h2 id="accepted-after-review">Accepted after review<a class="headerlink" href="#accepted-after-review" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>Change</th>
-<th>Reason</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>A1</td>
-<td>A transaction completes when all affected clients commit, or when a deadline passes</td>
-<td>A resize needs a client round trip. Sway, niri and River do the same.</td>
-</tr>
-<tr>
-<td>A2</td>
-<td>The core places popups, subsurfaces and layer surfaces; only toplevels wait for a plugin</td>
-<td>The protocols define these positions. Smithay implements them.</td>
-</tr>
-<tr>
-<td>A3</td>
-<td>A <code>configure</code> command for size, toplevel states and decoration mode; events with size limits and activation requests</td>
-<td>A window manager needs them.</td>
-</tr>
-<tr>
-<td>A4</td>
-<td>Hardcoded safety layer: fixed bindings that ignore injected input, a reset to a grid, session lock above all plugins, a frame watchdog</td>
-<td>A recovery path must not depend on a file that an agent can break.</td>
-</tr>
-<tr>
-<td>A5</td>
-<td>No undo history in the core</td>
-<td>A destroyed client cannot come back. The reset and the views in git cover recovery.</td>
-</tr>
-<tr>
-<td>A6</td>
-<td>A plugin owns its nodes; the core removes them when the plugin stops</td>
-<td>No orphaned nodes.</td>
-</tr>
-<tr>
-<td>A7</td>
-<td>No <code>z</code> property, no query inside transactions, no plugin state store, no <code>shader.compile</code>, no <code>view.diff</code> in the core</td>
-<td>Each duplicated another mechanism.</td>
-</tr>
-<tr>
-<td>A8</td>
-<td>Smithay's renderer traits, without an extra abstraction layer</td>
-<td>Smithay already has the interface.</td>
-</tr>
-<tr>
-<td>A9</td>
-<td>Three crates to start: <code>void-scene</code>, <code>void</code>, <code>voidctl</code></td>
-<td>A crate comes when a second consumer needs it.</td>
-</tr>
-<tr>
-<td>A10</td>
+<td>D26</td>
 <td>Output configuration through <code>wlr-output-management</code></td>
 <td>kanshi and wlr-randr exist.</td>
 </tr>
-<tr>
-<td>A11</td>
-<td>The socket path in <code>VOID_SOCKET</code>, no token store in the config</td>
-<td>The config lives in git.</td>
-</tr>
-<tr>
-<td>A12</td>
-<td>Pin a Smithay git revision</td>
-<td>No release since 0.7.0.</td>
-</tr>
-<tr>
-<td>A13</td>
-<td>Shaders declare static or animated; fullscreen surfaces without effects use direct scanout</td>
-<td>Damage tracking and battery life.</td>
-</tr>
 </tbody>
 </table>
-<h2 id="proposed-after-review">Proposed after review<a class="headerlink" href="#proposed-after-review" title="Permanent link">&para;</a></h2>
+<h2 id="plugins-and-api">Plugins and API<a class="headerlink" href="#plugins-and-api" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>#</th>
-<th>Proposal</th>
+<th>Decision</th>
 <th>Reason</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>R1</td>
-<td>Plugins are IPC clients first, like the window managers of River; the core offers <code>animate</code>; wasmtime only when a measurement demands it</td>
-<td>Agents work in seconds, not frames. One runtime less. Typed WIT only helps without JSON.</td>
+<td>D27</td>
+<td>Plugins are IPC clients; the core offers <code>animate</code>; in-process WASM plugins come only after a measurement shows the need</td>
+<td>Agents work in seconds, not frames. One mechanism, any language, crash isolation by the OS.</td>
 </tr>
 <tr>
-<td>R2</td>
-<td>Views, flavors and services leave the core: <code>voidctl</code> loads views, a flavor is a systemd target, a service is a Quadlet unit; the core reads no config</td>
-<td>Policy and service management do not belong in the core. systemd exists.</td>
+<td>D28</td>
+<td>Each node has one owner; plugins export methods</td>
+<td>An agent asks the window manager instead of fighting it.</td>
 </tr>
 <tr>
-<td>R3</td>
-<td>Write ownership: one writer at a time changes a node; plugins export methods, for example <code>tiling.set_layout</code></td>
-<td>A6 settles who removes a node. R3 settles who changes it. Otherwise an agent and the window manager fight over the same nodes.</td>
+<td>D29</td>
+<td>Selectors work in queries only; a query returns all current matches</td>
+<td>No window rules in the core. Predictable results for agents.</td>
 </tr>
 <tr>
-<td>R4</td>
-<td>Version 1 trusts the same user, as sway does; <code>wp-security-context-v1</code> hides privileged protocols from sandboxed clients; containers get restricted sockets; input injection and screen capture need approval</td>
-<td>Simple first, safe for containers.</td>
+<td>D30</td>
+<td>Version 1 trusts the clients of the same user; <code>wp-security-context-v1</code> hides privileged protocols from sandboxed clients; input injection and screen capture need the approval of the user</td>
+<td>Little code first, still safe for containers.</td>
 </tr>
 <tr>
-<td>R5</td>
-<td>One logical scene; each output is a viewport onto it</td>
-<td>Coordinates, scale and multiple outputs depend on this. It also gives the infinite canvas.</td>
+<td>D31</td>
+<td>MCP outside the core: <code>choractl mcp</code> over stdio, with tools for whole tasks</td>
+<td>The core stays free of MCP.</td>
 </tr>
 <tr>
-<td>R6</td>
-<td>A 3D matrix transform instead of a 2D transform</td>
-<td>Cube, wobbly windows and 3D surfaces need it.</td>
+<td>D32</td>
+<td>The core reads no configuration; <code>choractl</code> loads YAML views; a flavor is a directory with a systemd target; the configuration holds no secrets</td>
+<td>Policy and service management do not belong in the core.</td>
 </tr>
 <tr>
-<td>R7</td>
-<td>Defer the image node, or support PNG only</td>
-<td>Image decoding in the core costs code.</td>
+<td>D33</td>
+<td>Three crates to start: <code>chora-scene</code>, <code>chora</code>, <code>choractl</code></td>
+<td>A crate comes when a second consumer needs it.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tools-around-the-core">Tools around the core<a class="headerlink" href="#tools-around-the-core" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Decision</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D34</td>
+<td>Screen sharing through <code>xdg-desktop-portal-wlr</code> first</td>
+<td>No code. A portal backend of its own is in the <a href="../ideas/">Idea backlog</a>.</td>
 </tr>
 <tr>
-<td>R8</td>
-<td>Define selector behavior for several matches, no match and changed titles</td>
-<td>Agents depend on predictable results.</td>
-</tr>
-<tr>
-<td>R9</td>
-<td>A short, timeboxed review of the Pinnacle code before P4 is final</td>
-<td>A fork could save work.</td>
-</tr>
-<tr>
-<td>R10</td>
-<td>First milestone: nested winit core, scene, transactions, IPC, one tiling plugin as IPC client; no WASM, MCP, shaders or flavors</td>
-<td>The smallest proof of the concept.</td>
+<td>D35</td>
+<td>HTML content from agents runs in a browser in app mode, as a service</td>
+<td>No code. Chora places toplevels anywhere.</td>
 </tr>
 </tbody>
 </table>
@@ -1268,7 +1297,7 @@
 <td>The project conventions use mike.</td>
 </tr>
 <tr>
-<td>Hooks without matching files, and <code>commitizen-branch</code> next to <code>commitizen</code></td>
+<td>Hooks without matching files</td>
 <td>The project conventions use this hook set in every repository.</td>
 </tr>
 <tr>
@@ -1279,14 +1308,10 @@
 </table>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Name.</strong> "Void" collides with Void Linux. Does that matter for package
-   names and search?</li>
-<li><strong>License.</strong> MIT or Apache-2.0 like Smithay, or GPL like niri?</li>
-<li><strong>Webview host.</strong> WebKitGTK, Tauri or Servo? The agentic scenario depends
-   on it.</li>
-<li><strong>Hardware.</strong> Which GPU vendors come first? NVIDIA?</li>
-<li><strong>Screen sharing.</strong> A portal backend of its own, or
-   <code>xdg-desktop-portal-wlr</code>?</li>
+<li><strong>Approval.</strong> How does the user approve input injection and screen
+   capture? A dialog that the safety layer draws, or a prompt in <code>choractl</code>?</li>
+<li><strong>YAML crate.</strong> Which maintained crate replaces <code>serde_yaml</code>?</li>
+<li><strong>Repository name.</strong> The GitHub repository still has the name <code>void</code>.</li>
 </ol>
 
 

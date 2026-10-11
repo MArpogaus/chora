@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A Wayland compositor without policy, programmable by people and agents">
+        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Configuration - Void</title>
+        <title>Configuration - Chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Void" class="md-header__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Void
+            Chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Void" class="md-nav__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Void
+    Chora
   </label>
   
     <div class="md-nav__source">
@@ -813,7 +813,35 @@
   <span class="md-ellipsis">
     
   
-    Decisions and open questions
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
   
 
     
@@ -953,20 +981,15 @@
 
 
 <h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
-<div class="admonition note">
-<p class="admonition-title">Draft</p>
-<p>Proposal R2 in <a href="../decisions/">Decisions</a> moves views, flavors and
-services out of the core. This page shows that model.</p>
-</div>
 <p>Views are YAML files in git, and an agent can read and write them. A strict
 schema validates each file. It rejects unknown keys and catches the YAML
 traps, for example <code>no</code> read as <code>false</code>.</p>
 <p>The core reads no configuration file. It starts one command, usually the
 systemd target of a flavor:</p>
-<div class="highlight"><pre><span></span><code>void<span class="w"> </span>--<span class="w"> </span>systemctl<span class="w"> </span>--user<span class="w"> </span>start<span class="w"> </span>tiling.target
+<div class="highlight"><pre><span></span><code>chora<span class="w"> </span>--<span class="w"> </span>systemctl<span class="w"> </span>--user<span class="w"> </span>start<span class="w"> </span>tiling.target
 </code></pre></div>
 <h2 id="locations">Locations<a class="headerlink" href="#locations" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>~/.config/void/
+<div class="highlight"><pre><span></span><code>~/.config/chora/
 ├── views/      # one file per view
 ├── flavors/    # bundles of views, plugins and services
 ├── plugins/    # plugin manifests
@@ -975,9 +998,9 @@ systemd target of a flavor:</p>
 <p>The directory is a git repository. It contains no secrets.</p>
 <h2 id="views">Views<a class="headerlink" href="#views" title="Permanent link">&para;</a></h2>
 <p>A view is a part of the scene and the plugins that drive it.
-<code>voidctl view load &lt;name&gt;</code> starts the plugins of the view and applies its
-nodes as one transaction. Only <code>voidctl</code> starts plugins.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/void/views/analysis.yaml</span>
+<code>choractl view load &lt;name&gt;</code> starts the plugins of the view and applies its
+nodes as one transaction. Only <code>choractl</code> starts plugins.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/views/analysis.yaml</span>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">analysis</span>
 <span class="nt">plugins</span><span class="p">:</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
@@ -997,13 +1020,13 @@ plugin and its configuration.</p>
 <h2 id="flavors">Flavors<a class="headerlink" href="#flavors" title="Permanent link">&para;</a></h2>
 <p>A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target. The target starts the services and then loads the first
-view with <code>voidctl</code>. systemd handles start, restart and order, so Void needs
-no service manager.</p>
+view with <code>choractl</code>. systemd handles start, restart and order, so Chora
+needs no service manager.</p>
 <div class="highlight"><pre><span></span><code>flavors/agentic/
 ├── agentic.target
 ├── views/       # morning, analysis, writing, coding
 ├── plugins/     # canvas layout, keybindings
-└── services/    # Quadlet units: speech, webview host
+└── services/    # Quadlet units: speech, browser in app mode
 </code></pre></div>
 <h2 id="services">Services<a class="headerlink" href="#services" title="Permanent link">&para;</a></h2>
 <p>A service runs as a Quadlet unit with Podman, or in distrobox. It connects

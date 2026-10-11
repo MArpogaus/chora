@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A Wayland compositor without policy, programmable by people and agents">
+        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Dependencies - Void</title>
+        <title>Dependencies - Chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Void" class="md-header__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Void
+            Chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Void" class="md-nav__button md-logo" aria-label="Void" data-md-component="logo">
+    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Void
+    Chora
   </label>
   
     <div class="md-nav__source">
@@ -730,6 +730,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#choractl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        choractl
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-to-copy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code to copy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#wayland-protocols" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -802,7 +824,35 @@
   <span class="md-ellipsis">
     
   
-    Decisions and open questions
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
   
 
     
@@ -889,6 +939,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#choractl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        choractl
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-to-copy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code to copy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#wayland-protocols" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -931,8 +1003,8 @@
 
 
 <h1 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h1>
-<p>The parts that Void plans to reuse. Each entry is a candidate until
-<a href="../alternatives/">Alternatives</a> and <a href="../decisions/">Decisions</a> confirm it.</p>
+<p>The parts that Chora reuses. <a href="../alternatives/">Alternatives</a> records the
+check of each choice. <a href="../decisions/">Decisions</a> records the result.</p>
 <h2 id="core">Core<a class="headerlink" href="#core" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -946,7 +1018,7 @@
 <tr>
 <td><a href="https://github.com/Smithay/smithay">Smithay</a></td>
 <td>Wayland protocols, backends, GLES renderer, input</td>
-<td>a library without policy; used by niri, cosmic-comp and Pinnacle; the latest release is 0.7.0 (June 2025), so Void pins a git revision</td>
+<td>a library without policy; used by niri, cosmic-comp and Pinnacle; the latest release is 0.7.0 (June 2025), so Chora pins a git revision</td>
 </tr>
 <tr>
 <td>libinput, libseat, udev, GBM, Mesa</td>
@@ -963,20 +1035,52 @@
 <td>API types, generated JSON Schemas</td>
 <td></td>
 </tr>
+</tbody>
+</table>
+<h2 id="choractl">choractl<a class="headerlink" href="#choractl" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Dependency</th>
+<th>Purpose</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
 <tr>
 <td>a maintained YAML crate</td>
-<td>views, read by <code>voidctl</code> (R2)</td>
+<td>views</td>
 <td><code>serde_yaml</code> is unmaintained</td>
 </tr>
 <tr>
 <td><a href="https://github.com/modelcontextprotocol/rust-sdk">rmcp</a></td>
-<td><code>voidctl mcp</code></td>
+<td><code>choractl mcp</code></td>
 <td>the official Rust MCP SDK, version 3.x</td>
 </tr>
+</tbody>
+</table>
+<h2 id="code-to-copy">Code to copy<a class="headerlink" href="#code-to-copy" title="Permanent link">&para;</a></h2>
+<p>The core is GPL-3.0-or-later, so it can reuse GPL code. Code under
+GPL-3.0-only stays out, for example <code>src/protocol/drm.rs</code> of Pinnacle.</p>
+<table>
+<thead>
 <tr>
-<td><a href="https://wasmtime.dev/">wasmtime</a></td>
-<td>in-process plugins (D7); R1 defers them</td>
-<td>Component Model with typed WIT interfaces</td>
+<th>Source</th>
+<th>Parts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/pinnacle-comp/pinnacle">Pinnacle</a></td>
+<td>transactions (<code>util/transaction.rs</code>, <code>hook.rs</code>), wlr protocol implementations (<code>protocol/</code>), udev and winit backends, the handoff from the IPC thread to the event loop (<code>api.rs</code>), the wlcs test adapter</td>
+</tr>
+<tr>
+<td><a href="https://github.com/YaLTeR/niri">niri</a></td>
+<td>custom shaders, blur, offscreen rendering, animations</td>
+</tr>
+<tr>
+<td>anvil and smallvil (Smithay)</td>
+<td>minimal compositor structure</td>
 </tr>
 </tbody>
 </table>
@@ -991,12 +1095,8 @@
 <li><strong>Desktop integration:</strong> <code>ext-session-lock</code>, <code>ext-idle-notify</code>,
   <code>idle-inhibit</code>, <code>text-input</code>, <code>input-method</code>, <code>pointer-constraints</code>,
   <code>relative-pointer</code>, <code>wlr-output-management</code>.</li>
-<li><strong>Capture:</strong> <code>ext-image-copy-capture</code> and <code>wlr-screencopy</code>, and a portal for
-  screen sharing.</li>
-<li><strong>Isolation:</strong> <code>wp-security-context-v1</code>, to hide privileged protocols from
-  sandboxed clients.</li>
-<li><strong>Xwayland:</strong> through <code>xwayland-satellite</code>, a separate process outside the
-  core (P8).</li>
+<li><strong>Capture:</strong> <code>ext-image-copy-capture</code> and <code>wlr-screencopy</code>.</li>
+<li><strong>Isolation:</strong> <code>wp-security-context-v1</code>.</li>
 </ul>
 <h2 id="outside-the-core">Outside the core<a class="headerlink" href="#outside-the-core" title="Permanent link">&para;</a></h2>
 <table>
@@ -1008,6 +1108,14 @@
 </thead>
 <tbody>
 <tr>
+<td><code>xwayland-satellite</code></td>
+<td>Xwayland as a separate process</td>
+</tr>
+<tr>
+<td><code>xdg-desktop-portal-wlr</code></td>
+<td>screen sharing</td>
+</tr>
+<tr>
 <td>Quickshell, waybar, eww, AGS/Astal</td>
 <td>bars, panels, widgets</td>
 </tr>
@@ -1016,8 +1124,12 @@
 <td>launchers</td>
 </tr>
 <tr>
-<td>a webview host on <code>gtk4-layer-shell</code> and WebKitGTK, or Tauri</td>
-<td>HTML from agents as surfaces</td>
+<td>swaybg, swww</td>
+<td>wallpapers</td>
+</tr>
+<tr>
+<td>Chromium or Firefox in app mode</td>
+<td>HTML content from agents</td>
 </tr>
 <tr>
 <td>whisper.cpp or faster-whisper, piper</td>
