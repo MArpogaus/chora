@@ -172,10 +172,13 @@ impl XdgShellHandler for State {
             return;
         };
         self.windows.remove(&id);
-        self.scene.remove_surface(&id);
+        let existed = self.scene.remove_surface(&id);
         self.transactions.forget(&id);
         self.complete_transactions();
-        self.emit(&Event::SurfaceDestroyed { surface: id });
+        // A toplevel without a first commit never had a node or an event.
+        if existed {
+            self.emit(&Event::SurfaceDestroyed { surface: id });
+        }
     }
 
     fn title_changed(&mut self, surface: ToplevelSurface) {

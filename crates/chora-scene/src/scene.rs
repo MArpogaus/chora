@@ -120,9 +120,10 @@ impl Scene {
     }
 
     /// Removes a surface node after its client destroyed the surface.
-    pub fn remove_surface(&mut self, id: &str) {
+    /// Returns whether the node existed.
+    pub fn remove_surface(&mut self, id: &str) -> bool {
         self.unlink(id);
-        self.nodes.remove(id);
+        self.nodes.remove(id).is_some()
     }
 
     /// Applies a transaction for `owner`. Either all commands apply, or
