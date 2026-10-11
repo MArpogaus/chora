@@ -1,3 +1,60 @@
+## v0.3.0 (2026-10-11)
+
+The showroom (milestone M3): layers with meshes, 4x4 transforms and GLSL
+effects, animations in the core, image nodes and pointer events over
+nodes. The new XP flavor shows them off: a desktop in the style of
+Windows XP with wobbly windows, a magic lamp minimize and a desktop cube.
+Log in with the session "chora (Windows XP)". No file of Microsoft ships
+with it.
+Nested, `tests/nested.sh` and `tests/xp.sh` check the features.
+
+### Known issues
+
+- Nobody has run this release on real hardware yet: the tty backend,
+  effects on a GPU and the 60 Hz goal on Intel graphics are untested.
+- Layers render again in every frame, even when nothing in them changed.
+- Layers have no depth test: they draw in the order of their siblings.
+- A rotated or projected layer takes the input over its bounding box.
+- Every client of the user can take the keyboard as an input method and
+  configure the outputs, as in sway; sandboxed clients lose this with
+  `wp-security-context-v1` in M4.
+- Taskbars of other programs never see a toplevel as minimized.
+- The XP flavor is a demo, not a daily driver:
+  - windows have no resize borders, and there is no Alt+Tab;
+  - fullscreen requests are ignored;
+  - the cube shows only the first output;
+  - windows that draw their own frame cannot be moved;
+  - All Programs opens the launcher;
+  - while the cube turns, lifted windows of the far side can hide behind
+    the near side.
+
+### Feat
+
+- **xp**: light up buttons and menu entries under the pointer
+- tell plugins when the pointer enters and leaves a node
+- **xp**: leave the frame to windows that draw their own
+- **xp**: wobble windows, minimize through a lamp, turn a desktop cube
+- tell plugins who draws the frame of a window
+- shade layers with GLSL effects that reload on change
+- report size changes, and read events with a timeout
+- **xp**: add the XP flavor, its session and its RPM files
+- **xp**: add chora-xp, a window manager in the style of Windows XP
+- **xp**: add the theme of the XP flavor
+- **safety**: remove effects and reset when frames stay slow
+- render layers through meshes with full 4x4 transforms
+- tell plugins about presses and drags over nodes
+- animate node properties in the core
+- add image nodes with nine-slice scaling
+
+### Fix
+
+- harden the watchdog, layers, images and effects
+- **winit**: pace frames without damage instead of rendering at once again
+- **input**: send pointer.moved only for a new position
+- **ipc**: let plugins grab Ctrl+Alt keys outside the safety layer
+- **scene**: read nodes without effects back from their JSON
+- **xp**: read queries without effects, events through the client
+
 ## v0.2.0 (2026-10-11)
 
 The session on real hardware (milestone M2): log in to chora with the
