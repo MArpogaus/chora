@@ -416,3 +416,15 @@ fn a_camera_needs_a_positive_2d_scale() {
         assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
     }
 }
+
+#[test]
+fn adding_a_surface_again_keeps_its_node() {
+    let mut scene = scene_with_surface();
+    scene
+        .apply("wm", &[group("g", ROOT), attach("s1", "g")])
+        .unwrap();
+    assert!(!scene.add_surface("s1", SurfaceInfo::default()));
+    assert_eq!(scene.node("s1").unwrap().parent.as_deref(), Some("g"));
+    scene.remove_surface("s1");
+    assert!(scene.draw_list().iter().all(|p| p.node.id != "s1"));
+}

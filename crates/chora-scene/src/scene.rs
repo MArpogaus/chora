@@ -116,8 +116,13 @@ impl Scene {
             .collect()
     }
 
-    /// Adds a detached surface node without an owner.
-    pub fn add_surface(&mut self, id: &str, info: SurfaceInfo) {
+    /// Adds a detached surface node without an owner. Returns `false` and
+    /// changes nothing if the node exists, for example when a client maps a
+    /// surface again after it unmapped it.
+    pub fn add_surface(&mut self, id: &str, info: SurfaceInfo) -> bool {
+        if self.nodes.contains_key(id) {
+            return false;
+        }
         let node = Node {
             id: id.into(),
             kind: NodeKind::Surface,
@@ -128,6 +133,7 @@ impl Scene {
             surface: Some(info),
         };
         self.nodes.insert(id.into(), node);
+        true
     }
 
     /// Replaces the client data of a surface node.
@@ -431,13 +437,13 @@ impl Scene {
                     input
                 },
             };
-            for child in node.children.iter().rev() {
-                stack.push((
-                    &self.nodes[child],
-                    placed.transform,
-                    placed.opacity,
-                    placed.input,
-                ));
+            for id in node.children.iter().rev() {
+                // A missing child is a bug of the tree links; a frame
+                // without it is better than a crash of the session.
+                debug_assert!(self.nodes.contains_key(id), "missing child {id:?}");
+                if let Some(child) = self.nodes.get(id) {
+                    stack.push((child, placed.transform, placed.opacity, placed.input));
+                }
             }
             if node.id != ROOT {
                 out.push(placed);

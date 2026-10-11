@@ -92,13 +92,16 @@ impl State {
             .clone();
         if !toplevel.is_initial_configure_sent() {
             toplevel.send_configure();
+            // A client that maps a surface again after it unmapped it, with
+            // a commit without a buffer, keeps its node.
             let info = self.surface_info(id);
-            self.scene.add_surface(id, info.clone());
-            self.emit(&Event::SurfaceCreated {
-                surface: id.into(),
-                app_id: info.app_id,
-                title: info.title,
-            });
+            if self.scene.add_surface(id, info.clone()) {
+                self.emit(&Event::SurfaceCreated {
+                    surface: id.into(),
+                    app_id: info.app_id,
+                    title: info.title,
+                });
+            }
             return;
         }
         let info = self.surface_info(id);
