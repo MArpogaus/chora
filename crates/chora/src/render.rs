@@ -102,11 +102,11 @@ where
     )))
 }
 
-/// The translation and the scale of a 2D transform. Other transforms come
-/// with the effects milestone.
+/// The translation and the scale of a 2D transform with a positive scale.
+/// Other transforms come with the effects milestone.
 fn location_and_scale(t: &Transform) -> Option<(Point<f64, Logical>, (f64, f64))> {
-    let scale = t.scale_2d()?;
-    Some((t.translation_2d().into(), scale))
+    let (sx, sy) = t.scale_2d().filter(|(sx, sy)| *sx > 0.0 && *sy > 0.0)?;
+    Some((t.translation_2d().into(), (sx, sy)))
 }
 
 #[allow(clippy::cast_possible_truncation)]
@@ -160,4 +160,19 @@ pub fn surface_under(
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use chora_scene::Transform;
+
+    use super::location_and_scale;
+
+    #[test]
+    fn mirrored_and_collapsed_nodes_are_not_drawn() {
+        assert!(location_and_scale(&Transform::scale(-1.0, 1.0, 1.0)).is_none());
+        assert!(location_and_scale(&Transform::scale(1.0, 0.0, 1.0)).is_none());
+        assert!(location_and_scale(&Transform::rotate_z(30.0)).is_none());
+        assert!(location_and_scale(&Transform::scale(2.0, 2.0, 1.0)).is_some());
+    }
 }
