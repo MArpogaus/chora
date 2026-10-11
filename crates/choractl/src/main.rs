@@ -1,6 +1,9 @@
 //! Command line client for the chora IPC socket.
 
-use std::{io::Read, process::ExitCode};
+use std::{
+    io::{Read, Write},
+    process::ExitCode,
+};
 
 use chora_scene::{
     Command, Event,
@@ -14,7 +17,7 @@ use serde_json::Value;
 #[command(version)]
 struct Args {
     /// The client name, the owner of the nodes that this call creates.
-    #[arg(long, default_value = "choractl")]
+    #[arg(long, global = true, default_value = "choractl")]
     name: String,
     #[command(subcommand)]
     command: Cmd,
@@ -24,8 +27,8 @@ struct Args {
 enum Cmd {
     /// Print the nodes that match a selector, for example `kind:surface`.
     Query {
-        /// The selector; every node if missing.
-        #[arg(default_value = "")]
+        /// The selector.
+        #[arg(default_value = "*")]
         selector: String,
     },
     /// Apply a transaction: a JSON list of commands from a file or stdin.
@@ -53,47 +56,67 @@ fn main() -> ExitCode {
     }
 }
 
-fn run(args: Args) -> Result<(), ClientError> {
+fn run(args: Args) -> Result<(), String> {
+    let commands = match &args.command {
+        Cmd::Apply { file } => read_commands(file.as_deref())?,
+        _ => Vec::new(),
+    };
     let hello = Hello {
         name: args.name,
         keep_nodes: true,
     };
-    let mut client = Client::from_env(&hello)?;
-    match args.command {
-        Cmd::Query { selector } => {
-            print(&client.call::<_, Value>("scene.query", Query { selector })?);
-        }
-        Cmd::Apply { file } => {
-            let commands = read_commands(file.as_deref())?;
-            client.call::<_, Value>("scene.apply", Apply { commands })?;
-        }
-        Cmd::Events { names } => {
-            client.call::<_, Value>("events.subscribe", Subscribe { events: names })?;
-            loop {
-                let event: Event = client.next_event()?;
-                println!("{}", serde_json::to_string(&event)?);
-            }
-        }
-        Cmd::Outputs => print(&client.call::<_, Value>("output.list", Value::Null)?),
-    }
-    Ok(())
+    let mut client = Client::from_env(&hello).map_err(|e| e.to_string())?;
+    let result = match args.command {
+        Cmd::Query { selector } => client
+            .call("scene.query", Query { selector })
+            .map(|v| print(&v)),
+        Cmd::Apply { .. } => client
+            .call::<_, Value>("scene.apply", Apply { commands })
+            .map(drop),
+        Cmd::Events { names } => events(&mut client, names),
+        Cmd::Outputs => client.call("output.list", Value::Null).map(|v| print(&v)),
+    };
+    result.map_err(|e| e.to_string())
 }
 
-fn read_commands(file: Option<&str>) -> Result<Vec<Command>, ClientError> {
-    let text = match file {
+/// Prints events until the core closes the socket or stdout closes.
+fn events(client: &mut Client, names: Vec<String>) -> Result<(), ClientError> {
+    client.call::<_, Value>("events.subscribe", Subscribe { events: names })?;
+    let mut stdout = std::io::stdout().lock();
+    loop {
+        let event: Event = match client.next_event() {
+            Err(ClientError::Closed) => return Ok(()),
+            other => other?,
+        };
+        let line = serde_json::to_string(&event)?;
+        if writeln!(stdout, "{line}")
+            .and_then(|()| stdout.flush())
+            .is_err()
+        {
+            return Ok(());
+        }
+    }
+}
+
+fn read_commands(file: Option<&str>) -> Result<Vec<Command>, String> {
+    let (name, text) = match file {
         None | Some("-") => {
             let mut text = String::new();
-            std::io::stdin().read_to_string(&mut text)?;
-            text
+            std::io::stdin()
+                .read_to_string(&mut text)
+                .map_err(|e| format!("stdin: {e}"))?;
+            ("stdin", text)
         }
-        Some(path) => std::fs::read_to_string(path)?,
+        Some(path) => (
+            path,
+            std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?,
+        ),
     };
-    Ok(serde_json::from_str(&text)?)
+    serde_json::from_str(&text).map_err(|e| format!("{name}: {e}"))
 }
 
 fn print(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string_pretty(value).expect("values always serialize")
-    );
+    let text = serde_json::to_string_pretty(value).expect("values always serialize");
+    // A closed stdout, for example after `| head`, is no error.
+    let _ = writeln!(std::io::stdout(), "{text}");
 }
