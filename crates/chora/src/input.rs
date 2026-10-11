@@ -7,6 +7,8 @@
 //! the keyboard for a while: a popup grab, a layer surface such as a
 //! launcher, and the lock screen.
 
+use std::sync::atomic::Ordering;
+
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
@@ -17,10 +19,15 @@ use smithay::{
         keyboard::{FilterResult, Keysym, ModifiersState},
         pointer::{AxisFrame, ButtonEvent, MotionEvent},
     },
-    utils::{Logical, Point, SERIAL_COUNTER},
+    reexports::wayland_server::{Resource, protocol::wl_surface::WlSurface},
+    utils::{Logical, Point, SERIAL_COUNTER, Serial},
 };
 
-use crate::{output::output_area, render, state::State};
+use crate::{
+    output::output_area,
+    render,
+    state::{ClientState, State},
+};
 
 /// What a key press does besides reaching a client.
 enum KeyAction {
@@ -50,11 +57,12 @@ pub fn process<I: InputBackend>(state: &mut State, event: InputEvent<I>) {
 fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
     let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
     let (code, key_state) = (event.key_code(), event.state());
+    let serial = SERIAL_COUNTER.next_serial();
     let action = keyboard.input(
         state,
         code,
         key_state,
-        SERIAL_COUNTER.next_serial(),
+        serial,
         event.time(),
         |state, mods, handle| {
             if key_state == KeyState::Released {
@@ -86,7 +94,12 @@ fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
         Some(KeyAction::Grab(conn, binding)) => state
             .ipc
             .send_to(conn, &chora_scene::Event::InputKey { binding }),
-        Some(KeyAction::Swallow) | None => {}
+        Some(KeyAction::Swallow) => {}
+        None => {
+            if key_state == KeyState::Pressed {
+                note_press(state, keyboard.current_focus(), serial);
+            }
+        }
     }
 }
 
@@ -164,19 +177,30 @@ fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime)
 fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     let button_state: ButtonState = event.state();
+    let serial = SERIAL_COUNTER.next_serial();
     if button_state == ButtonState::Pressed {
         click_focus(state);
+        note_press(state, pointer.current_focus(), serial);
     }
     pointer.button(
         state,
         &ButtonEvent {
             button: event.button_code(),
             state: button_state,
-            serial: SERIAL_COUNTER.next_serial(),
+            serial,
             time: event.time(),
         },
     );
     pointer.frame(state);
+}
+
+/// Notes the serial of a press for the client that gets it. Its popups may
+/// grab the input with this serial only.
+fn note_press(state: &State, surface: Option<WlSurface>, serial: Serial) {
+    let client = surface.and_then(|s| state.display_handle.get_client(s.id()).ok());
+    if let Some(data) = client.as_ref().and_then(|c| c.get_data::<ClientState>()) {
+        data.last_press.store(u32::from(serial), Ordering::Relaxed);
+    }
 }
 
 /// The focus changes of a click. A layer surface that accepts the keyboard,

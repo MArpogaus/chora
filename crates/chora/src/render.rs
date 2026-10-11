@@ -22,6 +22,7 @@ use smithay::{
         Window, WindowSurfaceType, layer_map_for_output, space::SpaceElement,
         utils::send_frames_surface_tree,
     },
+    input::pointer::CursorImageStatus,
     output::Output,
     reexports::wayland_server::protocol::wl_surface::WlSurface,
     render_elements,
@@ -364,6 +365,11 @@ pub fn send_frames(state: &State, output: &Output) {
     }
     for layer in layer_map_for_output(output).layers() {
         layer.send_frame(output, time, Some(Duration::ZERO), |_, _| {
+            Some(output.clone())
+        });
+    }
+    if let CursorImageStatus::Surface(surface) = &state.cursor_status {
+        send_frames_surface_tree(surface, output, time, Some(Duration::ZERO), |_, _| {
             Some(output.clone())
         });
     }

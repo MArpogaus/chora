@@ -1,6 +1,8 @@
 //! Protocol handlers: the parts of the Wayland protocols that Smithay leaves
 //! to the compositor.
 
+use std::sync::atomic::Ordering;
+
 use chora_scene::Event;
 use smithay::{
     backend::renderer::utils::on_commit_buffer_handler,
@@ -226,6 +228,12 @@ impl XdgShellHandler for State {
     /// A popup grab, for example of a menu: input goes to the popup until a
     /// click outside closes it.
     fn grab(&mut self, surface: PopupSurface, seat: WlSeat, serial: Serial) {
+        // A popup grabs the input only for the press that opened it, and
+        // never while the session is locked.
+        if self.lock.is_some() || !self.pressed(surface.wl_surface(), serial) {
+            surface.send_popup_done();
+            return;
+        }
         let Some(seat) = Seat::<Self>::from_resource(&seat) else {
             return;
         };
@@ -253,6 +261,16 @@ impl XdgShellHandler for State {
 }
 
 impl State {
+    /// Whether a serial is the one of the last press that the client of a
+    /// surface got.
+    fn pressed(&self, surface: &WlSurface, serial: Serial) -> bool {
+        let client = self.display_handle.get_client(surface.id()).ok();
+        client
+            .as_ref()
+            .and_then(|c| c.get_data::<ClientState>())
+            .is_some_and(|d| d.last_press.load(Ordering::Relaxed) == u32::from(serial))
+    }
+
     fn surface_changed(&mut self, surface: &ToplevelSurface) {
         let Some(id) = self.surface_id(surface.wl_surface()) else {
             return;

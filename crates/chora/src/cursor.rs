@@ -77,8 +77,10 @@ fn load(theme: &CursorTheme, name: &str, size: u32) -> Option<CursorImage> {
     let image = images.iter().min_by_key(|i| i.size.abs_diff(size))?;
     let int = |v: u32| i32::try_from(v).ok();
     let buffer = MemoryRenderBuffer::from_slice(
+        // xcursor stores ARGB words in little endian, which are the bytes
+        // that this name calls rgba.
         &image.pixels_rgba,
-        Fourcc::Abgr8888,
+        Fourcc::Argb8888,
         (int(image.width)?, int(image.height)?),
         1,
         Transform::Normal,

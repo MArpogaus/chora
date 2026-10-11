@@ -62,6 +62,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     backend::init(&mut state)?;
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
     event_loop.run(None, &mut state, |state| {
+        state.popups.cleanup();
+        // The focus follows the protocols, for example after a popup grab
+        // ended.
+        state.update_focus();
         state.ipc_flush();
         if let Err(err) = state.display_handle.flush_clients() {
             tracing::warn!(?err, "flushing the wayland clients failed");

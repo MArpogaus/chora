@@ -1,18 +1,29 @@
 //! The lock screen of `ext-session-lock`, part of the safety layer.
 //!
 //! While the session is locked, each output shows only its lock surface, or
-//! black, and only the lock surfaces get input; plugin grabs pause. The lock
-//! stays when its client dies, so a crash never unlocks the session. A new
-//! lock client can then take over.
+//! black, and only the lock client gets input; plugin and popup grabs end
+//! and pause. One lock client owns the lock. Other clients cannot lock or
+//! unlock while it lives. When it dies, the session stays locked, and a new
+//! lock client can take over.
+//!
+//! The core confirms a lock only after each output showed a locked frame,
+//! or after a second if an output shows nothing, for example while the
+//! session is paused.
 
-use std::collections::HashMap;
+use std::{collections::HashSet, time::Duration};
 
 use smithay::{
+    backend::input::InputTime,
     output::Output,
-    reexports::wayland_server::{
-        Resource,
-        protocol::{wl_output::WlOutput, wl_surface::WlSurface},
+    reexports::{
+        calloop::timer::{TimeoutAction, Timer},
+        wayland_protocols::ext::session_lock::v1::server::ext_session_lock_v1::ExtSessionLockV1,
+        wayland_server::{
+            Resource,
+            protocol::{wl_output::WlOutput, wl_surface::WlSurface},
+        },
     },
+    utils::SERIAL_COUNTER,
     wayland::session_lock::{
         LockSurface, SessionLockHandler, SessionLockManagerState, SessionLocker,
     },
@@ -20,19 +31,37 @@ use smithay::{
 
 use crate::{output::output_area, state::State};
 
-/// A locked session: the lock surfaces by output name.
-#[derive(Default)]
+/// The longest wait for locked frames before the core confirms a lock.
+const CONFIRM_DEADLINE: Duration = Duration::from_secs(1);
+
+/// A locked session.
 pub struct Lock {
-    surfaces: HashMap<String, LockSurface>,
+    /// The lock object of the client that owns the lock.
+    owner: ExtSessionLockV1,
+    /// The lock surfaces by output name.
+    surfaces: Vec<(String, LockSurface)>,
+    /// The confirmation, until each output showed a locked frame.
+    pending: Option<SessionLocker>,
+    /// The outputs that showed a locked frame.
+    shown: HashSet<String>,
 }
 
 impl Lock {
     /// The lock surface of an output, while its client lives.
     pub fn surface(&self, output: &Output) -> Option<&WlSurface> {
+        let name = output.name();
         self.surfaces
-            .get(&output.name())
-            .map(LockSurface::wl_surface)
+            .iter()
+            .find(|(n, _)| *n == name)
+            .map(|(_, s)| s.wl_surface())
             .filter(|s| s.is_alive())
+    }
+
+    /// Whether a surface belongs to the client that owns the lock.
+    pub fn owns(&self, surface: &WlSurface) -> bool {
+        self.owner
+            .client()
+            .is_some_and(|c| surface.client().as_ref() == Some(&c))
     }
 }
 
@@ -41,33 +70,49 @@ impl SessionLockHandler for State {
         &mut self.lock_state
     }
 
-    /// Locks at once. The next frame of each output shows only the lock.
+    /// Takes the lock, unless a live client owns it. Dropping the
+    /// confirmation tells a refused client that it failed.
     fn lock(&mut self, confirmation: SessionLocker) {
-        self.lock = Some(Lock::default());
-        confirmation.lock();
-        self.update_focus();
+        if self.lock.as_ref().is_some_and(|l| l.owner.is_alive()) {
+            refuse_lock();
+            return;
+        }
+        self.lock = Some(Lock {
+            owner: confirmation.ext_session_lock().clone(),
+            surfaces: Vec::new(),
+            pending: Some(confirmation),
+            shown: HashSet::new(),
+        });
+        self.lock_changed();
+        self.confirm_lock_later();
         tracing::info!("the session is locked");
     }
 
     fn unlock(&mut self) {
         self.lock = None;
-        self.update_focus();
+        self.lock_changed();
         tracing::info!("the session is unlocked");
     }
 
     fn new_surface(&mut self, surface: LockSurface, output: WlOutput) {
-        let Some(output) = Output::from_resource(&output) else {
+        let Some(output) = Output::from_resource(&output).filter(|o| self.outputs.contains(o))
+        else {
+            return;
+        };
+        let Some(lock) = self
+            .lock
+            .as_mut()
+            .filter(|l| l.owner == *surface.ext_session_lock())
+        else {
             return;
         };
         let size = output_area(&output).size;
-        let size = (u32::try_from(size.w), u32::try_from(size.h));
-        if let (Ok(w), Ok(h)) = size {
+        if let (Ok(w), Ok(h)) = (u32::try_from(size.w), u32::try_from(size.h)) {
             surface.with_pending_state(|state| state.size = Some((w, h).into()));
         }
         surface.send_configure();
-        if let Some(lock) = &mut self.lock {
-            lock.surfaces.insert(output.name(), surface);
-        }
+        lock.surfaces.retain(|(name, _)| *name != output.name());
+        lock.surfaces.push((output.name(), surface));
         self.update_focus();
     }
 }
@@ -79,4 +124,49 @@ impl State {
         let lock = self.lock.as_ref()?;
         self.outputs.iter().find_map(|o| lock.surface(o)).cloned()
     }
+
+    /// Notes that an output showed a frame. A pending lock is confirmed
+    /// when every output showed a locked frame.
+    pub fn frame_shown(&mut self, output: &Output) {
+        let Some(lock) = self.lock.as_mut().filter(|l| l.pending.is_some()) else {
+            return;
+        };
+        lock.shown.insert(output.name());
+        if self.outputs.iter().all(|o| lock.shown.contains(&o.name())) {
+            self.confirm_lock();
+        }
+    }
+
+    /// Confirms the lock at the deadline, if the frames take longer.
+    fn confirm_lock_later(&mut self) {
+        let deadline = Timer::from_duration(CONFIRM_DEADLINE);
+        let timer = self.loop_handle.insert_source(deadline, |_, (), state| {
+            state.confirm_lock();
+            TimeoutAction::Drop
+        });
+        if timer.is_err() {
+            self.confirm_lock();
+        }
+    }
+
+    fn confirm_lock(&mut self) {
+        if let Some(pending) = self.lock.as_mut().and_then(|l| l.pending.take()) {
+            pending.lock();
+        }
+    }
+
+    /// Ends the grabs and moves the keyboard and the pointer after the
+    /// session locked or unlocked.
+    fn lock_changed(&mut self) {
+        let pointer = self.seat.get_pointer().expect("the seat has a pointer");
+        pointer.unset_grab(self, SERIAL_COUNTER.next_serial(), InputTime::now());
+        self.update_focus();
+        self.refresh_pointer();
+    }
+}
+
+/// Dropping the confirmation of a refused lock tells its client that it
+/// failed.
+fn refuse_lock() {
+    tracing::warn!("a second client tried to lock the session");
 }

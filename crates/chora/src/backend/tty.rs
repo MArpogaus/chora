@@ -18,7 +18,7 @@ use smithay::{
             gbm::{GbmAllocator, GbmBufferFlags, GbmDevice},
         },
         drm::{
-            DrmDevice, DrmDeviceFd, DrmEvent, DrmNode, NodeType,
+            DrmDevice, DrmDeviceFd, DrmError, DrmEvent, DrmNode, NodeType,
             compositor::FrameFlags,
             exporter::gbm::GbmFramebufferExporter,
             output::{DrmOutput, DrmOutputManager, DrmOutputRenderElements},
@@ -33,6 +33,7 @@ use smithay::{
         session::{Event as SessionEvent, Session, libseat::LibSeatSession},
         udev::{UdevBackend, UdevEvent, all_gpus, primary_gpu},
     },
+    input::pointer::CursorImageStatus,
     output::{Mode, Output, PhysicalProperties},
     reexports::{
         calloop::{
@@ -64,6 +65,7 @@ type Gles = GbmGlesBackend<GlesRenderer, DrmDeviceFd>;
 type Allocator = GbmAllocator<DrmDeviceFd>;
 type Exporter = GbmFramebufferExporter<DrmDeviceFd>;
 type TtyRenderer<'a> = MultiRenderer<'a, 'a, Gles, Gles>;
+type Manager = DrmOutputManager<Allocator, Exporter, (), DrmDeviceFd>;
 
 /// The scan-out formats, in the order of preference.
 const COLOR_FORMATS: [Fourcc; 2] = [Fourcc::Abgr8888, Fourcc::Argb8888];
@@ -82,7 +84,7 @@ pub struct Tty {
 
 /// One GPU with its connectors.
 struct Device {
-    manager: DrmOutputManager<Allocator, Exporter, (), DrmDeviceFd>,
+    manager: Manager,
     scanner: DrmScanner,
     render_node: DrmNode,
     surfaces: HashMap<crtc::Handle, Surface>,
@@ -424,7 +426,12 @@ fn disconnect(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
 }
 
 /// Renders an output, unless a frame of it still waits for its vblank.
+/// Renders an output, unless a frame of it still waits for its vblank. A
+/// paused session renders nothing; its activation renders all outputs.
 fn render(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
+    if tty(state).is_some_and(|t| !t.session.is_active()) {
+        return;
+    }
     let Some(output) = surface(state, node, crtc)
         .filter(|s| !s.queued)
         .map(|s| s.output.clone())
@@ -484,6 +491,12 @@ fn draw(
             .renderer(&tty.primary_gpu, &device.render_node, format)
     }
     .map_err(|e| format!("{e:?}"))?;
+    // Over the lock, only the lock client sets the cursor.
+    let fallback = CursorImageStatus::default_named();
+    let cursor_status = match (&*lock, &*cursor_status) {
+        (Some(lock), CursorImageStatus::Surface(s)) if !lock.owns(s) => &fallback,
+        (_, status) => status,
+    };
     let mut elements = pointer.map_or_else(Vec::new, |p| {
         cursor::elements(
             &mut renderer,
@@ -505,10 +518,31 @@ fn draw(
         &output,
         view,
     ));
+    present(&mut device.manager, surface, &mut renderer, &elements)
+}
+
+/// Renders the elements and queues the frame, if it has damage. Returns
+/// whether a frame was queued.
+fn present<'a>(
+    manager: &mut Manager,
+    surface: &mut Surface,
+    renderer: &mut TtyRenderer<'a>,
+    elements: &[SceneElement<TtyRenderer<'a>>],
+) -> Result<bool, String> {
     let frame = surface
         .compositor
-        .render_frame(&mut renderer, &elements, BLACK, FrameFlags::DEFAULT)
-        .map_err(|e| format!("{e:?}"))?;
+        .render_frame(renderer, elements, BLACK, FrameFlags::DEFAULT);
+    let frame = match frame {
+        Ok(frame) => frame,
+        Err(err) => {
+            // Another session can leave the CRTCs bound otherwise, for
+            // example after a VT switch; a fresh state recovers.
+            if test_failed(&err) {
+                log_error("resetting a GPU failed", manager.device_mut().reset_state());
+            }
+            return Err(format!("{err:?}"));
+        }
+    };
     if frame.is_empty {
         return Ok(false);
     }
@@ -520,12 +554,27 @@ fn draw(
     Ok(true)
 }
 
+/// Whether an error comes from a failed atomic test of the DRM device.
+fn test_failed(err: &(dyn std::error::Error + 'static)) -> bool {
+    let mut current = Some(err);
+    while let Some(e) = current {
+        if matches!(e.downcast_ref::<DrmError>(), Some(DrmError::TestFailed(_))) {
+            return true;
+        }
+        current = e.source();
+    }
+    false
+}
+
 /// The frame reached the screen: the output can render again.
 fn vblank(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
-    if let Some(surface) = surface(state, node, crtc) {
-        surface.queued = false;
-        log_error("a frame failed", surface.compositor.frame_submitted());
-    }
+    let Some(surface) = surface(state, node, crtc) else {
+        return;
+    };
+    surface.queued = false;
+    log_error("a frame failed", surface.compositor.frame_submitted());
+    let output = surface.output.clone();
+    state.frame_shown(&output);
     render(state, node, crtc);
 }
 

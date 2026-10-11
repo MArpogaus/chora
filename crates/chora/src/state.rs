@@ -1,6 +1,11 @@
 //! The state of the compositor.
 
-use std::{collections::HashMap, ffi::OsString, sync::Arc, time::Instant};
+use std::{
+    collections::HashMap,
+    ffi::OsString,
+    sync::{Arc, atomic::AtomicU32},
+    time::Instant,
+};
 
 use chora_scene::{Effect, Event, Scene, SurfaceInfo, ToplevelState};
 use smithay::{
@@ -277,8 +282,13 @@ impl State {
             }
             return;
         }
+        // A launcher ends a popup grab, for example of an open menu.
+        let exclusive = self.exclusive_layer();
         if keyboard.is_grabbed() {
-            return;
+            if exclusive.is_none() {
+                return;
+            }
+            keyboard.unset_grab(self);
         }
         let window = self
             .focus_wanted
@@ -287,7 +297,7 @@ impl State {
             .and_then(Window::toplevel)
             .map(|t| t.wl_surface().clone());
         let clicked = self.layer_focus.clone().filter(Resource::is_alive);
-        let target = self.exclusive_layer().or(clicked).or(window);
+        let target = exclusive.or(clicked).or(window);
         if keyboard.current_focus() != target {
             keyboard.set_focus(self, target, SERIAL_COUNTER.next_serial());
         }
@@ -366,6 +376,8 @@ fn listen(display: Display<State>, loop_handle: &LoopHandle<'static, State>) -> 
 #[derive(Default)]
 pub struct ClientState {
     pub compositor_state: CompositorClientState,
+    /// The serial of the last key or button press that the client got.
+    pub last_press: AtomicU32,
 }
 
 impl ClientData for ClientState {}

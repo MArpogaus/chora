@@ -104,18 +104,21 @@ fn redraw(state: &mut State) {
     let Some(output) = winit(state).map(|w| w.output.clone()) else {
         return;
     };
-    warn_on_error(render_frame(state, &output));
+    if warn_on_error(&render_frame(state, &output)) {
+        state.frame_shown(&output);
+    }
     render::send_frames(state, &output);
-    state.popups.cleanup();
     if let Some(backend) = winit(state) {
         backend.graphics.window().request_redraw();
     }
 }
 
-fn warn_on_error(result: Result<(), String>) {
+/// Logs an error. Returns whether there was none.
+fn warn_on_error(result: &Result<(), String>) -> bool {
     if let Err(err) = result {
         tracing::warn!("{err}");
     }
+    result.is_ok()
 }
 
 /// Renders the damaged parts of the scene into the window and shows them.
