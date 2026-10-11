@@ -1,5 +1,6 @@
 # Lint and test in the Fedora 43 container that also builds the release, so
-# CI checks the same compiler and the same system libraries.
+# CI checks the same compiler and the same system libraries. The e2e job
+# runs tests/nested.sh, the exit test of milestone M1.
 name: ci
 
 on:
@@ -23,6 +24,27 @@ jobs:
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
     - run: cargo clippy --workspace --all-targets --locked -- -D warnings
     - run: cargo test --workspace --locked
+
+  e2e:
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:43
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    - run: xargs dnf install -y sway foot grim jq mesa-dri-drivers procps-ng < dist/fedora-build-requires.txt
+    # The file capabilities of the packaged sway fail in a container; a
+    # copy without them runs.
+    - run: install -m755 /usr/bin/sway /usr/local/bin/sway
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
+    - run: cargo build --workspace --locked
+    - run: tests/nested.sh target/debug e2e
+    - if: failure()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      with:
+        name: e2e-logs
+        path: e2e
 
   deny:
     runs-on: ubuntu-latest

@@ -43,8 +43,15 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo deny check
 ```
 
-CI runs `cargo clippy` and `cargo test` with `--locked` in a Fedora 43
-container, and `cargo deny` in a separate job.
+The end-to-end test starts chora nested in a headless sway and checks the
+exit of milestone M1. It needs sway, foot, grim and jq:
+
+```bash
+tests/nested.sh target/debug
+```
+
+CI runs `cargo clippy`, `cargo test` and the end-to-end test with `--locked`
+in a Fedora 43 container, and `cargo deny` in a separate job.
 
 ## Releases
 
