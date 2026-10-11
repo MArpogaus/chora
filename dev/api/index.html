@@ -1142,8 +1142,13 @@ are errors, so a typo never passes silently.</p>
 </tr>
 <tr>
 <td><code>size</code></td>
-<td>rect, image, shader</td>
-<td>width and height; an image without a size has the size of its file</td>
+<td>group, rect, image, shader</td>
+<td>width and height; an image without a size has the size of its file; for a group, the area of its layer</td>
+</tr>
+<tr>
+<td><code>mesh</code></td>
+<td>group, rect, image</td>
+<td><code>cols</code> and <code>rows</code> from 1 to 64, and <code>points</code>: the place of each grid point in node coordinates, row by row from the top left; the node becomes a layer that shows through the grid; <code>points: []</code> removes the mesh</td>
 </tr>
 <tr>
 <td><code>color</code>, <code>radius</code>, <code>border</code></td>
@@ -1169,6 +1174,10 @@ are errors, so a typo never passes silently.</p>
 </table>
 <p>A surface node gets its size from its client. The <code>configure</code> command asks
 the client for a new size.</p>
+<p>A node with a size and a mesh, or with a transform that is not a plain 2D
+translation and scale, for example a rotation or a perspective, is a layer
+(see <a href="../architecture/#renderer">Architecture</a>). <code>animate</code> moves the points
+of a mesh of the same grid, for example for a magic lamp minimize.</p>
 <p>The core loads the file of an image when a transaction names it. A file
 that does not load, that is larger than 32 MiB or larger than 8192 pixels
 on a side rejects the transaction. A plugin in a container shares its
