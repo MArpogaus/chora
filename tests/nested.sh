@@ -1,7 +1,8 @@
 #!/bin/bash
 # End-to-end test of milestone M1: chora runs nested in a headless sway,
 # chora-tiling tiles three foot windows, a crash of the plugin leaves the
-# core running, and the emergency reset puts the windows in the grid.
+# core running, and the emergency reset puts the windows in the grid. A
+# second chora checks SIGUSR1 while its startup command runs.
 #
 # The test starts the reset with SIGUSR1. Ctrl+Alt+Escape runs the same
 # code, but synthetic keys from wtype carry their own keymap, which a nested
@@ -95,5 +96,16 @@ surfaces >"$out/grid.json"
 jq -e '[.[] | [.transform.matrix[12], .transform.matrix[13]]] | sort == [[0,0],[0,400],[640,0]]' \
     "$out/grid.json" >/dev/null || fail "unexpected grid: $out/grid.json"
 grim "$out/grid.png"
+
+step "5. SIGUSR1 resets while the startup command runs, which blocks no signal"
+"$bin/chora" -- sh -c "grep SigBlk /proc/self/status >'$out/sigblk'; exec sleep 600" \
+    >"$out/chora-signal.log" 2>&1 &
+signal_pid=$!
+pids+=("$signal_pid")
+wait_for test -s "$out/sigblk"
+grep -Eq 'SigBlk:\s*0+$' "$out/sigblk" || fail "blocked signals: $(cat "$out/sigblk")"
+kill -USR1 "$signal_pid"
+sleep 1
+kill -0 "$signal_pid" || fail "chora died of SIGUSR1"
 
 echo "PASS (logs and screenshots in $out)"

@@ -35,6 +35,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     let mut event_loop: EventLoop<State> = EventLoop::try_new()?;
+    // Before any thread starts, Mesa's included: the signal source blocks
+    // SIGUSR1 in this thread only, and new threads inherit the mask. A
+    // thread without it would receive SIGUSR1 and end the process.
+    // Children start with an empty mask, because std resets it.
+    safety::reset_on_signal(&event_loop.handle())?;
     let display: Display<State> = Display::new()?;
     let mut state = State::new(display, event_loop.handle(), event_loop.get_signal());
     winit::init(&mut state)?;
@@ -43,9 +48,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some((program, args)) = command.split_first() {
         spawn(program, args, &state.socket_name, &socket);
     }
-    // After the spawn: the signal source blocks SIGUSR1, and children
-    // inherit the signal mask.
-    safety::reset_on_signal(&state.loop_handle)?;
     event_loop.run(None, &mut state, |state| {
         state.ipc_flush();
         if let Err(err) = state.display_handle.flush_clients() {
