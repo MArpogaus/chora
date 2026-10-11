@@ -634,6 +634,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Flavors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-xp-flavor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The XP flavor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -947,6 +964,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Flavors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-xp-flavor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The XP flavor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1036,6 +1070,135 @@ start, restart and order, so chora needs no service manager.</p>
 </code></pre></div>
 <p>The target also wants <code>waybar.service</code>, which the waybar package installs.
 A copy of the directory in <code>~/.config/chora/flavors/tiling/</code> replaces it.</p>
+<h3 id="the-xp-flavor">The XP flavor<a class="headerlink" href="#the-xp-flavor" title="Permanent link">&para;</a></h3>
+<p>The XP flavor is the showroom of milestone M3 (D39): a stacking desktop in
+the style of Windows XP. It is a demo, not a daily driver.</p>
+<div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/xp/
+├── chora-xp.target              # wants the two units below
+├── chora-xp-wm.service          # chora-xp
+├── chora-xp-xwayland.service    # xwayland-satellite, if installed
+└── theme/                       # SVG files, fonts, wallpaper and cursors
+</code></pre></div>
+<p>The session "chora (Windows XP)" on the login screen starts it with the XP
+cursors, which the package installs to <code>/usr/share/icons/ModernXP</code>.
+<code>theme/README.md</code> lists the source and the license of every file of the
+theme.</p>
+<p><code>chora-xp</code> draws everything as image nodes. It rasterizes the SVG files of
+the theme with resvg into PNG files in <code>$XDG_RUNTIME_DIR/chora-xp/</code>, and
+renders each picture once:</p>
+<ul>
+<li>a frame around each window, with its title and the minimize, maximize
+  and close buttons; a window that draws its own frame, as GTK programs
+  do, gets none;</li>
+<li>a taskbar at the bottom of the work area of each output, with the start
+  button, one button per window of the current desktop, four desktop
+  buttons and a clock;</li>
+<li>the start menu with the user name, programs, places, Log Off and Turn
+  Off Computer;</li>
+<li>the wallpaper Bløff below everything.</li>
+</ul>
+<p>A click on a window raises and focuses it. A drag of a title bar moves the
+window, and a double click maximizes it. A maximized window fills the work
+area above the taskbar. A click on a task button shows or minimizes its
+window. Buttons light up under the pointer, and so do the entries of the
+start menu. Log Off asks every window to close. Turn Off Computer ends
+<code>chora-xp</code>; it shuts nothing down.</p>
+<p>The effects of M3 run in the plugin, which computes their meshes and
+transforms at 60 Hz:</p>
+<ul>
+<li><strong>Wobbly windows.</strong> A dragged window bends like jelly: the point under
+  the pointer follows it, the far side lags behind, and after the release
+  the window shakes until it settles.</li>
+<li><strong>Magic lamp.</strong> Minimize pours the window into its task button, and a
+  click on the button pours it out again.</li>
+<li><strong>Desktop cube.</strong> Four desktops sit on the faces of a cube. A turn shows
+  the cube in perspective, and the windows fly off their faces and land
+  again. The taskbar lists the windows of the current desktop.</li>
+</ul>
+<p>If frames get too slow, the core drops the effects; <code>chora-xp</code> then goes
+without them for 15 seconds.</p>
+<table>
+<thead>
+<tr>
+<th>Binding</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Alt+F4</td>
+<td>close the focused window</td>
+</tr>
+<tr>
+<td>Super+e</td>
+<td>start the terminal</td>
+</tr>
+<tr>
+<td>Ctrl+Alt+Left, Ctrl+Alt+Right</td>
+<td>turn the cube to the previous or next desktop</td>
+</tr>
+<tr>
+<td>Ctrl+Alt+Shift+Left, Ctrl+Alt+Shift+Right</td>
+<td>turn the cube and take the focused window along</td>
+</tr>
+<tr>
+<td>a desktop button 1 to 4</td>
+<td>turn the cube to that desktop</td>
+</tr>
+</tbody>
+</table>
+<p>The core keeps Ctrl+Alt for its safety layer, so for now Super+Ctrl stands
+in for Ctrl+Alt in the cube bindings.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--theme DIR</code></td>
+<td><code>/usr/share/chora/flavors/xp/theme</code>, or <code>CHORA_XP_THEME</code></td>
+<td>the theme directory</td>
+</tr>
+<tr>
+<td><code>--terminal CMD</code></td>
+<td><code>foot</code></td>
+<td>the terminal of the start menu and of Super+e</td>
+</tr>
+<tr>
+<td><code>--launcher CMD</code></td>
+<td><code>fuzzel</code></td>
+<td>All Programs and Run in the start menu</td>
+</tr>
+<tr>
+<td><code>--program TITLE=CMD</code></td>
+<td></td>
+<td>another program in the start menu; repeat for more</td>
+</tr>
+<tr>
+<td><code>--clock FORMAT</code></td>
+<td><code>%-I:%M %p</code></td>
+<td>the clock, in the format of strftime</td>
+</tr>
+<tr>
+<td><code>--wallpaper FILE</code></td>
+<td>Bløff</td>
+<td>a PNG or SVG file</td>
+</tr>
+<tr>
+<td><code>--slow-motion FACTOR</code></td>
+<td><code>1</code></td>
+<td>stretch the magic lamp and the cube, to show them slowly</td>
+</tr>
+</tbody>
+</table>
+<p>To try the flavor from a source tree, start it nested:</p>
+<div class="highlight"><pre><span></span><code>cargo<span class="w"> </span>build<span class="w"> </span>--workspace
+target/debug/chora<span class="w"> </span>--<span class="w"> </span>target/debug/chora-xp<span class="w"> </span>--theme<span class="w"> </span>flavors/xp/theme
+</code></pre></div>
 <div class="highlight"><pre><span></span><code>flavors/agentic/
 ├── chora-agentic.target
 ├── views/       # morning, analysis, writing, coding

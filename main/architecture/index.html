@@ -1267,7 +1267,7 @@ will refine it.</p>
     subgraph core["chora (Rust, Smithay)"]
         protocols["Wayland protocols"]
         backends["Backends: DRM/KMS and libinput, winit for development"]
-        scene["Scene: group, surface, rect, shader"]
+        scene["Scene: group, surface, rect, image, shader"]
         render["Renderer: GLES and GLSL shaders"]
         input["Input router"]
         ipc["IPC socket: JSON-RPC"]
@@ -1368,12 +1368,24 @@ the layer surfaces again and announces the outputs to plugins (see
 output cannot turn off. No backend has adaptive sync.</p>
 <h3 id="renderer">Renderer<a class="headerlink" href="#renderer" title="Permanent link">&para;</a></h3>
 <p>The core uses Smithay's GLES renderer through Smithay's own renderer traits.
-Custom texture and pixel shaders give blur, rounded corners, shadows, color
-effects and transitions. niri shows what this approach can do. Shaders are
-GLSL ES. The core compiles them at runtime and reloads them when they change.
-A shader can read other nodes as textures.</p>
-<p>Transforms are 4x4 matrices, so 3D effects need no API change. The first
-milestones render and test 2D cases only.</p>
+Custom shaders give blur, rounded corners, shadows, color effects and
+transitions. niri shows what this approach can do. An effect is a GLSL ES
+fragment shader that a node names; the node becomes a layer, and each
+effect is one pass over its texture. The core compiles a shader when a
+transaction names it, rejects the transaction on an error, and compiles it
+again when the file changes. Shader nodes that draw without a texture, and
+uniforms that name other nodes as textures, come later.</p>
+<p>Transforms are 4x4 matrices, so 3D effects need no API change. A node with
+a size and a mesh, or with a transform that is not a plain 2D translation
+and scale, is a <strong>layer</strong>: the core renders it with its descendants into a
+texture of its size, and then draws the texture through the mesh, or a
+quad, with the full transform of the node and the camera. The vertices go
+to the GPU in homogeneous coordinates, so textures map correctly under
+perspective. Wobbly windows move the points of a mesh, a magic lamp
+animates them, and a desktop cube turns layers in 3D. A layer has no depth
+test: the order of the siblings decides what is in front, and a plugin
+hides the faces that turn away. Pointer input reaches the nodes of a layer
+only where its transform is a plain 2D one.</p>
 <p>Damage tracking keeps the GPU load low. Each shader declares if it is static
 or animated, and effects expand the damage area. A fullscreen surface without
 effects goes to direct scanout.</p>
@@ -1508,8 +1520,10 @@ of the press that opened it.</p>
   each key. The core confirms the lock after each output showed a frame
   that it rendered under this lock. When the lock client crashes, the
   session stays locked, and only then can a new lock client take over.</li>
-<li><strong>Watchdog.</strong> When frames miss their deadline repeatedly, the core removes
-  the effects first and then disconnects the plugins.</li>
+<li><strong>Watchdog.</strong> When frames take longer to render than a refresh of their
+  output for two seconds, the core removes the effects, the meshes, and
+  sends <code>effects.dropped</code>. When they stay slow for two more seconds, it
+  starts the emergency reset, which disconnects the plugins.</li>
 </ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
 <p>Version 1 trusts every client of the same user (D33):</p>

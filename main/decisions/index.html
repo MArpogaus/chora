@@ -1169,8 +1169,8 @@
 </tr>
 <tr>
 <td>D18</td>
-<td>Four node kinds: group, surface, rect, shader</td>
-<td>Text, images and widgets come from Wayland clients. A shader can read another node as a texture.</td>
+<td>Five node kinds: group, surface, rect, image, shader</td>
+<td>Text and widgets come from Wayland clients. An image node shows a PNG asset, for example a window border, without a client per window. A shader can read another node as a texture.</td>
 </tr>
 <tr>
 <td>D19</td>
@@ -1232,7 +1232,7 @@
 <tr>
 <td>D28</td>
 <td>Plugins are IPC clients; the core offers <code>animate</code>; in-process WASM plugins come only after a measurement shows the need</td>
-<td>Agents work in seconds, not frames. One mechanism, any language, crash isolation by the OS.</td>
+<td>Agents work in seconds, not frames. One mechanism, any language, crash isolation by the OS. The M3 measurement (<code>tests/ipc-bench.sh</code>, nested, software rendering) shows no need yet: a transaction with a mesh of 8x8 cells takes 0.17 ms in the median and 3.6 ms at the 99th percentile, well inside a 60 Hz frame.</td>
 </tr>
 <tr>
 <td>D29</td>
@@ -1299,7 +1299,7 @@
 <tr>
 <td>D39</td>
 <td>The first showcase is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it comes right after M2, before the agent interface</td>
-<td>It proves that the scene model carries classic mouse-driven desktops and their effects. The assets come from <code>kde-plasma-winxp-launcher</code>. It is a demo, not a daily driver.</td>
+<td>It proves that the scene model carries classic mouse-driven desktops and their effects. The assets come from <code>kde-plasma-winxp-launcher</code> and keep their licenses; the GPL-3.0-only artwork of Exposé and modernXP is data of the flavor that the plugin reads, not code of the core (D8). It is a demo, not a daily driver.</td>
 </tr>
 </tbody>
 </table>

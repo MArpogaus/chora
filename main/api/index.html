@@ -1127,8 +1127,8 @@ are errors, so a typo never passes silently.</p>
 </tr>
 <tr>
 <td><code>effects</code></td>
-<td>all</td>
-<td>list of shaders with uniforms</td>
+<td>group, rect, image</td>
+<td>up to 8 effects <code>{"shader": path, "uniforms": {name: number or 2 to 4 numbers}}</code>; the node becomes a layer, and the core applies the shaders in order; <code>[]</code> removes them</td>
 </tr>
 <tr>
 <td><code>input</code></td>
@@ -1142,13 +1142,28 @@ are errors, so a typo never passes silently.</p>
 </tr>
 <tr>
 <td><code>size</code></td>
-<td>rect, shader</td>
-<td>width and height</td>
+<td>group, rect, image, shader</td>
+<td>width and height; an image without a size has the size of its file; for a group, the area of its layer</td>
+</tr>
+<tr>
+<td><code>mesh</code></td>
+<td>group, rect, image</td>
+<td><code>cols</code> and <code>rows</code> from 1 to 64, and <code>points</code>: the place of each grid point in node coordinates, row by row from the top left; the node becomes a layer that shows through the grid; <code>points: []</code> removes the mesh</td>
 </tr>
 <tr>
 <td><code>color</code>, <code>radius</code>, <code>border</code></td>
 <td>rect</td>
 <td></td>
+</tr>
+<tr>
+<td><code>image</code></td>
+<td>image</td>
+<td>absolute path of a PNG file; the core loads it again after a change</td>
+</tr>
+<tr>
+<td><code>slice</code></td>
+<td>image</td>
+<td>insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch</td>
 </tr>
 <tr>
 <td><code>shader</code>, <code>uniforms</code></td>
@@ -1159,6 +1174,22 @@ are errors, so a typo never passes silently.</p>
 </table>
 <p>A surface node gets its size from its client. The <code>configure</code> command asks
 the client for a new size.</p>
+<p>A node with a size and a mesh, or with a transform that is not a plain 2D
+translation and scale, for example a rotation or a perspective, is a layer
+(see <a href="../architecture/#renderer">Architecture</a>). <code>animate</code> moves the points
+of a mesh of the same grid, for example for a magic lamp minimize.</p>
+<p>An effect is a GLSL ES fragment shader with absolute path. It reads the
+layer in <code>uniform sampler2D tex</code> at <code>varying vec2 v_uv</code>, and may use
+<code>uniform float alpha</code>, <code>uniform vec2 size</code> (the texture size in pixels),
+<code>uniform float time</code> (seconds) and its own <code>float</code> and <code>vec2</code> to <code>vec4</code>
+uniforms. A transaction that names a shader that does not compile fails
+with the log of the compiler. The core compiles a shader again when its
+file changes. The package installs examples in <code>/usr/share/chora/shaders/</code>:
+<code>grayscale.frag</code>, <code>rounded.frag</code> and <code>blur.frag</code> (with <code>radius</code>).</p>
+<p>The core loads the file of an image when a transaction names it. A file
+that does not load, that is larger than 32 MiB or larger than 8192 pixels
+on a side rejects the transaction. A plugin in a container shares its
+asset directory with the core, as it shares the socket directory.</p>
 <h2 id="commands">Commands<a class="headerlink" href="#commands" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1170,7 +1201,7 @@ the client for a new size.</p>
 <tbody>
 <tr>
 <td><code>create</code></td>
-<td>create a group, rect or shader node under a parent</td>
+<td>create a group, rect, image or shader node under a parent</td>
 </tr>
 <tr>
 <td><code>attach</code></td>
@@ -1210,7 +1241,16 @@ the client for a new size.</p>
 </tr>
 </tbody>
 </table>
-<p><code>animate</code> lets plugins and agents animate without code in every frame.</p>
+<p><code>animate</code> lets plugins and agents animate without code in every frame:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"animate"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"frame"</span><span class="p">,</span><span class="w"> </span><span class="nt">"props"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"opacity"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">"visible"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">},</span>
+<span class="w">             </span><span class="nt">"duration"</span><span class="p">:</span><span class="w"> </span><span class="mi">300</span><span class="p">,</span><span class="w"> </span><span class="nt">"easing"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ease_out"</span><span class="p">}}</span>
+</code></pre></div>
+<p>The core moves <code>transform</code>, <code>opacity</code>, <code>size</code> and <code>color</code> toward the
+targets along the curve: <code>linear</code> (the default), <code>ease_in</code>, <code>ease_out</code> or
+<code>ease_in_out</code>. The other properties change at the end, so this example
+fades the node out and then hides it. The duration is in milliseconds, at
+most one minute. A later <code>animate</code> or <code>update</code> of the node ends the
+animation where it is. The end sends <code>animation.done</code>.</p>
 <h2 id="selectors">Selectors<a class="headerlink" href="#selectors" title="Permanent link">&para;</a></h2>
 <p>A selector finds nodes: <code>id:work</code>, <code>kind:surface</code>, <code>owner:tiling</code>,
 <code>app_id:firefox</code>, <code>title:"make test"</code> (exact), <code>title~:Inbox</code> (contains),
@@ -1229,11 +1269,11 @@ or an empty list. It always sees the current titles.</p>
 <tbody>
 <tr>
 <td><code>surface.created</code></td>
-<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title</td>
+<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title, and <code>decoration</code>: <code>server</code> when the client asked for a frame of the plugins through <code>xdg-decoration</code>, <code>client</code> when it draws its own</td>
 </tr>
 <tr>
 <td><code>surface.changed</code></td>
-<td>surface id, <code>app_id</code>, title</td>
+<td>surface id, <code>app_id</code>, title, size and <code>decoration</code>, after any of them changed</td>
 </tr>
 <tr>
 <td><code>surface.destroyed</code>, <code>surface.detached</code></td>
@@ -1246,6 +1286,30 @@ or an empty list. It always sees the current titles.</p>
 <tr>
 <td><code>input.key</code></td>
 <td>the grabbed binding</td>
+</tr>
+<tr>
+<td><code>pointer.entered</code>, <code>pointer.left</code></td>
+<td>the pointer came over or left the top node under it that takes input: node; not during a drag of a node or while locked</td>
+</tr>
+<tr>
+<td><code>pointer.pressed</code></td>
+<td>a button went down over a node that takes input: node, Linux button code, position in scene coordinates</td>
+</tr>
+<tr>
+<td><code>pointer.moved</code>, <code>pointer.released</code></td>
+<td>after a press over a rect or an image, until the button goes up: node and position; <code>pointer.released</code> with the button</td>
+</tr>
+<tr>
+<td><code>animation.done</code></td>
+<td>the node whose animation reached its targets</td>
+</tr>
+<tr>
+<td><code>effect.failed</code></td>
+<td>the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version</td>
+</tr>
+<tr>
+<td><code>effects.dropped</code></td>
+<td>the watchdog removed the effects of all nodes, because frames were slow for two seconds</td>
 </tr>
 <tr>
 <td><code>output.changed</code></td>
@@ -1266,8 +1330,10 @@ when it applied, an error with the index of the failed command when not.
 A request that a client makes before its first commit follows its
 <code>surface.created</code>. A taskbar asks through <code>wlr-foreign-toplevel-management</code>.
 The core does not act on a request, also not on <code>close</code>. A plugin answers
-with commands, for example <code>close</code>. Later milestones add events for size
-limits and pointer grabs.</p>
+with commands, for example <code>close</code>. A press over a surface reaches its
+client as well; a press over a rect or an image goes to plugins only, with
+the moves and the release that follow, so that a plugin can drag a window
+by its title bar. Later milestones add events for size limits.</p>
 <h2 id="ipc-methods">IPC methods<a class="headerlink" href="#ipc-methods" title="Permanent link">&para;</a></h2>
 <p>JSON-RPC 2.0, one message per line, on the socket in <code>CHORA_SOCKET</code>. Every
 client sends <code>hello</code> first. The core answers every request.</p>
@@ -1325,9 +1391,9 @@ client sends <code>hello</code> first. The core answers every request.</p>
 nodes, so they must agree on <code>keep_nodes</code>. The core refuses a <code>hello</code> with a
 different value. For example, <code>choractl --name tiling</code> fails while the tiling
 plugin runs.</p>
-<p>A key binding needs Ctrl, Alt or Super, so that typing still works. Ctrl+Alt
-belongs to the safety layer, so no client can grab it. A binding has one
-owner at a time.</p>
+<p>A key binding needs Ctrl, Alt or Super, so that typing still works. The
+bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
+belong to no client. A binding has one owner at a time.</p>
 <p>The core implements <code>wlr-output-management</code>, so kanshi and wlr-randr
 configure the outputs (see
 <a href="../architecture/#output-configuration">Architecture</a>). The API has no output
