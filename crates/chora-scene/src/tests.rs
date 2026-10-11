@@ -296,3 +296,18 @@ fn size_and_color_belong_to_rects() {
     assert_eq!(err.error, SceneError::WrongKind("n".into(), "rect"));
     scene.apply("wm", &[create(NodeKind::Rect)]).unwrap();
 }
+
+#[test]
+fn selector_values_can_hold_spaces_in_quotes() {
+    let mut scene = Scene::default();
+    scene.add_surface(
+        "s1",
+        SurfaceInfo {
+            title: Some("make test".into()),
+            ..SurfaceInfo::default()
+        },
+    );
+    let sel: Selector = r#"kind:surface title:"make test""#.parse().unwrap();
+    assert_eq!(scene.query(&sel).len(), 1);
+    assert!(r#"title:"open"#.parse::<Selector>().is_err());
+}

@@ -5,7 +5,8 @@ use std::str::FromStr;
 use crate::{Node, NodeKind};
 
 /// A list of conditions, separated by spaces. A node matches when it meets
-/// all of them. `*` matches every node.
+/// all of them. An empty selector or `*` matches every node. A value with
+/// spaces goes in double quotes: `title:"make test"`.
 ///
 /// | Condition | Matches |
 /// |-----------|---------|
@@ -39,12 +40,38 @@ impl FromStr for Selector {
     type Err = SelectorError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.split_whitespace()
+        words(s)?
+            .iter()
             .filter(|c| *c != "*")
-            .map(parse_condition)
+            .map(|c| parse_condition(c))
             .collect::<Result<_, _>>()
             .map(Self)
     }
+}
+
+/// Splits at spaces outside double quotes and drops the quotes.
+fn words(s: &str) -> Result<Vec<String>, SelectorError> {
+    let mut words = Vec::new();
+    let mut word = String::new();
+    let mut quoted = false;
+    for c in s.chars() {
+        match c {
+            '"' => quoted = !quoted,
+            c if c.is_whitespace() && !quoted => {
+                if !word.is_empty() {
+                    words.push(std::mem::take(&mut word));
+                }
+            }
+            c => word.push(c),
+        }
+    }
+    if quoted {
+        return Err(SelectorError(s.into()));
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    Ok(words)
 }
 
 fn parse_condition(c: &str) -> Result<Condition, SelectorError> {
