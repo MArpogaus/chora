@@ -74,7 +74,7 @@ fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
                     FilterResult::Forward
                 };
             }
-            match press_action(state, mods, &handle.raw_syms()) {
+            match press_action(state, mods, &handle.raw_syms(), &handle.modified_syms()) {
                 Some(action) => {
                     state.suppressed_keys.push(code);
                     FilterResult::Intercept(action)
@@ -104,10 +104,16 @@ fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
 }
 
 /// The fixed bindings of the safety layer (D23), then the grabs. The keymap
-/// turns Ctrl+Alt+F1 to F12 into the keys that switch the VT.
-fn press_action(state: &State, mods: &ModifiersState, syms: &[Keysym]) -> Option<KeyAction> {
+/// turns Ctrl+Alt+F1 to F12 into the keys that switch the VT; only the
+/// modified keysyms show them.
+fn press_action(
+    state: &State,
+    mods: &ModifiersState,
+    syms: &[Keysym],
+    modified: &[Keysym],
+) -> Option<KeyAction> {
     let first = Keysym::XF86_Switch_VT_1.raw();
-    if let Some(vt) = syms
+    if let Some(vt) = modified
         .iter()
         .find_map(|s| s.raw().checked_sub(first).filter(|n| *n < 12))
     {
