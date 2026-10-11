@@ -4,7 +4,8 @@
 use std::process::ExitCode;
 
 use chora_scene::{
-    Binding, Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ToplevelState, Transform,
+    Binding, Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
+    ToplevelState, Transform,
     ipc::{Apply, Client, ClientError, Grab, Hello, Query, Subscribe},
 };
 use clap::{Parser, ValueEnum};
@@ -106,6 +107,7 @@ impl Tiling {
             "surface.created",
             "surface.destroyed",
             "surface.detached",
+            "surface.requested",
             "output.changed",
         ];
         self.client.call::<_, Value>(
@@ -173,6 +175,14 @@ impl Tiling {
                 self.relayout()
             }
             Event::InputKey { binding } => self.act(&binding),
+            // For example a click on a notification of the window.
+            Event::SurfaceRequested {
+                surface,
+                request: SurfaceRequest::Activate,
+            } if self.windows.contains(&surface) => {
+                self.focused = Some(surface);
+                self.relayout()
+            }
             _ => Ok(()),
         }
     }

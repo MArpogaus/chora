@@ -78,6 +78,7 @@ or an empty list. It always sees the current titles.
 | `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title |
 | `surface.changed` | surface id, `app_id`, title |
 | `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
+| `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `input.key` | the grabbed binding |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels |
 | `output.removed` | output name |
@@ -85,8 +86,9 @@ or an empty list. It always sees the current titles.
 
 The response of `scene.apply` reports the result of a transaction: `null`
 when it applied, an error with the index of the failed command when not.
-Later milestones add events for size limits, activation requests and
-pointer grabs.
+A request that a client makes before its first commit follows its
+`surface.created`. Later milestones add events for size limits and pointer
+grabs.
 
 ## IPC methods
 

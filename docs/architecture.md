@@ -199,8 +199,9 @@ Plugins set the focus. The core changes it in three cases only:
 
 The core still implements the protocol mechanisms around focus: popup
 grabs, the keyboard interactivity of `wlr-layer-shell` and
-`ext-session-lock`. `xdg-activation`, `pointer-constraints` and
-`input-method` follow in M2. A layer surface that takes the keyboard
+`ext-session-lock`, the locks and confinements of `pointer-constraints`,
+and `text-input` with `input-method`. Activation requests of
+`xdg-activation` go to plugins as `surface.requested`. A layer surface that takes the keyboard
 exclusively, for example a launcher, has it from its first commit until it
 goes away, and it ends a popup grab. A click gives the keyboard to a layer
 surface that accepts it on demand, until the next click elsewhere. A popup

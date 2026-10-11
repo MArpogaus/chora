@@ -8,6 +8,7 @@ mod ipc;
 mod layers;
 mod lock;
 mod output;
+mod protocols;
 mod render;
 mod safety;
 mod state;

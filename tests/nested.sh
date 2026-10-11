@@ -232,4 +232,16 @@ kill -KILL "$swaylock_pid"
 wait_for color_is "0 0 0"
 kill -0 "$chora_pid" || fail "chora died"
 
+step "13. a fullscreen request reaches plugins after surface.created"
+"$bin/choractl" events surface.created surface.requested >"$out/requests.jsonl" &
+events_pid=$!
+pids+=("$events_pid")
+sleep 0.3
+WAYLAND_DISPLAY=$inner foot --fullscreen >>"$out/foot.log" 2>&1 &
+pids+=($!)
+wait_for grep -q '"request":"fullscreen"' "$out/requests.jsonl"
+jq -se 'map(.event) | index("surface.created") < index("surface.requested")' \
+    "$out/requests.jsonl" >/dev/null || fail "order: $out/requests.jsonl"
+kill "$events_pid"
+
 echo "PASS (logs and screenshots in $out)"

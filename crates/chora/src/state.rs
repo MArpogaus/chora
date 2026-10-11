@@ -7,7 +7,7 @@ use std::{
     time::Instant,
 };
 
-use chora_scene::{Effect, Event, Scene, SurfaceInfo, ToplevelState};
+use chora_scene::{Effect, Event, Scene, SurfaceInfo, SurfaceRequest, ToplevelState};
 use smithay::{
     backend::renderer::element::solid::SolidColorBuffer,
     desktop::{PopupManager, Window},
@@ -23,8 +23,16 @@ use smithay::{
     utils::{Logical, Point, SERIAL_COUNTER, Serial},
     wayland::{
         compositor::{CompositorClientState, CompositorState, with_states},
+        cursor_shape::CursorShapeManagerState,
         dmabuf::DmabufState,
+        foreign_toplevel_list::{ForeignToplevelHandle, ForeignToplevelListState},
+        fractional_scale::FractionalScaleManagerState,
+        idle_inhibit::IdleInhibitManagerState,
+        idle_notify::IdleNotifierState,
+        input_method::InputMethodManagerState,
         output::OutputManagerState,
+        pointer_constraints::PointerConstraintsState,
+        relative_pointer::RelativePointerManagerState,
         selection::{data_device::DataDeviceState, primary_selection::PrimarySelectionState},
         session_lock::SessionLockManagerState,
         shell::{
@@ -36,7 +44,9 @@ use smithay::{
         },
         shm::ShmState,
         socket::ListeningSocketSource,
+        text_input::TextInputManagerState,
         viewporter::ViewporterState,
+        xdg_activation::XdgActivationState,
     },
 };
 
@@ -79,6 +89,15 @@ pub struct State {
     layer_focus: Option<WlSurface>,
     /// The last configure of each surface node: size and states.
     configured: HashMap<String, (Option<[i32; 2]>, Vec<ToplevelState>)>,
+    pub idle_notifier_state: IdleNotifierState<State>,
+    /// The surfaces that inhibit idleness.
+    pub idle_inhibitors: Vec<WlSurface>,
+    pub foreign_toplevel_list_state: ForeignToplevelListState,
+    /// The entries of the toplevels in the foreign toplevel list.
+    pub foreign_toplevels: HashMap<String, ForeignToplevelHandle>,
+    pub activation_state: XdgActivationState,
+    /// Requests of surfaces before their first commit.
+    pub early_requests: HashMap<String, Vec<SurfaceRequest>>,
 
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
@@ -106,11 +125,19 @@ impl State {
             .expect("the default keymap compiles");
         seat.add_pointer();
         let socket_name = listen(display, &loop_handle);
+        let idle_notifier_state = IdleNotifierState::new(&dh, loop_handle.clone());
         // These globals live as long as the display; nothing reads their
         // state.
         XdgDecorationState::new::<Self>(&dh);
         OutputManagerState::new_with_xdg_output::<Self>(&dh);
         ViewporterState::new::<Self>(&dh);
+        IdleInhibitManagerState::new::<Self>(&dh);
+        TextInputManagerState::new::<Self>(&dh);
+        InputMethodManagerState::new::<Self, _>(&dh, |_| true);
+        FractionalScaleManagerState::new::<Self>(&dh);
+        CursorShapeManagerState::new::<Self>(&dh);
+        RelativePointerManagerState::new::<Self>(&dh);
+        PointerConstraintsState::new::<Self>(&dh);
         Self {
             start_time: Instant::now(),
             compositor_state: CompositorState::new::<Self>(&dh),
@@ -124,7 +151,7 @@ impl State {
             popups: PopupManager::default(),
             seat_state,
             seat,
-            display_handle: dh,
+            display_handle: dh.clone(),
             loop_handle,
             loop_signal,
             socket_name,
@@ -136,6 +163,12 @@ impl State {
             focus_wanted: None,
             layer_focus: None,
             configured: HashMap::new(),
+            idle_notifier_state,
+            idle_inhibitors: Vec::new(),
+            foreign_toplevel_list_state: ForeignToplevelListState::new::<Self>(&dh),
+            foreign_toplevels: HashMap::new(),
+            activation_state: XdgActivationState::new::<Self>(&dh),
+            early_requests: HashMap::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
             rects: HashMap::new(),

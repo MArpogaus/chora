@@ -3,7 +3,7 @@
 
 use std::sync::atomic::Ordering;
 
-use chora_scene::Event;
+use chora_scene::{Event, SurfaceRequest};
 use smithay::{
     backend::renderer::utils::on_commit_buffer_handler,
     delegate_dispatch2,
@@ -14,13 +14,15 @@ use smithay::{
     },
     input::{
         Seat, SeatHandler, SeatState,
-        pointer::{CursorImageStatus, Focus},
+        pointer::{CursorImageStatus, Focus, PointerHandle},
     },
     reexports::{
         wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecorationMode,
         wayland_server::{
             Client, Resource,
-            protocol::{wl_buffer::WlBuffer, wl_seat::WlSeat, wl_surface::WlSurface},
+            protocol::{
+                wl_buffer::WlBuffer, wl_output::WlOutput, wl_seat::WlSeat, wl_surface::WlSurface,
+            },
         },
     },
     utils::{Logical, Point, Rectangle, Serial},
@@ -31,6 +33,7 @@ use smithay::{
             is_sync_subsurface,
         },
         output::OutputHandler,
+        pointer_constraints::{PointerConstraintsHandler, with_pointer_constraint},
         selection::{
             SelectionHandler,
             data_device::{
@@ -105,11 +108,13 @@ impl State {
             toplevel.send_configure();
             let info = self.surface_info(id);
             if self.scene.add_surface(id, info.clone()) {
+                self.list_toplevel(id);
                 self.emit(&Event::SurfaceCreated {
                     surface: id.into(),
                     app_id: info.app_id,
                     title: info.title,
                 });
+                self.send_early_requests(id);
             }
             return;
         }
@@ -187,6 +192,8 @@ impl XdgShellHandler for State {
         };
         self.windows.remove(&id);
         self.configured_forget(&id);
+        self.unlist_toplevel(&id);
+        self.early_requests.remove(&id);
         let existed = self.scene.remove_surface(&id);
         self.transactions.forget(&id);
         self.complete_transactions();
@@ -202,6 +209,30 @@ impl XdgShellHandler for State {
 
     fn app_id_changed(&mut self, surface: ToplevelSurface) {
         self.surface_changed(&surface);
+    }
+
+    fn fullscreen_request(&mut self, surface: ToplevelSurface, _output: Option<WlOutput>) {
+        self.request(&surface, SurfaceRequest::Fullscreen);
+        Self::answer(&surface);
+    }
+
+    fn unfullscreen_request(&mut self, surface: ToplevelSurface) {
+        self.request(&surface, SurfaceRequest::Unfullscreen);
+        Self::answer(&surface);
+    }
+
+    fn maximize_request(&mut self, surface: ToplevelSurface) {
+        self.request(&surface, SurfaceRequest::Maximize);
+        Self::answer(&surface);
+    }
+
+    fn unmaximize_request(&mut self, surface: ToplevelSurface) {
+        self.request(&surface, SurfaceRequest::Unmaximize);
+        Self::answer(&surface);
+    }
+
+    fn minimize_request(&mut self, surface: ToplevelSurface) {
+        self.request(&surface, SurfaceRequest::Minimize);
     }
 
     fn new_popup(&mut self, surface: PopupSurface, _positioner: PositionerState) {
@@ -277,6 +308,7 @@ impl State {
         };
         let info = self.surface_info(&id);
         self.scene.set_surface_info(&id, info.clone());
+        self.relist_toplevel(&id);
         self.emit(&Event::SurfaceChanged {
             surface: id,
             app_id: info.app_id,
@@ -344,6 +376,17 @@ impl XdgDecorationHandler for State {
     }
 }
 
-impl smithay::wayland::pointer_constraints::PointerConstraintsHandler for State {}
+impl PointerConstraintsHandler for State {
+    /// Activates a new constraint at once if the pointer is on its surface.
+    fn new_constraint(&mut self, surface: &WlSurface, pointer: &PointerHandle<Self>) {
+        if pointer.current_focus().as_ref() == Some(surface) {
+            with_pointer_constraint(surface, pointer, |constraint| {
+                if let Some(constraint) = constraint {
+                    constraint.activate();
+                }
+            });
+        }
+    }
+}
 
 delegate_dispatch2!(State);

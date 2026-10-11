@@ -17,10 +17,11 @@ use smithay::{
     },
     input::{
         keyboard::{FilterResult, Keysym, ModifiersState},
-        pointer::{AxisFrame, ButtonEvent, MotionEvent},
+        pointer::{AxisFrame, ButtonEvent, MotionEvent, PointerHandle, RelativeMotionEvent},
     },
     reexports::wayland_server::{Resource, protocol::wl_surface::WlSurface},
     utils::{Logical, Point, SERIAL_COUNTER, Serial},
+    wayland::pointer_constraints::{PointerConstraint, with_pointer_constraint},
 };
 
 use crate::{
@@ -44,6 +45,8 @@ enum KeyAction {
 }
 
 pub fn process<I: InputBackend>(state: &mut State, event: InputEvent<I>) {
+    let seat = state.seat.clone();
+    state.idle_notifier_state.notify_activity(&seat);
     match event {
         InputEvent::Keyboard { event } => keyboard::<I>(state, &event),
         InputEvent::PointerMotion { event } => relative_motion::<I>(state, &event),
@@ -137,8 +140,82 @@ fn press_action(
 /// Relative motion, as from a mouse on real hardware. The pointer stays on
 /// the outputs.
 fn relative_motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionEvent) {
-    let layout = state.clamp_to_outputs(state.pointer_layout + event.delta());
-    move_pointer(state, layout, event.time());
+    let pointer = state.seat.get_pointer().expect("the seat has a pointer");
+    let under = state
+        .spot(state.pointer_layout)
+        .and_then(|spot| render::surface_under(state, &spot));
+    let focus = under.as_ref().map(|u| (u.surface.clone(), u.location));
+    let relative = RelativeMotionEvent {
+        delta: event.delta(),
+        delta_unaccel: event.delta_unaccel(),
+        time: event.time(),
+    };
+    pointer.relative_motion(state, focus, &relative);
+    let target = state.clamp_to_outputs(state.pointer_layout + event.delta());
+    let local = under
+        .as_ref()
+        .map(|u| pointer.current_location() - u.location);
+    let constraint = under
+        .as_ref()
+        .zip(local)
+        .and_then(|(u, local)| active_constraint(&pointer, &u.surface, local));
+    match constraint {
+        // A locked pointer only reports relative motion, as games want.
+        Some(Constraint::Locked) => pointer.frame(state),
+        Some(Constraint::Confined) if leaves(state, target, under.as_ref()) => {
+            pointer.frame(state);
+        }
+        _ => move_pointer(state, target, event.time()),
+    }
+}
+
+/// A pointer constraint of `pointer-constraints`.
+enum Constraint {
+    Locked,
+    Confined,
+}
+
+/// The active constraint of a surface, if the pointer is in its region.
+fn active_constraint(
+    pointer: &PointerHandle<State>,
+    surface: &WlSurface,
+    local: Point<f64, Logical>,
+) -> Option<Constraint> {
+    with_pointer_constraint(surface, pointer, |constraint| {
+        let constraint = constraint.filter(|c| c.is_active())?;
+        let inside = constraint
+            .region()
+            .is_none_or(|r| r.contains(local.to_i32_round()));
+        inside.then(|| match &*constraint {
+            PointerConstraint::Locked(_) => Constraint::Locked,
+            PointerConstraint::Confined(_) => Constraint::Confined,
+        })
+    })
+}
+
+/// Whether a move to a layout point leaves the surface that confines the
+/// pointer.
+fn leaves(state: &State, target: Point<f64, Logical>, under: Option<&render::Under>) -> bool {
+    let next = state
+        .spot(target)
+        .and_then(|spot| render::surface_under(state, &spot));
+    next.map(|n| n.surface) != under.map(|u| u.surface.clone())
+}
+
+/// Activates the constraint of the surface under the pointer, if the
+/// pointer is in its region.
+fn activate_constraint(
+    pointer: &PointerHandle<State>,
+    surface: &WlSurface,
+    local: Point<f64, Logical>,
+) {
+    with_pointer_constraint(surface, pointer, |constraint| {
+        let waiting = constraint.filter(|c| !c.is_active())?;
+        let inside = waiting
+            .region()
+            .is_none_or(|r| r.contains(local.to_i32_round()));
+        inside.then(|| waiting.activate())
+    });
 }
 
 /// Absolute motion, as from the winit window, which shows the first output.
@@ -170,7 +247,7 @@ fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime)
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     pointer.motion(
         state,
-        under,
+        under.clone(),
         &MotionEvent {
             location: spot.scene,
             serial: SERIAL_COUNTER.next_serial(),
@@ -178,6 +255,9 @@ fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime)
         },
     );
     pointer.frame(state);
+    if let Some((surface, location)) = under {
+        activate_constraint(&pointer, &surface, spot.scene - location);
+    }
 }
 
 fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
