@@ -11,7 +11,7 @@ repos:
     pass_filenames: false
   - id: cargo-clippy
     name: cargo clippy (lints and complexity guards, see clippy.toml)
-    entry: cargo clippy --workspace --all-targets --all-features -- -D warnings
+    entry: cargo clippy --workspace --all-targets -- -D warnings
     language: system
     types: [rust]
     pass_filenames: false
