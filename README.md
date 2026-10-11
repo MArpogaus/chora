@@ -5,8 +5,9 @@ desktop.
 
 Void has no window manager, no layout, no keybindings and no look. The core
 renders a small scene of primitives and offers one API. Plugins add all
-behavior except a small safety layer: a stacking desktop, a tiling workflow,
-or a workspace that an agent arranges live by voice.
+other behavior. A plugin can supply a stacking desktop, a tiling workflow, or
+a view that an agent arranges live by voice. Only a small safety layer is
+built in.
 
 ## Status
 

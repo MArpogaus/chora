@@ -20,9 +20,9 @@ possible.
 | Start menu, launcher | fuzzel, wofi or a Quickshell widget | configuration |
 | Pixel-perfect XP look | theme assets, shaders, decorations | much detail work, little difficulty |
 
-The core must speak `xdg-shell`, `xdg-decoration`, `layer-shell`,
-`foreign-toplevel` and `xdg-activation`. The taskbar uses `foreign-toplevel`
-to see the windows.
+The taskbar needs the foreign-toplevel protocols to see the windows. The
+launcher and the bar need `wlr-layer-shell`. [Dependencies](dependencies.md)
+lists all protocols.
 
 **Result:** medium effort, almost all of it in one window manager plugin.
 
@@ -45,9 +45,9 @@ A Linux-style tiling workflow with workspaces. The user configures it.
 This scenario is the core idea. A robust voice channel connects the user to an
 agent, and the agent arranges content for each task.
 
-1. **Morning canvas.** The agent greets the user and shows the current tasks.
+1. **Morning view.** The agent greets the user and shows the current tasks.
    It sorts the email. User and agent plan and prioritize the day together.
-2. **Task canvases.** The agent builds a new canvas for each task and fills
+2. **Task views.** The agent builds a new canvas for each task and fills
    it. A data analysis gets prepared data, plots and interactive exploration.
    Email, web research and coding get their own views.
 3. **Reuse.** The inventory keeps useful elements in git for later use. The
@@ -60,14 +60,14 @@ agent, and the agent arranges content for each task.
 | Scene access for the agent | core IPC and MCP bridge | part of the API |
 | Speech in and out | services: whisper.cpp or faster-whisper, piper | integration |
 | The agent | Claude Code or another MCP client, later a local LLM service | integration |
-| Rich content: briefing, plots, email | the agent writes HTML, a webview host shows it as a surface | small service, generated content |
+| Rich content: greeting, plots, email | the agent writes HTML, a webview host shows it as a surface | small service, generated content |
 | Data exploration | Jupyter, marimo or a plot web app as surfaces | existing tools |
 | One view per task | YAML views, loaded, saved and changed live | coordinator feature |
 | Inventory, memory | opinionated layer above Void | later |
 
 **Result:** the largest scenario, but mostly integration of existing parts.
 The core must supply scene queries and changes, screenshots and input
-injection, all behind capabilities. The agent needs screenshots to see the
+injection. Input injection and screen capture need an explicit grant. The agent needs screenshots to see the
 result of its changes.
 
 ## Conclusions

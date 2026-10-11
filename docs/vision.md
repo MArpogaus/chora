@@ -2,15 +2,16 @@
 
 ## The idea
 
-A desktop decides how content is arranged: windows, panels, workspaces. Void
-takes this decision out of the compositor. Void is a programmable scene. It
-works more like a game engine than like a window manager. The core renders a
-scene of nodes every frame, and one API changes the scene live.
+A desktop decides the arrangement of the content: windows, panels,
+workspaces. Void takes this decision out of the compositor. Void is a
+programmable scene. It works more like a game engine than like a window
+manager. The core renders a scene of nodes every frame. One API changes the
+scene live.
 
 The motivating use case is agentic interaction. The user talks to an agent,
 ideally by voice. The agent arranges the screen for the current task and for
-the taste of the user. Examples are a morning briefing, a data exploration
-workspace and a coding view. The agent changes the arrangement while the user
+the taste of the user. Examples are a morning view, a data exploration
+view and a coding view. The agent changes the arrangement while the user
 works.
 
 Agents are the motivation, not a requirement. The same scene can host a
@@ -28,7 +29,7 @@ does not exist yet. Void ships none of them. Void makes all of them possible.
    safe state. Agents will write broken code live, so this exception is
    necessary.
 3. **Lean core, fast stability.** A small core reaches feature completeness
-   fast and can then be hardened. Features grow in plugins, not in the core.
+   fast. Then the project hardens it. Features grow in plugins, not in the core.
 4. **Reuse before writing.** Wayland protocol handling, rendering, plugin
    runtimes, widgets, shells and services already exist. Void connects these
    parts and writes only what is missing. Fixes go upstream. Every decision
@@ -38,12 +39,12 @@ does not exist yet. Void ships none of them. Void makes all of them possible.
    user can configure, and it can change it live.
 6. **Live and real time.** Changes apply while the session runs. They need no
    restart and cause no noticeable latency.
-7. **Declarative and versioned.** Views and flavors are plain YAML files. They
-   are readable, can be compared line by line and live in git. An agent can
-   read and write them easily.
-8. **Isolation by default.** Plugins run in a sandbox. Services run in
-   containers. The coordinator grants each capability explicitly, for example
-   to read the scene, to inject input or to install plugins.
+7. **Declarative and versioned.** The configuration is plain text in git:
+   views in YAML, and flavors as bundles of files. A diff shows each change.
+   An agent can read and write the files easily.
+8. **Isolation by default.** Plugins run as separate processes, services in
+   containers. Sensitive actions, for example input injection and screen
+   capture, need an explicit grant (see [Decisions](decisions.md), R4).
 
 ## Goals
 
