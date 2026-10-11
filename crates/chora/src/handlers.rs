@@ -16,6 +16,7 @@ use smithay::{
         Seat, SeatHandler, SeatState,
         pointer::{CursorImageStatus, Focus, PointerHandle},
     },
+    output::Output,
     reexports::{
         wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecorationMode,
         wayland_server::{
@@ -175,7 +176,13 @@ impl PrimarySelectionHandler for State {
     }
 }
 
-impl OutputHandler for State {}
+impl OutputHandler for State {
+    /// A taskbar that binds an output after it got its handles still
+    /// learns the toplevels on that output.
+    fn output_bound(&mut self, output: Output, _wl_output: WlOutput) {
+        self.foreign_toplevel_manager_state.output_bound(&output);
+    }
+}
 
 impl XdgShellHandler for State {
     fn xdg_shell_state(&mut self) -> &mut XdgShellState {

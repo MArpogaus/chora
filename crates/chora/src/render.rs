@@ -340,12 +340,12 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
 
 /// Sends frame callbacks for one output: every frame to the toplevels that
 /// it shows, once per second to the others, so that hidden clients do not
-/// draw for nothing.
-pub fn send_frames(state: &State, output: &Output) {
-    let visible = visible(state, output);
+/// draw for nothing. Taskbars learn the toplevels on the output too.
+pub fn send_frames(state: &mut State, output: &Output) {
+    let visible = shown_surfaces(state, output);
     let time = state.start_time.elapsed();
     for (id, window) in &state.windows {
-        let on_output = visible.contains(id.as_str());
+        let on_output = visible.contains(id);
         if on_output {
             window.output_enter(output, Rectangle::from_size(window.bbox().size));
         } else {
@@ -373,10 +373,14 @@ pub fn send_frames(state: &State, output: &Output) {
             Some(output.clone())
         });
     }
+    state
+        .foreign_toplevel_manager_state
+        .set_shown(output, &visible);
 }
 
-/// The surface nodes that an output shows.
-fn visible<'a>(state: &'a State, output: &Output) -> HashSet<&'a str> {
+/// The surface nodes that an output shows: those whose scene rectangle
+/// overlaps the scene area of the output.
+fn shown_surfaces(state: &State, output: &Output) -> HashSet<String> {
     let area = output_area(output);
     let shown = scene_rect(&state.camera(output), Rectangle::from_size(area.size));
     state
@@ -388,7 +392,7 @@ fn visible<'a>(state: &'a State, output: &Output) -> HashSet<&'a str> {
             let window = state.windows.get(&p.node.id);
             window.is_some_and(|w| shown.overlaps(window_rect(w, &p.transform)))
         })
-        .map(|p| p.node.id.as_str())
+        .map(|p| p.node.id.clone())
         .collect()
 }
 
@@ -404,9 +408,9 @@ pub fn take_feedback(state: &State, output: &Output) -> OutputPresentationFeedba
         }
         return feedback;
     }
-    let visible = visible(state, output);
+    let visible = shown_surfaces(state, output);
     for (id, window) in &state.windows {
-        if visible.contains(id.as_str()) {
+        if visible.contains(id) {
             window.take_presentation_feedback(&mut feedback, primary, flags);
         }
     }

@@ -33,7 +33,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
       with:
         persist-credentials: false
-    - run: xargs dnf install -y sway foot grim jq mesa-dri-drivers procps-ng python3 waybar fuzzel swaylock dbus-daemon < dist/fedora-build-requires.txt
+    - run: xargs dnf install -y sway foot grim jq mesa-dri-drivers procps-ng python3 waybar fuzzel wlrctl swaylock dbus-daemon < dist/fedora-build-requires.txt
     # The file capabilities of the packaged sway fail in a container; a
     # copy without them runs.
     - run: install -m755 /usr/bin/sway /usr/local/bin/sway
