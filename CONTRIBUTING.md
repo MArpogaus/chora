@@ -45,6 +45,11 @@ The docs are Markdown in `docs/`, built with MkDocs Material:
 uvx --with-requirements docs/requirements.txt mkdocs serve
 ```
 
-Write in Simplified Technical English: sentences of 25 words or fewer, active
-voice, one idea per sentence, one word for one thing, no em or en dashes, no
-first person. Keep each fact in one place and link to it.
+Write in Simplified Technical English:
+
+- sentences of 25 words or fewer
+- active voice, one idea per sentence
+- one word for one thing, as defined in the glossary
+- no em or en dashes, no first person
+
+Keep each fact in one place and link to it.
