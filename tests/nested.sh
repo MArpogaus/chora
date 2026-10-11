@@ -384,4 +384,25 @@ kill "$events_pid"
 pixel_is 1050 550 "255 255 0" || fail "the moved center: $(pixel 1050 550)"
 pixel_is 750 550 "0 0 0" || fail "the old place: $(pixel 750 550)"
 
+step "20. plugins get the press, the drag and the release over a rect"
+rpc '[{"create": {"id": "handle", "kind": "rect", "parent": "root",
+       "props": {"size": [50, 50], "color": [1, 1, 1, 1],
+                 "transform": {"translate": [1150, 700]}}}}]' >"$out/handle.json"
+all_results "$out/handle.json" || fail "answers: $out/handle.json"
+"$bin/choractl" events pointer.pressed pointer.moved pointer.released >"$out/pointer.jsonl" &
+events_pid=$!
+pids+=("$events_pid")
+sleep 0.3
+# A virtual pointer of the headless sway, which has no pointer device,
+# gives chora pointer input.
+timeout 20 "$bin/chora-probe" drag 1170 720 1200 760 >>"$out/probe.log" 2>&1 ||
+    fail "the drag failed: $out/probe.log"
+wait_for grep -q '"event":"pointer.released"' "$out/pointer.jsonl"
+kill "$events_pid"
+jq -se 'map(select(.node == "handle")) | map(.event) | .[0] == "pointer.pressed"
+        and index("pointer.moved") != null and .[-1] == "pointer.released"' \
+    "$out/pointer.jsonl" >/dev/null || fail "pointer events: $out/pointer.jsonl"
+jq -se '.[0].button == 272 and .[-1].position == [1200, 760]' "$out/pointer.jsonl" \
+    >/dev/null || fail "button or position: $out/pointer.jsonl"
+
 echo "PASS (logs and screenshots in $out)"

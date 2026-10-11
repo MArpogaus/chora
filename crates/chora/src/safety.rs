@@ -28,6 +28,7 @@ impl State {
         for conn in self.ipc.conn_ids() {
             self.ipc_close(conn);
         }
+        self.node_grab = None;
         let effects = self.scene.reset(self.reset_area());
         self.send_configures(&effects);
         let first = self

@@ -11,6 +11,9 @@
 //! - `held-commit W H`: the buffer that answers the configure of a
 //!   transaction shows no earlier than the transaction. The test script
 //!   shows the toplevel, and delays the transaction with a stopped client.
+//! - `drag X0 Y0 X1 Y1`: drags with the left button from one point of the
+//!   first output to another, through a virtual pointer of the host
+//!   compositor, which has no pointer device of its own.
 
 use std::{
     fs::File,
@@ -28,8 +31,8 @@ use rustix::{
 use wayland_client::{
     Connection, Dispatch, EventQueue, QueueHandle, delegate_noop,
     protocol::{
-        wl_buffer::WlBuffer, wl_compositor::WlCompositor, wl_keyboard, wl_registry, wl_seat,
-        wl_shm, wl_shm_pool::WlShmPool, wl_surface::WlSurface,
+        wl_buffer::WlBuffer, wl_compositor::WlCompositor, wl_keyboard, wl_pointer, wl_registry,
+        wl_seat, wl_shm, wl_shm_pool::WlShmPool, wl_surface::WlSurface,
     },
 };
 use wayland_protocols::{
@@ -48,6 +51,10 @@ use wayland_protocols::{
         xdg_toplevel::{self, XdgToplevel},
         xdg_wm_base::{self, XdgWmBase},
     },
+};
+use wayland_protocols_wlr::virtual_pointer::v1::client::{
+    zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1,
+    zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1,
 };
 
 /// The longest wait for an answer of chora.
@@ -69,6 +76,7 @@ struct Probe {
     seat: Option<wl_seat::WlSeat>,
     lock_manager: Option<ExtSessionLockManagerV1>,
     presentation: Option<WpPresentation>,
+    pointer_manager: Option<ZwlrVirtualPointerManagerV1>,
     /// `Some(true)` after `locked`, `Some(false)` after `finished`.
     locked: Option<bool>,
     /// The xdg surfaces that got a configure, by their number.
@@ -108,6 +116,7 @@ fn main() -> ExitCode {
         "take-lock" => take_lock(&mut queue, &mut probe),
         "popup-grab" => popup_grab(&mut queue, &mut probe),
         "presentation" => presentation(&mut queue, &mut probe),
+        "drag" => drag(&mut queue, &mut probe),
         "held-commit" => match size_args() {
             Some(size) => held_commit(&mut queue, &mut probe, size),
             None => Err("usage: held-commit W H".into()),
@@ -249,6 +258,51 @@ fn held_commit(queue: &mut Queue, probe: &mut Probe, size: [i32; 2]) -> Result<S
     Ok(format!("the buffer waited {waited:?} for its transaction"))
 }
 
+/// The size of the area of a virtual pointer: the output of the test.
+const EXTENT: [u32; 2] = [1280, 800];
+/// The left button.
+const BTN_LEFT: u32 = 272;
+
+/// Drags with the left button from one point to another, in steps.
+fn drag(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
+    let points: Vec<u32> = std::env::args()
+        .skip(2)
+        .filter_map(|a| a.parse().ok())
+        .collect();
+    let [x0, y0, x1, y1] = points[..] else {
+        return Err("usage: drag X0 Y0 X1 Y1".into());
+    };
+    let manager = probe.pointer_manager.clone().ok_or("no virtual pointer")?;
+    let pointer = manager.create_virtual_pointer(probe.seat.as_ref(), &queue.handle(), ());
+    let start = Instant::now();
+    let time = || u32::try_from(start.elapsed().as_millis()).unwrap_or(u32::MAX);
+    let pause = |queue: &mut Queue, probe: &mut Probe| {
+        // Lets the client under the pointer see the new seat capability
+        // and each step.
+        dispatch_until(queue, probe, Duration::from_millis(150), |_| false);
+    };
+    let to = |x: u32, y: u32| pointer.motion_absolute(time(), x, y, EXTENT[0], EXTENT[1]);
+    pause(queue, probe);
+    to(x0, y0);
+    pointer.frame();
+    pause(queue, probe);
+    pointer.button(time(), BTN_LEFT, wl_pointer::ButtonState::Pressed);
+    pointer.frame();
+    pause(queue, probe);
+    for step in 1..=4 {
+        let along = |a: u32, b: u32| (a * (4 - step) + b * step) / 4;
+        to(along(x0, x1), along(y0, y1));
+        pointer.frame();
+        pause(queue, probe);
+    }
+    pointer.button(time(), BTN_LEFT, wl_pointer::ButtonState::Released);
+    pointer.frame();
+    pause(queue, probe);
+    pointer.destroy();
+    queue.roundtrip(probe).map_err(|e| e.to_string())?;
+    Ok(format!("dragged from {x0},{y0} to {x1},{y1}"))
+}
+
 /// The width and the height in the arguments after the mode.
 fn size_args() -> Option<[i32; 2]> {
     let mut args = std::env::args().skip(2).map(|a| a.parse().ok());
@@ -363,6 +417,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
                 probe.lock_manager = Some(registry.bind(name, 1, qh, ()));
             }
             "wp_presentation" => probe.presentation = Some(registry.bind(name, 1, qh, ())),
+            "zwlr_virtual_pointer_manager_v1" => {
+                probe.pointer_manager = Some(registry.bind(name, 1, qh, ()));
+            }
             _ => {}
         }
     }
@@ -500,3 +557,5 @@ delegate_noop!(Probe: ignore wl_seat::WlSeat);
 delegate_noop!(Probe: ignore XdgPopup);
 delegate_noop!(Probe: ignore XdgPositioner);
 delegate_noop!(Probe: ignore ExtSessionLockManagerV1);
+delegate_noop!(Probe: ignore ZwlrVirtualPointerManagerV1);
+delegate_noop!(Probe: ignore ZwlrVirtualPointerV1);

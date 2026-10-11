@@ -317,6 +317,24 @@ pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
     }
 }
 
+/// The node of the scene under the pointer that takes pointer input: a
+/// surface, a rect or an image. `None` over the lock screen, over a layer
+/// surface above the scene, and over nothing.
+pub fn node_under(state: &State, spot: &Spot) -> Option<String> {
+    if state.lock.is_some()
+        || layers::surface_under(&spot.output, &layers::ABOVE, spot.local).is_some()
+    {
+        return None;
+    }
+    let list = state.scene.draw_list();
+    let (placed, _) = list
+        .iter()
+        .rev()
+        .filter(|p| p.input != InputMode::Pass)
+        .find_map(|p| Some((p, hit(state, p, spot.scene)?)))?;
+    (placed.input == InputMode::Accept).then(|| placed.node.id.clone())
+}
+
 /// What a point of the scene hits.
 enum Target {
     Surface(Under),

@@ -56,6 +56,38 @@ pub enum Event {
         /// The binding as the client grabbed it.
         binding: String,
     },
+    /// A button went down over a node that takes pointer input: a surface,
+    /// a rect or an image. Over a rect or an image, `pointer.moved` and
+    /// `pointer.released` follow until the button goes up, for example for
+    /// the drag of a title bar; the clients see nothing of it.
+    #[serde(rename = "pointer.pressed")]
+    PointerPressed {
+        /// The node.
+        node: String,
+        /// The Linux button code, for example 272 for the left button.
+        button: u32,
+        /// The pointer in scene coordinates.
+        position: [f64; 2],
+    },
+    /// The pointer moved while a button that went down over a rect or an
+    /// image is still down.
+    #[serde(rename = "pointer.moved")]
+    PointerMoved {
+        /// The node of the press.
+        node: String,
+        /// The pointer in scene coordinates.
+        position: [f64; 2],
+    },
+    /// The button of a press over a rect or an image went up.
+    #[serde(rename = "pointer.released")]
+    PointerReleased {
+        /// The node of the press.
+        node: String,
+        /// The Linux button code.
+        button: u32,
+        /// The pointer in scene coordinates.
+        position: [f64; 2],
+    },
     /// An animation reached its targets.
     #[serde(rename = "animation.done")]
     AnimationDone {

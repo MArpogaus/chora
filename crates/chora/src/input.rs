@@ -9,6 +9,7 @@
 
 use std::sync::atomic::Ordering;
 
+use chora_scene::{Event as SceneEvent, NodeKind};
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
@@ -254,7 +255,14 @@ fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime)
     let Some(spot) = state.spot(layout) else {
         return;
     };
-    let under = render::surface_under(state, &spot).map(|u| (u.surface, u.location));
+    // The drag of a node goes to plugins only.
+    let under = if let Some((node, _)) = state.node_grab.clone() {
+        let position = [spot.scene.x, spot.scene.y];
+        state.emit(&SceneEvent::PointerMoved { node, position });
+        None
+    } else {
+        render::surface_under(state, &spot).map(|u| (u.surface, u.location))
+    };
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     pointer.motion(
         state,
@@ -278,6 +286,9 @@ fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
     if button_state == ButtonState::Pressed {
         click_focus(state);
         note_press(state, pointer.current_focus(), serial);
+        press_node(state, event.button_code());
+    } else {
+        release_node(state, event.button_code());
     }
     pointer.button(
         state,
@@ -289,6 +300,48 @@ fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
         },
     );
     pointer.frame(state);
+}
+
+/// Tells plugins about a press over a node. Over a rect or an image, the
+/// moves and the release of the button follow.
+fn press_node(state: &mut State, button: u32) {
+    if state.node_grab.is_some() {
+        return;
+    }
+    let Some(spot) = state.spot(state.pointer_layout) else {
+        return;
+    };
+    let Some(node) = render::node_under(state, &spot) else {
+        return;
+    };
+    let area = state
+        .scene
+        .node(&node)
+        .is_some_and(|n| n.kind != NodeKind::Surface);
+    let position = [spot.scene.x, spot.scene.y];
+    state.emit(&SceneEvent::PointerPressed {
+        node: node.clone(),
+        button,
+        position,
+    });
+    if area {
+        state.node_grab = Some((node, button));
+    }
+}
+
+/// Ends the drag of a node when its button goes up.
+fn release_node(state: &mut State, button: u32) {
+    let Some((node, _)) = state.node_grab.take_if(|(_, b)| *b == button) else {
+        return;
+    };
+    let position = state
+        .spot(state.pointer_layout)
+        .map_or([0.0; 2], |s| [s.scene.x, s.scene.y]);
+    state.emit(&SceneEvent::PointerReleased {
+        node,
+        button,
+        position,
+    });
 }
 
 /// Notes the serial of a press for the client that gets it. Its popups may

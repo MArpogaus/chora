@@ -94,6 +94,9 @@ pub struct State {
     pub lock: Option<Lock>,
     /// The surface node that plugins focused.
     focus_wanted: Option<String>,
+    /// The rect or image node of a press and its button, until the button
+    /// goes up.
+    pub node_grab: Option<(String, u32)>,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
     /// The last configure of each surface node: size and states.
@@ -179,6 +182,7 @@ impl State {
             pointer_layout: Point::default(),
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
+            node_grab: None,
             layer_focus: None,
             configured: HashMap::new(),
             idle_notifier_state,

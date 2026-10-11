@@ -99,6 +99,8 @@ or an empty list. It always sees the current titles.
 | `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `input.key` | the grabbed binding |
+| `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates |
+| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node and position; `pointer.released` with the button |
 | `animation.done` | the node whose animation reached its targets |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels |
 | `output.removed` | output name |
@@ -109,8 +111,10 @@ when it applied, an error with the index of the failed command when not.
 A request that a client makes before its first commit follows its
 `surface.created`. A taskbar asks through `wlr-foreign-toplevel-management`.
 The core does not act on a request, also not on `close`. A plugin answers
-with commands, for example `close`. Later milestones add events for size
-limits and pointer grabs.
+with commands, for example `close`. A press over a surface reaches its
+client as well; a press over a rect or an image goes to plugins only, with
+the moves and the release that follow, so that a plugin can drag a window
+by its title bar. Later milestones add events for size limits.
 
 ## IPC methods
 

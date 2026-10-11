@@ -222,6 +222,7 @@ impl State {
     /// Ends the grabs and moves the keyboard and the pointer after the
     /// session locked or unlocked.
     fn lock_changed(&mut self) {
+        self.node_grab = None;
         let pointer = self.seat.get_pointer().expect("the seat has a pointer");
         pointer.unset_grab(self, SERIAL_COUNTER.next_serial(), InputTime::now());
         self.update_focus();
