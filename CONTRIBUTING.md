@@ -44,7 +44,7 @@ cargo deny check
 ```
 
 The end-to-end test starts chora nested in a headless sway and checks the
-exit of milestone M1. It needs sway, foot, grim and jq:
+exit of milestone M1. It needs sway, foot, grim, jq and python3:
 
 ```bash
 tests/nested.sh target/debug

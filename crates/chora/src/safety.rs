@@ -26,7 +26,7 @@ impl State {
     /// one.
     pub fn reset(&mut self) {
         for conn in self.ipc.conn_ids() {
-            self.ipc_close(conn, true);
+            self.ipc_close(conn);
         }
         let size = self.output_size();
         let effects = self.scene.reset([f64::from(size.w), f64::from(size.h)]);

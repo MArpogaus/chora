@@ -11,7 +11,7 @@
 # Usage: tests/nested.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl and chora-tiling
 #   OUT_DIR  receives the logs and screenshots (default: a temp dir)
-# Needs: sway, foot, grim, jq.
+# Needs: sway, foot, grim, jq, python3.
 set -euo pipefail
 
 bin=$(realpath "$1")
@@ -89,7 +89,30 @@ pkill -KILL -x chora-tiling
 wait_for count_is 3 '.parent == null and .owner == null'
 kill -0 "$chora_pid" || fail "chora died"
 
-step "4. the emergency reset puts the three surfaces in the grid"
+step "4. a transaction that arrives with the end of the stream still applies"
+first=$(surfaces | jq -r '[.[].id] | sort | first')
+python3 -I - "$CHORA_SOCKET" "$first" >"$out/eof.json" <<'EOF'
+import json, socket, sys
+path, surface = sys.argv[1:]
+calls = [
+    ("hello", {"name": "e2e", "keep_nodes": True}),
+    ("scene.apply", {"commands": [
+        {"attach": {"surface": surface, "parent": "root"}},
+        {"configure": {"surface": surface, "size": [300, 200]}},
+    ]}),
+]
+s = socket.socket(socket.AF_UNIX)
+s.connect(path)
+s.sendall(b"".join(
+    json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}).encode() + b"\n"
+    for i, (m, p) in enumerate(calls)))
+s.shutdown(socket.SHUT_WR)
+print(s.makefile().read(), end="")
+EOF
+jq -se 'map(.result) == [null, null]' "$out/eof.json" >/dev/null || fail "answers: $out/eof.json"
+count_is 1 '.owner == "e2e"' || fail "the transaction did not apply"
+
+step "5. the emergency reset puts the three surfaces in the grid"
 kill -USR1 "$chora_pid"
 wait_for count_is 3 '.parent == "root"'
 surfaces >"$out/grid.json"
@@ -97,7 +120,7 @@ jq -e '[.[] | [.transform.matrix[12], .transform.matrix[13]]] | sort == [[0,0],[
     "$out/grid.json" >/dev/null || fail "unexpected grid: $out/grid.json"
 grim "$out/grid.png"
 
-step "5. SIGUSR1 resets while the startup command runs, which blocks no signal"
+step "6. SIGUSR1 resets while the startup command runs, which blocks no signal"
 "$bin/chora" -- sh -c "grep SigBlk /proc/self/status >'$out/sigblk'; exec sleep 600" \
     >"$out/chora-signal.log" 2>&1 &
 signal_pid=$!

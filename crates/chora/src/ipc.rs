@@ -57,7 +57,10 @@ struct Conn {
     name: Option<String>,
     keep_nodes: bool,
     events: Option<Vec<String>>,
-    token: RegistrationToken,
+    /// The source that reads the connection. `None` after the end of the
+    /// stream or a line that is too long: then the connection closes when
+    /// its answers are out.
+    reader: Option<RegistrationToken>,
 }
 
 /// Opens the socket in `$XDG_RUNTIME_DIR/chora/` and returns its path.
@@ -169,15 +172,6 @@ impl Ipc {
     /// The ids of all connections.
     pub fn conn_ids(&self) -> Vec<u64> {
         self.conns.keys().copied().collect()
-    }
-
-    /// Writes the pending output of every connection. Returns the
-    /// connections that failed or overflowed.
-    fn flush(&mut self) -> Vec<u64> {
-        self.conns
-            .iter_mut()
-            .filter_map(|(id, conn)| (!conn.flush()).then_some(*id))
-            .collect()
     }
 }
 
@@ -304,37 +298,34 @@ impl State {
             name: None,
             keep_nodes: false,
             events: None,
-            token,
+            reader: Some(token),
         };
         self.ipc.conns.insert(id, conn);
         Ok(())
     }
 
     /// Reads at most `READ_PER_WAKEUP` bytes and handles the complete
-    /// lines. At the end of the stream, the lines that arrived still get
-    /// their answers.
+    /// lines. After the end of the stream, the requests that arrived still
+    /// get their answers, also from waiting transactions.
     fn ipc_readable(&mut self, id: u64) -> PostAction {
         let open = self.ipc.conns.get_mut(&id).is_some_and(Conn::read);
         while let Some(line) = self.ipc.conns.get_mut(&id).and_then(Conn::next_line) {
             self.ipc_handle_line(id, &line);
         }
-        let too_long = self
-            .ipc
-            .conns
-            .get(&id)
-            .is_some_and(|c| c.input.len() > MAX_LINE);
+        let Some(conn) = self.ipc.conns.get_mut(&id) else {
+            return PostAction::Remove;
+        };
+        let too_long = conn.input.len() > MAX_LINE;
+        if open && !too_long {
+            return PostAction::Continue;
+        }
+        conn.input = Vec::new();
+        conn.reader = None;
         if too_long {
             let error = RpcError::new(RpcError::INVALID_PARAMS, "line too long");
             self.ipc.respond(id, &Message::error(Value::Null, error));
         }
-        if !open || too_long {
-            if let Some(conn) = self.ipc.conns.get_mut(&id) {
-                conn.flush();
-            }
-            self.ipc_close(id, false);
-            return PostAction::Remove;
-        }
-        PostAction::Continue
+        PostAction::Remove
     }
 
     fn ipc_handle_line(&mut self, conn: u64, line: &[u8]) {
@@ -462,14 +453,13 @@ impl State {
     }
 
     /// Closes a connection. Without `keep_nodes`, the nodes of its name go
-    /// when the last connection of the name closes. `remove_source` must be
-    /// true unless the caller is the source of the connection itself.
-    pub fn ipc_close(&mut self, conn: u64, remove_source: bool) {
+    /// when the last connection of the name closes.
+    pub fn ipc_close(&mut self, conn: u64) {
         let Some(closed) = self.ipc.conns.remove(&conn) else {
             return;
         };
-        if remove_source {
-            self.loop_handle.remove(closed.token);
+        if let Some(reader) = closed.reader {
+            self.loop_handle.remove(reader);
         }
         self.ipc.grabs.retain(|(_, _, c)| *c != conn);
         self.transactions.drop_conn(conn);
@@ -489,10 +479,23 @@ impl State {
         self.emit(&Event::ClientDisconnected { name });
     }
 
-    /// Writes all pending IPC output and closes broken connections.
+    /// Writes all pending IPC output. Closes the connections that failed or
+    /// overflowed, and those without a reader once their answers are out.
     pub fn ipc_flush(&mut self) {
-        for conn in self.ipc.flush() {
-            self.ipc_close(conn, true);
+        let transactions = &self.transactions;
+        let closing: Vec<u64> = self
+            .ipc
+            .conns
+            .iter_mut()
+            .filter_map(|(id, conn)| {
+                let broken = !conn.flush();
+                let answered =
+                    conn.reader.is_none() && conn.output.is_empty() && !transactions.waits_for(*id);
+                (broken || answered).then_some(*id)
+            })
+            .collect();
+        for conn in closing {
+            self.ipc_close(conn);
         }
     }
 }

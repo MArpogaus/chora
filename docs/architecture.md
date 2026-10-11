@@ -118,6 +118,10 @@ calloop serves the socket in the event loop of the core, so no thread
 handoff is necessary. Events are JSON-RPC notifications on the same
 connection.
 
+When a client closes its side of the connection, the core still answers the
+requests that arrived, also those of waiting transactions. Then it closes
+the connection.
+
 Limits keep a buggy client from exhausting the core:
 
 | Limit | Value | When it is reached |

@@ -64,6 +64,11 @@ impl Transactions {
         }
     }
 
+    /// Whether a transaction of the connection waits in the queue.
+    pub fn waits_for(&self, conn: u64) -> bool {
+        self.queue.iter().any(|p| p.conn == conn)
+    }
+
     /// Drops the transactions of a closed connection.
     pub fn drop_conn(&mut self, conn: u64) {
         self.queue.retain(|p| p.conn != conn);
