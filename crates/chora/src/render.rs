@@ -8,15 +8,12 @@ use std::{
 
 use chora_scene::{InputMode, NodeKind, Placed, Scene, Transform};
 use smithay::{
-    backend::renderer::{
-        ImportAll, ImportMem, Renderer,
-        element::{
-            AsRenderElements, Id, Kind,
-            memory::MemoryRenderBufferRenderElement,
-            solid::{SolidColorBuffer, SolidColorRenderElement},
-            surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
-            utils::RescaleRenderElement,
-        },
+    backend::renderer::element::{
+        AsRenderElements, Id, Kind,
+        memory::MemoryRenderBufferRenderElement,
+        solid::{SolidColorBuffer, SolidColorRenderElement},
+        surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
+        utils::RescaleRenderElement,
     },
     desktop::{
         Window, WindowSurfaceType, layer_map_for_output,
@@ -41,26 +38,30 @@ use crate::{
     images::{self, CellElement, Images, Placement},
     layers,
     lock::Lock,
+    mesh::{self, Layers, MeshElement, MeshRenderer, Placing},
     output::{Spot, output_area, scene_rect},
     state::State,
 };
 
 render_elements! {
-    pub SceneElement<R> where R: ImportAll + ImportMem;
+    pub SceneElement<R> where R: MeshRenderer;
     Surface = WaylandSurfaceRenderElement<R>,
     Scaled = RescaleRenderElement<WaylandSurfaceRenderElement<R>>,
     Solid = SolidColorRenderElement,
     Cursor = MemoryRenderBufferRenderElement<R>,
     Image = CellElement<R>,
+    Mesh = MeshElement,
 }
 
 /// What the scene draws besides surfaces: a color buffer per rect node,
-/// the images, and the ids of the image cells of each image node.
+/// the images, the ids of the image cells of each image node, and the
+/// textures of the layers.
 #[derive(Default)]
 pub struct Assets {
     pub rects: HashMap<String, SolidColorBuffer>,
     pub images: Images,
     pub cells: HashMap<String, Vec<Id>>,
+    pub layers: Layers,
 }
 
 /// How an output shows the scene: its camera and its scale factor.
@@ -90,8 +91,7 @@ pub fn output_elements<R>(
     view: &View,
 ) -> Vec<SceneElement<R>>
 where
-    R: Renderer + ImportAll + ImportMem,
-    R::TextureId: Clone + Send + 'static,
+    R: MeshRenderer,
 {
     if let Some(lock) = parts.lock {
         return lock.surface(output).map_or_else(Vec::new, |surface| {
@@ -108,8 +108,11 @@ where
             .collect()
         });
     }
+    prune_assets(parts);
     let mut out = layer_elements(renderer, output, &layers::ABOVE, view.scale);
-    out.extend(elements(parts, renderer, view));
+    let scene = parts.scene;
+    let list = scene.layer_list(chora_scene::ROOT);
+    out.extend(elements(parts, renderer, &list, view));
     out.extend(layer_elements(renderer, output, &layers::BELOW, view.scale));
     out
 }
@@ -122,8 +125,7 @@ fn layer_elements<R>(
     scale: f64,
 ) -> Vec<SceneElement<R>>
 where
-    R: Renderer + ImportAll + ImportMem,
-    R::TextureId: Clone + Send + 'static,
+    R: MeshRenderer,
 {
     let map = layer_map_for_output(output);
     let mut out = Vec::new();
@@ -144,75 +146,128 @@ where
     out
 }
 
-/// The render elements of the scene for one output, front first. The rects
-/// keep one buffer per rect node, so that damage tracking sees unchanged
-/// rects as unchanged.
-fn elements<R>(parts: &mut Parts<'_>, renderer: &mut R, view: &View) -> Vec<SceneElement<R>>
-where
-    R: Renderer + ImportAll + ImportMem,
-    R::TextureId: Clone + Send + 'static,
-{
-    let list = parts.scene.draw_list();
-    let scene = parts.scene;
-    let Assets {
-        rects,
-        images,
-        cells,
-    } = &mut *parts.assets;
-    rects.retain(|id, _| scene.node(id).is_some_and(|n| n.kind == NodeKind::Rect));
-    cells.retain(|id, _| scene.node(id).is_some_and(|n| n.kind == NodeKind::Image));
+/// The render elements of nodes of a layer list, front first. A layer in
+/// the list renders into a texture and shows through its mesh.
+fn elements<R: MeshRenderer>(
+    parts: &mut Parts<'_>,
+    renderer: &mut R,
+    list: &[Placed<'_>],
+    view: &View,
+) -> Vec<SceneElement<R>> {
     let mut out = Vec::new();
     for placed in list.iter().rev() {
-        let transform = view.camera.then(&placed.transform);
-        let Some((offset, (sx, sy))) = location_and_scale(&transform) else {
-            continue;
-        };
-        // Physical pixels from here on.
-        let offset = offset.upscale(view.scale);
-        let scale = (sx * view.scale, sy * view.scale);
-        #[allow(clippy::cast_possible_truncation)]
-        let alpha = placed.opacity as f32;
-        match placed.node.kind {
-            NodeKind::Surface => {
-                let Some(window) = parts.windows.get(&placed.node.id) else {
-                    continue;
-                };
-                // Smithay sizes a surface by the output scale only, so the
-                // node scale applies afterwards, around the node position.
-                let origin = offset.to_physical_precise_round(1.0);
-                let loc = offset - window.geometry().loc.to_f64().upscale(view.scale);
-                out.extend(
-                    window
-                        .render_elements::<WaylandSurfaceRenderElement<R>>(
-                            renderer,
-                            loc.to_physical_precise_round(1.0),
-                            view.scale.into(),
-                            alpha,
-                        )
-                        .into_iter()
-                        .map(|e| {
-                            SceneElement::Scaled(RescaleRenderElement::from_element(
-                                e,
-                                origin,
-                                (sx, sy),
-                            ))
-                        }),
-                );
-            }
-            NodeKind::Rect => out.extend(rect(placed, rects, offset, scale, alpha)),
-            NodeKind::Image => {
-                let at = Placement {
-                    origin: offset,
-                    scale: (sx, sy),
-                    output_scale: view.scale,
-                    alpha,
-                };
-                out.extend(image(placed, images, cells, renderer, &at));
-            }
-            NodeKind::Group => {}
+        if placed.node.is_layer() {
+            out.extend(layer(parts, renderer, placed, view));
+        } else {
+            out.extend(node_elements(parts, renderer, placed, view));
         }
     }
     out
+}
+
+/// The element of a layer node: renders the node and its descendants into
+/// its texture and draws that with the transform of the node.
+fn layer<R: MeshRenderer>(
+    parts: &mut Parts<'_>,
+    renderer: &mut R,
+    placed: &Placed<'_>,
+    view: &View,
+) -> Option<SceneElement<R>> {
+    let node = placed.node;
+    let size = mesh::texture_size(node, view.scale)?;
+    let inner = View {
+        camera: Transform::IDENTITY,
+        scale: view.scale,
+    };
+    let scene = parts.scene;
+    let list = scene.layer_list(&node.id);
+    let (first, rest) = list.split_first()?;
+    let gles = renderer.gles();
+    let mut content = elements(parts, gles, rest, &inner);
+    content.extend(node_elements(parts, gles, first, &inner));
+    let mut texture = parts.assets.layers.texture(gles, &node.id, size).ok()?;
+    if let Err(err) = mesh::render_into(gles, &mut texture, view.scale, &content) {
+        tracing::warn!(%err, "a layer failed");
+        return None;
+    }
+    let transform = view.camera.then(&placed.transform);
+    #[allow(clippy::cast_possible_truncation)]
+    let alpha = placed.opacity as f32;
+    let at = Placing {
+        transform: &transform,
+        scale: view.scale,
+        alpha,
+    };
+    MeshElement::new(&mut parts.assets.layers, node, texture, &at).map(SceneElement::Mesh)
+}
+
+/// The render elements of one node that is not a layer, front first. The
+/// rects keep one buffer per rect node, so that damage tracking sees
+/// unchanged rects as unchanged.
+fn node_elements<R: MeshRenderer>(
+    parts: &mut Parts<'_>,
+    renderer: &mut R,
+    placed: &Placed<'_>,
+    view: &View,
+) -> Vec<SceneElement<R>> {
+    let transform = view.camera.then(&placed.transform);
+    let Some((offset, (sx, sy))) = location_and_scale(&transform) else {
+        return Vec::new();
+    };
+    // Physical pixels from here on.
+    let offset = offset.upscale(view.scale);
+    let scale = (sx * view.scale, sy * view.scale);
+    #[allow(clippy::cast_possible_truncation)]
+    let alpha = placed.opacity as f32;
+    match placed.node.kind {
+        NodeKind::Surface => {
+            let Some(window) = parts.windows.get(&placed.node.id) else {
+                return Vec::new();
+            };
+            // Smithay sizes a surface by the output scale only, so the node
+            // scale applies afterwards, around the node position.
+            let origin = offset.to_physical_precise_round(1.0);
+            let loc = offset - window.geometry().loc.to_f64().upscale(view.scale);
+            window
+                .render_elements::<WaylandSurfaceRenderElement<R>>(
+                    renderer,
+                    loc.to_physical_precise_round(1.0),
+                    view.scale.into(),
+                    alpha,
+                )
+                .into_iter()
+                .map(|e| {
+                    SceneElement::Scaled(RescaleRenderElement::from_element(e, origin, (sx, sy)))
+                })
+                .collect()
+        }
+        NodeKind::Rect => rect(placed, &mut parts.assets.rects, offset, scale, alpha)
+            .into_iter()
+            .collect(),
+        NodeKind::Image => {
+            let at = Placement {
+                origin: offset,
+                scale: (sx, sy),
+                output_scale: view.scale,
+                alpha,
+            };
+            let Assets { images, cells, .. } = &mut *parts.assets;
+            image(placed, images, cells, renderer, &at)
+        }
+        NodeKind::Group => Vec::new(),
+    }
+}
+
+/// Drops the buffers of nodes that are gone or of another kind.
+fn prune_assets(parts: &mut Parts<'_>) {
+    let scene = parts.scene;
+    let kind_is = |id: &str, kind| scene.node(id).is_some_and(|n| n.kind == kind);
+    let assets = &mut *parts.assets;
+    assets.rects.retain(|id, _| kind_is(id, NodeKind::Rect));
+    assets.cells.retain(|id, _| kind_is(id, NodeKind::Image));
+    assets
+        .layers
+        .retain(|id| scene.node(id).is_some_and(chora_scene::Node::is_layer));
 }
 
 fn rect<R>(
@@ -223,8 +278,7 @@ fn rect<R>(
     alpha: f32,
 ) -> Option<SceneElement<R>>
 where
-    R: Renderer + ImportAll + ImportMem,
-    R::TextureId: Clone + Send + 'static,
+    R: MeshRenderer,
 {
     let props = &placed.node.props;
     let [width, height] = props.size?;
@@ -253,8 +307,7 @@ fn image<R>(
     at: &Placement,
 ) -> Vec<SceneElement<R>>
 where
-    R: Renderer + ImportAll + ImportMem,
-    R::TextureId: Clone + Send + 'static,
+    R: MeshRenderer,
 {
     let props = &placed.node.props;
     let Some(image) = props.image.as_deref().and_then(|p| images.get(p)) else {

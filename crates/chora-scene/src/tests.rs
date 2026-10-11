@@ -281,10 +281,11 @@ fn the_owner_moves_its_surface_instead_of_attaching_it_again() {
 }
 
 #[test]
-fn size_and_color_belong_to_rects() {
+fn color_belongs_to_rects() {
     let mut scene = Scene::default();
     let sized = PropsUpdate {
         size: Some([10.0, 10.0]),
+        color: Some([1.0, 0.0, 0.0, 1.0]),
         ..PropsUpdate::default()
     };
     let create = |kind| Command::Create {
@@ -294,10 +295,7 @@ fn size_and_color_belong_to_rects() {
         props: sized.clone(),
     };
     let err = scene.apply("wm", &[create(NodeKind::Group)]).unwrap_err();
-    assert_eq!(
-        err.error,
-        SceneError::WrongKind("n".into(), "rect or image")
-    );
+    assert_eq!(err.error, SceneError::WrongKind("n".into(), "rect"));
     scene.apply("wm", &[create(NodeKind::Rect)]).unwrap();
 }
 

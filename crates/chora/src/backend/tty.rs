@@ -31,9 +31,9 @@ use smithay::{
         egl::context::ContextPriority,
         libinput::{LibinputInputBackend, LibinputSessionInterface},
         renderer::{
-            ImportDma, ImportMemWl,
-            gles::GlesRenderer,
-            multigpu::{GpuManager, MultiRenderer, gbm::GbmGlesBackend},
+            ImportDma, ImportMemWl, RendererSuper,
+            gles::{GlesError, GlesFrame, GlesRenderer},
+            multigpu::{Error as MultiError, GpuManager, MultiRenderer, gbm::GbmGlesBackend},
         },
         session::{Event as SessionEvent, Session, libseat::LibSeatSession},
         udev::{UdevBackend, UdevEvent, all_gpus, primary_gpu},
@@ -63,6 +63,7 @@ use smithay_drm_extras::{
 use super::Backend;
 use crate::{
     cursor::{self, Cursors},
+    mesh::MeshRenderer,
     output::{frame_duration, output_area},
     render::{self, SceneElement, View},
     state::State,
@@ -72,6 +73,27 @@ type Gles = GbmGlesBackend<GlesRenderer, DrmDeviceFd>;
 type Allocator = GbmAllocator<DrmDeviceFd>;
 type Exporter = GbmFramebufferExporter<DrmDeviceFd>;
 type TtyRenderer<'a> = MultiRenderer<'a, 'a, Gles, Gles>;
+/// The tty renderer draws meshes on the GLES renderer of its render GPU.
+impl MeshRenderer for TtyRenderer<'_> {
+    fn gles(&mut self) -> &mut GlesRenderer {
+        self.as_mut()
+    }
+
+    fn gles_frame<'a, 'f, 'b>(
+        frame: &'a mut <Self as RendererSuper>::Frame<'f, 'b>,
+    ) -> &'a mut GlesFrame<'f, 'b>
+    where
+        'b: 'f,
+        Self: 'f,
+    {
+        frame.as_mut()
+    }
+
+    fn from_gles(err: GlesError) -> Self::Error {
+        MultiError::Render(err)
+    }
+}
+
 /// What a queued frame carries to its vblank.
 type Feedback = Option<Frame>;
 type Manager = DrmOutputManager<Allocator, Exporter, Feedback, DrmDeviceFd>;

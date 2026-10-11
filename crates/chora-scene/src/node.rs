@@ -36,6 +36,52 @@ pub enum InputMode {
     Block,
 }
 
+/// The most cells of a mesh along one side.
+pub const MAX_MESH_CELLS: u32 = 64;
+
+/// A grid that deforms how a node shows, for example for wobbly windows:
+/// `cols` by `rows` cells over the size of the node. `points` holds the
+/// place of each grid point in node coordinates, row by row from the top
+/// left, `(cols + 1) * (rows + 1)` points.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Mesh {
+    /// Cells along x, from 1 to 64.
+    pub cols: u32,
+    /// Cells along y, from 1 to 64.
+    pub rows: u32,
+    /// The grid points.
+    pub points: Vec<[f64; 2]>,
+}
+
+impl Mesh {
+    /// The undeformed grid over a size.
+    #[must_use]
+    pub fn flat(cols: u32, rows: u32, [w, h]: [f64; 2]) -> Self {
+        let points = (0..=rows)
+            .flat_map(|r| {
+                (0..=cols).map(move |c| {
+                    [
+                        w * f64::from(c) / f64::from(cols),
+                        h * f64::from(r) / f64::from(rows),
+                    ]
+                })
+            })
+            .collect();
+        Self { cols, rows, points }
+    }
+
+    /// Whether the grid has 1 to 64 cells per side and a point for each
+    /// grid point.
+    #[must_use]
+    pub fn is_valid(&self) -> bool {
+        let cells = 1..=MAX_MESH_CELLS;
+        cells.contains(&self.cols)
+            && cells.contains(&self.rows)
+            && self.points.len() == ((self.cols + 1) * (self.rows + 1)) as usize
+    }
+}
+
 /// What the client tells about a surface.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SurfaceInfo {
@@ -69,6 +115,18 @@ pub struct Node {
     pub surface: Option<SurfaceInfo>,
 }
 
+impl Node {
+    /// Whether the node renders into a texture of its size first: a node
+    /// with a size and a mesh, or with a transform that is not a plain 2D
+    /// translation and scale, for example a rotation or a perspective.
+    #[must_use]
+    pub fn is_layer(&self) -> bool {
+        self.id != ROOT
+            && self.props.size.is_some()
+            && (self.props.mesh.is_some() || self.props.transform.scale_2d().is_none())
+    }
+}
+
 /// The properties that clients can change.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Props {
@@ -83,7 +141,8 @@ pub struct Props {
     /// Free key/value pairs to tag and find nodes.
     pub meta: BTreeMap<String, String>,
     /// Width and height of a rect or an image. An image without a size
-    /// has the size of its file.
+    /// has the size of its file. For a group, the area that a layer
+    /// shows.
     pub size: Option<[f64; 2]>,
     /// RGBA color of a rect, each from 0 to 1.
     pub color: Option<[f64; 4]>,
@@ -93,6 +152,8 @@ pub struct Props {
     /// stretches, in pixels of the file: left, top, right, bottom. The
     /// edges between them stretch in one direction, the center in both.
     pub slice: Option<[f64; 4]>,
+    /// A grid that deforms the node and its descendants.
+    pub mesh: Option<Mesh>,
 }
 
 impl Default for Props {
@@ -107,6 +168,7 @@ impl Default for Props {
             color: None,
             image: None,
             slice: None,
+            mesh: None,
         }
     }
 }
@@ -143,6 +205,9 @@ pub struct PropsUpdate {
     /// See [`Props::slice`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slice: Option<[f64; 4]>,
+    /// See [`Props::mesh`]; a mesh without points removes the mesh.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mesh: Option<Mesh>,
 }
 
 impl Props {
@@ -183,6 +248,9 @@ impl Props {
         }
         if update.slice.is_some() {
             self.slice = update.slice;
+        }
+        if let Some(mesh) = &update.mesh {
+            self.mesh = (!mesh.points.is_empty()).then(|| mesh.clone());
         }
     }
 }

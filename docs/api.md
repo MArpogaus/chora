@@ -38,7 +38,8 @@ This table is the one list of node properties.
 | `effects` | all | list of shaders with uniforms |
 | `input` | all | `accept`, `pass` or `block`; `pass` and `block` apply to all descendants |
 | `meta` | all | free key/value pairs to tag and find nodes |
-| `size` | rect, image, shader | width and height; an image without a size has the size of its file |
+| `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
+| `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
 | `color`, `radius`, `border` | rect | |
 | `image` | image | absolute path of a PNG file; the core loads it again after a change |
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch |
@@ -46,6 +47,11 @@ This table is the one list of node properties.
 
 A surface node gets its size from its client. The `configure` command asks
 the client for a new size.
+
+A node with a size and a mesh, or with a transform that is not a plain 2D
+translation and scale, for example a rotation or a perspective, is a layer
+(see [Architecture](architecture.md#renderer)). `animate` moves the points
+of a mesh of the same grid, for example for a magic lamp minimize.
 
 The core loads the file of an image when a transaction names it. A file
 that does not load, that is larger than 32 MiB or larger than 8192 pixels

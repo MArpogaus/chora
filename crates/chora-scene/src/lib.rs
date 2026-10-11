@@ -17,7 +17,9 @@ pub use animation::{Easing, MAX_DURATION};
 pub use binding::{Binding, BindingError, Modifiers};
 pub use command::{Command, Effect, ToplevelState};
 pub use event::{Event, OutputInfo, SurfaceRequest};
-pub use node::{InputMode, Node, NodeKind, Props, PropsUpdate, ROOT, SurfaceInfo};
+pub use node::{
+    InputMode, MAX_MESH_CELLS, Mesh, Node, NodeKind, Props, PropsUpdate, ROOT, SurfaceInfo,
+};
 pub use scene::{MAX_CAMERAS, MAX_NODES, Placed, Scene, SceneError, TransactionError};
 pub use selector::{Selector, SelectorError};
 pub use transform::Transform;

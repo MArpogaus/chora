@@ -9,6 +9,7 @@ mod input;
 mod ipc;
 mod layers;
 mod lock;
+mod mesh;
 mod output;
 mod output_management;
 mod protocols;

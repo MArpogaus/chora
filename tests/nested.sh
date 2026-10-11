@@ -405,4 +405,42 @@ jq -se 'map(select(.node == "handle")) | map(.event) | .[0] == "pointer.pressed"
 jq -se '.[0].button == 272 and .[-1].position == [1200, 760]' "$out/pointer.jsonl" \
     >/dev/null || fail "button or position: $out/pointer.jsonl"
 
+step "21. a layer shows through its mesh, and turns with its transform"
+rpc '[{"remove": {"id": "frame"}}, {"remove": {"id": "handle"}}]' >"$out/clear.json"
+# A 2x2 PNG file: red, green / blue, white.
+python3 -I - "$out/quad.png" <<'EOF'
+import struct, sys, zlib
+rows = [[(255, 0, 0, 255), (0, 255, 0, 255)], [(0, 0, 255, 255), (255, 255, 255, 255)]]
+raw = b"".join(b"\0" + bytes(c for px in row for c in px) for row in rows)
+def chunk(kind, data):
+    crc = zlib.crc32(kind + data) & 0xFFFFFFFF
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", crc)
+with open(sys.argv[1], "wb") as f:
+    f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 2, 2, 8, 6, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+EOF
+mesh() { echo "{\"cols\": 1, \"rows\": 1, \"points\": $1}"; }
+rpc "[{\"create\": {\"id\": \"layer\", \"kind\": \"group\", \"parent\": \"root\",
+       \"props\": {\"size\": [300, 200], \"transform\": {\"translate\": [700, 450]},
+                 \"mesh\": $(mesh '[[0, 0], [300, 0], [0, 200], [300, 200]]')}}},
+      {\"create\": {\"id\": \"quad\", \"kind\": \"image\", \"parent\": \"layer\",
+       \"props\": {\"image\": \"$out/quad.png\", \"size\": [300, 200]}}}]" >"$out/layer.json"
+all_results "$out/layer.json" || fail "answers: $out/layer.json"
+wait_for pixel_is 775 500 "255 0 0"
+pixel_is 925 600 "255 255 255" || fail "the flat mesh: $(pixel 925 600)"
+# The mesh moves the top edge 100 pixels to the right.
+rpc "[{\"update\": {\"id\": \"layer\",
+       \"props\": {\"mesh\": $(mesh '[[100, 0], [400, 0], [0, 200], [300, 200]]')}}}]" \
+    >"$out/shear.json"
+wait_for pixel_is 810 455 "255 0 0"
+pixel_is 720 455 "0 0 0" || fail "the sheared mesh: $(pixel 720 455)"
+# A quarter turn without a mesh: x goes down, y goes left.
+rpc '[{"update": {"id": "layer", "props": {"mesh": {"cols": 1, "rows": 1, "points": []},
+       "transform": {"rotate": 90, "translate": [1000, 450]}}}}]' >"$out/turn.json"
+all_results "$out/turn.json" || fail "answers: $out/turn.json"
+wait_for pixel_is 975 500 "255 0 0"
+pixel_is 825 500 "0 0 255" || fail "the turned blue: $(pixel 825 500)"
+pixel_is 975 700 "0 255 0" || fail "the turned green: $(pixel 975 700)"
+grim "$out/layer.png"
+
 echo "PASS (logs and screenshots in $out)"

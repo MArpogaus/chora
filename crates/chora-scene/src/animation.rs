@@ -2,13 +2,13 @@
 //! targets over a duration, frame by frame, so that a plugin sends one
 //! command and not one transaction per frame.
 //!
-//! The transform, the opacity, the size and the color move along an easing
-//! curve. The other properties, for example `visible`, change at the end,
+//! The transform, the opacity, the size, the color and a mesh of the same
+//! grid move along an easing curve. The other properties, for example `visible`, change at the end,
 //! so that a node can fade out and then hide.
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Props, PropsUpdate, Transform};
+use crate::{Mesh, Props, PropsUpdate, Transform};
 
 /// The longest animation, in milliseconds.
 pub const MAX_DURATION: f64 = 60_000.0;
@@ -88,6 +88,17 @@ impl Animation {
         }
         if let (Some(from), Some(to)) = (self.from.color, self.to.color) {
             props.color = Some(std::array::from_fn(|i| lerp(from[i], to[i])));
+        }
+        if let (Some(from), Some(to)) = (&self.from.mesh, &self.to.mesh)
+            && (from.cols, from.rows) == (to.cols, to.rows)
+            && from.points.len() == to.points.len()
+        {
+            let points = from.points.iter().zip(&to.points);
+            let points = points.map(|(a, b)| [lerp(a[0], b[0]), lerp(a[1], b[1])]);
+            props.mesh = Some(Mesh {
+                points: points.collect(),
+                ..to.clone()
+            });
         }
         props
     }

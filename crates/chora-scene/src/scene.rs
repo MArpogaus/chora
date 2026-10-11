@@ -3,8 +3,8 @@
 use imbl::OrdMap;
 
 use crate::{
-    Command, Effect, InputMode, MAX_DURATION, Node, NodeKind, Props, PropsUpdate, ROOT, Selector,
-    SurfaceInfo, ToplevelState, Transform, animation::Animation,
+    Command, Effect, InputMode, MAX_DURATION, MAX_MESH_CELLS, Node, NodeKind, Props, PropsUpdate,
+    ROOT, Selector, SurfaceInfo, ToplevelState, Transform, animation::Animation,
 };
 
 /// Why a command failed.
@@ -61,6 +61,10 @@ pub struct Placed<'a> {
     /// The input mode, after the modes of the ancestors.
     pub input: InputMode,
 }
+
+/// A node of a walk with the transform, the opacity and the input mode of
+/// its parent.
+type Step<'a> = (&'a Node, Transform, f64, InputMode);
 
 /// The limit of the cameras that clients set.
 pub const MAX_CAMERAS: usize = 64;
@@ -452,13 +456,39 @@ impl Scene {
     /// call stack.
     #[must_use]
     pub fn draw_list(&self) -> Vec<Placed<'_>> {
+        self.walk(ROOT, false)
+    }
+
+    /// The visible nodes that a layer shows, bottom first, in the
+    /// coordinates of the layer: for the root, the nodes outside of
+    /// layers; for a layer node, the node itself at the identity and its
+    /// descendants. A nested layer is in the list, its descendants are
+    /// not.
+    #[must_use]
+    pub fn layer_list(&self, id: &str) -> Vec<Placed<'_>> {
+        self.walk(id, true)
+    }
+
+    fn walk(&self, start: &str, layers: bool) -> Vec<Placed<'_>> {
+        let Some(first) = self.nodes.get(start) else {
+            return Vec::new();
+        };
         let mut out = Vec::new();
-        let mut stack = vec![(
-            &self.nodes[ROOT],
-            Transform::IDENTITY,
-            1.0,
-            InputMode::Accept,
-        )];
+        let mut stack = Vec::new();
+        if start == ROOT || !layers {
+            stack.push((first, Transform::IDENTITY, 1.0, InputMode::Accept));
+        } else if first.props.visible {
+            // The start of a layer list shows without its own transform and
+            // opacity; the layer applies them.
+            let placed = Placed {
+                node: first,
+                transform: Transform::IDENTITY,
+                opacity: 1.0,
+                input: first.props.input,
+            };
+            self.push_children(&mut stack, &placed);
+            out.push(placed);
+        }
         while let Some((node, parent, opacity, input)) = stack.pop() {
             if !node.props.visible {
                 continue;
@@ -473,19 +503,27 @@ impl Scene {
                     input
                 },
             };
-            for id in node.children.iter().rev() {
-                // A missing child is a bug of the tree links; a frame
-                // without it is better than a crash of the session.
-                debug_assert!(self.nodes.contains_key(id), "missing child {id:?}");
-                if let Some(child) = self.nodes.get(id) {
-                    stack.push((child, placed.transform, placed.opacity, placed.input));
-                }
+            if !(layers && node.is_layer()) {
+                self.push_children(&mut stack, &placed);
             }
             if node.id != ROOT {
                 out.push(placed);
             }
         }
         out
+    }
+
+    /// Puts the children of a placed node on the stack of a walk, the
+    /// bottom one last.
+    fn push_children<'a>(&'a self, stack: &mut Vec<Step<'a>>, placed: &Placed<'a>) {
+        for id in placed.node.children.iter().rev() {
+            // A missing child is a bug of the tree links; a frame without
+            // it is better than a crash of the session.
+            debug_assert!(self.nodes.contains_key(id), "missing child {id:?}");
+            if let Some(child) = self.nodes.get(id) {
+                stack.push((child, placed.transform, placed.opacity, placed.input));
+            }
+        }
     }
 
     /// Runs `update` and `animate`. Either ends a running animation of the
@@ -666,9 +704,8 @@ const MAX_PATH: usize = 4096;
 /// file and a slice. Image paths are absolute, sizes and slices are not
 /// negative, and all numbers are finite.
 fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
-    let sized = matches!(kind, NodeKind::Rect | NodeKind::Image);
-    if !sized && props.size.is_some() {
-        return Err(SceneError::WrongKind(id.into(), "rect or image"));
+    if kind == NodeKind::Surface && props.size.is_some() {
+        return Err(SceneError::WrongKind(id.into(), "group, rect or image"));
     }
     if kind != NodeKind::Rect && props.color.is_some() {
         return Err(SceneError::WrongKind(id.into(), "rect"));
@@ -683,6 +720,7 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
         .chain(props.size.iter().flatten())
         .chain(props.color.iter().flatten())
         .chain(props.slice.iter().flatten())
+        .chain(props.mesh.iter().flat_map(|m| m.points.iter().flatten()))
         .chain(props.opacity.iter());
     if numbers.copied().any(|n| !n.is_finite()) {
         return Err(SceneError::Invalid(format!(
@@ -696,6 +734,15 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
         .chain(props.slice.iter().flatten());
     if negative.copied().any(|n| n < 0.0) {
         return Err(SceneError::Invalid(format!("negative size for {id:?}")));
+    }
+    if props
+        .mesh
+        .as_ref()
+        .is_some_and(|m| !m.points.is_empty() && !m.is_valid())
+    {
+        return Err(SceneError::Invalid(format!(
+            "the mesh of {id:?} needs 1 to {MAX_MESH_CELLS} cells per side and a point per grid point"
+        )));
     }
     if props
         .image

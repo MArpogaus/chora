@@ -132,8 +132,17 @@ effects and transitions. niri shows what this approach can do. Shaders are
 GLSL ES. The core compiles them at runtime and reloads them when they change.
 A shader can read other nodes as textures.
 
-Transforms are 4x4 matrices, so 3D effects need no API change. The first
-milestones render and test 2D cases only.
+Transforms are 4x4 matrices, so 3D effects need no API change. A node with
+a size and a mesh, or with a transform that is not a plain 2D translation
+and scale, is a **layer**: the core renders it with its descendants into a
+texture of its size, and then draws the texture through the mesh, or a
+quad, with the full transform of the node and the camera. The vertices go
+to the GPU in homogeneous coordinates, so textures map correctly under
+perspective. Wobbly windows move the points of a mesh, a magic lamp
+animates them, and a desktop cube turns layers in 3D. A layer has no depth
+test: the order of the siblings decides what is in front, and a plugin
+hides the faces that turn away. Pointer input reaches the nodes of a layer
+only where its transform is a plain 2D one.
 
 Damage tracking keeps the GPU load low. Each shader declares if it is static
 or animated, and effects expand the damage area. A fullscreen surface without

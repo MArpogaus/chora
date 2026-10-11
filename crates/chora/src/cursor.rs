@@ -9,13 +9,10 @@ use std::collections::HashMap;
 use smithay::{
     backend::{
         allocator::Fourcc,
-        renderer::{
-            ImportAll, ImportMem, Renderer,
-            element::{
-                Kind,
-                memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
-                surface::render_elements_from_surface_tree,
-            },
+        renderer::element::{
+            Kind,
+            memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
+            surface::render_elements_from_surface_tree,
         },
     },
     input::pointer::{CursorImageStatus, CursorImageSurfaceData},
@@ -25,7 +22,7 @@ use smithay::{
 };
 use xcursor::{CursorTheme, parser::parse_xcursor};
 
-use crate::render::SceneElement;
+use crate::{mesh::MeshRenderer, render::SceneElement};
 
 /// The images of the cursor theme, each loaded on first use.
 pub struct Cursors {
@@ -103,8 +100,7 @@ pub fn elements<R>(
     scale: f64,
 ) -> Vec<SceneElement<R>>
 where
-    R: Renderer + ImportAll + ImportMem,
-    R::TextureId: Clone + Send + 'static,
+    R: MeshRenderer,
 {
     let position = position.to_physical(scale);
     match status {
@@ -142,8 +138,7 @@ fn named<R>(
     position: Point<f64, Physical>,
 ) -> Vec<SceneElement<R>>
 where
-    R: Renderer + ImportAll + ImportMem,
-    R::TextureId: Clone + Send + 'static,
+    R: MeshRenderer,
 {
     let Some(image) = cursors.get(name) else {
         return Vec::new();
