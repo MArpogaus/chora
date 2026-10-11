@@ -8,7 +8,7 @@ use smithay::{
         winit::{self, WinitEvent, WinitGraphicsBackend},
     },
     desktop::layer_map_for_output,
-    output::{Mode, Output, PhysicalProperties, Subpixel},
+    output::{Mode, Output, OutputModeSource, PhysicalProperties, Subpixel},
     utils::Transform,
     wayland::dmabuf::DmabufFeedbackBuilder,
 };
@@ -24,6 +24,8 @@ const REFRESH: i32 = 60_000;
 /// The parts of the winit backend that outlive one event.
 pub struct Winit {
     graphics: WinitGraphicsBackend<GlesRenderer>,
+    /// Follows the mode, the scale and the transform of the window, see
+    /// [`window_mode`].
     damage_tracker: OutputDamageTracker,
     /// The one output: the window.
     output: Output,
@@ -47,7 +49,7 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
         },
     );
     output.create_global::<State>(&state.display_handle);
-    output.change_current_state(Some(mode), Some(Transform::Flipped180), None, None);
+    output.change_current_state(Some(mode), None, None, None);
     output.set_preferred(mode);
 
     let formats = graphics.renderer().dmabuf_formats();
@@ -68,7 +70,7 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
 
     state.backend = Some(Backend::Winit(Box::new(Winit {
         graphics,
-        damage_tracker: OutputDamageTracker::from_output(&output),
+        damage_tracker: OutputDamageTracker::from_mode_source(window_mode(&output)),
         output: output.clone(),
     })));
     state.add_output(output);
@@ -138,6 +140,10 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
     let Some(Backend::Winit(backend)) = backend else {
         return Ok(());
     };
+    let mode = window_mode(output);
+    if *backend.damage_tracker.mode() != mode {
+        backend.damage_tracker = OutputDamageTracker::from_mode_source(mode);
+    }
     // The first query fails before the first bind; 0 means a full redraw.
     let age = backend.graphics.buffer_age().unwrap_or(0);
     let damage = {
@@ -166,6 +172,33 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
         .graphics
         .submit(damage.as_deref())
         .map_err(|e| format!("submitting the frame failed: {e}"))
+}
+
+/// How the window shows the output: in its mode and scale, and with its
+/// transform followed by a vertical flip. GL draws the window upside down,
+/// and the flip corrects that. The output itself keeps the transform that
+/// clients see.
+fn window_mode(output: &Output) -> OutputModeSource {
+    OutputModeSource::Static {
+        size: output.current_mode().map(|m| m.size).unwrap_or_default(),
+        scale: output.current_scale().fractional_scale().into(),
+        transform: flipped(output.current_transform()),
+    }
+}
+
+/// A transform followed by a vertical flip, as in the projection of the
+/// GLES renderer.
+fn flipped(transform: Transform) -> Transform {
+    match transform {
+        Transform::Normal => Transform::Flipped180,
+        Transform::_90 => Transform::Flipped90,
+        Transform::_180 => Transform::Flipped,
+        Transform::_270 => Transform::Flipped270,
+        Transform::Flipped => Transform::_180,
+        Transform::Flipped90 => Transform::_90,
+        Transform::Flipped180 => Transform::Normal,
+        Transform::Flipped270 => Transform::_270,
+    }
 }
 
 impl Winit {

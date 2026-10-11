@@ -219,12 +219,18 @@ fn activate_constraint(
 }
 
 /// Absolute motion, as from the winit window, which shows the first output.
+/// The renderer shows the output through the inverse of its transform, so
+/// the transform maps a point of the window back to the output.
 fn motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionAbsoluteEvent) {
-    let Some(area) = state.outputs.first().map(output_area) else {
+    let Some(output) = state.outputs.first() else {
         return;
     };
+    let area = output_area(output);
+    let transform = output.current_transform();
+    let window = transform.transform_size(area.size);
+    let local = transform.transform_point_in(event.position_transformed(window), &window.to_f64());
     // A drag past the edge of the window reports points outside of it.
-    let layout = state.clamp_to_outputs(area.loc.to_f64() + event.position_transformed(area.size));
+    let layout = state.clamp_to_outputs(area.loc.to_f64() + local);
     move_pointer(state, layout, event.time());
 }
 
