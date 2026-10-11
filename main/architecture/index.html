@@ -615,6 +615,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#output-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#renderer" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1111,6 +1122,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#output-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#renderer" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1269,7 +1291,9 @@ for example to draw window decorations as its own surfaces.</p>
 <ul>
 <li>Wayland protocol handling and the client lifecycle, through Smithay.</li>
 <li>Backends: DRM/KMS and libinput on real hardware, through libseat. A winit
-  window for development inside another compositor.</li>
+  window for development inside another compositor. chora uses winit when
+  <code>WAYLAND_DISPLAY</code> or <code>DISPLAY</code> is set, and the hardware otherwise. On
+  hardware it draws the cursor of the xcursor theme in <code>XCURSOR_THEME</code>.</li>
 <li>The scene, rendered every frame.</li>
 <li>Input routing (see below).</li>
 <li>The IPC socket.</li>
@@ -1281,9 +1305,21 @@ for example to draw window decorations as its own surfaces.</p>
 </ul>
 <p>The core places popups, subsurfaces and layer surfaces itself, because the
 protocols define their position. Smithay's <code>PopupManager</code> and <code>LayerMap</code> do
-this work. Only toplevels wait for a plugin: the core creates a detached
-surface node and sends <code>surface.created</code>. A plugin decides where the surface
-appears, or if it appears at all.</p>
+this work. Layer surfaces, for example panels and launchers, sit in the
+coordinates of their output, outside its camera, so a panel stays in place
+when a plugin pans the scene. The background and bottom layers are below the
+scene, the top and overlay layers above it. A panel reserves an exclusive
+zone; the rest of the output is its <strong>work area</strong>. Only toplevels wait for
+a plugin: the core creates a detached surface node and sends
+<code>surface.created</code>. A plugin decides where the surface appears, or if it
+appears at all.</p>
+<p>Taskbars see the toplevels through <code>ext-foreign-toplevel-list</code> and
+<code>wlr-foreign-toplevel-management</code>. A handle of the second protocol reports
+the title, the application id and the outputs that show the surface. Its
+states are <code>activated</code> for the surface that plugins focused, and <code>maximized</code>
+and <code>fullscreen</code> from the last configure. The core never reports
+<code>minimized</code>. The requests of a taskbar, <code>close</code> included, go to plugins as
+<code>surface.requested</code>.</p>
 <h3 id="scene">Scene<a class="headerlink" href="#scene" title="Permanent link">&para;</a></h3>
 <p>The scene is a tree of nodes with stable ids. <a href="../api/#nodes">API</a> lists the
 node properties. The order of the children sets the stacking order. The crate
@@ -1313,13 +1349,23 @@ The output scale then gives the pixels.</p>
   An output at position (x, y) shows the scene area from (x, y) with the
   logical size of the output. Scene and layout coordinates then agree.</li>
 <li>The <code>camera</code> command replaces the default, for example to pan or zoom. A
-  camera is a 2D translation and a positive scale. The first client that
-  sets the camera of an output owns it. When the owner disconnects, the
-  output gets its default camera back. The reset restores all default
-  cameras.</li>
+  camera is a 2D translation of at most 10^7 and a scale from 1/64 to 64.
+  The first client that sets the camera of an output owns it. When the owner
+  disconnects, the output gets its default camera back, unless the owner
+  keeps its nodes with <code>keep_nodes</code>. The reset restores all default cameras.</li>
 <li>Two outputs side by side get two adjacent default cameras. A window across
   two outputs then needs no special case.</li>
 </ul>
+<h3 id="output-configuration">Output configuration<a class="headerlink" href="#output-configuration" title="Permanent link">&para;</a></h3>
+<p>The core implements <code>wlr-output-management</code> (D27), so kanshi and wlr-randr
+configure the outputs. Every output of the backend is a head of the
+protocol, also while it is off. A head can get a mode, a position, a
+transform and a scale, or turn off. The core tests a configuration as a
+whole before it applies it. If one part fails, the core changes nothing and
+answers <code>failed</code>. One output must stay on. After a change, the core places
+the layer surfaces again and announces the outputs to plugins (see
+<a href="../api/#ipc-methods">API</a>). On winit, the window decides the mode, and the
+output cannot turn off. No backend has adaptive sync.</p>
 <h3 id="renderer">Renderer<a class="headerlink" href="#renderer" title="Permanent link">&para;</a></h3>
 <p>The core uses Smithay's GLES renderer through Smithay's own renderer traits.
 Custom texture and pixel shaders give blur, rounded corners, shadows, color
@@ -1381,6 +1427,11 @@ the connection.</p>
 <td>16,384</td>
 <td>the core rejects the <code>create</code></td>
 </tr>
+<tr>
+<td>cameras</td>
+<td>64</td>
+<td>the core rejects the <code>camera</code></td>
+</tr>
 </tbody>
 </table>
 <p>A plugin can export <strong>methods</strong>, for example <code>tiling.set_layout</code>. The core
@@ -1395,7 +1446,9 @@ of the core, so the MCP side can change without a change to the compositor.</p>
 <p>Some commands need a client round trip. A resize sends a configure event, and
 the client must answer with a new buffer. The core therefore holds the
 transaction until all affected clients commit, or until a deadline of 150 ms
-passes. Then the core shows all changes in the same frame (D22).</p>
+passes. Then the core shows all changes in the same frame (D22). Until
+then, a commit blocker holds each answer, so no new buffer shows early, at
+the old place.</p>
 <p>A surface that misses the deadline is late. No transaction waits for it
 until it commits a buffer for its newest configure. A hung client
 thus delays the queue once, not once per transaction.</p>
@@ -1425,9 +1478,16 @@ thus delays the queue once, not once per transaction.</p>
 <li>A click on a surface without an owner focuses it.</li>
 <li>A surface that becomes detached loses the focus.</li>
 </ul>
-<p>The core still implements the protocol mechanisms around focus:
-popup grabs, <code>xdg-activation</code> requests, <code>pointer-constraints</code> and
-<code>input-method</code>.</p>
+<p>The core still implements the protocol mechanisms around focus: popup
+grabs, the keyboard interactivity of <code>wlr-layer-shell</code> and
+<code>ext-session-lock</code>, the locks and confinements of <code>pointer-constraints</code>,
+and <code>text-input</code> with <code>input-method</code>. Activation requests of
+<code>xdg-activation</code> and of taskbars go to plugins as <code>surface.requested</code>. A
+layer surface that takes the keyboard exclusively, for example a launcher,
+has it from its first commit until it goes away, and it ends a popup grab.
+A click gives the keyboard to a layer surface that accepts it on demand,
+until the next click elsewhere. A popup grabs the input only with the serial
+of the press that opened it.</p>
 <h2 id="safety-layer">Safety layer<a class="headerlink" href="#safety-layer" title="Permanent link">&para;</a></h2>
 <p>The safety layer is the only built-in behavior (see
 <a href="../vision/#principles">Vision</a>). No plugin and no IPC client can change it.</p>
@@ -1440,16 +1500,23 @@ popup grabs, <code>xdg-activation</code> requests, <code>pointer-constraints</co
   grid is the one layout in the core. It is hardcoded, so a broken
   configuration cannot break it. The reset also changes the focus (see
   <a href="#input-flow">Input flow</a>).</li>
-<li><strong>Session lock.</strong> The core enforces <code>ext-session-lock</code>. The lock surface is
-  above every plugin node.</li>
+<li><strong>Session lock.</strong> The core enforces <code>ext-session-lock</code>. One client owns
+  the lock; other clients cannot lock or unlock while it lives. While the
+  session is locked, each output shows only its lock surface, or black.
+  Only the lock client gets input; popup and pointer grabs end, and plugin
+  grabs pause; a keyboard grab, for example of an input method, ends before
+  each key. The core confirms the lock after each output showed a frame
+  that it rendered under this lock. When the lock client crashes, the
+  session stays locked, and only then can a new lock client take over.</li>
 <li><strong>Watchdog.</strong> When frames miss their deadline repeatedly, the core removes
   the effects first and then disconnects the plugins.</li>
 </ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
 <p>Version 1 trusts every client of the same user (D33):</p>
 <ul>
-<li>Unsandboxed Wayland clients get all protocols, as in sway.
-  <code>wp-security-context-v1</code> hides privileged protocols, for example
+<li>Unsandboxed Wayland clients get all protocols, as in sway. So any client
+  can, for example, take the keyboard as an input method, or configure the
+  outputs. <code>wp-security-context-v1</code> hides privileged protocols, for example
   screencopy, from sandboxed clients.</li>
 <li>The IPC methods <code>input.inject</code> and <code>screen.capture</code> need a <strong>grant</strong> of the
   user for the client name. A grant protects against mistakes of agents. It
@@ -1457,10 +1524,25 @@ popup grabs, <code>xdg-activation</code> requests, <code>pointer-constraints</co
 </ul>
 <h2 id="sessions-and-flavors">Sessions and flavors<a class="headerlink" href="#sessions-and-flavors" title="Permanent link">&para;</a></h2>
 <ul>
-<li>A session file <code>chora.desktop</code> starts <code>chora -- chora-flavor tiling</code>.</li>
+<li>The session file <code>chora.desktop</code> runs <code>chora-session tiling</code>. The script
+  imports the environment of the login into the systemd user manager and
+  starts the user service <code>chora@tiling.service</code>. It waits until chora
+  ends, and then stops the units of the graphical session.</li>
+<li>Without <code>XKB_DEFAULT_LAYOUT</code>, <code>chora-session</code> takes the keyboard layout of
+  the system from <code>localectl</code>.</li>
+<li><code>chora@.service</code> runs <code>chora -- chora-flavor &lt;name&gt;</code> as part of
+  <code>graphical-session.target</code>. It drops <code>WAYLAND_DISPLAY</code> and <code>DISPLAY</code> that
+  an earlier session left in the user manager, which would make chora run
+  nested.</li>
 <li><code>chora-flavor &lt;name&gt;</code> imports <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> into the
-  systemd user manager. Then it starts the target of the flavor. Units of the
-  flavor then find the compositor and the IPC socket.</li>
+  systemd user manager, and <code>DISPLAY</code> when <code>xwayland-satellite</code> is
+  installed. It links the units of the flavor until the next boot,
+  tells systemd that chora is ready, and starts the target of the flavor.
+  Units of the flavor then find the compositor and the IPC socket. The
+  script is not for nested use: the variables would reach the units of the
+  host session.</li>
+<li>The tiling flavor starts <code>chora-tiling</code>, waybar if it is installed, and
+  <code>xwayland-satellite</code> on a free X11 display for X11 programs (D26).</li>
 <li>A derived secureblue image installs the package (D10, D14).</li>
 </ul>
 

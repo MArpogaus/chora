@@ -1052,7 +1052,8 @@ behavior. A plugin can supply a stacking desktop, a tiling workflow, or a view
 that an agent arranges live by voice. Only a small safety layer is built in.</p>
 <h2 id="status">Status<a class="headerlink" href="#status" title="Permanent link">&para;</a></h2>
 <p>Early development. chora runs nested inside another Wayland session, and a
-reference plugin tiles the windows. The
+reference plugin tiles the windows. A login session on real hardware exists,
+but nobody tested it on hardware yet. The
 <a href="https://marpogaus.github.io/void/roadmap/">roadmap</a> shows the next steps.
 APIs change without notice before version 1.0.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
@@ -1079,6 +1080,10 @@ sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> <
 <td>start a terminal (foot)</td>
 </tr>
 <tr>
+<td>Super+d</td>
+<td>start a launcher (fuzzel)</td>
+</tr>
+<tr>
 <td>Super+q</td>
 <td>close the focused window</td>
 </tr>
@@ -1092,6 +1097,9 @@ sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> <
 to use Alt instead. <code>chora-tiling --help</code> lists all options.</p>
 <p>The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
 and Ctrl+Alt+BackSpace quits chora.</p>
+<p>To log in to chora on real hardware, choose the session "chora" on the
+login screen. It starts the tiling flavor with waybar and X11 support
+through xwayland-satellite. The hardware session is not tested yet.</p>
 <p>Programs inside chora find its IPC socket in <code>CHORA_SOCKET</code>. For example, a
 terminal in chora shows the scene with <code>choractl query</code>, and
 <code>choractl events</code> prints the events.</p>

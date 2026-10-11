@@ -1240,6 +1240,10 @@ or an empty list. It always sees the current titles.</p>
 <td>surface id; <code>surface.destroyed</code> follows only a <code>surface.created</code></td>
 </tr>
 <tr>
+<td><code>surface.requested</code></td>
+<td>surface id and <code>request</code>: <code>activate</code>, <code>close</code>, <code>fullscreen</code>, <code>unfullscreen</code>, <code>maximize</code>, <code>unmaximize</code> or <code>minimize</code>; a client or a taskbar asks, and plugins decide</td>
+</tr>
+<tr>
 <td><code>input.key</code></td>
 <td>the grabbed binding</td>
 </tr>
@@ -1259,8 +1263,11 @@ or an empty list. It always sees the current titles.</p>
 </table>
 <p>The response of <code>scene.apply</code> reports the result of a transaction: <code>null</code>
 when it applied, an error with the index of the failed command when not.
-Later milestones add events for size limits, activation requests and
-pointer grabs.</p>
+A request that a client makes before its first commit follows its
+<code>surface.created</code>. A taskbar asks through <code>wlr-foreign-toplevel-management</code>.
+The core does not act on a request, also not on <code>close</code>. A plugin answers
+with commands, for example <code>close</code>. Later milestones add events for size
+limits and pointer grabs.</p>
 <h2 id="ipc-methods">IPC methods<a class="headerlink" href="#ipc-methods" title="Permanent link">&para;</a></h2>
 <p>JSON-RPC 2.0, one message per line, on the socket in <code>CHORA_SOCKET</code>. Every
 client sends <code>hello</code> first. The core answers every request.</p>
@@ -1274,7 +1281,7 @@ client sends <code>hello</code> first. The core answers every request.</p>
 <tbody>
 <tr>
 <td><code>hello(name, keep_nodes)</code></td>
-<td>name the client; <code>keep_nodes</code> keeps its nodes after the disconnect</td>
+<td>name the client; <code>keep_nodes</code> keeps its nodes and cameras after the disconnect</td>
 </tr>
 <tr>
 <td><code>scene.query(selector)</code></td>
@@ -1322,13 +1329,17 @@ plugin runs.</p>
 belongs to the safety layer, so no client can grab it. A binding has one
 owner at a time.</p>
 <p>The core implements <code>wlr-output-management</code>, so kanshi and wlr-randr
-configure the outputs. The API has no output configuration of its own.</p>
+configure the outputs (see
+<a href="../architecture/#output-configuration">Architecture</a>). The API has no output
+configuration of its own. After a new mode, position, transform or scale,
+the core sends <code>output.changed</code>. For an output that turns off, it sends
+<code>output.removed</code>, and <code>output.list</code> no longer lists the output.</p>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
 <p>A plugin is a client with a manifest:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
 <span class="nt">exec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora-tiling</span>
 <span class="nt">subscribe</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">surface.created</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">surface.detached</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">surface.destroyed</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">output.changed</span><span class="p p-Indicator">]</span>
-<span class="nt">grabs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Super+Return</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+q</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+j</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+k</span><span class="p p-Indicator">]</span>
+<span class="nt">grabs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Super+Return</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+d</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+q</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+j</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+k</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p><code>choractl</code> reads the manifest when it loads a view. Before views exist (M4),
 the startup command starts plugins directly.</p>
