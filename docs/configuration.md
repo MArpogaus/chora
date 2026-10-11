@@ -97,20 +97,47 @@ the theme with resvg into PNG files in `$XDG_RUNTIME_DIR/chora-xp/`, and
 renders each picture once:
 
 - a frame around each window, with its title and the minimize, maximize
-  and close buttons;
+  and close buttons; a window that draws its own frame, as GTK programs
+  do, gets none;
 - a taskbar at the bottom of the work area of each output, with the start
-  button, one button per window and a clock;
+  button, one button per window of the current desktop, four desktop
+  buttons and a clock;
 - the start menu with the user name, programs, places, Log Off and Turn
   Off Computer;
 - the wallpaper Bløff below everything.
 
 A click on a window raises and focuses it. A drag of a title bar moves the
 window, and a double click maximizes it. A maximized window fills the work
-area above the taskbar. Minimize shrinks the window into its task button. A
-click on a task button shows or minimizes its window. Log Off asks every
-window to close. Turn Off Computer ends `chora-xp`; it shuts nothing down.
-The plugin grabs two key bindings: Alt+F4 closes the focused window, and
-Super+e starts the terminal.
+area above the taskbar. A click on a task button shows or minimizes its
+window. Buttons light up under the pointer, and so do the entries of the
+start menu. Log Off asks every window to close. Turn Off Computer ends
+`chora-xp`; it shuts nothing down.
+
+The effects of M3 run in the plugin, which computes their meshes and
+transforms at 60 Hz:
+
+- **Wobbly windows.** A dragged window bends like jelly: the point under
+  the pointer follows it, the far side lags behind, and after the release
+  the window shakes until it settles.
+- **Magic lamp.** Minimize pours the window into its task button, and a
+  click on the button pours it out again.
+- **Desktop cube.** Four desktops sit on the faces of a cube. A turn shows
+  the cube in perspective, and the windows fly off their faces and land
+  again. The taskbar lists the windows of the current desktop.
+
+If frames get too slow, the core drops the effects; `chora-xp` then goes
+without them for 15 seconds.
+
+| Binding | Action |
+|---------|--------|
+| Alt+F4 | close the focused window |
+| Super+e | start the terminal |
+| Ctrl+Alt+Left, Ctrl+Alt+Right | turn the cube to the previous or next desktop |
+| Ctrl+Alt+Shift+Left, Ctrl+Alt+Shift+Right | turn the cube and take the focused window along |
+| a desktop button 1 to 4 | turn the cube to that desktop |
+
+The core keeps Ctrl+Alt for its safety layer, so for now Super+Ctrl stands
+in for Ctrl+Alt in the cube bindings.
 
 | Option | Default | Meaning |
 |--------|---------|---------|
@@ -120,6 +147,7 @@ Super+e starts the terminal.
 | `--program TITLE=CMD` | | another program in the start menu; repeat for more |
 | `--clock FORMAT` | `%-I:%M %p` | the clock, in the format of strftime |
 | `--wallpaper FILE` | Bløff | a PNG or SVG file |
+| `--slow-motion FACTOR` | `1` | stretch the magic lamp and the cube, to show them slowly |
 
 To try the flavor from a source tree, start it nested:
 
