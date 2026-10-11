@@ -7,5 +7,6 @@ set -euo pipefail
 out=${1:-target/rpm}
 cargo build --release --locked --workspace
 release="1$(rpm --eval '%{?dist}')"
+mkdir -p "$out"
 cargo generate-rpm -p crates/chora --set-metadata "release = \"$release\"" -o "$out/"
 (cd "$out" && sha256sum ./*.rpm >SHA256SUMS)
