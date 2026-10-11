@@ -15,6 +15,8 @@ use smithay::{
 };
 
 use super::Backend;
+use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
+
 use crate::{output::frame_duration, render, state::State};
 
 /// The name of the one output of the winit backend.
@@ -120,26 +122,55 @@ fn redraw(state: &mut State) {
     let Some(output) = winit(state).map(|w| w.output.clone()) else {
         return;
     };
-    if warn_on_error(&render_frame(state, &output)) {
-        let generation = state.lock_generation();
-        state.frame_shown(&output, generation);
-    }
+    let start = std::time::Instant::now();
+    let rendered = render_frame(state, &output);
+    state.frame_rendered(frame_duration(&output), start.elapsed());
+    let submitted = shown(state, &output, rendered);
     render::send_frames(state, &output);
-    if let Some(backend) = winit(state) {
-        backend.graphics.window().request_redraw();
+    if submitted {
+        // The swap waits for the host, which paces the next frame.
+        if let Some(backend) = winit(state) {
+            backend.graphics.window().request_redraw();
+        }
+    } else {
+        redraw_later(state, frame_duration(&output));
     }
 }
 
-/// Logs an error. Returns whether there was none.
-fn warn_on_error(result: &Result<(), String>) -> bool {
-    if let Err(err) = result {
-        tracing::warn!("{err}");
+/// Notes a rendered frame for the lock, or logs why it failed. Returns
+/// whether a frame went to the host.
+fn shown(state: &mut State, output: &Output, rendered: Result<bool, String>) -> bool {
+    match rendered {
+        Ok(submitted) => {
+            let generation = state.lock_generation();
+            state.frame_shown(output, generation);
+            submitted
+        }
+        Err(err) => {
+            tracing::warn!("{err}");
+            false
+        }
     }
-    result.is_ok()
+}
+
+/// Asks for a redraw after a frame without damage, one refresh later, so
+/// that the loop does not spin.
+fn redraw_later(state: &mut State, delay: std::time::Duration) {
+    let timer = Timer::from_duration(delay);
+    let inserted = state.loop_handle.insert_source(timer, |_, (), state| {
+        if let Some(backend) = winit(state) {
+            backend.graphics.window().request_redraw();
+        }
+        TimeoutAction::Drop
+    });
+    if let Err(err) = inserted {
+        tracing::warn!(?err, "no redraw timer");
+    }
 }
 
 /// Renders the damaged parts of the scene into the window and shows them.
-fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
+/// Returns whether a frame with damage went to the host.
+fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
     let view = render::View {
         camera: state.camera(output),
         scale: output.current_scale().fractional_scale(),
@@ -153,7 +184,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
         ..
     } = state;
     let Some(Backend::Winit(backend)) = backend else {
-        return Ok(());
+        return Ok(false);
     };
     let mode = window_mode(output);
     if *backend.damage_tracker.mode() != mode {
@@ -184,11 +215,11 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
         result.damage.cloned()
     };
     let Some(damage) = damage else {
-        return Ok(());
+        return Ok(false);
     };
     let mut feedback = render::take_feedback(state, output);
     let Some(Backend::Winit(backend)) = &mut state.backend else {
-        return Ok(());
+        return Ok(false);
     };
     backend
         .graphics
@@ -201,7 +232,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
         0,
         wp_presentation_feedback::Kind::Vsync,
     );
-    Ok(())
+    Ok(true)
 }
 
 /// How the window shows the output: in its mode and scale, and with its

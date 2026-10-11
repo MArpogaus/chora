@@ -585,6 +585,26 @@ impl Scene {
         done
     }
 
+    /// Removes the effects of all nodes, for the watchdog: the meshes, and
+    /// the animations that move meshes.
+    pub fn drop_effects(&mut self) {
+        let ids: Vec<String> = self.nodes.keys().cloned().collect();
+        for id in ids {
+            if let Some(node) = self.nodes.get_mut(&id) {
+                node.props.mesh = None;
+            }
+        }
+        let meshes: Vec<String> = self
+            .animations
+            .iter()
+            .filter(|(_, a)| a.to.mesh.is_some())
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in meshes {
+            self.animations.remove(&id);
+        }
+    }
+
     /// Whether an animation runs.
     #[must_use]
     pub fn animating(&self) -> bool {

@@ -260,8 +260,10 @@ The safety layer is the only built-in behavior (see
   each key. The core confirms the lock after each output showed a frame
   that it rendered under this lock. When the lock client crashes, the
   session stays locked, and only then can a new lock client take over.
-- **Watchdog.** When frames miss their deadline repeatedly, the core removes
-  the effects first and then disconnects the plugins.
+- **Watchdog.** When frames take longer to render than a refresh of their
+  output for two seconds, the core removes the effects, the meshes, and
+  sends `effects.dropped`. When they stay slow for two more seconds, it
+  starts the emergency reset, which disconnects the plugins.
 
 ## Permissions
 

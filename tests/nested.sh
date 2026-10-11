@@ -443,4 +443,28 @@ pixel_is 825 500 "0 0 255" || fail "the turned blue: $(pixel 825 500)"
 pixel_is 975 700 "0 255 0" || fail "the turned green: $(pixel 975 700)"
 grim "$out/layer.png"
 
+step "22. the watchdog removes the effects of slow frames, and then resets"
+# A second chora with a budget that every frame misses; it shares the
+# output of the host, so this step comes last.
+CHORA_FRAME_BUDGET_US=1 "$bin/chora" -- sleep 60 >"$out/chora-watchdog.log" 2>&1 &
+watchdog_pid=$!
+pids+=("$watchdog_pid")
+wait_for grep -q "chora runs" "$out/chora-watchdog.log"
+socket2=$(grep -ao "$XDG_RUNTIME_DIR/chora/[^ ]*\.sock" "$out/chora-watchdog.log" | head -1)
+CHORA_SOCKET=$socket2 "$bin/choractl" events effects.dropped >"$out/watchdog.jsonl" &
+events_pid=$!
+pids+=("$events_pid")
+sleep 0.3
+echo '[{"create": {"id": "wobbly", "kind": "rect", "parent": "root",
+        "props": {"size": [100, 100], "color": [1, 1, 1, 1],
+                  "mesh": {"cols": 1, "rows": 1, "points": [[0, 0], [100, 0], [0, 100], [90, 110]]}}}}]' |
+    CHORA_SOCKET=$socket2 "$bin/choractl" --name e2e apply || fail "the mesh failed"
+wait_for grep -q '"event":"effects.dropped"' "$out/watchdog.jsonl"
+CHORA_SOCKET=$socket2 "$bin/choractl" query id:wobbly | jq -e '.[0].mesh == null' >/dev/null ||
+    fail "the mesh stayed"
+wait_for grep -q "the watchdog resets" "$out/chora-watchdog.log"
+kill "$watchdog_pid"
+# The reset closed the connection of the listener.
+kill "$events_pid" 2>/dev/null || true
+
 echo "PASS (logs and screenshots in $out)"

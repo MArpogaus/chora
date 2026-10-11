@@ -698,7 +698,10 @@ fn render(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
         scale: output.current_scale().fractional_scale(),
     };
     let pointer = pointer_on(state, &output);
-    let queued = draw(state, node, crtc, &view, pointer)
+    let start = std::time::Instant::now();
+    let drawn = draw(state, node, crtc, &view, pointer);
+    state.frame_rendered(frame_duration(&output), start.elapsed());
+    let queued = drawn
         .and_then(|damaged| Ok(damaged && queue(state, node, crtc, &output)?))
         .unwrap_or_else(|err| {
             log_error::<(), _>("rendering failed", Err(err));

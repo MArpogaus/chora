@@ -88,6 +88,11 @@ pub enum Event {
         /// The pointer in scene coordinates.
         position: [f64; 2],
     },
+    /// Frames took too long again and again, so the watchdog of the core
+    /// removed the effects of all nodes. If frames stay slow, the emergency
+    /// reset follows.
+    #[serde(rename = "effects.dropped")]
+    EffectsDropped,
     /// An animation reached its targets.
     #[serde(rename = "animation.done")]
     AnimationDone {

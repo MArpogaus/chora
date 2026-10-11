@@ -108,6 +108,7 @@ or an empty list. It always sees the current titles.
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates |
 | `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node and position; `pointer.released` with the button |
 | `animation.done` | the node whose animation reached its targets |
+| `effects.dropped` | the watchdog removed the effects of all nodes, because frames were slow for two seconds |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |

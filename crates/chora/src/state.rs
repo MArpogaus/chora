@@ -52,7 +52,8 @@ use smithay::{
 
 use crate::{
     backend::Backend, foreign_toplevel::ForeignToplevelManagerState, ipc::Ipc, lock::Lock,
-    output_management::OutputManagement, render::Assets, transaction::Transactions,
+    output_management::OutputManagement, render::Assets, safety::Watchdog,
+    transaction::Transactions,
 };
 
 /// The state of the compositor, passed to every callback of the event loop.
@@ -94,6 +95,8 @@ pub struct State {
     pub lock: Option<Lock>,
     /// The surface node that plugins focused.
     focus_wanted: Option<String>,
+    /// The watchdog of the render times.
+    pub watchdog: Watchdog,
     /// The rect or image node of a press and its button, until the button
     /// goes up.
     pub node_grab: Option<(String, u32)>,
@@ -183,6 +186,7 @@ impl State {
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
             node_grab: None,
+            watchdog: Watchdog::from_env(),
             layer_focus: None,
             configured: HashMap::new(),
             idle_notifier_state,
