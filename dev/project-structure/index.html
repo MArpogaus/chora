@@ -937,9 +937,9 @@
 
 
 <h1 id="project-structure">Project structure<a class="headerlink" href="#project-structure" title="Permanent link">&para;</a></h1>
-<p>The planned layout of this repository: one Cargo workspace with as few crates
-as possible. A module moves into its own crate only when a second consumer
-needs it. No crate exists yet.</p>
+<p>The layout of this repository: one Cargo workspace with as few crates as
+possible. A module moves into its own crate only when a second consumer
+needs it.</p>
 <div class="highlight"><pre><span></span><code>chora/
 ├── crates/
 │   ├── chora-scene/   # scene model, commands, events, transactions, selectors; no Smithay
@@ -947,7 +947,7 @@ needs it. No crate exists yet.</p>
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
 │   └── chora-tiling/  # reference plugin: master and stack layout, keybindings
-├── dist/              # chora.desktop, chora-flavor, the tiling flavor
+├── dist/              # RPM build script and Fedora build requirements
 ├── deny.toml          # cargo-deny: allowed licenses, advisories
 ├── docs/              # this documentation (MkDocs)
 ├── mkdocs.yml

@@ -1083,7 +1083,7 @@ package.</p>
 <li>CI: build and <code>cargo test</code> in a Fedora 43 container; <code>cargo-deny</code> for the
   licenses and advisories of the dependencies.</li>
 <li>A pre-commit hook that rejects files with a GPL-3.0-only header (D8).</li>
-<li>A pinned Smithay revision (D16), Dependabot for Cargo.</li>
+<li>Dependabot for Cargo.</li>
 <li>commitizen for version bumps and the changelog.</li>
 <li>A release workflow: a <code>v*</code> tag builds the RPM in Fedora 43 and attaches it
   with its SHA256 sum to a GitHub pre-release (D14).</li>
@@ -1093,7 +1093,7 @@ container, and <code>chora --version</code> runs there.</p>
 <h2 id="m1-nested-proof-of-concept">M1: Nested proof of concept<a class="headerlink" href="#m1-nested-proof-of-concept" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the smallest proof of the concept, inside an existing session.</p>
 <ul>
-<li>winit backend.</li>
+<li>winit backend on a pinned Smithay revision (D16).</li>
 <li>Protocols: <code>xdg-shell</code> with popups, subsurfaces, <code>xdg-decoration</code>,
   <code>linux-dmabuf</code>, <code>viewporter</code>, <code>presentation-time</code>, <code>xdg-output</code>,
   <code>cursor-shape</code>, data device and <code>primary-selection</code>.</li>
