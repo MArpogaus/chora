@@ -244,6 +244,11 @@ dependencies = [
 [[package]]
 name = "chora-tiling"
 version = "0.0.0"
+dependencies = [
+ "chora-scene",
+ "clap",
+ "serde_json",
+]
 
 [[package]]
 name = "choractl"
