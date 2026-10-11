@@ -475,7 +475,8 @@ impl State {
             self.loop_handle.remove(reader);
         }
         self.ipc.grabs.retain(|(_, _, c)| *c != conn);
-        self.transactions.drop_conn(conn);
+        let held = self.transactions.drop_conn(conn);
+        self.release(&held);
         let Some(name) = closed.name else { return };
         if self
             .ipc

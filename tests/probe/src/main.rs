@@ -8,6 +8,9 @@
 //!   session is locked.
 //! - `presentation`: a frame reports when it showed, on the monotonic
 //!   clock. The test script shows the toplevel `chora-probe`.
+//! - `held-commit W H`: the buffer that answers the configure of a
+//!   transaction shows no earlier than the transaction. The test script
+//!   shows the toplevel, and delays the transaction with a stopped client.
 
 use std::{
     fs::File,
@@ -42,7 +45,7 @@ use wayland_protocols::{
         xdg_popup::XdgPopup,
         xdg_positioner::XdgPositioner,
         xdg_surface::{self, XdgSurface},
-        xdg_toplevel::XdgToplevel,
+        xdg_toplevel::{self, XdgToplevel},
         xdg_wm_base::{self, XdgWmBase},
     },
 };
@@ -51,6 +54,9 @@ use wayland_protocols::{
 const TIMEOUT: Duration = Duration::from_secs(10);
 /// The time in which a refused grab must not give the keyboard.
 const GRAB_WAIT: Duration = Duration::from_millis(1500);
+/// The shortest wait of a held commit: the deadline of a transaction is
+/// 150 ms.
+const HELD: Duration = Duration::from_millis(100);
 /// The id of `CLOCK_MONOTONIC` on Linux.
 const CLOCK_MONOTONIC: u32 = 1;
 
@@ -67,6 +73,10 @@ struct Probe {
     locked: Option<bool>,
     /// The xdg surfaces that got a configure, by their number.
     configured: Vec<u32>,
+    /// The size of the next configure of the toplevel.
+    pending_size: [i32; 2],
+    /// The sizes of the configures of the toplevel.
+    sizes: Vec<[i32; 2]>,
     /// Whether one of the surfaces of the probe got the keyboard.
     keyboard: bool,
     /// The clock of presentation times.
@@ -98,6 +108,10 @@ fn main() -> ExitCode {
         "take-lock" => take_lock(&mut queue, &mut probe),
         "popup-grab" => popup_grab(&mut queue, &mut probe),
         "presentation" => presentation(&mut queue, &mut probe),
+        "held-commit" => match size_args() {
+            Some(size) => held_commit(&mut queue, &mut probe, size),
+            None => Err("usage: held-commit W H".into()),
+        },
         _ => Err(format!("unknown mode {mode:?}")),
     };
     match result {
@@ -166,7 +180,7 @@ fn popup_grab(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     if !dispatch_until(queue, probe, TIMEOUT, |p| p.configured.contains(&2)) {
         return Err("no configure of the popup".into());
     }
-    show(probe, &qh, &popup_surface, 50)?;
+    show(probe, &qh, &popup_surface, [50, 50])?;
     dispatch_until(queue, probe, GRAB_WAIT, |p| p.keyboard);
     drop(surface);
     if probe.keyboard {
@@ -183,7 +197,7 @@ fn presentation(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> 
     let presentation = probe.presentation.clone().ok_or("no presentation time")?;
     let (surface, _xdg_surface) = toplevel(queue, probe)?;
     presentation.feedback(&surface, &qh, ());
-    show(probe, &qh, &surface, 200)?;
+    show(probe, &qh, &surface, [200, 200])?;
     let start = monotonic();
     if !dispatch_until(queue, probe, TIMEOUT, |p| p.feedback.is_some()) {
         return Err("no presentation feedback".into());
@@ -198,6 +212,47 @@ fn presentation(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> 
         return Err(format!("the time {time:?} is not after {start:?}"));
     }
     Ok(format!("shown after {:?}", time.saturating_sub(start)))
+}
+
+/// Shows the toplevel `chora-probe`, then answers the configure of a size
+/// with a buffer of that size, and checks how long the buffer waited.
+fn held_commit(queue: &mut Queue, probe: &mut Probe, size: [i32; 2]) -> Result<String, String> {
+    let qh = queue.handle();
+    let presentation = probe.presentation.clone().ok_or("no presentation time")?;
+    let (surface, _xdg_surface) = toplevel(queue, probe)?;
+    presentation.feedback(&surface, &qh, ());
+    show(probe, &qh, &surface, [200, 200])?;
+    if !dispatch_until(queue, probe, TIMEOUT, |p| p.feedback.is_some()) {
+        return Err("the toplevel did not show".into());
+    }
+    println!("ready");
+    std::io::stdout().flush().map_err(|e| e.to_string())?;
+    if !dispatch_until(queue, probe, TIMEOUT, |p| p.sizes.contains(&size)) {
+        return Err(format!("no configure of the size {size:?}"));
+    }
+    let start = monotonic();
+    probe.feedback = None;
+    presentation.feedback(&surface, &qh, ());
+    show(probe, &qh, &surface, size)?;
+    if !dispatch_until(queue, probe, TIMEOUT, |p| p.feedback.is_some()) {
+        return Err("no presentation feedback".into());
+    }
+    let Some(Feedback::Presented(time)) = probe.feedback else {
+        return Err("the frame was discarded".into());
+    };
+    let waited = time.saturating_sub(start);
+    if waited < HELD {
+        return Err(format!(
+            "the buffer showed after {waited:?}, before its transaction"
+        ));
+    }
+    Ok(format!("the buffer waited {waited:?} for its transaction"))
+}
+
+/// The width and the height in the arguments after the mode.
+fn size_args() -> Option<[i32; 2]> {
+    let mut args = std::env::args().skip(2).map(|a| a.parse().ok());
+    Some([args.next()??, args.next()??])
 }
 
 /// Creates a toplevel and waits for its configure.
@@ -220,23 +275,23 @@ fn create_surface(probe: &Probe, qh: &QueueHandle<Probe>) -> Result<WlSurface, S
     Ok(compositor.create_surface(qh, ()))
 }
 
-/// Attaches a gray square buffer of a size and commits.
+/// Attaches a gray buffer of a size and commits.
 fn show(
     probe: &Probe,
     qh: &QueueHandle<Probe>,
     surface: &WlSurface,
-    size: i32,
+    [w, h]: [i32; 2],
 ) -> Result<(), String> {
     let shm = probe.shm.as_ref().ok_or("no shm")?;
     let fd = memfd_create("chora-probe", MemfdFlags::CLOEXEC).map_err(|e| e.to_string())?;
     let mut file = File::from(fd);
-    let pixels = usize::try_from(size * size).map_err(|e| e.to_string())?;
+    let pixels = usize::try_from(w * h).map_err(|e| e.to_string())?;
     file.write_all(&[0x80; 4].repeat(pixels))
         .map_err(|e| e.to_string())?;
-    let pool = shm.create_pool(file.as_fd(), size * size * 4, qh, ());
-    let buffer = pool.create_buffer(0, size, size, size * 4, wl_shm::Format::Xrgb8888, qh, ());
+    let pool = shm.create_pool(file.as_fd(), w * h * 4, qh, ());
+    let buffer = pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Xrgb8888, qh, ());
     surface.attach(Some(&buffer), 0, 0);
-    surface.damage_buffer(0, 0, size, size);
+    surface.damage_buffer(0, 0, w, h);
     surface.commit();
     Ok(())
 }
@@ -340,6 +395,24 @@ impl Dispatch<XdgSurface, u32> for Probe {
         if let xdg_surface::Event::Configure { serial } = event {
             surface.ack_configure(serial);
             probe.configured.push(*number);
+            if *number == 1 {
+                probe.sizes.push(probe.pending_size);
+            }
+        }
+    }
+}
+
+impl Dispatch<XdgToplevel, ()> for Probe {
+    fn event(
+        probe: &mut Self,
+        _: &XdgToplevel,
+        event: xdg_toplevel::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let xdg_toplevel::Event::Configure { width, height, .. } = event {
+            probe.pending_size = [width, height];
         }
     }
 }
@@ -424,7 +497,6 @@ delegate_noop!(Probe: ignore wl_shm::WlShm);
 delegate_noop!(Probe: ignore WlShmPool);
 delegate_noop!(Probe: ignore WlBuffer);
 delegate_noop!(Probe: ignore wl_seat::WlSeat);
-delegate_noop!(Probe: ignore XdgToplevel);
 delegate_noop!(Probe: ignore XdgPopup);
 delegate_noop!(Probe: ignore XdgPositioner);
 delegate_noop!(Probe: ignore ExtSessionLockManagerV1);

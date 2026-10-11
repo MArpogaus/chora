@@ -283,4 +283,24 @@ echo "[{\"attach\": {\"surface\": \"$(probe_surface)\", \"parent\": \"root\"}}]"
     "$bin/choractl" --name e2e apply || fail "attaching the probe failed"
 wait "$probe_pid" || fail "presentation time: $out/probe.log"
 
+step "16. the new buffer of a transaction shows with the transaction"
+probe held-commit 300 300 >"$out/held.log" 2>&1 &
+probe_pid=$!
+pids+=("$probe_pid")
+wait_for probe_surface
+held=$(probe_surface)
+attach() { echo "{\"attach\": {\"surface\": \"$1\", \"parent\": \"root\"}}"; }
+rpc "[$(attach "$held"), $(attach "$first")]" >"$out/held-attach.json"
+all_results "$out/held-attach.json" || fail "answers: $out/held-attach.json"
+wait_for grep -q ready "$out/held.log"
+# A stopped foot misses the deadline, so the transaction applies after
+# 150 ms; the buffer of the probe must wait for it.
+kill -STOP "${feet[@]}"
+rpc "[{\"configure\": {\"surface\": \"$held\", \"size\": [300, 300]}},
+      {\"configure\": {\"surface\": \"$first\", \"size\": [330, 230]}}]" \
+    >"$out/held-configure.json" || true
+kill -CONT "${feet[@]}"
+wait "$probe_pid" || fail "the held commit: $out/held.log"
+all_results "$out/held-configure.json" || fail "answers: $out/held-configure.json"
+
 echo "PASS (logs and screenshots in $out)"

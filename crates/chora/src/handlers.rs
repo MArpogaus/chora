@@ -30,8 +30,8 @@ use smithay::{
     wayland::{
         buffer::BufferHandler,
         compositor::{
-            CompositorClientState, CompositorHandler, CompositorState, get_parent,
-            is_sync_subsurface,
+            CompositorClientState, CompositorHandler, CompositorState, add_pre_commit_hook,
+            get_parent, is_sync_subsurface,
         },
         output::OutputHandler,
         pointer_constraints::{PointerConstraintsHandler, with_pointer_constraint},
@@ -95,8 +95,8 @@ impl CompositorHandler for State {
 }
 
 impl State {
-    /// Handles a commit of a toplevel: the initial configure, the
-    /// `surface.created` event and pending transactions.
+    /// Handles a commit of a toplevel: the initial configure and the
+    /// `surface.created` event.
     fn toplevel_committed(&mut self, id: &str) {
         let toplevel = self.windows[id]
             .toplevel()
@@ -121,8 +121,6 @@ impl State {
         }
         let info = self.surface_info(id);
         self.scene.set_surface_info(id, info);
-        self.transactions.committed(id, &toplevel);
-        self.complete_transactions();
     }
 }
 
@@ -190,6 +188,9 @@ impl XdgShellHandler for State {
     }
 
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
+        add_pre_commit_hook::<Self, _>(surface.wl_surface(), |state, _, surface| {
+            state.hold_commit(surface);
+        });
         self.add_window(Window::new_wayland_window(surface));
     }
 

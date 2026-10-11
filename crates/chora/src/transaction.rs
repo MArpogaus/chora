@@ -5,6 +5,10 @@
 //! Then the core applies the whole transaction to the scene in one step.
 //! Transactions run one after the other, in the order of their arrival.
 //!
+//! A commit that answers a configure of a transaction waits as a commit
+//! blocker until the transaction applies, as in niri and Pinnacle. So the
+//! new buffers of a transaction and its scene changes show in one frame.
+//!
 //! A surface that misses a deadline is late. No transaction waits for it
 //! until it commits a buffer for its newest configure, so a hung client
 //! delays the queue once, not once per transaction.
@@ -17,9 +21,15 @@ use std::{
 use chora_scene::{Command, Effect, ipc::Message};
 use serde_json::Value;
 use smithay::{
-    reexports::calloop::timer::{TimeoutAction, Timer},
+    reexports::{
+        calloop::timer::{TimeoutAction, Timer},
+        wayland_server::{Resource, protocol::wl_surface::WlSurface},
+    },
     utils::Serial,
-    wayland::shell::xdg::ToplevelSurface,
+    wayland::{
+        compositor::{Barrier, CompositorHandler, add_blocker, with_states},
+        shell::xdg::XdgToplevelSurfaceData,
+    },
 };
 
 use crate::{ipc::rejected, state::State};
@@ -46,21 +56,33 @@ struct Pending {
     waiting: HashMap<String, Serial>,
     /// Set when the configure events are out.
     deadline: Option<Instant>,
+    /// Holds the commits that answered, until the transaction applies.
+    barrier: Barrier,
+    /// The surfaces whose commits the barrier holds.
+    held: Vec<WlSurface>,
 }
 
 impl Transactions {
-    /// Notes a commit of a toplevel.
-    pub fn committed(&mut self, id: &str, toplevel: &ToplevelSurface) {
-        let acked = toplevel.with_cached_state(|s| s.last_acked.as_ref().map(|c| c.serial));
+    /// Notes a commit of a toplevel, before Smithay applies it, with the
+    /// newest configure serial that the client acknowledged. Returns the
+    /// barrier that holds the commit, if the transaction at the head of the
+    /// queue waits for it.
+    fn answered(
+        &mut self,
+        id: &str,
+        acked: Option<Serial>,
+        surface: &WlSurface,
+    ) -> Option<Barrier> {
         let caught_up = |serial: &Serial| acked.is_some_and(|a| a >= *serial);
         if self.late.get(id).is_some_and(caught_up) {
             self.late.remove(id);
         }
-        if let Some(head) = self.queue.front_mut()
-            && head.waiting.get(id).is_some_and(caught_up)
-        {
+        let head = self.queue.front_mut()?;
+        head.waiting.get(id).is_some_and(caught_up).then(|| {
             head.waiting.remove(id);
-        }
+            head.held.push(surface.clone());
+            head.barrier.clone()
+        })
     }
 
     /// Stops waiting for a destroyed surface.
@@ -87,9 +109,19 @@ impl Transactions {
         self.queue.iter().any(|p| p.conn == conn)
     }
 
-    /// Drops the transactions of a closed connection.
-    pub fn drop_conn(&mut self, conn: u64) {
-        self.queue.retain(|p| p.conn != conn);
+    /// Drops the transactions of a closed connection. Returns the surfaces
+    /// whose commits they held, for `release`.
+    pub fn drop_conn(&mut self, conn: u64) -> Vec<WlSurface> {
+        let mut held = Vec::new();
+        self.queue.retain_mut(|p| {
+            if p.conn != conn {
+                return true;
+            }
+            p.barrier.signal();
+            held.append(&mut p.held);
+            false
+        });
+        held
     }
 }
 
@@ -120,6 +152,8 @@ impl State {
             commands,
             waiting: HashMap::new(),
             deadline: None,
+            barrier: Barrier::new(false),
+            held: Vec::new(),
         });
         self.complete_transactions();
     }
@@ -189,8 +223,49 @@ impl State {
         }
     }
 
-    /// Applies the transaction to the scene and answers the client.
-    fn finish(&mut self, head: Pending) {
+    /// Holds a commit of a toplevel that answers the transaction at the
+    /// head of the queue. Runs before Smithay applies the commit; the
+    /// transaction completes after it.
+    pub fn hold_commit(&mut self, surface: &WlSurface) {
+        let Some(id) = self.surface_id(surface) else {
+            return;
+        };
+        let acked = with_states(surface, |states| {
+            let role = states.data_map.get::<XdgToplevelSurfaceData>()?;
+            role.lock().ok()?.last_acked.as_ref().map(|c| c.serial)
+        });
+        let Some(barrier) = self.transactions.answered(&id, acked, surface) else {
+            return;
+        };
+        add_blocker(surface, barrier);
+        let complete = self
+            .transactions
+            .queue
+            .front()
+            .is_some_and(|h| h.waiting.is_empty());
+        if complete {
+            self.loop_handle.insert_idle(Self::complete_transactions);
+        }
+    }
+
+    /// Applies the commits that a transaction held.
+    pub fn release(&mut self, held: &[WlSurface]) {
+        let mut clients = Vec::new();
+        for client in held.iter().filter_map(Resource::client) {
+            if !clients.contains(&client) {
+                clients.push(client);
+            }
+        }
+        let display = self.display_handle.clone();
+        for client in clients {
+            self.client_compositor_state(&client)
+                .blocker_cleared(self, &display);
+        }
+    }
+
+    /// Applies the transaction to the scene, answers the client, and then
+    /// applies the commits that the transaction held.
+    fn finish(&mut self, mut head: Pending) {
         let message = match self.scene.apply(&head.owner, &head.commands) {
             Ok(effects) => {
                 self.execute(effects);
@@ -200,5 +275,8 @@ impl State {
             Err(error) => Message::error(head.id, rejected(error.to_string())),
         };
         self.ipc.respond(head.conn, &message);
+        head.barrier.signal();
+        let surfaces = std::mem::take(&mut head.held);
+        self.release(&surfaces);
     }
 }
