@@ -28,6 +28,9 @@ pub enum SceneError {
     /// The command would put a node into its own subtree.
     #[error("node {0:?} cannot move into its own subtree")]
     Cycle(String),
+    /// A value is out of range, for example a negative size.
+    #[error("{0}")]
+    Invalid(String),
     /// The root cannot change.
     #[error("the root cannot change")]
     Root,
@@ -180,6 +183,11 @@ impl Scene {
                 states,
             } => {
                 self.owned_surface(owner, surface)?;
+                if size.is_some_and(|[w, h]| w < 0 || h < 0) {
+                    return Err(SceneError::Invalid(format!(
+                        "negative size for {surface:?}"
+                    )));
+                }
                 effects.push(configure(surface, *size, states.clone()));
                 Ok(())
             }
@@ -442,10 +450,26 @@ impl Scene {
     }
 }
 
-/// Only rects have a size and a color.
+/// Only rects have a size and a color; sizes are not negative, and all
+/// numbers are finite.
 fn check_rect_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
     if kind != NodeKind::Rect && (props.size.is_some() || props.color.is_some()) {
         return Err(SceneError::WrongKind(id.into(), "rect"));
+    }
+    let numbers = props
+        .transform
+        .iter()
+        .flat_map(|t| t.matrix().iter())
+        .chain(props.size.iter().flatten())
+        .chain(props.color.iter().flatten())
+        .chain(props.opacity.iter());
+    if numbers.copied().any(|n| !n.is_finite()) {
+        return Err(SceneError::Invalid(format!(
+            "a number of {id:?} is not finite"
+        )));
+    }
+    if props.size.is_some_and(|[w, h]| w < 0.0 || h < 0.0) {
+        return Err(SceneError::Invalid(format!("negative size for {id:?}")));
     }
     Ok(())
 }

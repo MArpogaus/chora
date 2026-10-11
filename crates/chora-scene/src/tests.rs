@@ -311,3 +311,32 @@ fn selector_values_can_hold_spaces_in_quotes() {
     assert_eq!(scene.query(&sel).len(), 1);
     assert!(r#"title:"open"#.parse::<Selector>().is_err());
 }
+
+#[test]
+fn invalid_sizes_and_transforms_are_rejected() {
+    let mut scene = scene_with_surface();
+    scene.apply("wm", &[attach("s1", ROOT)]).unwrap();
+    let configure = Command::Configure {
+        surface: "s1".into(),
+        size: Some([-5, 10]),
+        states: vec![],
+    };
+    let rect = |props| Command::Create {
+        id: "r".into(),
+        kind: NodeKind::Rect,
+        parent: ROOT.into(),
+        props,
+    };
+    let negative = PropsUpdate {
+        size: Some([-1.0, 10.0]),
+        ..PropsUpdate::default()
+    };
+    let infinite = PropsUpdate {
+        transform: Some(Transform::translate(f64::INFINITY, 0.0, 0.0)),
+        ..PropsUpdate::default()
+    };
+    for command in [configure, rect(negative), rect(infinite)] {
+        let err = scene.apply("wm", &[command]).unwrap_err();
+        assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
+    }
+}
