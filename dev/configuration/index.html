@@ -1020,10 +1020,20 @@ yet. Then it applies the nodes of the view as one transaction.</p>
 plugin and its configuration.</p>
 <h2 id="flavors">Flavors<a class="headerlink" href="#flavors" title="Permanent link">&para;</a></h2>
 <p>A flavor is a directory with views, plugin manifests and services, plus a
-systemd user target. <code>chora-flavor &lt;name&gt;</code> imports <code>WAYLAND_DISPLAY</code> and
-<code>CHORA_SOCKET</code> into the systemd user manager and starts the target. The
-target starts the services and the plugins. systemd handles start, restart
-and order, so chora needs no service manager.</p>
+systemd user target <code>chora-&lt;name&gt;.target</code>. <code>chora-flavor &lt;name&gt;</code> looks for
+the directory in <code>~/.config/chora/flavors/</code> first and then in
+<code>/usr/share/chora/flavors/</code>. It imports <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code>
+into the systemd user manager, links the units of the directory, and starts
+the target. The target starts the services and the plugins. systemd handles
+start, restart and order, so chora needs no service manager.</p>
+<p>The package installs the tiling flavor:</p>
+<div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/tiling/
+├── chora-tiling.target              # wants the three units below
+├── chora-tiling-wm.service          # chora-tiling
+└── chora-tiling-xwayland.service    # xwayland-satellite, if installed
+</code></pre></div>
+<p>The target also wants <code>waybar.service</code>, which the waybar package installs.
+A copy of the directory in <code>~/.config/chora/flavors/tiling/</code> replaces it.</p>
 <div class="highlight"><pre><span></span><code>flavors/agentic/
 ├── chora-agentic.target
 ├── views/       # morning, analysis, writing, coding

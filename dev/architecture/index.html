@@ -1480,10 +1480,22 @@ grabs the input only with the serial of the press that opened it.</p>
 </ul>
 <h2 id="sessions-and-flavors">Sessions and flavors<a class="headerlink" href="#sessions-and-flavors" title="Permanent link">&para;</a></h2>
 <ul>
-<li>A session file <code>chora.desktop</code> starts <code>chora -- chora-flavor tiling</code>.</li>
+<li>The session file <code>chora.desktop</code> runs <code>chora-session tiling</code>. The script
+  imports the environment of the login into the systemd user manager and
+  starts the user service <code>chora@tiling.service</code>. It waits until chora
+  ends, and then stops the units of the graphical session.</li>
+<li>Without <code>XKB_DEFAULT_LAYOUT</code>, <code>chora-session</code> takes the keyboard layout of
+  the system from <code>localectl</code>.</li>
+<li><code>chora@.service</code> runs <code>chora -- chora-flavor &lt;name&gt;</code> as part of
+  <code>graphical-session.target</code>.</li>
 <li><code>chora-flavor &lt;name&gt;</code> imports <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> into the
-  systemd user manager. Then it starts the target of the flavor. Units of the
-  flavor then find the compositor and the IPC socket.</li>
+  systemd user manager, links the units of the flavor until the next boot,
+  tells systemd that chora is ready, and starts the target of the flavor.
+  Units of the flavor then find the compositor and the IPC socket. The
+  script is not for nested use: the variables would reach the units of the
+  host session.</li>
+<li>The tiling flavor starts <code>chora-tiling</code>, waybar if it is installed, and
+  <code>xwayland-satellite</code> on a free X11 display for X11 programs (D26).</li>
 <li>A derived secureblue image installs the package (D10, D14).</li>
 </ul>
 
