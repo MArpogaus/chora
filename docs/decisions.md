@@ -64,7 +64,7 @@ The decision log. Nothing here is final. Every entry can come back for review.
 |---|----------|--------|
 | D37 | Screen sharing through `xdg-desktop-portal-wlr` first | No code. A portal backend of its own is in the [Idea backlog](ideas.md). |
 | D38 | HTML content from agents runs in a browser in app mode, as a service | No code. chora places toplevels anywhere. |
-| D39 | The first showcase is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it comes right after M2, before the agent interface | It proves that the scene model carries classic mouse-driven desktops and their effects. The assets come from `kde-plasma-winxp-launcher`. It is a demo, not a daily driver. |
+| D39 | The first showcase is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it comes right after M2, before the agent interface | It proves that the scene model carries classic mouse-driven desktops and their effects. The assets come from `kde-plasma-winxp-launcher` and keep their licenses; the GPL-3.0-only artwork of Exposé and modernXP is data of the flavor that the plugin reads, not code of the core (D8). It is a demo, not a daily driver. |
 
 ## Rejected review findings
 
