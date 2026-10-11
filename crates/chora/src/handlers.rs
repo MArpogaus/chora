@@ -5,8 +5,14 @@ use chora_scene::Event;
 use smithay::{
     backend::renderer::utils::on_commit_buffer_handler,
     delegate_dispatch2,
-    desktop::{PopupKind, Window, find_popup_root_surface, get_popup_toplevel_coords},
-    input::{Seat, SeatHandler, SeatState, pointer::CursorImageStatus},
+    desktop::{
+        PopupKeyboardGrab, PopupKind, PopupPointerGrab, PopupUngrabStrategy, Window,
+        find_popup_root_surface, get_popup_toplevel_coords,
+    },
+    input::{
+        Seat, SeatHandler, SeatState,
+        pointer::{CursorImageStatus, Focus},
+    },
     reexports::{
         wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecorationMode,
         wayland_server::{
@@ -201,7 +207,33 @@ impl XdgShellHandler for State {
         surface.send_repositioned(token);
     }
 
-    fn grab(&mut self, _surface: PopupSurface, _seat: WlSeat, _serial: Serial) {}
+    /// A popup grab, for example of a menu: input goes to the popup until a
+    /// click outside closes it.
+    fn grab(&mut self, surface: PopupSurface, seat: WlSeat, serial: Serial) {
+        let Some(seat) = Seat::<Self>::from_resource(&seat) else {
+            return;
+        };
+        let kind = PopupKind::Xdg(surface);
+        let Ok(root) = find_popup_root_surface(&kind) else {
+            return;
+        };
+        if let Ok(mut grab) = self.popups.grab_popup(root, kind, &seat, serial) {
+            let previous = grab.previous_serial().unwrap_or(serial);
+            let keyboard = seat.get_keyboard().expect("the seat has a keyboard");
+            let pointer = seat.get_pointer().expect("the seat has a pointer");
+            let keyboard_busy = keyboard.is_grabbed()
+                && !(keyboard.has_grab(serial) || keyboard.has_grab(previous));
+            let pointer_busy =
+                pointer.is_grabbed() && !(pointer.has_grab(serial) || pointer.has_grab(previous));
+            if keyboard_busy || pointer_busy {
+                grab.ungrab(PopupUngrabStrategy::All);
+                return;
+            }
+            keyboard.set_focus(self, grab.current_grab(), serial);
+            keyboard.set_grab(self, PopupKeyboardGrab::new(&grab), serial);
+            pointer.set_grab(self, PopupPointerGrab::new(&grab), serial, Focus::Keep);
+        }
+    }
 }
 
 impl State {
