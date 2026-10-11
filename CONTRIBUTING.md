@@ -11,11 +11,11 @@
 Install the hooks once in every fresh clone:
 
 ```bash
-pre-commit install --install-hooks -t pre-commit -t commit-msg -t pre-push
+pre-commit install --install-hooks -t pre-commit -t commit-msg
 ```
 
 Plain `pre-commit install` activates the `pre-commit` stage only. Check that
-`.git/hooks/` contains `pre-commit`, `commit-msg` and `pre-push`.
+`.git/hooks/` contains `pre-commit` and `commit-msg`.
 
 The hooks run:
 
@@ -23,7 +23,7 @@ The hooks run:
   complexity guards. Split a function instead of raising a limit.
 - file hygiene, YAML and TOML formatting, and a spell check
 - `actionlint` on the workflows
-- `commitizen` on every commit message and on every push
+- `commitizen` on every commit message
 
 Run all hooks on all files before a push:
 
