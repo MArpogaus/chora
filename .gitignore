@@ -1,0 +1,9 @@
+# cargo build output
+/target/
+
+# mkdocs build output
+/site/
+
+# emacs lock and backup files
+.#*
+*~
