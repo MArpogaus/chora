@@ -16,11 +16,14 @@ set -euo pipefail
 bin=$(realpath "$1")
 out=$(realpath "${2:-$(mktemp -d)}")
 mkdir -p "$out"
-export XDG_RUNTIME_DIR="$out/run"
-rm -rf "$XDG_RUNTIME_DIR"
-mkdir -m 700 -p "$XDG_RUNTIME_DIR"
+# A short path, because a socket path has at most 107 bytes.
+XDG_RUNTIME_DIR=$(mktemp -d /tmp/chora-e2e.XXXXXX)
+export XDG_RUNTIME_DIR
 pids=()
-cleanup() { kill "${pids[@]}" 2>/dev/null || true; }
+cleanup() {
+    kill "${pids[@]}" 2>/dev/null || true
+    rm -rf "$XDG_RUNTIME_DIR"
+}
 trap cleanup EXIT
 fail() {
     echo "FAIL: $*" >&2
@@ -76,7 +79,8 @@ jq -e '
         $a.y < $b.y + $b.h and $b.y < $a.y + $a.h)]
   | any | not' "$out/tiled.json" >/dev/null || fail "windows overlap: $out/tiled.json"
 grim "$out/tiled.png"
-grim -t ppm - | tail -c +16 | od -An -v -tu1 -w3 | sort -u | wc -l >"$out/tiled.colors"
+# The header of a 1280x800 PPM file has 16 bytes.
+grim -t ppm - | tail -c +17 | od -An -v -tu1 -w3 | sort -u | wc -l >"$out/tiled.colors"
 test "$(cat "$out/tiled.colors")" -gt 3 || fail "the screenshot is empty"
 
 step "3. a crash of chora-tiling leaves chora running and detaches the surfaces"
