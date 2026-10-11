@@ -1,3 +1,11 @@
+[dependencies]
+chora-scene.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+smithay.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
 [lints]
 workspace = true
 
