@@ -1,0 +1,21 @@
+# Rust / cargo
+/target/
+**/*.rs.bk
+*.pdb
+
+# WASM plugin builds
+*.wasm
+
+# docs (mkdocs build output, local venv)
+/site/
+.venv/
+__pycache__/
+
+# editors and local environment
+.direnv/
+.envrc.local
+*.swp
+*~
+.#*
+.idea/
+.vscode/

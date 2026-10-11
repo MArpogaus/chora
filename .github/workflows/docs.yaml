@@ -1,0 +1,46 @@
+# Docs: MkDocs Material site published per ref with mike — main at the site
+# root as `latest`, every dev-* branch under its own version. Pull requests
+# only build (strict), so a broken link fails before it reaches main.
+# Simplified from tensorchiefs/tramdag's docs workflow.
+name: docs
+on:
+  push:
+    branches: [main, dev-*]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: write   # mike pushes gh-pages
+concurrency:
+  group: gh-pages-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REF: ${{ github.ref_name }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        fetch-depth: 0   # mike reads and writes the gh-pages branch
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7   # v10.2.0
+      with:
+        enable-cache: true
+        cache-dependency-glob: docs/requirements.txt
+
+    - name: build (strict)
+      run: uvx --with-requirements docs/requirements.txt mkdocs build --strict
+
+    - name: publish the site version for this ref
+      if: github.event_name != 'pull_request'
+      run: |
+        set -euo pipefail
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        mike() { uvx --with-requirements docs/requirements.txt --from mike mike "$@"; }
+        if [ "$REF" = main ]; then
+          mike deploy --push --update-aliases main latest
+          mike set-default --push latest
+        else
+          mike deploy --push "$REF"
+        fi
