@@ -1232,7 +1232,7 @@
 <tr>
 <td>D28</td>
 <td>Plugins are IPC clients; the core offers <code>animate</code>; in-process WASM plugins come only after a measurement shows the need</td>
-<td>Agents work in seconds, not frames. One mechanism, any language, crash isolation by the OS.</td>
+<td>Agents work in seconds, not frames. One mechanism, any language, crash isolation by the OS. The M3 measurement (<code>tests/ipc-bench.sh</code>, nested, software rendering) shows no need yet: a transaction with a mesh of 8x8 cells takes 0.17 ms in the median and 3.6 ms at the 99th percentile, well inside a 60 Hz frame.</td>
 </tr>
 <tr>
 <td>D29</td>
