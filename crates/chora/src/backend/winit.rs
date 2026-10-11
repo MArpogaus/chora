@@ -9,7 +9,7 @@ use smithay::{
     },
     desktop::layer_map_for_output,
     output::{Mode, Output, OutputModeSource, PhysicalProperties, Subpixel},
-    utils::Transform,
+    utils::{Physical, Size, Transform},
     wayland::dmabuf::DmabufFeedbackBuilder,
 };
 
@@ -84,14 +84,7 @@ fn handle(state: &mut State, event: WinitEvent) {
     match event {
         WinitEvent::Resized { size, .. } => {
             if let Some(backend) = winit(state) {
-                let mode = Mode {
-                    size,
-                    refresh: REFRESH,
-                };
-                backend
-                    .output
-                    .change_current_state(Some(mode), None, None, None);
-                layer_map_for_output(&backend.output).arrange();
+                resize(&backend.output, size);
             }
             state.output_changed();
         }
@@ -100,6 +93,22 @@ fn handle(state: &mut State, event: WinitEvent) {
         WinitEvent::CloseRequested => state.loop_signal.stop(),
         WinitEvent::Focus(_) => {}
     }
+}
+
+/// Gives the output the size of the window as its one mode, so that output
+/// configuration shows no old sizes.
+fn resize(output: &Output, size: Size<i32, Physical>) {
+    let old = output.current_mode();
+    let mode = Mode {
+        size,
+        refresh: REFRESH,
+    };
+    output.change_current_state(Some(mode), None, None, None);
+    output.set_preferred(mode);
+    if let Some(old) = old.filter(|o| *o != mode) {
+        output.delete_mode(old);
+    }
+    layer_map_for_output(output).arrange();
 }
 
 fn redraw(state: &mut State) {
@@ -186,8 +195,8 @@ fn window_mode(output: &Output) -> OutputModeSource {
     }
 }
 
-/// A transform followed by a vertical flip, as in the projection of the
-/// GLES renderer.
+/// The transform that shows an output transform in the window: the same
+/// rotation and mirror, and the vertical flip that GL needs for a window.
 fn flipped(transform: Transform) -> Transform {
     match transform {
         Transform::Normal => Transform::Flipped180,
@@ -205,6 +214,16 @@ impl Winit {
     /// Whether the GPU can use a buffer of a client.
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
         self.graphics.renderer().import_dmabuf(dmabuf, None).is_ok()
+    }
+
+    /// Accepts the current mode only: the window decides the size, and the
+    /// output cannot turn off.
+    pub fn test_output(&self, mode: Option<Mode>) -> Result<(), String> {
+        match mode {
+            Some(mode) if Some(mode) == self.output.current_mode() => Ok(()),
+            Some(_) => Err("the window decides the mode of the winit output".into()),
+            None => Err("the winit output cannot turn off".into()),
+        }
     }
 }
 

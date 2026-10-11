@@ -8,12 +8,12 @@
 
 use chora_scene::{Event, SurfaceRequest};
 use smithay::{
-    desktop::{PopupKind, PopupManager, Window},
+    desktop::{PopupKind, PopupManager, Window, layer_map_for_output},
     input::tablet::TabletSeatHandler,
     reexports::wayland_server::{Resource, protocol::wl_surface::WlSurface},
     utils::{Logical, Rectangle},
     wayland::{
-        compositor::with_states,
+        compositor::{SurfaceData, with_states},
         foreign_toplevel_list::{ForeignToplevelListHandler, ForeignToplevelListState},
         fractional_scale::{FractionalScaleHandler, with_fractional_scale},
         idle_inhibit::IdleInhibitHandler,
@@ -157,19 +157,43 @@ impl InputMethodHandler for State {
 }
 
 impl FractionalScaleHandler for State {
-    /// The preferred scale of a surface is the scale of the first output;
-    /// outputs of other scales come with output configuration.
+    /// The preferred scale of a surface is the scale of the first output.
     fn new_fractional_scale(&mut self, surface: WlSurface) {
-        let scale = self
-            .outputs
-            .first()
-            .map_or(1.0, |o| o.current_scale().fractional_scale());
-        with_states(&surface, |states| {
-            with_fractional_scale(states, |fractional| {
-                fractional.set_preferred_scale(scale);
-            });
-        });
+        with_states(&surface, |states| prefer_scale(states, self.first_scale()));
     }
+}
+
+impl State {
+    /// The scale of the first output, or 1.
+    fn first_scale(&self) -> f64 {
+        self.outputs
+            .first()
+            .map_or(1.0, |o| o.current_scale().fractional_scale())
+    }
+
+    /// Tells the surfaces their preferred scale after a scale changed: the
+    /// scale of the first output to toplevels, and the scale of their output
+    /// to layer surfaces.
+    pub fn update_preferred_scales(&self) {
+        let scale = self.first_scale();
+        for window in self.windows.values() {
+            window.with_surfaces(|_, states| prefer_scale(states, scale));
+        }
+        for output in &self.outputs {
+            let scale = output.current_scale().fractional_scale();
+            for layer in layer_map_for_output(output).layers() {
+                layer.with_surfaces(|_, states| prefer_scale(states, scale));
+            }
+        }
+    }
+}
+
+/// Sets the preferred fractional scale of a surface. The client hears of
+/// a change only.
+fn prefer_scale(states: &SurfaceData, scale: f64) {
+    with_fractional_scale(states, |fractional| {
+        fractional.set_preferred_scale(scale);
+    });
 }
 
 impl XdgActivationHandler for State {

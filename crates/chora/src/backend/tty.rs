@@ -159,6 +159,12 @@ impl Tty {
     pub fn change_vt(&mut self, vt: i32) {
         log_error("changing the VT failed", self.session.change_vt(vt));
     }
+
+    /// Refuses mode changes, and outputs that turn on or off.
+    #[allow(clippy::unused_self)]
+    pub fn test_output(&self, output: &Output, _mode: Option<Mode>) -> Result<(), String> {
+        Err(format!("{} keeps its mode", output.name()))
+    }
 }
 
 fn tty(state: &mut State) -> Option<&mut Tty> {
@@ -362,6 +368,9 @@ fn create_output(
     };
     let device = tty.devices.get_mut(&node).ok_or("the GPU is gone")?;
     let output = Output::new(name, properties(device, connector));
+    for mode in modes {
+        output.add_mode(Mode::from(*mode));
+    }
     output.set_preferred(Mode::from(mode));
     output.change_current_state(Some(Mode::from(mode)), None, None, None);
     let planes = device.manager.device().planes(&crtc).ok();

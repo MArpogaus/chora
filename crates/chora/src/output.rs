@@ -6,14 +6,60 @@
 //! output. The default camera shows the scene area at the layout position
 //! of the output, so the layout and the scene coordinates agree.
 
+use std::ops::RangeInclusive;
+
 use chora_scene::{Event, OutputInfo, Transform};
 use smithay::{
     desktop::{layer_map_for_output, space::SpaceElement},
-    output::Output,
-    utils::{Logical, Point, Rectangle},
+    output::{Mode, Output, Scale},
+    utils::{self, Logical, Physical, Point, Rectangle, Size},
 };
 
 use crate::state::State;
+
+/// The scales that a client can give an output.
+const SCALES: RangeInclusive<f64> = 0.1..=10.0;
+
+/// The configuration of one output, as `wlr-output-management` asks for
+/// it.
+pub enum OutputConfig {
+    /// Turn the output off.
+    Disabled,
+    /// Turn the output on with these changes.
+    Enabled(OutputChanges),
+}
+
+/// The properties of an output that a client sets. A property without a
+/// value stays as it is.
+#[derive(Clone, Default)]
+pub struct OutputChanges {
+    pub mode: Option<ModeChoice>,
+    pub position: Option<Point<i32, Logical>>,
+    pub transform: Option<utils::Transform>,
+    pub scale: Option<f64>,
+}
+
+/// A mode that a client asks for.
+#[derive(Clone, Copy)]
+pub enum ModeChoice {
+    /// One of the modes of the output.
+    Listed(Mode),
+    /// A size, and a refresh rate in mHz or 0 for any rate.
+    Custom {
+        size: Size<i32, Physical>,
+        refresh: i32,
+    },
+}
+
+/// The state that a configuration gives an output.
+struct Target {
+    output: Output,
+    /// The mode, or `None` for an output that turns off.
+    mode: Option<Mode>,
+    position: Point<i32, Logical>,
+    transform: utils::Transform,
+    scale: f64,
+}
 
 impl State {
     /// Adds an output right of the others and announces it.
@@ -25,18 +71,32 @@ impl State {
             .max()
             .unwrap_or(0);
         output.change_current_state(None, None, None, Some((right, 0).into()));
+        self.output_management.add_head(&output, true);
         self.outputs.push(output);
         self.output_changed();
     }
 
-    /// Removes an output and announces it.
+    /// Removes an output that went away and announces it.
     pub fn remove_output(&mut self, output: &Output) {
-        self.outputs.retain(|o| o != output);
-        // Layer surfaces of a removed output close; a client can open them
-        // again on another output.
-        for layer in layer_map_for_output(output).layers() {
-            layer.layer_surface().send_close();
+        if self.outputs.contains(output) {
+            self.leave_layout(output);
         }
+        self.output_management.remove_head(output);
+        self.output_management.update(&self.outputs);
+    }
+
+    /// Takes an output out of the layout and announces it. A client can
+    /// turn it on again through output configuration.
+    fn leave_layout(&mut self, output: &Output) {
+        self.outputs.retain(|o| o != output);
+        // Layer surfaces of the output close; a client can open them again
+        // on another output.
+        let mut map = layer_map_for_output(output);
+        for layer in map.layers().cloned().collect::<Vec<_>>() {
+            layer.layer_surface().send_close();
+            map.unmap_layer(&layer);
+        }
+        drop(map);
         for window in self.windows.values() {
             window.output_leave(output);
         }
@@ -45,11 +105,94 @@ impl State {
         });
     }
 
-    /// Announces new modes, scales or positions of the outputs.
+    /// Announces new modes, scales or positions of the outputs, to plugins
+    /// and to the clients of output configuration.
     pub fn output_changed(&mut self) {
         for output in self.output_info() {
             self.emit(&Event::OutputChanged { output });
         }
+        self.output_management.update(&self.outputs);
+    }
+
+    /// Tests a configuration of the outputs, and applies it if `apply`.
+    /// The configuration applies as a whole: after an error, nothing
+    /// changed. [`Self::outputs_configured`] announces the result.
+    pub fn configure_outputs(
+        &mut self,
+        config: Vec<(Output, OutputConfig)>,
+        apply: bool,
+    ) -> Result<(), String> {
+        let targets = config
+            .into_iter()
+            .map(|(output, config)| target(output, config))
+            .collect::<Result<Vec<_>, _>>()?;
+        let untouched = self
+            .outputs
+            .iter()
+            .any(|o| targets.iter().all(|t| t.output != *o));
+        if !untouched && targets.iter().all(|t| t.mode.is_none()) {
+            return Err("one output must stay on".into());
+        }
+        self.test_targets(&targets)?;
+        if apply {
+            for target in &targets {
+                self.place(target);
+            }
+        }
+        Ok(())
+    }
+
+    /// Asks the backend whether it can make the mode changes of the
+    /// targets, and turn outputs on and off.
+    fn test_targets(&self, targets: &[Target]) -> Result<(), String> {
+        let backend = self.backend.as_ref().ok_or("no backend")?;
+        for target in targets {
+            let same = if self.outputs.contains(&target.output) {
+                target.mode == target.output.current_mode()
+            } else {
+                target.mode.is_none()
+            };
+            if !same {
+                backend.test_output(&target.output, target.mode)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Gives an output the mode, position, transform and scale of a
+    /// target, and turns it on or off in the layout.
+    fn place(&mut self, target: &Target) {
+        let output = &target.output;
+        let on = self.outputs.contains(output);
+        let Some(mode) = target.mode else {
+            if on {
+                self.leave_layout(output);
+            }
+            return;
+        };
+        let scale = output.current_scale().fractional_scale();
+        output.change_current_state(
+            (output.current_mode() != Some(mode)).then_some(mode),
+            (output.current_transform() != target.transform).then_some(target.transform),
+            (scale.to_bits() != target.scale.to_bits()).then_some(Scale::Fractional(target.scale)),
+            (output.current_location() != target.position).then_some(target.position),
+        );
+        if !on {
+            self.outputs.push(output.clone());
+        }
+    }
+
+    /// Places the layer surfaces again after a configuration and announces
+    /// the outputs. The pointer moves into the nearest output.
+    pub fn outputs_configured(&mut self) {
+        for output in &self.outputs {
+            layer_map_for_output(output).arrange();
+        }
+        self.update_preferred_scales();
+        self.pointer_layout = self.clamp_to_outputs(self.pointer_layout);
+        self.refresh_pointer();
+        self.output_changed();
+        self.update_focus();
     }
 
     /// The outputs as the API describes them.
@@ -155,6 +298,96 @@ pub fn output_area(output: &Output) -> Rectangle<i32, Logical> {
         output.current_transform().transform_size(size)
     });
     Rectangle::new(output.current_location(), size)
+}
+
+/// The state that a configuration gives an output. A property without a
+/// value stays as it is.
+fn target(output: Output, config: OutputConfig) -> Result<Target, String> {
+    let OutputConfig::Enabled(changes) = config else {
+        return Ok(Target {
+            mode: None,
+            position: output.current_location(),
+            transform: output.current_transform(),
+            scale: output.current_scale().fractional_scale(),
+            output,
+        });
+    };
+    let mode = match changes.mode {
+        Some(choice) => pick_mode(&output, choice)?,
+        None => output
+            .current_mode()
+            .or_else(|| output.preferred_mode())
+            .ok_or_else(|| format!("{} has no mode", output.name()))?,
+    };
+    let scale = changes
+        .scale
+        .unwrap_or_else(|| output.current_scale().fractional_scale());
+    if !SCALES.contains(&scale) {
+        return Err(format!("the scale {scale} is outside of {SCALES:?}"));
+    }
+    let target = Target {
+        mode: Some(mode),
+        position: changes
+            .position
+            .unwrap_or_else(|| output.current_location()),
+        transform: changes
+            .transform
+            .unwrap_or_else(|| output.current_transform()),
+        scale,
+        output,
+    };
+    target.check_area()?;
+    Ok(target)
+}
+
+/// The mode of an output that a client asks for. A custom mode matches
+/// the mode of the same size with the nearest refresh rate, at most 1 Hz
+/// away. A custom refresh rate of 0 matches the highest rate.
+fn pick_mode(output: &Output, choice: ModeChoice) -> Result<Mode, String> {
+    let modes = output.modes();
+    let (size, refresh) = match choice {
+        ModeChoice::Listed(mode) => (mode.size, mode.refresh),
+        ModeChoice::Custom { size, refresh } => (size, refresh),
+    };
+    let found = match choice {
+        ModeChoice::Listed(mode) => modes.contains(&mode).then_some(mode),
+        ModeChoice::Custom { refresh: 0, .. } => modes
+            .iter()
+            .filter(|m| m.size == size)
+            .max_by_key(|m| m.refresh)
+            .copied(),
+        ModeChoice::Custom { .. } => modes
+            .iter()
+            .filter(|m| m.size == size && (m.refresh - refresh).abs() <= 1000)
+            .min_by_key(|m| (m.refresh - refresh).abs())
+            .copied(),
+    };
+    found.ok_or_else(|| {
+        format!(
+            "{} has no mode {}x{} at {refresh} mHz",
+            output.name(),
+            size.w,
+            size.h
+        )
+    })
+}
+
+impl Target {
+    /// Fails if the area of the output in the layout does not fit into
+    /// 32-bit coordinates.
+    fn check_area(&self) -> Result<(), String> {
+        let size = self.mode.map_or_else(Size::default, |mode| {
+            let size = mode.size.to_f64().to_logical(self.scale).to_i32_round();
+            self.transform.transform_size(size)
+        });
+        let fits = self.position.x.checked_add(size.w).is_some()
+            && self.position.y.checked_add(size.h).is_some();
+        if fits {
+            Ok(())
+        } else {
+            Err(format!("{} lies outside of the layout", self.output.name()))
+        }
+    }
 }
 
 /// Maps a point of the output to scene coordinates. Cameras are 2D

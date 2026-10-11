@@ -6,6 +6,7 @@ pub mod winit;
 
 use smithay::{
     backend::allocator::dmabuf::Dmabuf,
+    output::{Mode, Output},
     wayland::dmabuf::{DmabufGlobal, DmabufHandler, DmabufState, ImportNotifier},
 };
 
@@ -32,6 +33,15 @@ impl Backend {
     pub fn change_vt(&mut self, vt: i32) {
         if let Self::Tty(tty) = self {
             tty.change_vt(vt);
+        }
+    }
+
+    /// Checks, without a change, whether an output can show a mode, or
+    /// turn off for `None`.
+    pub fn test_output(&self, output: &Output, mode: Option<Mode>) -> Result<(), String> {
+        match self {
+            Self::Winit(winit) => winit.test_output(mode),
+            Self::Tty(tty) => tty.test_output(output, mode),
         }
     }
 }
