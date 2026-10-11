@@ -51,8 +51,6 @@ pub struct Ipc {
 struct Conn {
     stream: UnixStream,
     input: Vec<u8>,
-    /// How far `input` holds no newline.
-    scanned: usize,
     output: Vec<u8>,
     /// The output passed `MAX_OUTPUT`; the connection closes.
     overflow: bool,
@@ -123,14 +121,13 @@ impl Ipc {
     /// Sends an event to every connection that subscribed to it.
     pub fn broadcast(&mut self, event: &Event) {
         let message = Message::event(event);
-        let name = message.params.as_ref().map(|p| p["event"].clone());
+        let name = message.params.as_ref().and_then(|p| p["event"].as_str());
         let line = line(&message);
         for conn in self.conns.values_mut() {
-            let wanted = conn.events.as_ref().is_some_and(|e| {
-                e.is_empty()
-                    || e.iter()
-                        .any(|n| name.as_ref().and_then(Value::as_str) == Some(n))
-            });
+            let wanted = conn
+                .events
+                .as_ref()
+                .is_some_and(|e| e.is_empty() || e.iter().any(|n| name == Some(n.as_str())));
             if wanted {
                 conn.push(&line);
             }
@@ -209,14 +206,29 @@ impl Conn {
         !self.overflow
     }
 
+    /// Reads at most `READ_PER_WAKEUP` bytes. `false` at the end of the
+    /// stream or on an error.
+    fn read(&mut self) -> bool {
+        let mut buf = [0; 4096];
+        let mut total = 0;
+        while total < READ_PER_WAKEUP {
+            match (&self.stream).read(&mut buf) {
+                Ok(0) => return false,
+                Ok(n) => {
+                    self.input.extend_from_slice(&buf[..n]);
+                    total += n;
+                }
+                Err(err) if err.kind() == ErrorKind::WouldBlock => break,
+                Err(_) => return false,
+            }
+        }
+        true
+    }
+
     /// The next complete line, without its newline.
     fn next_line(&mut self) -> Option<Vec<u8>> {
-        let Some(end) = self.input[self.scanned..].iter().position(|b| *b == b'\n') else {
-            self.scanned = self.input.len();
-            return None;
-        };
-        let mut line: Vec<u8> = self.input.drain(..=self.scanned + end).collect();
-        self.scanned = 0;
+        let end = self.input.iter().position(|b| *b == b'\n')?;
+        let mut line: Vec<u8> = self.input.drain(..=end).collect();
         line.pop();
         Some(line)
     }
@@ -228,12 +240,6 @@ fn line(message: &Message) -> Vec<u8> {
     bytes
 }
 
-/// The state of a connection after a read.
-enum Stream {
-    Open,
-    Closed,
-}
-
 impl State {
     /// Accepts every waiting connection. When accepting fails, for example
     /// because no file descriptors are left, the listener pauses for a
@@ -242,7 +248,7 @@ impl State {
         loop {
             match listener.accept() {
                 Ok((stream, _)) => {
-                    if let Err(err) = self.ipc_take(stream) {
+                    if let Err(err) = self.ipc_accept(stream) {
                         break Some(err);
                     }
                 }
@@ -253,14 +259,6 @@ impl State {
                 }
             }
         }
-    }
-
-    fn ipc_take(&mut self, stream: UnixStream) -> Result<(), String> {
-        if self.ipc.conns.len() >= MAX_CONNECTIONS {
-            return Err("too many connections; refusing one".into());
-        }
-        self.ipc_accept(stream)
-            .map_err(|e| format!("a connection failed: {e}"))
     }
 
     fn ipc_pause_listener(&mut self) {
@@ -278,22 +276,29 @@ impl State {
         }
     }
 
-    fn ipc_accept(&mut self, stream: UnixStream) -> io::Result<()> {
-        stream.set_nonblocking(true)?;
-        let reader = stream.try_clone()?;
+    /// Registers a connection, or refuses it beyond `MAX_CONNECTIONS`.
+    fn ipc_accept(&mut self, stream: UnixStream) -> Result<(), String> {
+        fn failed(err: impl std::fmt::Display) -> String {
+            format!("a connection failed: {err}")
+        }
+        if self.ipc.conns.len() >= MAX_CONNECTIONS {
+            return Err("too many connections; refusing one".into());
+        }
+        stream.set_nonblocking(true).map_err(failed)?;
+        // The event loop watches a copy; reads go through `Conn::stream`.
+        let watched = stream.try_clone().map_err(failed)?;
         let id = self.ipc.next;
         self.ipc.next += 1;
         let token = self
             .loop_handle
             .insert_source(
-                Generic::new(reader, Interest::READ, Mode::Level),
-                move |_, reader, state| Ok(state.ipc_readable(id, reader)),
+                Generic::new(watched, Interest::READ, Mode::Level),
+                move |_, _, state| Ok(state.ipc_readable(id)),
             )
-            .map_err(|err| io::Error::other(err.to_string()))?;
+            .map_err(failed)?;
         let conn = Conn {
             stream,
             input: Vec::new(),
-            scanned: 0,
             output: Vec::new(),
             overflow: false,
             name: None,
@@ -308,8 +313,8 @@ impl State {
     /// Reads at most `READ_PER_WAKEUP` bytes and handles the complete
     /// lines. At the end of the stream, the lines that arrived still get
     /// their answers.
-    fn ipc_readable(&mut self, id: u64, reader: &UnixStream) -> PostAction {
-        let state = self.ipc_read(id, reader);
+    fn ipc_readable(&mut self, id: u64) -> PostAction {
+        let open = self.ipc.conns.get_mut(&id).is_some_and(Conn::read);
         while let Some(line) = self.ipc.conns.get_mut(&id).and_then(Conn::next_line) {
             self.ipc_handle_line(id, &line);
         }
@@ -322,7 +327,7 @@ impl State {
             let error = RpcError::new(RpcError::INVALID_PARAMS, "line too long");
             self.ipc.respond(id, &Message::error(Value::Null, error));
         }
-        if matches!(state, Stream::Closed) || too_long {
+        if !open || too_long {
             if let Some(conn) = self.ipc.conns.get_mut(&id) {
                 conn.flush();
             }
@@ -330,26 +335,6 @@ impl State {
             return PostAction::Remove;
         }
         PostAction::Continue
-    }
-
-    fn ipc_read(&mut self, id: u64, mut reader: &UnixStream) -> Stream {
-        let mut buf = [0; 4096];
-        let mut total = 0;
-        while total < READ_PER_WAKEUP {
-            let Some(conn) = self.ipc.conns.get_mut(&id) else {
-                return Stream::Closed;
-            };
-            match reader.read(&mut buf) {
-                Ok(0) => return Stream::Closed,
-                Ok(n) => {
-                    conn.input.extend_from_slice(&buf[..n]);
-                    total += n;
-                }
-                Err(err) if err.kind() == ErrorKind::WouldBlock => break,
-                Err(_) => return Stream::Closed,
-            }
-        }
-        Stream::Open
     }
 
     fn ipc_handle_line(&mut self, conn: u64, line: &[u8]) {

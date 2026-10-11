@@ -71,23 +71,6 @@ pub enum Event {
     },
 }
 
-impl Event {
-    /// The name of the event, for example `surface.created`: the value of
-    /// the field `event` in the JSON form.
-    ///
-    /// # Panics
-    ///
-    /// Never: every event serializes with its name.
-    #[must_use]
-    pub fn name(&self) -> String {
-        let json = serde_json::to_value(self).expect("events always serialize");
-        json["event"]
-            .as_str()
-            .expect("every event has a name")
-            .to_owned()
-    }
-}
-
 /// An output and the part of the scene that it shows.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OutputInfo {
@@ -99,17 +82,4 @@ pub struct OutputInfo {
     pub size: [i32; 2],
     /// The scale factor.
     pub scale: f64,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn name_is_the_json_tag() {
-        let e = Event::SurfaceDetached {
-            surface: "s1".into(),
-        };
-        assert_eq!(e.name(), "surface.detached");
-    }
 }

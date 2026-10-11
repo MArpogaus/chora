@@ -180,13 +180,13 @@ impl Scene {
                 parent,
                 props,
             } => {
-                check_rect_props(id, *kind, props)?;
+                check_props(id, *kind, props)?;
                 self.create(owned_node(owner, id, *kind, props), parent)
             }
             Command::Attach { surface, parent } => self.attach(owner, surface, parent),
             Command::Update { id, props } => {
                 let node = self.owned_mut(owner, id)?;
-                check_rect_props(id, node.kind, props)?;
+                check_props(id, node.kind, props)?;
                 node.props.apply(props);
                 Ok(())
             }
@@ -485,7 +485,7 @@ fn is_surface_id(id: &str) -> bool {
 
 /// Only rects have a size and a color; sizes are not negative, and all
 /// numbers are finite.
-fn check_rect_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
+fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
     if kind != NodeKind::Rect && (props.size.is_some() || props.color.is_some()) {
         return Err(SceneError::WrongKind(id.into(), "rect"));
     }
