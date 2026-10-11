@@ -6,6 +6,8 @@
 //! output. The default camera shows the scene area at the layout position
 //! of the output, so the layout and the scene coordinates agree.
 
+use std::time::Duration;
+
 use chora_scene::{Event, OutputInfo, Transform};
 use smithay::{
     desktop::{layer_map_for_output, space::SpaceElement},
@@ -142,6 +144,12 @@ pub struct Spot {
     pub local: Point<f64, Logical>,
     /// The point in scene coordinates.
     pub scene: Point<f64, Logical>,
+}
+
+/// The time between two frames of the current mode.
+pub fn frame_duration(output: &Output) -> Duration {
+    let refresh = output.current_mode().map_or(60_000, |m| m.refresh);
+    Duration::from_secs_f64(1000.0 / f64::from(refresh.max(1)))
 }
 
 /// The area of an output in the layout, in logical pixels.

@@ -2,8 +2,8 @@
 //! udev, DRM/KMS and libinput.
 //!
 //! Adapted from `udev.rs` of Smithay's anvil, MIT License (see
-//! `LICENSES/MIT-Smithay.txt`). This version has no leases, no debug
-//! overlays and no presentation feedback yet.
+//! `LICENSES/MIT-Smithay.txt`). This version has no leases and no debug
+//! overlays.
 //!
 //! Each output renders when its last frame reached the screen, or one frame
 //! duration after a render without damage.
@@ -18,7 +18,8 @@ use smithay::{
             gbm::{GbmAllocator, GbmBufferFlags, GbmDevice},
         },
         drm::{
-            DrmDevice, DrmDeviceFd, DrmError, DrmEvent, DrmNode, NodeType,
+            DrmDevice, DrmDeviceFd, DrmError, DrmEvent, DrmEventMetadata, DrmEventTime, DrmNode,
+            NodeType,
             compositor::FrameFlags,
             exporter::gbm::GbmFramebufferExporter,
             output::{DrmOutput, DrmOutputManager, DrmOutputRenderElements},
@@ -33,6 +34,7 @@ use smithay::{
         session::{Event as SessionEvent, Session, libseat::LibSeatSession},
         udev::{UdevBackend, UdevEvent, all_gpus, primary_gpu},
     },
+    desktop::utils::OutputPresentationFeedback,
     input::pointer::CursorImageStatus,
     output::{Mode, Output, PhysicalProperties},
     reexports::{
@@ -43,10 +45,11 @@ use smithay::{
         drm::control::{ModeTypeFlags, connector, crtc},
         input::Libinput,
         rustix::fs::OFlags,
+        wayland_protocols::wp::presentation_time::server::wp_presentation_feedback::Kind,
         wayland_server::backend::GlobalId,
     },
-    utils::{DeviceFd, Logical, Point},
-    wayland::dmabuf::DmabufFeedbackBuilder,
+    utils::{DeviceFd, Logical, Monotonic, Point, Time},
+    wayland::{dmabuf::DmabufFeedbackBuilder, presentation::Refresh},
 };
 use smithay_drm_extras::{
     display_info,
@@ -56,7 +59,7 @@ use smithay_drm_extras::{
 use super::Backend;
 use crate::{
     cursor::{self, Cursors},
-    output::output_area,
+    output::{frame_duration, output_area},
     render::{self, SceneElement, View},
     state::State,
 };
@@ -65,7 +68,9 @@ type Gles = GbmGlesBackend<GlesRenderer, DrmDeviceFd>;
 type Allocator = GbmAllocator<DrmDeviceFd>;
 type Exporter = GbmFramebufferExporter<DrmDeviceFd>;
 type TtyRenderer<'a> = MultiRenderer<'a, 'a, Gles, Gles>;
-type Manager = DrmOutputManager<Allocator, Exporter, (), DrmDeviceFd>;
+/// The presentation feedback that a queued frame carries to its vblank.
+type Feedback = Option<OutputPresentationFeedback>;
+type Manager = DrmOutputManager<Allocator, Exporter, Feedback, DrmDeviceFd>;
 
 /// The scan-out formats, in the order of preference.
 const COLOR_FORMATS: [Fourcc; 2] = [Fourcc::Abgr8888, Fourcc::Argb8888];
@@ -94,7 +99,7 @@ struct Device {
 /// One output on a connector.
 struct Surface {
     output: Output,
-    compositor: DrmOutput<Allocator, Exporter, (), DrmDeviceFd>,
+    compositor: DrmOutput<Allocator, Exporter, Feedback, DrmDeviceFd>,
     global: GlobalId,
     /// A frame waits for its vblank.
     queued: bool,
@@ -268,8 +273,8 @@ fn add_device(state: &mut State, id: u64, path: &Path) -> Result<(), String> {
         formats,
     );
     let token = loop_handle
-        .insert_source(notifier, move |event, _, state| match event {
-            DrmEvent::VBlank(crtc) => vblank(state, node, crtc),
+        .insert_source(notifier, move |event, event_metadata, state| match event {
+            DrmEvent::VBlank(crtc) => vblank(state, node, crtc, event_metadata.as_ref()),
             DrmEvent::Error(error) => tracing::warn!(?error, "a DRM device failed"),
         })
         .map_err(|e| err(&e.error))?;
@@ -425,7 +430,6 @@ fn disconnect(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
     state.remove_output(&surface.output);
 }
 
-/// Renders an output, unless a frame of it still waits for its vblank.
 /// Renders an output, unless a frame of it still waits for its vblank. A
 /// paused session renders nothing; its activation renders all outputs.
 fn render(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
@@ -443,10 +447,12 @@ fn render(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
         scale: output.current_scale().fractional_scale(),
     };
     let pointer = pointer_on(state, &output);
-    let queued = draw(state, node, crtc, &view, pointer).unwrap_or_else(|err| {
-        log_error::<(), _>("rendering failed", Err(err));
-        false
-    });
+    let queued = draw(state, node, crtc, &view, pointer)
+        .and_then(|damaged| Ok(damaged && queue(state, node, crtc, &output)?))
+        .unwrap_or_else(|err| {
+            log_error::<(), _>("rendering failed", Err(err));
+            false
+        });
     if !queued {
         schedule(state, node, crtc, frame_duration(&output));
     }
@@ -460,7 +466,7 @@ fn pointer_on(state: &State, output: &Output) -> Option<Point<f64, Logical>> {
         .then(|| state.pointer_layout - area.loc)
 }
 
-/// Renders the cursor and the scene. Returns whether a frame was queued.
+/// Renders the cursor and the scene. Returns whether the frame has damage.
 fn draw(
     state: &mut State,
     node: DrmNode,
@@ -521,8 +527,7 @@ fn draw(
     present(&mut device.manager, surface, &mut renderer, &elements)
 }
 
-/// Renders the elements and queues the frame, if it has damage. Returns
-/// whether a frame was queued.
+/// Renders the elements. Returns whether the frame has damage.
 fn present<'a>(
     manager: &mut Manager,
     surface: &mut Surface,
@@ -543,12 +548,24 @@ fn present<'a>(
             return Err(format!("{err:?}"));
         }
     };
-    if frame.is_empty {
+    Ok(!frame.is_empty)
+}
+
+/// Queues a rendered frame with the presentation feedback of the surfaces
+/// that it shows. Returns whether the frame was queued.
+fn queue(
+    state: &mut State,
+    node: DrmNode,
+    crtc: crtc::Handle,
+    output: &Output,
+) -> Result<bool, String> {
+    let feedback = render::take_feedback(state, output);
+    let Some(surface) = surface(state, node, crtc) else {
         return Ok(false);
-    }
+    };
     surface
         .compositor
-        .queue_frame(())
+        .queue_frame(Some(feedback))
         .map_err(|e| format!("{e:?}"))?;
     surface.queued = true;
     Ok(true)
@@ -566,16 +583,41 @@ fn test_failed(err: &(dyn std::error::Error + 'static)) -> bool {
     false
 }
 
-/// The frame reached the screen: the output can render again.
-fn vblank(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
+/// The frame reached the screen: its surfaces learn when, and the output
+/// can render again.
+fn vblank(state: &mut State, node: DrmNode, crtc: crtc::Handle, meta: Option<&DrmEventMetadata>) {
+    let now = state.clock.now();
     let Some(surface) = surface(state, node, crtc) else {
         return;
     };
     surface.queued = false;
-    log_error("a frame failed", surface.compositor.frame_submitted());
     let output = surface.output.clone();
+    match surface.compositor.frame_submitted() {
+        Ok(Some(Some(mut feedback))) => {
+            let (time, flags) = presentation_time(meta, now);
+            let seq = meta.map_or(0, |m| u64::from(m.sequence));
+            feedback.presented(time, Refresh::fixed(frame_duration(&output)), seq, flags);
+        }
+        Ok(_) => {}
+        Err(err) => tracing::warn!(?err, "a frame failed"),
+    }
     state.frame_shown(&output);
     render(state, node, crtc);
+}
+
+/// The time of a vblank: the time stamp of the kernel if it has one, else
+/// now.
+fn presentation_time(
+    meta: Option<&DrmEventMetadata>,
+    now: Time<Monotonic>,
+) -> (Time<Monotonic>, Kind) {
+    match meta.map(|m| m.time) {
+        Some(DrmEventTime::Monotonic(time)) if !time.is_zero() => (
+            time.into(),
+            Kind::Vsync | Kind::HwClock | Kind::HwCompletion,
+        ),
+        _ => (now, Kind::Vsync),
+    }
 }
 
 /// Renders an output after a delay, in place of an earlier timer.
@@ -595,12 +637,6 @@ fn schedule(state: &mut State, node: DrmNode, crtc: crtc::Handle, delay: Duratio
     if let Some(old) = old {
         state.loop_handle.remove(old);
     }
-}
-
-/// The time between two frames of the current mode.
-fn frame_duration(output: &Output) -> Duration {
-    let refresh = output.current_mode().map_or(60_000, |m| m.refresh);
-    Duration::from_secs_f64(1000.0 / f64::from(refresh.max(1)))
 }
 
 /// Another session took the devices, or gave them back.

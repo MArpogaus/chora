@@ -3,14 +3,15 @@
 # chora-tiling tiles three foot windows, a crash of the plugin leaves the
 # core running, and the emergency reset puts the windows in the grid.
 # Further steps check fixed regressions, and the nested exit of M2: waybar,
-# fuzzel and swaylock work.
+# fuzzel and swaylock work, the lock holds against other clients, and
+# frames report their presentation time.
 #
 # The test starts the reset with SIGUSR1. Ctrl+Alt+Escape runs the same
 # code, but synthetic keys from wtype carry their own keymap, which a nested
 # compositor cannot see.
 #
 # Usage: tests/nested.sh BIN_DIR [OUT_DIR]
-#   BIN_DIR  holds chora, choractl and chora-tiling
+#   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
 #   OUT_DIR  receives the logs and screenshots (default: a temp dir)
 # Needs: sway, foot, grim, jq, python3, pgrep and pkill, a Mesa driver,
 # waybar with dbus-run-session, fuzzel and swaylock.
@@ -223,14 +224,22 @@ top_color() {
     grim -t ppm - | tail -c +17 | od -An -v -tu1 -w3 | sort | uniq -c | sort -rn |
         head -1 | awk '{print $2, $3, $4}'
 }
+probe() { WAYLAND_DISPLAY=$inner timeout 20 "$bin/chora-probe" "$@"; }
 WAYLAND_DISPLAY=$inner swaylock -c ff0000 >"$out/swaylock.log" 2>&1 &
 swaylock_pid=$!
 pids+=("$swaylock_pid")
 color_is() { test "$(top_color)" = "$1"; }
 wait_for color_is "255 0 0"
+probe second-lock >>"$out/probe.log" 2>&1 || fail "a second lock: $out/probe.log"
+probe popup-grab >>"$out/probe.log" 2>&1 || fail "a grab while locked: $out/probe.log"
+color_is "255 0 0" || fail "the lock screen is gone"
 kill -KILL "$swaylock_pid"
 wait_for color_is "0 0 0"
 kill -0 "$chora_pid" || fail "chora died"
+# A new lock client takes over and unlocks; the grid shows again.
+probe take-lock >>"$out/probe.log" 2>&1 || fail "the takeover: $out/probe.log"
+not_black() { test "$(pixel 100 100)" != "0 0 0"; }
+wait_for not_black
 
 step "13. a fullscreen request reaches plugins after surface.created"
 "$bin/choractl" events surface.created surface.requested >"$out/requests.jsonl" &
@@ -243,5 +252,15 @@ wait_for grep -q '"request":"fullscreen"' "$out/requests.jsonl"
 jq -se 'map(.event) | index("surface.created") < index("surface.requested")' \
     "$out/requests.jsonl" >/dev/null || fail "order: $out/requests.jsonl"
 kill "$events_pid"
+
+step "14. a frame tells its client when it showed"
+probe presentation >>"$out/probe.log" 2>&1 &
+probe_pid=$!
+pids+=("$probe_pid")
+probe_surface() { "$bin/choractl" query app_id:chora-probe | jq -er '.[0].id'; }
+wait_for probe_surface
+echo "[{\"attach\": {\"surface\": \"$(probe_surface)\", \"parent\": \"root\"}}]" |
+    "$bin/choractl" --name e2e apply || fail "attaching the probe failed"
+wait "$probe_pid" || fail "presentation time: $out/probe.log"
 
 echo "PASS (logs and screenshots in $out)"

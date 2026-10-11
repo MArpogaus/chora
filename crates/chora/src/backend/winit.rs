@@ -9,12 +9,13 @@ use smithay::{
     },
     desktop::layer_map_for_output,
     output::{Mode, Output, PhysicalProperties, Subpixel},
+    reexports::wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
     utils::Transform,
-    wayland::dmabuf::DmabufFeedbackBuilder,
+    wayland::{dmabuf::DmabufFeedbackBuilder, presentation::Refresh},
 };
 
 use super::Backend;
-use crate::{render, state::State};
+use crate::{output::frame_duration, render, state::State};
 
 /// The name of the one output of the winit backend.
 const OUTPUT: &str = "winit";
@@ -162,10 +163,25 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
             .map_err(|e| format!("rendering failed: {e:?}"))?;
         result.damage.cloned()
     };
+    let Some(damage) = damage else {
+        return Ok(());
+    };
+    let mut feedback = render::take_feedback(state, output);
+    let Some(Backend::Winit(backend)) = &mut state.backend else {
+        return Ok(());
+    };
     backend
         .graphics
-        .submit(damage.as_deref())
-        .map_err(|e| format!("submitting the frame failed: {e}"))
+        .submit(Some(&damage))
+        .map_err(|e| format!("submitting the frame failed: {e}"))?;
+    // The window shows the frame at an unknown time; now is the best guess.
+    feedback.presented(
+        state.clock.now(),
+        Refresh::fixed(frame_duration(output)),
+        0,
+        wp_presentation_feedback::Kind::Vsync,
+    );
+    Ok(())
 }
 
 impl Winit {

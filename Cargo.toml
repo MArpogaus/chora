@@ -2,7 +2,7 @@
 lto = "thin"
 
 [workspace]
-members = ["crates/*", "plugins/*"]
+members = ["crates/*", "plugins/*", "tests/probe"]
 resolver = "3"
 
 [workspace.dependencies]

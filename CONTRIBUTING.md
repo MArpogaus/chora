@@ -46,7 +46,9 @@ cargo deny check
 The end-to-end test starts chora nested in a headless sway and checks the
 exit of milestone M1, the nested part of M2 and fixed regressions. It needs
 sway, foot, grim, jq, python3, pgrep and pkill, a Mesa driver, waybar with
-dbus-run-session, fuzzel and swaylock:
+dbus-run-session, fuzzel and swaylock. The Wayland test client
+`tests/probe` checks what no packaged client shows: the lock against other
+clients and presentation times.
 
 ```bash
 tests/nested.sh target/debug

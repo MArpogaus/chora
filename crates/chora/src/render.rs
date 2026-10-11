@@ -19,15 +19,22 @@ use smithay::{
         },
     },
     desktop::{
-        Window, WindowSurfaceType, layer_map_for_output, space::SpaceElement,
-        utils::send_frames_surface_tree,
+        Window, WindowSurfaceType, layer_map_for_output,
+        space::SpaceElement,
+        utils::{
+            OutputPresentationFeedback, send_frames_surface_tree,
+            take_presentation_feedback_surface_tree,
+        },
     },
     input::pointer::CursorImageStatus,
     output::Output,
-    reexports::wayland_server::protocol::wl_surface::WlSurface,
+    reexports::{
+        wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
+        wayland_server::protocol::wl_surface::WlSurface,
+    },
     render_elements,
     utils::{Logical, Point, Rectangle, Scale},
-    wayland::shell::wlr_layer::Layer,
+    wayland::{compositor::SurfaceData, shell::wlr_layer::Layer},
 };
 
 use crate::{
@@ -335,19 +342,7 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
 /// it shows, once per second to the others, so that hidden clients do not
 /// draw for nothing.
 pub fn send_frames(state: &State, output: &Output) {
-    let area = output_area(output);
-    let shown = scene_rect(&state.camera(output), Rectangle::from_size(area.size));
-    let visible: HashSet<&str> = state
-        .scene
-        .draw_list()
-        .iter()
-        .filter(|p| p.node.kind == NodeKind::Surface)
-        .filter(|p| {
-            let window = state.windows.get(&p.node.id);
-            window.is_some_and(|w| shown.overlaps(window_rect(w, &p.transform)))
-        })
-        .map(|p| p.node.id.as_str())
-        .collect();
+    let visible = visible(state, output);
     let time = state.start_time.elapsed();
     for (id, window) in &state.windows {
         let on_output = visible.contains(id.as_str());
@@ -378,6 +373,47 @@ pub fn send_frames(state: &State, output: &Output) {
             Some(output.clone())
         });
     }
+}
+
+/// The surface nodes that an output shows.
+fn visible<'a>(state: &'a State, output: &Output) -> HashSet<&'a str> {
+    let area = output_area(output);
+    let shown = scene_rect(&state.camera(output), Rectangle::from_size(area.size));
+    state
+        .scene
+        .draw_list()
+        .iter()
+        .filter(|p| p.node.kind == NodeKind::Surface)
+        .filter(|p| {
+            let window = state.windows.get(&p.node.id);
+            window.is_some_and(|w| shown.overlaps(window_rect(w, &p.transform)))
+        })
+        .map(|p| p.node.id.as_str())
+        .collect()
+}
+
+/// Takes the presentation feedback of the surfaces that an output shows,
+/// for a frame with damage. A locked output shows its lock surface only.
+pub fn take_feedback(state: &State, output: &Output) -> OutputPresentationFeedback {
+    let mut feedback = OutputPresentationFeedback::new(output);
+    let primary = |_: &WlSurface, _: &SurfaceData| Some(output.clone());
+    let flags = |_: &WlSurface, _: &SurfaceData| wp_presentation_feedback::Kind::empty();
+    if let Some(lock) = &state.lock {
+        if let Some(surface) = lock.surface(output) {
+            take_presentation_feedback_surface_tree(surface, &mut feedback, primary, flags);
+        }
+        return feedback;
+    }
+    let visible = visible(state, output);
+    for (id, window) in &state.windows {
+        if visible.contains(id.as_str()) {
+            window.take_presentation_feedback(&mut feedback, primary, flags);
+        }
+    }
+    for layer in layer_map_for_output(output).layers() {
+        layer.take_presentation_feedback(&mut feedback, primary, flags);
+    }
+    feedback
 }
 
 /// The scene rectangle of a window with its subsurfaces and popups. The

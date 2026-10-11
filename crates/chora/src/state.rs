@@ -20,7 +20,7 @@ use smithay::{
             Display, DisplayHandle, Resource, backend::ClientData, protocol::wl_surface::WlSurface,
         },
     },
-    utils::{Logical, Point, SERIAL_COUNTER, Serial},
+    utils::{Clock, Logical, Monotonic, Point, SERIAL_COUNTER, Serial},
     wayland::{
         compositor::{CompositorClientState, CompositorState, with_states},
         cursor_shape::CursorShapeManagerState,
@@ -32,6 +32,7 @@ use smithay::{
         input_method::InputMethodManagerState,
         output::OutputManagerState,
         pointer_constraints::PointerConstraintsState,
+        presentation::PresentationState,
         relative_pointer::RelativePointerManagerState,
         selection::{data_device::DataDeviceState, primary_selection::PrimarySelectionState},
         session_lock::SessionLockManagerState,
@@ -56,6 +57,8 @@ use crate::{backend::Backend, ipc::Ipc, lock::Lock, transaction::Transactions};
 #[allow(clippy::struct_field_names)] // the names of Smithay's handler traits
 pub struct State {
     pub start_time: Instant,
+    /// The clock of presentation times.
+    pub clock: Clock<Monotonic>,
     pub display_handle: DisplayHandle,
     pub loop_handle: LoopHandle<'static, State>,
     pub loop_signal: LoopSignal,
@@ -138,8 +141,11 @@ impl State {
         CursorShapeManagerState::new::<Self>(&dh);
         RelativePointerManagerState::new::<Self>(&dh);
         PointerConstraintsState::new::<Self>(&dh);
+        let clock = Clock::<Monotonic>::new();
+        PresentationState::new::<Self>(&dh, clock.id() as u32);
         Self {
             start_time: Instant::now(),
+            clock,
             compositor_state: CompositorState::new::<Self>(&dh),
             layer_shell_state: WlrLayerShellState::new::<Self>(&dh),
             lock_state: SessionLockManagerState::new::<Self, _>(&dh, |_| true),

@@ -1,0 +1,17 @@
+[dependencies]
+rustix = { version = "1", features = ["event", "fs", "time"] }
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+
+[lints]
+workspace = true
+
+[package]
+description = "A Wayland test client for the end-to-end test"
+edition.workspace = true
+license.workspace = true
+name = "chora-probe"
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true

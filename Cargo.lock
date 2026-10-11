@@ -259,6 +259,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "chora-probe"
+version = "0.1.0"
+dependencies = [
+ "rustix 1.1.5",
+ "wayland-client",
+ "wayland-protocols",
+]
+
+[[package]]
 name = "chora-scene"
 version = "0.1.0"
 dependencies = [
