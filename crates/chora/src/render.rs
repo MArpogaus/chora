@@ -124,42 +124,53 @@ pub fn window_origin(state: &State, id: &str) -> Option<Point<i32, Logical>> {
 }
 
 /// The surface under a point of the scene and the position of that surface
-/// in the scene.
+/// in the scene. A node with `block` that the point hits takes the input and
+/// gives it to nobody; a node with `pass` lets it through.
 pub fn surface_under(
     state: &State,
     pos: Point<f64, Logical>,
 ) -> Option<(WlSurface, Point<f64, Logical>)> {
     for placed in state.scene.draw_list().iter().rev() {
-        match placed.input {
-            InputMode::Pass => continue,
-            InputMode::Block => return None,
-            InputMode::Accept => {}
-        }
-        let (offset, (sx, sy)) = location_and_scale(&placed.transform)?;
-        let local = Point::<f64, Logical>::from(((pos.x - offset.x) / sx, (pos.y - offset.y) / sy));
-        match placed.node.kind {
-            NodeKind::Surface => {
-                let Some(window) = state.windows.get(&placed.node.id) else {
-                    continue;
-                };
-                let geo = window.geometry().loc.to_f64();
-                if let Some((surface, loc)) =
-                    window.surface_under(local + geo, WindowSurfaceType::ALL)
-                {
-                    let loc = loc.to_f64() - geo;
-                    return Some((surface, offset + Point::from((loc.x * sx, loc.y * sy))));
-                }
-            }
-            NodeKind::Rect => {
-                let [w, h] = placed.node.props.size.unwrap_or_default();
-                if (0.0..w).contains(&local.x) && (0.0..h).contains(&local.y) {
-                    return None;
-                }
-            }
-            NodeKind::Group => {}
+        let Some(hit) = hit(state, placed, pos) else {
+            continue;
+        };
+        match (placed.input, hit) {
+            (InputMode::Pass, _) => {}
+            (InputMode::Accept, Hit::Surface(surface, loc)) => return Some((surface, loc)),
+            (InputMode::Block | InputMode::Accept, _) => return None,
         }
     }
     None
+}
+
+/// What a point hits.
+enum Hit {
+    /// A surface, and its position in the scene.
+    Surface(WlSurface, Point<f64, Logical>),
+    /// A rect: an area without a client.
+    Area,
+}
+
+fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<Hit> {
+    let (offset, (sx, sy)) = location_and_scale(&placed.transform)?;
+    let local = Point::<f64, Logical>::from(((pos.x - offset.x) / sx, (pos.y - offset.y) / sy));
+    match placed.node.kind {
+        NodeKind::Surface => {
+            let window = state.windows.get(&placed.node.id)?;
+            let geo = window.geometry().loc.to_f64();
+            let (surface, loc) = window.surface_under(local + geo, WindowSurfaceType::ALL)?;
+            let loc = loc.to_f64() - geo;
+            Some(Hit::Surface(
+                surface,
+                offset + Point::from((loc.x * sx, loc.y * sy)),
+            ))
+        }
+        NodeKind::Rect => {
+            let [w, h] = placed.node.props.size.unwrap_or_default();
+            ((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)).then_some(Hit::Area)
+        }
+        NodeKind::Group => None,
+    }
 }
 
 #[cfg(test)]
