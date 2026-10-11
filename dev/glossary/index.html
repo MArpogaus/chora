@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
+        <meta name="description" content="chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Glossary - Chora</title>
+        <title>Glossary - chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-header__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Chora
+            chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-nav__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Chora
+    chora
   </label>
   
     <div class="md-nav__source">
@@ -848,7 +848,7 @@
 
 
 <h1 id="glossary">Glossary<a class="headerlink" href="#glossary" title="Permanent link">&para;</a></h1>
-<p>The shared vocabulary of Chora. Code, docs and prompts to agents use these
+<p>The shared vocabulary of chora. Code, docs and prompts to agents use these
 terms and no synonyms.</p>
 <table>
 <thead>
@@ -895,12 +895,16 @@ terms and no synonyms.</p>
 <td>A shader that changes how a node and its children look, for example blur or a color change. Every node can have effects.</td>
 </tr>
 <tr>
-<td><strong>Viewport</strong></td>
-<td>The part of the scene that one output shows. A viewport is a transform from scene coordinates to output pixels.</td>
+<td><strong>Camera</strong></td>
+<td>The part of the scene that one output shows: a transform from scene coordinates to output pixels.</td>
+</tr>
+<tr>
+<td><strong>Client</strong></td>
+<td>A process on the IPC socket: a plugin, <code>choractl</code> or a service. A client names itself when it connects.</td>
 </tr>
 <tr>
 <td><strong>Owner</strong></td>
-<td>The client that created or attached a node. Only the owner changes the node.</td>
+<td>The client name that created or attached a node. Only the owner changes the node.</td>
 </tr>
 <tr>
 <td><strong>Toplevel</strong></td>
@@ -916,11 +920,11 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Plugin</strong></td>
-<td>A process that reacts to events, changes the scene through the IPC socket and can export methods. A window manager, a layout, an animation set and a keybinding set are plugins.</td>
+<td>A client that reacts to events, changes the scene and can export methods. A window manager, a layout, an animation set and a keybinding set are plugins.</td>
 </tr>
 <tr>
 <td><strong>Service</strong></td>
-<td>A process in a container, outside the core. Examples are speech recognition, a local LLM and a development environment. <a href="../configuration/#services">Configuration</a> shows how services run.</td>
+<td>A process in a container, outside the core. Examples are speech recognition, a local LLM and a development environment.</td>
 </tr>
 <tr>
 <td><strong>Flavor</strong></td>
@@ -932,7 +936,7 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Inventory</strong></td>
-<td>A local, git-versioned store of reusable elements (views, plugins, widgets). It belongs to the opinionated layer above Chora, not to the core.</td>
+<td>A local, git-versioned store of reusable elements (views, plugins, widgets). It belongs to the opinionated layer above chora, not to the core.</td>
 </tr>
 <tr>
 <td><strong>Command</strong></td>
@@ -944,11 +948,15 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Selector</strong></td>
-<td>An expression that finds nodes without an id, for example <code>app_id:firefox</code>.</td>
+<td>An expression that finds nodes by id, attribute or meta data, for example <code>app_id:firefox</code>.</td>
 </tr>
 <tr>
 <td><strong>Transaction</strong></td>
 <td>A batch of commands that the core applies as one unit. If one command fails, the core applies none of them.</td>
+</tr>
+<tr>
+<td><strong>Grant</strong></td>
+<td>A permission of the user for one client name to use <code>input.inject</code> or <code>screen.capture</code>.</td>
 </tr>
 <tr>
 <td><strong>Safety layer</strong></td>

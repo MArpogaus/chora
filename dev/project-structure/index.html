@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
+        <meta name="description" content="chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Project structure - Chora</title>
+        <title>Project structure - chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-header__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Chora
+            chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-nav__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Chora
+    chora
   </label>
   
     <div class="md-nav__source">
@@ -945,8 +945,10 @@ needs it. No crate exists yet.</p>
 │   ├── chora-scene/   # scene model, commands, events, transactions, selectors; no Smithay
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
-├── plugins/           # reference plugins: tiling, stacking, keybindings
-├── dist/              # chora.desktop session file, packaging
+├── plugins/
+│   └── chora-tiling/  # reference plugin: master and stack layout, keybindings
+├── dist/              # chora.desktop, chora-flavor, the tiling flavor
+├── deny.toml          # cargo-deny: allowed licenses, advisories
 ├── docs/              # this documentation (MkDocs)
 ├── mkdocs.yml
 └── Cargo.toml         # workspace, lints
@@ -956,8 +958,8 @@ needs it. No crate exists yet.</p>
 <li><strong><code>chora-scene</code> has no Smithay dependency.</strong> Tests of the data model and
   the transaction logic need no GPU and no compositor. The core, <code>choractl</code>
   and plugins share this one definition of the API.</li>
-<li><strong>Reference plugins live in this repository</strong> first. They keep the API
-  honest. They can move out when the API is stable.</li>
+<li><strong>Reference plugins live in this repository</strong> first, as workspace members.
+  They keep the API honest. They can move out when the API is stable.</li>
 <li><strong>The build generates the schemas</strong> from the Rust types. The repository
   does not contain them. Docs, validation and agents then see the same
   contract.</li>
@@ -973,7 +975,7 @@ needs it. No crate exists yet.</p>
 <tbody>
 <tr>
 <td><code>secureblue-images</code></td>
-<td>derived image that installs Chora as an additional session</td>
+<td>derived image that installs chora as an additional session</td>
 </tr>
 <tr>
 <td><code>image-builder-action</code></td>

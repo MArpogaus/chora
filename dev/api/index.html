@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
+        <meta name="description" content="chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>API - Chora</title>
+        <title>API - chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-header__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Chora
+            chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-nav__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Chora
+    chora
   </label>
   
     <div class="md-nav__source">
@@ -1071,13 +1071,14 @@
 <h1 id="api">API<a class="headerlink" href="#api" title="Permanent link">&para;</a></h1>
 <div class="admonition note">
 <p class="admonition-title">Draft</p>
-<p>A first sketch of the one API of Chora. Names and shapes will change. The
-principle stays: plugins, IPC clients and agents use one language of
+<p>A first sketch of the one API of chora. Names and shapes will change. The
+principle stays: plugins, <code>choractl</code> and agents use one language of
 commands and events.</p>
 </div>
 <h2 id="model">Model<a class="headerlink" href="#model" title="Permanent link">&para;</a></h2>
 <p>A <strong>command</strong> changes the scene. An <strong>event</strong> reports a change. Commands
-travel in <strong>transactions</strong> (see <a href="../architecture/#transactions">Architecture</a>).</p>
+travel in <strong>transactions</strong> (see <a href="../architecture/#transactions">Architecture</a>).
+<a href="../architecture/#ownership">Ownership</a> decides who may change a node.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># one transaction</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">work</span><span class="p p-Indicator">,</span><span class="nt"> kind</span><span class="p">:</span><span class="w"> </span><span class="nv">group</span><span class="p p-Indicator">,</span><span class="nt"> parent</span><span class="p">:</span><span class="w"> </span><span class="nv">root</span><span class="p p-Indicator">}</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">bg</span><span class="p p-Indicator">,</span><span class="nt"> kind</span><span class="p">:</span><span class="w"> </span><span class="nv">shader</span><span class="p p-Indicator">,</span><span class="nt"> parent</span><span class="p">:</span><span class="w"> </span><span class="nv">work</span><span class="p p-Indicator">,</span><span class="nt"> shader</span><span class="p">:</span><span class="w"> </span><span class="nv">aurora.frag</span><span class="p p-Indicator">}</span>
@@ -1106,7 +1107,7 @@ travel in <strong>transactions</strong> (see <a href="../architecture/#transacti
 <tr>
 <td><code>owner</code></td>
 <td>all</td>
-<td>the client that created or attached the node; read-only</td>
+<td>client name of the owner; read-only</td>
 </tr>
 <tr>
 <td><code>transform</code></td>
@@ -1203,18 +1204,17 @@ the client for a new size.</p>
 <td>ask a client to close a surface</td>
 </tr>
 <tr>
-<td><code>viewport</code></td>
-<td>set the viewport of an output: a transform from scene coordinates to output pixels</td>
+<td><code>camera</code></td>
+<td>set the camera of an output</td>
 </tr>
 </tbody>
 </table>
-<p>Only the owner of a node can change it. <code>animate</code> lets plugins and agents
-animate without code in every frame.</p>
+<p><code>animate</code> lets plugins and agents animate without code in every frame.</p>
 <h2 id="selectors">Selectors<a class="headerlink" href="#selectors" title="Permanent link">&para;</a></h2>
-<p>A selector finds nodes without an id: <code>id:work</code>, <code>app_id:firefox</code>,
-<code>title~:Inbox</code>, <code>meta:role=editor</code>, <code>kind:surface</code>. Selectors work in queries
-only. A query returns all current matches, or an empty list. It always sees
-the current titles.</p>
+<p>A selector finds nodes: <code>id:work</code>, <code>app_id:firefox</code>, <code>title~:Inbox</code>,
+<code>meta:role=editor</code>, <code>kind:surface</code>. Selectors work in queries only. A query
+returns all current matches, or an empty list. It always sees the current
+titles.</p>
 <h2 id="events">Events<a class="headerlink" href="#events" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1233,16 +1233,20 @@ the current titles.</p>
 <td>title, <code>app_id</code>, min and max size, requests for maximize, fullscreen and activation</td>
 </tr>
 <tr>
+<td><code>surface.detached</code></td>
+<td>surface id</td>
+</tr>
+<tr>
 <td><code>input.key</code>, <code>input.pointer</code>, <code>input.touch</code>, <code>input.gesture</code></td>
 <td>event data for grabs</td>
 </tr>
 <tr>
 <td><code>output.added</code>, <code>output.removed</code>, <code>output.changed</code></td>
-<td>output, mode, scale</td>
+<td>output, mode, scale, position</td>
 </tr>
 <tr>
-<td><code>plugin.connected</code>, <code>plugin.disconnected</code></td>
-<td>name, reason</td>
+<td><code>client.connected</code>, <code>client.disconnected</code></td>
+<td>client name</td>
 </tr>
 <tr>
 <td><code>transaction.applied</code>, <code>transaction.rejected</code></td>
@@ -1251,7 +1255,8 @@ the current titles.</p>
 </tbody>
 </table>
 <h2 id="ipc-methods">IPC methods<a class="headerlink" href="#ipc-methods" title="Permanent link">&para;</a></h2>
-<p>JSON-RPC 2.0 on the socket in <code>CHORA_SOCKET</code>.</p>
+<p>JSON-RPC 2.0, one message per line, on the socket in <code>CHORA_SOCKET</code>. Every
+client sends <code>hello</code> first.</p>
 <table>
 <thead>
 <tr>
@@ -1260,6 +1265,10 @@ the current titles.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>hello(name, keep_nodes)</code></td>
+<td>name the client; <code>keep_nodes</code> keeps its nodes after the disconnect</td>
+</tr>
 <tr>
 <td><code>scene.query(selector)</code></td>
 <td>read nodes</td>
@@ -1270,7 +1279,7 @@ the current titles.</p>
 </tr>
 <tr>
 <td><code>events.subscribe(filter)</code></td>
-<td>stream events</td>
+<td>stream events as notifications</td>
 </tr>
 <tr>
 <td><code>input.grab(binding)</code></td>
@@ -1278,38 +1287,38 @@ the current titles.</p>
 </tr>
 <tr>
 <td><code>input.inject(events)</code></td>
-<td>send synthetic input; needs approval</td>
+<td>send synthetic input; needs a grant</td>
 </tr>
 <tr>
 <td><code>screen.capture(target)</code></td>
-<td>capture an output, a group or a surface; needs approval</td>
+<td>capture an output, a group or a surface; needs a grant</td>
 </tr>
 <tr>
 <td><code>output.list</code></td>
-<td>list the outputs and their viewports</td>
+<td>list the outputs and their cameras</td>
 </tr>
 <tr>
 <td><code>methods.export(names)</code></td>
-<td>offer methods of this plugin to other clients</td>
+<td>offer methods of this client to other clients</td>
 </tr>
 <tr>
-<td><code>methods.call(plugin, method, params)</code></td>
-<td>call a method of a plugin</td>
+<td><code>methods.call(client, method, params)</code></td>
+<td>call a method of another client</td>
 </tr>
 </tbody>
 </table>
 <p>The core implements <code>wlr-output-management</code>, so kanshi and wlr-randr
 configure the outputs. The API has no output configuration of its own.</p>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
-<p>A plugin is an IPC client with a manifest:</p>
+<p>A plugin is a client with a manifest:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
 <span class="nt">exec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora-tiling</span>
 <span class="nt">subscribe</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">surface.created</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">surface.destroyed</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">output.changed</span><span class="p p-Indicator">]</span>
 <span class="nt">grabs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Super+h</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+l</span><span class="p p-Indicator">]</span>
 <span class="nt">methods</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">set_layout</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">resize</span><span class="p p-Indicator">]</span>
 </code></pre></div>
-<p>A plugin owns the nodes that it creates. The core removes them when the
-plugin disconnects.</p>
+<p><code>choractl</code> reads the manifest when it loads a view. Before views exist (M3),
+the startup command starts plugins directly.</p>
 <h2 id="mcp-tools">MCP tools<a class="headerlink" href="#mcp-tools" title="Permanent link">&para;</a></h2>
 <p><code>choractl mcp</code> offers the IPC methods as MCP tools. It also offers tools for
 whole tasks, for example "describe the screen", which returns a screenshot

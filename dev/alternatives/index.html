@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
+        <meta name="description" content="chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Alternatives - Chora</title>
+        <title>Alternatives - chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-header__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Chora
+            chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-nav__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Chora
+    chora
   </label>
   
     <div class="md-nav__source">
@@ -1059,7 +1059,7 @@
 
 
 <h1 id="alternatives">Alternatives<a class="headerlink" href="#alternatives" title="Permanent link">&para;</a></h1>
-<p>Every part of Chora gets a check against existing projects. This page records
+<p>Every part of chora gets a check against existing projects. This page records
 the first check from October 2026. An entry with the mark <em>unverified</em> needs
 a second look.</p>
 <h2 id="compositors">Compositors<a class="headerlink" href="#compositors" title="Permanent link">&para;</a></h2>
@@ -1069,7 +1069,7 @@ a second look.</p>
 <th>Project</th>
 <th>Stack</th>
 <th>Extension model</th>
-<th>Fit for Chora</th>
+<th>Fit for chora</th>
 <th>Missing</th>
 </tr>
 </thead>
@@ -1085,8 +1085,8 @@ a second look.</p>
 <td><a href="https://github.com/pinnacle-comp/pinnacle">Pinnacle</a></td>
 <td>Rust, Smithay</td>
 <td>gRPC API with Lua and Rust clients; Snowcap widgets</td>
-<td>best Rust base for a fork: the policy already lives outside the compositor</td>
-<td>no scene primitives, no shader nodes, no MCP; small team</td>
+<td>a Rust base with an external API; the layout runs in a client</td>
+<td>policy in the core (tags, layout modes, window rules), no scene graph, no shaders, no MCP; small team</td>
 </tr>
 <tr>
 <td><a href="https://github.com/YaLTeR/niri">niri</a></td>
@@ -1107,7 +1107,7 @@ a second look.</p>
 <td>Rust, own stack</td>
 <td>config as a Rust library <em>(unverified)</em></td>
 <td>reference for a Vulkan renderer</td>
-<td>not Smithay; GPLv3</td>
+<td>not Smithay</td>
 </tr>
 <tr>
 <td><a href="https://github.com/WayfireWM/wayfire">Wayfire</a></td>
@@ -1133,7 +1133,7 @@ a second look.</p>
 <tr>
 <td>Louvre</td>
 <td>C++</td>
-<td>library with defaults that can be replaced</td>
+<td>library with replaceable defaults</td>
 <td>good scene API</td>
 <td>not Rust</td>
 </tr>
@@ -1155,14 +1155,14 @@ a second look.</p>
 </table>
 <p>Agent tools exist today only as external MCP servers on top of existing
 compositors, for example kwin-mcp, and hypruse for Hyprland. The check found
-no compositor with WASM plugins or built-in MCP. The combination of Chora
+no compositor with an MCP interface of its own. The combination of chora
 appears to be new: a policy-free core, a scene of primitives with shaders,
-and one API for plugins, IPC and MCP.</p>
+and one API for plugins and agents.</p>
 <h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
 <ol>
 <li><strong>Build on Smithay and copy from others.</strong> Sources: the anvil and smallvil
    examples, niri, cosmic-comp, Pinnacle. This option gives full control of
-   the scene and the plugin model. This is the decision (D14).</li>
+   the scene and the plugin model. This is the decision (D15).</li>
 <li><strong>Fork Pinnacle.</strong> A working Smithay compositor with an external API on
    day one. The code review below rejects this option.</li>
 <li><strong>River 0.4 with a Rust window manager.</strong> No compositor code, but no
@@ -1171,7 +1171,7 @@ and one API for plugins, IPC and MCP.</p>
 <li><strong>An MCP server on an existing compositor</strong>, like kwin-mcp. This is the
    fastest way to try agentic workflows. It gives no canvas and no effects.</li>
 </ol>
-<p>River shows a strong design for the window manager interface. Chora can copy
+<p>River shows a strong design for the window manager interface. chora can copy
 its semantics without its code.</p>
 <h3 id="pinnacle-code-review">Pinnacle code review<a class="headerlink" href="#pinnacle-code-review" title="Permanent link">&para;</a></h3>
 <p>The review measured a clone of Pinnacle 0.2.2 (last commit 2026-06-27).</p>
@@ -1192,7 +1192,7 @@ its semantics without its code.</p>
 <li><strong>Activity:</strong> 57 commits in February 2026, then 2, 3 and 8 per month.</li>
 </ul>
 <p>A fork keeps about 40 to 50 percent of <code>src/</code>. It deletes or rewrites the
-spine that Chora replaces: <code>Space</code>, the window state, tags and the API. Only
+spine that chora replaces: <code>Space</code>, the window state, tags and the API. Only
 the generic parts survive, and these are easy to copy. <a href="../dependencies/#code-to-copy">Dependencies</a>
 lists them.</p>
 <h2 id="plugin-runtimes">Plugin runtimes<a class="headerlink" href="#plugin-runtimes" title="Permanent link">&para;</a></h2>
@@ -1254,7 +1254,7 @@ lists them.</p>
 </table>
 <p>For code in every frame, the Component Model is better than Extism. Typed
 calls only help when the boundary stays typed: JSON over WIT gives back the
-cost of Extism. Chora starts with IPC clients only (D27). wasmtime comes when
+cost of Extism. chora starts with IPC clients only (D28). wasmtime comes when
 a measurement demands it.</p>
 <h2 id="renderer">Renderer<a class="headerlink" href="#renderer" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1264,18 +1264,18 @@ a measurement demands it.</p>
 <li>No Smithay compositor renders through wgpu. The Smithay maintainers
   consider wgpu too abstract for a compositor. Smithay has no merged Vulkan
   renderer either.</li>
-<li>Decision: GLES and GLSL (D16).</li>
+<li>Decision: GLES and GLSL (D17).</li>
 </ul>
 <h2 id="mcp">MCP<a class="headerlink" href="#mcp" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/modelcontextprotocol/rust-sdk">rmcp</a> 3.x supports stdio
 and Streamable HTTP. <code>choractl mcp</code> uses stdio. A container gets the socket
-through a bind mount, so Chora needs no network transport for now.</p>
+through a bind mount, so chora needs no network transport for now.</p>
 <h2 id="widgets-and-shells">Widgets and shells<a class="headerlink" href="#widgets-and-shells" title="Permanent link">&para;</a></h2>
 <p><a href="https://quickshell.org/">Quickshell</a> is the strongest choice: Qt6 and QML,
 declarative, with live reload. waybar is mature. eww and AGS/Astal need a
 check of their activity. All of these need <code>wlr-layer-shell</code>.</p>
 <p>For HTML from agents, a browser in app mode (<code>chromium --app=...</code>) is enough
-(D35). Chora places toplevels anywhere. A dedicated host on
+(D38). chora places toplevels anywhere. A dedicated host on
 <code>gtk4-layer-shell</code> with WebKitGTK, or a Tauri window as a layer surface, is
 an option for later.</p>
 

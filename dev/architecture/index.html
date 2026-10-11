@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
+        <meta name="description" content="chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Architecture - Chora</title>
+        <title>Architecture - chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-header__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Chora
+            chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-nav__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Chora
+    chora
   </label>
   
     <div class="md-nav__source">
@@ -593,6 +593,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ownership
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cameras" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cameras
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#renderer" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -686,10 +708,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#deployment" class="md-nav__link">
+  <a href="#sessions-and-flavors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Deployment
+        Sessions and flavors
       
     </span>
   </a>
@@ -1067,6 +1089,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ownership
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cameras" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cameras
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#renderer" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1160,10 +1204,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#deployment" class="md-nav__link">
+  <a href="#sessions-and-flavors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Deployment
+        Sessions and flavors
       
     </span>
   </a>
@@ -1217,7 +1261,7 @@ will refine it.</p>
 <p>The core has one language: <strong>commands</strong> and <strong>events</strong> (see <a href="../api/">API</a>).
 Plugins, <code>choractl</code>, services and agents all use it. Nothing outside the core
 changes the scene in another way.</p>
-<p>Plugins are separate processes (D27). A plugin can also be a Wayland client,
+<p>Plugins are separate processes (D28). A plugin can also be a Wayland client,
 for example to draw window decorations as its own surfaces.</p>
 <h2 id="components">Components<a class="headerlink" href="#components" title="Permanent link">&para;</a></h2>
 <h3 id="core">Core<a class="headerlink" href="#core" title="Permanent link">&para;</a></h3>
@@ -1230,6 +1274,9 @@ for example to draw window decorations as its own surfaces.</p>
 <li>Input routing (see below).</li>
 <li>The IPC socket.</li>
 <li>The safety layer (see below).</li>
+<li>The startup command: <code>chora -- &lt;command&gt;</code> runs one command with
+  <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> set. Without a command, the core shows
+  a black screen.</li>
 </ul>
 <p>The core places popups, subsurfaces and layer surfaces itself, because the
 protocols define their position. Smithay's <code>PopupManager</code> and <code>LayerMap</code> do
@@ -1241,13 +1288,34 @@ appears, or if it appears at all.</p>
 node properties. The order of the children sets the stacking order. The crate
 <code>chora-scene</code> holds the scene model (see
 <a href="../project-structure/">Project structure</a>).</p>
-<p>All outputs show one logical scene. Each output has a <strong>viewport</strong>: a
-transform from scene coordinates to output pixels. A plugin moves or scales a
-viewport to pan or zoom. Two outputs side by side get two adjacent viewports.
-One window across two outputs then needs no special case.</p>
-<p>Each node has one <strong>owner</strong>: the client that created or attached it. The core
-rejects changes from other clients. When a plugin disconnects, the core
-removes its nodes. Its surfaces become detached.</p>
+<h3 id="ownership">Ownership<a class="headerlink" href="#ownership" title="Permanent link">&para;</a></h3>
+<p>Each client names itself when it connects. The owner of a node is a client
+name, not a connection, so several <code>choractl</code> calls share their nodes.</p>
+<ul>
+<li>Only the owner changes or removes a node.</li>
+<li>A detached surface has no owner. The client that attaches it becomes its
+  owner.</li>
+<li>A child under a group does not change the group. The child keeps its own
+  owner.</li>
+<li>The removal of a group removes its descendants. Surfaces among them become
+  detached.</li>
+<li>When the last connection of a name closes, the core removes the nodes of
+  that name. Its surfaces become detached. A client that connects with
+  <code>keep_nodes</code>, for example <code>choractl</code>, keeps its nodes.</li>
+</ul>
+<h3 id="cameras">Cameras<a class="headerlink" href="#cameras" title="Permanent link">&para;</a></h3>
+<p>All outputs show one logical scene. Each output has a <strong>camera</strong>: a
+transform from scene coordinates to output pixels.</p>
+<ul>
+<li>The default camera follows the output layout of <code>wlr-output-management</code>.
+  An output at position (x, y) with scale s shows the scene area from (x, y)
+  with the size of the output divided by s.</li>
+<li>The <code>camera</code> command replaces the default, for example to pan or zoom. The
+  first client that sets the camera of an output owns it. When the owner
+  disconnects, the output gets its default camera back.</li>
+<li>Two outputs side by side get two adjacent default cameras. A window across
+  two outputs then needs no special case.</li>
+</ul>
 <h3 id="renderer">Renderer<a class="headerlink" href="#renderer" title="Permanent link">&para;</a></h3>
 <p>The core uses Smithay's GLES renderer through Smithay's own renderer traits.
 Custom texture and pixel shaders give blur, rounded corners, shadows, color
@@ -1255,14 +1323,17 @@ effects and transitions. niri shows what this approach can do. Shaders are
 GLSL ES. The core compiles them at runtime and reloads them when they change.
 A shader can read other nodes as textures.</p>
 <p>Transforms are 4x4 matrices, so 3D effects need no API change. The first
-milestone renders and tests 2D cases only.</p>
+milestones render and test 2D cases only.</p>
 <p>Damage tracking keeps the GPU load low. Each shader declares if it is static
 or animated, and effects expand the damage area. A fullscreen surface without
 effects goes to direct scanout.</p>
 <h3 id="ipc-socket">IPC socket<a class="headerlink" href="#ipc-socket" title="Permanent link">&para;</a></h3>
-<p>JSON-RPC 2.0 on a Unix socket. The core exports its path as <code>CHORA_SOCKET</code>.
-<code>choractl</code>, plugins and services connect to it. Event subscriptions stream
-over the same connection.</p>
+<p>JSON-RPC 2.0, one message per line, on a Unix socket in
+<code>$XDG_RUNTIME_DIR/chora/</code>. The socket has the name of the Wayland display,
+for example <code>wayland-1.sock</code>. The core exports the path as <code>CHORA_SOCKET</code>.
+calloop serves the socket in the event loop of the core, so no thread
+handoff is necessary. Events are JSON-RPC notifications on the same
+connection.</p>
 <p>A plugin can export <strong>methods</strong>, for example <code>tiling.set_layout</code>. The core
 forwards a method call to the plugin and returns the answer. An agent then
 asks the window manager for a change instead of fighting it.</p>
@@ -1275,8 +1346,7 @@ of the core, so the MCP side can change without a change to the compositor.</p>
 <p>Some commands need a client round trip. A resize sends a configure event, and
 the client must answer with a new buffer. The core therefore holds the
 transaction until all affected clients commit, or until a deadline passes.
-Then the core shows all changes in the same frame. Sway, niri, River and
-Pinnacle work the same way.</p>
+Then the core shows all changes in the same frame (D22).</p>
 <h2 id="frame-flow">Frame flow<a class="headerlink" href="#frame-flow" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>sequenceDiagram
     participant B as Backend
@@ -1285,7 +1355,7 @@ Pinnacle work the same way.</p>
     B-&gt;&gt;C: vblank
     C-&gt;&gt;C: apply the transactions that are ready
     C-&gt;&gt;C: advance the running animations
-    C-&gt;&gt;R: render the damaged parts of each viewport
+    C-&gt;&gt;R: render the damaged parts of each camera
     R--&gt;&gt;B: page flip</code></pre>
 <h2 id="input-flow">Input flow<a class="headerlink" href="#input-flow" title="Permanent link">&para;</a></h2>
 <ol>
@@ -1294,7 +1364,8 @@ Pinnacle work the same way.</p>
 <li>The plugins that grabbed the key or the pointer get the event. A plugin
    consumes the event or lets it pass.</li>
 <li>The focused surface gets each event that no plugin consumed. Pointer
-   events go to the topmost node under the cursor that accepts input.</li>
+   events go to the topmost node under the cursor that accepts input. The
+   inverse of the camera maps the cursor to scene coordinates.</li>
 </ol>
 <p>Focus is state in the scene, and plugins set it. The core never sets focus by
 itself. The core still implements the protocol mechanisms around focus:
@@ -1304,31 +1375,33 @@ popup grabs, <code>xdg-activation</code> requests, <code>pointer-constraints</co
 <p>The safety layer is the only built-in behavior (see
 <a href="../vision/#principles">Vision</a>). No plugin and no IPC client can change it.</p>
 <ul>
-<li><strong>Fixed bindings</strong> for VT switch, quit and emergency reset. Injected input
-  never triggers them.</li>
-<li><strong>Emergency reset.</strong> The core disconnects all plugins, removes all effects
-  and puts all surfaces in a simple grid. This grid is the one layout in the
-  core. It is hardcoded, so a broken configuration cannot break it.</li>
+<li><strong>Fixed bindings</strong> (D23). Injected input never triggers them.</li>
+<li><strong>Emergency reset.</strong> The core disconnects all plugins, removes all effects,
+  restores the default cameras and puts all surfaces in a simple grid. This
+  grid is the one layout in the core. It is hardcoded, so a broken
+  configuration cannot break it.</li>
 <li><strong>Session lock.</strong> The core enforces <code>ext-session-lock</code>. The lock surface is
   above every plugin node.</li>
 <li><strong>Watchdog.</strong> When frames miss their deadline repeatedly, the core removes
   the effects first and then disconnects the plugins.</li>
 </ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
-<p>Version 1 trusts every client of the same user on the IPC socket, as sway
-does. Three mechanisms add protection:</p>
+<p>Version 1 trusts every client of the same user (D33):</p>
 <ul>
-<li><code>wp-security-context-v1</code> hides privileged Wayland protocols, for example
-  screencopy and virtual keyboards, from sandboxed clients.</li>
-<li>A container gets a restricted IPC socket through a bind mount.</li>
-<li>Input injection and screen capture need the approval of the user.</li>
+<li>Unsandboxed Wayland clients get all protocols, as in sway.
+  <code>wp-security-context-v1</code> hides privileged protocols, for example
+  screencopy, from sandboxed clients.</li>
+<li>The IPC methods <code>input.inject</code> and <code>screen.capture</code> need a <strong>grant</strong> of the
+  user for the client name. A grant protects against mistakes of agents. It
+  is no barrier against hostile code of the same user.</li>
 </ul>
-<h2 id="deployment">Deployment<a class="headerlink" href="#deployment" title="Permanent link">&para;</a></h2>
+<h2 id="sessions-and-flavors">Sessions and flavors<a class="headerlink" href="#sessions-and-flavors" title="Permanent link">&para;</a></h2>
 <ul>
-<li>A binary and a <code>chora.desktop</code> session file. A display manager then offers
-  Chora next to the existing desktops.</li>
-<li>A derived secureblue image, built with <code>secureblue-images</code> and
-  <code>image-builder-action</code>, installs Chora.</li>
+<li>A session file <code>chora.desktop</code> starts <code>chora -- chora-flavor tiling</code>.</li>
+<li><code>chora-flavor &lt;name&gt;</code> imports <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> into the
+  systemd user manager. Then it starts the target of the flavor. Units of the
+  flavor then find the compositor and the IPC socket.</li>
+<li>A derived secureblue image installs the package (D10, D14).</li>
 </ul>
 
 

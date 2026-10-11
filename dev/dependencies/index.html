@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
+        <meta name="description" content="chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Dependencies - Chora</title>
+        <title>Dependencies - chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-header__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Chora
+            chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-nav__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Chora
+    chora
   </label>
   
     <div class="md-nav__source">
@@ -741,6 +741,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#build-and-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build and release
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#code-to-copy" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -950,6 +961,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#build-and-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build and release
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#code-to-copy" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1003,7 +1025,7 @@
 
 
 <h1 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h1>
-<p>The parts that Chora reuses. <a href="../alternatives/">Alternatives</a> records the
+<p>The parts that chora reuses. <a href="../alternatives/">Alternatives</a> records the
 check of each choice. <a href="../decisions/">Decisions</a> records the result.</p>
 <h2 id="core">Core<a class="headerlink" href="#core" title="Permanent link">&para;</a></h2>
 <table>
@@ -1018,7 +1040,7 @@ check of each choice. <a href="../decisions/">Decisions</a> records the result.<
 <tr>
 <td><a href="https://github.com/Smithay/smithay">Smithay</a></td>
 <td>Wayland protocols, backends, GLES renderer, input</td>
-<td>a library without policy; used by niri, cosmic-comp and Pinnacle; the latest release is 0.7.0 (June 2025), so Chora pins a git revision</td>
+<td>a library without policy; used by niri, cosmic-comp and Pinnacle; the latest release is 0.7.0 (June 2025), so chora pins a git revision</td>
 </tr>
 <tr>
 <td>libinput, libseat, udev, GBM, Mesa</td>
@@ -1028,11 +1050,11 @@ check of each choice. <a href="../decisions/">Decisions</a> records the result.<
 <tr>
 <td>calloop</td>
 <td>event loop</td>
-<td>Smithay is built on it; the IPC socket shares it</td>
+<td>Smithay uses it; the IPC socket runs in the same loop</td>
 </tr>
 <tr>
-<td>serde, schemars</td>
-<td>API types, generated JSON Schemas</td>
+<td>serde, serde_json, schemars</td>
+<td>API types, JSON-RPC, generated JSON Schemas</td>
 <td></td>
 </tr>
 </tbody>
@@ -1059,9 +1081,34 @@ check of each choice. <a href="../decisions/">Decisions</a> records the result.<
 </tr>
 </tbody>
 </table>
+<h2 id="build-and-release">Build and release<a class="headerlink" href="#build-and-release" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/cat-in-136/cargo-generate-rpm">cargo-generate-rpm</a></td>
+<td>builds the RPM from the Cargo metadata, without a spec file</td>
+</tr>
+<tr>
+<td>cargo-deny</td>
+<td>license and advisory checks of the dependencies</td>
+</tr>
+<tr>
+<td>commitizen</td>
+<td>version bump, tag and changelog</td>
+</tr>
+</tbody>
+</table>
 <h2 id="code-to-copy">Code to copy<a class="headerlink" href="#code-to-copy" title="Permanent link">&para;</a></h2>
 <p>The core is GPL-3.0-or-later, so it can reuse GPL code. Code under
-GPL-3.0-only stays out, for example <code>src/protocol/drm.rs</code> of Pinnacle.</p>
+GPL-3.0-only stays out, for example <code>src/protocol/drm.rs</code> of Pinnacle.
+<a href="https://github.com/MArpogaus/void/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>
+says how to mark copied code.</p>
 <table>
 <thead>
 <tr>
@@ -1072,7 +1119,7 @@ GPL-3.0-only stays out, for example <code>src/protocol/drm.rs</code> of Pinnacle
 <tbody>
 <tr>
 <td><a href="https://github.com/pinnacle-comp/pinnacle">Pinnacle</a></td>
-<td>transactions (<code>util/transaction.rs</code>, <code>hook.rs</code>), wlr protocol implementations (<code>protocol/</code>), udev and winit backends, the handoff from the IPC thread to the event loop (<code>api.rs</code>), the wlcs test adapter</td>
+<td>transactions (<code>util/transaction.rs</code>, <code>hook.rs</code>), wlr protocol implementations (<code>protocol/</code>), udev and winit backends, the wlcs test adapter</td>
 </tr>
 <tr>
 <td><a href="https://github.com/YaLTeR/niri">niri</a></td>
@@ -1098,6 +1145,7 @@ GPL-3.0-only stays out, for example <code>src/protocol/drm.rs</code> of Pinnacle
 <li><strong>Capture:</strong> <code>ext-image-copy-capture</code> and <code>wlr-screencopy</code>.</li>
 <li><strong>Isolation:</strong> <code>wp-security-context-v1</code>.</li>
 </ul>
+<p><a href="../roadmap/">Roadmap</a> assigns each protocol to a milestone.</p>
 <h2 id="outside-the-core">Outside the core<a class="headerlink" href="#outside-the-core" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

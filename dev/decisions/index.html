@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
+        <meta name="description" content="chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Decisions - Chora</title>
+        <title>Decisions - chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-header__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Chora
+            chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-nav__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Chora
+    chora
   </label>
   
     <div class="md-nav__source">
@@ -1090,13 +1090,13 @@
 </tr>
 <tr>
 <td>D7</td>
-<td>The name is Chora</td>
-<td>Plato's χώρα is the space that gives forms a place. It has no form of its own.</td>
+<td>The name is chora, always in lowercase</td>
+<td>See <a href="../vision/#the-name">Vision</a>.</td>
 </tr>
 <tr>
 <td>D8</td>
-<td>The core is GPL-3.0-or-later</td>
-<td>The core can then reuse code from Pinnacle and niri. Code under GPL-3.0-only stays out.</td>
+<td>The core is GPL-3.0-or-later; code under GPL-3.0-only stays out</td>
+<td>The core can then reuse code from Pinnacle and niri.</td>
 </tr>
 <tr>
 <td>D9</td>
@@ -1117,7 +1117,7 @@
 <tbody>
 <tr>
 <td>D10</td>
-<td>Fedora and secureblue as host; a derived image offers Chora as an additional session</td>
+<td>Fedora 43 and secureblue as host; a derived image offers chora as an additional session</td>
 <td>The system and the image tooling of the author.</td>
 </tr>
 <tr>
@@ -1127,13 +1127,18 @@
 </tr>
 <tr>
 <td>D12</td>
-<td>Services run as Quadlet units with Podman or in distrobox; a container gets the IPC socket through a bind mount</td>
+<td>Services run as Quadlet units with Podman or in distrobox</td>
 <td>Isolation. systemd handles start, restart and order.</td>
 </tr>
 <tr>
 <td>D13</td>
 <td>The coordinator is the user first, later an agent with special permissions</td>
 <td>A gradual path to control by agents.</td>
+</tr>
+<tr>
+<td>D14</td>
+<td>Releases are RPM packages for Fedora 43, attached with SHA256 sums to a GitHub release; a <code>v*</code> tag starts the release; versions below 1.0 are pre-releases</td>
+<td><code>dnf5 install &lt;url&gt;</code> installs them by hand and in the image build.</td>
 </tr>
 </tbody>
 </table>
@@ -1148,67 +1153,67 @@
 </thead>
 <tbody>
 <tr>
-<td>D14</td>
+<td>D15</td>
 <td>Build on Smithay; copy from Pinnacle, niri and anvil; no fork</td>
-<td>A fork of Pinnacle keeps less than half of its code. Its spine (<code>Space</code>, tags, the gRPC API) is what Chora replaces. See <a href="../alternatives/#pinnacle-code-review">Alternatives</a>.</td>
+<td>A fork of Pinnacle keeps less than half of its code. See <a href="../alternatives/#pinnacle-code-review">Alternatives</a>.</td>
 </tr>
 <tr>
-<td>D15</td>
+<td>D16</td>
 <td>Pin a Smithay git revision</td>
 <td>No Smithay release since 0.7.0. All major users track git.</td>
 </tr>
 <tr>
-<td>D16</td>
+<td>D17</td>
 <td>GLES renderer and GLSL shaders through Smithay's renderer traits</td>
 <td>Proven in niri. No Smithay compositor uses wgpu.</td>
 </tr>
 <tr>
-<td>D17</td>
+<td>D18</td>
 <td>Four node kinds: group, surface, rect, shader</td>
 <td>Text, images and widgets come from Wayland clients. A shader can read another node as a texture.</td>
 </tr>
 <tr>
-<td>D18</td>
-<td>Transforms are 4x4 matrices; the first milestone tests 2D cases only</td>
+<td>D19</td>
+<td>Transforms are 4x4 matrices; the first milestones test 2D cases only</td>
 <td>3D effects need no API change later.</td>
 </tr>
 <tr>
-<td>D19</td>
-<td>One logical scene; each output shows it through a viewport</td>
+<td>D20</td>
+<td>One logical scene; each output shows it through a camera</td>
 <td>Pan, zoom and the infinite canvas need no extra mechanism.</td>
 </tr>
 <tr>
-<td>D20</td>
+<td>D21</td>
 <td>The core places popups, subsurfaces and layer surfaces; toplevels wait for a plugin</td>
 <td>The protocols define these positions. Smithay implements them.</td>
 </tr>
 <tr>
-<td>D21</td>
-<td>A transaction completes when all affected clients commit, or after a deadline</td>
-<td>A resize needs a client round trip. Sway, niri, River and Pinnacle do the same.</td>
-</tr>
-<tr>
 <td>D22</td>
-<td>A hardcoded safety layer</td>
-<td>A recovery path must not depend on a file that an agent can break.</td>
+<td>A transaction completes when all affected clients commit, or after a deadline</td>
+<td>A resize needs a client round trip.</td>
 </tr>
 <tr>
 <td>D23</td>
+<td>A hardcoded safety layer with fixed bindings: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT</td>
+<td>A recovery path must not depend on a file that an agent can break.</td>
+</tr>
+<tr>
+<td>D24</td>
 <td>Shaders declare static or animated; fullscreen surfaces without effects use direct scanout</td>
 <td>Damage tracking and battery life.</td>
 </tr>
 <tr>
-<td>D24</td>
+<td>D25</td>
 <td>No undo history and no plugin state store in the core</td>
 <td>A destroyed client cannot come back. The reset and the views in git cover recovery. The scene holds all state.</td>
 </tr>
 <tr>
-<td>D25</td>
+<td>D26</td>
 <td>Xwayland through <code>xwayland-satellite</code></td>
 <td>Keeps the core small.</td>
 </tr>
 <tr>
-<td>D26</td>
+<td>D27</td>
 <td>Output configuration through <code>wlr-output-management</code></td>
 <td>kanshi and wlr-randr exist.</td>
 </tr>
@@ -1225,38 +1230,48 @@
 </thead>
 <tbody>
 <tr>
-<td>D27</td>
+<td>D28</td>
 <td>Plugins are IPC clients; the core offers <code>animate</code>; in-process WASM plugins come only after a measurement shows the need</td>
 <td>Agents work in seconds, not frames. One mechanism, any language, crash isolation by the OS.</td>
 </tr>
 <tr>
-<td>D28</td>
-<td>Each node has one owner; plugins export methods</td>
+<td>D29</td>
+<td>JSON-RPC 2.0 with one message per line on a Unix socket in <code>$XDG_RUNTIME_DIR/chora/</code>; the core serves it from the calloop event loop</td>
+<td>No extra runtime and no thread handoff. A container mounts the directory.</td>
+</tr>
+<tr>
+<td>D30</td>
+<td>The core starts one startup command with <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> set</td>
+<td>The startup command starts the plugins, or a systemd target.</td>
+</tr>
+<tr>
+<td>D31</td>
+<td>A client names itself when it connects; the owner of a node is a client name; only the owner changes a node; plugins export methods</td>
 <td>An agent asks the window manager instead of fighting it.</td>
 </tr>
 <tr>
-<td>D29</td>
+<td>D32</td>
 <td>Selectors work in queries only; a query returns all current matches</td>
 <td>No window rules in the core. Predictable results for agents.</td>
 </tr>
 <tr>
-<td>D30</td>
-<td>Version 1 trusts the clients of the same user; <code>wp-security-context-v1</code> hides privileged protocols from sandboxed clients; input injection and screen capture need the approval of the user</td>
-<td>Little code first, still safe for containers.</td>
+<td>D33</td>
+<td>Version 1 trusts the clients of the same user; <code>wp-security-context-v1</code> hides privileged protocols from sandboxed clients; the IPC methods <code>input.inject</code> and <code>screen.capture</code> need a grant of the user</td>
+<td>The grant protects against mistakes of agents. It is no barrier against hostile code of the same user.</td>
 </tr>
 <tr>
-<td>D31</td>
+<td>D34</td>
 <td>MCP outside the core: <code>choractl mcp</code> over stdio, with tools for whole tasks</td>
 <td>The core stays free of MCP.</td>
 </tr>
 <tr>
-<td>D32</td>
+<td>D35</td>
 <td>The core reads no configuration; <code>choractl</code> loads YAML views; a flavor is a directory with a systemd target; the configuration holds no secrets</td>
 <td>Policy and service management do not belong in the core.</td>
 </tr>
 <tr>
-<td>D33</td>
-<td>Three crates to start: <code>chora-scene</code>, <code>chora</code>, <code>choractl</code></td>
+<td>D36</td>
+<td>Three crates to start: <code>chora-scene</code>, <code>chora</code>, <code>choractl</code>; reference plugins in <code>plugins/</code></td>
 <td>A crate comes when a second consumer needs it.</td>
 </tr>
 </tbody>
@@ -1272,14 +1287,14 @@
 </thead>
 <tbody>
 <tr>
-<td>D34</td>
+<td>D37</td>
 <td>Screen sharing through <code>xdg-desktop-portal-wlr</code> first</td>
 <td>No code. A portal backend of its own is in the <a href="../ideas/">Idea backlog</a>.</td>
 </tr>
 <tr>
-<td>D35</td>
+<td>D38</td>
 <td>HTML content from agents runs in a browser in app mode, as a service</td>
-<td>No code. Chora places toplevels anywhere.</td>
+<td>No code. chora places toplevels anywhere.</td>
 </tr>
 </tbody>
 </table>
@@ -1308,9 +1323,10 @@
 </table>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Approval.</strong> How does the user approve input injection and screen
-   capture? A dialog that the safety layer draws, or a prompt in <code>choractl</code>?</li>
-<li><strong>YAML crate.</strong> Which maintained crate replaces <code>serde_yaml</code>?</li>
+<li><strong>Grants.</strong> How does the user grant <code>input.inject</code> and <code>screen.capture</code>?
+   A <code>choractl grant</code> command is the simplest option, because the core draws
+   no text. Decide before M3.</li>
+<li><strong>YAML crate.</strong> Which maintained crate replaces <code>serde_yaml</code>? Decide in M3.</li>
 <li><strong>Repository name.</strong> The GitHub repository still has the name <code>void</code>.</li>
 </ol>
 

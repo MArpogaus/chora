@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
+        <meta name="description" content="chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Vision and principles - Chora</title>
+        <title>Vision and principles - chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-header__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Chora
+            chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-nav__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Chora
+    chora
   </label>
   
     <div class="md-nav__source">
@@ -1003,15 +1003,15 @@
 
 
 <h1 id="vision-and-principles">Vision and principles<a class="headerlink" href="#vision-and-principles" title="Permanent link">&para;</a></h1>
-<p><em>Chora is the space where forms appear.</em></p>
+<p><em>chora is the space where forms appear.</em></p>
 <h2 id="the-name">The name<a class="headerlink" href="#the-name" title="Permanent link">&para;</a></h2>
-<p>Plato calls the space in which things come into being <em>chora</em> (χώρα). Chora
+<p>Plato calls the space in which things come into being <em>chora</em> (χώρα). chora
 is neither form nor matter. It only gives the forms a place. The compositor
 works the same way: it has no content and no policy of its own. Plugins,
 clients and agents bring the forms.</p>
 <h2 id="the-idea">The idea<a class="headerlink" href="#the-idea" title="Permanent link">&para;</a></h2>
 <p>A desktop decides the arrangement of the content: windows, panels,
-workspaces. Chora takes this decision out of the compositor. Chora is a
+workspaces. chora takes this decision out of the compositor. chora is a
 programmable scene. It works more like a game engine than like a window
 manager. The core renders a scene of nodes every frame. One API changes the
 scene live.</p>
@@ -1022,7 +1022,7 @@ and a coding view. The agent changes the arrangement while the user works.</p>
 <p>Agents are the motivation, not a requirement. The same scene can host a
 pixel-perfect Windows XP desktop, a keyboard-driven tiling setup or a
 KDE-like workflow. It can also host a kind of human-machine interaction that
-does not exist yet. Chora ships none of them. Chora makes all of them
+does not exist yet. chora ships none of them. chora makes all of them
 possible.</p>
 <h2 id="principles">Principles<a class="headerlink" href="#principles" title="Permanent link">&para;</a></h2>
 <ol>
@@ -1036,7 +1036,7 @@ possible.</p>
    fast. Then the project hardens it. Features grow in plugins, not in the
    core.</li>
 <li><strong>Reuse before writing.</strong> Wayland protocol handling, rendering, widgets,
-   shells and services already exist. Chora connects these parts and writes
+   shells and services already exist. chora connects these parts and writes
    only what is missing. Fixes go upstream. Every decision gets a check for
    existing alternatives.</li>
 <li><strong>One API for every caller.</strong> Plugins, scripts, the CLI, services and
@@ -1048,8 +1048,8 @@ possible.</p>
    views in YAML, and flavors as bundles of files. A diff shows each change.
    An agent can read and write the files easily.</li>
 <li><strong>Isolation by default.</strong> Plugins run as separate processes, services in
-   containers. Input injection and screen capture need the approval of the
-   user.</li>
+   containers. Input injection and screen capture through the API need a
+   grant of the user (D33).</li>
 </ol>
 <h2 id="goals">Goals<a class="headerlink" href="#goals" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1070,7 +1070,7 @@ possible.</p>
 <li>A usable desktop out of the box. A flavor can supply one. The core never
   does.</li>
 <li>Agent memory and a local inventory of reusable elements. These form a
-  separate, opinionated layer on top of Chora (see <a href="../ideas/">Idea backlog</a>).</li>
+  separate, opinionated layer on top of chora (see <a href="../ideas/">Idea backlog</a>).</li>
 <li>Distributions other than Fedora and secureblue, and GPUs other than AMD and
   Intel, until the core is stable.</li>
 </ul>

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
+        <meta name="description" content="chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Configuration - Chora</title>
+        <title>Configuration - chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-header__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Chora
+            chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-nav__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Chora
+    chora
   </label>
   
     <div class="md-nav__source">
@@ -984,9 +984,9 @@
 <p>Views are YAML files in git, and an agent can read and write them. A strict
 schema validates each file. It rejects unknown keys and catches the YAML
 traps, for example <code>no</code> read as <code>false</code>.</p>
-<p>The core reads no configuration file. It starts one command, usually the
-systemd target of a flavor:</p>
-<div class="highlight"><pre><span></span><code>chora<span class="w"> </span>--<span class="w"> </span>systemctl<span class="w"> </span>--user<span class="w"> </span>start<span class="w"> </span>tiling.target
+<p>The core reads no configuration file. It runs one startup command (D30), for
+example <code>chora-flavor</code>, which starts the systemd target of a flavor:</p>
+<div class="highlight"><pre><span></span><code>chora<span class="w"> </span>--<span class="w"> </span>chora-flavor<span class="w"> </span>tiling
 </code></pre></div>
 <h2 id="locations">Locations<a class="headerlink" href="#locations" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>~/.config/chora/
@@ -995,11 +995,12 @@ systemd target of a flavor:</p>
 ├── plugins/    # plugin manifests
 └── shaders/    # GLSL ES shaders
 </code></pre></div>
-<p>The directory is a git repository. It contains no secrets.</p>
+<p>The directory is a git repository. It contains no secrets. The package
+installs the reference flavors to <code>/usr/share/chora/</code>.</p>
 <h2 id="views">Views<a class="headerlink" href="#views" title="Permanent link">&para;</a></h2>
 <p>A view is a part of the scene and the plugins that drive it.
-<code>choractl view load &lt;name&gt;</code> starts the plugins of the view and applies its
-nodes as one transaction. Only <code>choractl</code> starts plugins.</p>
+<code>choractl view load &lt;name&gt;</code> starts the plugins of the view that do not run
+yet. Then it applies the nodes of the view as one transaction.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/views/analysis.yaml</span>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">analysis</span>
 <span class="nt">plugins</span><span class="p">:</span>
@@ -1008,7 +1009,7 @@ nodes as one transaction. Only <code>choractl</code> starts plugins.</p>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">keybindings</span>
 <span class="w">  </span><span class="nt">config</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">bindings</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">Super+Return</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">spawn</span><span class="p">:</span><span class="w"> </span><span class="nv">wezterm</span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="nt">Super+Return</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">spawn</span><span class="p">:</span><span class="w"> </span><span class="nv">foot</span><span class="p p-Indicator">}</span>
 <span class="w">      </span><span class="nt">Super+q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">close</span>
 <span class="nt">scene</span><span class="p">:</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">workspace</span>
@@ -1019,19 +1020,21 @@ nodes as one transaction. Only <code>choractl</code> starts plugins.</p>
 plugin and its configuration.</p>
 <h2 id="flavors">Flavors<a class="headerlink" href="#flavors" title="Permanent link">&para;</a></h2>
 <p>A flavor is a directory with views, plugin manifests and services, plus a
-systemd user target. The target starts the services and then loads the first
-view with <code>choractl</code>. systemd handles start, restart and order, so Chora
-needs no service manager.</p>
+systemd user target. <code>chora-flavor &lt;name&gt;</code> imports <code>WAYLAND_DISPLAY</code> and
+<code>CHORA_SOCKET</code> into the systemd user manager and starts the target. The
+target starts the services and the plugins. systemd handles start, restart
+and order, so chora needs no service manager.</p>
 <div class="highlight"><pre><span></span><code>flavors/agentic/
-├── agentic.target
+├── chora-agentic.target
 ├── views/       # morning, analysis, writing, coding
 ├── plugins/     # canvas layout, keybindings
 └── services/    # Quadlet units: speech, browser in app mode
 </code></pre></div>
 <h2 id="services">Services<a class="headerlink" href="#services" title="Permanent link">&para;</a></h2>
 <p>A service runs as a Quadlet unit with Podman, or in distrobox. It connects
-to the IPC socket, appears as a Wayland client, or both. A container gets the
-IPC socket through a bind mount.</p>
+to the IPC socket, appears as a Wayland client, or both. A container mounts
+<code>$XDG_RUNTIME_DIR/chora/</code> (in Quadlet: <code>%t/chora</code>) and gets <code>CHORA_SOCKET</code>
+from the environment of the unit.</p>
 
 
 

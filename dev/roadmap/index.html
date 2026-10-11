@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Chora is the space where forms appear. A Wayland compositor without policy.">
+        <meta name="description" content="chora is the space where forms appear. A Wayland compositor without policy.">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Roadmap - Chora</title>
+        <title>Roadmap - chora</title>
       
     
     
@@ -98,7 +98,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Chora" class="md-header__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-header__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Chora
+            chora
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -234,13 +234,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Chora" class="md-nav__button md-logo" aria-label="Chora" data-md-component="logo">
+    <a href=".." title="chora" class="md-nav__button md-logo" aria-label="chora" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Chora
+    chora
   </label>
   
     <div class="md-nav__source">
@@ -1069,94 +1069,129 @@
 
 
 <h1 id="roadmap">Roadmap<a class="headerlink" href="#roadmap" title="Permanent link">&para;</a></h1>
-<div class="admonition note">
-<p class="admonition-title">Draft</p>
-<p>A first proposal. The order and the scope of the milestones are open for
-discussion.</p>
-</div>
 <p>Each milestone has a goal, a scope and an exit criterion. A milestone is done
-when its exit criterion holds on the real setup of the author. After M6 the
-core is feature complete, and testing starts (D3).</p>
+when its exit criterion holds. After M4 the core is feature complete, and
+testing starts (D3). M5 and M6 build on the core.</p>
 <h2 id="m0-workspace-and-tooling">M0: Workspace and tooling<a class="headerlink" href="#m0-workspace-and-tooling" title="Permanent link">&para;</a></h2>
-<p><strong>Goal:</strong> the first line of Rust already meets all guards.</p>
+<p><strong>Goal:</strong> the first line of Rust meets all guards, and a tag produces a
+package.</p>
 <ul>
-<li>Cargo workspace with <code>chora-scene</code>, <code>chora</code> and <code>choractl</code> (D33).</li>
-<li>Workspace lints: clippy <code>pedantic</code>, <code>cognitive_complexity</code>,
+<li>Cargo workspace with <code>chora-scene</code>, <code>chora</code>, <code>choractl</code> and the reference
+  plugins in <code>plugins/</code> (D36).</li>
+<li>Workspace lints: clippy <code>pedantic</code>, <code>cognitive_complexity</code> and
   <code>excessive_nesting</code>; <code>unsafe_code</code> denied. <code>clippy.toml</code> sets the limits.</li>
-<li>A CI workflow for <code>cargo test</code>, and <code>cargo-deny</code> for licenses and advisories.
-  The license check keeps GPL-3.0-only code out (D8).</li>
-<li>Dependabot for Cargo. A pinned Smithay revision (D15).</li>
+<li>CI: build and <code>cargo test</code> in a Fedora 43 container; <code>cargo-deny</code> for the
+  licenses and advisories of the dependencies.</li>
+<li>A pre-commit hook that rejects files with a GPL-3.0-only header (D8).</li>
+<li>A pinned Smithay revision (D16), Dependabot for Cargo.</li>
+<li>commitizen for version bumps and the changelog.</li>
+<li>A release workflow: a <code>v*</code> tag builds the RPM in Fedora 43 and attaches it
+  with its SHA256 sum to a GitHub pre-release (D14).</li>
 </ul>
-<p><strong>Exit:</strong> CI is green. <code>chora</code> opens an empty winit window.</p>
+<p><strong>Exit:</strong> CI is green. The RPM of a test build installs in a Fedora 43
+container, and <code>chora --version</code> runs there.</p>
 <h2 id="m1-nested-proof-of-concept">M1: Nested proof of concept<a class="headerlink" href="#m1-nested-proof-of-concept" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the smallest proof of the concept, inside an existing session.</p>
 <ul>
-<li>winit backend, <code>xdg-shell</code> toplevels and popups.</li>
-<li>Scene with group, surface and rect nodes, 2D transforms (D17, D18).</li>
-<li>Transactions that wait for client commits (D21).</li>
-<li>IPC socket with <code>scene.query</code>, <code>scene.apply</code>, <code>events.subscribe</code> and
-  <code>input.grab</code>.</li>
-<li>Safety layer: quit and emergency reset (D22).</li>
-<li><code>choractl</code> with basic commands.</li>
-<li>A tiling plugin as IPC client, as reference.</li>
+<li>winit backend.</li>
+<li>Protocols: <code>xdg-shell</code> with popups, subsurfaces, <code>xdg-decoration</code>,
+  <code>linux-dmabuf</code>, <code>viewporter</code>, <code>presentation-time</code>, <code>xdg-output</code>,
+  <code>cursor-shape</code>, data device and <code>primary-selection</code>.</li>
+<li>Scene with group, surface and rect nodes, 2D transforms (D18, D19).</li>
+<li>Transactions that wait for client commits (D22).</li>
+<li>IPC socket (D29) with <code>hello</code>, <code>scene.query</code>, <code>scene.apply</code>,
+  <code>events.subscribe</code> and <code>input.grab</code>.</li>
+<li>Ownership (D31).</li>
+<li>The startup command (D30).</li>
+<li>Safety layer: quit and emergency reset (D23).</li>
+<li><code>choractl</code> with <code>query</code>, <code>apply</code> and <code>events</code>.</li>
+<li><code>chora-tiling</code>: a reference plugin with a master and stack layout and
+  keybindings to start a terminal, close a window and move the focus.</li>
 </ul>
-<p><strong>Exit:</strong> the tiling plugin arranges terminal windows in the nested session.
-A crash of the plugin leaves the core running. The reset works.</p>
+<p><strong>Exit:</strong> an automated test in a headless sway passes:</p>
+<ol>
+<li><code>chora -- chora-tiling</code> starts nested.</li>
+<li>Three foot windows appear without overlap. <code>scene.query</code> and a screenshot
+   confirm the layout.</li>
+<li>After <code>kill</code> of <code>chora-tiling</code>, <code>chora</code> still runs, and the three surfaces
+   are detached.</li>
+<li>Ctrl+Alt+Escape puts the three surfaces in the grid.</li>
+</ol>
 <h2 id="m2-session-on-real-hardware">M2: Session on real hardware<a class="headerlink" href="#m2-session-on-real-hardware" title="Permanent link">&para;</a></h2>
-<p><strong>Goal:</strong> Chora runs as a login session on AMD and Intel (D11).</p>
+<p><strong>Goal:</strong> chora runs as a login session on AMD and Intel (D11).</p>
 <ul>
-<li>udev, DRM/KMS, libinput and libseat backends, copied from Pinnacle.</li>
-<li>Several outputs with viewports (D19), <code>wlr-output-management</code> (D26).</li>
-<li><code>wlr-layer-shell</code>, so waybar, fuzzel and Quickshell work.</li>
-<li><code>ext-session-lock</code>, idle protocols, <code>xwayland-satellite</code> (D25).</li>
-<li><code>chora.desktop</code> session file.</li>
+<li>udev, DRM/KMS, libinput and libseat backends; the VT switch bindings.</li>
+<li>Several outputs, cameras (D20) and the <code>camera</code> command;
+  <code>wlr-output-management</code> (D27).</li>
+<li>Protocols: <code>wlr-layer-shell</code>, <code>ext-session-lock</code>, <code>ext-idle-notify</code>,
+  <code>idle-inhibit</code>, <code>text-input</code>, <code>input-method</code>, <code>pointer-constraints</code>,
+  <code>relative-pointer</code>, <code>ext-foreign-toplevel-list</code>,
+  <code>wlr-foreign-toplevel-management</code>, <code>xdg-activation</code>, <code>fractional-scale</code>.</li>
+<li><code>xwayland-satellite</code> (D26).</li>
+<li><code>chora.desktop</code>, <code>chora-flavor</code> and a tiling flavor with a systemd target.</li>
 </ul>
-<p><strong>Exit:</strong> a tiling session with bar and launcher runs for a full workday.</p>
+<p><strong>Exit:</strong></p>
+<ol>
+<li>Automated, nested: waybar, fuzzel and swaylock work.</li>
+<li>On the hardware of the author: a tiling session with bar and launcher runs
+   for 8 hours on an AMD and on an Intel machine, without a crash or a
+   restart of the core.</li>
+</ol>
 <h2 id="m3-agent-interface">M3: Agent interface<a class="headerlink" href="#m3-agent-interface" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> an agent sees and changes the screen.</p>
 <ul>
-<li><code>choractl mcp</code> over stdio, with tools for whole tasks (D31).</li>
-<li><code>screen.capture</code> and <code>input.inject</code>, both with approval (D30).</li>
-<li>Node ownership and plugin methods (D28).</li>
-<li><code>choractl</code> loads and saves YAML views (D32).</li>
+<li>Grants for <code>input.inject</code> and <code>screen.capture</code> (D33). Open question 1 in
+  <a href="../decisions/">Decisions</a> must have an answer first.</li>
+<li><code>ext-image-copy-capture</code> and <code>wlr-screencopy</code>; <code>xdg-desktop-portal-wlr</code>
+  for screen sharing (D37).</li>
+<li>Plugin methods: <code>methods.export</code> and <code>methods.call</code> (D31).</li>
+<li><code>choractl view load</code> and <code>choractl view save</code> with YAML views (D35).</li>
+<li><code>choractl mcp</code> over stdio, with tools for whole tasks (D34).</li>
 <li><code>wp-security-context-v1</code>.</li>
 </ul>
-<p><strong>Exit:</strong> an agent rearranges views over MCP and checks the result with
-screenshots.</p>
+<p><strong>Exit:</strong> an automated test passes: an MCP client asks for "describe the
+screen", calls <code>tiling.set_layout</code>, and the next screenshot shows the new
+layout.</p>
 <h2 id="m4-effects">M4: Effects<a class="headerlink" href="#m4-effects" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the game-engine half of the idea.</p>
 <ul>
-<li>Shader nodes, effects and shaders that read nodes as textures (D17).</li>
+<li>Shader nodes, effects and shaders that read nodes as textures (D18).</li>
 <li>GLSL hot reload; compile errors as <code>transaction.rejected</code>.</li>
-<li>The <code>animate</code> command (D27).</li>
-<li>Damage tracking for static and animated shaders, direct scanout (D23).</li>
+<li>The <code>animate</code> command (D28).</li>
+<li>Damage tracking for static and animated shaders, direct scanout (D24).</li>
 <li>The watchdog of the safety layer.</li>
+<li>A measurement of the IPC round trip for effects in every frame. The result
+  decides on in-process WASM plugins (D28).</li>
 </ul>
-<p><strong>Exit:</strong> blur, rounded corners and animated transitions run at the full
-frame rate of the output.</p>
+<p><strong>Exit:</strong> on the Intel machine at 60 Hz, four windows with blur and rounded
+corners and a 300 ms transition: <code>presentation-time</code> shows at least 99
+percent of the frames on time over 60 seconds.</p>
 <h2 id="m5-packaging">M5: Packaging<a class="headerlink" href="#m5-packaging" title="Permanent link">&para;</a></h2>
-<p><strong>Goal:</strong> Chora installs like every other desktop on the host.</p>
+<p><strong>Goal:</strong> chora installs like every other desktop on the host.</p>
 <ul>
-<li>A derived secureblue image with the Chora session (D10).</li>
-<li>Flavors as directories with systemd targets: tiling first (D32).</li>
+<li>A derived secureblue image with the chora package (D10, D14).</li>
+<li>The tiling flavor in the image, and a classic flavor.</li>
 <li>Services as Quadlet units (D12).</li>
 </ul>
-<p><strong>Exit:</strong> after an image update, the login screen offers Chora.</p>
+<p><strong>Exit:</strong> after an image update, the login screen offers chora. The tiling
+flavor starts, and one Quadlet service connects to the IPC socket.</p>
 <h2 id="m6-agentic-flavor">M6: Agentic flavor<a class="headerlink" href="#m6-agentic-flavor" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the agentic workday scenario works end to end.</p>
 <ul>
 <li>Speech services: whisper.cpp or faster-whisper, piper.</li>
-<li>A browser in app mode as service for HTML content (D35).</li>
-<li>Morning view and task views.</li>
+<li>A browser in app mode as service for HTML content (D38).</li>
+<li>A morning view and task views.</li>
+<li>Task and email sources are MCP servers of the agent, outside chora.</li>
 </ul>
-<p><strong>Exit:</strong> the user plans the day by voice, and the agent builds the views
-for the tasks.</p>
+<p><strong>Exit:</strong> the user says "show my tasks for today", and the agent opens a
+morning view with the tasks from an MCP source. Then the user says "open a
+view for the first task", and the agent opens a view with at least two
+surfaces.</p>
 <h2 id="after-m6">After M6<a class="headerlink" href="#after-m6" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Conformance tests with wlcs, as Pinnacle does.</li>
 <li>Hardening and testing on the daily system.</li>
-<li>Items from the <a href="../ideas/">Idea backlog</a>, for example in-process WASM
-  plugins or a portal backend of its own.</li>
+<li>Items from the <a href="../ideas/">Idea backlog</a>.</li>
 </ul>
 
 
