@@ -832,7 +832,7 @@ terms and no synonyms.</p>
 <tbody>
 <tr>
 <td><strong>Core</strong></td>
-<td>The compositor process. It handles the Wayland protocols, the backends (DRM/KMS, libinput), the scene, the renderer and the IPC socket. It contains no policy.</td>
+<td>The compositor process. It handles the Wayland protocols, the backends (DRM/KMS, libinput), the scene, the renderer, the input routing, the IPC socket and the safety layer. It contains no policy.</td>
 </tr>
 <tr>
 <td><strong>Scene</strong></td>
@@ -864,11 +864,19 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Shader</strong></td>
-<td>A node that a fragment shader draws completely. A shader can also be an <strong>effect</strong> on a group or a surface.</td>
+<td>A node that a fragment shader draws completely. A shader can also be an <strong>effect</strong>.</td>
 </tr>
 <tr>
 <td><strong>Effect</strong></td>
-<td>A shader that changes how a node and its children look, for example blur or a color change.</td>
+<td>A shader that changes how a node and its children look, for example blur or a color change. Every node can have effects.</td>
+</tr>
+<tr>
+<td><strong>Toplevel</strong></td>
+<td>A surface with the role of an application window (<code>xdg_toplevel</code>). Other roles are layer surfaces and popups.</td>
+</tr>
+<tr>
+<td><strong>Detached</strong></td>
+<td>The state of a surface node without a parent. A detached surface is not visible.</td>
 </tr>
 <tr>
 <td><strong>View</strong></td>
@@ -880,7 +888,7 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Service</strong></td>
-<td>A process outside the core, usually in a container (Podman, distrobox). Examples are speech recognition, a local LLM, a webview host and a development environment. A service uses the IPC socket, appears as a Wayland client, or both.</td>
+<td>A process in a container, outside the core. Examples are speech recognition, a local LLM, a webview host and a development environment. <a href="../configuration/#services">Configuration</a> shows how services run.</td>
 </tr>
 <tr>
 <td><strong>Flavor</strong></td>
@@ -897,6 +905,22 @@ terms and no synonyms.</p>
 <tr>
 <td><strong>Capability</strong></td>
 <td>A permission of an IPC client or a plugin, for example to read the scene, to inject input or to capture the screen.</td>
+</tr>
+<tr>
+<td><strong>Command</strong></td>
+<td>A request to change the scene, for example <code>create</code> or <code>update</code>.</td>
+</tr>
+<tr>
+<td><strong>Event</strong></td>
+<td>A message from the core about a change, for example <code>surface.created</code>.</td>
+</tr>
+<tr>
+<td><strong>Selector</strong></td>
+<td>An expression that finds nodes without an id, for example <code>app_id:firefox</code>.</td>
+</tr>
+<tr>
+<td><strong>Safety layer</strong></td>
+<td>The only built-in behavior of the core: fixed bindings, emergency reset, session lock, watchdog.</td>
 </tr>
 <tr>
 <td><strong>Transaction</strong></td>

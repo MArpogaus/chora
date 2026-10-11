@@ -1057,7 +1057,7 @@
 <tr>
 <td>D9</td>
 <td>YAML for views and flavors, with strict schema validation</td>
-<td>Readability. The schema catches the YAML traps.</td>
+<td>Readability. The schema catches the YAML traps. R2 makes a flavor a directory with a systemd target.</td>
 </tr>
 <tr>
 <td>D10</td>
@@ -1214,8 +1214,8 @@
 </tr>
 <tr>
 <td>R3</td>
-<td>Node ownership and methods that plugins export, for example <code>tiling.set_layout</code></td>
-<td>Otherwise an agent and the window manager fight over the same nodes.</td>
+<td>Write ownership: one writer at a time changes a node; plugins export methods, for example <code>tiling.set_layout</code></td>
+<td>A6 settles who removes a node. R3 settles who changes it. Otherwise an agent and the window manager fight over the same nodes.</td>
 </tr>
 <tr>
 <td>R4</td>

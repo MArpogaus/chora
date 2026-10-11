@@ -1145,7 +1145,7 @@ travel in <strong>transactions</strong> (see <a href="../architecture/#transacti
 <tr>
 <td><code>shader</code>, <code>uniforms</code></td>
 <td>shader</td>
-<td>GLSL ES file and its inputs</td>
+<td>GLSL ES file (P3) and its inputs</td>
 </tr>
 </tbody>
 </table>
@@ -1215,7 +1215,7 @@ only. R8 asks how a selector behaves when several surfaces match.</p>
 <tbody>
 <tr>
 <td><code>surface.created</code>, <code>surface.destroyed</code></td>
-<td>surface id, <code>app_id</code>, title, kind (toplevel, layer, popup)</td>
+<td>surface id, <code>app_id</code>, title, role (toplevel, layer, popup)</td>
 </tr>
 <tr>
 <td><code>surface.changed</code></td>
@@ -1293,9 +1293,8 @@ plugin disconnects. R3 proposes that plugins also export methods, for example
 <code>tiling.set_layout</code>, so that agents ask the window manager instead of fighting
 it.</p>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
-<p>R4 compares two models: trust of the same user, as in sway and niri, or
-separate capabilities per client. Under both, input injection and screen
-capture need an explicit grant.</p>
+<p>R4 proposes that version 1 trusts every client of the same user, as sway
+does. Input injection and screen capture still need an explicit grant.</p>
 <h2 id="mcp-tools">MCP tools<a class="headerlink" href="#mcp-tools" title="Permanent link">&para;</a></h2>
 <p><code>voidctl mcp</code> offers the IPC methods as MCP tools. It also offers tools for
 whole tasks, for example "describe the screen", which returns a screenshot

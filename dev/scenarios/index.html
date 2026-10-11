@@ -1002,9 +1002,9 @@ possible.</p>
 </tr>
 </tbody>
 </table>
-<p>The core must speak <code>xdg-shell</code>, <code>xdg-decoration</code>, <code>layer-shell</code>,
-<code>foreign-toplevel</code> and <code>xdg-activation</code>. The taskbar uses <code>foreign-toplevel</code>
-to see the windows.</p>
+<p>The taskbar needs the foreign-toplevel protocols to see the windows. The
+launcher and the bar need <code>wlr-layer-shell</code>. <a href="../dependencies/">Dependencies</a>
+lists all protocols.</p>
 <p><strong>Result:</strong> medium effort, almost all of it in one window manager plugin.</p>
 <h2 id="2-keyboard-driven-tiling">2. Keyboard-driven tiling<a class="headerlink" href="#2-keyboard-driven-tiling" title="Permanent link">&para;</a></h2>
 <p>A Linux-style tiling workflow with workspaces. The user configures it.</p>
@@ -1049,9 +1049,9 @@ to see the windows.</p>
 <p>This scenario is the core idea. A robust voice channel connects the user to an
 agent, and the agent arranges content for each task.</p>
 <ol>
-<li><strong>Morning canvas.</strong> The agent greets the user and shows the current tasks.
+<li><strong>Morning view.</strong> The agent greets the user and shows the current tasks.
    It sorts the email. User and agent plan and prioritize the day together.</li>
-<li><strong>Task canvases.</strong> The agent builds a new canvas for each task and fills
+<li><strong>Task views.</strong> The agent builds a new canvas for each task and fills
    it. A data analysis gets prepared data, plots and interactive exploration.
    Email, web research and coding get their own views.</li>
 <li><strong>Reuse.</strong> The inventory keeps useful elements in git for later use. The
@@ -1084,7 +1084,7 @@ agent, and the agent arranges content for each task.</p>
 <td>integration</td>
 </tr>
 <tr>
-<td>Rich content: briefing, plots, email</td>
+<td>Rich content: greeting, plots, email</td>
 <td>the agent writes HTML, a webview host shows it as a surface</td>
 <td>small service, generated content</td>
 </tr>
@@ -1107,7 +1107,7 @@ agent, and the agent arranges content for each task.</p>
 </table>
 <p><strong>Result:</strong> the largest scenario, but mostly integration of existing parts.
 The core must supply scene queries and changes, screenshots and input
-injection, all behind capabilities. The agent needs screenshots to see the
+injection. Input injection and screen capture need an explicit grant. The agent needs screenshots to see the
 result of its changes.</p>
 <h2 id="conclusions">Conclusions<a class="headerlink" href="#conclusions" title="Permanent link">&para;</a></h2>
 <ul>

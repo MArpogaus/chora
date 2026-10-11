@@ -958,13 +958,12 @@
 <p>Proposal R2 in <a href="../decisions/">Decisions</a> moves views, flavors and
 services out of the core. This page shows that model.</p>
 </div>
-<p>Plain YAML files configure Void. They are readable, live in git, and an agent
-can read and write them. A strict schema validates each file and rejects
-unknown keys. The schema also catches the YAML traps, for example <code>no</code> read as
-<code>false</code>.</p>
-<p>The core reads no configuration file. It starts with one command, for
-example the coordinator:</p>
-<div class="highlight"><pre><span></span><code>void<span class="w"> </span>--<span class="w"> </span>voidctl<span class="w"> </span>up<span class="w"> </span>tiling
+<p>Views are YAML files in git, and an agent can read and write them. A strict
+schema validates each file. It rejects unknown keys and catches the YAML
+traps, for example <code>no</code> read as <code>false</code>.</p>
+<p>The core reads no configuration file. It starts one command, usually the
+systemd target of a flavor:</p>
+<div class="highlight"><pre><span></span><code>void<span class="w"> </span>--<span class="w"> </span>systemctl<span class="w"> </span>--user<span class="w"> </span>start<span class="w"> </span>tiling.target
 </code></pre></div>
 <h2 id="locations">Locations<a class="headerlink" href="#locations" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>~/.config/void/
@@ -975,8 +974,9 @@ example the coordinator:</p>
 </code></pre></div>
 <p>The directory is a git repository. It contains no secrets.</p>
 <h2 id="views">Views<a class="headerlink" href="#views" title="Permanent link">&para;</a></h2>
-<p>A view is a part of the scene and the plugins that drive it. <code>voidctl</code> loads
-a view: it starts the plugins and applies the nodes as one transaction.</p>
+<p>A view is a part of the scene and the plugins that drive it.
+<code>voidctl view load &lt;name&gt;</code> starts the plugins of the view and applies its
+nodes as one transaction. Only <code>voidctl</code> starts plugins.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/void/views/analysis.yaml</span>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">analysis</span>
 <span class="nt">plugins</span><span class="p">:</span>
@@ -996,8 +996,9 @@ a view: it starts the plugins and applies the nodes as one transaction.</p>
 plugin and its configuration.</p>
 <h2 id="flavors">Flavors<a class="headerlink" href="#flavors" title="Permanent link">&para;</a></h2>
 <p>A flavor is a directory with views, plugin manifests and services, plus a
-systemd user target that starts them. systemd handles start, restart and
-order, so Void needs no service manager.</p>
+systemd user target. The target starts the services and then loads the first
+view with <code>voidctl</code>. systemd handles start, restart and order, so Void needs
+no service manager.</p>
 <div class="highlight"><pre><span></span><code>flavors/agentic/
 ├── agentic.target
 ├── views/       # morning, analysis, writing, coding
@@ -1005,8 +1006,9 @@ order, so Void needs no service manager.</p>
 └── services/    # Quadlet units: speech, webview host
 </code></pre></div>
 <h2 id="services">Services<a class="headerlink" href="#services" title="Permanent link">&para;</a></h2>
-<p>A service is a Podman container as a Quadlet unit, or a distrobox container.
-A service connects to the IPC socket, appears as a Wayland client, or both.</p>
+<p>A service runs as a Quadlet unit with Podman, or in distrobox. It connects
+to the IPC socket, appears as a Wayland client, or both. A container gets the
+IPC socket through a bind mount.</p>
 
 
 

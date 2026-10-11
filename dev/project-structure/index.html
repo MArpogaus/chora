@@ -911,7 +911,7 @@
 <h1 id="project-structure">Project structure<a class="headerlink" href="#project-structure" title="Permanent link">&para;</a></h1>
 <p>The planned layout of this repository: one Cargo workspace with as few crates
 as possible. A module moves into its own crate only when a second consumer
-needs it. Only <code>docs/</code> exists today.</p>
+needs it. No crate exists yet.</p>
 <div class="highlight"><pre><span></span><code>void/
 ├── crates/
 │   ├── void-scene/   # scene model, commands, events, transactions, selectors; no Smithay
@@ -928,12 +928,11 @@ needs it. Only <code>docs/</code> exists today.</p>
 <li><strong><code>void-scene</code> has no Smithay dependency.</strong> Tests of the data model and the
   transaction logic need no GPU and no compositor. The core, <code>voidctl</code> and
   plugins share this one definition of the API.</li>
-<li><strong>MCP stays outside the core.</strong> The MCP bridge is a subcommand of <code>voidctl</code>
-  and talks to the core like every other IPC client.</li>
 <li><strong>Reference plugins live in this repository</strong> first. They keep the API
   honest. They can move out when the API is stable.</li>
-<li><strong>Schemas are generated</strong> from the Rust types, not committed. Docs,
-  validation and agents then see the same contract.</li>
+<li><strong>The build generates the schemas</strong> from the Rust types. The repository
+  does not contain them. Docs, validation and agents then see the same
+  contract.</li>
 </ul>
 <h2 id="related-repositories">Related repositories<a class="headerlink" href="#related-repositories" title="Permanent link">&para;</a></h2>
 <table>
