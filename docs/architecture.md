@@ -1,9 +1,9 @@
 # Architecture
 
 !!! note "Draft"
-    This page shows the architecture after the first review. Proposals R1 to
-    R10 in [Decisions](decisions.md) can still change it. The page names them
-    where they apply.
+    This page shows the architecture after the first review. The proposals
+    (P and R) in [Decisions](decisions.md) can still change it. The page names
+    them where they apply.
 
 ## Overview
 
@@ -58,12 +58,13 @@ appears, or if it appears at all.
 The scene is a tree of nodes with stable ids. [API](api.md#nodes) lists the
 node properties. The order of the children sets the stacking order.
 
-`void-scene` holds the scene model and has no Smithay dependency. Tests and
-tools use it without a compositor.
+The crate `void-scene` holds the scene model (see
+[Project structure](project-structure.md)).
 
 ### Renderer
 
-The core uses Smithay's GLES renderer through Smithay's own renderer traits.
+The core uses Smithay's GLES renderer through Smithay's own renderer traits
+(P3).
 Custom texture and pixel shaders give blur, rounded corners, shadows, color
 effects and transitions. niri shows what this approach can do. Shaders are
 GLSL ES. The core compiles them at runtime and reloads them when they change.
@@ -81,7 +82,7 @@ the same connection.
 ### voidctl and the MCP bridge
 
 `voidctl` is the CLI for the coordinator. `voidctl mcp` serves the API as MCP
-tools over stdio. MCP stays out of the core, so the MCP side can change
+tools over stdio. MCP stays out of the core (P2), so the MCP side can change
 without a change to the compositor.
 
 ## Transactions
@@ -145,5 +146,3 @@ The safety layer is the only built-in behavior (see
   Void next to the existing desktops.
 - A derived secureblue image, built with `secureblue-images` and
   `image-builder-action`, installs Void.
-- Services run as Podman containers, for example as Quadlet units, or in
-  distrobox. They connect to the IPC socket or appear as Wayland clients.

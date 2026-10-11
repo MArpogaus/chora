@@ -2,7 +2,7 @@
 
 The planned layout of this repository: one Cargo workspace with as few crates
 as possible. A module moves into its own crate only when a second consumer
-needs it. Only `docs/` exists today.
+needs it. No crate exists yet.
 
 ```text
 void/
@@ -22,12 +22,11 @@ void/
 - **`void-scene` has no Smithay dependency.** Tests of the data model and the
   transaction logic need no GPU and no compositor. The core, `voidctl` and
   plugins share this one definition of the API.
-- **MCP stays outside the core.** The MCP bridge is a subcommand of `voidctl`
-  and talks to the core like every other IPC client.
 - **Reference plugins live in this repository** first. They keep the API
   honest. They can move out when the API is stable.
-- **Schemas are generated** from the Rust types, not committed. Docs,
-  validation and agents then see the same contract.
+- **The build generates the schemas** from the Rust types. The repository
+  does not contain them. Docs, validation and agents then see the same
+  contract.
 
 ## Related repositories
 

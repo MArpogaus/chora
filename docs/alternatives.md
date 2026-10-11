@@ -1,8 +1,8 @@
 # Alternatives
 
 Every part of Void gets a check against existing projects. This page records
-the first check from October 2026. Entries marked *unverified* need a second
-look.
+the first check from October 2026. An entry with the mark *unverified* needs
+a second look.
 
 ## Compositors
 

@@ -11,9 +11,9 @@ The parts that Void plans to reuse. Each entry is a candidate until
 | libinput, libseat, udev, GBM, Mesa | hardware access | through Smithay |
 | calloop | event loop | Smithay is built on it; the IPC socket shares it |
 | serde, schemars | API types, generated JSON Schemas | |
-| a maintained YAML crate | views and flavors | `serde_yaml` is unmaintained |
+| a maintained YAML crate | views, read by `voidctl` (R2) | `serde_yaml` is unmaintained |
 | [rmcp](https://github.com/modelcontextprotocol/rust-sdk) | `voidctl mcp` | the official Rust MCP SDK, version 3.x |
-| [wasmtime](https://wasmtime.dev/) | in-process plugins, if R1 keeps them | Component Model with typed WIT interfaces |
+| [wasmtime](https://wasmtime.dev/) | in-process plugins (D7); R1 defers them | Component Model with typed WIT interfaces |
 
 ## Wayland protocols
 
@@ -32,7 +32,7 @@ The core speaks these protocols, so existing tools work unchanged:
 - **Isolation:** `wp-security-context-v1`, to hide privileged protocols from
   sandboxed clients.
 - **Xwayland:** through `xwayland-satellite`, a separate process outside the
-  core.
+  core (P8).
 
 ## Outside the core
 

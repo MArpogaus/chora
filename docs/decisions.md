@@ -19,7 +19,7 @@ The decision log. Nothing here is final. Every entry can come back for review.
 | D6 | The coordinator is the user first, later an agent with special permissions | A gradual path to control by agents. |
 | D7 | Two access levels: the IPC socket, and in-process plugins for work in every frame | Low latency where it matters, robustness everywhere else. R1 challenges the second level. |
 | D8 | A scene of five primitives; text and widgets come from existing Wayland clients | No text stack in the core. |
-| D9 | YAML for views and flavors, with strict schema validation | Readability. The schema catches the YAML traps. |
+| D9 | YAML for views and flavors, with strict schema validation | Readability. The schema catches the YAML traps. R2 makes a flavor a directory with a systemd target. |
 | D10 | One vocabulary, defined in the [Glossary](glossary.md) | One language for people and agents. |
 | D11 | Inventory and agent memory form a separate layer, not part of the core | The platform stays neutral. |
 | D12 | Reuse before writing; check alternatives for every decision | Little code to maintain. |
@@ -61,7 +61,7 @@ P1 (plugin runtime), P5 (safety), P6 (transactions), P7 (capabilities) and P9
 |---|----------|--------|
 | R1 | Plugins are IPC clients first, like the window managers of River; the core offers `animate`; wasmtime only when a measurement demands it | Agents work in seconds, not frames. One runtime less. Typed WIT only helps without JSON. |
 | R2 | Views, flavors and services leave the core: `voidctl` loads views, a flavor is a systemd target, a service is a Quadlet unit; the core reads no config | Policy and service management do not belong in the core. systemd exists. |
-| R3 | Node ownership and methods that plugins export, for example `tiling.set_layout` | Otherwise an agent and the window manager fight over the same nodes. |
+| R3 | Write ownership: one writer at a time changes a node; plugins export methods, for example `tiling.set_layout` | A6 settles who removes a node. R3 settles who changes it. Otherwise an agent and the window manager fight over the same nodes. |
 | R4 | Version 1 trusts the same user, as sway does; `wp-security-context-v1` hides privileged protocols from sandboxed clients; containers get restricted sockets; input injection and screen capture need approval | Simple first, safe for containers. |
 | R5 | One logical scene; each output is a viewport onto it | Coordinates, scale and multiple outputs depend on this. It also gives the infinite canvas. |
 | R6 | A 3D matrix transform instead of a 2D transform | Cube, wobbly windows and 3D surfaces need it. |

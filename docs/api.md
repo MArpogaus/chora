@@ -37,7 +37,7 @@ This table is the one list of node properties.
 | `size` | rect, image, shader | width and height |
 | `color`, `radius`, `border` | rect | |
 | `source` | image | file path or buffer |
-| `shader`, `uniforms` | shader | GLSL ES file and its inputs |
+| `shader`, `uniforms` | shader | GLSL ES file (P3) and its inputs |
 
 A surface node gets its size from its client. The `configure` command asks
 the client for a new size.
@@ -69,7 +69,7 @@ only. R8 asks how a selector behaves when several surfaces match.
 
 | Event | Data |
 |-------|------|
-| `surface.created`, `surface.destroyed` | surface id, `app_id`, title, kind (toplevel, layer, popup) |
+| `surface.created`, `surface.destroyed` | surface id, `app_id`, title, role (toplevel, layer, popup) |
 | `surface.changed` | title, `app_id`, min and max size, requests for maximize, fullscreen and activation |
 | `input.key`, `input.pointer`, `input.touch`, `input.gesture` | event data for grabs |
 | `output.added`, `output.removed`, `output.changed` | output, mode, scale |
@@ -111,9 +111,8 @@ it.
 
 ## Permissions
 
-R4 compares two models: trust of the same user, as in sway and niri, or
-separate capabilities per client. Under both, input injection and screen
-capture need an explicit grant.
+R4 proposes that version 1 trusts every client of the same user, as sway
+does. Input injection and screen capture still need an explicit grant.
 
 ## MCP tools
 

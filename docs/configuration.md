@@ -4,16 +4,15 @@
     Proposal R2 in [Decisions](decisions.md) moves views, flavors and
     services out of the core. This page shows that model.
 
-Plain YAML files configure Void. They are readable, live in git, and an agent
-can read and write them. A strict schema validates each file and rejects
-unknown keys. The schema also catches the YAML traps, for example `no` read as
-`false`.
+Views are YAML files in git, and an agent can read and write them. A strict
+schema validates each file. It rejects unknown keys and catches the YAML
+traps, for example `no` read as `false`.
 
-The core reads no configuration file. It starts with one command, for
-example the coordinator:
+The core reads no configuration file. It starts one command, usually the
+systemd target of a flavor:
 
 ```bash
-void -- voidctl up tiling
+void -- systemctl --user start tiling.target
 ```
 
 ## Locations
@@ -30,8 +29,9 @@ The directory is a git repository. It contains no secrets.
 
 ## Views
 
-A view is a part of the scene and the plugins that drive it. `voidctl` loads
-a view: it starts the plugins and applies the nodes as one transaction.
+A view is a part of the scene and the plugins that drive it.
+`voidctl view load <name>` starts the plugins of the view and applies its
+nodes as one transaction. Only `voidctl` starts plugins.
 
 ```yaml
 # ~/.config/void/views/analysis.yaml
@@ -56,8 +56,9 @@ plugin and its configuration.
 ## Flavors
 
 A flavor is a directory with views, plugin manifests and services, plus a
-systemd user target that starts them. systemd handles start, restart and
-order, so Void needs no service manager.
+systemd user target. The target starts the services and then loads the first
+view with `voidctl`. systemd handles start, restart and order, so Void needs
+no service manager.
 
 ```text
 flavors/agentic/
@@ -69,5 +70,6 @@ flavors/agentic/
 
 ## Services
 
-A service is a Podman container as a Quadlet unit, or a distrobox container.
-A service connects to the IPC socket, appears as a Wayland client, or both.
+A service runs as a Quadlet unit with Podman, or in distrobox. It connects
+to the IPC socket, appears as a Wayland client, or both. A container gets the
+IPC socket through a bind mount.
