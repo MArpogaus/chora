@@ -59,9 +59,9 @@ pub struct Placed<'a> {
     pub input: InputMode,
 }
 
-/// The most nodes that the scene holds, the root and the surfaces
-/// included. The limit keeps a buggy client from growing the scene, and
-/// with it each frame, without bound.
+/// The node limit of `create`. The root and the surfaces count toward it,
+/// but the core never refuses a surface. The limit keeps a buggy client from
+/// growing the scene, and with it each frame, without bound.
 pub const MAX_NODES: usize = 16_384;
 
 /// The scene tree.

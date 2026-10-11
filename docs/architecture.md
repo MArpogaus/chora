@@ -124,7 +124,7 @@ the connection.
 
 Limits keep a buggy client from exhausting the core:
 
-| Limit | Value | When it is reached |
+| Limit | Value | Effect |
 |-------|-------|--------------------|
 | connections | 128 | the core refuses new connections |
 | time until `hello` | 5 s | the core closes the connection |
@@ -180,10 +180,13 @@ sequenceDiagram
    events go to the topmost node under the cursor that accepts input. The
    inverse of the camera maps the cursor to scene coordinates.
 
-Plugins set the focus. The core changes it in three cases only: the reset
-focuses the first surface, a click on a surface without an owner focuses it,
-and a surface that becomes detached loses it. The core still implements the
-protocol mechanisms around focus:
+Plugins set the focus. The core changes it in three cases only:
+
+- The emergency reset focuses the first surface.
+- A click on a surface without an owner focuses it.
+- A surface that becomes detached loses the focus.
+
+The core still implements the protocol mechanisms around focus:
 popup grabs, `xdg-activation` requests, `pointer-constraints` and
 `input-method`.
 
@@ -198,8 +201,8 @@ The safety layer is the only built-in behavior (see
 - **Emergency reset.** The core disconnects all plugins, removes all effects,
   restores the default cameras and puts all surfaces in a simple grid. This
   grid is the one layout in the core. It is hardcoded, so a broken
-  configuration cannot break it. The first surface gets the focus, and a
-  click on a surface without an owner focuses it.
+  configuration cannot break it. The reset also changes the focus (see
+  [Input flow](#input-flow)).
 - **Session lock.** The core enforces `ext-session-lock`. The lock surface is
   above every plugin node.
 - **Watchdog.** When frames miss their deadline repeatedly, the core removes

@@ -77,7 +77,7 @@ or an empty list. It always sees the current titles.
 |-------|------|
 | `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title |
 | `surface.changed` | surface id, `app_id`, title |
-| `surface.destroyed`, `surface.detached` | surface id |
+| `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
 | `input.key` | the grabbed binding |
 | `output.changed`, `output.removed` | output name, position, size, scale |
 | `client.connected`, `client.disconnected` | client name |
@@ -105,7 +105,7 @@ client sends `hello` first. The core answers every request.
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.call(client, method, params)` | call a method of another client |
 
-A connection sends `hello` once. Connections with the same name share their
+A connection sends `hello` once, within 5 s. Connections with the same name share their
 nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
 different value. For example, `choractl --name tiling` fails while the tiling
 plugin runs.
@@ -126,7 +126,6 @@ name: tiling
 exec: chora-tiling
 subscribe: [surface.created, surface.detached, surface.destroyed, output.changed]
 grabs: [Super+Return, Super+q, Super+j, Super+k]
-methods: [set_layout, resize]
 ```
 
 `choractl` reads the manifest when it loads a view. Before views exist (M3),

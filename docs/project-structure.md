@@ -13,6 +13,7 @@ chora/
 ├── plugins/
 │   └── chora-tiling/  # reference plugin: master and stack layout, keybindings
 ├── dist/              # RPM build script and Fedora build requirements
+├── tests/             # end-to-end tests in a headless sway
 ├── deny.toml          # cargo-deny: allowed licenses, advisories
 ├── docs/              # this documentation (MkDocs)
 ├── mkdocs.yml

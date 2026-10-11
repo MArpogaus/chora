@@ -53,6 +53,8 @@ container, and `chora --version` runs there.
 4. The emergency reset puts the three surfaces in the grid. The test sends
    SIGUSR1, because synthetic keys do not reach a nested compositor.
 
+The test, `tests/nested.sh`, also checks fixed regressions.
+
 ## M2: Session on real hardware
 
 **Goal:** chora runs as a login session on AMD and Intel (D11).

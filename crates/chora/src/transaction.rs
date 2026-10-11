@@ -129,6 +129,8 @@ impl State {
                 self.transactions.queue.push_front(head);
                 break;
             }
+            // The surfaces that still wait missed the deadline: now they
+            // are late.
             self.transactions.late.extend(head.waiting.drain());
             self.finish(head);
         }
