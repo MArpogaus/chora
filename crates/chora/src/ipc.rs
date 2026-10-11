@@ -2,8 +2,9 @@
 //! loop of the core (D29).
 //!
 //! Limits keep a buggy client from exhausting the core: a number of
-//! connections, a line length, an output buffer per connection, and a read
-//! size per wakeup, so that one busy client cannot stall the event loop.
+//! connections, a time until `hello`, a line length, an output buffer per
+//! connection, and a read size per wakeup, so that one busy client cannot
+//! stall the event loop.
 
 use std::{
     collections::HashMap,
@@ -37,6 +38,9 @@ const MAX_CONNECTIONS: usize = 128;
 const MAX_LINE: usize = 1 << 20;
 const MAX_OUTPUT: usize = 8 << 20;
 const READ_PER_WAKEUP: usize = 64 << 10;
+/// How long a new connection may wait before its `hello`, so that idle
+/// connections cannot take every slot.
+const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The connections of the IPC socket.
 #[derive(Default)]
@@ -283,6 +287,15 @@ impl State {
         let watched = stream.try_clone().map_err(failed)?;
         let id = self.ipc.next;
         self.ipc.next += 1;
+        let timeout = Timer::from_duration(HELLO_TIMEOUT);
+        self.loop_handle
+            .insert_source(timeout, move |_, (), state| {
+                if state.ipc.conns.get(&id).is_some_and(|c| c.name.is_none()) {
+                    state.ipc_close(id);
+                }
+                TimeoutAction::Drop
+            })
+            .map_err(failed)?;
         let token = self
             .loop_handle
             .insert_source(

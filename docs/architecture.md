@@ -127,6 +127,7 @@ Limits keep a buggy client from exhausting the core:
 | Limit | Value | When it is reached |
 |-------|-------|--------------------|
 | connections | 128 | the core refuses new connections |
+| time until `hello` | 5 s | the core closes the connection |
 | line length | 1 MiB | the core closes the connection |
 | output buffer of a connection | 8 MiB | the core closes the connection |
 | waiting transactions of a connection | 16 | the core rejects the transaction |
