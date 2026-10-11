@@ -233,3 +233,23 @@ fn deep_trees_do_not_overflow_the_stack() {
     scene.apply("wm", &commands).unwrap();
     assert_eq!(scene.draw_list().len(), 100_000);
 }
+
+#[test]
+fn disconnect_lists_each_surface_once() {
+    let mut scene = scene_with_surface();
+    scene
+        .apply("wm", &[group("a", ROOT), attach("s1", "a")])
+        .unwrap();
+    assert_eq!(scene.disconnect("wm"), vec!["s1".to_owned()]);
+}
+
+#[test]
+fn remove_reports_the_surfaces_it_detaches() {
+    let mut scene = scene_with_surface();
+    scene.apply("view", &[group("work", ROOT)]).unwrap();
+    scene.apply("wm", &[attach("s1", "work")]).unwrap();
+    let effects = scene
+        .apply("view", &[Command::Remove { id: "work".into() }])
+        .unwrap();
+    assert_eq!(effects, vec![Effect::Detached("s1".into())]);
+}

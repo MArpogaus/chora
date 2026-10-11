@@ -163,7 +163,7 @@ impl Scene {
             }
             Command::Remove { id } => {
                 self.owned_mut(owner, id)?;
-                self.remove_subtree(id);
+                effects.extend(self.remove_subtree(id).into_iter().map(Effect::Detached));
                 Ok(())
             }
             Command::Configure {
@@ -247,7 +247,11 @@ impl Scene {
             .collect();
         let mut detached = Vec::new();
         for id in ids {
-            if self.nodes.contains_key(&id) {
+            let still_owned = self
+                .nodes
+                .get(&id)
+                .is_some_and(|n| n.owner.as_deref() == Some(owner));
+            if still_owned {
                 detached.extend(self.remove_subtree(&id));
             }
         }

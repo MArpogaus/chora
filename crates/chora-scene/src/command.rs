@@ -105,4 +105,6 @@ pub enum Effect {
     Focus(Option<String>),
     /// Ask a client to close a surface.
     Close(String),
+    /// A surface lost its parent and its owner; tell the clients.
+    Detached(String),
 }

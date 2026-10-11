@@ -167,6 +167,7 @@ impl State {
                         t.send_close();
                     }
                 }
+                Effect::Detached(surface) => self.emit(&Event::SurfaceDetached { surface }),
             }
         }
     }
