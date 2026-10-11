@@ -333,24 +333,12 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
 
 /// Sends frame callbacks for one output: every frame to the toplevels that
 /// it shows, once per second to the others, so that hidden clients do not
-/// draw for nothing.
-pub fn send_frames(state: &State, output: &Output) {
-    let area = output_area(output);
-    let shown = scene_rect(&state.camera(output), Rectangle::from_size(area.size));
-    let visible: HashSet<&str> = state
-        .scene
-        .draw_list()
-        .iter()
-        .filter(|p| p.node.kind == NodeKind::Surface)
-        .filter(|p| {
-            let window = state.windows.get(&p.node.id);
-            window.is_some_and(|w| shown.overlaps(window_rect(w, &p.transform)))
-        })
-        .map(|p| p.node.id.as_str())
-        .collect();
+/// draw for nothing. Taskbars learn the toplevels on the output too.
+pub fn send_frames(state: &mut State, output: &Output) {
+    let visible = shown_surfaces(state, output);
     let time = state.start_time.elapsed();
     for (id, window) in &state.windows {
-        let on_output = visible.contains(id.as_str());
+        let on_output = visible.contains(id);
         if on_output {
             window.output_enter(output, Rectangle::from_size(window.bbox().size));
         } else {
@@ -378,6 +366,27 @@ pub fn send_frames(state: &State, output: &Output) {
             Some(output.clone())
         });
     }
+    state
+        .foreign_toplevel_manager_state
+        .set_shown(output, &visible);
+}
+
+/// The surface nodes that an output shows: those whose scene rectangle
+/// overlaps the scene area of the output.
+fn shown_surfaces(state: &State, output: &Output) -> HashSet<String> {
+    let area = output_area(output);
+    let shown = scene_rect(&state.camera(output), Rectangle::from_size(area.size));
+    state
+        .scene
+        .draw_list()
+        .iter()
+        .filter(|p| p.node.kind == NodeKind::Surface)
+        .filter(|p| {
+            let window = state.windows.get(&p.node.id);
+            window.is_some_and(|w| shown.overlaps(window_rect(w, &p.transform)))
+        })
+        .map(|p| p.node.id.clone())
+        .collect()
 }
 
 /// The scene rectangle of a window with its subsurfaces and popups. The

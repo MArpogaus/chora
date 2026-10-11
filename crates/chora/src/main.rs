@@ -2,6 +2,7 @@
 
 mod backend;
 mod cursor;
+mod foreign_toplevel;
 mod handlers;
 mod input;
 mod ipc;

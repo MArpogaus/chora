@@ -73,31 +73,36 @@ impl State {
         self.idle_notifier_state.set_is_inhibited(inhibited);
     }
 
-    /// Adds a toplevel to the foreign toplevel list, for taskbars.
+    /// Adds a toplevel to the foreign toplevel list and to
+    /// `wlr-foreign-toplevel-management`, for taskbars.
     pub fn list_toplevel(&mut self, id: &str) {
         let info = self.surface_info(id);
         let handle = self.foreign_toplevel_list_state.new_toplevel::<Self>(
-            info.title.unwrap_or_default(),
-            info.app_id.unwrap_or_default(),
+            info.title.clone().unwrap_or_default(),
+            info.app_id.clone().unwrap_or_default(),
         );
         self.foreign_toplevels.insert(id.into(), handle);
+        let states = self.taskbar_states(id);
+        self.foreign_toplevel_manager_state.add(id, info, states);
     }
 
     /// Tells taskbars a new title or application id.
     pub fn relist_toplevel(&mut self, id: &str) {
         let info = self.surface_info(id);
         if let Some(handle) = self.foreign_toplevels.get(id) {
-            handle.send_title(&info.title.unwrap_or_default());
-            handle.send_app_id(&info.app_id.unwrap_or_default());
+            handle.send_title(info.title.as_deref().unwrap_or_default());
+            handle.send_app_id(info.app_id.as_deref().unwrap_or_default());
             handle.send_done();
         }
+        self.foreign_toplevel_manager_state.set_info(id, info);
     }
 
-    /// Removes a destroyed toplevel from the foreign toplevel list.
+    /// Removes a destroyed toplevel from the lists of the taskbars.
     pub fn unlist_toplevel(&mut self, id: &str) {
         if let Some(handle) = self.foreign_toplevels.remove(id) {
             self.foreign_toplevel_list_state.remove_toplevel(&handle);
         }
+        self.foreign_toplevel_manager_state.remove(id);
     }
 }
 

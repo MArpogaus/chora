@@ -50,7 +50,10 @@ use smithay::{
     },
 };
 
-use crate::{backend::Backend, ipc::Ipc, lock::Lock, transaction::Transactions};
+use crate::{
+    backend::Backend, foreign_toplevel::ForeignToplevelManagerState, ipc::Ipc, lock::Lock,
+    transaction::Transactions,
+};
 
 /// The state of the compositor, passed to every callback of the event loop.
 #[allow(clippy::struct_field_names)] // the names of Smithay's handler traits
@@ -95,6 +98,7 @@ pub struct State {
     pub foreign_toplevel_list_state: ForeignToplevelListState,
     /// The entries of the toplevels in the foreign toplevel list.
     pub foreign_toplevels: HashMap<String, ForeignToplevelHandle>,
+    pub foreign_toplevel_manager_state: ForeignToplevelManagerState,
     pub activation_state: XdgActivationState,
     /// Requests of surfaces before their first commit.
     pub early_requests: HashMap<String, Vec<SurfaceRequest>>,
@@ -167,6 +171,7 @@ impl State {
             idle_inhibitors: Vec::new(),
             foreign_toplevel_list_state: ForeignToplevelListState::new::<Self>(&dh),
             foreign_toplevels: HashMap::new(),
+            foreign_toplevel_manager_state: ForeignToplevelManagerState::new(&dh),
             activation_state: XdgActivationState::new::<Self>(&dh),
             early_requests: HashMap::new(),
             scene: Scene::default(),
@@ -258,11 +263,19 @@ impl State {
         size: Option<[i32; 2]>,
         states: &[ToplevelState],
     ) -> Option<Serial> {
-        let toplevel = self.windows.get(surface)?.toplevel()?;
-        set_pending(toplevel, size, states);
+        let toplevel = self.windows.get(surface)?.toplevel()?.clone();
+        set_pending(&toplevel, size, states);
         self.configured
             .insert(surface.into(), (size, states.to_vec()));
+        self.restate_toplevel(surface);
         toplevel.send_pending_configure()
+    }
+
+    /// The toplevel states of the last configure of a surface node.
+    pub fn configured_states(&self, surface: &str) -> &[ToplevelState] {
+        self.configured
+            .get(surface)
+            .map_or(&[], |(_, states)| states.as_slice())
     }
 
     /// Forgets the configure of a destroyed surface.
@@ -285,11 +298,15 @@ impl State {
     }
 
     /// Focuses a surface node, or nothing. A layer surface that a click
-    /// focused gives the keyboard back.
+    /// focused gives the keyboard back. Taskbars learn first which surface
+    /// lost the focus, because some expect one active toplevel at a time.
     pub fn focus(&mut self, surface: Option<&str>) {
-        self.focus_wanted = surface.map(Into::into);
+        let previous = std::mem::replace(&mut self.focus_wanted, surface.map(Into::into));
         self.layer_focus = None;
         self.update_focus();
+        for id in [previous, self.focus_wanted.clone()].into_iter().flatten() {
+            self.restate_toplevel(&id);
+        }
     }
 
     /// Gives the keyboard to a layer surface after a click, or takes it

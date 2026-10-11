@@ -6,6 +6,8 @@
 //! output. The default camera shows the scene area at the layout position
 //! of the output, so the layout and the scene coordinates agree.
 
+use std::collections::HashSet;
+
 use chora_scene::{Event, OutputInfo, Transform};
 use smithay::{
     desktop::{layer_map_for_output, space::SpaceElement},
@@ -40,6 +42,8 @@ impl State {
         for window in self.windows.values() {
             window.output_leave(output);
         }
+        self.foreign_toplevel_manager_state
+            .set_shown(output, &HashSet::new());
         self.emit(&Event::OutputRemoved {
             name: output.name(),
         });

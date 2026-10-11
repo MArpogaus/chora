@@ -64,6 +64,14 @@ a plugin: the core creates a detached surface node and sends
 `surface.created`. A plugin decides where the surface appears, or if it
 appears at all.
 
+Taskbars see the toplevels through `ext-foreign-toplevel-list` and
+`wlr-foreign-toplevel-management`. A handle of the second protocol reports
+the title, the application id and the outputs that show the surface. Its
+states are `activated` for the surface that plugins focused, and `maximized`
+and `fullscreen` from the last configure. The core never reports
+`minimized`. The requests of a taskbar, `close` included, go to plugins as
+`surface.requested`.
+
 ### Scene
 
 The scene is a tree of nodes with stable ids. [API](api.md#nodes) lists the
@@ -201,11 +209,12 @@ The core still implements the protocol mechanisms around focus: popup
 grabs, the keyboard interactivity of `wlr-layer-shell` and
 `ext-session-lock`, the locks and confinements of `pointer-constraints`,
 and `text-input` with `input-method`. Activation requests of
-`xdg-activation` go to plugins as `surface.requested`. A layer surface that takes the keyboard
-exclusively, for example a launcher, has it from its first commit until it
-goes away, and it ends a popup grab. A click gives the keyboard to a layer
-surface that accepts it on demand, until the next click elsewhere. A popup
-grabs the input only with the serial of the press that opened it.
+`xdg-activation` and of taskbars go to plugins as `surface.requested`. A
+layer surface that takes the keyboard exclusively, for example a launcher,
+has it from its first commit until it goes away, and it ends a popup grab.
+A click gives the keyboard to a layer surface that accepts it on demand,
+until the next click elsewhere. A popup grabs the input only with the serial
+of the press that opened it.
 
 ## Safety layer
 
