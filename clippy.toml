@@ -1,0 +1,7 @@
+# Complexity guards. Split a function instead of raising a limit.
+# A nesting limit of 5 allows the impl > fn > loop > match > arm shape
+# of an event handler.
+cognitive-complexity-threshold = 10
+excessive-nesting-threshold = 5
+too-many-arguments-threshold = 5
+too-many-lines-threshold = 60
