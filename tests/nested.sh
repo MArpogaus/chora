@@ -1,8 +1,8 @@
 #!/bin/bash
 # End-to-end test of milestone M1: chora runs nested in a headless sway,
 # chora-tiling tiles three foot windows, a crash of the plugin leaves the
-# core running, and the emergency reset puts the windows in the grid. A
-# second chora checks SIGUSR1 while its startup command runs.
+# core running, and the emergency reset puts the windows in the grid.
+# Further steps check fixed regressions.
 #
 # The test starts the reset with SIGUSR1. Ctrl+Alt+Escape runs the same
 # code, but synthetic keys from wtype carry their own keymap, which a nested
@@ -11,7 +11,7 @@
 # Usage: tests/nested.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl and chora-tiling
 #   OUT_DIR  receives the logs and screenshots (default: a temp dir)
-# Needs: sway, foot, grim, jq, python3.
+# Needs: sway, foot, grim, jq, python3, pgrep and pkill, and a Mesa driver.
 set -euo pipefail
 
 bin=$(realpath "$1")
@@ -64,10 +64,12 @@ surfaces() { "$bin/choractl" query kind:surface; }
 count_is() { test "$(surfaces | jq "[.[] | select($2)] | length")" = "$1"; }
 
 step "2. three foot windows appear without overlap"
+feet=()
 for _ in 1 2 3; do
     WAYLAND_DISPLAY=$inner foot >>"$out/foot.log" 2>&1 &
-    pids+=($!)
+    feet+=($!)
 done
+pids+=("${feet[@]}")
 wait_for count_is 3 '.owner == "tiling"'
 sleep 0.5
 surfaces >"$out/tiled.json"
@@ -89,30 +91,60 @@ pkill -KILL -x chora-tiling
 wait_for count_is 3 '.parent == null and .owner == null'
 kill -0 "$chora_pid" || fail "chora died"
 
+# The later steps check fixed regressions.
+
+# Sends a hello as "e2e" and one scene.apply per argument on one
+# connection, closes its side, and prints each answer with its duration.
+rpc() {
+    timeout 20 python3 -I - "$CHORA_SOCKET" "$@" <<'EOF'
+import json, socket, sys, time
+path, calls = sys.argv[1], [("hello", {"name": "e2e", "keep_nodes": True})]
+calls += [("scene.apply", {"commands": json.loads(c)}) for c in sys.argv[2:]]
+s = socket.socket(socket.AF_UNIX)
+s.settimeout(10)
+s.connect(path)
+f = s.makefile()
+for i, (method, params) in enumerate(calls):
+    start = time.monotonic()
+    s.sendall(json.dumps({"jsonrpc": "2.0", "id": i, "method": method,
+                          "params": params}).encode() + b"\n")
+    if i == len(calls) - 1:
+        s.shutdown(socket.SHUT_WR)
+    answer = json.loads(f.readline())
+    answer["seconds"] = time.monotonic() - start
+    print(json.dumps(answer))
+EOF
+}
+# Succeeds when every answer in the file is a result.
+all_results() { jq -se 'all(has("result"))' "$1" >/dev/null; }
+
 step "4. a transaction that arrives with the end of the stream still applies"
 first=$(surfaces | jq -r '[.[].id] | sort | first')
-python3 -I - "$CHORA_SOCKET" "$first" >"$out/eof.json" <<'EOF'
-import json, socket, sys
-path, surface = sys.argv[1:]
-calls = [
-    ("hello", {"name": "e2e", "keep_nodes": True}),
-    ("scene.apply", {"commands": [
-        {"attach": {"surface": surface, "parent": "root"}},
-        {"configure": {"surface": surface, "size": [300, 200]}},
-    ]}),
-]
-s = socket.socket(socket.AF_UNIX)
-s.connect(path)
-s.sendall(b"".join(
-    json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}).encode() + b"\n"
-    for i, (m, p) in enumerate(calls)))
-s.shutdown(socket.SHUT_WR)
-print(s.makefile().read(), end="")
-EOF
-jq -se 'map(.result) == [null, null]' "$out/eof.json" >/dev/null || fail "answers: $out/eof.json"
+rpc "[{\"attach\": {\"surface\": \"$first\", \"parent\": \"root\"}},
+      {\"configure\": {\"surface\": \"$first\", \"size\": [300, 200]}}]" \
+    >"$out/eof.json" || fail "no answers: $out/eof.json"
+all_results "$out/eof.json" || fail "answers: $out/eof.json"
 count_is 1 '.owner == "e2e"' || fail "the transaction did not apply"
 
-step "5. the emergency reset puts the three surfaces in the grid"
+step "5. a client that misses a deadline delays one transaction, not each"
+configure() { echo "[{\"configure\": {\"surface\": \"$first\", \"size\": $1}}]"; }
+kill -STOP "${feet[@]}"
+rpc "$(configure '[310, 210]')" "$(configure '[320, 220]')" >"$out/late.json" || true
+kill -CONT "${feet[@]}"
+all_results "$out/late.json" || fail "answers: $out/late.json"
+jq -se '.[1].seconds >= 0.1 and .[2].seconds < 0.1' "$out/late.json" >/dev/null ||
+    fail "waits: $out/late.json"
+
+step "6. a connection without hello closes after 5 s"
+timeout 20 python3 -I - "$CHORA_SOCKET" <<'EOF' || fail "the idle connection stayed open"
+import socket, sys
+s = socket.socket(socket.AF_UNIX)
+s.settimeout(8)
+s.connect(sys.argv[1])
+sys.exit(0 if s.recv(1) == b"" else 1)
+EOF
+
+step "7. the emergency reset puts the three surfaces in the grid"
 kill -USR1 "$chora_pid"
 wait_for count_is 3 '.parent == "root"'
 surfaces >"$out/grid.json"
@@ -120,15 +152,18 @@ jq -e '[.[] | [.transform.matrix[12], .transform.matrix[13]]] | sort == [[0,0],[
     "$out/grid.json" >/dev/null || fail "unexpected grid: $out/grid.json"
 grim "$out/grid.png"
 
-step "6. SIGUSR1 resets while the startup command runs, which blocks no signal"
-"$bin/chora" -- sh -c "grep SigBlk /proc/self/status >'$out/sigblk'; exec sleep 600" \
+step "8. SIGUSR1 resets while the startup command runs, which blocks no signal"
+rm -f "$out/sigblk"
+# shellcheck disable=SC2016 # $1 expands in the inner shell
+"$bin/chora" -- sh -c 'grep SigBlk /proc/self/status >"$1"; exec sleep 60' sh "$out/sigblk" \
     >"$out/chora-signal.log" 2>&1 &
 signal_pid=$!
 pids+=("$signal_pid")
+wait_for grep -q "chora runs" "$out/chora-signal.log"
 wait_for test -s "$out/sigblk"
-grep -Eq 'SigBlk:\s*0+$' "$out/sigblk" || fail "blocked signals: $(cat "$out/sigblk")"
+grep -Eq 'SigBlk:[[:space:]]*0+$' "$out/sigblk" || fail "blocked signals: $(cat "$out/sigblk")"
 kill -USR1 "$signal_pid"
-sleep 1
+wait_for grep -q "emergency reset" "$out/chora-signal.log"
 kill -0 "$signal_pid" || fail "chora died of SIGUSR1"
 
 echo "PASS (logs and screenshots in $out)"
