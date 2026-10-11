@@ -1,12 +1,15 @@
 # A v* tag builds the RPM in Fedora 44, installs it once as a check, and
 # attaches it with its SHA256 sums to a GitHub release. Versions below 1.0
-# are pre-releases. Only the short last job holds a write token; the build
-# runs the build scripts of all dependencies with a read token.
+# are pre-releases. A manual run releases the version in Cargo.toml and
+# creates its tag, for clients that cannot push tags. Only the short last
+# job holds a write token; the build runs the build scripts of all
+# dependencies with a read token.
 name: release
 
 on:
   push:
     tags: [v*]
+  workflow_dispatch:
 
 permissions: {}
 
@@ -17,10 +20,24 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
       with:
         persist-credentials: false
+    - name: the tag of the version in Cargo.toml
+      id: tag
+      env:
+        REF_TYPE: ${{ github.ref_type }}
+        REF_NAME: ${{ github.ref_name }}
+      run: |
+        tag=$(sed -n 's/^version = "\(.*\)"/v\1/p' Cargo.toml | head -1)
+        if [ "$REF_TYPE" = tag ] && [ "$REF_NAME" != "$tag" ]; then
+          echo "the tag $REF_NAME does not match Cargo.toml ($tag)" >&2
+          exit 1
+        fi
+        echo "tag=$tag" >>"$GITHUB_OUTPUT"
     - run: xargs dnf install -y rpm-build < dist/fedora-build-requires.txt
     - run: cargo install --locked cargo-generate-rpm@0.21.0
     - run: PATH="$HOME/.cargo/bin:$PATH" dist/build-rpm.sh target/rpm
@@ -46,11 +63,12 @@ jobs:
     - name: create the release
       env:
         GH_TOKEN: ${{ github.token }}
-        TAG: ${{ github.ref_name }}
+        TAG: ${{ needs.rpm.outputs.tag }}
+        SHA: ${{ github.sha }}
       run: |
         set -euo pipefail
         prerelease=()
         case "$TAG" in v0.*) prerelease=(--prerelease) ;; esac
         gh release create "$TAG" rpm/*.rpm rpm/SHA256SUMS \
-          --repo "$GITHUB_REPOSITORY" --title "$TAG" --verify-tag \
+          --repo "$GITHUB_REPOSITORY" --title "$TAG" --target "$SHA" \
           --notes "See CHANGELOG.md for this release." "${prerelease[@]}"

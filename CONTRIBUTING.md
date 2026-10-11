@@ -59,7 +59,9 @@ in a Fedora 44 container, and `cargo deny` in a separate job.
 `cz bump` sets the version, writes `CHANGELOG.md` and creates the annotated
 tag. A pushed `v*` tag starts `.github/workflows/release.yaml`. The workflow
 builds the RPM with `dist/build-rpm.sh` and attaches it with its SHA256 sums
-to a GitHub release. Versions below 1.0 are pre-releases.
+to a GitHub release. Versions below 1.0 are pre-releases. Where a tag cannot
+be pushed, push the bump commit and start the workflow by hand: it releases
+the version in `Cargo.toml` and creates the tag.
 
 ## Commits
 
