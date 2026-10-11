@@ -228,9 +228,7 @@ impl Wm {
         let top = self.topmost_except("");
         commands.extend(self.focus(top.as_deref()));
         commands.extend(self.sync_tasks());
-        for bar in &self.bars {
-            commands.extend(bar.pager(&mut self.theme, self.desktop));
-        }
+        commands.extend(self.pagers());
         commands
     }
 }

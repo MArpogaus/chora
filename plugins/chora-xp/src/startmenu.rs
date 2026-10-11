@@ -77,6 +77,8 @@ pub struct Menu {
     open: Option<String>,
     /// The entry that is down.
     pressed: Option<usize>,
+    /// The entry under the pointer.
+    hovered: Option<usize>,
     /// The top-left corner in scene coordinates.
     origin: [i32; 2],
 }
@@ -114,6 +116,7 @@ impl Menu {
             height,
             open: None,
             pressed: None,
+            hovered: None,
             origin: [0, 0],
         }
     }
@@ -232,6 +235,9 @@ impl Menu {
             return Vec::new();
         }
         let mut commands = self.release_look(theme);
+        if let Some(i) = self.hovered.take() {
+            commands.push(self.look(theme, i, false));
+        }
         commands.push(Command::Update {
             id: GROUP.into(),
             props: PropsUpdate {
@@ -250,6 +256,23 @@ impl Menu {
     /// Whether a node belongs to the menu.
     pub fn owns(node: &str) -> bool {
         node.starts_with("xp-menu") || node.starts_with("xp-item-")
+    }
+
+    /// Highlights the entry under the pointer, as XP does, or ends the
+    /// highlight when the pointer leaves it.
+    pub fn hover(&mut self, theme: &mut Theme, node: &str, on: bool) -> Vec<Command> {
+        let Some(index) = item_index(node).filter(|i| *i < self.entries.len()) else {
+            return Vec::new();
+        };
+        if on {
+            self.hovered = Some(index);
+        } else if self.hovered == Some(index) {
+            self.hovered = None;
+        }
+        if self.pressed == Some(index) {
+            return Vec::new();
+        }
+        vec![self.look(theme, index, on)]
     }
 
     /// Highlights an entry that went down.
@@ -279,9 +302,13 @@ impl Menu {
         (self.release_look(theme), action)
     }
 
+    /// Ends the highlight of the entry that was down, unless the pointer
+    /// is still on it.
     fn release_look(&mut self, theme: &mut Theme) -> Vec<Command> {
+        let hovered = self.hovered;
         self.pressed
             .take()
+            .filter(|i| Some(*i) != hovered)
             .map(|i| self.look(theme, i, false))
             .into_iter()
             .collect()

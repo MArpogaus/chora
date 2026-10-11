@@ -39,6 +39,8 @@ pub struct Window {
     pub shown: bool,
     /// The button of the title bar that is down.
     pub pressed: Option<Button>,
+    /// The button of the title bar under the pointer.
+    pub hovered: Option<Button>,
 }
 
 impl Window {
@@ -58,6 +60,7 @@ impl Window {
             framed: true,
             shown: false,
             pressed: None,
+            hovered: None,
         }
     }
 
@@ -91,6 +94,7 @@ impl Window {
             active,
             maximized: self.maximized(),
             pressed: self.pressed,
+            hovered: self.hovered,
             framed: self.framed,
         }
     }

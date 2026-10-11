@@ -42,6 +42,8 @@ pub struct Task<'a> {
     pub active: bool,
     /// The window is minimized.
     pub minimized: bool,
+    /// The pointer is on the button.
+    pub hovered: bool,
 }
 
 /// A node of a taskbar, by its id.
@@ -153,9 +155,9 @@ impl Bar {
         ];
         commands.extend((0..DESKTOPS).map(|d| image(self.pager_id(d))));
         commands.extend(self.layout(theme));
-        commands.push(self.start(theme, false));
+        commands.push(self.start(theme, "normal"));
         commands.push(self.tray(theme, clock));
-        commands.extend(self.pager(theme, desktop));
+        commands.extend(self.pager(theme, desktop, None));
         commands
     }
 
@@ -189,10 +191,9 @@ impl Bar {
         ]
     }
 
-    /// The start button, up or down.
-    pub fn start(&self, theme: &mut Theme, down: bool) -> Command {
-        let look = if down { "pressed" } else { "normal" };
-        let shift = i32::from(down);
+    /// The start button in a look: `normal`, `hover` or `pressed`.
+    pub fn start(&self, theme: &mut Theme, look: &str) -> Command {
+        let shift = i32::from(look == "pressed");
         let picture = Picture::new(START_WIDTH, HEIGHT)
             .element(
                 Sheet::Winxp,
@@ -217,16 +218,18 @@ impl Bar {
         format!("xp-pager-{desktop}-{}", self.output)
     }
 
-    /// The buttons of the desktops, the current one down.
-    pub fn pager(&self, theme: &mut Theme, current: usize) -> Vec<Command> {
+    /// The buttons of the desktops, the current one down, and one maybe
+    /// under the pointer.
+    pub fn pager(&self, theme: &mut Theme, current: usize, hovered: Option<usize>) -> Vec<Command> {
         let left = self.area[2] - TRAY_WIDTH - PAGER_WIDTH;
         (0..DESKTOPS)
             .zip(0..)
             .map(|(desktop, i)| {
-                let prefix = if desktop == current {
-                    "focus"
-                } else {
-                    "normal"
+                let prefix = match (desktop == current, hovered == Some(desktop)) {
+                    (true, true) => "focus-hover",
+                    (true, false) => "focus",
+                    (false, true) => "hover",
+                    (false, false) => "normal",
                 };
                 let label = Text::new(
                     &(i + 1).to_string(),
@@ -303,12 +306,12 @@ impl Bar {
 
     fn task(&self, theme: &mut Theme, index: usize, task: &Task<'_>) -> Command {
         let [x, _, w, _] = self.task_rect(index);
-        let prefix = if task.active && !task.minimized {
-            "focus"
-        } else if task.minimized {
-            "minimized"
-        } else {
-            "normal"
+        let prefix = match (task.active && !task.minimized, task.minimized, task.hovered) {
+            (true, _, true) => "focus-hover",
+            (true, _, false) => "focus",
+            (false, _, true) => "hover",
+            (false, true, false) => "minimized",
+            (false, false, false) => "normal",
         };
         let shift = i32::from(task.active);
         let mut picture =

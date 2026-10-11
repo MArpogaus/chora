@@ -117,6 +117,8 @@ pub struct Wm {
     clock: String,
     /// The desktop that shows.
     desktop: usize,
+    /// The node under the pointer.
+    hover: Option<String>,
     effects: Effects,
     /// Turn Off ended the plugin.
     pub done: bool,
@@ -148,6 +150,7 @@ impl Wm {
             keys: Vec::new(),
             cascade: 0,
             desktop: 0,
+            hover: None,
             effects: Effects::default(),
             done: false,
         };
@@ -163,6 +166,8 @@ impl Wm {
             "pointer.pressed",
             "pointer.moved",
             "pointer.released",
+            "pointer.entered",
+            "pointer.left",
             "output.changed",
             "output.removed",
             "input.key",
@@ -292,6 +297,8 @@ impl Wm {
             Event::OutputChanged { output } => self.output_changed(&output),
             Event::OutputRemoved { name } => self.output_removed(&name),
             Event::InputKey { binding } => self.key(&binding),
+            Event::PointerEntered { node } => self.hovered(&node, true),
+            Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped => self.effects_dropped(),
             _ => Vec::new(),
         };
@@ -589,6 +596,10 @@ impl Wm {
 
     /// The task buttons of every taskbar.
     fn sync_tasks(&mut self) -> Vec<Command> {
+        let hovered = match self.hover.as_deref().and_then(taskbar::Part::of) {
+            Some(taskbar::Part::Task(surface)) => Some(surface),
+            _ => None,
+        };
         let tasks: Vec<Task<'_>> = self
             .opened
             .iter()
@@ -600,6 +611,7 @@ impl Wm {
                     icon: w.icon.clone(),
                     active: self.focused.as_deref() == Some(surface),
                     minimized: w.minimized,
+                    hovered: hovered.as_deref() == Some(surface.as_str()),
                 })
             })
             .collect();
@@ -608,6 +620,61 @@ impl Wm {
             commands.extend(bar.tasks(&mut self.theme, &tasks));
         }
         commands
+    }
+
+    /// The desktop buttons of every taskbar.
+    fn pagers(&mut self) -> Vec<Command> {
+        let hovered = match self.hover.as_deref().and_then(taskbar::Part::of) {
+            Some(taskbar::Part::Pager(desktop)) => Some(desktop),
+            _ => None,
+        };
+        let mut commands = Vec::new();
+        for bar in &self.bars {
+            commands.extend(bar.pager(&mut self.theme, self.desktop, hovered));
+        }
+        commands
+    }
+
+    /// The start button of an output: down while its menu is open, lit
+    /// under the pointer.
+    fn start_look(&mut self, output: &str) -> Vec<Command> {
+        let look = if self.menu.output() == Some(output) {
+            "pressed"
+        } else if self.hover.as_deref() == Some(format!("xp-start-{output}").as_str()) {
+            "hover"
+        } else {
+            "normal"
+        };
+        let mut commands = Vec::new();
+        for bar in self.bars.iter().filter(|b| b.output == output) {
+            commands.push(bar.start(&mut self.theme, look));
+        }
+        commands
+    }
+
+    /// The pointer entered or left a node: buttons light up under it, and
+    /// so do the entries of the start menu.
+    fn hovered(&mut self, node: &str, on: bool) -> Vec<Command> {
+        if on {
+            self.hover = Some(node.into());
+        } else if self.hover.as_deref() == Some(node) {
+            self.hover = None;
+        }
+        if let Some(Part::Button(surface, button)) = Part::of(node) {
+            let Some(i) = self.index(&surface) else {
+                return Vec::new();
+            };
+            self.windows[i].hovered = on.then_some(button);
+            let active = self.is_active(&surface);
+            return self.windows[i].style(&mut self.theme, active);
+        }
+        match taskbar::Part::of(node) {
+            Some(taskbar::Part::Start(output)) => self.start_look(&output),
+            Some(taskbar::Part::Task(_)) => self.sync_tasks(),
+            Some(taskbar::Part::Pager(_)) => self.pagers(),
+            None if Menu::owns(node) => self.menu.hover(&mut self.theme, node, on),
+            None => Vec::new(),
+        }
     }
 
     fn output_changed(&mut self, output: &OutputInfo) -> Vec<Command> {
@@ -623,7 +690,7 @@ impl Wm {
             output,
         )];
         commands.extend(self.bars[i].resize(&mut self.theme, output.work_area, &self.clock));
-        commands.extend(self.bars[i].pager(&mut self.theme, self.desktop));
+        commands.extend(self.pagers());
         let area = self.bars[i].usable();
         // Maximized windows of the output fill its new area.
         for w in self
@@ -753,8 +820,9 @@ impl Wm {
                 let Some(bar) = self.bars.iter().find(|b| b.output == output) else {
                     return Vec::new();
                 };
-                let mut commands = vec![bar.start(&mut self.theme, true)];
-                commands.extend(self.menu.open(&output, bar.origin()));
+                let origin = bar.origin();
+                let mut commands = self.menu.open(&output, origin);
+                commands.extend(self.start_look(&output));
                 commands
             }
             taskbar::Part::Pager(desktop) => self.turn_to(desktop),
@@ -847,8 +915,8 @@ impl Wm {
     fn close_menu(&mut self) -> Vec<Command> {
         let output = self.menu.output().map(String::from);
         let mut commands = self.menu.close(&mut self.theme);
-        if let Some(bar) = output.and_then(|o| self.bars.iter().find(|b| b.output == o)) {
-            commands.push(bar.start(&mut self.theme, false));
+        if let Some(output) = output {
+            commands.extend(self.start_look(&output));
         }
         commands
     }

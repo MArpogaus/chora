@@ -133,6 +133,8 @@ pub struct Look<'a> {
     pub maximized: bool,
     /// The button that is down.
     pub pressed: Option<Button>,
+    /// The button under the pointer.
+    pub hovered: Option<Button>,
     /// The plugin draws the frame; a client that draws its own gets none.
     pub framed: bool,
 }
@@ -316,15 +318,21 @@ fn title(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
 
 fn button(theme: &mut Theme, surface: &str, look: &Look<'_>, button: Button) -> Command {
     let [w, _] = look.outer();
-    let state = match (look.pressed == Some(button), look.active) {
-        (true, true) => "pressed",
-        (true, false) => "pressed-inactive",
-        (false, true) => "active",
-        (false, false) => "inactive",
+    let state = if look.pressed == Some(button) {
+        "pressed"
+    } else if look.hovered == Some(button) {
+        "hover"
+    } else {
+        "active"
+    };
+    let state = match (state, look.active) {
+        ("active", false) => "inactive".to_string(),
+        (state, true) => state.to_string(),
+        (state, false) => format!("{state}-inactive"),
     };
     let picture = Picture::new(BUTTON, BUTTON).frame(
         button.sheet(look.maximized),
-        state,
+        &state,
         [0, 0, BUTTON, BUTTON],
     );
     Command::Update {
