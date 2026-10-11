@@ -37,4 +37,4 @@ license = "GPL-3.0-or-later"
 publish = false
 repository = "https://github.com/MArpogaus/void"
 rust-version = "1.88"
-version = "0.0.0"
+version = "0.1.0"

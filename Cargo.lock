@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "chora"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "calloop",
  "chora-scene",
@@ -242,7 +242,7 @@ dependencies = [
 
 [[package]]
 name = "chora-scene"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "imbl",
  "serde",
@@ -252,7 +252,7 @@ dependencies = [
 
 [[package]]
 name = "chora-tiling"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "chora-scene",
  "clap",
@@ -261,7 +261,7 @@ dependencies = [
 
 [[package]]
 name = "choractl"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "chora-scene",
  "clap",
