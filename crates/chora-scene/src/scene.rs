@@ -59,6 +59,11 @@ pub struct Placed<'a> {
     pub input: InputMode,
 }
 
+/// The most nodes that the scene holds, the root and the surfaces
+/// included. The limit keeps a buggy client from growing the scene, and
+/// with it each frame, without bound.
+pub const MAX_NODES: usize = 16_384;
+
 /// The scene tree.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scene {
@@ -236,6 +241,11 @@ impl Scene {
         }
         if self.nodes.contains_key(&id) {
             return Err(SceneError::Exists(id));
+        }
+        if self.nodes.len() >= MAX_NODES {
+            return Err(SceneError::Invalid(format!(
+                "{id:?}: the scene holds {MAX_NODES} nodes, its limit"
+            )));
         }
         if node.kind == NodeKind::Surface {
             return Err(SceneError::WrongKind(id, "group or rect"));

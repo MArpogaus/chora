@@ -16,7 +16,7 @@ pub use binding::{Binding, BindingError, Modifiers};
 pub use command::{Command, Effect, ToplevelState};
 pub use event::{Event, OutputInfo};
 pub use node::{InputMode, Node, NodeKind, Props, PropsUpdate, ROOT, SurfaceInfo};
-pub use scene::{Placed, Scene, SceneError, TransactionError};
+pub use scene::{MAX_NODES, Placed, Scene, SceneError, TransactionError};
 pub use selector::{Selector, SelectorError};
 pub use transform::Transform;
 
