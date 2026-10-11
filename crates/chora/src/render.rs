@@ -15,6 +15,7 @@ use smithay::{
             memory::MemoryRenderBufferRenderElement,
             solid::{SolidColorBuffer, SolidColorRenderElement},
             surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
+            utils::RescaleRenderElement,
         },
     },
     desktop::{
@@ -24,20 +25,21 @@ use smithay::{
     output::Output,
     reexports::wayland_server::protocol::wl_surface::WlSurface,
     render_elements,
-    utils::{Logical, Point, Rectangle, Scale, Size},
+    utils::{Logical, Point, Rectangle, Scale},
     wayland::shell::wlr_layer::Layer,
 };
 
 use crate::{
     layers,
     lock::Lock,
-    output::{Spot, output_area, to_scene},
+    output::{Spot, output_area, scene_rect},
     state::State,
 };
 
 render_elements! {
     pub SceneElement<R> where R: ImportAll + ImportMem;
     Surface = WaylandSurfaceRenderElement<R>,
+    Scaled = RescaleRenderElement<WaylandSurfaceRenderElement<R>>,
     Solid = SolidColorRenderElement,
     Cursor = MemoryRenderBufferRenderElement<R>,
 }
@@ -153,17 +155,26 @@ where
                 let Some(window) = parts.windows.get(&placed.node.id) else {
                     continue;
                 };
-                let loc = offset - window.geometry().loc.to_f64().upscale(scale);
+                // Smithay sizes a surface by the output scale only, so the
+                // node scale applies afterwards, around the node position.
+                let origin = offset.to_physical_precise_round(1.0);
+                let loc = offset - window.geometry().loc.to_f64().upscale(view.scale);
                 out.extend(
                     window
                         .render_elements::<WaylandSurfaceRenderElement<R>>(
                             renderer,
                             loc.to_physical_precise_round(1.0),
-                            scale.into(),
+                            view.scale.into(),
                             alpha,
                         )
                         .into_iter()
-                        .map(SceneElement::Surface),
+                        .map(|e| {
+                            SceneElement::Scaled(RescaleRenderElement::from_element(
+                                e,
+                                origin,
+                                (sx, sy),
+                            ))
+                        }),
                 );
             }
             NodeKind::Rect => out.extend(rect(placed, parts.rects, offset, scale, alpha)),
@@ -324,16 +335,15 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
 /// draw for nothing.
 pub fn send_frames(state: &State, output: &Output) {
     let area = output_area(output);
-    let shown = scene_rect(&state.camera(output), area.size);
+    let shown = scene_rect(&state.camera(output), Rectangle::from_size(area.size));
     let visible: HashSet<&str> = state
         .scene
         .draw_list()
         .iter()
         .filter(|p| p.node.kind == NodeKind::Surface)
         .filter(|p| {
-            let (x, y) = p.transform.translation_2d();
-            let size = state.windows.get(&p.node.id).map(|w| w.bbox().size);
-            size.is_some_and(|s| shown.overlaps(Rectangle::new((x, y).into(), s.to_f64())))
+            let window = state.windows.get(&p.node.id);
+            window.is_some_and(|w| shown.overlaps(window_rect(w, &p.transform)))
         })
         .map(|p| p.node.id.as_str())
         .collect();
@@ -364,11 +374,17 @@ pub fn send_frames(state: &State, output: &Output) {
     }
 }
 
-/// The scene rectangle that a camera shows on an output of this size.
-fn scene_rect(camera: &Transform, size: Size<i32, Logical>) -> Rectangle<f64, Logical> {
-    let origin = to_scene(camera, (0.0, 0.0).into());
-    let end = to_scene(camera, size.to_f64().to_point());
-    Rectangle::new(origin, (end - origin).to_size())
+/// The scene rectangle of a window with its subsurfaces and popups. The
+/// transform places its geometry origin and scales it.
+fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f64, Logical> {
+    let (x, y) = transform.translation_2d();
+    let (sx, sy) = transform.scale_2d().unwrap_or((1.0, 1.0));
+    let bbox = window.bbox().to_f64();
+    let geo = window.geometry().loc.to_f64();
+    Rectangle::new(
+        (x + (bbox.loc.x - geo.x) * sx, y + (bbox.loc.y - geo.y) * sy).into(),
+        (bbox.size.w * sx, bbox.size.h * sy).into(),
+    )
 }
 
 #[cfg(test)]

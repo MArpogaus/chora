@@ -160,14 +160,19 @@ pub fn to_scene(camera: &Transform, local: Point<f64, Logical>) -> Point<f64, Lo
     ((local.x - tx) / sx, (local.y - ty) / sy).into()
 }
 
-/// The scene area that a camera shows in an area of the output, as x, y,
-/// width and height.
-#[allow(clippy::cast_possible_truncation)]
-fn scene_area(camera: &Transform, local: Rectangle<i32, Logical>) -> [i32; 4] {
+/// The scene rectangle that a camera shows in an area of the output.
+pub fn scene_rect(camera: &Transform, local: Rectangle<i32, Logical>) -> Rectangle<f64, Logical> {
     let local = local.to_f64();
     let origin = to_scene(camera, local.loc);
     let end = to_scene(camera, local.loc + local.size.to_point());
-    [origin.x, origin.y, end.x - origin.x, end.y - origin.y].map(|v| v.round() as i32)
+    Rectangle::new(origin, (end - origin).to_size())
+}
+
+/// [`scene_rect`], rounded, as x, y, width and height.
+#[allow(clippy::cast_possible_truncation)]
+fn scene_area(camera: &Transform, local: Rectangle<i32, Logical>) -> [i32; 4] {
+    let r = scene_rect(camera, local);
+    [r.loc.x, r.loc.y, r.size.w, r.size.h].map(|v| v.round() as i32)
 }
 
 fn distance(point: Point<f64, Logical>, area: Rectangle<i32, Logical>) -> f64 {

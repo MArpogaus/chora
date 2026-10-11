@@ -62,6 +62,11 @@ inner=$(basename "$CHORA_SOCKET" .sock)
 wait_for pgrep -x chora-tiling
 
 surfaces() { "$bin/choractl" query kind:surface; }
+# Prints the color of a pixel of a new screenshot as "r g b".
+pixel() {
+    grim -t ppm - | tail -c +$((17 + ($2 * 1280 + $1) * 3)) | head -c 3 |
+        od -An -tu1 | awk '{print $1, $2, $3}'
+}
 # Saves a screenshot as FILE and prints the number of its colors. The
 # header of a 1280x800 PPM file has 16 bytes.
 colors() {
@@ -156,6 +161,12 @@ echo '[{"camera": {"output": "winit", "transform": {"translate": [-100, -50]}}}]
 test "$(work_area)" = "[100,50,1280,800]" || fail "work area: $(work_area)"
 sleep 0.3
 test "$(colors "$out/pan.png")" -ge 2 || fail "the panned view is empty"
+# A zoom of 2 doubles the 320x220 window at the scene origin: the point
+# 600,400 of the output shows the window, not the black background.
+echo '[{"camera": {"output": "winit", "transform": {"scale": [2, 2, 1]}}}]' |
+    "$bin/choractl" --name e2e apply || fail "the zoom failed"
+sleep 0.3
+test "$(pixel 600 400)" != "0 0 0" || fail "the zoom does not resize the window"
 
 step "8. the emergency reset puts the three surfaces in the grid"
 kill -USR1 "$chora_pid"
