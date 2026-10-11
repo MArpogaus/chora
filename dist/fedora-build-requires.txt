@@ -1,0 +1,15 @@
+cargo
+clippy
+gcc
+git
+libdisplay-info-devel
+libdrm-devel
+libinput-devel
+libseat-devel
+libxkbcommon-devel
+mesa-libEGL-devel
+mesa-libgbm-devel
+pkgconf-pkg-config
+rust
+systemd-devel
+wayland-devel
