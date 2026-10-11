@@ -1095,16 +1095,16 @@ container, and <code>chora --version</code> runs there.</p>
 <ul>
 <li>winit backend on a pinned Smithay revision (D16).</li>
 <li>Protocols: <code>xdg-shell</code> with popups, subsurfaces, <code>xdg-decoration</code>,
-  <code>linux-dmabuf</code>, <code>viewporter</code>, <code>presentation-time</code>, <code>xdg-output</code>,
-  <code>cursor-shape</code>, data device and <code>primary-selection</code>.</li>
+  <code>linux-dmabuf</code>, <code>viewporter</code>, <code>xdg-output</code>, data device and
+  <code>primary-selection</code>.</li>
 <li>Scene with group, surface and rect nodes, 2D transforms (D18, D19).</li>
 <li>Transactions that wait for client commits (D22).</li>
 <li>IPC socket (D29) with <code>hello</code>, <code>scene.query</code>, <code>scene.apply</code>,
-  <code>events.subscribe</code> and <code>input.grab</code>.</li>
+  <code>events.subscribe</code>, <code>input.grab</code> and <code>output.list</code>.</li>
 <li>Ownership (D31).</li>
 <li>The startup command (D30).</li>
 <li>Safety layer: quit and emergency reset (D23).</li>
-<li><code>choractl</code> with <code>query</code>, <code>apply</code> and <code>events</code>.</li>
+<li><code>choractl</code> with <code>query</code>, <code>apply</code>, <code>events</code> and <code>outputs</code>.</li>
 <li><code>chora-tiling</code>: a reference plugin with a master and stack layout and
   keybindings to start a terminal, close a window and move the focus.</li>
 </ul>
@@ -1115,7 +1115,8 @@ container, and <code>chora --version</code> runs there.</p>
    confirm the layout.</li>
 <li>After <code>kill</code> of <code>chora-tiling</code>, <code>chora</code> still runs, and the three surfaces
    are detached.</li>
-<li>Ctrl+Alt+Escape puts the three surfaces in the grid.</li>
+<li>The emergency reset puts the three surfaces in the grid. The test sends
+   SIGUSR1, because synthetic keys do not reach a nested compositor.</li>
 </ol>
 <h2 id="m2-session-on-real-hardware">M2: Session on real hardware<a class="headerlink" href="#m2-session-on-real-hardware" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> chora runs as a login session on AMD and Intel (D11).</p>
@@ -1123,7 +1124,10 @@ container, and <code>chora --version</code> runs there.</p>
 <li>udev, DRM/KMS, libinput and libseat backends; the VT switch bindings.</li>
 <li>Several outputs, cameras (D20) and the <code>camera</code> command;
   <code>wlr-output-management</code> (D27).</li>
-<li>Protocols: <code>wlr-layer-shell</code>, <code>ext-session-lock</code>, <code>ext-idle-notify</code>,
+<li>Commit blockers, as in niri and Pinnacle, so that the new buffers of a
+  transaction appear in the same frame.</li>
+<li>Protocols: <code>cursor-shape</code>, <code>presentation-time</code>, <code>wlr-layer-shell</code>,
+  <code>ext-session-lock</code>, <code>ext-idle-notify</code>,
   <code>idle-inhibit</code>, <code>text-input</code>, <code>input-method</code>, <code>pointer-constraints</code>,
   <code>relative-pointer</code>, <code>ext-foreign-toplevel-list</code>,
   <code>wlr-foreign-toplevel-management</code>, <code>xdg-activation</code>, <code>fractional-scale</code>.</li>

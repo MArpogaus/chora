@@ -1275,8 +1275,9 @@ for example to draw window decorations as its own surfaces.</p>
 <li>The IPC socket.</li>
 <li>The safety layer (see below).</li>
 <li>The startup command: <code>chora -- &lt;command&gt;</code> runs one command with
-  <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> set. Without a command, the core shows
-  a black screen.</li>
+  <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> set. The command does not get the
+  variables that reach a host compositor, for example <code>WAYLAND_SOCKET</code> and
+  <code>SWAYSOCK</code>. Without a command, the core shows a black screen.</li>
 </ul>
 <p>The core places popups, subsurfaces and layer surfaces itself, because the
 protocols define their position. Smithay's <code>PopupManager</code> and <code>LayerMap</code> do
@@ -1334,6 +1335,51 @@ for example <code>wayland-1.sock</code>. The core exports the path as <code>CHOR
 calloop serves the socket in the event loop of the core, so no thread
 handoff is necessary. Events are JSON-RPC notifications on the same
 connection.</p>
+<p>When a client closes its side of the connection, the core still answers the
+requests that arrived, also those of waiting transactions. Then it closes
+the connection.</p>
+<p>Limits keep a buggy client from exhausting the core:</p>
+<table>
+<thead>
+<tr>
+<th>Limit</th>
+<th>Value</th>
+<th>When it is reached</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>connections</td>
+<td>128</td>
+<td>the core refuses new connections</td>
+</tr>
+<tr>
+<td>time until <code>hello</code></td>
+<td>5 s</td>
+<td>the core closes the connection</td>
+</tr>
+<tr>
+<td>line length</td>
+<td>1 MiB</td>
+<td>the core closes the connection</td>
+</tr>
+<tr>
+<td>output buffer of a connection</td>
+<td>8 MiB</td>
+<td>the core closes the connection</td>
+</tr>
+<tr>
+<td>waiting transactions of a connection</td>
+<td>16</td>
+<td>the core rejects the transaction</td>
+</tr>
+<tr>
+<td>nodes in the scene, surfaces included</td>
+<td>16,384</td>
+<td>the core rejects the <code>create</code></td>
+</tr>
+</tbody>
+</table>
 <p>A plugin can export <strong>methods</strong>, for example <code>tiling.set_layout</code>. The core
 forwards a method call to the plugin and returns the answer. An agent then
 asks the window manager for a change instead of fighting it.</p>
@@ -1345,8 +1391,11 @@ of the core, so the MCP side can change without a change to the compositor.</p>
 <p>A transaction is a batch of commands. The core applies it as one unit.</p>
 <p>Some commands need a client round trip. A resize sends a configure event, and
 the client must answer with a new buffer. The core therefore holds the
-transaction until all affected clients commit, or until a deadline passes.
-Then the core shows all changes in the same frame (D22).</p>
+transaction until all affected clients commit, or until a deadline of 150 ms
+passes. Then the core shows all changes in the same frame (D22).</p>
+<p>A surface that misses the deadline is late. No transaction waits for it
+until it commits a buffer for the configure that it missed. A hung client
+thus delays the queue once, not once per transaction.</p>
 <h2 id="frame-flow">Frame flow<a class="headerlink" href="#frame-flow" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>sequenceDiagram
     participant B as Backend
@@ -1367,8 +1416,10 @@ Then the core shows all changes in the same frame (D22).</p>
    events go to the topmost node under the cursor that accepts input. The
    inverse of the camera maps the cursor to scene coordinates.</li>
 </ol>
-<p>Focus is state in the scene, and plugins set it. The core never sets focus by
-itself. The core still implements the protocol mechanisms around focus:
+<p>Plugins set the focus. The core changes it in three cases only: the reset
+focuses the first surface, a click on a surface without an owner focuses it,
+and a surface that becomes detached loses it. The core still implements the
+protocol mechanisms around focus:
 popup grabs, <code>xdg-activation</code> requests, <code>pointer-constraints</code> and
 <code>input-method</code>.</p>
 <h2 id="safety-layer">Safety layer<a class="headerlink" href="#safety-layer" title="Permanent link">&para;</a></h2>
@@ -1376,10 +1427,13 @@ popup grabs, <code>xdg-activation</code> requests, <code>pointer-constraints</co
 <a href="../vision/#principles">Vision</a>). No plugin and no IPC client can change it.</p>
 <ul>
 <li><strong>Fixed bindings</strong> (D23). Injected input never triggers them.</li>
+<li><strong>SIGUSR1</strong> starts the emergency reset too, for example from a text
+  console when the keyboard no longer reaches the compositor.</li>
 <li><strong>Emergency reset.</strong> The core disconnects all plugins, removes all effects,
   restores the default cameras and puts all surfaces in a simple grid. This
   grid is the one layout in the core. It is hardcoded, so a broken
-  configuration cannot break it.</li>
+  configuration cannot break it. The first surface gets the focus, and a
+  click on a surface without an owner focuses it.</li>
 <li><strong>Session lock.</strong> The core enforces <code>ext-session-lock</code>. The lock surface is
   above every plugin node.</li>
 <li><strong>Watchdog.</strong> When frames miss their deadline repeatedly, the core removes

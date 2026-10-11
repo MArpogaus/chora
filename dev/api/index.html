@@ -1081,13 +1081,14 @@ travel in <strong>transactions</strong> (see <a href="../architecture/#transacti
 <a href="../architecture/#ownership">Ownership</a> decides who may change a node.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># one transaction</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">work</span><span class="p p-Indicator">,</span><span class="nt"> kind</span><span class="p">:</span><span class="w"> </span><span class="nv">group</span><span class="p p-Indicator">,</span><span class="nt"> parent</span><span class="p">:</span><span class="w"> </span><span class="nv">root</span><span class="p p-Indicator">}</span>
-<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">bg</span><span class="p p-Indicator">,</span><span class="nt"> kind</span><span class="p">:</span><span class="w"> </span><span class="nv">shader</span><span class="p p-Indicator">,</span><span class="nt"> parent</span><span class="p">:</span><span class="w"> </span><span class="nv">work</span><span class="p p-Indicator">,</span><span class="nt"> shader</span><span class="p">:</span><span class="w"> </span><span class="nv">aurora.frag</span><span class="p p-Indicator">}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">bar</span><span class="p p-Indicator">,</span><span class="nt"> kind</span><span class="p">:</span><span class="w"> </span><span class="nv">rect</span><span class="p p-Indicator">,</span><span class="nt"> parent</span><span class="p">:</span><span class="w"> </span><span class="nv">work</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1280</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">30</span><span class="p p-Indicator">],</span><span class="nt"> color</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">]}}</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">attach</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">surface</span><span class="p">:</span><span class="w"> </span><span class="nv">s42</span><span class="p p-Indicator">,</span><span class="nt"> parent</span><span class="p">:</span><span class="w"> </span><span class="nv">work</span><span class="p p-Indicator">}</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">configure</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">surface</span><span class="p">:</span><span class="w"> </span><span class="nv">s42</span><span class="p p-Indicator">,</span><span class="nt"> size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">900</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">600</span><span class="p p-Indicator">],</span><span class="nt"> states</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">activated</span><span class="p p-Indicator">]}</span>
-<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">update</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">s42</span><span class="p p-Indicator">,</span><span class="nt"> transform</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">translate</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">40</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">40</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">]}}</span>
-<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">update</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">work</span><span class="p p-Indicator">,</span><span class="nt"> effects</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt">shader</span><span class="p">:</span><span class="w"> </span><span class="nv">blur.frag</span><span class="p p-Indicator">,</span><span class="nt"> uniforms</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">radius</span><span class="p">:</span><span class="w"> </span><span class="nv">8</span><span class="p p-Indicator">}}]}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">update</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">s42</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">transform</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">translate</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">40</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">40</span><span class="p p-Indicator">]}}}</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">focus</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">surface</span><span class="p">:</span><span class="w"> </span><span class="nv">s42</span><span class="p p-Indicator">}</span>
 </code></pre></div>
+<p><code>create</code> and <code>update</code> take the node properties in <code>props</code>. Unknown fields
+are errors, so a typo never passes silently.</p>
 <h2 id="nodes">Nodes<a class="headerlink" href="#nodes" title="Permanent link">&para;</a></h2>
 <p>This table is the one list of node properties.</p>
 <table>
@@ -1102,7 +1103,7 @@ travel in <strong>transactions</strong> (see <a href="../architecture/#transacti
 <tr>
 <td><code>id</code></td>
 <td>all</td>
-<td>stable id; the core assigns ids to surfaces</td>
+<td>stable id; ids of the form <code>s1</code>, <code>s2</code> belong to surfaces, and the core assigns them</td>
 </tr>
 <tr>
 <td><code>owner</code></td>
@@ -1132,7 +1133,7 @@ travel in <strong>transactions</strong> (see <a href="../architecture/#transacti
 <tr>
 <td><code>input</code></td>
 <td>all</td>
-<td><code>accept</code>, <code>pass</code> or <code>block</code></td>
+<td><code>accept</code>, <code>pass</code> or <code>block</code>; <code>pass</code> and <code>block</code> apply to all descendants</td>
 </tr>
 <tr>
 <td><code>meta</code></td>
@@ -1173,7 +1174,7 @@ the client for a new size.</p>
 </tr>
 <tr>
 <td><code>attach</code></td>
-<td>put a detached surface node under a parent</td>
+<td>put a surface without an owner under a parent; the caller becomes its owner</td>
 </tr>
 <tr>
 <td><code>update</code></td>
@@ -1211,10 +1212,12 @@ the client for a new size.</p>
 </table>
 <p><code>animate</code> lets plugins and agents animate without code in every frame.</p>
 <h2 id="selectors">Selectors<a class="headerlink" href="#selectors" title="Permanent link">&para;</a></h2>
-<p>A selector finds nodes: <code>id:work</code>, <code>app_id:firefox</code>, <code>title~:Inbox</code>,
-<code>meta:role=editor</code>, <code>kind:surface</code>. Selectors work in queries only. A query
-returns all current matches, or an empty list. It always sees the current
-titles.</p>
+<p>A selector finds nodes: <code>id:work</code>, <code>kind:surface</code>, <code>owner:tiling</code>,
+<code>app_id:firefox</code>, <code>title:"make test"</code> (exact), <code>title~:Inbox</code> (contains),
+<code>meta:role=editor</code>. Conditions separated by spaces must all match. A value
+with spaces goes in double quotes. An empty selector or <code>*</code> matches every
+node. Selectors work in queries only. A query returns all current matches,
+or an empty list. It always sees the current titles.</p>
 <h2 id="events">Events<a class="headerlink" href="#events" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1225,38 +1228,38 @@ titles.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>surface.created</code>, <code>surface.destroyed</code></td>
-<td>surface id, <code>app_id</code>, title, role (toplevel, layer, popup)</td>
+<td><code>surface.created</code></td>
+<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title</td>
 </tr>
 <tr>
 <td><code>surface.changed</code></td>
-<td>title, <code>app_id</code>, min and max size, requests for maximize, fullscreen and activation</td>
+<td>surface id, <code>app_id</code>, title</td>
 </tr>
 <tr>
-<td><code>surface.detached</code></td>
+<td><code>surface.destroyed</code>, <code>surface.detached</code></td>
 <td>surface id</td>
 </tr>
 <tr>
-<td><code>input.key</code>, <code>input.pointer</code>, <code>input.touch</code>, <code>input.gesture</code></td>
-<td>event data for grabs</td>
+<td><code>input.key</code></td>
+<td>the grabbed binding</td>
 </tr>
 <tr>
-<td><code>output.added</code>, <code>output.removed</code>, <code>output.changed</code></td>
-<td>output, mode, scale, position</td>
+<td><code>output.changed</code>, <code>output.removed</code></td>
+<td>output name, position, size, scale</td>
 </tr>
 <tr>
 <td><code>client.connected</code>, <code>client.disconnected</code></td>
 <td>client name</td>
 </tr>
-<tr>
-<td><code>transaction.applied</code>, <code>transaction.rejected</code></td>
-<td>id, error, for example a shader compile error</td>
-</tr>
 </tbody>
 </table>
+<p>The response of <code>scene.apply</code> reports the result of a transaction: <code>null</code>
+when it applied, an error with the index of the failed command when not.
+Later milestones add events for size limits, activation requests and
+pointer grabs.</p>
 <h2 id="ipc-methods">IPC methods<a class="headerlink" href="#ipc-methods" title="Permanent link">&para;</a></h2>
 <p>JSON-RPC 2.0, one message per line, on the socket in <code>CHORA_SOCKET</code>. Every
-client sends <code>hello</code> first.</p>
+client sends <code>hello</code> first. The core answers every request.</p>
 <table>
 <thead>
 <tr>
@@ -1274,16 +1277,16 @@ client sends <code>hello</code> first.</p>
 <td>read nodes</td>
 </tr>
 <tr>
-<td><code>scene.apply(transaction)</code></td>
+<td><code>scene.apply(commands)</code></td>
 <td>apply a transaction</td>
 </tr>
 <tr>
-<td><code>events.subscribe(filter)</code></td>
-<td>stream events as notifications</td>
+<td><code>events.subscribe(events)</code></td>
+<td>stream the named events, or all events for an empty list, as notifications</td>
 </tr>
 <tr>
 <td><code>input.grab(binding)</code></td>
-<td>get the events of a key, a button or a gesture</td>
+<td>get the events of a key, a button or a gesture; returns the binding as <code>input.key</code> names it</td>
 </tr>
 <tr>
 <td><code>input.inject(events)</code></td>
@@ -1307,14 +1310,21 @@ client sends <code>hello</code> first.</p>
 </tr>
 </tbody>
 </table>
+<p>A connection sends <code>hello</code> once. Connections with the same name share their
+nodes, so they must agree on <code>keep_nodes</code>. The core refuses a <code>hello</code> with a
+different value. For example, <code>choractl --name tiling</code> fails while the tiling
+plugin runs.</p>
+<p>A key binding needs Ctrl, Alt or Super, so that typing still works. Ctrl+Alt
+belongs to the safety layer, so no client can grab it. A binding has one
+owner at a time.</p>
 <p>The core implements <code>wlr-output-management</code>, so kanshi and wlr-randr
 configure the outputs. The API has no output configuration of its own.</p>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
 <p>A plugin is a client with a manifest:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
 <span class="nt">exec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora-tiling</span>
-<span class="nt">subscribe</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">surface.created</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">surface.destroyed</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">output.changed</span><span class="p p-Indicator">]</span>
-<span class="nt">grabs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Super+h</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+l</span><span class="p p-Indicator">]</span>
+<span class="nt">subscribe</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">surface.created</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">surface.detached</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">surface.destroyed</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">output.changed</span><span class="p p-Indicator">]</span>
+<span class="nt">grabs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Super+Return</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+q</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+j</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+k</span><span class="p p-Indicator">]</span>
 <span class="nt">methods</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">set_layout</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">resize</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p><code>choractl</code> reads the manifest when it loads a view. Before views exist (M3),

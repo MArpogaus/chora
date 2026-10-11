@@ -1053,9 +1053,19 @@ check of each choice. <a href="../decisions/">Decisions</a> records the result.<
 <td>Smithay uses it; the IPC socket runs in the same loop</td>
 </tr>
 <tr>
-<td>serde, serde_json, schemars</td>
-<td>API types, JSON-RPC, generated JSON Schemas</td>
+<td><a href="https://github.com/jneem/imbl">imbl</a></td>
+<td>the node map of the scene</td>
+<td>a persistent map, so the copy of the scene for each transaction costs no time</td>
+</tr>
+<tr>
+<td>serde, serde_json, thiserror</td>
+<td>API types, JSON-RPC, error types</td>
 <td></td>
+</tr>
+<tr>
+<td>tracing, tracing-subscriber</td>
+<td>logs</td>
+<td>Smithay logs through tracing too</td>
 </tr>
 </tbody>
 </table>
@@ -1069,6 +1079,11 @@ check of each choice. <a href="../decisions/">Decisions</a> records the result.<
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>clap</td>
+<td>command line arguments</td>
+<td>also for the plugins</td>
+</tr>
 <tr>
 <td>a maintained YAML crate</td>
 <td>views</td>

@@ -333,6 +333,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#try-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Try it
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#documentation" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -935,6 +957,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#try-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Try it
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#documentation" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1007,8 +1051,50 @@ renders a small scene of primitives and offers one API. Plugins add all other
 behavior. A plugin can supply a stacking desktop, a tiling workflow, or a view
 that an agent arranges live by voice. Only a small safety layer is built in.</p>
 <h2 id="status">Status<a class="headerlink" href="#status" title="Permanent link">&para;</a></h2>
-<p>Concept phase. The repository holds the design documents. There is no code
-yet.</p>
+<p>Early development. chora runs nested inside another Wayland session, and a
+reference plugin tiles the windows. The
+<a href="https://marpogaus.github.io/void/roadmap/">roadmap</a> shows the next steps.
+APIs change without notice before version 1.0.</p>
+<h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
+<p>Each <a href="https://github.com/MArpogaus/void/releases">release</a> has an RPM for
+Fedora 43, with SHA256 sums:</p>
+<div class="highlight"><pre><span></span><code>sha256sum<span class="w"> </span>-c<span class="w"> </span>SHA256SUMS
+sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> </span>./chora-*.rpm
+</code></pre></div>
+<h2 id="try-it">Try it<a class="headerlink" href="#try-it" title="Permanent link">&para;</a></h2>
+<p>Start chora with the tiling plugin inside a Wayland session:</p>
+<div class="highlight"><pre><span></span><code>chora<span class="w"> </span>--<span class="w"> </span>chora-tiling
+</code></pre></div>
+<p>A window opens. The plugin uses these bindings:</p>
+<table>
+<thead>
+<tr>
+<th>Binding</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Super+Return</td>
+<td>start a terminal (foot)</td>
+</tr>
+<tr>
+<td>Super+q</td>
+<td>close the focused window</td>
+</tr>
+<tr>
+<td>Super+j, Super+k</td>
+<td>focus the next or previous window</td>
+</tr>
+</tbody>
+</table>
+<p>GNOME keeps Super for itself. There, start <code>chora -- chora-tiling --mod alt</code>
+to use Alt instead. <code>chora-tiling --help</code> lists all options.</p>
+<p>The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
+and Ctrl+Alt+BackSpace quits chora.</p>
+<p>Programs inside chora find its IPC socket in <code>CHORA_SOCKET</code>. For example, a
+terminal in chora shows the scene with <code>choractl query</code>, and
+<code>choractl events</code> prints the events.</p>
 <h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h2>
 <p>The documentation lives in
 <a href="https://github.com/MArpogaus/void/tree/main/docs"><code>docs/</code></a> and on
