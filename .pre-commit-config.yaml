@@ -15,6 +15,10 @@ repos:
     language: system
     types: [rust]
     pass_filenames: false
+  - id: no-gpl-3-only
+    name: no GPL-3.0-only code (the core is GPL-3.0-or-later)
+    entry: SPDX-License-Identifier:\s*GPL-3\.0-only
+    language: pygrep
 
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v6.0.0
