@@ -12,7 +12,7 @@ use std::{
 };
 
 use chora_scene::{
-    Binding, Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
+    Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
     ipc::{ClientError, Grab, Subscribe},
 };
 use serde_json::Value;
@@ -272,9 +272,10 @@ impl Wm {
                 app_id,
                 title,
                 size,
-                ..
+                decoration,
             } => {
-                let mut commands = self.retitle(&surface, app_id, title.as_deref());
+                let mut commands = self.redecorate(&surface, decoration);
+                commands.extend(self.retitle(&surface, app_id, title.as_deref()));
                 if let Some(size) = size.filter(|[w, h]| *w > 0 && *h > 0) {
                     commands.extend(self.resized(&surface, size));
                 }
@@ -360,7 +361,8 @@ impl Wm {
             return Ok(());
         };
         let info = node.surface.unwrap_or_default();
-        let mut commands = self.retitle(surface, info.app_id, info.title.as_deref());
+        let mut commands = self.redecorate(surface, info.decoration);
+        commands.extend(self.retitle(surface, info.app_id, info.title.as_deref()));
         if let Some(size) = info.size.filter(|[w, h]| *w > 0 && *h > 0) {
             commands.extend(self.resized(surface, size));
         }
@@ -542,6 +544,21 @@ impl Wm {
         let mut commands = self.windows[i].style(&mut self.theme, active);
         commands.extend(self.sync_tasks());
         commands
+    }
+
+    /// Who draws the frame: the XP frame shows only for clients that ask
+    /// for one; a client that draws its own, as GTK programs do, gets none.
+    fn redecorate(&mut self, surface: &str, decoration: Option<Decoration>) -> Vec<Command> {
+        let (Some(i), Some(decoration)) = (self.index(surface), decoration) else {
+            return Vec::new();
+        };
+        let framed = decoration != Decoration::Client;
+        if self.windows[i].framed == framed {
+            return Vec::new();
+        }
+        self.windows[i].framed = framed;
+        let active = self.is_active(surface);
+        self.windows[i].style(&mut self.theme, active)
     }
 
     fn request(&mut self, surface: &str, request: SurfaceRequest) -> Vec<Command> {

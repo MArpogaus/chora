@@ -33,6 +33,8 @@ pub struct Window {
     pub desktop: usize,
     /// An effect moves the group: the magic lamp or the cube.
     pub held: bool,
+    /// The plugin draws the frame; false for a client that draws its own.
+    pub framed: bool,
     /// The window shows: it has a size and a place.
     pub shown: bool,
     /// The button of the title bar that is down.
@@ -53,6 +55,7 @@ impl Window {
             minimized: false,
             desktop: 0,
             held: false,
+            framed: true,
             shown: false,
             pressed: None,
         }
@@ -65,7 +68,12 @@ impl Window {
 
     /// The width and height of the frame.
     pub fn outer(&self) -> [i32; 2] {
-        decoration::outer(self.size.unwrap_or([1, 1]), self.maximized())
+        let size = self.size.unwrap_or([1, 1]);
+        if self.framed {
+            decoration::outer(size, self.maximized())
+        } else {
+            size
+        }
     }
 
     /// The frame in scene coordinates.
@@ -83,6 +91,7 @@ impl Window {
             active,
             maximized: self.maximized(),
             pressed: self.pressed,
+            framed: self.framed,
         }
     }
 
@@ -179,7 +188,11 @@ impl Window {
         }
         let [x, y, w, h] = area;
         self.pos = [x, y];
-        self.size = Some(decoration::inner([w, h], true));
+        self.size = Some(if self.framed {
+            decoration::inner([w, h], true)
+        } else {
+            [w, h]
+        });
     }
 
     /// Ends the maximized state; returns the configure with the old size.

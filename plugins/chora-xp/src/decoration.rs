@@ -133,12 +133,18 @@ pub struct Look<'a> {
     pub maximized: bool,
     /// The button that is down.
     pub pressed: Option<Button>,
+    /// The plugin draws the frame; a client that draws its own gets none.
+    pub framed: bool,
 }
 
 impl Look<'_> {
     /// The width and height of the frame.
     pub fn outer(&self) -> [i32; 2] {
-        outer(self.size, self.maximized)
+        if self.framed {
+            outer(self.size, self.maximized)
+        } else {
+            self.size
+        }
     }
 }
 
@@ -200,6 +206,9 @@ pub fn create(surface: &str, parent: &str) -> Vec<Command> {
 
 /// The updates that give a decoration its look.
 pub fn update(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Vec<Command> {
+    if !look.framed {
+        return unframed(surface);
+    }
     let mut commands = vec![
         frame(theme, surface, look),
         title(theme, surface, look),
@@ -211,6 +220,28 @@ pub fn update(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Vec<Command>
     for button in Button::ALL {
         commands.push(self::button(theme, surface, look, button));
     }
+    commands
+}
+
+/// A window that draws its own frame: the parts of the frame hide, and the
+/// client sits at the corner of the frame.
+fn unframed(surface: &str) -> Vec<Command> {
+    let hide = |id: String| Command::Update {
+        id,
+        props: PropsUpdate {
+            visible: Some(false),
+            ..PropsUpdate::default()
+        },
+    };
+    let mut commands = vec![
+        hide(frame_id(surface)),
+        hide(title_id(surface)),
+        Command::Update {
+            id: surface.into(),
+            props: at([0.0, 0.0]),
+        },
+    ];
+    commands.extend(Button::ALL.map(|b| hide(button_id(surface, b))));
     commands
 }
 
