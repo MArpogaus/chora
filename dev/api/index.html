@@ -1271,6 +1271,14 @@ or an empty list. It always sees the current titles.</p>
 <td>the grabbed binding</td>
 </tr>
 <tr>
+<td><code>pointer.pressed</code></td>
+<td>a button went down over a node that takes input: node, Linux button code, position in scene coordinates</td>
+</tr>
+<tr>
+<td><code>pointer.moved</code>, <code>pointer.released</code></td>
+<td>after a press over a rect or an image, until the button goes up: node and position; <code>pointer.released</code> with the button</td>
+</tr>
+<tr>
 <td><code>animation.done</code></td>
 <td>the node whose animation reached its targets</td>
 </tr>
@@ -1293,8 +1301,10 @@ when it applied, an error with the index of the failed command when not.
 A request that a client makes before its first commit follows its
 <code>surface.created</code>. A taskbar asks through <code>wlr-foreign-toplevel-management</code>.
 The core does not act on a request, also not on <code>close</code>. A plugin answers
-with commands, for example <code>close</code>. Later milestones add events for size
-limits and pointer grabs.</p>
+with commands, for example <code>close</code>. A press over a surface reaches its
+client as well; a press over a rect or an image goes to plugins only, with
+the moves and the release that follow, so that a plugin can drag a window
+by its title bar. Later milestones add events for size limits.</p>
 <h2 id="ipc-methods">IPC methods<a class="headerlink" href="#ipc-methods" title="Permanent link">&para;</a></h2>
 <p>JSON-RPC 2.0, one message per line, on the socket in <code>CHORA_SOCKET</code>. Every
 client sends <code>hello</code> first. The core answers every request.</p>
