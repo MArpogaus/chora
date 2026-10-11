@@ -17,7 +17,7 @@ repos:
     pass_filenames: false
   - id: no-gpl-3-only
     name: no GPL-3.0-only code (the core is GPL-3.0-or-later)
-    entry: SPDX-License-Identifier:\s*GPL-3\.0-only
+    entry: SPDX-License-Identifier:\s*GPL-3\.0(-only)?(?![-+.\w])
     language: pygrep
 
 - repo: https://github.com/pre-commit/pre-commit-hooks
