@@ -5,23 +5,23 @@ as possible. A module moves into its own crate only when a second consumer
 needs it. No crate exists yet.
 
 ```text
-void/
+chora/
 ├── crates/
-│   ├── void-scene/   # scene model, commands, events, transactions, selectors; no Smithay
-│   ├── void/         # the compositor: Smithay, backends, renderer, input, safety, IPC, plugin host
-│   └── voidctl/      # CLI over the IPC socket; `voidctl mcp` is the MCP bridge
-├── plugins/          # reference plugins: tiling, stacking, keybindings
-├── dist/             # void.desktop session file, packaging
-├── docs/             # this documentation (MkDocs)
+│   ├── chora-scene/   # scene model, commands, events, transactions, selectors; no Smithay
+│   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
+│   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
+├── plugins/           # reference plugins: tiling, stacking, keybindings
+├── dist/              # chora.desktop session file, packaging
+├── docs/              # this documentation (MkDocs)
 ├── mkdocs.yml
-└── Cargo.toml        # workspace, lints
+└── Cargo.toml         # workspace, lints
 ```
 
 ## Reasons for this split
 
-- **`void-scene` has no Smithay dependency.** Tests of the data model and the
-  transaction logic need no GPU and no compositor. The core, `voidctl` and
-  plugins share this one definition of the API.
+- **`chora-scene` has no Smithay dependency.** Tests of the data model and
+  the transaction logic need no GPU and no compositor. The core, `choractl`
+  and plugins share this one definition of the API.
 - **Reference plugins live in this repository** first. They keep the API
   honest. They can move out when the API is stable.
 - **The build generates the schemas** from the Rust types. The repository
@@ -32,6 +32,6 @@ void/
 
 | Repository | Role |
 |------------|------|
-| `secureblue-images` | derived image that installs Void as an additional session |
+| `secureblue-images` | derived image that installs Chora as an additional session |
 | `image-builder-action` | builds and signs that image |
 | `distrobox-images` | container images for services |

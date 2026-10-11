@@ -19,23 +19,34 @@ All ideas that are not decisions yet. An idea moves to
 
 - Effects like in Hyprland and Compiz: blur, shadows, rounded corners, wobbly
   windows, cube, overview, transitions.
-- An infinite zoomable canvas.
+- An infinite zoomable canvas through viewports.
 - Surfaces as 3D objects.
 - Pixel-perfect copies of existing desktops (Windows XP, KDE Plasma) as
   flavors. They prove the flexibility. They are not a goal.
 
-## Agents and the ecosystem around Void
+## Agents and the ecosystem around Chora
 
 - An inventory: a local, git-versioned store of reusable elements. Code for
   one-time use goes away, useful code stays.
 - Agent memory in the home directory.
+- *Demiurge* as the name of the coordinating agent. In Plato, the demiurge
+  shapes the forms in the chora.
+
+## Core extensions
+
+- In-process WASM plugins on wasmtime with the Component Model, for effects
+  that need code in every frame, for example wobbly windows. Only after a
+  measurement shows the need (D27).
+- A portal backend of its own, so that screen sharing can share a group or a
+  canvas instead of a whole output or window.
 
 ## Services
 
 - A local inference engine (LLM) in a container.
 - Speech services (whisper, piper).
 - Development environments with special configurations (distrobox).
-- A webview host for HTML that agents generate.
+- A dedicated webview host on `gtk4-layer-shell`, if a browser in app mode is
+  too slow, too heavy or cannot be transparent.
 
 ## Platform
 

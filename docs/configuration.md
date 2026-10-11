@@ -1,9 +1,5 @@
 # Configuration
 
-!!! note "Draft"
-    Proposal R2 in [Decisions](decisions.md) moves views, flavors and
-    services out of the core. This page shows that model.
-
 Views are YAML files in git, and an agent can read and write them. A strict
 schema validates each file. It rejects unknown keys and catches the YAML
 traps, for example `no` read as `false`.
@@ -12,13 +8,13 @@ The core reads no configuration file. It starts one command, usually the
 systemd target of a flavor:
 
 ```bash
-void -- systemctl --user start tiling.target
+chora -- systemctl --user start tiling.target
 ```
 
 ## Locations
 
 ```text
-~/.config/void/
+~/.config/chora/
 ├── views/      # one file per view
 ├── flavors/    # bundles of views, plugins and services
 ├── plugins/    # plugin manifests
@@ -30,11 +26,11 @@ The directory is a git repository. It contains no secrets.
 ## Views
 
 A view is a part of the scene and the plugins that drive it.
-`voidctl view load <name>` starts the plugins of the view and applies its
-nodes as one transaction. Only `voidctl` starts plugins.
+`choractl view load <name>` starts the plugins of the view and applies its
+nodes as one transaction. Only `choractl` starts plugins.
 
 ```yaml
-# ~/.config/void/views/analysis.yaml
+# ~/.config/chora/views/analysis.yaml
 name: analysis
 plugins:
 - name: tiling
@@ -57,15 +53,15 @@ plugin and its configuration.
 
 A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target. The target starts the services and then loads the first
-view with `voidctl`. systemd handles start, restart and order, so Void needs
-no service manager.
+view with `choractl`. systemd handles start, restart and order, so Chora
+needs no service manager.
 
 ```text
 flavors/agentic/
 ├── agentic.target
 ├── views/       # morning, analysis, writing, coding
 ├── plugins/     # canvas layout, keybindings
-└── services/    # Quadlet units: speech, webview host
+└── services/    # Quadlet units: speech, browser in app mode
 ```
 
 ## Services

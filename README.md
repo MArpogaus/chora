@@ -1,13 +1,14 @@
-# Void
+# Chora
 
-Void is a Wayland compositor without policy. It is a programmable scene, not a
-desktop.
+*Chora is the space where forms appear.*
 
-Void has no window manager, no layout, no keybindings and no look. The core
-renders a small scene of primitives and offers one API. Plugins add all
-other behavior. A plugin can supply a stacking desktop, a tiling workflow, or
-a view that an agent arranges live by voice. Only a small safety layer is
-built in.
+Chora is a Wayland compositor without policy. It is a programmable scene, not
+a desktop.
+
+Chora has no window manager, no layout, no keybindings and no look. The core
+renders a small scene of primitives and offers one API. Plugins add all other
+behavior. A plugin can supply a stacking desktop, a tiling workflow, or a view
+that an agent arranges live by voice. Only a small safety layer is built in.
 
 ## Status
 
@@ -23,6 +24,11 @@ The documentation lives in
 ## Contributing
 
 See [CONTRIBUTING.md](https://github.com/MArpogaus/void/blob/main/CONTRIBUTING.md).
+
+## License
+
+GPL-3.0-or-later. See
+[LICENSE](https://github.com/MArpogaus/void/blob/main/LICENSE).
 
 ## Use of LLM coding tools
 

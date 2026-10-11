@@ -1,43 +1,43 @@
 # Architecture
 
 !!! note "Draft"
-    This page shows the architecture after the first review. The proposals
-    (P and R) in [Decisions](decisions.md) can still change it. The page names
-    them where they apply.
+    This page follows the [Decisions](decisions.md). The first implementation
+    will refine it.
 
 ## Overview
 
 ```mermaid
 flowchart TB
-    subgraph core["void (Rust, Smithay)"]
+    subgraph core["chora (Rust, Smithay)"]
         protocols["Wayland protocols"]
         backends["Backends: DRM/KMS and libinput, winit for development"]
-        scene["Scene: group, surface, rect, image, shader"]
+        scene["Scene: group, surface, rect, shader"]
         render["Renderer: GLES and GLSL shaders"]
         input["Input router"]
         ipc["IPC socket: JSON-RPC"]
         safety["Safety layer"]
     end
-    clients["Wayland clients: apps, Quickshell, waybar, webviews"] <--> protocols
-    plugins["Plugins: WM, layouts, effects, keybindings"] <--> ipc
-    voidctl["voidctl: CLI and MCP bridge"] <--> ipc
+    clients["Wayland clients: apps, Quickshell, waybar, browsers"] <--> protocols
+    plugins["Plugins: WM, layouts, keybindings"] <--> ipc
+    choractl["choractl: CLI and MCP bridge"] <--> ipc
     services["Services in containers"] <--> ipc
-    agents["Agents: MCP clients"] <--> voidctl
+    agents["Agents: MCP clients"] <--> choractl
     services -.-> clients
+    plugins -.-> clients
 ```
 
 The core has one language: **commands** and **events** (see [API](api.md)).
-Plugins, `voidctl`, services and agents all use it. Nothing outside the core
+Plugins, `choractl`, services and agents all use it. Nothing outside the core
 changes the scene in another way.
 
-The diagram shows plugins as IPC clients, as proposal R1 suggests. Decision D7
-adds in-process plugins for work in every frame. R1 defers them.
+Plugins are separate processes (D27). A plugin can also be a Wayland client,
+for example to draw window decorations as its own surfaces.
 
 ## Components
 
 ### Core
 
-The compositor binary `void`. Its tasks, and nothing more:
+The compositor binary `chora`. Its tasks, and nothing more:
 
 - Wayland protocol handling and the client lifecycle, through Smithay.
 - Backends: DRM/KMS and libinput on real hardware, through libseat. A winit
@@ -56,18 +56,29 @@ appears, or if it appears at all.
 ### Scene
 
 The scene is a tree of nodes with stable ids. [API](api.md#nodes) lists the
-node properties. The order of the children sets the stacking order.
-
-The crate `void-scene` holds the scene model (see
+node properties. The order of the children sets the stacking order. The crate
+`chora-scene` holds the scene model (see
 [Project structure](project-structure.md)).
+
+All outputs show one logical scene. Each output has a **viewport**: a
+transform from scene coordinates to output pixels. A plugin moves or scales a
+viewport to pan or zoom. Two outputs side by side get two adjacent viewports.
+One window across two outputs then needs no special case.
+
+Each node has one **owner**: the client that created or attached it. The core
+rejects changes from other clients. When a plugin disconnects, the core
+removes its nodes. Its surfaces become detached.
 
 ### Renderer
 
-The core uses Smithay's GLES renderer through Smithay's own renderer traits
-(P3).
+The core uses Smithay's GLES renderer through Smithay's own renderer traits.
 Custom texture and pixel shaders give blur, rounded corners, shadows, color
 effects and transitions. niri shows what this approach can do. Shaders are
 GLSL ES. The core compiles them at runtime and reloads them when they change.
+A shader can read other nodes as textures.
+
+Transforms are 4x4 matrices, so 3D effects need no API change. The first
+milestone renders and tests 2D cases only.
 
 Damage tracking keeps the GPU load low. Each shader declares if it is static
 or animated, and effects expand the damage area. A fullscreen surface without
@@ -75,15 +86,19 @@ effects goes to direct scanout.
 
 ### IPC socket
 
-JSON-RPC 2.0 on a Unix socket. The core exports its path as `VOID_SOCKET`.
-`voidctl`, plugins and services connect to it. Event subscriptions stream over
-the same connection.
+JSON-RPC 2.0 on a Unix socket. The core exports its path as `CHORA_SOCKET`.
+`choractl`, plugins and services connect to it. Event subscriptions stream
+over the same connection.
 
-### voidctl and the MCP bridge
+A plugin can export **methods**, for example `tiling.set_layout`. The core
+forwards a method call to the plugin and returns the answer. An agent then
+asks the window manager for a change instead of fighting it.
 
-`voidctl` is the CLI for the coordinator. `voidctl mcp` serves the API as MCP
-tools over stdio. MCP stays out of the core (P2), so the MCP side can change
-without a change to the compositor.
+### choractl and the MCP bridge
+
+`choractl` is the CLI for the coordinator. It loads views and starts their
+plugins. `choractl mcp` serves the API as MCP tools over stdio. MCP stays out
+of the core, so the MCP side can change without a change to the compositor.
 
 ## Transactions
 
@@ -92,8 +107,8 @@ A transaction is a batch of commands. The core applies it as one unit.
 Some commands need a client round trip. A resize sends a configure event, and
 the client must answer with a new buffer. The core therefore holds the
 transaction until all affected clients commit, or until a deadline passes.
-Then the core shows all changes in the same frame. Sway, niri and River work
-the same way.
+Then the core shows all changes in the same frame. Sway, niri, River and
+Pinnacle work the same way.
 
 ## Frame flow
 
@@ -104,7 +119,8 @@ sequenceDiagram
     participant R as Renderer
     B->>C: vblank
     C->>C: apply the transactions that are ready
-    C->>R: render the damaged parts of the scene
+    C->>C: advance the running animations
+    C->>R: render the damaged parts of each viewport
     R-->>B: page flip
 ```
 
@@ -129,20 +145,27 @@ The safety layer is the only built-in behavior (see
 
 - **Fixed bindings** for VT switch, quit and emergency reset. Injected input
   never triggers them.
-- **Emergency reset.** The core unloads all plugins, removes all effects and
-  puts all surfaces in a simple grid. This grid is the one layout in the core.
-  It is hardcoded, so a broken config cannot break it.
+- **Emergency reset.** The core disconnects all plugins, removes all effects
+  and puts all surfaces in a simple grid. This grid is the one layout in the
+  core. It is hardcoded, so a broken configuration cannot break it.
 - **Session lock.** The core enforces `ext-session-lock`. The lock surface is
   above every plugin node.
 - **Watchdog.** When frames miss their deadline repeatedly, the core removes
-  the effects first and then the plugins.
-- **Plugin failure.** A plugin that crashes or hangs loses its nodes. Its
-  surfaces become detached, and the core sends an event. The core keeps
-  running.
+  the effects first and then disconnects the plugins.
+
+## Permissions
+
+Version 1 trusts every client of the same user on the IPC socket, as sway
+does. Three mechanisms add protection:
+
+- `wp-security-context-v1` hides privileged Wayland protocols, for example
+  screencopy and virtual keyboards, from sandboxed clients.
+- A container gets a restricted IPC socket through a bind mount.
+- Input injection and screen capture need the approval of the user.
 
 ## Deployment
 
-- A binary and a `void.desktop` session file. A display manager then offers
-  Void next to the existing desktops.
+- A binary and a `chora.desktop` session file. A display manager then offers
+  Chora next to the existing desktops.
 - A derived secureblue image, built with `secureblue-images` and
-  `image-builder-action`, installs Void.
+  `image-builder-action`, installs Chora.
