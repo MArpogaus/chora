@@ -20,7 +20,8 @@ pub enum Command {
         #[serde(default)]
         props: PropsUpdate,
     },
-    /// Puts a surface node under a parent. The caller becomes its owner.
+    /// Puts a surface node without an owner under a parent. The caller
+    /// becomes its owner.
     Attach {
         /// The surface node.
         surface: String,

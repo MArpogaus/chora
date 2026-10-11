@@ -22,6 +22,9 @@ pub enum SceneError {
     /// The node has the wrong kind for this command.
     #[error("node {0:?} is not a {1}")]
     WrongKind(String, &'static str),
+    /// The surface has an owner; the owner moves it with `move`.
+    #[error("surface {0:?} has an owner; the owner moves it with move")]
+    Attached(String),
     /// The command would put a node into its own subtree.
     #[error("node {0:?} cannot move into its own subtree")]
     Cycle(String),
@@ -205,9 +208,10 @@ impl Scene {
     }
 
     fn attach(&mut self, owner: &str, surface: &str, parent: &str) -> Result<(), SceneError> {
-        let node = self.surface(surface)?;
-        if let Some(other) = node.owner.as_deref().filter(|o| *o != owner) {
-            return Err(SceneError::NotOwner(surface.into(), other.into()));
+        match self.surface(surface)?.owner.as_deref() {
+            None => {}
+            Some(o) if o == owner => return Err(SceneError::Attached(surface.into())),
+            Some(other) => return Err(SceneError::NotOwner(surface.into(), other.into())),
         }
         self.group(parent)?;
         self.unlink(surface);

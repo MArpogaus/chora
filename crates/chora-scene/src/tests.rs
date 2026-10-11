@@ -268,3 +268,13 @@ fn a_detached_surface_forgets_the_properties_of_its_old_owner() {
     scene.disconnect("wm");
     assert!(scene.node("s1").unwrap().props.visible);
 }
+
+#[test]
+fn the_owner_moves_its_surface_instead_of_attaching_it_again() {
+    let mut scene = scene_with_surface();
+    scene
+        .apply("wm", &[attach("s1", ROOT), group("g", ROOT)])
+        .unwrap();
+    let err = scene.apply("wm", &[attach("s1", "g")]).unwrap_err();
+    assert_eq!(err.error, SceneError::Attached("s1".into()));
+}
