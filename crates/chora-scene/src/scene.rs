@@ -62,9 +62,10 @@ pub struct Placed<'a> {
     pub input: InputMode,
 }
 
-/// The node limit of `create`. The root and the surfaces count toward it,
-/// but the core never refuses a surface. The limit keeps a buggy client from
-/// growing the scene, and with it each frame, without bound.
+/// The limit of the nodes that clients create, the root included. Surfaces
+/// do not count, so that Wayland clients cannot use up the limit. The limit
+/// keeps a buggy client from growing the scene, and with it each frame,
+/// without bound.
 pub const MAX_NODES: usize = 16_384;
 
 /// The scene tree.
@@ -73,6 +74,8 @@ pub struct Scene {
     nodes: OrdMap<String, Node>,
     /// The cameras that clients set: the owner and the transform by output.
     cameras: OrdMap<String, (String, Transform)>,
+    /// The number of surface nodes, which the node limit leaves out.
+    surfaces: usize,
 }
 
 impl Default for Scene {
@@ -89,6 +92,7 @@ impl Default for Scene {
         Self {
             nodes: OrdMap::unit(ROOT.into(), root),
             cameras: OrdMap::new(),
+            surfaces: 0,
         }
     }
 }
@@ -133,6 +137,7 @@ impl Scene {
             surface: Some(info),
         };
         self.nodes.insert(id.into(), node);
+        self.surfaces += 1;
         true
     }
 
@@ -147,7 +152,9 @@ impl Scene {
     /// Returns whether the node existed.
     pub fn remove_surface(&mut self, id: &str) -> bool {
         self.unlink(id);
-        self.nodes.remove(id).is_some()
+        let existed = self.nodes.remove(id).is_some();
+        self.surfaces -= usize::from(existed);
+        existed
     }
 
     /// Applies a transaction for `owner`. Either all commands apply, or
@@ -289,7 +296,7 @@ impl Scene {
         if self.nodes.contains_key(&id) {
             return Err(SceneError::Exists(id));
         }
-        if self.nodes.len() >= MAX_NODES {
+        if self.nodes.len() - self.surfaces >= MAX_NODES {
             return Err(SceneError::Invalid(format!(
                 "{id:?}: the scene holds {MAX_NODES} nodes, its limit"
             )));

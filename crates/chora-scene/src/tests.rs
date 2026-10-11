@@ -358,7 +358,10 @@ fn the_scene_has_a_node_limit() {
     let groups = |range: std::ops::Range<usize>| -> Vec<Command> {
         range.map(|i| group(&format!("g{i}"), ROOT)).collect()
     };
-    // The root counts as one node.
+    // Surfaces do not count; the root does.
+    for i in 1..=10 {
+        scene.add_surface(&format!("s{i}"), SurfaceInfo::default());
+    }
     scene.apply("wm", &groups(1..MAX_NODES)).unwrap();
     let err = scene
         .apply("wm", &groups(MAX_NODES..MAX_NODES + 1))
