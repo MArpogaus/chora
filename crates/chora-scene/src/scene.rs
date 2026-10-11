@@ -155,10 +155,15 @@ impl Scene {
                 kind,
                 parent,
                 props,
-            } => self.create(owned_node(owner, id, *kind, props), parent),
+            } => {
+                check_rect_props(id, *kind, props)?;
+                self.create(owned_node(owner, id, *kind, props), parent)
+            }
             Command::Attach { surface, parent } => self.attach(owner, surface, parent),
             Command::Update { id, props } => {
-                self.owned_mut(owner, id)?.props.apply(props);
+                let node = self.owned_mut(owner, id)?;
+                check_rect_props(id, node.kind, props)?;
+                node.props.apply(props);
                 Ok(())
             }
             Command::Move { id, parent, index } => {
@@ -434,6 +439,14 @@ impl Scene {
             Some(_) => Err(SceneError::WrongKind(id.into(), "group")),
         }
     }
+}
+
+/// Only rects have a size and a color.
+fn check_rect_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
+    if kind != NodeKind::Rect && (props.size.is_some() || props.color.is_some()) {
+        return Err(SceneError::WrongKind(id.into(), "rect"));
+    }
+    Ok(())
 }
 
 fn owned_node(owner: &str, id: &str, kind: NodeKind, update: &PropsUpdate) -> Node {

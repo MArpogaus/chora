@@ -278,3 +278,21 @@ fn the_owner_moves_its_surface_instead_of_attaching_it_again() {
     let err = scene.apply("wm", &[attach("s1", "g")]).unwrap_err();
     assert_eq!(err.error, SceneError::Attached("s1".into()));
 }
+
+#[test]
+fn size_and_color_belong_to_rects() {
+    let mut scene = Scene::default();
+    let sized = PropsUpdate {
+        size: Some([10.0, 10.0]),
+        ..PropsUpdate::default()
+    };
+    let create = |kind| Command::Create {
+        id: "n".into(),
+        kind,
+        parent: ROOT.into(),
+        props: sized.clone(),
+    };
+    let err = scene.apply("wm", &[create(NodeKind::Group)]).unwrap_err();
+    assert_eq!(err.error, SceneError::WrongKind("n".into(), "rect"));
+    scene.apply("wm", &[create(NodeKind::Rect)]).unwrap();
+}
