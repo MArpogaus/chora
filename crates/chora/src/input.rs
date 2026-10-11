@@ -26,7 +26,7 @@ use smithay::{
 };
 
 use crate::{
-    output::output_area,
+    output::{Spot, output_area},
     render,
     state::{ClientState, State},
 };
@@ -255,6 +255,9 @@ fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime)
     let Some(spot) = state.spot(layout) else {
         return;
     };
+    if state.node_grab.is_none() {
+        hover(state, &spot);
+    }
     // The drag of a node goes to plugins only.
     let under = if let Some((node, _)) = state.node_grab.clone() {
         let position = [spot.scene.x, spot.scene.y];
@@ -300,6 +303,20 @@ fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
         },
     );
     pointer.frame(state);
+}
+
+/// Tells plugins when the pointer comes over another node.
+fn hover(state: &mut State, spot: &Spot) {
+    let node = render::node_under(state, spot);
+    if node == state.hovered {
+        return;
+    }
+    if let Some(node) = std::mem::replace(&mut state.hovered, node.clone()) {
+        state.emit(&SceneEvent::PointerLeft { node });
+    }
+    if let Some(node) = node {
+        state.emit(&SceneEvent::PointerEntered { node });
+    }
 }
 
 /// Tells plugins about a press over a node. Over a rect or an image, the

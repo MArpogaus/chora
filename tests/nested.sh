@@ -395,7 +395,8 @@ rpc '[{"create": {"id": "handle", "kind": "rect", "parent": "root",
        "props": {"size": [50, 50], "color": [1, 1, 1, 1],
                  "transform": {"translate": [1150, 700]}}}}]' >"$out/handle.json"
 all_results "$out/handle.json" || fail "answers: $out/handle.json"
-"$bin/choractl" events pointer.pressed pointer.moved pointer.released >"$out/pointer.jsonl" &
+"$bin/choractl" events pointer.pressed pointer.moved pointer.released pointer.entered \
+    >"$out/pointer.jsonl" &
 events_pid=$!
 pids+=("$events_pid")
 sleep 0.3
@@ -405,10 +406,14 @@ timeout 20 "$bin/chora-probe" drag 1170 720 1200 760 >>"$out/probe.log" 2>&1 ||
     fail "the drag failed: $out/probe.log"
 wait_for grep -q '"event":"pointer.released"' "$out/pointer.jsonl"
 kill "$events_pid"
-jq -se 'map(select(.node == "handle")) | map(.event) | .[0] == "pointer.pressed"
+jq -se 'map(select(.event == "pointer.entered" and .node == "handle")) | length == 1' \
+    "$out/pointer.jsonl" >/dev/null || fail "no hover: $out/pointer.jsonl"
+jq -se 'map(select(.node == "handle" and .event != "pointer.entered")) | map(.event)
+        | .[0] == "pointer.pressed"
         and index("pointer.moved") != null and .[-1] == "pointer.released"' \
     "$out/pointer.jsonl" >/dev/null || fail "pointer events: $out/pointer.jsonl"
-jq -se '.[0].button == 272 and .[-1].position == [1200, 760]' "$out/pointer.jsonl" \
+jq -se 'map(select(.event == "pointer.pressed"))[0].button == 272
+        and .[-1].position == [1200, 760]' "$out/pointer.jsonl" \
     >/dev/null || fail "button or position: $out/pointer.jsonl"
 
 step "21. a layer shows through its mesh, and turns with its transform"

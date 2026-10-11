@@ -79,6 +79,20 @@ pub enum Event {
         /// The pointer in scene coordinates.
         position: [f64; 2],
     },
+    /// The pointer came over a node that takes pointer input: the top one
+    /// under it, a surface, a rect or an image. Not during a drag of a
+    /// node, nor while the session is locked.
+    #[serde(rename = "pointer.entered")]
+    PointerEntered {
+        /// The node.
+        node: String,
+    },
+    /// The pointer left the node of the last `pointer.entered`.
+    #[serde(rename = "pointer.left")]
+    PointerLeft {
+        /// The node.
+        node: String,
+    },
     /// The pointer moved while a button that went down over a rect or an
     /// image is still down.
     #[serde(rename = "pointer.moved")]
