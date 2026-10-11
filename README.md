@@ -12,8 +12,46 @@ that an agent arranges live by voice. Only a small safety layer is built in.
 
 ## Status
 
-Concept phase. The repository holds the design documents. There is no code
-yet.
+Early development. chora runs nested inside another Wayland session, and a
+reference plugin tiles the windows. The
+[roadmap](https://marpogaus.github.io/void/roadmap/) shows the next steps.
+APIs change without notice before version 1.0.
+
+## Install
+
+Each [release](https://github.com/MArpogaus/void/releases) has an RPM for
+Fedora 43, with SHA256 sums:
+
+```bash
+sha256sum -c SHA256SUMS
+sudo dnf install ./chora-*.rpm
+```
+
+## Try it
+
+Start chora with the tiling plugin inside a Wayland session:
+
+```bash
+chora -- chora-tiling
+```
+
+A window opens. The plugin uses these bindings:
+
+| Binding | Action |
+|---------|--------|
+| Super+Return | start a terminal (foot) |
+| Super+q | close the focused window |
+| Super+j, Super+k | focus the next or previous window |
+
+GNOME keeps Super for itself. There, start `chora -- chora-tiling --mod alt`
+to use Alt instead. `chora-tiling --help` lists all options.
+
+The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
+and Ctrl+Alt+BackSpace quits chora.
+
+Programs inside chora find its IPC socket in `CHORA_SOCKET`. For example, a
+terminal in chora shows the scene with `choractl query`, and
+`choractl events` prints the events.
 
 ## Documentation
 
