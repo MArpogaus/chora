@@ -14,7 +14,7 @@ terms and no synonyms.
 | **Rect** | A colored rectangle with optional rounded corners and border. |
 | **Shader** | A node that a fragment shader draws completely. A shader can read other nodes as textures. A shader can also be an **effect**. |
 | **Effect** | A shader that changes how a node and its children look, for example blur or a color change. Every node can have effects. |
-| **Camera** | The part of the scene that one output shows: a transform from scene coordinates to output pixels. |
+| **Camera** | The part of the scene that one output shows: a transform from scene coordinates to the logical coordinates of the output. |
 | **Client** | A process on the IPC socket: a plugin, `choractl` or a service. A client names itself when it connects. |
 | **Owner** | The client name that created or attached a node. Only the owner changes the node. |
 | **Toplevel** | A surface with the role of an application window (`xdg_toplevel`). Other roles are layer surfaces and popups. |

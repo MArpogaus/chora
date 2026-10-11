@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::Transform;
+
 /// One event. The JSON form carries the name in the field `event`, for
 /// example `{"event": "surface.created", "surface": "s1", ...}`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -82,4 +84,10 @@ pub struct OutputInfo {
     pub size: [i32; 2],
     /// The scale factor.
     pub scale: f64,
+    /// The camera: the transform from scene coordinates to the logical
+    /// coordinates of the output.
+    pub camera: Transform,
+    /// The part of the scene that the output shows, without the areas that
+    /// panels reserve: x, y, width and height in scene coordinates.
+    pub work_area: [i32; 4],
 }

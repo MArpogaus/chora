@@ -291,8 +291,7 @@ impl Tiling {
 }
 
 fn area_of(output: &OutputInfo) -> [i32; 4] {
-    let ([x, y], [w, h]) = (output.position, output.size);
-    [x, y, w, h]
+    output.work_area
 }
 
 /// The cells of a master and stack layout: the first window takes the left

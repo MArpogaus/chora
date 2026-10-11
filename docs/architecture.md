@@ -83,14 +83,17 @@ name, not a connection, so several `choractl` calls share their nodes.
 ### Cameras
 
 All outputs show one logical scene. Each output has a **camera**: a
-transform from scene coordinates to output pixels.
+transform from scene coordinates to the logical coordinates of the output.
+The output scale then gives the pixels.
 
 - The default camera follows the output layout of `wlr-output-management`.
-  An output at position (x, y) with scale s shows the scene area from (x, y)
-  with the size of the output divided by s.
-- The `camera` command replaces the default, for example to pan or zoom. The
-  first client that sets the camera of an output owns it. When the owner
-  disconnects, the output gets its default camera back.
+  An output at position (x, y) shows the scene area from (x, y) with the
+  logical size of the output. Scene and layout coordinates then agree.
+- The `camera` command replaces the default, for example to pan or zoom. A
+  camera is a 2D translation and a positive scale. The first client that
+  sets the camera of an output owns it. When the owner disconnects, the
+  output gets its default camera back. The reset restores all default
+  cameras.
 - Two outputs side by side get two adjacent default cameras. A window across
   two outputs then needs no special case.
 

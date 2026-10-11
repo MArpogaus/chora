@@ -17,7 +17,7 @@ use smithay::{
     utils::SERIAL_COUNTER,
 };
 
-use crate::{render, state::State};
+use crate::{output::output_area, render, state::State};
 
 /// What a key press does besides reaching a client.
 enum KeyAction {
@@ -93,8 +93,15 @@ fn press_action(state: &State, mods: &ModifiersState, syms: &[Keysym]) -> Option
     Some(KeyAction::Grab(conn, binding))
 }
 
+/// Absolute motion, as from the winit window, which shows the first output.
 fn motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionAbsoluteEvent) {
-    let pos = event.position_transformed(state.output_size());
+    let Some(area) = state.outputs.first().map(output_area) else {
+        return;
+    };
+    let layout = area.loc.to_f64() + event.position_transformed(area.size);
+    let Some((_, pos)) = state.output_at(layout) else {
+        return;
+    };
     let under = render::surface_under(state, pos).map(|u| (u.surface, u.location));
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     pointer.motion(

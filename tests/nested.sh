@@ -60,6 +60,12 @@ inner=$(basename "$CHORA_SOCKET" .sock)
 wait_for pgrep -x chora-tiling
 
 surfaces() { "$bin/choractl" query kind:surface; }
+# Saves a screenshot as FILE and prints the number of its colors. The
+# header of a 1280x800 PPM file has 16 bytes.
+colors() {
+    grim "$1"
+    grim -t ppm - | tail -c +17 | od -An -v -tu1 -w3 | sort -u | wc -l
+}
 # Succeeds when exactly N surfaces match the jq condition.
 count_is() { test "$(surfaces | jq "[.[] | select($2)] | length")" = "$1"; }
 
@@ -81,10 +87,7 @@ jq -e '
      | ($a.x < $b.x + $b.w and $b.x < $a.x + $a.w and
         $a.y < $b.y + $b.h and $b.y < $a.y + $a.h)]
   | any | not' "$out/tiled.json" >/dev/null || fail "windows overlap: $out/tiled.json"
-grim "$out/tiled.png"
-# The header of a 1280x800 PPM file has 16 bytes.
-grim -t ppm - | tail -c +17 | od -An -v -tu1 -w3 | sort -u | wc -l >"$out/tiled.colors"
-test "$(cat "$out/tiled.colors")" -gt 3 || fail "the screenshot is empty"
+test "$(colors "$out/tiled.png")" -gt 3 || fail "the screenshot is empty"
 
 step "3. a crash of chora-tiling leaves chora running and detaches the surfaces"
 pkill -KILL -x chora-tiling
@@ -144,15 +147,24 @@ s.connect(sys.argv[1])
 sys.exit(0 if s.recv(1) == b"" else 1)
 EOF
 
-step "7. the emergency reset puts the three surfaces in the grid"
+step "7. a camera pans the view of the output"
+work_area() { "$bin/choractl" outputs | jq -c '.[0].work_area'; }
+echo '[{"camera": {"output": "winit", "transform": {"translate": [-100, -50]}}}]' |
+    "$bin/choractl" --name e2e apply || fail "the camera command failed"
+test "$(work_area)" = "[100,50,1280,800]" || fail "work area: $(work_area)"
+sleep 0.3
+test "$(colors "$out/pan.png")" -ge 2 || fail "the panned view is empty"
+
+step "8. the emergency reset puts the three surfaces in the grid"
 kill -USR1 "$chora_pid"
 wait_for count_is 3 '.parent == "root"'
+test "$(work_area)" = "[0,0,1280,800]" || fail "the reset kept the camera: $(work_area)"
 surfaces >"$out/grid.json"
 jq -e '[.[] | [.transform.matrix[12], .transform.matrix[13]]] | sort == [[0,0],[0,400],[640,0]]' \
     "$out/grid.json" >/dev/null || fail "unexpected grid: $out/grid.json"
 grim "$out/grid.png"
 
-step "8. SIGUSR1 resets while the startup command runs, which blocks no signal"
+step "9. SIGUSR1 resets while the startup command runs, which blocks no signal"
 rm -f "$out/sigblk"
 # shellcheck disable=SC2016 # $1 expands in the inner shell
 "$bin/chora" -- sh -c 'grep SigBlk /proc/self/status >"$1"; exec sleep 60' sh "$out/sigblk" \

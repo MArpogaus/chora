@@ -265,7 +265,7 @@ impl State {
         else {
             return;
         };
-        let mut target = smithay::utils::Rectangle::from_size(self.output_size());
+        let mut target = self.scene_area_at(origin.to_f64());
         target.loc -= origin;
         target.loc -= get_popup_toplevel_coords(&kind);
         popup.with_pending_state(|state| {

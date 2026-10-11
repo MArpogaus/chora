@@ -1,7 +1,10 @@
 //! Turns the scene into render elements, and finds the surface under a
 //! point.
 
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 
 use chora_scene::{InputMode, NodeKind, Placed, Scene, Transform};
 use smithay::{
@@ -13,13 +16,17 @@ use smithay::{
             surface::WaylandSurfaceRenderElement,
         },
     },
-    desktop::{Window, WindowSurfaceType},
+    desktop::{Window, WindowSurfaceType, space::SpaceElement},
+    output::Output,
     reexports::wayland_server::protocol::wl_surface::WlSurface,
     render_elements,
-    utils::{Logical, Point, Scale},
+    utils::{Logical, Point, Rectangle, Scale, Size},
 };
 
-use crate::state::State;
+use crate::{
+    output::{output_area, to_scene},
+    state::State,
+};
 
 render_elements! {
     pub SceneElement<R> where R: ImportAll + ImportMem;
@@ -27,13 +34,23 @@ render_elements! {
     Solid = SolidColorRenderElement,
 }
 
-/// The render elements of the scene, front first. `rects` keeps one buffer
-/// per rect node, so that damage tracking sees unchanged rects as unchanged.
+/// How an output shows the scene: its camera and its scale factor.
+pub struct View {
+    /// The transform from scene coordinates to logical output coordinates.
+    pub camera: Transform,
+    /// Physical pixels per logical pixel.
+    pub scale: f64,
+}
+
+/// The render elements of the scene for one output, front first. `rects`
+/// keeps one buffer per rect node, so that damage tracking sees unchanged
+/// rects as unchanged.
 pub fn elements<R>(
     scene: &Scene,
     windows: &HashMap<String, Window>,
     rects: &mut HashMap<String, SolidColorBuffer>,
     renderer: &mut R,
+    view: &View,
 ) -> Vec<SceneElement<R>>
 where
     R: Renderer + ImportAll + ImportMem,
@@ -43,9 +60,13 @@ where
     rects.retain(|id, _| scene.node(id).is_some_and(|n| n.kind == NodeKind::Rect));
     let mut out = Vec::new();
     for placed in list.iter().rev() {
-        let Some((offset, scale)) = location_and_scale(&placed.transform) else {
+        let transform = view.camera.then(&placed.transform);
+        let Some((offset, (sx, sy))) = location_and_scale(&transform) else {
             continue;
         };
+        // Physical pixels from here on.
+        let offset = offset.upscale(view.scale);
+        let scale = (sx * view.scale, sy * view.scale);
         #[allow(clippy::cast_possible_truncation)]
         let alpha = placed.opacity as f32;
         match placed.node.kind {
@@ -176,6 +197,48 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
         }
         NodeKind::Group => None,
     }
+}
+
+/// Sends frame callbacks for one output: every frame to the toplevels that
+/// it shows, once per second to the others, so that hidden clients do not
+/// draw for nothing.
+pub fn send_frames(state: &State, output: &Output) {
+    let area = output_area(output);
+    let shown = scene_rect(&state.camera(output), area.size);
+    let visible: HashSet<&str> = state
+        .scene
+        .draw_list()
+        .iter()
+        .filter(|p| p.node.kind == NodeKind::Surface)
+        .filter(|p| {
+            let (x, y) = p.transform.translation_2d();
+            let size = state.windows.get(&p.node.id).map(|w| w.bbox().size);
+            size.is_some_and(|s| shown.overlaps(Rectangle::new((x, y).into(), s.to_f64())))
+        })
+        .map(|p| p.node.id.as_str())
+        .collect();
+    let time = state.start_time.elapsed();
+    for (id, window) in &state.windows {
+        let on_output = visible.contains(id.as_str());
+        if on_output {
+            window.output_enter(output, Rectangle::from_size(window.bbox().size));
+        } else {
+            window.output_leave(output);
+        }
+        let throttle = if on_output {
+            Duration::ZERO
+        } else {
+            Duration::from_secs(1)
+        };
+        window.send_frame(output, time, Some(throttle), |_, _| Some(output.clone()));
+    }
+}
+
+/// The scene rectangle that a camera shows on an output of this size.
+fn scene_rect(camera: &Transform, size: Size<i32, Logical>) -> Rectangle<f64, Logical> {
+    let origin = to_scene(camera, (0.0, 0.0).into());
+    let end = to_scene(camera, size.to_f64().to_point());
+    Rectangle::new(origin, (end - origin).to_size())
 }
 
 #[cfg(test)]

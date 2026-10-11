@@ -18,7 +18,7 @@ use std::{
 };
 
 use chora_scene::{
-    Binding, Effect, Event, Selector,
+    Binding, Event, Selector,
     ipc::{Apply, Grab, Hello, Message, Query, Request, RpcError, Subscribe},
 };
 use serde::de::DeserializeOwned;
@@ -486,8 +486,8 @@ impl State {
             return;
         }
         if !closed.keep_nodes {
-            let detached = self.scene.disconnect(&name);
-            self.execute(detached.into_iter().map(Effect::Detached).collect());
+            let effects = self.scene.disconnect(&name);
+            self.execute(effects);
         }
         self.emit(&Event::ClientDisconnected { name });
     }

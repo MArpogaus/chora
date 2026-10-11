@@ -34,6 +34,9 @@ pub enum SceneError {
     /// The root cannot change.
     #[error("the root cannot change")]
     Root,
+    /// The camera of the output has another owner.
+    #[error("the camera of {0:?} belongs to {1:?}")]
+    CameraOwner(String, String),
 }
 
 /// A failed transaction: the index of the failed command and the reason.
@@ -68,6 +71,8 @@ pub const MAX_NODES: usize = 16_384;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scene {
     nodes: OrdMap<String, Node>,
+    /// The cameras that clients set: the owner and the transform by output.
+    cameras: OrdMap<String, (String, Transform)>,
 }
 
 impl Default for Scene {
@@ -83,11 +88,19 @@ impl Default for Scene {
         };
         Self {
             nodes: OrdMap::unit(ROOT.into(), root),
+            cameras: OrdMap::new(),
         }
     }
 }
 
 impl Scene {
+    /// The camera that a client set for an output; `None` for the default
+    /// camera.
+    #[must_use]
+    pub fn camera(&self, output: &str) -> Option<&Transform> {
+        self.cameras.get(output).map(|(_, t)| t)
+    }
+
     /// A node by id.
     #[must_use]
     pub fn node(&self, id: &str) -> Option<&Node> {
@@ -229,7 +242,35 @@ impl Scene {
                 effects.push(Effect::Close(surface.clone()));
                 Ok(())
             }
+            Command::Camera { output, transform } => {
+                self.set_camera(owner, output, *transform)?;
+                effects.push(Effect::Camera(output.clone()));
+                Ok(())
+            }
         }
+    }
+
+    fn set_camera(
+        &mut self,
+        owner: &str,
+        output: &str,
+        transform: Option<Transform>,
+    ) -> Result<(), SceneError> {
+        if let Some((other, _)) = self.cameras.get(output).filter(|(o, _)| o != owner) {
+            return Err(SceneError::CameraOwner(output.into(), other.clone()));
+        }
+        let Some(t) = transform else {
+            self.cameras.remove(output);
+            return Ok(());
+        };
+        let positive = t.scale_2d().is_some_and(|(x, y)| x > 0.0 && y > 0.0);
+        if !positive || t.matrix().iter().any(|n| !n.is_finite()) {
+            return Err(SceneError::Invalid(format!(
+                "the camera of {output:?} needs a finite 2D translation and a positive scale"
+            )));
+        }
+        self.cameras.insert(output.into(), (owner.into(), t));
+        Ok(())
     }
 
     fn create(&mut self, node: Node, parent: &str) -> Result<(), SceneError> {
@@ -290,9 +331,10 @@ impl Scene {
         Ok(())
     }
 
-    /// Removes the nodes of a client name and detaches its surfaces. Returns
-    /// the detached surfaces.
-    pub fn disconnect(&mut self, owner: &str) -> Vec<String> {
+    /// Removes the nodes and the cameras of a client name and detaches its
+    /// surfaces. Returns a `Detached` effect for each detached surface and a
+    /// `Camera` effect for each output that gets its default camera back.
+    pub fn disconnect(&mut self, owner: &str) -> Vec<Effect> {
         let ids: Vec<String> = self
             .nodes
             .values()
@@ -309,18 +351,31 @@ impl Scene {
                 detached.extend(self.remove_subtree(&id));
             }
         }
+        let cameras: Vec<String> = self
+            .cameras
+            .iter()
+            .filter(|(_, (o, _))| o == owner)
+            .map(|(output, _)| output.clone())
+            .collect();
+        for output in &cameras {
+            self.cameras.remove(output);
+        }
+        let detached = detached.into_iter().map(Effect::Detached);
         detached
+            .chain(cameras.into_iter().map(Effect::Camera))
+            .collect()
     }
 
     /// The emergency reset: removes every node except the root and the
-    /// surfaces, and puts all surfaces in a grid that fills `area`. Returns
-    /// the configure effects for the new cell size.
+    /// surfaces, removes the cameras, and puts all surfaces in a grid that
+    /// fills `area`, given as x, y, width and height. Returns the configure
+    /// effects for the new cell size.
     ///
     /// # Panics
     ///
     /// Never: the root always exists.
     #[allow(clippy::cast_possible_truncation)]
-    pub fn reset(&mut self, area: [f64; 2]) -> Vec<Effect> {
+    pub fn reset(&mut self, area: [f64; 4]) -> Vec<Effect> {
         let surfaces: Vec<String> = self
             .nodes
             .values()
@@ -334,6 +389,7 @@ impl Scene {
         let root = self.nodes.get_mut(ROOT).expect("the root always exists");
         root.children.clone_from(&surfaces);
         root.props = Props::default();
+        self.cameras = OrdMap::new();
         let cells = grid(surfaces.len(), area);
         surfaces
             .iter()
@@ -547,14 +603,17 @@ fn configure(surface: &str, size: Option<[i32; 2]>, states: Vec<ToplevelState>) 
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss
 )]
-fn grid(n: usize, [w, h]: [f64; 2]) -> Vec<[f64; 4]> {
-    if n == 0 {
+fn grid(count: usize, [left, top, width, height]: [f64; 4]) -> Vec<[f64; 4]> {
+    if count == 0 {
         return Vec::new();
     }
-    let cols = (n as f64).sqrt().ceil() as usize;
-    let rows = n.div_ceil(cols);
-    let (cw, ch) = (w / cols as f64, h / rows as f64);
-    (0..n)
-        .map(|i| [(i % cols) as f64 * cw, (i / cols) as f64 * ch, cw, ch])
+    let cols = (count as f64).sqrt().ceil() as usize;
+    let rows = count.div_ceil(cols);
+    let (cw, ch) = (width / cols as f64, height / rows as f64);
+    (0..count)
+        .map(|i| {
+            let (col, row) = ((i % cols) as f64, (i / cols) as f64);
+            [left + col * cw, top + row * ch, cw, ch]
+        })
         .collect()
 }

@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, ffi::OsString, sync::Arc, time::Instant};
 
-use chora_scene::{Effect, Event, OutputInfo, Scene, SurfaceInfo, ToplevelState};
+use chora_scene::{Effect, Event, Scene, SurfaceInfo, ToplevelState};
 use smithay::{
     backend::renderer::element::solid::SolidColorBuffer,
     desktop::{PopupManager, Window},
@@ -15,7 +15,7 @@ use smithay::{
             Display, DisplayHandle, backend::ClientData, protocol::wl_surface::WlSurface,
         },
     },
-    utils::{Logical, SERIAL_COUNTER, Serial, Size},
+    utils::{SERIAL_COUNTER, Serial},
     wayland::{
         compositor::{CompositorClientState, CompositorState, with_states},
         output::OutputManagerState,
@@ -48,7 +48,8 @@ pub struct State {
     pub seat: Seat<State>,
 
     pub backend: Option<Backend>,
-    pub output: Option<Output>,
+    /// The outputs, in the order of their arrival.
+    pub outputs: Vec<Output>,
 
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
@@ -96,7 +97,7 @@ impl State {
             loop_signal,
             socket_name,
             backend: None,
-            output: None,
+            outputs: Vec::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
             rects: HashMap::new(),
@@ -146,31 +147,6 @@ impl State {
         })
     }
 
-    /// The logical size of the output.
-    pub fn output_size(&self) -> Size<i32, Logical> {
-        self.output
-            .as_ref()
-            .and_then(Output::current_mode)
-            .map_or((0, 0).into(), |m| m.size.to_logical(1))
-    }
-
-    /// The outputs as the API describes them.
-    pub fn output_info(&self) -> Vec<OutputInfo> {
-        let size = self.output_size();
-        self.output
-            .iter()
-            .map(|output| {
-                let position = output.current_location();
-                OutputInfo {
-                    name: output.name(),
-                    position: [position.x, position.y],
-                    size: [size.w, size.h],
-                    scale: output.current_scale().fractional_scale(),
-                }
-            })
-            .collect()
-    }
-
     /// Sends an event to all subscribed clients.
     pub fn emit(&mut self, event: &Event) {
         self.ipc.broadcast(event);
@@ -193,6 +169,11 @@ impl State {
                         self.focus(None);
                     }
                     self.emit(&Event::SurfaceDetached { surface });
+                }
+                Effect::Camera(name) => {
+                    for output in self.output_info().into_iter().filter(|o| o.name == name) {
+                        self.emit(&Event::OutputChanged { output });
+                    }
                 }
             }
         }

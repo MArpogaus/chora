@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{NodeKind, PropsUpdate};
+use crate::{NodeKind, PropsUpdate, Transform};
 
 /// One command of a transaction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -70,6 +70,16 @@ pub enum Command {
         /// The surface node.
         surface: String,
     },
+    /// Sets the camera of an output: the transform from scene coordinates
+    /// to the logical coordinates of the output. The first client that sets
+    /// the camera owns it.
+    Camera {
+        /// The output name, for example `DP-1`.
+        output: String,
+        /// A 2D translation and positive scale; the default camera if
+        /// missing.
+        transform: Option<Transform>,
+    },
 }
 
 /// A state of an `xdg_toplevel`.
@@ -104,4 +114,6 @@ pub enum Effect {
     Close(String),
     /// A surface lost its parent and its owner; tell the clients.
     Detached(String),
+    /// The camera of an output changed; tell the clients.
+    Camera(String),
 }

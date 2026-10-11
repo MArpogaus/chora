@@ -58,7 +58,7 @@ the client for a new size.
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
 | `focus` | set the keyboard focus |
 | `close` | ask a client to close a surface |
-| `camera` | set the camera of an output |
+| `camera` | set the camera of an output, or restore its default camera without a transform |
 
 `animate` lets plugins and agents animate without code in every frame.
 
@@ -79,7 +79,8 @@ or an empty list. It always sees the current titles.
 | `surface.changed` | surface id, `app_id`, title |
 | `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
 | `input.key` | the grabbed binding |
-| `output.changed`, `output.removed` | output name, position, size, scale |
+| `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels |
+| `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
 
 The response of `scene.apply` reports the result of a transaction: `null`

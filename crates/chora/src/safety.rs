@@ -28,8 +28,7 @@ impl State {
         for conn in self.ipc.conn_ids() {
             self.ipc_close(conn);
         }
-        let size = self.output_size();
-        let effects = self.scene.reset([f64::from(size.w), f64::from(size.h)]);
+        let effects = self.scene.reset(self.reset_area());
         self.send_configures(&effects);
         let first = self
             .scene

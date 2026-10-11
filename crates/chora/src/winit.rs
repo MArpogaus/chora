@@ -1,8 +1,5 @@
 //! The winit backend: chora as a window inside another session.
 
-use std::{collections::HashSet, time::Duration};
-
-use chora_scene::Event;
 use smithay::{
     backend::{
         allocator::dmabuf::Dmabuf,
@@ -10,9 +7,8 @@ use smithay::{
         renderer::{ImportDma, damage::OutputDamageTracker, gles::GlesRenderer},
         winit::{self, WinitEvent, WinitGraphicsBackend},
     },
-    desktop::space::SpaceElement,
     output::{Mode, Output, PhysicalProperties, Subpixel},
-    utils::{Rectangle, Transform},
+    utils::Transform,
     wayland::dmabuf::{
         DmabufFeedbackBuilder, DmabufGlobal, DmabufHandler, DmabufState, ImportNotifier,
     },
@@ -31,6 +27,8 @@ pub struct Backend {
     damage_tracker: OutputDamageTracker,
     dmabuf_state: DmabufState,
     _dmabuf_global: DmabufGlobal,
+    /// The one output: the window.
+    output: Output,
 }
 
 /// Opens the window, creates its output and starts the render loop.
@@ -51,12 +49,7 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
         },
     );
     output.create_global::<State>(&state.display_handle);
-    output.change_current_state(
-        Some(mode),
-        Some(Transform::Flipped180),
-        None,
-        Some((0, 0).into()),
-    );
+    output.change_current_state(Some(mode), Some(Transform::Flipped180), None, None);
     output.set_preferred(mode);
 
     let formats = graphics.renderer().dmabuf_formats();
@@ -79,8 +72,9 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
         damage_tracker: OutputDamageTracker::from_output(&output),
         dmabuf_state,
         _dmabuf_global: dmabuf_global,
+        output: output.clone(),
     });
-    state.output = Some(output);
+    state.add_output(output);
     state
         .loop_handle
         .insert_source(events, |event, (), state| handle(state, event))?;
@@ -90,19 +84,16 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
 fn handle(state: &mut State, event: WinitEvent) {
     match event {
         WinitEvent::Resized { size, .. } => {
-            let output = state.output.as_ref().expect("the winit output exists");
-            output.change_current_state(
-                Some(Mode {
+            if let Some(backend) = &state.backend {
+                let mode = Mode {
                     size,
                     refresh: REFRESH,
-                }),
-                None,
-                None,
-                None,
-            );
-            for output in state.output_info() {
-                state.emit(&Event::OutputChanged { output });
+                };
+                backend
+                    .output
+                    .change_current_state(Some(mode), None, None, None);
             }
+            state.output_changed();
         }
         WinitEvent::Input(event) => crate::input::process(state, event),
         WinitEvent::Redraw => redraw(state),
@@ -112,18 +103,29 @@ fn handle(state: &mut State, event: WinitEvent) {
 }
 
 fn redraw(state: &mut State) {
-    if let Err(err) = render_frame(state) {
-        tracing::warn!("{err}");
-    }
-    send_frames(state);
+    let Some(output) = state.backend.as_ref().map(|b| b.output.clone()) else {
+        return;
+    };
+    warn_on_error(render_frame(state, &output));
+    render::send_frames(state, &output);
     state.popups.cleanup();
     if let Some(backend) = state.backend.as_ref() {
         backend.graphics.window().request_redraw();
     }
 }
 
+fn warn_on_error(result: Result<(), String>) {
+    if let Err(err) = result {
+        tracing::warn!("{err}");
+    }
+}
+
 /// Renders the damaged parts of the scene into the window and shows them.
-fn render_frame(state: &mut State) -> Result<(), String> {
+fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
+    let view = render::View {
+        camera: state.camera(output),
+        scale: output.current_scale().fractional_scale(),
+    };
     let State {
         backend,
         scene,
@@ -139,7 +141,7 @@ fn render_frame(state: &mut State) -> Result<(), String> {
     let damage = {
         let (renderer, mut framebuffer) =
             backend.graphics.bind().map_err(|e| format!("bind: {e}"))?;
-        let elements = render::elements(scene, windows, rects, renderer);
+        let elements = render::elements(scene, windows, rects, renderer, &view);
         let result = backend
             .damage_tracker
             .render_output(
@@ -156,35 +158,6 @@ fn render_frame(state: &mut State) -> Result<(), String> {
         .graphics
         .submit(damage.as_deref())
         .map_err(|e| format!("submitting the frame failed: {e}"))
-}
-
-/// Sends frame callbacks: every frame to the visible toplevels, once per
-/// second to the others, so that hidden clients do not draw for nothing.
-fn send_frames(state: &State) {
-    let Some(output) = state.output.as_ref() else {
-        return;
-    };
-    let visible: HashSet<&str> = state
-        .scene
-        .draw_list()
-        .iter()
-        .map(|p| p.node.id.as_str())
-        .collect();
-    let time = state.start_time.elapsed();
-    for (id, window) in &state.windows {
-        let shown = visible.contains(id.as_str());
-        if shown {
-            window.output_enter(output, Rectangle::from_size(window.bbox().size));
-        } else {
-            window.output_leave(output);
-        }
-        let throttle = if shown {
-            Duration::ZERO
-        } else {
-            Duration::from_secs(1)
-        };
-        window.send_frame(output, time, Some(throttle), |_, _| Some(output.clone()));
-    }
 }
 
 impl DmabufHandler for State {

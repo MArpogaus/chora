@@ -3,6 +3,7 @@
 mod handlers;
 mod input;
 mod ipc;
+mod output;
 mod render;
 mod safety;
 mod state;

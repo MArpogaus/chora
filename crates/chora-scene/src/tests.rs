@@ -83,7 +83,7 @@ fn disconnect_removes_nodes_and_detaches_surfaces() {
     scene
         .apply("wm", &[group("tiles", ROOT), attach("s1", "tiles")])
         .unwrap();
-    assert_eq!(scene.disconnect("wm"), vec!["s1".to_owned()]);
+    assert_eq!(scene.disconnect("wm"), vec![Effect::Detached("s1".into())]);
     assert!(scene.node("tiles").is_none());
     let s1 = scene.node("s1").unwrap();
     assert_eq!((s1.parent.as_deref(), s1.owner.as_deref()), (None, None));
@@ -146,12 +146,12 @@ fn reset_puts_surfaces_in_a_grid_without_owner() {
     scene
         .apply("wm", &[group("tiles", ROOT), attach("s1", "tiles")])
         .unwrap();
-    let effects = scene.reset([1000.0, 500.0]);
+    let effects = scene.reset([100.0, 0.0, 1000.0, 500.0]);
     assert!(scene.node("tiles").is_none());
     assert_eq!(scene.node(ROOT).unwrap().children, vec!["s1", "s2"]);
     assert_eq!(
         scene.node("s2").unwrap().props.transform,
-        Transform::translate(500.0, 0.0, 0.0)
+        Transform::translate(600.0, 0.0, 0.0)
     );
     assert!(scene.node("s1").unwrap().owner.is_none());
     assert_eq!(effects.len(), 2);
@@ -241,7 +241,7 @@ fn disconnect_lists_each_surface_once() {
     scene
         .apply("wm", &[group("a", ROOT), attach("s1", "a")])
         .unwrap();
-    assert_eq!(scene.disconnect("wm"), vec!["s1".to_owned()]);
+    assert_eq!(scene.disconnect("wm"), vec![Effect::Detached("s1".into())]);
 }
 
 #[test]
@@ -364,4 +364,55 @@ fn the_scene_has_a_node_limit() {
         .apply("wm", &groups(MAX_NODES..MAX_NODES + 1))
         .unwrap_err();
     assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
+}
+
+fn camera(output: &str, transform: Option<Transform>) -> Command {
+    Command::Camera {
+        output: output.into(),
+        transform,
+    }
+}
+
+#[test]
+fn a_camera_belongs_to_the_client_that_sets_it_first() {
+    let mut scene = Scene::default();
+    let zoom = Transform::scale(2.0, 2.0, 1.0);
+    let effects = scene.apply("wm", &[camera("DP-1", Some(zoom))]).unwrap();
+    assert_eq!(effects, vec![Effect::Camera("DP-1".into())]);
+    assert_eq!(scene.camera("DP-1"), Some(&zoom));
+    let err = scene.apply("agent", &[camera("DP-1", None)]).unwrap_err();
+    assert_eq!(
+        err.error,
+        SceneError::CameraOwner("DP-1".into(), "wm".into())
+    );
+    scene.apply("wm", &[camera("DP-1", None)]).unwrap();
+    assert_eq!(scene.camera("DP-1"), None);
+    scene.apply("agent", &[camera("DP-1", Some(zoom))]).unwrap();
+}
+
+#[test]
+fn a_disconnect_restores_the_default_camera() {
+    let mut scene = Scene::default();
+    let pan = Transform::translate(-100.0, 0.0, 0.0);
+    scene.apply("wm", &[camera("DP-1", Some(pan))]).unwrap();
+    assert_eq!(scene.disconnect("wm"), vec![Effect::Camera("DP-1".into())]);
+    assert_eq!(scene.camera("DP-1"), None);
+    scene.apply("wm", &[camera("DP-1", Some(pan))]).unwrap();
+    scene.reset([0.0, 0.0, 100.0, 100.0]);
+    assert_eq!(scene.camera("DP-1"), None);
+}
+
+#[test]
+fn a_camera_needs_a_positive_2d_scale() {
+    let mut scene = Scene::default();
+    for transform in [
+        Transform::scale(0.0, 1.0, 1.0),
+        Transform::rotate_z(30.0),
+        Transform::translate(f64::NAN, 0.0, 0.0),
+    ] {
+        let err = scene
+            .apply("wm", &[camera("DP-1", Some(transform))])
+            .unwrap_err();
+        assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
+    }
 }
