@@ -1391,9 +1391,9 @@ client sends <code>hello</code> first. The core answers every request.</p>
 nodes, so they must agree on <code>keep_nodes</code>. The core refuses a <code>hello</code> with a
 different value. For example, <code>choractl --name tiling</code> fails while the tiling
 plugin runs.</p>
-<p>A key binding needs Ctrl, Alt or Super, so that typing still works. Ctrl+Alt
-belongs to the safety layer, so no client can grab it. A binding has one
-owner at a time.</p>
+<p>A key binding needs Ctrl, Alt or Super, so that typing still works. The
+bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
+belong to no client. A binding has one owner at a time.</p>
 <p>The core implements <code>wlr-output-management</code>, so kanshi and wlr-randr
 configure the outputs (see
 <a href="../architecture/#output-configuration">Architecture</a>). The API has no output
