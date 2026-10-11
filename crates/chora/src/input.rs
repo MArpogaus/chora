@@ -28,7 +28,7 @@ use smithay::{
 use crate::{
     output::{Spot, output_area},
     render,
-    state::{ClientState, State},
+    state::{ClientState, NodeGrab, State},
 };
 
 /// What a key press does besides reaching a client.
@@ -258,10 +258,15 @@ fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime)
     if state.node_grab.is_none() {
         hover(state, &spot);
     }
-    // The drag of a node goes to plugins only.
-    let under = if let Some((node, _)) = state.node_grab.clone() {
+    // The drag of a node goes to plugins only, with each new position.
+    let under = if let Some(grab) = &mut state.node_grab {
         let position = [spot.scene.x, spot.scene.y];
-        state.emit(&SceneEvent::PointerMoved { node, position });
+        #[allow(clippy::float_cmp)] // the same input gives the same numbers
+        if grab.position != position {
+            grab.position = position;
+            let node = grab.node.clone();
+            state.emit(&SceneEvent::PointerMoved { node, position });
+        }
         None
     } else {
         render::surface_under(state, &spot).map(|u| (u.surface, u.location))
@@ -342,13 +347,17 @@ fn press_node(state: &mut State, button: u32) {
         position,
     });
     if area {
-        state.node_grab = Some((node, button));
+        state.node_grab = Some(NodeGrab {
+            node,
+            button,
+            position,
+        });
     }
 }
 
 /// Ends the drag of a node when its button goes up.
 fn release_node(state: &mut State, button: u32) {
-    let Some((node, _)) = state.node_grab.take_if(|(_, b)| *b == button) else {
+    let Some(NodeGrab { node, .. }) = state.node_grab.take_if(|g| g.button == button) else {
         return;
     };
     let position = state

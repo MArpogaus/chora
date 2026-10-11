@@ -59,6 +59,15 @@ use crate::{
     transaction::Transactions,
 };
 
+/// The drag of a rect or an image node: the node, the button, and the last
+/// position that `pointer.moved` told.
+#[derive(Clone)]
+pub struct NodeGrab {
+    pub node: String,
+    pub button: u32,
+    pub position: [f64; 2],
+}
+
 /// The state of the compositor, passed to every callback of the event loop.
 #[allow(clippy::struct_field_names)] // the names of Smithay's handler traits
 pub struct State {
@@ -102,7 +111,7 @@ pub struct State {
     pub watchdog: Watchdog,
     /// The rect or image node of a press and its button, until the button
     /// goes up.
-    pub node_grab: Option<(String, u32)>,
+    pub node_grab: Option<NodeGrab>,
     /// The node of the last `pointer.entered`.
     pub hovered: Option<String>,
     /// A layer surface that a click focused.
