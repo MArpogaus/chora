@@ -1022,8 +1022,10 @@ plugin and its configuration.</p>
 <p>A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target <code>chora-&lt;name&gt;.target</code>. <code>chora-flavor &lt;name&gt;</code> looks for
 the directory in <code>~/.config/chora/flavors/</code> first and then in
-<code>/usr/share/chora/flavors/</code>. It imports <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code>
-into the systemd user manager, links the units of the directory, and starts
+<code>/usr/share/chora/flavors/</code>. It imports <code>WAYLAND_DISPLAY</code>, <code>CHORA_SOCKET</code> and
+the X11 <code>DISPLAY</code> of <code>xwayland-satellite</code> into the systemd user manager, so
+that every unit of the flavor starts with them. It links the units of the
+directory, and starts
 the target. The target starts the services and the plugins. systemd handles
 start, restart and order, so chora needs no service manager.</p>
 <p>The package installs the tiling flavor:</p>

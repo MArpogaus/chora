@@ -1504,17 +1504,19 @@ of the press that opened it.</p>
   the lock; other clients cannot lock or unlock while it lives. While the
   session is locked, each output shows only its lock surface, or black.
   Only the lock client gets input; popup and pointer grabs end, and plugin
-  grabs pause. The core confirms the lock after each output showed a locked
-  frame. When the lock client crashes, the session stays locked, and only
-  then can a new lock client take over.</li>
+  grabs pause; a keyboard grab, for example of an input method, ends before
+  each key. The core confirms the lock after each output showed a frame
+  that it rendered under this lock. When the lock client crashes, the
+  session stays locked, and only then can a new lock client take over.</li>
 <li><strong>Watchdog.</strong> When frames miss their deadline repeatedly, the core removes
   the effects first and then disconnects the plugins.</li>
 </ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
 <p>Version 1 trusts every client of the same user (D33):</p>
 <ul>
-<li>Unsandboxed Wayland clients get all protocols, as in sway.
-  <code>wp-security-context-v1</code> hides privileged protocols, for example
+<li>Unsandboxed Wayland clients get all protocols, as in sway. So any client
+  can, for example, take the keyboard as an input method, or configure the
+  outputs. <code>wp-security-context-v1</code> hides privileged protocols, for example
   screencopy, from sandboxed clients.</li>
 <li>The IPC methods <code>input.inject</code> and <code>screen.capture</code> need a <strong>grant</strong> of the
   user for the client name. A grant protects against mistakes of agents. It
@@ -1529,9 +1531,12 @@ of the press that opened it.</p>
 <li>Without <code>XKB_DEFAULT_LAYOUT</code>, <code>chora-session</code> takes the keyboard layout of
   the system from <code>localectl</code>.</li>
 <li><code>chora@.service</code> runs <code>chora -- chora-flavor &lt;name&gt;</code> as part of
-  <code>graphical-session.target</code>.</li>
+  <code>graphical-session.target</code>. It drops <code>WAYLAND_DISPLAY</code> and <code>DISPLAY</code> that
+  an earlier session left in the user manager, which would make chora run
+  nested.</li>
 <li><code>chora-flavor &lt;name&gt;</code> imports <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> into the
-  systemd user manager, links the units of the flavor until the next boot,
+  systemd user manager, and <code>DISPLAY</code> when <code>xwayland-satellite</code> is
+  installed. It links the units of the flavor until the next boot,
   tells systemd that chora is ready, and starts the target of the flavor.
   Units of the flavor then find the compositor and the IPC socket. The
   script is not for nested use: the variables would reach the units of the
