@@ -1,8 +1,8 @@
 # Project structure
 
-The planned layout of this repository: one Cargo workspace with as few crates
-as possible. A module moves into its own crate only when a second consumer
-needs it. No crate exists yet.
+The layout of this repository: one Cargo workspace with as few crates as
+possible. A module moves into its own crate only when a second consumer
+needs it.
 
 ```text
 chora/
@@ -12,7 +12,7 @@ chora/
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
 │   └── chora-tiling/  # reference plugin: master and stack layout, keybindings
-├── dist/              # chora.desktop, chora-flavor, the tiling flavor
+├── dist/              # RPM build script and Fedora build requirements
 ├── deny.toml          # cargo-deny: allowed licenses, advisories
 ├── docs/              # this documentation (MkDocs)
 ├── mkdocs.yml

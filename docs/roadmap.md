@@ -16,7 +16,7 @@ package.
 - CI: build and `cargo test` in a Fedora 43 container; `cargo-deny` for the
   licenses and advisories of the dependencies.
 - A pre-commit hook that rejects files with a GPL-3.0-only header (D8).
-- A pinned Smithay revision (D16), Dependabot for Cargo.
+- Dependabot for Cargo.
 - commitizen for version bumps and the changelog.
 - A release workflow: a `v*` tag builds the RPM in Fedora 43 and attaches it
   with its SHA256 sum to a GitHub pre-release (D14).
@@ -28,7 +28,7 @@ container, and `chora --version` runs there.
 
 **Goal:** the smallest proof of the concept, inside an existing session.
 
-- winit backend.
+- winit backend on a pinned Smithay revision (D16).
 - Protocols: `xdg-shell` with popups, subsurfaces, `xdg-decoration`,
   `linux-dmabuf`, `viewporter`, `presentation-time`, `xdg-output`,
   `cursor-shape`, data device and `primary-selection`.

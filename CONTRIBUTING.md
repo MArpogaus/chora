@@ -43,7 +43,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo deny check
 ```
 
-CI runs the same commands in a Fedora 43 container.
+CI runs `cargo clippy` and `cargo test` with `--locked` in a Fedora 43
+container, and `cargo deny` in a separate job.
 
 ## Releases
 
