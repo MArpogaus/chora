@@ -11,6 +11,7 @@ description = "Scene model, commands, events and IPC types of the chora composit
 edition.workspace = true
 license.workspace = true
 name = "chora-scene"
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true

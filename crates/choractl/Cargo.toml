@@ -6,6 +6,7 @@ description = "Command line client for the chora IPC socket"
 edition.workspace = true
 license.workspace = true
 name = "choractl"
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true

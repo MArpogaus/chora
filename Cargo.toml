@@ -23,6 +23,7 @@ unsafe_code = "deny"
 [workspace.package]
 edition = "2024"
 license = "GPL-3.0-or-later"
+publish = false
 repository = "https://github.com/MArpogaus/void"
 rust-version = "1.87"
 version = "0.0.0"

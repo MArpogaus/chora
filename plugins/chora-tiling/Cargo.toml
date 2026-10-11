@@ -6,6 +6,7 @@ description = "Reference tiling plugin for chora"
 edition.workspace = true
 license.workspace = true
 name = "chora-tiling"
+publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
