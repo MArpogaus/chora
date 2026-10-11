@@ -1,0 +1,37 @@
+# A v* tag builds the RPM in Fedora 43, installs it once as a check, and
+# attaches it with its SHA256 sums to a GitHub release. Versions below 1.0
+# are pre-releases.
+name: release
+
+on:
+  push:
+    tags: [v*]
+
+jobs:
+  rpm:
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:43
+    timeout-minutes: 45
+    permissions:
+      contents: write   # create the release
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+    - run: dnf install -y $(cat dist/fedora-build-requires.txt) rpm-build gh
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
+    - run: cargo install --locked cargo-generate-rpm@0.21.0
+    - run: dist/build-rpm.sh target/rpm
+    - name: install the package once
+      run: |
+        dnf install -y target/rpm/*.rpm
+        chora --version
+    - name: create the release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ github.ref_name }}
+      run: |
+        set -euo pipefail
+        prerelease=()
+        case "$TAG" in v0.*) prerelease=(--prerelease) ;; esac
+        gh release create "$TAG" target/rpm/*.rpm target/rpm/SHA256SUMS \
+          --repo "$GITHUB_REPOSITORY" --title "$TAG" --verify-tag \
+          --notes "See CHANGELOG.md for this release." "${prerelease[@]}"

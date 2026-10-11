@@ -9,3 +9,16 @@ name = "chora"
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
+
+# The one RPM of chora: `cargo generate-rpm -p crates/chora` after a
+# release build of the workspace.
+[package.metadata.generate-rpm]
+assets = [
+  { source = "target/release/chora", dest = "/usr/bin/chora", mode = "755" },
+  { source = "target/release/choractl", dest = "/usr/bin/choractl", mode = "755" },
+  { source = "target/release/chora-tiling", dest = "/usr/bin/chora-tiling", mode = "755" },
+  { source = "../../LICENSE", dest = "/usr/share/licenses/chora/LICENSE", mode = "644", doc = true },
+  { source = "../../README.md", dest = "/usr/share/doc/chora/README.md", mode = "644", doc = true }
+]
+auto-req = "auto"
+summary = "Wayland compositor without policy, programmable by plugins and agents"
