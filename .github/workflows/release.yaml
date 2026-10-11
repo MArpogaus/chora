@@ -21,7 +21,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
       with:
         persist-credentials: false
-    - run: dnf install -y $(cat dist/fedora-build-requires.txt) rpm-build
+    - run: xargs dnf install -y rpm-build < dist/fedora-build-requires.txt
     - run: cargo install --locked cargo-generate-rpm@0.21.0
     - run: PATH="$HOME/.cargo/bin:$PATH" dist/build-rpm.sh target/rpm
     - name: install the package once
