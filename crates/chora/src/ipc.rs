@@ -493,11 +493,25 @@ impl State {
     }
 
     /// Writes all pending IPC output. Closes the connections that failed or
-    /// overflowed, and those without a reader once their answers are out.
+    /// overflowed, and those without a reader once their answers are out. A
+    /// close can send events to the other connections, so this repeats until
+    /// no connection closes.
     pub fn ipc_flush(&mut self) {
+        loop {
+            let closing = self.ipc_write();
+            if closing.is_empty() {
+                return;
+            }
+            for conn in closing {
+                self.ipc_close(conn);
+            }
+        }
+    }
+
+    /// Writes the output of every connection and returns those to close.
+    fn ipc_write(&mut self) -> Vec<u64> {
         let transactions = &self.transactions;
-        let closing: Vec<u64> = self
-            .ipc
+        self.ipc
             .conns
             .iter_mut()
             .filter_map(|(id, conn)| {
@@ -506,10 +520,7 @@ impl State {
                     conn.reader.is_none() && conn.output.is_empty() && !transactions.waits_for(*id);
                 (broken || answered).then_some(*id)
             })
-            .collect();
-        for conn in closing {
-            self.ipc_close(conn);
-        }
+            .collect()
     }
 }
 
