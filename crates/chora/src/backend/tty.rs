@@ -257,7 +257,7 @@ impl Tty {
         if let Some(timer) = surface.timer {
             self.loop_handle.remove(timer);
         }
-        self.display.remove_global::<State>(surface.global);
+        retire_global(&self.display, &self.loop_handle, surface.global);
         device
             .disabled
             .insert(crtc, (surface.output, surface.connector));
@@ -539,16 +539,46 @@ fn connect(state: &mut State, node: DrmNode, connector: &connector::Info, crtc: 
     }
 }
 
+/// A name for a new output: the name of its connector, with a number
+/// when another GPU has a connector of that name.
+fn unique_name(state: &State, base: &str) -> String {
+    let tty = match &state.backend {
+        Some(Backend::Tty(tty)) => Some(tty),
+        _ => None,
+    };
+    let disabled = tty
+        .into_iter()
+        .flat_map(|t| t.devices.values())
+        .flat_map(|d| d.disabled.values().map(|(o, _)| o.name()));
+    let taken: Vec<String> = state
+        .outputs
+        .iter()
+        .map(Output::name)
+        .chain(disabled)
+        .collect();
+    let mut name = base.to_string();
+    for n in 2.. {
+        if !taken.contains(&name) {
+            break;
+        }
+        name = format!("{base}-{n}");
+    }
+    name
+}
+
 fn create_output(
     state: &mut State,
     node: DrmNode,
     connector: &connector::Info,
     crtc: crtc::Handle,
 ) -> Result<Output, String> {
-    let name = format!(
-        "{}-{}",
-        connector.interface().as_str(),
-        connector.interface_id()
+    let name = unique_name(
+        state,
+        &format!(
+            "{}-{}",
+            connector.interface().as_str(),
+            connector.interface_id()
+        ),
     );
     let modes = connector.modes();
     let mode = *modes
@@ -604,8 +634,29 @@ fn disconnect(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
     if let Some(timer) = surface.timer {
         state.loop_handle.remove(timer);
     }
-    state.display_handle.remove_global::<State>(surface.global);
+    retire_global(&state.display_handle, &state.loop_handle, surface.global);
     state.remove_output(&surface.output);
+}
+
+/// How long a disabled `wl_output` global stays before it goes: a client
+/// that binds a removed global dies, and its bind can be on the way.
+const GLOBAL_GRACE: Duration = Duration::from_secs(10);
+
+/// Hides the global of an output from new clients, and removes it later.
+fn retire_global(
+    display: &DisplayHandle,
+    loop_handle: &LoopHandle<'static, State>,
+    global: GlobalId,
+) {
+    display.disable_global::<State>(global.clone());
+    let timer = Timer::from_duration(GLOBAL_GRACE);
+    let removed = loop_handle.insert_source(timer, move |_, (), state| {
+        state.display_handle.remove_global::<State>(global.clone());
+        TimeoutAction::Drop
+    });
+    if let Err(err) = removed {
+        tracing::warn!(?err, "an output global stays until chora exits");
+    }
 }
 
 /// Renders an output, unless a frame of it still waits for its vblank. A
@@ -846,6 +897,15 @@ fn session_event(state: &mut State, event: SessionEvent) {
                     "resuming a GPU failed",
                     device.manager.lock().activate(false),
                 );
+                // Another session can have lit the CRTCs of the outputs
+                // that are off; a fresh state turns them off, and the
+                // outputs that are on set their modes again.
+                if !device.disabled.is_empty() {
+                    log_error(
+                        "resetting a GPU failed",
+                        device.manager.device_mut().reset_state(),
+                    );
+                }
                 for (crtc, surface) in &mut device.surfaces {
                     surface.queued = false;
                     outputs.push((*node, *crtc));
