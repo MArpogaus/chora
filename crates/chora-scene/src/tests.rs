@@ -1,8 +1,8 @@
 //! Tests of the scene rules.
 
 use crate::{
-    Command, Effect, MAX_CAMERAS, MAX_NODES, NodeKind, PropsUpdate, ROOT, Scene, SceneError,
-    Selector, SurfaceInfo, Transform,
+    Command, Effect, Event, MAX_CAMERAS, MAX_NODES, NodeKind, PropsUpdate, ROOT, Scene, SceneError,
+    Selector, SurfaceInfo, SurfaceRequest, Transform,
 };
 
 fn group(id: &str, parent: &str) -> Command {
@@ -457,4 +457,16 @@ fn the_number_of_cameras_has_a_limit() {
         .unwrap();
     let err = scene.apply("wm", &[camera("one-more", pan)]).unwrap_err();
     assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
+}
+
+#[test]
+fn a_request_event_names_the_request() {
+    let event = Event::SurfaceRequested {
+        surface: "s1".into(),
+        request: SurfaceRequest::Fullscreen,
+    };
+    assert_eq!(
+        serde_json::to_value(&event).unwrap(),
+        serde_json::json!({"event": "surface.requested", "surface": "s1", "request": "fullscreen"})
+    );
 }

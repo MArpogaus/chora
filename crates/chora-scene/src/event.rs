@@ -41,6 +41,15 @@ pub enum Event {
         /// The surface node.
         surface: String,
     },
+    /// A client, or a taskbar for it, asks for a change that a plugin
+    /// decides, for example fullscreen.
+    #[serde(rename = "surface.requested")]
+    SurfaceRequested {
+        /// The surface node.
+        surface: String,
+        /// The change.
+        request: SurfaceRequest,
+    },
     /// A grabbed key binding was pressed.
     #[serde(rename = "input.key")]
     InputKey {
@@ -71,6 +80,27 @@ pub enum Event {
         /// The client name.
         name: String,
     },
+}
+
+/// A change that a client asks for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SurfaceRequest {
+    /// Focus and raise the surface, for example after a click on a
+    /// notification.
+    Activate,
+    /// Close the surface, for example from a taskbar.
+    Close,
+    /// Show the surface fullscreen.
+    Fullscreen,
+    /// End fullscreen.
+    Unfullscreen,
+    /// Maximize the surface.
+    Maximize,
+    /// End the maximized state.
+    Unmaximize,
+    /// Minimize the surface; Wayland has no state for it.
+    Minimize,
 }
 
 /// An output and the part of the scene that it shows.
