@@ -188,6 +188,7 @@ impl State {
             .scene
             .check(&head.owner, &head.commands)
             .map_err(|e| e.to_string())?;
+        self.assets.images.load_for(&head.commands)?;
         for effect in &effects {
             if let Effect::Configure {
                 surface,
@@ -268,6 +269,7 @@ impl State {
     fn finish(&mut self, mut head: Pending) {
         let message = match self.scene.apply(&head.owner, &head.commands) {
             Ok(effects) => {
+                self.assets.images.prune(&self.scene);
                 self.execute(effects);
                 self.refresh_pointer();
                 Message::result(head.id, Value::Null)

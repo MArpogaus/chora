@@ -11,7 +11,7 @@ use smithay::{
     backend::renderer::{
         ImportAll, ImportMem, Renderer,
         element::{
-            AsRenderElements, Kind,
+            AsRenderElements, Id, Kind,
             memory::MemoryRenderBufferRenderElement,
             solid::{SolidColorBuffer, SolidColorRenderElement},
             surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
@@ -38,6 +38,7 @@ use smithay::{
 };
 
 use crate::{
+    images::{self, CellElement, Images, Placement},
     layers,
     lock::Lock,
     output::{Spot, output_area, scene_rect},
@@ -50,6 +51,16 @@ render_elements! {
     Scaled = RescaleRenderElement<WaylandSurfaceRenderElement<R>>,
     Solid = SolidColorRenderElement,
     Cursor = MemoryRenderBufferRenderElement<R>,
+    Image = CellElement<R>,
+}
+
+/// What the scene draws besides surfaces: a color buffer per rect node,
+/// the images, and the ids of the image cells of each image node.
+#[derive(Default)]
+pub struct Assets {
+    pub rects: HashMap<String, SolidColorBuffer>,
+    pub images: Images,
+    pub cells: HashMap<String, Vec<Id>>,
 }
 
 /// How an output shows the scene: its camera and its scale factor.
@@ -65,8 +76,7 @@ pub struct View {
 pub struct Parts<'a> {
     pub scene: &'a Scene,
     pub windows: &'a HashMap<String, Window>,
-    /// One color buffer per rect node.
-    pub rects: &'a mut HashMap<String, SolidColorBuffer>,
+    pub assets: &'a mut Assets,
     pub lock: Option<&'a Lock>,
 }
 
@@ -144,9 +154,13 @@ where
 {
     let list = parts.scene.draw_list();
     let scene = parts.scene;
-    parts
-        .rects
-        .retain(|id, _| scene.node(id).is_some_and(|n| n.kind == NodeKind::Rect));
+    let Assets {
+        rects,
+        images,
+        cells,
+    } = &mut *parts.assets;
+    rects.retain(|id, _| scene.node(id).is_some_and(|n| n.kind == NodeKind::Rect));
+    cells.retain(|id, _| scene.node(id).is_some_and(|n| n.kind == NodeKind::Image));
     let mut out = Vec::new();
     for placed in list.iter().rev() {
         let transform = view.camera.then(&placed.transform);
@@ -185,7 +199,16 @@ where
                         }),
                 );
             }
-            NodeKind::Rect => out.extend(rect(placed, parts.rects, offset, scale, alpha)),
+            NodeKind::Rect => out.extend(rect(placed, rects, offset, scale, alpha)),
+            NodeKind::Image => {
+                let at = Placement {
+                    origin: offset,
+                    scale: (sx, sy),
+                    output_scale: view.scale,
+                    alpha,
+                };
+                out.extend(image(placed, images, cells, renderer, &at));
+            }
             NodeKind::Group => {}
         }
     }
@@ -219,6 +242,33 @@ where
         alpha,
         Kind::Unspecified,
     )))
+}
+
+/// The render elements of an image node, if its file is loaded.
+fn image<R>(
+    placed: &Placed<'_>,
+    images: &Images,
+    cells: &mut HashMap<String, Vec<Id>>,
+    renderer: &mut R,
+    at: &Placement,
+) -> Vec<SceneElement<R>>
+where
+    R: Renderer + ImportAll + ImportMem,
+    R::TextureId: Clone + Send + 'static,
+{
+    let props = &placed.node.props;
+    let Some(image) = props.image.as_deref().and_then(|p| images.get(p)) else {
+        return Vec::new();
+    };
+    let size = props
+        .size
+        .unwrap_or([f64::from(image.size[0]), f64::from(image.size[1])]);
+    let parts = images::cells(image.size, size, props.slice);
+    let ids = cells.entry(placed.node.id.clone()).or_default();
+    images::elements(renderer, image, &parts, ids, at)
+        .into_iter()
+        .map(SceneElement::Image)
+        .collect()
 }
 
 /// The translation and the scale of a 2D transform with a positive scale.
@@ -330,12 +380,25 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
                 offset + Point::from((loc.x * sx, loc.y * sy)),
             ))
         }
-        NodeKind::Rect => {
-            let [w, h] = placed.node.props.size.unwrap_or_default();
+        NodeKind::Rect | NodeKind::Image => {
+            let [w, h] = node_size(state, placed);
             ((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)).then_some(Hit::Area)
         }
         NodeKind::Group => None,
     }
+}
+
+/// The size of a rect or an image node; an image without a size has the
+/// size of its file.
+fn node_size(state: &State, placed: &Placed<'_>) -> [f64; 2] {
+    let props = &placed.node.props;
+    props.size.unwrap_or_else(|| {
+        props
+            .image
+            .as_deref()
+            .and_then(|p| state.assets.images.get(p))
+            .map_or([0.0; 2], |i| [f64::from(i.size[0]), f64::from(i.size[1])])
+    })
 }
 
 /// Sends frame callbacks for one output: every frame to the toplevels that

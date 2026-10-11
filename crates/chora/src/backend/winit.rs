@@ -148,7 +148,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
         backend,
         scene,
         windows,
-        rects,
+        assets,
         lock,
         ..
     } = state;
@@ -167,7 +167,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<(), String> {
         let mut parts = render::Parts {
             scene,
             windows,
-            rects,
+            assets,
             lock: lock.as_ref(),
         };
         let elements = render::output_elements(&mut parts, renderer, output, &view);

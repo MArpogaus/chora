@@ -294,8 +294,41 @@ fn size_and_color_belong_to_rects() {
         props: sized.clone(),
     };
     let err = scene.apply("wm", &[create(NodeKind::Group)]).unwrap_err();
-    assert_eq!(err.error, SceneError::WrongKind("n".into(), "rect"));
+    assert_eq!(
+        err.error,
+        SceneError::WrongKind("n".into(), "rect or image")
+    );
     scene.apply("wm", &[create(NodeKind::Rect)]).unwrap();
+}
+
+#[test]
+fn only_images_have_a_file_and_it_has_an_absolute_path() {
+    let mut scene = Scene::default();
+    let create = |id: &str, kind, image: &str| Command::Create {
+        id: id.into(),
+        kind,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            image: Some(image.into()),
+            slice: Some([4.0, 4.0, 4.0, 4.0]),
+            ..PropsUpdate::default()
+        },
+    };
+    let err = scene
+        .apply("wm", &[create("r", NodeKind::Rect, "/a.png")])
+        .unwrap_err();
+    assert_eq!(err.error, SceneError::WrongKind("r".into(), "image"));
+    let err = scene
+        .apply("wm", &[create("i", NodeKind::Image, "a.png")])
+        .unwrap_err();
+    assert!(matches!(err.error, SceneError::Invalid(_)));
+    scene
+        .apply("wm", &[create("i", NodeKind::Image, "/a.png")])
+        .unwrap();
+    assert_eq!(
+        scene.node("i").unwrap().props.image.as_deref(),
+        Some("/a.png")
+    );
 }
 
 #[test]

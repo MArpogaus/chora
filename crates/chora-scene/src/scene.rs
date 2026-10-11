@@ -130,6 +130,11 @@ impl Scene {
         self.nodes.get(id)
     }
 
+    /// All nodes, in id order.
+    pub fn nodes(&self) -> impl Iterator<Item = &Node> {
+        self.nodes.values()
+    }
+
     /// All nodes that match a selector, in id order.
     #[must_use]
     pub fn query(&self, selector: &Selector) -> Vec<&Node> {
@@ -327,7 +332,7 @@ impl Scene {
             )));
         }
         if node.kind == NodeKind::Surface {
-            return Err(SceneError::WrongKind(id, "group or rect"));
+            return Err(SceneError::WrongKind(id, "group, rect or image"));
         }
         self.group(parent)?;
         self.nodes.insert(id.clone(), node);
@@ -589,11 +594,22 @@ fn is_surface_id(id: &str) -> bool {
         .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
 }
 
-/// Only rects have a size and a color; sizes are not negative, and all
-/// numbers are finite.
+/// The longest path of an image file.
+const MAX_PATH: usize = 4096;
+
+/// Only rects and images have a size, only rects a color, only images a
+/// file and a slice. Image paths are absolute, sizes and slices are not
+/// negative, and all numbers are finite.
 fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
-    if kind != NodeKind::Rect && (props.size.is_some() || props.color.is_some()) {
+    let sized = matches!(kind, NodeKind::Rect | NodeKind::Image);
+    if !sized && props.size.is_some() {
+        return Err(SceneError::WrongKind(id.into(), "rect or image"));
+    }
+    if kind != NodeKind::Rect && props.color.is_some() {
         return Err(SceneError::WrongKind(id.into(), "rect"));
+    }
+    if kind != NodeKind::Image && (props.image.is_some() || props.slice.is_some()) {
+        return Err(SceneError::WrongKind(id.into(), "image"));
     }
     let numbers = props
         .transform
@@ -601,14 +617,29 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
         .flat_map(|t| t.matrix().iter())
         .chain(props.size.iter().flatten())
         .chain(props.color.iter().flatten())
+        .chain(props.slice.iter().flatten())
         .chain(props.opacity.iter());
     if numbers.copied().any(|n| !n.is_finite()) {
         return Err(SceneError::Invalid(format!(
             "a number of {id:?} is not finite"
         )));
     }
-    if props.size.is_some_and(|[w, h]| w < 0.0 || h < 0.0) {
+    let negative = props
+        .size
+        .iter()
+        .flatten()
+        .chain(props.slice.iter().flatten());
+    if negative.copied().any(|n| n < 0.0) {
         return Err(SceneError::Invalid(format!("negative size for {id:?}")));
+    }
+    if props
+        .image
+        .as_ref()
+        .is_some_and(|p| !p.starts_with('/') || p.len() > MAX_PATH)
+    {
+        return Err(SceneError::Invalid(format!(
+            "the image of {id:?} needs an absolute path"
+        )));
     }
     Ok(())
 }

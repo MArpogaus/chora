@@ -713,7 +713,7 @@ fn draw(
         backend,
         scene,
         windows,
-        rects,
+        assets,
         cursor_status,
         lock,
         ..
@@ -750,7 +750,7 @@ fn draw(
     let mut parts = render::Parts {
         scene,
         windows,
-        rects,
+        assets,
         lock: lock.as_ref(),
     };
     elements.extend(render::output_elements(

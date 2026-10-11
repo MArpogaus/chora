@@ -8,11 +8,11 @@ use crate::{NodeKind, PropsUpdate, Transform};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
-    /// Creates a group or rect node under a parent.
+    /// Creates a group, rect or image node under a parent.
     Create {
         /// The id of the new node.
         id: String,
-        /// Group or rect; the core creates surface nodes itself.
+        /// Group, rect or image; the core creates surface nodes itself.
         kind: NodeKind,
         /// The parent group.
         parent: String,

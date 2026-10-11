@@ -19,6 +19,8 @@ pub enum NodeKind {
     Surface,
     /// A colored rectangle.
     Rect,
+    /// A PNG image, for example a part of a window border.
+    Image,
 }
 
 /// How a node takes part in pointer input.
@@ -80,10 +82,17 @@ pub struct Props {
     pub input: InputMode,
     /// Free key/value pairs to tag and find nodes.
     pub meta: BTreeMap<String, String>,
-    /// Width and height of a rect.
+    /// Width and height of a rect or an image. An image without a size
+    /// has the size of its file.
     pub size: Option<[f64; 2]>,
     /// RGBA color of a rect, each from 0 to 1.
     pub color: Option<[f64; 4]>,
+    /// The absolute path of the PNG file of an image.
+    pub image: Option<String>,
+    /// The insets of an image that keep their size when the image
+    /// stretches, in pixels of the file: left, top, right, bottom. The
+    /// edges between them stretch in one direction, the center in both.
+    pub slice: Option<[f64; 4]>,
 }
 
 impl Default for Props {
@@ -96,6 +105,8 @@ impl Default for Props {
             meta: BTreeMap::new(),
             size: None,
             color: None,
+            image: None,
+            slice: None,
         }
     }
 }
@@ -126,6 +137,12 @@ pub struct PropsUpdate {
     /// See [`Props::color`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<[f64; 4]>,
+    /// See [`Props::image`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    /// See [`Props::slice`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slice: Option<[f64; 4]>,
 }
 
 impl Props {
@@ -150,11 +167,22 @@ impl Props {
                 self.meta.insert(k.clone(), v.clone());
             }
         }
+        self.apply_drawing(update);
+    }
+
+    /// Applies the properties of rects and images.
+    fn apply_drawing(&mut self, update: &PropsUpdate) {
         if update.size.is_some() {
             self.size = update.size;
         }
         if update.color.is_some() {
             self.color = update.color;
+        }
+        if update.image.is_some() {
+            self.image.clone_from(&update.image);
+        }
+        if update.slice.is_some() {
+            self.slice = update.slice;
         }
     }
 }

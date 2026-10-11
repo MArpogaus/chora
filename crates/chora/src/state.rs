@@ -9,7 +9,6 @@ use std::{
 
 use chora_scene::{Effect, Event, Scene, SurfaceInfo, SurfaceRequest, ToplevelState};
 use smithay::{
-    backend::renderer::element::solid::SolidColorBuffer,
     desktop::{PopupManager, Window},
     input::{Seat, SeatState, keyboard::Keycode, pointer::CursorImageStatus},
     output::Output,
@@ -53,7 +52,7 @@ use smithay::{
 
 use crate::{
     backend::Backend, foreign_toplevel::ForeignToplevelManagerState, ipc::Ipc, lock::Lock,
-    output_management::OutputManagement, transaction::Transactions,
+    output_management::OutputManagement, render::Assets, transaction::Transactions,
 };
 
 /// The state of the compositor, passed to every callback of the event loop.
@@ -111,8 +110,7 @@ pub struct State {
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
     pub windows: HashMap<String, Window>,
-    /// One color buffer per rect node.
-    pub rects: HashMap<String, SolidColorBuffer>,
+    pub assets: Assets,
     next_surface: u64,
     pub ipc: Ipc,
     pub transactions: Transactions,
@@ -189,7 +187,7 @@ impl State {
             early_requests: HashMap::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
-            rects: HashMap::new(),
+            assets: Assets::default(),
             next_surface: 1,
             ipc: Ipc::default(),
             transactions: Transactions::default(),
