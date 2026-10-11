@@ -741,6 +741,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugins
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build-and-release" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -961,6 +972,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugins
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build-and-release" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1096,6 +1118,38 @@ check of each choice. <a href="../decisions/">Decisions</a> records the result.<
 </tr>
 </tbody>
 </table>
+<h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Dependency</th>
+<th>Purpose</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/linebender/resvg">resvg</a></td>
+<td><code>chora-xp</code> rasterizes the SVG files of its theme into PNG files for image nodes</td>
+<td>Apache-2.0 OR MIT; brings usvg (Apache-2.0 OR MIT) and tiny-skia (BSD-3-Clause)</td>
+</tr>
+<tr>
+<td>fontdb, harfrust, skrifa</td>
+<td>text of <code>chora-xp</code> through usvg: the bundled Tahoma and the system fonts</td>
+<td>fontdb and harfrust MIT; skrifa and read-fonts MIT OR Apache-2.0</td>
+</tr>
+<tr>
+<td>chrono</td>
+<td>the clock of the taskbar of <code>chora-xp</code>, in local time</td>
+<td>MIT OR Apache-2.0; with iana-time-zone (MIT OR Apache-2.0)</td>
+</tr>
+</tbody>
+</table>
+<p>The theme of the XP flavor is artwork, not code: SVG files of Exposé and of
+the Windows XP pack of <code>kde-plasma-winxp-launcher</code>, two fonts, a wallpaper
+and cursors. <code>flavors/xp/theme/README.md</code> lists each file with its license.
+Debug builds compile the image, font and SVG crates optimized, so that
+<code>chora-xp</code> starts in a second.</p>
 <h2 id="build-and-release">Build and release<a class="headerlink" href="#build-and-release" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

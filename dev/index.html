@@ -1097,9 +1097,13 @@ sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> <
 to use Alt instead. <code>chora-tiling --help</code> lists all options.</p>
 <p>The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
 and Ctrl+Alt+BackSpace quits chora.</p>
+<p>To try the XP flavor, a stacking desktop in the style of Windows XP, start
+<code>chora -- chora-xp</code>. From a source tree, point it at the theme:
+<code>target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme</code>.</p>
 <p>To log in to chora on real hardware, choose the session "chora" on the
 login screen. It starts the tiling flavor with waybar and X11 support
-through xwayland-satellite. The hardware session is not tested yet.</p>
+through xwayland-satellite. The session "chora (Windows XP)" starts the XP
+flavor. The hardware session is not tested yet.</p>
 <p>Programs inside chora find its IPC socket in <code>CHORA_SOCKET</code>. For example, a
 terminal in chora shows the scene with <code>choractl query</code>, and
 <code>choractl events</code> prints the events.</p>

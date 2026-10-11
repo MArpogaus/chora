@@ -634,6 +634,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Flavors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-xp-flavor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The XP flavor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -947,6 +964,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Flavors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-xp-flavor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The XP flavor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1036,6 +1070,83 @@ start, restart and order, so chora needs no service manager.</p>
 </code></pre></div>
 <p>The target also wants <code>waybar.service</code>, which the waybar package installs.
 A copy of the directory in <code>~/.config/chora/flavors/tiling/</code> replaces it.</p>
+<h3 id="the-xp-flavor">The XP flavor<a class="headerlink" href="#the-xp-flavor" title="Permanent link">&para;</a></h3>
+<p>The XP flavor is the showroom of milestone M3 (D39): a stacking desktop in
+the style of Windows XP. It is a demo, not a daily driver.</p>
+<div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/xp/
+├── chora-xp.target              # wants the two units below
+├── chora-xp-wm.service          # chora-xp
+├── chora-xp-xwayland.service    # xwayland-satellite, if installed
+└── theme/                       # SVG files, fonts, wallpaper and cursors
+</code></pre></div>
+<p>The session "chora (Windows XP)" on the login screen starts it with the XP
+cursors, which the package installs to <code>/usr/share/icons/ModernXP</code>.
+<code>theme/README.md</code> lists the source and the license of every file of the
+theme.</p>
+<p><code>chora-xp</code> draws everything as image nodes. It rasterizes the SVG files of
+the theme with resvg into PNG files in <code>$XDG_RUNTIME_DIR/chora-xp/</code>, and
+renders each picture once:</p>
+<ul>
+<li>a frame around each window, with its title and the minimize, maximize
+  and close buttons;</li>
+<li>a taskbar at the bottom of the work area of each output, with the start
+  button, one button per window and a clock;</li>
+<li>the start menu with the user name, programs, places, Log Off and Turn
+  Off Computer;</li>
+<li>the wallpaper Bløff below everything.</li>
+</ul>
+<p>A click on a window raises and focuses it. A drag of a title bar moves the
+window, and a double click maximizes it. A maximized window fills the work
+area above the taskbar. Minimize shrinks the window into its task button. A
+click on a task button shows or minimizes its window. Log Off asks every
+window to close. Turn Off Computer ends <code>chora-xp</code>; it shuts nothing down.
+The plugin grabs two key bindings: Alt+F4 closes the focused window, and
+Super+e starts the terminal.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--theme DIR</code></td>
+<td><code>/usr/share/chora/flavors/xp/theme</code>, or <code>CHORA_XP_THEME</code></td>
+<td>the theme directory</td>
+</tr>
+<tr>
+<td><code>--terminal CMD</code></td>
+<td><code>foot</code></td>
+<td>the terminal of the start menu and of Super+e</td>
+</tr>
+<tr>
+<td><code>--launcher CMD</code></td>
+<td><code>fuzzel</code></td>
+<td>All Programs and Run in the start menu</td>
+</tr>
+<tr>
+<td><code>--program TITLE=CMD</code></td>
+<td></td>
+<td>another program in the start menu; repeat for more</td>
+</tr>
+<tr>
+<td><code>--clock FORMAT</code></td>
+<td><code>%-I:%M %p</code></td>
+<td>the clock, in the format of strftime</td>
+</tr>
+<tr>
+<td><code>--wallpaper FILE</code></td>
+<td>Bløff</td>
+<td>a PNG or SVG file</td>
+</tr>
+</tbody>
+</table>
+<p>To try the flavor from a source tree, start it nested:</p>
+<div class="highlight"><pre><span></span><code>cargo<span class="w"> </span>build<span class="w"> </span>--workspace
+target/debug/chora<span class="w"> </span>--<span class="w"> </span>target/debug/chora-xp<span class="w"> </span>--theme<span class="w"> </span>flavors/xp/theme
+</code></pre></div>
 <div class="highlight"><pre><span></span><code>flavors/agentic/
 ├── chora-agentic.target
 ├── views/       # morning, analysis, writing, coding
