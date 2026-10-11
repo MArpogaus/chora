@@ -147,8 +147,12 @@ A transaction is a batch of commands. The core applies it as one unit.
 
 Some commands need a client round trip. A resize sends a configure event, and
 the client must answer with a new buffer. The core therefore holds the
-transaction until all affected clients commit, or until a deadline passes.
-Then the core shows all changes in the same frame (D22).
+transaction until all affected clients commit, or until a deadline of 150 ms
+passes. Then the core shows all changes in the same frame (D22).
+
+A surface that misses the deadline is late. No transaction waits for it
+until it commits a buffer for the configure that it missed. A hung client
+thus delays the queue once, not once per transaction.
 
 ## Frame flow
 

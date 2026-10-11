@@ -4,6 +4,10 @@
 //! client commits a buffer for its configure, or until a deadline passes.
 //! Then the core applies the whole transaction to the scene in one step.
 //! Transactions run one after the other, in the order of their arrival.
+//!
+//! A surface that misses a deadline is late. No transaction waits for it
+//! until it commits a buffer for the configure that it missed, so a hung
+//! client delays the queue once, not once per transaction.
 
 use std::{
     collections::{HashMap, VecDeque},
@@ -29,6 +33,8 @@ const MAX_PENDING: usize = 16;
 #[derive(Default)]
 pub struct Transactions {
     queue: VecDeque<Pending>,
+    /// The late surfaces, and the configure serial that each one missed.
+    late: HashMap<String, Serial>,
 }
 
 struct Pending {
@@ -45,20 +51,21 @@ struct Pending {
 impl Transactions {
     /// Notes a commit of a toplevel.
     pub fn committed(&mut self, id: &str, toplevel: &ToplevelSurface) {
-        let Some(head) = self.queue.front_mut() else {
-            return;
-        };
-        let Some(serial) = head.waiting.get(id) else {
-            return;
-        };
         let acked = toplevel.with_cached_state(|s| s.last_acked.as_ref().map(|c| c.serial));
-        if acked.is_some_and(|a| a >= *serial) {
+        let caught_up = |serial: &Serial| acked.is_some_and(|a| a >= *serial);
+        if self.late.get(id).is_some_and(caught_up) {
+            self.late.remove(id);
+        }
+        if let Some(head) = self.queue.front_mut()
+            && head.waiting.get(id).is_some_and(caught_up)
+        {
             head.waiting.remove(id);
         }
     }
 
     /// Stops waiting for a destroyed surface.
     pub fn forget(&mut self, id: &str) {
+        self.late.remove(id);
         for pending in &mut self.queue {
             pending.waiting.remove(id);
         }
@@ -122,6 +129,7 @@ impl State {
                 self.transactions.queue.push_front(head);
                 break;
             }
+            self.transactions.late.extend(head.waiting.drain());
             self.finish(head);
         }
     }
@@ -140,6 +148,7 @@ impl State {
                 states,
             } = effect
                 && let Some(serial) = self.configure(surface, *size, states)
+                && !self.transactions.late.contains_key(surface)
             {
                 head.waiting.insert(surface.clone(), serial);
             }
