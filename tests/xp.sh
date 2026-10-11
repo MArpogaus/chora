@@ -5,7 +5,8 @@
 # mesh, the minimize button sends the window through the magic lamp and
 # the task button brings it back, the start menu opens and starts a
 # terminal, the buttons of the title bar maximize and close a window, and
-# the desktop buttons turn the cube to another desktop and back.
+# the desktop buttons turn the cube to another desktop and back. Buttons
+# light up under the pointer.
 #
 # A virtual pointer of the host drives chora, as in tests/nested.sh. Its
 # coordinates are those of the 1280x800 output, which shows the scene
@@ -134,7 +135,26 @@ bent() {
 }
 flat() { query "id:xp-win-$1" | jq -e '.[0].mesh == null' >/dev/null; }
 
-step "4. a drag of a title bar moves the window and bends it like jelly"
+step "4. the close button and the start button light up under the pointer"
+image_of() { query "id:$1" | jq -r '.[0].image'; }
+lit() { test "$(image_of "$1")" != "$2"; }
+read -r x y <<<"$(frame "${ids[1]}")"
+w=$(frame_width "${ids[1]}")
+close=$(image_of "xp-close-${ids[1]}")
+start=$(image_of xp-start-winit)
+timeout 20 "$bin/chora-probe" point $((x + w - 17)) $((y + 16)) 1500 >>"$out/probe.log" 2>&1 &
+job=$!
+wait_for lit "xp-close-${ids[1]}" "$close"
+grim "$out/hover.png"
+wait "$job" || fail "the pointer failed: $out/probe.log"
+timeout 20 "$bin/chora-probe" point 50 785 1500 >>"$out/probe.log" 2>&1 &
+job=$!
+wait_for lit xp-start-winit "$start"
+# The close button is back to its look without the pointer.
+test "$(image_of "xp-close-${ids[1]}")" = "$close" || fail "the close button stayed lit"
+wait "$job" || fail "the pointer failed: $out/probe.log"
+
+step "5. a drag of a title bar moves the window and bends it like jelly"
 top=${ids[1]}
 read -r x y <<<"$(frame "$top")"
 # The button stays down for 1.5 s while the pointer circles.
@@ -155,7 +175,7 @@ w=$(frame_width "$top")
 wait_for pixel_is $((x + w / 2)) $((y + 3)) "$blue"
 grim "$out/dragged.png"
 
-step "5. the minimize button hides the window, its task button shows it"
+step "6. the minimize button hides the window, its task button shows it"
 click() { timeout 20 "$bin/chora-probe" drag "$1" "$2" "$1" "$2" >>"$out/probe.log" 2>&1; }
 # Clicks button N of the title bar of a frame at X Y with the width W:
 # 0 close, 1 maximize, 2 minimize. The 22 pixel buttons sit 6 pixels from
@@ -182,7 +202,7 @@ wait "$job" || fail "the click failed"
 wait_for visible true
 wait_for flat "$top"
 
-step "6. the start button opens the start menu"
+step "7. the start button opens the start menu"
 click 50 785 || fail "the click failed"
 menu_visible() { test "$(query id:xp-menu | jq '.[0].visible')" = "$1"; }
 wait_for menu_visible true
@@ -194,7 +214,7 @@ grim "$out/menu.png"
 click 50 785 || fail "the click failed"
 wait_for menu_visible false
 
-step "7. the Terminal entry of the start menu starts a terminal"
+step "8. the Terminal entry of the start menu starts a terminal"
 count_is() { test "$(query "kind:surface owner:xp" | jq length)" = "$1"; }
 click 50 785 || fail "the click failed"
 wait_for menu_visible true
@@ -203,7 +223,7 @@ click 100 $((menu_y + 88)) || fail "the click failed"
 wait_for menu_visible false
 wait_for count_is 3
 
-step "8. the maximize button fills the area above the taskbar"
+step "9. the maximize button fills the area above the taskbar"
 top=$(query "kind:surface owner:xp" | jq -r '[.[].id] | sort_by(.[1:] | tonumber) | last')
 wait_for visible true
 read -r x y <<<"$(frame "$top")"
@@ -215,11 +235,11 @@ wait_for size_is "[1280,740]"
 test "$(frame "$top")" = "0 0" || fail "maximized at $(frame "$top")"
 grim "$out/maximized.png"
 
-step "9. the close button closes the window"
+step "10. the close button closes the window"
 title_button 0 0 0 1280
 wait_for count_is 2
 
-step "10. the desktop buttons turn the cube to the second desktop and back"
+step "11. the desktop buttons turn the cube to the second desktop and back"
 desk_visible() { test "$(query "id:xp-desk-$1" | jq '.[0].visible')" = "$2"; }
 # Succeeds while two faces show and one of them turned far enough that
 # its matrix divides by the depth along x: about 30 degrees.

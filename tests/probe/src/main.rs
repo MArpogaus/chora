@@ -17,6 +17,8 @@
 //! - `wiggle X0 Y0 X1 Y1 MS`: presses at the first point, moves to the
 //!   second one, keeps circling around it with the button down for MS
 //!   milliseconds, and releases there; the drag of a wobbly window.
+//! - `point X Y MS`: moves the pointer to a point without a button and
+//!   stays there for MS milliseconds, for hover looks.
 
 use std::{
     fs::File,
@@ -121,6 +123,7 @@ fn main() -> ExitCode {
         "presentation" => presentation(&mut queue, &mut probe),
         "drag" => drag(&mut queue, &mut probe),
         "wiggle" => wiggle(&mut queue, &mut probe),
+        "point" => point(&mut queue, &mut probe),
         "held-commit" => match size_args() {
             Some(size) => held_commit(&mut queue, &mut probe, size),
             None => Err("usage: held-commit W H".into()),
@@ -365,6 +368,30 @@ fn wiggle(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     Ok(format!(
         "wiggled from {x0},{y0} around {x1},{y1} for {ms} ms"
     ))
+}
+
+/// Moves the pointer to a point and stays there.
+fn point(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
+    let args: Vec<u32> = std::env::args()
+        .skip(2)
+        .filter_map(|a| a.parse().ok())
+        .collect();
+    let [x, y, ms] = args[..] else {
+        return Err("usage: point X Y MS".into());
+    };
+    let manager = probe.pointer_manager.clone().ok_or("no virtual pointer")?;
+    let pointer = manager.create_virtual_pointer(probe.seat.as_ref(), &queue.handle(), ());
+    let start = Instant::now();
+    let time = || u32::try_from(start.elapsed().as_millis()).unwrap_or(u32::MAX);
+    dispatch_until(queue, probe, Duration::from_millis(150), |_| false);
+    pointer.motion_absolute(time(), x, y, EXTENT[0], EXTENT[1]);
+    pointer.frame();
+    dispatch_until(queue, probe, Duration::from_millis(u64::from(ms)), |_| {
+        false
+    });
+    pointer.destroy();
+    queue.roundtrip(probe).map_err(|e| e.to_string())?;
+    Ok(format!("pointed at {x},{y} for {ms} ms"))
 }
 
 /// The width and the height in the arguments after the mode.
