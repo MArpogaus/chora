@@ -1175,8 +1175,7 @@ Windows XP (D39). The flavor is a demo, not a daily driver.</p>
 <h2 id="m4-agent-interface">M4: Agent interface<a class="headerlink" href="#m4-agent-interface" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> an agent sees and changes the screen.</p>
 <ul>
-<li>Grants for <code>input.inject</code> and <code>screen.capture</code> (D33). Open question 1 in
-  <a href="../decisions/">Decisions</a> must have an answer first.</li>
+<li>Grants for <code>input.inject</code> and <code>screen.capture</code> (D33, D40).</li>
 <li><code>ext-image-copy-capture</code> and <code>wlr-screencopy</code>; <code>xdg-desktop-portal-wlr</code>
   for screen sharing (D37).</li>
 <li>Plugin methods: <code>methods.export</code> and <code>methods.call</code> (D31).</li>
@@ -1186,7 +1185,8 @@ Windows XP (D39). The flavor is a demo, not a daily driver.</p>
 </ul>
 <p><strong>Exit:</strong> an automated test passes: an MCP client asks for "describe the
 screen", calls <code>tiling.set_layout</code>, and the next screenshot shows the new
-layout.</p>
+layout. The last step of <code>tests/agent.sh</code> checks it with
+<code>tests/mcp-client.py</code> in CI.</p>
 <h2 id="m5-packaging">M5: Packaging<a class="headerlink" href="#m5-packaging" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> chora installs like every other desktop on the host.</p>
 <ul>

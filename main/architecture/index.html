@@ -1320,6 +1320,18 @@ states are <code>activated</code> for the surface that plugins focused, and <cod
 and <code>fullscreen</code> from the last configure. The core never reports
 <code>minimized</code>. The requests of a taskbar, <code>close</code> included, go to plugins as
 <code>surface.requested</code>.</p>
+<p>Screenshot tools and screen sharing capture outputs through
+<code>wlr-screencopy</code>, for example grim, OBS and <code>xdg-desktop-portal-wlr</code> (D37).
+A frame offers an shm buffer in XRGB8888. The core renders the output into
+it as on screen, without the cursor. Frames of both protocols wait for the
+next tick, one refresh later: each tick renders each output or toplevel
+once for all its frames, and a client has at most four frames waiting, so
+that no client can make the core render more than once per refresh and
+source. Newer tools use
+<code>ext-image-copy-capture</code>, which also captures a toplevel of
+<code>ext-foreign-toplevel-list</code>; the toplevel shows as <code>screen.capture</code> shows
+its node. Frames of both protocols fail while the session is locked. The renderer writes into shm buffers in <code>shm.rs</code>, which
+is the one place with <code>unsafe</code> code besides the GL calls in <code>gl.rs</code>.</p>
 <h3 id="scene">Scene<a class="headerlink" href="#scene" title="Permanent link">&para;</a></h3>
 <p>The scene is a tree of nodes with stable ids. <a href="../api/#nodes">API</a> lists the
 node properties. The order of the children sets the stacking order. The crate
@@ -1447,12 +1459,16 @@ the connection.</p>
 </tbody>
 </table>
 <p>A plugin can export <strong>methods</strong>, for example <code>tiling.set_layout</code>. The core
-forwards a method call to the plugin and returns the answer. An agent then
-asks the window manager for a change instead of fighting it.</p>
+forwards a method call to the plugin as an event and returns the answer to
+the caller. A call without an answer fails after 10 s. An agent then asks
+the window manager for a change instead of fighting it (see
+<a href="../api/#plugin-methods">API</a>).</p>
 <h3 id="choractl-and-the-mcp-bridge">choractl and the MCP bridge<a class="headerlink" href="#choractl-and-the-mcp-bridge" title="Permanent link">&para;</a></h3>
 <p><code>choractl</code> is the CLI for the coordinator. It loads views and starts their
-plugins. <code>choractl mcp</code> serves the API as MCP tools over stdio. MCP stays out
-of the core, so the MCP side can change without a change to the compositor.</p>
+plugins. <code>choractl mcp</code> serves the API as MCP tools over stdio, with tools
+for whole tasks such as <code>describe_screen</code> (see
+<a href="../api/#mcp-tools">API</a>). MCP stays out of the core, so the MCP side can
+change without a change to the compositor.</p>
 <h2 id="transactions">Transactions<a class="headerlink" href="#transactions" title="Permanent link">&para;</a></h2>
 <p>A transaction is a batch of commands. The core applies it as one unit.</p>
 <p>Some commands need a client round trip. A resize sends a configure event, and
@@ -1504,12 +1520,13 @@ of the press that opened it.</p>
 <p>The safety layer is the only built-in behavior (see
 <a href="../vision/#principles">Vision</a>). No plugin and no IPC client can change it.</p>
 <ul>
-<li><strong>Fixed bindings</strong> (D23). Injected input never triggers them.</li>
+<li><strong>Fixed bindings</strong> (D23). Injected input never triggers them; see
+  <a href="../api/#input-injection">Input injection</a>.</li>
 <li><strong>SIGUSR1</strong> starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.</li>
-<li><strong>Emergency reset.</strong> The core disconnects all plugins, removes all effects,
-  restores the default cameras and puts all surfaces in a simple grid. This
-  grid is the one layout in the core. It is hardcoded, so a broken
+<li><strong>Emergency reset.</strong> The core disconnects all plugins, revokes all grants,
+  removes all effects, restores the default cameras and puts all surfaces in
+  a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
   configuration cannot break it. The reset also changes the focus (see
   <a href="#input-flow">Input flow</a>).</li>
 <li><strong>Session lock.</strong> The core enforces <code>ext-session-lock</code>. One client owns
@@ -1530,11 +1547,17 @@ of the press that opened it.</p>
 <ul>
 <li>Unsandboxed Wayland clients get all protocols, as in sway. So any client
   can, for example, take the keyboard as an input method, or configure the
-  outputs. <code>wp-security-context-v1</code> hides privileged protocols, for example
-  screencopy, from sandboxed clients.</li>
+  outputs.</li>
+<li>A sandbox such as Flatpak connects its apps through a socket of
+  <code>wp-security-context-v1</code>. Those clients do not see the privileged
+  protocols: the layer shell, the session lock, the input method, both
+  foreign toplevel protocols, output management, both screencopy protocols
+  with their sources, and the security context manager itself.</li>
 <li>The IPC methods <code>input.inject</code> and <code>screen.capture</code> need a <strong>grant</strong> of the
-  user for the client name. A grant protects against mistakes of agents. It
-  is no barrier against hostile code of the same user.</li>
+  user for the client name: <code>choractl grant NAME CAPABILITY</code> (D40). A grant
+  protects against mistakes of agents. It is no barrier against hostile code
+  of the same user. The emergency reset revokes all grants.</li>
+<li><code>screen.capture</code> and <code>input.inject</code> fail while the session is locked.</li>
 </ul>
 <h2 id="sessions-and-flavors">Sessions and flavors<a class="headerlink" href="#sessions-and-flavors" title="Permanent link">&para;</a></h2>
 <ul>

@@ -623,6 +623,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Views">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#strict-yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strict YAML
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugin-manifests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin manifests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -953,6 +981,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Views">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#strict-yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strict YAML
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugin-manifests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin manifests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1032,26 +1088,89 @@ example <code>chora-flavor</code>, which starts the systemd target of a flavor:<
 <p>The directory is a git repository. It contains no secrets. The package
 installs the reference flavors to <code>/usr/share/chora/</code>.</p>
 <h2 id="views">Views<a class="headerlink" href="#views" title="Permanent link">&para;</a></h2>
-<p>A view is a part of the scene and the plugins that drive it.
-<code>choractl view load &lt;name&gt;</code> starts the plugins of the view that do not run
-yet. Then it applies the nodes of the view as one transaction.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/views/analysis.yaml</span>
-<span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">analysis</span>
+<p>A view is a part of the scene and the plugins that drive it (D35):</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/views/work.yaml</span>
+<span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">work</span>
 <span class="nt">plugins</span><span class="p">:</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
 <span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">layout</span><span class="p">:</span><span class="w"> </span><span class="nv">columns</span><span class="p p-Indicator">,</span><span class="nt"> gap</span><span class="p">:</span><span class="w"> </span><span class="nv">12</span><span class="p p-Indicator">}</span>
-<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">keybindings</span>
-<span class="w">  </span><span class="nt">config</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">bindings</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">Super+Return</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">spawn</span><span class="p">:</span><span class="w"> </span><span class="nv">foot</span><span class="p p-Indicator">}</span>
-<span class="w">      </span><span class="nt">Super+q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">close</span>
 <span class="nt">scene</span><span class="p">:</span>
-<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">workspace</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">work-corner</span>
 <span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">group</span>
-<span class="w">  </span><span class="nt">effects</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt">shader</span><span class="p">:</span><span class="w"> </span><span class="nv">vignette.frag</span><span class="p p-Indicator">,</span><span class="nt"> uniforms</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">strength</span><span class="p">:</span><span class="w"> </span><span class="nv">0.3</span><span class="p p-Indicator">}}]</span>
+<span class="w">  </span><span class="nt">props</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">transform</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">translate</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1800</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">20</span><span class="p p-Indicator">]}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">work-badge</span>
+<span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rect</span>
+<span class="w">  </span><span class="nt">parent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">work-corner</span>
+<span class="w">  </span><span class="nt">props</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">100</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">30</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">]</span>
 </code></pre></div>
-<p>The tiling plugin places the surfaces in <code>workspace</code>. The view only names the
-plugin and its configuration.</p>
+<ul>
+<li><code>choractl view load work</code> starts each plugin of the view that does not
+  run yet, with the <code>exec</code> of its manifest, and waits up to 10 s until it
+  connects. It passes each <code>config</code> to the method that the manifest names
+  in <code>configure</code>. Then it applies the nodes of the view as one transaction.</li>
+<li>The client <code>view-work</code> owns the nodes. A second load replaces them,
+  <code>choractl view unload work</code> removes them.</li>
+<li><code>choractl view save work</code> writes the nodes of <code>view-work</code> as they are
+  now, with the plugins of the file that was there, to
+  <code>~/.config/chora/views/work.yaml</code>, or to <code>--file PATH</code>. A plugin or an
+  agent changes the nodes as <code>view-work</code>, for example
+  <code>choractl --name view-work apply</code>.</li>
+<li>A node has an <code>id</code>, a <code>kind</code> (<code>group</code>, <code>rect</code> or <code>image</code>), a <code>parent</code>
+  (the root by default) and its <code>props</code> as in a <code>create</code> command.</li>
+<li>A name has letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, but no <code>.</code> first, so that
+  its file stays in its directory. The file <code>NAME.yaml</code> must name the same
+  view.</li>
+<li><code>choractl view load</code> also takes the path of a YAML file; the MCP tools
+  take names only.</li>
+<li>A plugin that a view starts gets no stdin and no stdout of <code>choractl</code>,
+  which carry MCP under <code>choractl mcp</code>.</li>
+</ul>
+<p><code>choractl</code> looks for <code>NAME.yaml</code> in <code>$XDG_CONFIG_HOME/chora/views/</code> first
+(<code>~/.config/chora/views/</code> by default), and then in
+<code>/usr/share/chora/views/</code>.</p>
+<h3 id="strict-yaml">Strict YAML<a class="headerlink" href="#strict-yaml" title="Permanent link">&para;</a></h3>
+<p><code>choractl</code> reads views and manifests with <code>serde-saphyr</code> (D41). Unknown
+keys, duplicate keys and unknown tags are errors. Only <code>true</code> and <code>false</code>
+are booleans, so <code>no</code> stays the string <code>no</code>.</p>
+<h3 id="plugin-manifests">Plugin manifests<a class="headerlink" href="#plugin-manifests" title="Permanent link">&para;</a></h3>
+<p>A manifest tells <code>choractl</code> how to start and how to configure a plugin. It
+lives in <code>plugins/NAME.yaml</code> of the same directories:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># /usr/share/chora/plugins/tiling.yaml</span>
+<span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
+<span class="nt">exec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora-tiling</span>
+<span class="nt">configure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">set_layout</span>
+<span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Tiles the windows as master and stack, columns or rows.</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>the client name of the plugin</td>
+</tr>
+<tr>
+<td><code>exec</code></td>
+<td>the shell command that starts it</td>
+</tr>
+<tr>
+<td><code>configure</code></td>
+<td>the exported method that takes the <code>config</code> of a view; a view without <code>config</code> needs none</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>what the plugin does</td>
+</tr>
+</tbody>
+</table>
+<p>The package installs the manifest of <code>chora-tiling</code>.</p>
 <h2 id="flavors">Flavors<a class="headerlink" href="#flavors" title="Permanent link">&para;</a></h2>
 <p>A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target <code>chora-&lt;name&gt;.target</code>. <code>chora-flavor &lt;name&gt;</code> looks for
