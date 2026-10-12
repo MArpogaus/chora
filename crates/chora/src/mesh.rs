@@ -12,17 +12,18 @@
 //! texture maps correctly under perspective. Nodes in a layer have no depth
 //! test; the order of the siblings decides what is in front.
 //!
-//! A layer with effects goes through their shaders first, one pass per
-//! effect. The raw GL calls are in [`crate::gl`].
+//! A layer goes through its passes first: the built-in shape of a rounded
+//! rect with a border, the shader of a shader node, one pass per effect,
+//! and the built-in shape of a clip. The raw GL calls are in [`crate::gl`].
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     time::{Duration, Instant},
 };
 
 use crate::gl;
 
-use chora_scene::{Mesh, Node, ShaderEffect, Transform};
+use chora_scene::{Mesh, Node, NodeKind, Transform, Uniform};
 use smithay::{
     backend::{
         allocator::Fourcc,
@@ -155,7 +156,11 @@ impl Layers {
 
 /// The pixel size of the texture of a layer node at an output scale.
 pub fn texture_size(node: &Node, scale: f64) -> Option<Size<i32, BufferCoords>> {
-    let [w, h] = node.props.size?;
+    pixel_size(node.props.size?, scale)
+}
+
+/// The pixel size of a texture of a logical size, at most 4096 a side.
+pub fn pixel_size([w, h]: [f64; 2], scale: f64) -> Option<Size<i32, BufferCoords>> {
     #[allow(clippy::cast_possible_truncation)] // clamped
     let side = |v: f64| (v * scale).round().clamp(1.0, MAX_SIDE) as i32;
     (w > 0.0 && h > 0.0).then(|| Size::from((side(w), side(h))))
@@ -368,6 +373,7 @@ impl<R: MeshRenderer> RenderElement<R> for MeshElement {
             alpha: self.alpha,
             size: float_size(&self.texture),
             uniforms: None,
+            textures: &[],
         };
         gl::draw(frame, &program, &call).map_err(R::from_gles)
     }
@@ -399,23 +405,79 @@ fn float_size(texture: &GlesTexture) -> [f32; 2] {
     [size.w as f32, size.h as f32]
 }
 
-/// Applies the effects of a layer node to its texture, one pass per
-/// effect, and returns the texture of the last pass. An effect whose
-/// shader fails is left out; its error goes to `errors`.
-pub fn apply_effects(
+/// One pass of a layer texture through a shader.
+pub enum Pass<'a> {
+    /// The built-in shape: rounded corners and a border, in pixels of the
+    /// texture, the border color premultiplied.
+    Shape {
+        radius: f64,
+        border: Option<(f64, [f64; 4])>,
+    },
+    /// A shader file with its uniforms; `textures` tells whether the pass
+    /// reads the node textures, as the shader of a shader node does.
+    File {
+        shader: &'a str,
+        uniforms: &'a BTreeMap<String, Uniform>,
+        textures: bool,
+    },
+}
+
+/// The passes of a layer, in order: the shape of a rounded rect, the
+/// shader of a shader node, the effects, and the clip, so that nothing
+/// shows outside the clip. `scale` is the number of texture pixels per
+/// logical pixel.
+pub fn passes(node: &Node, scale: f64) -> Vec<Pass<'_>> {
+    let props = &node.props;
+    let mut out = Vec::new();
+    if node.kind == NodeKind::Rect && (props.radius > 0.0 || props.border.is_some()) {
+        let border = props.border.map(|b| {
+            let [r, g, bl, a] = b.color;
+            (b.width * scale, [r * a, g * a, bl * a, a])
+        });
+        out.push(Pass::Shape {
+            radius: props.radius * scale,
+            border,
+        });
+    }
+    if node.kind == NodeKind::Shader
+        && let Some(shader) = &props.shader
+    {
+        out.push(Pass::File {
+            shader,
+            uniforms: &props.uniforms,
+            textures: true,
+        });
+    }
+    out.extend(props.effects.iter().map(|e| Pass::File {
+        shader: &e.shader,
+        uniforms: &e.uniforms,
+        textures: false,
+    }));
+    if let Some(clip) = props.clip {
+        out.push(Pass::Shape {
+            radius: clip.radius * scale,
+            border: None,
+        });
+    }
+    out
+}
+
+/// Runs the passes of a layer node over its texture and returns the
+/// texture of the last pass. A pass whose shader fails is left out; its
+/// error goes to `errors`. `textures` holds the node textures of a shader
+/// node by the names of their samplers.
+pub fn apply_passes(
     gles: &mut GlesRenderer,
-    layers: &mut Layers,
+    (layers, errors): (&mut Layers, &mut Vec<String>),
     node: &Node,
     mut texture: GlesTexture,
-    errors: &mut Vec<String>,
+    (scale, textures): (f64, &[(String, GlesTexture)]),
 ) -> GlesTexture {
     // The slot of the current texture: 0 for the content, then the two
     // textures of passes take turns, so that no pass reads its own target.
     let mut slot = 0;
-    for effect in &node.props.effects {
-        let (program, error) = gl::effect_program(gles, &effect.shader);
-        errors.extend(error);
-        let Some(program) = program else {
+    for pass in passes(node, scale) {
+        let Some((program, uniforms, extra)) = program_of(gles, &pass, textures, errors) else {
             continue;
         };
         let size = Texture::size(&texture);
@@ -423,7 +485,7 @@ pub fn apply_effects(
         let Ok(mut target) = layers.texture(gles, &node.id, next, size) else {
             continue;
         };
-        match pass(gles, &program, &texture, &mut target, effect) {
+        match draw_pass(gles, &program, &texture, &mut target, (&uniforms, &extra)) {
             Ok(()) => {
                 texture = target;
                 slot = next;
@@ -434,13 +496,54 @@ pub fn apply_effects(
     texture
 }
 
-/// Draws a texture through the shader of an effect into another one.
-fn pass(
+/// A program with its uniforms and its node textures.
+type Compiled = (gl::Program, BTreeMap<String, Uniform>, Vec<(String, u32)>);
+
+/// The program of a pass, its uniforms and its node textures.
+fn program_of(
+    gles: &mut GlesRenderer,
+    pass: &Pass<'_>,
+    textures: &[(String, GlesTexture)],
+    errors: &mut Vec<String>,
+) -> Option<Compiled> {
+    match pass {
+        Pass::Shape { radius, border } => {
+            let program = gl::shape_program(gles).map_err(|e| errors.push(e)).ok()?;
+            let (width, color) = border.unwrap_or((0.0, [0.0; 4]));
+            let uniforms = BTreeMap::from([
+                ("radius".to_string(), Uniform::Float(*radius)),
+                ("border_width".to_string(), Uniform::Float(width)),
+                ("border_color".to_string(), Uniform::Vector(color.to_vec())),
+            ]);
+            Some((program, uniforms, Vec::new()))
+        }
+        Pass::File {
+            shader,
+            uniforms,
+            textures: reads,
+        } => {
+            let (program, error) = gl::effect_program(gles, shader);
+            errors.extend(error);
+            let extra = if *reads {
+                textures
+                    .iter()
+                    .map(|(n, t)| (n.clone(), t.tex_id()))
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            Some((program?, (*uniforms).clone(), extra))
+        }
+    }
+}
+
+/// Draws a texture through the shader of a pass into another one.
+fn draw_pass(
     gles: &mut GlesRenderer,
     program: &gl::Program,
     source: &GlesTexture,
     target: &mut GlesTexture,
-    effect: &ShaderEffect,
+    (uniforms, textures): (&BTreeMap<String, Uniform>, &[(String, u32)]),
 ) -> Result<(), String> {
     let size = Texture::size(target);
     let mut framebuffer = gles.bind(target).map_err(|e| e.to_string())?;
@@ -465,7 +568,8 @@ fn pass(
         texture: source.tex_id(),
         alpha: 1.0,
         size: float_size(source),
-        uniforms: Some(&effect.uniforms),
+        uniforms: Some(uniforms),
+        textures,
     };
     gl::draw(&mut frame, program, &call).map_err(|e| e.to_string())?;
     frame.finish().map(drop).map_err(|e| e.to_string())

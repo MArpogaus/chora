@@ -229,6 +229,7 @@ impl State {
             windows: &self.windows,
             assets: &mut self.assets,
             lock: None,
+            depth: 0,
         };
         backend.with_gles(|gles| render_pixels(gles, &mut parts, shot))?
     }

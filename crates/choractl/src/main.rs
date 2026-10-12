@@ -1,5 +1,7 @@
 //! Command line client for the chora IPC socket.
 
+#[cfg(test)]
+mod docs;
 mod mcp;
 mod view;
 

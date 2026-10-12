@@ -21,6 +21,9 @@ pub enum NodeKind {
     Rect,
     /// A PNG image, for example a part of a window border.
     Image,
+    /// A GLSL ES fragment shader drawn over the size of the node. Its
+    /// children render into the texture `tex` that the shader reads.
+    Shader,
 }
 
 /// How a node takes part in pointer input.
@@ -108,17 +111,51 @@ pub enum Uniform {
     Float(f64),
     /// A `vec2`, `vec3` or `vec4`.
     Vector(Vec<f64>),
+    /// A `sampler2D` with another node, as it shows on its own; shader
+    /// nodes only.
+    Texture(NodeTexture),
+}
+
+/// A node that a shader reads as a texture.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NodeTexture {
+    /// The id of the node.
+    pub node: String,
 }
 
 impl Uniform {
-    /// The numbers of the value.
+    /// The numbers of the value; none for a texture.
     #[must_use]
     pub fn values(&self) -> &[f64] {
         match self {
             Self::Float(v) => std::slice::from_ref(v),
             Self::Vector(v) => v,
+            Self::Texture(_) => &[],
         }
     }
+}
+
+/// The most node textures of one shader node.
+pub const MAX_NODE_TEXTURES: usize = 4;
+
+/// A line along the inner edge of a rect.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Border {
+    /// The width in logical pixels.
+    pub width: f64,
+    /// RGBA, each from 0 to 1.
+    pub color: [f64; 4],
+}
+
+/// The area outside of which a node and its descendants do not show.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Clip {
+    /// The radius of the corners in logical pixels; 0 for sharp corners.
+    #[serde(default)]
+    pub radius: f64,
 }
 
 /// Who draws the frame of a window.
@@ -173,11 +210,16 @@ impl Node {
     /// translation and scale, for example a rotation or a perspective.
     #[must_use]
     pub fn is_layer(&self) -> bool {
+        let props = &self.props;
+        let shape = self.kind == NodeKind::Rect && (props.radius > 0.0 || props.border.is_some());
         self.id != ROOT
-            && self.props.size.is_some()
-            && (self.props.mesh.is_some()
-                || !self.props.effects.is_empty()
-                || self.props.transform.scale_2d().is_none())
+            && props.size.is_some()
+            && (props.mesh.is_some()
+                || !props.effects.is_empty()
+                || props.transform.scale_2d().is_none()
+                || props.clip.is_some()
+                || shape
+                || self.kind == NodeKind::Shader)
     }
 }
 
@@ -211,6 +253,37 @@ pub struct Props {
     /// Shaders that change how the node and its descendants look.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<ShaderEffect>,
+    /// The radius of the corners of a rect, in logical pixels.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub radius: f64,
+    /// A line along the inner edge of a rect.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub border: Option<Border>,
+    /// Shows the node and its descendants only inside its size.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clip: Option<Clip>,
+    /// The absolute path of the fragment shader of a shader node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shader: Option<String>,
+    /// The uniforms of the shader of a shader node.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub uniforms: BTreeMap<String, Uniform>,
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)] // serde passes a reference
+fn is_zero(v: &f64) -> bool {
+    *v == 0.0
+}
+
+/// Reads a property that `null` removes: a missing field is `None`, `null`
+/// is `Some(None)`.
+#[allow(clippy::option_option)] // three states: keep, remove, set
+fn nullable<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
 }
 
 impl Default for Props {
@@ -227,6 +300,11 @@ impl Default for Props {
             slice: None,
             mesh: None,
             effects: Vec::new(),
+            radius: 0.0,
+            border: None,
+            clip: None,
+            shader: None,
+            uniforms: BTreeMap::new(),
         }
     }
 }
@@ -269,6 +347,31 @@ pub struct PropsUpdate {
     /// See [`Props::effects`]; an empty list removes the effects.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub effects: Option<Vec<ShaderEffect>>,
+    /// See [`Props::radius`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub radius: Option<f64>,
+    /// See [`Props::border`]; `null` removes the border.
+    #[allow(clippy::option_option)] // three states: keep, remove, set
+    #[serde(
+        default,
+        deserialize_with = "nullable",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub border: Option<Option<Border>>,
+    /// See [`Props::clip`]; `null` removes the clip.
+    #[allow(clippy::option_option)] // three states: keep, remove, set
+    #[serde(
+        default,
+        deserialize_with = "nullable",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub clip: Option<Option<Clip>>,
+    /// See [`Props::shader`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shader: Option<String>,
+    /// See [`Props::uniforms`]; replaces all uniforms.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uniforms: Option<BTreeMap<String, Uniform>>,
 }
 
 impl Props {
@@ -315,6 +418,26 @@ impl Props {
         }
         if let Some(effects) = &update.effects {
             self.effects.clone_from(effects);
+        }
+        self.apply_shapes(update);
+    }
+
+    /// Applies the corners, the border, the clip and the shader.
+    fn apply_shapes(&mut self, update: &PropsUpdate) {
+        if let Some(radius) = update.radius {
+            self.radius = radius;
+        }
+        if let Some(border) = update.border {
+            self.border = border;
+        }
+        if let Some(clip) = update.clip {
+            self.clip = clip;
+        }
+        if update.shader.is_some() {
+            self.shader.clone_from(&update.shader);
+        }
+        if let Some(uniforms) = &update.uniforms {
+            self.uniforms.clone_from(uniforms);
         }
     }
 }

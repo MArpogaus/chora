@@ -800,6 +800,7 @@ fn draw(
         windows,
         assets,
         lock: lock.as_ref(),
+        depth: 0,
     };
     elements.extend(render::output_elements(
         &mut parts,

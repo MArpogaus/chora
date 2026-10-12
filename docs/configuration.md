@@ -28,6 +28,7 @@ installs the reference flavors to `/usr/share/chora/`.
 
 A view is a part of the scene and the plugins that drive it (D35):
 
+<!-- parses: view -->
 ```yaml
 # ~/.config/chora/views/work.yaml
 name: work
@@ -83,6 +84,7 @@ are booleans, so `no` stays the string `no`.
 A manifest tells `choractl` how to start and how to configure a plugin. It
 lives in `plugins/NAME.yaml` of the same directories:
 
+<!-- parses: manifest -->
 ```yaml
 # /usr/share/chora/plugins/tiling.yaml
 name: tiling

@@ -519,7 +519,62 @@ more_resets() { test "$(resets)" -gt "$before"; }
 wait_for more_resets
 kill -0 "$chora_pid" || fail "chora died"
 
-step "25. the watchdog removes the effects of slow frames, and then resets"
+step "25. rounded rects, borders, clips and shader nodes"
+# A red rect with round corners and a blue border.
+rpc '[{"create": {"id": "button", "kind": "rect", "parent": "root",
+        "props": {"size": [200, 100], "color": [1, 0, 0, 1], "radius": 30,
+                  "border": {"width": 6, "color": [0, 0, 1, 1]},
+                  "transform": {"translate": [100, 60]}}}}]' >"$out/shape.json"
+all_results "$out/shape.json" || fail "answers: $out/shape.json"
+wait_for pixel_is 200 110 "255 0 0"
+pixel_is 200 62 "0 0 255" || fail "the border: $(pixel 200 62)"
+test "$(pixel 102 62)" != "255 0 0" && test "$(pixel 102 62)" != "0 0 255" ||
+    fail "the round corner: $(pixel 102 62)"
+# A group clips a green child to a circle.
+rpc '[{"create": {"id": "window", "kind": "group", "parent": "root",
+        "props": {"size": [100, 100], "clip": {"radius": 50},
+                  "transform": {"translate": [400, 60]}}}},
+      {"create": {"id": "inside", "kind": "rect", "parent": "window",
+        "props": {"size": [300, 300], "color": [0, 1, 0, 1],
+                  "transform": {"translate": [-100, -100]}}}}]' >"$out/clip.json"
+all_results "$out/clip.json" || fail "answers: $out/clip.json"
+wait_for pixel_is 450 110 "0 255 0"
+test "$(pixel 404 64)" != "0 255 0" || fail "the round clip: $(pixel 404 64)"
+test "$(pixel 520 110)" != "0 255 0" || fail "outside the clip: $(pixel 520 110)"
+# A press outside of the clip does not reach the clipped child.
+"$bin/choractl" events pointer.pressed >"$out/clip-presses.jsonl" &
+events_pid=$!
+pids+=("$events_pid")
+sleep 0.3
+timeout 20 "$bin/chora-probe" drag 520 110 520 110 >>"$out/probe.log" 2>&1 || fail "the drag failed"
+timeout 20 "$bin/chora-probe" drag 450 110 450 110 >>"$out/probe.log" 2>&1 || fail "the drag failed"
+wait_for grep -q '"node":"inside"' "$out/clip-presses.jsonl"
+test "$(grep -c '"node":"inside"' "$out/clip-presses.jsonl")" = 1 ||
+    fail "presses: $(cat "$out/clip-presses.jsonl")"
+kill "$events_pid"
+# A shader node draws its shader, and another one reads a hidden rect as
+# a texture.
+printf 'precision mediump float;\nuniform float alpha;\nvarying vec2 v_uv;\nvoid main() { gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0) * alpha; }\n' \
+    >"$out/blue.frag"
+printf 'precision mediump float;\nuniform sampler2D picture;\nuniform float alpha;\nvarying vec2 v_uv;\nvoid main() { gl_FragColor = texture2D(picture, v_uv) * alpha; }\n' \
+    >"$out/picture.frag"
+rpc "[{\"create\": {\"id\": \"sky\", \"kind\": \"shader\", \"parent\": \"root\",
+        \"props\": {\"size\": [100, 100], \"shader\": \"$out/blue.frag\",
+                  \"transform\": {\"translate\": [600, 60]}}}},
+      {\"create\": {\"id\": \"source\", \"kind\": \"rect\", \"parent\": \"root\",
+        \"props\": {\"size\": [50, 50], \"color\": [1, 1, 0, 1], \"opacity\": 0}}},
+      {\"create\": {\"id\": \"mirror\", \"kind\": \"shader\", \"parent\": \"root\",
+        \"props\": {\"size\": [100, 100], \"shader\": \"$out/picture.frag\",
+                  \"uniforms\": {\"picture\": {\"node\": \"source\"}},
+                  \"transform\": {\"translate\": [750, 60]}}}}]" >"$out/shader.json"
+all_results "$out/shader.json" || fail "answers: $out/shader.json"
+wait_for pixel_is 650 110 "0 0 255"
+wait_for pixel_is 800 110 "255 255 0"
+grim "$out/shapes.png"
+rpc '[{"remove": {"id": "button"}}, {"remove": {"id": "window"}}, {"remove": {"id": "sky"}},
+      {"remove": {"id": "source"}}, {"remove": {"id": "mirror"}}]' >/dev/null
+
+step "26. the watchdog removes the effects of slow frames, and then resets"
 # A second chora with a budget that every frame misses; it shares the
 # output of the host, so this step comes last.
 CHORA_FRAME_BUDGET_US=1 "$bin/chora" -- sleep 60 >"$out/chora-watchdog.log" 2>&1 &

@@ -11,6 +11,7 @@ A **command** changes the scene. An **event** reports a change. Commands
 travel in **transactions** (see [Architecture](architecture.md#transactions)).
 [Ownership](architecture.md#ownership) decides who may change a node.
 
+<!-- parses: commands -->
 ```yaml
 # one transaction
 - create: {id: work, kind: group, parent: root}
@@ -34,19 +35,38 @@ This table is the one list of node properties.
 | `owner` | all | client name of the owner; read-only |
 | `transform` | all | a 4x4 matrix, or the short form translate, scale, rotate |
 | `opacity`, `visible` | all | |
-| `clip` | all | rectangle, optionally rounded |
+| `clip` | group, rect, image, shader | `{"radius": r}`: the node and its descendants show only inside its size, with corners rounded by `r` logical pixels, and take pointer input only there; the node becomes a layer; `null` removes the clip |
 | `effects` | group, rect, image | up to 8 effects `{"shader": path, "uniforms": {name: number or 2 to 4 numbers}}`; the node becomes a layer, and the core applies the shaders in order; `[]` removes them |
 | `input` | all | `accept`, `pass` or `block`; `pass` and `block` apply to all descendants |
 | `meta` | all | free key/value pairs to tag and find nodes |
 | `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
 | `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
-| `color`, `radius`, `border` | rect | |
+| `color` | rect | RGBA, each from 0 to 1 |
+| `radius` | rect | the radius of the corners in logical pixels; the rect becomes a layer |
+| `border` | rect | `{"width": w, "color": [r, g, b, a]}`: a line of `w` logical pixels along the inner edge; the rect becomes a layer; `null` removes it |
 | `image` | image | absolute path of a PNG file; the core loads it again after a change |
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch |
-| `shader`, `uniforms` | shader | GLSL ES file and its inputs; a uniform can name another node as a texture |
+| `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, at most 4 |
 
 A surface node gets its size from its client. The `configure` command asks
 the client for a new size.
+
+A shader node draws its shader over its size, as a layer. Its children
+render into `uniform sampler2D tex`, and the shader gets the same inputs as
+an effect. A node texture shows the node without its transform, at its size
+or, for a surface, at the size of the window. A node with opacity 0 hides
+in the scene and still shows in a node texture. Inside a node texture,
+shader nodes get no node textures of their own, so that two shader nodes
+that read each other do not recurse.
+
+<!-- parses: commands -->
+```yaml
+# a rounded button with a border, a round clip and a shader that reads it
+- create: {id: button, kind: rect, parent: root, props: {size: [120, 40], color: [0.2, 0.4, 0.8, 1], radius: 8, border: {width: 2, color: [1, 1, 1, 1]}}}
+- create: {id: avatar, kind: group, parent: root, props: {size: [64, 64], clip: {radius: 32}}}
+- create: {id: glow, kind: shader, parent: root, props: {size: [400, 300], shader: /home/me/glow.frag, uniforms: {strength: 0.5, picture: {node: avatar}}}}
+- update: {id: button, props: {border: null}}
+```
 
 A node with a size and a mesh, or with a transform that is not a plain 2D
 translation and scale, for example a rotation or a perspective, is a layer
@@ -84,6 +104,7 @@ asset directory with the core, as it shares the socket directory.
 
 `animate` lets plugins and agents animate without code in every frame:
 
+<!-- parses: command -->
 ```json
 {"animate": {"id": "frame", "props": {"opacity": 0, "visible": false},
              "duration": 300, "easing": "ease_out"}}
@@ -119,7 +140,7 @@ or an empty list. It always sees the current titles.
 | `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node and position; `pointer.released` with the button |
 | `animation.done` | the node whose animation reached its targets |
 | `effect.failed` | the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version |
-| `effects.dropped` | the watchdog removed the effects of all nodes, because frames were slow for two seconds |
+| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of all nodes, because frames were slow for two seconds |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
@@ -220,6 +241,7 @@ whose origin is (0, 0), or in the coordinates of the node.
 
 `input.inject` sends a list of events as one request:
 
+<!-- parses: inject -->
 ```json
 {"events": [
   {"pointer_move": {"position": [640, 400], "output": "DP-1"}},
@@ -289,6 +311,7 @@ caller. The `Client` of `chora-scene` answers with `Client::answer`.
 
 A plugin is a client with a manifest:
 
+<!-- parses: manifest -->
 ```yaml
 name: tiling
 exec: chora-tiling

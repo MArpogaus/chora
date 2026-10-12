@@ -1,11 +1,13 @@
 //! The scene tree and the rules that change it.
 
+use std::collections::BTreeMap;
+
 use imbl::OrdMap;
 
 use crate::{
-    Command, Effect, InputMode, MAX_DURATION, MAX_EFFECTS, MAX_MESH_CELLS, MAX_UNIFORMS, Node,
-    NodeKind, Props, PropsUpdate, ROOT, Selector, ShaderEffect, SurfaceInfo, ToplevelState,
-    Transform, Uniform, animation::Animation,
+    Command, Effect, InputMode, MAX_DURATION, MAX_EFFECTS, MAX_MESH_CELLS, MAX_NODE_TEXTURES,
+    MAX_UNIFORMS, Node, NodeKind, Props, PropsUpdate, ROOT, Selector, ShaderEffect, SurfaceInfo,
+    ToplevelState, Transform, Uniform, animation::Animation,
 };
 
 /// Why a command failed.
@@ -61,16 +63,27 @@ pub struct Placed<'a> {
     pub opacity: f64,
     /// The input mode, after the modes of the ancestors.
     pub input: InputMode,
+    /// The clips of the node and its ancestors: the transform of each node
+    /// with a clip and its size, for hit tests.
+    pub clips: Vec<(Transform, [f64; 2])>,
 }
 
-/// A node of a walk with the transform, the opacity and the input mode of
-/// its parent.
-type Step<'a> = (&'a Node, Transform, f64, InputMode);
+/// A node of a walk with the transform, the opacity, the input mode and the
+/// clips of its parent.
+type Step<'a> = (
+    &'a Node,
+    Transform,
+    f64,
+    InputMode,
+    Vec<(Transform, [f64; 2])>,
+);
 
 /// The limit of the cameras that clients set.
 pub const MAX_CAMERAS: usize = 64;
 /// The largest translation of a camera, in logical pixels.
 const MAX_PAN: f64 = 1e7;
+/// The largest radius and border width, in logical pixels.
+const MAX_LENGTH: f64 = 10_000.0;
 /// The largest zoom of a camera, and the inverse of the smallest.
 const MAX_ZOOM: f64 = 64.0;
 
@@ -254,6 +267,11 @@ impl Scene {
                 props,
             } => {
                 check_props(id, *kind, props)?;
+                if *kind == NodeKind::Shader && props.shader.is_none() {
+                    return Err(SceneError::Invalid(format!(
+                        "the shader node {id:?} needs a shader"
+                    )));
+                }
                 self.create(owned_node(owner, id, *kind, props), parent)
             }
             Command::Attach { surface, parent } => self.attach(owner, surface, parent),
@@ -489,32 +507,44 @@ impl Scene {
         let mut out = Vec::new();
         let mut stack = Vec::new();
         if start == ROOT || !layers {
-            stack.push((first, Transform::IDENTITY, 1.0, InputMode::Accept));
+            stack.push((
+                first,
+                Transform::IDENTITY,
+                1.0,
+                InputMode::Accept,
+                Vec::new(),
+            ));
         } else if first.props.visible {
-            // The start of a layer list shows without its own transform and
-            // opacity; the layer applies them.
+            // The start of a layer list shows without its own transform,
+            // opacity and clip; the layer applies them.
             let placed = Placed {
                 node: first,
                 transform: Transform::IDENTITY,
                 opacity: 1.0,
                 input: first.props.input,
+                clips: Vec::new(),
             };
             self.push_children(&mut stack, &placed);
             out.push(placed);
         }
-        while let Some((node, parent, opacity, input)) = stack.pop() {
+        while let Some((node, parent, opacity, input, mut clips)) = stack.pop() {
             if !node.props.visible {
                 continue;
             }
+            let transform = parent.then(&node.props.transform);
+            if let (Some(_), Some(size)) = (node.props.clip, node.props.size) {
+                clips.push((transform, size));
+            }
             let placed = Placed {
                 node,
-                transform: parent.then(&node.props.transform),
+                transform,
                 opacity: opacity * node.props.opacity,
                 input: if input == InputMode::Accept {
                     node.props.input
                 } else {
                     input
                 },
+                clips,
             };
             if !(layers && node.is_layer()) {
                 self.push_children(&mut stack, &placed);
@@ -534,7 +564,13 @@ impl Scene {
             // it is better than a crash of the session.
             debug_assert!(self.nodes.contains_key(id), "missing child {id:?}");
             if let Some(child) = self.nodes.get(id) {
-                stack.push((child, placed.transform, placed.opacity, placed.input));
+                stack.push((
+                    child,
+                    placed.transform,
+                    placed.opacity,
+                    placed.input,
+                    placed.clips.clone(),
+                ));
             }
         }
     }
@@ -738,15 +774,90 @@ const MAX_PATH: usize = 4096;
 /// file and a slice. Image paths are absolute, sizes and slices are not
 /// negative, and all numbers are finite.
 fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
-    if kind == NodeKind::Surface && props.size.is_some() {
-        return Err(SceneError::WrongKind(id.into(), "group, rect or image"));
+    check_kinds(id, kind, props)?;
+    check_numbers(id, props)?;
+    check_shapes(id, props)?;
+    if props
+        .mesh
+        .as_ref()
+        .is_some_and(|m| !m.points.is_empty() && !m.is_valid())
+    {
+        return Err(SceneError::Invalid(format!(
+            "the mesh of {id:?} needs 1 to {MAX_MESH_CELLS} cells per side and a point per grid point"
+        )));
     }
-    if kind != NodeKind::Rect && props.color.is_some() {
-        return Err(SceneError::WrongKind(id.into(), "rect"));
+    if let Some(effects) = &props.effects {
+        check_effects(id, effects)?;
+    }
+    let paths = props.image.iter().chain(props.shader.iter());
+    if paths
+        .into_iter()
+        .any(|p| !p.starts_with('/') || p.len() > MAX_PATH)
+    {
+        return Err(SceneError::Invalid(format!(
+            "the file of {id:?} needs an absolute path"
+        )));
+    }
+    Ok(())
+}
+
+/// The properties of each kind of node.
+fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
+    let wrong = |kinds| Err(SceneError::WrongKind(id.into(), kinds));
+    if kind == NodeKind::Surface && (props.size.is_some() || props.clip.is_some()) {
+        return wrong("group, rect, image or shader");
+    }
+    if kind != NodeKind::Rect
+        && (props.color.is_some() || props.radius.is_some() || props.border.is_some())
+    {
+        return wrong("rect");
     }
     if kind != NodeKind::Image && (props.image.is_some() || props.slice.is_some()) {
-        return Err(SceneError::WrongKind(id.into(), "image"));
+        return wrong("image");
     }
+    if kind != NodeKind::Shader && (props.shader.is_some() || props.uniforms.is_some()) {
+        return wrong("shader");
+    }
+    Ok(())
+}
+
+/// The radius, the border, the clip and the uniforms of a shader node.
+fn check_shapes(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
+    let lengths = props
+        .radius
+        .iter()
+        .chain(props.border.iter().flatten().map(|b| &b.width))
+        .chain(props.clip.iter().flatten().map(|c| &c.radius));
+    if lengths.copied().any(|n| !(0.0..=MAX_LENGTH).contains(&n)) {
+        return Err(SceneError::Invalid(format!(
+            "a radius or a border width of {id:?} is not from 0 to {MAX_LENGTH}"
+        )));
+    }
+    if let Some(uniforms) = &props.uniforms {
+        check_uniforms(id, uniforms, true)?;
+        let textures = uniforms
+            .values()
+            .filter_map(|u| match u {
+                Uniform::Texture(t) => Some(t),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if textures.len() > MAX_NODE_TEXTURES {
+            return Err(SceneError::Invalid(format!(
+                "{id:?}: at most {MAX_NODE_TEXTURES} node textures"
+            )));
+        }
+        if textures.iter().any(|t| t.node == id) {
+            return Err(SceneError::Invalid(format!(
+                "{id:?} cannot read itself as a texture"
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Every number is finite, and sizes are not negative.
+fn check_numbers(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
     let numbers = props
         .transform
         .iter()
@@ -762,7 +873,22 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
                 .flatten()
                 .flat_map(|e| e.uniforms.values().flat_map(Uniform::values)),
         )
-        .chain(props.opacity.iter());
+        .chain(props.opacity.iter())
+        .chain(props.radius.iter())
+        .chain(
+            props
+                .border
+                .iter()
+                .flatten()
+                .flat_map(|b| std::iter::once(&b.width).chain(&b.color)),
+        )
+        .chain(props.clip.iter().flatten().map(|c| &c.radius))
+        .chain(
+            props
+                .uniforms
+                .iter()
+                .flat_map(|u| u.values().flat_map(Uniform::values)),
+        );
     if numbers.copied().any(|n| !n.is_finite()) {
         return Err(SceneError::Invalid(format!(
             "a number of {id:?} is not finite"
@@ -776,36 +902,16 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
     if negative.copied().any(|n| n < 0.0) {
         return Err(SceneError::Invalid(format!("negative size for {id:?}")));
     }
-    if props
-        .mesh
-        .as_ref()
-        .is_some_and(|m| !m.points.is_empty() && !m.is_valid())
-    {
-        return Err(SceneError::Invalid(format!(
-            "the mesh of {id:?} needs 1 to {MAX_MESH_CELLS} cells per side and a point per grid point"
-        )));
-    }
-    if let Some(effects) = &props.effects {
-        check_effects(id, effects)?;
-    }
-    if props
-        .image
-        .as_ref()
-        .is_some_and(|p| !p.starts_with('/') || p.len() > MAX_PATH)
-    {
-        return Err(SceneError::Invalid(format!(
-            "the image of {id:?} needs an absolute path"
-        )));
-    }
     Ok(())
 }
 
-/// Removes the mesh and the effects of properties. Returns whether there
-/// were some.
+/// Removes the mesh, the effects and the shader of properties. Returns
+/// whether there were some.
 fn strip(props: &mut Props) -> bool {
-    let found = props.mesh.is_some() || !props.effects.is_empty();
+    let found = props.mesh.is_some() || !props.effects.is_empty() || props.shader.is_some();
     props.mesh = None;
     props.effects.clear();
+    props.shader = None;
     found
 }
 
@@ -820,18 +926,35 @@ fn check_effects(id: &str, effects: &[ShaderEffect]) -> Result<(), SceneError> {
         if !effect.shader.starts_with('/') || effect.shader.len() > MAX_PATH {
             return invalid("a shader needs an absolute path");
         }
-        if effect.uniforms.len() > MAX_UNIFORMS {
-            return invalid(&format!("at most {MAX_UNIFORMS} uniforms per effect"));
-        }
-        for (name, value) in &effect.uniforms {
-            let identifier = name.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
-                && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-                && name.len() <= 64;
-            if !identifier || !(1..=4).contains(&value.values().len()) {
-                return invalid(&format!(
-                    "the uniform {name:?} needs a name and 1 to 4 numbers"
-                ));
-            }
+        check_uniforms(id, &effect.uniforms, false)?;
+    }
+    Ok(())
+}
+
+/// At most 16 uniforms with names of GLSL identifiers, each one to four
+/// numbers, or a node texture where `textures` allows it.
+fn check_uniforms(
+    id: &str,
+    uniforms: &BTreeMap<String, Uniform>,
+    textures: bool,
+) -> Result<(), SceneError> {
+    let invalid = |what: &str| Err(SceneError::Invalid(format!("{id:?}: {what}")));
+    if uniforms.len() > MAX_UNIFORMS {
+        return invalid(&format!("at most {MAX_UNIFORMS} uniforms per shader"));
+    }
+    for (name, value) in uniforms {
+        let identifier = name.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
+            && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+            && name.len() <= 64;
+        let fits = match value {
+            Uniform::Texture(t) => textures && !t.node.is_empty(),
+            _ => (1..=4).contains(&value.values().len()),
+        };
+        if !identifier || !fits {
+            return invalid(&format!(
+                "the uniform {name:?} needs a name and 1 to 4 numbers{}",
+                if textures { ", or a node" } else { "" }
+            ));
         }
     }
     Ok(())

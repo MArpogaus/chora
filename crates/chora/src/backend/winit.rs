@@ -197,6 +197,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
             windows,
             assets,
             lock: lock.as_ref(),
+            depth: 0,
         };
         let elements = render::output_elements(&mut parts, renderer, output, &view);
         let result = backend

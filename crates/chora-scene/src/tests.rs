@@ -647,3 +647,99 @@ fn dropped_effects_stay_gone_during_an_animation() {
     assert!(scene.node("r").unwrap().props.mesh.is_none());
     assert!(!scene.drop_effects());
 }
+
+/// A create command from JSON props.
+fn create(id: &str, kind: &str, props: &serde_json::Value) -> Command {
+    serde_json::from_value(serde_json::json!({
+        "create": {"id": id, "kind": kind, "parent": ROOT, "props": props}
+    }))
+    .unwrap()
+}
+
+#[test]
+fn a_rounded_rect_with_a_border_is_a_layer() {
+    let mut scene = Scene::default();
+    let props = serde_json::json!({
+        "size": [100, 40], "color": [1, 1, 1, 1], "radius": 8,
+        "border": {"width": 2, "color": [0, 0, 0, 1]}
+    });
+    scene
+        .apply("wm", &[create("button", "rect", &props)])
+        .unwrap();
+    let node = scene.node("button").unwrap();
+    assert!(node.is_layer());
+    assert!((node.props.radius - 8.0).abs() < f64::EPSILON);
+    let remove: Command = serde_json::from_value(serde_json::json!({
+        "update": {"id": "button", "props": {"border": null, "radius": 0}}
+    }))
+    .unwrap();
+    scene.apply("wm", &[remove]).unwrap();
+    let node = scene.node("button").unwrap();
+    assert!(node.props.border.is_none());
+    assert!(!node.is_layer());
+}
+
+#[test]
+fn corners_belong_to_rects_and_shaders_to_shader_nodes() {
+    let mut scene = Scene::default();
+    for (kind, props) in [
+        ("group", serde_json::json!({"radius": 4})),
+        ("rect", serde_json::json!({"shader": "/x.frag"})),
+        ("rect", serde_json::json!({"radius": -1})),
+        ("rect", serde_json::json!({"border": {"width": 1}})),
+        ("shader", serde_json::json!({"size": [10, 10]})),
+        ("shader", serde_json::json!({"shader": "x.frag"})),
+    ] {
+        // A border without a color does not even parse.
+        let command: Result<Command, _> = serde_json::from_value(serde_json::json!({
+            "create": {"id": "n", "kind": kind, "parent": ROOT, "props": props}
+        }));
+        if let Ok(command) = command {
+            assert!(scene.apply("wm", &[command]).is_err(), "{kind} {props}");
+        }
+    }
+}
+
+#[test]
+fn a_shader_node_reads_other_nodes_but_not_itself() {
+    let mut scene = Scene::default();
+    let props = serde_json::json!({
+        "size": [100, 100], "shader": "/s.frag",
+        "uniforms": {"strength": 0.5, "picture": {"node": "other"}}
+    });
+    scene
+        .apply("wm", &[create("glow", "shader", &props)])
+        .unwrap();
+    assert!(scene.node("glow").unwrap().is_layer());
+    let own = serde_json::json!({
+        "size": [1, 1], "shader": "/s.frag", "uniforms": {"me": {"node": "me"}}
+    });
+    assert!(scene.apply("wm", &[create("me", "shader", &own)]).is_err());
+    let effect = serde_json::json!({
+        "size": [1, 1], "effects": [{"shader": "/e.frag", "uniforms": {"t": {"node": "glow"}}}]
+    });
+    assert!(scene.apply("wm", &[create("e", "group", &effect)]).is_err());
+}
+
+#[test]
+fn a_clip_needs_no_surface_and_makes_a_layer() {
+    let mut scene = scene_with_surface();
+    let clip = serde_json::json!({"size": [50, 50], "clip": {"radius": 10}});
+    scene.apply("wm", &[create("box", "group", &clip)]).unwrap();
+    assert!(scene.node("box").unwrap().is_layer());
+    let on_surface: Command = serde_json::from_value(serde_json::json!({
+        "update": {"id": "s1", "props": {"clip": {}}}
+    }))
+    .unwrap();
+    scene.apply("wm", &[attach("s1", "box")]).unwrap();
+    assert!(scene.apply("wm", &[on_surface]).is_err());
+}
+
+#[test]
+fn the_watchdog_takes_the_shader_of_a_shader_node() {
+    let mut scene = Scene::default();
+    let props = serde_json::json!({"size": [10, 10], "shader": "/s.frag"});
+    scene.apply("wm", &[create("s", "shader", &props)]).unwrap();
+    assert!(scene.drop_effects());
+    assert!(scene.node("s").unwrap().props.shader.is_none());
+}

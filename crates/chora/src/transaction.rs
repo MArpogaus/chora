@@ -228,10 +228,10 @@ impl State {
         }
     }
 
-    /// Compiles the shaders of the effects that the commands name, unless
-    /// they compiled before in their current version. Without a backend,
-    /// for example before the first output, the check waits for the
-    /// first frame.
+    /// Compiles the shaders of the effects and of the shader nodes that the
+    /// commands name, unless they compiled before in their current version.
+    /// Without a backend, for example before the first output, the check
+    /// waits for the first frame.
     fn check_effects(&mut self, commands: &[Command]) -> Result<(), String> {
         for command in commands {
             let (Command::Create { props, .. }
@@ -240,8 +240,8 @@ impl State {
             else {
                 continue;
             };
-            for effect in props.effects.iter().flatten() {
-                let path = &effect.shader;
+            let shaders = props.effects.iter().flatten().map(|e| &e.shader);
+            for path in shaders.chain(props.shader.iter()) {
                 let modified = std::fs::metadata(path).and_then(|m| m.modified()).ok();
                 let checked = self.assets.checked_effects.get(path);
                 if modified.is_some() && checked == Some(&modified) {

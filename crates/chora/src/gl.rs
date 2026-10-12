@@ -53,6 +53,39 @@ void main() {
 }
 ";
 
+/// The built-in pass of rounded corners, borders and clips: it keeps the
+/// texture inside a rounded box of the size of the texture, and draws a
+/// border along the inner edge of the box. `radius` and `border_width` are
+/// in pixels of the texture, `border_color` is premultiplied.
+const SHAPE: &str = "
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform sampler2D tex;
+uniform float alpha;
+uniform vec2 size;
+uniform float radius;
+uniform float border_width;
+uniform vec4 border_color;
+varying vec2 v_uv;
+float box(vec2 p, vec2 half_size, float r) {
+    vec2 q = abs(p) - half_size + vec2(r);
+    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+}
+void main() {
+    vec2 half_size = size * 0.5;
+    float r = min(radius, min(half_size.x, half_size.y));
+    float d = box(v_uv * size - half_size, half_size, r);
+    vec4 color = texture2D(tex, v_uv);
+    if (border_width > 0.0) {
+        color = mix(border_color, color, clamp(0.5 - (d + border_width), 0.0, 1.0));
+    }
+    gl_FragColor = color * clamp(0.5 - d, 0.0, 1.0) * alpha;
+}
+";
+
 /// What a draw call draws: triangles with clip positions and texture
 /// coordinates, a texture, and the inputs of the program.
 pub struct Draw<'a> {
@@ -67,6 +100,9 @@ pub struct Draw<'a> {
     pub size: [f32; 2],
     /// The uniforms of an effect.
     pub uniforms: Option<&'a BTreeMap<String, Uniform>>,
+    /// More textures by the names of their samplers, for the node
+    /// textures of a shader node.
+    pub textures: &'a [(String, ffi::types::GLuint)],
 }
 
 /// Draws triangles with a program into the target of a frame.
@@ -98,6 +134,7 @@ pub fn draw(
         for (name, value) in call.uniforms.into_iter().flatten() {
             set_uniform(gl, program.id, name, value);
         }
+        bind_textures(gl, program.id, call.textures);
         gl.BindBuffer(ffi::ARRAY_BUFFER, 0);
         let attributes = [(program.position, 4, call.clip), (program.uv, 2, call.uv)];
         for (attribute, size, data) in attributes {
@@ -121,8 +158,42 @@ pub fn draw(
                 gl.DisableVertexAttribArray(index);
             }
         }
+        for unit in 1..=u32::try_from(call.textures.len()).unwrap_or(0) {
+            gl.ActiveTexture(ffi::TEXTURE0 + unit);
+            gl.BindTexture(ffi::TEXTURE_2D, 0);
+        }
+        gl.ActiveTexture(ffi::TEXTURE0);
         gl.BindTexture(ffi::TEXTURE_2D, 0);
     })
+}
+
+/// Binds more textures to the units after 0 and points their samplers at
+/// them; a name that the shader lacks does nothing.
+unsafe fn bind_textures(
+    gl: &ffi::Gles2,
+    program: ffi::types::GLuint,
+    textures: &[(String, ffi::types::GLuint)],
+) {
+    for ((name, texture), unit) in textures.iter().zip(1u32..) {
+        let Ok(cname) = CString::new(name.as_str()) else {
+            continue;
+        };
+        // SAFETY: plain GL calls on the current context.
+        unsafe {
+            gl.ActiveTexture(ffi::TEXTURE0 + unit);
+            gl.BindTexture(ffi::TEXTURE_2D, *texture);
+            for parameter in [ffi::TEXTURE_MIN_FILTER, ffi::TEXTURE_MAG_FILTER] {
+                gl.TexParameteri(ffi::TEXTURE_2D, parameter, ffi::LINEAR.cast_signed());
+            }
+            for parameter in [ffi::TEXTURE_WRAP_S, ffi::TEXTURE_WRAP_T] {
+                gl.TexParameteri(ffi::TEXTURE_2D, parameter, ffi::CLAMP_TO_EDGE.cast_signed());
+            }
+            let location = gl.GetUniformLocation(program, cname.as_ptr());
+            gl.Uniform1i(location, unit.cast_signed());
+        }
+    }
+    // SAFETY: as above.
+    unsafe { gl.ActiveTexture(ffi::TEXTURE0) };
 }
 
 /// The time of the `time` uniform starts with the first draw.
@@ -162,6 +233,25 @@ pub fn plain_program(frame: &mut GlesFrame<'_, '_>) -> Result<Program, GlesError
         .egl_context()
         .user_data()
         .insert_if_missing_threadsafe(|| program);
+    Ok(program)
+}
+
+/// The built-in program of shapes of an EGL context.
+#[derive(Clone, Copy)]
+struct ShapeProgram(Program);
+
+/// The built-in program of rounded corners, borders and clips, compiled on
+/// first use.
+pub fn shape_program(gles: &mut GlesRenderer) -> Result<Program, String> {
+    if let Some(ShapeProgram(program)) = gles.egl_context().user_data().get::<ShapeProgram>() {
+        return Ok(*program);
+    }
+    let program = gles
+        .with_context(|gl| unsafe { compile(gl, SHAPE) })
+        .map_err(|e| e.to_string())??;
+    gles.egl_context()
+        .user_data()
+        .insert_if_missing_threadsafe(|| ShapeProgram(program));
     Ok(program)
 }
 

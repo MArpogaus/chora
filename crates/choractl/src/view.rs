@@ -148,7 +148,7 @@ pub fn read_yaml<T: DeserializeOwned>(path: &Path) -> Result<T, String> {
     parse_yaml(&text).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-fn parse_yaml<T: DeserializeOwned>(text: &str) -> Result<T, String> {
+pub fn parse_yaml<T: DeserializeOwned>(text: &str) -> Result<T, String> {
     let mut options = serde_saphyr::Options::default();
     options.strict_booleans = true;
     options.reject_unsupported_tags = true;

@@ -89,6 +89,9 @@ impl Animation {
         if let (Some(from), Some(to)) = (self.from.color, self.to.color) {
             props.color = Some(std::array::from_fn(|i| lerp(from[i], to[i])));
         }
+        if let Some(to) = self.to.radius {
+            props.radius = lerp(self.from.radius, to);
+        }
         if let (Some(from), Some(to)) = (&self.from.mesh, &self.to.mesh)
             && (from.cols, from.rows) == (to.cols, to.rows)
             && from.points.len() == to.points.len()

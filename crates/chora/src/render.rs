@@ -110,6 +110,8 @@ pub struct Parts<'a> {
     pub windows: &'a HashMap<String, Window>,
     pub assets: &'a mut Assets,
     pub lock: Option<&'a Lock>,
+    /// How deep inside node textures the rendering is; 0 at the top.
+    pub depth: u8,
 }
 
 /// The render elements of one output, front first: the layer surfaces above
@@ -216,7 +218,7 @@ fn layer<R: MeshRenderer>(
         return None;
     }
     let size = mesh::texture_size(node, view.scale)?;
-    let textures = 1 + node.props.effects.len().min(2);
+    let textures = 1 + mesh::passes(node, view.scale).len().min(2);
     if !parts.assets.layers.spend(size, textures) {
         return None;
     }
@@ -247,14 +249,76 @@ fn layer_texture(
         tracing::warn!(%err, "a layer failed");
         return None;
     }
+    // Texture pixels per logical pixel, also when the texture hit its
+    // largest size.
+    let pixels = node
+        .props
+        .size
+        .map_or(scale, |[w, _]| f64::from(size.w) / w.max(f64::MIN_POSITIVE));
+    let textures = node_textures(parts, gles, node, pixels);
     let assets = &mut *parts.assets;
-    Some(mesh::apply_effects(
+    Some(mesh::apply_passes(
         gles,
-        &mut assets.layers,
+        (&mut assets.layers, &mut assets.effect_errors),
         node,
         texture,
-        &mut assets.effect_errors,
+        (pixels, &textures),
     ))
+}
+
+/// The node textures of a shader node by the names of their uniforms: each
+/// node that a uniform names, rendered on its own at its size. Inside a node
+/// texture, shader nodes get none, so that shader nodes that read each
+/// other do not recurse.
+fn node_textures(
+    parts: &mut Parts<'_>,
+    gles: &mut GlesRenderer,
+    node: &chora_scene::Node,
+    scale: f64,
+) -> Vec<(String, GlesTexture)> {
+    if node.kind != NodeKind::Shader || parts.depth > 0 {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for (slot, (name, uniform)) in (3..).zip(&node.props.uniforms) {
+        let chora_scene::Uniform::Texture(source) = uniform else {
+            continue;
+        };
+        let Some(size) = source_size(parts, &source.node).and_then(|s| mesh::pixel_size(s, scale))
+        else {
+            continue;
+        };
+        if !parts.assets.layers.spend(size, 1) {
+            continue;
+        }
+        let view = View {
+            camera: Transform::IDENTITY,
+            scale,
+            size: (size.w, size.h).into(),
+        };
+        parts.depth += 1;
+        let content = flat_elements(parts, gles, &source.node, &view);
+        parts.depth -= 1;
+        let Some(content) = content else { continue };
+        let Ok(mut texture) = parts.assets.layers.texture(gles, &node.id, slot, size) else {
+            continue;
+        };
+        if mesh::render_into(gles, &mut texture, scale, &content).is_ok() {
+            out.push((name.clone(), texture));
+        }
+    }
+    out
+}
+
+/// The logical size of a node as a node texture: its size, or the window
+/// geometry of a surface.
+fn source_size(parts: &Parts<'_>, id: &str) -> Option<[f64; 2]> {
+    let node = parts.scene.node(id)?;
+    if node.kind == NodeKind::Surface {
+        let size = parts.windows.get(id)?.geometry().size;
+        return Some([f64::from(size.w), f64::from(size.h)]);
+    }
+    node.props.size
 }
 
 /// The render elements of a node and its descendants, front first, in node
@@ -328,7 +392,8 @@ fn node_elements<R: MeshRenderer>(
             let Assets { images, cells, .. } = &mut *parts.assets;
             image(placed, images, cells, renderer, &at)
         }
-        NodeKind::Group => Vec::new(),
+        // A shader node draws as a layer; outside of one it shows nothing.
+        NodeKind::Group | NodeKind::Shader => Vec::new(),
     }
 }
 
@@ -516,6 +581,13 @@ enum Hit {
 }
 
 fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<Hit> {
+    if !placed
+        .clips
+        .iter()
+        .all(|(transform, size)| inside(transform, *size, pos))
+    {
+        return None;
+    }
     let Some((offset, (sx, sy))) = location_and_scale(&placed.transform) else {
         return layer_hit(placed, pos);
     };
@@ -531,12 +603,23 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
                 offset + Point::from((loc.x * sx, loc.y * sy)),
             ))
         }
-        NodeKind::Rect | NodeKind::Image => {
+        NodeKind::Rect | NodeKind::Image | NodeKind::Shader => {
             let [w, h] = node_size(state, placed);
             ((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)).then_some(Hit::Area)
         }
         NodeKind::Group => None,
     }
+}
+
+/// Whether a point of the scene is inside the clip of a node with a
+/// transform and a size. A clip under a transform that is not a plain 2D
+/// one takes the input over its bounding box, as a layer does.
+fn inside(transform: &Transform, [w, h]: [f64; 2], pos: Point<f64, Logical>) -> bool {
+    let Some((offset, (sx, sy))) = location_and_scale(transform) else {
+        return true;
+    };
+    let (x, y) = ((pos.x - offset.x) / sx, (pos.y - offset.y) / sy);
+    (0.0..w).contains(&x) && (0.0..h).contains(&y)
 }
 
 /// What a point hits of a node under a transform that is not a plain 2D
