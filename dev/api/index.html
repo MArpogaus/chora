@@ -1436,7 +1436,7 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>output.changed</code></td>
-<td>output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels</td>
+<td>output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves</td>
 </tr>
 <tr>
 <td><code>output.removed</code></td>
@@ -1509,6 +1509,10 @@ client sends <code>hello</code> first. The core answers every request.</p>
 <td>list the outputs and their cameras</td>
 </tr>
 <tr>
+<td><code>output.reserve(output, edges)</code></td>
+<td>leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; <code>edges</code> has <code>top</code>, <code>right</code>, <code>bottom</code> and <code>left</code> in logical pixels, and no space removes the reserve; returns the output</td>
+</tr>
+<tr>
 <td><code>clients.list</code></td>
 <td>list the connected client names and the methods that each exported</td>
 </tr>
@@ -1538,6 +1542,11 @@ client sends <code>hello</code> first. The core answers every request.</p>
 nodes, so they must agree on <code>keep_nodes</code>. The core refuses a <code>hello</code> with a
 different value. For example, <code>choractl --name tiling</code> fails while the tiling
 plugin runs.</p>
+<p>A reserve of <code>output.reserve</code> belongs to a connection and ends with it,
+also when its client crashes (#8). The reserves of all connections on an
+output add up, and count from the edges of the area that the exclusive
+zones of layer surfaces leave free. At least one pixel of the work area
+stays. <code>choractl reserve --top 30</code> holds a reserve until it ends.</p>
 <p>A key binding needs Ctrl, Alt or Super, so that typing still works. The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
 belong to no client. A binding has one owner at a time.</p>
@@ -1696,8 +1705,8 @@ caller. The <code>Client</code> of <code>chora-scene</code> answers with <code>C
 <tbody>
 <tr>
 <td><code>set_layout</code></td>
-<td><code>layout</code>: <code>master_stack</code>, <code>columns</code> or <code>rows</code>; <code>gap</code> in logical pixels; <code>reserve</code>: pixels left free at the left, top, right and bottom of the work area; a missing field keeps its value</td>
-<td>the layout, the gap, the reserve and the tiled windows</td>
+<td><code>layout</code>: <code>master_stack</code>, <code>columns</code> or <code>rows</code>; <code>gap</code> in logical pixels; a missing field keeps its value</td>
+<td>the layout, the gap and the tiled windows</td>
 </tr>
 <tr>
 <td><code>get_layout</code></td>
@@ -1763,6 +1772,10 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 <tr>
 <td><code>load_view</code>, <code>save_view</code>, <code>unload_view</code></td>
 <td>the views of <a href="../configuration/#views">Configuration</a>, by name only</td>
+</tr>
+<tr>
+<td><code>reserve_space</code></td>
+<td>space at the edges of an output, as <code>output.reserve</code>, while the server runs</td>
 </tr>
 <tr>
 <td><code>put_asset</code></td>
