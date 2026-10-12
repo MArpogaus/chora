@@ -282,7 +282,7 @@ caller. The `Client` of `chora-scene` answers with `Client::answer`.
 
 | Method | Parameters | Result |
 |--------|------------|--------|
-| `set_layout` | `layout`: `master_stack`, `columns` or `rows`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap and the tiled windows |
+| `set_layout` | `layout`: `master_stack`, `columns` or `rows`; `gap` in logical pixels; `reserve`: pixels left free at the left, top, right and bottom of the work area; a missing field keeps its value | the layout, the gap, the reserve and the tiled windows |
 | `get_layout` | none | the same |
 
 ## Plugins
