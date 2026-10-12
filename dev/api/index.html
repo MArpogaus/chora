@@ -642,6 +642,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#grants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#screen-capture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screen capture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plugin-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1038,6 +1060,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#grants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#screen-capture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screen capture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plugin-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1396,8 +1440,12 @@ client sends <code>hello</code> first. The core answers every request.</p>
 <td>send synthetic input; needs a grant</td>
 </tr>
 <tr>
-<td><code>screen.capture(target)</code></td>
-<td>capture an output, a group or a surface; needs a grant</td>
+<td><code>screen.capture(output, node, max_side)</code></td>
+<td>capture an output or a node as a PNG file; needs a grant</td>
+</tr>
+<tr>
+<td><code>grants.set(client, capabilities)</code>, <code>grants.revoke(client, capabilities)</code>, <code>grants.list</code></td>
+<td>grant or revoke <code>input.inject</code> and <code>screen.capture</code> for a client name; <code>choractl grant</code> and <code>choractl revoke</code> call them</td>
 </tr>
 <tr>
 <td><code>output.list</code></td>
@@ -1430,6 +1478,56 @@ configure the outputs (see
 configuration of its own. After a new mode, position, transform or scale,
 the core sends <code>output.changed</code>. For an output that turns off, it sends
 <code>output.removed</code>, and <code>output.list</code> no longer lists the output.</p>
+<h2 id="grants">Grants<a class="headerlink" href="#grants" title="Permanent link">&para;</a></h2>
+<p><code>input.inject</code> and <code>screen.capture</code> see or drive the whole session, so they
+need a grant of the user for the client name (D40):</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>screen.capture<span class="w"> </span>input.inject
+<span class="gp">$ </span>choractl<span class="w"> </span>grants
+<span class="go">{"agent": ["input.inject", "screen.capture"]}</span>
+<span class="gp">$ </span>choractl<span class="w"> </span>revoke<span class="w"> </span>agent
+</code></pre></div>
+<p>A grant lasts until <code>choractl revoke</code> or the end of the session. The
+emergency reset revokes all grants. A grant protects against mistakes of
+agents, not against hostile code of the same user, which can call
+<code>grants.set</code> itself. <code>choractl mcp</code> offers no tool for grants.</p>
+<h2 id="screen-capture">Screen capture<a class="headerlink" href="#screen-capture" title="Permanent link">&para;</a></h2>
+<p><code>screen.capture</code> renders an output, or a node with its descendants, and
+answers with a PNG file in base64:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output</code></td>
+<td>the output name; the first output if neither <code>output</code> nor <code>node</code> is set</td>
+</tr>
+<tr>
+<td><code>node</code></td>
+<td>a node id, for example a surface or a group</td>
+</tr>
+<tr>
+<td><code>max_side</code></td>
+<td>shrink the picture until its longer side has at most this many pixels</td>
+</tr>
+</tbody>
+</table>
+<p>The result has the <code>width</code> and <code>height</code> in pixels, the <code>scale</code> in pixels per
+logical pixel, the <code>origin</code> and the <code>png</code>. A pixel at (px, py) shows the
+point <code>origin + (px, py) / scale</code>: in the logical coordinates of the output,
+whose origin is (0, 0), or in the coordinates of the node.</p>
+<ul>
+<li>An output shows as on screen, without the cursor.</li>
+<li>A node shows without its own transform, opacity, mesh and effects, on a
+  transparent background. Its area covers the descendants with a size.</li>
+<li>A capture fails while the session is locked, and when the PNG file is
+  larger than 5 MiB; a smaller <code>max_side</code> helps then.</li>
+</ul>
+<p><code>choractl capture FILE</code> saves a picture, for example
+<code>choractl --name agent capture --node s1 window.png</code>.</p>
 <h2 id="plugin-methods">Plugin methods<a class="headerlink" href="#plugin-methods" title="Permanent link">&para;</a></h2>
 <p>A plugin exports methods, and other clients call them by the client name
 and the method name, for example <code>tiling.set_layout</code>:</p>
