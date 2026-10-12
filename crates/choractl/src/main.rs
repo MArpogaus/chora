@@ -4,6 +4,7 @@
 mod docs;
 mod events;
 mod mcp;
+mod schema;
 mod view;
 
 use std::{

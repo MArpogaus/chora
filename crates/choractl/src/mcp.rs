@@ -22,7 +22,7 @@ use serde_json::{Value, json};
 
 use crate::{
     events::{self, Subscription},
-    view,
+    schema, view,
 };
 
 /// The versions of the protocol that the server speaks, newest first.
@@ -163,6 +163,16 @@ fn tool(name: &str, description: &str, properties: &Value, required: &[&str]) ->
     })
 }
 
+/// A tool whose input schema comes from the type of its parameters, so that
+/// the model sees every command and every field (#5).
+fn typed_tool<T: schemars::JsonSchema>(name: &str, description: &str) -> Value {
+    json!({
+        "name": name,
+        "description": description,
+        "inputSchema": schema::of::<T>(),
+    })
+}
+
 fn tools() -> Vec<Value> {
     let mut tools = screen_tools();
     tools.extend(scene_tools());
@@ -226,11 +236,9 @@ fn scene_tools() -> Vec<Value> {
             &json!({"selector": {"type": "string", "description": "the selector; every node if empty"}}),
             &[],
         ),
-        tool(
+        typed_tool::<Apply>(
             "apply_commands",
-            "Apply a transaction of scene commands: create, attach, update, animate, move, remove, configure, focus, close, camera.",
-            &json!({"commands": {"type": "array", "items": {"type": "object"}}}),
-            &["commands"],
+            "Apply a transaction of scene commands: create, attach, update, animate, move, remove, configure, focus, close, camera. All commands apply, or none.",
         ),
         tool(
             "list_plugins",
@@ -244,11 +252,9 @@ fn scene_tools() -> Vec<Value> {
             &json!({"client": {"type": "string"}, "method": {"type": "string"}, "params": {"description": "any JSON value"}}),
             &["client", "method"],
         ),
-        tool(
+        typed_tool::<Inject>(
             "inject_input",
-            "Send synthetic input: pointer_move, button, click, scroll, key, shortcut and text events. Needs a grant of input.inject.",
-            &json!({"events": {"type": "array", "items": {"type": "object"}, "description": "for example [{\"text\": {\"text\": \"ls\\n\"}}]"}}),
-            &["events"],
+            "Send synthetic input: pointer_move, button, click, scroll, key, shortcut and text events, for example [{\"text\": {\"text\": \"ls\\n\"}}]. Needs a grant of input.inject.",
         ),
     ]
 }

@@ -15,6 +15,7 @@ pub const MAX_DURATION: f64 = 60_000.0;
 
 /// How an animation moves from the start to the target.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Easing {
     /// At a constant speed.

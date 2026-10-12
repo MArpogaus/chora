@@ -21,6 +21,7 @@ pub struct Modifiers {
 /// Modifiers and one key, for example `Super+Shift+Return`. The key is an
 /// XKB keysym name; the core resolves it without case.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct Binding {
     /// The modifiers.

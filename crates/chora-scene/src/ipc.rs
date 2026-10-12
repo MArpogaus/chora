@@ -150,6 +150,7 @@ pub struct Query {
 
 /// Parameters of `scene.apply`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Apply {
     /// The commands of the transaction.
@@ -298,6 +299,7 @@ pub struct Picture {
 
 /// Parameters of `input.inject`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Inject {
     /// The events, in order. Keys and buttons that they leave down go up
@@ -307,6 +309,7 @@ pub struct Inject {
 
 /// One synthetic input event of `input.inject`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum InjectEvent {
     /// Moves the pointer to a point in the logical coordinates of an
@@ -368,6 +371,7 @@ fn left_button() -> u32 {
 /// A key: a keysym name, for example `Return` or `a`, or a Linux key code,
 /// for example 28 for Return.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum Key {
     /// A Linux key code, as evdev numbers them.
@@ -378,6 +382,7 @@ pub enum Key {
 
 /// Whether a key or a button goes down or up.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum PressState {
     /// Down.

@@ -9,37 +9,52 @@ use serde::{Deserialize, Serialize};
 /// short form applies scale first, then the rotation around the z axis, then
 /// the translation. Every field of the short form is optional.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "TransformSpec", into = "MatrixSpec")]
 pub struct Transform {
     m: [f64; 16],
 }
 
 #[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 enum TransformSpec {
+    /// The full matrix.
     Matrix(MatrixSpec),
+    /// The short form.
     Short(ShortSpec),
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 struct MatrixSpec {
+    /// 16 numbers in column-major order.
+    #[cfg_attr(feature = "schema", schemars(length(equal = 16)))]
     matrix: Vec<f64>,
 }
 
 #[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 struct ShortSpec {
+    /// `[x, y]` or `[x, y, z]`, in the coordinates of the parent.
+    #[cfg_attr(feature = "schema", schemars(length(max = 3)))]
     translate: Option<Vec<f64>>,
+    /// A number for all axes, or `[x, y]` or `[x, y, z]`.
     scale: Option<Scale>,
+    /// Degrees around the z axis, clockwise on the screen.
     rotate: Option<f64>,
 }
 
 #[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 enum Scale {
+    /// The same for all axes.
     Uniform(f64),
-    Axes(Vec<f64>),
+    /// One per axis.
+    Axes(#[cfg_attr(feature = "schema", schemars(length(max = 3)))] Vec<f64>),
 }
 
 impl TryFrom<TransformSpec> for Transform {

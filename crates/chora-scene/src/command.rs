@@ -6,13 +6,15 @@ use crate::{Easing, NodeKind, PropsUpdate, Transform};
 
 /// One command of a transaction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
-    /// Creates a group, rect or image node under a parent.
+    /// Creates a group, rect, image or shader node under a parent.
     Create {
         /// The id of the new node.
         id: String,
-        /// Group, rect or image; the core creates surface nodes itself.
+        /// Group, rect, image or shader; the core creates surface nodes
+        /// itself.
         kind: NodeKind,
         /// The parent group.
         parent: String,
@@ -98,6 +100,7 @@ pub enum Command {
 
 /// A state of an `xdg_toplevel`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ToplevelState {
     /// The window has the focus.

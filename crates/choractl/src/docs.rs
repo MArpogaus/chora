@@ -1,10 +1,17 @@
 //! The examples of the docs parse as the types of the API, so that the docs
-//! and the code agree (#3). A comment `<!-- parses: KIND -->` before a code
-//! block names the type.
+//! and the code agree (#3), and fit the schemas of the MCP tools (#5). A
+//! comment `<!-- parses: KIND -->` before a code block names the type.
 
-use chora_scene::{Command, ipc::Inject};
+use chora_scene::{
+    Command,
+    ipc::{Apply, Inject},
+};
+use serde_json::{Value, json};
 
-use crate::view::{Manifest, View, parse_yaml};
+use crate::{
+    schema,
+    view::{Manifest, View, parse_yaml},
+};
 
 const DOCS: [(&str, &str); 2] = [
     ("api.md", include_str!("../../../docs/api.md")),
@@ -39,6 +46,18 @@ fn examples(text: &str) -> Vec<(String, String)> {
 }
 
 fn check(kind: &str, code: &str) -> Result<(), String> {
+    let value = || parse_yaml::<Value>(code);
+    let tool_input = match kind {
+        "commands" => Some((schema::of::<Apply>(), json!({"commands": value()?}))),
+        "command" => Some((schema::of::<Apply>(), json!({"commands": [value()?]}))),
+        "inject" => Some((schema::of::<Inject>(), value()?)),
+        _ => None,
+    };
+    if let Some((schema, input)) = tool_input
+        && !schema::fits(&schema, &input)
+    {
+        return Err("it does not fit the schema of its MCP tool".into());
+    }
     match kind {
         "commands" => parse_yaml::<Vec<Command>>(code).map(drop),
         "command" => parse_yaml::<Command>(code).map(drop),

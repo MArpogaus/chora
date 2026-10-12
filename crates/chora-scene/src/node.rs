@@ -11,6 +11,7 @@ pub const ROOT: &str = "root";
 
 /// The kind of a node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum NodeKind {
     /// Contains other nodes.
@@ -28,6 +29,7 @@ pub enum NodeKind {
 
 /// How a node takes part in pointer input.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum InputMode {
     /// The node receives input.
@@ -47,6 +49,7 @@ pub const MAX_MESH_CELLS: u32 = 64;
 /// place of each grid point in node coordinates, row by row from the top
 /// left, `(cols + 1) * (rows + 1)` points.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Mesh {
     /// Cells along x, from 1 to 64.
@@ -93,6 +96,7 @@ pub const MAX_UNIFORMS: usize = 16;
 /// A fragment shader that changes how a layer looks, with its inputs. The
 /// core applies the effects of a node one after another to its texture.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ShaderEffect {
     /// The absolute path of a GLSL ES fragment shader.
@@ -105,6 +109,7 @@ pub struct ShaderEffect {
 
 /// The value of a uniform of a shader.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum Uniform {
     /// A `float`.
@@ -118,6 +123,7 @@ pub enum Uniform {
 
 /// A node that a shader reads as a texture.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct NodeTexture {
     /// The id of the node.
@@ -141,6 +147,7 @@ pub const MAX_NODE_TEXTURES: usize = 4;
 
 /// A line along the inner edge of a rect.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Border {
     /// The width in logical pixels.
@@ -151,6 +158,7 @@ pub struct Border {
 
 /// The area outside of which a node and its descendants do not show.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Clip {
     /// The radius of the corners in logical pixels; 0 for sharp corners.
@@ -236,9 +244,9 @@ pub struct Props {
     pub input: InputMode,
     /// Free key/value pairs to tag and find nodes.
     pub meta: BTreeMap<String, String>,
-    /// Width and height of a rect or an image. An image without a size
-    /// has the size of its file. For a group, the area that a layer
-    /// shows.
+    /// Width and height of a rect, an image or a shader node. An image
+    /// without a size has the size of its file. For a group, the area that
+    /// a layer shows.
     pub size: Option<[f64; 2]>,
     /// RGBA color of a rect, each from 0 to 1.
     pub color: Option<[f64; 4]>,
@@ -312,45 +320,52 @@ impl Default for Props {
 /// A partial update of [`Props`]: every field that is set replaces the old
 /// value.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct PropsUpdate {
-    /// See [`Props::transform`].
+    /// Relative to the parent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transform: Option<Transform>,
-    /// See [`Props::opacity`].
+    /// From 0 to 1, multiplied with the opacity of the parent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub opacity: Option<f64>,
-    /// See [`Props::visible`].
+    /// An invisible node hides its descendants.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub visible: Option<bool>,
-    /// See [`Props::input`].
+    /// Pointer input behavior.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<InputMode>,
     /// Keys to set; an empty value removes the key.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<BTreeMap<String, String>>,
-    /// See [`Props::size`].
+    /// Width and height of a rect, an image or a shader node. An image
+    /// without a size has the size of its file. For a group, the area that
+    /// a layer shows.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<[f64; 2]>,
-    /// See [`Props::color`].
+    /// RGBA color of a rect, each from 0 to 1.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<[f64; 4]>,
-    /// See [`Props::image`].
+    /// The absolute path of the PNG file of an image.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
-    /// See [`Props::slice`].
+    /// The insets of an image that keep their size when the image
+    /// stretches, in pixels of the file: left, top, right, bottom. The
+    /// edges between them stretch in one direction, the center in both.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slice: Option<[f64; 4]>,
-    /// See [`Props::mesh`]; a mesh without points removes the mesh.
+    /// A grid that deforms the node and its descendants. A mesh without
+    /// points removes the mesh.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mesh: Option<Mesh>,
-    /// See [`Props::effects`]; an empty list removes the effects.
+    /// Shaders that change how the node and its descendants look. An empty
+    /// list removes the effects.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub effects: Option<Vec<ShaderEffect>>,
-    /// See [`Props::radius`].
+    /// The radius of the corners of a rect, in logical pixels.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub radius: Option<f64>,
-    /// See [`Props::border`]; `null` removes the border.
+    /// A line along the inner edge of a rect. `null` removes the border.
     #[allow(clippy::option_option)] // three states: keep, remove, set
     #[serde(
         default,
@@ -358,7 +373,8 @@ pub struct PropsUpdate {
         skip_serializing_if = "Option::is_none"
     )]
     pub border: Option<Option<Border>>,
-    /// See [`Props::clip`]; `null` removes the clip.
+    /// Shows the node and its descendants only inside its size. `null`
+    /// removes the clip.
     #[allow(clippy::option_option)] // three states: keep, remove, set
     #[serde(
         default,
@@ -366,10 +382,10 @@ pub struct PropsUpdate {
         skip_serializing_if = "Option::is_none"
     )]
     pub clip: Option<Option<Clip>>,
-    /// See [`Props::shader`].
+    /// The absolute path of the fragment shader of a shader node.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shader: Option<String>,
-    /// See [`Props::uniforms`]; replaces all uniforms.
+    /// The uniforms of the shader of a shader node. Replaces all uniforms.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uniforms: Option<BTreeMap<String, Uniform>>,
 }
