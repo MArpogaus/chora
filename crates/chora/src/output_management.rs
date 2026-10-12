@@ -489,6 +489,10 @@ impl GlobalDispatch<ZwlrOutputManagerV1, ()> for State {
         let manager = data_init.init(resource, ());
         state.output_management.bind(manager);
     }
+
+    fn can_view(client: Client, (): &()) -> bool {
+        crate::security::trusted(&client)
+    }
 }
 
 impl Dispatch<ZwlrOutputManagerV1, ()> for State {

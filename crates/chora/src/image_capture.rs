@@ -29,7 +29,7 @@ use smithay::{
     },
 };
 
-use crate::{capture::Pixels, render, shm, state::State};
+use crate::{capture::Pixels, render, security::trusted, shm, state::State};
 
 /// The globals of the capture protocols, and the sessions that run.
 pub struct ImageCapture {
@@ -43,9 +43,9 @@ impl ImageCapture {
     /// Creates the globals.
     pub fn new(display: &smithay::reexports::wayland_server::DisplayHandle) -> Self {
         Self {
-            copy: ImageCopyCaptureState::new::<State>(display),
-            outputs: OutputCaptureSourceState::new::<State>(display),
-            toplevels: ToplevelCaptureSourceState::new::<State>(display),
+            copy: ImageCopyCaptureState::new_with_filter::<State, _>(display, trusted),
+            outputs: OutputCaptureSourceState::new_with_filter::<State, _>(display, trusted),
+            toplevels: ToplevelCaptureSourceState::new_with_filter::<State, _>(display, trusted),
             sessions: Vec::new(),
         }
     }

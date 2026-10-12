@@ -64,6 +64,10 @@ impl GlobalDispatch2<ZwlrScreencopyManagerV1, State> for ScreencopyGlobal {
     ) {
         data_init.init(resource, ManagerData);
     }
+
+    fn can_view(&self, client: &Client) -> bool {
+        crate::security::trusted(client)
+    }
 }
 
 impl Dispatch2<ZwlrScreencopyManagerV1, State> for ManagerData {

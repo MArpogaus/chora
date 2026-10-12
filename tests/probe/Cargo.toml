@@ -1,5 +1,5 @@
 [dependencies]
-rustix = { version = "1", features = ["event", "fs", "time"] }
+rustix = { version = "1", features = ["event", "fs", "pipe", "time"] }
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging"] }
 wayland-protocols-misc = { version = "0.3", features = ["client"] }

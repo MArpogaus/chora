@@ -326,6 +326,10 @@ impl GlobalDispatch2<ZwlrForeignToplevelManagerV1, State> for ManagerGlobal {
         }
         protocol.managers.push(manager);
     }
+
+    fn can_view(&self, client: &Client) -> bool {
+        crate::security::trusted(client)
+    }
 }
 
 impl Dispatch2<ZwlrForeignToplevelManagerV1, State> for ManagerData {

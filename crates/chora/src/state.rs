@@ -53,10 +53,12 @@ use smithay::{
     },
 };
 
+use smithay::wayland::security_context::{SecurityContext, SecurityContextState};
+
 use crate::{
     backend::Backend, foreign_toplevel::ForeignToplevelManagerState, grants::Grants,
     image_capture::ImageCapture, ipc::Ipc, lock::Lock, methods::Methods,
-    output_management::OutputManagement, render::Assets, safety::Watchdog,
+    output_management::OutputManagement, render::Assets, safety::Watchdog, security::trusted,
     transaction::Transactions,
 };
 
@@ -162,13 +164,23 @@ fn create_globals(dh: &DisplayHandle, clock: &Clock<Monotonic>) {
     ViewporterState::new::<State>(dh);
     IdleInhibitManagerState::new::<State>(dh);
     TextInputManagerState::new::<State>(dh);
-    InputMethodManagerState::new::<State, _>(dh, |_| true);
+    InputMethodManagerState::new::<State, _>(dh, trusted);
+    SecurityContextState::new::<State, _>(dh, trusted);
     FractionalScaleManagerState::new::<State>(dh);
     CursorShapeManagerState::new::<State>(dh);
     RelativePointerManagerState::new::<State>(dh);
     PointerConstraintsState::new::<State>(dh);
     PresentationState::new::<State>(dh, clock.id() as u32);
     crate::screencopy::create_global(dh);
+}
+
+/// The one seat, with a keyboard of the default keymap and a pointer.
+fn new_seat(seat_state: &mut SeatState<State>, dh: &DisplayHandle) -> Seat<State> {
+    let mut seat = seat_state.new_wl_seat(dh, "seat0");
+    seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), 200, 25)
+        .expect("the default keymap compiles");
+    seat.add_pointer();
+    seat
 }
 
 impl State {
@@ -179,10 +191,7 @@ impl State {
     ) -> Self {
         let dh = display.handle();
         let mut seat_state = SeatState::new();
-        let mut seat = seat_state.new_wl_seat(&dh, "seat0");
-        seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), 200, 25)
-            .expect("the default keymap compiles");
-        seat.add_pointer();
+        let seat = new_seat(&mut seat_state, &dh);
         let socket_name = listen(display, &loop_handle);
         let idle_notifier_state = IdleNotifierState::new(&dh, loop_handle.clone());
         let clock = Clock::<Monotonic>::new();
@@ -193,8 +202,8 @@ impl State {
             pointer_refreshed: Instant::now(),
             clock,
             compositor_state: CompositorState::new::<Self>(&dh),
-            layer_shell_state: WlrLayerShellState::new::<Self>(&dh),
-            lock_state: SessionLockManagerState::new::<Self, _>(&dh, |_| true),
+            layer_shell_state: WlrLayerShellState::new_with_filter::<Self, _>(&dh, trusted),
+            lock_state: SessionLockManagerState::new::<Self, _>(&dh, trusted),
             lock: None,
             xdg_shell_state: XdgShellState::new::<Self>(&dh),
             shm_state: ShmState::new::<Self>(&dh, vec![]),
@@ -221,7 +230,9 @@ impl State {
             configured: HashMap::new(),
             idle_notifier_state,
             idle_inhibitors: Vec::new(),
-            foreign_toplevel_list_state: ForeignToplevelListState::new::<Self>(&dh),
+            foreign_toplevel_list_state: ForeignToplevelListState::new_with_filter::<Self>(
+                &dh, trusted,
+            ),
             foreign_toplevels: HashMap::new(),
             foreign_toplevel_manager_state: ForeignToplevelManagerState::new(&dh),
             activation_state: XdgActivationState::new::<Self>(&dh),
@@ -520,6 +531,9 @@ pub struct ClientState {
     pub compositor_state: CompositorClientState,
     /// The serial of the last key or button press that the client got.
     pub last_press: AtomicU32,
+    /// The sandbox of a client that connected through
+    /// `wp-security-context-v1`.
+    pub security_context: Option<SecurityContext>,
 }
 
 impl ClientData for ClientState {}

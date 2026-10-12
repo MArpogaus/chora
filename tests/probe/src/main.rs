@@ -26,8 +26,11 @@
 //! - `capture output|toplevel`: captures the first output or the first
 //!   toplevel through `ext-image-copy-capture`, and prints the size and
 //!   the number of colors.
+//! - `sandbox`: connects through a new `wp-security-context-v1` socket and
+//!   checks that the sandboxed client sees no privileged global.
 
 mod capture;
+mod sandbox;
 
 use std::{
     fs::File,
@@ -49,6 +52,7 @@ use wayland_client::{
         wl_seat, wl_shm, wl_shm_pool::WlShmPool, wl_surface::WlSurface,
     },
 };
+use wayland_protocols::wp::security_context::v1::client::wp_security_context_manager_v1 as sandbox_manager;
 use wayland_protocols::{
     ext::session_lock::v1::client::{
         ext_session_lock_manager_v1::ExtSessionLockManagerV1,
@@ -112,6 +116,9 @@ struct Probe {
     feedback: Option<Feedback>,
     /// The globals and the answers of the mode `capture`.
     capture: capture::Capture,
+    /// The names of all globals.
+    globals: Vec<String>,
+    security: Option<sandbox_manager::WpSecurityContextManagerV1>,
 }
 
 /// The answer to a request for presentation feedback.
@@ -142,6 +149,7 @@ fn main() -> ExitCode {
         "wiggle" => wiggle(&mut queue, &mut probe),
         "point" => point(&mut queue, &mut probe),
         "capture" => capture::capture(&mut queue, &mut probe),
+        "sandbox" => sandbox::sandbox(&mut queue, &mut probe),
         "held-commit" => match size_args() {
             Some(size) => held_commit(&mut queue, &mut probe, size),
             None => Err("usage: held-commit W H".into()),
@@ -568,7 +576,11 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
         else {
             return;
         };
+        probe.globals.push(interface.clone());
         match interface.as_str() {
+            "wp_security_context_manager_v1" => {
+                probe.security = Some(registry.bind(name, 1, qh, ()));
+            }
             "wl_compositor" => probe.compositor = Some(registry.bind(name, 4, qh, ())),
             "wl_shm" => probe.shm = Some(registry.bind(name, 1, qh, ())),
             "xdg_wm_base" => probe.wm_base = Some(registry.bind(name, 1, qh, ())),

@@ -22,6 +22,7 @@ mod protocols;
 mod render;
 mod safety;
 mod screencopy;
+mod security;
 mod shm;
 mod state;
 mod transaction;

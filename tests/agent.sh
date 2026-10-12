@@ -4,7 +4,9 @@
 # calls the methods that chora-tiling exports, gets grants, captures the
 # output and nodes, types into a terminal, clicks a node and presses a
 # shortcut of a plugin. Injected safety keys do nothing, and while the
-# session is locked, captures and injections fail.
+# session is locked, captures and injections fail. grim and the probe
+# capture through both screencopy protocols, and a client of a sandbox
+# sees none of the privileged protocols.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
@@ -270,5 +272,9 @@ probe capture toplevel >"$out/ext-toplevel.log" 2>&1 ||
 size=$(sed -n 's/capture: \([0-9]*x[0-9]*\), .*/\1/p' "$out/ext-toplevel.log")
 surfaces | jq -e --arg size "$size" 'any(.[]; "\(.surface.size[0])x\(.surface.size[1])" == $size)' >/dev/null ||
     fail "the toplevel capture has $size, no surface has that size"
+
+step "15. a sandboxed client sees no privileged protocol"
+probe sandbox >"$out/sandbox.log" 2>&1 || fail "the sandbox: $(cat "$out/sandbox.log")"
+kill -0 "$chora_pid" || fail "chora died"
 
 echo "PASS (logs and screenshots in $out)"
