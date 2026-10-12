@@ -1542,8 +1542,12 @@ of the press that opened it.</p>
 <ul>
 <li>Unsandboxed Wayland clients get all protocols, as in sway. So any client
   can, for example, take the keyboard as an input method, or configure the
-  outputs. <code>wp-security-context-v1</code> hides privileged protocols, for example
-  screencopy, from sandboxed clients.</li>
+  outputs.</li>
+<li>A sandbox such as Flatpak connects its apps through a socket of
+  <code>wp-security-context-v1</code>. Those clients do not see the privileged
+  protocols: the layer shell, the session lock, the input method, both
+  foreign toplevel protocols, output management, both screencopy protocols
+  with their sources, and the security context manager itself.</li>
 <li>The IPC methods <code>input.inject</code> and <code>screen.capture</code> need a <strong>grant</strong> of the
   user for the client name: <code>choractl grant NAME CAPABILITY</code> (D40). A grant
   protects against mistakes of agents. It is no barrier against hostile code
