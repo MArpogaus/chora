@@ -664,6 +664,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#input-injection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input injection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plugin-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1082,6 +1093,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#input-injection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input injection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plugin-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1437,7 +1459,7 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </tr>
 <tr>
 <td><code>input.inject(events)</code></td>
-<td>send synthetic input; needs a grant</td>
+<td>send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant</td>
 </tr>
 <tr>
 <td><code>screen.capture(output, node, max_side)</code></td>
@@ -1528,6 +1550,68 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
 </ul>
 <p><code>choractl capture FILE</code> saves a picture, for example
 <code>choractl --name agent capture --node s1 window.png</code>.</p>
+<h2 id="input-injection">Input injection<a class="headerlink" href="#input-injection" title="Permanent link">&para;</a></h2>
+<p><code>input.inject</code> sends a list of events as one request:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"events"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">"pointer_move"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"position"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">640</span><span class="p">,</span><span class="w"> </span><span class="mi">400</span><span class="p">],</span><span class="w"> </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DP-1"</span><span class="p">}},</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">"click"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"button"</span><span class="p">:</span><span class="w"> </span><span class="mi">272</span><span class="p">}},</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">"text"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"text"</span><span class="p">:</span><span class="w"> </span><span class="s2">"make test\n"</span><span class="p">}},</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">"shortcut"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"keys"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Super+Return"</span><span class="p">}}</span>
+<span class="p">]}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pointer_move</code></td>
+<td><code>position</code> in the logical coordinates of the output, as in a capture; <code>output</code>, the first one by default</td>
+</tr>
+<tr>
+<td><code>button</code></td>
+<td><code>button</code>, a Linux code, 272 (left) by default; <code>state</code>: <code>pressed</code> or <code>released</code></td>
+</tr>
+<tr>
+<td><code>click</code></td>
+<td><code>button</code>; presses and releases it</td>
+</tr>
+<tr>
+<td><code>scroll</code></td>
+<td><code>dx</code> and <code>dy</code> in logical pixels; a positive <code>dy</code> scrolls down</td>
+</tr>
+<tr>
+<td><code>key</code></td>
+<td><code>key</code>: a keysym name such as <code>Return</code>, or a Linux key code such as 28; <code>state</code></td>
+</tr>
+<tr>
+<td><code>shortcut</code></td>
+<td><code>keys</code>, a binding such as <code>Ctrl+Shift+t</code>: the modifiers go down, the key goes down and up, the modifiers go up</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td><code>text</code>; a newline presses Return, a tab presses Tab</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>The core checks all events before the first one runs. An event that does
+  not resolve, for example a character without a key, rejects the request.</li>
+<li>Key names and text use the first layout of the keymap. A character needs
+  a key with Shift or <code>AltGr</code> at most.</li>
+<li>Keys and buttons that the events leave down go up at the end of the
+  request, so that no key sticks.</li>
+<li>Injected keys never reach the safety layer: Ctrl+Alt+BackSpace,
+  Ctrl+Alt+Escape and the VT switch do nothing. The grabs of plugins see
+  them, and the focused surface gets the rest.</li>
+<li>A request has at most 256 events and 4096 characters of text. It fails
+  while the session is locked.</li>
+</ul>
+<p><code>choractl inject</code> reads the list of events as JSON, for example
+<code>echo '[{"text": {"text": "ls\n"}}]' | choractl --name agent inject</code>.</p>
 <h2 id="plugin-methods">Plugin methods<a class="headerlink" href="#plugin-methods" title="Permanent link">&para;</a></h2>
 <p>A plugin exports methods, and other clients call them by the client name
 and the method name, for example <code>tiling.set_layout</code>:</p>
