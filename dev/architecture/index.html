@@ -1555,11 +1555,13 @@ of the press that opened it.</p>
   protocols: the layer shell, the session lock, the input method, both
   foreign toplevel protocols, output management, both screencopy protocols
   with their sources, and the security context manager itself.</li>
-<li>The IPC methods <code>input.inject</code> and <code>screen.capture</code> need a <strong>grant</strong> of the
-  user for the client name: <code>choractl grant NAME CAPABILITY</code> (D40). A grant
-  protects against mistakes of agents. It is no barrier against hostile code
-  of the same user. The emergency reset revokes all grants.</li>
-<li><code>screen.capture</code> and <code>input.inject</code> fail while the session is locked.</li>
+<li>The IPC methods <code>input.inject</code>, <code>screen.capture</code> and <code>process.spawn</code> need
+  a <strong>grant</strong> of the user for the client name: <code>choractl grant NAME
+  CAPABILITY</code> (D40, D42). A grant protects against mistakes of agents. It is
+  no barrier against hostile code of the same user. The emergency reset
+  revokes all grants.</li>
+<li><code>screen.capture</code>, <code>input.inject</code>, <code>process.spawn</code> and <code>plugins.restart</code>
+  fail while the session is locked.</li>
 </ul>
 <h2 id="sessions-and-flavors">Sessions and flavors<a class="headerlink" href="#sessions-and-flavors" title="Permanent link">&para;</a></h2>
 <ul>

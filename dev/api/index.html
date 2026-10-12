@@ -653,6 +653,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#programs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#screen-capture" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1075,6 +1086,17 @@
     <span class="md-ellipsis">
       
         Grants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#programs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programs
       
     </span>
   </a>
@@ -1509,7 +1531,7 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </tr>
 <tr>
 <td><code>grants.set(client, capabilities)</code>, <code>grants.revoke(client, capabilities)</code>, <code>grants.list</code></td>
-<td>grant or revoke <code>input.inject</code> and <code>screen.capture</code> for a client name; <code>choractl grant</code> and <code>choractl revoke</code> call them</td>
+<td>grant or revoke <code>input.inject</code>, <code>screen.capture</code> and <code>process.spawn</code> for a client name; <code>choractl grant</code> and <code>choractl revoke</code> call them</td>
 </tr>
 <tr>
 <td><code>output.list</code></td>
@@ -1534,6 +1556,14 @@ client sends <code>hello</code> first. The core answers every request.</p>
 <tr>
 <td><code>methods.return(call, result, error)</code></td>
 <td>answer a <code>method.called</code> event</td>
+</tr>
+<tr>
+<td><code>process.spawn(argv)</code></td>
+<td>start a program with the environment of the core; needs the grant <code>process.spawn</code></td>
+</tr>
+<tr>
+<td><code>plugins.restart(name)</code></td>
+<td>stop the process of a client name and start its command again; needs the grant <code>process.spawn</code></td>
 </tr>
 <tr>
 <td><code>assets.put(name, data)</code></td>
@@ -1564,8 +1594,9 @@ configuration of its own. After a new mode, position, transform or scale,
 the core sends <code>output.changed</code>. For an output that turns off, it sends
 <code>output.removed</code>, and <code>output.list</code> no longer lists the output.</p>
 <h2 id="grants">Grants<a class="headerlink" href="#grants" title="Permanent link">&para;</a></h2>
-<p><code>input.inject</code> and <code>screen.capture</code> see or drive the whole session, so they
-need a grant of the user for the client name (D40):</p>
+<p><code>input.inject</code> and <code>screen.capture</code> see or drive the whole session, and
+<code>process.spawn</code> runs any program as the user, so they need a grant of the
+user for the client name (D40, D42):</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>screen.capture<span class="w"> </span>input.inject
 <span class="gp">$ </span>choractl<span class="w"> </span>grants
 <span class="go">{"agent": ["input.inject", "screen.capture"]}</span>
@@ -1575,6 +1606,26 @@ need a grant of the user for the client name (D40):</p>
 emergency reset revokes all grants. A grant protects against mistakes of
 agents, not against hostile code of the same user, which can call
 <code>grants.set</code> itself. <code>choractl mcp</code> offers no tool for grants.</p>
+<h2 id="programs">Programs<a class="headerlink" href="#programs" title="Permanent link">&para;</a></h2>
+<p><code>process.spawn(argv)</code> starts a program with the environment of the core,
+as the startup command (D30): <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> of this
+compositor, without the variables of a host session, and with no stdin.
+The core looks the program up in its own <code>PATH</code>, so it works for an agent
+in another namespace too. The answer has the <code>pid</code> and the <code>argv</code>.</p>
+<p><code>plugins.restart(name)</code> restarts a plugin, for example after a rebuild
+(#9). The core finds the process of the connections of the client name,
+reads its command line and working directory from <code>/proc</code>, and sends it
+SIGTERM. Once it exited, or 5 s after a SIGKILL, the core starts the same
+command again and answers with the new <code>pid</code>. A name with several
+processes, or a process in a namespace that the core cannot see, fails.</p>
+<p>Both methods need the grant <code>process.spawn</code>, and fail while the session is
+locked:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>process.spawn
+<span class="gp">$ </span>choractl<span class="w"> </span>--name<span class="w"> </span>agent<span class="w"> </span>spawn<span class="w"> </span>foot
+<span class="gp">$ </span>choractl<span class="w"> </span>--name<span class="w"> </span>agent<span class="w"> </span>restart<span class="w"> </span>tiling
+</code></pre></div>
+<p>A later version may narrow the grant with a list of allowed programs, which
+<code>choractl grant</code> reads from a file (D42).</p>
 <h2 id="screen-capture">Screen capture<a class="headerlink" href="#screen-capture" title="Permanent link">&para;</a></h2>
 <p><code>screen.capture</code> renders an output, or a node with its descendants, and
 answers with a PNG file in base64:</p>
@@ -1781,6 +1832,10 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 <td>the views of <a href="../configuration/#views">Configuration</a>, by name only</td>
 </tr>
 <tr>
+<td><code>spawn_process</code>, <code>restart_plugin</code></td>
+<td>start a program, or restart a plugin, as <code>process.spawn</code> and <code>plugins.restart</code></td>
+</tr>
+<tr>
 <td><code>reserve_space</code></td>
 <td>space at the edges of an output, as <code>output.reserve</code>, while the server runs</td>
 </tr>
@@ -1803,9 +1858,9 @@ types of <code>chora-scene</code> (#5). They list every command, every input eve
 every field, with its description, so the model sees the shape of a call
 before the first try. A test checks that the schemas, the types and the
 examples of this page agree.</p>
-<p>The screenshot of <code>describe_screen</code>, <code>capture</code> and <code>inject_input</code> need the
-grants of the client name, for example
-<code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
+<p>The screenshot of <code>describe_screen</code>, <code>capture</code>, <code>inject_input</code>,
+<code>spawn_process</code> and <code>restart_plugin</code> need the grants of the client name,
+for example <code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
 still describes the scene. No tool grants anything (D40).</p>
 <p>A subscription has a connection of its own under the same client name. A
 thread reads its events into a buffer of 1000 events, so the core never
