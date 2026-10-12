@@ -452,7 +452,6 @@ fn a_camera_needs_a_positive_2d_scale() {
         Transform::rotate_z(30.0),
         Transform::translate(f64::NAN, 0.0, 0.0),
         Transform::translate(1e12, 0.0, 0.0),
-        Transform::translate(0.0, 0.0, 5.0),
         perspective,
     ] {
         let err = scene
@@ -460,6 +459,20 @@ fn a_camera_needs_a_positive_2d_scale() {
             .unwrap_err();
         assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
     }
+}
+
+#[test]
+fn a_camera_ignores_the_z_axis() {
+    let mut scene = Scene::default();
+    let uniform: Transform = serde_json::from_value(serde_json::json!({"scale": 1.5})).unwrap();
+    scene.apply("wm", &[camera("DP-1", Some(uniform))]).unwrap();
+    assert_eq!(scene.camera("DP-1"), Some(&Transform::scale(1.5, 1.5, 1.0)));
+    let lifted = Transform::translate(10.0, 0.0, 5.0);
+    scene.apply("wm", &[camera("DP-1", Some(lifted))]).unwrap();
+    assert_eq!(
+        scene.camera("DP-1"),
+        Some(&Transform::translate(10.0, 0.0, 0.0))
+    );
 }
 
 #[test]

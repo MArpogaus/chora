@@ -74,6 +74,16 @@ const MAX_PAN: f64 = 1e7;
 /// The largest zoom of a camera, and the inverse of the smallest.
 const MAX_ZOOM: f64 = 64.0;
 
+/// A transform without its z axis: a camera works in 2D, so the z of a
+/// uniform scale such as `{"scale": 1.5}`, or of a translation, does not
+/// matter.
+fn flat(t: Transform) -> Transform {
+    let mut m = *t.matrix();
+    m[10] = 1.0;
+    m[14] = 0.0;
+    Transform::from_matrix(m)
+}
+
 /// Whether a transform is a camera: exactly a translation in x and y after
 /// a scale in x and y, within the limits.
 #[allow(clippy::float_cmp)] // the other entries of such a matrix are exactly 0 or 1
@@ -303,10 +313,12 @@ impl Scene {
             self.cameras.remove(output);
             return Ok(());
         };
+        let t = flat(t);
         if !valid_camera(&t) {
             return Err(SceneError::Invalid(format!(
-                "the camera of {output:?} needs a 2D translation within {MAX_PAN} and a \
-                 scale from 1/{MAX_ZOOM} to {MAX_ZOOM}"
+                "the camera of {output:?} takes only a translation in x and y within \
+                 {MAX_PAN} and a scale in x and y from 1/{MAX_ZOOM} to {MAX_ZOOM}, \
+                 without rotation"
             )));
         }
         if !self.cameras.contains_key(output) && self.cameras.len() >= MAX_CAMERAS {
