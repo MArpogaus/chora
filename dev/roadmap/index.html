@@ -1238,7 +1238,9 @@ feedback of the first real MCP sessions (issues #3 to #10).</p>
 <p><strong>Exit:</strong> an automated test passes: an MCP client uploads a shader,
 reserves a panel at the edge of the output, draws it as a rounded shader
 node with two buttons, and moves the camera with an animation when the
-user clicks a button, which the client learns from <code>wait_events</code>.</p>
+user clicks a button, which the client learns from <code>wait_events</code>. The last
+step of <code>tests/agent.sh</code> checks it with <code>tests/mcp-client.py panel</code> in CI.
+The allowlist of the grant <code>process.spawn</code> stays an option.</p>
 <h2 id="m5-packaging">M5: Packaging<a class="headerlink" href="#m5-packaging" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> chora installs like every other desktop on the host.</p>
 <ul>
