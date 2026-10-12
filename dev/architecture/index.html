@@ -1447,8 +1447,10 @@ the connection.</p>
 </tbody>
 </table>
 <p>A plugin can export <strong>methods</strong>, for example <code>tiling.set_layout</code>. The core
-forwards a method call to the plugin and returns the answer. An agent then
-asks the window manager for a change instead of fighting it.</p>
+forwards a method call to the plugin as an event and returns the answer to
+the caller. A call without an answer fails after 10 s. An agent then asks
+the window manager for a change instead of fighting it (see
+<a href="../api/#plugin-methods">API</a>).</p>
 <h3 id="choractl-and-the-mcp-bridge">choractl and the MCP bridge<a class="headerlink" href="#choractl-and-the-mcp-bridge" title="Permanent link">&para;</a></h3>
 <p><code>choractl</code> is the CLI for the coordinator. It loads views and starts their
 plugins. <code>choractl mcp</code> serves the API as MCP tools over stdio. MCP stays out

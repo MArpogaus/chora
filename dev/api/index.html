@@ -642,6 +642,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#plugin-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plugins" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1027,6 +1038,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#plugin-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plugins" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1323,6 +1345,10 @@ or an empty list. It always sees the current titles.</p>
 <td><code>client.connected</code>, <code>client.disconnected</code></td>
 <td>client name</td>
 </tr>
+<tr>
+<td><code>method.called</code></td>
+<td>another client calls a method that this connection exported: <code>call</code> id, <code>caller</code>, <code>method</code> and <code>params</code>; only the exporting connection gets it, subscribed or not</td>
+</tr>
 </tbody>
 </table>
 <p>The response of <code>scene.apply</code> reports the result of a transaction: <code>null</code>
@@ -1383,7 +1409,11 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </tr>
 <tr>
 <td><code>methods.call(client, method, params)</code></td>
-<td>call a method of another client</td>
+<td>call a method of another client; the answer is the result of the method</td>
+</tr>
+<tr>
+<td><code>methods.return(call, result, error)</code></td>
+<td>answer a <code>method.called</code> event</td>
 </tr>
 </tbody>
 </table>
@@ -1400,6 +1430,47 @@ configure the outputs (see
 configuration of its own. After a new mode, position, transform or scale,
 the core sends <code>output.changed</code>. For an output that turns off, it sends
 <code>output.removed</code>, and <code>output.list</code> no longer lists the output.</p>
+<h2 id="plugin-methods">Plugin methods<a class="headerlink" href="#plugin-methods" title="Permanent link">&para;</a></h2>
+<p>A plugin exports methods, and other clients call them by the client name
+and the method name, for example <code>tiling.set_layout</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>set_layout<span class="w"> </span><span class="s1">'{"layout": "columns"}'</span>
+<span class="go">{"gap": 4, "layout": "columns", "windows": ["s1", "s2"]}</span>
+</code></pre></div>
+<p>The core sends the exporting connection a <code>method.called</code> event. The
+plugin answers with <code>methods.return</code>: the same <code>call</code> and a <code>result</code>, or an
+<code>error</code> with a <code>code</code> and a <code>message</code>. The core passes the answer to the
+caller. The <code>Client</code> of <code>chora-scene</code> answers with <code>Client::answer</code>.</p>
+<ul>
+<li>A method name has at most 64 characters: lowercase letters, digits, <code>_</code>,
+  <code>-</code> and <code>.</code>, starting with a letter.</li>
+<li>A connection exports at most 64 methods. Another connection of the same
+  client name cannot export the same method.</li>
+<li>A call without an answer fails after 10 s, and so does a call whose
+  exporter disconnects. A connection has at most 64 calls in flight, and it
+  cannot call its own methods.</li>
+</ul>
+<p><code>chora-tiling</code> exports two methods:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Parameters</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>set_layout</code></td>
+<td><code>layout</code>: <code>master_stack</code>, <code>columns</code> or <code>rows</code>; <code>gap</code> in logical pixels; a missing field keeps its value</td>
+<td>the layout, the gap and the tiled windows</td>
+</tr>
+<tr>
+<td><code>get_layout</code></td>
+<td>none</td>
+<td>the same</td>
+</tr>
+</tbody>
+</table>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
 <p>A plugin is a client with a manifest:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
