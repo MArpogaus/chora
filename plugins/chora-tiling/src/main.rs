@@ -409,10 +409,16 @@ fn area_of(output: &OutputInfo) -> [i32; 4] {
 }
 
 /// The area without the reserved space; at least one pixel stays.
-fn shrink([x, y, w, h]: [i32; 4], reserve: [u16; 4]) -> [i32; 4] {
-    let [l, t, r, b] = reserve.map(i32::from);
-    let (l, t) = (l.min(w - 1), t.min(h - 1));
-    [x + l, y + t, (w - l - r).max(1), (h - t - b).max(1)]
+fn shrink([left, top, width, height]: [i32; 4], reserve: [u16; 4]) -> [i32; 4] {
+    let [free_left, free_top, free_right, free_bottom] = reserve.map(i32::from);
+    let free_left = free_left.min(width - 1);
+    let free_top = free_top.min(height - 1);
+    [
+        left + free_left,
+        top + free_top,
+        (width - free_left - free_right).max(1),
+        (height - free_top - free_bottom).max(1),
+    ]
 }
 
 /// The cells of a master and stack layout: the first window takes the left
