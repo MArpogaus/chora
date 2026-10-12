@@ -1669,9 +1669,57 @@ to the method in <code>configure</code> (see
 <a href="../configuration/#plugin-manifests">Configuration</a>). A flavor starts its
 plugins as systemd units instead.</p>
 <h2 id="mcp-tools">MCP tools<a class="headerlink" href="#mcp-tools" title="Permanent link">&para;</a></h2>
-<p><code>choractl mcp</code> offers the IPC methods as MCP tools. It also offers tools for
-whole tasks, for example "describe the screen", which returns a screenshot
-and the scene tree. The agent then sees the result of its changes.</p>
+<p><code>choractl mcp</code> serves the API as MCP tools over stdio (D34). It connects
+as the client <code>agent</code>, or under <code>--name</code>. An MCP client starts it, for
+example in the <code>.mcp.json</code> of Claude Code:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"mcpServers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"chora"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"choractl"</span><span class="p">,</span><span class="w"> </span><span class="nt">"args"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"--name"</span><span class="p">,</span><span class="w"> </span><span class="s2">"agent"</span><span class="p">,</span><span class="w"> </span><span class="s2">"mcp"</span><span class="p">]}}}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>describe_screen</code></td>
+<td>a screenshot of an output, at most 1280 pixels a side by default, and in words: the outputs, the windows with their positions in scene coordinates and sizes, and the plugins with their methods</td>
+</tr>
+<tr>
+<td><code>capture</code></td>
+<td>a picture of an output or of a node, as <code>screen.capture</code></td>
+</tr>
+<tr>
+<td><code>query_scene</code></td>
+<td>the nodes of a selector</td>
+</tr>
+<tr>
+<td><code>apply_commands</code></td>
+<td>a transaction</td>
+</tr>
+<tr>
+<td><code>list_plugins</code></td>
+<td>the connected clients and their methods</td>
+</tr>
+<tr>
+<td><code>call_method</code></td>
+<td>a method of a plugin, for example <code>tiling.set_layout</code></td>
+</tr>
+<tr>
+<td><code>inject_input</code></td>
+<td>synthetic input, as <code>input.inject</code></td>
+</tr>
+<tr>
+<td><code>load_view</code>, <code>save_view</code>, <code>unload_view</code></td>
+<td>the views of <a href="../configuration/#views">Configuration</a></td>
+</tr>
+</tbody>
+</table>
+<p>The screenshot of <code>describe_screen</code>, <code>capture</code> and <code>inject_input</code> need the
+grants of the client name, for example
+<code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
+still describes the scene. No tool grants anything (D40).</p>
 
 
 

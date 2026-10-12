@@ -1053,7 +1053,8 @@ that an agent arranges live by voice. Only a small safety layer is built in.</p>
 <h2 id="status">Status<a class="headerlink" href="#status" title="Permanent link">&para;</a></h2>
 <p>Early development. chora runs nested inside another Wayland session, and a
 reference plugin tiles the windows. A login session on real hardware exists,
-but nobody tested it on hardware yet. The
+but nobody tested it on hardware yet. An agent sees and changes the screen
+through <code>choractl mcp</code>, after a grant of the user. The
 <a href="https://marpogaus.github.io/void/roadmap/">roadmap</a> shows the next steps.
 APIs change without notice before version 1.0.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
@@ -1097,6 +1098,10 @@ sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> <
 to use Alt instead. <code>chora-tiling --help</code> lists all options.</p>
 <p>The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
 and Ctrl+Alt+BackSpace quits chora.</p>
+<p>To let an agent drive chora, grant it screenshots and input, and add
+<code>choractl --name agent mcp</code> as an MCP server of the agent:</p>
+<div class="highlight"><pre><span></span><code>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>screen.capture<span class="w"> </span>input.inject
+</code></pre></div>
 <p>To try the XP flavor, a stacking desktop in the style of Windows XP, start
 <code>chora -- chora-xp</code>. From a source tree, point it at the theme:
 <code>target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme</code>.

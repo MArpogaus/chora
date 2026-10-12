@@ -1462,8 +1462,10 @@ the window manager for a change instead of fighting it (see
 <a href="../api/#plugin-methods">API</a>).</p>
 <h3 id="choractl-and-the-mcp-bridge">choractl and the MCP bridge<a class="headerlink" href="#choractl-and-the-mcp-bridge" title="Permanent link">&para;</a></h3>
 <p><code>choractl</code> is the CLI for the coordinator. It loads views and starts their
-plugins. <code>choractl mcp</code> serves the API as MCP tools over stdio. MCP stays out
-of the core, so the MCP side can change without a change to the compositor.</p>
+plugins. <code>choractl mcp</code> serves the API as MCP tools over stdio, with tools
+for whole tasks such as <code>describe_screen</code> (see
+<a href="../api/#mcp-tools">API</a>). MCP stays out of the core, so the MCP side can
+change without a change to the compositor.</p>
 <h2 id="transactions">Transactions<a class="headerlink" href="#transactions" title="Permanent link">&para;</a></h2>
 <p>A transaction is a batch of commands. The core applies it as one unit.</p>
 <p>Some commands need a client round trip. A resize sends a configure event, and
