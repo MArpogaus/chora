@@ -1303,6 +1303,15 @@ file changes. The package installs examples in <code>/usr/share/chora/shaders/</
 that does not load, that is larger than 32 MiB or larger than 8192 pixels
 on a side rejects the transaction. A plugin in a container shares its
 asset directory with the core, as it shares the socket directory.</p>
+<p>A client that shares no directory with the core, for example an agent in
+another container, hands its files to the core with <code>assets.put</code> (#6). The
+core stores them in <code>$XDG_RUNTIME_DIR/chora/</code> and answers with the absolute
+path for <code>image</code>, <code>shader</code> and effects. A file has at most 512 KiB, a
+client at most 64 files, all clients together at most 64 MiB. A second put
+of a name replaces the file, and the nodes that use it load it again. The
+files of a client go with its nodes: at the last disconnect without
+<code>keep_nodes</code>, otherwise when chora exits. <code>choractl asset put NAME FILE</code>
+prints the path.</p>
 <h2 id="commands">Commands<a class="headerlink" href="#commands" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1515,6 +1524,14 @@ client sends <code>hello</code> first. The core answers every request.</p>
 <td><code>methods.return(call, result, error)</code></td>
 <td>answer a <code>method.called</code> event</td>
 </tr>
+<tr>
+<td><code>assets.put(name, data)</code></td>
+<td>store a file in base64 for image nodes, shader nodes and effects; returns its <code>path</code></td>
+</tr>
+<tr>
+<td><code>assets.remove(name)</code></td>
+<td>remove a file of <code>assets.put</code></td>
+</tr>
 </tbody>
 </table>
 <p>A connection sends <code>hello</code> once, within 5 s. Connections with the same name share their
@@ -1574,7 +1591,9 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
 <ul>
 <li>An output shows as on screen, without the cursor.</li>
 <li>A node shows without its own transform, opacity, mesh and effects, on a
-  transparent background. Its area covers the descendants with a size.</li>
+  transparent background, but with its rounded corners, border, clip and
+  the shader of a shader node. Its area covers the descendants with a
+  size.</li>
 <li>A picture has at most 16 Mi pixels and 8192 pixels a side; a larger one
   shrinks. <code>max_side</code> must be at least 1.</li>
 <li>A capture fails while the session is locked, and when the PNG file is
@@ -1744,6 +1763,10 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 <tr>
 <td><code>load_view</code>, <code>save_view</code>, <code>unload_view</code></td>
 <td>the views of <a href="../configuration/#views">Configuration</a>, by name only</td>
+</tr>
+<tr>
+<td><code>put_asset</code></td>
+<td>a file for image nodes, shader nodes and effects, as <code>assets.put</code>: <code>name</code>, and <code>text</code> for a shader or <code>base64</code> for a PNG; returns the path</td>
 </tr>
 <tr>
 <td><code>subscribe_events</code></td>
