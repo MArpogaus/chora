@@ -146,8 +146,13 @@ feedback of the first real MCP sessions (issues #3 to #10).
 - `output.reserve` reduces the work area for the life of a connection
   (#8); the `reserve` of `chora-tiling` goes.
 - `process.spawn` starts a program with the environment of the startup
-  command, behind a grant, and `plugins.restart` restarts a plugin of a
-  view (#9).
+  command, behind its own grant (D42), and `plugins.restart` restarts a
+  plugin of a view (#9).
+- Option: harden the grant with an allowlist, for example regular
+  expressions over the argv. `choractl grant` reads the list from a file in
+  `~/.config/chora/` and hands it to the core with the grant, since the
+  core reads no configuration (D35); the core then refuses every other
+  program.
 
 **Exit:** an automated test passes: an MCP client uploads a shader,
 reserves a panel at the edge of the output, draws it as a rounded shader
