@@ -177,8 +177,10 @@ Limits keep a buggy client from exhausting the core:
 | cameras | 64 | the core rejects the `camera` |
 
 A plugin can export **methods**, for example `tiling.set_layout`. The core
-forwards a method call to the plugin and returns the answer. An agent then
-asks the window manager for a change instead of fighting it.
+forwards a method call to the plugin as an event and returns the answer to
+the caller. A call without an answer fails after 10 s. An agent then asks
+the window manager for a change instead of fighting it (see
+[API](api.md#plugin-methods)).
 
 ### choractl and the MCP bridge
 

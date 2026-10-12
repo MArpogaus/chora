@@ -11,6 +11,7 @@ mod ipc;
 mod layers;
 mod lock;
 mod mesh;
+mod methods;
 mod output;
 mod output_management;
 mod protocols;

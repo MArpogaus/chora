@@ -7,7 +7,7 @@ use std::{
 
 use chora_scene::{
     Command, Event,
-    ipc::{Apply, Client, ClientError, Hello, Query, Subscribe},
+    ipc::{Apply, Client, ClientError, Hello, MethodCall, Query, Subscribe},
 };
 use clap::{Parser, Subcommand};
 use serde_json::Value;
@@ -43,6 +43,16 @@ enum Cmd {
     },
     /// Print the outputs.
     Outputs,
+    /// Call a method that a plugin exported, for example
+    /// `choractl call tiling set_layout '{"layout": "columns"}'`.
+    Call {
+        /// The client that exported the method.
+        client: String,
+        /// The method name.
+        method: String,
+        /// The parameters as JSON; `null` if missing.
+        params: Option<String>,
+    },
 }
 
 fn main() -> ExitCode {
@@ -75,6 +85,19 @@ fn run(args: Args) -> Result<(), String> {
             .map(drop),
         Cmd::Events { names } => events(&mut client, names),
         Cmd::Outputs => client.call("output.list", Value::Null).map(|v| print(&v)),
+        Cmd::Call {
+            client: callee,
+            method,
+            params,
+        } => {
+            let params = parse_params(params.as_deref())?;
+            let call = MethodCall {
+                client: callee,
+                method,
+                params,
+            };
+            client.call("methods.call", call).map(|v| print(&v))
+        }
     };
     result.map_err(|e| e.to_string())
 }
@@ -96,6 +119,12 @@ fn events(client: &mut Client, names: Vec<String>) -> Result<(), ClientError> {
             return Ok(());
         }
     }
+}
+
+fn parse_params(text: Option<&str>) -> Result<Value, String> {
+    text.map_or(Ok(Value::Null), |t| {
+        serde_json::from_str(t).map_err(|e| format!("the parameters are no JSON: {e}"))
+    })
 }
 
 fn read_commands(file: Option<&str>) -> Result<Vec<Command>, String> {

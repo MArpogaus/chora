@@ -173,6 +173,42 @@ pub struct Grab {
     pub binding: crate::Binding,
 }
 
+/// Parameters of `methods.export`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Export {
+    /// The method names, for example `set_layout`. Other clients call them
+    /// with the client name, as `tiling.set_layout`.
+    pub names: Vec<String>,
+}
+
+/// Parameters of `methods.call`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MethodCall {
+    /// The client that exported the method.
+    pub client: String,
+    /// The method name.
+    pub method: String,
+    /// The parameters, any JSON value.
+    #[serde(default)]
+    pub params: Value,
+}
+
+/// Parameters of `methods.return`: the answer to a `method.called` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MethodReturn {
+    /// The `call` of the event.
+    pub call: u64,
+    /// The result, unless `error` is set.
+    #[serde(default)]
+    pub result: Value,
+    /// The error, if the method failed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<RpcError>,
+}
+
 /// Errors of the blocking [`Client`].
 #[derive(Debug, thiserror::Error)]
 pub enum ClientError {
@@ -283,6 +319,29 @@ impl Client {
                 message.result.unwrap_or(Value::Null),
             )?);
         }
+    }
+
+    /// Answers a `method.called` event.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails, or the call is unknown, for example after its
+    /// timeout.
+    pub fn answer(
+        &mut self,
+        call: u64,
+        result: Result<Value, RpcError>,
+    ) -> Result<(), ClientError> {
+        let (result, error) = match result {
+            Ok(value) => (value, None),
+            Err(error) => (Value::Null, Some(error)),
+        };
+        let answer = MethodReturn {
+            call,
+            result,
+            error,
+        };
+        self.call::<_, Value>("methods.return", answer).map(drop)
     }
 
     /// The next event, from the queue or from the socket.

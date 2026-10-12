@@ -123,6 +123,7 @@ or an empty list. It always sees the current titles.
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
+| `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`; only the exporting connection gets it, subscribed or not |
 
 The response of `scene.apply` reports the result of a transaction: `null`
 when it applied, an error with the index of the failed command when not.
@@ -150,7 +151,8 @@ client sends `hello` first. The core answers every request.
 | `screen.capture(target)` | capture an output, a group or a surface; needs a grant |
 | `output.list` | list the outputs and their cameras |
 | `methods.export(names)` | offer methods of this client to other clients |
-| `methods.call(client, method, params)` | call a method of another client |
+| `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
+| `methods.return(call, result, error)` | answer a `method.called` event |
 
 A connection sends `hello` once, within 5 s. Connections with the same name share their
 nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
@@ -167,6 +169,36 @@ configure the outputs (see
 configuration of its own. After a new mode, position, transform or scale,
 the core sends `output.changed`. For an output that turns off, it sends
 `output.removed`, and `output.list` no longer lists the output.
+
+## Plugin methods
+
+A plugin exports methods, and other clients call them by the client name
+and the method name, for example `tiling.set_layout`:
+
+```console
+$ choractl call tiling set_layout '{"layout": "columns"}'
+{"gap": 4, "layout": "columns", "windows": ["s1", "s2"]}
+```
+
+The core sends the exporting connection a `method.called` event. The
+plugin answers with `methods.return`: the same `call` and a `result`, or an
+`error` with a `code` and a `message`. The core passes the answer to the
+caller. The `Client` of `chora-scene` answers with `Client::answer`.
+
+- A method name has at most 64 characters: lowercase letters, digits, `_`,
+  `-` and `.`, starting with a letter.
+- A connection exports at most 64 methods. Another connection of the same
+  client name cannot export the same method.
+- A call without an answer fails after 10 s, and so does a call whose
+  exporter disconnects. A connection has at most 64 calls in flight, and it
+  cannot call its own methods.
+
+`chora-tiling` exports two methods:
+
+| Method | Parameters | Result |
+|--------|------------|--------|
+| `set_layout` | `layout`: `master_stack`, `columns` or `rows`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap and the tiled windows |
+| `get_layout` | none | the same |
 
 ## Plugins
 

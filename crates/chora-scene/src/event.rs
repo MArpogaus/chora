@@ -154,6 +154,21 @@ pub enum Event {
         /// The client name.
         name: String,
     },
+    /// Another client calls a method that this connection exported. Only
+    /// the exporting connection gets this event, subscribed or not. It
+    /// answers with `methods.return` and the same `call`.
+    #[serde(rename = "method.called")]
+    MethodCalled {
+        /// The id of the call.
+        call: u64,
+        /// The client name of the caller.
+        caller: String,
+        /// The method name, without the client name.
+        method: String,
+        /// The parameters of the caller.
+        #[serde(default)]
+        params: serde_json::Value,
+    },
 }
 
 /// A change that a client asks for.

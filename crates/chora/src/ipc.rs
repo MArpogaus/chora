@@ -390,6 +390,9 @@ impl State {
             }),
             "input.grab" => params_of::<Grab>(params).and_then(|g| self.ipc_grab(conn, g.binding)),
             "output.list" => Ok(serde_json::json!(self.output_info())),
+            "methods.export" | "methods.call" | "methods.return" => {
+                return self.ipc_methods(conn, id, &request.method, params);
+            }
             other => Err(RpcError::new(
                 RpcError::METHOD_NOT_FOUND,
                 format!("no method {other:?}"),
@@ -473,6 +476,7 @@ impl State {
             self.loop_handle.remove(reader);
         }
         self.ipc.grabs.retain(|(_, _, c)| *c != conn);
+        self.methods_closed(conn);
         let held = self.transactions.drop_conn(conn);
         self.release(&held);
         let Some(name) = closed.name else { return };
@@ -510,20 +514,23 @@ impl State {
     /// Writes the output of every connection and returns those to close.
     fn ipc_write(&mut self) -> Vec<u64> {
         let transactions = &self.transactions;
+        let methods = &self.methods;
         self.ipc
             .conns
             .iter_mut()
             .filter_map(|(id, conn)| {
                 let broken = !conn.flush();
-                let answered =
-                    conn.reader.is_none() && conn.output.is_empty() && !transactions.waits_for(*id);
+                let answered = conn.reader.is_none()
+                    && conn.output.is_empty()
+                    && !transactions.waits_for(*id)
+                    && !methods.waits_for(*id);
                 (broken || answered).then_some(*id)
             })
             .collect()
     }
 }
 
-fn params_of<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
+pub fn params_of<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
     let params = if params.is_null() {
         Value::Object(serde_json::Map::new())
     } else {

@@ -55,7 +55,7 @@ use smithay::{
 
 use crate::{
     backend::Backend, foreign_toplevel::ForeignToplevelManagerState, ipc::Ipc, lock::Lock,
-    output_management::OutputManagement, render::Assets, safety::Watchdog,
+    methods::Methods, output_management::OutputManagement, render::Assets, safety::Watchdog,
     transaction::Transactions,
 };
 
@@ -142,6 +142,8 @@ pub struct State {
     next_surface: u64,
     pub ipc: Ipc,
     pub transactions: Transactions,
+    /// The methods that plugins export, and the calls in flight.
+    pub methods: Methods,
     /// Keys whose press went to the safety layer or to a grab, so that their
     /// release must not reach a client.
     pub suppressed_keys: Vec<Keycode>,
@@ -224,6 +226,7 @@ impl State {
             next_surface: 1,
             ipc: Ipc::default(),
             transactions: Transactions::default(),
+            methods: Methods::default(),
             suppressed_keys: Vec::new(),
         }
     }
