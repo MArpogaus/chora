@@ -1,15 +1,18 @@
-//! Reference tiling plugin for chora: a master and stack layout with
-//! keybindings to start a terminal and a launcher, close a window and move
-//! the focus.
+//! Reference tiling plugin for chora: a master and stack layout, columns
+//! or rows, with keybindings to start a terminal and a launcher, close a
+//! window and move the focus. Other clients, for example an agent, switch
+//! the layout through the exported methods `tiling.set_layout` and
+//! `tiling.get_layout`.
 
 use std::process::ExitCode;
 
 use chora_scene::{
     Binding, Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
     ToplevelState, Transform,
-    ipc::{Apply, Client, ClientError, Grab, Hello, Query, Subscribe},
+    ipc::{Apply, Client, ClientError, Export, Grab, Hello, Query, RpcError, Subscribe},
 };
 use clap::{Parser, ValueEnum};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// The client name, and the group that holds the tiled surfaces.
@@ -31,6 +34,39 @@ struct Args {
     /// The gap around each window, in logical pixels.
     #[arg(long, default_value_t = 4)]
     gap: u16,
+    /// The layout at the start.
+    #[arg(long, value_enum, default_value_t = Layout::MasterStack)]
+    layout: Layout,
+}
+
+/// How the windows share the work area.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum Layout {
+    /// The first window takes the left half, the others share the right
+    /// half.
+    MasterStack,
+    /// The windows stand side by side.
+    Columns,
+    /// The windows lie on top of each other.
+    Rows,
+}
+
+/// Parameters of `tiling.set_layout`; a missing field keeps its value.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SetLayout {
+    layout: Option<Layout>,
+    gap: Option<u16>,
+}
+
+/// The answer of `tiling.set_layout` and `tiling.get_layout`.
+#[derive(Serialize)]
+struct LayoutInfo<'a> {
+    layout: Layout,
+    gap: u16,
+    /// The tiled surfaces, the master first.
+    windows: &'a [String],
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -108,6 +144,9 @@ impl Tiling {
             )?;
         }
         self.grab_all()?;
+        let names = ["set_layout", "get_layout"].map(String::from).to_vec();
+        self.client
+            .call::<_, Value>("methods.export", Export { names })?;
         let events = [
             "surface.created",
             "surface.destroyed",
@@ -194,8 +233,36 @@ impl Tiling {
                 surface,
                 request: SurfaceRequest::Close,
             } if self.windows.contains(&surface) => self.apply(vec![Command::Close { surface }]),
+            Event::MethodCalled {
+                call,
+                method,
+                params,
+                ..
+            } => {
+                let result = self.method(&method, params);
+                self.client.answer(call, result)
+            }
             _ => Ok(()),
         }
+    }
+
+    /// Runs an exported method. A failed relayout fails the method.
+    fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        let invalid = |e: String| RpcError::new(RpcError::INVALID_PARAMS, e);
+        if method == "set_layout" {
+            let change: SetLayout =
+                serde_json::from_value(params).map_err(|e| invalid(e.to_string()))?;
+            self.args.layout = change.layout.unwrap_or(self.args.layout);
+            self.args.gap = change.gap.unwrap_or(self.args.gap);
+            self.relayout()
+                .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        }
+        let info = LayoutInfo {
+            layout: self.args.layout,
+            gap: self.args.gap,
+            windows: &self.windows,
+        };
+        Ok(serde_json::to_value(info).expect("layouts always serialize"))
     }
 
     fn act(&mut self, binding: &str) -> Result<(), ClientError> {
@@ -265,7 +332,19 @@ impl Tiling {
 
     /// Places every window and moves the focus, in one transaction.
     fn relayout(&mut self) -> Result<(), ClientError> {
-        let cells = master_stack(self.windows.len(), self.area, i32::from(self.args.gap));
+        let n = self.windows.len();
+        let gap = i32::from(self.args.gap);
+        let cells = match self.args.layout {
+            Layout::MasterStack => master_stack(n, self.area, gap),
+            Layout::Columns => split(n, self.area, true)
+                .into_iter()
+                .map(|c| inset(c, gap))
+                .collect(),
+            Layout::Rows => split(n, self.area, false)
+                .into_iter()
+                .map(|c| inset(c, gap))
+                .collect(),
+        };
         let mut commands = Vec::new();
         for (surface, [x, y, w, h]) in self.windows.iter().zip(cells) {
             let mut states = vec![ToplevelState::Tiled];
@@ -314,27 +393,45 @@ fn area_of(output: &OutputInfo) -> [i32; 4] {
 
 /// The cells of a master and stack layout: the first window takes the left
 /// half, the others share the right half. Each cell is x, y, width, height.
-/// A gap shrinks each cell on all sides, but never below 1 pixel and never
-/// out of its cell.
 fn master_stack(n: usize, [left, top, width, height]: [i32; 4], gap: i32) -> Vec<[i32; 4]> {
-    let inset = |[cx, cy, cw, ch]: [i32; 4]| {
-        let (gx, gy) = (gap.min((cw - 1) / 2).max(0), gap.min((ch - 1) / 2).max(0));
-        [cx + gx, cy + gy, (cw - 2 * gx).max(1), (ch - 2 * gy).max(1)]
-    };
-    match n {
+    let cells = match n {
         0 => Vec::new(),
-        1 => vec![inset([left, top, width, height])],
+        1 => vec![[left, top, width, height]],
         _ => {
             let half = width / 2;
-            let stack = i32::try_from(n - 1).expect("a few windows");
-            let mut cells = vec![inset([left, top, half, height])];
-            for i in 0..stack {
-                let (start, end) = (height * i / stack, height * (i + 1) / stack);
-                cells.push(inset([left + half, top + start, width - half, end - start]));
-            }
+            let mut cells = vec![[left, top, half, height]];
+            cells.extend(split(
+                n - 1,
+                [left + half, top, width - half, height],
+                false,
+            ));
             cells
         }
-    }
+    };
+    cells.into_iter().map(|c| inset(c, gap)).collect()
+}
+
+/// Splits an area into `n` equal columns, or rows.
+fn split(n: usize, [left, top, width, height]: [i32; 4], columns: bool) -> Vec<[i32; 4]> {
+    let n = i32::try_from(n).expect("a few windows");
+    (0..n)
+        .map(|i| {
+            if columns {
+                let (start, end) = (width * i / n, width * (i + 1) / n);
+                [left + start, top, end - start, height]
+            } else {
+                let (start, end) = (height * i / n, height * (i + 1) / n);
+                [left, top + start, width, end - start]
+            }
+        })
+        .collect()
+}
+
+/// Shrinks a cell by a gap on all sides, but never below 1 pixel and never
+/// out of the cell.
+fn inset([x, y, w, h]: [i32; 4], gap: i32) -> [i32; 4] {
+    let (gx, gy) = (gap.min((w - 1) / 2).max(0), gap.min((h - 1) / 2).max(0));
+    [x + gx, y + gy, (w - 2 * gx).max(1), (h - 2 * gy).max(1)]
 }
 
 /// Runs a shell command. `&` lets the shell exit at once, so the command
@@ -350,7 +447,7 @@ fn spawn(command: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::master_stack;
+    use super::{master_stack, split};
 
     #[test]
     fn one_window_fills_the_area() {
@@ -363,6 +460,18 @@ mod tests {
         assert_eq!(
             cells,
             vec![[0, 0, 50, 60], [50, 0, 50, 30], [50, 30, 50, 30]]
+        );
+    }
+
+    #[test]
+    fn columns_and_rows_share_the_area() {
+        assert_eq!(
+            split(3, [0, 0, 90, 30], true),
+            vec![[0, 0, 30, 30], [30, 0, 30, 30], [60, 0, 30, 30]]
+        );
+        assert_eq!(
+            split(2, [10, 0, 50, 40], false),
+            vec![[10, 0, 50, 20], [10, 20, 50, 20]]
         );
     }
 

@@ -1,7 +1,7 @@
 # Lint and test in the Fedora 44 container that also builds the release, so
 # CI checks the same compiler and the same system libraries. The e2e job
-# runs tests/nested.sh, the exit test of milestone M1, and tests/xp.sh, the
-# XP flavor.
+# runs tests/nested.sh, the exit test of milestone M1, tests/xp.sh, the
+# XP flavor, and tests/agent.sh, the agent interface of milestone M4.
 name: ci
 
 on:
@@ -42,6 +42,7 @@ jobs:
     - run: cargo build --workspace --locked
     - run: tests/nested.sh target/debug e2e
     - run: tests/xp.sh target/debug e2e/xp
+    - run: tests/agent.sh target/debug e2e/agent
     - if: failure()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
       with:

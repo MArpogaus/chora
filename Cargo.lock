@@ -325,6 +325,7 @@ version = "0.3.0"
 dependencies = [
  "chora-scene",
  "clap",
+ "serde",
  "serde_json",
 ]
 
