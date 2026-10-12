@@ -1185,7 +1185,8 @@ Windows XP (D39). The flavor is a demo, not a daily driver.</p>
 </ul>
 <p><strong>Exit:</strong> an automated test passes: an MCP client asks for "describe the
 screen", calls <code>tiling.set_layout</code>, and the next screenshot shows the new
-layout.</p>
+layout. The last step of <code>tests/agent.sh</code> checks it with
+<code>tests/mcp-client.py</code> in CI.</p>
 <h2 id="m5-packaging">M5: Packaging<a class="headerlink" href="#m5-packaging" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> chora installs like every other desktop on the host.</p>
 <ul>
