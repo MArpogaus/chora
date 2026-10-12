@@ -240,7 +240,15 @@ impl Tiling {
                 ..
             } => {
                 let result = self.method(&method, params);
-                self.client.answer(call, result)
+                // The call may have ended before the answer, for example
+                // when its caller left; that is no reason to exit.
+                match self.client.answer(call, result) {
+                    Err(ClientError::Rpc(err)) => {
+                        eprintln!("chora-tiling: {err}");
+                        Ok(())
+                    }
+                    other => other,
+                }
             }
             _ => Ok(()),
         }
