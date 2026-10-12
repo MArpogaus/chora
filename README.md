@@ -59,6 +59,11 @@ To let an agent drive chora, grant it screenshots and input, and add
 choractl grant agent screen.capture input.inject
 ```
 
+The agent can then put its own shaders and images, reserve a panel at the
+edge of the output, wait for clicks and keys, and move the camera. With
+`choractl grant agent process.spawn`, it can also start programs and
+restart plugins.
+
 To try the XP flavor, a stacking desktop in the style of Windows XP, start
 `chora -- chora-xp`. From a source tree, point it at the theme:
 `target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme`.
