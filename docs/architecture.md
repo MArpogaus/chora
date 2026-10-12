@@ -72,6 +72,14 @@ and `fullscreen` from the last configure. The core never reports
 `minimized`. The requests of a taskbar, `close` included, go to plugins as
 `surface.requested`.
 
+Screenshot tools and screen sharing capture outputs through
+`wlr-screencopy`, for example grim, OBS and `xdg-desktop-portal-wlr` (D37).
+A frame offers an shm buffer in XRGB8888. The core renders the output into
+it as on screen, without the cursor. `copy_with_damage` waits one refresh,
+so that a stream gets at most one frame per refresh. Frames fail while the
+session is locked. The renderer writes into shm buffers in `shm.rs`, which
+is the one place with `unsafe` code besides the GL calls in `gl.rs`.
+
 ### Scene
 
 The scene is a tree of nodes with stable ids. [API](api.md#nodes) lists the

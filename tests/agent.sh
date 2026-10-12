@@ -242,4 +242,21 @@ WAYLAND_DISPLAY=$inner timeout 20 "$bin/chora-probe" take-lock >"$out/probe.log"
     fail "the takeover: $out/probe.log"
 ctl capture "$out/unlocked.png" >/dev/null || fail "no capture after the unlock"
 
+step "13. grim captures chora through screencopy"
+WAYLAND_DISPLAY=$inner grim -t ppm "$out/grim.ppm" 2>"$out/grim.log" ||
+    fail "grim failed: $(cat "$out/grim.log")"
+for point in "320 400" "960 400" "1040 620"; do
+    read -r x y <<<"$point"
+    grim_color=$(od -An -tu1 -j $((16 + (y * 1280 + x) * 3)) -N 3 "$out/grim.ppm" | awk '{print $1, $2, $3}')
+    host_color=$(host_pixel "$x" "$y")
+    close_to "$grim_color" "$host_color" ||
+        fail "grim pixel $point: $grim_color, the host shows $host_color"
+done
+WAYLAND_DISPLAY=$inner grim -t ppm -g "1000,600 80x40" "$out/grim-region.ppm" 2>>"$out/grim.log" ||
+    fail "grim with a region failed: $(cat "$out/grim.log")"
+test "$(head -c 9 "$out/grim-region.ppm" | tr '\n' ' ')" = "P6 80 40 " ||
+    fail "region: $(head -c 12 "$out/grim-region.ppm" | od -c | head -2)"
+region_color=$(od -An -tu1 -j $((13 + (20 * 80 + 40) * 3)) -N 3 "$out/grim-region.ppm" | awk '{print $1, $2, $3}')
+close_to "$region_color" "0 0 255" || fail "the region shows $region_color, not the blue button"
+
 echo "PASS (logs and screenshots in $out)"

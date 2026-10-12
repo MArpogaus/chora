@@ -51,10 +51,31 @@ enum Source {
 }
 
 /// The pixels of a picture: RGBA, premultiplied, top row first.
-struct Pixels {
-    width: u32,
-    height: u32,
-    rgba: Vec<u8>,
+pub struct Pixels {
+    pub width: u32,
+    pub height: u32,
+    pub rgba: Vec<u8>,
+}
+
+impl Pixels {
+    /// A part of the picture: x, y, width and height in pixels, inside it.
+    pub fn crop(&self, [x, y, w, h]: [u32; 4]) -> Option<Self> {
+        let inside = x.checked_add(w)? <= self.width && y.checked_add(h)? <= self.height;
+        if !inside || w == 0 || h == 0 {
+            return None;
+        }
+        let stride = self.width as usize * 4;
+        let mut rgba = Vec::with_capacity(w as usize * h as usize * 4);
+        for row in y..y + h {
+            let start = row as usize * stride + x as usize * 4;
+            rgba.extend_from_slice(&self.rgba[start..start + w as usize * 4]);
+        }
+        Some(Self {
+            width: w,
+            height: h,
+            rgba,
+        })
+    }
 }
 
 impl State {
@@ -82,6 +103,17 @@ impl State {
             png: STANDARD.encode(png),
         };
         Ok(serde_json::to_value(picture).expect("pictures always serialize"))
+    }
+
+    /// The pixels of an output as on screen, without the cursor, for the
+    /// screencopy protocols.
+    pub fn output_pixels(&mut self, output: &Output) -> Result<Pixels, String> {
+        let shot = Shot {
+            view: View::of(self, output),
+            what: Source::Output(output.clone()),
+            origin: [0.0, 0.0],
+        };
+        self.render_shot(&shot)
     }
 
     /// The view and the source of a capture.
@@ -271,6 +303,19 @@ fn encode(pixels: &Pixels) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_crop_keeps_a_part() {
+        let pixels = Pixels {
+            width: 2,
+            height: 2,
+            rgba: (0..16).collect(),
+        };
+        let part = pixels.crop([1, 1, 1, 1]).unwrap();
+        assert_eq!(part.rgba, vec![12, 13, 14, 15]);
+        assert!(pixels.crop([1, 1, 2, 1]).is_none());
+        assert!(pixels.crop([0, 0, 0, 1]).is_none());
+    }
 
     #[test]
     fn flipping_swaps_the_rows() {

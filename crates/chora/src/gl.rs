@@ -1,9 +1,10 @@
 //! The raw GL calls of layers: the program of meshes, the programs of
 //! effects, and drawing a texture through triangles with one of them.
 //!
-//! GL calls are `unsafe`; this module is the one place with them. The state
-//! that changes here goes back to what Smithay sets before its own draws:
-//! its draw calls bind their program, texture and arrays each time.
+//! GL calls are `unsafe`; this module is the one place with them. The other
+//! `unsafe` code writes into shm buffers, in `shm`. The state that changes
+//! here goes back to what Smithay sets before its own draws: its draw calls
+//! bind their program, texture and arrays each time.
 #![allow(unsafe_code)]
 
 use std::{

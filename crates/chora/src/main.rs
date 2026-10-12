@@ -20,6 +20,8 @@ mod output_management;
 mod protocols;
 mod render;
 mod safety;
+mod screencopy;
+mod shm;
 mod state;
 mod transaction;
 

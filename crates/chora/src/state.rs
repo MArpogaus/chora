@@ -165,6 +165,7 @@ fn create_globals(dh: &DisplayHandle, clock: &Clock<Monotonic>) {
     RelativePointerManagerState::new::<State>(dh);
     PointerConstraintsState::new::<State>(dh);
     PresentationState::new::<State>(dh, clock.id() as u32);
+    crate::screencopy::create_global(dh);
 }
 
 impl State {
