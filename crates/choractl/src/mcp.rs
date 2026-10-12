@@ -13,7 +13,9 @@ use std::{
 
 use chora_scene::{
     Node, NodeKind, OutputInfo, Transform,
-    ipc::{Apply, Capture, Client, Hello, Inject, MethodCall, Picture, Query, RpcError},
+    ipc::{
+        Apply, Capture, Client, ClientError, Hello, Inject, MethodCall, Picture, Query, RpcError,
+    },
 };
 use serde_json::{Value, json};
 
@@ -23,14 +25,53 @@ use crate::view;
 const VERSIONS: [&str; 4] = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 /// The longer side of the screenshot of `describe_screen` by default.
 const DESCRIBE_SIDE: u32 = 1280;
+/// The longer side of a picture of `capture` by default.
+const CAPTURE_SIDE: u32 = 1920;
+
+/// The connection to the core. After the core closed it, for example in
+/// an emergency reset, the next call connects again.
+pub struct Core {
+    name: String,
+    client: Option<Client>,
+}
+
+impl Core {
+    /// Calls a method of the core, and connects again once when the
+    /// connection is gone.
+    fn call<P: serde::Serialize, R: serde::de::DeserializeOwned>(
+        &mut self,
+        method: &str,
+        params: P,
+    ) -> Result<R, ClientError> {
+        let params = serde_json::to_value(params)?;
+        for _ in 0..2 {
+            let client = match &mut self.client {
+                Some(client) => client,
+                None => self.client.insert(Client::from_env(&Hello {
+                    name: self.name.clone(),
+                    keep_nodes: true,
+                })?),
+            };
+            match client.call(method, &params) {
+                Err(ClientError::Closed | ClientError::Io(_)) => self.client = None,
+                other => return other,
+            }
+        }
+        Err(ClientError::Closed)
+    }
+}
 
 /// Serves MCP until stdin ends.
 pub fn serve(name: String) -> Result<(), String> {
     let hello = Hello {
-        name,
+        name: name.clone(),
         keep_nodes: true,
     };
-    let mut client = Client::from_env(&hello).map_err(|e| e.to_string())?;
+    let client = Client::from_env(&hello).map_err(|e| e.to_string())?;
+    let mut chora = Core {
+        name,
+        client: Some(client),
+    };
     let stdin = std::io::stdin().lock();
     let mut stdout = std::io::stdout().lock();
     for line in stdin.lines() {
@@ -38,7 +79,7 @@ pub fn serve(name: String) -> Result<(), String> {
         if line.trim().is_empty() {
             continue;
         }
-        if let Some(answer) = handle(&mut client, &line) {
+        if let Some(answer) = handle_line(&mut chora, &line) {
             let mut text = answer.to_string();
             text.push('\n');
             if stdout
@@ -53,20 +94,29 @@ pub fn serve(name: String) -> Result<(), String> {
     Ok(())
 }
 
-/// The answer to one message; none for a notification.
-fn handle(client: &mut Client, line: &str) -> Option<Value> {
-    let message: Value = match serde_json::from_str(line) {
-        Ok(m) => m,
-        Err(e) => return Some(error(&Value::Null, -32700, &format!("parse error: {e}"))),
-    };
+/// The answer to one line: a message, or a batch of them as protocol
+/// version 2025-03-26 allows. None when nothing needs an answer.
+fn handle_line(chora: &mut Core, line: &str) -> Option<Value> {
+    match serde_json::from_str(line) {
+        Ok(Value::Array(batch)) => {
+            let answers: Vec<Value> = batch.iter().filter_map(|m| handle(chora, m)).collect();
+            (!answers.is_empty()).then_some(Value::Array(answers))
+        }
+        Ok(message) => handle(chora, &message),
+        Err(e) => Some(error(&Value::Null, -32700, &format!("parse error: {e}"))),
+    }
+}
+
+/// The answer to one message; none for a notification or a response.
+fn handle(chora: &mut Core, message: &Value) -> Option<Value> {
+    let method = message.get("method")?.as_str().unwrap_or_default();
     let id = message.get("id").cloned()?;
-    let method = message["method"].as_str().unwrap_or_default();
     let params = message.get("params").cloned().unwrap_or(Value::Null);
     let result = match method {
         "initialize" => Ok(initialize(&params)),
         "ping" => Ok(json!({})),
         "tools/list" => Ok(json!({"tools": tools()})),
-        "tools/call" => Ok(call_tool(client, &params)),
+        "tools/call" => call_tool(chora, &params),
         other => Err((-32601, format!("no method {other:?}"))),
     };
     Some(match result {
@@ -196,16 +246,38 @@ fn view_tools() -> Vec<Value> {
     ]
 }
 
-/// The result of a tool call; a failure is a result with `isError`.
-fn call_tool(client: &mut Client, params: &Value) -> Value {
+/// The result of a tool call. A tool that fails gives a result with
+/// `isError`; an unknown tool or invalid arguments give a JSON-RPC error.
+fn call_tool(chora: &mut Core, params: &Value) -> Result<Value, (i64, String)> {
     let name = params["name"].as_str().unwrap_or_default();
     let args = params
         .get("arguments")
         .cloned()
         .unwrap_or_else(|| json!({}));
-    match run_tool(client, name, &args) {
-        Ok(content) => json!({"content": content, "isError": false}),
-        Err(message) => json!({"content": [text(&message)], "isError": true}),
+    match run_tool(chora, name, &args) {
+        Ok(content) => Ok(json!({"content": content, "isError": false})),
+        Err(Failure::Invalid(message)) => Err((-32602, message)),
+        Err(Failure::Tool(message)) => Ok(json!({"content": [text(&message)], "isError": true})),
+    }
+}
+
+/// Why a tool call failed.
+enum Failure {
+    /// An unknown tool or invalid arguments.
+    Invalid(String),
+    /// The tool ran and failed.
+    Tool(String),
+}
+
+impl From<String> for Failure {
+    fn from(message: String) -> Self {
+        Self::Tool(message)
+    }
+}
+
+impl From<ClientError> for Failure {
+    fn from(err: ClientError) -> Self {
+        Self::Tool(err.to_string())
     }
 }
 
@@ -221,60 +293,59 @@ fn image(picture: &Picture) -> Value {
     json!({"type": "image", "data": picture.png, "mimeType": "image/png"})
 }
 
-fn arg<T: serde::de::DeserializeOwned>(args: &Value) -> Result<T, String> {
-    serde_json::from_value(args.clone()).map_err(|e| format!("invalid arguments: {e}"))
+fn arg<T: serde::de::DeserializeOwned>(args: &Value) -> Result<T, Failure> {
+    serde_json::from_value(args.clone())
+        .map_err(|e| Failure::Invalid(format!("invalid arguments: {e}")))
 }
 
-fn rpc(e: impl std::fmt::Display) -> String {
-    e.to_string()
-}
-
-fn run_tool(client: &mut Client, name: &str, args: &Value) -> Result<Vec<Value>, String> {
-    let string = |key: &str| -> Result<String, String> {
+fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Failure> {
+    let string = |key: &str| -> Result<String, Failure> {
         args[key]
             .as_str()
             .map(String::from)
-            .ok_or_else(|| format!("{key} is missing"))
+            .ok_or_else(|| Failure::Invalid(format!("{key} is missing")))
     };
     match name {
-        "describe_screen" => describe(client, args),
+        "describe_screen" => describe(chora, args),
         "capture" => {
-            let capture: Capture = arg(args)?;
-            let picture: Picture = client.call("screen.capture", capture).map_err(rpc)?;
+            let mut capture: Capture = arg(args)?;
+            capture.max_side = capture.max_side.or(Some(CAPTURE_SIDE));
+            let picture: Picture = chora.call("screen.capture", capture)?;
             Ok(vec![image(&picture), json_text(&picture_info(&picture))])
         }
         "query_scene" => {
             let selector = args["selector"].as_str().unwrap_or_default().to_string();
-            let nodes: Value = client
-                .call("scene.query", Query { selector })
-                .map_err(rpc)?;
+            let nodes: Value = chora.call("scene.query", Query { selector })?;
             Ok(vec![json_text(&nodes)])
         }
         "apply_commands" => {
             let apply: Apply = arg(args)?;
-            client.call::<_, Value>("scene.apply", apply).map_err(rpc)?;
+            chora.call::<_, Value>("scene.apply", apply)?;
             Ok(vec![text("applied")])
         }
         "list_plugins" => {
-            let clients: Value = client.call("clients.list", Value::Null).map_err(rpc)?;
+            let clients: Value = chora.call("clients.list", Value::Null)?;
             Ok(vec![json_text(&clients)])
         }
         "call_method" => {
             let call: MethodCall = arg(args)?;
-            let result: Value = client.call("methods.call", call).map_err(rpc)?;
+            let result: Value = chora.call("methods.call", call)?;
             Ok(vec![json_text(&result)])
         }
         "inject_input" => {
             let inject: Inject = arg(args)?;
-            client
-                .call::<_, Value>("input.inject", inject)
-                .map_err(rpc)?;
+            chora.call::<_, Value>("input.inject", inject)?;
             Ok(vec![text("injected")])
         }
-        "load_view" => Ok(vec![json_text(&view::load(&string("name")?)?)]),
+        "load_view" => {
+            // An agent loads views by name only, not any file by path.
+            let name = string("name")?;
+            view::check_name(&name).map_err(Failure::Invalid)?;
+            Ok(vec![json_text(&view::load(&name)?)])
+        }
         "save_view" => Ok(vec![json_text(&view::save(&string("name")?, None)?)]),
         "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
-        other => Err(format!("no tool {other:?}")),
+        other => Err(Failure::Invalid(format!("no tool {other:?}"))),
     }
 }
 
@@ -288,7 +359,7 @@ fn picture_info(picture: &Picture) -> Value {
 }
 
 /// A screenshot, if the grant allows it, and the scene in words.
-fn describe(client: &mut Client, args: &Value) -> Result<Vec<Value>, String> {
+fn describe(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
     let capture = Capture {
         output: args["output"].as_str().map(String::from),
         node: None,
@@ -300,8 +371,8 @@ fn describe(client: &mut Client, args: &Value) -> Result<Vec<Value>, String> {
         ),
     };
     let mut content = Vec::new();
-    let mut description = describe_scene(client)?;
-    match client.call::<_, Picture>("screen.capture", capture) {
+    let mut description = describe_scene(chora)?;
+    match chora.call::<_, Picture>("screen.capture", capture) {
         Ok(picture) => {
             content.push(image(&picture));
             description["picture"] = picture_info(&picture);
@@ -309,24 +380,22 @@ fn describe(client: &mut Client, args: &Value) -> Result<Vec<Value>, String> {
         Err(chora_scene::ipc::ClientError::Rpc(RpcError { message, .. })) => {
             description["picture"] = json!(format!("no screenshot: {message}"));
         }
-        Err(e) => return Err(e.to_string()),
+        Err(e) => return Err(e.into()),
     }
     content.push(json_text(&description));
     Ok(content)
 }
 
 /// The outputs, the windows and the plugins.
-fn describe_scene(client: &mut Client) -> Result<Value, String> {
-    let outputs: Vec<OutputInfo> = client.call("output.list", Value::Null).map_err(rpc)?;
-    let clients: Value = client.call("clients.list", Value::Null).map_err(rpc)?;
-    let nodes: Vec<Node> = client
-        .call(
-            "scene.query",
-            Query {
-                selector: "*".into(),
-            },
-        )
-        .map_err(rpc)?;
+fn describe_scene(chora: &mut Core) -> Result<Value, Failure> {
+    let outputs: Vec<OutputInfo> = chora.call("output.list", Value::Null)?;
+    let clients: Value = chora.call("clients.list", Value::Null)?;
+    let nodes: Vec<Node> = chora.call(
+        "scene.query",
+        Query {
+            selector: "*".into(),
+        },
+    )?;
     let by_id: HashMap<&str, &Node> = nodes.iter().map(|n| (n.id.as_str(), n)).collect();
     let windows: Vec<Value> = nodes
         .iter()
@@ -381,6 +450,37 @@ mod tests {
         assert_eq!(result["protocolVersion"], "2025-03-26");
         let result = initialize(&json!({"protocolVersion": "1999-01-01"}));
         assert_eq!(result["protocolVersion"], VERSIONS[0]);
+    }
+
+    #[test]
+    fn only_requests_get_answers() {
+        let mut chora = Core {
+            name: "agent".into(),
+            client: None,
+        };
+        let mut answer = |line: &str| handle_line(&mut chora, line);
+        assert!(answer(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#).is_none());
+        assert!(
+            answer(r#"{"jsonrpc":"2.0","id":7,"result":{}}"#).is_none(),
+            "a response"
+        );
+        let unknown = answer(r#"{"jsonrpc":"2.0","id":1,"method":"nope"}"#).unwrap();
+        assert_eq!(unknown["error"]["code"], -32601);
+        let batch = answer(
+            r#"[{"jsonrpc":"2.0","id":2,"method":"ping"},{"jsonrpc":"2.0","method":"notifications/initialized"}]"#,
+        )
+        .unwrap();
+        assert_eq!(batch, json!([{"jsonrpc": "2.0", "id": 2, "result": {}}]));
+        let tools = answer(r#"{"jsonrpc":"2.0","id":3,"method":"tools/list"}"#).unwrap();
+        assert!(
+            tools["result"]["tools"]
+                .as_array()
+                .is_some_and(|t| t.len() == 10)
+        );
+        let bad =
+            answer(r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nope"}}"#)
+                .unwrap();
+        assert_eq!(bad["error"]["code"], -32602);
     }
 
     #[test]

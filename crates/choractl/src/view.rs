@@ -108,17 +108,37 @@ fn dirs(kind: &str) -> Vec<PathBuf> {
 /// The file of a name: a path as it is, or `NAME.yaml` in the first
 /// directory of its kind that has it.
 fn find(kind: &str, name: &str) -> Result<PathBuf, String> {
-    let yaml = Path::new(name)
-        .extension()
-        .is_some_and(|e| e.eq_ignore_ascii_case("yaml"));
-    if name.contains('/') || yaml {
+    if is_path(name) {
         return Ok(PathBuf::from(name));
     }
+    check_name(name)?;
     dirs(kind)
         .into_iter()
         .map(|d| d.join(format!("{name}.yaml")))
         .find(|p| p.is_file())
         .ok_or_else(|| format!("no {kind} file {name}.yaml in {:?}", dirs(kind)))
+}
+
+/// Whether a name of the command line is the path of a file.
+fn is_path(name: &str) -> bool {
+    let yaml = Path::new(name)
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("yaml"));
+    name.contains('/') || yaml
+}
+
+/// Checks the name of a view or a plugin: letters, digits, `_`, `-` and
+/// `.`, not first, so that the name of a file stays in its directory.
+pub fn check_name(name: &str) -> Result<(), String> {
+    let plain = name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || "_-.".contains(c));
+    if name.is_empty() || name.starts_with('.') || !plain {
+        return Err(format!(
+            "invalid name {name:?}: use letters, digits, _, - and ., not first"
+        ));
+    }
+    Ok(())
 }
 
 /// Reads a YAML file strictly: unknown keys, duplicate keys, unknown tags
@@ -149,8 +169,13 @@ fn connect(view: &str) -> Result<Client, String> {
 }
 
 /// Loads a view and returns what it did.
+/// A path loads the file; a name loads `NAME.yaml`, which must name the
+/// same view.
 pub fn load(name: &str) -> Result<Value, String> {
     let view: View = read_yaml(&find("views", name)?)?;
+    if !is_path(name) && view.name != name {
+        return Err(format!("{name}.yaml names the view {:?}", view.name));
+    }
     check(&view)?;
     let mut client = connect(&view.name)?;
     let started = start_plugins(&mut client, &view.plugins)?;
@@ -173,6 +198,7 @@ pub fn load(name: &str) -> Result<Value, String> {
 
 /// Removes the nodes of a view.
 pub fn unload(name: &str) -> Result<Value, String> {
+    check_name(name)?;
     let mut client = connect(name)?;
     let commands = removals(&mut client, name)?;
     let removed = commands.len();
@@ -187,6 +213,7 @@ pub fn unload(name: &str) -> Result<Value, String> {
 /// Writes the current nodes of a view to its file, with the plugins of
 /// the file that was there. Returns the path.
 pub fn save(name: &str, file: Option<&str>) -> Result<Value, String> {
+    check_name(name)?;
     let path = match file {
         Some(f) => PathBuf::from(f),
         None => dirs("views")[0].join(format!("{name}.yaml")),
@@ -216,6 +243,10 @@ pub fn save(name: &str, file: Option<&str>) -> Result<Value, String> {
 
 /// Checks what the core cannot: unique ids, and no surfaces.
 fn check(view: &View) -> Result<(), String> {
+    check_name(&view.name)?;
+    for plugin in &view.plugins {
+        check_name(&plugin.name)?;
+    }
     let mut ids = HashSet::new();
     for node in &view.scene {
         if !ids.insert(&node.id) {
@@ -308,8 +339,12 @@ fn wait_for(client: &mut Client, name: &str, method: Option<&str>) -> Result<(),
 /// Runs a shell command in the background; `&` lets the shell exit at
 /// once, so the plugin outlives `choractl`.
 fn spawn(command: &str) -> Result<(), String> {
+    // The plugin must not take the stdin and stdout of choractl, which
+    // carry MCP under `choractl mcp`.
     std::process::Command::new("sh")
         .args(["-c", &format!("{command} &")])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
         .status()
         .map_err(|e| format!("cannot run {command:?}: {e}"))
         .map(drop)
@@ -326,13 +361,39 @@ fn owned(client: &mut Client, view: &str) -> Result<Vec<Node>, String> {
 /// The removals of the nodes of a view: the nodes whose parent the view
 /// does not own; their descendants go with them.
 fn removals(client: &mut Client, view: &str) -> Result<Vec<Command>, String> {
-    let nodes = owned(client, view)?;
-    let ids: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
-    Ok(nodes
-        .iter()
-        .filter(|n| n.parent.as_deref().is_none_or(|p| !ids.contains(p)))
-        .map(|n| Command::Remove { id: n.id.clone() })
+    let all: Vec<Node> = client
+        .call(
+            "scene.query",
+            Query {
+                selector: "*".into(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(top_owned(&all, &owner(view))
+        .into_iter()
+        .map(|id| Command::Remove { id })
         .collect())
+}
+
+/// The nodes of an owner without an ancestor of the same owner, also
+/// through nodes of others between them.
+fn top_owned(all: &[Node], owner: &str) -> Vec<String> {
+    let by_id: HashMap<&str, &Node> = all.iter().map(|n| (n.id.as_str(), n)).collect();
+    let mine = |n: &Node| n.owner.as_deref() == Some(owner);
+    all.iter()
+        .filter(|n| mine(n))
+        .filter(|n| {
+            let mut parent = n.parent.as_deref().and_then(|p| by_id.get(p));
+            while let Some(p) = parent {
+                if mine(p) {
+                    return false;
+                }
+                parent = p.parent.as_deref().and_then(|q| by_id.get(q));
+            }
+            true
+        })
+        .map(|n| n.id.clone())
+        .collect()
 }
 
 /// The nodes with each parent before its children, and siblings bottom
@@ -489,6 +550,39 @@ mod tests {
         let text = to_yaml(&view).unwrap();
         assert_eq!(parse_yaml::<View>(&text).unwrap(), view, "{text}");
         assert!(text.contains("size: [10.0, 2.0]"), "{text}");
+    }
+
+    #[test]
+    fn names_stay_in_their_directory() {
+        assert!(check_name("work-2.night").is_ok());
+        for bad in ["", "../x", ".hidden", "a/b", "/etc/x", "a b"] {
+            assert!(check_name(bad).is_err(), "{bad:?}");
+        }
+        assert!(
+            find("views", "../../etc/passwd").is_ok(),
+            "a path stays a path"
+        );
+        assert!(find("views", "..").is_err());
+    }
+
+    #[test]
+    fn removals_skip_nodes_under_an_owned_ancestor() {
+        let node = |id: &str, owner: &str, parent: &str| Node {
+            id: id.into(),
+            kind: NodeKind::Group,
+            owner: Some(owner.into()),
+            parent: Some(parent.into()),
+            children: Vec::new(),
+            props: Props::default(),
+            surface: None,
+        };
+        let all = vec![
+            node("a", "view-x", "root"),
+            node("b", "other", "a"),
+            node("c", "view-x", "b"),
+            node("d", "view-x", "root"),
+        ];
+        assert_eq!(top_owned(&all, "view-x"), vec!["a", "d"]);
     }
 
     #[test]

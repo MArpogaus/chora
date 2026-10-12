@@ -60,7 +60,13 @@ scene:
   `choractl --name view-work apply`.
 - A node has an `id`, a `kind` (`group`, `rect` or `image`), a `parent`
   (the root by default) and its `props` as in a `create` command.
-- `choractl view load` also takes the path of a YAML file.
+- A name has letters, digits, `_`, `-` and `.`, but no `.` first, so that
+  its file stays in its directory. The file `NAME.yaml` must name the same
+  view.
+- `choractl view load` also takes the path of a YAML file; the MCP tools
+  take names only.
+- A plugin that a view starts gets no stdin and no stdout of `choractl`,
+  which carry MCP under `choractl mcp`.
 
 `choractl` looks for `NAME.yaml` in `$XDG_CONFIG_HOME/chora/views/` first
 (`~/.config/chora/views/` by default), and then in
