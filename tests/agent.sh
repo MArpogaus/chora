@@ -195,6 +195,7 @@ fi
 grep -q "needs a grant" "$out/inject-denied.err" || fail "denied: $(cat "$out/inject-denied.err")"
 "$bin/choractl" grant agent input.inject || fail "the grant failed"
 typed="$out/typed.txt"
+rm -f "$typed"
 inject "[{\"text\": {\"text\": \"echo 'Typed: A-Z!' >$typed\\n\"}}]" || fail "the text failed"
 wait_for test -s "$typed"
 test "$(cat "$typed")" = "Typed: A-Z!" || fail "typed: $(cat "$typed")"
@@ -326,5 +327,29 @@ jq -e '.started == ["tiling"]' "$out/view-start.json" >/dev/null ||
     fail "start: $(cat "$out/view-start.json")"
 wait_for count_is 3 '.owner == "tiling"'
 wait_for xs_are "0 0 0"
+
+step "18. exit: an MCP client describes the screen, sets the layout, and sees it"
+# Two windows in one color each instead of the terminals.
+pkill -x foot
+wait_for count_is 0 'true'
+WAYLAND_DISPLAY=$inner "$bin/chora-probe" window 255 0 0 >>"$out/windows.log" 2>&1 &
+pids+=($!)
+wait_for count_is 1 '.owner == "tiling"'
+WAYLAND_DISPLAY=$inner "$bin/chora-probe" window 0 0 255 >>"$out/windows.log" 2>&1 &
+pids+=($!)
+wait_for count_is 2 '.owner == "tiling"'
+ctl call tiling set_layout '{"layout": "columns"}' >/dev/null || fail "set_layout failed"
+wait_for xs_are "0 640"
+"$bin/choractl" grant agent screen.capture || fail "the grant failed"
+timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" rows >"$out/mcp.log" 2>&1 ||
+    fail "the MCP client: $(cat "$out/mcp.log")"
+color_at() { png_pixel "$out/$1.png" "$2" "$3" | cut -d' ' -f1-3; }
+test "$(color_at before 320 400)" = "255 0 0" || fail "before, left: $(color_at before 320 400)"
+test "$(color_at before 960 400)" = "0 0 255" || fail "before, right: $(color_at before 960 400)"
+test "$(color_at after 640 200)" = "255 0 0" || fail "after, top: $(color_at after 640 200)"
+test "$(color_at after 640 600)" = "0 0 255" || fail "after, bottom: $(color_at after 640 600)"
+jq -e '[.windows[].position[1]] | sort == [0, 400]' "$out/after.json" >/dev/null ||
+    fail "the description after: $(cat "$out/after.json")"
+grep -q "screen before and after" "$out/mcp.log" || fail "mcp: $(cat "$out/mcp.log")"
 
 echo "PASS (logs and screenshots in $out)"

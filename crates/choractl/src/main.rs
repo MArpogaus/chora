@@ -1,5 +1,6 @@
 //! Command line client for the chora IPC socket.
 
+mod mcp;
 mod view;
 
 use std::{
@@ -23,9 +24,10 @@ use serde_json::Value;
 #[derive(Parser)]
 #[command(version)]
 struct Args {
-    /// The client name, the owner of the nodes that this call creates.
-    #[arg(long, global = true, default_value = "choractl")]
-    name: String,
+    /// The client name, the owner of the nodes that this call creates and
+    /// the holder of grants: `choractl` by default, `agent` for `mcp`.
+    #[arg(long, global = true)]
+    name: Option<String>,
     #[command(subcommand)]
     command: Cmd,
 }
@@ -85,6 +87,8 @@ enum Cmd {
         /// The file with the events; stdin if missing or `-`.
         file: Option<String>,
     },
+    /// Serve the API as MCP tools over stdio, for an agent.
+    Mcp,
     /// Load, unload or save a view: plugins and nodes from a YAML file.
     View {
         #[command(subcommand)]
@@ -146,8 +150,10 @@ fn main() -> ExitCode {
 }
 
 fn run(args: Args) -> Result<(), String> {
-    if let Cmd::View { action } = &args.command {
-        return view_command(action);
+    match &args.command {
+        Cmd::View { action } => return view_command(action),
+        Cmd::Mcp => return mcp::serve(args.name.unwrap_or_else(|| "agent".into())),
+        _ => {}
     }
     let (commands, input) = match &args.command {
         Cmd::Apply { file } => (read_json(file.as_deref())?, Vec::new()),
@@ -155,7 +161,7 @@ fn run(args: Args) -> Result<(), String> {
         _ => (Vec::new(), Vec::new()),
     };
     let hello = Hello {
-        name: args.name,
+        name: args.name.unwrap_or_else(|| "choractl".into()),
         keep_nodes: true,
     };
     let mut client = Client::from_env(&hello).map_err(|e| e.to_string())?;
@@ -182,7 +188,7 @@ fn run(args: Args) -> Result<(), String> {
             capabilities,
         } => grants(&mut client, "grants.revoke", name, capabilities),
         Cmd::Grants => client.call("grants.list", Value::Null).map(|v| print(&v)),
-        Cmd::View { .. } => unreachable!("handled before the connection"),
+        Cmd::View { .. } | Cmd::Mcp => unreachable!("handled before the connection"),
         Cmd::Inject { .. } => client
             .call::<_, Value>("input.inject", Inject { events: input })
             .map(drop),

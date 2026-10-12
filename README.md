@@ -14,7 +14,8 @@ that an agent arranges live by voice. Only a small safety layer is built in.
 
 Early development. chora runs nested inside another Wayland session, and a
 reference plugin tiles the windows. A login session on real hardware exists,
-but nobody tested it on hardware yet. The
+but nobody tested it on hardware yet. An agent sees and changes the screen
+through `choractl mcp`, after a grant of the user. The
 [roadmap](https://marpogaus.github.io/void/roadmap/) shows the next steps.
 APIs change without notice before version 1.0.
 
@@ -50,6 +51,13 @@ to use Alt instead. `chora-tiling --help` lists all options.
 
 The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
 and Ctrl+Alt+BackSpace quits chora.
+
+To let an agent drive chora, grant it screenshots and input, and add
+`choractl --name agent mcp` as an MCP server of the agent:
+
+```bash
+choractl grant agent screen.capture input.inject
+```
 
 To try the XP flavor, a stacking desktop in the style of Windows XP, start
 `chora -- chora-xp`. From a source tree, point it at the theme:

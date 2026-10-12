@@ -300,6 +300,26 @@ plugins as systemd units instead.
 
 ## MCP tools
 
-`choractl mcp` offers the IPC methods as MCP tools. It also offers tools for
-whole tasks, for example "describe the screen", which returns a screenshot
-and the scene tree. The agent then sees the result of its changes.
+`choractl mcp` serves the API as MCP tools over stdio (D34). It connects
+as the client `agent`, or under `--name`. An MCP client starts it, for
+example in the `.mcp.json` of Claude Code:
+
+```json
+{"mcpServers": {"chora": {"command": "choractl", "args": ["--name", "agent", "mcp"]}}}
+```
+
+| Tool | Purpose |
+|------|---------|
+| `describe_screen` | a screenshot of an output, at most 1280 pixels a side by default, and in words: the outputs, the windows with their positions in scene coordinates and sizes, and the plugins with their methods |
+| `capture` | a picture of an output or of a node, as `screen.capture` |
+| `query_scene` | the nodes of a selector |
+| `apply_commands` | a transaction |
+| `list_plugins` | the connected clients and their methods |
+| `call_method` | a method of a plugin, for example `tiling.set_layout` |
+| `inject_input` | synthetic input, as `input.inject` |
+| `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views) |
+
+The screenshot of `describe_screen`, `capture` and `inject_input` need the
+grants of the client name, for example
+`choractl grant agent screen.capture`. Without a grant, `describe_screen`
+still describes the scene. No tool grants anything (D40).

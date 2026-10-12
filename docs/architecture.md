@@ -195,8 +195,10 @@ the window manager for a change instead of fighting it (see
 ### choractl and the MCP bridge
 
 `choractl` is the CLI for the coordinator. It loads views and starts their
-plugins. `choractl mcp` serves the API as MCP tools over stdio. MCP stays out
-of the core, so the MCP side can change without a change to the compositor.
+plugins. `choractl mcp` serves the API as MCP tools over stdio, with tools
+for whole tasks such as `describe_screen` (see
+[API](api.md#mcp-tools)). MCP stays out of the core, so the MCP side can
+change without a change to the compositor.
 
 ## Transactions
 

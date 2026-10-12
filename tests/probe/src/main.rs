@@ -28,6 +28,8 @@
 //!   the number of colors.
 //! - `sandbox`: connects through a new `wp-security-context-v1` socket and
 //!   checks that the sandboxed client sees no privileged global.
+//! - `window R G B`: shows a toplevel `chora-probe` in one color, in the
+//!   size of each configure, until it is killed.
 
 mod capture;
 mod sandbox;
@@ -150,6 +152,7 @@ fn main() -> ExitCode {
         "point" => point(&mut queue, &mut probe),
         "capture" => capture::capture(&mut queue, &mut probe),
         "sandbox" => sandbox::sandbox(&mut queue, &mut probe),
+        "window" => window(&mut queue, &mut probe),
         "held-commit" => match size_args() {
             Some(size) => held_commit(&mut queue, &mut probe, size),
             None => Err("usage: held-commit W H".into()),
@@ -497,18 +500,56 @@ fn create_surface(probe: &Probe, qh: &QueueHandle<Probe>) -> Result<WlSurface, S
     Ok(compositor.create_surface(qh, ()))
 }
 
+/// Shows a toplevel in one color until the probe is killed. Each configure
+/// with a new size gets a new buffer of that size.
+fn window(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
+    let color: Vec<u8> = std::env::args()
+        .skip(2)
+        .filter_map(|a| a.parse().ok())
+        .collect();
+    let [red, green, blue] = color[..] else {
+        return Err("usage: window R G B".into());
+    };
+    let (surface, _xdg_surface) = toplevel(queue, probe)?;
+    let qh = queue.handle();
+    let mut shown = [0, 0];
+    loop {
+        let configures = probe.sizes.len();
+        let size = match probe.sizes.last() {
+            Some(&size) if size[0] > 0 && size[1] > 0 => size,
+            _ => [200, 200],
+        };
+        if size != shown {
+            paint(probe, &qh, &surface, size, [blue, green, red, 0xff])?;
+            shown = size;
+        }
+        dispatch_until(queue, probe, TIMEOUT, |p| p.sizes.len() > configures);
+    }
+}
+
 /// Attaches a gray buffer of a size and commits.
 fn show(
     probe: &Probe,
     qh: &QueueHandle<Probe>,
     surface: &WlSurface,
+    size: [i32; 2],
+) -> Result<(), String> {
+    paint(probe, qh, surface, size, [0x80; 4])
+}
+
+/// Attaches a buffer of a size in one XRGB8888 pixel and commits.
+fn paint(
+    probe: &Probe,
+    qh: &QueueHandle<Probe>,
+    surface: &WlSurface,
     [w, h]: [i32; 2],
+    pixel: [u8; 4],
 ) -> Result<(), String> {
     let shm = probe.shm.as_ref().ok_or("no shm")?;
     let fd = memfd_create("chora-probe", MemfdFlags::CLOEXEC).map_err(|e| e.to_string())?;
     let mut file = File::from(fd);
     let pixels = usize::try_from(w * h).map_err(|e| e.to_string())?;
-    file.write_all(&[0x80; 4].repeat(pixels))
+    file.write_all(&pixel.repeat(pixels))
         .map_err(|e| e.to_string())?;
     let pool = shm.create_pool(file.as_fd(), w * h * 4, qh, ());
     let buffer = pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Xrgb8888, qh, ());
