@@ -8,6 +8,7 @@ mod gl;
 mod grants;
 mod handlers;
 mod images;
+mod inject;
 mod input;
 mod ipc;
 mod layers;

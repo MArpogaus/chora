@@ -147,7 +147,7 @@ client sends `hello` first. The core answers every request.
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications |
 | `input.grab(binding)` | get the events of a key, a button or a gesture; returns the binding as `input.key` names it |
-| `input.inject(events)` | send synthetic input; needs a grant |
+| `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject` and `screen.capture` for a client name; `choractl grant` and `choractl revoke` call them |
 | `output.list` | list the outputs and their cameras |
@@ -212,6 +212,44 @@ whose origin is (0, 0), or in the coordinates of the node.
 
 `choractl capture FILE` saves a picture, for example
 `choractl --name agent capture --node s1 window.png`.
+
+## Input injection
+
+`input.inject` sends a list of events as one request:
+
+```json
+{"events": [
+  {"pointer_move": {"position": [640, 400], "output": "DP-1"}},
+  {"click": {"button": 272}},
+  {"text": {"text": "make test\n"}},
+  {"shortcut": {"keys": "Super+Return"}}
+]}
+```
+
+| Event | Fields |
+|-------|--------|
+| `pointer_move` | `position` in the logical coordinates of the output, as in a capture; `output`, the first one by default |
+| `button` | `button`, a Linux code, 272 (left) by default; `state`: `pressed` or `released` |
+| `click` | `button`; presses and releases it |
+| `scroll` | `dx` and `dy` in logical pixels; a positive `dy` scrolls down |
+| `key` | `key`: a keysym name such as `Return`, or a Linux key code such as 28; `state` |
+| `shortcut` | `keys`, a binding such as `Ctrl+Shift+t`: the modifiers go down, the key goes down and up, the modifiers go up |
+| `text` | `text`; a newline presses Return, a tab presses Tab |
+
+- The core checks all events before the first one runs. An event that does
+  not resolve, for example a character without a key, rejects the request.
+- Key names and text use the first layout of the keymap. A character needs
+  a key with Shift or `AltGr` at most.
+- Keys and buttons that the events leave down go up at the end of the
+  request, so that no key sticks.
+- Injected keys never reach the safety layer: Ctrl+Alt+BackSpace,
+  Ctrl+Alt+Escape and the VT switch do nothing. The grabs of plugins see
+  them, and the focused surface gets the rest.
+- A request has at most 256 events and 4096 characters of text. It fails
+  while the session is locked.
+
+`choractl inject` reads the list of events as JSON, for example
+`echo '[{"text": {"text": "ls\n"}}]' | choractl --name agent inject`.
 
 ## Plugin methods
 

@@ -17,7 +17,7 @@ use smithay::{
         PointerMotionEvent,
     },
     input::{
-        keyboard::{FilterResult, Keysym, ModifiersState},
+        keyboard::{FilterResult, Keycode, Keysym, ModifiersState},
         pointer::{AxisFrame, ButtonEvent, MotionEvent, PointerHandle, RelativeMotionEvent},
     },
     reexports::wayland_server::{Resource, protocol::wl_surface::WlSurface},
@@ -59,20 +59,25 @@ pub fn process<I: InputBackend>(state: &mut State, event: InputEvent<I>) {
 }
 
 fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
+    key(state, event.key_code(), event.state(), event.time(), false);
+}
+
+/// A key goes down or up: the safety layer first, then the grabs, then the
+/// focused surface. An injected key never reaches the safety layer (D23).
+pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTime, injected: bool) {
     let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
     // A grab that a client took in this loop iteration, for example of an
     // input method, must not see a key of the lock screen.
     if state.lock.is_some() && keyboard.is_grabbed() {
         keyboard.unset_grab(state);
     }
-    let (code, key_state) = (event.key_code(), event.state());
     let serial = SERIAL_COUNTER.next_serial();
     let action = keyboard.input(
         state,
         code,
         key_state,
         serial,
-        event.time(),
+        time,
         |state, mods, handle| {
             if key_state == KeyState::Released {
                 let before = state.suppressed_keys.len();
@@ -83,7 +88,8 @@ fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
                     FilterResult::Forward
                 };
             }
-            match press_action(state, mods, &handle.raw_syms(), &handle.modified_syms()) {
+            let syms = (handle.raw_syms(), handle.modified_syms());
+            match press_action(state, mods, &syms, injected) {
                 Some(action) => {
                     state.suppressed_keys.push(code);
                     FilterResult::Intercept(action)
@@ -118,9 +124,12 @@ fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
 fn press_action(
     state: &State,
     mods: &ModifiersState,
-    syms: &[Keysym],
-    modified: &[Keysym],
+    (syms, modified): &(Vec<Keysym>, Vec<Keysym>),
+    injected: bool,
 ) -> Option<KeyAction> {
+    if injected {
+        return grab_action(state, mods, syms);
+    }
     let first = Keysym::XF86_Switch_VT_1.raw();
     if let Some(vt) = modified
         .iter()
@@ -136,6 +145,11 @@ fn press_action(
             return Some(KeyAction::Reset);
         }
     }
+    grab_action(state, mods, syms)
+}
+
+/// The grab of a binding, unless the session is locked.
+fn grab_action(state: &State, mods: &ModifiersState, syms: &[Keysym]) -> Option<KeyAction> {
     if state.lock.is_some() {
         return None;
     }
@@ -250,7 +264,7 @@ impl State {
 
 /// Moves the pointer to a point of the layout and tells the surface under
 /// it.
-fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime) {
+pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime) {
     state.pointer_layout = layout;
     let Some(spot) = state.spot(layout) else {
         return;
@@ -288,25 +302,42 @@ fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime)
 }
 
 fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
+    press_button(state, event.button_code(), event.state(), event.time());
+}
+
+/// A pointer button goes down or up.
+pub fn press_button(state: &mut State, code: u32, button_state: ButtonState, time: InputTime) {
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
-    let button_state: ButtonState = event.state();
     let serial = SERIAL_COUNTER.next_serial();
     if button_state == ButtonState::Pressed {
         click_focus(state);
         note_press(state, pointer.current_focus(), serial);
-        press_node(state, event.button_code());
+        press_node(state, code);
     } else {
-        release_node(state, event.button_code());
+        release_node(state, code);
     }
     pointer.button(
         state,
         &ButtonEvent {
-            button: event.button_code(),
+            button: code,
             state: button_state,
             serial,
-            time: event.time(),
+            time,
         },
     );
+    pointer.frame(state);
+}
+
+/// Scrolls by logical pixels, as a touchpad does.
+pub fn scroll(state: &mut State, dx: f64, dy: f64, time: InputTime) {
+    let mut frame = AxisFrame::new(time).source(AxisSource::Continuous);
+    for (axis, amount) in [(Axis::Horizontal, dx), (Axis::Vertical, dy)] {
+        if amount != 0.0 {
+            frame = frame.value(axis, amount);
+        }
+    }
+    let pointer = state.seat.get_pointer().expect("the seat has a pointer");
+    pointer.axis(state, frame);
     pointer.frame(state);
 }
 

@@ -394,6 +394,7 @@ impl State {
                 self.ipc_grants(&request.method, params)
             }
             "screen.capture" => self.ipc_capture(conn, params),
+            "input.inject" => self.ipc_inject(conn, params),
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
             }

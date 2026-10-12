@@ -249,7 +249,8 @@ of the press that opened it.
 The safety layer is the only built-in behavior (see
 [Vision](vision.md#principles)). No plugin and no IPC client can change it.
 
-- **Fixed bindings** (D23). Injected input never triggers them.
+- **Fixed bindings** (D23). Injected input never triggers them; see
+  [Input injection](api.md#input-injection).
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
 - **Emergency reset.** The core disconnects all plugins, revokes all grants,
@@ -282,7 +283,7 @@ Version 1 trusts every client of the same user (D33):
   user for the client name: `choractl grant NAME CAPABILITY` (D40). A grant
   protects against mistakes of agents. It is no barrier against hostile code
   of the same user. The emergency reset revokes all grants.
-- `screen.capture` fails while the session is locked.
+- `screen.capture` and `input.inject` fail while the session is locked.
 
 ## Sessions and flavors
 

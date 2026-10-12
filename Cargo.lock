@@ -349,6 +349,7 @@ dependencies = [
  "base64",
  "chora-scene",
  "clap",
+ "serde",
  "serde_json",
 ]
 

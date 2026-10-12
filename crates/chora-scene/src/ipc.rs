@@ -296,6 +296,96 @@ pub struct Picture {
     pub png: String,
 }
 
+/// Parameters of `input.inject`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Inject {
+    /// The events, in order. Keys and buttons that they leave down go up
+    /// at the end.
+    pub events: Vec<InjectEvent>,
+}
+
+/// One synthetic input event of `input.inject`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum InjectEvent {
+    /// Moves the pointer to a point in the logical coordinates of an
+    /// output, the first one by default.
+    PointerMove {
+        /// The point.
+        position: [f64; 2],
+        /// The output name.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        output: Option<String>,
+    },
+    /// Presses or releases a pointer button.
+    Button {
+        /// The Linux button code; 272, the left button, by default.
+        #[serde(default = "left_button")]
+        button: u32,
+        /// Pressed or released.
+        state: PressState,
+    },
+    /// Presses and releases a pointer button.
+    Click {
+        /// The Linux button code; 272, the left button, by default.
+        #[serde(default = "left_button")]
+        button: u32,
+    },
+    /// Scrolls by logical pixels; a positive `dy` scrolls down.
+    Scroll {
+        /// Horizontal.
+        #[serde(default)]
+        dx: f64,
+        /// Vertical.
+        #[serde(default)]
+        dy: f64,
+    },
+    /// Presses or releases a key.
+    Key {
+        /// The key.
+        key: Key,
+        /// Pressed or released.
+        state: PressState,
+    },
+    /// Presses a key with modifiers, then releases them all, for example
+    /// `Ctrl+Shift+t`.
+    Shortcut {
+        /// The modifiers and the key.
+        keys: crate::Binding,
+    },
+    /// Types a text with the keys of the first layout of the keymap.
+    Text {
+        /// The text; a newline presses Return, a tab presses Tab.
+        text: String,
+    },
+}
+
+fn left_button() -> u32 {
+    272
+}
+
+/// A key: a keysym name, for example `Return` or `a`, or a Linux key code,
+/// for example 28 for Return.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Key {
+    /// A Linux key code, as evdev numbers them.
+    Code(u32),
+    /// A keysym name.
+    Name(String),
+}
+
+/// Whether a key or a button goes down or up.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PressState {
+    /// Down.
+    Pressed,
+    /// Up.
+    Released,
+}
+
 /// Errors of the blocking [`Client`].
 #[derive(Debug, thiserror::Error)]
 pub enum ClientError {

@@ -8,10 +8,10 @@ use std::{
 use base64::{Engine, engine::general_purpose::STANDARD};
 
 use chora_scene::{
-    Command, Event,
+    Event,
     ipc::{
-        Apply, Capability, Capture, Client, ClientError, GrantChange, Hello, MethodCall, Picture,
-        Query, Subscribe,
+        Apply, Capability, Capture, Client, ClientError, GrantChange, Hello, Inject, MethodCall,
+        Picture, Query, Subscribe,
     },
 };
 use clap::{Parser, Subcommand};
@@ -76,6 +76,13 @@ enum Cmd {
     },
     /// Print the grants by client name.
     Grants,
+    /// Send synthetic input: a JSON list of events from a file or stdin, for
+    /// example `[{"text": {"text": "ls\n"}}]`. Needs a grant of
+    /// `input.inject` for the client name.
+    Inject {
+        /// The file with the events; stdin if missing or `-`.
+        file: Option<String>,
+    },
     /// Save a picture of an output or of a node as a PNG file, and print
     /// its size, scale and origin. Needs a grant of `screen.capture` for
     /// the client name.
@@ -107,9 +114,10 @@ fn main() -> ExitCode {
 }
 
 fn run(args: Args) -> Result<(), String> {
-    let commands = match &args.command {
-        Cmd::Apply { file } => read_commands(file.as_deref())?,
-        _ => Vec::new(),
+    let (commands, input) = match &args.command {
+        Cmd::Apply { file } => (read_json(file.as_deref())?, Vec::new()),
+        Cmd::Inject { file } => (Vec::new(), read_json(file.as_deref())?),
+        _ => (Vec::new(), Vec::new()),
     };
     let hello = Hello {
         name: args.name,
@@ -129,15 +137,7 @@ fn run(args: Args) -> Result<(), String> {
             client: callee,
             method,
             params,
-        } => {
-            let params = parse_params(params.as_deref())?;
-            let call = MethodCall {
-                client: callee,
-                method,
-                params,
-            };
-            client.call("methods.call", call).map(|v| print(&v))
-        }
+        } => return call(&mut client, callee, method, params.as_deref()),
         Cmd::Grant {
             client: name,
             capabilities,
@@ -147,6 +147,9 @@ fn run(args: Args) -> Result<(), String> {
             capabilities,
         } => grants(&mut client, "grants.revoke", name, capabilities),
         Cmd::Grants => client.call("grants.list", Value::Null).map(|v| print(&v)),
+        Cmd::Inject { .. } => client
+            .call::<_, Value>("input.inject", Inject { events: input })
+            .map(drop),
         Cmd::Capture {
             file,
             output,
@@ -158,10 +161,7 @@ fn run(args: Args) -> Result<(), String> {
                 node,
                 max_side,
             };
-            let picture: Picture = client
-                .call("screen.capture", capture)
-                .map_err(|e| e.to_string())?;
-            return save(&picture, &file);
+            return capture_to(&mut client, &capture, &file);
         }
     };
     result.map_err(|e| e.to_string())
@@ -199,8 +199,30 @@ fn grants(
     client.call::<_, Value>(method, change).map(drop)
 }
 
-/// Writes the PNG file of a picture, and prints the rest of it.
-fn save(picture: &Picture, file: &str) -> Result<(), String> {
+/// Calls a method of a plugin and prints the result.
+fn call(
+    client: &mut Client,
+    callee: String,
+    method: String,
+    params: Option<&str>,
+) -> Result<(), String> {
+    let call = MethodCall {
+        client: callee,
+        method,
+        params: parse_params(params)?,
+    };
+    let result: Value = client
+        .call("methods.call", call)
+        .map_err(|e| e.to_string())?;
+    print(&result);
+    Ok(())
+}
+
+/// Writes the PNG file of a capture, and prints the rest of the picture.
+fn capture_to(client: &mut Client, capture: &Capture, file: &str) -> Result<(), String> {
+    let picture: Picture = client
+        .call("screen.capture", capture)
+        .map_err(|e| e.to_string())?;
     let png = STANDARD
         .decode(&picture.png)
         .map_err(|e| format!("the picture is no base64: {e}"))?;
@@ -227,7 +249,8 @@ fn parse_params(text: Option<&str>) -> Result<Value, String> {
     })
 }
 
-fn read_commands(file: Option<&str>) -> Result<Vec<Command>, String> {
+/// Reads a JSON value from a file, or from stdin for `None` and `-`.
+fn read_json<T: serde::de::DeserializeOwned>(file: Option<&str>) -> Result<T, String> {
     let (name, text) = match file {
         None | Some("-") => {
             let mut text = String::new();

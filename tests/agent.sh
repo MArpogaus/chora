@@ -1,12 +1,15 @@
 #!/bin/bash
 # End-to-end test of milestone M4, the agent interface: chora runs nested
 # in a headless sway with chora-tiling and two foot windows. An agent
-# calls the methods that chora-tiling exports.
+# calls the methods that chora-tiling exports, gets grants, captures the
+# output and nodes, types into a terminal, clicks a node and presses a
+# shortcut of a plugin. Injected safety keys do nothing, and while the
+# session is locked, captures and injections fail.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
-#   BIN_DIR  holds chora, choractl and chora-tiling
+#   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
 #   OUT_DIR  receives the logs and screenshots (default: a temp dir)
-# Needs: sway, foot, grim, jq, python3, pgrep and a Mesa driver.
+# Needs: sway, foot, grim, jq, python3, pgrep, swaylock and a Mesa driver.
 set -euo pipefail
 
 bin=$(realpath "$1")
@@ -181,5 +184,62 @@ step "8. a revoke ends the grant"
 "$bin/choractl" revoke agent || fail "the revoke failed"
 if ctl capture "$out/revoked.png" 2>/dev/null; then fail "a capture after the revoke worked"; fi
 kill -0 "$chora_pid" || fail "chora died"
+
+step "9. injected text reaches the focused window"
+inject() { echo "$1" | ctl inject; }
+if inject '[{"text": {"text": "x"}}]' 2>"$out/inject-denied.err"; then
+    fail "an injection without grant worked"
+fi
+grep -q "needs a grant" "$out/inject-denied.err" || fail "denied: $(cat "$out/inject-denied.err")"
+"$bin/choractl" grant agent input.inject || fail "the grant failed"
+typed="$out/typed.txt"
+inject "[{\"text\": {\"text\": \"echo 'Typed: A-Z!' >$typed\\n\"}}]" || fail "the text failed"
+wait_for test -s "$typed"
+test "$(cat "$typed")" = "Typed: A-Z!" || fail "typed: $(cat "$typed")"
+
+step "10. an injected click reaches plugins, and a shortcut reaches its grab"
+echo '[{"create": {"id": "button", "kind": "rect", "parent": "root",
+        "props": {"size": [80, 40], "color": [0, 0, 1, 1], "input": "accept",
+                  "transform": {"matrix": [1,0,0,0, 0,1,0,0, 0,0,1,0, 1000,600,0,1]}}}}]' |
+    ctl apply || fail "the button failed"
+ctl events pointer.pressed pointer.released >"$out/pointer.jsonl" &
+pids+=($!)
+sleep 0.3
+inject '[{"pointer_move": {"position": [1040, 620]}}, {"click": {}}]' || fail "the click failed"
+wait_for grep -q '"event":"pointer.released","node":"button"' "$out/pointer.jsonl"
+grep -q '"event":"pointer.pressed","node":"button","button":272' "$out/pointer.jsonl" ||
+    fail "press: $(cat "$out/pointer.jsonl")"
+inject '[{"shortcut": {"keys": "Super+Return"}}]' || fail "the shortcut failed"
+wait_for count_is 3 '.owner == "tiling"'
+
+step "11. injected keys never reach the safety layer"
+resets() { grep -c "emergency reset" "$out/chora.log" || true; }
+before=$(resets)
+inject '[{"shortcut": {"keys": "Ctrl+Alt+Escape"}}, {"shortcut": {"keys": "Ctrl+Alt+BackSpace"}}]' ||
+    fail "the safety keys failed"
+sleep 1
+kill -0 "$chora_pid" || fail "an injected Ctrl+Alt+BackSpace stopped chora"
+test "$(resets)" = "$before" || fail "an injected Ctrl+Alt+Escape reset"
+count_is 3 '.owner == "tiling"' || fail "the windows lost their plugin"
+
+step "12. while the session is locked, no capture and no injection"
+"$bin/choractl" grant agent screen.capture || fail "the grant failed"
+WAYLAND_DISPLAY=$inner swaylock -c ff0000 >"$out/swaylock.log" 2>&1 &
+swaylock_pid=$!
+pids+=("$swaylock_pid")
+red() { test "$(host_pixel 640 400)" = "255 0 0"; }
+wait_for red
+if ctl capture "$out/locked.png" 2>"$out/locked.err"; then fail "a capture while locked worked"; fi
+grep -q "locked" "$out/locked.err" || fail "capture: $(cat "$out/locked.err")"
+if inject '[{"text": {"text": "x"}}]' 2>"$out/locked-inject.err"; then
+    fail "an injection while locked worked"
+fi
+grep -q "locked" "$out/locked-inject.err" || fail "inject: $(cat "$out/locked-inject.err")"
+# A new lock client takes over from the killed one and unlocks.
+kill -KILL "$swaylock_pid"
+wait "$swaylock_pid" 2>/dev/null || true
+WAYLAND_DISPLAY=$inner timeout 20 "$bin/chora-probe" take-lock >"$out/probe.log" 2>&1 ||
+    fail "the takeover: $out/probe.log"
+ctl capture "$out/unlocked.png" >/dev/null || fail "no capture after the unlock"
 
 echo "PASS (logs and screenshots in $out)"
