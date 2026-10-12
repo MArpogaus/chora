@@ -858,6 +858,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#m41-agent-feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        M4.1: Agent feedback
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#m5-packaging" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1009,6 +1020,17 @@
     <span class="md-ellipsis">
       
         M4: Agent interface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#m41-agent-feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        M4.1: Agent feedback
       
     </span>
   </a>
@@ -1187,6 +1209,31 @@ Windows XP (D39). The flavor is a demo, not a daily driver.</p>
 screen", calls <code>tiling.set_layout</code>, and the next screenshot shows the new
 layout. The last step of <code>tests/agent.sh</code> checks it with
 <code>tests/mcp-client.py</code> in CI.</p>
+<h2 id="m41-agent-feedback">M4.1: Agent feedback<a class="headerlink" href="#m41-agent-feedback" title="Permanent link">&para;</a></h2>
+<p><strong>Goal:</strong> an agent builds an interactive view in a few calls, from the
+feedback of the first real MCP sessions (issues #3 to #10).</p>
+<ul>
+<li>Docs and code agree (#3): <code>clip</code> on all nodes, <code>radius</code> and <code>border</code> on
+  rects, and the <code>shader</code> node kind with a uniform that names a node as
+  texture (D18). A test parses every example of <code>docs/api.md</code>.</li>
+<li>A camera takes a uniform scale of the short form (#4), and animates in
+  the core with <code>duration</code> and <code>easing</code> (#10).</li>
+<li><code>choractl mcp</code>: item schemas for <code>apply_commands</code> and <code>inject_input</code>
+  from the types of <code>chora-scene</code> (#5), and tools to subscribe to and wait
+  for events (#7).</li>
+<li><code>assets.put</code> stores an image or a shader of a client in another
+  namespace in a directory of the core, removed with the nodes of the
+  client (#6).</li>
+<li><code>output.reserve</code> reduces the work area for the life of a connection
+  (#8); the <code>reserve</code> of <code>chora-tiling</code> goes.</li>
+<li><code>process.spawn</code> starts a program with the environment of the startup
+  command, behind a grant, and <code>plugins.restart</code> restarts a plugin of a
+  view (#9).</li>
+</ul>
+<p><strong>Exit:</strong> an automated test passes: an MCP client uploads a shader,
+reserves a panel at the edge of the output, draws it as a rounded shader
+node with two buttons, and moves the camera with an animation when the
+user clicks a button, which the client learns from <code>wait_events</code>.</p>
 <h2 id="m5-packaging">M5: Packaging<a class="headerlink" href="#m5-packaging" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> chora installs like every other desktop on the host.</p>
 <ul>
