@@ -1359,7 +1359,7 @@ prints the path.</p>
 </tr>
 <tr>
 <td><code>camera</code></td>
-<td>set the camera of an output, or restore its default camera without a transform</td>
+<td>set the camera of an output, or restore its default camera without a transform; with a <code>duration</code>, move it there</td>
 </tr>
 </tbody>
 </table>
@@ -1374,6 +1374,13 @@ targets along the curve: <code>linear</code> (the default), <code>ease_in</code>
 fades the node out and then hides it. The duration is in milliseconds, at
 most one minute. A later <code>animate</code> or <code>update</code> of the node ends the
 animation where it is. The end sends <code>animation.done</code>.</p>
+<p>A camera moves the same way, with <code>duration</code> and <code>easing</code> (#10). It starts
+where the camera is now, also in the middle of another move, and the end
+sends <code>animation.done</code> with the output and then <code>output.changed</code>:</p>
+<!-- parses: command -->
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"camera"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DP-1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"transform"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"scale"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"translate"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">-640</span><span class="p">,</span><span class="w"> </span><span class="mi">-400</span><span class="p">]},</span>
+<span class="w">            </span><span class="nt">"duration"</span><span class="p">:</span><span class="w"> </span><span class="mi">500</span><span class="p">,</span><span class="w"> </span><span class="nt">"easing"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ease_in_out"</span><span class="p">}}</span>
+</code></pre></div>
 <h2 id="selectors">Selectors<a class="headerlink" href="#selectors" title="Permanent link">&para;</a></h2>
 <p>A selector finds nodes: <code>id:work</code>, <code>kind:surface</code>, <code>owner:tiling</code>,
 <code>app_id:firefox</code>, <code>title:"make test"</code> (exact), <code>title~:Inbox</code> (contains),
@@ -1424,7 +1431,7 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>animation.done</code></td>
-<td>the node whose animation reached its targets</td>
+<td>the <code>node</code> whose animation reached its targets, or the <code>output</code> whose camera did</td>
 </tr>
 <tr>
 <td><code>effect.failed</code></td>
