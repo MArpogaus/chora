@@ -15,7 +15,7 @@ terms and no synonyms.
 | **Shader** | A node that a fragment shader draws completely. A shader can read other nodes as textures. A shader can also be an **effect**. |
 | **Effect** | A shader that changes how a node and its children look, for example blur or a color change. Every node can have effects. |
 | **Camera** | The part of the scene that one output shows: a transform from scene coordinates to the logical coordinates of the output. |
-| **Work area** | The part of the scene that an output shows, without the zones that panels reserve. Plugins place windows in it. |
+| **Work area** | The part of the scene that an output shows, without the zones that panels and IPC clients reserve. Plugins place windows in it. |
 | **Client** | A process on the IPC socket: a plugin, `choractl` or a service. A client names itself when it connects. |
 | **Owner** | The client name that created or attached a node. Only the owner changes the node. |
 | **Toplevel** | A surface with the role of an application window (`xdg_toplevel`). Other roles are layer surfaces and popups. |

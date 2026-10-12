@@ -19,7 +19,7 @@ use std::{
 
 use chora_scene::{
     Binding, Event, Selector,
-    ipc::{Apply, Grab, Hello, Message, Query, Request, RpcError, Subscribe},
+    ipc::{Apply, Edges, Grab, Hello, Message, Query, Request, RpcError, Subscribe},
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -63,6 +63,8 @@ struct Conn {
     name: Option<String>,
     keep_nodes: bool,
     events: Option<Vec<String>>,
+    /// The edges of `output.reserve` by output name.
+    reserves: HashMap<String, Edges>,
     /// The source that reads the connection. `None` after the end of the
     /// stream or a line that is too long: then the connection closes when
     /// its answers are out.
@@ -130,6 +132,25 @@ impl Drop for Ipc {
 }
 
 impl Ipc {
+    /// The reserves of all connections on an output, added up.
+    pub fn reserved(&self, output: &str) -> Edges {
+        self.conns
+            .values()
+            .filter_map(|c| c.reserves.get(output))
+            .fold(Edges::default(), |all, e| all.plus(*e))
+    }
+
+    /// Sets the reserve of a connection on an output; no space removes it.
+    pub fn set_reserve(&mut self, conn: u64, output: String, edges: Edges) {
+        if let Some(c) = self.conns.get_mut(&conn) {
+            if edges.is_empty() {
+                c.reserves.remove(&output);
+            } else {
+                c.reserves.insert(output, edges);
+            }
+        }
+    }
+
     /// Sends an event to every connection that subscribed to it.
     pub fn broadcast(&mut self, event: &Event) {
         let message = Message::event(event);
@@ -316,6 +337,7 @@ impl State {
             name: None,
             keep_nodes: false,
             events: None,
+            reserves: HashMap::new(),
             reader: Some(token),
         };
         self.ipc.conns.insert(id, conn);
@@ -395,6 +417,7 @@ impl State {
             }),
             "input.grab" => params_of::<Grab>(params).and_then(|g| self.ipc_grab(conn, g.binding)),
             "output.list" => Ok(serde_json::json!(self.output_info())),
+            "output.reserve" => params_of(params).and_then(|r| self.ipc_reserve(conn, &r)),
             "clients.list" => Ok(self.clients()),
             "grants.set" | "grants.revoke" | "grants.list" => {
                 self.ipc_grants(&request.method, params)
@@ -488,6 +511,9 @@ impl State {
             self.loop_handle.remove(reader);
         }
         self.ipc.grabs.retain(|(_, _, c)| *c != conn);
+        if !closed.reserves.is_empty() {
+            self.output_changed();
+        }
         self.methods_closed(conn);
         let held = self.transactions.drop_conn(conn);
         self.release(&held);

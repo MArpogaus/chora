@@ -59,7 +59,8 @@ this work. Layer surfaces, for example panels and launchers, sit in the
 coordinates of their output, outside its camera, so a panel stays in place
 when a plugin pans the scene. The background and bottom layers are below the
 scene, the top and overlay layers above it. A panel reserves an exclusive
-zone; the rest of the output is its **work area**. Only toplevels wait for
+zone, and an IPC client reserves space with `output.reserve`; the rest of
+the output is its **work area**. Only toplevels wait for
 a plugin: the core creates a detached surface node and sends
 `surface.created`. A plugin decides where the surface appears, or if it
 appears at all.

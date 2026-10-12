@@ -7,7 +7,8 @@
 # session is locked, captures and injections fail. grim and the probe
 # capture through both screencopy protocols, and a client of a sandbox
 # sees none of the privileged protocols. An MCP client waits for events
-# and draws a shader that it hands to the core as an asset.
+# and draws a shader that it hands to the core as an asset. Connections
+# reserve space at the edges of the output.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
@@ -393,5 +394,25 @@ EOF
 temporary=$(cat "$out/temporary-asset.txt")
 case $temporary in "$XDG_RUNTIME_DIR"/chora/*) ;; *) fail "the temporary asset is at $temporary" ;; esac
 wait_for test ! -e "$temporary"
+
+step "20. output.reserve leaves space out of the work area while its connection lives"
+work_area_is() { test "$(ctl outputs | jq -c '.[0].work_area')" = "$1"; }
+wait_for work_area_is "[0,0,1280,800]"
+"$bin/choractl" --name agent reserve --left 200 >"$out/reserve.json" &
+reserve_pid=$!
+pids+=("$reserve_pid")
+wait_for work_area_is "[200,0,1080,800]"
+wait_for xs_are "200 200"
+jq -e '.work_area == [200, 0, 1080, 800]' "$out/reserve.json" >/dev/null ||
+    fail "the answer: $(cat "$out/reserve.json")"
+# The reserves of two connections add up.
+"$bin/choractl" --name panel reserve --top 50 --left 100 >/dev/null &
+panel_pid=$!
+pids+=("$panel_pid")
+wait_for work_area_is "[300,50,980,750]"
+kill "$reserve_pid" "$panel_pid"
+wait_for work_area_is "[0,0,1280,800]"
+wait_for xs_are "0 0"
+if ctl reserve --output nowhere --top 1 2>/dev/null; then fail "a reserve of no output worked"; fi
 
 echo "PASS (logs and screenshots in $out)"

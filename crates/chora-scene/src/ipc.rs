@@ -174,6 +174,57 @@ pub struct Grab {
     pub binding: crate::Binding,
 }
 
+/// Parameters of `output.reserve`: space at the edges of an output that the
+/// work area leaves out for the life of the connection, as the exclusive
+/// zone of a panel does (#8).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Reserve {
+    /// The output name; the first output if missing.
+    #[serde(default)]
+    pub output: Option<String>,
+    /// The space at each edge; no space removes the reserve.
+    #[serde(default)]
+    pub edges: Edges,
+}
+
+/// Space at the edges of an output, in logical pixels.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Edges {
+    /// At the top.
+    #[serde(default)]
+    pub top: u32,
+    /// At the right.
+    #[serde(default)]
+    pub right: u32,
+    /// At the bottom.
+    #[serde(default)]
+    pub bottom: u32,
+    /// At the left.
+    #[serde(default)]
+    pub left: u32,
+}
+
+impl Edges {
+    /// Whether no edge has space.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+
+    /// The space of both, edge by edge.
+    #[must_use]
+    pub fn plus(self, other: Self) -> Self {
+        Self {
+            top: self.top.saturating_add(other.top),
+            right: self.right.saturating_add(other.right),
+            bottom: self.bottom.saturating_add(other.bottom),
+            left: self.left.saturating_add(other.left),
+        }
+    }
+}
+
 /// Parameters of `assets.put`: a file for image nodes, shader nodes and
 /// effects, from a client that shares no directory with the core (#6).
 #[derive(Debug, Clone, Serialize, Deserialize)]

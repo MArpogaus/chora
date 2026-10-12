@@ -17,7 +17,7 @@ use chora_scene::{
     Node, NodeKind, OutputInfo, Transform,
     ipc::{
         Apply, AssetPut, Capture, Client, ClientError, Hello, Inject, MethodCall, Picture, Query,
-        RpcError,
+        Reserve, RpcError,
     },
 };
 use serde_json::{Value, json};
@@ -233,6 +233,18 @@ fn screen_tools() -> Vec<Value> {
 fn scene_tools() -> Vec<Value> {
     vec![
         tool(
+            "reserve_space",
+            "Reserve space at the edges of an output, in logical pixels, for example for a panel of nodes: the work area, where window managers put windows, leaves it out until this server ends. A later call replaces the reserve on the output; no space removes it. Returns the output with its new work_area in scene coordinates.",
+            &json!({
+                "output": {"type": "string", "description": "the output name; the first output if missing"},
+                "top": {"type": "integer", "minimum": 0},
+                "right": {"type": "integer", "minimum": 0},
+                "bottom": {"type": "integer", "minimum": 0},
+                "left": {"type": "integer", "minimum": 0},
+            }),
+            &[],
+        ),
+        tool(
             "put_asset",
             "Store a file for image nodes, shader nodes and effects in a directory of chora, and get its absolute path, since chora may not see the files of the agent, for example in another container. Pass a shader as text and a PNG in base64, at most 512 KiB. A second put of a name replaces the file, and nodes that use it reload it.",
             &json!({
@@ -399,9 +411,31 @@ fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Fa
         "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
         "subscribe_events" => subscribe(chora, args),
         "put_asset" => put_asset(chora, args),
+        "reserve_space" => reserve_space(chora, args),
         "wait_events" => wait(chora, args),
         other => Err(Failure::UnknownTool(format!("no tool {other:?}"))),
     }
+}
+
+/// Reserves space at the edges of an output for the life of the server.
+fn reserve_space(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
+    let mut edges = if args.is_object() {
+        args.clone()
+    } else {
+        json!({})
+    };
+    let output = edges.as_object_mut().and_then(|a| a.remove("output"));
+    let output = match output {
+        None | Some(Value::Null) => None,
+        Some(Value::String(name)) => Some(name),
+        Some(_) => return Err(Failure::Tool("output must be a name".into())),
+    };
+    let reserve = Reserve {
+        output,
+        edges: arg(&edges)?,
+    };
+    let output: Value = chora.call("output.reserve", reserve)?;
+    Ok(vec![json_text(&output)])
 }
 
 /// Stores an asset from text or base64.
@@ -588,7 +622,7 @@ mod tests {
         assert!(
             tools["result"]["tools"]
                 .as_array()
-                .is_some_and(|t| t.len() == 13)
+                .is_some_and(|t| t.len() == 14)
         );
         let bad =
             answer(r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nope"}}"#)

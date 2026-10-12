@@ -8,14 +8,18 @@
 
 use std::{collections::HashSet, ops::RangeInclusive, time::Duration};
 
-use chora_scene::{Event, OutputInfo, Transform};
+use chora_scene::{
+    Event, OutputInfo, Transform,
+    ipc::{Edges, Reserve, RpcError},
+};
+use serde_json::Value;
 use smithay::{
     desktop::{layer_map_for_output, space::SpaceElement},
     output::{Mode, Output, Scale},
     utils::{self, Logical, Physical, Point, Rectangle, Size},
 };
 
-use crate::{backend::Backend, state::State};
+use crate::{backend::Backend, ipc::rejected, state::State};
 
 /// The scales that a client can give an output.
 const SCALES: RangeInclusive<f64> = 0.1..=10.0;
@@ -204,6 +208,7 @@ impl State {
                 let area = output_area(output);
                 let camera = self.camera(output);
                 let zone = layer_map_for_output(output).non_exclusive_zone();
+                let zone = shrink(zone, self.ipc.reserved(&output.name()));
                 OutputInfo {
                     name: output.name(),
                     position: [area.loc.x, area.loc.y],
@@ -214,6 +219,24 @@ impl State {
                 }
             })
             .collect()
+    }
+
+    /// `output.reserve`: the work area of an output leaves space at its
+    /// edges until the connection closes. Answers with the output.
+    pub fn ipc_reserve(&mut self, conn: u64, reserve: &Reserve) -> Result<Value, RpcError> {
+        if self.ipc.name(conn).is_none() {
+            return Err(rejected("send hello first"));
+        }
+        let output = match &reserve.output {
+            Some(name) => self.outputs.iter().find(|o| o.name() == *name),
+            None => self.outputs.first(),
+        }
+        .map(Output::name)
+        .ok_or_else(|| rejected(format!("no output {:?}", reserve.output)))?;
+        self.ipc.set_reserve(conn, output.clone(), reserve.edges);
+        self.output_changed();
+        let info = self.output_info().into_iter().find(|i| i.name == output);
+        Ok(serde_json::json!(info))
     }
 
     /// The camera of an output: the one a client set, or the default.
@@ -516,4 +539,50 @@ fn clamp(point: Point<f64, Logical>, area: Rectangle<i32, Logical>) -> Point<f64
         point.y.clamp(area.loc.y, max.y.max(area.loc.y)),
     )
         .into()
+}
+
+/// A zone without space at its edges; at least one pixel stays.
+fn shrink(zone: Rectangle<i32, Logical>, edges: Edges) -> Rectangle<i32, Logical> {
+    let px = |v: u32| i32::try_from(v).unwrap_or(i32::MAX);
+    // The space of the start edge, then of the end edge, within a side.
+    let side = |side: i32, start: u32, end: u32| {
+        let start = px(start).min(side - 1).max(0);
+        let end = px(end).min(side - 1 - start).max(0);
+        (start, side - start - end)
+    };
+    if zone.size.w < 1 || zone.size.h < 1 {
+        return zone;
+    }
+    let (left, w) = side(zone.size.w, edges.left, edges.right);
+    let (top, h) = side(zone.size.h, edges.top, edges.bottom);
+    Rectangle::new((zone.loc.x + left, zone.loc.y + top).into(), (w, h).into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reserves_shrink_the_zone_and_keep_a_pixel() {
+        let zone = Rectangle::new((0, 30).into(), (1280, 770).into());
+        let edges = Edges {
+            top: 40,
+            left: 100,
+            ..Edges::default()
+        };
+        assert_eq!(
+            shrink(zone, edges),
+            Rectangle::new((100, 70).into(), (1180, 730).into())
+        );
+        let all = Edges {
+            top: u32::MAX,
+            right: 5000,
+            bottom: 1,
+            left: 2000,
+        };
+        assert_eq!(
+            shrink(zone, all),
+            Rectangle::new((1279, 799).into(), (1, 1).into())
+        );
+    }
 }

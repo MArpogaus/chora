@@ -207,6 +207,7 @@ pub struct OutputInfo {
     /// coordinates of the output.
     pub camera: Transform,
     /// The part of the scene that the output shows, without the areas that
-    /// panels reserve: x, y, width and height in scene coordinates.
+    /// panels and `output.reserve` reserve: x, y, width and height in scene
+    /// coordinates.
     pub work_area: [i32; 4],
 }

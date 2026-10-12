@@ -151,7 +151,7 @@ or an empty list. It always sees the current titles.
 | `animation.done` | the node whose animation reached its targets |
 | `effect.failed` | the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version |
 | `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of all nodes, because frames were slow for two seconds |
-| `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels |
+| `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
 | `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`; only the exporting connection gets it, subscribed or not |
@@ -182,6 +182,7 @@ client sends `hello` first. The core answers every request.
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject` and `screen.capture` for a client name; `choractl grant` and `choractl revoke` call them |
 | `output.list` | list the outputs and their cameras |
+| `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
@@ -193,6 +194,12 @@ A connection sends `hello` once, within 5 s. Connections with the same name shar
 nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
 different value. For example, `choractl --name tiling` fails while the tiling
 plugin runs.
+
+A reserve of `output.reserve` belongs to a connection and ends with it,
+also when its client crashes (#8). The reserves of all connections on an
+output add up, and count from the edges of the area that the exclusive
+zones of layer surfaces leave free. At least one pixel of the work area
+stays. `choractl reserve --top 30` holds a reserve until it ends.
 
 A key binding needs Ctrl, Alt or Super, so that typing still works. The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
@@ -318,7 +325,7 @@ caller. The `Client` of `chora-scene` answers with `Client::answer`.
 
 | Method | Parameters | Result |
 |--------|------------|--------|
-| `set_layout` | `layout`: `master_stack`, `columns` or `rows`; `gap` in logical pixels; `reserve`: pixels left free at the left, top, right and bottom of the work area; a missing field keeps its value | the layout, the gap, the reserve and the tiled windows |
+| `set_layout` | `layout`: `master_stack`, `columns` or `rows`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap and the tiled windows |
 | `get_layout` | none | the same |
 
 ## Plugins
@@ -358,6 +365,7 @@ example in the `.mcp.json` of Claude Code:
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
 | `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views), by name only |
+| `reserve_space` | space at the edges of an output, as `output.reserve`, while the server runs |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
 | `subscribe_events` | start to collect events, and grab keys (#7); `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the earlier subscription |
 | `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500) |

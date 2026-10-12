@@ -58,7 +58,6 @@ enum Layout {
 struct SetLayout {
     layout: Option<Layout>,
     gap: Option<u16>,
-    reserve: Option<[u16; 4]>,
 }
 
 /// The answer of `tiling.set_layout` and `tiling.get_layout`.
@@ -66,7 +65,6 @@ struct SetLayout {
 struct LayoutInfo<'a> {
     layout: Layout,
     gap: u16,
-    reserve: [u16; 4],
     /// The tiled surfaces, the master first.
     windows: &'a [String],
 }
@@ -92,9 +90,6 @@ struct Tiling {
     args: Args,
     bindings: Vec<(String, Action)>,
     area: [i32; 4],
-    /// Space left free at the left, top, right and bottom of the work
-    /// area, for example for an agent's panel.
-    reserve: [u16; 4],
     /// The tiled surfaces; the first one is the master.
     windows: Vec<String>,
     focused: Option<String>,
@@ -120,7 +115,6 @@ fn run(args: Args) -> Result<(), ClientError> {
         args,
         bindings: Vec::new(),
         area: [0; 4],
-        reserve: [0; 4],
         windows: Vec::new(),
         focused: None,
     };
@@ -268,14 +262,12 @@ impl Tiling {
                 serde_json::from_value(params).map_err(|e| invalid(e.to_string()))?;
             self.args.layout = change.layout.unwrap_or(self.args.layout);
             self.args.gap = change.gap.unwrap_or(self.args.gap);
-            self.reserve = change.reserve.unwrap_or(self.reserve);
             self.relayout()
                 .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
         let info = LayoutInfo {
             layout: self.args.layout,
             gap: self.args.gap,
-            reserve: self.reserve,
             windows: &self.windows,
         };
         Ok(serde_json::to_value(info).expect("layouts always serialize"))
@@ -350,7 +342,7 @@ impl Tiling {
     fn relayout(&mut self) -> Result<(), ClientError> {
         let n = self.windows.len();
         let gap = i32::from(self.args.gap);
-        let area = shrink(self.area, self.reserve);
+        let area = self.area;
         let cells = match self.args.layout {
             Layout::MasterStack => master_stack(n, area, gap),
             Layout::Columns => split(n, area, true)
@@ -406,19 +398,6 @@ impl Tiling {
 
 fn area_of(output: &OutputInfo) -> [i32; 4] {
     output.work_area
-}
-
-/// The area without the reserved space; at least one pixel stays.
-fn shrink([left, top, width, height]: [i32; 4], reserve: [u16; 4]) -> [i32; 4] {
-    let [free_left, free_top, free_right, free_bottom] = reserve.map(i32::from);
-    let free_left = free_left.min(width - 1);
-    let free_top = free_top.min(height - 1);
-    [
-        left + free_left,
-        top + free_top,
-        (width - free_left - free_right).max(1),
-        (height - free_top - free_bottom).max(1),
-    ]
 }
 
 /// The cells of a master and stack layout: the first window takes the left
@@ -477,7 +456,7 @@ fn spawn(command: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::{master_stack, shrink, split};
+    use super::{master_stack, split};
 
     #[test]
     fn one_window_fills_the_area() {
@@ -503,13 +482,6 @@ mod tests {
             split(2, [10, 0, 50, 40], false),
             vec![[10, 0, 50, 20], [10, 20, 50, 20]]
         );
-    }
-
-    #[test]
-    fn reserve_frees_space_and_keeps_a_pixel() {
-        assert_eq!(shrink([0, 0, 100, 50], [0, 0, 40, 0]), [0, 0, 60, 50]);
-        assert_eq!(shrink([10, 0, 100, 50], [5, 10, 0, 0]), [15, 10, 95, 40]);
-        assert_eq!(shrink([0, 0, 100, 50], [500, 0, 500, 0]), [99, 0, 1, 50]);
     }
 
     #[test]

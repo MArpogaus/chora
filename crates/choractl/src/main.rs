@@ -17,8 +17,8 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use chora_scene::{
     Event,
     ipc::{
-        Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, GrantChange,
-        Hello, Inject, MethodCall, Picture, Query, Subscribe,
+        Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, Edges,
+        GrantChange, Hello, Inject, MethodCall, Picture, Query, Reserve, Subscribe,
     },
 };
 use clap::{Parser, Subcommand};
@@ -56,6 +56,10 @@ enum Cmd {
     },
     /// Print the outputs.
     Outputs,
+    /// Reserve space at the edges of an output, in logical pixels: the work
+    /// area leaves it out until this command ends. Prints the output, then
+    /// waits.
+    Reserve(ReserveArgs),
     /// Call a method that a plugin exported, for example
     /// `choractl call tiling set_layout '{"layout": "columns"}'`.
     Call {
@@ -149,6 +153,26 @@ enum ViewCmd {
     },
 }
 
+/// The arguments of `choractl reserve`.
+#[derive(clap::Args)]
+struct ReserveArgs {
+    /// The output; the first one if missing.
+    #[arg(long)]
+    output: Option<String>,
+    /// The space at the top.
+    #[arg(long, default_value_t = 0)]
+    top: u32,
+    /// The space at the right.
+    #[arg(long, default_value_t = 0)]
+    right: u32,
+    /// The space at the bottom.
+    #[arg(long, default_value_t = 0)]
+    bottom: u32,
+    /// The space at the left.
+    #[arg(long, default_value_t = 0)]
+    left: u32,
+}
+
 #[derive(Subcommand)]
 enum AssetCmd {
     /// Store a file under a name and print its path. A second put of the
@@ -202,6 +226,7 @@ fn run(args: Args) -> Result<(), String> {
             .map(drop),
         Cmd::Events { names } => events(&mut client, names),
         Cmd::Outputs => client.call("output.list", Value::Null).map(|v| print(&v)),
+        Cmd::Reserve(args) => reserve(&mut client, args),
         Cmd::Call {
             client: callee,
             method,
@@ -291,6 +316,30 @@ fn events(client: &mut Client, names: Vec<String>) -> Result<(), ClientError> {
             .is_err()
         {
             return Ok(());
+        }
+    }
+}
+
+/// Reserves space and holds it until the core closes the connection or the
+/// command ends.
+fn reserve(client: &mut Client, args: ReserveArgs) -> Result<(), ClientError> {
+    let reserve = Reserve {
+        output: args.output,
+        edges: Edges {
+            top: args.top,
+            right: args.right,
+            bottom: args.bottom,
+            left: args.left,
+        },
+    };
+    let output: Value = client.call("output.reserve", reserve)?;
+    print(&output);
+    let _ = std::io::stdout().flush();
+    loop {
+        match client.next_event() {
+            Err(ClientError::Closed) => return Ok(()),
+            Err(err) => return Err(err),
+            Ok(_) => {}
         }
     }
 }
