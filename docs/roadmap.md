@@ -127,6 +127,33 @@ screen", calls `tiling.set_layout`, and the next screenshot shows the new
 layout. The last step of `tests/agent.sh` checks it with
 `tests/mcp-client.py` in CI.
 
+## M4.1: Agent feedback
+
+**Goal:** an agent builds an interactive view in a few calls, from the
+feedback of the first real MCP sessions (issues #3 to #10).
+
+- Docs and code agree (#3): `clip` on all nodes, `radius` and `border` on
+  rects, and the `shader` node kind with a uniform that names a node as
+  texture (D18). A test parses every example of `docs/api.md`.
+- A camera takes a uniform scale of the short form (#4), and animates in
+  the core with `duration` and `easing` (#10).
+- `choractl mcp`: item schemas for `apply_commands` and `inject_input`
+  from the types of `chora-scene` (#5), and tools to subscribe to and wait
+  for events (#7).
+- `assets.put` stores an image or a shader of a client in another
+  namespace in a directory of the core, removed with the nodes of the
+  client (#6).
+- `output.reserve` reduces the work area for the life of a connection
+  (#8); the `reserve` of `chora-tiling` goes.
+- `process.spawn` starts a program with the environment of the startup
+  command, behind a grant, and `plugins.restart` restarts a plugin of a
+  view (#9).
+
+**Exit:** an automated test passes: an MCP client uploads a shader,
+reserves a panel at the edge of the output, draws it as a rounded shader
+node with two buttons, and moves the camera with an animation when the
+user clicks a button, which the client learns from `wait_events`.
+
 ## M5: Packaging
 
 **Goal:** chora installs like every other desktop on the host.
