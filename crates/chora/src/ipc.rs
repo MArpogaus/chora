@@ -390,6 +390,7 @@ impl State {
             }),
             "input.grab" => params_of::<Grab>(params).and_then(|g| self.ipc_grab(conn, g.binding)),
             "output.list" => Ok(serde_json::json!(self.output_info())),
+            "clients.list" => Ok(self.clients()),
             "grants.set" | "grants.revoke" | "grants.list" => {
                 self.ipc_grants(&request.method, params)
             }

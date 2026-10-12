@@ -221,6 +221,27 @@ impl State {
         self.ipc.respond(pending.caller, &message);
     }
 
+    /// The client names that are connected, with the methods that each
+    /// exported, sorted by name.
+    pub fn clients(&self) -> Value {
+        let mut clients: std::collections::BTreeMap<&str, BTreeSet<&str>> =
+            std::collections::BTreeMap::new();
+        for conn in self.ipc.conn_ids() {
+            let Some(name) = self.ipc.name(conn) else {
+                continue;
+            };
+            let methods = clients.entry(name).or_default();
+            if let Some(names) = self.methods.exports.get(&conn) {
+                methods.extend(names.iter().map(String::as_str));
+            }
+        }
+        let list: Vec<Value> = clients
+            .into_iter()
+            .map(|(name, methods)| serde_json::json!({"name": name, "methods": methods}))
+            .collect();
+        Value::Array(list)
+    }
+
     /// Forgets the exports and the calls of a closed connection. Its
     /// callers get an error.
     pub fn methods_closed(&mut self, conn: u64) {

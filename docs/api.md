@@ -151,6 +151,7 @@ client sends `hello` first. The core answers every request.
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject` and `screen.capture` for a client name; `choractl grant` and `choractl revoke` call them |
 | `output.list` | list the outputs and their cameras |
+| `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
 | `methods.return(call, result, error)` | answer a `method.called` event |
@@ -288,12 +289,14 @@ A plugin is a client with a manifest:
 ```yaml
 name: tiling
 exec: chora-tiling
-subscribe: [surface.created, surface.detached, surface.destroyed, output.changed]
-grabs: [Super+Return, Super+d, Super+q, Super+j, Super+k]
+configure: set_layout
 ```
 
-`choractl` reads the manifest when it loads a view. Before views exist (M4),
-the startup command starts plugins directly.
+`choractl view load` reads the manifest of each plugin of a view: it starts
+a plugin that does not run with `exec`, and passes the `config` of the view
+to the method in `configure` (see
+[Configuration](configuration.md#plugin-manifests)). A flavor starts its
+plugins as systemd units instead.
 
 ## MCP tools
 

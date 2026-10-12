@@ -1,5 +1,7 @@
 //! Command line client for the chora IPC socket.
 
+mod view;
+
 use std::{
     io::{Read, Write},
     process::ExitCode,
@@ -83,6 +85,11 @@ enum Cmd {
         /// The file with the events; stdin if missing or `-`.
         file: Option<String>,
     },
+    /// Load, unload or save a view: plugins and nodes from a YAML file.
+    View {
+        #[command(subcommand)]
+        action: ViewCmd,
+    },
     /// Save a picture of an output or of a node as a PNG file, and print
     /// its size, scale and origin. Needs a grant of `screen.capture` for
     /// the client name.
@@ -102,6 +109,31 @@ enum Cmd {
     },
 }
 
+#[derive(Subcommand)]
+enum ViewCmd {
+    /// Start the plugins of a view that do not run, configure them and
+    /// apply its nodes, which replace the nodes of an earlier load.
+    Load {
+        /// A view name, for `~/.config/chora/views/NAME.yaml` or
+        /// `/usr/share/chora/views/NAME.yaml`, or the path of a YAML file.
+        name: String,
+    },
+    /// Remove the nodes of a view.
+    Unload {
+        /// The name of the view.
+        name: String,
+    },
+    /// Write the nodes of a view as they are now, with the plugins of its
+    /// file.
+    Save {
+        /// The name of the view.
+        name: String,
+        /// The file; `~/.config/chora/views/NAME.yaml` if missing.
+        #[arg(long)]
+        file: Option<String>,
+    },
+}
+
 fn main() -> ExitCode {
     let args = Args::parse();
     match run(args) {
@@ -114,6 +146,9 @@ fn main() -> ExitCode {
 }
 
 fn run(args: Args) -> Result<(), String> {
+    if let Cmd::View { action } = &args.command {
+        return view_command(action);
+    }
     let (commands, input) = match &args.command {
         Cmd::Apply { file } => (read_json(file.as_deref())?, Vec::new()),
         Cmd::Inject { file } => (Vec::new(), read_json(file.as_deref())?),
@@ -147,6 +182,7 @@ fn run(args: Args) -> Result<(), String> {
             capabilities,
         } => grants(&mut client, "grants.revoke", name, capabilities),
         Cmd::Grants => client.call("grants.list", Value::Null).map(|v| print(&v)),
+        Cmd::View { .. } => unreachable!("handled before the connection"),
         Cmd::Inject { .. } => client
             .call::<_, Value>("input.inject", Inject { events: input })
             .map(drop),
@@ -165,6 +201,17 @@ fn run(args: Args) -> Result<(), String> {
         }
     };
     result.map_err(|e| e.to_string())
+}
+
+/// Runs a view command with the client of the view.
+fn view_command(action: &ViewCmd) -> Result<(), String> {
+    let result = match action {
+        ViewCmd::Load { name } => view::load(name),
+        ViewCmd::Unload { name } => view::unload(name),
+        ViewCmd::Save { name, file } => view::save(name, file.as_deref()),
+    }?;
+    print(&result);
+    Ok(())
 }
 
 /// Prints events until the core closes the socket or stdout closes.

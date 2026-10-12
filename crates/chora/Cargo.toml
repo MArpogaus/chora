@@ -44,6 +44,7 @@ assets = [
   { source = "../../dist/session/chora-shutdown.target", dest = "/usr/lib/systemd/user/chora-shutdown.target", mode = "644" },
   { source = "../../flavors/tiling/*", dest = "/usr/share/chora/flavors/tiling/", mode = "644" },
   { source = "../../dist/shaders/*", dest = "/usr/share/chora/shaders/", mode = "644" },
+  { source = "../../dist/plugins/*", dest = "/usr/share/chora/plugins/", mode = "644" },
   { source = "../../flavors/xp/chora-xp*", dest = "/usr/share/chora/flavors/xp/", mode = "644" },
   { source = "../../flavors/xp/theme/*", dest = "/usr/share/chora/flavors/xp/theme/", mode = "644" },
   { source = "../../flavors/xp/theme/expose/*", dest = "/usr/share/chora/flavors/xp/theme/expose/", mode = "644" },

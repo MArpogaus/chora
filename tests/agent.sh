@@ -277,4 +277,54 @@ step "15. a sandboxed client sees no privileged protocol"
 probe sandbox >"$out/sandbox.log" 2>&1 || fail "the sandbox: $(cat "$out/sandbox.log")"
 kill -0 "$chora_pid" || fail "chora died"
 
+step "16. a view configures its plugin and adds its nodes"
+config="$out/config"
+mkdir -p "$config/chora/plugins" "$config/chora/views"
+printf 'name: tiling\nexec: %s/chora-tiling --gap 0\nconfigure: set_layout\n' "$bin" \
+    >"$config/chora/plugins/tiling.yaml"
+cat >"$config/chora/views/work.yaml" <<'VIEW'
+name: work
+plugins:
+- name: tiling
+  config: {layout: rows}
+scene:
+- id: work-panel
+  kind: group
+  props: {transform: {translate: [1100, 20]}}
+- id: work-badge
+  kind: rect
+  parent: work-panel
+  props: {size: [60, 30], color: [0, 1, 0, 1]}
+VIEW
+view() { XDG_CONFIG_HOME=$config ctl view "$@"; }
+view load work >"$out/view.json" || fail "the view failed to load"
+jq -e '.nodes == 2 and .started == []' "$out/view.json" >/dev/null || fail "load: $(cat "$out/view.json")"
+wait_for xs_are "0 0 0"
+ctl query owner:view-work | jq -e 'length == 2' >/dev/null || fail "the view has no nodes"
+view load work >/dev/null || fail "the view failed to load again"
+ctl query owner:view-work | jq -e 'length == 2' >/dev/null || fail "a second load doubled the nodes"
+if view load "$out/no-such.yaml" 2>/dev/null; then fail "a missing view loaded"; fi
+printf 'name: bad\nscene:\n- id: x\n  kind: rect\n  colour: [1, 0, 0, 1]\n' >"$out/bad.yaml"
+if view load "$out/bad.yaml" 2>"$out/bad-view.err"; then fail "a view with an unknown key loaded"; fi
+grep -q "colour" "$out/bad-view.err" || fail "bad view: $(cat "$out/bad-view.err")"
+
+step "17. a view saves its nodes, unloads, and starts its plugin when it is gone"
+echo '[{"update": {"id": "work-badge", "props": {"color": [1, 1, 0, 1]}}}]' |
+    "$bin/choractl" --name view-work apply || fail "the update failed"
+view save work >/dev/null || fail "the save failed"
+grep -q "work-badge" "$config/chora/views/work.yaml" ||
+    fail "saved: $(cat "$config/chora/views/work.yaml")"
+view load work >/dev/null || fail "the saved view failed to load"
+ctl query id:work-badge | jq -e '.[0].color == [1, 1, 0, 1]' >/dev/null ||
+    fail "the saved color is gone: $(ctl query id:work-badge)"
+view unload work >/dev/null || fail "the unload failed"
+ctl query owner:view-work | jq -e 'length == 0' >/dev/null || fail "the unload left nodes"
+pkill -x chora-tiling
+wait_for count_is 0 '.owner == "tiling"'
+view load work >"$out/view-start.json" || fail "the view did not start its plugin"
+jq -e '.started == ["tiling"]' "$out/view-start.json" >/dev/null ||
+    fail "start: $(cat "$out/view-start.json")"
+wait_for count_is 3 '.owner == "tiling"'
+wait_for xs_are "0 0 0"
+
 echo "PASS (logs and screenshots in $out)"

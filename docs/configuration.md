@@ -26,29 +26,73 @@ installs the reference flavors to `/usr/share/chora/`.
 
 ## Views
 
-A view is a part of the scene and the plugins that drive it.
-`choractl view load <name>` starts the plugins of the view that do not run
-yet. Then it applies the nodes of the view as one transaction.
+A view is a part of the scene and the plugins that drive it (D35):
 
 ```yaml
-# ~/.config/chora/views/analysis.yaml
-name: analysis
+# ~/.config/chora/views/work.yaml
+name: work
 plugins:
 - name: tiling
   config: {layout: columns, gap: 12}
-- name: keybindings
-  config:
-    bindings:
-      Super+Return: {spawn: foot}
-      Super+q: close
 scene:
-- id: workspace
+- id: work-corner
   kind: group
-  effects: [{shader: vignette.frag, uniforms: {strength: 0.3}}]
+  props:
+    transform: {translate: [1800, 20]}
+- id: work-badge
+  kind: rect
+  parent: work-corner
+  props:
+    size: [100, 30]
+    color: [0.2, 0.5, 1.0, 1.0]
 ```
 
-The tiling plugin places the surfaces in `workspace`. The view only names the
-plugin and its configuration.
+- `choractl view load work` starts each plugin of the view that does not
+  run yet, with the `exec` of its manifest, and waits up to 10 s until it
+  connects. It passes each `config` to the method that the manifest names
+  in `configure`. Then it applies the nodes of the view as one transaction.
+- The client `view-work` owns the nodes. A second load replaces them,
+  `choractl view unload work` removes them.
+- `choractl view save work` writes the nodes of `view-work` as they are
+  now, with the plugins of the file that was there, to
+  `~/.config/chora/views/work.yaml`, or to `--file PATH`. A plugin or an
+  agent changes the nodes as `view-work`, for example
+  `choractl --name view-work apply`.
+- A node has an `id`, a `kind` (`group`, `rect` or `image`), a `parent`
+  (the root by default) and its `props` as in a `create` command.
+- `choractl view load` also takes the path of a YAML file.
+
+`choractl` looks for `NAME.yaml` in `$XDG_CONFIG_HOME/chora/views/` first
+(`~/.config/chora/views/` by default), and then in
+`/usr/share/chora/views/`.
+
+### Strict YAML
+
+`choractl` reads views and manifests with `serde-saphyr` (D41). Unknown
+keys, duplicate keys and unknown tags are errors. Only `true` and `false`
+are booleans, so `no` stays the string `no`.
+
+### Plugin manifests
+
+A manifest tells `choractl` how to start and how to configure a plugin. It
+lives in `plugins/NAME.yaml` of the same directories:
+
+```yaml
+# /usr/share/chora/plugins/tiling.yaml
+name: tiling
+exec: chora-tiling
+configure: set_layout
+description: Tiles the windows as master and stack, columns or rows.
+```
+
+| Key | Meaning |
+|-----|---------|
+| `name` | the client name of the plugin |
+| `exec` | the shell command that starts it |
+| `configure` | the exported method that takes the `config` of a view; a view without `config` needs none |
+| `description` | what the plugin does |
+
+The package installs the manifest of `chora-tiling`.
 
 ## Flavors
 

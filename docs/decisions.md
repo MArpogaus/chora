@@ -66,6 +66,7 @@ The decision log. Nothing here is final. Every entry can come back for review.
 | D38 | HTML content from agents runs in a browser in app mode, as a service | No code. chora places toplevels anywhere. |
 | D39 | The first showcase is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it comes right after M2, before the agent interface | It proves that the scene model carries classic mouse-driven desktops and their effects. The assets come from `kde-plasma-winxp-launcher` and keep their licenses; the GPL-3.0-only artwork of Exposé and modernXP is data of the flavor that the plugin reads, not code of the core (D8). It is a demo, not a daily driver. |
 | D40 | The user grants `input.inject` and `screen.capture` with `choractl grant NAME CAPABILITY`, per client name, until the session ends or `choractl revoke`; the emergency reset revokes all grants; `choractl mcp` has no tool for grants | The core draws no text, so a dialog is no option. An agent that uses the MCP bridge cannot grant itself by mistake. |
+| D41 | `choractl` reads YAML with `serde-saphyr`: strict booleans, errors on unknown and duplicate keys and on unknown tags | `serde_yaml` is archived and `serde_yml` is unsound. `serde-saphyr` is maintained, pure Rust and panic-free, and limits the work of a document (open question 1). |
 
 ## Rejected review findings
 
@@ -77,5 +78,4 @@ The decision log. Nothing here is final. Every entry can come back for review.
 
 ## Open questions
 
-1. **YAML crate.** Which maintained crate replaces `serde_yaml`? Decide in M4.
-2. **Repository name.** The GitHub repository still has the name `void`.
+1. **Repository name.** The GitHub repository still has the name `void`.
