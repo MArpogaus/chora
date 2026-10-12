@@ -210,6 +210,19 @@ impl Tty {
         crate::gl::check_effect(renderer.as_mut(), path)
     }
 
+    /// Runs a function with the renderer of the primary GPU, while the
+    /// session is active.
+    pub fn with_gles<T>(&mut self, f: impl FnOnce(&mut GlesRenderer) -> T) -> Result<T, String> {
+        if !self.session.is_active() {
+            return Err("the session is not active".into());
+        }
+        let mut renderer = self
+            .gpus
+            .single_renderer(&self.primary_gpu)
+            .map_err(|e| format!("{e:?}"))?;
+        Ok(f(renderer.as_mut()))
+    }
+
     /// Whether the primary GPU can use a buffer of a client.
     pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
         self.gpus

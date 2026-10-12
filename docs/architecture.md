@@ -252,9 +252,9 @@ The safety layer is the only built-in behavior (see
 - **Fixed bindings** (D23). Injected input never triggers them.
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
-- **Emergency reset.** The core disconnects all plugins, removes all effects,
-  restores the default cameras and puts all surfaces in a simple grid. This
-  grid is the one layout in the core. It is hardcoded, so a broken
+- **Emergency reset.** The core disconnects all plugins, revokes all grants,
+  removes all effects, restores the default cameras and puts all surfaces in
+  a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
   configuration cannot break it. The reset also changes the focus (see
   [Input flow](#input-flow)).
 - **Session lock.** The core enforces `ext-session-lock`. One client owns
@@ -279,8 +279,10 @@ Version 1 trusts every client of the same user (D33):
   outputs. `wp-security-context-v1` hides privileged protocols, for example
   screencopy, from sandboxed clients.
 - The IPC methods `input.inject` and `screen.capture` need a **grant** of the
-  user for the client name. A grant protects against mistakes of agents. It
-  is no barrier against hostile code of the same user.
+  user for the client name: `choractl grant NAME CAPABILITY` (D40). A grant
+  protects against mistakes of agents. It is no barrier against hostile code
+  of the same user. The emergency reset revokes all grants.
+- `screen.capture` fails while the session is locked.
 
 ## Sessions and flavors
 

@@ -1,9 +1,11 @@
 //! The chora Wayland compositor.
 
 mod backend;
+mod capture;
 mod cursor;
 mod foreign_toplevel;
 mod gl;
+mod grants;
 mod handlers;
 mod images;
 mod input;

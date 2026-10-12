@@ -143,13 +143,14 @@ impl State {
         self.emit(&Event::EffectsDropped);
     }
 
-    /// The emergency reset: disconnects all clients of the IPC socket, puts
-    /// all surfaces in a grid that fills the output and focuses the first
-    /// one.
+    /// The emergency reset: disconnects all clients of the IPC socket,
+    /// revokes all grants, puts all surfaces in a grid that fills the output
+    /// and focuses the first one.
     pub fn reset(&mut self) {
         for conn in self.ipc.conn_ids() {
             self.ipc_close(conn);
         }
+        self.grants.clear();
         self.node_grab = None;
         let effects = self.scene.reset(self.reset_area());
         self.send_configures(&effects);

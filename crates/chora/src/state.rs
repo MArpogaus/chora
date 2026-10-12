@@ -54,9 +54,9 @@ use smithay::{
 };
 
 use crate::{
-    backend::Backend, foreign_toplevel::ForeignToplevelManagerState, ipc::Ipc, lock::Lock,
-    methods::Methods, output_management::OutputManagement, render::Assets, safety::Watchdog,
-    transaction::Transactions,
+    backend::Backend, foreign_toplevel::ForeignToplevelManagerState, grants::Grants, ipc::Ipc,
+    lock::Lock, methods::Methods, output_management::OutputManagement, render::Assets,
+    safety::Watchdog, transaction::Transactions,
 };
 
 /// The drag of a rect or an image node: the node, the button, and the last
@@ -142,6 +142,8 @@ pub struct State {
     next_surface: u64,
     pub ipc: Ipc,
     pub transactions: Transactions,
+    /// The grants of the user for `input.inject` and `screen.capture`.
+    pub grants: Grants,
     /// The methods that plugins export, and the calls in flight.
     pub methods: Methods,
     /// Keys whose press went to the safety layer or to a grab, so that their
@@ -226,6 +228,7 @@ impl State {
             next_surface: 1,
             ipc: Ipc::default(),
             transactions: Transactions::default(),
+            grants: Grants::default(),
             methods: Methods::default(),
             suppressed_keys: Vec::new(),
         }

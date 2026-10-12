@@ -5,9 +5,14 @@ use std::{
     process::ExitCode,
 };
 
+use base64::{Engine, engine::general_purpose::STANDARD};
+
 use chora_scene::{
     Command, Event,
-    ipc::{Apply, Client, ClientError, Hello, MethodCall, Query, Subscribe},
+    ipc::{
+        Apply, Capability, Capture, Client, ClientError, GrantChange, Hello, MethodCall, Picture,
+        Query, Subscribe,
+    },
 };
 use clap::{Parser, Subcommand};
 use serde_json::Value;
@@ -52,6 +57,41 @@ enum Cmd {
         method: String,
         /// The parameters as JSON; `null` if missing.
         params: Option<String>,
+    },
+    /// Grant a client name `input.inject` or `screen.capture`, until the
+    /// session ends or a revoke.
+    Grant {
+        /// The client name, for example `agent`.
+        client: String,
+        /// `input.inject` or `screen.capture`.
+        #[arg(required = true)]
+        capabilities: Vec<Capability>,
+    },
+    /// Revoke grants of a client name; all of them without a capability.
+    Revoke {
+        /// The client name.
+        client: String,
+        /// `input.inject` or `screen.capture`.
+        capabilities: Vec<Capability>,
+    },
+    /// Print the grants by client name.
+    Grants,
+    /// Save a picture of an output or of a node as a PNG file, and print
+    /// its size, scale and origin. Needs a grant of `screen.capture` for
+    /// the client name.
+    Capture {
+        /// The PNG file; stdout for `-`.
+        file: String,
+        /// The output; the first one if neither this nor a node is set.
+        #[arg(long, conflicts_with = "node")]
+        output: Option<String>,
+        /// A node, for example a surface or a group, with its descendants.
+        #[arg(long)]
+        node: Option<String>,
+        /// Shrink the picture until its longer side has at most this many
+        /// pixels.
+        #[arg(long)]
+        max_side: Option<u32>,
     },
 }
 
@@ -98,6 +138,31 @@ fn run(args: Args) -> Result<(), String> {
             };
             client.call("methods.call", call).map(|v| print(&v))
         }
+        Cmd::Grant {
+            client: name,
+            capabilities,
+        } => grants(&mut client, "grants.set", name, capabilities),
+        Cmd::Revoke {
+            client: name,
+            capabilities,
+        } => grants(&mut client, "grants.revoke", name, capabilities),
+        Cmd::Grants => client.call("grants.list", Value::Null).map(|v| print(&v)),
+        Cmd::Capture {
+            file,
+            output,
+            node,
+            max_side,
+        } => {
+            let capture = Capture {
+                output,
+                node,
+                max_side,
+            };
+            let picture: Picture = client
+                .call("screen.capture", capture)
+                .map_err(|e| e.to_string())?;
+            return save(&picture, &file);
+        }
     };
     result.map_err(|e| e.to_string())
 }
@@ -119,6 +184,41 @@ fn events(client: &mut Client, names: Vec<String>) -> Result<(), ClientError> {
             return Ok(());
         }
     }
+}
+
+fn grants(
+    client: &mut Client,
+    method: &str,
+    name: String,
+    capabilities: Vec<Capability>,
+) -> Result<(), ClientError> {
+    let change = GrantChange {
+        client: name,
+        capabilities,
+    };
+    client.call::<_, Value>(method, change).map(drop)
+}
+
+/// Writes the PNG file of a picture, and prints the rest of it.
+fn save(picture: &Picture, file: &str) -> Result<(), String> {
+    let png = STANDARD
+        .decode(&picture.png)
+        .map_err(|e| format!("the picture is no base64: {e}"))?;
+    let written = if file == "-" {
+        std::io::stdout().write_all(&png)
+    } else {
+        std::fs::write(file, &png)
+    };
+    written.map_err(|e| format!("{file}: {e}"))?;
+    if file != "-" {
+        print(&serde_json::json!({
+            "width": picture.width,
+            "height": picture.height,
+            "scale": picture.scale,
+            "origin": picture.origin,
+        }));
+    }
+    Ok(())
 }
 
 fn parse_params(text: Option<&str>) -> Result<Value, String> {

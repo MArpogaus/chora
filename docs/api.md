@@ -148,7 +148,8 @@ client sends `hello` first. The core answers every request.
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications |
 | `input.grab(binding)` | get the events of a key, a button or a gesture; returns the binding as `input.key` names it |
 | `input.inject(events)` | send synthetic input; needs a grant |
-| `screen.capture(target)` | capture an output, a group or a surface; needs a grant |
+| `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject` and `screen.capture` for a client name; `choractl grant` and `choractl revoke` call them |
 | `output.list` | list the outputs and their cameras |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
@@ -169,6 +170,48 @@ configure the outputs (see
 configuration of its own. After a new mode, position, transform or scale,
 the core sends `output.changed`. For an output that turns off, it sends
 `output.removed`, and `output.list` no longer lists the output.
+
+## Grants
+
+`input.inject` and `screen.capture` see or drive the whole session, so they
+need a grant of the user for the client name (D40):
+
+```console
+$ choractl grant agent screen.capture input.inject
+$ choractl grants
+{"agent": ["input.inject", "screen.capture"]}
+$ choractl revoke agent
+```
+
+A grant lasts until `choractl revoke` or the end of the session. The
+emergency reset revokes all grants. A grant protects against mistakes of
+agents, not against hostile code of the same user, which can call
+`grants.set` itself. `choractl mcp` offers no tool for grants.
+
+## Screen capture
+
+`screen.capture` renders an output, or a node with its descendants, and
+answers with a PNG file in base64:
+
+| Parameter | Meaning |
+|-----------|---------|
+| `output` | the output name; the first output if neither `output` nor `node` is set |
+| `node` | a node id, for example a surface or a group |
+| `max_side` | shrink the picture until its longer side has at most this many pixels |
+
+The result has the `width` and `height` in pixels, the `scale` in pixels per
+logical pixel, the `origin` and the `png`. A pixel at (px, py) shows the
+point `origin + (px, py) / scale`: in the logical coordinates of the output,
+whose origin is (0, 0), or in the coordinates of the node.
+
+- An output shows as on screen, without the cursor.
+- A node shows without its own transform, opacity, mesh and effects, on a
+  transparent background. Its area covers the descendants with a size.
+- A capture fails while the session is locked, and when the PNG file is
+  larger than 5 MiB; a smaller `max_side` helps then.
+
+`choractl capture FILE` saves a picture, for example
+`choractl --name agent capture --node s1 window.png`.
 
 ## Plugin methods
 

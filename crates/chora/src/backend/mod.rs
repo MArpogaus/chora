@@ -37,6 +37,18 @@ impl Backend {
         }
     }
 
+    /// Runs a function with the GLES renderer of the primary GPU, for
+    /// example to capture the screen.
+    pub fn with_gles<T>(
+        &mut self,
+        f: impl FnOnce(&mut smithay::backend::renderer::gles::GlesRenderer) -> T,
+    ) -> Result<T, String> {
+        match self {
+            Self::Winit(winit) => Ok(f(winit.gles())),
+            Self::Tty(tty) => tty.with_gles(f),
+        }
+    }
+
     /// Switches to another virtual terminal. Only the tty backend can.
     pub fn change_vt(&mut self, vt: i32) {
         if let Self::Tty(tty) = self {

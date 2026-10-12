@@ -261,6 +261,11 @@ fn flipped(transform: Transform) -> Transform {
 
 impl Winit {
     /// Compiles the shader of an effect, to check it.
+    /// The renderer of the window.
+    pub fn gles(&mut self) -> &mut GlesRenderer {
+        self.graphics.renderer()
+    }
+
     pub fn check_effect(&mut self, path: &str) -> Result<(), String> {
         crate::gl::check_effect(self.graphics.renderer(), path)
     }

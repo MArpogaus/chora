@@ -1,4 +1,5 @@
 [dependencies]
+base64.workspace = true
 calloop.workspace = true
 chora-scene.workspace = true
 png = "0.18"

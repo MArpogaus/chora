@@ -173,6 +173,59 @@ pub struct Grab {
     pub binding: crate::Binding,
 }
 
+/// A method that needs a grant of the user (D33).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum Capability {
+    /// `input.inject`: send synthetic input.
+    #[serde(rename = "input.inject")]
+    InputInject,
+    /// `screen.capture`: capture an output, a group or a surface.
+    #[serde(rename = "screen.capture")]
+    ScreenCapture,
+}
+
+impl Capability {
+    /// Every capability.
+    pub const ALL: [Self; 2] = [Self::InputInject, Self::ScreenCapture];
+
+    /// The name, which is also the name of the method.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::InputInject => "input.inject",
+            Self::ScreenCapture => "screen.capture",
+        }
+    }
+}
+
+impl std::fmt::Display for Capability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+impl std::str::FromStr for Capability {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::ALL
+            .into_iter()
+            .find(|c| c.name() == s)
+            .ok_or_else(|| format!("unknown capability {s:?}; known: input.inject, screen.capture"))
+    }
+}
+
+/// Parameters of `grants.set` and `grants.revoke`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GrantChange {
+    /// The client name.
+    pub client: String,
+    /// The capabilities; for `grants.revoke`, all if empty.
+    #[serde(default)]
+    pub capabilities: Vec<Capability>,
+}
+
 /// Parameters of `methods.export`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -207,6 +260,40 @@ pub struct MethodReturn {
     /// The error, if the method failed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<RpcError>,
+}
+
+/// Parameters of `screen.capture`: an output, or a node with its
+/// descendants. Without both, the first output.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Capture {
+    /// The output name, for example `DP-1`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output: Option<String>,
+    /// The node id, for example a group or a surface.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node: Option<String>,
+    /// Shrinks the picture until its longer side has at most this many
+    /// pixels.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_side: Option<u32>,
+}
+
+/// The result of `screen.capture`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Picture {
+    /// The width in pixels.
+    pub width: u32,
+    /// The height in pixels.
+    pub height: u32,
+    /// Pixels per logical pixel: a pixel at (px, py) shows the point
+    /// `origin + (px, py) / scale`.
+    pub scale: f64,
+    /// The point of the top left pixel: in the logical coordinates of the
+    /// output, so (0, 0), or in the coordinates of the node.
+    pub origin: [f64; 2],
+    /// A PNG file in base64.
+    pub png: String,
 }
 
 /// Errors of the blocking [`Client`].

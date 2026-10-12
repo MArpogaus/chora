@@ -114,8 +114,7 @@ Windows XP (D39). The flavor is a demo, not a daily driver.
 
 **Goal:** an agent sees and changes the screen.
 
-- Grants for `input.inject` and `screen.capture` (D33). Open question 1 in
-  [Decisions](decisions.md) must have an answer first.
+- Grants for `input.inject` and `screen.capture` (D33, D40).
 - `ext-image-copy-capture` and `wlr-screencopy`; `xdg-desktop-portal-wlr`
   for screen sharing (D37).
 - Plugin methods: `methods.export` and `methods.call` (D31).

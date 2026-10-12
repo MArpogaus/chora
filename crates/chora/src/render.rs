@@ -241,11 +241,7 @@ fn layer_texture(
         scale,
         size: (size.w, size.h).into(),
     };
-    let scene = parts.scene;
-    let list = scene.layer_list(&node.id);
-    let (first, rest) = list.split_first()?;
-    let mut content = elements(parts, gles, rest, &inner);
-    content.extend(node_elements(parts, gles, first, &inner));
+    let content = flat_elements(parts, gles, &node.id, &inner)?;
     let mut texture = parts.assets.layers.texture(gles, &node.id, 0, size).ok()?;
     if let Err(err) = mesh::render_into(gles, &mut texture, scale, &content) {
         tracing::warn!(%err, "a layer failed");
@@ -259,6 +255,24 @@ fn layer_texture(
         texture,
         &mut assets.effect_errors,
     ))
+}
+
+/// The render elements of a node and its descendants, front first, in node
+/// coordinates: the node shows without its own transform, opacity, mesh and
+/// effects. Nested layers show through their meshes. `None` for a node
+/// that is gone or hidden.
+pub fn flat_elements<R: MeshRenderer>(
+    parts: &mut Parts<'_>,
+    renderer: &mut R,
+    id: &str,
+    view: &View,
+) -> Option<Vec<SceneElement<R>>> {
+    let scene = parts.scene;
+    let list = scene.layer_list(id);
+    let (first, rest) = list.split_first()?;
+    let mut content = elements(parts, renderer, rest, view);
+    content.extend(node_elements(parts, renderer, first, view));
+    Some(content)
 }
 
 /// The render elements of one node that is not a layer, front first. The

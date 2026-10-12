@@ -286,6 +286,7 @@ dependencies = [
 name = "chora"
 version = "0.3.0"
 dependencies = [
+ "base64",
  "calloop",
  "chora-scene",
  "png",
@@ -345,6 +346,7 @@ dependencies = [
 name = "choractl"
 version = "0.3.0"
 dependencies = [
+ "base64",
  "chora-scene",
  "clap",
  "serde_json",
