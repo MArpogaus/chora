@@ -1306,6 +1306,11 @@
 <td>The user grants <code>input.inject</code> and <code>screen.capture</code> with <code>choractl grant NAME CAPABILITY</code>, per client name, until the session ends or <code>choractl revoke</code>; the emergency reset revokes all grants; <code>choractl mcp</code> has no tool for grants</td>
 <td>The core draws no text, so a dialog is no option. An agent that uses the MCP bridge cannot grant itself by mistake.</td>
 </tr>
+<tr>
+<td>D41</td>
+<td><code>choractl</code> reads YAML with <code>serde-saphyr</code>: strict booleans, errors on unknown and duplicate keys and on unknown tags</td>
+<td><code>serde_yaml</code> is archived and <code>serde_yml</code> is unsound. <code>serde-saphyr</code> is maintained, pure Rust and panic-free, and limits the work of a document (open question 1).</td>
+</tr>
 </tbody>
 </table>
 <h2 id="rejected-review-findings">Rejected review findings<a class="headerlink" href="#rejected-review-findings" title="Permanent link">&para;</a></h2>
@@ -1333,7 +1338,6 @@
 </table>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>YAML crate.</strong> Which maintained crate replaces <code>serde_yaml</code>? Decide in M4.</li>
 <li><strong>Repository name.</strong> The GitHub repository still has the name <code>void</code>.</li>
 </ol>
 

@@ -1474,6 +1474,10 @@ client sends <code>hello</code> first. The core answers every request.</p>
 <td>list the outputs and their cameras</td>
 </tr>
 <tr>
+<td><code>clients.list</code></td>
+<td>list the connected client names and the methods that each exported</td>
+</tr>
+<tr>
 <td><code>methods.export(names)</code></td>
 <td>offer methods of this client to other clients</td>
 </tr>
@@ -1657,11 +1661,13 @@ caller. The <code>Client</code> of <code>chora-scene</code> answers with <code>C
 <p>A plugin is a client with a manifest:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
 <span class="nt">exec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora-tiling</span>
-<span class="nt">subscribe</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">surface.created</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">surface.detached</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">surface.destroyed</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">output.changed</span><span class="p p-Indicator">]</span>
-<span class="nt">grabs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Super+Return</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+d</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+q</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+j</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Super+k</span><span class="p p-Indicator">]</span>
+<span class="nt">configure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">set_layout</span>
 </code></pre></div>
-<p><code>choractl</code> reads the manifest when it loads a view. Before views exist (M4),
-the startup command starts plugins directly.</p>
+<p><code>choractl view load</code> reads the manifest of each plugin of a view: it starts
+a plugin that does not run with <code>exec</code>, and passes the <code>config</code> of the view
+to the method in <code>configure</code> (see
+<a href="../configuration/#plugin-manifests">Configuration</a>). A flavor starts its
+plugins as systemd units instead.</p>
 <h2 id="mcp-tools">MCP tools<a class="headerlink" href="#mcp-tools" title="Permanent link">&para;</a></h2>
 <p><code>choractl mcp</code> offers the IPC methods as MCP tools. It also offers tools for
 whole tasks, for example "describe the screen", which returns a screenshot
