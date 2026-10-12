@@ -1755,6 +1755,11 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tr>
 </tbody>
 </table>
+<p>The input schemas of <code>apply_commands</code> and <code>inject_input</code> come from the
+types of <code>chora-scene</code> (#5). They list every command, every input event and
+every field, with its description, so the model sees the shape of a call
+before the first try. A test checks that the schemas, the types and the
+examples of this page agree.</p>
 <p>The screenshot of <code>describe_screen</code>, <code>capture</code> and <code>inject_input</code> need the
 grants of the client name, for example
 <code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
