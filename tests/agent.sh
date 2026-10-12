@@ -1,5 +1,5 @@
 #!/bin/bash
-# End-to-end test of milestone M4, the agent interface: chora runs nested
+# End-to-end test of milestones M4 and M4.1, the agent interface: chora runs nested
 # in a headless sway with chora-tiling and two foot windows. An agent
 # calls the methods that chora-tiling exports, gets grants, captures the
 # output and nodes, types into a terminal, clicks a node and presses a
@@ -439,5 +439,29 @@ wait_for count_is 3 '.owner == "tiling"'
 if ctl restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
 "$bin/choractl" revoke agent process.spawn || fail "the revoke failed"
 if ctl restart tiling 2>/dev/null; then fail "a restart after the revoke worked"; fi
+
+step "22. exit of M4.1: an MCP client draws a panel and moves the camera on a click"
+rm -f "$out/panel-ready.txt"
+timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" panel >"$out/panel.log" 2>&1 &
+panel_pid=$!
+pids+=("$panel_pid")
+wait_for test -s "$out/panel-ready.txt"
+# The panel is a rounded shader node of the shader that the client put.
+test "$(color_at panel 640 30)" = "0 255 255" || fail "the panel: $(color_at panel 640 30)"
+test "$(png_pixel "$out/panel.png" 1 1 | cut -d' ' -f4)" = 0 ||
+    fail "the round corner: $(png_pixel "$out/panel.png" 1 1)"
+# The windows leave the reserved top free.
+min_y_is() { test "$(surfaces | jq '[.[].transform.matrix[13]] | min | floor')" = "$1"; }
+wait_for min_y_is 60
+# The user clicks the left button, then the right one.
+inject '[{"pointer_move": {"position": [70, 30]}}, {"click": {}}]' || fail "the click failed"
+sleep 0.5
+kill -0 "$panel_pid" || fail "the client ended after the left button: $(cat "$out/panel.log")"
+inject '[{"pointer_move": {"position": [190, 30]}}, {"click": {}}]' || fail "the click failed"
+wait "$panel_pid" || fail "the MCP client: $(cat "$out/panel.log")"
+grep -q "moved the camera from its panel" "$out/panel.log" || fail "panel: $(cat "$out/panel.log")"
+# The reserve ends with the server.
+wait_for work_area_is "[0,0,1280,800]"
+wait_for min_y_is 0
 
 echo "PASS (logs and screenshots in $out)"

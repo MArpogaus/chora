@@ -157,7 +157,9 @@ feedback of the first real MCP sessions (issues #3 to #10).
 **Exit:** an automated test passes: an MCP client uploads a shader,
 reserves a panel at the edge of the output, draws it as a rounded shader
 node with two buttons, and moves the camera with an animation when the
-user clicks a button, which the client learns from `wait_events`.
+user clicks a button, which the client learns from `wait_events`. The last
+step of `tests/agent.sh` checks it with `tests/mcp-client.py panel` in CI.
+The allowlist of the grant `process.spawn` stays an option.
 
 ## M5: Packaging
 

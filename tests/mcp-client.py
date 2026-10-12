@@ -10,7 +10,10 @@ puts a shader as an asset, draws it as a shader node and saves a capture
 of the node as OUT_DIR/asset.png and the path as OUT_DIR/asset-path.txt
 (#6).
 
-Usage: tests/mcp-client.py CHORACTL OUT_DIR LAYOUT
+With the layout `panel`, it runs the exit test of milestone M4.1 instead:
+see panel().
+
+Usage: tests/mcp-client.py CHORACTL OUT_DIR (LAYOUT | panel)
 """
 
 import base64
@@ -69,10 +72,10 @@ def describe(mcp, out, name):
     return json.loads(texts[0]["text"])
 
 
-def wait_for(mcp, wanted):
+def wait_for(mcp, wanted, tries=10):
     """Waits for events until one of them matches; returns all of them."""
     seen = []
-    for _ in range(10):
+    for _ in range(tries):
         content = mcp.tool("wait_events", {"timeout_ms": 1000})
         batch = json.loads(content[0]["text"])
         if batch["ended"]:
@@ -167,8 +170,92 @@ def asset(mcp, out):
     mcp.tool("apply_commands", {"commands": [{"remove": {"id": "mcp-shader"}}]})
 
 
-def main():
-    choractl, out, layout = sys.argv[1:4]
+CYAN = """precision mediump float;
+uniform float alpha;
+varying vec2 v_uv;
+void main() { gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0) * alpha; }
+"""
+
+
+def node(id, kind, props):
+    return {"create": {"id": id, "kind": kind, "parent": "root", "props": props}}
+
+
+def panel(mcp, out):
+    """The exit test of M4.1: a panel of the agent moves the camera.
+
+    The client puts a shader, reserves the top of the output, draws the
+    panel as a rounded shader node with two buttons, and waits for a click.
+    tests/agent.sh clicks the right button once OUT_DIR/panel-ready.txt
+    exists. The client then moves the camera with an animation and waits
+    for its end.
+    """
+    content = mcp.tool("put_asset", {"name": "panel.frag", "text": CYAN})
+    shader = json.loads(content[0]["text"])["path"]
+    output = json.loads(mcp.tool("reserve_space", {"top": 60})[0]["text"])
+    if output["work_area"][1] != 60:
+        sys.exit(f"reserve_space: {output}")
+    button = {"size": [100, 40], "radius": 8, "input": "accept"}
+    mcp.tool(
+        "apply_commands",
+        {
+            "commands": [
+                node(
+                    "panel",
+                    "shader",
+                    {"size": [1280, 60], "shader": shader, "clip": {"radius": 16}},
+                ),
+                node(
+                    "panel-left",
+                    "rect",
+                    {**button, "color": [1, 1, 0, 1], "transform": {"translate": [20, 10]}},
+                ),
+                node(
+                    "panel-right",
+                    "rect",
+                    {**button, "color": [0, 1, 0, 1], "transform": {"translate": [140, 10]}},
+                ),
+            ]
+        },
+    )
+    mcp.tool("subscribe_events", {"events": ["pointer.pressed", "animation.done"]})
+    content = mcp.tool("capture", {"node": "panel"})
+    images = [c for c in content if c["type"] == "image"]
+    with open(f"{out}/panel.png", "wb") as f:
+        f.write(base64.b64decode(images[0]["data"]))
+    with open(f"{out}/panel-ready.txt", "w") as f:
+        f.write(output["name"])
+    # The user clicks; a press of the other button changes nothing.
+    wait_for(
+        mcp,
+        lambda e: e["event"] == "pointer.pressed" and e.get("node") == "panel-right",
+        tries=30,
+    )
+    camera = {
+        "output": output["name"],
+        "transform": {"translate": [-200, 0]},
+        "duration": 300,
+        "easing": "ease_in_out",
+    }
+    mcp.tool("apply_commands", {"commands": [{"camera": camera}]})
+    wait_for(
+        mcp,
+        lambda e: e["event"] == "animation.done" and e.get("output") == output["name"],
+    )
+    after = describe(mcp, out, "panned")
+    # The work area keeps the reserve and follows the camera.
+    moved = [o for o in after["outputs"] if o["name"] == output["name"]]
+    if not moved or moved[0]["work_area"] != [200, 60, 1280, 740]:
+        sys.exit(f"the camera: {after['outputs']}")
+    removals = [{"remove": {"id": i}} for i in ["panel", "panel-left", "panel-right"]]
+    mcp.tool(
+        "apply_commands",
+        {"commands": [{"camera": {"output": output["name"]}}, *removals]},
+    )
+
+
+def start(choractl):
+    """Starts the server and initializes the session."""
     mcp = Mcp([choractl, "--name", "agent", "mcp"])
     info = mcp.request(
         "initialize",
@@ -182,9 +269,20 @@ def main():
         sys.exit(f"initialize: {info}")
     mcp.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
     names = [t["name"] for t in mcp.request("tools/list")["tools"]]
-    for wanted in ["describe_screen", "call_method"]:
+    for wanted in ["describe_screen", "call_method", "put_asset", "reserve_space"]:
         if wanted not in names:
             sys.exit(f"no tool {wanted} in {names}")
+    return mcp
+
+
+def main():
+    choractl, out, layout = sys.argv[1:4]
+    mcp = start(choractl)
+    if layout == "panel":
+        panel(mcp, out)
+        mcp.close()
+        print("the MCP client moved the camera from its panel")
+        return
     before = describe(mcp, out, "before")
     tiling = [p for p in before["plugins"] if p["name"] == "tiling"]
     if not tiling or "set_layout" not in tiling[0]["methods"]:
