@@ -1320,6 +1320,13 @@ states are <code>activated</code> for the surface that plugins focused, and <cod
 and <code>fullscreen</code> from the last configure. The core never reports
 <code>minimized</code>. The requests of a taskbar, <code>close</code> included, go to plugins as
 <code>surface.requested</code>.</p>
+<p>Screenshot tools and screen sharing capture outputs through
+<code>wlr-screencopy</code>, for example grim, OBS and <code>xdg-desktop-portal-wlr</code> (D37).
+A frame offers an shm buffer in XRGB8888. The core renders the output into
+it as on screen, without the cursor. <code>copy_with_damage</code> waits one refresh,
+so that a stream gets at most one frame per refresh. Frames fail while the
+session is locked. The renderer writes into shm buffers in <code>shm.rs</code>, which
+is the one place with <code>unsafe</code> code besides the GL calls in <code>gl.rs</code>.</p>
 <h3 id="scene">Scene<a class="headerlink" href="#scene" title="Permanent link">&para;</a></h3>
 <p>The scene is a tree of nodes with stable ids. <a href="../api/#nodes">API</a> lists the
 node properties. The order of the children sets the stacking order. The crate
