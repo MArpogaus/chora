@@ -1745,12 +1745,25 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 <td><code>load_view</code>, <code>save_view</code>, <code>unload_view</code></td>
 <td>the views of <a href="../configuration/#views">Configuration</a>, by name only</td>
 </tr>
+<tr>
+<td><code>subscribe_events</code></td>
+<td>start to collect events, and grab keys (#7); <code>events</code> and <code>keys</code> as in <code>events.subscribe</code> and <code>input.grab</code>; replaces the earlier subscription</td>
+</tr>
+<tr>
+<td><code>wait_events</code></td>
+<td>the collected events: waits up to <code>timeout_ms</code> (5000 by default, at most 30000) for the first one, and returns at most <code>max</code> (50 by default, at most 500)</td>
+</tr>
 </tbody>
 </table>
 <p>The screenshot of <code>describe_screen</code>, <code>capture</code> and <code>inject_input</code> need the
 grants of the client name, for example
 <code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
 still describes the scene. No tool grants anything (D40).</p>
+<p>A subscription has a connection of its own under the same client name. A
+thread reads its events into a buffer of 1000 events, so the core never
+waits for the agent. When the buffer is full, the oldest events go, and
+<code>wait_events</code> counts them in <code>dropped</code>. The grabs of the keys end with
+the subscription.</p>
 <p>A tool that fails, also on invalid arguments, answers with <code>isError</code> and
 the reason, so that the model can correct its call. An unknown tool is a
 JSON-RPC error.</p>
