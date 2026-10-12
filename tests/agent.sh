@@ -259,4 +259,16 @@ test "$(head -c 9 "$out/grim-region.ppm" | tr '\n' ' ')" = "P6 80 40 " ||
 region_color=$(od -An -tu1 -j $((13 + (20 * 80 + 40) * 3)) -N 3 "$out/grim-region.ppm" | awk '{print $1, $2, $3}')
 close_to "$region_color" "0 0 255" || fail "the region shows $region_color, not the blue button"
 
+step "14. ext-image-copy-capture captures the output and a toplevel"
+probe() { WAYLAND_DISPLAY=$inner timeout 20 "$bin/chora-probe" "$@"; }
+probe capture output >"$out/ext-output.log" 2>&1 || fail "the output capture: $(cat "$out/ext-output.log")"
+grep -q "capture: 1280x800, " "$out/ext-output.log" || fail "output: $(cat "$out/ext-output.log")"
+colors=$(sed -n 's/.*, \([0-9]*\) colors/\1/p' "$out/ext-output.log")
+test "$colors" -gt 3 || fail "the output capture has $colors colors"
+probe capture toplevel >"$out/ext-toplevel.log" 2>&1 ||
+    fail "the toplevel capture: $(cat "$out/ext-toplevel.log")"
+size=$(sed -n 's/capture: \([0-9]*x[0-9]*\), .*/\1/p' "$out/ext-toplevel.log")
+surfaces | jq -e --arg size "$size" 'any(.[]; "\(.surface.size[0])x\(.surface.size[1])" == $size)' >/dev/null ||
+    fail "the toplevel capture has $size, no surface has that size"
+
 echo "PASS (logs and screenshots in $out)"

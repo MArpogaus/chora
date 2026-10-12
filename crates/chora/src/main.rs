@@ -7,6 +7,7 @@ mod foreign_toplevel;
 mod gl;
 mod grants;
 mod handlers;
+mod image_capture;
 mod images;
 mod inject;
 mod input;

@@ -54,9 +54,10 @@ use smithay::{
 };
 
 use crate::{
-    backend::Backend, foreign_toplevel::ForeignToplevelManagerState, grants::Grants, ipc::Ipc,
-    lock::Lock, methods::Methods, output_management::OutputManagement, render::Assets,
-    safety::Watchdog, transaction::Transactions,
+    backend::Backend, foreign_toplevel::ForeignToplevelManagerState, grants::Grants,
+    image_capture::ImageCapture, ipc::Ipc, lock::Lock, methods::Methods,
+    output_management::OutputManagement, render::Assets, safety::Watchdog,
+    transaction::Transactions,
 };
 
 /// The drag of a rect or an image node: the node, the button, and the last
@@ -146,6 +147,8 @@ pub struct State {
     pub grants: Grants,
     /// The methods that plugins export, and the calls in flight.
     pub methods: Methods,
+    /// `ext-image-copy-capture` and its sources.
+    pub image_capture: ImageCapture,
     /// Keys whose press went to the safety layer or to a grab, so that their
     /// release must not reach a client.
     pub suppressed_keys: Vec<Keycode>,
@@ -231,6 +234,7 @@ impl State {
             transactions: Transactions::default(),
             grants: Grants::default(),
             methods: Methods::default(),
+            image_capture: ImageCapture::new(&dh),
             suppressed_keys: Vec::new(),
         }
     }

@@ -23,6 +23,11 @@
 //!   milliseconds, and releases there; the drag of a wobbly window.
 //! - `point X Y MS`: moves the pointer to a point without a button and
 //!   stays there for MS milliseconds, for hover looks.
+//! - `capture output|toplevel`: captures the first output or the first
+//!   toplevel through `ext-image-copy-capture`, and prints the size and
+//!   the number of colors.
+
+mod capture;
 
 use std::{
     fs::File,
@@ -105,6 +110,8 @@ struct Probe {
     clock: Option<u32>,
     /// The answer to the request for presentation feedback.
     feedback: Option<Feedback>,
+    /// The globals and the answers of the mode `capture`.
+    capture: capture::Capture,
 }
 
 /// The answer to a request for presentation feedback.
@@ -134,6 +141,7 @@ fn main() -> ExitCode {
         "keys" => keys(&mut queue, &mut probe),
         "wiggle" => wiggle(&mut queue, &mut probe),
         "point" => point(&mut queue, &mut probe),
+        "capture" => capture::capture(&mut queue, &mut probe),
         "held-commit" => match size_args() {
             Some(size) => held_commit(&mut queue, &mut probe, size),
             None => Err("usage: held-commit W H".into()),
@@ -575,7 +583,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
             "zwlr_virtual_pointer_manager_v1" => {
                 probe.pointer_manager = Some(registry.bind(name, 1, qh, ()));
             }
-            _ => {}
+            other => probe.capture.bind(registry, name, other, qh),
         }
     }
 }

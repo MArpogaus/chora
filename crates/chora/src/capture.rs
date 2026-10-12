@@ -116,6 +116,19 @@ impl State {
         self.render_shot(&shot)
     }
 
+    /// The pixels of a node with its descendants, as `screen.capture`
+    /// shows it, for the screencopy protocols.
+    pub fn node_pixels(&mut self, id: &str) -> Result<Pixels, String> {
+        let shot = self.plan(&node_capture(id)).map_err(|e| e.message)?;
+        self.render_shot(&shot)
+    }
+
+    /// The size in pixels of a capture of a node.
+    pub fn node_capture_size(&self, id: &str) -> Option<(u32, u32)> {
+        let size = self.plan(&node_capture(id)).ok()?.view.size;
+        Some((size.w.try_into().ok()?, size.h.try_into().ok()?))
+    }
+
     /// The view and the source of a capture.
     fn plan(&self, capture: &Capture) -> Result<Shot, RpcError> {
         let shrink = |w: f64, h: f64| {
@@ -208,6 +221,13 @@ impl State {
             lock: None,
         };
         backend.with_gles(|gles| render_pixels(gles, &mut parts, shot))?
+    }
+}
+
+fn node_capture(id: &str) -> Capture {
+    Capture {
+        node: Some(id.into()),
+        ..Capture::default()
     }
 }
 
