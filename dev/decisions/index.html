@@ -1311,6 +1311,11 @@
 <td><code>choractl</code> reads YAML with <code>serde-saphyr</code>: strict booleans, errors on unknown and duplicate keys and on unknown tags</td>
 <td><code>serde_yaml</code> is archived and <code>serde_yml</code> is unsound. <code>serde-saphyr</code> is maintained, pure Rust and panic-free, and limits the work of a document (open question 1).</td>
 </tr>
+<tr>
+<td>D42</td>
+<td><code>process.spawn</code> starts programs as the user behind a grant of its own, which the user gives with <code>choractl grant NAME process.spawn</code> and the reset revokes; an allowlist of argv patterns that comes with the grant may narrow it later</td>
+<td>An agent with this grant can run anything, as with a shell, so it is never part of another grant. The allowlist keeps the core free of configuration files (D35).</td>
+</tr>
 </tbody>
 </table>
 <h2 id="rejected-review-findings">Rejected review findings<a class="headerlink" href="#rejected-review-findings" title="Permanent link">&para;</a></h2>
