@@ -46,21 +46,25 @@ pub fn write(buffer: &WlBuffer, width: u32, height: u32, rgba: &[u8]) -> Result<
         if !fits {
             return Err("the buffer does not fit the picture".to_string());
         }
-        // SAFETY: Smithay maps `len` bytes of the pool at `ptr` for the
-        // duration of this closure and catches a SIGBUS of a truncated
-        // file. The client shares the memory and may write it at the same
-        // time; that garbles at most its own picture.
-        let memory = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
-        for (row, line) in rgba.chunks_exact(w * 4).take(h).enumerate() {
-            let start = offset + row * stride;
-            let target = &mut memory[start..start + w * 4];
-            for (out, px) in target
+        let mut row = vec![0; w * 4];
+        for (y, line) in rgba.chunks_exact(w * 4).take(h).enumerate() {
+            for (out, px) in row
                 .as_chunks_mut::<4>()
                 .0
                 .iter_mut()
                 .zip(line.as_chunks::<4>().0)
             {
                 *out = [px[2], px[1], px[0], px[3]];
+            }
+            let start = offset + y * stride;
+            // SAFETY: Smithay maps `len` bytes of the pool at `ptr` for the
+            // duration of this closure and catches a SIGBUS of a truncated
+            // file, and the check above keeps every row inside the `len`
+            // bytes. The client shares the memory and may write it at the
+            // same time, so this copies into it without a Rust reference;
+            // a race garbles at most the picture of the client.
+            unsafe {
+                std::ptr::copy_nonoverlapping(row.as_ptr(), ptr.add(start), row.len());
             }
         }
         Ok(())

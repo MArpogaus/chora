@@ -1,6 +1,8 @@
-//! The mode `capture output|toplevel`: captures the first output, or the
-//! first toplevel, through `ext-image-copy-capture` into an shm buffer,
-//! and prints the size and the number of colors of the picture.
+//! The mode `capture output|toplevel|flood`: captures the first output, or
+//! the first toplevel, through `ext-image-copy-capture` into an shm buffer,
+//! and prints the size and the number of colors of the picture. `flood`
+//! asks for ten frames of the output at once, through ten sessions, and
+//! prints how many chora served and how many it refused.
 
 use std::{fs::File, io::Read, io::Seek, os::fd::AsFd};
 
@@ -40,8 +42,9 @@ pub struct Capture {
     size: Option<(u32, u32)>,
     formats: Vec<wl_shm::Format>,
     constraints_done: bool,
-    /// `Some(Ok(()))` after `ready`, `Some(Err(reason))` after `failed`.
-    result: Option<Result<(), u32>>,
+    /// One entry per answered frame: `Ok` after `ready`, the reason after
+    /// `failed`.
+    results: Vec<Result<(), u32>>,
 }
 
 impl Capture {
@@ -76,16 +79,22 @@ impl Capture {
 pub fn capture(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     let qh = queue.handle();
     let what = std::env::args().nth(2).unwrap_or_default();
-    let source = source(queue, probe, &what)?;
+    let frames = if what == "flood" { 10 } else { 1 };
+    let source = source(queue, probe, if frames == 1 { &what } else { "output" })?;
     let manager = probe
         .capture
         .manager
         .clone()
         .ok_or("no ext_image_copy_capture_manager_v1")?;
-    let session = manager.create_session(&source, Options::empty(), &qh, ());
+    // A session has one frame at a time, so a flood takes a session per
+    // frame.
+    let sessions: Vec<_> = (0..frames)
+        .map(|_| manager.create_session(&source, Options::empty(), &qh, ()))
+        .collect();
     if !dispatch_until(queue, probe, TIMEOUT, |p| p.capture.constraints_done) {
         return Err("no buffer constraints".into());
     }
+    queue.roundtrip(probe).map_err(|e| e.to_string())?;
     let (w, h) = probe.capture.size.ok_or("no buffer size")?;
     let format = [wl_shm::Format::Xrgb8888, wl_shm::Format::Argb8888]
         .into_iter()
@@ -100,14 +109,20 @@ pub fn capture(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     let height = i32::try_from(h).map_err(|e| e.to_string())?;
     let pool = shm.create_pool(file.as_fd(), stride * height, &qh, ());
     let buffer = pool.create_buffer(0, stride / 4, height, stride, format, &qh, ());
-    let frame = session.create_frame(&qh, ());
-    frame.attach_buffer(&buffer);
-    frame.damage_buffer(0, 0, stride / 4, height);
-    frame.capture();
-    if !dispatch_until(queue, probe, TIMEOUT, |p| p.capture.result.is_some()) {
-        return Err("the frame got no answer".into());
+    for session in &sessions {
+        let frame = session.create_frame(&qh, ());
+        frame.attach_buffer(&buffer);
+        frame.damage_buffer(0, 0, stride / 4, height);
+        frame.capture();
     }
-    if let Some(Err(reason)) = probe.capture.result {
+    if !dispatch_until(queue, probe, TIMEOUT, |p| p.capture.results.len() >= frames) {
+        return Err("a frame got no answer".into());
+    }
+    if frames > 1 {
+        let served = probe.capture.results.iter().filter(|r| r.is_ok()).count();
+        return Ok(format!("{served} served, {} refused", frames - served));
+    }
+    if let Some(Err(reason)) = probe.capture.results.first() {
         return Err(format!("the frame failed: reason {reason}"));
     }
     let mut pixels = vec![0; bytes];
@@ -185,10 +200,8 @@ impl Dispatch<ExtImageCopyCaptureFrameV1, ()> for Probe {
     ) {
         use ext_image_copy_capture_frame_v1::Event;
         match event {
-            Event::Ready => probe.capture.result = Some(Ok(())),
-            Event::Failed { reason } => {
-                probe.capture.result = Some(Err(reason.into()));
-            }
+            Event::Ready => probe.capture.results.push(Ok(())),
+            Event::Failed { reason } => probe.capture.results.push(Err(reason.into())),
             _ => {}
         }
     }

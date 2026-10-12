@@ -7,6 +7,8 @@
 //! Key names and text resolve through the first layout of the keymap: a
 //! character needs a key of that layout, with Shift or `AltGr` at most.
 
+use std::collections::HashMap;
+
 use chora_scene::{
     Binding,
     ipc::{Capability, Inject, InjectEvent, Key, PressState, RpcError},
@@ -27,8 +29,11 @@ use crate::{
 
 /// The most events of one request.
 const MAX_EVENTS: usize = 256;
-/// The longest text of one request, in characters.
+/// The longest text of one request, in characters, over all its events.
 const MAX_TEXT: usize = 4096;
+/// The most steps of one request: key presses and releases, moves, button
+/// presses and scrolls.
+const MAX_STEPS: usize = 32_768;
 /// The offset of XKB key codes from Linux key codes.
 const XKB_OFFSET: u32 = 8;
 
@@ -69,9 +74,25 @@ impl State {
         } else {
             None
         };
+        let text: usize = inject
+            .events
+            .iter()
+            .map(|e| match e {
+                InjectEvent::Text { text } => text.chars().count(),
+                _ => 0,
+            })
+            .sum();
+        if text > MAX_TEXT {
+            return Err(rejected(format!(
+                "a request types at most {MAX_TEXT} characters"
+            )));
+        }
         let mut steps = Vec::new();
         for event in &inject.events {
             steps.extend(self.steps(event, keys.as_ref()).map_err(rejected)?);
+        }
+        if steps.len() > MAX_STEPS {
+            return Err(rejected(format!("a request has at most {MAX_STEPS} steps")));
         }
         self.run_steps(&steps);
         Ok(Value::Null)
@@ -183,7 +204,11 @@ fn linux_key(code: u32) -> Result<Keycode, String> {
 
 /// The keymap of the seat, compiled again, so that safe code can read it.
 struct Keys {
-    keymap: xkb::Keymap,
+    /// For each keysym of the first layout: the key, and the modifier keys
+    /// with the fewest modifiers.
+    ways: HashMap<Keysym, (Keycode, Vec<Keycode>)>,
+    /// For each keysym: the first key whose first level gives it.
+    plain: HashMap<Keysym, Keycode>,
 }
 
 impl Keys {
@@ -202,7 +227,25 @@ impl Keys {
             xkb::KEYMAP_COMPILE_NO_FLAGS,
         )
         .ok_or("the keymap does not compile")?;
-        Ok(Self { keymap })
+        Ok(Self::from_keymap(&keymap))
+    }
+
+    /// Reads every key of the first layout once.
+    fn from_keymap(keymap: &xkb::Keymap) -> Self {
+        let codes = || (keymap.min_keycode().raw()..=keymap.max_keycode().raw()).map(Keycode::new);
+        let mut plain = HashMap::new();
+        for code in codes() {
+            for sym in keymap.key_get_syms_by_level(code, 0, 0) {
+                plain.entry(*sym).or_insert(code);
+            }
+        }
+        let mut ways = HashMap::new();
+        for code in codes() {
+            for level in 0..keymap.num_levels_for_key(code, 0) {
+                add_level(keymap, &plain, &mut ways, code, level);
+            }
+        }
+        Self { ways, plain }
     }
 
     /// The key of a keysym name, without its modifiers.
@@ -242,9 +285,6 @@ impl Keys {
 
     /// The steps that type a text.
     fn text(&self, text: &str) -> Result<Vec<Step>, String> {
-        if text.chars().count() > MAX_TEXT {
-            return Err(format!("a text has at most {MAX_TEXT} characters"));
-        }
         let mut steps = Vec::new();
         for c in text.chars() {
             let sym = match c {
@@ -263,63 +303,63 @@ impl Keys {
     /// The key and the modifier keys that give a keysym on the first
     /// layout, with the fewest modifiers.
     fn find(&self, sym: Keysym) -> Option<(Keycode, Vec<Keycode>)> {
-        self.ways(sym)
-            .filter_map(|(code, mask)| Some((code, self.modifier_keys(mask)?)))
-            .min_by_key(|(_, mods)| mods.len())
-    }
-
-    /// Every key and modifier mask that gives a keysym on the first layout.
-    fn ways(&self, sym: Keysym) -> impl Iterator<Item = (Keycode, xkb::ModMask)> + '_ {
-        let (min, max) = (
-            self.keymap.min_keycode().raw(),
-            self.keymap.max_keycode().raw(),
-        );
-        (min..=max).map(Keycode::new).flat_map(move |code| {
-            (0..self.keymap.num_levels_for_key(code, 0))
-                .filter(move |level| {
-                    self.keymap
-                        .key_get_syms_by_level(code, 0, *level)
-                        .contains(&sym)
-                })
-                .flat_map(move |level| {
-                    let mut masks = [0; 8];
-                    let n = self
-                        .keymap
-                        .key_get_mods_for_level(code, 0, level, &mut masks);
-                    masks.into_iter().take(n).map(move |mask| (code, mask))
-                })
-        })
-    }
-
-    /// The keys that set the modifiers of a mask: Shift and `AltGr` only.
-    fn modifier_keys(&self, mask: xkb::ModMask) -> Option<Vec<Keycode>> {
-        let mut keys = Vec::new();
-        for index in 0..self.keymap.num_mods().min(32) {
-            if mask & (1 << index) == 0 {
-                continue;
-            }
-            let sym = match self.keymap.mod_get_name(index) {
-                "Shift" => Keysym::Shift_L,
-                "Mod5" | "LevelThree" => Keysym::ISO_Level3_Shift,
-                _ => return None,
-            };
-            keys.push(self.plain(sym)?);
-        }
-        Some(keys)
+        self.ways.get(&sym).cloned()
     }
 
     /// The key whose first level gives a keysym.
     fn plain(&self, sym: Keysym) -> Option<Keycode> {
-        let (min, max) = (
-            self.keymap.min_keycode().raw(),
-            self.keymap.max_keycode().raw(),
-        );
-        (min..=max).map(Keycode::new).find(|code| {
-            self.keymap
-                .key_get_syms_by_level(*code, 0, 0)
-                .contains(&sym)
-        })
+        self.plain.get(&sym).copied()
     }
+}
+
+/// Notes the keysyms of a level of a key, unless a key with fewer
+/// modifiers gives them.
+fn add_level(
+    keymap: &xkb::Keymap,
+    plain: &HashMap<Keysym, Keycode>,
+    ways: &mut HashMap<Keysym, (Keycode, Vec<Keycode>)>,
+    code: Keycode,
+    level: xkb::LevelIndex,
+) {
+    let mut masks = [0; 8];
+    let n = keymap.key_get_mods_for_level(code, 0, level, &mut masks);
+    let Some(mods) = masks
+        .into_iter()
+        .take(n)
+        .filter_map(|mask| modifier_keys(keymap, plain, mask))
+        .min_by_key(Vec::len)
+    else {
+        return;
+    };
+    for sym in keymap.key_get_syms_by_level(code, 0, level) {
+        if ways
+            .get(sym)
+            .is_none_or(|(_, old): &(Keycode, Vec<Keycode>)| mods.len() < old.len())
+        {
+            ways.insert(*sym, (code, mods.clone()));
+        }
+    }
+}
+
+/// The keys that set the modifiers of a mask: Shift and `AltGr` only.
+fn modifier_keys(
+    keymap: &xkb::Keymap,
+    plain: &HashMap<Keysym, Keycode>,
+    mask: xkb::ModMask,
+) -> Option<Vec<Keycode>> {
+    let mut keys = Vec::new();
+    for index in 0..keymap.num_mods().min(32) {
+        if mask & (1 << index) == 0 {
+            continue;
+        }
+        let sym = match keymap.mod_get_name(index) {
+            "Shift" => Keysym::Shift_L,
+            "Mod5" | "LevelThree" => Keysym::ISO_Level3_Shift,
+            _ => return None,
+        };
+        keys.push(*plain.get(&sym)?);
+    }
+    Some(keys)
 }
 
 /// Modifiers down, a key down and up, the modifiers up again.
@@ -350,7 +390,7 @@ mod tests {
             xkb::KEYMAP_COMPILE_NO_FLAGS,
         )
         .expect("the us keymap compiles");
-        Keys { keymap }
+        Keys::from_keymap(&keymap)
     }
 
     fn key(code: u32, state: KeyState) -> Step {

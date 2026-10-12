@@ -4,9 +4,9 @@
 //! A frame offers one shm buffer in the format XRGB8888, in the size of the
 //! output or of its region. The core renders the output into it as on
 //! screen, without the cursor; `overlay_cursor` has no effect.
-//! `copy_with_damage` waits one refresh before the copy, so that a stream
-//! gets at most one frame per refresh, and reports the whole frame as
-//! damaged. A frame fails while the session is locked.
+//! Frames wait for the next tick of `copies`, one refresh later, so that a
+//! stream gets at most one frame per refresh. `copy_with_damage` reports
+//! the whole frame as damaged. A frame fails while the session is locked.
 
 use std::{
     sync::atomic::{AtomicBool, Ordering},
@@ -16,20 +16,24 @@ use std::{
 use smithay::{
     output::Output,
     reexports::{
-        calloop::timer::{TimeoutAction, Timer},
         wayland_protocols_wlr::screencopy::v1::server::{
             zwlr_screencopy_frame_v1::{self as frame, ZwlrScreencopyFrameV1},
             zwlr_screencopy_manager_v1::{self as manager, ZwlrScreencopyManagerV1},
         },
         wayland_server::{
             Client, DataInit, DisplayHandle, New, Resource,
+            backend::ClientId,
             protocol::{wl_buffer::WlBuffer, wl_output::WlOutput, wl_shm},
         },
     },
     wayland::{Dispatch2, GlobalDispatch2},
 };
 
-use crate::{render, shm, state::State};
+use crate::{
+    copies::{self, Pictures},
+    render, shm,
+    state::State,
+};
 
 /// Version 3 adds `buffer_done` and dmabuf buffers; the core offers shm
 /// buffers only.
@@ -183,20 +187,21 @@ impl Dispatch2<ZwlrScreencopyFrameV1, State> for FrameData {
         let copy = Copy {
             frame: resource.clone(),
             buffer,
-            output,
             part,
             damage,
+            output,
         };
-        if damage {
-            copy.after_refresh(state);
-        } else {
-            copy.run(state);
+        if state.waiting_frames(copy.client().as_ref()) >= copies::MAX_WAITING {
+            copy.frame.failed();
+            return;
         }
+        state.copies.wlr.push(copy);
+        state.arm_copies();
     }
 }
 
-/// A copy that a frame asked for.
-struct Copy {
+/// A copy that a frame asked for; it waits for the next tick.
+pub struct Copy {
     frame: ZwlrScreencopyFrameV1,
     buffer: WlBuffer,
     output: Output,
@@ -205,29 +210,18 @@ struct Copy {
 }
 
 impl Copy {
-    /// Runs the copy one refresh of the output later.
-    fn after_refresh(self, state: &State) {
-        let millihertz = self.output.current_mode().map_or(60_000, |m| m.refresh);
-        let refresh =
-            Duration::from_micros(1_000_000_000 / u64::from(millihertz.max(1_000).unsigned_abs()));
-        let timer = Timer::from_duration(refresh);
-        let mut copy = Some(self);
-        let inserted = state.loop_handle.insert_source(timer, move |_, (), state| {
-            if let Some(copy) = copy.take() {
-                copy.run(state);
-            }
-            TimeoutAction::Drop
-        });
-        if let Err(err) = inserted {
-            tracing::warn!(?err, "no timer for a screencopy frame");
-        }
+    /// The client of the frame.
+    pub fn client(&self) -> Option<ClientId> {
+        self.frame.client().map(|c| c.id())
     }
 
-    fn run(self, state: &mut State) {
+    /// Writes the picture of the output into the buffer and tells the
+    /// client, or fails the frame.
+    pub fn serve(self, state: &mut State, pictures: &mut Pictures) {
         if !self.frame.is_alive() {
             return;
         }
-        if let Err(err) = self.write(state) {
+        if let Err(err) = self.write(state, pictures) {
             tracing::warn!(%err, "a screencopy frame failed");
             self.frame.failed();
             return;
@@ -243,12 +237,13 @@ impl Copy {
             .ready((secs >> 32) as u32, secs as u32, now.subsec_nanos());
     }
 
-    /// Renders the output into the buffer, unless the session is locked.
-    fn write(&self, state: &mut State) -> Result<(), String> {
+    /// Writes the part of the output into the buffer, unless the session is
+    /// locked.
+    fn write(&self, state: &mut State, pictures: &mut Pictures) -> Result<(), String> {
         if state.lock.is_some() {
             return Err("the session is locked".into());
         }
-        let pixels = state.output_pixels(&self.output)?;
+        let pixels = state.output_picture(pictures, &self.output)?;
         let part = pixels
             .crop(self.part)
             .ok_or("the output changed its size")?;

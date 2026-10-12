@@ -208,6 +208,8 @@ whose origin is (0, 0), or in the coordinates of the node.
 - An output shows as on screen, without the cursor.
 - A node shows without its own transform, opacity, mesh and effects, on a
   transparent background. Its area covers the descendants with a size.
+- A picture has at most 16 Mi pixels and 8192 pixels a side; a larger one
+  shrinks. `max_side` must be at least 1.
 - A capture fails while the session is locked, and when the PNG file is
   larger than 5 MiB; a smaller `max_side` helps then.
 
@@ -246,8 +248,9 @@ whose origin is (0, 0), or in the coordinates of the node.
 - Injected keys never reach the safety layer: Ctrl+Alt+BackSpace,
   Ctrl+Alt+Escape and the VT switch do nothing. The grabs of plugins see
   them, and the focused surface gets the rest.
-- A request has at most 256 events and 4096 characters of text. It fails
-  while the session is locked.
+- A request has at most 256 events, 4096 characters of text in all and
+  32,768 steps, a key press and a release being two. It fails while the
+  session is locked.
 
 `choractl inject` reads the list of events as JSON, for example
 `echo '[{"text": {"text": "ls\n"}}]' | choractl --name agent inject`.
@@ -311,13 +314,13 @@ example in the `.mcp.json` of Claude Code:
 | Tool | Purpose |
 |------|---------|
 | `describe_screen` | a screenshot of an output, at most 1280 pixels a side by default, and in words: the outputs, the windows with their positions in scene coordinates and sizes, and the plugins with their methods |
-| `capture` | a picture of an output or of a node, as `screen.capture` |
+| `capture` | a picture of an output or of a node, as `screen.capture`, at most 1920 pixels a side by default |
 | `query_scene` | the nodes of a selector |
 | `apply_commands` | a transaction |
 | `list_plugins` | the connected clients and their methods |
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
-| `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views) |
+| `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views), by name only |
 
 The screenshot of `describe_screen`, `capture` and `inject_input` need the
 grants of the client name, for example

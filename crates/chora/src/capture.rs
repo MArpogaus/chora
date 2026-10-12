@@ -34,6 +34,9 @@ use crate::{
 
 /// The longest side of a picture.
 const MAX_SIDE: f64 = 8192.0;
+/// The most pixels of a picture, 64 MiB of RGBA; a larger picture
+/// shrinks.
+const MAX_PIXELS: f64 = 16.0 * 1024.0 * 1024.0;
 /// The largest PNG file. Its base64 must fit in the output buffer of a
 /// connection, 8 MiB.
 const MAX_PNG: usize = 5 << 20;
@@ -131,9 +134,16 @@ impl State {
 
     /// The view and the source of a capture.
     fn plan(&self, capture: &Capture) -> Result<Shot, RpcError> {
+        if capture.max_side == Some(0) {
+            return Err(rejected("max_side must be at least 1"));
+        }
+        // The factor that fits a size of pixels into max_side and into
+        // MAX_PIXELS.
         let shrink = |w: f64, h: f64| {
             let side = capture.max_side.map_or(MAX_SIDE, f64::from).min(MAX_SIDE);
-            (side / w.max(h)).min(1.0)
+            (side / w.max(h))
+                .min((MAX_PIXELS / (w * h)).sqrt())
+                .min(1.0)
         };
         if let Some(id) = &capture.node {
             if capture.output.is_some() {

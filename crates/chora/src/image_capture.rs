@@ -9,12 +9,13 @@
 //! shows its node, without the cursor. A frame fails while the session is
 //! locked. When the size of a source changes, the session gets the new
 //! size, and the frame fails, so that the client allocates a new buffer.
+//! Frames wait for the next tick of `copies`.
 
 use std::time::Duration;
 
 use smithay::{
     output::{Output, WeakOutput},
-    reexports::wayland_server::protocol::wl_shm,
+    reexports::wayland_server::{backend::ClientId, protocol::wl_shm},
     utils::Size,
     wayland::{
         foreign_toplevel_list::ForeignToplevelHandle,
@@ -29,7 +30,13 @@ use smithay::{
     },
 };
 
-use crate::{capture::Pixels, render, security::trusted, shm, state::State};
+use crate::{
+    copies::{self, Pictures},
+    render,
+    security::trusted,
+    shm,
+    state::State,
+};
 
 /// The globals of the capture protocols, and the sessions that run.
 pub struct ImageCapture {
@@ -79,13 +86,6 @@ impl State {
             TargetNow::Node(id) => self.node_capture_size(id),
         }
     }
-
-    fn render_target(&mut self, target: &TargetNow) -> Result<Pixels, String> {
-        match target {
-            TargetNow::Output(output) => self.output_pixels(output),
-            TargetNow::Node(id) => self.node_pixels(id),
-        }
-    }
 }
 
 /// A source that still shows something.
@@ -100,6 +100,75 @@ fn constraints((w, h): (u32, u32)) -> Option<BufferConstraints> {
         shm: vec![wl_shm::Format::Argb8888, wl_shm::Format::Xrgb8888],
         dma: None,
     })
+}
+
+/// A frame that waits for the next tick of `copies`.
+pub struct Waiting {
+    session: SessionRef,
+    frame: Frame,
+}
+
+impl Waiting {
+    /// The client of the session.
+    pub fn client(&self) -> Option<ClientId> {
+        self.session.client().map(|c| c.id())
+    }
+
+    /// Writes the picture of the source into the buffer, or fails the
+    /// frame. A source of a new size gives the session the new size first.
+    pub fn serve(self, state: &mut State, pictures: &mut Pictures) {
+        let Waiting { session, frame } = self;
+        let target = match ready(state, &session) {
+            Ok(target) => target,
+            Err(reason) => {
+                frame.fail(reason);
+                return;
+            }
+        };
+        match write(state, pictures, &target, &frame.buffer()) {
+            Ok(()) => {
+                let now: Duration = state.clock.now().into();
+                frame.success(smithay::utils::Transform::Normal, None, now);
+            }
+            Err(err) => {
+                tracing::warn!(%err, "an image copy frame failed");
+                frame.fail(CaptureFailureReason::BufferConstraints);
+            }
+        }
+    }
+}
+
+/// Writes the picture of a source of this tick into a buffer.
+fn write(
+    state: &mut State,
+    pictures: &mut Pictures,
+    target: &TargetNow,
+    buffer: &smithay::reexports::wayland_server::protocol::wl_buffer::WlBuffer,
+) -> Result<(), String> {
+    let picture = match target {
+        TargetNow::Output(output) => state.output_picture(pictures, output),
+        TargetNow::Node(id) => state.node_picture(pictures, id),
+    }?;
+    shm::write(buffer, picture.width, picture.height, &picture.rgba)
+}
+
+/// The source of a session, if a frame of it can capture now. A source of
+/// a new size gives the session the new size first.
+fn ready(state: &State, session: &SessionRef) -> Result<TargetNow, CaptureFailureReason> {
+    let target = state
+        .target(&session.source())
+        .ok_or(CaptureFailureReason::Stopped)?;
+    if state.lock.is_some() {
+        return Err(CaptureFailureReason::Unknown);
+    }
+    let size = state.source_size(&target).and_then(constraints);
+    if size.as_ref().map(|c| c.size) != session.current_constraints().map(|c| c.size) {
+        if let Some(new) = size {
+            session.update_constraints(new);
+        }
+        return Err(CaptureFailureReason::BufferConstraints);
+    }
+    Ok(target)
 }
 
 impl ImageCaptureSourceHandler for State {}
@@ -155,34 +224,16 @@ impl ImageCopyCaptureHandler for State {
     }
 
     fn frame(&mut self, session: &SessionRef, frame: Frame) {
-        let Some(target) = self.target(&session.source()) else {
-            frame.fail(CaptureFailureReason::Stopped);
-            return;
+        let waiting = Waiting {
+            session: session.clone(),
+            frame,
         };
-        if self.lock.is_some() {
-            frame.fail(CaptureFailureReason::Unknown);
+        if self.waiting_frames(waiting.client().as_ref()) >= copies::MAX_WAITING {
+            waiting.frame.fail(CaptureFailureReason::Unknown);
             return;
         }
-        let size = self.source_size(&target);
-        let wanted = session.current_constraints().map(|c| c.size);
-        if size.and_then(constraints).map(|c| c.size) != wanted {
-            if let Some(new) = size.and_then(constraints) {
-                session.update_constraints(new);
-            }
-            frame.fail(CaptureFailureReason::BufferConstraints);
-            return;
-        }
-        let buffer = frame.buffer();
-        let written = self
-            .render_target(&target)
-            .and_then(|p| shm::write(&buffer, p.width, p.height, &p.rgba));
-        if let Err(err) = written {
-            tracing::warn!(%err, "an image copy frame failed");
-            frame.fail(CaptureFailureReason::BufferConstraints);
-            return;
-        }
-        let now: Duration = self.clock.now().into();
-        frame.success(smithay::utils::Transform::Normal, None, now);
+        self.copies.ext.push(waiting);
+        self.arm_copies();
     }
 
     fn session_destroyed(&mut self, session: SessionRef) {

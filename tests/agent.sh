@@ -262,7 +262,7 @@ test "$(head -c 9 "$out/grim-region.ppm" | tr '\n' ' ')" = "P6 80 40 " ||
 region_color=$(od -An -tu1 -j $((13 + (20 * 80 + 40) * 3)) -N 3 "$out/grim-region.ppm" | awk '{print $1, $2, $3}')
 close_to "$region_color" "0 0 255" || fail "the region shows $region_color, not the blue button"
 
-step "14. ext-image-copy-capture captures the output and a toplevel"
+step "14. ext-image-copy-capture captures the output and a toplevel, at a pace"
 probe() { WAYLAND_DISPLAY=$inner timeout 20 "$bin/chora-probe" "$@"; }
 probe capture output >"$out/ext-output.log" 2>&1 || fail "the output capture: $(cat "$out/ext-output.log")"
 grep -q "capture: 1280x800, " "$out/ext-output.log" || fail "output: $(cat "$out/ext-output.log")"
@@ -273,6 +273,10 @@ probe capture toplevel >"$out/ext-toplevel.log" 2>&1 ||
 size=$(sed -n 's/capture: \([0-9]*x[0-9]*\), .*/\1/p' "$out/ext-toplevel.log")
 surfaces | jq -e --arg size "$size" 'any(.[]; "\(.surface.size[0])x\(.surface.size[1])" == $size)' >/dev/null ||
     fail "the toplevel capture has $size, no surface has that size"
+
+# A client gets four frames per refresh at most; the others fail.
+probe capture flood >"$out/ext-flood.log" 2>&1 || fail "the flood: $(cat "$out/ext-flood.log")"
+grep -q "capture: 4 served, 6 refused" "$out/ext-flood.log" || fail "flood: $(cat "$out/ext-flood.log")"
 
 step "15. a sandboxed client sees no privileged protocol"
 probe sandbox >"$out/sandbox.log" 2>&1 || fail "the sandbox: $(cat "$out/sandbox.log")"

@@ -2,6 +2,7 @@
 
 mod backend;
 mod capture;
+mod copies;
 mod cursor;
 mod foreign_toplevel;
 mod gl;

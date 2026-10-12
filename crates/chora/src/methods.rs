@@ -115,16 +115,13 @@ impl State {
             )));
         }
         let names = self.methods.exports.entry(conn).or_default();
-        names.extend(export.names);
-        if names.len() > MAX_EXPORTS {
-            let names: Vec<_> = names.iter().take(MAX_EXPORTS).cloned().collect();
-            self.methods
-                .exports
-                .insert(conn, names.into_iter().collect());
+        let new = export.names.iter().filter(|n| !names.contains(*n)).count();
+        if names.len() + new > MAX_EXPORTS {
             return Err(rejected(format!(
                 "a connection exports at most {MAX_EXPORTS} methods"
             )));
         }
+        names.extend(export.names);
         Ok(Value::Null)
     }
 
