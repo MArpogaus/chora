@@ -1539,8 +1539,8 @@ of the press that opened it.</p>
   that it rendered under this lock. When the lock client crashes, the
   session stays locked, and only then can a new lock client take over.</li>
 <li><strong>Watchdog.</strong> When frames take longer to render than a refresh of their
-  output for two seconds, the core removes the effects, the meshes, and
-  sends <code>effects.dropped</code>. When they stay slow for two more seconds, it
+  output for two seconds, the core removes the effects, the meshes and the
+  shaders of shader nodes, and sends <code>effects.dropped</code>. When they stay slow for two more seconds, it
   starts the emergency reset, which disconnects the plugins.</li>
 </ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
