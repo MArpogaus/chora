@@ -1313,7 +1313,7 @@
 </tr>
 <tr>
 <td>D42</td>
-<td><code>process.spawn</code> starts programs as the user behind a grant of its own, which the user gives with <code>choractl grant NAME process.spawn</code> and the reset revokes; an allowlist of argv patterns that comes with the grant may narrow it later</td>
+<td><code>process.spawn</code> starts programs, and <code>plugins.restart</code> restarts plugins, as the user behind a grant of its own, which the user gives with <code>choractl grant NAME process.spawn</code> and the reset revokes; an allowlist of argv patterns that comes with the grant may narrow it later</td>
 <td>An agent with this grant can run anything, as with a shell, so it is never part of another grant. The allowlist keeps the core free of configuration files (D35).</td>
 </tr>
 </tbody>
