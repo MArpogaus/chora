@@ -344,11 +344,19 @@ example in the `.mcp.json` of Claude Code:
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
 | `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views), by name only |
+| `subscribe_events` | start to collect events, and grab keys (#7); `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the earlier subscription |
+| `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500) |
 
 The screenshot of `describe_screen`, `capture` and `inject_input` need the
 grants of the client name, for example
 `choractl grant agent screen.capture`. Without a grant, `describe_screen`
 still describes the scene. No tool grants anything (D40).
+
+A subscription has a connection of its own under the same client name. A
+thread reads its events into a buffer of 1000 events, so the core never
+waits for the agent. When the buffer is full, the oldest events go, and
+`wait_events` counts them in `dropped`. The grabs of the keys end with
+the subscription.
 
 A tool that fails, also on invalid arguments, answers with `isError` and
 the reason, so that the model can correct its call. An unknown tool is a

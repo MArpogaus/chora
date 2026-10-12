@@ -6,7 +6,7 @@
 # shortcut of a plugin. Injected safety keys do nothing, and while the
 # session is locked, captures and injections fail. grim and the probe
 # capture through both screencopy protocols, and a client of a sandbox
-# sees none of the privileged protocols.
+# sees none of the privileged protocols. An MCP client waits for events.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
@@ -332,7 +332,7 @@ jq -e '.started == ["tiling"]' "$out/view-start.json" >/dev/null ||
 wait_for count_is 3 '.owner == "tiling"'
 wait_for xs_are "0 0 0"
 
-step "18. exit: an MCP client describes the screen, sets the layout, and sees it"
+step "18. exit: an MCP client describes the screen, sets the layout, sees it, and waits for events"
 # Two windows in one color each instead of the terminals.
 pkill -x foot
 wait_for count_is 0 'true'
@@ -345,6 +345,7 @@ wait_for count_is 2 '.owner == "tiling"'
 ctl call tiling set_layout '{"layout": "columns"}' >/dev/null || fail "set_layout failed"
 wait_for xs_are "0 640"
 "$bin/choractl" grant agent screen.capture || fail "the grant failed"
+"$bin/choractl" grant agent input.inject || fail "the grant failed"
 timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" rows >"$out/mcp.log" 2>&1 ||
     fail "the MCP client: $(cat "$out/mcp.log")"
 color_at() { png_pixel "$out/$1.png" "$2" "$3" | cut -d' ' -f1-3; }
@@ -355,5 +356,6 @@ test "$(color_at after 640 600)" = "0 0 255" || fail "after, bottom: $(color_at 
 jq -e '[.windows[].position[1]] | sort == [0, 400]' "$out/after.json" >/dev/null ||
     fail "the description after: $(cat "$out/after.json")"
 grep -q "screen before and after" "$out/mcp.log" || fail "mcp: $(cat "$out/mcp.log")"
+grep -q "its click and its key" "$out/mcp.log" || fail "mcp: $(cat "$out/mcp.log")"
 
 echo "PASS (logs and screenshots in $out)"

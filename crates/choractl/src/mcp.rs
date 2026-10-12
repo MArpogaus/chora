@@ -9,6 +9,7 @@
 use std::{
     collections::HashMap,
     io::{BufRead, Write},
+    time::Duration,
 };
 
 use chora_scene::{
@@ -19,7 +20,10 @@ use chora_scene::{
 };
 use serde_json::{Value, json};
 
-use crate::view;
+use crate::{
+    events::{self, Subscription},
+    view,
+};
 
 /// The versions of the protocol that the server speaks, newest first.
 const VERSIONS: [&str; 4] = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
@@ -33,6 +37,8 @@ const CAPTURE_SIDE: u32 = 1920;
 pub struct Core {
     name: String,
     client: Option<Client>,
+    /// The events of `subscribe_events`, on a connection of their own.
+    subscription: Option<Subscription>,
 }
 
 impl Core {
@@ -71,6 +77,7 @@ pub fn serve(name: String) -> Result<(), String> {
     let mut chora = Core {
         name,
         client: Some(client),
+        subscription: None,
     };
     let stdin = std::io::stdin().lock();
     let mut stdout = std::io::stdout().lock();
@@ -160,7 +167,32 @@ fn tools() -> Vec<Value> {
     let mut tools = screen_tools();
     tools.extend(scene_tools());
     tools.extend(view_tools());
+    tools.extend(event_tools());
     tools
+}
+
+/// The tools of events.
+fn event_tools() -> Vec<Value> {
+    vec![
+        tool(
+            "subscribe_events",
+            "Start to collect events for wait_events, and grab keys, which then arrive as input.key events. Replaces the earlier subscription. Events: surface.created, surface.changed, surface.destroyed, surface.requested, pointer.pressed, pointer.moved, pointer.released, pointer.entered, pointer.left, input.key, animation.done, output.changed and others.",
+            &json!({
+                "events": {"type": "array", "items": {"type": "string"}, "description": "event names; every event if empty or missing"},
+                "keys": {"type": "array", "items": {"type": "string"}, "description": "bindings to grab, for example Super+F1; they need Ctrl, Alt or Super"},
+            }),
+            &[],
+        ),
+        tool(
+            "wait_events",
+            "The events that arrived since the last call, or the first one that arrives within the timeout. dropped counts events that a full buffer lost.",
+            &json!({
+                "timeout_ms": {"type": "integer", "description": "how long to wait for the first event; 5000 by default, at most 30000"},
+                "max": {"type": "integer", "description": "the most events to return; 50 by default, at most 500"},
+            }),
+            &[],
+        ),
+    ]
 }
 
 /// The tools that see the screen.
@@ -347,8 +379,55 @@ fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Fa
         }
         "save_view" => Ok(vec![json_text(&view::save(&string("name")?, None)?)]),
         "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
+        "subscribe_events" => subscribe(chora, args),
+        "wait_events" => wait(chora, args),
         other => Err(Failure::UnknownTool(format!("no tool {other:?}"))),
     }
+}
+
+/// Takes the events of the subscription.
+fn wait(chora: &Core, args: &Value) -> Result<Vec<Value>, Failure> {
+    let subscription = chora
+        .subscription
+        .as_ref()
+        .ok_or_else(|| Failure::Tool("call subscribe_events first".into()))?;
+    let wait = args["timeout_ms"].as_u64().unwrap_or(5000);
+    let wait = Duration::from_millis(wait).min(events::MAX_WAIT);
+    let max = args["max"]
+        .as_u64()
+        .and_then(|m| usize::try_from(m).ok())
+        .unwrap_or(50)
+        .min(events::MAX_TAKE);
+    Ok(vec![json_text(&subscription.take(max, wait))])
+}
+
+/// Starts a subscription, which replaces the earlier one.
+fn subscribe(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
+    let strings = |key: &str| -> Result<Vec<String>, Failure> {
+        match args.get(key) {
+            None | Some(Value::Null) => Ok(Vec::new()),
+            Some(v) => {
+                serde_json::from_value(v.clone()).map_err(|e| Failure::Tool(format!("{key}: {e}")))
+            }
+        }
+    };
+    let events = strings("events")?;
+    let keys = strings("keys")?
+        .iter()
+        .map(|k| {
+            k.parse::<chora_scene::Binding>()
+                .map_err(|e| Failure::Tool(e.to_string()))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    chora.subscription = None;
+    let (subscription, grabbed) = Subscription::start(&chora.name, events.clone(), keys)?;
+    chora.subscription = Some(subscription);
+    let events = if events.is_empty() {
+        json!("all")
+    } else {
+        json!(events)
+    };
+    Ok(vec![json_text(&json!({"events": events, "keys": grabbed}))])
 }
 
 fn picture_info(picture: &Picture) -> Value {
@@ -459,6 +538,7 @@ mod tests {
         let mut chora = Core {
             name: "agent".into(),
             client: None,
+            subscription: None,
         };
         let mut answer = |line: &str| handle_line(&mut chora, line);
         assert!(answer(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#).is_none());
@@ -477,7 +557,7 @@ mod tests {
         assert!(
             tools["result"]["tools"]
                 .as_array()
-                .is_some_and(|t| t.len() == 10)
+                .is_some_and(|t| t.len() == 12)
         );
         let bad =
             answer(r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nope"}}"#)

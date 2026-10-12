@@ -4,7 +4,8 @@
 It starts `choractl --name agent mcp`, asks for "describe the screen",
 calls `tiling.set_layout`, and asks again. It saves both screenshots as
 OUT_DIR/before.png and OUT_DIR/after.png and both descriptions as JSON, for
-the checks of tests/agent.sh.
+the checks of tests/agent.sh. Then it subscribes to events, clicks a rect
+of its own and presses a key that it grabbed, and waits for both (#7).
 
 Usage: tests/mcp-client.py CHORACTL OUT_DIR LAYOUT
 """
@@ -65,6 +66,69 @@ def describe(mcp, out, name):
     return json.loads(texts[0]["text"])
 
 
+def wait_for(mcp, wanted):
+    """Waits for events until one of them matches; returns all of them."""
+    seen = []
+    for _ in range(10):
+        content = mcp.tool("wait_events", {"timeout_ms": 1000})
+        batch = json.loads(content[0]["text"])
+        if batch["ended"]:
+            sys.exit(f"wait_events: {batch}")
+        seen += batch["events"]
+        if any(wanted(e) for e in seen):
+            return seen
+    sys.exit(f"no such event in {seen}")
+
+
+def events(mcp):
+    """A click on a rect and a grabbed key arrive through wait_events."""
+    try:
+        mcp.tool("wait_events", {})
+        sys.exit("wait_events worked before subscribe_events")
+    except SystemExit as err:
+        if "subscribe_events first" not in str(err):
+            raise
+    content = mcp.tool(
+        "subscribe_events",
+        {"events": ["pointer.pressed", "input.key"], "keys": ["Super+F9"]},
+    )
+    subscribed = json.loads(content[0]["text"])
+    if subscribed["keys"] != ["Super+F9"]:
+        sys.exit(f"subscribe_events: {subscribed}")
+    mcp.tool(
+        "apply_commands",
+        {
+            "commands": [
+                {
+                    "create": {
+                        "id": "mcp-button",
+                        "kind": "rect",
+                        "parent": "root",
+                        "props": {
+                            "size": [80, 40],
+                            "color": [0, 1, 0, 1],
+                            "input": "accept",
+                            "transform": {"translate": [1100, 700]},
+                        },
+                    }
+                }
+            ]
+        },
+    )
+    mcp.tool(
+        "inject_input",
+        {"events": [{"pointer_move": {"position": [1140, 720]}}, {"click": {}}]},
+    )
+    seen = wait_for(
+        mcp, lambda e: e["event"] == "pointer.pressed" and e["node"] == "mcp-button"
+    )
+    if any(e["event"] not in ("pointer.pressed", "input.key") for e in seen):
+        sys.exit(f"unsubscribed events: {seen}")
+    mcp.tool("inject_input", {"events": [{"shortcut": {"keys": "Super+F9"}}]})
+    wait_for(mcp, lambda e: e == {"event": "input.key", "binding": "Super+F9"})
+    mcp.tool("apply_commands", {"commands": [{"remove": {"id": "mcp-button"}}]})
+
+
 def main():
     choractl, out, layout = sys.argv[1:4]
     mcp = Mcp([choractl, "--name", "agent", "mcp"])
@@ -94,8 +158,10 @@ def main():
     if json.loads(result[0]["text"])["layout"] != layout:
         sys.exit(f"set_layout: {result}")
     describe(mcp, out, "after")
+    events(mcp)
     mcp.close()
     print("the MCP client saw the screen before and after set_layout")
+    print("the MCP client saw its click and its key")
 
 
 main()

@@ -2,6 +2,7 @@
 
 #[cfg(test)]
 mod docs;
+mod events;
 mod mcp;
 mod view;
 
