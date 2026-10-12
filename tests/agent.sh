@@ -8,7 +8,8 @@
 # capture through both screencopy protocols, and a client of a sandbox
 # sees none of the privileged protocols. An MCP client waits for events
 # and draws a shader that it hands to the core as an asset. Connections
-# reserve space at the edges of the output.
+# reserve space at the edges of the output. An agent starts a program and
+# restarts the tiling plugin.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
@@ -370,6 +371,8 @@ test -f "$asset" || fail "the asset of the agent went"
 printf 'one' >"$out/one.txt"
 put=$(ctl asset put one.txt "$out/one.txt") || fail "the put failed"
 cmp -s "$put" "$out/one.txt" || fail "the put stored $(cat "$put")"
+# The directory of a client is its name in hex: agent.
+case $put in */6167656e74/one.txt) ;; *) fail "the put is at $put" ;; esac
 printf 'two' | ctl asset put one.txt - >/dev/null || fail "the second put failed"
 test "$(cat "$put")" = two || fail "the second put stored $(cat "$put")"
 if ctl asset put ../x "$out/one.txt" 2>/dev/null; then fail "a put of ../x worked"; fi
@@ -414,5 +417,27 @@ kill "$reserve_pid" "$panel_pid"
 wait_for work_area_is "[0,0,1280,800]"
 wait_for xs_are "0 0"
 if ctl reserve --output nowhere --top 1 2>/dev/null; then fail "a reserve of no output worked"; fi
+
+step "21. process.spawn starts a program, and plugins.restart restarts a plugin"
+if ctl spawn true 2>"$out/spawn-denied.err"; then fail "a spawn without grant worked"; fi
+grep -q "needs a grant" "$out/spawn-denied.err" || fail "denied: $(cat "$out/spawn-denied.err")"
+"$bin/choractl" grant agent process.spawn || fail "the grant failed"
+ctl spawn "$bin/chora-probe" window 0 255 0 >"$out/spawn.json" || fail "the spawn failed"
+pids+=("$(jq -r .pid "$out/spawn.json")")
+wait_for count_is 3 '.owner == "tiling"'
+old=$(pgrep -x chora-tiling)
+ctl restart tiling >"$out/restart.json" 2>"$out/restart.err" ||
+    fail "the restart failed: $(cat "$out/restart.err")"
+new=$(jq -r .pid "$out/restart.json")
+pids+=("$new")
+test "$new" != "$old" || fail "the restart kept pid $old"
+jq -e '.argv[0] | endswith("/chora-tiling")' "$out/restart.json" >/dev/null ||
+    fail "the restart: $(cat "$out/restart.json")"
+tiling_is() { test "$(pgrep -x chora-tiling)" = "$1"; }
+wait_for tiling_is "$new"
+wait_for count_is 3 '.owner == "tiling"'
+if ctl restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
+"$bin/choractl" revoke agent process.spawn || fail "the revoke failed"
+if ctl restart tiling 2>/dev/null; then fail "a restart after the revoke worked"; fi
 
 echo "PASS (logs and screenshots in $out)"

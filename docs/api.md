@@ -190,13 +190,15 @@ client sends `hello` first. The core answers every request.
 | `input.grab(binding)` | get the events of a key, a button or a gesture; returns the binding as `input.key` names it |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject` and `screen.capture` for a client name; `choractl grant` and `choractl revoke` call them |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `process.spawn` for a client name; `choractl grant` and `choractl revoke` call them |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
 | `methods.return(call, result, error)` | answer a `method.called` event |
+| `process.spawn(argv)` | start a program with the environment of the core; needs the grant `process.spawn` |
+| `plugins.restart(name)` | stop the process of a client name and start its command again; needs the grant `process.spawn` |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
@@ -224,8 +226,9 @@ the core sends `output.changed`. For an output that turns off, it sends
 
 ## Grants
 
-`input.inject` and `screen.capture` see or drive the whole session, so they
-need a grant of the user for the client name (D40):
+`input.inject` and `screen.capture` see or drive the whole session, and
+`process.spawn` runs any program as the user, so they need a grant of the
+user for the client name (D40, D42):
 
 ```console
 $ choractl grant agent screen.capture input.inject
@@ -238,6 +241,33 @@ A grant lasts until `choractl revoke` or the end of the session. The
 emergency reset revokes all grants. A grant protects against mistakes of
 agents, not against hostile code of the same user, which can call
 `grants.set` itself. `choractl mcp` offers no tool for grants.
+
+## Programs
+
+`process.spawn(argv)` starts a program with the environment of the core,
+as the startup command (D30): `WAYLAND_DISPLAY` and `CHORA_SOCKET` of this
+compositor, without the variables of a host session, and with no stdin.
+The core looks the program up in its own `PATH`, so it works for an agent
+in another namespace too. The answer has the `pid` and the `argv`.
+
+`plugins.restart(name)` restarts a plugin, for example after a rebuild
+(#9). The core finds the process of the connections of the client name,
+reads its command line and working directory from `/proc`, and sends it
+SIGTERM. Once it exited, or 5 s after a SIGKILL, the core starts the same
+command again and answers with the new `pid`. A name with several
+processes, or a process in a namespace that the core cannot see, fails.
+
+Both methods need the grant `process.spawn`, and fail while the session is
+locked:
+
+```console
+$ choractl grant agent process.spawn
+$ choractl --name agent spawn foot
+$ choractl --name agent restart tiling
+```
+
+A later version may narrow the grant with a list of allowed programs, which
+`choractl grant` reads from a file (D42).
 
 ## Screen capture
 
@@ -375,6 +405,7 @@ example in the `.mcp.json` of Claude Code:
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
 | `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views), by name only |
+| `spawn_process`, `restart_plugin` | start a program, or restart a plugin, as `process.spawn` and `plugins.restart` |
 | `reserve_space` | space at the edges of an output, as `output.reserve`, while the server runs |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
 | `subscribe_events` | start to collect events, and grab keys (#7); `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the earlier subscription |
@@ -386,9 +417,9 @@ every field, with its description, so the model sees the shape of a call
 before the first try. A test checks that the schemas, the types and the
 examples of this page agree.
 
-The screenshot of `describe_screen`, `capture` and `inject_input` need the
-grants of the client name, for example
-`choractl grant agent screen.capture`. Without a grant, `describe_screen`
+The screenshot of `describe_screen`, `capture`, `inject_input`,
+`spawn_process` and `restart_plugin` need the grants of the client name,
+for example `choractl grant agent screen.capture`. Without a grant, `describe_screen`
 still describes the scene. No tool grants anything (D40).
 
 A subscription has a connection of its own under the same client name. A

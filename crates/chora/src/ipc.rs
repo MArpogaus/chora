@@ -30,6 +30,7 @@ use smithay::{
         generic::Generic,
         timer::{TimeoutAction, Timer},
     },
+    reexports::rustix::{net::sockopt::socket_peercred, process::Pid},
 };
 
 use crate::{state::State, uploads::Uploads};
@@ -132,6 +133,27 @@ impl Drop for Ipc {
 }
 
 impl Ipc {
+    /// The path of the socket, once it listens.
+    pub fn path(&self) -> Option<&Path> {
+        self.path.as_deref()
+    }
+
+    /// The processes of the connections of a client name, each once; `None`
+    /// for a process that the core cannot see.
+    pub fn peer_pids(&self, name: &str) -> Vec<Option<Pid>> {
+        let mut pids = Vec::new();
+        for conn in self.conns.values() {
+            if conn.name.as_deref() != Some(name) {
+                continue;
+            }
+            let pid = socket_peercred(&conn.stream).ok().map(|c| c.pid);
+            if !pids.contains(&pid) {
+                pids.push(pid);
+            }
+        }
+        pids
+    }
+
     /// The reserves of all connections on an output, added up.
     pub fn reserved(&self, output: &str) -> Edges {
         self.conns
@@ -425,6 +447,9 @@ impl State {
             "screen.capture" => self.ipc_capture(conn, params),
             "input.inject" => self.ipc_inject(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
+            "process.spawn" | "plugins.restart" => {
+                return self.ipc_process(conn, id, &request.method, params);
+            }
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
             }

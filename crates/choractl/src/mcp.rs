@@ -17,7 +17,7 @@ use chora_scene::{
     Node, NodeKind, OutputInfo, Transform,
     ipc::{
         Apply, AssetPut, Capture, Client, ClientError, Hello, Inject, MethodCall, Picture, Query,
-        Reserve, RpcError,
+        Reserve, Restart, RpcError, Spawn,
     },
 };
 use serde_json::{Value, json};
@@ -178,6 +178,7 @@ fn typed_tool<T: schemars::JsonSchema>(name: &str, description: &str) -> Value {
 fn tools() -> Vec<Value> {
     let mut tools = screen_tools();
     tools.extend(scene_tools());
+    tools.extend(session_tools());
     tools.extend(view_tools());
     tools.extend(event_tools());
     tools
@@ -233,28 +234,6 @@ fn screen_tools() -> Vec<Value> {
 fn scene_tools() -> Vec<Value> {
     vec![
         tool(
-            "reserve_space",
-            "Reserve space at the edges of an output, in logical pixels, for example for a panel of nodes: the work area, where window managers put windows, leaves it out until this server ends. A later call replaces the reserve on the output; no space removes it. Returns the output with its new work_area in scene coordinates.",
-            &json!({
-                "output": {"type": "string", "description": "the output name; the first output if missing"},
-                "top": {"type": "integer", "minimum": 0},
-                "right": {"type": "integer", "minimum": 0},
-                "bottom": {"type": "integer", "minimum": 0},
-                "left": {"type": "integer", "minimum": 0},
-            }),
-            &[],
-        ),
-        tool(
-            "put_asset",
-            "Store a file for image nodes, shader nodes and effects in a directory of chora, and get its absolute path, since chora may not see the files of the agent, for example in another container. Pass a shader as text and a PNG in base64, at most 512 KiB. A second put of a name replaces the file, and nodes that use it reload it.",
-            &json!({
-                "name": {"type": "string", "description": "the file name, for example glow.frag: letters, digits, '.', '_' and '-'"},
-                "text": {"type": "string", "description": "the content as text, for a shader"},
-                "base64": {"type": "string", "description": "the content in base64, for a PNG"},
-            }),
-            &["name"],
-        ),
-        tool(
             "query_scene",
             "The nodes that match a selector, for example kind:surface, app_id:firefox or title~:Inbox.",
             &json!({"selector": {"type": "string", "description": "the selector; every node if empty"}}),
@@ -279,6 +258,46 @@ fn scene_tools() -> Vec<Value> {
         typed_tool::<Inject>(
             "inject_input",
             "Send synthetic input: pointer_move, button, click, scroll, key, shortcut and text events, for example [{\"text\": {\"text\": \"ls\\n\"}}]. Needs a grant of input.inject.",
+        ),
+    ]
+}
+
+/// The tools of the session: programs, the work area and assets.
+fn session_tools() -> Vec<Value> {
+    vec![
+        tool(
+            "spawn_process",
+            "Start a program in the session with the environment of chora, for example a terminal or a plugin. Needs a grant of process.spawn. Returns the pid.",
+            &json!({"argv": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "the program and its arguments, for example [\"foot\"]"}}),
+            &["argv"],
+        ),
+        tool(
+            "restart_plugin",
+            "Restart a plugin, for example after a rebuild: stop the process of a client name and start its command again. Needs a grant of process.spawn. Returns the new pid.",
+            &json!({"name": {"type": "string", "description": "the client name, for example tiling"}}),
+            &["name"],
+        ),
+        tool(
+            "reserve_space",
+            "Reserve space at the edges of an output, in logical pixels, for example for a panel of nodes: the work area, where window managers put windows, leaves it out until this server ends. A later call replaces the reserve on the output; no space removes it. Returns the output with its new work_area in scene coordinates.",
+            &json!({
+                "output": {"type": "string", "description": "the output name; the first output if missing"},
+                "top": {"type": "integer", "minimum": 0},
+                "right": {"type": "integer", "minimum": 0},
+                "bottom": {"type": "integer", "minimum": 0},
+                "left": {"type": "integer", "minimum": 0},
+            }),
+            &[],
+        ),
+        tool(
+            "put_asset",
+            "Store a file for image nodes, shader nodes and effects in a directory of chora, and get its absolute path, since chora may not see the files of the agent, for example in another container. Pass a shader as text and a PNG in base64, at most 512 KiB. A second put of a name replaces the file, and nodes that use it reload it.",
+            &json!({
+                "name": {"type": "string", "description": "the file name, for example glow.frag: letters, digits, '.', '_' and '-'"},
+                "text": {"type": "string", "description": "the content as text, for a shader"},
+                "base64": {"type": "string", "description": "the content in base64, for a PNG"},
+            }),
+            &["name"],
         ),
     ]
 }
@@ -412,6 +431,14 @@ fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Fa
         "subscribe_events" => subscribe(chora, args),
         "put_asset" => put_asset(chora, args),
         "reserve_space" => reserve_space(chora, args),
+        "spawn_process" => {
+            let spawned: Value = chora.call("process.spawn", arg::<Spawn>(args)?)?;
+            Ok(vec![json_text(&spawned)])
+        }
+        "restart_plugin" => {
+            let restarted: Value = chora.call("plugins.restart", arg::<Restart>(args)?)?;
+            Ok(vec![json_text(&restarted)])
+        }
         "wait_events" => wait(chora, args),
         other => Err(Failure::UnknownTool(format!("no tool {other:?}"))),
     }
@@ -622,7 +649,7 @@ mod tests {
         assert!(
             tools["result"]["tools"]
                 .as_array()
-                .is_some_and(|t| t.len() == 14)
+                .is_some_and(|t| t.len() == 16)
         );
         let bad =
             answer(r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nope"}}"#)

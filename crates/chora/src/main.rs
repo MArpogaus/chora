@@ -19,6 +19,7 @@ mod mesh;
 mod methods;
 mod output;
 mod output_management;
+mod process;
 mod protocols;
 mod render;
 mod safety;
@@ -28,12 +29,6 @@ mod shm;
 mod state;
 mod transaction;
 mod uploads;
-
-use std::{
-    ffi::OsStr,
-    path::Path,
-    process::{Child, Command},
-};
 
 use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 
@@ -67,13 +62,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the signal source blocks SIGUSR1 in this thread, and all later
     // threads inherit the block, Mesa's included. A thread without it would
     // receive SIGUSR1, and its default action ends the process.
-    let child = command
-        .split_first()
-        .and_then(|(program, args)| spawn(program, args, &state.socket_name, &socket));
+    let child = (!command.is_empty())
+        .then(|| process::spawn(command, None, &state.socket_name, &socket))
+        .and_then(|started| {
+            started
+                .inspect_err(|err| tracing::error!(%err, ?command, "the startup command failed"))
+                .ok()
+        });
     safety::reset_on_signal(&event_loop.handle())?;
-    if let Some(mut child) = child {
-        // Waits for the command, so that it never stays a zombie.
-        std::thread::spawn(move || child.wait());
+    if let Some(child) = child {
+        process::reap(child);
     }
     backend::init(&mut state)?;
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
@@ -90,32 +88,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     })?;
     Ok(())
-}
-
-/// Variables of the host session that would let the startup command reach
-/// the host compositor instead of this one.
-const HOST_VARIABLES: [&str; 6] = [
-    "WAYLAND_SOCKET",
-    "DISPLAY",
-    "SWAYSOCK",
-    "I3SOCK",
-    "NIRI_SOCKET",
-    "HYPRLAND_INSTANCE_SIGNATURE",
-];
-
-/// Starts the startup command with the environment of this compositor
-/// (D30).
-fn spawn(program: &str, args: &[String], wayland: &OsStr, socket: &Path) -> Option<Child> {
-    let mut command = Command::new(program);
-    command
-        .args(args)
-        .env("WAYLAND_DISPLAY", wayland)
-        .env(chora_scene::ipc::SOCKET_ENV, socket);
-    for variable in HOST_VARIABLES {
-        command.env_remove(variable);
-    }
-    command
-        .spawn()
-        .inspect_err(|err| tracing::error!(%err, program, "the startup command failed"))
-        .ok()
 }

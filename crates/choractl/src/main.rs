@@ -18,7 +18,7 @@ use chora_scene::{
     Event,
     ipc::{
         Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, Edges,
-        GrantChange, Hello, Inject, MethodCall, Picture, Query, Reserve, Subscribe,
+        GrantChange, Hello, Inject, MethodCall, Picture, Query, Reserve, Restart, Spawn, Subscribe,
     },
 };
 use clap::{Parser, Subcommand};
@@ -70,12 +70,13 @@ enum Cmd {
         /// The parameters as JSON; `null` if missing.
         params: Option<String>,
     },
-    /// Grant a client name `input.inject` or `screen.capture`, until the
+    /// Grant a client name `input.inject`, `screen.capture` or
+    /// `process.spawn`, until the
     /// session ends or a revoke.
     Grant {
         /// The client name, for example `agent`.
         client: String,
-        /// `input.inject` or `screen.capture`.
+        /// `input.inject`, `screen.capture` or `process.spawn`.
         #[arg(required = true)]
         capabilities: Vec<Capability>,
     },
@@ -83,7 +84,7 @@ enum Cmd {
     Revoke {
         /// The client name.
         client: String,
-        /// `input.inject` or `screen.capture`.
+        /// `input.inject`, `screen.capture` or `process.spawn`.
         capabilities: Vec<Capability>,
     },
     /// Print the grants by client name.
@@ -97,6 +98,20 @@ enum Cmd {
     },
     /// Serve the API as MCP tools over stdio, for an agent.
     Mcp,
+    /// Start a program with the environment of the compositor, and print
+    /// its pid. Needs a grant of `process.spawn` for the client name.
+    Spawn {
+        /// The program and its arguments.
+        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
+        argv: Vec<String>,
+    },
+    /// Restart a plugin: stop the process of a client name, and start its
+    /// command again. Needs a grant of `process.spawn`.
+    Restart {
+        /// The client name, for example `tiling`.
+        #[arg(value_name = "NAME")]
+        client: String,
+    },
     /// Store a file for image nodes, shader nodes and effects in a
     /// directory of the core, or remove it; for a client that shares no
     /// directory with the core.
@@ -135,18 +150,21 @@ enum ViewCmd {
     Load {
         /// A view name, for `~/.config/chora/views/NAME.yaml` or
         /// `/usr/share/chora/views/NAME.yaml`, or the path of a YAML file.
-        name: String,
+        #[arg(value_name = "NAME")]
+        view: String,
     },
     /// Remove the nodes of a view.
     Unload {
         /// The name of the view.
-        name: String,
+        #[arg(value_name = "NAME")]
+        view: String,
     },
     /// Write the nodes of a view as they are now, with the plugins of its
     /// file.
     Save {
         /// The name of the view.
-        name: String,
+        #[arg(value_name = "NAME")]
+        view: String,
         /// The file; `~/.config/chora/views/NAME.yaml` if missing.
         #[arg(long)]
         file: Option<String>,
@@ -179,14 +197,16 @@ enum AssetCmd {
     /// name replaces the file.
     Put {
         /// The name, for example `glow.frag`.
-        name: String,
+        #[arg(value_name = "NAME")]
+        asset: String,
         /// The file; stdin for `-`.
         file: String,
     },
     /// Remove a file of an earlier put.
     Remove {
         /// The name.
-        name: String,
+        #[arg(value_name = "NAME")]
+        asset: String,
     },
 }
 
@@ -218,15 +238,15 @@ fn run(args: Args) -> Result<(), String> {
     };
     let mut client = Client::from_env(&hello).map_err(|e| e.to_string())?;
     let result = match args.command {
-        Cmd::Query { selector } => client
-            .call("scene.query", Query { selector })
-            .map(|v| print(&v)),
+        Cmd::Query { selector } => show(&mut client, "scene.query", Query { selector }),
         Cmd::Apply { .. } => client
             .call::<_, Value>("scene.apply", Apply { commands })
             .map(drop),
         Cmd::Events { names } => events(&mut client, names),
-        Cmd::Outputs => client.call("output.list", Value::Null).map(|v| print(&v)),
+        Cmd::Outputs => show(&mut client, "output.list", Value::Null),
         Cmd::Reserve(args) => reserve(&mut client, args),
+        Cmd::Spawn { argv } => show(&mut client, "process.spawn", Spawn { argv }),
+        Cmd::Restart { client: name } => show(&mut client, "plugins.restart", Restart { name }),
         Cmd::Call {
             client: callee,
             method,
@@ -240,7 +260,7 @@ fn run(args: Args) -> Result<(), String> {
             client: name,
             capabilities,
         } => grants(&mut client, "grants.revoke", name, capabilities),
-        Cmd::Grants => client.call("grants.list", Value::Null).map(|v| print(&v)),
+        Cmd::Grants => show(&mut client, "grants.list", Value::Null),
         Cmd::Asset { action } => return asset(&mut client, action),
         Cmd::View { .. } | Cmd::Mcp => unreachable!("handled before the connection"),
         Cmd::Inject { .. } => client
@@ -263,10 +283,19 @@ fn run(args: Args) -> Result<(), String> {
     result.map_err(|e| e.to_string())
 }
 
+/// Calls a method and prints its result.
+fn show<P: serde::Serialize>(
+    client: &mut Client,
+    method: &str,
+    params: P,
+) -> Result<(), ClientError> {
+    client.call(method, params).map(|v| print(&v))
+}
+
 /// Stores or removes an asset.
 fn asset(client: &mut Client, action: AssetCmd) -> Result<(), String> {
     match action {
-        AssetCmd::Put { name, file } => {
+        AssetCmd::Put { asset: name, file } => {
             let data = if file == "-" {
                 let mut data = Vec::new();
                 std::io::stdin().read_to_end(&mut data).map(|_| data)
@@ -281,7 +310,7 @@ fn asset(client: &mut Client, action: AssetCmd) -> Result<(), String> {
             let asset: Asset = client.call("assets.put", put).map_err(|e| e.to_string())?;
             println!("{}", asset.path);
         }
-        AssetCmd::Remove { name } => {
+        AssetCmd::Remove { asset: name } => {
             client
                 .call::<_, Value>("assets.remove", AssetRemove { name })
                 .map_err(|e| e.to_string())?;
@@ -293,9 +322,9 @@ fn asset(client: &mut Client, action: AssetCmd) -> Result<(), String> {
 /// Runs a view command with the client of the view.
 fn view_command(action: &ViewCmd) -> Result<(), String> {
     let result = match action {
-        ViewCmd::Load { name } => view::load(name),
-        ViewCmd::Unload { name } => view::unload(name),
-        ViewCmd::Save { name, file } => view::save(name, file.as_deref()),
+        ViewCmd::Load { view } => view::load(view),
+        ViewCmd::Unload { view } => view::unload(view),
+        ViewCmd::Save { view, file } => view::save(view, file.as_deref()),
     }?;
     print(&result);
     Ok(())
@@ -429,4 +458,31 @@ fn print(value: &Value) {
     let text = serde_json::to_string_pretty(value).expect("values always serialize");
     // A closed stdout, for example after `| head`, is no error.
     let _ = writeln!(std::io::stdout(), "{text}");
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use super::{Args, AssetCmd, Cmd};
+
+    /// No argument of a command takes the place of `--name`.
+    #[test]
+    fn arguments_keep_the_client_name() {
+        let parse = |line: &str| Args::try_parse_from(line.split(' ')).unwrap();
+        for line in [
+            "choractl --name agent asset put x.frag f",
+            "choractl --name agent asset remove x.frag",
+            "choractl --name agent restart tiling",
+            "choractl --name agent view load v",
+            "choractl --name agent grant tiling input.inject",
+        ] {
+            assert_eq!(parse(line).name.as_deref(), Some("agent"), "{line}");
+        }
+        let args = parse("choractl asset put x.frag f");
+        assert!(args.name.is_none());
+        assert!(
+            matches!(args.command, Cmd::Asset { action: AssetCmd::Put { asset, .. } } if asset == "x.frag")
+        );
+    }
 }

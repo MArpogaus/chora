@@ -225,6 +225,32 @@ impl Edges {
     }
 }
 
+/// Parameters of `process.spawn`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Spawn {
+    /// The program and its arguments, for example `["foot"]`. The core
+    /// looks the program up in its `PATH`.
+    pub argv: Vec<String>,
+}
+
+/// Parameters of `plugins.restart`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Restart {
+    /// The client name of the plugin, for example `tiling`.
+    pub name: String,
+}
+
+/// The answer of `process.spawn` and `plugins.restart`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Spawned {
+    /// The process id of the new program.
+    pub pid: u32,
+    /// The program and its arguments.
+    pub argv: Vec<String>,
+}
+
 /// Parameters of `assets.put`: a file for image nodes, shader nodes and
 /// effects, from a client that shares no directory with the core (#6).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -262,11 +288,14 @@ pub enum Capability {
     /// `screen.capture`: capture an output, a group or a surface.
     #[serde(rename = "screen.capture")]
     ScreenCapture,
+    /// `process.spawn`: start programs, and restart plugins (D42).
+    #[serde(rename = "process.spawn")]
+    ProcessSpawn,
 }
 
 impl Capability {
     /// Every capability.
-    pub const ALL: [Self; 2] = [Self::InputInject, Self::ScreenCapture];
+    pub const ALL: [Self; 3] = [Self::InputInject, Self::ScreenCapture, Self::ProcessSpawn];
 
     /// The name, which is also the name of the method.
     #[must_use]
@@ -274,6 +303,7 @@ impl Capability {
         match self {
             Self::InputInject => "input.inject",
             Self::ScreenCapture => "screen.capture",
+            Self::ProcessSpawn => "process.spawn",
         }
     }
 }
@@ -291,7 +321,11 @@ impl std::str::FromStr for Capability {
         Self::ALL
             .into_iter()
             .find(|c| c.name() == s)
-            .ok_or_else(|| format!("unknown capability {s:?}; known: input.inject, screen.capture"))
+            .ok_or_else(|| {
+                format!(
+                    "unknown capability {s:?}; known: input.inject, screen.capture, process.spawn"
+                )
+            })
     }
 }
 

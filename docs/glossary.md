@@ -30,5 +30,5 @@ terms and no synonyms.
 | **Event** | A message from the core about a change, for example `surface.created`. |
 | **Selector** | An expression that finds nodes by id, attribute or meta data, for example `app_id:firefox`. |
 | **Transaction** | A batch of commands that the core applies as one unit. If one command fails, the core applies none of them. |
-| **Grant** | A permission of the user for one client name to use `input.inject` or `screen.capture`. |
+| **Grant** | A permission of the user for one client name to use `input.inject`, `screen.capture` or `process.spawn`. |
 | **Safety layer** | The only built-in behavior of the core: fixed bindings, emergency reset, session lock, watchdog. |

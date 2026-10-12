@@ -300,11 +300,13 @@ Version 1 trusts every client of the same user (D33):
   protocols: the layer shell, the session lock, the input method, both
   foreign toplevel protocols, output management, both screencopy protocols
   with their sources, and the security context manager itself.
-- The IPC methods `input.inject` and `screen.capture` need a **grant** of the
-  user for the client name: `choractl grant NAME CAPABILITY` (D40). A grant
-  protects against mistakes of agents. It is no barrier against hostile code
-  of the same user. The emergency reset revokes all grants.
-- `screen.capture` and `input.inject` fail while the session is locked.
+- The IPC methods `input.inject`, `screen.capture` and `process.spawn` need
+  a **grant** of the user for the client name: `choractl grant NAME
+  CAPABILITY` (D40, D42). A grant protects against mistakes of agents. It is
+  no barrier against hostile code of the same user. The emergency reset
+  revokes all grants.
+- `screen.capture`, `input.inject`, `process.spawn` and `plugins.restart`
+  fail while the session is locked.
 
 ## Sessions and flavors
 
