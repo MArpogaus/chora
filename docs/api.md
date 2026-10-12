@@ -326,3 +326,7 @@ The screenshot of `describe_screen`, `capture` and `inject_input` need the
 grants of the client name, for example
 `choractl grant agent screen.capture`. Without a grant, `describe_screen`
 still describes the scene. No tool grants anything (D40).
+
+A tool that fails, also on invalid arguments, answers with `isError` and
+the reason, so that the model can correct its call. An unknown tool is a
+JSON-RPC error.

@@ -246,8 +246,10 @@ fn view_tools() -> Vec<Value> {
     ]
 }
 
-/// The result of a tool call. A tool that fails gives a result with
-/// `isError`; an unknown tool or invalid arguments give a JSON-RPC error.
+/// The result of a tool call. A tool that fails, also on invalid
+/// arguments, gives a result with `isError`, so that the model can correct
+/// its call, as protocol version 2025-11-25 asks. An unknown tool gives a
+/// JSON-RPC error.
 fn call_tool(chora: &mut Core, params: &Value) -> Result<Value, (i64, String)> {
     let name = params["name"].as_str().unwrap_or_default();
     let args = params
@@ -256,15 +258,15 @@ fn call_tool(chora: &mut Core, params: &Value) -> Result<Value, (i64, String)> {
         .unwrap_or_else(|| json!({}));
     match run_tool(chora, name, &args) {
         Ok(content) => Ok(json!({"content": content, "isError": false})),
-        Err(Failure::Invalid(message)) => Err((-32602, message)),
+        Err(Failure::UnknownTool(message)) => Err((-32602, message)),
         Err(Failure::Tool(message)) => Ok(json!({"content": [text(&message)], "isError": true})),
     }
 }
 
 /// Why a tool call failed.
 enum Failure {
-    /// An unknown tool or invalid arguments.
-    Invalid(String),
+    /// An unknown tool: a JSON-RPC error.
+    UnknownTool(String),
     /// The tool ran and failed.
     Tool(String),
 }
@@ -295,7 +297,7 @@ fn image(picture: &Picture) -> Value {
 
 fn arg<T: serde::de::DeserializeOwned>(args: &Value) -> Result<T, Failure> {
     serde_json::from_value(args.clone())
-        .map_err(|e| Failure::Invalid(format!("invalid arguments: {e}")))
+        .map_err(|e| Failure::Tool(format!("invalid arguments: {e}")))
 }
 
 fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Failure> {
@@ -303,7 +305,7 @@ fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Fa
         args[key]
             .as_str()
             .map(String::from)
-            .ok_or_else(|| Failure::Invalid(format!("{key} is missing")))
+            .ok_or_else(|| Failure::Tool(format!("{key} is missing")))
     };
     match name {
         "describe_screen" => describe(chora, args),
@@ -340,12 +342,12 @@ fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Fa
         "load_view" => {
             // An agent loads views by name only, not any file by path.
             let name = string("name")?;
-            view::check_name(&name).map_err(Failure::Invalid)?;
+            view::check_name(&name)?;
             Ok(vec![json_text(&view::load(&name)?)])
         }
         "save_view" => Ok(vec![json_text(&view::save(&string("name")?, None)?)]),
         "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
-        other => Err(Failure::Invalid(format!("no tool {other:?}"))),
+        other => Err(Failure::UnknownTool(format!("no tool {other:?}"))),
     }
 }
 
@@ -481,6 +483,11 @@ mod tests {
             answer(r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nope"}}"#)
                 .unwrap();
         assert_eq!(bad["error"]["code"], -32602);
+        let wrong = answer(
+            r#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"apply_commands","arguments":{}}}"#,
+        )
+        .unwrap();
+        assert_eq!(wrong["result"]["isError"], true, "{wrong}");
     }
 
     #[test]
