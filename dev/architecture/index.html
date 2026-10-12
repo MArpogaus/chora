@@ -1323,8 +1323,11 @@ and <code>fullscreen</code> from the last configure. The core never reports
 <p>Screenshot tools and screen sharing capture outputs through
 <code>wlr-screencopy</code>, for example grim, OBS and <code>xdg-desktop-portal-wlr</code> (D37).
 A frame offers an shm buffer in XRGB8888. The core renders the output into
-it as on screen, without the cursor. <code>copy_with_damage</code> waits one refresh,
-so that a stream gets at most one frame per refresh. Newer tools use
+it as on screen, without the cursor. Frames of both protocols wait for the
+next tick, one refresh later: each tick renders each output or toplevel
+once for all its frames, and a client has at most four frames waiting, so
+that no client can make the core render more than once per refresh and
+source. Newer tools use
 <code>ext-image-copy-capture</code>, which also captures a toplevel of
 <code>ext-foreign-toplevel-list</code>; the toplevel shows as <code>screen.capture</code> shows
 its node. Frames of both protocols fail while the session is locked. The renderer writes into shm buffers in <code>shm.rs</code>, which

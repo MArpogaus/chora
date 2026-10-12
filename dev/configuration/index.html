@@ -1120,7 +1120,13 @@ installs the reference flavors to <code>/usr/share/chora/</code>.</p>
   <code>choractl --name view-work apply</code>.</li>
 <li>A node has an <code>id</code>, a <code>kind</code> (<code>group</code>, <code>rect</code> or <code>image</code>), a <code>parent</code>
   (the root by default) and its <code>props</code> as in a <code>create</code> command.</li>
-<li><code>choractl view load</code> also takes the path of a YAML file.</li>
+<li>A name has letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, but no <code>.</code> first, so that
+  its file stays in its directory. The file <code>NAME.yaml</code> must name the same
+  view.</li>
+<li><code>choractl view load</code> also takes the path of a YAML file; the MCP tools
+  take names only.</li>
+<li>A plugin that a view starts gets no stdin and no stdout of <code>choractl</code>,
+  which carry MCP under <code>choractl mcp</code>.</li>
 </ul>
 <p><code>choractl</code> looks for <code>NAME.yaml</code> in <code>$XDG_CONFIG_HOME/chora/views/</code> first
 (<code>~/.config/chora/views/</code> by default), and then in

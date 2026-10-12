@@ -1549,6 +1549,8 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
 <li>An output shows as on screen, without the cursor.</li>
 <li>A node shows without its own transform, opacity, mesh and effects, on a
   transparent background. Its area covers the descendants with a size.</li>
+<li>A picture has at most 16 Mi pixels and 8192 pixels a side; a larger one
+  shrinks. <code>max_side</code> must be at least 1.</li>
 <li>A capture fails while the session is locked, and when the PNG file is
   larger than 5 MiB; a smaller <code>max_side</code> helps then.</li>
 </ul>
@@ -1611,8 +1613,9 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
 <li>Injected keys never reach the safety layer: Ctrl+Alt+BackSpace,
   Ctrl+Alt+Escape and the VT switch do nothing. The grabs of plugins see
   them, and the focused surface gets the rest.</li>
-<li>A request has at most 256 events and 4096 characters of text. It fails
-  while the session is locked.</li>
+<li>A request has at most 256 events, 4096 characters of text in all and
+  32,768 steps, a key press and a release being two. It fails while the
+  session is locked.</li>
 </ul>
 <p><code>choractl inject</code> reads the list of events as JSON, for example
 <code>echo '[{"text": {"text": "ls\n"}}]' | choractl --name agent inject</code>.</p>
@@ -1688,7 +1691,7 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tr>
 <tr>
 <td><code>capture</code></td>
-<td>a picture of an output or of a node, as <code>screen.capture</code></td>
+<td>a picture of an output or of a node, as <code>screen.capture</code>, at most 1920 pixels a side by default</td>
 </tr>
 <tr>
 <td><code>query_scene</code></td>
@@ -1712,7 +1715,7 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tr>
 <tr>
 <td><code>load_view</code>, <code>save_view</code>, <code>unload_view</code></td>
-<td>the views of <a href="../configuration/#views">Configuration</a></td>
+<td>the views of <a href="../configuration/#views">Configuration</a>, by name only</td>
 </tr>
 </tbody>
 </table>
