@@ -124,7 +124,8 @@ Windows XP (D39). The flavor is a demo, not a daily driver.
 
 **Exit:** an automated test passes: an MCP client asks for "describe the
 screen", calls `tiling.set_layout`, and the next screenshot shows the new
-layout.
+layout. The last step of `tests/agent.sh` checks it with
+`tests/mcp-client.py` in CI.
 
 ## M5: Packaging
 
