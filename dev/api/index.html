@@ -1723,6 +1723,9 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 grants of the client name, for example
 <code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
 still describes the scene. No tool grants anything (D40).</p>
+<p>A tool that fails, also on invalid arguments, answers with <code>isError</code> and
+the reason, so that the model can correct its call. An unknown tool is a
+JSON-RPC error.</p>
 
 
 
