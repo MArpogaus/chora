@@ -1,3 +1,49 @@
+## v0.4.0 (2026-10-12)
+
+The agent interface (milestone M4): an agent sees and changes the screen.
+`choractl mcp` serves the API as MCP tools, with `describe_screen` for a
+screenshot and the scene in words. Plugins export methods, such as
+`tiling.set_layout`. The user grants screenshots and input with
+`choractl grant`. Views load plugins and nodes from strict YAML. grim and
+screen sharing capture through `wlr-screencopy` and
+`ext-image-copy-capture`, and sandboxed apps do not see the privileged
+protocols. Nested, `tests/agent.sh` checks it, and its last step is the
+exit test: an MCP client describes the screen, calls `tiling.set_layout`,
+and sees the new layout in the next screenshot.
+
+### Known issues
+
+- Nobody has run chora on real hardware yet: the tty backend, the effects
+  on a GPU and the 60 Hz goal on Intel graphics are untested.
+- A grant protects against mistakes of agents, not against hostile code of
+  the same user, which can call `grants.set` itself (D40).
+- grim and other `wlr-screencopy` clients turn the picture of a rotated
+  output once more: the core sends it as it shows.
+- Screen sharing through `xdg-desktop-portal-wlr` is untested. Screencopy
+  offers shm buffers only, no dmabuf, and pictures have no cursor.
+- `input.inject` types through the first layout of the keymap, with Shift
+  or AltGr at most.
+- Layers render again in every frame, and they have no depth test.
+- The XP flavor of v0.3.0 is unchanged and keeps its limits.
+
+### Feat
+
+- **choractl**: serve the API as MCP tools over stdio
+- **choractl**: load, save and unload views from strict YAML
+- hide privileged protocols from sandboxed clients
+- capture outputs and toplevels through ext-image-copy-capture
+- let grim and screen sharing capture outputs through wlr-screencopy
+- inject input after a grant of the user
+- capture outputs and nodes after a grant of the user
+- **tiling**: switch between master and stack, columns and rows
+- let plugins export methods to other clients
+
+### Fix
+
+- **choractl**: keep views in their directory and MCP to the spec
+- **tiling**: keep running when the call of an answer ended
+- pace screencopy frames and bound captures and injections
+
 ## v0.3.0 (2026-10-11)
 
 The showroom (milestone M3): layers with meshes, 4x4 transforms and GLSL

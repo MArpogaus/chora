@@ -301,7 +301,7 @@ dependencies = [
 
 [[package]]
 name = "chora"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "base64",
  "calloop",
@@ -318,7 +318,7 @@ dependencies = [
 
 [[package]]
 name = "chora-probe"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "rustix 1.1.5",
  "wayland-client",
@@ -329,7 +329,7 @@ dependencies = [
 
 [[package]]
 name = "chora-scene"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "imbl",
  "serde",
@@ -339,7 +339,7 @@ dependencies = [
 
 [[package]]
 name = "chora-tiling"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chora-scene",
  "clap",
@@ -349,7 +349,7 @@ dependencies = [
 
 [[package]]
 name = "chora-xp"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chora-scene",
  "chrono",
@@ -361,7 +361,7 @@ dependencies = [
 
 [[package]]
 name = "choractl"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "base64",
  "chora-scene",
