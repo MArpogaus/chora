@@ -242,12 +242,17 @@ impl State {
     /// The camera of an output: the one a client set, or the default.
     pub fn camera(&self, output: &Output) -> Transform {
         self.scene
-            .camera(&output.name())
-            .copied()
-            .unwrap_or_else(|| {
-                let loc = output_area(output).loc;
-                Transform::translate(-f64::from(loc.x), -f64::from(loc.y), 0.0)
-            })
+            .current_camera(&output.name())
+            .unwrap_or_else(|| default_camera(output))
+    }
+
+    /// Tells the scene the default cameras, where camera moves from and to
+    /// the default camera start and end.
+    pub fn sync_default_cameras(&mut self) {
+        for output in &self.outputs {
+            self.scene
+                .set_default_camera(&output.name(), default_camera(output));
+        }
     }
 
     /// The output at a point of the layout, and the point in output and in
@@ -539,6 +544,12 @@ fn clamp(point: Point<f64, Logical>, area: Rectangle<i32, Logical>) -> Point<f64
         point.y.clamp(area.loc.y, max.y.max(area.loc.y)),
     )
         .into()
+}
+
+/// The camera that shows an output at its place in the layout.
+fn default_camera(output: &Output) -> Transform {
+    let loc = output_area(output).loc;
+    Transform::translate(-f64::from(loc.x), -f64::from(loc.y), 0.0)
 }
 
 /// A zone without space at its edges; at least one pixel stays.

@@ -762,7 +762,13 @@ mod tests {
         )
         .unwrap();
         let event = client.next_event_timeout(Duration::from_secs(5)).unwrap();
-        assert_eq!(event, Some(Event::AnimationDone { node: "n".into() }));
+        assert_eq!(
+            event,
+            Some(Event::AnimationDone {
+                node: Some("n".into()),
+                output: None
+            })
+        );
     }
 
     #[test]
@@ -792,6 +798,12 @@ mod tests {
         writer.write_all(&rest).unwrap();
         writer.write_all(b"\n").unwrap();
         let event = client.next_event_timeout(Duration::from_secs(5)).unwrap();
-        assert_eq!(event, Some(Event::AnimationDone { node: "é".into() }));
+        assert_eq!(
+            event,
+            Some(Event::AnimationDone {
+                node: Some("é".into()),
+                output: None
+            })
+        );
     }
 }

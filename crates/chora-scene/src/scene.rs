@@ -5,9 +5,10 @@ use std::collections::BTreeMap;
 use imbl::OrdMap;
 
 use crate::{
-    Command, Effect, InputMode, MAX_DURATION, MAX_EFFECTS, MAX_MESH_CELLS, MAX_NODE_TEXTURES,
-    MAX_UNIFORMS, Node, NodeKind, Props, PropsUpdate, ROOT, Selector, ShaderEffect, SurfaceInfo,
-    ToplevelState, Transform, Uniform, animation::Animation,
+    Command, Easing, Effect, InputMode, MAX_DURATION, MAX_EFFECTS, MAX_MESH_CELLS,
+    MAX_NODE_TEXTURES, MAX_UNIFORMS, Node, NodeKind, Props, PropsUpdate, ROOT, Selector,
+    ShaderEffect, SurfaceInfo, ToplevelState, Transform, Uniform,
+    animation::{Animation, CameraMove},
 };
 
 /// Why a command failed.
@@ -125,6 +126,11 @@ pub struct Scene {
     surfaces: usize,
     /// The running animations by node.
     animations: OrdMap<String, Animation>,
+    /// The cameras that move to their target, by output.
+    camera_moves: OrdMap<String, CameraMove>,
+    /// The default camera of each output, which the core sets; the start
+    /// and the end of moves from and to the default camera.
+    default_cameras: OrdMap<String, Transform>,
 }
 
 impl Default for Scene {
@@ -143,6 +149,8 @@ impl Default for Scene {
             cameras: OrdMap::new(),
             surfaces: 0,
             animations: OrdMap::new(),
+            camera_moves: OrdMap::new(),
+            default_cameras: OrdMap::new(),
         }
     }
 }
@@ -153,6 +161,24 @@ impl Scene {
     #[must_use]
     pub fn camera(&self, output: &str) -> Option<&Transform> {
         self.cameras.get(output).map(|(_, t)| t)
+    }
+
+    /// The camera of an output now, on the way of a move; `None` for the
+    /// default camera.
+    #[must_use]
+    pub fn current_camera(&self, output: &str) -> Option<Transform> {
+        let target = self.camera(output).copied();
+        let Some(moving) = self.camera_moves.get(output) else {
+            return target;
+        };
+        let to = target.or_else(|| self.default_cameras.get(output).copied())?;
+        Some(moving.at(&to))
+    }
+
+    /// Sets the default camera of an output, where moves to and from the
+    /// default camera end and start.
+    pub fn set_default_camera(&mut self, output: &str, camera: Transform) {
+        self.default_cameras.insert(output.into(), camera);
     }
 
     /// A node by id.
@@ -310,12 +336,29 @@ impl Scene {
                 effects.push(Effect::Close(surface.clone()));
                 Ok(())
             }
-            Command::Camera { output, transform } => {
-                self.set_camera(owner, output, *transform)?;
-                effects.push(Effect::Camera(output.clone()));
-                Ok(())
-            }
+            camera @ Command::Camera { .. } => self.camera_command(owner, camera, effects),
         }
+    }
+
+    fn camera_command(
+        &mut self,
+        owner: &str,
+        command: &Command,
+        effects: &mut Vec<Effect>,
+    ) -> Result<(), SceneError> {
+        let Command::Camera {
+            output,
+            transform,
+            duration,
+            easing,
+        } = command
+        else {
+            unreachable!("only camera commands come here");
+        };
+        let timing = duration.map(|d| (d, *easing));
+        self.set_camera(owner, output, *transform, timing)?;
+        effects.push(Effect::Camera(output.clone()));
+        Ok(())
     }
 
     fn set_camera(
@@ -323,9 +366,32 @@ impl Scene {
         owner: &str,
         output: &str,
         transform: Option<Transform>,
+        timing: Option<(f64, Easing)>,
     ) -> Result<(), SceneError> {
         if let Some((other, _)) = self.cameras.get(output).filter(|(o, _)| o != owner) {
             return Err(SceneError::CameraOwner(output.into(), other.clone()));
+        }
+        if timing.is_some_and(|(d, _)| !(0.0..=MAX_DURATION).contains(&d)) {
+            return Err(SceneError::Invalid(format!(
+                "the duration of the camera of {output:?} is not from 0 to {MAX_DURATION} ms"
+            )));
+        }
+        // A move starts where the camera is now, also in the middle of
+        // another move.
+        let from = self
+            .current_camera(output)
+            .or_else(|| self.default_cameras.get(output).copied());
+        self.camera_moves.remove(output);
+        if let (Some(from), Some((duration, easing))) = (from, timing)
+            && duration > 0.0
+        {
+            let moving = CameraMove {
+                from,
+                duration,
+                elapsed: 0.0,
+                easing,
+            };
+            self.camera_moves.insert(output.into(), moving);
         }
         let Some(t) = transform else {
             self.cameras.remove(output);
@@ -435,6 +501,7 @@ impl Scene {
             .collect();
         for output in &cameras {
             self.cameras.remove(output);
+            self.camera_moves.remove(output);
         }
         let detached = detached.into_iter().map(Effect::Detached);
         detached
@@ -467,6 +534,7 @@ impl Scene {
         root.props = Props::default();
         self.cameras = OrdMap::new();
         self.animations = OrdMap::new();
+        self.camera_moves = OrdMap::new();
         let cells = grid(surfaces.len(), area);
         surfaces
             .iter()
@@ -655,10 +723,28 @@ impl Scene {
         found
     }
 
-    /// Whether an animation runs.
+    /// Moves the cameras forward by a time in milliseconds. Returns the
+    /// outputs whose cameras reached their targets.
+    pub fn advance_cameras(&mut self, ms: f64) -> Vec<String> {
+        let outputs: Vec<String> = self.camera_moves.keys().cloned().collect();
+        let mut done = Vec::new();
+        for output in outputs {
+            let Some(moving) = self.camera_moves.get_mut(&output) else {
+                continue;
+            };
+            moving.elapsed += ms;
+            if moving.ended() {
+                self.camera_moves.remove(&output);
+                done.push(output);
+            }
+        }
+        done
+    }
+
+    /// Whether an animation runs, of a node or of a camera.
     #[must_use]
     pub fn animating(&self) -> bool {
-        !self.animations.is_empty()
+        !self.animations.is_empty() || !self.camera_moves.is_empty()
     }
 
     /// Removes a node and its descendants. Surfaces become detached and

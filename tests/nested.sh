@@ -378,7 +378,7 @@ update_image "$out/missing.png" >"$out/image-missing.json"
 jq -se '.[1] | has("error")' "$out/image-missing.json" >/dev/null ||
     fail "a missing file applied: $out/image-missing.json"
 
-step "19. an animation moves a node and tells when it ends"
+step "19. an animation moves a node or a camera and tells when it ends"
 "$bin/choractl" events animation.done >"$out/animation.jsonl" &
 events_pid=$!
 pids+=("$events_pid")
@@ -390,6 +390,21 @@ wait_for grep -q '"node":"frame"' "$out/animation.jsonl"
 kill "$events_pid"
 pixel_is 1050 550 "255 255 0" || fail "the moved center: $(pixel 1050 550)"
 pixel_is 750 550 "0 0 0" || fail "the old place: $(pixel 750 550)"
+# A camera moves too, from where it is, and tells its end with the output.
+"$bin/choractl" events animation.done >"$out/camera.jsonl" &
+events_pid=$!
+pids+=("$events_pid")
+sleep 0.3
+rpc '[{"camera": {"output": "winit", "transform": {"translate": [-200, 0]},
+                  "duration": 300, "easing": "ease_in_out"}}]' >"$out/camera.json"
+all_results "$out/camera.json" || fail "answers: $out/camera.json"
+wait_for grep -q '"event":"animation.done","output":"winit"' "$out/camera.jsonl"
+kill "$events_pid"
+"$bin/choractl" outputs | jq -e '.[0].camera.matrix[12] == -200' >/dev/null ||
+    fail "the camera: $("$bin/choractl" outputs)"
+pixel_is 850 550 "255 255 0" || fail "the panned center: $(pixel 850 550)"
+rpc '[{"camera": {"output": "winit"}}]' >/dev/null
+wait_for pixel_is 1050 550 "255 255 0"
 
 step "20. plugins get the press, the drag and the release over a rect"
 rpc '[{"create": {"id": "handle", "kind": "rect", "parent": "root",

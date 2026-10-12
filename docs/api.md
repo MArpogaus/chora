@@ -110,7 +110,7 @@ prints the path.
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
 | `focus` | set the keyboard focus |
 | `close` | ask a client to close a surface |
-| `camera` | set the camera of an output, or restore its default camera without a transform |
+| `camera` | set the camera of an output, or restore its default camera without a transform; with a `duration`, move it there |
 
 `animate` lets plugins and agents animate without code in every frame:
 
@@ -126,6 +126,16 @@ targets along the curve: `linear` (the default), `ease_in`, `ease_out` or
 fades the node out and then hides it. The duration is in milliseconds, at
 most one minute. A later `animate` or `update` of the node ends the
 animation where it is. The end sends `animation.done`.
+
+A camera moves the same way, with `duration` and `easing` (#10). It starts
+where the camera is now, also in the middle of another move, and the end
+sends `animation.done` with the output and then `output.changed`:
+
+<!-- parses: command -->
+```json
+{"camera": {"output": "DP-1", "transform": {"scale": 2, "translate": [-640, -400]},
+            "duration": 500, "easing": "ease_in_out"}}
+```
 
 ## Selectors
 
@@ -148,7 +158,7 @@ or an empty list. It always sees the current titles.
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates |
 | `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node and position; `pointer.released` with the button |
-| `animation.done` | the node whose animation reached its targets |
+| `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version |
 | `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of all nodes, because frames were slow for two seconds |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves |

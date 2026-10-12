@@ -95,6 +95,14 @@ pub enum Command {
         /// A 2D translation and positive scale; the default camera if
         /// missing.
         transform: Option<Transform>,
+        /// In milliseconds, at most one minute: the camera moves there from
+        /// where it is, and the core sends `animation.done` with the output
+        /// at the end. At once if missing.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        duration: Option<f64>,
+        /// The curve; linear if missing.
+        #[serde(default)]
+        easing: Easing,
     },
 }
 

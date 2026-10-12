@@ -272,7 +272,17 @@ impl State {
         }
         let ms = now.duration_since(last).as_secs_f64() * 1000.0;
         for node in self.scene.advance(ms) {
-            self.emit(&Event::AnimationDone { node });
+            self.emit(&Event::AnimationDone {
+                node: Some(node),
+                output: None,
+            });
+        }
+        for output in self.scene.advance_cameras(ms) {
+            self.emit(&Event::AnimationDone {
+                node: None,
+                output: Some(output.clone()),
+            });
+            self.execute(vec![chora_scene::Effect::Camera(output)]);
         }
         // The loop can run far more often than frames show.
         if now - self.pointer_refreshed >= POINTER_REFRESH {

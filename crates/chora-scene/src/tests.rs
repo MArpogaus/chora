@@ -1,8 +1,8 @@
 //! Tests of the scene rules.
 
 use crate::{
-    Command, Easing, Effect, Event, MAX_CAMERAS, MAX_NODES, NodeKind, PropsUpdate, ROOT, Scene,
-    SceneError, Selector, SurfaceInfo, SurfaceRequest, Transform,
+    Command, Easing, Effect, Event, MAX_CAMERAS, MAX_DURATION, MAX_NODES, NodeKind, PropsUpdate,
+    ROOT, Scene, SceneError, Selector, SurfaceInfo, SurfaceRequest, Transform,
 };
 
 fn group(id: &str, parent: &str) -> Command {
@@ -404,7 +404,66 @@ fn camera(output: &str, transform: Option<Transform>) -> Command {
     Command::Camera {
         output: output.into(),
         transform,
+        duration: None,
+        easing: Easing::Linear,
     }
+}
+
+fn camera_move(output: &str, transform: Option<Transform>, duration: f64) -> Command {
+    Command::Camera {
+        output: output.into(),
+        transform,
+        duration: Some(duration),
+        easing: Easing::Linear,
+    }
+}
+
+#[test]
+fn a_camera_moves_from_where_it_is_and_tells_its_end() {
+    let mut scene = Scene::default();
+    scene.set_default_camera("DP-1", Transform::translate(-1920.0, 0.0, 0.0));
+    let pan = Transform::translate(-2920.0, 0.0, 0.0);
+    scene
+        .apply("wm", &[camera_move("DP-1", Some(pan), 100.0)])
+        .unwrap();
+    assert!(scene.animating());
+    assert_eq!(scene.camera("DP-1"), Some(&pan), "the target");
+    let x = |scene: &Scene| scene.current_camera("DP-1").map(|t| t.translation_2d().0);
+    assert_eq!(x(&scene), Some(-1920.0));
+    assert!(scene.advance_cameras(50.0).is_empty());
+    assert_eq!(x(&scene), Some(-2420.0));
+    // A new move starts in the middle, here back to the default camera.
+    scene
+        .apply("wm", &[camera_move("DP-1", None, 100.0)])
+        .unwrap();
+    assert_eq!(x(&scene), Some(-2420.0));
+    assert_eq!(scene.advance_cameras(100.0), vec!["DP-1".to_string()]);
+    assert!(!scene.animating());
+    assert_eq!(scene.current_camera("DP-1"), None);
+}
+
+#[test]
+fn a_camera_move_needs_a_duration_up_to_a_minute_and_ends_with_its_owner() {
+    let mut scene = Scene::default();
+    scene.set_default_camera("DP-1", Transform::IDENTITY);
+    let zoom = Transform::scale(2.0, 2.0, 1.0);
+    for duration in [-1.0, f64::NAN, MAX_DURATION + 1.0] {
+        let err = scene
+            .apply("wm", &[camera_move("DP-1", Some(zoom), duration)])
+            .unwrap_err();
+        assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
+    }
+    scene
+        .apply("wm", &[camera_move("DP-1", Some(zoom), 0.0)])
+        .unwrap();
+    assert!(!scene.animating(), "no duration, no move");
+    scene
+        .apply("wm", &[camera_move("DP-1", Some(zoom.then(&zoom)), 500.0)])
+        .unwrap();
+    assert!(scene.animating());
+    scene.disconnect("wm");
+    assert!(!scene.animating());
+    assert_eq!(scene.current_camera("DP-1"), None);
 }
 
 #[test]

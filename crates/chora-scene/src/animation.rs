@@ -108,6 +108,36 @@ impl Animation {
     }
 }
 
+/// A camera that moves from where it was to its target (#10).
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CameraMove {
+    /// The camera at the start.
+    pub from: Transform,
+    /// In milliseconds.
+    pub duration: f64,
+    /// Since the start, in milliseconds.
+    pub elapsed: f64,
+    /// The curve.
+    pub easing: Easing,
+}
+
+impl CameraMove {
+    /// The camera at the current time on the way to `to`.
+    pub fn at(&self, to: &Transform) -> Transform {
+        let t = if self.duration > 0.0 {
+            (self.elapsed / self.duration).min(1.0)
+        } else {
+            1.0
+        };
+        self.from.lerp(to, self.easing.at(t))
+    }
+
+    /// Whether the camera reached its target.
+    pub fn ended(&self) -> bool {
+        self.elapsed >= self.duration
+    }
+}
+
 impl Transform {
     /// The transform between `self` at 0 and `other` at 1, entry by entry.
     /// Translations and scales move straight; a rotation shrinks on the

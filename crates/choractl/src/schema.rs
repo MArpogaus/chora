@@ -161,6 +161,8 @@ mod tests {
             json!({"camera": {"output": "X", "transform": matrix(16)}}),
             json!({"camera": {"output": "X", "transform": {"scale": [2, 2]}}}),
             json!({"camera": {"output": "X"}}),
+            json!({"camera": {"output": "X", "transform": {"scale": 2}, "duration": 300,
+                "easing": "ease_out"}}),
             // Wrong shapes.
             json!({"create": {"id": "a", "kind": "rect"}}),
             json!({"create": {"id": "a", "kind": "circle", "parent": "root"}}),

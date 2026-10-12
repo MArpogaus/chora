@@ -299,6 +299,7 @@ impl State {
     /// Applies the transaction to the scene, answers the client, and then
     /// applies the commits that the transaction held.
     fn finish(&mut self, mut head: Pending) {
+        self.sync_default_cameras();
         let applied = self.scene.apply(&head.owner, &head.commands);
         self.assets.images.prune(&self.scene);
         let message = match applied {

@@ -124,11 +124,16 @@ pub enum Event {
         /// The path and the log of the compiler.
         error: String,
     },
-    /// An animation reached its targets.
+    /// An animation reached its targets: of a node or of the camera of an
+    /// output.
     #[serde(rename = "animation.done")]
     AnimationDone {
         /// The node.
-        node: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        node: Option<String>,
+        /// The output of the camera.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        output: Option<String>,
     },
     /// An output appeared or changed its mode, scale or position.
     #[serde(rename = "output.changed")]
