@@ -27,6 +27,7 @@ mod security;
 mod shm;
 mod state;
 mod transaction;
+mod uploads;
 
 use std::{
     ffi::OsStr,

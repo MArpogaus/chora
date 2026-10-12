@@ -12,10 +12,12 @@ use std::{
     time::Duration,
 };
 
+use base64::{Engine, engine::general_purpose::STANDARD};
 use chora_scene::{
     Node, NodeKind, OutputInfo, Transform,
     ipc::{
-        Apply, Capture, Client, ClientError, Hello, Inject, MethodCall, Picture, Query, RpcError,
+        Apply, AssetPut, Capture, Client, ClientError, Hello, Inject, MethodCall, Picture, Query,
+        RpcError,
     },
 };
 use serde_json::{Value, json};
@@ -231,6 +233,16 @@ fn screen_tools() -> Vec<Value> {
 fn scene_tools() -> Vec<Value> {
     vec![
         tool(
+            "put_asset",
+            "Store a file for image nodes, shader nodes and effects in a directory of chora, and get its absolute path, since chora may not see the files of the agent, for example in another container. Pass a shader as text and a PNG in base64, at most 512 KiB. A second put of a name replaces the file, and nodes that use it reload it.",
+            &json!({
+                "name": {"type": "string", "description": "the file name, for example glow.frag: letters, digits, '.', '_' and '-'"},
+                "text": {"type": "string", "description": "the content as text, for a shader"},
+                "base64": {"type": "string", "description": "the content in base64, for a PNG"},
+            }),
+            &["name"],
+        ),
+        tool(
             "query_scene",
             "The nodes that match a selector, for example kind:surface, app_id:firefox or title~:Inbox.",
             &json!({"selector": {"type": "string", "description": "the selector; every node if empty"}}),
@@ -386,9 +398,22 @@ fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Fa
         "save_view" => Ok(vec![json_text(&view::save(&string("name")?, None)?)]),
         "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
         "subscribe_events" => subscribe(chora, args),
+        "put_asset" => put_asset(chora, args),
         "wait_events" => wait(chora, args),
         other => Err(Failure::UnknownTool(format!("no tool {other:?}"))),
     }
+}
+
+/// Stores an asset from text or base64.
+fn put_asset(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
+    let name = args["name"].as_str().unwrap_or_default().to_string();
+    let data = match (args["text"].as_str(), args["base64"].as_str()) {
+        (Some(text), None) => STANDARD.encode(text),
+        (None, Some(data)) => data.to_string(),
+        _ => return Err(Failure::Tool("pass either text or base64".into())),
+    };
+    let asset: Value = chora.call("assets.put", AssetPut { name, data })?;
+    Ok(vec![json_text(&asset)])
 }
 
 /// Takes the events of the subscription.
@@ -563,7 +588,7 @@ mod tests {
         assert!(
             tools["result"]["tools"]
                 .as_array()
-                .is_some_and(|t| t.len() == 12)
+                .is_some_and(|t| t.len() == 13)
         );
         let bad =
             answer(r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nope"}}"#)

@@ -5,7 +5,10 @@ It starts `choractl --name agent mcp`, asks for "describe the screen",
 calls `tiling.set_layout`, and asks again. It saves both screenshots as
 OUT_DIR/before.png and OUT_DIR/after.png and both descriptions as JSON, for
 the checks of tests/agent.sh. Then it subscribes to events, clicks a rect
-of its own and presses a key that it grabbed, and waits for both (#7).
+of its own and presses a key that it grabbed, and waits for both (#7). It
+puts a shader as an asset, draws it as a shader node and saves a capture
+of the node as OUT_DIR/asset.png and the path as OUT_DIR/asset-path.txt
+(#6).
 
 Usage: tests/mcp-client.py CHORACTL OUT_DIR LAYOUT
 """
@@ -129,6 +132,41 @@ def events(mcp):
     mcp.tool("apply_commands", {"commands": [{"remove": {"id": "mcp-button"}}]})
 
 
+MAGENTA = """precision mediump float;
+uniform float alpha;
+varying vec2 v_uv;
+void main() { gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0) * alpha; }
+"""
+
+
+def asset(mcp, out):
+    """A shader of the client, which chora cannot read, draws a node."""
+    content = mcp.tool("put_asset", {"name": "magenta.frag", "text": MAGENTA})
+    path = json.loads(content[0]["text"])["path"]
+    mcp.tool(
+        "apply_commands",
+        {
+            "commands": [
+                {
+                    "create": {
+                        "id": "mcp-shader",
+                        "kind": "shader",
+                        "parent": "root",
+                        "props": {"size": [100, 100], "shader": path},
+                    }
+                }
+            ]
+        },
+    )
+    content = mcp.tool("capture", {"node": "mcp-shader"})
+    images = [c for c in content if c["type"] == "image"]
+    with open(f"{out}/asset.png", "wb") as f:
+        f.write(base64.b64decode(images[0]["data"]))
+    with open(f"{out}/asset-path.txt", "w") as f:
+        f.write(path)
+    mcp.tool("apply_commands", {"commands": [{"remove": {"id": "mcp-shader"}}]})
+
+
 def main():
     choractl, out, layout = sys.argv[1:4]
     mcp = Mcp([choractl, "--name", "agent", "mcp"])
@@ -159,9 +197,11 @@ def main():
         sys.exit(f"set_layout: {result}")
     describe(mcp, out, "after")
     events(mcp)
+    asset(mcp, out)
     mcp.close()
     print("the MCP client saw the screen before and after set_layout")
     print("the MCP client saw its click and its key")
+    print("the MCP client drew its own shader")
 
 
 main()

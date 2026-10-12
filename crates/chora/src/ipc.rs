@@ -32,7 +32,7 @@ use smithay::{
     },
 };
 
-use crate::state::State;
+use crate::{state::State, uploads::Uploads};
 
 const MAX_CONNECTIONS: usize = 128;
 const MAX_LINE: usize = 1 << 20;
@@ -46,6 +46,8 @@ const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Default)]
 pub struct Ipc {
     path: Option<PathBuf>,
+    /// The files of `assets.put`.
+    pub uploads: Uploads,
     listener: Option<RegistrationToken>,
     conns: HashMap<u64, Conn>,
     next: u64,
@@ -74,6 +76,9 @@ pub fn listen(state: &mut State) -> io::Result<PathBuf> {
     let dir = private_dir(Path::new(&runtime))?;
     let mut path = dir.join(&state.socket_name);
     path.set_extension("sock");
+    let mut assets = path.clone();
+    assets.set_extension("assets");
+    state.ipc.uploads.open(assets)?;
     match std::fs::remove_file(&path) {
         Err(err) if err.kind() != ErrorKind::NotFound => return Err(err),
         _ => {}
@@ -396,6 +401,7 @@ impl State {
             }
             "screen.capture" => self.ipc_capture(conn, params),
             "input.inject" => self.ipc_inject(conn, params),
+            "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
             }
@@ -472,8 +478,8 @@ impl State {
         Ok(Value::String(normal))
     }
 
-    /// Closes a connection. Without `keep_nodes`, the nodes of its name go
-    /// when the last connection of the name closes.
+    /// Closes a connection. Without `keep_nodes`, the nodes and the assets
+    /// of its name go when the last connection of the name closes.
     pub fn ipc_close(&mut self, conn: u64) {
         let Some(closed) = self.ipc.conns.remove(&conn) else {
             return;
@@ -497,6 +503,7 @@ impl State {
         if !closed.keep_nodes {
             let effects = self.scene.disconnect(&name);
             self.execute(effects);
+            self.ipc.uploads.drop_client(&name);
         }
         self.emit(&Event::ClientDisconnected { name });
     }

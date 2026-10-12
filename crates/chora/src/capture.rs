@@ -260,7 +260,7 @@ fn render_pixels(
             [0.0, 0.0, 0.0, 1.0],
         ),
         Source::Node(id) => (
-            render::flat_elements(parts, gles, id, &shot.view).unwrap_or_default(),
+            render::shown_elements(parts, gles, id, &shot.view).unwrap_or_default(),
             [0.0; 4],
         ),
     };

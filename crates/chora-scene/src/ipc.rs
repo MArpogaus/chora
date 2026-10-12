@@ -174,6 +174,34 @@ pub struct Grab {
     pub binding: crate::Binding,
 }
 
+/// Parameters of `assets.put`: a file for image nodes, shader nodes and
+/// effects, from a client that shares no directory with the core (#6).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AssetPut {
+    /// The file name, for example `glow.frag`: letters, digits, `.`, `_`
+    /// and `-`, not first a `.`, at most 64 characters. A second put of
+    /// the name replaces the file.
+    pub name: String,
+    /// The content in base64, at most 512 KiB decoded.
+    pub data: String,
+}
+
+/// Parameters of `assets.remove`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AssetRemove {
+    /// The file name of `assets.put`.
+    pub name: String,
+}
+
+/// The answer of `assets.put`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Asset {
+    /// The absolute path of the file, for `image`, `shader` and effects.
+    pub path: String,
+}
+
 /// A method that needs a grant of the user (D33).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Capability {

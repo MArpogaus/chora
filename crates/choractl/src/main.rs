@@ -17,8 +17,8 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use chora_scene::{
     Event,
     ipc::{
-        Apply, Capability, Capture, Client, ClientError, GrantChange, Hello, Inject, MethodCall,
-        Picture, Query, Subscribe,
+        Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, GrantChange,
+        Hello, Inject, MethodCall, Picture, Query, Subscribe,
     },
 };
 use clap::{Parser, Subcommand};
@@ -93,6 +93,13 @@ enum Cmd {
     },
     /// Serve the API as MCP tools over stdio, for an agent.
     Mcp,
+    /// Store a file for image nodes, shader nodes and effects in a
+    /// directory of the core, or remove it; for a client that shares no
+    /// directory with the core.
+    Asset {
+        #[command(subcommand)]
+        action: AssetCmd,
+    },
     /// Load, unload or save a view: plugins and nodes from a YAML file.
     View {
         #[command(subcommand)]
@@ -139,6 +146,23 @@ enum ViewCmd {
         /// The file; `~/.config/chora/views/NAME.yaml` if missing.
         #[arg(long)]
         file: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum AssetCmd {
+    /// Store a file under a name and print its path. A second put of the
+    /// name replaces the file.
+    Put {
+        /// The name, for example `glow.frag`.
+        name: String,
+        /// The file; stdin for `-`.
+        file: String,
+    },
+    /// Remove a file of an earlier put.
+    Remove {
+        /// The name.
+        name: String,
     },
 }
 
@@ -192,6 +216,7 @@ fn run(args: Args) -> Result<(), String> {
             capabilities,
         } => grants(&mut client, "grants.revoke", name, capabilities),
         Cmd::Grants => client.call("grants.list", Value::Null).map(|v| print(&v)),
+        Cmd::Asset { action } => return asset(&mut client, action),
         Cmd::View { .. } | Cmd::Mcp => unreachable!("handled before the connection"),
         Cmd::Inject { .. } => client
             .call::<_, Value>("input.inject", Inject { events: input })
@@ -211,6 +236,33 @@ fn run(args: Args) -> Result<(), String> {
         }
     };
     result.map_err(|e| e.to_string())
+}
+
+/// Stores or removes an asset.
+fn asset(client: &mut Client, action: AssetCmd) -> Result<(), String> {
+    match action {
+        AssetCmd::Put { name, file } => {
+            let data = if file == "-" {
+                let mut data = Vec::new();
+                std::io::stdin().read_to_end(&mut data).map(|_| data)
+            } else {
+                std::fs::read(&file)
+            }
+            .map_err(|e| format!("{file}: {e}"))?;
+            let put = AssetPut {
+                name,
+                data: STANDARD.encode(data),
+            };
+            let asset: Asset = client.call("assets.put", put).map_err(|e| e.to_string())?;
+            println!("{}", asset.path);
+        }
+        AssetCmd::Remove { name } => {
+            client
+                .call::<_, Value>("assets.remove", AssetRemove { name })
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
 }
 
 /// Runs a view command with the client of the view.

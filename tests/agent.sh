@@ -6,7 +6,8 @@
 # shortcut of a plugin. Injected safety keys do nothing, and while the
 # session is locked, captures and injections fail. grim and the probe
 # capture through both screencopy protocols, and a client of a sandbox
-# sees none of the privileged protocols. An MCP client waits for events.
+# sees none of the privileged protocols. An MCP client waits for events
+# and draws a shader that it hands to the core as an asset.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
@@ -357,5 +358,40 @@ jq -e '[.windows[].position[1]] | sort == [0, 400]' "$out/after.json" >/dev/null
     fail "the description after: $(cat "$out/after.json")"
 grep -q "screen before and after" "$out/mcp.log" || fail "mcp: $(cat "$out/mcp.log")"
 grep -q "its click and its key" "$out/mcp.log" || fail "mcp: $(cat "$out/mcp.log")"
+grep -q "its own shader" "$out/mcp.log" || fail "mcp: $(cat "$out/mcp.log")"
+test "$(color_at asset 50 50)" = "255 0 255" || fail "the asset: $(color_at asset 50 50)"
+
+step "19. assets.put stores the files of a client until its nodes go"
+asset=$(cat "$out/asset-path.txt")
+case $asset in "$XDG_RUNTIME_DIR"/chora/*) ;; *) fail "the asset is at $asset" ;; esac
+# The agent keeps its nodes, so its files stay after the disconnect.
+test -f "$asset" || fail "the asset of the agent went"
+printf 'one' >"$out/one.txt"
+put=$(ctl asset put one.txt "$out/one.txt") || fail "the put failed"
+cmp -s "$put" "$out/one.txt" || fail "the put stored $(cat "$put")"
+printf 'two' | ctl asset put one.txt - >/dev/null || fail "the second put failed"
+test "$(cat "$put")" = two || fail "the second put stored $(cat "$put")"
+if ctl asset put ../x "$out/one.txt" 2>/dev/null; then fail "a put of ../x worked"; fi
+ctl asset remove one.txt || fail "the remove failed"
+test ! -e "$put" || fail "the remove left $put"
+# The files of a client without keep_nodes go at its disconnect.
+python3 -I - "$CHORA_SOCKET" <<'EOF' >"$out/temporary-asset.txt" || fail "the temporary put failed"
+import base64, json, socket, sys
+stream = socket.socket(socket.AF_UNIX)
+stream.connect(sys.argv[1])
+lines = stream.makefile("rw")
+def call(number, method, params):
+    lines.write(json.dumps({"jsonrpc": "2.0", "id": number, "method": method, "params": params}) + "\n")
+    lines.flush()
+    answer = json.loads(lines.readline())
+    if "error" in answer:
+        sys.exit(f"{method}: {answer}")
+    return answer["result"]
+call(1, "hello", {"name": "temporary", "keep_nodes": False})
+print(call(2, "assets.put", {"name": "t.png", "data": base64.b64encode(b"x").decode()})["path"])
+EOF
+temporary=$(cat "$out/temporary-asset.txt")
+case $temporary in "$XDG_RUNTIME_DIR"/chora/*) ;; *) fail "the temporary asset is at $temporary" ;; esac
+wait_for test ! -e "$temporary"
 
 echo "PASS (logs and screenshots in $out)"

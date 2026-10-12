@@ -339,6 +339,32 @@ pub fn flat_elements<R: MeshRenderer>(
     Some(content)
 }
 
+/// The render elements of a node with its descendants for a capture of the
+/// node: as [`flat_elements`], but with the shape, the shader and the clip
+/// of the node itself. Its mesh and its effects stay out, so that a
+/// capture shows the content of a window.
+pub fn shown_elements<R: MeshRenderer>(
+    parts: &mut Parts<'_>,
+    renderer: &mut R,
+    id: &str,
+    view: &View,
+) -> Option<Vec<SceneElement<R>>> {
+    let scene = parts.scene;
+    let list = scene.layer_list(id);
+    let first = list.first()?;
+    let mut node = first.node.clone();
+    node.props.mesh = None;
+    node.props.effects.clear();
+    if !node.is_layer() {
+        return flat_elements(parts, renderer, id, view);
+    }
+    let placed = Placed {
+        node: &node,
+        ..first.clone()
+    };
+    Some(layer(parts, renderer, &placed, view).into_iter().collect())
+}
+
 /// The render elements of one node that is not a layer, front first. The
 /// rects keep one buffer per rect node, so that damage tracking sees
 /// unchanged rects as unchanged.

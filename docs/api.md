@@ -87,6 +87,16 @@ that does not load, that is larger than 32 MiB or larger than 8192 pixels
 on a side rejects the transaction. A plugin in a container shares its
 asset directory with the core, as it shares the socket directory.
 
+A client that shares no directory with the core, for example an agent in
+another container, hands its files to the core with `assets.put` (#6). The
+core stores them in `$XDG_RUNTIME_DIR/chora/` and answers with the absolute
+path for `image`, `shader` and effects. A file has at most 512 KiB, a
+client at most 64 files, all clients together at most 64 MiB. A second put
+of a name replaces the file, and the nodes that use it load it again. The
+files of a client go with its nodes: at the last disconnect without
+`keep_nodes`, otherwise when chora exits. `choractl asset put NAME FILE`
+prints the path.
+
 ## Commands
 
 | Command | Purpose |
@@ -176,6 +186,8 @@ client sends `hello` first. The core answers every request.
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
 | `methods.return(call, result, error)` | answer a `method.called` event |
+| `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
+| `assets.remove(name)` | remove a file of `assets.put` |
 
 A connection sends `hello` once, within 5 s. Connections with the same name share their
 nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
@@ -228,7 +240,9 @@ whose origin is (0, 0), or in the coordinates of the node.
 
 - An output shows as on screen, without the cursor.
 - A node shows without its own transform, opacity, mesh and effects, on a
-  transparent background. Its area covers the descendants with a size.
+  transparent background, but with its rounded corners, border, clip and
+  the shader of a shader node. Its area covers the descendants with a
+  size.
 - A picture has at most 16 Mi pixels and 8192 pixels a side; a larger one
   shrinks. `max_side` must be at least 1.
 - A capture fails while the session is locked, and when the PNG file is
@@ -344,6 +358,7 @@ example in the `.mcp.json` of Claude Code:
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
 | `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views), by name only |
+| `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
 | `subscribe_events` | start to collect events, and grab keys (#7); `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the earlier subscription |
 | `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500) |
 
