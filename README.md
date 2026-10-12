@@ -63,8 +63,10 @@ To try the XP flavor, a stacking desktop in the style of Windows XP, start
 `chora -- chora-xp`. From a source tree, point it at the theme:
 `target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme`.
 Windows wobble while you drag them and minimize through a magic lamp.
-Super+Ctrl+Left and Super+Ctrl+Right, or the desktop buttons 1 to 4 in the
-taskbar, turn a cube of four desktops.
+Ctrl+Alt+Left and Ctrl+Alt+Right, or the desktop buttons 1 to 4 in the
+taskbar, turn a cube of four desktops. Inside GNOME, which keeps
+Ctrl+Alt+arrows and Super for itself, use the desktop buttons and the
+start menu.
 
 To log in to chora on real hardware, choose the session "chora" on the
 login screen. It starts the tiling flavor with waybar and X11 support

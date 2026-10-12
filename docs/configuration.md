@@ -186,8 +186,9 @@ without them for 15 seconds.
 | Ctrl+Alt+Shift+Left, Ctrl+Alt+Shift+Right | turn the cube and take the focused window along |
 | a desktop button 1 to 4 | turn the cube to that desktop |
 
-The core keeps Ctrl+Alt for its safety layer, so for now Super+Ctrl stands
-in for Ctrl+Alt in the cube bindings.
+The safety layer keeps only Ctrl+Alt with BackSpace, Escape and F1 to F12,
+so the cube takes Ctrl+Alt with the arrows. When another client holds
+these bindings, Super+Ctrl with the arrows stands in.
 
 | Option | Default | Meaning |
 |--------|---------|---------|
