@@ -58,7 +58,9 @@ impl Conn {
     /// Applies a transaction. A rejected transaction only logs: a surface
     /// can disappear between an event and the answer to it.
     pub fn apply(&mut self, commands: Vec<Command>) -> Result<(), ClientError> {
-        if let Some(err) = self.try_apply(commands)? {
+        if let Some(err) = self.try_apply(commands)?
+            && !err.message.contains("does not exist")
+        {
             eprintln!("chora-xp: {err}");
         }
         Ok(())

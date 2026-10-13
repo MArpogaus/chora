@@ -688,7 +688,8 @@ impl Wm {
             &self.config.wallpaper,
             output,
         )];
-        commands.extend(self.bars[i].resize(&mut self.theme, output.work_area, &self.clock));
+        let area = output.default_work_area();
+        commands.extend(self.bars[i].resize(&mut self.theme, area, &self.clock));
         commands.extend(self.pagers());
         let area = self.bars[i].usable();
         // Maximized windows of the output fill its new area.

@@ -90,7 +90,7 @@ impl Bar {
     pub fn new(output: &OutputInfo) -> Self {
         Self {
             output: output.name.clone(),
-            area: output.work_area,
+            area: output.default_work_area(),
             tasks: Vec::new(),
             shown: HashMap::new(),
         }

@@ -35,7 +35,9 @@ pub fn create(theme: &mut Theme, file: &Path, output: &OutputInfo, parent: &str)
 
 /// Fits the wallpaper to the work area of its output.
 pub fn update(theme: &mut Theme, file: &Path, output: &OutputInfo) -> Command {
-    let [x, y, w, h] = output.work_area;
+    // Where the default camera shows it, so that a camera move keeps it
+    // in place in the scene (#13).
+    let [x, y, w, h] = output.default_work_area();
     let image = theme.render(&Picture::new(w, h).cover(file));
     Command::Update {
         id: id(&output.name),

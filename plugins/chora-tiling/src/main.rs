@@ -401,20 +401,7 @@ impl Tiling {
 /// The work area as the default camera shows it, so that a camera move or a
 /// zoom moves no window (#13): the windows keep their place in the scene.
 fn area_of(output: &OutputInfo) -> [i32; 4] {
-    let [x, y, w, h] = output.work_area.map(f64::from);
-    // The camera maps the scene to the output; the default camera is the
-    // translation by the position of the output.
-    let (left, top) = output.camera.apply(x, y);
-    let (right, bottom) = output.camera.apply(x + w, y + h);
-    let [px, py] = output.position.map(f64::from);
-    #[allow(clippy::cast_possible_truncation)] // within the size of an output
-    let round = |v: f64| v.round() as i32;
-    [
-        round(left + px),
-        round(top + py),
-        round(right - left),
-        round(bottom - top),
-    ]
+    output.default_work_area()
 }
 
 /// The cells of a master and stack layout: the first window takes the left
