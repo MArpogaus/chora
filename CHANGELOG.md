@@ -1,3 +1,54 @@
+## v0.5.0 (2026-10-13)
+
+Agent feedback (milestone M4.1), from the issues of the first MCP
+sessions. The tools of `choractl mcp` carry the schemas of the commands and
+the input events, and an agent subscribes to events and waits for them. It
+hands its own shaders and images to the core with `assets.put`, reserves
+space at the edges of an output with `output.reserve`, and moves cameras
+with an animation. With the new grant `process.spawn`, it starts programs
+and restarts plugins. Rects have rounded corners and borders, every node
+clips, and shader nodes draw a shader that can read other nodes. The last
+step of `tests/agent.sh` is the exit test: an MCP client draws a panel with
+two buttons, and a click on a button moves the camera.
+
+### Breaking changes
+
+- `tiling.set_layout` takes no `reserve` any more; use `output.reserve`.
+- `animation.done` has an optional `node` and an optional `output`.
+
+### Known issues
+
+- Nobody has run chora on real hardware yet: the tty backend, the effects
+  on a GPU and the 60 Hz goal on Intel graphics are untested.
+- A grant protects against mistakes of agents, not against hostile code of
+  the same user, which can call `grants.set` itself (D40). The grant
+  `process.spawn` has no allowlist yet (D42).
+- `plugins.restart` needs the process of the plugin in `/proc` of the core,
+  and starts its command in the namespace of the core.
+- grim and other `wlr-screencopy` clients turn the picture of a rotated
+  output once more: the core sends it as it shows.
+- Screen sharing through `xdg-desktop-portal-wlr` is untested. Screencopy
+  offers shm buffers only, no dmabuf, and pictures have no cursor.
+- `input.inject` types through the first layout of the keymap, with Shift
+  or AltGr at most.
+- Layers render again in every frame, and they have no depth test.
+- The XP flavor of v0.3.0 is unchanged and keeps its limits.
+
+### Feat
+
+- start programs and restart plugins behind the grant process.spawn
+- **scene**: move cameras with a duration and an easing
+- let IPC clients reserve space at the edges of an output
+- let clients hand image and shader files to the core with assets.put
+- **choractl**: give apply_commands and inject_input the schemas of their types
+- **choractl**: subscribe to and wait for events over MCP
+- rounded rects with borders, clips and shader nodes
+
+### Fix
+
+- **scene**: let a camera ignore the z axis
+- **choractl**: answer invalid tool arguments with isError
+
 ## v0.4.0 (2026-10-12)
 
 The agent interface (milestone M4): an agent sees and changes the screen.
