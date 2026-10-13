@@ -1585,6 +1585,10 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </tr>
 </tbody>
 </table>
+<p>An error has a <code>code</code> and a <code>message</code>: the JSON-RPC codes for a method or
+parameters that do not exist, 1 for a request that breaks a rule, and 2
+for a transaction that names a surface node that is gone, for example of a
+window that closed in the meantime. A plugin can ignore code 2.</p>
 <p>A connection sends <code>hello</code> once, within 5 s. Connections with the same name share their
 nodes, so they must agree on <code>keep_nodes</code>. The core refuses a <code>hello</code> with a
 different value. For example, <code>choractl --name tiling</code> fails while the tiling
