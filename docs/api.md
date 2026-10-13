@@ -294,8 +294,9 @@ program, up to 64 KiB each, for the client that started it (#22).
 `process.wait(pid, timeout_ms)` waits until the program ends or the time
 is up, and answers with `pid`, `running`, `stdout`, `stderr`, `truncated`
 for output that went beyond 64 KiB, and, once the program ended, `status`:
-its exit code, or 128 and the signal. A child in the background that keeps
-the pipes open does not hold the end for longer than 100 ms. The first
+its exit code, or 128 and the signal. 100 ms after the end of the
+program, the core closes its pipes, also when a child in the background
+still holds them. The first
 answer after the end is the last one; then the core forgets the program.
 At most 32 programs of a client wait for `process.wait`. Their output goes when the last connection of the
 client name closes, so `choractl spawn --capture` waits on its own

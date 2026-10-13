@@ -20,6 +20,7 @@ use smithay::{
         keyboard::{FilterResult, Keycode, Keysym, ModifiersState},
         pointer::{AxisFrame, ButtonEvent, MotionEvent, PointerHandle, RelativeMotionEvent},
     },
+    output::Output,
     reexports::wayland_server::{Resource, protocol::wl_surface::WlSurface},
     utils::{Logical, Point, SERIAL_COUNTER, Serial},
     wayland::pointer_constraints::{PointerConstraint, with_pointer_constraint},
@@ -319,7 +320,7 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
     }
     // The drag of a node goes to plugins only, with each new position.
     let under = if let Some(grab) = &mut state.node_grab {
-        let position = position_for(&state.scene, &grab.node, &spot);
+        let position = position_for(&state.scene, &state.outputs, &grab.node, &spot);
         #[allow(clippy::float_cmp)] // the same input gives the same numbers
         if grab.position != position {
             grab.position = position;
@@ -416,7 +417,7 @@ fn press_node(state: &mut State, button: u32) {
         .scene
         .node(&node)
         .is_some_and(|n| n.kind != NodeKind::Surface);
-    let position = position_for(&state.scene, &node, &spot);
+    let position = position_for(&state.scene, &state.outputs, &node, &spot);
     state.emit(&SceneEvent::PointerPressed {
         node: node.clone(),
         button,
@@ -431,15 +432,21 @@ fn press_node(state: &mut State, button: u32) {
     }
 }
 
-/// The position of the pointer for a node: in output coordinates under the
-/// overlay of the output, in scene coordinates elsewhere.
-fn position_for(scene: &chora_scene::Scene, node: &str, spot: &Spot) -> [f64; 2] {
-    let overlay = chora_scene::overlay_id(&spot.output.name());
-    let at = if scene.is_within(node, &overlay) {
-        spot.local
-    } else {
-        spot.scene
-    };
+/// The position of the pointer for a node: under the overlay of an output
+/// in the coordinates of that output, also while a drag crosses to another
+/// one, and in scene coordinates elsewhere.
+fn position_for(
+    scene: &chora_scene::Scene,
+    outputs: &[Output],
+    node: &str,
+    spot: &Spot,
+) -> [f64; 2] {
+    let overlay = outputs
+        .iter()
+        .find(|o| scene.is_within(node, &chora_scene::overlay_id(&o.name())));
+    let at = overlay.map_or(spot.scene, |o| {
+        spot.local + (output_area(&spot.output).loc - output_area(o).loc).to_f64()
+    });
     [at.x, at.y]
 }
 
@@ -448,9 +455,9 @@ fn release_node(state: &mut State, button: u32) {
     let Some(NodeGrab { node, .. }) = state.node_grab.take_if(|g| g.button == button) else {
         return;
     };
-    let position = state
-        .spot(state.pointer_layout)
-        .map_or([0.0; 2], |s| position_for(&state.scene, &node, &s));
+    let position = state.spot(state.pointer_layout).map_or([0.0; 2], |s| {
+        position_for(&state.scene, &state.outputs, &node, &s)
+    });
     state.emit(&SceneEvent::PointerReleased {
         node,
         button,

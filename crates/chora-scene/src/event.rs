@@ -79,7 +79,8 @@ pub enum Event {
         node: String,
         /// The Linux button code, for example 272 for the left button.
         button: u32,
-        /// The pointer in scene coordinates.
+        /// The pointer in scene coordinates, or in output coordinates for a
+        /// node under `screen:NAME`.
         position: [f64; 2],
     },
     /// The pointer came over a node that takes pointer input: the top one
@@ -102,7 +103,8 @@ pub enum Event {
     PointerMoved {
         /// The node of the press.
         node: String,
-        /// The pointer in scene coordinates.
+        /// The pointer in scene coordinates, or in output coordinates for a
+        /// node under `screen:NAME`.
         position: [f64; 2],
     },
     /// The button of a press over a rect or an image went up.
@@ -112,7 +114,8 @@ pub enum Event {
         node: String,
         /// The Linux button code.
         button: u32,
-        /// The pointer in scene coordinates.
+        /// The pointer in scene coordinates, or in output coordinates for a
+        /// node under `screen:NAME`.
         position: [f64; 2],
     },
     /// Frames took too long again and again, so the watchdog of the core

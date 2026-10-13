@@ -1,12 +1,14 @@
 //! The output of programs that `process.spawn` starts with `capture` (#22):
 //! the core keeps stdout, stderr and the exit status until the client takes
 //! them with `process.wait`. Threads read the pipes, so that a program that
-//! writes much never blocks the core.
+//! writes much never blocks the core. A thread closes its pipe shortly after
+//! the end of the program, also when a child in the background holds it
+//! open, so that threads and file descriptors stay bounded.
 
 use std::{
     collections::HashMap,
     io::Read,
-    os::unix::process::ExitStatusExt,
+    os::{fd::AsFd, unix::process::ExitStatusExt},
     process::Child,
     sync::{Arc, Mutex, PoisonError},
     thread,
@@ -14,6 +16,10 @@ use std::{
 };
 
 use chora_scene::ipc::ProcessOutput;
+use smithay::reexports::rustix::{
+    event::{PollFd, PollFlags, Timespec, poll},
+    io::Errno,
+};
 
 /// The most bytes that the core keeps of each stream; the rest goes.
 const MAX_OUTPUT: usize = 64 << 10;
@@ -22,6 +28,12 @@ const MAX_CAPTURED: usize = 32;
 /// How long after its end a program may still write through a pipe that a
 /// child in the background holds open.
 const GRACE: Duration = Duration::from_millis(100);
+/// How often a reader looks at the end of the program while the pipe is
+/// quiet.
+const TICK: Timespec = Timespec {
+    tv_sec: 0,
+    tv_nsec: 20_000_000,
+};
 
 /// What a program wrote, and how it ended.
 #[derive(Default)]
@@ -38,11 +50,14 @@ struct Output {
 }
 
 impl Output {
-    /// Whether the program ended and its output is all there, or a child
-    /// in the background holds its pipes beyond the grace time.
+    /// Whether the program ended and its pipes are closed.
     fn finished(&self) -> bool {
-        self.status.is_some()
-            && (self.open == 0 || self.ended.is_some_and(|t| t.elapsed() >= GRACE))
+        self.status.is_some() && self.open == 0
+    }
+
+    /// Whether the grace time after the end of the program is over.
+    fn past_grace(&self) -> bool {
+        self.ended.is_some_and(|t| t.elapsed() >= GRACE)
     }
 }
 
@@ -70,21 +85,11 @@ impl Processes {
             return Err(err);
         }
         let output = Arc::new(Mutex::new(Output::default()));
-        let streams: [Option<Box<dyn Read + Send>>; 2] = [
-            child
-                .stdout
-                .take()
-                .map(|s| Box::new(s) as Box<dyn Read + Send>),
-            child
-                .stderr
-                .take()
-                .map(|s| Box::new(s) as Box<dyn Read + Send>),
-        ];
-        for (index, stream) in streams.into_iter().enumerate() {
-            let Some(stream) = stream else { continue };
-            lock(&output).open += 1;
-            let output = Arc::clone(&output);
-            thread::spawn(move || read(stream, &output, index == 0));
+        if let Some(stdout) = child.stdout.take() {
+            start_reader(stdout, &output, true);
+        }
+        if let Some(stderr) = child.stderr.take() {
+            start_reader(stderr, &output, false);
         }
         let pid = child.id();
         let waited = Arc::clone(&output);
@@ -127,10 +132,11 @@ impl Processes {
             .filter(|c| c.owner == owner)
             .ok_or_else(|| format!("no program {pid} with output of this client"))?;
         let output = lock(&captured.output);
+        let finished = output.finished();
         let answer = ProcessOutput {
             pid,
-            running: !output.finished(),
-            status: output.status.filter(|_| output.finished()),
+            running: !finished,
+            status: output.status.filter(|_| finished),
             stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
             stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
             truncated: output.truncated,
@@ -159,10 +165,29 @@ fn lock(output: &Mutex<Output>) -> std::sync::MutexGuard<'_, Output> {
     output.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Reads a stream until its end, and keeps up to `MAX_OUTPUT` bytes.
-fn read(mut stream: Box<dyn Read + Send>, output: &Mutex<Output>, stdout: bool) {
+/// Starts a thread that reads a pipe of a program.
+fn start_reader<S>(stream: S, output: &Arc<Mutex<Output>>, stdout: bool)
+where
+    S: Read + AsFd + Send + 'static,
+{
+    lock(output).open += 1;
+    let output = Arc::clone(output);
+    thread::spawn(move || read(stream, &output, stdout));
+}
+
+/// Reads a stream until its end, or until the grace time after the end of
+/// the program, and keeps up to `MAX_OUTPUT` bytes.
+fn read(mut stream: impl Read + AsFd, output: &Mutex<Output>, stdout: bool) {
     let mut chunk = [0; 4096];
-    loop {
+    while !lock(output).past_grace() {
+        let mut fds = [PollFd::new(&stream, PollFlags::IN)];
+        // A poll that a signal cut short looks again.
+        if poll(&mut fds, Some(&TICK)).is_err_and(|e| e != Errno::INTR) {
+            break;
+        }
+        if fds[0].revents().is_empty() {
+            continue;
+        }
         let n = match stream.read(&mut chunk) {
             Ok(0) | Err(_) => break,
             Ok(n) => n,
