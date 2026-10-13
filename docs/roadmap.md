@@ -161,6 +161,31 @@ user clicks a button, which the client learns from `wait_events`. The last
 step of `tests/agent.sh` checks it with `tests/mcp-client.py panel` in CI.
 The allowlist of the grant `process.spawn` stays an option.
 
+## M4.2: Test round
+
+**Goal:** the API covers what the first test round on real hardware
+missed (issues #12 to #27), without new policy in the core.
+
+- Grabs: `input.ungrab(binding)`, and `input.key` tells the release of a
+  grabbed key with its state (#18, D45).
+- One overlay root per output, `screen:NAME`, for nodes fixed to the
+  screen (#19, D43).
+- `process.spawn` with `capture`: the core keeps stdout, stderr and the
+  exit status, at most 64 KiB, and `process.wait(pid, timeout)` returns
+  them (#22).
+- `output.configure` for scale and transform (#22, D44).
+- Meshes: perspective-correct texture coordinates, and a point behind the
+  eye drops only its triangles, not the layer (#25, #26).
+- Nested, the keymap of the host session: a second Wayland connection to
+  the host reads its `wl_keyboard.keymap`; `XKB_DEFAULT_LAYOUT` still wins
+  (#12).
+- #14 waits for a `WAYLAND_DEBUG=1` log of foot.
+
+**Exit:** `tests/agent.sh` and `tests/nested.sh` check each item, and an
+MCP client runs a probe with `capture`, reads its output, sets the scale
+of the output, and draws a HUD under `screen:NAME` that stays in place
+during an animated camera move.
+
 ## M5: Packaging
 
 **Goal:** chora installs like every other desktop on the host.

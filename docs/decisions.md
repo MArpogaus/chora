@@ -42,7 +42,7 @@ The decision log. Nothing here is final. Every entry can come back for review.
 | D24 | Shaders declare static or animated; fullscreen surfaces without effects use direct scanout | Damage tracking and battery life. |
 | D25 | No undo history and no plugin state store in the core | A destroyed client cannot come back. The reset and the views in git cover recovery. The scene holds all state. |
 | D26 | Xwayland through `xwayland-satellite` | Keeps the core small. |
-| D27 | Output configuration through `wlr-output-management` | kanshi and wlr-randr exist. |
+| D27 | Output configuration through `wlr-output-management`, and since D44 also through the API | kanshi and wlr-randr exist. |
 
 ## Plugins and API
 
@@ -68,6 +68,9 @@ The decision log. Nothing here is final. Every entry can come back for review.
 | D40 | The user grants `input.inject` and `screen.capture` with `choractl grant NAME CAPABILITY`, per client name, until the session ends or `choractl revoke`; the emergency reset revokes all grants; `choractl mcp` has no tool for grants | The core draws no text, so a dialog is no option. An agent that uses the MCP bridge cannot grant itself by mistake. |
 | D41 | `choractl` reads YAML with `serde-saphyr`: strict booleans, errors on unknown and duplicate keys and on unknown tags | `serde_yaml` is archived and `serde_yml` is unsound. `serde-saphyr` is maintained, pure Rust and panic-free, and limits the work of a document (open question 1). |
 | D42 | `process.spawn` starts programs, and `plugins.restart` restarts plugins, as the user behind a grant of its own, which the user gives with `choractl grant NAME process.spawn` and the reset revokes; an allowlist of argv patterns that comes with the grant may narrow it later | An agent with this grant can run anything, as with a shell, so it is never part of another grant. The allowlist keeps the core free of configuration files (D35). |
+| D43 | Nodes fixed to the screen live under one overlay root per output, `screen:NAME`: in the logical coordinates of the output, without its camera, above the scene and below the top and overlay layers of layer shell | A HUD stays in place while a camera moves (#19). A root per output answers on which output a node shows. Its nodes work as all others: input, effects, ownership. |
+| D44 | `output.configure` sets scale and transform of an output through the API, on the same path as `wlr-output-management` | An agent has no wlr-randr in every session (#22). One path keeps both ways in step. |
+| D45 | Grabs stay bindings with Ctrl, Alt or Super. `input.ungrab` ends one, and a grab tells the release of its key too. There is no exclusive keyboard grab: games and walks through 3D scenes are Wayland clients, which get every key | Typing always works (D23). A client gets plain keys, repeat and release through Wayland already (#18). |
 
 ## Rejected review findings
 
