@@ -231,3 +231,16 @@ pub struct OutputInfo {
     #[serde(default)]
     pub default_work_area: [i32; 4],
 }
+
+impl OutputInfo {
+    /// The area for the windows of a plugin: `default_work_area`, or the
+    /// `work_area` of a core that does not send it yet.
+    #[must_use]
+    pub fn layout_area(&self) -> [i32; 4] {
+        if self.default_work_area == [0; 4] {
+            self.work_area
+        } else {
+            self.default_work_area
+        }
+    }
+}

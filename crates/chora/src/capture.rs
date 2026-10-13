@@ -119,7 +119,15 @@ impl State {
                 .get(&output.name())
                 .cloned()
                 .unwrap_or_default(),
-            Source::Node(_) => self.assets.left_out.values().flatten().cloned().collect(),
+            // The node and its descendants that some output left out.
+            Source::Node(id) => self
+                .assets
+                .left_out
+                .values()
+                .flatten()
+                .filter(|n| self.scene.is_within(n, id))
+                .cloned()
+                .collect(),
         };
         nodes.sort();
         nodes.dedup();
@@ -249,7 +257,12 @@ impl State {
             lock: None,
             depth: 0,
         };
-        backend.with_gles(|gles| render_pixels(gles, &mut parts, shot))?
+        // A capture renders no frame of the screen, so the layers that the
+        // screen left out stay as they were (#24).
+        let screen = parts.assets.frame_left_out.clone();
+        let pixels = backend.with_gles(|gles| render_pixels(gles, &mut parts, shot));
+        self.assets.frame_left_out = screen;
+        pixels?
     }
 }
 

@@ -823,17 +823,44 @@ fn a_client_that_cleared_the_focus_gives_it_back() {
     assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
     // ... but after it cleared the focus, it gives it back, once.
     scene.apply("walk", &[focus(None)]).unwrap();
-    scene.set_focused(None);
     scene.apply("walk", &[focus(Some("s1"))]).unwrap();
-    scene.set_focused(Some("s1"));
     assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
     // A focus that the user gave elsewhere since ends the return.
     scene.apply("walk", &[focus(None)]).unwrap();
     scene.set_focused(Some("s2"));
     assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    // A transaction that focuses an own surface and clears the focus gives
+    // it back to that surface.
+    scene.add_surface("s5", SurfaceInfo::default());
+    scene
+        .apply(
+            "walk",
+            &[Command::Attach {
+                surface: "s5".into(),
+                parent: ROOT.into(),
+            }],
+        )
+        .unwrap();
+    scene.set_focused(Some("s1"));
+    scene
+        .apply("walk", &[focus(Some("s5")), focus(None)])
+        .unwrap();
+    assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    scene.apply("walk", &[focus(Some("s5"))]).unwrap();
     // So does the end of the client.
     scene.set_focused(Some("s1"));
     scene.apply("walk", &[focus(None)]).unwrap();
     scene.disconnect("walk");
     assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+}
+
+#[test]
+fn a_gone_surface_is_no_missing_node_of_the_client() {
+    let mut scene = Scene::default();
+    let focus = Command::Focus {
+        surface: Some("s7".into()),
+    };
+    assert!(scene.apply("wm", &[focus]).unwrap_err().is_gone_surface());
+    let remove = Command::Remove { id: "tiles".into() };
+    assert!(!scene.apply("wm", &[remove]).unwrap_err().is_gone_surface());
 }

@@ -341,7 +341,11 @@ fn with_derivatives(source: String) -> String {
     let end = source[start..]
         .find('\n')
         .map_or(source.len(), |n| start + n + 1);
-    if !source[start..end].contains(" 100") {
+    // The version is the token after `#version`, also after a tab.
+    let token = source[start + "#version".len()..end]
+        .split_whitespace()
+        .next();
+    if token != Some("100") {
         return source;
     }
     let (head, rest) = source.split_at(end);
@@ -453,7 +457,12 @@ mod tests {
             with_derivatives(commented),
             "// MIT\n#version 100\n#extension GL_OES_standard_derivatives : enable\nfwidth"
         );
-        let es3 = "// MIT\n#version 300 es\nfwidth".to_string();
+        let es3 = "// MIT\n#version 300 es // was 100\nfwidth".to_string();
         assert_eq!(with_derivatives(es3.clone()), es3);
+        let tab = "#version\t100\nfwidth".to_string();
+        assert_eq!(
+            with_derivatives(tab),
+            "#version\t100\n#extension GL_OES_standard_derivatives : enable\nfwidth"
+        );
     }
 }

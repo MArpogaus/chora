@@ -1,10 +1,10 @@
 # A new version in Cargo.toml on main builds the RPM in Fedora 44 and the
 # package for Arch Linux, installs each once as a check, and attaches them
-# with their SHA256 sums to a GitHub release. The release creates the tag
-# of the version; nobody pushes tags. A version whose tag exists already
-# releases nothing, so a push to main without a version bump is no release.
+# with their SHA256 sums to a GitHub release. The release uses the tag of
+# the version, or creates it. A version with a release already releases
+# nothing, so a push to main without a version bump is no release.
 # Versions below 1.0 are pre-releases. A manual run releases the version in
-# Cargo.toml as well. One release runs at a time. Only the short last job holds a write token; the build
+# Cargo.toml as well. Only the short last job holds a write token; the build
 # runs the build scripts of all dependencies with a read token.
 name: release
 
@@ -15,10 +15,6 @@ on:
   workflow_dispatch:
 
 permissions: {}
-
-concurrency:
-  group: release
-  cancel-in-progress: false
 
 jobs:
   version:
@@ -32,13 +28,15 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
       with:
         persist-credentials: false
-    - name: the tag of the version in Cargo.toml, and whether it is new
+    - name: the tag of the version in Cargo.toml, and whether it has no release
       id: tag
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         tag=$(sed -n 's/^version = "\(.*\)"/v\1/p' Cargo.toml | head -1)
         new=true
-        if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
-          echo "$tag exists already; nothing to release"
+        if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          echo "$tag has a release already; nothing to release"
           new=false
         fi
         echo "tag=$tag" >>"$GITHUB_OUTPUT"

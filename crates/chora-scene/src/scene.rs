@@ -53,6 +53,14 @@ pub struct TransactionError {
     pub error: SceneError,
 }
 
+impl TransactionError {
+    /// Whether the transaction failed on a surface node that is gone.
+    #[must_use]
+    pub fn is_gone_surface(&self) -> bool {
+        matches!(&self.error, SceneError::Missing(id) if is_surface_id(id))
+    }
+}
+
 /// A visible node with its absolute transform, in drawing order.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Placed<'a> {
@@ -830,8 +838,10 @@ impl Scene {
     /// give the focus back to the surface that had it, also of another
     /// client (#27).
     fn focus_command(&mut self, owner: &str, surface: Option<&str>) -> Result<(), SceneError> {
+        // The focus follows the commands, so that a later command of the
+        // same transaction sees it.
         let Some(id) = surface else {
-            if let Some(had) = self.focused.clone() {
+            if let Some(had) = self.focused.take() {
                 self.focus_returns.insert(owner.into(), had);
             }
             return Ok(());
@@ -843,14 +853,29 @@ impl Scene {
         } else {
             self.owned_surface(owner, id)?;
         }
+        self.focused = Some(id.into());
         Ok(())
     }
 
-    /// Tells the scene the surface with the keyboard focus; the core is the
-    /// one writer. A new focus ends every return of an earlier one, so that
-    /// no client takes the focus from a window that the user chose since.
+    /// Whether a node is `ancestor` or below it.
+    #[must_use]
+    pub fn is_within(&self, id: &str, ancestor: &str) -> bool {
+        let mut current = Some(id);
+        while let Some(node) = current {
+            if node == ancestor {
+                return true;
+            }
+            current = self.nodes.get(node).and_then(|n| n.parent.as_deref());
+        }
+        false
+    }
+
+    /// Tells the scene the surface with the keyboard focus. A focus that
+    /// the scene did not know yet, for example a click of the user, ends
+    /// every return of an earlier focus, so that no client takes the focus
+    /// from a window that the user chose since.
     pub fn set_focused(&mut self, surface: Option<&str>) {
-        if surface.is_some() {
+        if surface.is_some() && self.focused.as_deref() != surface {
             self.focus_returns = OrdMap::new();
         }
         self.focused = surface.map(Into::into);
@@ -884,7 +909,7 @@ impl Scene {
 
 /// Whether the id has the form of a surface id: `s` and digits. The core
 /// gives these ids to surfaces before their nodes exist.
-pub(crate) fn is_surface_id(id: &str) -> bool {
+fn is_surface_id(id: &str) -> bool {
     id.strip_prefix('s')
         .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
 }

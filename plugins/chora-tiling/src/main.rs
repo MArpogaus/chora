@@ -401,7 +401,7 @@ impl Tiling {
 /// The work area as the default camera shows it, so that a camera move or a
 /// zoom moves no window (#13): the windows keep their place in the scene.
 fn area_of(output: &OutputInfo) -> [i32; 4] {
-    output.default_work_area
+    output.layout_area()
 }
 
 /// The cells of a master and stack layout: the first window takes the left

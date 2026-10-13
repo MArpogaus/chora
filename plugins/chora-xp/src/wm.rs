@@ -688,7 +688,7 @@ impl Wm {
             &self.config.wallpaper,
             output,
         )];
-        let area = output.default_work_area;
+        let area = output.layout_area();
         commands.extend(self.bars[i].resize(&mut self.theme, area, &self.clock));
         commands.extend(self.pagers());
         let area = self.bars[i].usable();

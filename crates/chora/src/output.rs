@@ -219,13 +219,7 @@ impl State {
                     scale: output.current_scale().fractional_scale(),
                     camera,
                     work_area: scene_area(&camera, zone),
-                    // The default camera translates by the position.
-                    default_work_area: [
-                        area.loc.x + zone.loc.x,
-                        area.loc.y + zone.loc.y,
-                        zone.size.w,
-                        zone.size.h,
-                    ],
+                    default_work_area: default_area(area, zone),
                 }
             })
             .collect()
@@ -556,6 +550,17 @@ fn clamp(point: Point<f64, Logical>, area: Rectangle<i32, Logical>) -> Point<f64
         .into()
 }
 
+/// The work zone of an output, local to it, as the default camera shows it
+/// in the scene: the default camera translates by the position (#13).
+fn default_area(output: Rectangle<i32, Logical>, zone: Rectangle<i32, Logical>) -> [i32; 4] {
+    [
+        output.loc.x + zone.loc.x,
+        output.loc.y + zone.loc.y,
+        zone.size.w,
+        zone.size.h,
+    ]
+}
+
 /// The camera that shows an output at its place in the layout.
 fn default_camera(output: &Output) -> Transform {
     let loc = output_area(output).loc;
@@ -582,6 +587,16 @@ fn shrink(zone: Rectangle<i32, Logical>, edges: Edges) -> Rectangle<i32, Logical
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_default_work_area_is_the_zone_at_the_place_of_the_output() {
+        let output = Rectangle::new((1280, 0).into(), (1920, 1080).into());
+        let zone = Rectangle::new((0, 30).into(), (1920, 1050).into());
+        assert_eq!(default_area(output, zone), [1280, 30, 1920, 1050]);
+        // A camera changes nothing: the area depends on the layout only.
+        let camera = Transform::scale(2.0, 2.0, 1.0);
+        assert_ne!(scene_area(&camera, zone), default_area(output, zone));
+    }
 
     #[test]
     fn reserves_shrink_the_zone_and_keep_a_pixel() {

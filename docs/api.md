@@ -210,6 +210,11 @@ client sends `hello` first. The core answers every request.
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
+An error has a `code` and a `message`: the JSON-RPC codes for a method or
+parameters that do not exist, 1 for a request that breaks a rule, and 2
+for a transaction that names a surface node that is gone, for example of a
+window that closed in the meantime. A plugin can ignore code 2.
+
 A connection sends `hello` once, within 5 s. Connections with the same name share their
 nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
 different value. For example, `choractl --name tiling` fails while the tiling

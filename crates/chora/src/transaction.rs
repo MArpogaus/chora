@@ -18,7 +18,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_scene::{Command, Effect, ipc::Message};
+use chora_scene::{
+    Command, Effect,
+    ipc::{Message, RpcError},
+};
 use serde_json::Value;
 use smithay::{
     reexports::{
@@ -308,7 +311,14 @@ impl State {
                 self.refresh_pointer();
                 Message::result(head.id, Value::Null)
             }
-            Err(error) => Message::error(head.id, rejected(error.to_string())),
+            Err(error) => {
+                let code = if error.is_gone_surface() {
+                    RpcError::GONE_SURFACE
+                } else {
+                    RpcError::REJECTED
+                };
+                Message::error(head.id, RpcError::new(code, error.to_string()))
+            }
         };
         self.ipc.respond(head.conn, &message);
         head.barrier.signal();

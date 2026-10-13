@@ -354,7 +354,7 @@ impl State {
             match effect {
                 // The transaction sent its configure events when it started.
                 Effect::Configure { .. } => {}
-                Effect::Focus(surface) => self.focus(surface.as_deref()),
+                Effect::Focus(surface) => self.focus_of_scene(surface.as_deref()),
                 Effect::Close(surface) => {
                     if let Some(t) = self.windows.get(&surface).and_then(Window::toplevel) {
                         t.send_close();
@@ -422,6 +422,11 @@ impl State {
     /// lost the focus, because some expect one active toplevel at a time.
     pub fn focus(&mut self, surface: Option<&str>) {
         self.scene.set_focused(surface);
+        self.focus_of_scene(surface);
+    }
+
+    /// Moves the focus that a transaction set; the scene knows it already.
+    fn focus_of_scene(&mut self, surface: Option<&str>) {
         let previous = std::mem::replace(&mut self.focus_wanted, surface.map(Into::into));
         self.layer_focus = None;
         self.update_focus();

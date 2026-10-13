@@ -67,12 +67,13 @@ in a Fedora 44 container, and `cargo deny` in a separate job.
 
 ## Releases
 
-`cz bump` sets the version, writes `CHANGELOG.md` and creates the annotated
-tag. A pushed `v*` tag starts `.github/workflows/release.yaml`. The workflow
-builds the RPM with `dist/build-rpm.sh` and attaches it with its SHA256 sums
-to a GitHub release. Versions below 1.0 are pre-releases. Where a tag cannot
-be pushed, push the bump commit and start the workflow by hand: it releases
-the version in `Cargo.toml` and creates the tag.
+`cz bump` sets the version and writes `CHANGELOG.md`. When the bump reaches
+`main`, `.github/workflows/release.yaml` starts by itself: a version in
+`Cargo.toml` without a release builds the RPM with `dist/build-rpm.sh` and
+the Arch package with `dist/build-arch.sh`, and attaches both with their
+SHA256 sums to a GitHub release. The release uses the tag of the version
+if it was pushed, or creates it. Versions below 1.0 are pre-releases. A
+manual run of the workflow releases the version in `Cargo.toml` too.
 
 ## Commits
 
