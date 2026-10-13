@@ -106,7 +106,8 @@ impl Subscription {
     }
 }
 
-/// Grabs a binding, and tries again for up to a second if `again`.
+/// Grabs a binding. If `again`, a binding that is grabbed already gets more
+/// tries for up to a second.
 fn grab(client: &mut Client, binding: &Binding, again: bool) -> Result<String, ClientError> {
     let tries = if again { 50 } else { 1 };
     let mut result = Err(ClientError::Closed);
@@ -117,7 +118,10 @@ fn grab(client: &mut Client, binding: &Binding, again: bool) -> Result<String, C
                 binding: binding.clone(),
             },
         );
-        if !matches!(result, Err(ClientError::Rpc(_))) {
+        // Only a binding of the old connection is worth a second try.
+        let taken =
+            matches!(&result, Err(ClientError::Rpc(e)) if e.message.contains("grabbed already"));
+        if !taken {
             break;
         }
         thread::sleep(Duration::from_millis(20));

@@ -42,7 +42,7 @@ pub struct Core {
     /// The events of `subscribe_events`, on a connection of their own.
     subscription: Option<Subscription>,
     /// The reserves of `reserve_space` by output, for a new connection.
-    reserves: HashMap<Option<String>, Reserve>,
+    reserves: HashMap<String, Reserve>,
 }
 
 /// The methods that change nothing, so that a call goes again after a lost
@@ -84,8 +84,17 @@ impl Core {
                 keep_nodes: true,
             };
             let mut client = Client::from_env(&hello)?;
-            for reserve in self.reserves.values() {
-                client.call::<_, Value>("output.reserve", reserve)?;
+            // A reserve that the core refuses now, for example of an output
+            // that is gone, goes; a lost connection fails the call.
+            let mut refused = Vec::new();
+            for (output, reserve) in &self.reserves {
+                match client.call::<_, Value>("output.reserve", reserve) {
+                    Err(ClientError::Rpc(_)) => refused.push(output.clone()),
+                    other => drop(other?),
+                }
+            }
+            for output in refused {
+                self.reserves.remove(&output);
             }
             self.client = Some(client);
         }
@@ -487,10 +496,17 @@ fn reserve_space(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> 
         edges: arg(&edges)?,
     };
     let output: Value = chora.call("output.reserve", &reserve)?;
+    // By the name of the output in the answer, so that the first output
+    // and its name are one entry.
+    let name = output["name"].as_str().unwrap_or_default().to_owned();
     if reserve.edges.is_empty() {
-        chora.reserves.remove(&reserve.output);
+        chora.reserves.remove(&name);
     } else {
-        chora.reserves.insert(reserve.output.clone(), reserve);
+        let reserve = Reserve {
+            output: Some(name.clone()),
+            ..reserve
+        };
+        chora.reserves.insert(name, reserve);
     }
     Ok(vec![json_text(&output)])
 }

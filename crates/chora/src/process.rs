@@ -101,10 +101,10 @@ fn check_argv(argv: &[String]) -> Result<(), RpcError> {
 fn argv_of(pid: Pid) -> Result<(Vec<String>, Option<PathBuf>), String> {
     let proc = PathBuf::from(format!("/proc/{pid}"));
     let cmdline = std::fs::read(proc.join("cmdline")).map_err(|e| format!("pid {pid}: {e}"))?;
-    // Each argument ends with a NUL; empty arguments stay.
-    let argv: Vec<String> = cmdline
-        .strip_suffix(&[0])
-        .unwrap_or(&cmdline)
+    // Each argument ends with a NUL. Empty arguments inside stay; trailing
+    // NULs go, also those of a process that rewrote its title.
+    let end = cmdline.iter().rposition(|b| *b != 0).map_or(0, |i| i + 1);
+    let argv: Vec<String> = cmdline[..end]
         .split(|b| *b == 0)
         .map(|a| String::from_utf8_lossy(a).into_owned())
         .collect();
@@ -123,7 +123,9 @@ fn alive(pidfd: &OwnedFd) -> bool {
         tv_sec: 0,
         tv_nsec: 0,
     };
-    poll(&mut fds, Some(&now)).is_ok_and(|ready| ready == 0)
+    // A failed poll, for example after a signal, counts as running; the
+    // next poll looks again.
+    poll(&mut fds, Some(&now)).map_or(true, |ready| ready == 0)
 }
 
 /// A restart that waits for the old process to exit.
@@ -205,7 +207,6 @@ impl State {
         check_argv(&argv)?;
         pidfd_send_signal(&pidfd, Signal::TERM).map_err(failed)?;
         tracing::info!(name, ?argv, "restarts a plugin");
-        self.ipc.restarting.insert(name.to_owned());
         let mut stopping = Stopping {
             conn,
             id,
@@ -222,7 +223,9 @@ impl State {
             .insert_source(Timer::from_duration(POLL), move |_, (), state| {
                 state.poll_restart(&mut stopping)
             });
-        inserted.map(drop).map_err(|e| rejected(e.to_string()))
+        inserted.map_err(|e| rejected(e.to_string()))?;
+        self.ipc.restarting.insert(name.to_owned());
+        Ok(())
     }
 
     /// Looks whether the old process of a restart exited; starts the new one
@@ -293,13 +296,21 @@ mod tests {
     }
 
     #[test]
-    fn a_restart_keeps_empty_arguments() {
-        let mut child = Command::new("sleep").args(["5", ""]).spawn().unwrap();
+    fn a_restart_keeps_empty_arguments_inside() {
+        // The `:` keeps the shell from running sleep in its own place.
+        let script = ["-c", "sleep 5; :", "", "x"];
+        let mut child = Command::new("sh").args(script).spawn().unwrap();
         let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
-        let (argv, _) = argv_of(pid).unwrap();
+        // Right after the fork, the command line is not yet the new one.
+        let start = Instant::now();
+        let mut argv = Vec::new();
+        while argv.first().is_none_or(|a| a != "sh") && start.elapsed() < Duration::from_secs(5) {
+            std::thread::sleep(POLL);
+            argv = argv_of(pid).map(|(a, _)| a).unwrap_or_default();
+        }
         child.kill().unwrap();
         child.wait().unwrap();
-        assert_eq!(argv, ["sleep", "5", ""]);
+        assert_eq!(argv, ["sh", "-c", "sleep 5; :", "", "x"]);
     }
 
     #[test]
