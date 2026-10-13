@@ -1,3 +1,21 @@
+## v0.5.1 (2026-10-13)
+
+Each release now has a package for Arch Linux next to the RPM. The fixes
+come from a review of M4.1: `plugins.restart` follows the old process
+through a pidfd, refuses a second restart of the same name and keeps empty
+arguments. `choractl mcp` sends a call with an effect only once after a
+lost connection, and reserves its space again on the new one. The startup
+command keeps the stdin of chora again, as in v0.4.0.
+
+### Feat
+
+- build a package for Arch Linux with each release
+
+### Fix
+
+- findings of the second review round
+- findings of the review of M4.1
+
 ## v0.5.0 (2026-10-13)
 
 Agent feedback (milestone M4.1), from the issues of the first MCP
