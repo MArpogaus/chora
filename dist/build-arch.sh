@@ -18,7 +18,7 @@ for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
     usr/share/icons/ModernXP/index.theme usr/share/licenses/chora/LICENSE; do
     bsdtar -tf "$package" | grep -qx "$path/\?" || { echo "missing: $path" >&2; exit 1; }
 done
-want=$(find flavors/xp/theme -type f | wc -l)
+want=$(find flavors/xp/theme \( -type f -o -type l \) | wc -l)
 have=$(bsdtar -tf "$package" | grep -cE '^usr/share/(chora/flavors/xp/theme|icons/ModernXP)/.*[^/]$')
 [ "$have" = "$want" ] || { echo "the XP theme has $have of $want files" >&2; exit 1; }
 mkdir -p "$out"
