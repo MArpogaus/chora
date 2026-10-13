@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 from hud import Chora, FONT, HERE, place
 
 GAP = 1.35  # distance of the screens, in screen widths
+APP = "org.gnome.Mutter.Mdk"  # the window of a nested GNOME: it lives on VOID
 VIEWS = [("01  TILING", None), ("02  RAIN", "rain.frag"), ("03  VOID", "void")]
 FLY = 1100
 
@@ -80,6 +81,10 @@ class Loader:
             cmds.append({"create": {"id": f"{v}-hit", "kind": "rect", "parent": "root", "props": {
                 "size": [W, H * 1.25], "color": [0, 0, 0, 0], "visible": False,
                 "transform": {"translate": [x, -H * 0.15]}}}})
+        # The app on the void screen: outside of the construct, whose input
+        # passes through to the views behind.
+        cmds.append({"create": {"id": "view2-app", "kind": "group", "parent": "root", "props": {
+            "transform": {"translate": [self.x(2), 0]}}}})
         self.c.call("scene.apply", {"commands": cmds})
 
     def camera(self, scale, cx, cy):
@@ -123,6 +128,22 @@ class Loader:
         self.out = False
         self.hits(False)
         self.camera(1.0, self.x(i) + self.w / 2, self.h / 2)
+        self.focus_app(i)
+
+    def focus_app(self, i):
+        """In the void view, the keys go to the app of the loader."""
+        if i == 2 and getattr(self, "app", None):
+            self.c.call("scene.apply", {"commands": [{"focus": {"surface": self.app}}]})
+
+    def claim(self):
+        """Takes the window of APP when it has no owner, and fills the void
+        screen with it. The tiling plugin leaves it alone (--ignore)."""
+        for n in self.c.call("scene.query", {"selector": f"app_id:{APP}"}):
+            if n["owner"] is None:
+                self.c.call("scene.apply", {"commands": [
+                    {"attach": {"surface": n["id"], "parent": "view2-app"}},
+                    {"configure": {"surface": n["id"], "size": [self.w, self.h]}}]})
+                self.app = n["id"]
 
     def activate(self, i, surface=None):
         """Leaves the walk into view i at once: the walk ends where the screen
@@ -131,6 +152,7 @@ class Loader:
         self.out = False
         self.hits(False)
         self.step(1.0, [-self.x(i), 0])
+        self.focus_app(i)
         if surface:
             self.c.call("scene.apply", {"commands": [{"focus": {"surface": surface}}]})
 
@@ -148,7 +170,9 @@ class Loader:
         ev = Chora("loader")
         keys = {ev.call("input.grab", {"binding": b}): b for b in
                 ["Alt+0"] + [f"Alt+{i + 1}" for i in range(len(VIEWS))]}
-        ev.call("events.subscribe", {"events": ["input.key", "pointer.pressed"]})
+        ev.call("events.subscribe", {"events": [
+            "input.key", "pointer.pressed", "surface.created", "surface.detached", "surface.destroyed"]})
+        self.claim()
         threading.Thread(target=listen, args=(ev, "main"), daemon=True).start()
         while True:
             source, p = events.get()
@@ -159,6 +183,10 @@ class Loader:
                 walk.leave()
 
     def handle(self, walk, keys, source, p, listen):
+        if p["event"] in ("surface.created", "surface.detached"):
+            return self.claim()
+        if p["event"] == "surface.destroyed":
+            return
         # Each connection gets each event: the walk takes its own copies.
         if source == "walk":
             if not walk.on:

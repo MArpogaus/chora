@@ -59,14 +59,17 @@ class Walk:
             quads.append((f"walk-l{i}", {"kind": "image", "props": {
                 "image": self.c.put(f"label{i}.png", __import__("__main__").label_png(name)[0]),
                 "size": [H * 0.09 * l.labels[i], H * 0.09]}}, (x, top + H * 0.15, 0.0), False))
+        # The live windows: those of the tiling on the first screen, the
+        # app of the loader (GNOME) on the void screen.
+        screen = {"tiling": 0, "view2-app": 2}
         for n in self.c.call("scene.query", {"selector": "kind:surface"}):
-            if n["parent"] != "tiling":
+            if n["parent"] not in screen or not n["surface"]["size"]:
                 continue
             m = n["transform"]["matrix"]
             w, h = n["surface"]["size"]
             quads.append((f"walk-w{n['id']}", {"kind": "shader", "props": {
                 "size": [w, h], "shader": win, "uniforms": {"win": {"node": n["id"]}}}},
-                (l.x(0) + m[12], top - m[13], -1.0), False))
+                (l.x(screen[n["parent"]]) + m[12], top - m[13], -1.0), False))
         return quads
 
     def matrix(self, place, flat, pose):
