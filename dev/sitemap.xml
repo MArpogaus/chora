@@ -1,55 +1,55 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://marpogaus.github.io/void/dev/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/alternatives/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/alternatives/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/api/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/api/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/architecture/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/architecture/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/configuration/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/configuration/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/decisions/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/decisions/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/dependencies/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/dependencies/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/glossary/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/glossary/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/ideas/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/ideas/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/project-structure/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/project-structure/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/roadmap/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/roadmap/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/scenarios/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/scenarios/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/void/dev/vision/</loc>
+         <loc>https://marpogaus.github.io/chora/dev/vision/</loc>
          <lastmod>2026-10-13</lastmod>
     </url>
 </urlset>
