@@ -73,6 +73,9 @@ pub struct Assets {
     /// The nodes that the layer budget left out of the last frame of each
     /// output, as `layers.dropped` told them (#17, #24).
     pub left_out: HashMap<String, Vec<String>>,
+    /// The nodes that the last render of each output left out, before the
+    /// frame shows.
+    pub frame_left_out: HashMap<String, Vec<String>>,
 }
 
 /// How an output shows the scene: its camera, its scale factor and its size.
@@ -150,6 +153,12 @@ where
     let list = scene.layer_list(chora_scene::ROOT);
     out.extend(elements(parts, renderer, &list, view));
     out.extend(layer_elements(renderer, output, &layers::BELOW, view.scale));
+    // The layers that this frame of the output leaves out, for
+    // `layers.dropped` once the frame shows.
+    let assets = &mut *parts.assets;
+    assets
+        .frame_left_out
+        .insert(output.name(), assets.layers.left_out.clone());
     out
 }
 
@@ -352,6 +361,9 @@ pub fn shown_elements<R: MeshRenderer>(
     id: &str,
     view: &View,
 ) -> Option<Vec<SceneElement<R>>> {
+    // A capture of a node has a pixel budget of its own, not the rest of
+    // the last frame.
+    parts.assets.layers.new_budget();
     let scene = parts.scene;
     let list = scene.layer_list(id);
     let first = list.first()?;

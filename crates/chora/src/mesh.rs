@@ -106,6 +106,11 @@ impl Layers {
         self.textures
             .retain(|(id, ..), (_, used)| keep(id) && now - *used < UNUSED_FOR);
         self.ids.retain(|id, _| keep(id));
+        self.new_budget();
+    }
+
+    /// Starts the budget of a new frame or capture.
+    pub fn new_budget(&mut self) {
         self.pixels = 0;
         self.left_out.clear();
     }

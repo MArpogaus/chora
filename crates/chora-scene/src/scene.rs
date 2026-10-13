@@ -507,6 +507,7 @@ impl Scene {
             self.cameras.remove(output);
             self.camera_moves.remove(output);
         }
+        self.focus_returns.remove(owner);
         let detached = detached.into_iter().map(Effect::Detached);
         detached
             .chain(cameras.into_iter().map(Effect::Camera))
@@ -539,6 +540,7 @@ impl Scene {
         self.cameras = OrdMap::new();
         self.animations = OrdMap::new();
         self.camera_moves = OrdMap::new();
+        self.focus_returns = OrdMap::new();
         let cells = grid(surfaces.len(), area);
         surfaces
             .iter()
@@ -832,7 +834,6 @@ impl Scene {
             if let Some(had) = self.focused.clone() {
                 self.focus_returns.insert(owner.into(), had);
             }
-            self.focused = None;
             return Ok(());
         };
         let returns = self.focus_returns.get(owner).is_some_and(|had| had == id);
@@ -842,13 +843,16 @@ impl Scene {
         } else {
             self.owned_surface(owner, id)?;
         }
-        self.focused = Some(id.into());
         Ok(())
     }
 
-    /// Tells the scene the surface with the keyboard focus, for the return
-    /// of the focus.
+    /// Tells the scene the surface with the keyboard focus; the core is the
+    /// one writer. A new focus ends every return of an earlier one, so that
+    /// no client takes the focus from a window that the user chose since.
     pub fn set_focused(&mut self, surface: Option<&str>) {
+        if surface.is_some() {
+            self.focus_returns = OrdMap::new();
+        }
         self.focused = surface.map(Into::into);
     }
 
@@ -880,7 +884,7 @@ impl Scene {
 
 /// Whether the id has the form of a surface id: `s` and digits. The core
 /// gives these ids to surfaces before their nodes exist.
-fn is_surface_id(id: &str) -> bool {
+pub(crate) fn is_surface_id(id: &str) -> bool {
     id.strip_prefix('s')
         .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
 }

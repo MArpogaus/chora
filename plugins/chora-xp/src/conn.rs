@@ -59,7 +59,7 @@ impl Conn {
     /// can disappear between an event and the answer to it.
     pub fn apply(&mut self, commands: Vec<Command>) -> Result<(), ClientError> {
         if let Some(err) = self.try_apply(commands)?
-            && !err.message.contains("does not exist")
+            && !err.is_gone_surface()
         {
             eprintln!("chora-xp: {err}");
         }

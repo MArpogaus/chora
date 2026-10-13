@@ -225,27 +225,9 @@ pub struct OutputInfo {
     /// panels and `output.reserve` reserve: x, y, width and height in scene
     /// coordinates.
     pub work_area: [i32; 4],
-}
-
-impl OutputInfo {
-    /// The work area as the default camera of the output shows it, in scene
-    /// coordinates: the place of the windows of a plugin, which a camera
-    /// move or a zoom should not change (#13).
-    #[must_use]
-    pub fn default_work_area(&self) -> [i32; 4] {
-        let [x, y, w, h] = self.work_area.map(f64::from);
-        // The camera maps the scene to the output; the default camera is
-        // the translation by the position of the output.
-        let (left, top) = self.camera.apply(x, y);
-        let (right, bottom) = self.camera.apply(x + w, y + h);
-        let [px, py] = self.position.map(f64::from);
-        #[allow(clippy::cast_possible_truncation)] // within the size of an output
-        let round = |v: f64| v.round() as i32;
-        [
-            round(left + px),
-            round(top + py),
-            round(right - left),
-            round(bottom - top),
-        ]
-    }
+    /// The work area as the default camera shows it: the place of the
+    /// windows of a plugin, which a camera move or a zoom does not change
+    /// (#13).
+    #[serde(default)]
+    pub default_work_area: [i32; 4],
 }

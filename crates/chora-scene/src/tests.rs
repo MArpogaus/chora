@@ -823,6 +823,17 @@ fn a_client_that_cleared_the_focus_gives_it_back() {
     assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
     // ... but after it cleared the focus, it gives it back, once.
     scene.apply("walk", &[focus(None)]).unwrap();
+    scene.set_focused(None);
     scene.apply("walk", &[focus(Some("s1"))]).unwrap();
+    scene.set_focused(Some("s1"));
+    assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    // A focus that the user gave elsewhere since ends the return.
+    scene.apply("walk", &[focus(None)]).unwrap();
+    scene.set_focused(Some("s2"));
+    assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    // So does the end of the client.
+    scene.set_focused(Some("s1"));
+    scene.apply("walk", &[focus(None)]).unwrap();
+    scene.disconnect("walk");
     assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
 }

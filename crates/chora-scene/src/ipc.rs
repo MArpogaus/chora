@@ -81,6 +81,18 @@ impl RpcError {
             message: message.into(),
         }
     }
+
+    /// Whether the core rejected a transaction because a surface node is
+    /// gone, for example a window that closed in the meantime. A missing
+    /// node of the client itself is no such case.
+    #[must_use]
+    pub fn is_gone_surface(&self) -> bool {
+        self.code == Self::REJECTED
+            && self.message.split("node \"").skip(1).any(|rest| {
+                rest.split_once("\" does not exist")
+                    .is_some_and(|(id, _)| crate::scene::is_surface_id(id))
+            })
+    }
 }
 
 impl Message {
@@ -750,6 +762,22 @@ mod tests {
             name: "test".into(),
             keep_nodes: false,
         }
+    }
+
+    #[test]
+    fn a_gone_surface_is_no_missing_node_of_the_client() {
+        let gone = RpcError::new(
+            RpcError::REJECTED,
+            r#"command 0: node "s12" does not exist"#,
+        );
+        assert!(gone.is_gone_surface());
+        let own = RpcError::new(
+            RpcError::REJECTED,
+            r#"command 1: node "tiles" does not exist"#,
+        );
+        assert!(!own.is_gone_surface());
+        let other = RpcError::new(RpcError::INVALID_PARAMS, r#"node "s1" does not exist"#);
+        assert!(!other.is_gone_surface());
     }
 
     #[test]

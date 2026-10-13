@@ -117,6 +117,8 @@ impl State {
         }
         self.foreign_toplevel_manager_state
             .set_shown(output, &HashSet::new());
+        self.assets.left_out.remove(&output.name());
+        self.assets.frame_left_out.remove(&output.name());
         self.emit(&Event::OutputRemoved {
             name: output.name(),
         });
@@ -217,6 +219,13 @@ impl State {
                     scale: output.current_scale().fractional_scale(),
                     camera,
                     work_area: scene_area(&camera, zone),
+                    // The default camera translates by the position.
+                    default_work_area: [
+                        area.loc.x + zone.loc.x,
+                        area.loc.y + zone.loc.y,
+                        zone.size.w,
+                        zone.size.h,
+                    ],
                 }
             })
             .collect()

@@ -136,7 +136,12 @@ impl State {
     /// Tells the plugins when the layer budget of a frame left other nodes
     /// out than the frame before.
     fn note_left_out(&mut self, output: &str) {
-        let nodes = self.assets.layers.left_out.clone();
+        let nodes = self
+            .assets
+            .frame_left_out
+            .get(output)
+            .cloned()
+            .unwrap_or_default();
         let before = self
             .assets
             .left_out
