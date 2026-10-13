@@ -1097,10 +1097,9 @@ sudo<span class="w"> </span>pacman<span class="w"> </span>-U<span class="w"> </s
 </table>
 <p>GNOME keeps Super for itself. There, start <code>chora -- chora-tiling --mod alt</code>
 to use Alt instead. <code>chora-tiling --help</code> lists all options.</p>
-<p>Nested, chora uses its own keymap, not the one of the host session, and
-the US layout by default. Set the layout of your keyboard, for example
-<code>XKB_DEFAULT_LAYOUT=de chora -- chora-tiling</code>. The log names the layout at
-the start.</p>
+<p>Nested, chora takes the keymap of the host session. <code>XKB_DEFAULT_LAYOUT</code>
+sets another layout, for example <code>XKB_DEFAULT_LAYOUT=de chora --
+chora-tiling</code>. The log names the layouts at the start.</p>
 <p>The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
 and Ctrl+Alt+BackSpace quits chora.</p>
 <p>To let an agent drive chora, grant it screenshots and input, and add

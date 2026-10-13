@@ -1209,8 +1209,9 @@ missed (issues #12 to #27), without new policy in the core.</p>
   exit status, at most 64 KiB, and <code>process.wait(pid, timeout)</code> returns
   them (#22).</li>
 <li><code>output.configure</code> for scale and transform (#22, D44).</li>
-<li>Meshes: perspective-correct texture coordinates, and a point behind the
-  eye drops only its triangles, not the layer (#25, #26).</li>
+<li>Meshes: an optional <code>depth</code> per point, which the transform projects, so
+  the texture maps perspective-correct, and a point behind the eye drops
+  only its triangles, not the layer (#25, #26).</li>
 <li>Nested, the keymap of the host session: a second Wayland connection to
   the host reads its <code>wl_keyboard.keymap</code>; <code>XKB_DEFAULT_LAYOUT</code> still wins
   (#12).</li>
