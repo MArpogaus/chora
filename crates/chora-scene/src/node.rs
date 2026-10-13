@@ -47,7 +47,9 @@ pub const MAX_MESH_CELLS: u32 = 64;
 /// A grid that deforms how a node shows, for example for wobbly windows:
 /// `cols` by `rows` cells over the size of the node. `points` holds the
 /// place of each grid point in node coordinates, row by row from the top
-/// left, `(cols + 1) * (rows + 1)` points.
+/// left, `(cols + 1) * (rows + 1)` points. `depth` holds the z of each
+/// point, or nothing for a flat grid; the transform of the node projects
+/// the points, so a grid can bend into 3D.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
@@ -58,6 +60,9 @@ pub struct Mesh {
     pub rows: u32,
     /// The grid points.
     pub points: Vec<[f64; 2]>,
+    /// The z of each grid point; empty for a flat grid.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub depth: Vec<f64>,
 }
 
 impl Mesh {
@@ -74,17 +79,29 @@ impl Mesh {
                 })
             })
             .collect();
-        Self { cols, rows, points }
+        Self {
+            cols,
+            rows,
+            points,
+            depth: Vec::new(),
+        }
     }
 
-    /// Whether the grid has 1 to 64 cells per side and a point for each
-    /// grid point.
+    /// Whether the grid has 1 to 64 cells per side, a point for each grid
+    /// point, and no depth or a depth for each point.
     #[must_use]
     pub fn is_valid(&self) -> bool {
         let cells = 1..=MAX_MESH_CELLS;
         cells.contains(&self.cols)
             && cells.contains(&self.rows)
             && self.points.len() == ((self.cols + 1) * (self.rows + 1)) as usize
+            && (self.depth.is_empty() || self.depth.len() == self.points.len())
+    }
+
+    /// The z of a grid point.
+    #[must_use]
+    pub fn z(&self, index: usize) -> f64 {
+        self.depth.get(index).copied().unwrap_or_default()
     }
 }
 

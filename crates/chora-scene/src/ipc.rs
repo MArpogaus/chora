@@ -235,6 +235,51 @@ impl Edges {
     }
 }
 
+/// Parameters of `output.configure`: scale and transform of an output,
+/// on the path of `wlr-output-management` (D44).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OutputConfigure {
+    /// The output name; the first output if missing.
+    #[serde(default)]
+    pub output: Option<String>,
+    /// The scale, from 0.1 to 10; unchanged if missing.
+    #[serde(default)]
+    pub scale: Option<f64>,
+    /// The transform; unchanged if missing.
+    #[serde(default)]
+    pub transform: Option<OutputTransform>,
+}
+
+/// The transform of an output, with the names of `wlr-randr`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum OutputTransform {
+    /// As the panel is.
+    #[serde(rename = "normal")]
+    Normal,
+    /// Turned by 90 degrees.
+    #[serde(rename = "90")]
+    Turn90,
+    /// Turned by 180 degrees.
+    #[serde(rename = "180")]
+    Turn180,
+    /// Turned by 270 degrees.
+    #[serde(rename = "270")]
+    Turn270,
+    /// Mirrored.
+    #[serde(rename = "flipped")]
+    Flipped,
+    /// Mirrored and turned by 90 degrees.
+    #[serde(rename = "flipped-90")]
+    Flipped90,
+    /// Mirrored and turned by 180 degrees.
+    #[serde(rename = "flipped-180")]
+    Flipped180,
+    /// Mirrored and turned by 270 degrees.
+    #[serde(rename = "flipped-270")]
+    Flipped270,
+}
+
 /// Parameters of `process.spawn`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -242,6 +287,41 @@ pub struct Spawn {
     /// The program and its arguments, for example `["foot"]`. The core
     /// looks the program up in its `PATH`.
     pub argv: Vec<String>,
+    /// Keep stdout, stderr and the exit status for `process.wait`, at most
+    /// 64 KiB of each stream (#22).
+    #[serde(default)]
+    pub capture: bool,
+}
+
+/// Parameters of `process.wait`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProcessWait {
+    /// The pid of a program that `process.spawn` started with `capture`.
+    pub pid: u32,
+    /// How long to wait for its end, in milliseconds, at most 30000; 0
+    /// answers at once.
+    #[serde(default)]
+    pub timeout_ms: u64,
+}
+
+/// The answer of `process.wait`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProcessOutput {
+    /// The pid.
+    pub pid: u32,
+    /// The program still runs; the output is the one so far.
+    pub running: bool,
+    /// The exit code after the end, or 128 and the signal that ended it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<i32>,
+    /// What it wrote to stdout, as UTF-8 with replacements.
+    pub stdout: String,
+    /// What it wrote to stderr.
+    pub stderr: String,
+    /// A stream had more than 64 KiB, and the rest went.
+    #[serde(default)]
+    pub truncated: bool,
 }
 
 /// Parameters of `plugins.restart`.
@@ -509,11 +589,12 @@ pub enum Key {
 }
 
 /// Whether a key or a button goes down or up.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum PressState {
     /// Down.
+    #[default]
     Pressed,
     /// Up.
     Released,

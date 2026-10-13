@@ -50,10 +50,9 @@ A window opens. The plugin uses these bindings:
 GNOME keeps Super for itself. There, start `chora -- chora-tiling --mod alt`
 to use Alt instead. `chora-tiling --help` lists all options.
 
-Nested, chora uses its own keymap, not the one of the host session, and
-the US layout by default. Set the layout of your keyboard, for example
-`XKB_DEFAULT_LAYOUT=de chora -- chora-tiling`. The log names the layout at
-the start.
+Nested, chora takes the keymap of the host session. `XKB_DEFAULT_LAYOUT`
+sets another layout, for example `XKB_DEFAULT_LAYOUT=de chora --
+chora-tiling`. The log names the layouts at the start.
 
 The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
 and Ctrl+Alt+BackSpace quits chora.

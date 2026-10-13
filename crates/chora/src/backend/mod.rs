@@ -1,6 +1,7 @@
 //! The backends. winit runs chora as a window inside another session; the
 //! tty backend runs it on real hardware.
 
+mod host_keymap;
 pub mod tty;
 pub mod winit;
 

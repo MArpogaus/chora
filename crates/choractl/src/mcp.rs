@@ -16,8 +16,8 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use chora_scene::{
     Node, NodeKind, OutputInfo, Transform,
     ipc::{
-        Apply, AssetPut, Capture, Client, ClientError, Hello, Inject, MethodCall, Picture, Query,
-        Reserve, Restart, RpcError, Spawn,
+        Apply, AssetPut, Capture, Client, ClientError, Hello, Inject, MethodCall, OutputConfigure,
+        Picture, ProcessWait, Query, Reserve, Restart, RpcError, Spawn,
     },
 };
 use serde_json::{Value, json};
@@ -301,9 +301,31 @@ fn session_tools() -> Vec<Value> {
     vec![
         tool(
             "spawn_process",
-            "Start a program in the session with the environment of chora, for example a terminal or a plugin. Needs a grant of process.spawn. Returns the pid.",
-            &json!({"argv": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "the program and its arguments, for example [\"foot\"]"}}),
+            "Start a program in the session with the environment of chora, for example a terminal or a plugin. With capture, chora keeps stdout, stderr and the exit status for wait_process. Needs a grant of process.spawn. Returns the pid.",
+            &json!({
+                "argv": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "the program and its arguments, for example [\"foot\"]"},
+                "capture": {"type": "boolean", "description": "keep the output, at most 64 KiB of each stream"},
+            }),
             &["argv"],
+        ),
+        tool(
+            "wait_process",
+            "The output and the exit status of a program of spawn_process with capture: at once with timeout_ms 0, or once it ended, at the latest after timeout_ms (at most 30000). running is true while it runs.",
+            &json!({
+                "pid": {"type": "integer", "minimum": 0},
+                "timeout_ms": {"type": "integer", "minimum": 0, "maximum": 30000},
+            }),
+            &["pid"],
+        ),
+        tool(
+            "configure_output",
+            "Set the scale or the transform of an output, as wlr-randr does. Returns the output.",
+            &json!({
+                "output": {"type": "string", "description": "the output name; the first output if missing"},
+                "scale": {"type": "number", "minimum": 0.1, "maximum": 10},
+                "transform": {"enum": ["normal", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"]},
+            }),
+            &[],
         ),
         tool(
             "restart_plugin",
@@ -465,17 +487,24 @@ fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Fa
         "subscribe_events" => subscribe(chora, args),
         "put_asset" => put_asset(chora, args),
         "reserve_space" => reserve_space(chora, args),
-        "spawn_process" => {
-            let spawned: Value = chora.call("process.spawn", arg::<Spawn>(args)?)?;
-            Ok(vec![json_text(&spawned)])
-        }
-        "restart_plugin" => {
-            let restarted: Value = chora.call("plugins.restart", arg::<Restart>(args)?)?;
-            Ok(vec![json_text(&restarted)])
-        }
+        "spawn_process" => pass::<Spawn>(chora, "process.spawn", args),
+        "wait_process" => pass::<ProcessWait>(chora, "process.wait", args),
+        "configure_output" => pass::<OutputConfigure>(chora, "output.configure", args),
+        "restart_plugin" => pass::<Restart>(chora, "plugins.restart", args),
         "wait_events" => wait(chora, args),
         other => Err(Failure::UnknownTool(format!("no tool {other:?}"))),
     }
+}
+
+/// Checks the arguments of a tool as the parameters of a method, calls it
+/// and answers with its result.
+fn pass<P: serde::de::DeserializeOwned + serde::Serialize>(
+    chora: &mut Core,
+    method: &str,
+    args: &Value,
+) -> Result<Vec<Value>, Failure> {
+    let result: Value = chora.call(method, arg::<P>(args)?)?;
+    Ok(vec![json_text(&result)])
 }
 
 /// Reserves space at the edges of an output for the life of the server.
@@ -705,7 +734,7 @@ mod tests {
         assert!(
             tools["result"]["tools"]
                 .as_array()
-                .is_some_and(|t| t.len() == 16)
+                .is_some_and(|t| t.len() == 18)
         );
         let bad =
             answer(r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nope"}}"#)

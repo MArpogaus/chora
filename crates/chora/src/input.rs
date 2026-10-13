@@ -9,7 +9,7 @@
 
 use std::sync::atomic::Ordering;
 
-use chora_scene::{Event as SceneEvent, NodeKind};
+use chora_scene::{Event as SceneEvent, NodeKind, ipc::PressState};
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
@@ -43,6 +43,8 @@ enum KeyAction {
     SwitchVt(i32),
     /// Send `input.key` to the client that grabbed the binding.
     Grab(u64, String),
+    /// Send the release of a grabbed key to the client of the grab.
+    Ungrab(u64, String),
 }
 
 pub fn process<I: InputBackend>(state: &mut State, event: InputEvent<I>) {
@@ -60,6 +62,24 @@ pub fn process<I: InputBackend>(state: &mut State, event: InputEvent<I>) {
 
 fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
     key(state, event.key_code(), event.state(), event.time(), false);
+}
+
+/// Logs the layouts of the keymap of the seat, so that a wrong layout
+/// shows (#12).
+pub fn log_layout(state: &mut State) {
+    let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+    let layouts = keyboard.with_xkb_state(state, |context| {
+        let xkb = context.xkb().lock().ok()?;
+        let names: Vec<_> = xkb
+            .layouts()
+            .map(|l| xkb.layout_name(l).to_owned())
+            .collect();
+        Some(names.join(", "))
+    });
+    tracing::info!(
+        layouts = layouts.as_deref().unwrap_or("?"),
+        "the keyboard layouts; XKB_DEFAULT_LAYOUT sets others"
+    );
 }
 
 /// Releases every key that is down, for example when the window of a
@@ -89,18 +109,22 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         time,
         |state, mods, handle| {
             if key_state == KeyState::Released {
-                let before = state.suppressed_keys.len();
-                state.suppressed_keys.retain(|k| *k != code);
-                return if state.suppressed_keys.len() < before {
-                    FilterResult::Intercept(KeyAction::Swallow)
-                } else {
-                    FilterResult::Forward
+                let Some(i) = state.suppressed_keys.iter().position(|(k, _)| *k == code) else {
+                    return FilterResult::Forward;
                 };
+                return FilterResult::Intercept(match state.suppressed_keys.remove(i).1 {
+                    Some((conn, binding)) => KeyAction::Ungrab(conn, binding),
+                    None => KeyAction::Swallow,
+                });
             }
             let syms = (handle.raw_syms(), handle.modified_syms());
             match press_action(state, mods, &syms, injected) {
                 Some(action) => {
-                    state.suppressed_keys.push(code);
+                    let grab = match &action {
+                        KeyAction::Grab(conn, binding) => Some((*conn, binding.clone())),
+                        _ => None,
+                    };
+                    state.suppressed_keys.push((code, grab));
                     FilterResult::Intercept(action)
                 }
                 None => FilterResult::Forward,
@@ -115,9 +139,10 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
                 backend.change_vt(vt);
             }
         }
-        Some(KeyAction::Grab(conn, binding)) => state
-            .ipc
-            .send_to(conn, &chora_scene::Event::InputKey { binding }),
+        Some(KeyAction::Grab(conn, binding)) => grabbed(state, conn, binding, PressState::Pressed),
+        Some(KeyAction::Ungrab(conn, binding)) => {
+            grabbed(state, conn, binding, PressState::Released);
+        }
         Some(KeyAction::Swallow) => {}
         None => {
             if key_state == KeyState::Pressed {
@@ -125,6 +150,15 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
             }
         }
     }
+}
+
+/// Tells the client of a grab that its key went down or up.
+fn grabbed(state: &mut State, conn: u64, binding: String, press: PressState) {
+    let event = chora_scene::Event::InputKey {
+        binding,
+        state: press,
+    };
+    state.ipc.send_to(conn, &event);
 }
 
 /// The fixed bindings of the safety layer (D23), then the grabs. The keymap

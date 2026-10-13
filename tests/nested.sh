@@ -432,7 +432,7 @@ jq -se 'map(select(.event == "pointer.pressed"))[0].button == 272
         and .[-1].position == [1200, 760]' "$out/pointer.jsonl" \
     >/dev/null || fail "button or position: $out/pointer.jsonl"
 
-step "21. a layer shows through its mesh, and turns with its transform"
+step "21. a layer shows through its mesh, also with a cell behind the eye, and turns with its transform"
 rpc '[{"remove": {"id": "frame"}}, {"remove": {"id": "handle"}}]' >"$out/clear.json"
 # A 2x2 PNG file: red, green / blue, white.
 python3 -I - "$out/quad.png" <<'EOF'
@@ -461,6 +461,16 @@ rpc "[{\"update\": {\"id\": \"layer\",
     >"$out/shear.json"
 wait_for pixel_is 810 455 "255 0 0"
 pixel_is 720 455 "0 0 0" || fail "the sheared mesh: $(pixel 720 455)"
+# A perspective puts the right column of a mesh with depth behind the
+# eye: its cell goes, and the left cell still shows (#25).
+rpc '[{"update": {"id": "layer", "props": {
+       "mesh": {"cols": 2, "rows": 1, "points": [[0, 0], [150, 0], [300, 0], [0, 200], [150, 200], [300, 200]],
+                "depth": [0, 0, 200, 0, 0, 200]},
+       "transform": {"matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.01, 700, 450, 0, 1]}}}}]' \
+    >"$out/depth.json"
+all_results "$out/depth.json" || fail "answers: $out/depth.json"
+wait_for pixel_is 925 500 "0 0 0"
+pixel_is 775 500 "255 0 0" || fail "the near cell: $(pixel 775 500)"
 # A quarter turn without a mesh: x goes down, y goes left.
 rpc '[{"update": {"id": "layer", "props": {"mesh": {"cols": 1, "rows": 1, "points": []},
        "transform": {"rotate": 90, "translate": [1000, 450]}}}}]' >"$out/turn.json"
@@ -508,7 +518,7 @@ wait_for pixel_is 997 453 "0 0 0"
 pixel_is 975 500 "255 0 0" || fail "the chain: $(pixel 975 500)"
 grim "$out/effects.png"
 
-step "23. plugins grab Ctrl+Alt keys, but not the bindings of the safety layer"
+step "23. plugins grab Ctrl+Alt keys, but not the bindings of the safety layer, and ungrab them"
 timeout 20 python3 -I - "$CHORA_SOCKET" >"$out/grabs.json" <<'EOF'
 import json, socket, sys
 s = socket.socket(socket.AF_UNIX)
@@ -516,13 +526,18 @@ s.settimeout(10)
 s.connect(sys.argv[1])
 f = s.makefile()
 calls = [("hello", {"name": "grabber"}), ("input.grab", {"binding": "Ctrl+Alt+Left"}),
-         ("input.grab", {"binding": "Ctrl+Alt+BackSpace"}), ("input.grab", {"binding": "Ctrl+Alt+F3"})]
+         ("input.grab", {"binding": "Ctrl+Alt+BackSpace"}), ("input.grab", {"binding": "Ctrl+Alt+F3"}),
+         ("input.ungrab", {"binding": "Ctrl+Alt+Left"}), ("input.ungrab", {"binding": "Ctrl+Alt+Left"}),
+         ("input.grab", {"binding": "Ctrl+Alt+Left"})]
 for i, (method, params) in enumerate(calls):
     s.sendall(json.dumps({"jsonrpc": "2.0", "id": i, "method": method, "params": params}).encode() + b"\n")
     print(f.readline().strip())
 EOF
 jq -se '.[1] | has("result")' "$out/grabs.json" >/dev/null || fail "Ctrl+Alt+Left: $out/grabs.json"
-jq -se '.[2:] | all(has("error"))' "$out/grabs.json" >/dev/null || fail "safety: $out/grabs.json"
+jq -se '.[2:4] | all(has("error"))' "$out/grabs.json" >/dev/null || fail "safety: $out/grabs.json"
+# An ungrab ends a grab once, and the key is free again.
+jq -se '[.[4:] | .[] | has("result")] == [true, false, true]' "$out/grabs.json" >/dev/null ||
+    fail "ungrab: $out/grabs.json"
 
 step "24. Ctrl+Alt+Escape starts the emergency reset"
 # A virtual keyboard of the host with the default keymap: left Ctrl 29,

@@ -11,15 +11,16 @@ of the node as OUT_DIR/asset.png and the path as OUT_DIR/asset-path.txt
 (#6).
 
 With the layout `panel`, it runs the exit test of milestone M4.1 instead:
-see panel().
+see panel(). With `hud`, it runs the one of milestone M4.2: see hud().
 
-Usage: tests/mcp-client.py CHORACTL OUT_DIR (LAYOUT | panel)
+Usage: tests/mcp-client.py CHORACTL OUT_DIR (LAYOUT | panel | hud)
 """
 
 import base64
 import json
 import subprocess
 import sys
+import time
 
 
 class Mcp:
@@ -131,7 +132,14 @@ def events(mcp):
     if any(e["event"] not in ("pointer.pressed", "input.key") for e in seen):
         sys.exit(f"unsubscribed events: {seen}")
     mcp.tool("inject_input", {"events": [{"shortcut": {"keys": "Super+F9"}}]})
-    wait_for(mcp, lambda e: e == {"event": "input.key", "binding": "Super+F9"})
+    key = lambda state: lambda e: e == {
+        "event": "input.key",
+        "binding": "Super+F9",
+        "state": state,
+    }
+    seen = wait_for(mcp, key("pressed"))
+    if not any(key("released")(e) for e in seen):
+        wait_for(mcp, key("released"))
     mcp.tool("apply_commands", {"commands": [{"remove": {"id": "mcp-button"}}]})
 
 
@@ -254,6 +262,98 @@ def panel(mcp, out):
     )
 
 
+PROBE = "echo probe; echo warning >&2; exit 7"
+
+
+def text(content):
+    return json.loads(content[0]["text"])
+
+
+def save_capture(mcp, out, name, output):
+    content = mcp.tool("capture", {"output": output})
+    images = [c for c in content if c["type"] == "image"]
+    with open(f"{out}/{name}.png", "wb") as f:
+        f.write(base64.b64decode(images[0]["data"]))
+
+
+def hud(mcp, out):
+    """The exit test of M4.2: a probe, the scale, and a HUD on the screen.
+
+    The client runs a probe with capture and reads its output, sets the
+    scale of the output and back, and draws a HUD under the overlay root of
+    the output, next to a mark in the scene. It captures the output during
+    an animated camera move, as OUT_DIR/hud-moving.png, and after it, as
+    OUT_DIR/hud-moved.png, for the checks of tests/agent.sh.
+    """
+    started = text(mcp.tool("spawn_process", {"argv": ["sh", "-c", PROBE], "capture": True}))
+    done = text(mcp.tool("wait_process", {"pid": started["pid"], "timeout_ms": 10000}))
+    wanted = {
+        "pid": started["pid"],
+        "running": False,
+        "status": 7,
+        "stdout": "probe\n",
+        "stderr": "warning\n",
+        "truncated": False,
+    }
+    if done != wanted:
+        sys.exit(f"wait_process: {done}")
+    output = describe(mcp, out, "hud-start")["outputs"][0]
+    name = output["name"]
+    scaled = text(mcp.tool("configure_output", {"output": name, "scale": 2}))
+    if scaled["scale"] != 2 or scaled["size"] != [640, 400]:
+        sys.exit(f"configure_output: {scaled}")
+    back = text(mcp.tool("configure_output", {"output": name, "scale": 1}))
+    if back["size"] != [1280, 800]:
+        sys.exit(f"configure_output: {back}")
+    overlay = f"screen:{name}"
+    mcp.tool(
+        "apply_commands",
+        {
+            "commands": [
+                {
+                    "create": {
+                        "id": "hud",
+                        "kind": "rect",
+                        "parent": overlay,
+                        "props": {
+                            "size": [160, 40],
+                            "color": [1, 0, 1, 1],
+                            "transform": {"translate": [1100, 20]},
+                        },
+                    }
+                },
+                node(
+                    "mark",
+                    "rect",
+                    {"size": [100, 100], "color": [1, 1, 1, 1], "transform": {"translate": [500, 300]}},
+                ),
+            ]
+        },
+    )
+    mcp.tool("subscribe_events", {"events": ["animation.done"]})
+    camera = {
+        "output": name,
+        "transform": {"translate": [-400, 0]},
+        "duration": 2000,
+        "easing": "linear",
+    }
+    mcp.tool("apply_commands", {"commands": [{"camera": camera}]})
+    time.sleep(0.8)
+    save_capture(mcp, out, "hud-moving", name)
+    wait_for(mcp, lambda e: e["event"] == "animation.done" and e.get("output") == name)
+    save_capture(mcp, out, "hud-moved", name)
+    mcp.tool(
+        "apply_commands",
+        {
+            "commands": [
+                {"camera": {"output": name}},
+                {"remove": {"id": "hud"}},
+                {"remove": {"id": "mark"}},
+            ]
+        },
+    )
+
+
 def start(choractl):
     """Starts the server and initializes the session."""
     mcp = Mcp([choractl, "--name", "agent", "mcp"])
@@ -282,6 +382,11 @@ def main():
         panel(mcp, out)
         mcp.close()
         print("the MCP client moved the camera from its panel")
+        return
+    if layout == "hud":
+        hud(mcp, out)
+        mcp.close()
+        print("the MCP client read its probe, scaled the output and kept its HUD")
         return
     before = describe(mcp, out, "before")
     tiling = [p for p in before["plugins"] if p["name"] == "tiling"]

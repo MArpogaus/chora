@@ -154,6 +154,7 @@ impl Window {
                     cols: 1,
                     rows: 1,
                     points: Vec::new(),
+                    depth: Vec::new(),
                 }),
                 ..PropsUpdate::default()
             },

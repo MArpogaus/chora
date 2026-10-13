@@ -68,6 +68,7 @@ impl Lamp {
             cols: COLS,
             rows: ROWS,
             points,
+            depth: Vec::new(),
         }
     }
 }

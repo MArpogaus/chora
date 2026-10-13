@@ -10,7 +10,7 @@ use std::{collections::HashSet, ops::RangeInclusive, time::Duration};
 
 use chora_scene::{
     Event, OutputInfo, Transform,
-    ipc::{Edges, Reserve, RpcError},
+    ipc::{Edges, OutputConfigure, OutputTransform, Reserve, RpcError},
 };
 use serde_json::Value;
 use smithay::{
@@ -128,6 +128,11 @@ impl State {
     /// and to the clients of output configuration.
     pub fn output_changed(&mut self) {
         self.sync_default_cameras();
+        // Every output has an overlay root; it stays when the output goes,
+        // with the nodes of the clients, for its return (D43).
+        for output in &self.outputs {
+            self.scene.add_overlay(&output.name());
+        }
         for output in self.output_info() {
             self.emit(&Event::OutputChanged { output });
         }
@@ -223,6 +228,38 @@ impl State {
                 }
             })
             .collect()
+    }
+
+    /// `output.configure`: scale and transform of an output, through the
+    /// same configuration as `wlr-output-management` (D44). Answers with
+    /// the output.
+    pub fn ipc_output_configure(
+        &mut self,
+        conn: u64,
+        configure: &OutputConfigure,
+    ) -> Result<Value, RpcError> {
+        if self.ipc.name(conn).is_none() {
+            return Err(rejected("send hello first"));
+        }
+        let output = match &configure.output {
+            Some(name) => self.outputs.iter().find(|o| o.name() == *name),
+            None => self.outputs.first(),
+        }
+        .cloned()
+        .ok_or_else(|| rejected(format!("no output {:?}", configure.output)))?;
+        let changes = OutputChanges {
+            scale: configure.scale,
+            transform: configure.transform.map(smithay_transform),
+            ..OutputChanges::default()
+        };
+        self.configure_outputs(vec![(output.clone(), OutputConfig::Enabled(changes))], true)
+            .map_err(rejected)?;
+        self.outputs_configured();
+        let info = self
+            .output_info()
+            .into_iter()
+            .find(|i| i.name == output.name());
+        Ok(serde_json::json!(info))
     }
 
     /// `output.reserve`: the work area of an output leaves space at its
@@ -559,6 +596,20 @@ fn default_area(output: Rectangle<i32, Logical>, zone: Rectangle<i32, Logical>) 
         zone.size.w,
         zone.size.h,
     ]
+}
+
+/// The transform of Smithay for one of the API.
+fn smithay_transform(transform: OutputTransform) -> utils::Transform {
+    match transform {
+        OutputTransform::Normal => utils::Transform::Normal,
+        OutputTransform::Turn90 => utils::Transform::_90,
+        OutputTransform::Turn180 => utils::Transform::_180,
+        OutputTransform::Turn270 => utils::Transform::_270,
+        OutputTransform::Flipped => utils::Transform::Flipped,
+        OutputTransform::Flipped90 => utils::Transform::Flipped90,
+        OutputTransform::Flipped180 => utils::Transform::Flipped180,
+        OutputTransform::Flipped270 => utils::Transform::Flipped270,
+    }
 }
 
 /// The camera that shows an output at its place in the layout.

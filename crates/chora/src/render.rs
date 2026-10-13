@@ -150,6 +150,15 @@ where
     prune_assets(parts);
     let mut out = layer_elements(renderer, output, &layers::ABOVE, view.scale);
     let scene = parts.scene;
+    // The overlay of the output, above the scene and without its camera
+    // (D43).
+    let screen = View {
+        camera: Transform::IDENTITY,
+        scale: view.scale,
+        size: view.size,
+    };
+    let overlay = scene.overlay_layer_list(&output.name());
+    out.extend(elements(parts, renderer, &overlay, &screen));
     let list = scene.layer_list(chora_scene::ROOT);
     out.extend(elements(parts, renderer, &list, view));
     out.extend(layer_elements(renderer, output, &layers::BELOW, view.scale));
@@ -547,7 +556,19 @@ pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
     if let Some(under) = layer(&layers::ABOVE) {
         return Some(under);
     }
-    match scene_under(state, spot.scene) {
+    // The overlay of the output sits in its coordinates, as layer surfaces.
+    let overlay = state.scene.overlay_draw_list(&spot.output.name());
+    match scene_under(state, &overlay, spot.local) {
+        Target::Surface(under) => {
+            return Some(Under {
+                location: under.location + offset,
+                ..under
+            });
+        }
+        Target::Blocked => return None,
+        Target::Nothing => {}
+    }
+    match scene_under(state, &state.scene.draw_list(), spot.scene) {
         Target::Surface(under) => Some(under),
         Target::Blocked => None,
         Target::Nothing => layer(&layers::BELOW),
@@ -563,12 +584,17 @@ pub fn node_under(state: &State, spot: &Spot) -> Option<String> {
     {
         return None;
     }
-    let list = state.scene.draw_list();
-    let (placed, _) = list
-        .iter()
-        .rev()
-        .filter(|p| p.input != InputMode::Pass)
-        .find_map(|p| Some((p, hit(state, p, spot.scene)?)))?;
+    // The overlay of the output first, in its coordinates (D43).
+    let overlay = state.scene.overlay_draw_list(&spot.output.name());
+    let scene = state.scene.draw_list();
+    let (placed, _) = [(&overlay, spot.local), (&scene, spot.scene)]
+        .into_iter()
+        .find_map(|(list, pos)| {
+            list.iter()
+                .rev()
+                .filter(|p| p.input != InputMode::Pass)
+                .find_map(|p| Some((p, hit(state, p, pos)?)))
+        })?;
     (placed.input == InputMode::Accept).then(|| placed.node.id.clone())
 }
 
@@ -583,8 +609,7 @@ enum Target {
 
 /// The surface of the scene under a point. A node with `pass` lets the
 /// input through.
-fn scene_under(state: &State, pos: Point<f64, Logical>) -> Target {
-    let draw_list = state.scene.draw_list();
+fn scene_under(state: &State, draw_list: &[Placed<'_>], pos: Point<f64, Logical>) -> Target {
     let found = draw_list
         .iter()
         .rev()

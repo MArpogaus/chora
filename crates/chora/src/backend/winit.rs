@@ -81,10 +81,29 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
         output: output.clone(),
     })));
     state.add_output(output);
+    take_host_keymap(state);
     state
         .loop_handle
         .insert_source(events, |event, (), state| handle(state, event))?;
     Ok(())
+}
+
+/// Translates keys with the keymap of the host session, unless
+/// `XKB_DEFAULT_LAYOUT` asks for another layout (#12).
+fn take_host_keymap(state: &mut State) {
+    if std::env::var_os("XKB_DEFAULT_LAYOUT").is_some() {
+        return;
+    }
+    let keymap = super::host_keymap::fetch().ok_or("the host sent no keymap");
+    let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+    let taken = keymap.and_then(|k| {
+        keyboard
+            .set_keymap_from_string(state, k)
+            .map_err(|_| "the keymap of the host does not compile")
+    });
+    if let Err(err) = taken {
+        tracing::warn!(err, "XKB_DEFAULT_LAYOUT sets the layout");
+    }
 }
 
 fn handle(state: &mut State, event: WinitEvent) {

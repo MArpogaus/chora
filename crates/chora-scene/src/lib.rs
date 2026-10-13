@@ -22,7 +22,9 @@ pub use node::{
     MAX_UNIFORMS, Mesh, Node, NodeKind, NodeTexture, Props, PropsUpdate, ROOT, ShaderEffect,
     SurfaceInfo, Uniform,
 };
-pub use scene::{MAX_CAMERAS, MAX_NODES, Placed, Scene, SceneError, TransactionError};
+pub use scene::{
+    MAX_CAMERAS, MAX_NODES, OVERLAY, Placed, Scene, SceneError, TransactionError, overlay_id,
+};
 pub use selector::{Selector, SelectorError};
 pub use transform::Transform;
 

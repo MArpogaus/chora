@@ -2,6 +2,7 @@
 
 mod backend;
 mod capture;
+mod captured;
 mod copies;
 mod cursor;
 mod foreign_toplevel;
@@ -66,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .then(|| {
             process::spawn(
                 command,
-                (None, std::process::Stdio::inherit()),
+                (None, std::process::Stdio::inherit(), false),
                 &state.socket_name,
                 &socket,
             )
@@ -81,6 +82,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         process::reap(child);
     }
     backend::init(&mut state)?;
+    input::log_layout(&mut state);
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
     event_loop.run(None, &mut state, |state| {
         state.advance_animations();

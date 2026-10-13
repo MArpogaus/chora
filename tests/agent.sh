@@ -1,5 +1,5 @@
 #!/bin/bash
-# End-to-end test of milestones M4 and M4.1, the agent interface: chora runs nested
+# End-to-end test of milestones M4 to M4.2, the agent interface: chora runs nested
 # in a headless sway with chora-tiling and two foot windows. An agent
 # calls the methods that chora-tiling exports, gets grants, captures the
 # output and nodes, types into a terminal, clicks a node and presses a
@@ -8,8 +8,9 @@
 # capture through both screencopy protocols, and a client of a sandbox
 # sees none of the privileged protocols. An MCP client waits for events
 # and draws a shader that it hands to the core as an asset. Connections
-# reserve space at the edges of the output. An agent starts a program and
-# restarts the tiling plugin.
+# reserve space at the edges of the output. An agent starts a program,
+# reads the output of another one, and restarts the tiling plugin. An MCP
+# client scales the output and keeps a HUD in place during a camera move.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
@@ -440,6 +441,11 @@ tiling_is() { test "$(running_tiling)" = "$1"; }
 wait_for tiling_is "$new"
 wait_for count_is 3 '.owner == "tiling"'
 if ctl restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
+# With --capture, choractl waits for the end and prints the output.
+ctl spawn --capture -- sh -c 'echo out; exit 3' >"$out/captured.json" ||
+    fail "the captured spawn failed"
+jq -e '.running == false and .status == 3 and .stdout == "out\n"' "$out/captured.json" >/dev/null ||
+    fail "the captured spawn: $(cat "$out/captured.json")"
 "$bin/choractl" revoke agent process.spawn || fail "the revoke failed"
 if ctl restart tiling 2>/dev/null; then fail "a restart after the revoke worked"; fi
 
@@ -466,5 +472,19 @@ grep -q "moved the camera from its panel" "$out/panel.log" || fail "panel: $(cat
 # The reserve ends with the server.
 wait_for work_area_is "[0,0,1280,800]"
 wait_for min_y_is 0
+
+step "23. exit of M4.2: an MCP client reads a probe, scales the output, and keeps a HUD in place"
+"$bin/choractl" grant agent process.spawn screen.capture || fail "the grant failed"
+timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" hud >"$out/hud.log" 2>&1 ||
+    fail "the MCP client: $(cat "$out/hud.log")"
+grep -q "kept its HUD" "$out/hud.log" || fail "hud: $(cat "$out/hud.log")"
+# The HUD stays at the top right during the move and after it, while the
+# mark moves from x 500 to x 100.
+for shot in hud-moving hud-moved; do
+    test "$(color_at "$shot" 1180 40)" = "255 0 255" || fail "$shot: $(color_at "$shot" 1180 40)"
+done
+test "$(color_at hud-moved 150 350)" = "255 255 255" || fail "the mark: $(color_at hud-moved 150 350)"
+test "$(color_at hud-moving 550 350)" != "255 255 255" || fail "the camera did not move yet"
+"$bin/choractl" revoke agent || fail "the revoke failed"
 
 echo "PASS (logs and screenshots in $out)"

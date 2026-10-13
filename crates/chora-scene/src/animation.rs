@@ -99,8 +99,16 @@ impl Animation {
         {
             let points = from.points.iter().zip(&to.points);
             let points = points.map(|(a, b)| [lerp(a[0], b[0]), lerp(a[1], b[1])]);
+            let depth = if from.depth.is_empty() && to.depth.is_empty() {
+                Vec::new()
+            } else {
+                (0..to.points.len())
+                    .map(|i| lerp(from.z(i), to.z(i)))
+                    .collect()
+            };
             props.mesh = Some(Mesh {
                 points: points.collect(),
+                depth,
                 ..to.clone()
             });
         }

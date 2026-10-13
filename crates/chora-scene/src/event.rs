@@ -60,11 +60,14 @@ pub enum Event {
         /// The change.
         request: SurfaceRequest,
     },
-    /// A grabbed key binding was pressed.
+    /// The key of a grabbed binding went down, or up again (#18).
     #[serde(rename = "input.key")]
     InputKey {
         /// The binding as the client grabbed it.
         binding: String,
+        /// Pressed or released.
+        #[serde(default)]
+        state: crate::ipc::PressState,
     },
     /// A button went down over a node that takes pointer input: a surface,
     /// a rect or an image. Over a rect or an image, `pointer.moved` and

@@ -124,6 +124,7 @@ impl Wobble {
             cols: CELLS,
             rows: CELLS,
             points: self.at.iter().map(|p| sub(*p, origin)).collect(),
+            depth: Vec::new(),
         }
     }
 }

@@ -18,7 +18,8 @@ use chora_scene::{
     Event,
     ipc::{
         Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, Edges,
-        GrantChange, Hello, Inject, MethodCall, Picture, Query, Reserve, Restart, Spawn, Subscribe,
+        GrantChange, Hello, Inject, MethodCall, Picture, ProcessWait, Query, Reserve, Restart,
+        Spawn, Subscribe,
     },
 };
 use clap::{Parser, Subcommand};
@@ -101,9 +102,26 @@ enum Cmd {
     /// Start a program with the environment of the compositor, and print
     /// its pid. Needs a grant of `process.spawn` for the client name.
     Spawn {
+        /// Wait for the end of the program, and print its output and its
+        /// exit status.
+        #[arg(long)]
+        capture: bool,
         /// The program and its arguments.
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
         argv: Vec<String>,
+    },
+    /// Set the scale or the transform of an output, as wlr-randr does.
+    ConfigureOutput {
+        /// The output; the first one if missing.
+        #[arg(long)]
+        output: Option<String>,
+        /// The scale, from 0.1 to 10.
+        #[arg(long)]
+        scale: Option<f64>,
+        /// The transform: normal, 90, 180, 270, flipped, flipped-90,
+        /// flipped-180 or flipped-270.
+        #[arg(long)]
+        transform: Option<String>,
     },
     /// Restart a plugin: stop the process of a client name, and start its
     /// command again. Needs a grant of `process.spawn`.
@@ -244,23 +262,18 @@ fn run(args: Args) -> Result<(), String> {
             .map(drop),
         Cmd::Events { names } => events(&mut client, names),
         Cmd::Outputs => show(&mut client, "output.list", Value::Null),
-        Cmd::Reserve(args) => reserve(&mut client, args),
-        Cmd::Spawn { argv } => show(&mut client, "process.spawn", Spawn { argv }),
-        Cmd::Restart { client: name } => show(&mut client, "plugins.restart", Restart { name }),
+        command @ (Cmd::Spawn { .. }
+        | Cmd::Restart { .. }
+        | Cmd::ConfigureOutput { .. }
+        | Cmd::Reserve(_)
+        | Cmd::Grant { .. }
+        | Cmd::Revoke { .. }
+        | Cmd::Grants) => session(&mut client, command),
         Cmd::Call {
             client: callee,
             method,
             params,
         } => return call(&mut client, callee, method, params.as_deref()),
-        Cmd::Grant {
-            client: name,
-            capabilities,
-        } => grants(&mut client, "grants.set", name, capabilities),
-        Cmd::Revoke {
-            client: name,
-            capabilities,
-        } => grants(&mut client, "grants.revoke", name, capabilities),
-        Cmd::Grants => show(&mut client, "grants.list", Value::Null),
         Cmd::Asset { action } => return asset(&mut client, action),
         Cmd::View { .. } | Cmd::Mcp => unreachable!("handled before the connection"),
         Cmd::Inject { .. } => client
@@ -272,15 +285,68 @@ fn run(args: Args) -> Result<(), String> {
             node,
             max_side,
         } => {
-            let capture = Capture {
-                output,
-                node,
-                max_side,
-            };
-            return capture_to(&mut client, &capture, &file);
+            return capture_to(
+                &mut client,
+                &Capture {
+                    output,
+                    node,
+                    max_side,
+                },
+                &file,
+            );
         }
     };
     result.map_err(|e| e.to_string())
+}
+
+/// The commands for grants, programs and outputs.
+fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
+    match command {
+        Cmd::Reserve(args) => reserve(client, args),
+        Cmd::Grant {
+            client: name,
+            capabilities,
+        } => grants(client, "grants.set", name, capabilities),
+        Cmd::Revoke {
+            client: name,
+            capabilities,
+        } => grants(client, "grants.revoke", name, capabilities),
+        Cmd::Grants => show(client, "grants.list", Value::Null),
+        Cmd::Spawn { capture, argv } => spawn(client, argv, capture),
+        Cmd::Restart { client: name } => show(client, "plugins.restart", Restart { name }),
+        Cmd::ConfigureOutput {
+            output,
+            scale,
+            transform,
+        } => {
+            let params =
+                serde_json::json!({"output": output, "scale": scale, "transform": transform});
+            show(client, "output.configure", params)
+        }
+        _ => unreachable!("only commands for grants, programs and outputs come here"),
+    }
+}
+
+/// Starts a program. With `capture`, waits for its end on the same
+/// connection, since the output goes with the last connection of the name.
+fn spawn(client: &mut Client, argv: Vec<String>, capture: bool) -> Result<(), ClientError> {
+    let started: Value = client.call("process.spawn", Spawn { argv, capture })?;
+    let pid = started["pid"].as_u64().and_then(|p| u32::try_from(p).ok());
+    let Some(pid) = pid.filter(|_| capture) else {
+        print(&started);
+        return Ok(());
+    };
+    loop {
+        let wait = ProcessWait {
+            pid,
+            timeout_ms: 30_000,
+        };
+        let output: Value = client.call("process.wait", wait)?;
+        if output["running"] != Value::Bool(true) {
+            print(&output);
+            return Ok(());
+        }
+    }
 }
 
 /// Calls a method and prints its result.

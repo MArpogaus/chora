@@ -2,7 +2,7 @@
 
 use crate::{
     Command, Easing, Effect, Event, MAX_CAMERAS, MAX_DURATION, MAX_NODES, NodeKind, PropsUpdate,
-    ROOT, Scene, SceneError, Selector, SurfaceInfo, SurfaceRequest, Transform,
+    ROOT, Scene, SceneError, Selector, SurfaceInfo, SurfaceRequest, Transform, overlay_id,
 };
 
 fn group(id: &str, parent: &str) -> Command {
@@ -863,4 +863,44 @@ fn a_gone_surface_is_no_missing_node_of_the_client() {
     assert!(scene.apply("wm", &[focus]).unwrap_err().is_gone_surface());
     let remove = Command::Remove { id: "tiles".into() };
     assert!(!scene.apply("wm", &[remove]).unwrap_err().is_gone_surface());
+}
+
+#[test]
+fn an_overlay_root_holds_nodes_fixed_to_its_output() {
+    let mut scene = Scene::default();
+    scene.add_overlay("DP-1");
+    let hud = Command::Create {
+        id: "hud".into(),
+        kind: NodeKind::Rect,
+        parent: overlay_id("DP-1"),
+        props: PropsUpdate {
+            size: Some([100.0, 20.0]),
+            transform: Some(Transform::translate(10.0, 5.0, 0.0)),
+            ..PropsUpdate::default()
+        },
+    };
+    scene.apply("agent", &[hud]).unwrap();
+    // The overlay is no part of the scene of the cameras.
+    assert!(scene.draw_list().iter().all(|p| p.node.id != "hud"));
+    let overlay = scene.overlay_draw_list("DP-1");
+    let placed = overlay.iter().find(|p| p.node.id == "hud").unwrap();
+    assert_eq!(placed.transform.translation_2d(), (10.0, 5.0));
+    // Clients cannot create or remove an overlay root.
+    let fake = Command::Create {
+        id: overlay_id("HDMI-1"),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate::default(),
+    };
+    assert!(scene.apply("agent", &[fake]).is_err());
+    let remove = Command::Remove {
+        id: overlay_id("DP-1"),
+    };
+    assert!(scene.apply("agent", &[remove]).is_err());
+    // The reset empties the overlay, and keeps it.
+    scene.reset([0.0, 0.0, 100.0, 100.0]);
+    assert_eq!(
+        scene.node(&overlay_id("DP-1")).unwrap().children,
+        Vec::<String>::new()
+    );
 }

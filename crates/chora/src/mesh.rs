@@ -236,7 +236,7 @@ pub struct Shape {
 }
 
 /// The shape of a layer node: its mesh, or a quad, with a transform to
-/// logical output coordinates. `None` when a point is behind the viewer.
+/// logical output coordinates. `None` when no triangle is in front of the viewer.
 pub fn shape(node: &Node, at: &Placing<'_>) -> Option<Shape> {
     let size = node.props.size?;
     let flat;
@@ -246,12 +246,7 @@ pub fn shape(node: &Node, at: &Placing<'_>) -> Option<Shape> {
         flat = Mesh::flat(1, 1, size);
         &flat
     };
-    let (vertices, bounds) = project(mesh, at.transform, at.scale)?;
-    Some(Shape {
-        vertices,
-        indices: triangles(mesh.cols, mesh.rows),
-        bounds,
-    })
+    project(mesh, at.transform, at.scale)
 }
 
 impl MeshElement {
@@ -277,29 +272,25 @@ impl MeshElement {
 }
 
 /// The vertices of a mesh in physical output coordinates, with texture
-/// coordinates, and their bounding box. `None` when a point is behind the
-/// viewer, or when the mesh has more points than 16-bit indices reach.
+/// coordinates, the triangles that show, and their bounding box. A
+/// triangle with a point behind the viewer does not show (#25). The
+/// transform projects the points with their depth, and the clip position
+/// keeps the w of each point, so the texture maps perspective-correct
+/// (#26). `None` when no triangle shows, or when the mesh has more points
+/// than 16-bit indices reach.
 #[allow(clippy::cast_possible_truncation)] // GL takes 32-bit floats
-fn project(
-    mesh: &Mesh,
-    transform: &Transform,
-    scale: f64,
-) -> Option<(Vec<Vertex>, Rectangle<i32, Physical>)> {
+fn project(mesh: &Mesh, transform: &Transform, scale: f64) -> Option<Shape> {
     let m = transform.matrix();
     let (cols, rows) = (f64::from(mesh.cols), f64::from(mesh.rows));
+    let stride = mesh.cols as usize + 1;
     let mut vertices = Vec::with_capacity(mesh.points.len());
-    let (mut min, mut max) = ([f64::MAX; 2], [f64::MIN; 2]);
+    let mut screen = Vec::with_capacity(mesh.points.len());
     for (index, [px, py]) in mesh.points.iter().enumerate() {
-        let hx = m[0] * px + m[4] * py + m[12];
-        let hy = m[1] * px + m[5] * py + m[13];
-        let hw = m[3] * px + m[7] * py + m[15];
-        if hw <= 1e-6 {
-            return None;
-        }
-        let screen = [hx * scale / hw, hy * scale / hw];
-        min = [min[0].min(screen[0]), min[1].min(screen[1])];
-        max = [max[0].max(screen[0]), max[1].max(screen[1])];
-        let stride = mesh.cols as usize + 1;
+        let pz = mesh.z(index);
+        let hx = m[0] * px + m[4] * py + m[8] * pz + m[12];
+        let hy = m[1] * px + m[5] * py + m[9] * pz + m[13];
+        let hw = m[3] * px + m[7] * py + m[11] * pz + m[15];
+        screen.push((hw > NEAR).then(|| [hx * scale / hw, hy * scale / hw]));
         #[allow(clippy::cast_precision_loss)] // at most 65 points per side
         let uv = [
             ((index % stride) as f64 / cols) as f32,
@@ -308,11 +299,39 @@ fn project(
         vertices.push(([(hx * scale) as f32, (hy * scale) as f32, hw as f32], uv));
     }
     u16::try_from(vertices.len()).ok()?;
-    let loc = Point::from((min[0].floor() as i32, min[1].floor() as i32));
-    let end = Point::<i32, Physical>::from((max[0].ceil() as i32, max[1].ceil() as i32));
+    let mut indices = triangles(mesh.cols, mesh.rows);
+    let shows = |i: &u16| screen.get(usize::from(*i)).copied().flatten();
+    let kept: Vec<u16> = indices
+        .chunks(3)
+        .filter(|t| t.iter().all(|i| shows(i).is_some()))
+        .flatten()
+        .copied()
+        .collect();
+    if kept.is_empty() {
+        return None;
+    }
+    let (mut min, mut max) = ([f64::MAX; 2], [f64::MIN; 2]);
+    for [x, y] in kept.iter().filter_map(shows) {
+        min = [min[0].min(x), min[1].min(y)];
+        max = [max[0].max(x), max[1].max(y)];
+    }
+    indices = kept;
+    // A point close to the eye lands far away; the box stays in i32.
+    let clamp = |v: f64| v.clamp(-FAR, FAR) as i32;
+    let loc = Point::from((clamp(min[0].floor()), clamp(min[1].floor())));
+    let end = Point::<i32, Physical>::from((clamp(max[0].ceil()), clamp(max[1].ceil())));
     let size = Size::from(((end.x - loc.x).max(1), (end.y - loc.y).max(1)));
-    Some((vertices, Rectangle::new(loc, size)))
+    Some(Shape {
+        vertices,
+        indices,
+        bounds: Rectangle::new(loc, size),
+    })
 }
+
+/// The least w of a point that shows.
+const NEAR: f64 = 1e-6;
+/// The farthest physical coordinate of the box of a mesh.
+const FAR: f64 = (1 << 24) as f64;
 
 /// Two triangles per cell of a grid.
 fn triangles(cols: u32, rows: u32) -> Vec<u16> {
@@ -576,7 +595,9 @@ fn draw_pass(
         .clear(Color32F::TRANSPARENT, &[all])
         .map_err(|e| e.to_string())?;
     let quad = Mesh::flat(1, 1, [f64::from(size.w), f64::from(size.h)]);
-    let (vertices, _) = project(&quad, &Transform::IDENTITY, 1.0).ok_or("an empty pass")?;
+    let vertices = project(&quad, &Transform::IDENTITY, 1.0)
+        .ok_or("an empty pass")?
+        .vertices;
     let (clip, uv) = clip_space(&vertices, frame.projection());
     let call = gl::Draw {
         clip: &clip,
@@ -604,13 +625,21 @@ mod tests {
     }
 
     #[test]
-    fn a_point_behind_the_viewer_hides_the_layer() {
+    fn a_point_behind_the_viewer_hides_only_its_triangles() {
         let mesh = Mesh::flat(1, 1, [10.0, 10.0]);
         let mut m = *Transform::IDENTITY.matrix();
         m[15] = -1.0;
         assert!(project(&mesh, &Transform::from_matrix(m), 1.0).is_none());
-        let (vertices, bounds) = project(&mesh, &Transform::IDENTITY, 2.0).unwrap();
-        assert_eq!(vertices.len(), 4);
-        assert_eq!(bounds.size, (20, 20).into());
+        let shape = project(&mesh, &Transform::IDENTITY, 2.0).unwrap();
+        assert_eq!((shape.vertices.len(), shape.indices.len()), (4, 6));
+        assert_eq!(shape.bounds.size, (20, 20).into());
+        // Two cells; the depth puts the right column behind the eye.
+        let mut mesh = Mesh::flat(2, 1, [20.0, 10.0]);
+        mesh.depth = vec![0.0, 0.0, 2.0, 0.0, 0.0, 2.0];
+        let mut m = *Transform::IDENTITY.matrix();
+        m[11] = -1.0;
+        let shape = project(&mesh, &Transform::from_matrix(m), 1.0).unwrap();
+        assert_eq!(shape.indices, [0, 1, 3, 1, 4, 3]);
+        assert_eq!(shape.bounds.size, (10, 10).into());
     }
 }

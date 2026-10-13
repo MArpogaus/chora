@@ -433,6 +433,11 @@ impl Scene {
                 "{id:?}: ids of the form s1, s2 belong to surfaces"
             )));
         }
+        if is_overlay(&id) {
+            return Err(SceneError::Invalid(format!(
+                "{id:?}: ids that start with {OVERLAY:?} belong to the outputs"
+            )));
+        }
         if self.nodes.contains_key(&id) {
             return Err(SceneError::Exists(id));
         }
@@ -540,8 +545,19 @@ impl Scene {
             .collect();
         self.nodes = std::mem::take(&mut self.nodes)
             .into_iter()
-            .filter(|(id, n)| id == ROOT || n.kind == NodeKind::Surface)
+            .filter(|(id, n)| id == ROOT || is_overlay(id) || n.kind == NodeKind::Surface)
             .collect();
+        let overlays: Vec<String> = self
+            .nodes
+            .keys()
+            .filter(|id| is_overlay(id))
+            .cloned()
+            .collect();
+        for id in overlays {
+            if let Some(node) = self.nodes.get_mut(&id) {
+                node.children.clear();
+            }
+        }
         let root = self.nodes.get_mut(ROOT).expect("the root always exists");
         root.children.clone_from(&surfaces);
         root.props = Props::default();
@@ -572,6 +588,38 @@ impl Scene {
         self.walk(ROOT, false)
     }
 
+    /// The visible nodes under the overlay root of an output, bottom first,
+    /// in the logical coordinates of the output (D43).
+    #[must_use]
+    pub fn overlay_draw_list(&self, output: &str) -> Vec<Placed<'_>> {
+        self.walk(&overlay_id(output), false)
+    }
+
+    /// The nodes that the overlay root of an output shows as a layer list.
+    #[must_use]
+    pub fn overlay_layer_list(&self, output: &str) -> Vec<Placed<'_>> {
+        self.walk(&overlay_id(output), true)
+    }
+
+    /// Adds the overlay root of an output: a group without owner, outside
+    /// of the root, for nodes fixed to the screen (D43).
+    pub fn add_overlay(&mut self, output: &str) {
+        let id = overlay_id(output);
+        if self.nodes.contains_key(&id) {
+            return;
+        }
+        let node = Node {
+            id: id.clone(),
+            kind: NodeKind::Group,
+            owner: None,
+            parent: None,
+            children: Vec::new(),
+            props: Props::default(),
+            surface: None,
+        };
+        self.nodes.insert(id, node);
+    }
+
     /// The visible nodes that a layer shows, bottom first, in the
     /// coordinates of the layer: for the root, the nodes outside of
     /// layers; for a layer node, the node itself at the identity and its
@@ -588,7 +636,7 @@ impl Scene {
         };
         let mut out = Vec::new();
         let mut stack = Vec::new();
-        if start == ROOT || !layers {
+        if start == ROOT || is_overlay(start) || !layers {
             stack.push((
                 first,
                 Transform::IDENTITY,
@@ -909,6 +957,19 @@ impl Scene {
 
 /// Whether the id has the form of a surface id: `s` and digits. The core
 /// gives these ids to surfaces before their nodes exist.
+/// The start of the ids of the overlay roots of the outputs (D43).
+pub const OVERLAY: &str = "screen:";
+
+/// The id of the overlay root of an output.
+#[must_use]
+pub fn overlay_id(output: &str) -> String {
+    format!("{OVERLAY}{output}")
+}
+
+fn is_overlay(id: &str) -> bool {
+    id.starts_with(OVERLAY)
+}
+
 fn is_surface_id(id: &str) -> bool {
     id.strip_prefix('s')
         .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
@@ -930,7 +991,7 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
         .is_some_and(|m| !m.points.is_empty() && !m.is_valid())
     {
         return Err(SceneError::Invalid(format!(
-            "the mesh of {id:?} needs 1 to {MAX_MESH_CELLS} cells per side and a point per grid point"
+            "the mesh of {id:?} needs 1 to {MAX_MESH_CELLS} cells per side, a point per grid point, and no depth or a depth per point"
         )));
     }
     if let Some(effects) = &props.effects {
@@ -1013,6 +1074,7 @@ fn check_numbers(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
         .chain(props.color.iter().flatten())
         .chain(props.slice.iter().flatten())
         .chain(props.mesh.iter().flat_map(|m| m.points.iter().flatten()))
+        .chain(props.mesh.iter().flat_map(|m| m.depth.iter()))
         .chain(
             props
                 .effects

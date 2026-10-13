@@ -13,7 +13,7 @@ use std::{
 
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
-    ipc::{ClientError, Grab, Subscribe},
+    ipc::{ClientError, Grab, PressState, Subscribe},
 };
 use serde_json::Value;
 
@@ -295,7 +295,11 @@ impl Wm {
             Event::PointerReleased { node, position, .. } => self.released(&node, position),
             Event::OutputChanged { output } => self.output_changed(&output),
             Event::OutputRemoved { name } => self.output_removed(&name),
-            Event::InputKey { binding } => self.key(&binding),
+            // A binding acts on its press, not on its release.
+            Event::InputKey {
+                binding,
+                state: PressState::Pressed,
+            } => self.key(&binding),
             Event::PointerEntered { node } => self.hovered(&node, true),
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped => self.effects_dropped(),

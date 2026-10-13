@@ -154,8 +154,9 @@ pub struct State {
     /// The screencopy frames that wait for the next tick.
     pub copies: Copies,
     /// Keys whose press went to the safety layer or to a grab, so that their
-    /// release must not reach a client.
-    pub suppressed_keys: Vec<Keycode>,
+    /// release must not reach a client; with the connection and binding of a
+    /// grab, which gets the release.
+    pub suppressed_keys: Vec<(Keycode, Option<(u64, String)>)>,
 }
 
 /// Creates the globals that live as long as the display and whose state
@@ -181,10 +182,6 @@ fn new_seat(seat_state: &mut SeatState<State>, dh: &DisplayHandle) -> Seat<State
     let mut seat = seat_state.new_wl_seat(dh, "seat0");
     seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), 200, 25)
         .expect("the default keymap compiles");
-    // Nested, chora translates keys with this keymap, not with the one of
-    // the host session (#12).
-    let layout = std::env::var("XKB_DEFAULT_LAYOUT").unwrap_or_else(|_| "us".into());
-    tracing::info!(%layout, "the keyboard layout; XKB_DEFAULT_LAYOUT sets another one");
     seat.add_pointer();
     seat
 }

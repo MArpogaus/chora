@@ -33,7 +33,7 @@ use smithay::{
     reexports::rustix::{net::sockopt::socket_peercred, process::Pid},
 };
 
-use crate::{state::State, uploads::Uploads};
+use crate::{captured::Processes, state::State, uploads::Uploads};
 
 const MAX_CONNECTIONS: usize = 128;
 const MAX_LINE: usize = 1 << 20;
@@ -51,6 +51,8 @@ pub struct Ipc {
     pub uploads: Uploads,
     /// The client names whose `plugins.restart` waits for the old process.
     pub restarting: HashSet<String>,
+    /// The output of the programs of `process.spawn` with `capture`.
+    pub processes: Processes,
     listener: Option<RegistrationToken>,
     conns: HashMap<u64, Conn>,
     next: u64,
@@ -440,8 +442,14 @@ impl State {
                 Value::Null
             }),
             "input.grab" => params_of::<Grab>(params).and_then(|g| self.ipc_grab(conn, g.binding)),
+            "input.ungrab" => {
+                params_of::<Grab>(params).and_then(|g| self.ipc_ungrab(conn, &g.binding))
+            }
             "output.list" => Ok(serde_json::json!(self.output_info())),
             "output.reserve" => params_of(params).and_then(|r| self.ipc_reserve(conn, &r)),
+            "output.configure" => {
+                params_of(params).and_then(|c| self.ipc_output_configure(conn, &c))
+            }
             "clients.list" => Ok(self.clients()),
             "grants.set" | "grants.revoke" | "grants.list" => {
                 self.ipc_grants(&request.method, params)
@@ -449,7 +457,7 @@ impl State {
             "screen.capture" => self.ipc_capture(conn, params),
             "input.inject" => self.ipc_inject(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
-            "process.spawn" | "plugins.restart" => {
+            "process.spawn" | "process.wait" | "plugins.restart" => {
                 return self.ipc_process(conn, id, &request.method, params);
             }
             "methods.export" | "methods.call" | "methods.return" => {
@@ -528,6 +536,19 @@ impl State {
         Ok(Value::String(normal))
     }
 
+    /// Ends a grab of a connection (#18, D45).
+    fn ipc_ungrab(&mut self, conn: u64, binding: &Binding) -> Result<Value, RpcError> {
+        let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
+        let before = self.ipc.grabs.len();
+        self.ipc
+            .grabs
+            .retain(|(b, s, c)| !(*c == conn && b.mods == binding.mods && *s == sym));
+        if self.ipc.grabs.len() == before {
+            return Err(rejected(format!("{binding} is no grab of this connection")));
+        }
+        Ok(Value::Null)
+    }
+
     /// Closes a connection. Without `keep_nodes`, the nodes and the assets
     /// of its name go when the last connection of the name closes.
     pub fn ipc_close(&mut self, conn: u64) {
@@ -558,6 +579,7 @@ impl State {
             self.execute(effects);
             self.ipc.uploads.drop_client(&name);
         }
+        self.ipc.processes.drop_client(&name);
         self.emit(&Event::ClientDisconnected { name });
     }
 

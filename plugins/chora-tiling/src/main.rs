@@ -9,7 +9,9 @@ use std::process::ExitCode;
 use chora_scene::{
     Binding, Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
     ToplevelState, Transform,
-    ipc::{Apply, Client, ClientError, Export, Grab, Hello, Query, RpcError, Subscribe},
+    ipc::{
+        Apply, Client, ClientError, Export, Grab, Hello, PressState, Query, RpcError, Subscribe,
+    },
 };
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
@@ -219,7 +221,11 @@ impl Tiling {
                 self.area = area_of(&output);
                 self.relayout()
             }
-            Event::InputKey { binding } => self.act(&binding),
+            // A binding acts on its press, not on its release.
+            Event::InputKey {
+                binding,
+                state: PressState::Pressed,
+            } => self.act(&binding),
             // For example a click on a notification of the window.
             Event::SurfaceRequested {
                 surface,

@@ -27,6 +27,16 @@ are errors, so a typo never passes silently.
 
 ## Nodes
 
+The nodes form a tree under `root`, which the cameras show. Each output
+has a second root, `screen:NAME`, for example `screen:DP-1` (D43). Its
+nodes stay fixed to the screen: they sit in the logical coordinates of the
+output, without its camera, above the scene and below the top and overlay
+layers of layer shell. A HUD or a progress bar goes there, also during an
+animated camera move. The nodes under `screen:NAME` work as all others,
+with input, effects and ownership. The overlay root stays when its output
+goes, with its nodes, for the return of the output; the emergency reset
+empties it.
+
 This table is the one list of node properties.
 
 | Property | Nodes | Meaning |
@@ -40,7 +50,7 @@ This table is the one list of node properties.
 | `input` | all | `accept`, `pass` or `block`; `pass` and `block` apply to all descendants |
 | `meta` | all | free key/value pairs to tag and find nodes |
 | `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
-| `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
+| `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; optional `depth`: the z of each point, which the transform of the node projects; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
 | `color` | rect | RGBA, each from 0 to 1 |
 | `radius` | rect | the radius of the corners in logical pixels; the rect becomes a layer |
 | `border` | rect | `{"width": w, "color": [r, g, b, a]}`: a line of `w` logical pixels along the inner edge; the rect becomes a layer; `null` removes it |
@@ -72,6 +82,11 @@ A node with a size and a mesh, or with a transform that is not a plain 2D
 translation and scale, for example a rotation or a perspective, is a layer
 (see [Architecture](architecture.md#renderer)). `animate` moves the points
 of a mesh of the same grid, for example for a magic lamp minimize.
+
+With `depth`, a grid bends into 3D, for example a strip on a ring around
+the viewer, and a perspective transform projects it. The texture maps
+perspective-correct (#26). A triangle with a point behind the viewer does
+not show; the rest of the mesh does (#25).
 
 An effect is a GLSL ES fragment shader with absolute path. It reads the
 layer in `uniform sampler2D tex` at `varying vec2 v_uv`, and may use
@@ -161,7 +176,7 @@ or an empty list. It always sees the current titles.
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
 | `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
-| `input.key` | the grabbed binding |
+| `input.key` | the grabbed `binding` and its `state`: `pressed` when its key goes down, `released` when it goes up |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates |
 | `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node and position; `pointer.released` with the button |
@@ -196,16 +211,19 @@ client sends `hello` first. The core answers every request.
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name |
 | `input.grab(binding)` | get the events of a key, a button or a gesture; returns the binding as `input.key` names it |
+| `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `process.spawn` for a client name; `choractl grant` and `choractl revoke` call them |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
+| `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; returns the output |
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
 | `methods.return(call, result, error)` | answer a `method.called` event |
-| `process.spawn(argv)` | start a program with the environment of the core; needs the grant `process.spawn` |
+| `process.spawn(argv, capture)` | start a program with the environment of the core; with `capture`, the core keeps its output for `process.wait`; needs the grant `process.spawn` |
+| `process.wait(pid, timeout_ms)` | wait up to `timeout_ms` (at most 30000) for a program of `process.spawn` with `capture`, and return its output so far |
 | `plugins.restart(name)` | stop the process of a client name and start its command again; needs the grant `process.spawn` |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
@@ -232,8 +250,9 @@ belong to no client. A binding has one owner at a time.
 
 The core implements `wlr-output-management`, so kanshi and wlr-randr
 configure the outputs (see
-[Architecture](architecture.md#output-configuration)). The API has no output
-configuration of its own. After a new mode, position, transform or scale,
+[Architecture](architecture.md#output-configuration)). `output.configure`
+sets the scale and the transform on the same path (D44), for an agent
+without wlr-randr. After a new mode, position, transform or scale,
 the core sends `output.changed`. For an output that turns off, it sends
 `output.removed`, and `output.list` no longer lists the output.
 
@@ -270,12 +289,25 @@ SIGTERM. Once it exited, or 5 s after a SIGKILL, the core starts the same
 command again and answers with the new `pid`. A name with several
 processes, or a process in a namespace that the core cannot see, fails.
 
+With `capture: true`, `process.spawn` keeps stdout and stderr of the
+program, up to 64 KiB each, for the client that started it (#22).
+`process.wait(pid, timeout_ms)` waits until the program ends or the time
+is up, and answers with `pid`, `running`, `stdout`, `stderr`, `truncated`
+for output that went beyond 64 KiB, and, once the program ended, `status`:
+its exit code, or 128 and the signal. The first answer after the end is
+the last one; then the core forgets the program. At most 32 programs wait
+for `process.wait`. Their output goes when the last connection of the
+client name closes, so `choractl spawn --capture` waits on its own
+connection.
+
 Both methods need the grant `process.spawn`, and fail while the session is
 locked:
 
 ```console
 $ choractl grant agent process.spawn
 $ choractl --name agent spawn foot
+$ choractl --name agent spawn --capture -- uname -s
+{"pid": 4242, "running": false, "status": 0, "stdout": "Linux\n", "stderr": "", "truncated": false}
 $ choractl --name agent restart tiling
 ```
 
@@ -421,8 +453,10 @@ example in the `.mcp.json` of Claude Code:
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
 | `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views), by name only |
-| `spawn_process`, `restart_plugin` | start a program, or restart a plugin, as `process.spawn` and `plugins.restart` |
+| `spawn_process`, `restart_plugin` | start a program, or restart a plugin, as `process.spawn` and `plugins.restart`; `spawn_process` with `capture` keeps the output |
+| `wait_process` | the output of a program of `spawn_process` with `capture`, as `process.wait` |
 | `reserve_space` | space at the edges of an output, as `output.reserve`, while the server runs |
+| `configure_output` | the scale or the transform of an output, as `output.configure` |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
 | `subscribe_events` | start to collect events, and grab keys (#7); `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the earlier subscription |
 | `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500) |

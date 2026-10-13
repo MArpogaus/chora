@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_scene::ipc::{Capability, Restart, RpcError, Spawn, Spawned};
+use chora_scene::ipc::{Capability, ProcessWait, Restart, RpcError, Spawn, Spawned};
 use serde_json::Value;
 use smithay::reexports::{
     calloop::timer::{TimeoutAction, Timer},
@@ -50,12 +50,14 @@ const STOP_WAIT: Duration = Duration::from_secs(5);
 const KILL_WAIT: Duration = Duration::from_secs(1);
 /// How often a restart looks whether the old process exited.
 const POLL: Duration = Duration::from_millis(50);
+/// The longest wait of `process.wait`.
+const MAX_WAIT: Duration = Duration::from_secs(30);
 
 /// Starts a program with the environment of this compositor. A thread
 /// waits for it, so that it never stays a zombie.
 pub fn spawn(
     argv: &[String],
-    (cwd, stdin): (Option<&Path>, Stdio),
+    (cwd, stdin, capture): (Option<&Path>, Stdio, bool),
     wayland: &OsStr,
     socket: &Path,
 ) -> std::io::Result<Child> {
@@ -73,6 +75,9 @@ pub fn spawn(
     }
     for variable in HOST_VARIABLES {
         command.env_remove(variable);
+    }
+    if capture {
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
     }
     command.spawn()
 }
@@ -158,7 +163,13 @@ impl State {
             return Some(Err(rejected("the session is locked")));
         }
         if method == "process.spawn" {
-            return Some(params_of::<Spawn>(params).and_then(|s| self.start_program(s.argv, None)));
+            return Some(params_of::<Spawn>(params).and_then(|s| self.spawn_for(conn, s)));
+        }
+        if method == "process.wait" {
+            return match params_of::<ProcessWait>(params) {
+                Ok(wait) => self.wait_for(conn, id, &wait),
+                Err(err) => Some(Err(err)),
+            };
         }
         let restart = match params_of::<Restart>(params) {
             Ok(r) => r,
@@ -170,19 +181,86 @@ impl State {
         }
     }
 
+    /// `process.spawn`: starts a program, with its output kept for the
+    /// client if it asks for it.
+    fn spawn_for(&mut self, conn: u64, spawn: Spawn) -> Result<Value, RpcError> {
+        if !spawn.capture {
+            return self.start_program(spawn.argv, None);
+        }
+        let owner = self.ipc.name(conn).unwrap_or_default().to_owned();
+        let (child, argv) = self.child(spawn.argv, None, true)?;
+        let pid = self
+            .ipc
+            .processes
+            .capture(&owner, child)
+            .map_err(rejected)?;
+        Ok(serde_json::json!(Spawned { pid, argv }))
+    }
+
     /// Starts a program and answers with its pid.
     fn start_program(&self, argv: Vec<String>, cwd: Option<&Path>) -> Result<Value, RpcError> {
+        let (child, argv) = self.child(argv, cwd, false)?;
+        let pid = child.id();
+        reap(child);
+        Ok(serde_json::json!(Spawned { pid, argv }))
+    }
+
+    /// Starts a program with the environment of the compositor.
+    fn child(
+        &self,
+        argv: Vec<String>,
+        cwd: Option<&Path>,
+        capture: bool,
+    ) -> Result<(Child, Vec<String>), RpcError> {
         check_argv(&argv)?;
         let socket = self
             .ipc
             .path()
             .ok_or_else(|| rejected("chora has no IPC socket"))?;
-        let child = spawn(&argv, (cwd, Stdio::null()), &self.socket_name, socket)
-            .map_err(|e| rejected(format!("{}: {e}", argv[0])))?;
-        let pid = child.id();
-        tracing::info!(pid, ?argv, "started a program");
-        reap(child);
-        Ok(serde_json::json!(Spawned { pid, argv }))
+        let child = spawn(
+            &argv,
+            (cwd, Stdio::null(), capture),
+            &self.socket_name,
+            socket,
+        )
+        .map_err(|e| rejected(format!("{}: {e}", argv[0])))?;
+        tracing::info!(pid = child.id(), ?argv, capture, "started a program");
+        Ok((child, argv))
+    }
+
+    /// `process.wait`: the output of a program, at once or once it ended,
+    /// at the latest after the timeout. `None` means that the answer comes
+    /// later.
+    fn wait_for(
+        &mut self,
+        conn: u64,
+        id: Value,
+        wait: &ProcessWait,
+    ) -> Option<Result<Value, RpcError>> {
+        let owner = self.ipc.name(conn).unwrap_or_default().to_owned();
+        let timeout = Duration::from_millis(wait.timeout_ms).min(MAX_WAIT);
+        let pid = wait.pid;
+        if timeout.is_zero() || self.ipc.processes.done(pid) {
+            return Some(self.output_of(&owner, pid));
+        }
+        let deadline = Instant::now() + timeout;
+        let inserted =
+            self.loop_handle
+                .insert_source(Timer::from_duration(POLL), move |_, (), state| {
+                    if !state.ipc.processes.done(pid) && Instant::now() < deadline {
+                        return TimeoutAction::ToDuration(POLL);
+                    }
+                    let result = state.output_of(&owner, pid);
+                    state.answer_late(conn, &id, result);
+                    TimeoutAction::Drop
+                });
+        inserted.err().map(|e| Err(rejected(e.to_string())))
+    }
+
+    /// The output of a program of a client, as `process.wait` answers it.
+    fn output_of(&mut self, owner: &str, pid: u32) -> Result<Value, RpcError> {
+        let output = self.ipc.processes.take(owner, pid).map_err(rejected)?;
+        Ok(serde_json::json!(output))
     }
 
     /// Sends SIGTERM to the process of a client name, and starts its argv
