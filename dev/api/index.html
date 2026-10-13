@@ -1464,7 +1464,7 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>pointer.pressed</code></td>
-<td>a button went down over a node that takes input: node, Linux button code, position in scene coordinates</td>
+<td>a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under <code>screen:NAME</code></td>
 </tr>
 <tr>
 <td><code>pointer.moved</code>, <code>pointer.released</code></td>
@@ -1594,7 +1594,7 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </tr>
 <tr>
 <td><code>process.wait(pid, timeout_ms)</code></td>
-<td>wait up to <code>timeout_ms</code> (at most 30000) for a program of <code>process.spawn</code> with <code>capture</code>, and return its output so far</td>
+<td>wait up to <code>timeout_ms</code> (at most 30000) for a program of <code>process.spawn</code> with <code>capture</code>, and return its output so far; needs the grant <code>process.spawn</code></td>
 </tr>
 <tr>
 <td><code>plugins.restart(name)</code></td>
@@ -1663,9 +1663,10 @@ program, up to 64 KiB each, for the client that started it (#22).
 <code>process.wait(pid, timeout_ms)</code> waits until the program ends or the time
 is up, and answers with <code>pid</code>, <code>running</code>, <code>stdout</code>, <code>stderr</code>, <code>truncated</code>
 for output that went beyond 64 KiB, and, once the program ended, <code>status</code>:
-its exit code, or 128 and the signal. The first answer after the end is
-the last one; then the core forgets the program. At most 32 programs wait
-for <code>process.wait</code>. Their output goes when the last connection of the
+its exit code, or 128 and the signal. A child in the background that keeps
+the pipes open does not hold the end for longer than 100 ms. The first
+answer after the end is the last one; then the core forgets the program.
+At most 32 programs of a client wait for <code>process.wait</code>. Their output goes when the last connection of the
 client name closes, so <code>choractl spawn --capture</code> waits on its own
 connection.</p>
 <p>Both methods need the grant <code>process.spawn</code>, and fail while the session is
