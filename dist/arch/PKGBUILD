@@ -50,5 +50,6 @@ package() {
       -exec install -Dm644 -t "$pkgdir/usr/share/chora/flavors/xp/theme/$dir/" {} +
   done
   # The cursors of the XP session, where XCURSOR_THEME=ModernXP finds them.
+  install -d "$pkgdir/usr/share/icons"
   cp -r --no-preserve=mode flavors/xp/theme/cursors/ModernXP "$pkgdir/usr/share/icons/"
 }

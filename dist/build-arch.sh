@@ -11,6 +11,16 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 sed "s/@VERSION@/$version/" dist/arch/PKGBUILD >"$work/PKGBUILD"
 (cd "$work" && CHORA_SOURCE=$root makepkg --nodeps --noconfirm --force)
+# Every file of the RPM is in the package too.
+package=$(ls "$work"/chora-*.pkg.tar.zst)
+for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
+    usr/share/wayland-sessions/chora.desktop usr/share/chora/flavors/xp/theme/winxp \
+    usr/share/icons/ModernXP/index.theme usr/share/licenses/chora/LICENSE; do
+    bsdtar -tf "$package" | grep -qx "$path/\?" || { echo "missing: $path" >&2; exit 1; }
+done
+want=$(find flavors/xp/theme -type f | wc -l)
+have=$(bsdtar -tf "$package" | grep -cE '^usr/share/(chora/flavors/xp/theme|icons/ModernXP)/.*[^/]$')
+[ "$have" = "$want" ] || { echo "the XP theme has $have of $want files" >&2; exit 1; }
 mkdir -p "$out"
-mv "$work"/chora-*.pkg.tar.zst "$out/"
+mv "$package" "$out/"
 (cd "$out" && sha256sum ./*.pkg.tar.zst >SHA256SUMS)
