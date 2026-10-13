@@ -124,6 +124,8 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
                         KeyAction::Grab(conn, binding) => Some((*conn, binding.clone())),
                         _ => None,
                     };
+                    // A repeated press without a release keeps one entry.
+                    state.suppressed_keys.retain(|(k, _)| *k != code);
                     state.suppressed_keys.push((code, grab));
                     FilterResult::Intercept(action)
                 }
@@ -317,7 +319,7 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
     }
     // The drag of a node goes to plugins only, with each new position.
     let under = if let Some(grab) = &mut state.node_grab {
-        let position = [spot.scene.x, spot.scene.y];
+        let position = position_for(&state.scene, &grab.node, &spot);
         #[allow(clippy::float_cmp)] // the same input gives the same numbers
         if grab.position != position {
             grab.position = position;
@@ -414,7 +416,7 @@ fn press_node(state: &mut State, button: u32) {
         .scene
         .node(&node)
         .is_some_and(|n| n.kind != NodeKind::Surface);
-    let position = [spot.scene.x, spot.scene.y];
+    let position = position_for(&state.scene, &node, &spot);
     state.emit(&SceneEvent::PointerPressed {
         node: node.clone(),
         button,
@@ -429,6 +431,18 @@ fn press_node(state: &mut State, button: u32) {
     }
 }
 
+/// The position of the pointer for a node: in output coordinates under the
+/// overlay of the output, in scene coordinates elsewhere.
+fn position_for(scene: &chora_scene::Scene, node: &str, spot: &Spot) -> [f64; 2] {
+    let overlay = chora_scene::overlay_id(&spot.output.name());
+    let at = if scene.is_within(node, &overlay) {
+        spot.local
+    } else {
+        spot.scene
+    };
+    [at.x, at.y]
+}
+
 /// Ends the drag of a node when its button goes up.
 fn release_node(state: &mut State, button: u32) {
     let Some(NodeGrab { node, .. }) = state.node_grab.take_if(|g| g.button == button) else {
@@ -436,7 +450,7 @@ fn release_node(state: &mut State, button: u32) {
     };
     let position = state
         .spot(state.pointer_layout)
-        .map_or([0.0; 2], |s| [s.scene.x, s.scene.y]);
+        .map_or([0.0; 2], |s| position_for(&state.scene, &node, &s));
     state.emit(&SceneEvent::PointerReleased {
         node,
         button,

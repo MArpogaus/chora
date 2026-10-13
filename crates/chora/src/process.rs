@@ -188,6 +188,7 @@ impl State {
             return self.start_program(spawn.argv, None);
         }
         let owner = self.ipc.name(conn).unwrap_or_default().to_owned();
+        self.ipc.processes.room(&owner).map_err(rejected)?;
         let (child, argv) = self.child(spawn.argv, None, true)?;
         let pid = self
             .ipc

@@ -760,18 +760,20 @@ pub fn send_frames(state: &mut State, output: &Output) {
 /// The surface nodes that an output shows: those whose scene rectangle
 /// overlaps the scene area of the output.
 fn shown_surfaces(state: &State, output: &Output) -> HashSet<String> {
-    let area = output_area(output);
-    let shown = scene_rect(&state.camera(output), Rectangle::from_size(area.size));
-    state
-        .scene
-        .draw_list()
-        .iter()
-        .filter(|p| p.node.kind == NodeKind::Surface)
-        .filter(|p| {
+    let screen = Rectangle::from_size(output_area(output).size);
+    let shown = scene_rect(&state.camera(output), screen);
+    let overlay = state.scene.overlay_draw_list(&output.name());
+    // The overlay sits in output coordinates.
+    let draw_list = state.scene.draw_list();
+    let placed = draw_list.iter().map(|p| (p, shown));
+    placed
+        .chain(overlay.iter().map(|p| (p, screen.to_f64())))
+        .filter(|(p, _)| p.node.kind == NodeKind::Surface)
+        .filter(|(p, within)| {
             let window = state.windows.get(&p.node.id);
-            window.is_some_and(|w| shown.overlaps(window_rect(w, &p.transform)))
+            window.is_some_and(|w| within.overlaps(window_rect(w, &p.transform)))
         })
-        .map(|p| p.node.id.clone())
+        .map(|(p, _)| p.node.id.clone())
         .collect()
 }
 

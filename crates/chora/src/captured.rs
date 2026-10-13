@@ -10,14 +10,18 @@ use std::{
     process::Child,
     sync::{Arc, Mutex, PoisonError},
     thread,
+    time::{Duration, Instant},
 };
 
 use chora_scene::ipc::ProcessOutput;
 
 /// The most bytes that the core keeps of each stream; the rest goes.
 const MAX_OUTPUT: usize = 64 << 10;
-/// The most programs whose output waits for a client.
+/// The most programs of one client whose output waits for it.
 const MAX_CAPTURED: usize = 32;
+/// How long after its end a program may still write through a pipe that a
+/// child in the background holds open.
+const GRACE: Duration = Duration::from_millis(100);
 
 /// What a program wrote, and how it ended.
 #[derive(Default)]
@@ -29,12 +33,16 @@ struct Output {
     status: Option<i32>,
     /// The streams that a thread still reads.
     open: u8,
+    /// When the program ended.
+    ended: Option<Instant>,
 }
 
 impl Output {
-    /// Whether the program ended and its output is all there.
+    /// Whether the program ended and its output is all there, or a child
+    /// in the background holds its pipes beyond the grace time.
     fn finished(&self) -> bool {
-        self.status.is_some() && self.open == 0
+        self.status.is_some()
+            && (self.open == 0 || self.ended.is_some_and(|t| t.elapsed() >= GRACE))
     }
 }
 
@@ -54,12 +62,12 @@ impl Processes {
     /// Keeps the output of a child that has piped stdout and stderr, and
     /// waits for it in a thread. Returns its pid.
     pub fn capture(&mut self, owner: &str, mut child: Child) -> Result<u32, String> {
-        if self.captured.len() >= MAX_CAPTURED {
-            // A child that cannot be kept still needs a reaper.
+        if let Err(err) = self.room(owner) {
+            // A child that cannot be kept still needs a reaper, and no pipe
+            // that nobody reads.
+            drop((child.stdout.take(), child.stderr.take()));
             crate::process::reap(child);
-            return Err(format!(
-                "{MAX_CAPTURED} programs wait for process.wait already"
-            ));
+            return Err(err);
         }
         let output = Arc::new(Mutex::new(Output::default()));
         let streams: [Option<Box<dyn Read + Send>>; 2] = [
@@ -85,7 +93,9 @@ impl Processes {
                 s.code()
                     .unwrap_or_else(|| 128 + s.signal().unwrap_or_default())
             });
-            lock(&waited).status = Some(status);
+            let mut output = lock(&waited);
+            output.status = Some(status);
+            output.ended = Some(Instant::now());
         });
         self.captured.insert(
             pid,
@@ -95,6 +105,17 @@ impl Processes {
             },
         );
         Ok(pid)
+    }
+
+    /// Whether a client may start one more program with capture.
+    pub fn room(&self, owner: &str) -> Result<(), String> {
+        let kept = self.captured.values().filter(|c| c.owner == owner).count();
+        if kept >= MAX_CAPTURED {
+            return Err(format!(
+                "{MAX_CAPTURED} programs of this client wait for process.wait already"
+            ));
+        }
+        Ok(())
     }
 
     /// The output of a program of a client so far, and whether it ended.
@@ -205,6 +226,17 @@ mod tests {
             processes.take("agent", pid).is_err(),
             "it goes after the end"
         );
+    }
+
+    #[test]
+    fn a_child_in_the_background_does_not_hold_the_end() {
+        let mut processes = Processes::default();
+        let pid = run(&mut processes, "sleep 5 & echo ok");
+        let start = Instant::now();
+        let output = wait(&mut processes, pid);
+        assert!(!output.running);
+        assert_eq!((output.status, output.stdout.as_str()), (Some(0), "ok\n"));
+        assert!(start.elapsed() < Duration::from_secs(2));
     }
 
     #[test]

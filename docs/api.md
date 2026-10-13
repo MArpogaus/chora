@@ -178,7 +178,7 @@ or an empty list. It always sees the current titles.
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` when its key goes down, `released` when it goes up |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node; not during a drag of a node or while locked |
-| `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates |
+| `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME` |
 | `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node and position; `pointer.released` with the button |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version |
@@ -223,7 +223,7 @@ client sends `hello` first. The core answers every request.
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
 | `methods.return(call, result, error)` | answer a `method.called` event |
 | `process.spawn(argv, capture)` | start a program with the environment of the core; with `capture`, the core keeps its output for `process.wait`; needs the grant `process.spawn` |
-| `process.wait(pid, timeout_ms)` | wait up to `timeout_ms` (at most 30000) for a program of `process.spawn` with `capture`, and return its output so far |
+| `process.wait(pid, timeout_ms)` | wait up to `timeout_ms` (at most 30000) for a program of `process.spawn` with `capture`, and return its output so far; needs the grant `process.spawn` |
 | `plugins.restart(name)` | stop the process of a client name and start its command again; needs the grant `process.spawn` |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
@@ -294,9 +294,10 @@ program, up to 64 KiB each, for the client that started it (#22).
 `process.wait(pid, timeout_ms)` waits until the program ends or the time
 is up, and answers with `pid`, `running`, `stdout`, `stderr`, `truncated`
 for output that went beyond 64 KiB, and, once the program ended, `status`:
-its exit code, or 128 and the signal. The first answer after the end is
-the last one; then the core forgets the program. At most 32 programs wait
-for `process.wait`. Their output goes when the last connection of the
+its exit code, or 128 and the signal. A child in the background that keeps
+the pipes open does not hold the end for longer than 100 ms. The first
+answer after the end is the last one; then the core forgets the program.
+At most 32 programs of a client wait for `process.wait`. Their output goes when the last connection of the
 client name closes, so `choractl spawn --capture` waits on its own
 connection.
 
