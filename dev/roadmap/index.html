@@ -1222,7 +1222,8 @@ missed (issues #12 to #27), without new policy in the core.</p>
 <p><strong>Exit:</strong> <code>tests/agent.sh</code> and <code>tests/nested.sh</code> check each item, and an
 MCP client runs a probe with <code>capture</code>, reads its output, sets the scale
 of the output, and draws a HUD under <code>screen:NAME</code> that stays in place
-during an animated camera move.</p>
+during an animated camera move. The last step of <code>tests/agent.sh</code> checks it
+with <code>tests/mcp-client.py hud</code> in CI. #14 still waits for a log.</p>
 <h2 id="m5-packaging">M5: Packaging<a class="headerlink" href="#m5-packaging" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> chora installs like every other desktop on the host.</p>
 <ul>
