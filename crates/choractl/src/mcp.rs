@@ -41,31 +41,55 @@ pub struct Core {
     client: Option<Client>,
     /// The events of `subscribe_events`, on a connection of their own.
     subscription: Option<Subscription>,
+    /// The reserves of `reserve_space` by output, for a new connection.
+    reserves: HashMap<Option<String>, Reserve>,
 }
 
+/// The methods that change nothing, so that a call goes again after a lost
+/// connection.
+const READ_ONLY: [&str; 5] = [
+    "scene.query",
+    "output.list",
+    "clients.list",
+    "grants.list",
+    "screen.capture",
+];
+
 impl Core {
-    /// Calls a method of the core, and connects again once when the
-    /// connection is gone.
+    /// Calls a method of the core. A lost connection connects again with
+    /// the next call; a method that changes nothing goes again at once. A
+    /// method with an effect does not, since it may have run.
     fn call<P: serde::Serialize, R: serde::de::DeserializeOwned>(
         &mut self,
         method: &str,
         params: P,
     ) -> Result<R, ClientError> {
         let params = serde_json::to_value(params)?;
-        for _ in 0..2 {
-            let client = match &mut self.client {
-                Some(client) => client,
-                None => self.client.insert(Client::from_env(&Hello {
-                    name: self.name.clone(),
-                    keep_nodes: true,
-                })?),
-            };
-            match client.call(method, &params) {
+        let tries = if READ_ONLY.contains(&method) { 2 } else { 1 };
+        for _ in 0..tries {
+            match self.connected()?.call(method, &params) {
                 Err(ClientError::Closed | ClientError::Io(_)) => self.client = None,
                 other => return other,
             }
         }
         Err(ClientError::Closed)
+    }
+
+    /// The connection. A new one reserves the space of the old one again,
+    /// since a reserve ends with its connection.
+    fn connected(&mut self) -> Result<&mut Client, ClientError> {
+        if self.client.is_none() {
+            let hello = Hello {
+                name: self.name.clone(),
+                keep_nodes: true,
+            };
+            let mut client = Client::from_env(&hello)?;
+            for reserve in self.reserves.values() {
+                client.call::<_, Value>("output.reserve", reserve)?;
+            }
+            self.client = Some(client);
+        }
+        Ok(self.client.as_mut().expect("connected above"))
     }
 }
 
@@ -80,6 +104,7 @@ pub fn serve(name: String) -> Result<(), String> {
         name,
         client: Some(client),
         subscription: None,
+        reserves: HashMap::new(),
     };
     let stdin = std::io::stdin().lock();
     let mut stdout = std::io::stdout().lock();
@@ -461,7 +486,12 @@ fn reserve_space(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> 
         output,
         edges: arg(&edges)?,
     };
-    let output: Value = chora.call("output.reserve", reserve)?;
+    let output: Value = chora.call("output.reserve", &reserve)?;
+    if reserve.edges.is_empty() {
+        chora.reserves.remove(&reserve.output);
+    } else {
+        chora.reserves.insert(reserve.output.clone(), reserve);
+    }
     Ok(vec![json_text(&output)])
 }
 
@@ -511,8 +541,9 @@ fn subscribe(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
                 .map_err(|e| Failure::Tool(e.to_string()))
         })
         .collect::<Result<Vec<_>, _>>()?;
-    chora.subscription = None;
-    let (subscription, grabbed) = Subscription::start(&chora.name, events.clone(), keys)?;
+    let replacing = chora.subscription.take().is_some();
+    let (subscription, grabbed) =
+        Subscription::start(&chora.name, events.clone(), keys, replacing)?;
     chora.subscription = Some(subscription);
     let events = if events.is_empty() {
         json!("all")
@@ -631,6 +662,7 @@ mod tests {
             name: "agent".into(),
             client: None,
             subscription: None,
+            reserves: HashMap::new(),
         };
         let mut answer = |line: &str| handle_line(&mut chora, line);
         assert!(answer(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#).is_none());

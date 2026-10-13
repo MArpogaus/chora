@@ -63,7 +63,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // threads inherit the block, Mesa's included. A thread without it would
     // receive SIGUSR1, and its default action ends the process.
     let child = (!command.is_empty())
-        .then(|| process::spawn(command, None, &state.socket_name, &socket))
+        .then(|| {
+            process::spawn(
+                command,
+                (None, std::process::Stdio::inherit()),
+                &state.socket_name,
+                &socket,
+            )
+        })
         .and_then(|started| {
             started
                 .inspect_err(|err| tracing::error!(%err, ?command, "the startup command failed"))

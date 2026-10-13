@@ -7,3 +7,4 @@
 # emacs lock and backup files
 .#*
 *~
+__pycache__/

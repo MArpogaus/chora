@@ -125,6 +125,7 @@ impl State {
     /// Announces new modes, scales or positions of the outputs, to plugins
     /// and to the clients of output configuration.
     pub fn output_changed(&mut self) {
+        self.sync_default_cameras();
         for output in self.output_info() {
             self.emit(&Event::OutputChanged { output });
         }

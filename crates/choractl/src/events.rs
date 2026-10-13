@@ -51,11 +51,14 @@ impl Drop for Subscription {
 impl Subscription {
     /// Connects under a client name, grabs the keys and subscribes to the
     /// events; every event if `events` is empty. Returns the grabbed
-    /// bindings in the form of `input.key`.
+    /// bindings in the form of `input.key`. A subscription that `replaces`
+    /// another one tries a grab again for a while, since the core may not
+    /// yet have closed the old connection with its grabs.
     pub fn start(
         name: &str,
         events: Vec<String>,
         keys: Vec<Binding>,
+        replaces: bool,
     ) -> Result<(Self, Vec<String>), ClientError> {
         let path = std::env::var_os(chora_scene::ipc::SOCKET_ENV).ok_or(ClientError::NoSocket)?;
         let socket = std::os::unix::net::UnixStream::connect(path)?;
@@ -66,7 +69,7 @@ impl Subscription {
         let mut client = Client::from_stream(socket.try_clone()?, &hello)?;
         let mut grabbed = Vec::new();
         for binding in keys {
-            grabbed.push(client.call::<_, String>("input.grab", Grab { binding })?);
+            grabbed.push(grab(&mut client, &binding, replaces)?);
         }
         client.call::<_, Value>("events.subscribe", Subscribe { events })?;
         let buffer = Arc::new((Mutex::new(Buffer::default()), Condvar::new()));
@@ -101,6 +104,25 @@ impl Subscription {
             "ended": buffer.ended,
         })
     }
+}
+
+/// Grabs a binding, and tries again for up to a second if `again`.
+fn grab(client: &mut Client, binding: &Binding, again: bool) -> Result<String, ClientError> {
+    let tries = if again { 50 } else { 1 };
+    let mut result = Err(ClientError::Closed);
+    for _ in 0..tries {
+        result = client.call::<_, String>(
+            "input.grab",
+            Grab {
+                binding: binding.clone(),
+            },
+        );
+        if !matches!(result, Err(ClientError::Rpc(_))) {
+            break;
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+    result
 }
 
 /// Reads events into the buffer until the connection ends.

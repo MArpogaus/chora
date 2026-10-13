@@ -32,6 +32,9 @@ const MAX_FILES: usize = 64;
 const MAX_TOTAL: usize = 64 << 20;
 /// The longest file name.
 const MAX_NAME: usize = 64;
+/// The longest client name with assets: twice as long in hex, it stays
+/// below the limit of 255 bytes for a path part.
+const MAX_CLIENT_NAME: usize = 120;
 
 /// The files of the clients.
 #[derive(Default)]
@@ -64,6 +67,12 @@ impl Uploads {
     /// Stores a file of a client, or replaces it, and returns its path.
     pub fn put(&mut self, client: &str, name: &str, data: &[u8]) -> Result<PathBuf, String> {
         check_name(name)?;
+        // In hex, the name of the directory must stay within a path part.
+        if client.len() > MAX_CLIENT_NAME {
+            return Err(format!(
+                "a client name of more than {MAX_CLIENT_NAME} bytes stores no assets"
+            ));
+        }
         if data.len() > MAX_FILE {
             return Err(format!("{name} has more than {} KiB", MAX_FILE >> 10));
         }
@@ -229,6 +238,12 @@ mod tests {
             assert!(uploads.put("agent", name, b"x").is_err(), "{name:?}");
         }
         assert!(uploads.put("agent", "Sky_2.png", b"x").is_ok());
+        assert!(uploads.put(&"a".repeat(MAX_CLIENT_NAME), "x", b"x").is_ok());
+        assert!(
+            uploads
+                .put(&"a".repeat(MAX_CLIENT_NAME + 1), "x", b"x")
+                .is_err()
+        );
     }
 
     #[test]

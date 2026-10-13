@@ -7,7 +7,7 @@
 //! stall the event loop.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io::{self, ErrorKind, Read, Write},
     os::unix::{
         fs::{DirBuilderExt, MetadataExt, PermissionsExt},
@@ -49,6 +49,8 @@ pub struct Ipc {
     path: Option<PathBuf>,
     /// The files of `assets.put`.
     pub uploads: Uploads,
+    /// The client names whose `plugins.restart` waits for the old process.
+    pub restarting: HashSet<String>,
     listener: Option<RegistrationToken>,
     conns: HashMap<u64, Conn>,
     next: u64,
