@@ -131,6 +131,10 @@ pub struct Scene {
     /// The default camera of each output, which the core sets; the start
     /// and the end of moves from and to the default camera.
     default_cameras: OrdMap<String, Transform>,
+    /// The surface with the keyboard focus, which the core sets.
+    focused: Option<String>,
+    /// The surface that had the focus when a client cleared it, by client.
+    focus_returns: OrdMap<String, String>,
 }
 
 impl Default for Scene {
@@ -151,6 +155,8 @@ impl Default for Scene {
             animations: OrdMap::new(),
             camera_moves: OrdMap::new(),
             default_cameras: OrdMap::new(),
+            focused: None,
+            focus_returns: OrdMap::new(),
         }
     }
 }
@@ -325,9 +331,7 @@ impl Scene {
                 Ok(())
             }
             Command::Focus { surface } => {
-                if let Some(s) = surface {
-                    self.owned_surface(owner, s)?;
-                }
+                self.focus_command(owner, surface.as_deref())?;
                 effects.push(Effect::Focus(surface.clone()));
                 Ok(())
             }
@@ -818,6 +822,34 @@ impl Scene {
                 other.unwrap_or("nobody").into(),
             )),
         }
+    }
+
+    /// A client focuses its own surfaces. After it cleared the focus, it may
+    /// give the focus back to the surface that had it, also of another
+    /// client (#27).
+    fn focus_command(&mut self, owner: &str, surface: Option<&str>) -> Result<(), SceneError> {
+        let Some(id) = surface else {
+            if let Some(had) = self.focused.clone() {
+                self.focus_returns.insert(owner.into(), had);
+            }
+            self.focused = None;
+            return Ok(());
+        };
+        let returns = self.focus_returns.get(owner).is_some_and(|had| had == id);
+        if returns {
+            self.surface(id)?;
+            self.focus_returns.remove(owner);
+        } else {
+            self.owned_surface(owner, id)?;
+        }
+        self.focused = Some(id.into());
+        Ok(())
+    }
+
+    /// Tells the scene the surface with the keyboard focus, for the return
+    /// of the focus.
+    pub fn set_focused(&mut self, surface: Option<&str>) {
+        self.focused = surface.map(Into::into);
     }
 
     fn owned_surface(&mut self, owner: &str, id: &str) -> Result<(), SceneError> {

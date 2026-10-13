@@ -181,6 +181,10 @@ fn new_seat(seat_state: &mut SeatState<State>, dh: &DisplayHandle) -> Seat<State
     let mut seat = seat_state.new_wl_seat(dh, "seat0");
     seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), 200, 25)
         .expect("the default keymap compiles");
+    // Nested, chora translates keys with this keymap, not with the one of
+    // the host session (#12).
+    let layout = std::env::var("XKB_DEFAULT_LAYOUT").unwrap_or_else(|_| "us".into());
+    tracing::info!(%layout, "the keyboard layout; XKB_DEFAULT_LAYOUT sets another one");
     seat.add_pointer();
     seat
 }
@@ -417,6 +421,7 @@ impl State {
     /// focused gives the keyboard back. Taskbars learn first which surface
     /// lost the focus, because some expect one active toplevel at a time.
     pub fn focus(&mut self, surface: Option<&str>) {
+        self.scene.set_focused(surface);
         let previous = std::mem::replace(&mut self.focus_wanted, surface.map(Into::into));
         self.layer_focus = None;
         self.update_focus();

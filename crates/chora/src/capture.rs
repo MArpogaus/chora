@@ -104,8 +104,26 @@ impl State {
             scale: shot.view.scale,
             origin: shot.origin,
             png: STANDARD.encode(png),
+            left_out: self.left_out_of(&shot),
         };
         Ok(serde_json::to_value(picture).expect("pictures always serialize"))
+    }
+
+    /// The nodes that the last frame left out of the output of a capture,
+    /// or of any output for a capture of a node.
+    fn left_out_of(&self, shot: &Shot) -> Vec<String> {
+        let mut nodes: Vec<String> = match &shot.what {
+            Source::Output(output) => self
+                .assets
+                .left_out
+                .get(&output.name())
+                .cloned()
+                .unwrap_or_default(),
+            Source::Node(_) => self.assets.left_out.values().flatten().cloned().collect(),
+        };
+        nodes.sort();
+        nodes.dedup();
+        nodes
     }
 
     /// The pixels of an output as on screen, without the cursor, for the

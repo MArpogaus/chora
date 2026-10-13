@@ -314,7 +314,28 @@ fn read_source(path: &str) -> Result<String, String> {
     if meta.len() > MAX_SOURCE {
         return Err(format!("{path}: larger than {MAX_SOURCE} bytes"));
     }
-    std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))
+    let source = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
+    Ok(with_derivatives(source))
+}
+
+/// Enables `GL_OES_standard_derivatives` for a shader that uses `fwidth`,
+/// `dFdx` or `dFdy` and does not enable it itself (#16). On a driver
+/// without the extension, `enable` gives a warning, not an error. The line
+/// goes after a `#version` line, which must come first.
+fn with_derivatives(source: String) -> String {
+    let uses = ["fwidth", "dFdx", "dFdy"]
+        .iter()
+        .any(|f| source.contains(f));
+    if !uses || source.contains("GL_OES_standard_derivatives") {
+        return source;
+    }
+    let line = "#extension GL_OES_standard_derivatives : enable\n";
+    match source.split_once('\n') {
+        Some((first, rest)) if first.trim_start().starts_with("#version") => {
+            format!("{first}\n{line}{rest}")
+        }
+        _ => format!("{line}{source}"),
+    }
 }
 
 /// Compiles and links a fragment shader with the vertex shader of meshes.
@@ -397,4 +418,24 @@ unsafe fn info_log(gl: &ffi::Gles2, object: u32, shader: bool) -> String {
     }
     buffer.truncate(usize::try_from(length).unwrap_or(0));
     String::from_utf8_lossy(&buffer).trim().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::with_derivatives;
+
+    #[test]
+    fn derivatives_come_after_the_version() {
+        let plain = "void main() {}".to_string();
+        assert_eq!(with_derivatives(plain.clone()), plain);
+        let edge = "float e = fwidth(x);".to_string();
+        assert!(with_derivatives(edge).starts_with("#extension GL_OES_standard_derivatives"));
+        let versioned = "#version 100\nfloat e = dFdx(x);".to_string();
+        assert_eq!(
+            with_derivatives(versioned),
+            "#version 100\n#extension GL_OES_standard_derivatives : enable\nfloat e = dFdx(x);"
+        );
+        let enabled = "#extension GL_OES_standard_derivatives : enable\nfwidth".to_string();
+        assert_eq!(with_derivatives(enabled.clone()), enabled);
+    }
 }

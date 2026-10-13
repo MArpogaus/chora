@@ -62,6 +62,15 @@ fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
     key(state, event.key_code(), event.state(), event.time(), false);
 }
 
+/// Releases every key that is down, for example when the window of a
+/// nested chora loses the focus and the host keeps the releases.
+pub fn release_keys(state: &mut State) {
+    let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+    for code in keyboard.pressed_keys() {
+        key(state, code, KeyState::Released, InputTime::now(), false);
+    }
+}
+
 /// A key goes down or up: the safety layer first, then the grabs, then the
 /// focused surface. An injected key never reaches the safety layer (D23).
 pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTime, injected: bool) {

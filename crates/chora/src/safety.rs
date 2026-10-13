@@ -122,6 +122,7 @@ impl State {
     /// on slow frames: the nested backend measures the render, the tty
     /// backend the time from the render to the vblank.
     pub fn frame_rendered(&mut self, output: &str, budget: Duration, took: Duration) {
+        self.note_left_out(output);
         match self.watchdog.note(output, budget, took, Instant::now()) {
             Some(Action::DropEffects) => self.drop_effects(),
             Some(Action::Reset) => {
@@ -130,6 +131,31 @@ impl State {
             }
             None => {}
         }
+    }
+
+    /// Tells the plugins when the layer budget of a frame left other nodes
+    /// out than the frame before.
+    fn note_left_out(&mut self, output: &str) {
+        let nodes = self.assets.layers.left_out.clone();
+        let before = self
+            .assets
+            .left_out
+            .get(output)
+            .map_or(&[][..], Vec::as_slice);
+        if before == nodes.as_slice() {
+            return;
+        }
+        if nodes.is_empty() {
+            self.assets.left_out.remove(output);
+        } else {
+            self.assets
+                .left_out
+                .insert(output.to_owned(), nodes.clone());
+        }
+        self.emit(&Event::LayersDropped {
+            output: output.to_owned(),
+            nodes,
+        });
     }
 
     /// Removes the effects of all nodes and tells the plugins. Without
@@ -226,12 +252,12 @@ mod tests {
     fn a_fast_frame_starts_the_time_again() {
         let mut watchdog = Watchdog::default();
         let start = Instant::now();
-        assert!(slow_for(&mut watchdog, start, 1900, true).is_empty());
+        assert_eq!(slow_for(&mut watchdog, start, 1900, true), Vec::new());
         let later = start + Duration::from_millis(1950);
         assert_eq!(
             watchdog.note("out", REFRESH, Duration::from_millis(5), later),
             None
         );
-        assert!(slow_for(&mut watchdog, later, 1900, true).is_empty());
+        assert_eq!(slow_for(&mut watchdog, later, 1900, true), Vec::new());
     }
 }

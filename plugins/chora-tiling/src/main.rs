@@ -387,6 +387,8 @@ impl Tiling {
             .client
             .call::<_, Value>("scene.apply", Apply { commands })
         {
+            // A window that closed in the meantime is no error (#14).
+            Err(ClientError::Rpc(err)) if err.message.contains("does not exist") => Ok(()),
             Err(ClientError::Rpc(err)) => {
                 eprintln!("chora-tiling: {err}");
                 Ok(())
@@ -396,8 +398,23 @@ impl Tiling {
     }
 }
 
+/// The work area as the default camera shows it, so that a camera move or a
+/// zoom moves no window (#13): the windows keep their place in the scene.
 fn area_of(output: &OutputInfo) -> [i32; 4] {
-    output.work_area
+    let [x, y, w, h] = output.work_area.map(f64::from);
+    // The camera maps the scene to the output; the default camera is the
+    // translation by the position of the output.
+    let (left, top) = output.camera.apply(x, y);
+    let (right, bottom) = output.camera.apply(x + w, y + h);
+    let [px, py] = output.position.map(f64::from);
+    #[allow(clippy::cast_possible_truncation)] // within the size of an output
+    let round = |v: f64| v.round() as i32;
+    [
+        round(left + px),
+        round(top + py),
+        round(right - left),
+        round(bottom - top),
+    ]
 }
 
 /// The cells of a master and stack layout: the first window takes the left
@@ -456,7 +473,7 @@ fn spawn(command: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::{master_stack, split};
+    use super::{OutputInfo, area_of, master_stack, split};
 
     #[test]
     fn one_window_fills_the_area() {
@@ -482,6 +499,28 @@ mod tests {
             split(2, [10, 0, 50, 40], false),
             vec![[10, 0, 50, 20], [10, 20, 50, 20]]
         );
+    }
+
+    #[test]
+    fn a_camera_move_keeps_the_area() {
+        let camera = |t: chora_scene::Transform| OutputInfo {
+            name: "out".into(),
+            position: [1280, 0],
+            size: [1280, 800],
+            scale: 1.0,
+            camera: t,
+            work_area: [0; 4],
+        };
+        // The default camera of an output at x = 1280, with a panel of 30.
+        let mut output = camera(chora_scene::Transform::translate(-1280.0, 0.0, 0.0));
+        output.work_area = [1280, 30, 1280, 770];
+        assert_eq!(area_of(&output), [1280, 30, 1280, 770]);
+        // Zoomed out by 2 and panned: the camera shows more of the scene.
+        let zoom = chora_scene::Transform::scale(0.5, 0.5, 1.0)
+            .then(&chora_scene::Transform::translate(-500.0, 0.0, 0.0));
+        let mut output = camera(zoom);
+        output.work_area = [500, 60, 2560, 1540];
+        assert_eq!(area_of(&output), [1280, 30, 1280, 770]);
     }
 
     #[test]

@@ -87,7 +87,7 @@ fn disconnect_removes_nodes_and_detaches_surfaces() {
     assert!(scene.node("tiles").is_none());
     let s1 = scene.node("s1").unwrap();
     assert_eq!((s1.parent.as_deref(), s1.owner.as_deref()), (None, None));
-    assert!(scene.node(ROOT).unwrap().children.is_empty());
+    assert_eq!(scene.node(ROOT).unwrap().children, Vec::<String>::new());
 }
 
 #[test]
@@ -430,7 +430,7 @@ fn a_camera_moves_from_where_it_is_and_tells_its_end() {
     assert_eq!(scene.camera("DP-1"), Some(&pan), "the target");
     let x = |scene: &Scene| scene.current_camera("DP-1").map(|t| t.translation_2d().0);
     assert_eq!(x(&scene), Some(-1920.0));
-    assert!(scene.advance_cameras(50.0).is_empty());
+    assert_eq!(scene.advance_cameras(50.0), Vec::<String>::new());
     assert_eq!(x(&scene), Some(-2420.0));
     // A new move starts in the middle, here back to the default camera.
     scene
@@ -595,7 +595,7 @@ fn an_animation_moves_a_node_and_ends_with_the_targets() {
     };
     scene.apply("wm", &[rect, animate(100.0, 200.0)]).unwrap();
     assert!(scene.animating());
-    assert!(scene.advance(100.0).is_empty());
+    assert_eq!(scene.advance(100.0), Vec::<String>::new());
     let props = &scene.node("r").unwrap().props;
     assert_eq!(props.transform.translation_2d(), (50.0, 0.0));
     assert!(props.visible);
@@ -659,7 +659,7 @@ fn an_update_or_a_removal_ends_an_animation() {
         .apply("wm", &[Command::Remove { id: "r".into() }])
         .unwrap();
     assert!(!scene.animating());
-    assert!(scene.advance(200.0).is_empty());
+    assert_eq!(scene.advance(200.0), Vec::<String>::new());
 }
 
 #[test]
@@ -801,4 +801,28 @@ fn the_watchdog_takes_the_shader_of_a_shader_node() {
     scene.apply("wm", &[create("s", "shader", &props)]).unwrap();
     assert!(scene.drop_effects());
     assert!(scene.node("s").unwrap().props.shader.is_none());
+}
+
+#[test]
+fn a_client_that_cleared_the_focus_gives_it_back() {
+    let mut scene = scene_with_surface();
+    scene
+        .apply(
+            "wm",
+            &[Command::Attach {
+                surface: "s1".into(),
+                parent: ROOT.into(),
+            }],
+        )
+        .unwrap();
+    scene.set_focused(Some("s1"));
+    let focus = |surface: Option<&str>| Command::Focus {
+        surface: surface.map(Into::into),
+    };
+    // Another client cannot take the focus of a surface of the wm ...
+    assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    // ... but after it cleared the focus, it gives it back, once.
+    scene.apply("walk", &[focus(None)]).unwrap();
+    scene.apply("walk", &[focus(Some("s1"))]).unwrap();
+    assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
 }

@@ -408,6 +408,11 @@ pub struct Picture {
     pub origin: [f64; 2],
     /// A PNG file in base64.
     pub png: String,
+    /// The nodes whose layers the last frame left out of the output, since
+    /// they did not fit into the pixel budget. A capture shows them, the
+    /// screen does not (#24).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub left_out: Vec<String>,
 }
 
 /// Parameters of `input.inject`.
@@ -755,7 +760,7 @@ mod tests {
         ]);
         let mut client = Client::from_stream(stream, &hello()).unwrap();
         let nodes: Vec<Value> = client.call("scene.query", Value::Null).unwrap();
-        assert!(nodes.is_empty());
+        assert_eq!(nodes, Vec::<Value>::new());
     }
 
     #[test]

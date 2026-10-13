@@ -98,7 +98,10 @@ fn handle(state: &mut State, event: WinitEvent) {
         WinitEvent::Input(event) => crate::input::process(state, event),
         WinitEvent::Redraw => redraw(state),
         WinitEvent::CloseRequested => state.loop_signal.stop(),
-        WinitEvent::Focus(_) => {}
+        // The host gets the releases of keys that went down here, for
+        // example Super for its overview, so chora lets them go too (#11).
+        WinitEvent::Focus(false) => crate::input::release_keys(state),
+        WinitEvent::Focus(true) => {}
     }
 }
 
@@ -187,7 +190,12 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
     if *backend.damage_tracker.mode() != mode {
         backend.damage_tracker = OutputDamageTracker::from_mode_source(mode);
     }
-    // The first query fails before the first bind; 0 means a full redraw.
+    // The age needs the surface of the window current. Layers and captures
+    // render into textures and leave no surface current, so the query
+    // failed with BAD_SURFACE in every frame of an animation and forced a
+    // full redraw (#15). A bind makes the surface current first.
+    drop(backend.graphics.bind().map_err(|e| format!("bind: {e}"))?);
+    // 0 means a full redraw.
     let age = backend.graphics.buffer_age().unwrap_or(0);
     let damage = {
         let (renderer, mut framebuffer) =

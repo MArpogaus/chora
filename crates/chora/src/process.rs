@@ -317,7 +317,7 @@ mod tests {
     fn the_argv_of_this_process_reads_from_proc() {
         let pid = Pid::from_raw(i32::try_from(std::process::id()).unwrap()).unwrap();
         let (argv, cwd) = argv_of(pid).unwrap();
-        assert!(!argv.is_empty());
+        assert_ne!(argv.len(), 0);
         assert_eq!(cwd, std::env::current_dir().ok());
     }
 }

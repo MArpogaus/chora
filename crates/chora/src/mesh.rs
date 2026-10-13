@@ -93,6 +93,8 @@ pub struct Layers {
     pixels: u64,
     /// The budget ran out in this frame, and the log tells it once.
     told: bool,
+    /// The nodes whose layers the budget left out of the current frame.
+    pub left_out: Vec<String>,
 }
 
 impl Layers {
@@ -105,21 +107,31 @@ impl Layers {
             .retain(|(id, ..), (_, used)| keep(id) && now - *used < UNUSED_FOR);
         self.ids.retain(|id, _| keep(id));
         self.pixels = 0;
+        self.left_out.clear();
     }
 
-    /// Takes pixels of the budget of the frame for the textures of a layer.
-    /// Returns `false` when they do not fit.
-    pub fn spend(&mut self, size: Size<i32, BufferCoords>, textures: usize) -> bool {
+    /// Takes pixels of the budget of the frame for the textures of the layer
+    /// of a node. Returns `false` when they do not fit, and notes the node.
+    pub fn spend(&mut self, id: &str, size: Size<i32, BufferCoords>, textures: usize) -> bool {
         let area = u64::try_from(size.w * size.h).unwrap_or(u64::MAX);
         let pixels = area.saturating_mul(textures as u64);
         if self.pixels.saturating_add(pixels) > FRAME_PIXELS {
-            if !std::mem::replace(&mut self.told, true) {
-                tracing::warn!("layers exceed {FRAME_PIXELS} pixels in a frame; some stay out");
-            }
+            self.leave_out(id);
             return false;
         }
         self.pixels += pixels;
         true
+    }
+
+    /// Notes a node whose layer stays out of the frame; the log tells it
+    /// once.
+    fn leave_out(&mut self, id: &str) {
+        if !std::mem::replace(&mut self.told, true) {
+            tracing::warn!("layers exceed {FRAME_PIXELS} pixels in a frame; some stay out");
+        }
+        if !self.left_out.iter().any(|n| n == id) {
+            self.left_out.push(id.to_owned());
+        }
     }
 
     /// A texture of a slot of a layer of a size, the one of an earlier

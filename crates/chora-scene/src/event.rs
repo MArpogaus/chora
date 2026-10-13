@@ -117,6 +117,16 @@ pub enum Event {
     /// reset follows.
     #[serde(rename = "effects.dropped")]
     EffectsDropped,
+    /// The layers of nodes did not fit into the pixel budget of a frame and
+    /// stay out of the output, or are back (#17). Sent when the list of an
+    /// output changes; an empty list means that all layers show again.
+    #[serde(rename = "layers.dropped")]
+    LayersDropped {
+        /// The output.
+        output: String,
+        /// The nodes whose layers stay out.
+        nodes: Vec<String>,
+    },
     /// The shader of an effect failed after a change of its file. The
     /// effect keeps its last working version, or shows nothing.
     #[serde(rename = "effect.failed")]

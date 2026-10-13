@@ -570,12 +570,20 @@ fn subscribe(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
 }
 
 fn picture_info(picture: &Picture) -> Value {
-    json!({
+    let mut info = json!({
         "width": picture.width,
         "height": picture.height,
         "scale": picture.scale,
         "origin": picture.origin,
-    })
+    });
+    // The picture shows these nodes, but the screen does not (#24).
+    if !picture.left_out.is_empty() {
+        info["left_out_of_the_screen"] = json!(picture.left_out);
+        info["note"] = json!(
+            "these layers did not fit into the pixel budget of the last frame: the user does not see them"
+        );
+    }
+    info
 }
 
 /// A screenshot, if the grant allows it, and the scene in words.

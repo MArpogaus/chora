@@ -70,6 +70,9 @@ pub struct Assets {
     pub effect_errors: Vec<String>,
     /// The time of each shader file that compiled in a check.
     pub checked_effects: HashMap<String, Option<std::time::SystemTime>>,
+    /// The nodes that the layer budget left out of the last frame of each
+    /// output, as `layers.dropped` told them (#17, #24).
+    pub left_out: HashMap<String, Vec<String>>,
 }
 
 /// How an output shows the scene: its camera, its scale factor and its size.
@@ -219,7 +222,7 @@ fn layer<R: MeshRenderer>(
     }
     let size = mesh::texture_size(node, view.scale)?;
     let textures = 1 + mesh::passes(node, view.scale).len().min(2);
-    if !parts.assets.layers.spend(size, textures) {
+    if !parts.assets.layers.spend(&node.id, size, textures) {
         return None;
     }
     let texture = layer_texture(parts, renderer.gles(), node, size, view.scale)?;
@@ -288,7 +291,7 @@ fn node_textures(
         else {
             continue;
         };
-        if !parts.assets.layers.spend(size, 1) {
+        if !parts.assets.layers.spend(&source.node, size, 1) {
             continue;
         }
         let view = View {

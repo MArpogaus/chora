@@ -82,6 +82,12 @@ with the log of the compiler. The core compiles a shader again when its
 file changes. The package installs examples in `/usr/share/chora/shaders/`:
 `grayscale.frag`, `rounded.frag` and `blur.frag` (with `radius`).
 
+Two hints for shaders. With `precision mediump float`, the common hash
+`fract(sin(dot(p, …)) * 43758.5)` loses its digits and gives garbage;
+noise and hashes need `precision highp float`. `fwidth`, `dFdx` and `dFdy`
+need `GL_OES_standard_derivatives`, which the core enables for a shader
+that uses them (#16).
+
 The core loads the file of an image when a transaction names it. A file
 that does not load, that is larger than 32 MiB or larger than 8192 pixels
 on a side rejects the transaction. A plugin in a container shares its
@@ -109,9 +115,9 @@ prints the path.
 | `move` | change the parent or the position among the siblings |
 | `remove` | remove a node; a removed surface becomes detached |
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
-| `focus` | set the keyboard focus |
+| `focus` | set the keyboard focus to an own surface, or clear it without a surface; a client that cleared the focus may give it back once to the surface that had it, also of another client |
 | `close` | ask a client to close a surface |
-| `camera` | set the camera of an output, or restore its default camera without a transform; with a `duration`, move it there |
+| `camera` | set the camera of an output, or restore its default camera without a transform; with a `duration`, move it there; the first client that sets the camera owns it, and a `camera` without a transform gives it up |
 
 `animate` lets plugins and agents animate without code in every frame:
 
@@ -161,6 +167,7 @@ or an empty list. It always sees the current titles.
 | `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node and position; `pointer.released` with the button |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version |
+| `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again |
 | `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of all nodes, because frames were slow for two seconds |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves |
 | `output.removed` | output name |
@@ -187,7 +194,7 @@ client sends `hello` first. The core answers every request.
 | `hello(name, keep_nodes)` | name the client; `keep_nodes` keeps its nodes and cameras after the disconnect |
 | `scene.query(selector)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
-| `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications |
+| `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name |
 | `input.grab(binding)` | get the events of a key, a button or a gesture; returns the binding as `input.key` names it |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
@@ -293,6 +300,9 @@ whose origin is (0, 0), or in the coordinates of the node.
   size.
 - A picture has at most 16 Mi pixels and 8192 pixels a side; a larger one
   shrinks. `max_side` must be at least 1.
+- A capture renders the scene again. Layers that the pixel budget of the
+  last frame left out of the screen show in the capture; `left_out` names
+  them (#24), and `layers.dropped` tells it as it happens.
 - A capture fails while the session is locked, and when the PNG file is
   larger than 5 MiB; a smaller `max_side` helps then.
 
