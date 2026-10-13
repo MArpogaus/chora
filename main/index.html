@@ -1058,10 +1058,11 @@ through <code>choractl mcp</code>, after a grant of the user. The
 <a href="https://marpogaus.github.io/void/roadmap/">roadmap</a> shows the next steps.
 APIs change without notice before version 1.0.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
-<p>Each <a href="https://github.com/MArpogaus/void/releases">release</a> has an RPM for
-Fedora 44, with SHA256 sums:</p>
-<div class="highlight"><pre><span></span><code>sha256sum<span class="w"> </span>-c<span class="w"> </span>SHA256SUMS
-sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> </span>./chora-*.rpm
+<p>Each <a href="https://github.com/MArpogaus/chora/releases">release</a> has an RPM for
+Fedora 44 and a package for Arch Linux, with SHA256 sums:</p>
+<div class="highlight"><pre><span></span><code>sha256sum<span class="w"> </span>-c<span class="w"> </span>--ignore-missing<span class="w"> </span>SHA256SUMS
+sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> </span>./chora-*.rpm<span class="w">          </span><span class="c1"># Fedora</span>
+sudo<span class="w"> </span>pacman<span class="w"> </span>-U<span class="w"> </span>./chora-*.pkg.tar.zst<span class="w">    </span><span class="c1"># Arch Linux</span>
 </code></pre></div>
 <h2 id="try-it">Try it<a class="headerlink" href="#try-it" title="Permanent link">&para;</a></h2>
 <p>Start chora with the tiling plugin inside a Wayland session:</p>
