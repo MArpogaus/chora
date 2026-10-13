@@ -185,7 +185,8 @@ missed (issues #12 to #27), without new policy in the core.
 **Exit:** `tests/agent.sh` and `tests/nested.sh` check each item, and an
 MCP client runs a probe with `capture`, reads its output, sets the scale
 of the output, and draws a HUD under `screen:NAME` that stays in place
-during an animated camera move.
+during an animated camera move. The last step of `tests/agent.sh` checks it
+with `tests/mcp-client.py hud` in CI. #14 still waits for a log.
 
 ## M5: Packaging
 
