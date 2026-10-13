@@ -869,32 +869,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#m5-packaging" class="md-nav__link">
+  <a href="#m42-test-round" class="md-nav__link">
     <span class="md-ellipsis">
       
-        M5: Packaging
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#m6-agentic-flavor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        M6: Agentic flavor
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#after-m6" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        After M6
+        M4.2: Test round
       
     </span>
   </a>
@@ -1038,32 +1016,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#m5-packaging" class="md-nav__link">
+  <a href="#m42-test-round" class="md-nav__link">
     <span class="md-ellipsis">
       
-        M5: Packaging
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#m6-agentic-flavor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        M6: Agentic flavor
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#after-m6" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        After M6
+        M4.2: Test round
       
     </span>
   </a>
@@ -1241,6 +1197,31 @@ node with two buttons, and moves the camera with an animation when the
 user clicks a button, which the client learns from <code>wait_events</code>. The last
 step of <code>tests/agent.sh</code> checks it with <code>tests/mcp-client.py panel</code> in CI.
 The allowlist of the grant <code>process.spawn</code> stays an option.</p>
+<h2 id="m42-test-round">M4.2: Test round<a class="headerlink" href="#m42-test-round" title="Permanent link">&para;</a></h2>
+<p><strong>Goal:</strong> the API covers what the first test round on real hardware
+missed (issues #12 to #27), without new policy in the core.</p>
+<ul>
+<li>Grabs: <code>input.ungrab(binding)</code>, and <code>input.key</code> tells the release of a
+  grabbed key with its state (#18, D45).</li>
+<li>One overlay root per output, <code>screen:NAME</code>, for nodes fixed to the
+  screen (#19, D43).</li>
+<li><code>process.spawn</code> with <code>capture</code>: the core keeps stdout, stderr and the
+  exit status, at most 64 KiB, and <code>process.wait(pid, timeout)</code> returns
+  them (#22).</li>
+<li><code>output.configure</code> for scale and transform (#22, D44).</li>
+<li>Meshes: perspective-correct texture coordinates, and a point behind the
+  eye drops only its triangles, not the layer (#25, #26).</li>
+<li>Nested, the keymap of the host session: a second Wayland connection to
+  the host reads its <code>wl_keyboard.keymap</code>; <code>XKB_DEFAULT_LAYOUT</code> still wins
+  (#12).</li>
+<li>
+<h1 id="14-waits-for-a-wayland_debug1-log-of-foot">14 waits for a <code>WAYLAND_DEBUG=1</code> log of foot.<a class="headerlink" href="#14-waits-for-a-wayland_debug1-log-of-foot" title="Permanent link">&para;</a></h1>
+</li>
+</ul>
+<p><strong>Exit:</strong> <code>tests/agent.sh</code> and <code>tests/nested.sh</code> check each item, and an
+MCP client runs a probe with <code>capture</code>, reads its output, sets the scale
+of the output, and draws a HUD under <code>screen:NAME</code> that stays in place
+during an animated camera move.</p>
 <h2 id="m5-packaging">M5: Packaging<a class="headerlink" href="#m5-packaging" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> chora installs like every other desktop on the host.</p>
 <ul>

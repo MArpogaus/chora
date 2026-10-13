@@ -1214,7 +1214,7 @@
 </tr>
 <tr>
 <td>D27</td>
-<td>Output configuration through <code>wlr-output-management</code></td>
+<td>Output configuration through <code>wlr-output-management</code>, and since D44 also through the API</td>
 <td>kanshi and wlr-randr exist.</td>
 </tr>
 </tbody>
@@ -1315,6 +1315,21 @@
 <td>D42</td>
 <td><code>process.spawn</code> starts programs, and <code>plugins.restart</code> restarts plugins, as the user behind a grant of its own, which the user gives with <code>choractl grant NAME process.spawn</code> and the reset revokes; an allowlist of argv patterns that comes with the grant may narrow it later</td>
 <td>An agent with this grant can run anything, as with a shell, so it is never part of another grant. The allowlist keeps the core free of configuration files (D35).</td>
+</tr>
+<tr>
+<td>D43</td>
+<td>Nodes fixed to the screen live under one overlay root per output, <code>screen:NAME</code>: in the logical coordinates of the output, without its camera, above the scene and below the top and overlay layers of layer shell</td>
+<td>A HUD stays in place while a camera moves (#19). A root per output answers on which output a node shows. Its nodes work as all others: input, effects, ownership.</td>
+</tr>
+<tr>
+<td>D44</td>
+<td><code>output.configure</code> sets scale and transform of an output through the API, on the same path as <code>wlr-output-management</code></td>
+<td>An agent has no wlr-randr in every session (#22). One path keeps both ways in step.</td>
+</tr>
+<tr>
+<td>D45</td>
+<td>Grabs stay bindings with Ctrl, Alt or Super. <code>input.ungrab</code> ends one, and a grab tells the release of its key too. There is no exclusive keyboard grab: games and walks through 3D scenes are Wayland clients, which get every key</td>
+<td>Typing always works (D23). A client gets plain keys, repeat and release through Wayland already (#18).</td>
 </tr>
 </tbody>
 </table>
