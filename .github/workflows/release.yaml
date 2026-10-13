@@ -4,7 +4,7 @@
 # the version, or creates it. A version with a release already releases
 # nothing, so a push to main without a version bump is no release.
 # Versions below 1.0 are pre-releases. A manual run releases the version in
-# Cargo.toml as well. Only the short last job holds a write token; the build
+# Cargo.toml as well. One release runs at a time. Only the short last job holds a write token; the build
 # runs the build scripts of all dependencies with a read token.
 name: release
 
@@ -15,6 +15,12 @@ on:
   workflow_dispatch:
 
 permissions: {}
+
+# Runs wait for each other, so that the second one sees the release of the
+# first one.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   version:
@@ -34,10 +40,15 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: |
         tag=$(sed -n 's/^version = "\(.*\)"/v\1/p' Cargo.toml | head -1)
-        new=true
-        if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+        # Only a 404 means no release; another error of the API fails.
+        if answer=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" 2>&1); then
           echo "$tag has a release already; nothing to release"
           new=false
+        elif echo "$answer" | grep -q "HTTP 404"; then
+          new=true
+        else
+          echo "$answer" >&2
+          exit 1
         fi
         echo "tag=$tag" >>"$GITHUB_OUTPUT"
         echo "new=$new" >>"$GITHUB_OUTPUT"
