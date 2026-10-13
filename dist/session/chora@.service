@@ -2,7 +2,7 @@
 # chora-flavor tells systemd when chora is ready and starts the flavor.
 [Unit]
 Description=chora, a programmable Wayland compositor (flavor %i)
-Documentation=https://marpogaus.github.io/void/
+Documentation=https://marpogaus.github.io/chora/
 BindsTo=graphical-session.target
 Before=graphical-session.target
 Wants=graphical-session-pre.target

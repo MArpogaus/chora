@@ -1,7 +1,7 @@
 site_name: chora
 site_description: chora is the space where forms appear. A Wayland compositor without policy.
-site_url: https://marpogaus.github.io/void/
-repo_url: https://github.com/MArpogaus/void
+site_url: https://marpogaus.github.io/chora/
+repo_url: https://github.com/MArpogaus/chora
 docs_dir: docs
 # a link to a page that moved is only a log line otherwise
 strict: true

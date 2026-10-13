@@ -48,7 +48,7 @@ Debug builds compile the image, font and SVG crates optimized, so that
 
 The core is GPL-3.0-or-later, so it can reuse GPL code. Code under
 GPL-3.0-only stays out, for example `src/protocol/drm.rs` of Pinnacle.
-[CONTRIBUTING](https://github.com/MArpogaus/void/blob/main/CONTRIBUTING.md)
+[CONTRIBUTING](https://github.com/MArpogaus/chora/blob/main/CONTRIBUTING.md)
 says how to mark copied code.
 
 | Source | Parts |

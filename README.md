@@ -16,7 +16,7 @@ Early development. chora runs nested inside another Wayland session, and a
 reference plugin tiles the windows. A login session on real hardware exists,
 but nobody tested it on hardware yet. An agent sees and changes the screen
 through `choractl mcp`, after a grant of the user. The
-[roadmap](https://marpogaus.github.io/void/roadmap/) shows the next steps.
+[roadmap](https://marpogaus.github.io/chora/roadmap/) shows the next steps.
 APIs change without notice before version 1.0.
 
 ## Install
@@ -86,17 +86,17 @@ terminal in chora shows the scene with `choractl query`, and
 ## Documentation
 
 The documentation lives in
-[`docs/`](https://github.com/MArpogaus/void/tree/main/docs) and on
-<https://marpogaus.github.io/void/>.
+[`docs/`](https://github.com/MArpogaus/chora/tree/main/docs) and on
+<https://marpogaus.github.io/chora/>.
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/MArpogaus/void/blob/main/CONTRIBUTING.md).
+See [CONTRIBUTING.md](https://github.com/MArpogaus/chora/blob/main/CONTRIBUTING.md).
 
 ## License
 
 GPL-3.0-or-later. See
-[LICENSE](https://github.com/MArpogaus/void/blob/main/LICENSE).
+[LICENSE](https://github.com/MArpogaus/chora/blob/main/LICENSE).
 
 ## Use of LLM coding tools
 

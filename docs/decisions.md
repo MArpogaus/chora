@@ -79,4 +79,4 @@ The decision log. Nothing here is final. Every entry can come back for review.
 
 ## Open questions
 
-1. **Repository name.** The GitHub repository still has the name `void`.
+None at the moment. The repository has the name `chora` since v0.5.1.

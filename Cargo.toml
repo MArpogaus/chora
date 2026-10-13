@@ -108,6 +108,6 @@ unsafe_code = "deny"
 edition = "2024"
 license = "GPL-3.0-or-later"
 publish = false
-repository = "https://github.com/MArpogaus/void"
+repository = "https://github.com/MArpogaus/chora"
 rust-version = "1.89"
 version = "0.5.1"
