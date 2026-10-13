@@ -1089,6 +1089,7 @@ example <code>chora-flavor</code>, which starts the systemd target of a flavor:<
 installs the reference flavors to <code>/usr/share/chora/</code>.</p>
 <h2 id="views">Views<a class="headerlink" href="#views" title="Permanent link">&para;</a></h2>
 <p>A view is a part of the scene and the plugins that drive it (D35):</p>
+<!-- parses: view -->
 <div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/views/work.yaml</span>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">work</span>
 <span class="nt">plugins</span><span class="p">:</span>
@@ -1138,6 +1139,7 @@ are booleans, so <code>no</code> stays the string <code>no</code>.</p>
 <h3 id="plugin-manifests">Plugin manifests<a class="headerlink" href="#plugin-manifests" title="Permanent link">&para;</a></h3>
 <p>A manifest tells <code>choractl</code> how to start and how to configure a plugin. It
 lives in <code>plugins/NAME.yaml</code> of the same directories:</p>
+<!-- parses: manifest -->
 <div class="highlight"><pre><span></span><code><span class="c1"># /usr/share/chora/plugins/tiling.yaml</span>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
 <span class="nt">exec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora-tiling</span>
@@ -1266,8 +1268,9 @@ without them for 15 seconds.</p>
 </tr>
 </tbody>
 </table>
-<p>The core keeps Ctrl+Alt for its safety layer, so for now Super+Ctrl stands
-in for Ctrl+Alt in the cube bindings.</p>
+<p>The safety layer keeps only Ctrl+Alt with BackSpace, Escape and F1 to F12,
+so the cube takes Ctrl+Alt with the arrows. When another client holds
+these bindings, Super+Ctrl with the arrows stands in.</p>
 <table>
 <thead>
 <tr>

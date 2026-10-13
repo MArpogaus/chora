@@ -1309,7 +1309,8 @@ this work. Layer surfaces, for example panels and launchers, sit in the
 coordinates of their output, outside its camera, so a panel stays in place
 when a plugin pans the scene. The background and bottom layers are below the
 scene, the top and overlay layers above it. A panel reserves an exclusive
-zone; the rest of the output is its <strong>work area</strong>. Only toplevels wait for
+zone, and an IPC client reserves space with <code>output.reserve</code>; the rest of
+the output is its <strong>work area</strong>. Only toplevels wait for
 a plugin: the core creates a detached surface node and sends
 <code>surface.created</code>. A plugin decides where the surface appears, or if it
 appears at all.</p>
@@ -1362,6 +1363,7 @@ The output scale then gives the pixels.</p>
   logical size of the output. Scene and layout coordinates then agree.</li>
 <li>The <code>camera</code> command replaces the default, for example to pan or zoom. A
   camera is a 2D translation of at most 10^7 and a scale from 1/64 to 64.
+  It ignores the z axis, so a uniform scale such as <code>{"scale": 1.5}</code> works.
   The first client that sets the camera of an output owns it. When the owner
   disconnects, the output gets its default camera back, unless the owner
   keeps its nodes with <code>keep_nodes</code>. The reset restores all default cameras.</li>
@@ -1538,8 +1540,8 @@ of the press that opened it.</p>
   that it rendered under this lock. When the lock client crashes, the
   session stays locked, and only then can a new lock client take over.</li>
 <li><strong>Watchdog.</strong> When frames take longer to render than a refresh of their
-  output for two seconds, the core removes the effects, the meshes, and
-  sends <code>effects.dropped</code>. When they stay slow for two more seconds, it
+  output for two seconds, the core removes the effects, the meshes and the
+  shaders of shader nodes, and sends <code>effects.dropped</code>. When they stay slow for two more seconds, it
   starts the emergency reset, which disconnects the plugins.</li>
 </ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
@@ -1553,11 +1555,13 @@ of the press that opened it.</p>
   protocols: the layer shell, the session lock, the input method, both
   foreign toplevel protocols, output management, both screencopy protocols
   with their sources, and the security context manager itself.</li>
-<li>The IPC methods <code>input.inject</code> and <code>screen.capture</code> need a <strong>grant</strong> of the
-  user for the client name: <code>choractl grant NAME CAPABILITY</code> (D40). A grant
-  protects against mistakes of agents. It is no barrier against hostile code
-  of the same user. The emergency reset revokes all grants.</li>
-<li><code>screen.capture</code> and <code>input.inject</code> fail while the session is locked.</li>
+<li>The IPC methods <code>input.inject</code>, <code>screen.capture</code> and <code>process.spawn</code> need
+  a <strong>grant</strong> of the user for the client name: <code>choractl grant NAME
+  CAPABILITY</code> (D40, D42). A grant protects against mistakes of agents. It is
+  no barrier against hostile code of the same user. The emergency reset
+  revokes all grants.</li>
+<li><code>screen.capture</code>, <code>input.inject</code>, <code>process.spawn</code> and <code>plugins.restart</code>
+  fail while the session is locked.</li>
 </ul>
 <h2 id="sessions-and-flavors">Sessions and flavors<a class="headerlink" href="#sessions-and-flavors" title="Permanent link">&para;</a></h2>
 <ul>

@@ -653,6 +653,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#programs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#screen-capture" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1082,6 +1093,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#programs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#screen-capture" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1167,6 +1189,7 @@ commands and events.</p>
 <p>A <strong>command</strong> changes the scene. An <strong>event</strong> reports a change. Commands
 travel in <strong>transactions</strong> (see <a href="../architecture/#transactions">Architecture</a>).
 <a href="../architecture/#ownership">Ownership</a> decides who may change a node.</p>
+<!-- parses: commands -->
 <div class="highlight"><pre><span></span><code><span class="c1"># one transaction</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">work</span><span class="p p-Indicator">,</span><span class="nt"> kind</span><span class="p">:</span><span class="w"> </span><span class="nv">group</span><span class="p p-Indicator">,</span><span class="nt"> parent</span><span class="p">:</span><span class="w"> </span><span class="nv">root</span><span class="p p-Indicator">}</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">bar</span><span class="p p-Indicator">,</span><span class="nt"> kind</span><span class="p">:</span><span class="w"> </span><span class="nv">rect</span><span class="p p-Indicator">,</span><span class="nt"> parent</span><span class="p">:</span><span class="w"> </span><span class="nv">work</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1280</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">30</span><span class="p p-Indicator">],</span><span class="nt"> color</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">]}}</span>
@@ -1210,8 +1233,8 @@ are errors, so a typo never passes silently.</p>
 </tr>
 <tr>
 <td><code>clip</code></td>
-<td>all</td>
-<td>rectangle, optionally rounded</td>
+<td>group, rect, image, shader</td>
+<td><code>{"radius": r}</code>: the node and its descendants show only inside its size, with corners rounded by <code>r</code> logical pixels, and take pointer input only there; the node becomes a layer; <code>null</code> removes the clip</td>
 </tr>
 <tr>
 <td><code>effects</code></td>
@@ -1239,9 +1262,19 @@ are errors, so a typo never passes silently.</p>
 <td><code>cols</code> and <code>rows</code> from 1 to 64, and <code>points</code>: the place of each grid point in node coordinates, row by row from the top left; the node becomes a layer that shows through the grid; <code>points: []</code> removes the mesh</td>
 </tr>
 <tr>
-<td><code>color</code>, <code>radius</code>, <code>border</code></td>
+<td><code>color</code></td>
 <td>rect</td>
-<td></td>
+<td>RGBA, each from 0 to 1</td>
+</tr>
+<tr>
+<td><code>radius</code></td>
+<td>rect</td>
+<td>the radius of the corners in logical pixels; the rect becomes a layer</td>
+</tr>
+<tr>
+<td><code>border</code></td>
+<td>rect</td>
+<td><code>{"width": w, "color": [r, g, b, a]}</code>: a line of <code>w</code> logical pixels along the inner edge; the rect becomes a layer; <code>null</code> removes it</td>
 </tr>
 <tr>
 <td><code>image</code></td>
@@ -1256,12 +1289,26 @@ are errors, so a typo never passes silently.</p>
 <tr>
 <td><code>shader</code>, <code>uniforms</code></td>
 <td>shader</td>
-<td>GLSL ES file and its inputs; a uniform can name another node as a texture</td>
+<td>the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform <code>{"node": id}</code> is a <code>sampler2D</code> with that node as it shows on its own, at most 4</td>
 </tr>
 </tbody>
 </table>
 <p>A surface node gets its size from its client. The <code>configure</code> command asks
 the client for a new size.</p>
+<p>A shader node draws its shader over its size, as a layer. Its children
+render into <code>uniform sampler2D tex</code>, and the shader gets the same inputs as
+an effect. A node texture shows the node without its transform, at its size
+or, for a surface, at the size of the window. A node with opacity 0 hides
+in the scene and still shows in a node texture. Inside a node texture,
+shader nodes get no node textures of their own, so that two shader nodes
+that read each other do not recurse.</p>
+<!-- parses: commands -->
+<div class="highlight"><pre><span></span><code><span class="c1"># a rounded button with a border, a round clip and a shader that reads it</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">button</span><span class="p p-Indicator">,</span><span class="nt"> kind</span><span class="p">:</span><span class="w"> </span><span class="nv">rect</span><span class="p p-Indicator">,</span><span class="nt"> parent</span><span class="p">:</span><span class="w"> </span><span class="nv">root</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">120</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">40</span><span class="p p-Indicator">],</span><span class="nt"> color</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">],</span><span class="nt"> radius</span><span class="p">:</span><span class="w"> </span><span class="nv">8</span><span class="p p-Indicator">,</span><span class="nt"> border</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">width</span><span class="p">:</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="nt"> color</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">]}}}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">avatar</span><span class="p p-Indicator">,</span><span class="nt"> kind</span><span class="p">:</span><span class="w"> </span><span class="nv">group</span><span class="p p-Indicator">,</span><span class="nt"> parent</span><span class="p">:</span><span class="w"> </span><span class="nv">root</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">],</span><span class="nt"> clip</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">radius</span><span class="p">:</span><span class="w"> </span><span class="nv">32</span><span class="p p-Indicator">}}}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">glow</span><span class="p p-Indicator">,</span><span class="nt"> kind</span><span class="p">:</span><span class="w"> </span><span class="nv">shader</span><span class="p p-Indicator">,</span><span class="nt"> parent</span><span class="p">:</span><span class="w"> </span><span class="nv">root</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">400</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">300</span><span class="p p-Indicator">],</span><span class="nt"> shader</span><span class="p">:</span><span class="w"> </span><span class="nv">/home/me/glow.frag</span><span class="p p-Indicator">,</span><span class="nt"> uniforms</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">strength</span><span class="p">:</span><span class="w"> </span><span class="nv">0.5</span><span class="p p-Indicator">,</span><span class="nt"> picture</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">node</span><span class="p">:</span><span class="w"> </span><span class="nv">avatar</span><span class="p p-Indicator">}}}}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">update</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">button</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">border</span><span class="p">:</span><span class="w"> </span><span class="nv">null</span><span class="p p-Indicator">}}</span>
+</code></pre></div>
 <p>A node with a size and a mesh, or with a transform that is not a plain 2D
 translation and scale, for example a rotation or a perspective, is a layer
 (see <a href="../architecture/#renderer">Architecture</a>). <code>animate</code> moves the points
@@ -1278,6 +1325,15 @@ file changes. The package installs examples in <code>/usr/share/chora/shaders/</
 that does not load, that is larger than 32 MiB or larger than 8192 pixels
 on a side rejects the transaction. A plugin in a container shares its
 asset directory with the core, as it shares the socket directory.</p>
+<p>A client that shares no directory with the core, for example an agent in
+another container, hands its files to the core with <code>assets.put</code> (#6). The
+core stores them in <code>$XDG_RUNTIME_DIR/chora/</code> and answers with the absolute
+path for <code>image</code>, <code>shader</code> and effects. A file has at most 512 KiB, a
+client at most 64 files, all clients together at most 64 MiB. A second put
+of a name replaces the file, and the nodes that use it load it again. The
+files of a client go with its nodes: at the last disconnect without
+<code>keep_nodes</code>, otherwise when chora exits. <code>choractl asset put NAME FILE</code>
+prints the path.</p>
 <h2 id="commands">Commands<a class="headerlink" href="#commands" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1325,11 +1381,12 @@ asset directory with the core, as it shares the socket directory.</p>
 </tr>
 <tr>
 <td><code>camera</code></td>
-<td>set the camera of an output, or restore its default camera without a transform</td>
+<td>set the camera of an output, or restore its default camera without a transform; with a <code>duration</code>, move it there</td>
 </tr>
 </tbody>
 </table>
 <p><code>animate</code> lets plugins and agents animate without code in every frame:</p>
+<!-- parses: command -->
 <div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"animate"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"frame"</span><span class="p">,</span><span class="w"> </span><span class="nt">"props"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"opacity"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">"visible"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">},</span>
 <span class="w">             </span><span class="nt">"duration"</span><span class="p">:</span><span class="w"> </span><span class="mi">300</span><span class="p">,</span><span class="w"> </span><span class="nt">"easing"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ease_out"</span><span class="p">}}</span>
 </code></pre></div>
@@ -1339,6 +1396,13 @@ targets along the curve: <code>linear</code> (the default), <code>ease_in</code>
 fades the node out and then hides it. The duration is in milliseconds, at
 most one minute. A later <code>animate</code> or <code>update</code> of the node ends the
 animation where it is. The end sends <code>animation.done</code>.</p>
+<p>A camera moves the same way, with <code>duration</code> and <code>easing</code> (#10). It starts
+where the camera is now, also in the middle of another move, and the end
+sends <code>animation.done</code> with the output and then <code>output.changed</code>:</p>
+<!-- parses: command -->
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"camera"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DP-1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"transform"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"scale"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"translate"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">-640</span><span class="p">,</span><span class="w"> </span><span class="mi">-400</span><span class="p">]},</span>
+<span class="w">            </span><span class="nt">"duration"</span><span class="p">:</span><span class="w"> </span><span class="mi">500</span><span class="p">,</span><span class="w"> </span><span class="nt">"easing"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ease_in_out"</span><span class="p">}}</span>
+</code></pre></div>
 <h2 id="selectors">Selectors<a class="headerlink" href="#selectors" title="Permanent link">&para;</a></h2>
 <p>A selector finds nodes: <code>id:work</code>, <code>kind:surface</code>, <code>owner:tiling</code>,
 <code>app_id:firefox</code>, <code>title:"make test"</code> (exact), <code>title~:Inbox</code> (contains),
@@ -1389,7 +1453,7 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>animation.done</code></td>
-<td>the node whose animation reached its targets</td>
+<td>the <code>node</code> whose animation reached its targets, or the <code>output</code> whose camera did</td>
 </tr>
 <tr>
 <td><code>effect.failed</code></td>
@@ -1397,11 +1461,11 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>effects.dropped</code></td>
-<td>the watchdog removed the effects of all nodes, because frames were slow for two seconds</td>
+<td>the watchdog removed the effects, the meshes and the shaders of shader nodes of all nodes, because frames were slow for two seconds</td>
 </tr>
 <tr>
 <td><code>output.changed</code></td>
-<td>output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels</td>
+<td>output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves</td>
 </tr>
 <tr>
 <td><code>output.removed</code></td>
@@ -1467,11 +1531,15 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </tr>
 <tr>
 <td><code>grants.set(client, capabilities)</code>, <code>grants.revoke(client, capabilities)</code>, <code>grants.list</code></td>
-<td>grant or revoke <code>input.inject</code> and <code>screen.capture</code> for a client name; <code>choractl grant</code> and <code>choractl revoke</code> call them</td>
+<td>grant or revoke <code>input.inject</code>, <code>screen.capture</code> and <code>process.spawn</code> for a client name; <code>choractl grant</code> and <code>choractl revoke</code> call them</td>
 </tr>
 <tr>
 <td><code>output.list</code></td>
 <td>list the outputs and their cameras</td>
+</tr>
+<tr>
+<td><code>output.reserve(output, edges)</code></td>
+<td>leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; <code>edges</code> has <code>top</code>, <code>right</code>, <code>bottom</code> and <code>left</code> in logical pixels, and no space removes the reserve; returns the output</td>
 </tr>
 <tr>
 <td><code>clients.list</code></td>
@@ -1489,12 +1557,33 @@ client sends <code>hello</code> first. The core answers every request.</p>
 <td><code>methods.return(call, result, error)</code></td>
 <td>answer a <code>method.called</code> event</td>
 </tr>
+<tr>
+<td><code>process.spawn(argv)</code></td>
+<td>start a program with the environment of the core; needs the grant <code>process.spawn</code></td>
+</tr>
+<tr>
+<td><code>plugins.restart(name)</code></td>
+<td>stop the process of a client name and start its command again; needs the grant <code>process.spawn</code></td>
+</tr>
+<tr>
+<td><code>assets.put(name, data)</code></td>
+<td>store a file in base64 for image nodes, shader nodes and effects; returns its <code>path</code></td>
+</tr>
+<tr>
+<td><code>assets.remove(name)</code></td>
+<td>remove a file of <code>assets.put</code></td>
+</tr>
 </tbody>
 </table>
 <p>A connection sends <code>hello</code> once, within 5 s. Connections with the same name share their
 nodes, so they must agree on <code>keep_nodes</code>. The core refuses a <code>hello</code> with a
 different value. For example, <code>choractl --name tiling</code> fails while the tiling
 plugin runs.</p>
+<p>A reserve of <code>output.reserve</code> belongs to a connection and ends with it,
+also when its client crashes (#8). The reserves of all connections on an
+output add up, and count from the edges of the area that the exclusive
+zones of layer surfaces leave free. At least one pixel of the work area
+stays. <code>choractl reserve --top 30</code> holds a reserve until it ends.</p>
 <p>A key binding needs Ctrl, Alt or Super, so that typing still works. The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
 belong to no client. A binding has one owner at a time.</p>
@@ -1505,8 +1594,9 @@ configuration of its own. After a new mode, position, transform or scale,
 the core sends <code>output.changed</code>. For an output that turns off, it sends
 <code>output.removed</code>, and <code>output.list</code> no longer lists the output.</p>
 <h2 id="grants">Grants<a class="headerlink" href="#grants" title="Permanent link">&para;</a></h2>
-<p><code>input.inject</code> and <code>screen.capture</code> see or drive the whole session, so they
-need a grant of the user for the client name (D40):</p>
+<p><code>input.inject</code> and <code>screen.capture</code> see or drive the whole session, and
+<code>process.spawn</code> runs any program as the user, so they need a grant of the
+user for the client name (D40, D42):</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>screen.capture<span class="w"> </span>input.inject
 <span class="gp">$ </span>choractl<span class="w"> </span>grants
 <span class="go">{"agent": ["input.inject", "screen.capture"]}</span>
@@ -1516,6 +1606,26 @@ need a grant of the user for the client name (D40):</p>
 emergency reset revokes all grants. A grant protects against mistakes of
 agents, not against hostile code of the same user, which can call
 <code>grants.set</code> itself. <code>choractl mcp</code> offers no tool for grants.</p>
+<h2 id="programs">Programs<a class="headerlink" href="#programs" title="Permanent link">&para;</a></h2>
+<p><code>process.spawn(argv)</code> starts a program with the environment of the core,
+as the startup command (D30): <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> of this
+compositor, without the variables of a host session, and with no stdin.
+The core looks the program up in its own <code>PATH</code>, so it works for an agent
+in another namespace too. The answer has the <code>pid</code> and the <code>argv</code>.</p>
+<p><code>plugins.restart(name)</code> restarts a plugin, for example after a rebuild
+(#9). The core finds the process of the connections of the client name,
+reads its command line and working directory from <code>/proc</code>, and sends it
+SIGTERM. Once it exited, or 5 s after a SIGKILL, the core starts the same
+command again and answers with the new <code>pid</code>. A name with several
+processes, or a process in a namespace that the core cannot see, fails.</p>
+<p>Both methods need the grant <code>process.spawn</code>, and fail while the session is
+locked:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>process.spawn
+<span class="gp">$ </span>choractl<span class="w"> </span>--name<span class="w"> </span>agent<span class="w"> </span>spawn<span class="w"> </span>foot
+<span class="gp">$ </span>choractl<span class="w"> </span>--name<span class="w"> </span>agent<span class="w"> </span>restart<span class="w"> </span>tiling
+</code></pre></div>
+<p>A later version may narrow the grant with a list of allowed programs, which
+<code>choractl grant</code> reads from a file (D42).</p>
 <h2 id="screen-capture">Screen capture<a class="headerlink" href="#screen-capture" title="Permanent link">&para;</a></h2>
 <p><code>screen.capture</code> renders an output, or a node with its descendants, and
 answers with a PNG file in base64:</p>
@@ -1548,7 +1658,9 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
 <ul>
 <li>An output shows as on screen, without the cursor.</li>
 <li>A node shows without its own transform, opacity, mesh and effects, on a
-  transparent background. Its area covers the descendants with a size.</li>
+  transparent background, but with its rounded corners, border, clip and
+  the shader of a shader node. Its area covers the descendants with a
+  size.</li>
 <li>A picture has at most 16 Mi pixels and 8192 pixels a side; a larger one
   shrinks. <code>max_side</code> must be at least 1.</li>
 <li>A capture fails while the session is locked, and when the PNG file is
@@ -1558,6 +1670,7 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
 <code>choractl --name agent capture --node s1 window.png</code>.</p>
 <h2 id="input-injection">Input injection<a class="headerlink" href="#input-injection" title="Permanent link">&para;</a></h2>
 <p><code>input.inject</code> sends a list of events as one request:</p>
+<!-- parses: inject -->
 <div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"events"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">  </span><span class="p">{</span><span class="nt">"pointer_move"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"position"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">640</span><span class="p">,</span><span class="w"> </span><span class="mi">400</span><span class="p">],</span><span class="w"> </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DP-1"</span><span class="p">}},</span>
 <span class="w">  </span><span class="p">{</span><span class="nt">"click"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"button"</span><span class="p">:</span><span class="w"> </span><span class="mi">272</span><span class="p">}},</span>
@@ -1662,6 +1775,7 @@ caller. The <code>Client</code> of <code>chora-scene</code> answers with <code>C
 </table>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
 <p>A plugin is a client with a manifest:</p>
+<!-- parses: manifest -->
 <div class="highlight"><pre><span></span><code><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
 <span class="nt">exec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora-tiling</span>
 <span class="nt">configure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">set_layout</span>
@@ -1717,12 +1831,45 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 <td><code>load_view</code>, <code>save_view</code>, <code>unload_view</code></td>
 <td>the views of <a href="../configuration/#views">Configuration</a>, by name only</td>
 </tr>
+<tr>
+<td><code>spawn_process</code>, <code>restart_plugin</code></td>
+<td>start a program, or restart a plugin, as <code>process.spawn</code> and <code>plugins.restart</code></td>
+</tr>
+<tr>
+<td><code>reserve_space</code></td>
+<td>space at the edges of an output, as <code>output.reserve</code>, while the server runs</td>
+</tr>
+<tr>
+<td><code>put_asset</code></td>
+<td>a file for image nodes, shader nodes and effects, as <code>assets.put</code>: <code>name</code>, and <code>text</code> for a shader or <code>base64</code> for a PNG; returns the path</td>
+</tr>
+<tr>
+<td><code>subscribe_events</code></td>
+<td>start to collect events, and grab keys (#7); <code>events</code> and <code>keys</code> as in <code>events.subscribe</code> and <code>input.grab</code>; replaces the earlier subscription</td>
+</tr>
+<tr>
+<td><code>wait_events</code></td>
+<td>the collected events: waits up to <code>timeout_ms</code> (5000 by default, at most 30000) for the first one, and returns at most <code>max</code> (50 by default, at most 500)</td>
+</tr>
 </tbody>
 </table>
-<p>The screenshot of <code>describe_screen</code>, <code>capture</code> and <code>inject_input</code> need the
-grants of the client name, for example
-<code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
+<p>The input schemas of <code>apply_commands</code> and <code>inject_input</code> come from the
+types of <code>chora-scene</code> (#5). They list every command, every input event and
+every field, with its description, so the model sees the shape of a call
+before the first try. A test checks that the schemas, the types and the
+examples of this page agree.</p>
+<p>The screenshot of <code>describe_screen</code>, <code>capture</code>, <code>inject_input</code>,
+<code>spawn_process</code> and <code>restart_plugin</code> need the grants of the client name,
+for example <code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
 still describes the scene. No tool grants anything (D40).</p>
+<p>A subscription has a connection of its own under the same client name. A
+thread reads its events into a buffer of 1000 events, so the core never
+waits for the agent. When the buffer is full, the oldest events go, and
+<code>wait_events</code> counts them in <code>dropped</code>. The grabs of the keys end with
+the subscription.</p>
+<p>A tool that fails, also on invalid arguments, answers with <code>isError</code> and
+the reason, so that the model can correct its call. An unknown tool is a
+JSON-RPC error.</p>
 
 
 
