@@ -244,30 +244,50 @@ class Donut:
         return [W / 2 + f * xc / zc, H / 2 - f * yc / zc]
 
     def arc(self, pose):
-        """The visible arc: around the point of the inner wall that the eye
-        looks at, as wide as it stays in front of the eye and faces it."""
+        """The visible arc: the longest run of the ring, in steps of 2
+        degrees, that lies in front of the eye and turns its inner side to
+        it. None when no part of the ring is in view."""
         cx, cz = self.center
-        x, z, yaw = pose[0], pose[1], pose[2]
+        x, z = pose[0], pose[1]
         inside = math.dist((x, z), self.center) < self.radius
-        if inside:
-            mid = yaw
-        else:
-            # The far side of the ring faces an eye outside it.
-            mid = math.atan2(x - cx, z - cz) + math.pi
         top, bottom = self.walk.eye + self.ph, self.walk.eye - self.ph
+        step = math.radians(2)
+        n = round(2 * math.pi / step)
 
         def fine(theta):
             wx, wz = cx + self.radius * math.sin(theta), cz + self.radius * math.cos(theta)
-            facing = (cx - wx) * (x - wx) + (cz - wz) * (z - wz) > 0 or inside
+            facing = inside or (cx - wx) * (x - wx) + (cz - wz) * (z - wz) > 0
             return facing and all(self.point(theta, y, pose) for y in (top, bottom))
 
-        half = math.radians(100)
-        while half > math.radians(10) and not all(fine(mid + t * half) for t in (-1, -0.5, 0, 0.5, 1)):
-            half -= math.radians(5)
-        return mid - half, mid + half
+        ok = [fine(i * step) for i in range(n)]
+        if all(ok):  # the whole ring: show the half around the view
+            return pose[2] - math.radians(100), pose[2] + math.radians(100)
+        if not any(ok):
+            return None
+        # Start after a gap, so a run across 0 degrees stays in one piece.
+        first = ok.index(False)
+        best, run = (0, 0), None
+        for k in range(1, n + 1):
+            i = (first + k) % n
+            if ok[i]:
+                run = run or (first + k, first + k)
+                run = (run[0], first + k)
+                if run[1] - run[0] > best[1] - best[0]:
+                    best = run
+            else:
+                run = None
+        a, b = best[0] * step, best[1] * step
+        # Never more than 200 degrees: the strip window is at most half of it.
+        if b - a > math.radians(200):
+            mid = (a + b) / 2
+            a, b = mid - math.radians(100), mid + math.radians(100)
+        return a, b
 
     def updates(self, pose):
-        a, b = self.arc(pose)
+        arc = self.arc(pose)
+        if arc is None or arc[1] - arc[0] < math.radians(3):
+            return [{"update": {"id": i, "props": {"visible": False}}} for i in ("walk-donut", "walk-glass")]
+        a, b = arc
         spin = SPIN * (time.monotonic() - self.start)
         # Where the arc starts on the strip; the strip turns with the spin.
         x0 = ((a - spin) / (2 * math.pi) * self.length) % self.length
@@ -281,6 +301,7 @@ class Donut:
             for j in range(COLS + 1):
                 pt = self.point(a + (b - a) * j / COLS, y, pose)
                 points.append(pt or [0, 0])
+        cmds += [{"update": {"id": i, "props": {"visible": True}}} for i in ("walk-donut", "walk-glass")]
         cmds.append({"update": {"id": "walk-donut", "props": {
             "size": [width, 2 * self.phs], "mesh": {"cols": COLS, "rows": MROWS, "points": points}}}})
         cmds.append({"update": {"id": "walk-mask-band", "props": {

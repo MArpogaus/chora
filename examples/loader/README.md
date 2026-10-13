@@ -74,10 +74,26 @@ Frictions and bugs found (issues #11 to #23):
 - Nested: stuck keys (#11, fixed), the keymap of the host (#12), the
   camera moves the windows of the tiling plugin (#13, fixed).
 
+Later in the session:
+
+- Captures hid the worst bugs: they render outside the frame loop, so a
+  layer that stays out of the budget on screen still shows in them. The
+  user saw the terminal through the walk, black panes and jumps; the
+  agent saw clean pictures (#24).
+- A mesh hides as a whole when one point is behind the eye (#25), so the
+  donut shows only the arc that lies fully in front.
+- Meshes map textures affinely: coarse grids ripple (#26). Without
+  mipmaps, small text shimmers at a distance.
+- GNOME Shell 51 runs nested in chora with `gnome-shell --devkit` in an
+  Arch distrobox. It needs `mutter-devkit`, a full `pacman -Syu` (partial
+  upgrades break the schemas and libraries), and
+  `DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/host/run/dbus/system_bus_socket`.
+  With the system bus of the host, it tries to mount the volumes of the
+  host.
+
 Open for the next session:
 
-- Keyboard focus in the walk (needs a method of the tiling plugin or a
-  core rule).
-- A GNOME session (`gnome-shell --devkit`) on the `VOID` panel.
+- Keyboard focus in the walk (#27).
+- The GNOME window on the `VOID` panel instead of in the tiling.
 - Mipmaps or smaller panel textures against shimmer at a distance.
 - Move the code into a plugin with a manifest, and use views.
