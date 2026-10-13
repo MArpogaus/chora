@@ -176,7 +176,24 @@ flavor starts, and one Quadlet service connects to the IPC socket.
 
 **Goal:** the agentic workday scenario works end to end.
 
-- Speech services: whisper.cpp or faster-whisper, piper.
+- A local voice pipeline on AMD Strix Halo, for example the HP ZBook Ultra
+  G1a with 128 GB. [Gufo](https://github.com/gufo-org/gufo) serves the
+  models over an OpenAI-compatible API, one model per process, and runs as
+  Quadlet units (D12):
+  - Qwen3-ASR 1.7B for speech to text, streamed over a WebSocket.
+  - Qwen3-TTS 1.7B for text to speech, streamed as PCM. German is still
+    to check.
+  - Qwen3.8 Flash-Next as the main model, for tasks that need reasoning.
+  - A small model, for example a Qwen with 1.7B to 4B parameters, in
+    llama.cpp with Vulkan. It routes each turn, answers short commands
+    with the tools of `choractl mcp` itself, and gives a first answer
+    while the main model works. With Vulkan it takes none of the four
+    HIP processes that a GPU allows.
+- A voice agent on the CPU: voice activity detection, turns, sentence
+  chunks for the TTS, and barge-in, which stops the audio and cancels the
+  model request. Pipecat for a first prototype; a Rust service later, if
+  the prototype holds. The goal is about one second from the end of the
+  speech to the first audio.
 - A browser in app mode as service for HTML content (D38).
 - A morning view and task views.
 - Task and email sources are MCP servers of the agent, outside chora.
