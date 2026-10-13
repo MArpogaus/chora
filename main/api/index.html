@@ -1201,6 +1201,15 @@ travel in <strong>transactions</strong> (see <a href="../architecture/#transacti
 <p><code>create</code> and <code>update</code> take the node properties in <code>props</code>. Unknown fields
 are errors, so a typo never passes silently.</p>
 <h2 id="nodes">Nodes<a class="headerlink" href="#nodes" title="Permanent link">&para;</a></h2>
+<p>The nodes form a tree under <code>root</code>, which the cameras show. Each output
+has a second root, <code>screen:NAME</code>, for example <code>screen:DP-1</code> (D43). Its
+nodes stay fixed to the screen: they sit in the logical coordinates of the
+output, without its camera, above the scene and below the top and overlay
+layers of layer shell. A HUD or a progress bar goes there, also during an
+animated camera move. The nodes under <code>screen:NAME</code> work as all others,
+with input, effects and ownership. The overlay root stays when its output
+goes, with its nodes, for the return of the output; the emergency reset
+empties it.</p>
 <p>This table is the one list of node properties.</p>
 <table>
 <thead>
@@ -1259,7 +1268,7 @@ are errors, so a typo never passes silently.</p>
 <tr>
 <td><code>mesh</code></td>
 <td>group, rect, image</td>
-<td><code>cols</code> and <code>rows</code> from 1 to 64, and <code>points</code>: the place of each grid point in node coordinates, row by row from the top left; the node becomes a layer that shows through the grid; <code>points: []</code> removes the mesh</td>
+<td><code>cols</code> and <code>rows</code> from 1 to 64, and <code>points</code>: the place of each grid point in node coordinates, row by row from the top left; optional <code>depth</code>: the z of each point, which the transform of the node projects; the node becomes a layer that shows through the grid; <code>points: []</code> removes the mesh</td>
 </tr>
 <tr>
 <td><code>color</code></td>
@@ -1313,6 +1322,10 @@ that read each other do not recurse.</p>
 translation and scale, for example a rotation or a perspective, is a layer
 (see <a href="../architecture/#renderer">Architecture</a>). <code>animate</code> moves the points
 of a mesh of the same grid, for example for a magic lamp minimize.</p>
+<p>With <code>depth</code>, a grid bends into 3D, for example a strip on a ring around
+the viewer, and a perspective transform projects it. The texture maps
+perspective-correct (#26). A triangle with a point behind the viewer does
+not show; the rest of the mesh does (#25).</p>
 <p>An effect is a GLSL ES fragment shader with absolute path. It reads the
 layer in <code>uniform sampler2D tex</code> at <code>varying vec2 v_uv</code>, and may use
 <code>uniform float alpha</code>, <code>uniform vec2 size</code> (the texture size in pixels),
@@ -1443,7 +1456,7 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>input.key</code></td>
-<td>the grabbed binding</td>
+<td>the grabbed <code>binding</code> and its <code>state</code>: <code>pressed</code> when its key goes down, <code>released</code> when it goes up</td>
 </tr>
 <tr>
 <td><code>pointer.entered</code>, <code>pointer.left</code></td>
@@ -1451,7 +1464,7 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>pointer.pressed</code></td>
-<td>a button went down over a node that takes input: node, Linux button code, position in scene coordinates</td>
+<td>a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under <code>screen:NAME</code></td>
 </tr>
 <tr>
 <td><code>pointer.moved</code>, <code>pointer.released</code></td>
@@ -1532,6 +1545,10 @@ client sends <code>hello</code> first. The core answers every request.</p>
 <td>get the events of a key, a button or a gesture; returns the binding as <code>input.key</code> names it</td>
 </tr>
 <tr>
+<td><code>input.ungrab(binding)</code></td>
+<td>end a grab of this connection; a grab also ends with its connection</td>
+</tr>
+<tr>
 <td><code>input.inject(events)</code></td>
 <td>send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant</td>
 </tr>
@@ -1552,6 +1569,10 @@ client sends <code>hello</code> first. The core answers every request.</p>
 <td>leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; <code>edges</code> has <code>top</code>, <code>right</code>, <code>bottom</code> and <code>left</code> in logical pixels, and no space removes the reserve; returns the output</td>
 </tr>
 <tr>
+<td><code>output.configure(output, scale, transform)</code></td>
+<td>set the scale or the transform of an output, the first one without <code>output</code>; <code>transform</code> is <code>normal</code>, <code>90</code>, <code>180</code>, <code>270</code>, <code>flipped</code>, <code>flipped-90</code>, <code>flipped-180</code> or <code>flipped-270</code>; returns the output</td>
+</tr>
+<tr>
 <td><code>clients.list</code></td>
 <td>list the connected client names and the methods that each exported</td>
 </tr>
@@ -1568,8 +1589,12 @@ client sends <code>hello</code> first. The core answers every request.</p>
 <td>answer a <code>method.called</code> event</td>
 </tr>
 <tr>
-<td><code>process.spawn(argv)</code></td>
-<td>start a program with the environment of the core; needs the grant <code>process.spawn</code></td>
+<td><code>process.spawn(argv, capture)</code></td>
+<td>start a program with the environment of the core; with <code>capture</code>, the core keeps its output for <code>process.wait</code>; needs the grant <code>process.spawn</code></td>
+</tr>
+<tr>
+<td><code>process.wait(pid, timeout_ms)</code></td>
+<td>wait up to <code>timeout_ms</code> (at most 30000) for a program of <code>process.spawn</code> with <code>capture</code>, and return its output so far; needs the grant <code>process.spawn</code></td>
 </tr>
 <tr>
 <td><code>plugins.restart(name)</code></td>
@@ -1603,8 +1628,9 @@ bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
 belong to no client. A binding has one owner at a time.</p>
 <p>The core implements <code>wlr-output-management</code>, so kanshi and wlr-randr
 configure the outputs (see
-<a href="../architecture/#output-configuration">Architecture</a>). The API has no output
-configuration of its own. After a new mode, position, transform or scale,
+<a href="../architecture/#output-configuration">Architecture</a>). <code>output.configure</code>
+sets the scale and the transform on the same path (D44), for an agent
+without wlr-randr. After a new mode, position, transform or scale,
 the core sends <code>output.changed</code>. For an output that turns off, it sends
 <code>output.removed</code>, and <code>output.list</code> no longer lists the output.</p>
 <h2 id="grants">Grants<a class="headerlink" href="#grants" title="Permanent link">&para;</a></h2>
@@ -1632,10 +1658,24 @@ reads its command line and working directory from <code>/proc</code>, and sends 
 SIGTERM. Once it exited, or 5 s after a SIGKILL, the core starts the same
 command again and answers with the new <code>pid</code>. A name with several
 processes, or a process in a namespace that the core cannot see, fails.</p>
+<p>With <code>capture: true</code>, <code>process.spawn</code> keeps stdout and stderr of the
+program, up to 64 KiB each, for the client that started it (#22).
+<code>process.wait(pid, timeout_ms)</code> waits until the program ends or the time
+is up, and answers with <code>pid</code>, <code>running</code>, <code>stdout</code>, <code>stderr</code>, <code>truncated</code>
+for output that went beyond 64 KiB, and, once the program ended, <code>status</code>:
+its exit code, or 128 and the signal. 100 ms after the end of the
+program, the core closes its pipes, also when a child in the background
+still holds them. The first
+answer after the end is the last one; then the core forgets the program.
+At most 32 programs of a client wait for <code>process.wait</code>. Their output goes when the last connection of the
+client name closes, so <code>choractl spawn --capture</code> waits on its own
+connection.</p>
 <p>Both methods need the grant <code>process.spawn</code>, and fail while the session is
 locked:</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>process.spawn
 <span class="gp">$ </span>choractl<span class="w"> </span>--name<span class="w"> </span>agent<span class="w"> </span>spawn<span class="w"> </span>foot
+<span class="gp">$ </span>choractl<span class="w"> </span>--name<span class="w"> </span>agent<span class="w"> </span>spawn<span class="w"> </span>--capture<span class="w"> </span>--<span class="w"> </span>uname<span class="w"> </span>-s
+<span class="go">{"pid": 4242, "running": false, "status": 0, "stdout": "Linux\n", "stderr": "", "truncated": false}</span>
 <span class="gp">$ </span>choractl<span class="w"> </span>--name<span class="w"> </span>agent<span class="w"> </span>restart<span class="w"> </span>tiling
 </code></pre></div>
 <p>A later version may narrow the grant with a list of allowed programs, which
@@ -1850,11 +1890,19 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tr>
 <tr>
 <td><code>spawn_process</code>, <code>restart_plugin</code></td>
-<td>start a program, or restart a plugin, as <code>process.spawn</code> and <code>plugins.restart</code></td>
+<td>start a program, or restart a plugin, as <code>process.spawn</code> and <code>plugins.restart</code>; <code>spawn_process</code> with <code>capture</code> keeps the output</td>
+</tr>
+<tr>
+<td><code>wait_process</code></td>
+<td>the output of a program of <code>spawn_process</code> with <code>capture</code>, as <code>process.wait</code></td>
 </tr>
 <tr>
 <td><code>reserve_space</code></td>
 <td>space at the edges of an output, as <code>output.reserve</code>, while the server runs</td>
+</tr>
+<tr>
+<td><code>configure_output</code></td>
+<td>the scale or the transform of an output, as <code>output.configure</code></td>
 </tr>
 <tr>
 <td><code>put_asset</code></td>

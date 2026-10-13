@@ -1044,6 +1044,17 @@
   part of M3 (D39).</li>
 <li>An infinite zoomable canvas through cameras.</li>
 <li>Surfaces as 3D objects.</li>
+<li>Complex 3D scenes, with models, depth and ray tracing, belong in clients,
+  not in the core. A client renders them with Vulkan, for example with
+  Bevy or Godot, and chora shows its surface as a node, without a copy
+  through dmabuf. The client gets plain keys with press, release and
+  repeat, and relative pointer motion for a mouse look, as every Wayland
+  client does. Through IPC or MCP it still moves cameras and panels. The
+  scene of the core stays 2.5D: planes in perspective, meshes and fragment
+  shaders on GLES, without depth test. A 3D node in the core would make it
+  an engine and break its freedom of policy. On the Radeon 8060S of Strix
+  Halo, raster with ray-traced shadows and reflections at 1080p to 1440p
+  is realistic, full path tracing in real time is not.</li>
 <li>Pixel-perfect copies of existing desktops as flavors, for example KDE
   Plasma. The XP showroom of M3 is the first (D39). They prove the
   flexibility. They are not a goal.</li>
