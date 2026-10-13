@@ -1,3 +1,41 @@
+## v0.5.2 (2026-10-13)
+
+Fixes from the first intensive test round on real hardware. Nested, chora
+releases the keys that are down when its window loses the focus, and no
+longer floods the log with `BAD_SURFACE` in every frame of an animation.
+chora-tiling and chora-xp keep their windows in place when a camera moves
+or zooms, with the new `default_work_area` of an output. A transaction on
+a window that closed in the meantime fails with the new error code 2, which
+plugins ignore. The new event `layers.dropped` and the field `left_out` of a
+capture name the layers that the pixel budget of a frame leaves out of the
+screen. A client that cleared the focus may give it back. The core enables
+`GL_OES_standard_derivatives` for shaders that need it. Releases now start
+by themselves when a new version reaches main. Two review rounds went over
+these changes before the release.
+
+### Known issues
+
+- Nobody has run chora on real hardware for long yet: the 8-hour session
+  and the 60 Hz goal on Intel graphics are untested.
+- foot can die with `wl_shm_pool: offset is too large` at output scale 3
+  (#14); a reproduction is open.
+- Nested, chora uses its own keymap, the US layout by default; set
+  `XKB_DEFAULT_LAYOUT` (#12).
+- A grant protects against mistakes of agents, not against hostile code of
+  the same user (D40). The grant `process.spawn` has no allowlist yet
+  (D42).
+- grim and other `wlr-screencopy` clients turn the picture of a rotated
+  output once more. Screencopy offers shm buffers only, and pictures have
+  no cursor.
+- Layers render again in every frame, and they have no depth test.
+
+### Fix
+
+- findings of the second review round of the test round
+- findings of the review of the test round
+- **xp**: keep the taskbar, the wallpaper and maximized windows in place under a camera
+- findings of the test round after v0.5.1
+
 ## v0.5.1 (2026-10-13)
 
 Each release now has a package for Arch Linux next to the RPM. The fixes
