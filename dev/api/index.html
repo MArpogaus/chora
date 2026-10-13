@@ -1321,6 +1321,11 @@ uniforms. A transaction that names a shader that does not compile fails
 with the log of the compiler. The core compiles a shader again when its
 file changes. The package installs examples in <code>/usr/share/chora/shaders/</code>:
 <code>grayscale.frag</code>, <code>rounded.frag</code> and <code>blur.frag</code> (with <code>radius</code>).</p>
+<p>Two hints for shaders. With <code>precision mediump float</code>, the common hash
+<code>fract(sin(dot(p, …)) * 43758.5)</code> loses its digits and gives garbage;
+noise and hashes need <code>precision highp float</code>. <code>fwidth</code>, <code>dFdx</code> and <code>dFdy</code>
+need <code>GL_OES_standard_derivatives</code>, which the core enables for a shader
+that uses them (#16).</p>
 <p>The core loads the file of an image when a transaction names it. A file
 that does not load, that is larger than 32 MiB or larger than 8192 pixels
 on a side rejects the transaction. A plugin in a container shares its
@@ -1374,7 +1379,7 @@ prints the path.</p>
 </tr>
 <tr>
 <td><code>focus</code></td>
-<td>set the keyboard focus</td>
+<td>set the keyboard focus to an own surface, or clear it without a surface; a client that cleared the focus may give it back once to the surface that had it, also of another client</td>
 </tr>
 <tr>
 <td><code>close</code></td>
@@ -1382,7 +1387,7 @@ prints the path.</p>
 </tr>
 <tr>
 <td><code>camera</code></td>
-<td>set the camera of an output, or restore its default camera without a transform; with a <code>duration</code>, move it there</td>
+<td>set the camera of an output, or restore its default camera without a transform; with a <code>duration</code>, move it there; the first client that sets the camera owns it, and a <code>camera</code> without a transform gives it up</td>
 </tr>
 </tbody>
 </table>
@@ -1461,6 +1466,10 @@ or an empty list. It always sees the current titles.</p>
 <td>the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version</td>
 </tr>
 <tr>
+<td><code>layers.dropped</code></td>
+<td>the layers of these <code>nodes</code> did not fit into the pixel budget of a frame of the <code>output</code> and stay out of it; sent when the list changes, and an empty list means that all show again</td>
+</tr>
+<tr>
 <td><code>effects.dropped</code></td>
 <td>the watchdog removed the effects, the meshes and the shaders of shader nodes of all nodes, because frames were slow for two seconds</td>
 </tr>
@@ -1516,7 +1525,7 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </tr>
 <tr>
 <td><code>events.subscribe(events)</code></td>
-<td>stream the named events, or all events for an empty list, as notifications</td>
+<td>stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name</td>
 </tr>
 <tr>
 <td><code>input.grab(binding)</code></td>
@@ -1664,6 +1673,9 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
   size.</li>
 <li>A picture has at most 16 Mi pixels and 8192 pixels a side; a larger one
   shrinks. <code>max_side</code> must be at least 1.</li>
+<li>A capture renders the scene again. Layers that the pixel budget of the
+  last frame left out of the screen show in the capture; <code>left_out</code> names
+  them (#24), and <code>layers.dropped</code> tells it as it happens.</li>
 <li>A capture fails while the session is locked, and when the PNG file is
   larger than 5 MiB; a smaller <code>max_side</code> helps then.</li>
 </ul>
