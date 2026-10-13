@@ -1,3 +1,41 @@
+## v0.5.3 (2026-10-13)
+
+Milestone M4.2: the API covers what the first test round on real hardware
+missed. `input.ungrab` ends a grab, and `input.key` tells the release of a
+grabbed key. Each output has an overlay root `screen:NAME` for a HUD that
+stays in place when the camera moves. `process.spawn` with `capture` keeps
+the output of a program for `process.wait`, and `choractl spawn --capture`
+prints it. `output.configure` sets the scale and the transform of an
+output. A mesh can bend into 3D with a depth per point, and a point behind
+the eye hides only its triangles. Nested, chora takes the keymap of the
+host session. Three review rounds went over these changes before the
+release.
+
+### Known issues
+
+- Nobody has run chora on real hardware for long yet: the 8-hour session
+  and the 60 Hz goal on Intel graphics are untested.
+- foot can die with `wl_shm_pool: offset is too large` at output scale 3
+  (#14); a reproduction is open.
+- The keymap of the host is untested in CI, whose host has no keyboard.
+- A grant protects against mistakes of agents, not against hostile code of
+  the same user (D40). The grant `process.spawn` has no allowlist yet
+  (D42).
+- grim and other `wlr-screencopy` clients turn the picture of a rotated
+  output once more. Screencopy offers shm buffers only, and pictures have
+  no cursor.
+- Layers render again in every frame, they have no depth test and no
+  mipmaps.
+
+### Feat
+
+- M4.2 test round: grab releases, overlays, process output, mesh depth, host keymap
+
+### Fix
+
+- second review round on M4.2
+- review findings on M4.2
+
 ## v0.5.2 (2026-10-13)
 
 Fixes from the first intensive test round on real hardware. Nested, chora
