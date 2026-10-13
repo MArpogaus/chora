@@ -13,6 +13,11 @@ def mul(a, b):
     return [[sum(a[i][k] * b[k][j] for k in range(4)) for j in range(4)] for i in range(4)]
 
 
+def half(m):
+    """A screen matrix for a child of the half-size world group."""
+    return [v / 2 if i % 4 < 2 else v for i, v in enumerate(m)]
+
+
 def column_major(m):
     return [m[r][c] for c in range(4) for r in range(4)]
 
@@ -84,7 +89,7 @@ class Walk:
         return column_major(mul(proj, mul(view, model)))
 
     def frame(self, pose, conn=None):
-        cmds = [{"update": {"id": q, "props": {"transform": {"matrix": self.matrix(p, flat, pose)}}}}
+        cmds = [{"update": {"id": q, "props": {"transform": {"matrix": half(self.matrix(p, flat, pose))}}}}
                 for q, _, p, flat in self.quads]
         cmds.append({"update": {"id": "walk-floor", "props": {"uniforms": self.floor(pose)}}})
         cmds += self.donut.updates(pose)
@@ -112,12 +117,18 @@ class Walk:
         self.quads = self.screens()
         cmds = [{"remove": {"id": n["id"]}} for n in self.c.call("scene.query", {"selector": "id:walk"})]
         cmds += [{"create": {"id": "walk", "kind": "group", "parent": "root", "props": {}}},
-                 # The world behind the donut: one layer that can blur.
-                 {"create": {"id": "walk-world", "kind": "group", "parent": "walk", "props": {"size": [W, H]}}},
+                 # An opaque backdrop: a rect is no layer, so it never falls out
+                 # of the layer budget, and no window shows through.
+                 {"create": {"id": "walk-bg", "kind": "rect", "parent": "walk", "props": {
+                     "size": [W, H], "color": [0.97, 0.975, 0.98, 1]}}},
+                 # The world behind the donut, at half resolution: the glass
+                 # reads it, and the budget counts size times output scale.
+                 {"create": {"id": "walk-world", "kind": "group", "parent": "walk", "props": {
+                     "size": [W / 2, H / 2], "transform": {"scale": [2, 2]}}}},
                  {"create": {"id": "walk-floor", "kind": "shader", "parent": "walk-world", "props": {
-                     "size": [W, H], "shader": self.put("walkfloor.frag"), "uniforms": self.floor(self.pose)}}}]
+                     "size": [W / 2, H / 2], "shader": self.put("walkfloor.frag"), "uniforms": self.floor(self.pose)}}}]
         for q, spec, p, flat in self.quads:
-            props = dict(spec["props"], transform={"matrix": self.matrix(p, flat, self.pose)})
+            props = dict(spec["props"], transform={"matrix": half(self.matrix(p, flat, self.pose))})
             cmds.append({"create": {"id": q, "kind": spec["kind"], "parent": "walk-world", "props": props}})
         cmds += self.donut.creates(self.pose)
         # On top of the walk: a pane that turns drags into looks.
