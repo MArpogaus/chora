@@ -42,6 +42,9 @@ struct Args {
     /// Print the default configuration and exit.
     #[arg(long)]
     print_config: bool,
+    /// The app id of windows to leave to other clients; repeatable.
+    #[arg(long, value_name = "APP_ID")]
+    ignore: Vec<String>,
 }
 
 /// Parameters of `tiling.set_layout`; a missing field keeps its value.
@@ -69,6 +72,8 @@ struct Tiling {
     wm: Wm,
     /// The configuration file of the command line.
     arg: Option<PathBuf>,
+    /// The app ids of windows to leave to other clients.
+    ignore: Vec<String>,
     /// The grabbed bindings, as the core names them.
     grabs: Vec<(String, Action)>,
     /// What the last transaction set, so that the next one sends changes
@@ -120,6 +125,7 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         client: Client::from_env(&hello)?,
         wm: Wm::new(config),
         arg: args.config,
+        ignore: args.ignore,
         grabs: Vec::new(),
         sent: HashMap::new(),
         order: Vec::new(),
@@ -351,8 +357,16 @@ impl Tiling {
     }
 
     /// Takes a surface without an owner. A surface that another client took
-    /// first stays out of the layout.
+    /// first, or whose app id `--ignore` names, stays out of the layout.
     fn adopt(&mut self, surface: &str) -> Result<(), ClientError> {
+        let ignored = self.query(&format!("id:{surface}"))?.iter().any(|node| {
+            node["surface"]["app_id"]
+                .as_str()
+                .is_some_and(|app| self.ignore.iter().any(|i| i == app))
+        });
+        if ignored {
+            return Ok(());
+        }
         let attach = Command::Attach {
             surface: surface.into(),
             parent: NAME.into(),
