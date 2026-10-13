@@ -1329,7 +1329,8 @@ asset directory with the core, as it shares the socket directory.</p>
 another container, hands its files to the core with <code>assets.put</code> (#6). The
 core stores them in <code>$XDG_RUNTIME_DIR/chora/</code> and answers with the absolute
 path for <code>image</code>, <code>shader</code> and effects. A file has at most 512 KiB, a
-client at most 64 files, all clients together at most 64 MiB. A second put
+client at most 64 files, all clients together at most 64 MiB. A client
+name with assets has at most 120 bytes. A second put
 of a name replaces the file, and the nodes that use it load it again. The
 files of a client go with its nodes: at the last disconnect without
 <code>keep_nodes</code>, otherwise when chora exits. <code>choractl asset put NAME FILE</code>
