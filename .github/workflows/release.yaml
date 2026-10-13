@@ -1,5 +1,6 @@
-# A v* tag builds the RPM in Fedora 44, installs it once as a check, and
-# attaches it with its SHA256 sums to a GitHub release. Versions below 1.0
+# A v* tag builds the RPM in Fedora 44 and the package for Arch Linux,
+# installs each once as a check, and attaches them with their SHA256 sums to
+# a GitHub release. Versions below 1.0
 # are pre-releases. A manual run releases the version in Cargo.toml and
 # creates its tag, for clients that cannot push tags. Only the short last
 # job holds a write token; the build runs the build scripts of all
@@ -50,8 +51,34 @@ jobs:
         name: rpm
         path: target/rpm/
 
+  arch:
+    runs-on: ubuntu-latest
+    container: ghcr.io/archlinux/archlinux:latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    - name: install the build dependencies
+      run: |
+        pacman -Syu --noconfirm --needed base-devel cargo pkgconf libdisplay-info \
+          libdrm libinput libxkbcommon mesa seatd systemd-libs wayland
+    # makepkg refuses to run as root.
+    - run: useradd -m builder && chown -R builder .
+    - run: su builder -c 'dist/build-arch.sh target/arch'
+    - name: install the package once
+      run: |
+        pacman -U --noconfirm target/arch/*.pkg.tar.zst
+        chora --version
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      with:
+        name: arch
+        path: target/arch/
+
   release:
-    needs: rpm
+    needs: [rpm, arch]
     runs-on: ubuntu-latest
     permissions:
       contents: write   # create the release
@@ -60,6 +87,10 @@ jobs:
       with:
         name: rpm
         path: rpm
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c   # v8.0.1
+      with:
+        name: arch
+        path: arch
     - name: create the release
       env:
         GH_TOKEN: ${{ github.token }}
@@ -69,6 +100,7 @@ jobs:
         set -euo pipefail
         prerelease=()
         case "$TAG" in v0.*) prerelease=(--prerelease) ;; esac
-        gh release create "$TAG" rpm/*.rpm rpm/SHA256SUMS \
+        cat rpm/SHA256SUMS arch/SHA256SUMS >SHA256SUMS
+        gh release create "$TAG" rpm/*.rpm arch/*.pkg.tar.zst SHA256SUMS \
           --repo "$GITHUB_REPOSITORY" --title "$TAG" --target "$SHA" \
           --notes "See CHANGELOG.md for this release." "${prerelease[@]}"

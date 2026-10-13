@@ -24,7 +24,7 @@ The decision log. Nothing here is final. Every entry can come back for review.
 | D11 | AMD and Intel GPUs first, NVIDIA later | The hardware of the author. Mesa drivers need no special paths. |
 | D12 | Services run as Quadlet units with Podman or in distrobox | Isolation. systemd handles start, restart and order. |
 | D13 | The coordinator is the user first, later an agent with special permissions | A gradual path to control by agents. |
-| D14 | Releases are RPM packages for Fedora 44, attached with SHA256 sums to a GitHub release; a `v*` tag starts the release; versions below 1.0 are pre-releases | `dnf5 install <url>` installs them by hand and in the image build. |
+| D14 | Releases are RPM packages for Fedora 44 and packages for Arch Linux, attached with SHA256 sums to a GitHub release; a `v*` tag starts the release; versions below 1.0 are pre-releases | `dnf5 install <url>` installs them by hand and in the image build. The Arch package serves Arch containers, for example in distrobox. |
 
 ## Core
 

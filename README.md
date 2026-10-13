@@ -21,12 +21,13 @@ APIs change without notice before version 1.0.
 
 ## Install
 
-Each [release](https://github.com/MArpogaus/void/releases) has an RPM for
-Fedora 44, with SHA256 sums:
+Each [release](https://github.com/MArpogaus/chora/releases) has an RPM for
+Fedora 44 and a package for Arch Linux, with SHA256 sums:
 
 ```bash
-sha256sum -c SHA256SUMS
-sudo dnf install ./chora-*.rpm
+sha256sum -c --ignore-missing SHA256SUMS
+sudo dnf install ./chora-*.rpm          # Fedora
+sudo pacman -U ./chora-*.pkg.tar.zst    # Arch Linux
 ```
 
 ## Try it
