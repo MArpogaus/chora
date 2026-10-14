@@ -9,17 +9,15 @@ use crate::{
     layout::{self, Layout, Params, Rect},
 };
 
-/// The stacking ranks, from the bottom. A fullscreen window covers the
-/// others while it is the top window of its output, and lies below them
-/// otherwise.
+/// The stacking ranks, from the bottom. As in awesome, the top window of an
+/// output, the one with the focus there, covers the others; a fullscreen
+/// window lies below them otherwise; only windows on top cover it.
 const FULLSCREEN: u8 = 0;
 const TILED: u8 = 1;
-/// The top window of the max, fullscreen and magnifier layouts.
-const TILED_TOP: u8 = 2;
-const FLOATING: u8 = 3;
-const FLOATING_TOP: u8 = 4;
+const FLOATING: u8 = 2;
+const TOP: u8 = 3;
+const FULLSCREEN_TOP: u8 = 4;
 const ON_TOP: u8 = 5;
-const FULLSCREEN_TOP: u8 = 6;
 
 /// A tiled or floating window.
 #[derive(Clone, Debug)]
@@ -396,12 +394,8 @@ impl Wm {
         } else {
             i32::from(self.config.gap)
         };
-        let stacks = matches!(
-            tag.layout,
-            Layout::Max | Layout::Fullscreen | Layout::Magnifier
-        );
         let mut placed = Vec::new();
-        for (i, (window, cell)) in tiled.iter().zip(cells).enumerate() {
+        for (window, cell) in tiled.iter().zip(cells) {
             let [x, y, w, h] = layout::inset(cell, gap);
             let states = States {
                 tiled: true,
@@ -410,8 +404,8 @@ impl Wm {
             };
             let rank = if window.on_top {
                 ON_TOP
-            } else if stacks && i == top_at {
-                TILED_TOP
+            } else if Some(&*window.id) == top {
+                TOP
             } else {
                 TILED
             };
@@ -542,7 +536,11 @@ impl Wm {
         let Some(id) = self.focused().map(String::from) else {
             return;
         };
-        let next = &self.outputs[wrap(self.current, 1, self.outputs.len())];
+        let next = wrap(self.current, 1, self.outputs.len());
+        if next == self.current {
+            return;
+        }
+        let next = &self.outputs[next];
         let (name, tags) = (next.name.clone(), nonzero(next.selected));
         let window = self.window_mut(&id).expect("focused");
         (window.output, window.tags) = (name, tags);
@@ -638,7 +636,7 @@ impl Wm {
 fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, Placement) {
     let rank = match (window.on_top, top) {
         (true, _) => ON_TOP,
-        (false, true) => FLOATING_TOP,
+        (false, true) => TOP,
         (false, false) => FLOATING,
     };
     if window.fullscreen {
@@ -648,9 +646,9 @@ fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, P
             activated,
             ..States::default()
         };
-        let rank = match (top, window.on_top) {
-            (true, _) => FULLSCREEN_TOP,
-            (false, true) => ON_TOP,
+        let rank = match (window.on_top, top) {
+            (true, _) => ON_TOP,
+            (false, true) => FULLSCREEN_TOP,
             (false, false) => FULLSCREEN,
         };
         return (rank, placement(window, [x, y], Some([w, h]), states));
@@ -757,10 +755,11 @@ mod tests {
         let wm = wm(&["a", "b"]);
         assert_eq!(wm.shown_windows(), ["b", "a"]);
         assert_eq!(wm.focused(), Some("b"));
-        let placed = wm.arrange();
-        assert_eq!(placed[0].at, Some([0, 0]));
-        assert_eq!(placed[0].size, Some([50, 60]));
-        assert!(placed[0].states.tiled && placed[0].states.activated);
+        // The focused master lies on top.
+        let master = wm.arrange().pop().unwrap();
+        assert_eq!((master.id.as_str(), master.at), ("b", Some([0, 0])));
+        assert_eq!(master.size, Some([50, 60]));
+        assert!(master.states.tiled && master.states.activated);
     }
 
     #[test]
@@ -905,5 +904,33 @@ mod tests {
         wm.act(&Action::FocusUrgent);
         assert_eq!(wm.focused(), Some("b"));
         assert_eq!(wm.shown_windows(), ["b", "a"]);
+    }
+
+    #[test]
+    fn the_focused_window_covers_others_and_on_top_covers_all() {
+        let mut wm = wm(&["a", "b"]);
+        wm.act(&Action::ToggleMaximized);
+        wm.act(&Action::FocusNext);
+        assert_eq!(
+            wm.arrange().pop().unwrap().id,
+            "a",
+            "tiled a covers maximized b"
+        );
+        wm.act(&Action::ToggleOnTop);
+        wm.act(&Action::FocusNext);
+        wm.act(&Action::ToggleFullscreen);
+        assert_eq!(
+            wm.arrange().pop().unwrap().id,
+            "a",
+            "on top covers fullscreen"
+        );
+    }
+
+    #[test]
+    fn one_output_keeps_the_tags_of_a_moved_window() {
+        let mut wm = wm(&["a"]);
+        wm.act(&Action::ToggleWindowTag(2));
+        wm.act(&Action::MoveToNextOutput);
+        assert_eq!(wm.windows[0].tags, 0b11);
     }
 }

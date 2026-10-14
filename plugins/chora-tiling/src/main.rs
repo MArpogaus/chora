@@ -453,13 +453,14 @@ fn changes(sent: Option<&Placement>, placement: &Placement) -> Vec<Command> {
     commands
 }
 
-/// Hides a window that showed, and takes its focus state away.
+/// Hides a window that showed or is new to the core, and takes its focus
+/// state away.
 fn hide(sent: Option<&Placement>, id: &str) -> Vec<Command> {
-    let Some(sent) = sent.filter(|s| s.at.is_some()) else {
+    if sent.is_some_and(|s| s.at.is_none()) {
         return Vec::new();
-    };
+    }
     let mut commands = Vec::new();
-    if sent.states.activated {
+    if let Some(sent) = sent.filter(|s| s.states.activated) {
         let states = States {
             activated: false,
             ..sent.states
@@ -502,5 +503,26 @@ fn spawn(command: &str) {
         .status();
     if let Err(err) = spawned {
         eprintln!("chora-tiling: cannot run {command:?}: {err}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_window_new_to_the_core_hides_too() {
+        let hidden = Placement {
+            id: "s1".into(),
+            at: None,
+            size: None,
+            states: States::default(),
+        };
+        let commands = changes(None, &hidden);
+        assert!(matches!(
+            &commands[..],
+            [Command::Update { props, .. }] if props.visible == Some(false)
+        ));
+        assert_eq!(changes(Some(&hidden), &hidden).len(), 0);
     }
 }

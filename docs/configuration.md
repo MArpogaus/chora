@@ -119,7 +119,7 @@ option:
 | `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
 | `new_window` | `master` or `stack`: where a new window goes |
 | `focus` | `click` or `follow_mouse` |
-| `bindings` | a binding with `MOD`, and its action; the default file uses every action once |
+| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once |
 
 The layouts and the default bindings follow the awesome window manager.
 Each output has its own tags, and each tag its own layout and parameters.

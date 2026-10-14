@@ -1,5 +1,5 @@
 # The configuration of chora-tiling. It lists every option, and the
-# bindings use every action once. `chora-tiling --print-config` prints this
+# bindings use every action at least once. `chora-tiling --print-config` prints this
 # file. Copy it to ~/.config/chora/chora-tiling.yaml and change it there.
 # The bindings follow the default keymap of the awesome window manager.
 
