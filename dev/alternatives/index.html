@@ -1060,8 +1060,8 @@
 
 <h1 id="alternatives">Alternatives<a class="headerlink" href="#alternatives" title="Permanent link">&para;</a></h1>
 <p>Every part of chora gets a check against existing projects. This page records
-the first check from October 2026. An entry with the mark <em>unverified</em> needs
-a second look.</p>
+the check of October 2026. An entry with the mark <em>unverified</em> needs a
+second look.</p>
 <h2 id="compositors">Compositors<a class="headerlink" href="#compositors" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1264,12 +1264,12 @@ a measurement demands it.</p>
 <li>No Smithay compositor renders through wgpu. The Smithay maintainers
   consider wgpu too abstract for a compositor. Smithay has no merged Vulkan
   renderer either.</li>
-<li>Decision: GLES and GLSL (D17).</li>
+<li>Decision: a scene renderer of chora on GLES 3, with GLSL (D17).</li>
 </ul>
 <h2 id="mcp">MCP<a class="headerlink" href="#mcp" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/modelcontextprotocol/rust-sdk">rmcp</a> 3.x supports stdio
 and Streamable HTTP. <code>choractl mcp</code> uses stdio. A container gets the socket
-through a bind mount, so chora needs no network transport for now.</p>
+through a bind mount, so chora needs no network transport.</p>
 <h2 id="widgets-and-shells">Widgets and shells<a class="headerlink" href="#widgets-and-shells" title="Permanent link">&para;</a></h2>
 <p><a href="https://quickshell.org/">Quickshell</a> is the strongest choice: Qt6 and QML,
 declarative, with live reload. waybar is mature. eww and AGS/Astal need a

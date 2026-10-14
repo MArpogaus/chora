@@ -1258,9 +1258,9 @@
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
 <div class="admonition note">
-<p class="admonition-title">Draft</p>
-<p>This page follows the <a href="../decisions/">Decisions</a>. The first implementation
-will refine it.</p>
+<p class="admonition-title">Current state</p>
+<p>This page describes the implementation. The <a href="../roadmap/">Roadmap</a> lists
+the planned changes, and the <a href="../decisions/">Decisions</a> give the reasons.</p>
 </div>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart TB
@@ -1400,9 +1400,11 @@ animates them, and a desktop cube turns layers in 3D. A layer has no depth
 test: the order of the siblings decides what is in front, and a plugin
 hides the faces that turn away. Pointer input reaches the nodes of a layer
 only where its transform is a plain 2D one.</p>
-<p>Damage tracking keeps the GPU load low. Each shader declares if it is static
-or animated, and effects expand the damage area. A fullscreen surface without
-effects goes to direct scanout.</p>
+<p>The core asks each output for a frame once per refresh. It renders only
+when the damage tracker of Smithay reports damage. A layer counts as
+changed in every frame, so a scene with a layer renders in every frame.
+There is no direct scanout. Milestone 0.9 replaces this with a renderer
+of chora that renders only on damage (D17, D24).</p>
 <h3 id="ipc-socket">IPC socket<a class="headerlink" href="#ipc-socket" title="Permanent link">&para;</a></h3>
 <p>JSON-RPC 2.0, one message per line, on a Unix socket in
 <code>$XDG_RUNTIME_DIR/chora/</code>. The socket has the name of the Wayland display,
@@ -1545,7 +1547,9 @@ of the press that opened it.</p>
   starts the emergency reset, which disconnects the plugins.</li>
 </ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
-<p>Version 1 trusts every client of the same user (D33):</p>
+<p>chora trusts every client of the same user. Milestone 0.7 replaces the
+grants with client sockets that fix the name and the capabilities of a
+client (D33, D40):</p>
 <ul>
 <li>Unsandboxed Wayland clients get all protocols, as in sway. So any client
   can, for example, take the keyboard as an input method, or configure the
@@ -1557,7 +1561,7 @@ of the press that opened it.</p>
   with their sources, and the security context manager itself.</li>
 <li>The IPC methods <code>input.inject</code>, <code>screen.capture</code> and <code>process.spawn</code> need
   a <strong>grant</strong> of the user for the client name: <code>choractl grant NAME
-  CAPABILITY</code> (D40, D42). A grant protects against mistakes of agents. It is
+  CAPABILITY</code>. A grant protects against mistakes of agents. It is
   no barrier against hostile code of the same user. The emergency reset
   revokes all grants.</li>
 <li><code>screen.capture</code>, <code>input.inject</code>, <code>process.spawn</code> and <code>plugins.restart</code>
@@ -1573,7 +1577,7 @@ of the press that opened it.</p>
   the system from <code>localectl</code>.</li>
 <li><code>chora@.service</code> runs <code>chora -- chora-flavor &lt;name&gt;</code> as part of
   <code>graphical-session.target</code>. It drops <code>WAYLAND_DISPLAY</code> and <code>DISPLAY</code> that
-  an earlier session left in the user manager, which would make chora run
+  another session left in the user manager, which would make chora run
   nested.</li>
 <li><code>chora-flavor &lt;name&gt;</code> imports <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> into the
   systemd user manager, and <code>DISPLAY</code> when <code>xwayland-satellite</code> is

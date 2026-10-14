@@ -1051,12 +1051,12 @@ renders a small scene of primitives and offers one API. Plugins add all other
 behavior. A plugin can supply a stacking desktop, a tiling workflow, or a view
 that an agent arranges live by voice. Only a small safety layer is built in.</p>
 <h2 id="status">Status<a class="headerlink" href="#status" title="Permanent link">&para;</a></h2>
-<p>Early development. chora runs nested inside another Wayland session, and a
-reference plugin tiles the windows. A login session on real hardware exists,
-but nobody tested it on hardware yet. An agent sees and changes the screen
-through <code>choractl mcp</code>, after a grant of the user. The
-<a href="https://marpogaus.github.io/chora/roadmap/">roadmap</a> shows the next steps.
-APIs change without notice before version 1.0.</p>
+<p>Pre-release. chora runs nested inside another Wayland session and as a
+login session, and a reference plugin tiles the windows. An agent sees and
+changes the screen through <code>choractl mcp</code>, after a grant of the user.
+chora is no daily driver yet. The
+<a href="https://marpogaus.github.io/chora/roadmap/">roadmap</a> leads to 1.0: a daily
+driver with a stable API. The API changes without notice before 1.0.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <p>Each <a href="https://github.com/MArpogaus/chora/releases">release</a> has an RPM for
 Fedora 44 and a package for Arch Linux, with SHA256 sums:</p>
@@ -1121,7 +1121,7 @@ start menu.</p>
 <p>To log in to chora on real hardware, choose the session "chora" on the
 login screen. It starts the tiling flavor with waybar and X11 support
 through xwayland-satellite. The session "chora (Windows XP)" starts the XP
-flavor. The hardware session is not tested yet.</p>
+flavor.</p>
 <p>Programs inside chora find its IPC socket in <code>CHORA_SOCKET</code>. For example, a
 terminal in chora shows the scene with <code>choractl query</code>, and
 <code>choractl events</code> prints the events.</p>

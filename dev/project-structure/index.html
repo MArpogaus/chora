@@ -939,7 +939,8 @@
 <h1 id="project-structure">Project structure<a class="headerlink" href="#project-structure" title="Permanent link">&para;</a></h1>
 <p>The layout of this repository: one Cargo workspace with as few crates as
 possible. A module moves into its own crate only when a second consumer
-needs it.</p>
+needs it. Milestone 0.6 moves the plugins into repositories of their own
+(D36).</p>
 <div class="highlight"><pre><span></span><code>chora/
 ├── crates/
 │   ├── chora-scene/   # scene model, commands, events, selectors, IPC types and client; no Smithay
@@ -961,8 +962,8 @@ needs it.</p>
 <li><strong><code>chora-scene</code> has no Smithay dependency.</strong> Tests of the data model and
   the transaction logic need no GPU and no compositor. The core, <code>choractl</code>
   and plugins share this one definition of the API.</li>
-<li><strong>Reference plugins live in this repository</strong> first, as workspace members.
-  They keep the API honest. They can move out when the API is stable.</li>
+<li><strong>Reference plugins are workspace members</strong> until milestone 0.6. They keep
+  the API honest.</li>
 <li><strong>The build generates the schemas</strong> from the Rust types. The repository
   does not contain them. Docs, validation and agents then see the same
   contract.</li>

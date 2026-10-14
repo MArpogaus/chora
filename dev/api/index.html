@@ -1180,10 +1180,10 @@
 
 <h1 id="api">API<a class="headerlink" href="#api" title="Permanent link">&para;</a></h1>
 <div class="admonition note">
-<p class="admonition-title">Draft</p>
-<p>A first sketch of the one API of chora. Names and shapes will change. The
-principle stays: plugins, <code>choractl</code> and agents use one language of
-commands and events.</p>
+<p class="admonition-title">Before 1.0</p>
+<p>The API changes without notice before 1.0 (D3). The
+<a href="../roadmap/">Roadmap</a> lists the planned changes. Plugins, <code>choractl</code> and
+agents use one language of commands and events.</p>
 </div>
 <h2 id="model">Model<a class="headerlink" href="#model" title="Permanent link">&para;</a></h2>
 <p>A <strong>command</strong> changes the scene. An <strong>event</strong> reports a change. Commands
@@ -1324,8 +1324,8 @@ translation and scale, for example a rotation or a perspective, is a layer
 of a mesh of the same grid, for example for a magic lamp minimize.</p>
 <p>With <code>depth</code>, a grid bends into 3D, for example a strip on a ring around
 the viewer, and a perspective transform projects it. The texture maps
-perspective-correct (#26). A triangle with a point behind the viewer does
-not show; the rest of the mesh does (#25).</p>
+perspective-correct. A triangle with a point behind the viewer does
+not show; the rest of the mesh does.</p>
 <p>An effect is a GLSL ES fragment shader with absolute path. It reads the
 layer in <code>uniform sampler2D tex</code> at <code>varying vec2 v_uv</code>, and may use
 <code>uniform float alpha</code>, <code>uniform vec2 size</code> (the texture size in pixels),
@@ -1338,13 +1338,13 @@ file changes. The package installs examples in <code>/usr/share/chora/shaders/</
 <code>fract(sin(dot(p, …)) * 43758.5)</code> loses its digits and gives garbage;
 noise and hashes need <code>precision highp float</code>. <code>fwidth</code>, <code>dFdx</code> and <code>dFdy</code>
 need <code>GL_OES_standard_derivatives</code>, which the core enables for a shader
-that uses them (#16).</p>
+that uses them.</p>
 <p>The core loads the file of an image when a transaction names it. A file
 that does not load, that is larger than 32 MiB or larger than 8192 pixels
 on a side rejects the transaction. A plugin in a container shares its
 asset directory with the core, as it shares the socket directory.</p>
 <p>A client that shares no directory with the core, for example an agent in
-another container, hands its files to the core with <code>assets.put</code> (#6). The
+another container, hands its files to the core with <code>assets.put</code>. The
 core stores them in <code>$XDG_RUNTIME_DIR/chora/</code> and answers with the absolute
 path for <code>image</code>, <code>shader</code> and effects. A file has at most 512 KiB, a
 client at most 64 files, all clients together at most 64 MiB. A client
@@ -1415,7 +1415,7 @@ targets along the curve: <code>linear</code> (the default), <code>ease_in</code>
 fades the node out and then hides it. The duration is in milliseconds, at
 most one minute. A later <code>animate</code> or <code>update</code> of the node ends the
 animation where it is. The end sends <code>animation.done</code>.</p>
-<p>A camera moves the same way, with <code>duration</code> and <code>easing</code> (#10). It starts
+<p>A camera moves the same way, with <code>duration</code> and <code>easing</code>. It starts
 where the camera is now, also in the middle of another move, and the end
 sends <code>animation.done</code> with the output and then <code>output.changed</code>:</p>
 <!-- parses: command -->
@@ -1619,7 +1619,7 @@ nodes, so they must agree on <code>keep_nodes</code>. The core refuses a <code>h
 different value. For example, <code>choractl --name tiling</code> fails while the tiling
 plugin runs.</p>
 <p>A reserve of <code>output.reserve</code> belongs to a connection and ends with it,
-also when its client crashes (#8). The reserves of all connections on an
+also when its client crashes. The reserves of all connections on an
 output add up, and count from the edges of the area that the exclusive
 zones of layer surfaces leave free. At least one pixel of the work area
 stays. <code>choractl reserve --top 30</code> holds a reserve until it ends.</p>
@@ -1636,7 +1636,8 @@ the core sends <code>output.changed</code>. For an output that turns off, it sen
 <h2 id="grants">Grants<a class="headerlink" href="#grants" title="Permanent link">&para;</a></h2>
 <p><code>input.inject</code> and <code>screen.capture</code> see or drive the whole session, and
 <code>process.spawn</code> runs any program as the user, so they need a grant of the
-user for the client name (D40, D42):</p>
+user for the client name. Milestone 0.7 replaces the grants with the
+capabilities of client sockets (D33, D40):</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>screen.capture<span class="w"> </span>input.inject
 <span class="gp">$ </span>choractl<span class="w"> </span>grants
 <span class="go">{"agent": ["input.inject", "screen.capture"]}</span>
@@ -1652,24 +1653,23 @@ as the startup command (D30): <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKE
 compositor, without the variables of a host session, and with no stdin.
 The core looks the program up in its own <code>PATH</code>, so it works for an agent
 in another namespace too. The answer has the <code>pid</code> and the <code>argv</code>.</p>
-<p><code>plugins.restart(name)</code> restarts a plugin, for example after a rebuild
-(#9). The core finds the process of the connections of the client name,
+<p><code>plugins.restart(name)</code> restarts a plugin, for example after a rebuild.
+The core finds the process of the connections of the client name,
 reads its command line and working directory from <code>/proc</code>, and sends it
 SIGTERM. Once it exited, or 5 s after a SIGKILL, the core starts the same
 command again and answers with the new <code>pid</code>. A name with several
 processes, or a process in a namespace that the core cannot see, fails.</p>
 <p>With <code>capture: true</code>, <code>process.spawn</code> keeps stdout and stderr of the
-program, up to 64 KiB each, for the client that started it (#22).
+program, up to 64 KiB each, for the client that started it.
 <code>process.wait(pid, timeout_ms)</code> waits until the program ends or the time
 is up, and answers with <code>pid</code>, <code>running</code>, <code>stdout</code>, <code>stderr</code>, <code>truncated</code>
 for output that went beyond 64 KiB, and, once the program ended, <code>status</code>:
 its exit code, or 128 and the signal. 100 ms after the end of the
 program, the core closes its pipes, also when a child in the background
-still holds them. The first
-answer after the end is the last one; then the core forgets the program.
-At most 32 programs of a client wait for <code>process.wait</code>. Their output goes when the last connection of the
-client name closes, so <code>choractl spawn --capture</code> waits on its own
-connection.</p>
+still holds them. The first answer after the end is the last one; then
+the core forgets the program. At most 32 programs of a client wait for
+<code>process.wait</code>. Their output goes when the last connection of the client
+name closes, so <code>choractl spawn --capture</code> waits on its own connection.</p>
 <p>Both methods need the grant <code>process.spawn</code>, and fail while the session is
 locked:</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>process.spawn
@@ -1678,8 +1678,8 @@ locked:</p>
 <span class="go">{"pid": 4242, "running": false, "status": 0, "stdout": "Linux\n", "stderr": "", "truncated": false}</span>
 <span class="gp">$ </span>choractl<span class="w"> </span>--name<span class="w"> </span>agent<span class="w"> </span>restart<span class="w"> </span>tiling
 </code></pre></div>
-<p>A later version may narrow the grant with a list of allowed programs, which
-<code>choractl grant</code> reads from a file (D42).</p>
+<p>Milestone 0.7 moves the start of programs from the core to <code>choractl run</code>
+and systemd (D42).</p>
 <h2 id="screen-capture">Screen capture<a class="headerlink" href="#screen-capture" title="Permanent link">&para;</a></h2>
 <p><code>screen.capture</code> renders an output, or a node with its descendants, and
 answers with a PNG file in base64:</p>
@@ -1719,7 +1719,7 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
   shrinks. <code>max_side</code> must be at least 1.</li>
 <li>A capture renders the scene again. Layers that the pixel budget of the
   last frame left out of the screen show in the capture; <code>left_out</code> names
-  them (#24), and <code>layers.dropped</code> tells it as it happens.</li>
+  them, and <code>layers.dropped</code> tells it as it happens.</li>
 <li>A capture fails while the session is locked, and when the PNG file is
   larger than 5 MiB; a smaller <code>max_side</code> helps then.</li>
 </ul>
@@ -1910,7 +1910,7 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tr>
 <tr>
 <td><code>subscribe_events</code></td>
-<td>start to collect events, and grab keys (#7); <code>events</code> and <code>keys</code> as in <code>events.subscribe</code> and <code>input.grab</code>; replaces the earlier subscription</td>
+<td>start to collect events, and grab keys; <code>events</code> and <code>keys</code> as in <code>events.subscribe</code> and <code>input.grab</code>; replaces the current subscription</td>
 </tr>
 <tr>
 <td><code>wait_events</code></td>
@@ -1919,7 +1919,7 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tbody>
 </table>
 <p>The input schemas of <code>apply_commands</code> and <code>inject_input</code> come from the
-types of <code>chora-scene</code> (#5). They list every command, every input event and
+types of <code>chora-scene</code>. They list every command, every input event and
 every field, with its description, so the model sees the shape of a call
 before the first try. A test checks that the schemas, the types and the
 examples of this page agree.</p>
