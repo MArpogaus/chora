@@ -9,15 +9,17 @@ use crate::{
     layout::{self, Layout, Params, Rect},
 };
 
-/// The stacking ranks, from the bottom. As in awesome, the top window of an
-/// output, the one with the focus there, covers the others; a fullscreen
-/// window lies below them otherwise; only windows on top cover it.
+/// The stacking ranks, from the bottom. As in awesome, the last raised
+/// window of an output covers the others; a fullscreen window lies below
+/// them otherwise; only windows on top cover it.
 const FULLSCREEN: u8 = 0;
 const TILED: u8 = 1;
-const FLOATING: u8 = 2;
-const TOP: u8 = 3;
-const FULLSCREEN_TOP: u8 = 4;
-const ON_TOP: u8 = 5;
+/// The shown window of the max, fullscreen and magnifier layouts.
+const TILED_TOP: u8 = 2;
+const FLOATING: u8 = 3;
+const TOP: u8 = 4;
+const FULLSCREEN_TOP: u8 = 5;
+const ON_TOP: u8 = 6;
 
 /// A tiled or floating window.
 #[derive(Clone, Debug)]
@@ -97,6 +99,10 @@ pub struct Wm {
     current: usize,
     /// Window ids, the most recent focus last.
     history: Vec<String>,
+    /// Window ids, the last raised one last. A click or a binding raises
+    /// the window that it focuses; the focus that follows the pointer does
+    /// not.
+    raised: Vec<String>,
 }
 
 impl Wm {
@@ -107,6 +113,7 @@ impl Wm {
             outputs: Vec::new(),
             current: 0,
             history: Vec::new(),
+            raised: Vec::new(),
         }
     }
 
@@ -183,6 +190,7 @@ impl Wm {
     pub fn remove_window(&mut self, id: &str) {
         self.windows.retain(|w| w.id != id);
         self.history.retain(|h| h != id);
+        self.raised.retain(|h| h != id);
     }
 
     pub fn has(&self, id: &str) -> bool {
@@ -203,11 +211,20 @@ impl Wm {
 
     /// The focused window: the top window of the current output.
     pub fn focused(&self) -> Option<&str> {
-        self.top_on(self.current)
+        self.last_on(self.current, &self.history)
     }
 
-    /// Focuses a window and its output.
+    /// Focuses and raises a window, and focuses its output.
     pub fn focus(&mut self, id: &str) {
+        if self.has(id) {
+            self.raised.retain(|h| h != id);
+            self.raised.push(id.into());
+        }
+        self.focus_only(id);
+    }
+
+    /// Focuses a window and its output, without a raise.
+    fn focus_only(&mut self, id: &str) {
         let Some(window) = self.window_mut(id) else {
             return;
         };
@@ -232,7 +249,11 @@ impl Wm {
         if !shown || !(clicked || follow) || self.focused() == Some(id) {
             return false;
         }
-        self.focus(id);
+        if clicked {
+            self.focus(id);
+        } else {
+            self.focus_only(id);
+        }
         true
     }
 
@@ -373,15 +394,20 @@ impl Wm {
         let output = &self.outputs[index];
         let tag = output.tags[first_tag(output.selected)];
         let focused = self.focused();
-        let top = self.top_on(index);
+        let top = self.last_on(index, &self.raised);
         let windows: Vec<&Window> = self
             .shown_on(index)
             .into_iter()
             .map(|i| &self.windows[i])
             .collect();
         let tiled: Vec<&Window> = windows.iter().copied().filter(|w| self.tiles(w)).collect();
-        // The magnifier shows the first window when the top one floats.
+        // The max, fullscreen and magnifier layouts show the first window
+        // when the top one floats.
         let top_at = tiled.iter().position(|w| Some(&*w.id) == top).unwrap_or(0);
+        let stacks = matches!(
+            tag.layout,
+            Layout::Max | Layout::Fullscreen | Layout::Magnifier
+        );
         let cells = layout::arrange(
             tag.layout,
             tiled.len(),
@@ -395,7 +421,7 @@ impl Wm {
             i32::from(self.config.gap)
         };
         let mut placed = Vec::new();
-        for (window, cell) in tiled.iter().zip(cells) {
+        for (i, (window, cell)) in tiled.iter().zip(cells).enumerate() {
             let [x, y, w, h] = layout::inset(cell, gap);
             let states = States {
                 tiled: true,
@@ -406,6 +432,8 @@ impl Wm {
                 ON_TOP
             } else if Some(&*window.id) == top {
                 TOP
+            } else if stacks && i == top_at {
+                TILED_TOP
             } else {
                 TILED
             };
@@ -449,10 +477,10 @@ impl Wm {
             .collect()
     }
 
-    /// The most recently focused window that shows on an output.
-    fn top_on(&self, output: usize) -> Option<&str> {
+    /// The last window of a history that shows on an output.
+    fn last_on<'a>(&'a self, output: usize, history: &'a [String]) -> Option<&'a str> {
         let name = &self.outputs.get(output)?.name;
-        self.history
+        history
             .iter()
             .rev()
             .find(|id| {
@@ -932,5 +960,36 @@ mod tests {
         wm.act(&Action::ToggleWindowTag(2));
         wm.act(&Action::MoveToNextOutput);
         assert_eq!(wm.windows[0].tags, 0b11);
+    }
+
+    #[test]
+    fn the_focus_that_follows_the_pointer_raises_nothing() {
+        let mut wm = wm(&["a", "f"]);
+        wm.act(&Action::ToggleFloating);
+        wm.pointer_focus("a", false, true);
+        assert_eq!(wm.focused(), Some("a"));
+        assert_eq!(wm.arrange().pop().unwrap().id, "f");
+        wm.pointer_focus("a", true, true);
+        assert_eq!(
+            wm.arrange().pop().unwrap().id,
+            "f",
+            "a has the focus already"
+        );
+        wm.act(&Action::FocusNext);
+        wm.act(&Action::FocusNext);
+        assert_eq!(wm.arrange().pop().unwrap().id, "a");
+    }
+
+    #[test]
+    fn the_magnifier_shows_its_window_behind_a_floating_one() {
+        let mut wm = wm(&["a", "b", "c"]);
+        wm.set_layout(Layout::Magnifier);
+        wm.act(&Action::ToggleFloating);
+        let ids: Vec<String> = wm.arrange().into_iter().map(|p| p.id).collect();
+        assert_eq!(
+            ids,
+            ["a", "b", "c"],
+            "b, the first tiled window, lies over a"
+        );
     }
 }

@@ -124,7 +124,9 @@ option:
 The layouts and the default bindings follow the awesome window manager.
 Each output has its own tags, and each tag its own layout and parameters.
 A window can be on several tags, and an output can show several tags. A
-floating, maximized or fullscreen window leaves the tiles. The binding
+floating, maximized or fullscreen window leaves the tiles. A click or a
+binding raises the window that it focuses; the focus that follows the
+pointer raises nothing. The binding
 `MOD+Ctrl+r` reads the file again. Mouse moves and resizes of floating
 windows do not exist.
 
