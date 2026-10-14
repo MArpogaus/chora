@@ -1228,8 +1228,8 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
 </tr>
 <tr>
 <td>0.8 Agent read model</td>
-<td style="text-align: right;">4,000</td>
-<td style="text-align: right;">20 to 26</td>
+<td style="text-align: right;">4,600</td>
+<td style="text-align: right;">23 to 30</td>
 <td style="text-align: right;">3</td>
 <td style="text-align: right;">2 weeks</td>
 </tr>
@@ -1256,8 +1256,8 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
 </tr>
 <tr>
 <td><strong>Total</strong></td>
-<td style="text-align: right;"><strong>20,500</strong></td>
-<td style="text-align: right;"><strong>122 to 160</strong></td>
+<td style="text-align: right;"><strong>21,100</strong></td>
+<td style="text-align: right;"><strong>125 to 164</strong></td>
 <td style="text-align: right;"><strong>27</strong></td>
 <td style="text-align: right;"><strong>15 to 17 weeks</strong></td>
 </tr>
@@ -1350,8 +1350,8 @@ and the core starts no programs.</p>
    is green against the release candidate.</li>
 </ol>
 <h2 id="08-agent-read-model">0.8: Agent read model<a class="headerlink" href="#08-agent-read-model" title="Permanent link">&para;</a></h2>
-<p><strong>Goal:</strong> an agent sees what the user sees, and it can ask the window
-manager for changes.</p>
+<p><strong>Goal:</strong> an agent sees what the user sees, it can ask the window manager
+for changes, and it can label what it shows.</p>
 <p>Scope:</p>
 <ul>
 <li>JSON filters replace the selector strings (D32). They can match focus
@@ -1373,6 +1373,9 @@ manager for changes.</p>
   layout.</li>
 <li>A visible indicator while a client injects input, and a binding of the
   safety layer that revokes the capabilities of all agents (D23).</li>
+<li>A text node (D18): text with a font family, a size, a color and a
+  maximum width. cosmic-text shapes it and finds fallback fonts. The
+  indicator, plugins and agents use it for labels without a client.</li>
 </ul>
 <p>Gate:</p>
 <ol>
@@ -1392,8 +1395,12 @@ manager for changes.</p>
 <li>A capture shows the indicator while a client injects input.</li>
 <li>A test shows that the revoke binding removes the capabilities of all
    agents.</li>
-<li>The gate checks of the earlier milestones still hold, and the showroom CI
-   is green against the release candidate.</li>
+<li>A text node shows <code>Grüße 你好 🙂</code> with fallback fonts, and a pixel test
+   against a reference capture passes.</li>
+<li>An MCP client puts a text node under <code>screen:NAME</code>, and a capture shows
+    it.</li>
+<li>The gate checks of the earlier milestones still hold, and the showroom
+    CI is green against the release candidate.</li>
 </ol>
 <h2 id="09-renderer">0.9: Renderer<a class="headerlink" href="#09-renderer" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the core renders only what changed, draws the full 4x4 model,
