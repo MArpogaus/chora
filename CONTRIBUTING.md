@@ -5,6 +5,8 @@
 - `main` holds the root commit `chore: init` and merge commits from `dev`.
   Never commit to `main` directly.
 - `dev` is the working branch. Pull requests target `dev`.
+- In a repository with several contributors, each contributor works on
+  `dev-NAME`, and pull requests go to a protected `main` (D47).
 
 ## Hooks
 
@@ -44,7 +46,8 @@ cargo deny check
 ```
 
 The end-to-end test starts chora nested in a headless sway and checks the
-exit of milestone M1, the nested part of M2 and fixed regressions. It needs
+scene, transactions, layer shell, the session lock, effects, the safety
+bindings and the watchdog. It needs
 sway, foot, grim, jq, python3, pgrep and pkill, a Mesa driver, waybar with
 dbus-run-session, fuzzel, wlrctl, swaylock and wlr-randr. The Wayland test client
 `tests/probe` checks what no packaged client shows: the lock against other
@@ -62,18 +65,45 @@ sway, foot, grim, jq and pgrep.
 tests/xp.sh target/debug
 ```
 
+`tests/agent.sh` checks the agent interface: grants, captures, input
+injection, screencopy, views, assets, reserves, programs and the MCP tools
+through `tests/mcp-client.py`. It needs swaylock and python3 in addition.
+
+```bash
+tests/agent.sh target/debug
+```
+
+Each bug fix comes with a test that fails without the fix (D48).
+
 CI runs `cargo clippy`, `cargo test` and the end-to-end test with `--locked`
 in a Fedora 44 container, and `cargo deny` in a separate job.
 
 ## Releases
 
-`cz bump` sets the version and writes `CHANGELOG.md`. When the bump reaches
-`main`, `.github/workflows/release.yaml` starts by itself: a version in
-`Cargo.toml` without a release builds the RPM with `dist/build-rpm.sh` and
-the Arch package with `dist/build-arch.sh`, and attaches both with their
-SHA256 sums to a GitHub release. The release uses the tag of the version
-if it was pushed, or creates it. Versions below 1.0 are pre-releases. A
-manual run of the workflow releases the version in `Cargo.toml` too.
+A release ends a milestone, once its gate holds (see
+[Roadmap](https://github.com/MArpogaus/chora/blob/main/docs/roadmap.md#rules)).
+
+1. On `dev`, `cz bump` sets the version, writes `CHANGELOG.md` and makes an
+   annotated tag. Never edit the changelog by hand.
+2. Push `dev` and wait for green CI.
+3. Merge `dev` into `main` with a merge commit, and push `main` and the
+   tag:
+
+   ```bash
+   git switch main
+   git merge --no-ff dev
+   git push origin main
+   git push --no-verify origin refs/tags/vX.Y.Z
+   ```
+
+4. A new version in `Cargo.toml` on `main` starts
+   `.github/workflows/release.yaml`. It builds the RPM with
+   `dist/build-rpm.sh` and the Arch package with `dist/build-arch.sh`, and
+   attaches both with their SHA256 sums to a GitHub release. Versions below
+   1.0 are pre-releases.
+
+Milestone 0.6 makes the tag start the release and lets the release wait for
+green CI of the same commit (D47).
 
 ## Commits
 
