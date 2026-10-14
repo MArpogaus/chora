@@ -178,12 +178,13 @@ fn create_globals(dh: &DisplayHandle, clock: &Clock<Monotonic>) {
 }
 
 /// The one seat, with a keyboard of the default keymap and a pointer.
-fn new_seat(seat_state: &mut SeatState<State>, dh: &DisplayHandle) -> Seat<State> {
+fn new_seat(dh: &DisplayHandle) -> (SeatState<State>, Seat<State>) {
+    let mut seat_state = SeatState::new();
     let mut seat = seat_state.new_wl_seat(dh, "seat0");
     seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), 200, 25)
         .expect("the default keymap compiles");
     seat.add_pointer();
-    seat
+    (seat_state, seat)
 }
 
 impl State {
@@ -193,9 +194,8 @@ impl State {
         loop_signal: LoopSignal,
     ) -> Self {
         let dh = display.handle();
-        let mut seat_state = SeatState::new();
-        let seat = new_seat(&mut seat_state, &dh);
-        let socket_name = listen(display, &loop_handle);
+        let (seat_state, seat) = new_seat(&dh);
+        add_display(display, &loop_handle);
         let idle_notifier_state = IdleNotifierState::new(&dh, loop_handle.clone());
         let clock = Clock::<Monotonic>::new();
         create_globals(&dh, &clock);
@@ -218,7 +218,7 @@ impl State {
             display_handle: dh.clone(),
             loop_handle,
             loop_signal,
-            socket_name,
+            socket_name: OsString::new(),
             backend: None,
             dmabuf_state: DmabufState::new(),
             outputs: Vec::new(),
@@ -251,6 +251,21 @@ impl State {
             image_capture: ImageCapture::new(&dh),
             copies: Copies::default(),
             suppressed_keys: Vec::new(),
+        }
+    }
+
+    /// The work after each turn of the event loop: animations, errors of
+    /// effects, popups, the focus, and the output to all clients.
+    pub fn after_events(&mut self) {
+        self.advance_animations();
+        self.report_effect_errors();
+        self.popups.cleanup();
+        // The focus follows the protocols, for example after a popup grab
+        // ended.
+        self.update_focus();
+        self.ipc_flush();
+        if let Err(err) = self.display_handle.flush_clients() {
+            tracing::warn!(?err, "flushing the wayland clients failed");
         }
     }
 
@@ -290,6 +305,23 @@ impl State {
             self.pointer_refreshed = now;
             self.refresh_pointer();
         }
+    }
+
+    /// Opens the Wayland socket with a free name.
+    pub fn listen(&mut self) -> std::io::Result<()> {
+        let socket = ListeningSocketSource::new_auto().map_err(std::io::Error::other)?;
+        self.socket_name = socket.socket_name().to_os_string();
+        self.loop_handle
+            .insert_source(socket, |stream, (), state| {
+                if let Err(err) = state
+                    .display_handle
+                    .insert_client(stream, Arc::new(ClientState::default()))
+                {
+                    tracing::warn!(?err, "a wayland client failed to connect");
+                }
+            })
+            .map_err(|err| std::io::Error::other(err.to_string()))?;
+        Ok(())
     }
 
     /// Registers a new toplevel. Its surface node follows with the first
@@ -514,20 +546,9 @@ fn xdg_states() -> [(ToplevelState, &'static [xdg_toplevel::State]); 4] {
     ]
 }
 
-/// Opens the Wayland socket and adds the display to the event loop.
-fn listen(display: Display<State>, loop_handle: &LoopHandle<'static, State>) -> OsString {
-    let socket = ListeningSocketSource::new_auto().expect("a free wayland socket name");
-    let name = socket.socket_name().to_os_string();
-    loop_handle
-        .insert_source(socket, |stream, (), state| {
-            if let Err(err) = state
-                .display_handle
-                .insert_client(stream, Arc::new(ClientState::default()))
-            {
-                tracing::warn!(?err, "a wayland client failed to connect");
-            }
-        })
-        .expect("the event loop accepts the socket");
+/// Adds the display to the event loop, so that it dispatches the requests
+/// of the clients.
+fn add_display(display: Display<State>, loop_handle: &LoopHandle<'static, State>) {
     loop_handle
         .insert_source(
             Generic::new(display, Interest::READ, Mode::Level),
@@ -542,7 +563,6 @@ fn listen(display: Display<State>, loop_handle: &LoopHandle<'static, State>) -> 
             },
         )
         .expect("the event loop accepts the display");
-    name
 }
 
 /// Data of a Wayland client.
