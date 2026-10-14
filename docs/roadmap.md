@@ -53,11 +53,11 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.
 |-----------|-----------:|------------:|-----------:|---------:|
 | 0.6 Foundation | 2,500 | 14 to 18 | 3 | 1 week |
 | 0.7 Identity and processes | 3,000 | 16 to 20 | 3 | 1 to 2 weeks |
-| 0.8 Agent read model | 4,000 | 20 to 26 | 3 | 2 weeks |
+| 0.8 Agent read model | 4,600 | 23 to 30 | 3 | 2 weeks |
 | 0.9 Renderer | 7,000 | 40 to 50 | 6 | 3 weeks |
 | 0.10 Daily driver | 2,500 | 20 to 30 | 8 plus daily use | 3 weeks |
 | 1.0 Stable API | 1,500 | 12 to 16 | 4 plus daily use | 5 to 6 weeks |
-| **Total** | **20,500** | **122 to 160** | **27** | **15 to 17 weeks** |
+| **Total** | **21,100** | **125 to 164** | **27** | **15 to 17 weeks** |
 
 The renderer has the largest risk. A fault on real hardware in 0.10 can
 add one to two weeks.
@@ -152,8 +152,8 @@ Gate:
 
 ## 0.8: Agent read model
 
-**Goal:** an agent sees what the user sees, and it can ask the window
-manager for changes.
+**Goal:** an agent sees what the user sees, it can ask the window manager
+for changes, and it can label what it shows.
 
 Scope:
 
@@ -176,6 +176,9 @@ Scope:
   layout.
 - A visible indicator while a client injects input, and a binding of the
   safety layer that revokes the capabilities of all agents (D23).
+- A text node (D18): text with a font family, a size, a color and a
+  maximum width. cosmic-text shapes it and finds fallback fonts. The
+  indicator, plugins and agents use it for labels without a client.
 
 Gate:
 
@@ -195,8 +198,12 @@ Gate:
 7. A capture shows the indicator while a client injects input.
 8. A test shows that the revoke binding removes the capabilities of all
    agents.
-9. The gate checks of the earlier milestones still hold, and the showroom CI
-   is green against the release candidate.
+9. A text node shows `Grüße 你好 🙂` with fallback fonts, and a pixel test
+   against a reference capture passes.
+10. An MCP client puts a text node under `screen:NAME`, and a capture shows
+    it.
+11. The gate checks of the earlier milestones still hold, and the showroom
+    CI is green against the release candidate.
 
 ## 0.9: Renderer
 
