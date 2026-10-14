@@ -96,26 +96,30 @@ A release ends a milestone, once its gate holds (see
    ```
 
 3. Push `dev` and wait for green CI.
-4. Merge `dev` into `main` with a merge commit. Tag the merge commit with an
-   annotated tag. Push the tag first, so that the release finds it, then
-   `main`:
+4. Merge `dev` into `main` with a merge commit, and push `main`:
 
    ```bash
    git switch main
    git merge --no-ff dev
-   git tag -a vX.Y.Z -m "vX.Y.Z"
-   git push --no-verify origin refs/tags/vX.Y.Z
    git push origin main
    ```
 
-5. A new version in `Cargo.toml` on `main` starts
-   `.github/workflows/release.yaml`. It builds the RPM with
-   `dist/build-rpm.sh` and the Arch package with `dist/build-arch.sh`, and
-   attaches both with their SHA256 sums to a GitHub release. Versions below
-   1.0 are pre-releases.
+5. Tag the merge commit with an annotated tag, and push the tag:
 
-Milestone 0.6 makes the tag start the release and lets the release wait for
-green CI of the same commit (D47). Then `main` accepts pull requests only.
+   ```bash
+   git tag -a vX.Y.Z -m "vX.Y.Z"
+   git push --no-verify origin refs/tags/vX.Y.Z
+   ```
+
+6. The tag starts `.github/workflows/release.yaml`. It checks that the tag
+   is annotated, sits on a merge commit of `main` and names the version of
+   `Cargo.toml`, and it waits for green CI of the commit. Then it builds
+   the RPM with `dist/build-rpm.sh` and the Arch package with
+   `dist/build-arch.sh`, and attaches both with their SHA256 sums to a
+   GitHub release. Versions below 1.0 and release candidates are
+   pre-releases.
+
+Milestone 0.6 lets `main` accept pull requests only.
 
 ## Commits
 
