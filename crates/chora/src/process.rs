@@ -308,13 +308,20 @@ impl State {
     }
 
     /// Looks whether the old process of a restart exited and its connections
-    /// reached the end of their streams; starts the new one then, or kills
-    /// the old one after a while. At the end of its stream a connection
-    /// gives up its grabs and methods, and only waits for its answers.
+    /// closed; starts the new one then, or kills the old one after a while.
+    /// The answers that the connections of the exited process still wait
+    /// for reach nobody, so they close at once, with their grabs, methods
+    /// and nodes.
     fn poll_restart(&mut self, stopping: &mut Stopping) -> TimeoutAction {
         let waited = stopping.since.elapsed();
-        let connected = self.ipc.reading(&stopping.name);
-        if alive(&stopping.pidfd) || connected {
+        let alive = alive(&stopping.pidfd);
+        if !alive {
+            for conn in self.ipc.ended(&stopping.name, stopping.pid) {
+                self.ipc_close(conn);
+            }
+        }
+        let connected = !self.ipc.peer_pids(&stopping.name).is_empty();
+        if alive || connected {
             if waited < STOP_WAIT {
                 return TimeoutAction::ToDuration(POLL);
             }
