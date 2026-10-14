@@ -830,10 +830,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#rejected-review-findings" class="md-nav__link">
+  <a href="#process" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Rejected review findings
+        Process
       
     </span>
   </a>
@@ -841,10 +841,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
+  <a href="#rejected-proposals" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Open questions
+        Rejected proposals
       
     </span>
   </a>
@@ -1005,10 +1005,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#rejected-review-findings" class="md-nav__link">
+  <a href="#process" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Rejected review findings
+        Process
       
     </span>
   </a>
@@ -1016,10 +1016,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
+  <a href="#rejected-proposals" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Open questions
+        Rejected proposals
       
     </span>
   </a>
@@ -1047,7 +1047,9 @@
 
 
 <h1 id="decisions">Decisions<a class="headerlink" href="#decisions" title="Permanent link">&para;</a></h1>
-<p>The decision log. Nothing here is final. Every entry can come back for review.</p>
+<p>The decision log. It lists the decisions that hold. Every entry can come
+back for review. The <a href="../roadmap/">Roadmap</a> names the milestone of a decision
+that the code does not implement yet.</p>
 <h2 id="principles-and-scope">Principles and scope<a class="headerlink" href="#principles-and-scope" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1070,8 +1072,8 @@
 </tr>
 <tr>
 <td>D3</td>
-<td>An experimentation platform first, then a stable, feature-complete core, then testing</td>
-<td>A small core gives stability.</td>
+<td>chora 1.0 is a daily driver with a stable, versioned API; until then, the API changes without notice</td>
+<td>A stable API needs real use first. No compatibility code before 1.0.</td>
 </tr>
 <tr>
 <td>D4</td>
@@ -1122,8 +1124,8 @@
 </tr>
 <tr>
 <td>D11</td>
-<td>AMD and Intel GPUs first, NVIDIA later</td>
-<td>The hardware of the author. Mesa drivers need no special paths.</td>
+<td>The reference hardware is the HP ZBook Ultra G1a (AMD Radeon 8060S); CI adds a VM with <code>vkms</code>; Intel works through Mesa without a gate; NVIDIA comes later</td>
+<td>Gates need one machine that the author uses every day. The VM covers the tty backend in CI.</td>
 </tr>
 <tr>
 <td>D12</td>
@@ -1137,8 +1139,8 @@
 </tr>
 <tr>
 <td>D14</td>
-<td>Releases are RPM packages for Fedora 44 and packages for Arch Linux, attached with SHA256 sums to a GitHub release; a new version on <code>main</code> starts the release; versions below 1.0 are pre-releases</td>
-<td><code>dnf5 install &lt;url&gt;</code> installs them by hand and in the image build. The Arch package serves Arch containers, for example in distrobox.</td>
+<td>Releases build an RPM and an Arch package, attached with SHA256 sums to a GitHub release; versions below 1.0 are pre-releases</td>
+<td>One build for the release assets and the package repositories of D49.</td>
 </tr>
 </tbody>
 </table>
@@ -1164,18 +1166,18 @@
 </tr>
 <tr>
 <td>D17</td>
-<td>GLES renderer and GLSL shaders through Smithay's renderer traits</td>
-<td>Proven in niri. No Smithay compositor uses wgpu.</td>
+<td>A scene renderer of chora on GLES 3, on the GL context of Smithay's <code>GlesRenderer</code>; GLSL shaders</td>
+<td>Smithay's render elements are axis-aligned rectangles. A renderer of its own draws the full 4x4 model and keeps textures between frames. wgpu has no usable dmabuf path for a compositor.</td>
 </tr>
 <tr>
 <td>D18</td>
-<td>Five node kinds: group, surface, rect, image, shader</td>
-<td>Text and widgets come from Wayland clients. An image node shows a PNG asset, for example a window border, without a client per window. A shader can read another node as a texture.</td>
+<td>Six node kinds: group, surface, rect, image, shader and text; the text node comes in milestone 0.8</td>
+<td>Widgets come from Wayland clients. An image node shows a PNG asset, for example a window border, without a client per window. A shader can read another node as a texture. A text node lets plugins and agents label a HUD without a client or a rendered PNG. cosmic-text does the shaping and the font fallback, so the node stays small: text, font family, size, color and maximum width; no editing and no rich text.</td>
 </tr>
 <tr>
 <td>D19</td>
-<td>Transforms are 4x4 matrices; the first milestones test 2D cases only</td>
-<td>3D effects need no API change later.</td>
+<td>Transforms are 4x4 matrices; the scene is 2.5D: planes in perspective, meshes and fragment shaders, without a depth test</td>
+<td>3D effects need no API change. Complex 3D scenes belong in clients (see <a href="../ideas/#visuals">Idea backlog</a>).</td>
 </tr>
 <tr>
 <td>D20</td>
@@ -1189,18 +1191,18 @@
 </tr>
 <tr>
 <td>D22</td>
-<td>A transaction completes when all affected clients commit, or after a deadline</td>
-<td>A resize needs a client round trip.</td>
+<td>A transaction completes when all affected clients commit, or after a deadline; transactions on disjoint surfaces do not wait for each other</td>
+<td>A resize needs a client round trip. One slow client must not stop the others.</td>
 </tr>
 <tr>
 <td>D23</td>
-<td>A hardcoded safety layer with fixed bindings: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT; SIGUSR1 resets too</td>
-<td>A recovery path must not depend on a file that an agent can break.</td>
+<td>A hardcoded safety layer: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT, SIGUSR1 resets; a watchdog in its own thread; a binding that revokes the capabilities of all agents</td>
+<td>A recovery path must not depend on a file that an agent can break, or on a main loop that hangs.</td>
 </tr>
 <tr>
 <td>D24</td>
-<td>Shaders declare static or animated; fullscreen surfaces without effects use direct scanout</td>
-<td>Damage tracking and battery life.</td>
+<td>The core renders an output only when it has damage; a layer keeps its texture until its subtree changes; a fullscreen surface without effects uses direct scanout</td>
+<td>Battery life and GPU load.</td>
 </tr>
 <tr>
 <td>D25</td>
@@ -1214,8 +1216,8 @@
 </tr>
 <tr>
 <td>D27</td>
-<td>Output configuration through <code>wlr-output-management</code>, and since D44 also through the API</td>
-<td>kanshi and wlr-randr exist.</td>
+<td>Output configuration through <code>wlr-output-management</code> and through <code>output.configure</code>, on the same path</td>
+<td>kanshi and wlr-randr exist. An agent has no wlr-randr in every session.</td>
 </tr>
 </tbody>
 </table>
@@ -1231,13 +1233,13 @@
 <tbody>
 <tr>
 <td>D28</td>
-<td>Plugins are IPC clients; the core offers <code>animate</code>; in-process WASM plugins come only after a measurement shows the need</td>
-<td>Agents work in seconds, not frames. One mechanism, any language, crash isolation by the OS. The M3 measurement (<code>tests/ipc-bench.sh</code>, nested, software rendering) shows no need yet: a transaction with a mesh of 8x8 cells takes 0.17 ms in the median and 3.6 ms at the 99th percentile, well inside a 60 Hz frame.</td>
+<td>Plugins are IPC clients; the core offers <code>animate</code> and frame events with the predicted presentation time; in-process WASM plugins come only after a measurement shows the need</td>
+<td>Agents work in seconds, not frames. One mechanism, any language, crash isolation by the OS. <code>tests/ipc-bench.sh</code> measures a transaction with a mesh of 8x8 cells at 0.17 ms in the median and 3.6 ms at the 99th percentile, nested and with software rendering.</td>
 </tr>
 <tr>
 <td>D29</td>
-<td>JSON-RPC 2.0 with one message per line on a Unix socket in <code>$XDG_RUNTIME_DIR/chora/</code>; the core serves it from the calloop event loop</td>
-<td>No extra runtime and no thread handoff. A container mounts the directory.</td>
+<td>JSON-RPC 2.0 with one message per line on Unix sockets; <code>hello</code> negotiates the protocol version and the features; errors carry a stable code and data</td>
+<td>Agents and shell scripts reach it without bindings. A versioned protocol lets plugins in other repositories check what they get.</td>
 </tr>
 <tr>
 <td>D30</td>
@@ -1246,33 +1248,33 @@
 </tr>
 <tr>
 <td>D31</td>
-<td>A client names itself when it connects; the owner of a node is a client name; only the owner changes a node; plugins export methods</td>
+<td>The owner of a node is a client name; only the owner changes a node; another client requests a change, and the core sends the request to the owner; plugins export methods with a description and a JSON schema</td>
 <td>An agent asks the window manager instead of fighting it.</td>
 </tr>
 <tr>
 <td>D32</td>
-<td>Selectors work in queries only; a query returns all current matches</td>
-<td>No window rules in the core. Predictable results for agents.</td>
+<td>Queries use JSON filters; a query returns all current matches; subscriptions start with a snapshot, and events have sequence numbers</td>
+<td>A schema describes the filters. Agents get predictable results and miss no event.</td>
 </tr>
 <tr>
 <td>D33</td>
-<td>Version 1 trusts the clients of the same user; <code>wp-security-context-v1</code> hides privileged protocols from sandboxed clients; the IPC methods <code>input.inject</code> and <code>screen.capture</code> need a grant of the user</td>
-<td>The grant protects against mistakes of agents. It is no barrier against hostile code of the same user.</td>
+<td>Each client has a socket directory with an IPC socket and a Wayland socket of <code>wp-security-context-v1</code>; the socket fixes its name and its capabilities; <code>input.inject</code>, <code>screen.capture</code> and <code>input.grab-any</code> are capabilities</td>
+<td>A client cannot take another name or give itself capabilities. A container mounts one directory and needs no configuration.</td>
 </tr>
 <tr>
 <td>D34</td>
-<td>MCP outside the core: <code>choractl mcp</code> over stdio, with tools for whole tasks</td>
-<td>The core stays free of MCP.</td>
+<td>MCP outside the core: <code>choractl mcp</code> over stdio on rmcp, with tools for whole tasks and one tool per exported plugin method</td>
+<td>The core stays free of MCP. The official SDK carries the protocol.</td>
 </tr>
 <tr>
 <td>D35</td>
-<td>The core reads no configuration; <code>choractl</code> loads YAML views; a flavor is a directory with a systemd target; the configuration holds no secrets</td>
+<td>The core reads no configuration; <code>choractl</code> loads YAML views and <code>~/.config/chora/clients.yaml</code>; a flavor is a directory with a systemd target; the configuration holds no secrets</td>
 <td>Policy and service management do not belong in the core.</td>
 </tr>
 <tr>
 <td>D36</td>
-<td>Three crates to start: <code>chora-scene</code>, <code>chora</code>, <code>choractl</code>; reference plugins in <code>plugins/</code></td>
-<td>A crate comes when a second consumer needs it.</td>
+<td>The GitHub organization <code>chora</code> holds the repositories <code>chora</code> (the core, <code>chora-scene</code>, <code>choractl</code>, the reference documentation), one repository per plugin, <code>chora-website</code>, <code>chora-packaging</code>, <code>chora-voice</code> and <code>.github</code></td>
+<td>Plugins and services get their own owners and releases. The core keeps the definition of the API.</td>
 </tr>
 </tbody>
 </table>
@@ -1288,7 +1290,7 @@
 <tbody>
 <tr>
 <td>D37</td>
-<td>Screen sharing through <code>xdg-desktop-portal-wlr</code> first</td>
+<td>Screen sharing through <code>xdg-desktop-portal-wlr</code></td>
 <td>No code. A portal backend of its own is in the <a href="../ideas/">Idea backlog</a>.</td>
 </tr>
 <tr>
@@ -1298,46 +1300,103 @@
 </tr>
 <tr>
 <td>D39</td>
-<td>The first showcase is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it comes right after M2, before the agent interface</td>
-<td>It proves that the scene model carries classic mouse-driven desktops and their effects. The assets come from <code>kde-plasma-winxp-launcher</code> and keep their licenses; the GPL-3.0-only artwork of Exposé and modernXP is data of the flavor that the plugin reads, not code of the core (D8). It is a demo, not a daily driver.</td>
+<td>The XP showroom is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube, in its own repository, in active development; it is a demo, not a daily driver</td>
+<td>It proves that the scene model carries classic desktops and their effects, and it tests every API change. The assets come from <code>kde-plasma-winxp-launcher</code> and keep their licenses; the GPL-3.0-only artwork of Exposé and modernXP is data of the flavor, not code of the core (D8).</td>
 </tr>
 <tr>
 <td>D40</td>
-<td>The user grants <code>input.inject</code> and <code>screen.capture</code> with <code>choractl grant NAME CAPABILITY</code>, per client name, until the session ends or <code>choractl revoke</code>; the emergency reset revokes all grants; <code>choractl mcp</code> has no tool for grants</td>
-<td>The core draws no text, so a dialog is no option. An agent that uses the MCP bridge cannot grant itself by mistake.</td>
+<td>The user gives capabilities in <code>~/.config/chora/clients.yaml</code>; <code>choractl clients up</code> creates the client sockets through an admin socket that only <code>choractl</code> uses; the emergency reset removes all client sockets; <code>choractl mcp</code> has no tool for capabilities</td>
+<td>The core draws no text, so a dialog is no option. Only the user changes the capabilities.</td>
 </tr>
 <tr>
 <td>D41</td>
 <td><code>choractl</code> reads YAML with <code>serde-saphyr</code>: strict booleans, errors on unknown and duplicate keys and on unknown tags</td>
-<td><code>serde_yaml</code> is archived and <code>serde_yml</code> is unsound. <code>serde-saphyr</code> is maintained, pure Rust and panic-free, and limits the work of a document (open question 1).</td>
+<td><code>serde_yaml</code> is archived and <code>serde_yml</code> is unsound. <code>serde-saphyr</code> is maintained, pure Rust and panic-free, and limits the work of a document.</td>
 </tr>
 <tr>
 <td>D42</td>
-<td><code>process.spawn</code> starts programs, and <code>plugins.restart</code> restarts plugins, as the user behind a grant of its own, which the user gives with <code>choractl grant NAME process.spawn</code> and the reset revokes; an allowlist of argv patterns that comes with the grant may narrow it later</td>
-<td>An agent with this grant can run anything, as with a shell, so it is never part of another grant. The allowlist keeps the core free of configuration files (D35).</td>
+<td>The core starts no program except the startup command; <code>choractl run</code> starts programs through <code>systemd-run --user</code> with an activation token; <code>systemctl --user restart</code> restarts a plugin; journald keeps the output</td>
+<td>systemd already supervises processes. The activation token links a program to its window.</td>
 </tr>
 <tr>
 <td>D43</td>
 <td>Nodes fixed to the screen live under one overlay root per output, <code>screen:NAME</code>: in the logical coordinates of the output, without its camera, above the scene and below the top and overlay layers of layer shell</td>
-<td>A HUD stays in place while a camera moves (#19). A root per output answers on which output a node shows. Its nodes work as all others: input, effects, ownership.</td>
+<td>A HUD stays in place while a camera moves. A root per output answers on which output a node shows. Its nodes work as all others: input, effects, ownership.</td>
 </tr>
 <tr>
 <td>D44</td>
 <td><code>output.configure</code> sets scale and transform of an output through the API, on the same path as <code>wlr-output-management</code></td>
-<td>An agent has no wlr-randr in every session (#22). One path keeps both ways in step.</td>
+<td>One path keeps both ways in step.</td>
 </tr>
 <tr>
 <td>D45</td>
-<td>Grabs stay bindings with Ctrl, Alt or Super. <code>input.ungrab</code> ends one, and a grab tells the release of its key too. There is no exclusive keyboard grab: games and walks through 3D scenes are Wayland clients, which get every key</td>
-<td>Typing always works (D23). A client gets plain keys, repeat and release through Wayland already (#18).</td>
+<td>Grabs need Ctrl, Alt or Super, except for a client with the capability <code>input.grab-any</code>; <code>input.ungrab</code> ends a grab; a grab tells the release of its key; there is no exclusive keyboard grab</td>
+<td>Typing works unless the user gives a capability, for example for push-to-talk. Games and 3D clients get every key through Wayland.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="rejected-review-findings">Rejected review findings<a class="headerlink" href="#rejected-review-findings" title="Permanent link">&para;</a></h2>
+<h2 id="process">Process<a class="headerlink" href="#process" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Finding</th>
+<th>#</th>
+<th>Decision</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D46</td>
+<td>Each milestone has a gate: CI jobs and checks on the reference hardware with a log as evidence, tracked in a gate issue; the next milestone of the core starts when the gate holds</td>
+<td>Breadth without real use hides faults. A gate makes "done" checkable.</td>
+</tr>
+<tr>
+<td>D47</td>
+<td>The git flow of the project conventions: <code>main</code> holds <code>chore: init</code> and merge commits; work happens on <code>dev</code>, and each contributor of a shared repository has <code>dev-NAME</code>; a release is a merge into <code>main</code> and an annotated tag; the release needs green CI; commitizen writes the changelog; a review loop runs until a round finds nothing that matters</td>
+<td>One flow in every repository. A release never ships a red commit.</td>
+</tr>
+<tr>
+<td>D48</td>
+<td>The core is a library and a binary; IPC, transactions, focus and grants have unit tests with a fake clock; a pixman backend runs pixel tests in process; each bug fix comes with a test that fails without the fix</td>
+<td>Pixel tests in a headless sway cannot reach the internals. Review finds faults that tests should catch.</td>
+</tr>
+<tr>
+<td>D49</td>
+<td>Packages through COPR with Packit, with a subpackage per plugin, and PKGBUILDs in the AUR</td>
+<td>The image build and updates need a package repository.</td>
+</tr>
+<tr>
+<td>D50</td>
+<td>The session starts through uwsm; a flavor is a systemd target</td>
+<td>uwsm handles the environment and the graphical session target.</td>
+</tr>
+<tr>
+<td>D51</td>
+<td>The daily driver of 1.0 is <code>chora-tiling</code> with waybar, fuzzel, mako, swaylock, swayidle and kanshi; panel and launcher plugins of chora grow in parallel in their own repositories</td>
+<td>Existing tools cover the shell. Own plugins are no condition for 1.0.</td>
+</tr>
+<tr>
+<td>D52</td>
+<td>The milestones run 0.6 to 1.0 as in the <a href="../roadmap/">Roadmap</a></td>
+<td>A stable API needs real use and a testable core first.</td>
+</tr>
+<tr>
+<td>D53</td>
+<td>The voice pipeline lives in <code>chora-voice</code> and runs in parallel to the core; the core supplies push-to-talk grabs, text injection, the read model and an agent indicator</td>
+<td>The pipeline is a product of its own. It needs only the API of the core.</td>
+</tr>
+<tr>
+<td>D54</td>
+<td>Plugins use the JSON-RPC API with frame events and fd passing; a private Wayland protocol for plugins comes only if a measurement at 120 Hz in milestone 0.9 shows the need</td>
+<td>One API to maintain. The measurement decides.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rejected-proposals">Rejected proposals<a class="headerlink" href="#rejected-proposals" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Proposal</th>
 <th>Reason</th>
 </tr>
 </thead>
@@ -1351,13 +1410,19 @@
 <td>The project conventions use this hook set in every repository.</td>
 </tr>
 <tr>
-<td>Cargo hooks before the first crate</td>
-<td>Requested from the start. They stay inactive until the first Rust file.</td>
+<td>An exclusive keyboard grab</td>
+<td>Typing must work. Clients that need every key get it through Wayland (D45).</td>
+</tr>
+<tr>
+<td>A 3D node with depth buffer in the core</td>
+<td>It makes the core an engine. 3D scenes belong in clients (D19).</td>
+</tr>
+<tr>
+<td>A rewrite from scratch</td>
+<td>The scene model, the API and the safety layer hold. The milestones change the rest step by step (D52).</td>
 </tr>
 </tbody>
 </table>
-<h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at the moment. The repository has the name <code>chora</code> since v0.5.1.</p>
 
 
 

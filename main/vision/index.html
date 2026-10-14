@@ -449,10 +449,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#non-goals-for-now" class="md-nav__link">
+  <a href="#non-goals-before-10" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Non-goals for now
+        Non-goals before 1.0
       
     </span>
   </a>
@@ -972,10 +972,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#non-goals-for-now" class="md-nav__link">
+  <a href="#non-goals-before-10" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Non-goals for now
+        Non-goals before 1.0
       
     </span>
   </a>
@@ -1013,8 +1013,8 @@ clients and agents bring the forms.</p>
 <p>A desktop decides the arrangement of the content: windows, panels,
 workspaces. chora takes this decision out of the compositor. chora is a
 programmable scene. It works more like a game engine than like a window
-manager. The core renders a scene of nodes every frame. One API changes the
-scene live.</p>
+manager. The core renders a scene of nodes. One API changes the scene
+live.</p>
 <p>The motivating use case is agentic interaction. The user talks to an agent,
 ideally by voice. The agent arranges the screen for the current task and for
 the taste of the user. Examples are a morning view, a data exploration view
@@ -1032,9 +1032,9 @@ possible.</p>
 <li><strong>Safety is the only built-in behavior.</strong> The core keeps an escape hatch
    that no plugin can override: VT switch, quit, and an emergency reset.
    Agents will write broken code live, so this exception is necessary.</li>
-<li><strong>Lean core, fast stability.</strong> A small core reaches feature completeness
-   fast. Then the project hardens it. Features grow in plugins, not in the
-   core.</li>
+<li><strong>Lean core, checked stability.</strong> The core stays small. Features grow
+   in plugins, not in the core. A milestone is done only when its gate
+   holds (D46).</li>
 <li><strong>Reuse before writing.</strong> Wayland protocol handling, rendering, widgets,
    shells and services already exist. chora connects these parts and writes
    only what is missing. Fixes go upstream. Every decision gets a check for
@@ -1049,12 +1049,12 @@ possible.</p>
    An agent can read and write the files easily.</li>
 <li><strong>Isolation by default.</strong> Plugins run as separate processes, services in
    containers. Input injection and screen capture through the API need a
-   grant of the user (D33).</li>
+   capability that the user gives (D33).</li>
 </ol>
 <h2 id="goals">Goals<a class="headerlink" href="#goals" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Start as an experimentation platform. Reach a stable, feature-complete core
-  fast, then start testing.</li>
+<li>Reach 1.0: a daily driver on the reference hardware with a stable,
+  versioned API (D3).</li>
 <li>Run as an additional session on a Fedora host, next to the existing
   desktops. The concrete host is a derived <a href="https://secureblue.dev/">secureblue</a>
   image.</li>
@@ -1065,14 +1065,14 @@ possible.</p>
 <li>Make it possible to rebuild any existing workflow, with effort, and to
   invent new ones.</li>
 </ul>
-<h2 id="non-goals-for-now">Non-goals for now<a class="headerlink" href="#non-goals-for-now" title="Permanent link">&para;</a></h2>
+<h2 id="non-goals-before-10">Non-goals before 1.0<a class="headerlink" href="#non-goals-before-10" title="Permanent link">&para;</a></h2>
 <ul>
 <li>A usable desktop out of the box. A flavor can supply one. The core never
   does.</li>
 <li>Agent memory and a local inventory of reusable elements. These form a
   separate, opinionated layer on top of chora (see <a href="../ideas/">Idea backlog</a>).</li>
-<li>Distributions other than Fedora and secureblue, and GPUs other than AMD and
-  Intel, until the core is stable.</li>
+<li>Distributions other than Fedora, secureblue and Arch Linux, and NVIDIA
+  GPUs (D11).</li>
 </ul>
 
 

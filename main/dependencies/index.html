@@ -1107,17 +1107,20 @@ check of each choice. <a href="../decisions/">Decisions</a> records the result.<
 <td>also for the plugins</td>
 </tr>
 <tr>
-<td>a maintained YAML crate</td>
+<td>serde-saphyr</td>
 <td>views</td>
-<td><code>serde_yaml</code> is unmaintained</td>
+<td>strict YAML (D41)</td>
 </tr>
 <tr>
-<td><a href="https://github.com/modelcontextprotocol/rust-sdk">rmcp</a></td>
-<td><code>choractl mcp</code></td>
-<td>the official Rust MCP SDK, version 3.x</td>
+<td>schemars</td>
+<td>the JSON schemas of the MCP tools, from the types of <code>chora-scene</code></td>
+<td></td>
 </tr>
 </tbody>
 </table>
+<p><code>choractl mcp</code> implements the stdio transport of MCP itself. Milestone 0.8
+replaces it with <a href="https://github.com/modelcontextprotocol/rust-sdk">rmcp</a>,
+the official Rust MCP SDK (D34).</p>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1214,7 +1217,6 @@ says how to mark copied code.</p>
 <li><strong>Capture:</strong> <code>ext-image-copy-capture</code> and <code>wlr-screencopy</code>.</li>
 <li><strong>Isolation:</strong> <code>wp-security-context-v1</code>.</li>
 </ul>
-<p><a href="../roadmap/">Roadmap</a> assigns each protocol to a milestone.</p>
 <h2 id="outside-the-core">Outside the core<a class="headerlink" href="#outside-the-core" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1249,8 +1251,8 @@ says how to mark copied code.</p>
 <td>HTML content from agents</td>
 </tr>
 <tr>
-<td>whisper.cpp or faster-whisper, piper</td>
-<td>speech in and out</td>
+<td><a href="https://github.com/gufo-org/gufo">Gufo</a> with speech, router and main models</td>
+<td>the voice pipeline of <code>chora-voice</code> (D53)</td>
 </tr>
 <tr>
 <td>Podman with Quadlet, distrobox, systemd user units</td>

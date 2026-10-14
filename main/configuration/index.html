@@ -654,6 +654,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#chora-tiling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chora-tiling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#flavors" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1012,6 +1023,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#chora-tiling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chora-tiling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#flavors" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1080,10 +1102,11 @@ example <code>chora-flavor</code>, which starts the systemd target of a flavor:<
 </code></pre></div>
 <h2 id="locations">Locations<a class="headerlink" href="#locations" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>~/.config/chora/
-├── views/      # one file per view
-├── flavors/    # bundles of views, plugins and services
-├── plugins/    # plugin manifests
-└── shaders/    # GLSL ES shaders
+├── views/              # one file per view
+├── flavors/            # bundles of views, plugins and services
+├── plugins/            # plugin manifests
+├── shaders/            # GLSL ES shaders
+└── chora-tiling.yaml   # the options and bindings of chora-tiling
 </code></pre></div>
 <p>The directory is a git repository. It contains no secrets. The package
 installs the reference flavors to <code>/usr/share/chora/</code>.</p>
@@ -1094,7 +1117,7 @@ installs the reference flavors to <code>/usr/share/chora/</code>.</p>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">work</span>
 <span class="nt">plugins</span><span class="p">:</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
-<span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">layout</span><span class="p">:</span><span class="w"> </span><span class="nv">columns</span><span class="p p-Indicator">,</span><span class="nt"> gap</span><span class="p">:</span><span class="w"> </span><span class="nv">12</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">layout</span><span class="p">:</span><span class="w"> </span><span class="nv">fair</span><span class="p p-Indicator">,</span><span class="nt"> gap</span><span class="p">:</span><span class="w"> </span><span class="nv">12</span><span class="p p-Indicator">}</span>
 <span class="nt">scene</span><span class="p">:</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">work-corner</span>
 <span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">group</span>
@@ -1144,7 +1167,7 @@ lives in <code>plugins/NAME.yaml</code> of the same directories:</p>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
 <span class="nt">exec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora-tiling</span>
 <span class="nt">configure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">set_layout</span>
-<span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Tiles the windows as master and stack, columns or rows.</span>
+<span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Tiles the windows with the tags and layouts of awesome.</span>
 </code></pre></div>
 <table>
 <thead>
@@ -1173,6 +1196,61 @@ lives in <code>plugins/NAME.yaml</code> of the same directories:</p>
 </tbody>
 </table>
 <p>The package installs the manifest of <code>chora-tiling</code>.</p>
+<h2 id="chora-tiling">chora-tiling<a class="headerlink" href="#chora-tiling" title="Permanent link">&para;</a></h2>
+<p><code>chora-tiling</code> reads <code>chora/chora-tiling.yaml</code> in <code>$XDG_CONFIG_HOME</code>, by
+default <code>~/.config</code>, or the file of <code>--config</code>. Without a file, it uses its
+default, which <code>chora-tiling --print-config</code> prints. The file lists every
+option:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>modifier</code></td>
+<td>what <code>MOD</code> means in the bindings: Super or Alt</td>
+</tr>
+<tr>
+<td><code>gap</code></td>
+<td>the gap around each window, in logical pixels</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>the number of tags of each output, at most 16</td>
+</tr>
+<tr>
+<td><code>layouts</code></td>
+<td>the layouts in the order of <code>next_layout</code>; each tag starts with the first</td>
+</tr>
+<tr>
+<td><code>master_width</code>, <code>masters</code>, <code>columns</code></td>
+<td>the start values of each tag for the tile layouts</td>
+</tr>
+<tr>
+<td><code>new_window</code></td>
+<td><code>master</code> or <code>stack</code>: where a new window goes</td>
+</tr>
+<tr>
+<td><code>focus</code></td>
+<td><code>click</code> or <code>follow_mouse</code></td>
+</tr>
+<tr>
+<td><code>bindings</code></td>
+<td>a binding with <code>MOD</code>, and its action; the default file uses every action at least once</td>
+</tr>
+</tbody>
+</table>
+<p>The layouts and the default bindings follow the awesome window manager.
+Each output has its own tags, and each tag its own layout and parameters.
+A window can be on several tags, and an output can show several tags. A
+floating, maximized or fullscreen window leaves the tiles. A click or a
+binding raises the window that it focuses; the focus that follows the
+pointer raises nothing. The binding
+<code>MOD+Ctrl+r</code> reads the file again. Mouse moves and resizes of floating
+windows do not exist.</p>
 <h2 id="flavors">Flavors<a class="headerlink" href="#flavors" title="Permanent link">&para;</a></h2>
 <p>A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target <code>chora-&lt;name&gt;.target</code>. <code>chora-flavor &lt;name&gt;</code> looks for
@@ -1185,14 +1263,14 @@ the target. The target starts the services and the plugins. systemd handles
 start, restart and order, so chora needs no service manager.</p>
 <p>The package installs the tiling flavor:</p>
 <div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/tiling/
-├── chora-tiling.target              # wants the three units below
+├── chora-tiling.target              # wants the two units below
 ├── chora-tiling-wm.service          # chora-tiling
 └── chora-tiling-xwayland.service    # xwayland-satellite, if installed
 </code></pre></div>
 <p>The target also wants <code>waybar.service</code>, which the waybar package installs.
 A copy of the directory in <code>~/.config/chora/flavors/tiling/</code> replaces it.</p>
 <h3 id="the-xp-flavor">The XP flavor<a class="headerlink" href="#the-xp-flavor" title="Permanent link">&para;</a></h3>
-<p>The XP flavor is the showroom of milestone M3 (D39): a stacking desktop in
+<p>The XP flavor is the showroom (D39): a stacking desktop in
 the style of Windows XP. It is a demo, not a daily driver.</p>
 <div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/xp/
 ├── chora-xp.target              # wants the two units below
@@ -1224,7 +1302,7 @@ area above the taskbar. A click on a task button shows or minimizes its
 window. Buttons light up under the pointer, and so do the entries of the
 start menu. Log Off asks every window to close. Turn Off Computer ends
 <code>chora-xp</code>; it shuts nothing down.</p>
-<p>The effects of M3 run in the plugin, which computes their meshes and
+<p>The effects run in the plugin, which computes their meshes and
 transforms at 60 Hz:</p>
 <ul>
 <li><strong>Wobbly windows.</strong> A dragged window bends like jelly: the point under
@@ -1320,12 +1398,6 @@ these bindings, Super+Ctrl with the arrows stands in.</p>
 <p>To try the flavor from a source tree, start it nested:</p>
 <div class="highlight"><pre><span></span><code>cargo<span class="w"> </span>build<span class="w"> </span>--workspace
 target/debug/chora<span class="w"> </span>--<span class="w"> </span>target/debug/chora-xp<span class="w"> </span>--theme<span class="w"> </span>flavors/xp/theme
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>flavors/agentic/
-├── chora-agentic.target
-├── views/       # morning, analysis, writing, coding
-├── plugins/     # canvas layout, keybindings
-└── services/    # Quadlet units: speech, browser in app mode
 </code></pre></div>
 <h2 id="services">Services<a class="headerlink" href="#services" title="Permanent link">&para;</a></h2>
 <p>A service runs as a Quadlet unit with Podman, or in distrobox. It connects

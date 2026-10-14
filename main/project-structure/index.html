@@ -939,14 +939,15 @@
 <h1 id="project-structure">Project structure<a class="headerlink" href="#project-structure" title="Permanent link">&para;</a></h1>
 <p>The layout of this repository: one Cargo workspace with as few crates as
 possible. A module moves into its own crate only when a second consumer
-needs it.</p>
+needs it. Milestone 0.6 moves the plugins into repositories of their own
+(D36).</p>
 <div class="highlight"><pre><span></span><code>chora/
 ├── crates/
 │   ├── chora-scene/   # scene model, commands, events, selectors, IPC types and client; no Smithay
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
-│   ├── chora-tiling/  # reference plugin: master and stack, columns, rows, keybindings
+│   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome
 │   └── chora-xp/      # stacking window manager in the style of Windows XP
 ├── flavors/           # systemd units of the flavors; the theme of the XP flavor
 ├── dist/              # RPM build script, Fedora build requirements, session files
@@ -961,11 +962,11 @@ needs it.</p>
 <li><strong><code>chora-scene</code> has no Smithay dependency.</strong> Tests of the data model and
   the transaction logic need no GPU and no compositor. The core, <code>choractl</code>
   and plugins share this one definition of the API.</li>
-<li><strong>Reference plugins live in this repository</strong> first, as workspace members.
-  They keep the API honest. They can move out when the API is stable.</li>
-<li><strong>The build generates the schemas</strong> from the Rust types. The repository
-  does not contain them. Docs, validation and agents then see the same
-  contract.</li>
+<li><strong>Reference plugins are workspace members.</strong> They keep the API honest.</li>
+<li><strong><code>choractl</code> builds the JSON schemas</strong> from the Rust types at run time, in
+  <code>crates/choractl/src/schema.rs</code>. The repository does not contain them.
+  The MCP tools and the test of the documentation examples then see the
+  same contract.</li>
 </ul>
 <h2 id="related-repositories">Related repositories<a class="headerlink" href="#related-repositories" title="Permanent link">&para;</a></h2>
 <table>
