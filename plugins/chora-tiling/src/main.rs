@@ -24,7 +24,7 @@ use serde_json::Value;
 use crate::{
     config::{Action, Config},
     layout::Layout,
-    wm::{Effect, Placement, Wm},
+    wm::{Effect, Placement, States, Wm},
 };
 
 /// The client name, and the group that holds the windows.
@@ -35,7 +35,8 @@ const NAME: &str = "tiling";
 #[command(version)]
 struct Args {
     /// The configuration file. Without it, chora-tiling reads
-    /// ~/.config/chora/tiling.yaml if it exists, or the default.
+    /// $XDG_CONFIG_HOME/chora/chora-tiling.yaml, by default in ~/.config,
+    /// if it exists, or the default.
     #[arg(long)]
     config: Option<PathBuf>,
     /// Print the default configuration and exit.
@@ -66,8 +67,8 @@ struct LayoutInfo {
 struct Tiling {
     client: Client,
     wm: Wm,
-    /// The configuration file, if there is one.
-    path: Option<PathBuf>,
+    /// The configuration file of the command line.
+    arg: Option<PathBuf>,
     /// The grabbed bindings, as the core names them.
     grabs: Vec<(String, Action)>,
     /// What the last transaction set, so that the next one sends changes
@@ -95,22 +96,22 @@ fn main() -> ExitCode {
 }
 
 /// The configuration file to read: the argument, or the file of the user.
-fn config_path(arg: Option<PathBuf>) -> Option<PathBuf> {
-    arg.or_else(|| {
+fn config_path(arg: Option<&PathBuf>) -> Option<PathBuf> {
+    arg.cloned().or_else(|| {
         let base = std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
             .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-        Some(base.join("chora/tiling.yaml")).filter(|p| p.exists())
+        Some(base.join("chora/chora-tiling.yaml")).filter(|p| p.exists())
     })
 }
 
-fn load(path: Option<&PathBuf>) -> Result<Config, String> {
-    path.map_or_else(|| Config::parse(config::DEFAULT), |p| Config::read(p))
+/// Reads the configuration file, or the default without one.
+fn load(arg: Option<&PathBuf>) -> Result<Config, String> {
+    config_path(arg).map_or_else(|| Config::parse(config::DEFAULT), |p| Config::read(&p))
 }
 
 fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
-    let path = config_path(args.config);
-    let config = load(path.as_ref())?;
+    let config = load(args.config.as_ref())?;
     let hello = Hello {
         name: NAME.into(),
         keep_nodes: false,
@@ -118,7 +119,7 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let mut tiling = Tiling {
         client: Client::from_env(&hello)?,
         wm: Wm::new(config),
-        path,
+        arg: args.config,
         grabs: Vec::new(),
         sent: HashMap::new(),
         order: Vec::new(),
@@ -207,7 +208,7 @@ impl Tiling {
 
     /// Reads the configuration again and grabs its bindings.
     fn reload(&mut self) -> Result<(), ClientError> {
-        let config = match load(self.path.as_ref()) {
+        let config = match load(self.arg.as_ref()) {
             Ok(config) => config,
             Err(err) => {
                 eprintln!("chora-tiling: {err}");
@@ -235,6 +236,8 @@ impl Tiling {
 
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
+            // The start adopts surfaces that the events then announce.
+            Event::SurfaceCreated { surface, .. } if self.wm.has(&surface) => return Ok(()),
             // A detached surface has no owner any more, so it is free to take.
             Event::SurfaceCreated { surface, .. } | Event::SurfaceDetached { surface } => {
                 self.wm.remove_window(&surface);
@@ -248,7 +251,11 @@ impl Tiling {
                 surface,
                 size: Some(size),
                 ..
-            } if self.wm.set_size(&surface, size) => {}
+            } => {
+                if !self.wm.set_size(&surface, size) {
+                    return Ok(());
+                }
+            }
             Event::OutputChanged { output } => {
                 self.wm
                     .set_output(&output.name, output.layout_area(), full_area(&output));
@@ -258,8 +265,16 @@ impl Tiling {
                 binding,
                 state: PressState::Pressed,
             } => return self.act(&binding),
-            Event::PointerEntered { node, .. } if self.wm.pointer_focus(&node, false) => {}
-            Event::PointerPressed { node, .. } if self.wm.pointer_focus(&node, true) => {}
+            Event::PointerEntered { node, moved } => {
+                if !self.wm.pointer_focus(&node, false, moved) {
+                    return Ok(());
+                }
+            }
+            Event::PointerPressed { node, .. } => {
+                if !self.wm.pointer_focus(&node, true, true) {
+                    return Ok(());
+                }
+            }
             Event::SurfaceRequested { surface, request } if self.wm.has(&surface) => {
                 if request == SurfaceRequest::Close {
                     return self.apply(vec![Command::Close { surface }]);
@@ -271,21 +286,24 @@ impl Tiling {
                 method,
                 params,
                 ..
-            } => {
-                let result = self.method(&method, params);
-                // The call may have ended before the answer, for example
-                // when its caller left; that is no reason to exit.
-                return match self.client.answer(call, result) {
-                    Err(ClientError::Rpc(err)) => {
-                        eprintln!("chora-tiling: {err}");
-                        Ok(())
-                    }
-                    other => other,
-                };
-            }
+            } => return self.answer(call, &method, params),
             _ => return Ok(()),
         }
         self.relayout()
+    }
+
+    /// Answers a call of an exported method. The call may have ended
+    /// before the answer, for example when its caller left; that is no
+    /// reason to exit.
+    fn answer(&mut self, call: u64, method: &str, params: Value) -> Result<(), ClientError> {
+        let result = self.method(method, params);
+        match self.client.answer(call, result) {
+            Err(ClientError::Rpc(err)) => {
+                eprintln!("chora-tiling: {err}");
+                Ok(())
+            }
+            other => other,
+        }
     }
 
     /// Runs an exported method. A failed relayout fails the method.
@@ -319,7 +337,8 @@ impl Tiling {
         let Some((_, action)) = self.grabs.iter().find(|(b, _)| b == binding) else {
             return Ok(());
         };
-        match self.wm.act(&action.clone()) {
+        let action = action.clone();
+        match self.wm.act(&action) {
             Some(Effect::Relayout) => self.relayout(),
             Some(Effect::Spawn(command)) => {
                 spawn(&command);
@@ -415,37 +434,11 @@ impl Tiling {
 fn changes(sent: Option<&Placement>, placement: &Placement) -> Vec<Command> {
     let id = &placement.id;
     let Some([x, y]) = placement.at else {
-        let hide = Command::Update {
-            id: id.clone(),
-            props: PropsUpdate {
-                visible: Some(false),
-                ..PropsUpdate::default()
-            },
-        };
-        return if sent.is_some_and(|s| s.at.is_none()) {
-            Vec::new()
-        } else {
-            vec![hide]
-        };
+        return hide(sent, id);
     };
     let mut commands = Vec::new();
     if sent.is_none_or(|s| s.size != placement.size || s.states != placement.states) {
-        let states = placement.states;
-        let states = [
-            (states.tiled, ToplevelState::Tiled),
-            (states.maximized, ToplevelState::Maximized),
-            (states.fullscreen, ToplevelState::Fullscreen),
-            (states.activated, ToplevelState::Activated),
-        ];
-        commands.push(Command::Configure {
-            surface: id.clone(),
-            size: placement.size,
-            states: states
-                .into_iter()
-                .filter(|(on, _)| *on)
-                .map(|(_, s)| s)
-                .collect(),
-        });
+        commands.push(configure(id, placement.size, placement.states));
     }
     if sent.is_none_or(|s| s.at != placement.at) {
         commands.push(Command::Update {
@@ -458,6 +451,47 @@ fn changes(sent: Option<&Placement>, placement: &Placement) -> Vec<Command> {
         });
     }
     commands
+}
+
+/// Hides a window that showed, and takes its focus state away.
+fn hide(sent: Option<&Placement>, id: &str) -> Vec<Command> {
+    let Some(sent) = sent.filter(|s| s.at.is_some()) else {
+        return Vec::new();
+    };
+    let mut commands = Vec::new();
+    if sent.states.activated {
+        let states = States {
+            activated: false,
+            ..sent.states
+        };
+        commands.push(configure(id, sent.size, states));
+    }
+    commands.push(Command::Update {
+        id: id.into(),
+        props: PropsUpdate {
+            visible: Some(false),
+            ..PropsUpdate::default()
+        },
+    });
+    commands
+}
+
+fn configure(id: &str, size: Option<[i32; 2]>, states: States) -> Command {
+    let states = [
+        (states.tiled, ToplevelState::Tiled),
+        (states.maximized, ToplevelState::Maximized),
+        (states.fullscreen, ToplevelState::Fullscreen),
+        (states.activated, ToplevelState::Activated),
+    ];
+    Command::Configure {
+        surface: id.into(),
+        size,
+        states: states
+            .into_iter()
+            .filter(|(on, _)| *on)
+            .map(|(_, s)| s)
+            .collect(),
+    }
 }
 
 /// Runs a shell command. `&` lets the shell exit at once, so the command

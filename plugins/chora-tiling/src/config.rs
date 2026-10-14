@@ -1,10 +1,10 @@
-//! The configuration: a YAML file that writes out every option. The file
+//! The configuration: a YAML file that lists every option. The file
 //! `tiling.yaml` next to the crate is the default and the reference.
 
 use std::{collections::BTreeMap, path::Path};
 
 use chora_scene::Binding;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::layout::Layout;
 
@@ -13,6 +13,13 @@ pub const DEFAULT: &str = include_str!("../tiling.yaml");
 
 /// The most tags per output: one bit each in a `u16`.
 pub const MAX_TAGS: usize = 16;
+
+/// The range of the master share.
+pub const SHARE: std::ops::RangeInclusive<f64> = 0.05..=0.95;
+
+/// The modifiers that `MOD` can be. Ctrl and Shift are parts of other
+/// bindings.
+const MODIFIERS: [&str; 2] = ["Super", "Alt"];
 
 /// Where a new window goes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
@@ -36,7 +43,7 @@ pub enum Focus {
 }
 
 /// What a binding does.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
     /// Runs a shell command.
@@ -49,6 +56,7 @@ pub enum Action {
     FocusUrgent,
     SwapNext,
     SwapPrevious,
+    /// Swaps the focused window with the master.
     MoveToMaster,
     Close,
     ToggleFloating,
@@ -61,12 +69,12 @@ pub enum Action {
     Minimize,
     /// Shows the last minimized window of the current tags.
     RestoreMinimized,
-    /// Changes the master share of the current tag.
-    MasterWidth(f64),
-    /// Changes the number of master windows of the current tag.
-    Masters(i32),
-    /// Changes the number of columns of the current tag.
-    Columns(i32),
+    /// Adds to the master share of the current tag.
+    IncMasterWidth(f64),
+    /// Adds to the number of master windows of the current tag.
+    IncMasters(isize),
+    /// Adds to the number of columns of the current tag.
+    IncColumns(isize),
     NextLayout,
     PreviousLayout,
     FocusNextOutput,
@@ -96,8 +104,8 @@ pub struct Config {
     pub modifier: String,
     /// The gap around each window, in logical pixels.
     pub gap: u16,
-    /// The tag names of each output.
-    pub tags: Vec<String>,
+    /// The number of tags of each output.
+    pub tags: usize,
     /// The layouts in the order of `next_layout`.
     pub layouts: Vec<Layout>,
     /// The share of the master area of a new tag.
@@ -131,13 +139,16 @@ impl Config {
     }
 
     fn check(&self) -> Result<(), String> {
-        if self.tags.is_empty() || self.tags.len() > MAX_TAGS {
-            return Err(format!("tags: 1 to {MAX_TAGS} names"));
+        if !(1..=MAX_TAGS).contains(&self.tags) {
+            return Err(format!("tags: 1 to {MAX_TAGS}"));
+        }
+        if !MODIFIERS.contains(&self.modifier.as_str()) {
+            return Err(format!("modifier: one of {MODIFIERS:?}"));
         }
         if self.layouts.is_empty() {
             return Err("layouts: at least one".into());
         }
-        if !(0.05..=0.95).contains(&self.master_width) {
+        if !SHARE.contains(&self.master_width) {
             return Err("master_width: from 0.05 to 0.95".into());
         }
         if self.columns == 0 {
@@ -149,7 +160,7 @@ impl Config {
             | Action::ToggleTagView(n)
             | Action::MoveToTag(n)
             | Action::ToggleWindowTag(n) = action
-                && !(1..=self.tags.len()).contains(n)
+                && !(1..=self.tags).contains(n)
             {
                 return Err(format!("{binding}: no tag {n}"));
             }
@@ -177,7 +188,7 @@ mod tests {
     #[test]
     fn the_default_is_valid() {
         let config = Config::parse(DEFAULT).unwrap();
-        assert_eq!(config.tags.len(), 9);
+        assert_eq!(config.tags, 9);
         assert_eq!(config.layouts[0], Layout::Tile);
         assert_eq!(config.bindings["MOD+Return"], Action::Spawn("foot".into()));
         assert_eq!(
@@ -196,5 +207,7 @@ mod tests {
         assert!(Config::parse(&tag).unwrap_err().contains("no tag 10"));
         let key = DEFAULT.replace("MOD+j:", "MOD+Hyper+j:");
         assert!(Config::parse(&key).is_err());
+        let modifier = DEFAULT.replace("modifier: Super", "modifier: Shift");
+        assert!(Config::parse(&modifier).is_err());
     }
 }

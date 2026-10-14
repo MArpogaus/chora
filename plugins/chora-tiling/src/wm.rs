@@ -5,9 +5,21 @@
 use chora_scene::SurfaceRequest;
 
 use crate::{
-    config::{Action, Config, Focus, NewWindow},
+    config::{Action, Config, Focus, NewWindow, SHARE},
     layout::{self, Layout, Params, Rect},
 };
+
+/// The stacking ranks, from the bottom. A fullscreen window covers the
+/// others while it is the top window of its output, and lies below them
+/// otherwise.
+const FULLSCREEN: u8 = 0;
+const TILED: u8 = 1;
+/// The top window of the max, fullscreen and magnifier layouts.
+const TILED_TOP: u8 = 2;
+const FLOATING: u8 = 3;
+const FLOATING_TOP: u8 = 4;
+const ON_TOP: u8 = 5;
+const FULLSCREEN_TOP: u8 = 6;
 
 /// A tiled or floating window.
 #[derive(Clone, Debug)]
@@ -100,7 +112,8 @@ impl Wm {
         }
     }
 
-    /// Adds an output, or changes its areas.
+    /// Adds an output, or changes its areas. A new output takes the windows
+    /// that have no output.
     pub fn set_output(&mut self, name: &str, area: Rect, full: Rect) {
         if let Some(output) = self.outputs.iter_mut().find(|o| o.name == name) {
             (output.area, output.full) = (area, full);
@@ -113,14 +126,27 @@ impl Wm {
             full,
             selected: 1,
             previous: 1,
-            tags: vec![tag; self.config.tags.len()],
+            tags: vec![tag; self.config.tags],
         });
+        let names: Vec<String> = self.outputs.iter().map(|o| o.name.clone()).collect();
+        for window in &mut self.windows {
+            if !names.contains(&window.output) {
+                window.output = name.into();
+                window.tags = 1;
+            }
+        }
     }
 
-    /// Removes an output; its windows go to the first other output.
+    /// Removes an output; its windows go to the first other output, or wait
+    /// for the next new output.
     pub fn remove_output(&mut self, name: &str) {
+        let current = self.outputs.get(self.current).map(|o| o.name.clone());
         self.outputs.retain(|o| o.name != name);
-        self.current = self.current.min(self.outputs.len().saturating_sub(1));
+        self.current = self
+            .outputs
+            .iter()
+            .position(|o| Some(&o.name) == current.as_ref())
+            .unwrap_or(0);
         if let Some(first) = self.outputs.first() {
             let (target, tags) = (first.name.clone(), first.selected.max(1));
             for window in self.windows.iter_mut().filter(|w| w.output == name) {
@@ -162,13 +188,13 @@ impl Wm {
     }
 
     pub fn has(&self, id: &str) -> bool {
-        self.windows.iter().any(|w| w.id == id)
+        self.window(id).is_some()
     }
 
-    /// Notes the size that a client chose. True when a floating window must
-    /// move to keep its place.
+    /// Notes the size that a client chose. True when a window that does not
+    /// tile must move to keep its place.
     pub fn set_size(&mut self, id: &str, size: [i32; 2]) -> bool {
-        let floats = self.floats(id);
+        let floats = self.window(id).is_some_and(|w| !self.tiles(w));
         let Some(window) = self.window_mut(id) else {
             return false;
         };
@@ -177,18 +203,9 @@ impl Wm {
         changed && floats
     }
 
-    /// The focused window: the most recent one that shows on the current
-    /// output.
+    /// The focused window: the top window of the current output.
     pub fn focused(&self) -> Option<&str> {
-        let output = &self.outputs.get(self.current)?.name;
-        self.history
-            .iter()
-            .rev()
-            .find(|id| {
-                self.window(id)
-                    .is_some_and(|w| &w.output == output && self.shows(w))
-            })
-            .map(String::as_str)
+        self.top_on(self.current)
     }
 
     /// Focuses a window and its output.
@@ -205,9 +222,11 @@ impl Wm {
         }
     }
 
-    /// Focuses a window under the pointer, as the configuration says.
-    pub fn pointer_focus(&mut self, id: &str, clicked: bool) -> bool {
+    /// Focuses a window under the pointer, as the configuration says. A
+    /// pointer that stood still focuses nothing.
+    pub fn pointer_focus(&mut self, id: &str, clicked: bool, moved: bool) -> bool {
         let follow = self.config.focus == Focus::FollowMouse
+            && moved
             && self
                 .current_tag()
                 .is_some_and(|t| t.layout != Layout::Magnifier);
@@ -217,16 +236,6 @@ impl Wm {
         }
         self.focus(id);
         true
-    }
-
-    /// A window asked for attention: it gets the focus when it shows.
-    pub fn activate(&mut self, id: &str) {
-        let shows = self.window(id).is_some_and(|w| self.shows(w));
-        if shows {
-            self.focus(id);
-        } else if let Some(window) = self.window_mut(id) {
-            window.urgent = true;
-        }
     }
 
     /// A request of a client, for example from its title bar.
@@ -244,7 +253,17 @@ impl Wm {
             SurfaceRequest::Maximize => window.maximized = (true, true),
             SurfaceRequest::Unmaximize => window.maximized = (false, false),
             SurfaceRequest::Minimize => window.minimized = true,
-            _ => {}
+            SurfaceRequest::Activate | SurfaceRequest::Close => {}
+        }
+    }
+
+    /// A window asked for attention: it gets the focus when it shows.
+    fn activate(&mut self, id: &str) {
+        let shows = self.window(id).is_some_and(|w| self.shows(w));
+        if shows {
+            self.focus(id);
+        } else if let Some(window) = self.window_mut(id) {
+            window.urgent = true;
         }
     }
 
@@ -260,74 +279,41 @@ impl Wm {
             Action::FocusUrgent => self.focus_urgent(),
             Action::SwapNext => self.swap(1),
             Action::SwapPrevious => self.swap(-1),
-            Action::MoveToMaster => self.move_to_master(),
+            Action::MoveToMaster => self.swap_with_master(),
+            Action::ToggleFloating => self.toggle(|w| &mut w.floating),
+            Action::ToggleFullscreen => self.toggle(|w| &mut w.fullscreen),
+            Action::ToggleMaximized => self.with_focused(toggle_maximized),
+            Action::ToggleMaximizedHorizontal => self.toggle(|w| &mut w.maximized.0),
+            Action::ToggleMaximizedVertical => self.toggle(|w| &mut w.maximized.1),
+            Action::ToggleOnTop => self.toggle(|w| &mut w.on_top),
+            Action::Minimize => self.with_focused(|w| w.minimized = true),
+            Action::RestoreMinimized => self.restore_minimized(),
+            Action::MoveToTag(n) => self.with_focused(|w| w.tags = bit(*n)),
+            Action::ToggleWindowTag(n) => self.with_focused(|w| toggle_tag(w, *n)),
+            Action::IncMasterWidth(d) => self.with_tag(|t, _| t.params.master_width = share(t, *d)),
+            Action::IncMasters(d) => {
+                self.with_tag(|t, _| t.params.masters = add(t.params.masters, *d, 0));
+            }
+            Action::IncColumns(d) => {
+                self.with_tag(|t, _| t.params.columns = add(t.params.columns, *d, 1));
+            }
+            Action::NextLayout => self.with_tag(|t, all| t.layout = cycle(all, t.layout, 1)),
+            Action::PreviousLayout => self.with_tag(|t, all| t.layout = cycle(all, t.layout, -1)),
             Action::FocusNextOutput => self.focus_output(1),
             Action::FocusPreviousOutput => self.focus_output(-1),
             Action::MoveToNextOutput => self.move_to_next_output(),
-            _ => {
-                self.window_action(action);
-                self.tag_action(action);
-            }
+            Action::ViewTag(n) => self.view(|_, _| bit(*n)),
+            Action::ToggleTagView(n) => self.view(|tags, _| tags ^ bit(*n)),
+            Action::ViewNext => self.view(|tags, count| 1 << wrap(first_tag(tags), 1, count)),
+            Action::ViewPrevious => self.view(|tags, count| 1 << wrap(first_tag(tags), -1, count)),
+            Action::ViewBack => self.view_back(),
         }
         Some(Effect::Relayout)
     }
 
-    /// The actions on the states of the focused window.
-    fn window_action(&mut self, action: &Action) {
-        let restore = matches!(action, Action::RestoreMinimized);
-        if restore {
-            self.restore_minimized();
-        }
-        let Some(id) = self.focused().map(String::from).filter(|_| !restore) else {
-            return;
-        };
-        let window = self.window_mut(&id).expect("the focused window exists");
-        match action {
-            Action::ToggleFloating => window.floating ^= true,
-            Action::ToggleFullscreen => window.fullscreen ^= true,
-            Action::ToggleMaximized => {
-                let both = !(window.maximized.0 && window.maximized.1);
-                window.maximized = (both, both);
-            }
-            Action::ToggleMaximizedHorizontal => window.maximized.0 ^= true,
-            Action::ToggleMaximizedVertical => window.maximized.1 ^= true,
-            Action::ToggleOnTop => window.on_top ^= true,
-            Action::Minimize => window.minimized = true,
-            Action::MoveToTag(n) => window.tags = bit(*n),
-            Action::ToggleWindowTag(n) if window.tags ^ bit(*n) != 0 => window.tags ^= bit(*n),
-            _ => {}
-        }
-    }
-
-    /// The actions on the tags and the layout of the current output.
-    fn tag_action(&mut self, action: &Action) {
-        let layouts = self.config.layouts.clone();
-        let Some(output) = self.outputs.get_mut(self.current) else {
-            return;
-        };
-        let count = output.tags.len();
-        let first = first_tag(output.selected);
-        let view = match action {
-            Action::ViewTag(n) => bit(*n),
-            Action::ToggleTagView(n) => output.selected ^ bit(*n),
-            Action::ViewNext => 1 << wrap(first, 1, count),
-            Action::ViewPrevious => 1 << wrap(first, -1, count),
-            Action::ViewBack => output.previous,
-            _ => {
-                change_tag(&mut output.tags[first], action, &layouts);
-                return;
-            }
-        };
-        output.previous = output.selected;
-        output.selected = view;
-    }
-
     /// Changes the layout of the current tag, from the exported method.
     pub fn set_layout(&mut self, layout: Layout) {
-        if let Some(output) = self.outputs.get_mut(self.current) {
-            let first = first_tag(output.selected);
-            output.tags[first].layout = layout;
-        }
+        self.with_tag(|t, _| t.layout = layout);
     }
 
     /// The layout and the parameters of the current tag.
@@ -345,7 +331,7 @@ impl Wm {
 
     /// Takes a new configuration; tags beyond the new count go.
     pub fn reconfigure(&mut self, config: Config) {
-        let count = config.tags.len();
+        let count = config.tags;
         let mask = u16::MAX >> (16 - count);
         self.config = config;
         let tag = self.new_tag();
@@ -361,27 +347,22 @@ impl Wm {
 
     /// Where each window shows, from the bottom to the top.
     pub fn arrange(&self) -> Vec<Placement> {
-        let focused = self.focused();
-        let mut hidden = Vec::new();
-        let mut shown = Vec::new();
-        for (index, output) in self.outputs.iter().enumerate() {
-            shown.extend(self.arrange_output(index, output, focused));
-        }
-        for window in &self.windows {
-            if !shown
-                .iter()
-                .any(|(_, p): &(u8, Placement)| p.id == window.id)
-            {
-                hidden.push(Placement {
-                    id: window.id.clone(),
-                    at: None,
-                    size: None,
-                    states: States::default(),
-                });
-            }
-        }
+        let mut shown: Vec<(u8, Placement)> = (0..self.outputs.len())
+            .flat_map(|index| self.arrange_output(index))
+            .collect();
         // A stable sort keeps the order of the layout within a rank.
         shown.sort_by_key(|(rank, _)| *rank);
+        let hidden: Vec<Placement> = self
+            .windows
+            .iter()
+            .filter(|w| !shown.iter().any(|(_, p)| p.id == w.id))
+            .map(|w| Placement {
+                id: w.id.clone(),
+                at: None,
+                size: None,
+                states: States::default(),
+            })
+            .collect();
         hidden
             .into_iter()
             .chain(shown.into_iter().map(|(_, p)| p))
@@ -390,29 +371,24 @@ impl Wm {
 
     /// The placements of the windows of one output, with their rank in the
     /// stacking order.
-    fn arrange_output(
-        &self,
-        index: usize,
-        output: &Output,
-        focused: Option<&str>,
-    ) -> Vec<(u8, Placement)> {
+    fn arrange_output(&self, index: usize) -> Vec<(u8, Placement)> {
+        let output = &self.outputs[index];
         let tag = output.tags[first_tag(output.selected)];
+        let focused = self.focused();
+        let top = self.top_on(index);
         let windows: Vec<&Window> = self
             .shown_on(index)
             .into_iter()
             .map(|i| &self.windows[i])
             .collect();
-        let tiled: Vec<&Window> = windows
-            .iter()
-            .copied()
-            .filter(|w| tiles(w, tag.layout))
-            .collect();
-        let focus_at = tiled.iter().position(|w| Some(&*w.id) == focused);
+        let tiled: Vec<&Window> = windows.iter().copied().filter(|w| self.tiles(w)).collect();
+        // The magnifier shows the first window when the top one floats.
+        let top_at = tiled.iter().position(|w| Some(&*w.id) == top).unwrap_or(0);
         let cells = layout::arrange(
             tag.layout,
             tiled.len(),
             (output.area, output.full),
-            focus_at,
+            Some(top_at),
             tag.params,
         );
         let gap = if tag.layout == Layout::Fullscreen {
@@ -425,21 +401,39 @@ impl Wm {
             Layout::Max | Layout::Fullscreen | Layout::Magnifier
         );
         let mut placed = Vec::new();
-        for (window, cell) in tiled.iter().zip(cells) {
+        for (i, (window, cell)) in tiled.iter().zip(cells).enumerate() {
             let [x, y, w, h] = layout::inset(cell, gap);
-            let activated = Some(&*window.id) == focused;
             let states = States {
                 tiled: true,
-                activated,
+                activated: Some(&*window.id) == focused,
                 ..States::default()
             };
-            let rank = u8::from(stacks && activated);
+            let rank = if window.on_top {
+                ON_TOP
+            } else if stacks && i == top_at {
+                TILED_TOP
+            } else {
+                TILED
+            };
             placed.push((rank, placement(window, [x, y], Some([w, h]), states)));
         }
-        for window in windows.iter().filter(|w| !tiles(w, tag.layout)) {
-            placed.push(float(window, output, focused));
+        for window in windows.iter().filter(|w| !self.tiles(w)) {
+            let is_top = Some(&*window.id) == top;
+            placed.push(float(window, output, is_top, Some(&*window.id) == focused));
         }
         placed
+    }
+
+    fn tiles(&self, window: &Window) -> bool {
+        let layout = self
+            .outputs
+            .iter()
+            .find(|o| o.name == window.output)
+            .map(|o| o.tags[first_tag(o.selected)].layout);
+        layout.is_some_and(|l| l != Layout::Floating)
+            && !window.floating
+            && !window.fullscreen
+            && window.maximized == (false, false)
     }
 
     /// Whether a window shows on its output.
@@ -461,17 +455,26 @@ impl Wm {
             .collect()
     }
 
+    /// The most recently focused window that shows on an output.
+    fn top_on(&self, output: usize) -> Option<&str> {
+        let name = &self.outputs.get(output)?.name;
+        self.history
+            .iter()
+            .rev()
+            .find(|id| {
+                self.window(id)
+                    .is_some_and(|w| &w.output == name && self.shows(w))
+            })
+            .map(String::as_str)
+    }
+
     fn focus_step(&mut self, step: isize) {
         let shown = self.shown_on(self.current);
         if shown.is_empty() {
             return;
         }
-        let at = self
-            .focused()
-            .and_then(|f| shown.iter().position(|&i| self.windows[i].id == f))
-            .unwrap_or(0);
-        let next = shown[wrap(at, step, shown.len())];
-        let id = self.windows[next].id.clone();
+        let at = self.focused_position(&shown).unwrap_or(0);
+        let id = self.windows[shown[wrap(at, step, shown.len())]].id.clone();
         self.focus(&id);
     }
 
@@ -489,10 +492,13 @@ impl Wm {
         }
     }
 
+    /// Shows a window that asked for attention, with its tag, and focuses
+    /// it; a minimized one comes back.
     fn focus_urgent(&mut self) {
-        let Some(window) = self.windows.iter().find(|w| w.urgent && !w.minimized) else {
+        let Some(window) = self.windows.iter_mut().find(|w| w.urgent) else {
             return;
         };
+        window.minimized = false;
         let (id, name, tags) = (window.id.clone(), window.output.clone(), window.tags);
         if let Some(output) = self.outputs.iter_mut().find(|o| o.name == name)
             && output.selected & tags == 0
@@ -506,28 +512,23 @@ impl Wm {
     /// Swaps the focused window with the next or previous one that shows.
     fn swap(&mut self, step: isize) {
         let shown = self.shown_on(self.current);
-        let Some(at) = self
-            .focused()
-            .and_then(|f| shown.iter().position(|&i| self.windows[i].id == f))
-        else {
-            return;
-        };
-        self.windows
-            .swap(shown[at], shown[wrap(at, step, shown.len())]);
+        if let Some(at) = self.focused_position(&shown) {
+            self.windows
+                .swap(shown[at], shown[wrap(at, step, shown.len())]);
+        }
     }
 
-    fn move_to_master(&mut self) {
+    fn swap_with_master(&mut self) {
         let shown = self.shown_on(self.current);
-        let Some(id) = self.focused().map(String::from) else {
-            return;
-        };
-        let from = self
-            .windows
-            .iter()
-            .position(|w| w.id == id)
-            .expect("focused");
-        let window = self.windows.remove(from);
-        self.windows.insert(shown[0].min(from), window);
+        if let Some(at) = self.focused_position(&shown) {
+            self.windows.swap(shown[at], shown[0]);
+        }
+    }
+
+    /// The position of the focused window among the indices of windows.
+    fn focused_position(&self, shown: &[usize]) -> Option<usize> {
+        let focused = self.focused()?;
+        shown.iter().position(|&i| self.windows[i].id == focused)
     }
 
     fn focus_output(&mut self, step: isize) {
@@ -535,20 +536,16 @@ impl Wm {
             return;
         }
         self.current = wrap(self.current, step, self.outputs.len());
-        if let Some(id) = self.focused().map(String::from) {
-            self.focus(&id);
-        }
     }
 
     fn move_to_next_output(&mut self) {
         let Some(id) = self.focused().map(String::from) else {
             return;
         };
-        let next = wrap(self.current, 1, self.outputs.len());
-        let (name, tags) = (self.outputs[next].name.clone(), self.outputs[next].selected);
+        let next = &self.outputs[wrap(self.current, 1, self.outputs.len())];
+        let (name, tags) = (next.name.clone(), nonzero(next.selected));
         let window = self.window_mut(&id).expect("focused");
-        window.output = name;
-        window.tags = nonzero(tags);
+        (window.output, window.tags) = (name, tags);
         self.focus(&id);
     }
 
@@ -574,6 +571,44 @@ impl Wm {
         }
     }
 
+    /// Flips a state of the focused window.
+    fn toggle(&mut self, state: impl FnOnce(&mut Window) -> &mut bool) {
+        self.with_focused(|w| *state(w) ^= true);
+    }
+
+    fn with_focused(&mut self, change: impl FnOnce(&mut Window)) {
+        if let Some(id) = self.focused().map(String::from) {
+            change(self.window_mut(&id).expect("focused"));
+        }
+    }
+
+    /// Changes the current tag of the current output.
+    fn with_tag(&mut self, change: impl FnOnce(&mut Tag, &[Layout])) {
+        let layouts = &self.config.layouts;
+        if let Some(output) = self.outputs.get_mut(self.current) {
+            let first = first_tag(output.selected);
+            change(&mut output.tags[first], layouts);
+        }
+    }
+
+    /// Shows other tags on the current output, from the shown tags and their
+    /// count.
+    fn view(&mut self, select: impl FnOnce(u16, usize) -> u16) {
+        if let Some(output) = self.outputs.get_mut(self.current) {
+            let selected = select(output.selected, output.tags.len());
+            if selected != output.selected {
+                output.previous = output.selected;
+                output.selected = selected;
+            }
+        }
+    }
+
+    fn view_back(&mut self) {
+        if let Some(output) = self.outputs.get_mut(self.current) {
+            (output.selected, output.previous) = (output.previous, output.selected);
+        }
+    }
+
     fn current_tag(&self) -> Option<&Tag> {
         let output = self.outputs.get(self.current)?;
         output.tags.get(first_tag(output.selected))
@@ -590,17 +625,6 @@ impl Wm {
         }
     }
 
-    fn floats(&self, id: &str) -> bool {
-        self.window(id).is_some_and(|w| {
-            let layout = self
-                .outputs
-                .iter()
-                .find(|o| o.name == w.output)
-                .map(|o| o.tags[first_tag(o.selected)].layout);
-            !layout.is_some_and(|l| tiles(w, l))
-        })
-    }
-
     fn window(&self, id: &str) -> Option<&Window> {
         self.windows.iter().find(|w| w.id == id)
     }
@@ -610,9 +634,13 @@ impl Wm {
     }
 }
 
-/// The placement of a window that does not tile.
-fn float(window: &Window, output: &Output, focused: Option<&str>) -> (u8, Placement) {
-    let activated = Some(&*window.id) == focused;
+/// The placement and the rank of a window that does not tile.
+fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, Placement) {
+    let rank = match (window.on_top, top) {
+        (true, _) => ON_TOP,
+        (false, true) => FLOATING_TOP,
+        (false, false) => FLOATING,
+    };
     if window.fullscreen {
         let [x, y, w, h] = output.full;
         let states = States {
@@ -620,48 +648,55 @@ fn float(window: &Window, output: &Output, focused: Option<&str>) -> (u8, Placem
             activated,
             ..States::default()
         };
-        return (5, placement(window, [x, y], Some([w, h]), states));
+        let rank = match (top, window.on_top) {
+            (true, _) => FULLSCREEN_TOP,
+            (false, true) => ON_TOP,
+            (false, false) => FULLSCREEN,
+        };
+        return (rank, placement(window, [x, y], Some([w, h]), states));
     }
     let [ax, ay, aw, ah] = output.area;
     let [sw, sh] = window.size.unwrap_or([aw / 2, ah / 2]);
     let (mx, my) = window.maximized;
     let (w, h) = (if mx { aw } else { sw }, if my { ah } else { sh });
     let at = [ax + (aw - w) / 2, ay + (ah - h) / 2];
-    let size = (mx || my).then_some([w, h]);
     let states = States {
         maximized: mx && my,
         activated,
         ..States::default()
     };
-    let rank = 2 + u8::from(activated) + 2 * u8::from(window.on_top);
-    (rank, placement(window, at, size, states))
+    (
+        rank,
+        placement(window, at, (mx || my).then_some([w, h]), states),
+    )
 }
 
-fn tiles(window: &Window, layout: Layout) -> bool {
-    layout != Layout::Floating
-        && !window.floating
-        && !window.fullscreen
-        && window.maximized == (false, false)
-}
-
-/// Changes the layout or a parameter of a tag.
-fn change_tag(tag: &mut Tag, action: &Action, layouts: &[Layout]) {
-    let index = layouts.iter().position(|l| *l == tag.layout).unwrap_or(0);
-    let delta = |d: &i32| isize::try_from(*d).unwrap_or_default();
-    match action {
-        Action::MasterWidth(d) => {
-            tag.params.master_width = (tag.params.master_width + d).clamp(0.05, 0.95);
-        }
-        Action::Masters(d) => {
-            tag.params.masters = tag.params.masters.saturating_add_signed(delta(d));
-        }
-        Action::Columns(d) => {
-            tag.params.columns = tag.params.columns.saturating_add_signed(delta(d)).max(1);
-        }
-        Action::NextLayout => tag.layout = layouts[wrap(index, 1, layouts.len())],
-        Action::PreviousLayout => tag.layout = layouts[wrap(index, -1, layouts.len())],
-        _ => {}
+/// Adds or removes a tag of a window, but keeps its last tag.
+fn toggle_tag(window: &mut Window, n: usize) {
+    if window.tags != bit(n) {
+        window.tags ^= bit(n);
     }
+}
+
+fn toggle_maximized(window: &mut Window) {
+    let both = window.maximized != (true, true);
+    window.maximized = (both, both);
+}
+
+/// The master share of a tag plus a change, within its range.
+fn share(tag: &Tag, delta: f64) -> f64 {
+    (tag.params.master_width + delta).clamp(*SHARE.start(), *SHARE.end())
+}
+
+/// A count plus a change, at least `least`.
+fn add(count: usize, delta: isize, least: usize) -> usize {
+    count.saturating_add_signed(delta).max(least)
+}
+
+/// The layout `step` places after a layout in a list.
+fn cycle(layouts: &[Layout], layout: Layout, step: isize) -> Layout {
+    let index = layouts.iter().position(|l| *l == layout).unwrap_or(0);
+    layouts[wrap(index, step, layouts.len())]
 }
 
 fn placement(window: &Window, at: [i32; 2], size: Option<[i32; 2]>, states: States) -> Placement {
@@ -755,8 +790,10 @@ mod tests {
         assert_eq!(wm.focused(), Some("c"));
         wm.act(&Action::SwapNext);
         assert_eq!(wm.shown_windows(), ["b", "c", "a"]);
+        // As in awesome, the focused window swaps with the master.
+        wm.act(&Action::FocusNext);
         wm.act(&Action::MoveToMaster);
-        assert_eq!(wm.shown_windows(), ["c", "b", "a"]);
+        assert_eq!(wm.shown_windows(), ["a", "c", "b"]);
     }
 
     #[test]
@@ -781,7 +818,7 @@ mod tests {
     fn layouts_and_parameters_belong_to_the_tag() {
         let mut wm = wm(&["a", "b"]);
         wm.act(&Action::NextLayout);
-        wm.act(&Action::MasterWidth(0.1));
+        wm.act(&Action::IncMasterWidth(0.1));
         assert_eq!(wm.current().unwrap().0, Layout::TileLeft);
         wm.act(&Action::ViewTag(2));
         assert_eq!(wm.current().unwrap().0, Layout::Tile);
@@ -816,5 +853,57 @@ mod tests {
         assert!(wm.set_size("a", [40, 20]));
         let placed = wm.arrange().pop().unwrap();
         assert_eq!((placed.at, placed.size), (Some([30, 20]), None));
+    }
+
+    #[test]
+    fn a_fullscreen_window_covers_others_only_with_the_focus() {
+        let mut wm = wm(&["a", "b"]);
+        wm.act(&Action::ToggleFullscreen);
+        wm.act(&Action::FocusNext);
+        assert_eq!(wm.focused(), Some("a"));
+        assert_eq!(wm.arrange().pop().unwrap().id, "a");
+    }
+
+    #[test]
+    fn windows_survive_a_change_of_all_outputs() {
+        let mut wm = wm(&["a"]);
+        wm.remove_output("A");
+        wm.add_window("b");
+        wm.set_output("B", [0, 0, 100, 60], [0, 0, 100, 60]);
+        assert_eq!(wm.shown_windows(), ["b", "a"]);
+    }
+
+    #[test]
+    fn the_current_output_stays_after_another_goes() {
+        let mut wm = wm(&[]);
+        wm.set_output("B", [100, 0, 100, 60], [100, 0, 100, 60]);
+        wm.set_output("C", [200, 0, 100, 60], [200, 0, 100, 60]);
+        wm.act(&Action::FocusNextOutput);
+        wm.add_window("b");
+        wm.remove_output("A");
+        assert_eq!(wm.focused(), Some("b"));
+    }
+
+    #[test]
+    fn the_shown_tag_again_keeps_the_history() {
+        let mut wm = wm(&["a"]);
+        wm.act(&Action::ViewTag(2));
+        wm.act(&Action::ViewTag(1));
+        wm.act(&Action::ViewTag(1));
+        wm.act(&Action::ViewBack);
+        assert_eq!(wm.shown_windows(), Vec::<String>::new());
+        wm.act(&Action::ViewBack);
+        wm.act(&Action::ToggleWindowTag(1));
+        assert_eq!(wm.windows[0].tags, 1, "the last tag stays");
+    }
+
+    #[test]
+    fn an_urgent_minimized_window_comes_back() {
+        let mut wm = wm(&["a", "b"]);
+        wm.act(&Action::Minimize);
+        wm.request("b", SurfaceRequest::Activate);
+        wm.act(&Action::FocusUrgent);
+        assert_eq!(wm.focused(), Some("b"));
+        assert_eq!(wm.shown_windows(), ["b", "a"]);
     }
 }
