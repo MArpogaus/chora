@@ -12,12 +12,12 @@ that an agent arranges live by voice. Only a small safety layer is built in.
 
 ## Status
 
-Early development. chora runs nested inside another Wayland session, and a
-reference plugin tiles the windows. A login session on real hardware exists,
-but nobody tested it on hardware yet. An agent sees and changes the screen
-through `choractl mcp`, after a grant of the user. The
-[roadmap](https://marpogaus.github.io/chora/roadmap/) shows the next steps.
-APIs change without notice before version 1.0.
+Pre-release. chora runs nested inside another Wayland session and as a
+login session, and a reference plugin tiles the windows. An agent sees and
+changes the screen through `choractl mcp`, after a grant of the user.
+chora is no daily driver yet. The
+[roadmap](https://marpogaus.github.io/chora/roadmap/) leads to 1.0: a daily
+driver with a stable API. The API changes without notice before 1.0.
 
 ## Install
 
@@ -81,7 +81,7 @@ start menu.
 To log in to chora on real hardware, choose the session "chora" on the
 login screen. It starts the tiling flavor with waybar and X11 support
 through xwayland-satellite. The session "chora (Windows XP)" starts the XP
-flavor. The hardware session is not tested yet.
+flavor.
 
 Programs inside chora find its IPC socket in `CHORA_SOCKET`. For example, a
 terminal in chora shows the scene with `choractl query`, and
