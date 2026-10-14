@@ -1,0 +1,39 @@
+# MkDocs Material site, one version per branch with mike on gh-pages:
+# main is the default version `latest`, every dev branch gets its own.
+name: docs
+on:
+  push:
+    branches: [main, dev, dev-*]
+  workflow_dispatch:
+permissions:
+  contents: write   # mike pushes gh-pages
+concurrency:
+  group: gh-pages   # every run pushes the same branch
+  cancel-in-progress: false
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REF: ${{ github.ref_name }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        fetch-depth: 0   # mike reads and writes the gh-pages branch
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7   # v10.2.0
+      with:
+        enable-cache: true
+        cache-dependency-glob: docs/requirements.txt
+
+    - name: publish the site version for this ref
+      run: |
+        set -euo pipefail
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        mike() { uvx --with-requirements docs/requirements.txt --from mike mike "$@"; }
+        if [ "$REF" = main ]; then
+          mike deploy --push --update-aliases main latest
+          mike set-default --push latest
+        else
+          mike deploy --push "$REF"
+        fi

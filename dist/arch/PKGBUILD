@@ -1,0 +1,55 @@
+# The Arch package of chora, built from the source tree in $CHORA_SOURCE by
+# dist/build-arch.sh, which fills in the version. The files are those of
+# the RPM in crates/chora/Cargo.toml; keep both lists in step.
+pkgname=chora
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc='Wayland compositor without policy, programmable by plugins and agents'
+arch=(x86_64)
+url='https://github.com/MArpogaus/chora'
+# The code is GPL-3.0-or-later; the theme of the XP flavor adds artwork,
+# fonts and a wallpaper under their own licenses (flavors/xp/theme/README.md).
+license=('GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND OFL-1.1 AND CC-BY-SA-4.0')
+depends=(gcc-libs glibc libdisplay-info libdrm libinput libxkbcommon mesa seatd systemd-libs wayland)
+makedepends=(cargo pkgconf)
+optdepends=(
+  'foot: the terminal of the tiling flavor'
+  'fuzzel: the launcher of the tiling flavor'
+  'waybar: the panel of the tiling flavor'
+  'xwayland-satellite: X11 programs'
+)
+options=(!lto !debug)
+
+build() {
+  cd "$CHORA_SOURCE"
+  cargo build --release --locked --workspace
+}
+
+package() {
+  cd "$CHORA_SOURCE"
+  local bin
+  for bin in chora choractl chora-tiling chora-xp; do
+    install -Dm755 "target/release/$bin" "$pkgdir/usr/bin/$bin"
+  done
+  install -Dm755 dist/session/chora-session dist/session/chora-flavor -t "$pkgdir/usr/bin/"
+  # The X11 units of the flavors start it from this path.
+  install -Dm755 dist/session/chora-xwayland -t "$pkgdir/usr/libexec/chora/"
+  install -Dm644 dist/session/chora.desktop dist/session/chora-xp.desktop \
+    -t "$pkgdir/usr/share/wayland-sessions/"
+  install -Dm644 dist/session/chora@.service dist/session/chora-shutdown.target \
+    -t "$pkgdir/usr/lib/systemd/user/"
+  install -Dm644 LICENSE LICENSES/MIT-Smithay.txt -t "$pkgdir/usr/share/licenses/chora/"
+  install -Dm644 README.md -t "$pkgdir/usr/share/doc/chora/"
+  install -Dm644 flavors/tiling/* -t "$pkgdir/usr/share/chora/flavors/tiling/"
+  install -Dm644 dist/shaders/* -t "$pkgdir/usr/share/chora/shaders/"
+  install -Dm644 dist/plugins/* -t "$pkgdir/usr/share/chora/plugins/"
+  install -Dm644 flavors/xp/chora-xp* -t "$pkgdir/usr/share/chora/flavors/xp/"
+  local dir
+  for dir in . expose fonts wallpaper winxp; do
+    find "flavors/xp/theme/$dir" -maxdepth 1 -type f \
+      -exec install -Dm644 -t "$pkgdir/usr/share/chora/flavors/xp/theme/$dir/" {} +
+  done
+  # The cursors of the XP session, where XCURSOR_THEME=ModernXP finds them.
+  install -d "$pkgdir/usr/share/icons"
+  cp -r --no-preserve=mode flavors/xp/theme/cursors/ModernXP "$pkgdir/usr/share/icons/"
+}

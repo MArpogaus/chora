@@ -1,0 +1,18 @@
+# chora with the flavor %i. chora-session starts it; the startup command
+# chora-flavor tells systemd when chora is ready and starts the flavor.
+[Unit]
+Description=chora, a programmable Wayland compositor (flavor %i)
+Documentation=https://marpogaus.github.io/chora/
+BindsTo=graphical-session.target
+Before=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target
+
+[Service]
+Slice=session.slice
+Type=notify
+NotifyAccess=all
+Environment=XDG_CURRENT_DESKTOP=chora XDG_SESSION_TYPE=wayland
+# Values of an earlier session would make chora run nested.
+UnsetEnvironment=WAYLAND_DISPLAY WAYLAND_SOCKET DISPLAY
+ExecStart=/usr/bin/chora -- /usr/bin/chora-flavor %i

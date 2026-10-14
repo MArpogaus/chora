@@ -1,0 +1,20 @@
+[dependencies]
+chora-scene.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+clap = { workspace = true, features = ["env"] }
+resvg = { version = "0.48", default-features = false, features = ["memmap-fonts", "system-fonts", "text"] }
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true
+
+[package]
+description = "A stacking window manager in the style of Windows XP for chora"
+edition.workspace = true
+license.workspace = true
+name = "chora-xp"
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true

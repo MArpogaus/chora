@@ -1,0 +1,134 @@
+# A new version in Cargo.toml on main builds the RPM in Fedora 44 and the
+# package for Arch Linux, installs each once as a check, and attaches them
+# with their SHA256 sums to a GitHub release. The release uses the tag of
+# the version, or creates it. A version with a release already releases
+# nothing, so a push to main without a version bump is no release.
+# Versions below 1.0 are pre-releases. A manual run releases the version in
+# Cargo.toml as well. One release runs at a time. Only the short last job holds a write token; the build
+# runs the build scripts of all dependencies with a read token.
+name: release
+
+on:
+  push:
+    branches: [main]
+    paths: [Cargo.toml]
+  workflow_dispatch:
+
+permissions: {}
+
+# Runs wait for each other, so that the second one sees the release of the
+# first one.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      new: ${{ steps.tag.outputs.new }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    - name: the tag of the version in Cargo.toml, and whether it has no release
+      id: tag
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        tag=$(sed -n 's/^version = "\(.*\)"/v\1/p' Cargo.toml | head -1)
+        # Only a 404 means no release; another error of the API fails.
+        if answer=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" 2>&1); then
+          echo "$tag has a release already; nothing to release"
+          new=false
+        elif echo "$answer" | grep -q "HTTP 404"; then
+          new=true
+        else
+          echo "$answer" >&2
+          exit 1
+        fi
+        echo "tag=$tag" >>"$GITHUB_OUTPUT"
+        echo "new=$new" >>"$GITHUB_OUTPUT"
+
+  rpm:
+    needs: version
+    if: needs.version.outputs.new == 'true'
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:44
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    - run: xargs dnf install -y rpm-build < dist/fedora-build-requires.txt
+    - run: cargo install --locked cargo-generate-rpm@0.21.0
+    - run: PATH="$HOME/.cargo/bin:$PATH" dist/build-rpm.sh target/rpm
+    - name: install the package once
+      run: |
+        dnf install -y target/rpm/*.rpm
+        chora --version
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      with:
+        name: rpm
+        path: target/rpm/
+
+  arch:
+    needs: version
+    if: needs.version.outputs.new == 'true'
+    runs-on: ubuntu-latest
+    container: ghcr.io/archlinux/archlinux:latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    - name: install the build dependencies
+      run: |
+        pacman -Syu --noconfirm --needed base-devel cargo pkgconf libdisplay-info \
+          libdrm libinput libxkbcommon mesa seatd systemd-libs wayland
+    # makepkg refuses to run as root.
+    - run: useradd -m builder && chown -R builder .
+    - run: su builder -c 'dist/build-arch.sh target/arch'
+    - name: install the package once
+      run: |
+        pacman -U --noconfirm target/arch/*.pkg.tar.zst
+        chora --version
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      with:
+        name: arch
+        path: target/arch/
+
+  release:
+    needs: [version, rpm, arch]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create the release
+    steps:
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c   # v8.0.1
+      with:
+        name: rpm
+        path: rpm
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c   # v8.0.1
+      with:
+        name: arch
+        path: arch
+    - name: create the release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ needs.version.outputs.tag }}
+        SHA: ${{ github.sha }}
+      run: |
+        set -euo pipefail
+        prerelease=()
+        case "$TAG" in v0.*) prerelease=(--prerelease) ;; esac
+        cat rpm/SHA256SUMS arch/SHA256SUMS >SHA256SUMS
+        gh release create "$TAG" rpm/*.rpm arch/*.pkg.tar.zst SHA256SUMS \
+          --repo "$GITHUB_REPOSITORY" --title "$TAG" --target "$SHA" \
+          --notes "See CHANGELOG.md for this release." "${prerelease[@]}"

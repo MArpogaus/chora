@@ -1,0 +1,7 @@
+# The manifest of chora-tiling for views (D35): choractl view load starts
+# it with exec when it does not run, and passes the config of the view to
+# its exported method set_layout.
+name: tiling
+exec: chora-tiling
+configure: set_layout
+description: Tiles the windows as master and stack, columns or rows.

@@ -1,0 +1,67 @@
+[dependencies]
+base64.workspace = true
+calloop.workspace = true
+chora-scene.workspace = true
+png = "0.18"
+serde.workspace = true
+serde_json.workspace = true
+smithay.workspace = true
+smithay-drm-extras.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+wayland-client = "0.31"
+xcursor.workspace = true
+
+[lints]
+workspace = true
+
+[package]
+description = "The chora Wayland compositor"
+edition.workspace = true
+license.workspace = true
+name = "chora"
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+# The one RPM of chora: `cargo generate-rpm -p crates/chora` after a
+# release build of the workspace.
+[package.metadata.generate-rpm]
+assets = [
+  { source = "target/release/chora", dest = "/usr/bin/chora", mode = "755" },
+  { source = "target/release/choractl", dest = "/usr/bin/choractl", mode = "755" },
+  { source = "target/release/chora-tiling", dest = "/usr/bin/chora-tiling", mode = "755" },
+  { source = "target/release/chora-xp", dest = "/usr/bin/chora-xp", mode = "755" },
+  { source = "../../LICENSE", dest = "/usr/share/licenses/chora/LICENSE", mode = "644" },
+  { source = "../../README.md", dest = "/usr/share/doc/chora/README.md", mode = "644", doc = true },
+  { source = "../../LICENSES/MIT-Smithay.txt", dest = "/usr/share/licenses/chora/MIT-Smithay.txt", mode = "644" },
+  { source = "../../dist/session/chora.desktop", dest = "/usr/share/wayland-sessions/chora.desktop", mode = "644" },
+  { source = "../../dist/session/chora-xp.desktop", dest = "/usr/share/wayland-sessions/chora-xp.desktop", mode = "644" },
+  { source = "../../dist/session/chora-session", dest = "/usr/bin/chora-session", mode = "755" },
+  { source = "../../dist/session/chora-flavor", dest = "/usr/bin/chora-flavor", mode = "755" },
+  { source = "../../dist/session/chora-xwayland", dest = "/usr/libexec/chora/chora-xwayland", mode = "755" },
+  { source = "../../dist/session/chora@.service", dest = "/usr/lib/systemd/user/chora@.service", mode = "644" },
+  { source = "../../dist/session/chora-shutdown.target", dest = "/usr/lib/systemd/user/chora-shutdown.target", mode = "644" },
+  { source = "../../flavors/tiling/*", dest = "/usr/share/chora/flavors/tiling/", mode = "644" },
+  { source = "../../dist/shaders/*", dest = "/usr/share/chora/shaders/", mode = "644" },
+  { source = "../../dist/plugins/*", dest = "/usr/share/chora/plugins/", mode = "644" },
+  { source = "../../flavors/xp/chora-xp*", dest = "/usr/share/chora/flavors/xp/", mode = "644" },
+  { source = "../../flavors/xp/theme/*", dest = "/usr/share/chora/flavors/xp/theme/", mode = "644" },
+  { source = "../../flavors/xp/theme/expose/*", dest = "/usr/share/chora/flavors/xp/theme/expose/", mode = "644" },
+  { source = "../../flavors/xp/theme/fonts/*", dest = "/usr/share/chora/flavors/xp/theme/fonts/", mode = "644" },
+  { source = "../../flavors/xp/theme/wallpaper/*", dest = "/usr/share/chora/flavors/xp/theme/wallpaper/", mode = "644" },
+  { source = "../../flavors/xp/theme/winxp/*", dest = "/usr/share/chora/flavors/xp/theme/winxp/", mode = "644" },
+  # The cursors of the XP session, where XCURSOR_THEME=ModernXP finds them.
+  { source = "../../flavors/xp/theme/cursors/ModernXP/**/*", dest = "/usr/share/icons/ModernXP/", mode = "644" }
+]
+auto-req = "auto"
+# The code is GPL-3.0-or-later; the theme of the XP flavor adds artwork,
+# fonts and a wallpaper under their own licenses (flavors/xp/theme/README.md).
+license = "GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND OFL-1.1 AND CC-BY-SA-4.0"
+# The terminal, the launcher and the panel of the tiling flavor, and X11
+# programs.
+recommends = { foot = "*", fuzzel = "*", waybar = "*", xwayland-satellite = "*" }
+# Smithay loads libEGL at runtime, so auto-req does not see it.
+requires = { mesa-libEGL = "*" }
+summary = "Wayland compositor without policy, programmable by plugins and agents"

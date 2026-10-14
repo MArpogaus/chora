@@ -1,0 +1,85 @@
+# Decisions
+
+The decision log. Nothing here is final. Every entry can come back for review.
+
+## Principles and scope
+
+| # | Decision | Reason |
+|---|----------|--------|
+| D1 | Rust and Smithay for the core | Smithay is a library without policy, proven in niri and cosmic-comp. Rust is safe when agents change the system live. |
+| D2 | Everything is a plugin | Maximum flexibility and a small core. |
+| D3 | An experimentation platform first, then a stable, feature-complete core, then testing | A small core gives stability. |
+| D4 | Reuse before writing; check alternatives for every decision | Little code to maintain. |
+| D5 | One vocabulary, defined in the [Glossary](glossary.md) | One language for people and agents. |
+| D6 | Inventory and agent memory form a separate layer, not part of the core | The platform stays neutral. |
+| D7 | The name is chora, always in lowercase | See [Vision](vision.md#the-name). |
+| D8 | The core is GPL-3.0-or-later; code under GPL-3.0-only stays out | The core can then reuse code from Pinnacle and niri. |
+| D9 | English for code and documentation | The documentation is public. |
+
+## Platform
+
+| # | Decision | Reason |
+|---|----------|--------|
+| D10 | Fedora 44 and secureblue as host; a derived image offers chora as an additional session | The system and the image tooling of the author. |
+| D11 | AMD and Intel GPUs first, NVIDIA later | The hardware of the author. Mesa drivers need no special paths. |
+| D12 | Services run as Quadlet units with Podman or in distrobox | Isolation. systemd handles start, restart and order. |
+| D13 | The coordinator is the user first, later an agent with special permissions | A gradual path to control by agents. |
+| D14 | Releases are RPM packages for Fedora 44 and packages for Arch Linux, attached with SHA256 sums to a GitHub release; a new version on `main` starts the release; versions below 1.0 are pre-releases | `dnf5 install <url>` installs them by hand and in the image build. The Arch package serves Arch containers, for example in distrobox. |
+
+## Core
+
+| # | Decision | Reason |
+|---|----------|--------|
+| D15 | Build on Smithay; copy from Pinnacle, niri and anvil; no fork | A fork of Pinnacle keeps less than half of its code. See [Alternatives](alternatives.md#pinnacle-code-review). |
+| D16 | Pin a Smithay git revision | No Smithay release since 0.7.0. All major users track git. |
+| D17 | GLES renderer and GLSL shaders through Smithay's renderer traits | Proven in niri. No Smithay compositor uses wgpu. |
+| D18 | Five node kinds: group, surface, rect, image, shader | Text and widgets come from Wayland clients. An image node shows a PNG asset, for example a window border, without a client per window. A shader can read another node as a texture. |
+| D19 | Transforms are 4x4 matrices; the first milestones test 2D cases only | 3D effects need no API change later. |
+| D20 | One logical scene; each output shows it through a camera | Pan, zoom and the infinite canvas need no extra mechanism. |
+| D21 | The core places popups, subsurfaces and layer surfaces; toplevels wait for a plugin | The protocols define these positions. Smithay implements them. |
+| D22 | A transaction completes when all affected clients commit, or after a deadline | A resize needs a client round trip. |
+| D23 | A hardcoded safety layer with fixed bindings: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT; SIGUSR1 resets too | A recovery path must not depend on a file that an agent can break. |
+| D24 | Shaders declare static or animated; fullscreen surfaces without effects use direct scanout | Damage tracking and battery life. |
+| D25 | No undo history and no plugin state store in the core | A destroyed client cannot come back. The reset and the views in git cover recovery. The scene holds all state. |
+| D26 | Xwayland through `xwayland-satellite` | Keeps the core small. |
+| D27 | Output configuration through `wlr-output-management`, and since D44 also through the API | kanshi and wlr-randr exist. |
+
+## Plugins and API
+
+| # | Decision | Reason |
+|---|----------|--------|
+| D28 | Plugins are IPC clients; the core offers `animate`; in-process WASM plugins come only after a measurement shows the need | Agents work in seconds, not frames. One mechanism, any language, crash isolation by the OS. The M3 measurement (`tests/ipc-bench.sh`, nested, software rendering) shows no need yet: a transaction with a mesh of 8x8 cells takes 0.17 ms in the median and 3.6 ms at the 99th percentile, well inside a 60 Hz frame. |
+| D29 | JSON-RPC 2.0 with one message per line on a Unix socket in `$XDG_RUNTIME_DIR/chora/`; the core serves it from the calloop event loop | No extra runtime and no thread handoff. A container mounts the directory. |
+| D30 | The core starts one startup command with `WAYLAND_DISPLAY` and `CHORA_SOCKET` set | The startup command starts the plugins, or a systemd target. |
+| D31 | A client names itself when it connects; the owner of a node is a client name; only the owner changes a node; plugins export methods | An agent asks the window manager instead of fighting it. |
+| D32 | Selectors work in queries only; a query returns all current matches | No window rules in the core. Predictable results for agents. |
+| D33 | Version 1 trusts the clients of the same user; `wp-security-context-v1` hides privileged protocols from sandboxed clients; the IPC methods `input.inject` and `screen.capture` need a grant of the user | The grant protects against mistakes of agents. It is no barrier against hostile code of the same user. |
+| D34 | MCP outside the core: `choractl mcp` over stdio, with tools for whole tasks | The core stays free of MCP. |
+| D35 | The core reads no configuration; `choractl` loads YAML views; a flavor is a directory with a systemd target; the configuration holds no secrets | Policy and service management do not belong in the core. |
+| D36 | Three crates to start: `chora-scene`, `chora`, `choractl`; reference plugins in `plugins/` | A crate comes when a second consumer needs it. |
+
+## Tools around the core
+
+| # | Decision | Reason |
+|---|----------|--------|
+| D37 | Screen sharing through `xdg-desktop-portal-wlr` first | No code. A portal backend of its own is in the [Idea backlog](ideas.md). |
+| D38 | HTML content from agents runs in a browser in app mode, as a service | No code. chora places toplevels anywhere. |
+| D39 | The first showcase is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it comes right after M2, before the agent interface | It proves that the scene model carries classic mouse-driven desktops and their effects. The assets come from `kde-plasma-winxp-launcher` and keep their licenses; the GPL-3.0-only artwork of Exposé and modernXP is data of the flavor that the plugin reads, not code of the core (D8). It is a demo, not a daily driver. |
+| D40 | The user grants `input.inject` and `screen.capture` with `choractl grant NAME CAPABILITY`, per client name, until the session ends or `choractl revoke`; the emergency reset revokes all grants; `choractl mcp` has no tool for grants | The core draws no text, so a dialog is no option. An agent that uses the MCP bridge cannot grant itself by mistake. |
+| D41 | `choractl` reads YAML with `serde-saphyr`: strict booleans, errors on unknown and duplicate keys and on unknown tags | `serde_yaml` is archived and `serde_yml` is unsound. `serde-saphyr` is maintained, pure Rust and panic-free, and limits the work of a document (open question 1). |
+| D42 | `process.spawn` starts programs, and `plugins.restart` restarts plugins, as the user behind a grant of its own, which the user gives with `choractl grant NAME process.spawn` and the reset revokes; an allowlist of argv patterns that comes with the grant may narrow it later | An agent with this grant can run anything, as with a shell, so it is never part of another grant. The allowlist keeps the core free of configuration files (D35). |
+| D43 | Nodes fixed to the screen live under one overlay root per output, `screen:NAME`: in the logical coordinates of the output, without its camera, above the scene and below the top and overlay layers of layer shell | A HUD stays in place while a camera moves (#19). A root per output answers on which output a node shows. Its nodes work as all others: input, effects, ownership. |
+| D44 | `output.configure` sets scale and transform of an output through the API, on the same path as `wlr-output-management` | An agent has no wlr-randr in every session (#22). One path keeps both ways in step. |
+| D45 | Grabs stay bindings with Ctrl, Alt or Super. `input.ungrab` ends one, and a grab tells the release of its key too. There is no exclusive keyboard grab: games and walks through 3D scenes are Wayland clients, which get every key | Typing always works (D23). A client gets plain keys, repeat and release through Wayland already (#18). |
+
+## Rejected review findings
+
+| Finding | Reason |
+|---------|--------|
+| Versioned docs with mike are too much | The project conventions use mike. |
+| Hooks without matching files | The project conventions use this hook set in every repository. |
+| Cargo hooks before the first crate | Requested from the start. They stay inactive until the first Rust file. |
+
+## Open questions
+
+None at the moment. The repository has the name `chora` since v0.5.1.

@@ -1,0 +1,23 @@
+[dependencies]
+imbl.workspace = true
+schemars = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[features]
+# JSON schemas of the commands and the input events, for choractl mcp.
+schema = ["dep:schemars"]
+
+[lints]
+workspace = true
+
+[package]
+description = "Scene model, commands, events and IPC types of the chora compositor"
+edition.workspace = true
+license.workspace = true
+name = "chora-scene"
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true

@@ -1,0 +1,56 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# The startup command of a chora session: imports the variables of chora
+# into the systemd user manager, tells systemd that chora is ready, and
+# starts the target of a flavor. Not for nested use: the variables would
+# reach the units of the host session.
+# Usage: chora -- chora-flavor NAME
+set -eu
+
+name=${1:?usage: chora-flavor NAME}
+
+dir=
+for candidate in "${XDG_CONFIG_HOME:-$HOME/.config}/chora/flavors/$name" \
+    "/usr/share/chora/flavors/$name"; do
+    if [ -d "$candidate" ]; then
+        dir=$candidate
+        break
+    fi
+done
+if [ -z "$dir" ]; then
+    echo "chora-flavor: no flavor $name" >&2
+    exit 1
+fi
+
+variables="WAYLAND_DISPLAY CHORA_SOCKET XDG_CURRENT_DESKTOP XDG_SESSION_TYPE"
+# The X11 display of chora-xwayland, chosen now, so that every unit of the
+# flavor starts with it.
+if command -v xwayland-satellite >/dev/null; then
+    n=0
+    while [ -e "/tmp/.X11-unix/X$n" ] || [ -e "/tmp/.X$n-lock" ]; do
+        n=$((n + 1))
+    done
+    DISPLAY=:$n
+    export DISPLAY
+    variables="$variables DISPLAY"
+fi
+# shellcheck disable=SC2086 # one word per variable name
+systemctl --user import-environment $variables
+if command -v dbus-update-activation-environment >/dev/null; then
+    # shellcheck disable=SC2086
+    dbus-update-activation-environment --systemd $variables
+fi
+
+# The units of the flavor, linked until the next boot.
+for unit in "$dir"/*.service "$dir"/*.target; do
+    if [ -e "$unit" ]; then
+        systemctl --user link --runtime --force "$unit" >/dev/null
+    fi
+done
+systemctl --user daemon-reload
+
+if [ -n "${NOTIFY_SOCKET:-}" ]; then
+    systemd-notify --ready
+fi
+exec systemctl --user start --no-block "chora-$name.target"

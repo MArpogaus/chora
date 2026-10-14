@@ -1,0 +1,156 @@
+//! chora-xp: a stacking window manager in the style of Windows XP, the
+//! showroom flavor of chora. Window frames, the taskbar and the start menu
+//! are image nodes that the plugin rasterizes from the SVG files of the
+//! Exposé theme and of the Windows XP pack. Windows wobble, minimize
+//! through a magic lamp, and live on the four faces of a desktop cube.
+
+mod conn;
+mod cube;
+mod decoration;
+mod icons;
+mod lamp;
+mod startmenu;
+mod taskbar;
+mod text;
+mod theme;
+mod wallpaper;
+mod window;
+mod wm;
+mod wobbly;
+
+use std::{
+    path::PathBuf,
+    process::ExitCode,
+    time::{Duration, Instant},
+};
+
+use chora_scene::ipc::ClientError;
+use clap::Parser;
+
+use crate::{conn::Conn, icons::Icons, startmenu::Menu, theme::Theme, wm::Wm};
+
+/// How often the plugin checks the clock.
+const TICK: Duration = Duration::from_secs(1);
+/// The time between two frames of an effect: 60 Hz.
+const FRAME: Duration = Duration::from_micros(16_667);
+
+/// A stacking window manager in the style of Windows XP.
+#[derive(Parser)]
+#[command(version)]
+struct Args {
+    /// The theme directory: `flavors/xp/theme` of the source tree, or of the
+    /// installed flavor.
+    #[arg(
+        long,
+        env = "CHORA_XP_THEME",
+        default_value = "/usr/share/chora/flavors/xp/theme"
+    )]
+    theme: PathBuf,
+    /// The shell command of the terminal, for the start menu and Super+e.
+    #[arg(long, default_value = "foot")]
+    terminal: String,
+    /// The shell command of All Programs and Run.
+    #[arg(long, default_value = "fuzzel")]
+    launcher: String,
+    /// More programs for the start menu, as TITLE=COMMAND.
+    #[arg(long = "program", value_name = "TITLE=COMMAND")]
+    programs: Vec<String>,
+    /// The format of the clock, as in strftime.
+    #[arg(long, default_value = "%-I:%M %p")]
+    clock: String,
+    /// The wallpaper, a PNG or SVG file; Bløff of the theme by default.
+    #[arg(long)]
+    wallpaper: Option<PathBuf>,
+    /// Stretches the time of the magic lamp and of the cube by a factor,
+    /// to show them slowly.
+    #[arg(long, value_name = "FACTOR", default_value_t = 1.0)]
+    slow_motion: f64,
+}
+
+fn main() -> ExitCode {
+    match run(&Args::parse()) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("chora-xp: {err}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run(args: &Args) -> Result<(), String> {
+    let conn = Conn::connect(wm::NAME).map_err(|e| e.to_string())?;
+    let theme = Theme::load(&args.theme, &cache_dir()).map_err(|e| format!("theme: {e}"))?;
+    let mut icons = Icons::default();
+    let menu = Menu::new(&menu_config(args), &theme, &mut icons);
+    let config = wm::Config {
+        terminal: args.terminal.clone(),
+        clock: args.clock.clone(),
+        wallpaper: args
+            .wallpaper
+            .clone()
+            .unwrap_or_else(|| theme.path("wallpaper/bloff.png")),
+        slow: args.slow_motion,
+    };
+    let mut wm = Wm::start(conn, theme, menu, icons, config).map_err(|e| e.to_string())?;
+    event_loop(&mut wm).map_err(|e| e.to_string())
+}
+
+/// Handles events until Turn Off. In between, the clock ticks, and while
+/// an effect runs, frames follow each other at 60 Hz.
+fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
+    let mut tick = Instant::now() + TICK;
+    let mut frame = Instant::now();
+    while !wm.done {
+        let until = if wm.animating() {
+            frame.min(tick)
+        } else {
+            tick
+        };
+        if let Some(event) = wm.conn_event(until.saturating_duration_since(Instant::now()))? {
+            wm.handle(event)?;
+        }
+        let now = Instant::now();
+        if wm.animating() && now >= frame {
+            wm.frame(now)?;
+            frame = now + FRAME;
+        }
+        if now >= tick {
+            wm.tick()?;
+            tick = now + TICK;
+        }
+    }
+    Ok(())
+}
+
+/// The programs of the start menu: the terminal, then the extra ones.
+fn menu_config(args: &Args) -> startmenu::Config {
+    let mut programs = vec![(
+        "Terminal".to_string(),
+        args.terminal.clone(),
+        "utilities-terminal".to_string(),
+    )];
+    for program in &args.programs {
+        let (title, command) = program.split_once('=').unwrap_or((program, program));
+        let icon = command.split_whitespace().next().unwrap_or_default();
+        programs.push((title.into(), command.into(), icon.into()));
+    }
+    startmenu::Config {
+        user: std::env::var("USER")
+            .or_else(|_| std::env::var("LOGNAME"))
+            .unwrap_or_else(|_| "User".into()),
+        programs,
+        launcher: args.launcher.clone(),
+    }
+}
+
+/// The directory of the rendered files: one per chora instance, below
+/// `$XDG_RUNTIME_DIR/chora-xp`, which the core can read.
+fn cache_dir() -> PathBuf {
+    let runtime =
+        std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, PathBuf::from);
+    let instance = std::env::var_os(chora_scene::ipc::SOCKET_ENV)
+        .map(PathBuf::from)
+        .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().into_owned()))
+        .unwrap_or_else(|| "default".into());
+    runtime.join("chora-xp").join(instance)
+}

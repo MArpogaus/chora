@@ -1,0 +1,6 @@
+# The tiling flavor: chora-tiling, a panel and X11 programs.
+[Unit]
+Description=The tiling flavor of chora
+BindsTo=graphical-session.target
+After=graphical-session.target
+Wants=chora-tiling-wm.service chora-tiling-xwayland.service waybar.service

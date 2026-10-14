@@ -1,0 +1,58 @@
+# Lint and test in the Fedora 44 container that also builds the release, so
+# CI checks the same compiler and the same system libraries. The e2e job
+# runs tests/nested.sh, the exit test of milestone M1, tests/xp.sh, the
+# XP flavor, and tests/agent.sh, the agent interface of milestone M4.
+name: ci
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:44
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    - run: xargs dnf install -y < dist/fedora-build-requires.txt
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
+    - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+    - run: cargo test --workspace --locked
+
+  e2e:
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:44
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    - run: xargs dnf install -y sway foot grim jq gawk mesa-dri-drivers procps-ng python3 waybar fuzzel wlrctl swaylock wlr-randr dbus-daemon < dist/fedora-build-requires.txt
+    # The file capabilities of the packaged sway fail in a container; a
+    # copy without them runs.
+    - run: install -m755 /usr/bin/sway /usr/local/bin/sway
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
+    - run: cargo build --workspace --locked
+    - run: tests/nested.sh target/debug e2e
+    - run: tests/xp.sh target/debug e2e/xp
+    - run: tests/agent.sh target/debug e2e/agent
+    - if: failure()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      with:
+        name: e2e-logs
+        path: e2e
+
+  deny:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25   # v2.1.1
