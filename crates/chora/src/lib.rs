@@ -29,6 +29,7 @@ mod screencopy;
 mod security;
 mod shm;
 mod state;
+mod time;
 mod transaction;
 mod uploads;
 

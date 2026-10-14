@@ -24,10 +24,7 @@ use chora_scene::{
 };
 use serde_json::Value;
 use smithay::{
-    reexports::{
-        calloop::timer::{TimeoutAction, Timer},
-        wayland_server::{Resource, protocol::wl_surface::WlSurface},
-    },
+    reexports::wayland_server::{Resource, protocol::wl_surface::WlSurface},
     utils::Serial,
     wayland::{
         compositor::{Barrier, CompositorHandler, add_blocker, with_states},
@@ -175,7 +172,7 @@ impl State {
                     .respond(head.conn, &Message::error(head.id, rejected(error)));
                 continue;
             }
-            let due = head.deadline.is_some_and(|d| Instant::now() >= d);
+            let due = head.deadline.is_some_and(|d| self.time.now() >= d);
             if !head.waiting.is_empty() && !due {
                 self.transactions.queue.push_front(head);
                 break;
@@ -208,27 +205,12 @@ impl State {
                     .configured(&mut head.waiting, surface, serial);
             }
         }
-        let deadline = Instant::now() + DEADLINE;
+        let deadline = self.time.now() + DEADLINE;
         head.deadline = Some(deadline);
         if !head.waiting.is_empty() {
-            self.wake_at(deadline);
+            self.expire_at(deadline);
         }
         Ok(())
-    }
-
-    /// Runs `complete_transactions` again at the deadline.
-    fn wake_at(&self, deadline: Instant) {
-        let timer = Timer::from_deadline(deadline);
-        let inserted = self.loop_handle.insert_source(timer, |_, (), state| {
-            state.complete_transactions();
-            TimeoutAction::Drop
-        });
-        if let Err(err) = inserted {
-            tracing::warn!(
-                ?err,
-                "no deadline timer; the transaction waits for its clients"
-            );
-        }
     }
 
     /// Compiles the shaders of the effects and of the shader nodes that the

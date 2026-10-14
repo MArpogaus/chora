@@ -59,7 +59,7 @@ use crate::{
     backend::Backend, copies::Copies, foreign_toplevel::ForeignToplevelManagerState,
     grants::Grants, image_capture::ImageCapture, ipc::Ipc, lock::Lock, methods::Methods,
     output_management::OutputManagement, render::Assets, safety::Watchdog, security::trusted,
-    transaction::Transactions,
+    time::Time, transaction::Transactions,
 };
 
 /// The drag of a rect or an image node: the node, the button, and the last
@@ -85,6 +85,8 @@ pub struct State {
     pointer_refreshed: Instant,
     /// The clock of presentation times.
     pub clock: Clock<Monotonic>,
+    /// The time of the deadlines.
+    pub time: Time,
     pub display_handle: DisplayHandle,
     pub loop_handle: LoopHandle<'static, State>,
     pub loop_signal: LoopSignal,
@@ -204,6 +206,7 @@ impl State {
             animated_at: Instant::now(),
             pointer_refreshed: Instant::now(),
             clock,
+            time: Time::default(),
             compositor_state: CompositorState::new::<Self>(&dh),
             layer_shell_state: WlrLayerShellState::new_with_filter::<Self, _>(&dh, trusted),
             lock_state: SessionLockManagerState::new::<Self, _>(&dh, trusted),

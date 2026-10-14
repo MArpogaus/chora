@@ -14,7 +14,7 @@ use std::{
         net::{UnixListener, UnixStream},
     },
     path::{Path, PathBuf},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use chora_scene::{
@@ -66,6 +66,8 @@ struct Conn {
     /// The output passed `MAX_OUTPUT`; the connection closes.
     overflow: bool,
     name: Option<String>,
+    /// The deadline of `hello`.
+    hello_by: Instant,
     keep_nodes: bool,
     events: Option<Vec<String>>,
     /// The edges of `output.reserve` by output name.
@@ -231,6 +233,15 @@ impl Ipc {
             .map(|(b, _, conn)| (*conn, b.to_string()))
     }
 
+    /// The connections without a name whose deadline of `hello` passed.
+    pub fn silent(&self, now: Instant) -> Vec<u64> {
+        self.conns
+            .iter()
+            .filter(|(_, c)| c.name.is_none() && c.hello_by <= now)
+            .map(|(id, _)| *id)
+            .collect()
+    }
+
     /// The client name of a connection.
     pub fn name(&self, conn: u64) -> Option<&str> {
         self.conns.get(&conn)?.name.as_deref()
@@ -350,15 +361,8 @@ impl State {
         let watched = stream.try_clone().map_err(failed)?;
         let id = self.ipc.next;
         self.ipc.next += 1;
-        let timeout = Timer::from_duration(HELLO_TIMEOUT);
-        self.loop_handle
-            .insert_source(timeout, move |_, (), state| {
-                if state.ipc.conns.get(&id).is_some_and(|c| c.name.is_none()) {
-                    state.ipc_close(id);
-                }
-                TimeoutAction::Drop
-            })
-            .map_err(failed)?;
+        let hello_by = self.time.now() + HELLO_TIMEOUT;
+        self.expire_at(hello_by);
         let token = self
             .loop_handle
             .insert_source(
@@ -372,6 +376,7 @@ impl State {
             output: Vec::new(),
             overflow: false,
             name: None,
+            hello_by,
             keep_nodes: false,
             events: None,
             reserves: HashMap::new(),

@@ -10,7 +10,7 @@
 
 use std::{
     collections::{BTreeSet, HashMap},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use chora_scene::{
@@ -18,10 +18,7 @@ use chora_scene::{
     ipc::{Export, Message, MethodCall, MethodReturn, RpcError},
 };
 use serde_json::Value;
-use smithay::reexports::calloop::{
-    RegistrationToken,
-    timer::{TimeoutAction, Timer},
-};
+use smithay::reexports::calloop::RegistrationToken;
 
 use crate::{
     ipc::{params_of, rejected},
@@ -50,6 +47,7 @@ struct Pending {
     /// The id of the `methods.call` request.
     id: Value,
     callee: u64,
+    deadline: Instant,
     timer: Option<RegistrationToken>,
 }
 
@@ -57,6 +55,12 @@ impl Methods {
     /// Whether a call of the connection waits for its answer.
     pub fn waits_for(&self, conn: u64) -> bool {
         self.pending.values().any(|p| p.caller == conn)
+    }
+
+    /// The calls whose deadline passed.
+    pub fn due(&self, now: Instant) -> Vec<u64> {
+        let due = self.pending.iter().filter(|(_, p)| p.deadline <= now);
+        due.map(|(number, _)| *number).collect()
     }
 }
 
@@ -156,16 +160,8 @@ impl State {
         }
         let number = self.methods.next;
         self.methods.next += 1;
-        let timer = self
-            .loop_handle
-            .insert_source(Timer::from_duration(TIMEOUT), move |_, (), state| {
-                if let Some(pending) = state.methods.pending.get_mut(&number) {
-                    pending.timer = None;
-                }
-                state.end_call(number, Err(rejected("the method gave no answer in time")));
-                TimeoutAction::Drop
-            })
-            .ok();
+        let deadline = self.time.now() + TIMEOUT;
+        let timer = self.expire_at(deadline);
         let from = self.ipc.name(conn).unwrap_or_default().to_owned();
         self.methods.pending.insert(
             number,
@@ -173,6 +169,7 @@ impl State {
                 caller: conn,
                 id,
                 callee,
+                deadline,
                 timer,
             },
         );
@@ -204,7 +201,7 @@ impl State {
     }
 
     /// Answers the caller of a call and forgets the call.
-    fn end_call(&mut self, number: u64, result: Result<Value, RpcError>) {
+    pub fn end_call(&mut self, number: u64, result: Result<Value, RpcError>) {
         let Some(pending) = self.methods.pending.remove(&number) else {
             return;
         };
