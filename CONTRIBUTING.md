@@ -94,8 +94,9 @@ A release ends a milestone, once its gate holds (see
 [Roadmap](https://github.com/MArpogaus/chora/blob/main/docs/roadmap.md#rules)).
 
 1. On `dev`, `cz bump` sets the version, writes `CHANGELOG.md` and makes a
-   tag. Never edit the changelog by hand. `cz bump --prerelease rc` makes a
-   release candidate such as `0.6.0-rc.1`.
+   tag. Never edit the changelog by hand. `cz bump --prerelease rc --increment MINOR`
+   makes a release candidate such as `0.6.0-rc.1`. A later `cz bump` makes
+   `0.6.0`.
 2. Delete the local tag, because the tag belongs on the merge commit:
 
    ```bash

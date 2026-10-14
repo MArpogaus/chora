@@ -33,7 +33,8 @@ with a stable, versioned API (D3).
 - `chora-tiling` and the XP showroom are plugins in this repository.
 - The core is a library and a binary. Unit tests run IPC dispatch,
   transactions, focus and grants in process, without a backend. The tty
-  backend has no tests. Pixel tests in a headless sway check the behavior.
+  backend has no tests. One pixel test renders in process on the headless
+  backend. Pixel tests in a headless sway check the behavior.
 
 ## Estimates
 

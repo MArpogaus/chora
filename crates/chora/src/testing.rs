@@ -100,8 +100,8 @@ impl Core {
 }
 
 /// The client side of an IPC connection. A drop shuts the socket down, so
-/// that the core sees the end at once, also while a child that a test of
-/// another thread forks holds a copy of the socket until its `exec`.
+/// that the core sees the end at once. This also holds while a forked child
+/// of another test keeps a copy of the socket until its `exec`.
 pub struct Client {
     stream: UnixStream,
     input: Vec<u8>,

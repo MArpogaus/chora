@@ -39,7 +39,7 @@ jobs:
       run: |
         set -euo pipefail
         tag=$GITHUB_REF_NAME
-        # The tag object itself, which tells an annotated tag.
+        # The checkout can leave a lightweight tag. Fetch the tag object again.
         git fetch --force origin "refs/tags/$tag:refs/tags/$tag"
         version=$(sed -n 's/^version = "\(.*\)"/v\1/p' Cargo.toml | head -1)
         test "$tag" = "$version" || { echo "$tag is not the version $version"; exit 1; }
@@ -47,7 +47,7 @@ jobs:
         parents=$(git rev-list --parents -n 1 "$GITHUB_SHA" | wc -w)
         test "$parents" -ge 3 || { echo "$tag is not on a merge commit"; exit 1; }
         # A commit of main itself, not a merge inside dev.
-        git rev-list --first-parent origin/main | grep -qx "$GITHUB_SHA" ||
+        git rev-list --first-parent origin/main | grep -x "$GITHUB_SHA" >/dev/null ||
           { echo "$tag is not on a commit of main"; exit 1; }
         echo "tag=$tag" >>"$GITHUB_OUTPUT"
     - name: the version has no release yet
@@ -68,7 +68,7 @@ jobs:
         set -euo pipefail
         runs="repos/$GITHUB_REPOSITORY/actions/workflows/ci.yaml/runs?head_sha=$GITHUB_SHA&event=push"
         for _ in $(seq 100); do
-          # A failed call of the API tries again.
+          # After a failed API call, the loop tries again.
           if answer=$(gh api "$runs" --jq '.workflow_runs[0] | "\(.status // "none") \(.conclusion // "none")"'); then
             read -r status conclusion <<<"$answer"
             case "$status" in
@@ -116,7 +116,7 @@ jobs:
         persist-credentials: false
     - name: install the build dependencies
       run: |
-        # The keys of new packages come before the upgrade of an old image.
+        # An old image lacks new packager keys. Update the keyring first.
         pacman -Sy --noconfirm archlinux-keyring
         pacman -Su --noconfirm --needed base-devel cargo pkgconf libdisplay-info \
           libdrm libinput libxkbcommon mesa seatd systemd-libs wayland
