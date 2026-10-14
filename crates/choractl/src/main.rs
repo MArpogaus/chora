@@ -62,7 +62,7 @@ enum Cmd {
     /// waits.
     Reserve(ReserveArgs),
     /// Call a method that a plugin exported, for example
-    /// `choractl call tiling set_layout '{"layout": "columns"}'`.
+    /// `choractl call tiling set_layout '{"layout": "fair"}'`.
     Call {
         /// The client that exported the method.
         client: String,

@@ -12,7 +12,7 @@ chora/
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
-│   ├── chora-tiling/  # reference plugin: master and stack, columns, rows, keybindings
+│   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome
 │   └── chora-xp/      # stacking window manager in the style of Windows XP
 ├── flavors/           # systemd units of the flavors; the theme of the XP flavor
 ├── dist/              # RPM build script, Fedora build requirements, session files

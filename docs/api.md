@@ -394,8 +394,8 @@ A plugin exports methods, and other clients call them by the client name
 and the method name, for example `tiling.set_layout`:
 
 ```console
-$ choractl call tiling set_layout '{"layout": "columns"}'
-{"gap": 4, "layout": "columns", "windows": ["s1", "s2"]}
+$ choractl call tiling set_layout '{"layout": "fair"}'
+{"columns": 1, "gap": 4, "layout": "fair", "master_width": 0.5, "masters": 1, "windows": ["s2", "s1"]}
 ```
 
 The core sends the exporting connection a `method.called` event. The

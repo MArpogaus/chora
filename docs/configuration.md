@@ -15,10 +15,11 @@ chora -- chora-flavor tiling
 
 ```text
 ~/.config/chora/
-├── views/      # one file per view
-├── flavors/    # bundles of views, plugins and services
-├── plugins/    # plugin manifests
-└── shaders/    # GLSL ES shaders
+├── views/              # one file per view
+├── flavors/            # bundles of views, plugins and services
+├── plugins/            # plugin manifests
+├── shaders/            # GLSL ES shaders
+└── chora-tiling.yaml   # the options and bindings of chora-tiling
 ```
 
 The directory is a git repository. It contains no secrets. The package
@@ -34,7 +35,7 @@ A view is a part of the scene and the plugins that drive it (D35):
 name: work
 plugins:
 - name: tiling
-  config: {layout: columns, gap: 12}
+  config: {layout: fair, gap: 12}
 scene:
 - id: work-corner
   kind: group
@@ -90,7 +91,7 @@ lives in `plugins/NAME.yaml` of the same directories:
 name: tiling
 exec: chora-tiling
 configure: set_layout
-description: Tiles the windows as master and stack, columns or rows.
+description: Tiles the windows with the tags and layouts of awesome.
 ```
 
 | Key | Meaning |
@@ -104,20 +105,21 @@ The package installs the manifest of `chora-tiling`.
 
 ## chora-tiling
 
-`chora-tiling` reads `~/.config/chora/tiling.yaml`, or the file of
-`--config`. Without a file, it uses its default, which
-`chora-tiling --print-config` prints. The file writes out every option:
+`chora-tiling` reads `chora/chora-tiling.yaml` in `$XDG_CONFIG_HOME`, by
+default `~/.config`, or the file of `--config`. Without a file, it uses its
+default, which `chora-tiling --print-config` prints. The file lists every
+option:
 
 | Option | Meaning |
 |--------|---------|
-| `modifier` | what `MOD` means in the bindings: Super, Alt, Ctrl or Shift |
+| `modifier` | what `MOD` means in the bindings: Super or Alt |
 | `gap` | the gap around each window, in logical pixels |
-| `tags` | the tag names of each output, at most 16 |
+| `tags` | the number of tags of each output, at most 16 |
 | `layouts` | the layouts in the order of `next_layout`; each tag starts with the first |
 | `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
 | `new_window` | `master` or `stack`: where a new window goes |
 | `focus` | `click` or `follow_mouse` |
-| `bindings` | a binding with `MOD`, and its action |
+| `bindings` | a binding with `MOD`, and its action; the default file uses every action once |
 
 The layouts and the default bindings follow the awesome window manager.
 Each output has its own tags, and each tag its own layout and parameters.

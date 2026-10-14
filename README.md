@@ -52,7 +52,7 @@ window manager:
 | Super+space | switch to the next layout |
 
 `chora-tiling --print-config` prints all options and bindings. Copy the
-output to `~/.config/chora/tiling.yaml` and change it there. GNOME keeps
+output to `~/.config/chora/chora-tiling.yaml` and change it there. GNOME keeps
 Super for itself; there, set `modifier: Alt` in that file.
 
 Nested, chora takes the keymap of the host session. `XKB_DEFAULT_LAYOUT`
