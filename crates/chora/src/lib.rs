@@ -29,6 +29,8 @@ mod screencopy;
 mod security;
 mod shm;
 mod state;
+#[cfg(test)]
+mod testing;
 mod time;
 mod transaction;
 mod uploads;

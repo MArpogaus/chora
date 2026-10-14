@@ -349,7 +349,7 @@ impl State {
     }
 
     /// Registers a connection, or refuses it beyond `MAX_CONNECTIONS`.
-    fn ipc_accept(&mut self, stream: UnixStream) -> Result<(), String> {
+    pub fn ipc_accept(&mut self, stream: UnixStream) -> Result<(), String> {
         fn failed(err: impl std::fmt::Display) -> String {
             format!("a connection failed: {err}")
         }
@@ -655,4 +655,312 @@ fn is_safety_key(sym: xkb::Keysym) -> bool {
     sym == Keysym::BackSpace
         || sym == Keysym::Escape
         || (Keysym::F1.raw()..=Keysym::F12.raw()).contains(&sym.raw())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::testing::{Client, Core};
+
+    const REJECTED: i64 = RpcError::REJECTED;
+
+    fn rect(id: &str) -> Value {
+        json!({"commands": [{"create": {"id": id, "kind": "rect", "parent": "root",
+            "props": {"size": [10, 10], "color": [1, 0, 0, 1]}}}]})
+    }
+
+    fn ids(client: &mut Client, core: &mut Core, selector: &str) -> Vec<String> {
+        let nodes = client.ok(core, "scene.query", json!({"selector": selector}));
+        let mut ids: Vec<String> = nodes
+            .as_array()
+            .expect("a list")
+            .iter()
+            .map(|n| n["id"].as_str().expect("an id").to_owned())
+            .collect();
+        ids.sort();
+        ids
+    }
+
+    #[test]
+    fn hello_names_a_connection_once() {
+        let mut core = Core::new();
+        let mut client = core.named("wm");
+        assert_eq!(core.state.ipc.name(1), None);
+        assert_eq!(core.state.ipc.name(0), Some("wm"));
+        let (error_code, message) = client.fails(&mut core, "hello", json!({"name": "other"}));
+        assert_eq!(
+            (error_code, message.as_str()),
+            (REJECTED, "hello was sent already")
+        );
+    }
+
+    #[test]
+    fn requests_that_need_a_name_wait_for_hello() {
+        let mut core = Core::new();
+        let mut client = core.connect();
+        for (method, params) in [
+            ("scene.apply", rect("r")),
+            ("input.grab", json!({"binding": "Super+a"})),
+            ("methods.export", json!({"names": ["go"]})),
+            ("input.inject", json!({"actions": []})),
+        ] {
+            let (error_code, message) = client.fails(&mut core, method, params);
+            assert_eq!(
+                (error_code, message.as_str()),
+                (REJECTED, "send hello first"),
+                "{method}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_line_that_is_no_request_gets_a_parse_error() {
+        let mut core = Core::new();
+        let mut client = core.connect();
+        client.send_line(b"{nope");
+        core.dispatch();
+        let responses = client.responses();
+        assert_eq!(responses.len(), 1);
+        assert_eq!(responses[0]["id"], Value::Null);
+        assert_eq!(responses[0]["error"]["code"], -32700);
+        assert!(
+            !client.closed(&mut core),
+            "a parse error keeps the connection"
+        );
+    }
+
+    #[test]
+    fn an_unknown_method_and_wrong_params_fail_with_their_codes() {
+        let mut core = Core::new();
+        let mut client = core.named("wm");
+        let (error_code, _) = client.fails(&mut core, "scene.drop", json!({}));
+        assert_eq!(error_code, RpcError::METHOD_NOT_FOUND);
+        let (error_code, _) = client.fails(&mut core, "scene.query", json!({"selector": 3}));
+        assert_eq!(error_code, RpcError::INVALID_PARAMS);
+        let (error_code, _) =
+            client.fails(&mut core, "scene.query", json!({"selector": "*", "x": 1}));
+        assert_eq!(error_code, RpcError::INVALID_PARAMS, "unknown fields fail");
+        let (error_code, _) = client.fails(&mut core, "scene.query", json!({"selector": "size:3"}));
+        assert_eq!(
+            error_code,
+            RpcError::INVALID_PARAMS,
+            "a wrong selector fails"
+        );
+    }
+
+    #[test]
+    fn the_connections_of_a_name_share_keep_nodes() {
+        let mut core = Core::new();
+        let mut first = core.connect();
+        first.ok(
+            &mut core,
+            "hello",
+            json!({"name": "wm", "keep_nodes": true}),
+        );
+        let mut second = core.connect();
+        let (error_code, message) = second.fails(&mut core, "hello", json!({"name": "wm"}));
+        assert_eq!(error_code, REJECTED);
+        assert_eq!(message, "\"wm\" is in use with keep_nodes true");
+        second.ok(
+            &mut core,
+            "hello",
+            json!({"name": "wm", "keep_nodes": true}),
+        );
+    }
+
+    #[test]
+    fn a_name_connects_with_its_first_and_disconnects_with_its_last_connection() {
+        let mut core = Core::new();
+        let mut watcher = core.named("watcher");
+        let events = json!({"events": ["client.connected", "client.disconnected"]});
+        watcher.ok(&mut core, "events.subscribe", events);
+        let first = core.named("wm");
+        let second = core.named("wm");
+        assert_eq!(watcher.event_names(&mut core), ["client.connected"]);
+        drop(first);
+        assert_eq!(watcher.event_names(&mut core), Vec::<String>::new());
+        drop(second);
+        assert_eq!(watcher.event_names(&mut core), ["client.disconnected"]);
+    }
+
+    #[test]
+    fn a_subscription_names_its_events_or_takes_all() {
+        let mut core = Core::new();
+        let mut some = core.named("some");
+        let only = json!({"events": ["client.disconnected"]});
+        some.ok(&mut core, "events.subscribe", only);
+        let mut quiet = core.named("quiet");
+        let mut all = core.named("all");
+        all.ok(&mut core, "events.subscribe", json!({"events": []}));
+        drop(core.named("bar"));
+        assert_eq!(some.event_names(&mut core), ["client.disconnected"]);
+        assert_eq!(
+            all.event_names(&mut core),
+            ["client.connected", "client.disconnected"]
+        );
+        assert_eq!(quiet.event_names(&mut core), Vec::<String>::new());
+    }
+
+    #[test]
+    fn the_nodes_of_a_name_go_with_its_last_connection() {
+        let mut core = Core::new();
+        let mut reader = core.named("reader");
+        let mut wm = core.named("wm");
+        wm.ok(&mut core, "scene.apply", rect("r"));
+        let mut kept = core.connect();
+        kept.ok(
+            &mut core,
+            "hello",
+            json!({"name": "panel", "keep_nodes": true}),
+        );
+        kept.ok(&mut core, "scene.apply", rect("k"));
+        assert_eq!(ids(&mut reader, &mut core, "kind:rect"), ["k", "r"]);
+        drop(wm);
+        drop(kept);
+        core.dispatch();
+        assert_eq!(ids(&mut reader, &mut core, "kind:rect"), ["k"]);
+    }
+
+    #[test]
+    fn a_grab_needs_a_modifier_and_spares_the_safety_layer() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let grab = |binding: &str| json!({"binding": binding});
+        let normal = wm.ok(&mut core, "input.grab", grab("Super+Shift+Return"));
+        assert_eq!(normal, "Shift+Super+Return");
+        for (binding, message) in [
+            ("Shift+a", "Shift+a needs Ctrl, Alt or Super"),
+            (
+                "Ctrl+Alt+BackSpace",
+                "Ctrl+Alt+BackSpace belongs to the safety layer",
+            ),
+            ("Ctrl+Alt+F3", "Ctrl+Alt+F3 belongs to the safety layer"),
+            ("Super+NoSuchKey", "unknown key \"NoSuchKey\""),
+        ] {
+            let (error_code, got) = wm.fails(&mut core, "input.grab", grab(binding));
+            assert_eq!((error_code, got.as_str()), (REJECTED, message));
+        }
+    }
+
+    #[test]
+    fn a_binding_has_one_grab_until_its_connection_closes() {
+        let mut core = Core::new();
+        let mut first = core.named("wm");
+        let mut second = core.named("other");
+        let grab = json!({"binding": "Super+a"});
+        first.ok(&mut core, "input.grab", grab.clone());
+        let (_, message) = second.fails(&mut core, "input.grab", grab.clone());
+        assert_eq!(message, "Super+a is grabbed already");
+        let (_, message) = second.fails(&mut core, "input.ungrab", grab.clone());
+        assert_eq!(message, "Super+a is no grab of this connection");
+        drop(first);
+        core.dispatch();
+        second.ok(&mut core, "input.grab", grab.clone());
+        second.ok(&mut core, "input.ungrab", grab.clone());
+        second.ok(&mut core, "input.grab", grab);
+    }
+
+    #[test]
+    fn a_grab_takes_its_key_with_exactly_its_modifiers() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        wm.ok(&mut core, "input.grab", json!({"binding": "Super+a"}));
+        let logo = ModifiersState {
+            logo: true,
+            ..ModifiersState::default()
+        };
+        let both = ModifiersState {
+            shift: true,
+            ..logo
+        };
+        let a = [Keysym::a];
+        assert_eq!(
+            core.state.ipc.grab_for(&logo, &a),
+            Some((0, "Super+a".into()))
+        );
+        assert_eq!(core.state.ipc.grab_for(&both, &a), None);
+        assert_eq!(core.state.ipc.grab_for(&logo, &[Keysym::b]), None);
+    }
+
+    #[test]
+    fn requests_before_the_end_of_the_stream_get_their_answers() {
+        let mut core = Core::new();
+        let mut client = core.named("wm");
+        let id = client.send("clients.list", Value::Null);
+        client.shut_down_writes();
+        assert_eq!(
+            client.answer(&mut core, id),
+            Some(Ok(json!([{"methods": [], "name": "wm"}])))
+        );
+        assert!(client.closed(&mut core));
+    }
+
+    #[test]
+    fn a_line_that_is_too_long_ends_the_connection() {
+        let mut core = Core::new();
+        let mut client = core.connect();
+        let chunk = vec![b'x'; 32 << 10];
+        let mut sent = 0;
+        while sent <= MAX_LINE {
+            match client.write(&chunk) {
+                Ok(n) => sent += n,
+                Err(err) if err.kind() == ErrorKind::WouldBlock => core.dispatch(),
+                Err(err) => panic!("{err}"),
+            }
+        }
+        let mut responses = Vec::new();
+        for _ in 0..(MAX_LINE / READ_PER_WAKEUP + 2) {
+            core.dispatch();
+            responses.extend(client.responses());
+        }
+        assert_eq!(responses[0]["error"]["message"], "line too long");
+        assert!(client.closed(&mut core));
+    }
+
+    #[test]
+    fn a_connection_without_hello_closes_at_its_deadline() {
+        let mut core = Core::new();
+        let mut silent = core.connect();
+        let mut named = core.named("wm");
+        core.advance(HELLO_TIMEOUT.saturating_sub(Duration::from_millis(1)));
+        assert!(!silent.closed(&mut core));
+        core.advance(Duration::from_millis(1));
+        assert!(silent.closed(&mut core));
+        assert!(!named.closed(&mut core));
+    }
+
+    #[test]
+    fn the_core_refuses_connections_beyond_its_limit() {
+        let mut core = Core::new();
+        let clients: Vec<Client> = (0..MAX_CONNECTIONS).map(|_| core.connect()).collect();
+        let (_, theirs) = UnixStream::pair().unwrap();
+        assert!(core.state.ipc_accept(theirs).is_err());
+        drop(clients);
+        core.dispatch();
+        let (_, theirs) = UnixStream::pair().unwrap();
+        assert!(core.state.ipc_accept(theirs).is_ok());
+    }
+
+    #[test]
+    fn reserves_of_a_connection_add_up_and_go_with_it() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut panel = core.named("panel");
+        let mut dock = core.named("dock");
+        let top = json!({"output": "HDMI-1", "edges": {"top": 30}});
+        panel.ok(&mut core, "output.reserve", top);
+        let both = json!({"edges": {"top": 10, "left": 40}});
+        let info = dock.ok(&mut core, "output.reserve", both);
+        assert_eq!(info["name"], "HDMI-1", "the first output without a name");
+        let (_, message) = dock.fails(&mut core, "output.reserve", json!({"output": "DP-1"}));
+        assert_eq!(message, "no output Some(\"DP-1\")");
+        let edges = core.state.ipc.reserved("HDMI-1");
+        assert_eq!((edges.top, edges.left, edges.bottom), (40, 40, 0));
+        drop(panel);
+        core.dispatch();
+        assert_eq!(core.state.ipc.reserved("HDMI-1").top, 10);
+        assert_eq!(core.state.ipc.reserved("DP-1"), Edges::default());
+    }
 }

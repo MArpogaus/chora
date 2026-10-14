@@ -97,7 +97,10 @@ impl State {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
+    use crate::testing::Core;
 
     fn change(client: &str, capabilities: &[Capability]) -> GrantChange {
         GrantChange {
@@ -129,5 +132,69 @@ mod tests {
     fn a_grant_names_a_capability() {
         let mut grants = Grants::default();
         assert!(grants.set(change("agent", &[])).is_err());
+    }
+
+    #[test]
+    fn grants_change_and_list_over_ipc() {
+        let mut core = Core::new();
+        let mut ctl = core.named("choractl");
+        let both = json!({"client": "agent", "capabilities": ["screen.capture", "input.inject"]});
+        ctl.ok(&mut core, "grants.set", both);
+        let list = ctl.ok(&mut core, "grants.list", Value::Null);
+        assert_eq!(list, json!({"agent": ["input.inject", "screen.capture"]}));
+        let one = json!({"client": "agent", "capabilities": ["input.inject"]});
+        ctl.ok(&mut core, "grants.revoke", one);
+        let list = ctl.ok(&mut core, "grants.list", Value::Null);
+        assert_eq!(list, json!({"agent": ["screen.capture"]}));
+        let unknown = json!({"client": "agent", "capabilities": ["disk.write"]});
+        let (error_code, _) = ctl.fails(&mut core, "grants.set", unknown);
+        assert_eq!(error_code, RpcError::INVALID_PARAMS);
+    }
+
+    #[test]
+    fn each_method_of_a_capability_needs_its_grant() {
+        let mut core = Core::new();
+        let mut agent = core.named("agent");
+        for (method, capability) in [
+            ("input.inject", "input.inject"),
+            ("screen.capture", "screen.capture"),
+            ("process.spawn", "process.spawn"),
+            ("process.wait", "process.spawn"),
+            ("plugins.restart", "process.spawn"),
+        ] {
+            let (error_code, message) = agent.fails(&mut core, method, json!({}));
+            assert_eq!(error_code, RpcError::REJECTED, "{method}");
+            let wanted = format!("{capability} needs a grant: choractl grant agent {capability}");
+            assert_eq!(message, wanted, "{method}");
+        }
+    }
+
+    #[test]
+    fn a_grant_belongs_to_a_name_and_outlives_its_connections() {
+        let mut core = Core::new();
+        let mut ctl = core.named("choractl");
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        ctl.ok(&mut core, "grants.set", grant);
+        let inject = json!({"events": []});
+        for _ in 0..2 {
+            let mut agent = core.named("agent");
+            agent.ok(&mut core, "input.inject", inject.clone());
+        }
+        let mut other = core.named("other");
+        let (error_code, _) = other.fails(&mut core, "input.inject", inject);
+        assert_eq!(error_code, RpcError::REJECTED);
+    }
+
+    #[test]
+    fn the_emergency_reset_revokes_every_grant_and_disconnects() {
+        let mut core = Core::new();
+        let mut ctl = core.named("choractl");
+        let all = json!({"client": "agent", "capabilities": ["input.inject", "process.spawn"]});
+        ctl.ok(&mut core, "grants.set", all);
+        core.state.reset();
+        assert!(ctl.closed(&mut core));
+        assert!(!core.state.grants.allows("agent", Capability::InputInject));
+        let mut ctl = core.named("choractl");
+        assert_eq!(ctl.ok(&mut core, "grants.list", Value::Null), json!({}));
     }
 }

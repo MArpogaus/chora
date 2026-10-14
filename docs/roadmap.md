@@ -31,8 +31,9 @@ with a stable, versioned API (D3).
   input injection, grants, programs, assets and output configuration.
 - `choractl` loads views and serves MCP.
 - `chora-tiling` and the XP showroom are plugins in this repository.
-- The core crate has 37 unit tests. IPC dispatch, transactions and the tty
-  backend have none. Pixel tests in a headless sway check the behavior.
+- The core is a library and a binary. Unit tests run IPC dispatch,
+  transactions, focus and grants in process, without a backend. The tty
+  backend has no tests. Pixel tests in a headless sway check the behavior.
 
 ## Estimates
 

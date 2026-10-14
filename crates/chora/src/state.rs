@@ -580,3 +580,177 @@ pub struct ClientState {
 }
 
 impl ClientData for ClientState {}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{Value, json};
+    use wayland_client::Proxy;
+    use wayland_protocols::xdg::shell::client::xdg_toplevel::State as Xdg;
+    use wayland_protocols_wlr::layer_shell::v1::client::{
+        zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::KeyboardInteractivity,
+    };
+
+    use crate::testing::{
+        Client, Core,
+        wayland::{Toplevel, Wayland},
+    };
+
+    /// The protocol id of the surface with the keyboard focus.
+    fn keyboard(core: &Core) -> Option<u32> {
+        let keyboard = core.state.seat.get_keyboard().expect("a keyboard");
+        keyboard
+            .current_focus()
+            .map(|s| smithay::reexports::wayland_server::Resource::id(&s).protocol_id())
+    }
+
+    fn id(toplevel: &Toplevel) -> u32 {
+        toplevel.surface.id().protocol_id()
+    }
+
+    fn apply(commands: &Value) -> Value {
+        json!({ "commands": commands })
+    }
+
+    fn focus(surface: Option<&str>) -> Value {
+        apply(&json!([{"focus": {"surface": surface}}]))
+    }
+
+    /// A core with a window manager that attached two toplevels `s1` and
+    /// `s2` of one client.
+    fn two_windows() -> (Core, Wayland, Client, Toplevel, Toplevel) {
+        let mut core = Core::new();
+        let mut wayland = Wayland::connect(&mut core);
+        let first = wayland.toplevel(&mut core, "first");
+        let second = wayland.toplevel(&mut core, "second");
+        let mut wm = core.named("wm");
+        let attach = apply(&json!([
+            {"attach": {"surface": "s1", "parent": "root"}},
+            {"attach": {"surface": "s2", "parent": "root"}},
+        ]));
+        wm.ok(&mut core, "scene.apply", attach);
+        (core, wayland, wm, first, second)
+    }
+
+    #[test]
+    fn the_focused_surface_gets_the_keyboard() {
+        let (mut core, _wayland, mut wm, first, second) = two_windows();
+        assert_eq!(keyboard(&core), None);
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        assert_eq!(keyboard(&core), Some(id(&first)));
+        assert_eq!(core.state.focused_surface().as_deref(), Some("s1"));
+        wm.ok(&mut core, "scene.apply", focus(Some("s2")));
+        assert_eq!(keyboard(&core), Some(id(&second)));
+        wm.ok(&mut core, "scene.apply", focus(None));
+        assert_eq!(keyboard(&core), None);
+    }
+
+    #[test]
+    fn a_client_focuses_only_its_own_surfaces() {
+        let (mut core, _wayland, mut wm, first, _second) = two_windows();
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        let mut agent = core.named("agent");
+        let (_, message) = agent.fails(&mut core, "scene.apply", focus(Some("s2")));
+        assert!(message.contains("wm"), "{message}");
+        assert_eq!(keyboard(&core), Some(id(&first)));
+    }
+
+    #[test]
+    fn a_client_that_cleared_the_focus_can_give_it_back() {
+        let (mut core, _wayland, mut wm, first, _second) = two_windows();
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        let mut launcher = core.named("launcher");
+        launcher.ok(&mut core, "scene.apply", focus(None));
+        assert_eq!(keyboard(&core), None);
+        launcher.ok(&mut core, "scene.apply", focus(Some("s1")));
+        assert_eq!(keyboard(&core), Some(id(&first)));
+        let (_, message) = launcher.fails(&mut core, "scene.apply", focus(Some("s2")));
+        assert!(
+            message.contains("wm"),
+            "only the surface that had it: {message}"
+        );
+    }
+
+    #[test]
+    fn the_keyboard_leaves_a_destroyed_window() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        let events = json!({"events": ["surface.destroyed"]});
+        wm.ok(&mut core, "events.subscribe", events);
+        wayland.destroy(&mut core, &first);
+        assert_eq!(keyboard(&core), None);
+        assert_eq!(wm.event_names(&mut core), ["surface.destroyed"]);
+        let (_, message) = wm.fails(&mut core, "scene.apply", focus(Some("s1")));
+        assert!(message.contains("s1"), "{message}");
+    }
+
+    #[test]
+    fn an_exclusive_layer_surface_takes_the_keyboard_and_gives_it_back() {
+        let (mut core, mut wayland, mut wm, first, second) = two_windows();
+        core.add_output("HDMI-1", (800, 600));
+        wayland.roundtrip(&mut core);
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        let bar = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::None);
+        assert_eq!(keyboard(&core), Some(id(&first)), "a bar takes no keyboard");
+        let launcher = wayland.layer(&mut core, Layer::Overlay, KeyboardInteractivity::Exclusive);
+        assert_eq!(keyboard(&core), Some(launcher.surface.id().protocol_id()));
+        wm.ok(&mut core, "scene.apply", focus(Some("s2")));
+        assert_eq!(
+            keyboard(&core),
+            Some(launcher.surface.id().protocol_id()),
+            "the launcher keeps the keyboard"
+        );
+        wayland.destroy_layer(&mut core, &launcher);
+        assert_eq!(keyboard(&core), Some(id(&second)));
+        wayland.destroy_layer(&mut core, &bar);
+        assert_eq!(keyboard(&core), Some(id(&second)));
+    }
+
+    #[test]
+    fn the_emergency_reset_focuses_the_first_surface() {
+        let (mut core, _wayland, mut wm, first, _second) = two_windows();
+        core.add_output("HDMI-1", (800, 600));
+        wm.ok(&mut core, "scene.apply", focus(Some("s2")));
+        core.state.reset();
+        core.dispatch();
+        assert_eq!(core.state.focused_surface().as_deref(), Some("s1"));
+        assert_eq!(keyboard(&core), Some(id(&first)));
+    }
+
+    #[test]
+    fn a_configure_waits_for_the_commit_that_answers_it() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        let configure = apply(&json!([
+            {"configure": {"surface": "s1", "size": [400, 300], "states": ["activated"]}},
+        ]));
+        let id = wm.send("scene.apply", configure);
+        wayland.roundtrip(&mut core);
+        assert_eq!(wm.answer(&mut core, id), None, "the client did not commit");
+        let configures = wayland.configures(&first);
+        assert_eq!(configures.size, (400, 300));
+        assert_eq!(configures.states, [Xdg::Activated]);
+        wayland.answer(&mut core, &first);
+        core.dispatch();
+        assert_eq!(wm.answer(&mut core, id), Some(Ok(Value::Null)));
+    }
+
+    #[test]
+    fn a_client_that_misses_the_deadline_delays_one_transaction_only() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        let size = |w: i32| apply(&json!([{"configure": {"surface": "s1", "size": [w, 300]}}]));
+        let id = wm.send("scene.apply", size(400));
+        assert_eq!(wm.answer(&mut core, id), None);
+        core.advance(crate::transaction::DEADLINE);
+        assert_eq!(wm.answer(&mut core, id), Some(Ok(Value::Null)));
+        let id = wm.send("scene.apply", size(500));
+        assert_eq!(
+            wm.answer(&mut core, id),
+            Some(Ok(Value::Null)),
+            "a late surface"
+        );
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.configures(&first).size, (500, 300));
+        wayland.answer(&mut core, &first);
+        let id = wm.send("scene.apply", size(600));
+        assert_eq!(wm.answer(&mut core, id), None, "the surface caught up");
+    }
+}

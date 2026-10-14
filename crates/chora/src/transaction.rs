@@ -35,7 +35,7 @@ use smithay::{
 use crate::{ipc::rejected, state::State};
 
 /// How long a transaction waits for its clients.
-const DEADLINE: Duration = Duration::from_millis(150);
+pub const DEADLINE: Duration = Duration::from_millis(150);
 /// How many transactions of one connection can wait in the queue.
 const MAX_PENDING: usize = 16;
 
@@ -65,24 +65,18 @@ struct Pending {
 impl Transactions {
     /// Notes a commit of a toplevel, before Smithay applies it, with the
     /// newest configure serial that the client acknowledged. Returns the
-    /// barrier that holds the commit, if the transaction at the head of the
-    /// queue waits for it.
-    fn answered(
-        &mut self,
-        id: &str,
-        acked: Option<Serial>,
-        surface: &WlSurface,
-    ) -> Option<Barrier> {
+    /// transaction at the head of the queue, if it waited for the commit.
+    fn answered(&mut self, id: &str, acked: Option<Serial>) -> Option<&mut Pending> {
         let caught_up = |serial: &Serial| acked.is_some_and(|a| a >= *serial);
         if self.late.get(id).is_some_and(caught_up) {
             self.late.remove(id);
         }
         let head = self.queue.front_mut()?;
-        head.waiting.get(id).is_some_and(caught_up).then(|| {
-            head.waiting.remove(id);
-            head.held.push(surface.clone());
-            head.barrier.clone()
-        })
+        if !head.waiting.get(id).is_some_and(caught_up) {
+            return None;
+        }
+        head.waiting.remove(id);
+        Some(head)
     }
 
     /// Stops waiting for a destroyed surface.
@@ -252,15 +246,12 @@ impl State {
             let role = states.data_map.get::<XdgToplevelSurfaceData>()?;
             role.lock().ok()?.last_acked.as_ref().map(|c| c.serial)
         });
-        let Some(barrier) = self.transactions.answered(&id, acked, surface) else {
+        let Some(head) = self.transactions.answered(&id, acked) else {
             return;
         };
-        add_blocker(surface, barrier);
-        let complete = self
-            .transactions
-            .queue
-            .front()
-            .is_some_and(|h| h.waiting.is_empty());
+        head.held.push(surface.clone());
+        let complete = head.waiting.is_empty();
+        add_blocker(surface, head.barrier.clone());
         if complete {
             self.loop_handle.insert_idle(Self::complete_transactions);
         }
@@ -306,5 +297,167 @@ impl State {
         head.barrier.signal();
         let surfaces = std::mem::take(&mut head.held);
         self.release(&surfaces);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::testing::{Client, Core};
+
+    /// A transaction of a connection that waits for the configures of
+    /// surfaces.
+    fn waiting(conn: u64, id: u64, surfaces: &[(&str, u32)], deadline: Instant) -> Pending {
+        Pending {
+            conn,
+            id: json!(id),
+            owner: "wm".into(),
+            commands: Vec::new(),
+            waiting: surfaces
+                .iter()
+                .map(|(s, serial)| ((*s).to_owned(), Serial::from(*serial)))
+                .collect(),
+            deadline: Some(deadline),
+            barrier: Barrier::new(false),
+            held: Vec::new(),
+        }
+    }
+
+    fn rect(id: &str) -> Value {
+        json!({"commands": [{"create": {"id": id, "kind": "rect", "parent": "root",
+            "props": {"size": [10, 10]}}}]})
+    }
+
+    /// A core whose first connection `wm` waits for `s1` and `s2`.
+    fn blocked() -> (Core, Client) {
+        let mut core = Core::new();
+        let wm = core.named("wm");
+        let deadline = core.state.time.now() + DEADLINE;
+        let head = waiting(0, 99, &[("s1", 1), ("s2", 1)], deadline);
+        core.state.transactions.queue.push_back(head);
+        (core, wm)
+    }
+
+    #[test]
+    fn a_transaction_applies_all_or_nothing() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let mut commands = rect("a")["commands"].as_array().unwrap().clone();
+        commands.extend(rect("a")["commands"].as_array().unwrap().clone());
+        let (error_code, _) = wm.fails(&mut core, "scene.apply", json!({"commands": commands}));
+        assert_eq!(error_code, RpcError::REJECTED);
+        let nodes = wm.ok(&mut core, "scene.query", json!({"selector": "id:a"}));
+        assert_eq!(nodes, json!([]));
+    }
+
+    #[test]
+    fn a_commit_answers_only_the_newest_configure() {
+        let mut transactions = Transactions::default();
+        let deadline = Instant::now() + DEADLINE;
+        transactions
+            .queue
+            .push_back(waiting(0, 1, &[("s1", 5), ("s2", 5)], deadline));
+        assert!(transactions.answered("s1", None).is_none());
+        assert!(transactions.answered("s1", Some(Serial::from(4))).is_none());
+        let head = transactions
+            .answered("s1", Some(Serial::from(5)))
+            .expect("the head");
+        assert_eq!(head.waiting.keys().collect::<Vec<_>>(), ["s2"]);
+        assert!(transactions.answered("s3", Some(Serial::from(9))).is_none());
+    }
+
+    #[test]
+    fn a_late_surface_waits_for_nobody_until_it_catches_up() {
+        let mut transactions = Transactions::default();
+        transactions.late.insert("s1".into(), Serial::from(3));
+        let mut waits = HashMap::new();
+        transactions.configured(&mut waits, "s1", Serial::from(7));
+        transactions.configured(&mut waits, "s2", Serial::from(8));
+        assert_eq!(waits.keys().collect::<Vec<_>>(), ["s2"]);
+        transactions.answered("s1", Some(Serial::from(5)));
+        assert_eq!(transactions.late.get("s1"), Some(&Serial::from(7)));
+        transactions.answered("s1", Some(Serial::from(7)));
+        assert!(transactions.late.is_empty());
+    }
+
+    #[test]
+    fn a_destroyed_surface_holds_no_transaction() {
+        let mut transactions = Transactions::default();
+        let deadline = Instant::now() + DEADLINE;
+        transactions
+            .queue
+            .push_back(waiting(0, 1, &[("s1", 1)], deadline));
+        transactions
+            .queue
+            .push_back(waiting(0, 2, &[("s1", 2)], deadline));
+        transactions.late.insert("s1".into(), Serial::from(1));
+        transactions.forget("s1");
+        assert!(transactions.late.is_empty());
+        assert!(transactions.queue.iter().all(|p| p.waiting.is_empty()));
+    }
+
+    #[test]
+    fn transactions_wait_behind_the_head_and_answer_in_order() {
+        let (mut core, mut wm) = blocked();
+        let mut panel = core.named("panel");
+        let first = wm.send("scene.apply", rect("a"));
+        let second = panel.send("scene.apply", rect("b"));
+        let third = wm.send("scene.apply", rect("c"));
+        assert_eq!(wm.answer(&mut core, first), None);
+        assert_eq!(panel.answer(&mut core, second), None);
+        core.state.transactions.forget("s1");
+        core.state.transactions.forget("s2");
+        core.state.complete_transactions();
+        core.dispatch();
+        let ids: Vec<Value> = wm.responses().iter().map(|r| r["id"].clone()).collect();
+        assert_eq!(ids, [json!(99), json!(first), json!(third)]);
+        assert_eq!(panel.answer(&mut core, second), Some(Ok(Value::Null)));
+    }
+
+    #[test]
+    fn a_missed_deadline_makes_the_surfaces_late() {
+        let (mut core, mut wm) = blocked();
+        let first = wm.send("scene.apply", rect("a"));
+        core.advance(DEADLINE.saturating_sub(Duration::from_millis(1)));
+        assert_eq!(wm.answer(&mut core, first), None);
+        core.advance(Duration::from_millis(1));
+        let ids: Vec<Value> = wm.responses().iter().map(|r| r["id"].clone()).collect();
+        assert_eq!(ids, [json!(99), json!(first)]);
+        let mut late: Vec<&String> = core.state.transactions.late.keys().collect();
+        late.sort();
+        assert_eq!(late, ["s1", "s2"]);
+    }
+
+    #[test]
+    fn a_connection_has_a_limit_of_waiting_transactions() {
+        let (mut core, mut wm) = blocked();
+        for i in 1..MAX_PENDING {
+            wm.send("scene.apply", rect(&format!("r{i}")));
+        }
+        core.dispatch();
+        assert_eq!(wm.responses(), Vec::<Value>::new());
+        let (_, message) = wm.fails(&mut core, "scene.apply", rect("over"));
+        assert_eq!(message, "too many waiting transactions");
+        let mut panel = core.named("panel");
+        let id = panel.send("scene.apply", rect("p"));
+        assert_eq!(
+            panel.answer(&mut core, id),
+            None,
+            "the queue is the same for all"
+        );
+    }
+
+    #[test]
+    fn the_end_of_the_stream_waits_for_the_transactions_of_the_connection() {
+        let (mut core, mut wm) = blocked();
+        let id = wm.send("scene.apply", rect("a"));
+        wm.shut_down_writes();
+        assert!(!wm.closed(&mut core));
+        core.advance(DEADLINE);
+        let ids: Vec<Value> = wm.responses().iter().map(|r| r["id"].clone()).collect();
+        assert_eq!(ids, [json!(99), json!(id)]);
+        assert!(wm.closed(&mut core));
     }
 }

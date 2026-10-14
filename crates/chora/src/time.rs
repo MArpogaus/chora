@@ -1,4 +1,5 @@
-//! The time of the deadlines of the core.
+//! The time of the deadlines of the core. A unit test moves it by hand, so
+//! that it checks a timeout without waiting.
 
 use std::time::Instant;
 
@@ -20,6 +21,19 @@ impl Time {
     /// The current time.
     pub fn now(&self) -> Instant {
         self.fixed.unwrap_or_else(Instant::now)
+    }
+
+    /// Stops the time, so that it moves only with `advance`.
+    #[cfg(test)]
+    pub fn stop(&mut self) {
+        self.fixed = Some(self.now());
+    }
+
+    /// Moves the stopped time forward.
+    #[cfg(test)]
+    pub fn advance(&mut self, by: std::time::Duration) {
+        let fixed = self.fixed.as_mut().expect("a stopped time");
+        *fixed += by;
     }
 }
 
