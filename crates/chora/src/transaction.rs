@@ -450,6 +450,18 @@ mod tests {
     }
 
     #[test]
+    fn a_closed_connection_lets_the_next_transaction_go() {
+        let (mut core, _wm) = blocked();
+        let mut panel = core.named("panel");
+        let id = panel.send("scene.apply", rect("p"));
+        assert_eq!(panel.answer(&mut core, id), None);
+        assert!(core.state.transactions.waits_for(0));
+        core.state.ipc_close(0);
+        assert!(!core.state.transactions.waits_for(0));
+        assert_eq!(panel.answer(&mut core, id), Some(Ok(Value::Null)));
+    }
+
+    #[test]
     fn the_end_of_the_stream_waits_for_the_transactions_of_the_connection() {
         let (mut core, mut wm) = blocked();
         let id = wm.send("scene.apply", rect("a"));

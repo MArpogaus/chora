@@ -581,6 +581,8 @@ impl State {
         self.methods_closed(conn);
         let held = self.transactions.drop_conn(conn);
         self.release(&held);
+        // A dropped head lets the next transaction start.
+        self.complete_transactions();
         let Some(name) = closed.name else { return };
         if self
             .ipc
