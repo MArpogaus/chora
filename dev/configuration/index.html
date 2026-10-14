@@ -1102,10 +1102,11 @@ example <code>chora-flavor</code>, which starts the systemd target of a flavor:<
 </code></pre></div>
 <h2 id="locations">Locations<a class="headerlink" href="#locations" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>~/.config/chora/
-├── views/      # one file per view
-├── flavors/    # bundles of views, plugins and services
-├── plugins/    # plugin manifests
-└── shaders/    # GLSL ES shaders
+├── views/              # one file per view
+├── flavors/            # bundles of views, plugins and services
+├── plugins/            # plugin manifests
+├── shaders/            # GLSL ES shaders
+└── chora-tiling.yaml   # the options and bindings of chora-tiling
 </code></pre></div>
 <p>The directory is a git repository. It contains no secrets. The package
 installs the reference flavors to <code>/usr/share/chora/</code>.</p>
@@ -1116,7 +1117,7 @@ installs the reference flavors to <code>/usr/share/chora/</code>.</p>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">work</span>
 <span class="nt">plugins</span><span class="p">:</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
-<span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">layout</span><span class="p">:</span><span class="w"> </span><span class="nv">columns</span><span class="p p-Indicator">,</span><span class="nt"> gap</span><span class="p">:</span><span class="w"> </span><span class="nv">12</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">layout</span><span class="p">:</span><span class="w"> </span><span class="nv">fair</span><span class="p p-Indicator">,</span><span class="nt"> gap</span><span class="p">:</span><span class="w"> </span><span class="nv">12</span><span class="p p-Indicator">}</span>
 <span class="nt">scene</span><span class="p">:</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">work-corner</span>
 <span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">group</span>
@@ -1166,7 +1167,7 @@ lives in <code>plugins/NAME.yaml</code> of the same directories:</p>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tiling</span>
 <span class="nt">exec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora-tiling</span>
 <span class="nt">configure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">set_layout</span>
-<span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Tiles the windows as master and stack, columns or rows.</span>
+<span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Tiles the windows with the tags and layouts of awesome.</span>
 </code></pre></div>
 <table>
 <thead>
@@ -1196,9 +1197,10 @@ lives in <code>plugins/NAME.yaml</code> of the same directories:</p>
 </table>
 <p>The package installs the manifest of <code>chora-tiling</code>.</p>
 <h2 id="chora-tiling">chora-tiling<a class="headerlink" href="#chora-tiling" title="Permanent link">&para;</a></h2>
-<p><code>chora-tiling</code> reads <code>~/.config/chora/tiling.yaml</code>, or the file of
-<code>--config</code>. Without a file, it uses its default, which
-<code>chora-tiling --print-config</code> prints. The file writes out every option:</p>
+<p><code>chora-tiling</code> reads <code>chora/chora-tiling.yaml</code> in <code>$XDG_CONFIG_HOME</code>, by
+default <code>~/.config</code>, or the file of <code>--config</code>. Without a file, it uses its
+default, which <code>chora-tiling --print-config</code> prints. The file lists every
+option:</p>
 <table>
 <thead>
 <tr>
@@ -1209,7 +1211,7 @@ lives in <code>plugins/NAME.yaml</code> of the same directories:</p>
 <tbody>
 <tr>
 <td><code>modifier</code></td>
-<td>what <code>MOD</code> means in the bindings: Super, Alt, Ctrl or Shift</td>
+<td>what <code>MOD</code> means in the bindings: Super or Alt</td>
 </tr>
 <tr>
 <td><code>gap</code></td>
@@ -1217,7 +1219,7 @@ lives in <code>plugins/NAME.yaml</code> of the same directories:</p>
 </tr>
 <tr>
 <td><code>tags</code></td>
-<td>the tag names of each output, at most 16</td>
+<td>the number of tags of each output, at most 16</td>
 </tr>
 <tr>
 <td><code>layouts</code></td>
@@ -1237,7 +1239,7 @@ lives in <code>plugins/NAME.yaml</code> of the same directories:</p>
 </tr>
 <tr>
 <td><code>bindings</code></td>
-<td>a binding with <code>MOD</code>, and its action</td>
+<td>a binding with <code>MOD</code>, and its action; the default file uses every action once</td>
 </tr>
 </tbody>
 </table>

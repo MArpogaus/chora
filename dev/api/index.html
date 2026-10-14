@@ -1460,7 +1460,7 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>pointer.entered</code>, <code>pointer.left</code></td>
-<td>the pointer came over or left the top node under it that takes input: node; not during a drag of a node or while locked</td>
+<td>the pointer came over or left the top node under it that takes input: node, and for <code>pointer.entered</code> <code>moved</code>: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked</td>
 </tr>
 <tr>
 <td><code>pointer.pressed</code></td>
@@ -1792,8 +1792,8 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
 <h2 id="plugin-methods">Plugin methods<a class="headerlink" href="#plugin-methods" title="Permanent link">&para;</a></h2>
 <p>A plugin exports methods, and other clients call them by the client name
 and the method name, for example <code>tiling.set_layout</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>set_layout<span class="w"> </span><span class="s1">'{"layout": "columns"}'</span>
-<span class="go">{"gap": 4, "layout": "columns", "windows": ["s1", "s2"]}</span>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>set_layout<span class="w"> </span><span class="s1">'{"layout": "fair"}'</span>
+<span class="go">{"columns": 1, "gap": 4, "layout": "fair", "master_width": 0.5, "masters": 1, "windows": ["s2", "s1"]}</span>
 </code></pre></div>
 <p>The core sends the exporting connection a <code>method.called</code> event. The
 plugin answers with <code>methods.return</code>: the same <code>call</code> and a <code>result</code>, or an
