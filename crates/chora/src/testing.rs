@@ -1,5 +1,5 @@
-//! A core without a backend for the unit tests: the event loop, the state,
-//! and IPC clients on socket pairs.
+//! A core for the unit tests: the event loop, the state, IPC clients on
+//! socket pairs, and on request the headless renderer.
 
 use std::{
     io::{ErrorKind, Read, Write},
@@ -30,6 +30,14 @@ impl Core {
         let mut state = State::new(display, event_loop.handle(), event_loop.get_signal());
         state.time.stop();
         Self { event_loop, state }
+    }
+
+    /// A core with the headless renderer, for captures.
+    pub fn with_renderer() -> Self {
+        let mut core = Self::new();
+        let headless = crate::backend::headless::Headless::new().expect("a software renderer");
+        core.state.backend = Some(crate::backend::Backend::Headless(Box::new(headless)));
+        core
     }
 
     /// Runs one turn of the event loop without waiting.

@@ -51,6 +51,8 @@ cargo deny check
 The unit tests of the core run a core without a backend in the test
 process. `crates/chora/src/testing.rs` gives them IPC clients on socket
 pairs, a Wayland client, outputs, and a time that the test moves forward.
+Pixel tests render with the software driver of Mesa, from
+`mesa-dri-drivers` on Fedora.
 
 The end-to-end test starts chora nested in a headless sway. It checks the
 scene, transactions, layer shell, the session lock, effects, the safety

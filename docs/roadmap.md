@@ -81,8 +81,9 @@ Scope:
   Rust version, and container images pinned by digest.
 - The core as a library and a binary (D48). IPC dispatch, the transaction
   queue, focus and grants run in unit tests with a fake clock.
-- A headless test backend that renders with pixman in process, for pixel
-  tests in Rust.
+- A headless test backend that renders with GLES on the software driver
+  of Mesa in process, for pixel tests in Rust. GLES checks the same render
+  path as the screen.
 - A smoke test in a VM with `vkms` in CI (D11). chora starts on the tty
   backend and shows a foot window. A capture shows its pixels.
 - The website repository builds the user documentation. The reference
@@ -95,7 +96,7 @@ Gate:
    tag on a commit with red CI starts no release.
 3. `cargo test` runs at least 40 unit tests of the core crate for IPC,
    transactions, focus and grants, without a compositor.
-4. One pixel test runs in process on the pixman backend.
+4. One pixel test runs in process on the headless backend.
 5. The `vkms` job is green in 10 runs in a row.
 6. `chora-tiling` and `chora-xp` build and pass their tests in their own
    repositories against the tag of the core.

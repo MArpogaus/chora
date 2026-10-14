@@ -1,6 +1,9 @@
 //! The backends. winit runs chora as a window inside another session; the
-//! tty backend runs it on real hardware.
+//! tty backend runs it on real hardware. The headless backend renders in
+//! the unit tests.
 
+#[cfg(test)]
+pub mod headless;
 mod host_keymap;
 pub mod tty;
 pub mod winit;
@@ -13,12 +16,19 @@ use smithay::{
 
 use crate::state::State;
 
+/// The answer of the headless backend to a change of an output.
+#[cfg(test)]
+const HEADLESS: &str = "the headless backend keeps its outputs as they are";
+
 /// The backend that drives the outputs and the input devices.
 pub enum Backend {
     /// A window inside another session.
     Winit(Box<winit::Winit>),
     /// Real hardware.
     Tty(Box<tty::Tty>),
+    /// A renderer without a screen, for the unit tests.
+    #[cfg(test)]
+    Headless(Box<headless::Headless>),
 }
 
 impl Backend {
@@ -27,6 +37,8 @@ impl Backend {
         match self {
             Self::Winit(winit) => winit.import_dmabuf(dmabuf),
             Self::Tty(tty) => tty.import_dmabuf(dmabuf),
+            #[cfg(test)]
+            Self::Headless(headless) => headless.import_dmabuf(dmabuf),
         }
     }
 
@@ -35,6 +47,8 @@ impl Backend {
         match self {
             Backend::Winit(winit) => winit.check_effect(path),
             Backend::Tty(tty) => tty.check_effect(path),
+            #[cfg(test)]
+            Backend::Headless(headless) => crate::gl::check_effect(headless.gles(), path),
         }
     }
 
@@ -47,6 +61,8 @@ impl Backend {
         match self {
             Self::Winit(winit) => Ok(f(winit.gles())),
             Self::Tty(tty) => tty.with_gles(f),
+            #[cfg(test)]
+            Self::Headless(headless) => Ok(f(headless.gles())),
         }
     }
 
@@ -63,6 +79,8 @@ impl Backend {
         match self {
             Self::Winit(winit) => winit.test_output(mode),
             Self::Tty(tty) => tty.test_output(output, mode),
+            #[cfg(test)]
+            Self::Headless(_) => Err(HEADLESS.into()),
         }
     }
 
@@ -71,6 +89,8 @@ impl Backend {
         match self {
             Self::Winit(_) => Err(winit::FIXED_MODE.into()),
             Self::Tty(tty) => tty.set_mode(output, mode),
+            #[cfg(test)]
+            Self::Headless(_) => Err(HEADLESS.into()),
         }
     }
 
@@ -79,6 +99,8 @@ impl Backend {
         match self {
             Self::Winit(_) => Err(winit::ALWAYS_ON.into()),
             Self::Tty(tty) => tty.enable_output(output, mode),
+            #[cfg(test)]
+            Self::Headless(_) => Err(HEADLESS.into()),
         }
     }
 
@@ -88,6 +110,8 @@ impl Backend {
         match self {
             Self::Winit(_) => Err(winit::ALWAYS_ON.into()),
             Self::Tty(tty) => tty.disable_output(output),
+            #[cfg(test)]
+            Self::Headless(_) => Err(HEADLESS.into()),
         }
     }
 }
