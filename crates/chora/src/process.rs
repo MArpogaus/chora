@@ -308,12 +308,12 @@ impl State {
     }
 
     /// Looks whether the old process of a restart exited and its connections
-    /// closed; starts the new one then, or kills the old one after a while. A
-    /// connection outlives its process while a transaction of it waits, and
-    /// keeps its grabs and methods until then.
+    /// reached the end of their streams; starts the new one then, or kills
+    /// the old one after a while. At the end of its stream a connection
+    /// gives up its grabs and methods, and only waits for its answers.
     fn poll_restart(&mut self, stopping: &mut Stopping) -> TimeoutAction {
         let waited = stopping.since.elapsed();
-        let connected = !self.ipc.peer_pids(&stopping.name).is_empty();
+        let connected = self.ipc.reading(&stopping.name);
         if alive(&stopping.pidfd) || connected {
             if waited < STOP_WAIT {
                 return TimeoutAction::ToDuration(POLL);

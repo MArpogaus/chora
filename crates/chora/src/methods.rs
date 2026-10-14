@@ -242,12 +242,24 @@ impl State {
     /// Forgets the exports and the calls of a closed connection. Its
     /// callers get an error.
     pub fn methods_closed(&mut self, conn: u64) {
+        self.end_calls(conn, true);
+    }
+
+    /// Withdraws the methods of a connection at the end of its stream: it
+    /// can answer no call. Its own calls still get their answers.
+    pub fn methods_ended(&mut self, conn: u64) {
+        self.end_calls(conn, false);
+    }
+
+    /// Withdraws the methods of a connection and fails the calls to it,
+    /// and with `own` the calls that it made too.
+    fn end_calls(&mut self, conn: u64, own: bool) {
         self.methods.exports.remove(&conn);
         let ended: Vec<u64> = self
             .methods
             .pending
             .iter()
-            .filter(|(_, p)| p.callee == conn || p.caller == conn)
+            .filter(|(_, p)| p.callee == conn || (own && p.caller == conn))
             .map(|(n, _)| *n)
             .collect();
         for number in ended {

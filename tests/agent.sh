@@ -464,6 +464,50 @@ tiling_is() { test "$(running_tiling)" = "$1"; }
 wait_for tiling_is "$new"
 wait_for count_is 3 '.owner == "tiling"'
 if ctl restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
+# A restart waits for the end of the old streams, not for the answers to
+# calls of the old process: "busy" waits for a method that never answers.
+python3 -I - "$CHORA_SOCKET" <<'EOF' >"$out/slow.log" 2>&1 &
+import json, socket, sys, time
+s = socket.socket(socket.AF_UNIX)
+s.connect(sys.argv[1])
+f = s.makefile()
+for i, (m, p) in enumerate([("hello", {"name": "slow"}), ("methods.export", {"names": ["hang"]})]):
+    s.sendall(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}).encode() + b"\n")
+    f.readline()
+time.sleep(60)
+EOF
+pids+=($!)
+busy='import json, os, socket
+s = socket.socket(socket.AF_UNIX)
+s.connect(os.environ["CHORA_SOCKET"])
+for i, (m, p) in enumerate([("hello", {"name": "busy"}),
+                            ("methods.call", {"client": "slow", "method": "hang", "params": {}})]):
+    s.sendall(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}).encode() + b"\n")
+s.recv(1 << 16)
+s.recv(1 << 16)'
+# Succeeds when a client of the name is connected.
+connected() {
+    python3 -I -c '
+import json, socket, sys
+s = socket.socket(socket.AF_UNIX)
+s.connect(sys.argv[1])
+f = s.makefile()
+for i, m in enumerate(["hello", "clients.list"]):
+    p = {"name": "probe-clients"} if m == "hello" else {}
+    s.sendall(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}).encode() + b"\n")
+    answer = json.loads(f.readline())
+sys.exit(0 if any(c["name"] == sys.argv[2] for c in answer["result"]) else 1)
+' "$CHORA_SOCKET" "$1"
+}
+wait_for connected slow
+ctl spawn python3 -I -c "$busy" >"$out/busy.json" || fail "the busy client failed"
+pids+=("$(jq -r .pid "$out/busy.json")")
+wait_for connected busy
+started=$(date +%s)
+ctl restart busy >"$out/busy-restart.json" 2>"$out/busy-restart.err" ||
+    fail "the restart of a busy client failed: $(cat "$out/busy-restart.err")"
+pids+=("$(jq -r .pid "$out/busy-restart.json")")
+test $(($(date +%s) - started)) -lt 5 || fail "the restart waited for the answers of the old process"
 # With --capture, choractl waits for the end and prints the output.
 ctl spawn --capture -- sh -c 'echo out; exit 3' >"$out/captured.json" ||
     fail "the captured spawn failed"

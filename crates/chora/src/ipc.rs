@@ -144,6 +144,13 @@ impl Ipc {
 
     /// The processes of the connections of a client name, each once; `None`
     /// for a process that the core cannot see.
+    /// Whether a connection of a client name still reads requests.
+    pub fn reading(&self, name: &str) -> bool {
+        self.conns
+            .values()
+            .any(|c| c.name.as_deref() == Some(name) && c.reader.is_some())
+    }
+
     pub fn peer_pids(&self, name: &str) -> Vec<Option<Pid>> {
         let mut pids = Vec::new();
         for conn in self.conns.values() {
@@ -391,6 +398,10 @@ impl State {
             let error = RpcError::new(RpcError::INVALID_PARAMS, "line too long");
             self.ipc.respond(id, &Message::error(Value::Null, error));
         }
+        // The connection waits for its answers only; its grabs and methods
+        // go now, so that a new process of the same client can take them.
+        self.ipc.grabs.retain(|(_, _, c)| *c != id);
+        self.methods_ended(id);
         PostAction::Remove
     }
 
