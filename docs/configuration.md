@@ -102,6 +102,30 @@ description: Tiles the windows as master and stack, columns or rows.
 
 The package installs the manifest of `chora-tiling`.
 
+## chora-tiling
+
+`chora-tiling` reads `~/.config/chora/tiling.yaml`, or the file of
+`--config`. Without a file, it uses its default, which
+`chora-tiling --print-config` prints. The file writes out every option:
+
+| Option | Meaning |
+|--------|---------|
+| `modifier` | what `MOD` means in the bindings: Super, Alt, Ctrl or Shift |
+| `gap` | the gap around each window, in logical pixels |
+| `tags` | the tag names of each output, at most 16 |
+| `layouts` | the layouts in the order of `next_layout`; each tag starts with the first |
+| `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
+| `new_window` | `master` or `stack`: where a new window goes |
+| `focus` | `click` or `follow_mouse` |
+| `bindings` | a binding with `MOD`, and its action |
+
+The layouts and the default bindings follow the awesome window manager.
+Each output has its own tags, and each tag its own layout and parameters.
+A window can be on several tags, and an output can show several tags. A
+floating, maximized or fullscreen window leaves the tiles. The binding
+`MOD+Ctrl+r` reads the file again. Mouse moves and resizes of floating
+windows do not exist.
+
 ## Flavors
 
 A flavor is a directory with views, plugin manifests and services, plus a

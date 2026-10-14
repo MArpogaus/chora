@@ -415,7 +415,7 @@ caller. The `Client` of `chora-scene` answers with `Client::answer`.
 
 | Method | Parameters | Result |
 |--------|------------|--------|
-| `set_layout` | `layout`: `master_stack`, `columns` or `rows`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap and the tiled windows |
+| `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
 
 ## Plugins

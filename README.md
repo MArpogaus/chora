@@ -38,24 +38,29 @@ Start chora with the tiling plugin inside a Wayland session:
 chora -- chora-tiling
 ```
 
-A window opens. The plugin uses these bindings:
+A window opens. The plugin follows the default keymap of the awesome
+window manager:
 
 | Binding | Action |
 |---------|--------|
 | Super+Return | start a terminal (foot) |
-| Super+d | start a launcher (fuzzel) |
-| Super+q | close the focused window |
+| Super+r | start a launcher (fuzzel) |
+| Super+Shift+c | close the focused window |
 | Super+j, Super+k | focus the next or previous window |
+| Super+1 to Super+9 | show a tag |
+| Super+Shift+1 to Super+Shift+9 | move the focused window to a tag |
+| Super+space | switch to the next layout |
 
-GNOME keeps Super for itself. There, start `chora -- chora-tiling --mod alt`
-to use Alt instead. `chora-tiling --help` lists all options.
+`chora-tiling --print-config` prints all options and bindings. Copy the
+output to `~/.config/chora/tiling.yaml` and change it there. GNOME keeps
+Super for itself; there, set `modifier: Alt` in that file.
 
 Nested, chora takes the keymap of the host session. `XKB_DEFAULT_LAYOUT`
 sets another layout, for example `XKB_DEFAULT_LAYOUT=de chora --
 chora-tiling`. The log names the layouts at the start.
 
-The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
-and Ctrl+Alt+BackSpace quits chora.
+The safety layer has fixed bindings: Ctrl+Alt+Escape resets the scene,
+Ctrl+Alt+BackSpace quits chora, and Ctrl+Alt+F1 to F12 switch the VT.
 
 To let an agent drive chora, grant it screenshots and input, and add
 `choractl --name agent mcp` as an MCP server of the agent:
