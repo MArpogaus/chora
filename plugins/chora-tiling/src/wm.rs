@@ -246,7 +246,13 @@ impl Wm {
                 .current_tag()
                 .is_some_and(|t| t.layout != Layout::Magnifier);
         let shown = self.window(id).is_some_and(|w| self.shows(w));
-        if !shown || !(clicked || follow) || self.focused() == Some(id) {
+        let index = self.current;
+        let done = if clicked {
+            self.last_on(index, &self.raised) == Some(id) && self.focused() == Some(id)
+        } else {
+            self.focused() == Some(id)
+        };
+        if !shown || !(clicked || follow) || done {
             return false;
         }
         if clicked {
@@ -401,9 +407,7 @@ impl Wm {
             .map(|i| &self.windows[i])
             .collect();
         let tiled: Vec<&Window> = windows.iter().copied().filter(|w| self.tiles(w)).collect();
-        // The max, fullscreen and magnifier layouts show the first window
-        // when the top one floats.
-        let top_at = tiled.iter().position(|w| Some(&*w.id) == top).unwrap_or(0);
+        let top_at = self.raised_among(&tiled);
         let stacks = matches!(
             tag.layout,
             Layout::Max | Layout::Fullscreen | Layout::Magnifier
@@ -439,9 +443,17 @@ impl Wm {
             };
             placed.push((rank, placement(window, [x, y], Some([w, h]), states)));
         }
+        // A fullscreen window covers the others while it has the focus of
+        // its output.
+        let focus_top = self.last_on(index, &self.history);
         for window in windows.iter().filter(|w| !self.tiles(w)) {
-            let is_top = Some(&*window.id) == top;
-            placed.push(float(window, output, is_top, Some(&*window.id) == focused));
+            let id = Some(&*window.id);
+            let is_top = if window.fullscreen {
+                id == focus_top
+            } else {
+                id == top
+            };
+            placed.push(float(window, output, is_top, id == focused));
         }
         placed
     }
@@ -475,6 +487,16 @@ impl Wm {
         (0..self.windows.len())
             .filter(|&i| &self.windows[i].output == name && self.shows(&self.windows[i]))
             .collect()
+    }
+
+    /// The position of the last raised window among windows, or 0. The max,
+    /// fullscreen and magnifier layouts show this tiled window.
+    fn raised_among(&self, windows: &[&Window]) -> usize {
+        self.raised
+            .iter()
+            .rev()
+            .find_map(|id| windows.iter().position(|w| w.id == *id))
+            .unwrap_or(0)
     }
 
     /// The last window of a history that shows on an output.
@@ -970,14 +992,7 @@ mod tests {
         assert_eq!(wm.focused(), Some("a"));
         assert_eq!(wm.arrange().pop().unwrap().id, "f");
         wm.pointer_focus("a", true, true);
-        assert_eq!(
-            wm.arrange().pop().unwrap().id,
-            "f",
-            "a has the focus already"
-        );
-        wm.act(&Action::FocusNext);
-        wm.act(&Action::FocusNext);
-        assert_eq!(wm.arrange().pop().unwrap().id, "a");
+        assert_eq!(wm.arrange().pop().unwrap().id, "a", "a click raises");
     }
 
     #[test]
@@ -991,5 +1006,26 @@ mod tests {
             ["a", "b", "c"],
             "b, the first tiled window, lies over a"
         );
+    }
+
+    #[test]
+    fn max_shows_the_last_raised_tiled_window() {
+        let mut wm = wm(&["a", "b", "c"]);
+        wm.set_layout(Layout::Max);
+        wm.act(&Action::FocusNext);
+        assert_eq!(wm.focused(), Some("b"));
+        wm.add_window("f");
+        wm.act(&Action::ToggleFloating);
+        let ids: Vec<String> = wm.arrange().into_iter().map(|p| p.id).collect();
+        assert_eq!(ids, ["c", "a", "b", "f"], "b stays behind the floating f");
+    }
+
+    #[test]
+    fn a_fullscreen_window_follows_the_focus() {
+        let mut wm = wm(&["a", "b"]);
+        wm.act(&Action::ToggleFullscreen);
+        wm.act(&Action::FocusNext);
+        wm.pointer_focus("b", false, true);
+        assert_eq!(wm.arrange().pop().unwrap().id, "b");
     }
 }
