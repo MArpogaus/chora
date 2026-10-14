@@ -20,6 +20,7 @@ check of each choice. [Decisions](decisions.md) records the result.
 |------------|---------|-------|
 | clap | command line arguments | also for the plugins |
 | serde-saphyr | views | strict YAML (D41) |
+| schemars | the JSON schemas of the MCP tools, from the types of `chora-scene` | |
 
 `choractl mcp` implements the stdio transport of MCP itself. Milestone 0.8
 replaces it with [rmcp](https://github.com/modelcontextprotocol/rust-sdk),
@@ -74,8 +75,6 @@ The core speaks these protocols, so existing tools work unchanged:
   `relative-pointer`, `wlr-output-management`.
 - **Capture:** `ext-image-copy-capture` and `wlr-screencopy`.
 - **Isolation:** `wp-security-context-v1`.
-
-[Roadmap](roadmap.md) assigns each protocol to a milestone.
 
 ## Outside the core
 

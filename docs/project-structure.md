@@ -28,11 +28,11 @@ chora/
 - **`chora-scene` has no Smithay dependency.** Tests of the data model and
   the transaction logic need no GPU and no compositor. The core, `choractl`
   and plugins share this one definition of the API.
-- **Reference plugins are workspace members** until milestone 0.6. They keep
-  the API honest.
-- **The build generates the schemas** from the Rust types. The repository
-  does not contain them. Docs, validation and agents then see the same
-  contract.
+- **Reference plugins are workspace members.** They keep the API honest.
+- **`choractl` builds the JSON schemas** from the Rust types at run time, in
+  `crates/choractl/src/schema.rs`. The repository does not contain them.
+  The MCP tools and the test of the documentation examples then see the
+  same contract.
 
 ## Related repositories
 

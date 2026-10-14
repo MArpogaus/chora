@@ -1,5 +1,6 @@
 //! Grants of the user for the IPC methods that see or drive the whole
-//! session: `input.inject` and `screen.capture` (D33).
+//! session, or start programs: `input.inject`, `screen.capture` and
+//! `process.spawn`.
 //!
 //! `choractl grant NAME CAPABILITY` grants a capability to a client name,
 //! until `choractl revoke` or the end of the session. A grant protects

@@ -2,11 +2,12 @@
 
 ## Branches
 
-- `main` holds the root commit `chore: init` and merge commits from `dev`.
-  Never commit to `main` directly.
-- `dev` is the working branch. Pull requests target `dev`.
+- `main` holds the root commit `chore: init` and merge commits. Never
+  commit to `main` directly.
+- In a repository with a single author, `dev` is the working branch.
+  Pull requests target `dev`.
 - In a repository with several contributors, each contributor works on
-  `dev-NAME`, and pull requests go to a protected `main` (D47).
+  `dev-NAME`. Pull requests from `dev-NAME` target a protected `main` (D47).
 
 ## Hooks
 
@@ -45,7 +46,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo deny check
 ```
 
-The end-to-end test starts chora nested in a headless sway and checks the
+The end-to-end test starts chora nested in a headless sway. It checks the
 scene, transactions, layer shell, the session lock, effects, the safety
 bindings and the watchdog. It needs
 sway, foot, grim, jq, python3, pgrep and pkill, a Mesa driver, waybar with
@@ -83,27 +84,35 @@ in a Fedora 44 container, and `cargo deny` in a separate job.
 A release ends a milestone, once its gate holds (see
 [Roadmap](https://github.com/MArpogaus/chora/blob/main/docs/roadmap.md#rules)).
 
-1. On `dev`, `cz bump` sets the version, writes `CHANGELOG.md` and makes an
-   annotated tag. Never edit the changelog by hand.
-2. Push `dev` and wait for green CI.
-3. Merge `dev` into `main` with a merge commit, and push `main` and the
-   tag:
+1. On `dev`, `cz bump` sets the version, writes `CHANGELOG.md` and makes a
+   tag. Never edit the changelog by hand.
+2. Delete the local tag, because the tag belongs on the merge commit:
+
+   ```bash
+   git tag -d vX.Y.Z
+   ```
+
+3. Push `dev` and wait for green CI.
+4. Merge `dev` into `main` with a merge commit. Tag the merge commit with an
+   annotated tag. Push the tag first, so that the release finds it, then
+   `main`:
 
    ```bash
    git switch main
    git merge --no-ff dev
-   git push origin main
+   git tag -a vX.Y.Z -m "vX.Y.Z"
    git push --no-verify origin refs/tags/vX.Y.Z
+   git push origin main
    ```
 
-4. A new version in `Cargo.toml` on `main` starts
+5. A new version in `Cargo.toml` on `main` starts
    `.github/workflows/release.yaml`. It builds the RPM with
    `dist/build-rpm.sh` and the Arch package with `dist/build-arch.sh`, and
    attaches both with their SHA256 sums to a GitHub release. Versions below
    1.0 are pre-releases.
 
 Milestone 0.6 makes the tag start the release and lets the release wait for
-green CI of the same commit (D47).
+green CI of the same commit (D47). Then `main` accepts pull requests only.
 
 ## Commits
 

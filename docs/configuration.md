@@ -118,7 +118,7 @@ The package installs the tiling flavor:
 
 ```text
 /usr/share/chora/flavors/tiling/
-├── chora-tiling.target              # wants the three units below
+├── chora-tiling.target              # wants the two units below
 ├── chora-tiling-wm.service          # chora-tiling
 └── chora-tiling-xwayland.service    # xwayland-satellite, if installed
 ```
@@ -207,14 +207,6 @@ To try the flavor from a source tree, start it nested:
 ```bash
 cargo build --workspace
 target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme
-```
-
-```text
-flavors/agentic/
-├── chora-agentic.target
-├── views/       # morning, analysis, writing, coding
-├── plugins/     # canvas layout, keybindings
-└── services/    # Quadlet units: speech, browser in app mode
 ```
 
 ## Services

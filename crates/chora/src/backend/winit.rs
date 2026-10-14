@@ -209,9 +209,9 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
     if *backend.damage_tracker.mode() != mode {
         backend.damage_tracker = OutputDamageTracker::from_mode_source(mode);
     }
-    // The age needs the surface of the window current. Layers and captures
-    // render into textures and leave no surface current, so the query
-    // failed with BAD_SURFACE in every frame of an animation and forced a
+    // The query of the buffer age needs the surface of the window current.
+    // Layers and captures render into textures and leave no surface
+    // current. Then the query fails with BAD_SURFACE, and the frame is a
     // full redraw. A bind makes the surface current first.
     drop(backend.graphics.bind().map_err(|e| format!("bind: {e}"))?);
     // 0 means a full redraw.

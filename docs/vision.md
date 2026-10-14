@@ -14,8 +14,8 @@ clients and agents bring the forms.
 A desktop decides the arrangement of the content: windows, panels,
 workspaces. chora takes this decision out of the compositor. chora is a
 programmable scene. It works more like a game engine than like a window
-manager. The core renders a scene of nodes every frame. One API changes the
-scene live.
+manager. The core renders a scene of nodes. One API changes the scene
+live.
 
 The motivating use case is agentic interaction. The user talks to an agent,
 ideally by voice. The agent arranges the screen for the current task and for
@@ -38,7 +38,7 @@ possible.
    Agents will write broken code live, so this exception is necessary.
 3. **Lean core, checked stability.** The core stays small. Features grow
    in plugins, not in the core. A milestone is done only when its gate
-   holds on real hardware (D46).
+   holds (D46).
 4. **Reuse before writing.** Wayland protocol handling, rendering, widgets,
    shells and services already exist. chora connects these parts and writes
    only what is missing. Fixes go upstream. Every decision gets a check for

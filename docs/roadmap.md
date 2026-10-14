@@ -1,7 +1,7 @@
 # Roadmap
 
 The path from the current state to chora 1.0. Version 1.0 is a daily driver
-with a stable, versioned API (D52).
+with a stable, versioned API (D3).
 
 ## Rules
 
@@ -15,7 +15,11 @@ with a stable, versioned API (D52).
   list. Each ticked check links to its CI run or log. The release of the
   milestone closes the issue.
 - Two tracks run in parallel to the core: the XP showroom and the voice
-  pipeline. They have their own milestones. They never block the core.
+  pipeline.
+- The showroom track has no milestones of its own. Its CI must be green
+  against each release candidate of the core, so every core gate has that
+  check.
+- The voice track has milestones of its own. It never blocks the core.
 
 ## Current state
 
@@ -27,19 +31,20 @@ with a stable, versioned API (D52).
   input injection, grants, programs, assets and output configuration.
 - `choractl` loads views and serves MCP.
 - `chora-tiling` and the XP showroom are plugins in this repository.
-- Pixel tests in a headless sway check the behavior. The core itself has
-  no in-process tests for IPC, transactions, input and the backends.
+- The core crate has 37 unit tests. IPC dispatch, transactions and the tty
+  backend have none. Pixel tests in a headless sway check the behavior.
 
 ## Estimates
 
-The estimates count the lines of Rust that a milestone adds or changes,
-the hours of agent work, the hours of hands-on work of the user, and the
-calendar time with the gate. Agent hours include the tests and the review
-rounds.
+The estimates count the lines of Rust that a milestone adds or changes.
+They also count the hours of agent work and the hours of hands-on work of
+the user. The calendar time includes the gate. Agent hours include the
+tests and the review rounds.
 
 The basis is this repository: about 26,000 lines of Rust in 54 hours of
-calendar time. A rework of existing code costs more than new code, so the
-estimates assume 150 to 250 lines per agent hour.
+calendar time. A rework of existing code costs more than new code. The
+table uses about 140 to 200 lines per agent hour for 0.6 to 0.9. The
+milestones 0.10 and 1.0 have hardware work and use about 80 to 125.
 
 The user uses chora as the daily session from milestone 0.10. The
 gates of 0.10 and 1.0 measure that use, so they set the calendar time.
@@ -59,8 +64,8 @@ add one to two weeks.
 
 ## 0.6: Foundation
 
-**Goal:** the project works in the GitHub organization `chora` with gates,
-and the core can be tested in process.
+**Goal:** the project works with gates in the GitHub organization `chora`.
+Unit tests check the core in process.
 
 Scope:
 
@@ -77,8 +82,8 @@ Scope:
   queue, focus and grants run in unit tests with a fake clock.
 - A headless test backend that renders with pixman in process, for pixel
   tests in Rust.
-- A smoke test in a VM with `vkms` in CI: chora starts on the tty backend,
-  shows a foot window, and a capture shows its pixels (D11).
+- A smoke test in a VM with `vkms` in CI (D11). chora starts on the tty
+  backend and shows a foot window. A capture shows its pixels.
 - The website repository builds the user documentation. The reference
   documentation stays with the code of the core.
 
@@ -94,6 +99,11 @@ Gate:
 6. `chora-tiling` and `chora-xp` build and pass their tests in their own
    repositories against the tag of the core.
 7. `tests/nested.sh`, `tests/agent.sh` and `tests/xp.sh` are green in CI.
+8. `rust-toolchain.toml` pins the toolchain, and the job for the minimum
+   Rust version is green.
+9. Every container image in the workflows has a digest.
+10. The website builds from its repository.
+11. The showroom CI is green against the release candidate.
 
 ## 0.7: Identity and processes
 
@@ -110,6 +120,8 @@ Scope:
 - `choractl clients up` creates the sockets from
   `~/.config/chora/clients.yaml`. The emergency reset removes the client
   sockets.
+- An example Quadlet unit in `dist/` for an agent container that mounts its
+  client directory.
 - A versioned `hello` with the protocol version and the features of both
   sides (D29).
 - Structured errors: a stable code for each kind of failure, and `data`
@@ -120,6 +132,7 @@ Scope:
   (D42). `choractl run` starts a program through `systemd-run --user` with
   an activation token. `systemctl --user restart` restarts a plugin.
   journald keeps the output.
+- `surface.created` carries the pid and the activation token.
 
 Gate:
 
@@ -134,8 +147,8 @@ Gate:
 5. `choractl run foot` starts foot in its own systemd scope, and the
    `surface.created` event of its window carries the activation token.
 6. Each error code of the API has a test that provokes it.
-7. The gate checks of 0.6 still hold, and the showroom CI is green
-   against the release candidate.
+7. The gate checks of the earlier milestones still hold, and the showroom CI
+   is green against the release candidate.
 
 ## 0.8: Agent read model
 
@@ -149,7 +162,6 @@ Scope:
 - `events.subscribe` starts with a snapshot of the state, and every event
   has a sequence number. An unknown event name is an error.
 - Focus in queries, and a `focus.changed` event.
-- `surface.created` carries the pid and the activation token.
 - Queries return the screen rectangle of a node on each output.
   `input.inject` takes a node and a point inside it.
 - A client that does not own a node can request a change: focus, move,
@@ -167,8 +179,9 @@ Scope:
 
 Gate:
 
-1. An MCP client in CI asks for "focus the second terminal and move it to
-   the right". `chora-tiling` performs it, and a capture shows it.
+1. An MCP client in CI calls the tools to focus the second terminal and to
+   request a move to the right. `chora-tiling` performs both, and a capture
+   shows them.
 2. Under a camera with pan and zoom, a click on a node through the MCP
    tools hits that node in 20 of 20 tries.
 3. `wait_events` returns while another tool call runs, and a cancelled
@@ -179,8 +192,11 @@ Gate:
    sequence numbers.
 6. The tool list of `choractl mcp` matches the exported methods of the
    plugins after each `methods.export`.
-7. The gate checks of 0.6 and 0.7 still hold, and the showroom CI is
-   green against the release candidate.
+7. A capture shows the indicator while a client injects input.
+8. A test shows that the revoke binding removes the capabilities of all
+   agents.
+9. The gate checks of the earlier milestones still hold, and the showroom CI
+   is green against the release candidate.
 
 ## 0.9: Renderer
 
@@ -209,6 +225,9 @@ Scope:
 - Image decode, shader compile and capture encode run on worker threads.
 - The watchdog runs in its own thread with a heartbeat of the main loop
   (D23).
+- Debug counters for rendered frames and texture allocations, readable
+  through the API.
+- fd passing for images and captures over the IPC socket (D54).
 - A measurement of the plugin round trip at 120 Hz decides on a private
   Wayland protocol for plugins (D54).
 
@@ -229,10 +248,12 @@ Gate:
 6. A main loop that blocks for 5 s triggers the watchdog. A test with a
    debug hook checks it.
 7. The wobbly windows, the magic lamp and the cube of the showroom run on
-   frame events at 60 Hz and 120 Hz in CI.
+   frame events. At 60 Hz and at 120 Hz in CI, 99 percent of their frames
+   are on time over 30 s.
 8. The decision on the plugin protocol is in the decision log, with the
    measurement.
-9. The gate checks of 0.6 to 0.8 still hold.
+9. The gate checks of the earlier milestones still hold, and the showroom CI
+   is green against the release candidate.
 
 ## 0.10: Daily driver
 
@@ -243,7 +264,7 @@ Scope:
 
 - Packages through COPR with Packit and subpackages per plugin, and
   PKGBUILDs in the AUR (D49). The release keeps its assets.
-- The secureblue image of `secureblue-images` installs chora from COPR.
+- The image of `secureblue-images` installs chora from COPR.
 - The session starts through uwsm (D50). A flavor is a systemd target.
 - The tiling flavor: `chora-tiling` with waybar, fuzzel, mako, swaylock,
   swayidle and kanshi (D51).
@@ -256,18 +277,23 @@ Scope:
 
 Gate:
 
-1. `dnf upgrade` on the secureblue image updates chora from COPR, and the
-   login screen offers the session.
+1. The secureblue image builds with chora from COPR. `rpm-ostree upgrade`
+   on the reference hardware updates chora, and the login screen offers the
+   session.
 2. The user works 10 working days in a row only in chora on the reference
    hardware. `coredumpctl list chora` shows no entry, and the log shows no
    emergency reset that the user did not start.
 3. A checklist on the reference hardware passes, with the log of each
-   step: an external monitor plugged in and out 10 times, suspend and
-   resume 10 times, lid close and open, VT switch, lock and unlock, a
-   screen share in a browser, an X11 app.
+   step. An external monitor goes in and out 10 times, and the laptop
+   suspends and resumes 10 times. The user closes and opens the lid,
+   switches the VT, and locks and unlocks the session. A screen share in a
+   browser and an X11 app work.
 4. The `vkms` job covers hotplug of a second output.
-5. The gate checks of 0.6 to 0.9 still hold, and the showroom CI is green
-   against the release candidate.
+5. The AUR packages build in CI.
+6. A view sets tap and key repeat, and a test shows that the core applies
+   them.
+7. The gate checks of the earlier milestones still hold, and the showroom CI
+   is green against the release candidate.
 
 ## 1.0: Stable API
 
@@ -289,14 +315,18 @@ Gate:
 1. The user works 30 days with the release candidate as the daily
    session. `coredumpctl list chora` shows no entry.
 2. No open issue has the label `severity:high`.
-3. The last review round finds nothing that matters.
+3. The last review round leaves no open finding of high or medium
+   severity.
 4. The schema job and the documentation test are green.
-5. The gate checks of 0.6 to 0.10 still hold.
+5. Every plugin repository of the organization pins protocol version 1,
+   and a CI job checks it.
+6. The gate checks of the earlier milestones still hold, and the showroom CI
+   is green against the release candidate.
 
 ## Track: XP showroom
 
-The showroom lives in `chora/chora-xp` and grows in parallel (D39). It
-shows the effects of the scene and serves as their test.
+The showroom moves to `chora/chora-xp` in milestone 0.6 and grows in
+parallel (D39). It shows the effects of the scene and serves as their test.
 
 - Each core milestone ends with a showroom release that uses its API. The
   core gate checks that the showroom CI is green against the release
@@ -306,9 +336,9 @@ shows the effects of the scene and serves as their test.
 
 ## Track: voice pipeline
 
-The voice pipeline lives in `chora/chora-voice` and starts now (D53). It
-runs as Quadlet units on the reference hardware: speech to text, a
-router model, a main model and text to speech, served by
+The voice pipeline lives in `chora/chora-voice` and starts with milestone
+0.6 (D53). It runs as Quadlet units on the reference hardware: speech to
+text, a router model, a main model and text to speech, served by
 [Gufo](https://github.com/gufo-org/gufo).
 
 | Milestone | Goal | Gate | Needs from the core |

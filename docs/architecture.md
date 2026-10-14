@@ -44,7 +44,7 @@ The compositor binary `chora`. Its tasks, and nothing more:
   window for development inside another compositor. chora uses winit when
   `WAYLAND_DISPLAY` or `DISPLAY` is set, and the hardware otherwise. On
   hardware it draws the cursor of the xcursor theme in `XCURSOR_THEME`.
-- The scene, rendered every frame.
+- The scene. The core renders it for each output.
 - Input routing (see below).
 - The IPC socket.
 - The safety layer (see below).
@@ -147,8 +147,7 @@ transitions. niri shows what this approach can do. An effect is a GLSL ES
 fragment shader that a node names; the node becomes a layer, and each
 effect is one pass over its texture. The core compiles a shader when a
 transaction names it, rejects the transaction on an error, and compiles it
-again when the file changes. Shader nodes that draw without a texture, and
-uniforms that name other nodes as textures, come later.
+again when the file changes.
 
 Transforms are 4x4 matrices, so 3D effects need no API change. A node with
 a size and a mesh, or with a transform that is not a plain 2D translation
