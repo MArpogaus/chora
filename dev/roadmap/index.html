@@ -1189,7 +1189,8 @@ with a stable, versioned API (D3).</p>
 <li><code>chora-tiling</code> and the XP showroom are plugins in this repository.</li>
 <li>The core is a library and a binary. Unit tests run IPC dispatch,
   transactions, focus and grants in process, without a backend. The tty
-  backend has no tests. Pixel tests in a headless sway check the behavior.</li>
+  backend has no tests. One pixel test renders in process on the headless
+  backend. Pixel tests in a headless sway check the behavior.</li>
 </ul>
 <h2 id="estimates">Estimates<a class="headerlink" href="#estimates" title="Permanent link">&para;</a></h2>
 <p>The estimates count the lines of Rust that a milestone adds or changes.
