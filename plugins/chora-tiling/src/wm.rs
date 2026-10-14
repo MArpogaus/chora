@@ -443,17 +443,9 @@ impl Wm {
             };
             placed.push((rank, placement(window, [x, y], Some([w, h]), states)));
         }
-        // A fullscreen window covers the others while it has the focus of
-        // its output.
-        let focus_top = self.last_on(index, &self.history);
         for window in windows.iter().filter(|w| !self.tiles(w)) {
             let id = Some(&*window.id);
-            let is_top = if window.fullscreen {
-                id == focus_top
-            } else {
-                id == top
-            };
-            placed.push(float(window, output, is_top, id == focused));
+            placed.push(float(window, output, id == top, id == focused));
         }
         placed
     }
@@ -1021,11 +1013,18 @@ mod tests {
     }
 
     #[test]
-    fn a_fullscreen_window_follows_the_focus() {
-        let mut wm = wm(&["a", "b"]);
-        wm.act(&Action::ToggleFullscreen);
+    fn a_fullscreen_window_rises_with_a_click_only() {
+        let mut wm = wm(&["a", "b", "o"]);
+        wm.act(&Action::ToggleOnTop);
         wm.act(&Action::FocusNext);
+        wm.act(&Action::ToggleFullscreen);
+        wm.pointer_focus("o", false, true);
+        let ids: Vec<String> = wm.arrange().into_iter().map(|p| p.id).collect();
+        assert_eq!(ids, ["a", "b", "o"], "the fullscreen b stays over a");
+        wm.pointer_focus("a", true, true);
         wm.pointer_focus("b", false, true);
-        assert_eq!(wm.arrange().pop().unwrap().id, "b");
+        assert_eq!(wm.arrange()[1].id, "a", "the pointer does not raise b");
+        wm.pointer_focus("b", true, true);
+        assert_eq!(wm.arrange()[1].id, "b", "a click does");
     }
 }
