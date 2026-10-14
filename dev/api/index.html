@@ -1656,8 +1656,10 @@ in another namespace too. The answer has the <code>pid</code> and the <code>argv
 <p><code>plugins.restart(name)</code> restarts a plugin, for example after a rebuild.
 The core finds the process of the connections of the client name,
 reads its command line and working directory from <code>/proc</code>, and sends it
-SIGTERM. Once it exited, or 5 s after a SIGKILL, the core starts the same
-command again and answers with the new <code>pid</code>. A name with several
+SIGTERM. Once it exited and its connections reached the end of their
+streams, or 5 s after a SIGKILL, the core starts the same command again
+and answers with the new <code>pid</code>. At the end of its stream, a connection
+gives up its grabs and methods. A name with several
 processes, or a process in a namespace that the core cannot see, fails.</p>
 <p>With <code>capture: true</code>, <code>process.spawn</code> keeps stdout and stderr of the
 program, up to 64 KiB each, for the client that started it.
