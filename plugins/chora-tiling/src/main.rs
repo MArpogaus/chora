@@ -258,7 +258,7 @@ impl Tiling {
                 binding,
                 state: PressState::Pressed,
             } => return self.act(&binding),
-            Event::PointerEntered { node } if self.wm.pointer_focus(&node, false) => {}
+            Event::PointerEntered { node, .. } if self.wm.pointer_focus(&node, false) => {}
             Event::PointerPressed { node, .. } if self.wm.pointer_focus(&node, true) => {}
             Event::SurfaceRequested { surface, request } if self.wm.has(&surface) => {
                 if request == SurfaceRequest::Close {

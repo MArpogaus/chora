@@ -90,6 +90,10 @@ pub enum Event {
     PointerEntered {
         /// The node.
         node: String,
+        /// Whether the pointer moved; false when the scene moved under a
+        /// pointer that stood still.
+        #[serde(default)]
+        moved: bool,
     },
     /// The pointer left the node of the last `pointer.entered`.
     #[serde(rename = "pointer.left")]
