@@ -393,7 +393,7 @@ impl Tiling {
             .client
             .call::<_, Value>("scene.apply", Apply { commands })
         {
-            // A window that closed in the meantime is no error (#14).
+            // A window that closed in the meantime is no error.
             Err(ClientError::Rpc(err)) if err.is_gone_surface() => Ok(()),
             Err(ClientError::Rpc(err)) => {
                 eprintln!("chora-tiling: {err}");
@@ -405,7 +405,7 @@ impl Tiling {
 }
 
 /// The work area as the default camera shows it, so that a camera move or a
-/// zoom moves no window (#13): the windows keep their place in the scene.
+/// zoom moves no window: the windows keep their place in the scene.
 fn area_of(output: &OutputInfo) -> [i32; 4] {
     output.layout_area()
 }

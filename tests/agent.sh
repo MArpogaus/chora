@@ -1,5 +1,5 @@
 #!/bin/bash
-# End-to-end test of milestones M4 to M4.2, the agent interface: chora runs nested
+# End-to-end test of the agent interface: chora runs nested
 # in a headless sway with chora-tiling and two foot windows. An agent
 # calls the methods that chora-tiling exports, gets grants, captures the
 # output and nodes, types into a terminal, clicks a node and presses a
@@ -449,7 +449,7 @@ jq -e '.running == false and .status == 3 and .stdout == "out\n"' "$out/captured
 "$bin/choractl" revoke agent process.spawn || fail "the revoke failed"
 if ctl restart tiling 2>/dev/null; then fail "a restart after the revoke worked"; fi
 
-step "22. exit of M4.1: an MCP client draws a panel and moves the camera on a click"
+step "22. an MCP client draws a panel and moves the camera on a click"
 rm -f "$out/panel-ready.txt"
 timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" panel >"$out/panel.log" 2>&1 &
 panel_pid=$!
@@ -473,7 +473,7 @@ grep -q "moved the camera from its panel" "$out/panel.log" || fail "panel: $(cat
 wait_for work_area_is "[0,0,1280,800]"
 wait_for min_y_is 0
 
-step "23. exit of M4.2: an MCP client reads a probe, scales the output, and keeps a HUD in place"
+step "23. an MCP client reads a probe, scales the output, and keeps a HUD in place"
 "$bin/choractl" grant agent process.spawn screen.capture || fail "the grant failed"
 timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" hud >"$out/hud.log" 2>&1 ||
     fail "the MCP client: $(cat "$out/hud.log")"

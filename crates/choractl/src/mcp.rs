@@ -200,7 +200,7 @@ fn tool(name: &str, description: &str, properties: &Value, required: &[&str]) ->
 }
 
 /// A tool whose input schema comes from the type of its parameters, so that
-/// the model sees every command and every field (#5).
+/// the model sees every command and every field.
 fn typed_tool<T: schemars::JsonSchema>(name: &str, description: &str) -> Value {
     json!({
         "name": name,
@@ -605,7 +605,7 @@ fn picture_info(picture: &Picture) -> Value {
         "scale": picture.scale,
         "origin": picture.origin,
     });
-    // The picture shows these nodes, but the screen does not (#24).
+    // The picture shows these nodes, but the screen does not.
     if !picture.left_out.is_empty() {
         info["left_out_of_the_screen"] = json!(picture.left_out);
         info["note"] = json!(

@@ -884,7 +884,7 @@ impl Scene {
 
     /// A client focuses its own surfaces. After it cleared the focus, it may
     /// give the focus back to the surface that had it, also of another
-    /// client (#27).
+    /// client.
     fn focus_command(&mut self, owner: &str, surface: Option<&str>) -> Result<(), SceneError> {
         // The focus follows the commands, so that a later command of the
         // same transaction sees it.

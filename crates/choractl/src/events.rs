@@ -1,4 +1,4 @@
-//! The events of `choractl mcp` (#7). A subscription opens a connection of
+//! The events of `choractl mcp`. A subscription opens a connection of
 //! its own under the client name of the server, grabs its keys there and
 //! reads its events in a thread into a bounded buffer, so that the core
 //! never waits for an agent that does not read. `wait_events` takes them

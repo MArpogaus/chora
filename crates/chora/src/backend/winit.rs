@@ -89,7 +89,7 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Translates keys with the keymap of the host session, unless
-/// `XKB_DEFAULT_LAYOUT` asks for another layout (#12).
+/// `XKB_DEFAULT_LAYOUT` asks for another layout.
 fn take_host_keymap(state: &mut State) {
     if std::env::var_os("XKB_DEFAULT_LAYOUT").is_some() {
         return;
@@ -118,7 +118,7 @@ fn handle(state: &mut State, event: WinitEvent) {
         WinitEvent::Redraw => redraw(state),
         WinitEvent::CloseRequested => state.loop_signal.stop(),
         // The host gets the releases of keys that went down here, for
-        // example Super for its overview, so chora lets them go too (#11).
+        // example Super for its overview, so chora lets them go too.
         WinitEvent::Focus(false) => crate::input::release_keys(state),
         WinitEvent::Focus(true) => {}
     }
@@ -212,7 +212,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
     // The age needs the surface of the window current. Layers and captures
     // render into textures and leave no surface current, so the query
     // failed with BAD_SURFACE in every frame of an animation and forced a
-    // full redraw (#15). A bind makes the surface current first.
+    // full redraw. A bind makes the surface current first.
     drop(backend.graphics.bind().map_err(|e| format!("bind: {e}"))?);
     // 0 means a full redraw.
     let age = backend.graphics.buffer_age().unwrap_or(0);

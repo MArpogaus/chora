@@ -1,5 +1,5 @@
 //! Programs that the core starts: the startup command (D30), and the
-//! programs of `process.spawn` and `plugins.restart` (#9, D42). They get
+//! programs of `process.spawn` and `plugins.restart`. They get
 //! the environment of the core, with `WAYLAND_DISPLAY` and `CHORA_SOCKET`
 //! of this compositor and without the variables of a host session. Both
 //! methods need the grant `process.spawn`, since a program can do

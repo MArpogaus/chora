@@ -1,12 +1,11 @@
 #!/bin/bash
-# End-to-end test of milestone M1: chora runs nested in a headless sway,
+# End-to-end test of the nested core: chora runs nested in a headless sway,
 # chora-tiling tiles three foot windows, a crash of the plugin leaves the
 # core running, and the emergency reset puts the windows in the grid.
-# Further steps check fixed regressions, a taskbar, and the nested exit of
-# M2: waybar, fuzzel and swaylock work, wlr-randr configures the output,
-# the lock holds against other clients, and frames report their
-# presentation time. The later steps check the images, animations, pointer
-# events, layers, effects, safety bindings and the watchdog of M3.
+# Further steps check transactions, a taskbar, waybar, fuzzel and swaylock,
+# wlr-randr on the output, the lock against other clients, and the
+# presentation time of frames. The later steps check images, animations,
+# pointer events, layers, effects, safety bindings and the watchdog.
 #
 # Step 8 starts the reset with SIGUSR1; a later step presses
 # Ctrl+Alt+Escape through a virtual keyboard of the host (tests/probe),
@@ -103,8 +102,6 @@ step "3. a crash of chora-tiling leaves chora running and detaches the surfaces"
 pkill -KILL -x chora-tiling
 wait_for count_is 3 '.parent == null and .owner == null'
 kill -0 "$chora_pid" || fail "chora died"
-
-# The later steps check fixed regressions.
 
 # Sends a hello as "e2e" and one scene.apply per argument on one
 # connection, closes its side, and prints each answer with its duration.
@@ -462,7 +459,7 @@ rpc "[{\"update\": {\"id\": \"layer\",
 wait_for pixel_is 810 455 "255 0 0"
 pixel_is 720 455 "0 0 0" || fail "the sheared mesh: $(pixel 720 455)"
 # A perspective puts the right column of a mesh with depth behind the
-# eye: its cell goes, and the left cell still shows (#25).
+# eye: its cell goes, and the left cell still shows.
 rpc '[{"update": {"id": "layer", "props": {
        "mesh": {"cols": 2, "rows": 1, "points": [[0, 0], [150, 0], [300, 0], [0, 200], [150, 200], [300, 200]],
                 "depth": [0, 0, 200, 0, 0, 200]},

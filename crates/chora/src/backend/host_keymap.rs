@@ -1,4 +1,4 @@
-//! The keymap of the host session, for chora as a window (#12): winit
+//! The keymap of the host session, for chora as a window: winit
 //! gives raw key codes, so chora asks the host for its keymap on a second
 //! Wayland connection, and translates the codes with it.
 

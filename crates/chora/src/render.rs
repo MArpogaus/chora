@@ -71,7 +71,7 @@ pub struct Assets {
     /// The time of each shader file that compiled in a check.
     pub checked_effects: HashMap<String, Option<std::time::SystemTime>>,
     /// The nodes that the layer budget left out of the last frame of each
-    /// output, as `layers.dropped` told them (#17, #24).
+    /// output, as `layers.dropped` told them.
     pub left_out: HashMap<String, Vec<String>>,
     /// The nodes that the last render of each output left out, before the
     /// frame shows.

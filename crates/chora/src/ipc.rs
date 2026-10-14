@@ -536,7 +536,7 @@ impl State {
         Ok(Value::String(normal))
     }
 
-    /// Ends a grab of a connection (#18, D45).
+    /// Ends a grab of a connection (D45).
     fn ipc_ungrab(&mut self, conn: u64, binding: &Binding) -> Result<Value, RpcError> {
         let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
         let before = self.ipc.grabs.len();

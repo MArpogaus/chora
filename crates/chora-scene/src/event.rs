@@ -60,7 +60,7 @@ pub enum Event {
         /// The change.
         request: SurfaceRequest,
     },
-    /// The key of a grabbed binding went down, or up again (#18).
+    /// The key of a grabbed binding went down, or up again.
     #[serde(rename = "input.key")]
     InputKey {
         /// The binding as the client grabbed it.
@@ -124,7 +124,7 @@ pub enum Event {
     #[serde(rename = "effects.dropped")]
     EffectsDropped,
     /// The layers of nodes did not fit into the pixel budget of a frame and
-    /// stay out of the output, or are back (#17). Sent when the list of an
+    /// stay out of the output, or are back. Sent when the list of an
     /// output changes; an empty list means that all layers show again.
     #[serde(rename = "layers.dropped")]
     LayersDropped {
@@ -232,8 +232,7 @@ pub struct OutputInfo {
     /// coordinates.
     pub work_area: [i32; 4],
     /// The work area as the default camera shows it: the place of the
-    /// windows of a plugin, which a camera move or a zoom does not change
-    /// (#13).
+    /// windows of a plugin, which a camera move or a zoom does not change.
     #[serde(default)]
     pub default_work_area: [i32; 4],
 }

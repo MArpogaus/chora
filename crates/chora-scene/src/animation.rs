@@ -116,7 +116,7 @@ impl Animation {
     }
 }
 
-/// A camera that moves from where it was to its target (#10).
+/// A camera that moves from where it was to its target.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CameraMove {
     /// The camera at the start.

@@ -66,7 +66,7 @@ fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
 }
 
 /// Logs the layouts of the keymap of the seat, so that a wrong layout
-/// shows (#12).
+/// shows.
 pub fn log_layout(state: &mut State) {
     let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
     let layouts = keyboard.with_xkb_state(state, |context| {

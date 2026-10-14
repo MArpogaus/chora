@@ -258,7 +258,7 @@ impl State {
             depth: 0,
         };
         // A capture renders no frame of the screen, so the layers that the
-        // screen left out stay as they were (#24).
+        // screen left out stay as they were.
         let screen = parts.assets.frame_left_out.clone();
         let pixels = backend.with_gles(|gles| render_pixels(gles, &mut parts, shot));
         self.assets.frame_left_out = screen;
