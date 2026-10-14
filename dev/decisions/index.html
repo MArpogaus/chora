@@ -1352,7 +1352,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D47</td>
-<td>The git flow of the project conventions: <code>main</code> holds <code>chore: init</code> and merge commits; work happens on <code>dev</code>, and each contributor of a shared repository has <code>dev-NAME</code>; a release is a merge into <code>main</code> and an annotated tag; the release needs green CI; commitizen writes the changelog; a review loop runs until a round finds nothing that matters</td>
+<td>The git flow of the project conventions: <code>main</code> holds <code>chore: init</code> and merge commits; work happens on <code>dev</code>, and each contributor of a shared repository has <code>dev-NAME</code>; a release is a merge into <code>main</code> and an annotated tag on the merge commit; the tag starts the release, which needs green CI of the same commit; commitizen writes the changelog; a review loop runs until a round finds nothing that matters</td>
 <td>One flow in every repository. A release never ships a red commit.</td>
 </tr>
 <tr>
