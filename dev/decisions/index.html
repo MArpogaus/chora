@@ -1139,7 +1139,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D14</td>
-<td>Releases build an RPM and an Arch package, attached with SHA256 sums to a GitHub release; versions below 1.0 are pre-releases</td>
+<td>Releases build an RPM and an Arch package, attached with SHA256 sums to a GitHub release; versions below 1.0 and release candidates are pre-releases</td>
 <td>One build for the release assets and the package repositories of D49.</td>
 </tr>
 </tbody>
@@ -1357,7 +1357,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D48</td>
-<td>The core is a library and a binary; IPC, transactions, focus and grants have unit tests with a fake clock; a pixman backend runs pixel tests in process; each bug fix comes with a test that fails without the fix</td>
+<td>The core is a library and a binary; IPC, transactions, focus and grants have unit tests with a fake clock; a headless GLES backend on the software driver of Mesa runs pixel tests in process; each bug fix comes with a test that fails without the fix</td>
 <td>Pixel tests in a headless sway cannot reach the internals. Review finds faults that tests should catch.</td>
 </tr>
 <tr>

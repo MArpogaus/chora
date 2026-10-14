@@ -1187,8 +1187,9 @@ with a stable, versioned API (D3).</p>
   input injection, grants, programs, assets and output configuration.</li>
 <li><code>choractl</code> loads views and serves MCP.</li>
 <li><code>chora-tiling</code> and the XP showroom are plugins in this repository.</li>
-<li>The core crate has 37 unit tests. IPC dispatch, transactions and the tty
-  backend have none. Pixel tests in a headless sway check the behavior.</li>
+<li>The core is a library and a binary. Unit tests run IPC dispatch,
+  transactions, focus and grants in process, without a backend. The tty
+  backend has no tests. Pixel tests in a headless sway check the behavior.</li>
 </ul>
 <h2 id="estimates">Estimates<a class="headerlink" href="#estimates" title="Permanent link">&para;</a></h2>
 <p>The estimates count the lines of Rust that a milestone adds or changes.
@@ -1281,8 +1282,9 @@ Unit tests check the core in process.</p>
   Rust version, and container images pinned by digest.</li>
 <li>The core as a library and a binary (D48). IPC dispatch, the transaction
   queue, focus and grants run in unit tests with a fake clock.</li>
-<li>A headless test backend that renders with pixman in process, for pixel
-  tests in Rust.</li>
+<li>A headless test backend that renders with GLES on the software driver
+  of Mesa in process, for pixel tests in Rust. GLES checks the same render
+  path as the screen.</li>
 <li>A smoke test in a VM with <code>vkms</code> in CI (D11). chora starts on the tty
   backend and shows a foot window. A capture shows its pixels.</li>
 <li>The website repository builds the user documentation. The reference
@@ -1295,7 +1297,7 @@ Unit tests check the core in process.</p>
    tag on a commit with red CI starts no release.</li>
 <li><code>cargo test</code> runs at least 40 unit tests of the core crate for IPC,
    transactions, focus and grants, without a compositor.</li>
-<li>One pixel test runs in process on the pixman backend.</li>
+<li>One pixel test runs in process on the headless backend.</li>
 <li>The <code>vkms</code> job is green in 10 runs in a row.</li>
 <li><code>chora-tiling</code> and <code>chora-xp</code> build and pass their tests in their own
    repositories against the tag of the core.</li>
