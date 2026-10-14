@@ -15,10 +15,11 @@ chora -- chora-flavor tiling
 
 ```text
 ~/.config/chora/
-├── views/      # one file per view
-├── flavors/    # bundles of views, plugins and services
-├── plugins/    # plugin manifests
-└── shaders/    # GLSL ES shaders
+├── views/              # one file per view
+├── flavors/            # bundles of views, plugins and services
+├── plugins/            # plugin manifests
+├── shaders/            # GLSL ES shaders
+└── chora-tiling.yaml   # the options and bindings of chora-tiling
 ```
 
 The directory is a git repository. It contains no secrets. The package
@@ -34,7 +35,7 @@ A view is a part of the scene and the plugins that drive it (D35):
 name: work
 plugins:
 - name: tiling
-  config: {layout: columns, gap: 12}
+  config: {layout: fair, gap: 12}
 scene:
 - id: work-corner
   kind: group
@@ -90,7 +91,7 @@ lives in `plugins/NAME.yaml` of the same directories:
 name: tiling
 exec: chora-tiling
 configure: set_layout
-description: Tiles the windows as master and stack, columns or rows.
+description: Tiles the windows with the tags and layouts of awesome.
 ```
 
 | Key | Meaning |
@@ -101,6 +102,33 @@ description: Tiles the windows as master and stack, columns or rows.
 | `description` | what the plugin does |
 
 The package installs the manifest of `chora-tiling`.
+
+## chora-tiling
+
+`chora-tiling` reads `chora/chora-tiling.yaml` in `$XDG_CONFIG_HOME`, by
+default `~/.config`, or the file of `--config`. Without a file, it uses its
+default, which `chora-tiling --print-config` prints. The file lists every
+option:
+
+| Option | Meaning |
+|--------|---------|
+| `modifier` | what `MOD` means in the bindings: Super or Alt |
+| `gap` | the gap around each window, in logical pixels |
+| `tags` | the number of tags of each output, at most 16 |
+| `layouts` | the layouts in the order of `next_layout`; each tag starts with the first |
+| `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
+| `new_window` | `master` or `stack`: where a new window goes |
+| `focus` | `click` or `follow_mouse` |
+| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once |
+
+The layouts and the default bindings follow the awesome window manager.
+Each output has its own tags, and each tag its own layout and parameters.
+A window can be on several tags, and an output can show several tags. A
+floating, maximized or fullscreen window leaves the tiles. A click or a
+binding raises the window that it focuses; the focus that follows the
+pointer raises nothing. The binding
+`MOD+Ctrl+r` reads the file again. Mouse moves and resizes of floating
+windows do not exist.
 
 ## Flavors
 
@@ -118,7 +146,7 @@ The package installs the tiling flavor:
 
 ```text
 /usr/share/chora/flavors/tiling/
-├── chora-tiling.target              # wants the three units below
+├── chora-tiling.target              # wants the two units below
 ├── chora-tiling-wm.service          # chora-tiling
 └── chora-tiling-xwayland.service    # xwayland-satellite, if installed
 ```
@@ -128,7 +156,7 @@ A copy of the directory in `~/.config/chora/flavors/tiling/` replaces it.
 
 ### The XP flavor
 
-The XP flavor is the showroom of milestone M3 (D39): a stacking desktop in
+The XP flavor is the showroom (D39): a stacking desktop in
 the style of Windows XP. It is a demo, not a daily driver.
 
 ```text
@@ -165,7 +193,7 @@ window. Buttons light up under the pointer, and so do the entries of the
 start menu. Log Off asks every window to close. Turn Off Computer ends
 `chora-xp`; it shuts nothing down.
 
-The effects of M3 run in the plugin, which computes their meshes and
+The effects run in the plugin, which computes their meshes and
 transforms at 60 Hz:
 
 - **Wobbly windows.** A dragged window bends like jelly: the point under
@@ -207,14 +235,6 @@ To try the flavor from a source tree, start it nested:
 ```bash
 cargo build --workspace
 target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme
-```
-
-```text
-flavors/agentic/
-├── chora-agentic.target
-├── views/       # morning, analysis, writing, coding
-├── plugins/     # canvas layout, keybindings
-└── services/    # Quadlet units: speech, browser in app mode
 ```
 
 ## Services

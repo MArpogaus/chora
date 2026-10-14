@@ -1,4 +1,4 @@
-//! Layers and meshes (D19, M3).
+//! Layers and meshes (D19).
 //!
 //! A node with a size and a mesh, or with a transform that is not a plain
 //! 2D translation and scale, is a layer: it renders with its descendants
@@ -273,10 +273,10 @@ impl MeshElement {
 
 /// The vertices of a mesh in physical output coordinates, with texture
 /// coordinates, the triangles that show, and their bounding box. A
-/// triangle with a point behind the viewer does not show (#25). The
+/// triangle with a point behind the viewer does not show. The
 /// transform projects the points with their depth, and the clip position
-/// keeps the w of each point, so the texture maps perspective-correct
-/// (#26). `None` when no triangle shows, or when the mesh has more points
+/// keeps the w of each point, so the texture maps perspective-correct.
+/// `None` when no triangle shows, or when the mesh has more points
 /// than 16-bit indices reach.
 #[allow(clippy::cast_possible_truncation)] // GL takes 32-bit floats
 fn project(mesh: &Mesh, transform: &Transform, scale: f64) -> Option<Shape> {

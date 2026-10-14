@@ -69,7 +69,8 @@ struct Handle {
 }
 
 impl ForeignToplevelManagerState {
-    /// Creates the global. Every client sees it (D33).
+    /// Creates the global. Only clients outside of a sandbox see it
+    /// (see `crate::security`).
     pub fn new(display: &DisplayHandle) -> Self {
         display.create_global::<State, ZwlrForeignToplevelManagerV1, _>(VERSION, ManagerGlobal);
         Self {

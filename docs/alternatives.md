@@ -1,8 +1,8 @@
 # Alternatives
 
 Every part of chora gets a check against existing projects. This page records
-the first check from October 2026. An entry with the mark *unverified* needs
-a second look.
+the check of October 2026. An entry with the mark *unverified* needs a
+second look.
 
 ## Compositors
 
@@ -93,13 +93,13 @@ a measurement demands it.
 - No Smithay compositor renders through wgpu. The Smithay maintainers
   consider wgpu too abstract for a compositor. Smithay has no merged Vulkan
   renderer either.
-- Decision: GLES and GLSL (D17).
+- Decision: a scene renderer of chora on GLES 3, with GLSL (D17).
 
 ## MCP
 
 [rmcp](https://github.com/modelcontextprotocol/rust-sdk) 3.x supports stdio
 and Streamable HTTP. `choractl mcp` uses stdio. A container gets the socket
-through a bind mount, so chora needs no network transport for now.
+through a bind mount, so chora needs no network transport.
 
 ## Widgets and shells
 

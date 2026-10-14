@@ -186,7 +186,7 @@ pub struct Grab {
 
 /// Parameters of `output.reserve`: space at the edges of an output that the
 /// work area leaves out for the life of the connection, as the exclusive
-/// zone of a panel does (#8).
+/// zone of a panel does.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Reserve {
@@ -288,7 +288,7 @@ pub struct Spawn {
     /// looks the program up in its `PATH`.
     pub argv: Vec<String>,
     /// Keep stdout, stderr and the exit status for `process.wait`, at most
-    /// 64 KiB of each stream (#22).
+    /// 64 KiB of each stream.
     #[serde(default)]
     pub capture: bool,
 }
@@ -342,7 +342,7 @@ pub struct Spawned {
 }
 
 /// Parameters of `assets.put`: a file for image nodes, shader nodes and
-/// effects, from a client that shares no directory with the core (#6).
+/// effects, from a client that shares no directory with the core.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AssetPut {
@@ -378,7 +378,7 @@ pub enum Capability {
     /// `screen.capture`: capture an output, a group or a surface.
     #[serde(rename = "screen.capture")]
     ScreenCapture,
-    /// `process.spawn`: start programs, and restart plugins (D42).
+    /// `process.spawn`: start programs, and restart plugins.
     #[serde(rename = "process.spawn")]
     ProcessSpawn,
 }
@@ -500,7 +500,7 @@ pub struct Picture {
     pub png: String,
     /// The nodes whose layers the last frame left out of the output, since
     /// they did not fit into the pixel budget. A capture shows them, the
-    /// screen does not (#24).
+    /// screen does not.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub left_out: Vec<String>,
 }

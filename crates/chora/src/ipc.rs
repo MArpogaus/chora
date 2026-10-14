@@ -142,6 +142,17 @@ impl Ipc {
         self.path.as_deref()
     }
 
+    /// The connections of a client name and a process that reached the end
+    /// of their streams and only wait for answers.
+    pub fn ended(&self, name: &str, pid: Pid) -> Vec<u64> {
+        self.conns
+            .iter()
+            .filter(|(_, c)| c.name.as_deref() == Some(name) && c.reader.is_none())
+            .filter(|(_, c)| socket_peercred(&c.stream).is_ok_and(|p| p.pid == pid))
+            .map(|(id, _)| *id)
+            .collect()
+    }
+
     /// The processes of the connections of a client name, each once; `None`
     /// for a process that the core cannot see.
     pub fn peer_pids(&self, name: &str) -> Vec<Option<Pid>> {
@@ -536,7 +547,7 @@ impl State {
         Ok(Value::String(normal))
     }
 
-    /// Ends a grab of a connection (#18, D45).
+    /// Ends a grab of a connection (D45).
     fn ipc_ungrab(&mut self, conn: u64, binding: &Binding) -> Result<Value, RpcError> {
         let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
         let before = self.ipc.grabs.len();

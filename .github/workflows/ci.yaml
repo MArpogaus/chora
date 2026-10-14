@@ -1,7 +1,7 @@
 # Lint and test in the Fedora 44 container that also builds the release, so
 # CI checks the same compiler and the same system libraries. The e2e job
-# runs tests/nested.sh, the exit test of milestone M1, tests/xp.sh, the
-# XP flavor, and tests/agent.sh, the agent interface of milestone M4.
+# runs tests/nested.sh, the nested core, tests/xp.sh, the XP flavor, and
+# tests/agent.sh, the agent interface.
 name: ci
 
 on:

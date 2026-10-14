@@ -12,12 +12,12 @@ that an agent arranges live by voice. Only a small safety layer is built in.
 
 ## Status
 
-Early development. chora runs nested inside another Wayland session, and a
-reference plugin tiles the windows. A login session on real hardware exists,
-but nobody tested it on hardware yet. An agent sees and changes the screen
-through `choractl mcp`, after a grant of the user. The
-[roadmap](https://marpogaus.github.io/chora/roadmap/) shows the next steps.
-APIs change without notice before version 1.0.
+Pre-release. chora runs nested inside another Wayland session and as a
+login session, and a reference plugin tiles the windows. An agent sees and
+changes the screen through `choractl mcp`, after a grant of the user.
+chora is no daily driver yet. The
+[roadmap](https://marpogaus.github.io/chora/roadmap/) leads to 1.0: a daily
+driver with a stable API. The API changes without notice before 1.0.
 
 ## Install
 
@@ -38,24 +38,29 @@ Start chora with the tiling plugin inside a Wayland session:
 chora -- chora-tiling
 ```
 
-A window opens. The plugin uses these bindings:
+A window opens. The plugin follows the default keymap of the awesome
+window manager:
 
 | Binding | Action |
 |---------|--------|
 | Super+Return | start a terminal (foot) |
-| Super+d | start a launcher (fuzzel) |
-| Super+q | close the focused window |
+| Super+r | start a launcher (fuzzel) |
+| Super+Shift+c | close the focused window |
 | Super+j, Super+k | focus the next or previous window |
+| Super+1 to Super+9 | show a tag |
+| Super+Shift+1 to Super+Shift+9 | move the focused window to a tag |
+| Super+space | switch to the next layout |
 
-GNOME keeps Super for itself. There, start `chora -- chora-tiling --mod alt`
-to use Alt instead. `chora-tiling --help` lists all options.
+`chora-tiling --print-config` prints all options and bindings. Copy the
+output to `~/.config/chora/chora-tiling.yaml` and change it there. GNOME keeps
+Super for itself; there, set `modifier: Alt` in that file.
 
 Nested, chora takes the keymap of the host session. `XKB_DEFAULT_LAYOUT`
 sets another layout, for example `XKB_DEFAULT_LAYOUT=de chora --
 chora-tiling`. The log names the layouts at the start.
 
-The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
-and Ctrl+Alt+BackSpace quits chora.
+The safety layer has fixed bindings: Ctrl+Alt+Escape resets the scene,
+Ctrl+Alt+BackSpace quits chora, and Ctrl+Alt+F1 to F12 switch the VT.
 
 To let an agent drive chora, grant it screenshots and input, and add
 `choractl --name agent mcp` as an MCP server of the agent:
@@ -81,7 +86,7 @@ start menu.
 To log in to chora on real hardware, choose the session "chora" on the
 login screen. It starts the tiling flavor with waybar and X11 support
 through xwayland-satellite. The session "chora (Windows XP)" starts the XP
-flavor. The hardware session is not tested yet.
+flavor.
 
 Programs inside chora find its IPC socket in `CHORA_SOCKET`. For example, a
 terminal in chora shows the scene with `choractl query`, and

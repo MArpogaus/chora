@@ -1,0 +1,114 @@
+# The configuration of chora-tiling. It lists every option, and the
+# bindings use every action at least once. `chora-tiling --print-config` prints this
+# file. Copy it to ~/.config/chora/chora-tiling.yaml and change it there.
+# The bindings follow the default keymap of the awesome window manager.
+
+# What MOD means in the bindings: Super or Alt.
+modifier: Super
+# The gap around each window, in logical pixels.
+gap: 4
+# The number of tags of each output, at most 16.
+tags: 9
+# The layouts in the order of next_layout. Each tag starts with the first.
+layouts:
+- tile
+- tile_left
+- tile_bottom
+- tile_top
+- fair
+- fair_horizontal
+- spiral
+- dwindle
+- max
+- fullscreen
+- magnifier
+- floating
+# The share of the master area, from 0.05 to 0.95. Each tag starts with it.
+master_width: 0.5
+# The number of master windows. Each tag starts with it.
+masters: 1
+# The number of columns of the other windows. Each tag starts with it.
+columns: 1
+# Where a new window goes: master or stack.
+new_window: master
+# How the focus follows the pointer: click or follow_mouse.
+focus: follow_mouse
+
+bindings:
+  # Windows
+  MOD+j: focus_next
+  MOD+k: focus_previous
+  MOD+Tab: focus_back
+  MOD+u: focus_urgent
+  MOD+Shift+j: swap_next
+  MOD+Shift+k: swap_previous
+  MOD+Ctrl+Return: move_to_master
+  MOD+Shift+c: close
+  MOD+Ctrl+space: toggle_floating
+  MOD+f: toggle_fullscreen
+  MOD+m: toggle_maximized
+  MOD+Shift+m: toggle_maximized_horizontal
+  MOD+Ctrl+m: toggle_maximized_vertical
+  MOD+t: toggle_on_top
+  MOD+n: minimize
+  MOD+Ctrl+n: restore_minimized
+  # Layouts
+  MOD+l: {inc_master_width: 0.05}
+  MOD+h: {inc_master_width: -0.05}
+  MOD+Shift+h: {inc_masters: 1}
+  MOD+Shift+l: {inc_masters: -1}
+  MOD+Ctrl+h: {inc_columns: 1}
+  MOD+Ctrl+l: {inc_columns: -1}
+  MOD+space: next_layout
+  MOD+Shift+space: previous_layout
+  # Outputs
+  MOD+Ctrl+j: focus_next_output
+  MOD+Ctrl+k: focus_previous_output
+  MOD+o: move_to_next_output
+  # Tags; on a keyboard layout without digits on the top row, change
+  # the keys of the tag bindings.
+  MOD+Left: view_previous
+  MOD+Right: view_next
+  MOD+Escape: view_back
+  MOD+1: {view_tag: 1}
+  MOD+2: {view_tag: 2}
+  MOD+3: {view_tag: 3}
+  MOD+4: {view_tag: 4}
+  MOD+5: {view_tag: 5}
+  MOD+6: {view_tag: 6}
+  MOD+7: {view_tag: 7}
+  MOD+8: {view_tag: 8}
+  MOD+9: {view_tag: 9}
+  MOD+Ctrl+1: {toggle_tag_view: 1}
+  MOD+Ctrl+2: {toggle_tag_view: 2}
+  MOD+Ctrl+3: {toggle_tag_view: 3}
+  MOD+Ctrl+4: {toggle_tag_view: 4}
+  MOD+Ctrl+5: {toggle_tag_view: 5}
+  MOD+Ctrl+6: {toggle_tag_view: 6}
+  MOD+Ctrl+7: {toggle_tag_view: 7}
+  MOD+Ctrl+8: {toggle_tag_view: 8}
+  MOD+Ctrl+9: {toggle_tag_view: 9}
+  MOD+Shift+1: {move_to_tag: 1}
+  MOD+Shift+2: {move_to_tag: 2}
+  MOD+Shift+3: {move_to_tag: 3}
+  MOD+Shift+4: {move_to_tag: 4}
+  MOD+Shift+5: {move_to_tag: 5}
+  MOD+Shift+6: {move_to_tag: 6}
+  MOD+Shift+7: {move_to_tag: 7}
+  MOD+Shift+8: {move_to_tag: 8}
+  MOD+Shift+9: {move_to_tag: 9}
+  MOD+Ctrl+Shift+1: {toggle_window_tag: 1}
+  MOD+Ctrl+Shift+2: {toggle_window_tag: 2}
+  MOD+Ctrl+Shift+3: {toggle_window_tag: 3}
+  MOD+Ctrl+Shift+4: {toggle_window_tag: 4}
+  MOD+Ctrl+Shift+5: {toggle_window_tag: 5}
+  MOD+Ctrl+Shift+6: {toggle_window_tag: 6}
+  MOD+Ctrl+Shift+7: {toggle_window_tag: 7}
+  MOD+Ctrl+Shift+8: {toggle_window_tag: 8}
+  MOD+Ctrl+Shift+9: {toggle_window_tag: 9}
+  # Programs
+  MOD+Return: {spawn: foot}
+  MOD+r: {spawn: fuzzel}
+  MOD+p: {spawn: fuzzel}
+  # The plugin
+  MOD+Ctrl+r: reload

@@ -319,7 +319,7 @@ fn read_source(path: &str) -> Result<String, String> {
 }
 
 /// Enables `GL_OES_standard_derivatives` for a shader that uses `fwidth`,
-/// `dFdx` or `dFdy` and does not enable it itself (#16). On a driver
+/// `dFdx` or `dFdy` and does not enable it itself. On a driver
 /// without the extension, `enable` gives a warning, not an error. The line
 /// goes after the `#version` line, which must come first, also after
 /// comments; GLSL ES 3.00 has the functions without the extension.

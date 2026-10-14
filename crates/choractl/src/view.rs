@@ -599,7 +599,7 @@ mod tests {
     #[test]
     fn a_manifest_names_its_command() {
         let manifest: Manifest =
-            parse_yaml("name: tiling\nexec: chora-tiling --gap 0\nconfigure: set_layout\n")
+            parse_yaml("name: tiling\nexec: chora-tiling --config x.yaml\nconfigure: set_layout\n")
                 .unwrap();
         assert_eq!(manifest.configure.as_deref(), Some("set_layout"));
         assert!(parse_yaml::<Manifest>("name: tiling\n").is_err(), "no exec");

@@ -1,17 +1,16 @@
 #!/usr/bin/python3
-"""The exit test of milestone M4: an MCP client drives chora.
+"""An MCP client drives chora, for tests/agent.sh.
 
 It starts `choractl --name agent mcp`, asks for "describe the screen",
 calls `tiling.set_layout`, and asks again. It saves both screenshots as
 OUT_DIR/before.png and OUT_DIR/after.png and both descriptions as JSON, for
 the checks of tests/agent.sh. Then it subscribes to events, clicks a rect
-of its own and presses a key that it grabbed, and waits for both (#7). It
+of its own and presses a key that it grabbed, and waits for both. It
 puts a shader as an asset, draws it as a shader node and saves a capture
-of the node as OUT_DIR/asset.png and the path as OUT_DIR/asset-path.txt
-(#6).
+of the node as OUT_DIR/asset.png and the path as OUT_DIR/asset-path.txt.
 
-With the layout `panel`, it runs the exit test of milestone M4.1 instead:
-see panel(). With `hud`, it runs the one of milestone M4.2: see hud().
+With the layout `panel`, it runs the panel test instead: see panel(). With
+`hud`, it runs the HUD test: see hud().
 
 Usage: tests/mcp-client.py CHORACTL OUT_DIR (LAYOUT | panel | hud)
 """
@@ -190,7 +189,7 @@ def node(id, kind, props):
 
 
 def panel(mcp, out):
-    """The exit test of M4.1: a panel of the agent moves the camera.
+    """The panel test: a panel of the agent moves the camera.
 
     The client puts a shader, reserves the top of the output, draws the
     panel as a rounded shader node with two buttons, and waits for a click.
@@ -277,7 +276,7 @@ def save_capture(mcp, out, name, output):
 
 
 def hud(mcp, out):
-    """The exit test of M4.2: a probe, the scale, and a HUD on the screen.
+    """The HUD test: a probe, the scale, and a HUD on the screen.
 
     The client runs a probe with capture and reads its output, sets the
     scale of the output and back, and draws a HUD under the overlay root of

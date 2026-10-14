@@ -588,7 +588,7 @@ fn clamp(point: Point<f64, Logical>, area: Rectangle<i32, Logical>) -> Point<f64
 }
 
 /// The work zone of an output, local to it, as the default camera shows it
-/// in the scene: the default camera translates by the position (#13).
+/// in the scene: the default camera translates by the position.
 fn default_area(output: Rectangle<i32, Logical>, zone: Rectangle<i32, Logical>) -> [i32; 4] {
     [
         output.loc.x + zone.loc.x,

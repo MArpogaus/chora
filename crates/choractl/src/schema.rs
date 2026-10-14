@@ -1,5 +1,5 @@
 //! The JSON schemas of the tools of `choractl mcp`, from the types of
-//! `chora-scene` (#5). MCP clients hand them to the model, so that its
+//! `chora-scene`. MCP clients hand them to the model, so that its
 //! first call has the right shape more often.
 
 use serde_json::Value;

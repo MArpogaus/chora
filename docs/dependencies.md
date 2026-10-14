@@ -19,8 +19,12 @@ check of each choice. [Decisions](decisions.md) records the result.
 | Dependency | Purpose | Notes |
 |------------|---------|-------|
 | clap | command line arguments | also for the plugins |
-| a maintained YAML crate | views | `serde_yaml` is unmaintained |
-| [rmcp](https://github.com/modelcontextprotocol/rust-sdk) | `choractl mcp` | the official Rust MCP SDK, version 3.x |
+| serde-saphyr | views | strict YAML (D41) |
+| schemars | the JSON schemas of the MCP tools, from the types of `chora-scene` | |
+
+`choractl mcp` implements the stdio transport of MCP itself. Milestone 0.8
+replaces it with [rmcp](https://github.com/modelcontextprotocol/rust-sdk),
+the official Rust MCP SDK (D34).
 
 ## Plugins
 
@@ -72,8 +76,6 @@ The core speaks these protocols, so existing tools work unchanged:
 - **Capture:** `ext-image-copy-capture` and `wlr-screencopy`.
 - **Isolation:** `wp-security-context-v1`.
 
-[Roadmap](roadmap.md) assigns each protocol to a milestone.
-
 ## Outside the core
 
 | Tool | Role |
@@ -84,6 +86,6 @@ The core speaks these protocols, so existing tools work unchanged:
 | fuzzel, wofi | launchers |
 | swaybg, swww | wallpapers |
 | Chromium or Firefox in app mode | HTML content from agents |
-| whisper.cpp or faster-whisper, piper | speech in and out |
+| [Gufo](https://github.com/gufo-org/gufo) with speech, router and main models | the voice pipeline of `chora-voice` (D53) |
 | Podman with Quadlet, distrobox, systemd user units | services and flavors |
 | kanshi, wlr-randr | output configuration |

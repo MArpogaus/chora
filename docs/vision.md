@@ -14,8 +14,8 @@ clients and agents bring the forms.
 A desktop decides the arrangement of the content: windows, panels,
 workspaces. chora takes this decision out of the compositor. chora is a
 programmable scene. It works more like a game engine than like a window
-manager. The core renders a scene of nodes every frame. One API changes the
-scene live.
+manager. The core renders a scene of nodes. One API changes the scene
+live.
 
 The motivating use case is agentic interaction. The user talks to an agent,
 ideally by voice. The agent arranges the screen for the current task and for
@@ -36,9 +36,9 @@ possible.
 2. **Safety is the only built-in behavior.** The core keeps an escape hatch
    that no plugin can override: VT switch, quit, and an emergency reset.
    Agents will write broken code live, so this exception is necessary.
-3. **Lean core, fast stability.** A small core reaches feature completeness
-   fast. Then the project hardens it. Features grow in plugins, not in the
-   core.
+3. **Lean core, checked stability.** The core stays small. Features grow
+   in plugins, not in the core. A milestone is done only when its gate
+   holds (D46).
 4. **Reuse before writing.** Wayland protocol handling, rendering, widgets,
    shells and services already exist. chora connects these parts and writes
    only what is missing. Fixes go upstream. Every decision gets a check for
@@ -53,12 +53,12 @@ possible.
    An agent can read and write the files easily.
 8. **Isolation by default.** Plugins run as separate processes, services in
    containers. Input injection and screen capture through the API need a
-   grant of the user (D33).
+   capability that the user gives (D33).
 
 ## Goals
 
-- Start as an experimentation platform. Reach a stable, feature-complete core
-  fast, then start testing.
+- Reach 1.0: a daily driver on the reference hardware with a stable,
+  versioned API (D3).
 - Run as an additional session on a Fedora host, next to the existing
   desktops. The concrete host is a derived [secureblue](https://secureblue.dev/)
   image.
@@ -69,11 +69,11 @@ possible.
 - Make it possible to rebuild any existing workflow, with effort, and to
   invent new ones.
 
-## Non-goals for now
+## Non-goals before 1.0
 
 - A usable desktop out of the box. A flavor can supply one. The core never
   does.
 - Agent memory and a local inventory of reusable elements. These form a
   separate, opinionated layer on top of chora (see [Idea backlog](ideas.md)).
-- Distributions other than Fedora and secureblue, and GPUs other than AMD and
-  Intel, until the core is stable.
+- Distributions other than Fedora, secureblue and Arch Linux, and NVIDIA
+  GPUs (D11).

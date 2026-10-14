@@ -1,5 +1,5 @@
 //! The examples of the docs parse as the types of the API, so that the docs
-//! and the code agree (#3), and fit the schemas of the MCP tools (#5). A
+//! and the code agree, and fit the schemas of the MCP tools. A
 //! comment `<!-- parses: KIND -->` before a code block names the type.
 
 use chora_scene::{

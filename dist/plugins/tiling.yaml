@@ -4,4 +4,4 @@
 name: tiling
 exec: chora-tiling
 configure: set_layout
-description: Tiles the windows as master and stack, columns or rows.
+description: Tiles the windows with the tags and layouts of awesome.

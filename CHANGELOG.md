@@ -1,3 +1,21 @@
+## v0.5.4 (2026-10-14)
+
+### Feat
+
+- **api**: tell in pointer.entered whether the pointer moved
+- **tiling**: follow the user experience of awesome
+
+### Fix
+
+- **process**: close the waiting connections of an exited plugin
+- **ipc**: free grabs and methods at the end of a stream
+- **tiling**: a fullscreen window follows the raise, not the pointer
+- **tiling**: a click raises, and fullscreen follows the focus
+- **tiling**: raise on a click or a binding, not on pointer focus
+- **tiling**: the findings of the second review round
+- **tiling**: the findings of the review
+- **process**: restart a plugin after its connections closed
+
 ## v0.5.3 (2026-10-13)
 
 Milestone M4.2: the API covers what the first test round on real hardware

@@ -1,4 +1,4 @@
-//! The assets that clients hand to the core with `assets.put` (#6). A
+//! The assets that clients hand to the core with `assets.put`. A
 //! client in another mount namespace, for example an agent in a container,
 //! cannot name a file that the core sees. The core keeps its files in
 //! `$XDG_RUNTIME_DIR/chora/SOCKET.assets/CLIENT/`, with the client name in

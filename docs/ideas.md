@@ -5,8 +5,7 @@ All ideas that are not decisions yet. An idea moves to
 
 ## Interaction
 
-- Voice as the main channel to an agent: speech to text in, text to speech
-  out, with a robust push-to-talk or wake-word mechanism.
+- A wake word in addition to push-to-talk for the voice pipeline (D53).
 - A morning view: greeting, current tasks, sorted email, and a day plan that
   user and agent prioritize together.
 - A view for each task, built on demand: data analysis with data, plots and
@@ -17,25 +16,20 @@ All ideas that are not decisions yet. An idea moves to
 
 ## Visuals
 
-- Effects like in Hyprland and Compiz: blur, shadows, rounded corners, an
-  overview, transitions. Wobbly windows, the magic lamp and the cube are
-  part of M3 (D39).
+- Effects like in Hyprland and Compiz: blur behind windows, shadows, an
+  overview, transitions. The XP showroom has wobbly windows, the magic
+  lamp and the cube (D39).
 - An infinite zoomable canvas through cameras.
 - Surfaces as 3D objects.
-- Complex 3D scenes, with models, depth and ray tracing, belong in clients,
-  not in the core. A client renders them with Vulkan, for example with
-  Bevy or Godot, and chora shows its surface as a node, without a copy
-  through dmabuf. The client gets plain keys with press, release and
-  repeat, and relative pointer motion for a mouse look, as every Wayland
-  client does. Through IPC or MCP it still moves cameras and panels. The
-  scene of the core stays 2.5D: planes in perspective, meshes and fragment
-  shaders on GLES, without depth test. A 3D node in the core would make it
-  an engine and break its freedom of policy. On the Radeon 8060S of Strix
-  Halo, raster with ray-traced shadows and reflections at 1080p to 1440p
-  is realistic, full path tracing in real time is not.
+- An example client for complex 3D scenes, with models, depth and ray
+  tracing (D19). It renders with Vulkan, for example with Bevy or Godot,
+  and chora shows its surface as a node, without a copy through dmabuf.
+  The client gets plain keys with press, release and repeat, and relative
+  pointer motion for a mouse look, as every Wayland client does. Through
+  IPC or MCP it moves cameras and panels.
 - Pixel-perfect copies of existing desktops as flavors, for example KDE
-  Plasma. The XP showroom of M3 is the first (D39). They prove the
-  flexibility. They are not a goal.
+  Plasma, next to the XP showroom (D39). They prove the flexibility. They
+  are not a goal.
 
 ## Agents and the ecosystem around chora
 
@@ -52,13 +46,12 @@ All ideas that are not decisions yet. An idea moves to
   measurement shows the need (D28).
 - A portal backend of its own, so that screen sharing can share a group or a
   canvas instead of a whole output or window.
-- Restricted IPC sockets for containers: a socket that only offers a subset
-  of the API to the clients behind it.
+- A private Wayland protocol for plugins, if the measurement of milestone
+  0.9 shows the need (D54).
 
 ## Services
 
 - A local inference engine (LLM) in a container.
-- Speech services (whisper, piper).
 - Development environments with special configurations (distrobox).
 - A dedicated webview host on `gtk4-layer-shell`, if a browser in app mode is
   too slow, too heavy or cannot be transparent.
@@ -68,4 +61,3 @@ All ideas that are not decisions yet. An idea moves to
 - Flavors as installable bundles: classic, tiling, agentic.
 - A later registry for plugins and flavors, possibly as OCI artifacts. OCI
   fits the container world of the host.
-- A Copr repository, so that `dnf` updates chora like every other package.

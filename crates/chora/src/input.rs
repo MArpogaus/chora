@@ -66,7 +66,7 @@ fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
 }
 
 /// Logs the layouts of the keymap of the seat, so that a wrong layout
-/// shows (#12).
+/// shows.
 pub fn log_layout(state: &mut State) {
     let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
     let layouts = keyboard.with_xkb_state(state, |context| {
@@ -311,12 +311,13 @@ impl State {
 /// Moves the pointer to a point of the layout and tells the surface under
 /// it.
 pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime) {
+    let moved = state.pointer_layout != layout;
     state.pointer_layout = layout;
     let Some(spot) = state.spot(layout) else {
         return;
     };
     if state.node_grab.is_none() {
-        hover(state, &spot);
+        hover(state, &spot, moved);
     }
     // The drag of a node goes to plugins only, with each new position.
     let under = if let Some(grab) = &mut state.node_grab {
@@ -388,7 +389,7 @@ pub fn scroll(state: &mut State, dx: f64, dy: f64, time: InputTime) {
 }
 
 /// Tells plugins when the pointer comes over another node.
-fn hover(state: &mut State, spot: &Spot) {
+fn hover(state: &mut State, spot: &Spot, moved: bool) {
     let node = render::node_under(state, spot);
     if node == state.hovered {
         return;
@@ -397,7 +398,7 @@ fn hover(state: &mut State, spot: &Spot) {
         state.emit(&SceneEvent::PointerLeft { node });
     }
     if let Some(node) = node {
-        state.emit(&SceneEvent::PointerEntered { node });
+        state.emit(&SceneEvent::PointerEntered { node, moved });
     }
 }
 

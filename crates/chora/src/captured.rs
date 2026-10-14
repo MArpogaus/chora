@@ -1,4 +1,4 @@
-//! The output of programs that `process.spawn` starts with `capture` (#22):
+//! The output of programs that `process.spawn` starts with `capture`:
 //! the core keeps stdout, stderr and the exit status until the client takes
 //! them with `process.wait`. Threads read the pipes, so that a program that
 //! writes much never blocks the core. A thread closes its pipe shortly after
