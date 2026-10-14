@@ -1,0 +1,69 @@
+# Activate in a fresh clone with:
+#   pre-commit install --install-hooks -t pre-commit -t commit-msg
+repos:
+- repo: local
+  hooks:
+  - id: cargo-fmt
+    name: cargo fmt
+    entry: cargo fmt --all
+    language: system
+    types: [rust]
+    pass_filenames: false
+  - id: cargo-clippy
+    name: cargo clippy (lints and complexity guards, see clippy.toml)
+    entry: cargo clippy --workspace --all-targets -- -D warnings
+    language: system
+    types: [rust]
+    pass_filenames: false
+  - id: no-gpl-3-only
+    name: no GPL-3.0-only code (the core is GPL-3.0-or-later)
+    entry: SPDX-License-Identifier:\s*GPL-3\.0(-only)?(?![-+.\w])
+    language: pygrep
+
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+  - id: check-added-large-files
+  - id: check-executables-have-shebangs
+  - id: check-merge-conflict
+  - id: check-shebang-scripts-are-executable
+  - id: check-toml
+  - id: check-yaml
+    # syntax-only: mkdocs.yml needs the !!python/name mermaid-fence tag
+    args: [--unsafe]
+  # The vendored theme of the XP flavor stays byte for byte as upstream.
+  - id: end-of-file-fixer
+    exclude: ^flavors/xp/theme/(cursors|expose|fonts|winxp)/
+  - id: mixed-line-ending
+  - id: trailing-whitespace
+    exclude: ^flavors/xp/theme/(cursors|expose|fonts|winxp)/
+
+- repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+  rev: v2.16.0
+  hooks:
+  - id: pretty-format-yaml
+    args: [--autofix, --indent, '2']
+  - id: pretty-format-toml
+    args: [--autofix]
+    exclude: ^Cargo\.lock$   # cargo owns this file
+
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.4.3
+  hooks:
+  # wit: the WebAssembly Interface Type language; ags: Aylur's GTK Shell
+  - id: codespell
+    args: [-L, 'wit,ags']
+
+- repo: https://github.com/rhysd/actionlint
+  rev: v1.7.12
+  hooks:
+  - id: actionlint
+
+- repo: https://github.com/commitizen-tools/commitizen
+  rev: v4.19.0
+  hooks:
+  - id: commitizen
+    stages: [commit-msg]
+    # no commitizen-branch on pre-push: on the first push of a new branch it
+    # gets the literal "$PRE_COMMIT_FROM_REF..$PRE_COMMIT_TO_REF" and aborts.
+    # The commit-msg hook already checks every message.
