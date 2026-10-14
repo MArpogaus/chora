@@ -7,6 +7,10 @@ set -euo pipefail
 out=${1:-target/rpm}
 cargo build --release --locked --workspace
 release="1$(rpm --eval '%{?dist}')"
+# An RPM version takes no hyphen; rpm sorts 0.6.0~rc.1 before 0.6.0.
+version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+version=${version/-/\~}
 mkdir -p "$out"
-cargo generate-rpm -p crates/chora --set-metadata "release = \"$release\"" -o "$out/"
+cargo generate-rpm -p crates/chora -o "$out/" \
+    --set-metadata "version = \"$version\"" --set-metadata "release = \"$release\""
 (cd "$out" && sha256sum ./*.rpm >SHA256SUMS)

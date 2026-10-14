@@ -2,9 +2,10 @@
 # of Cargo.toml. The release waits for a green CI run of the same commit.
 # It builds the RPM in Fedora 44 and the package for Arch Linux, installs
 # each once as a check, and attaches them with their SHA256 sums to a
-# GitHub release. Versions below 1.0 are pre-releases. One release runs at
-# a time. Only the short last job holds a write token; the build runs the
-# build scripts of all dependencies with a read token.
+# GitHub release. Versions below 1.0 and release candidates are
+# pre-releases. One release runs at a time. Only the short last job holds
+# a write token; the build runs the build scripts of all dependencies with
+# a read token.
 name: release
 
 on:
@@ -38,14 +39,16 @@ jobs:
       run: |
         set -euo pipefail
         tag=$GITHUB_REF_NAME
-        # The checkout may keep a lightweight copy of the tag.
+        # The tag object itself, which tells an annotated tag.
         git fetch --force origin "refs/tags/$tag:refs/tags/$tag"
         version=$(sed -n 's/^version = "\(.*\)"/v\1/p' Cargo.toml | head -1)
         test "$tag" = "$version" || { echo "$tag is not the version $version"; exit 1; }
         test "$(git cat-file -t "refs/tags/$tag")" = tag || { echo "$tag is not annotated"; exit 1; }
         parents=$(git rev-list --parents -n 1 "$GITHUB_SHA" | wc -w)
         test "$parents" -ge 3 || { echo "$tag is not on a merge commit"; exit 1; }
-        git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "$tag is not on main"; exit 1; }
+        # A commit of main itself, not a merge inside dev.
+        git rev-list --first-parent origin/main | grep -qx "$GITHUB_SHA" ||
+          { echo "$tag is not on a commit of main"; exit 1; }
         echo "tag=$tag" >>"$GITHUB_OUTPUT"
     - name: the version has no release yet
       env:
@@ -65,10 +68,13 @@ jobs:
         set -euo pipefail
         runs="repos/$GITHUB_REPOSITORY/actions/workflows/ci.yaml/runs?head_sha=$GITHUB_SHA&event=push"
         for _ in $(seq 100); do
-          read -r status conclusion < <(gh api "$runs" --jq '.workflow_runs[0] | "\(.status // "none") \(.conclusion // "none")"')
-          case "$status" in
-            completed) test "$conclusion" = success || { echo "CI is $conclusion"; exit 1; }; exit 0 ;;
-          esac
+          # A failed call of the API tries again.
+          if answer=$(gh api "$runs" --jq '.workflow_runs[0] | "\(.status // "none") \(.conclusion // "none")"'); then
+            read -r status conclusion <<<"$answer"
+            case "$status" in
+              completed) test "$conclusion" = success || { echo "CI is $conclusion"; exit 1; }; exit 0 ;;
+            esac
+          fi
           sleep 30
         done
         echo "CI did not finish"
@@ -110,7 +116,9 @@ jobs:
         persist-credentials: false
     - name: install the build dependencies
       run: |
-        pacman -Syu --noconfirm --needed base-devel cargo pkgconf libdisplay-info \
+        # The keys of new packages come before the upgrade of an old image.
+        pacman -Sy --noconfirm archlinux-keyring
+        pacman -Su --noconfirm --needed base-devel cargo pkgconf libdisplay-info \
           libdrm libinput libxkbcommon mesa seatd systemd-libs wayland
     # makepkg refuses to run as root.
     - run: useradd -m builder && chown -R builder .
@@ -144,6 +152,9 @@ jobs:
         TAG: ${{ needs.version.outputs.tag }}
       run: |
         set -euo pipefail
+        # A tag that moved during the build would get assets of another commit.
+        now=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+        test "$now" = "$GITHUB_SHA" || { echo "$TAG moved to $now"; exit 1; }
         prerelease=()
         case "$TAG" in v0.*|*-*) prerelease=(--prerelease) ;; esac
         cat rpm/SHA256SUMS arch/SHA256SUMS >SHA256SUMS

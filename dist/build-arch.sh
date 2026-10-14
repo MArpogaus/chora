@@ -9,7 +9,8 @@ out=$(realpath -m "${1:-target/arch}")
 version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-sed "s/@VERSION@/$version/" dist/arch/PKGBUILD >"$work/PKGBUILD"
+# pkgver takes no hyphen; pacman sorts 0.6.0rc.1 before 0.6.0.
+sed "s/@VERSION@/${version//-/}/" dist/arch/PKGBUILD >"$work/PKGBUILD"
 (cd "$work" && CHORA_SOURCE=$root makepkg --nodeps --noconfirm --force)
 # Every file of the RPM is in the package too.
 package=$(ls "$work"/chora-*.pkg.tar.zst)

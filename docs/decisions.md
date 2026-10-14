@@ -26,7 +26,7 @@ that the code does not implement yet.
 | D11 | The reference hardware is the HP ZBook Ultra G1a (AMD Radeon 8060S); CI adds a VM with `vkms`; Intel works through Mesa without a gate; NVIDIA comes later | Gates need one machine that the author uses every day. The VM covers the tty backend in CI. |
 | D12 | Services run as Quadlet units with Podman or in distrobox | Isolation. systemd handles start, restart and order. |
 | D13 | The coordinator is the user first, later an agent with special permissions | A gradual path to control by agents. |
-| D14 | Releases build an RPM and an Arch package, attached with SHA256 sums to a GitHub release; versions below 1.0 are pre-releases | One build for the release assets and the package repositories of D49. |
+| D14 | Releases build an RPM and an Arch package, attached with SHA256 sums to a GitHub release; versions below 1.0 and release candidates are pre-releases | One build for the release assets and the package repositories of D49. |
 
 ## Core
 

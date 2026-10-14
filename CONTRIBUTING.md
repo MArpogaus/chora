@@ -88,7 +88,8 @@ A release ends a milestone, once its gate holds (see
 [Roadmap](https://github.com/MArpogaus/chora/blob/main/docs/roadmap.md#rules)).
 
 1. On `dev`, `cz bump` sets the version, writes `CHANGELOG.md` and makes a
-   tag. Never edit the changelog by hand.
+   tag. Never edit the changelog by hand. `cz bump --prerelease rc` makes a
+   release candidate such as `0.6.0-rc.1`.
 2. Delete the local tag, because the tag belongs on the merge commit:
 
    ```bash
@@ -111,11 +112,11 @@ A release ends a milestone, once its gate holds (see
    git push --no-verify origin refs/tags/vX.Y.Z
    ```
 
-6. The tag starts `.github/workflows/release.yaml`. It checks that the tag
-   is annotated, sits on a merge commit of `main` and names the version of
-   `Cargo.toml`, and it waits for green CI of the commit. Then it builds
-   the RPM with `dist/build-rpm.sh` and the Arch package with
-   `dist/build-arch.sh`, and attaches both with their SHA256 sums to a
+6. The tag starts `.github/workflows/release.yaml`. The workflow checks
+   that the tag is annotated, names the version of `Cargo.toml` and sits on
+   a merge commit of `main`. It waits for green CI of that commit. Then it
+   builds the RPM with `dist/build-rpm.sh` and the Arch package with
+   `dist/build-arch.sh`. It attaches both with their SHA256 sums to a
    GitHub release. Versions below 1.0 and release candidates are
    pre-releases.
 

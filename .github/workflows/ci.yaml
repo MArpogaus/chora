@@ -1,9 +1,9 @@
 # Lint and test in the Fedora 44 container that also builds the release, so
 # CI checks the same system libraries. The check job uses the toolchain of
-# rust-toolchain.toml, the msrv job the minimum Rust version of Cargo.toml,
-# and the e2e job the Rust of Fedora, which also builds the release. The e2e
-# job runs tests/nested.sh, the nested core, tests/xp.sh, the XP flavor, and
-# tests/agent.sh, the agent interface.
+# rust-toolchain.toml. The msrv job uses the minimum Rust version of
+# Cargo.toml. The e2e job uses the Rust of Fedora, which also builds the
+# release. It runs tests/nested.sh, the nested core, tests/xp.sh, the XP
+# flavor, and tests/agent.sh, the agent interface.
 name: ci
 
 on:
