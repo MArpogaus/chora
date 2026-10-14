@@ -57,7 +57,10 @@ wait_for test -S "$XDG_RUNTIME_DIR/wayland-1"
 export WAYLAND_DISPLAY=wayland-1
 
 step "1. chora -- chora-tiling starts nested with two windows"
-"$bin/chora" -- "$bin/chora-tiling" --gap 0 >"$out/chora.log" 2>&1 &
+# The default configuration without gaps.
+"$bin/chora-tiling" --print-config | sed 's/^gap: 4$/gap: 0/' >"$out/tiling.yaml"
+grep -q '^gap: 0$' "$out/tiling.yaml" || fail "the configuration has no gap option"
+"$bin/chora" -- "$bin/chora-tiling" --config "$out/tiling.yaml" >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
 wait_for compgen -G "$XDG_RUNTIME_DIR/chora/*.sock"
@@ -85,23 +88,23 @@ ys_are() {
 
 step "2. tiling.get_layout and tiling.set_layout switch the layout"
 ctl call tiling get_layout >"$out/layout.json" || fail "get_layout failed"
-jq -e '.layout == "master_stack" and (.windows | length) == 2' "$out/layout.json" >/dev/null ||
+jq -e '.layout == "tile" and (.windows | length) == 2' "$out/layout.json" >/dev/null ||
     fail "layout: $(cat "$out/layout.json")"
 wait_for xs_are "0 640"
-ctl call tiling set_layout '{"layout": "rows"}' >"$out/rows.json" || fail "set_layout failed"
-jq -e '.layout == "rows"' "$out/rows.json" >/dev/null || fail "rows: $(cat "$out/rows.json")"
+ctl call tiling set_layout '{"layout": "fair_horizontal"}' >"$out/rows.json" || fail "set_layout failed"
+jq -e '.layout == "fair_horizontal"' "$out/rows.json" >/dev/null || fail "rows: $(cat "$out/rows.json")"
 wait_for xs_are "0 0"
 wait_for ys_are "0 400"
-ctl call tiling set_layout '{"layout": "columns"}' >/dev/null || fail "set_layout failed"
+ctl call tiling set_layout '{"layout": "fair"}' >/dev/null || fail "set_layout failed"
 wait_for xs_are "0 640"
 
 step "3. bad calls fail with a reason"
 if ctl call tiling no_such_method 2>"$out/unknown.err"; then fail "an unknown method answered"; fi
 grep -q "no exported method" "$out/unknown.err" || fail "unknown: $(cat "$out/unknown.err")"
-if ctl call tiling set_layout '{"layout": "spiral"}' 2>"$out/bad.err"; then
+if ctl call tiling set_layout '{"layout": "cube"}' 2>"$out/bad.err"; then
     fail "a bad layout applied"
 fi
-grep -q "spiral" "$out/bad.err" || fail "bad layout: $(cat "$out/bad.err")"
+grep -q "cube" "$out/bad.err" || fail "bad layout: $(cat "$out/bad.err")"
 
 step "4. a call fails when the exporter gives no answer, or disconnects"
 # An exporter that ignores "wait" and exits on "quit".
@@ -218,6 +221,25 @@ grep -q '"event":"pointer.pressed","node":"button","button":272' "$out/pointer.j
     fail "press: $(cat "$out/pointer.jsonl")"
 inject '[{"shortcut": {"keys": "Super+Return"}}]' || fail "the shortcut failed"
 wait_for count_is 3 '.owner == "tiling"'
+# The bindings of awesome: tags hide and show windows, and the layouts turn.
+shown_is() { count_is "$1" '.owner == "tiling" and .visible != false'; }
+key() { inject "[{\"shortcut\": {\"keys\": \"$1\"}}]" || fail "the shortcut $1 failed"; }
+key Super+Shift+2
+wait_for shown_is 2
+key Super+2
+wait_for shown_is 1
+key Super+Ctrl+1
+wait_for shown_is 3
+key Super+Escape
+wait_for shown_is 1
+key Super+Shift+1
+key Super+1
+wait_for shown_is 3
+layout_is() { test "$(ctl call tiling get_layout | jq -r .layout)" = "$1"; }
+key Super+space
+wait_for layout_is fair_horizontal
+key Super+Shift+space
+wait_for layout_is fair
 
 step "11. injected keys never reach the safety layer"
 resets() { grep -c "emergency reset" "$out/chora.log" || true; }
@@ -289,13 +311,13 @@ kill -0 "$chora_pid" || fail "chora died"
 step "16. a view configures its plugin and adds its nodes"
 config="$out/config"
 mkdir -p "$config/chora/plugins" "$config/chora/views"
-printf 'name: tiling\nexec: %s/chora-tiling --gap 0\nconfigure: set_layout\n' "$bin" \
+printf 'name: tiling\nexec: %s/chora-tiling --config %s\nconfigure: set_layout\n' "$bin" "$out/tiling.yaml" \
     >"$config/chora/plugins/tiling.yaml"
 cat >"$config/chora/views/work.yaml" <<'VIEW'
 name: work
 plugins:
 - name: tiling
-  config: {layout: rows}
+  config: {layout: max}
 scene:
 - id: work-panel
   kind: group
@@ -346,17 +368,18 @@ wait_for count_is 1 '.owner == "tiling"'
 WAYLAND_DISPLAY=$inner "$bin/chora-probe" window 0 0 255 >>"$out/windows.log" 2>&1 &
 pids+=($!)
 wait_for count_is 2 '.owner == "tiling"'
-ctl call tiling set_layout '{"layout": "columns"}' >/dev/null || fail "set_layout failed"
+ctl call tiling set_layout '{"layout": "fair"}' >/dev/null || fail "set_layout failed"
 wait_for xs_are "0 640"
 "$bin/choractl" grant agent screen.capture || fail "the grant failed"
 "$bin/choractl" grant agent input.inject || fail "the grant failed"
-timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" rows >"$out/mcp.log" 2>&1 ||
+timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" fair_horizontal >"$out/mcp.log" 2>&1 ||
     fail "the MCP client: $(cat "$out/mcp.log")"
 color_at() { png_pixel "$out/$1.png" "$2" "$3" | cut -d' ' -f1-3; }
-test "$(color_at before 320 400)" = "255 0 0" || fail "before, left: $(color_at before 320 400)"
-test "$(color_at before 960 400)" = "0 0 255" || fail "before, right: $(color_at before 960 400)"
-test "$(color_at after 640 200)" = "255 0 0" || fail "after, top: $(color_at after 640 200)"
-test "$(color_at after 640 600)" = "0 0 255" || fail "after, bottom: $(color_at after 640 600)"
+# The newer window, blue, is the master.
+test "$(color_at before 320 400)" = "0 0 255" || fail "before, left: $(color_at before 320 400)"
+test "$(color_at before 960 400)" = "255 0 0" || fail "before, right: $(color_at before 960 400)"
+test "$(color_at after 640 200)" = "0 0 255" || fail "after, top: $(color_at after 640 200)"
+test "$(color_at after 640 600)" = "255 0 0" || fail "after, bottom: $(color_at after 640 600)"
 jq -e '[.windows[].position[1]] | sort == [0, 400]' "$out/after.json" >/dev/null ||
     fail "the description after: $(cat "$out/after.json")"
 grep -q "screen before and after" "$out/mcp.log" || fail "mcp: $(cat "$out/mcp.log")"

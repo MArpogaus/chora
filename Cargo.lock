@@ -346,6 +346,7 @@ dependencies = [
  "chora-scene",
  "clap",
  "serde",
+ "serde-saphyr",
  "serde_json",
 ]
 
