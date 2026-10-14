@@ -178,6 +178,12 @@ impl State {
     /// revokes all grants, puts all surfaces in a grid that fills the output
     /// and focuses the first one.
     pub fn reset(&mut self) {
+        // The transactions of the clients end without effect, so that a
+        // close does not start the next one.
+        for conn in self.ipc.conn_ids() {
+            let held = self.transactions.drop_conn(conn);
+            self.release(&held);
+        }
         for conn in self.ipc.conn_ids() {
             self.ipc_close(conn);
         }

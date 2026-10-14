@@ -3,10 +3,7 @@
 
 use std::time::Instant;
 
-use smithay::reexports::calloop::{
-    RegistrationToken,
-    timer::{TimeoutAction, Timer},
-};
+use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
 
 use crate::ipc::rejected;
 
@@ -54,14 +51,15 @@ impl crate::state::State {
 
     /// Runs `expire` at a deadline. `None` when the event loop takes no
     /// timer.
-    pub fn expire_at(&self, deadline: Instant) -> Option<RegistrationToken> {
+    pub fn expire_at(&self, deadline: Instant) -> Result<(), String> {
         let timer = Timer::from_deadline(deadline);
         let inserted = self.loop_handle.insert_source(timer, |_, (), state| {
             state.expire();
             TimeoutAction::Drop
         });
-        inserted
-            .inspect_err(|err| tracing::warn!(?err, "no timer for a deadline"))
-            .ok()
+        inserted.map(drop).map_err(|err| {
+            tracing::warn!(?err, "no timer for a deadline");
+            "no timer for a deadline".to_owned()
+        })
     }
 }

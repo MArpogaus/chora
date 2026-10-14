@@ -202,7 +202,8 @@ impl State {
         let deadline = self.time.now() + DEADLINE;
         head.deadline = Some(deadline);
         if !head.waiting.is_empty() {
-            self.expire_at(deadline);
+            // A missing timer is logged; the clients still end the wait.
+            let _ = self.expire_at(deadline);
         }
         Ok(())
     }

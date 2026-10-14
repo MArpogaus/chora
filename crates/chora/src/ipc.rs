@@ -362,7 +362,7 @@ impl State {
         let id = self.ipc.next;
         self.ipc.next += 1;
         let hello_by = self.time.now() + HELLO_TIMEOUT;
-        self.expire_at(hello_by);
+        self.expire_at(hello_by)?;
         let token = self
             .loop_handle
             .insert_source(

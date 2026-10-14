@@ -18,7 +18,6 @@ use chora_scene::{
     ipc::{Export, Message, MethodCall, MethodReturn, RpcError},
 };
 use serde_json::Value;
-use smithay::reexports::calloop::RegistrationToken;
 
 use crate::{
     ipc::{params_of, rejected},
@@ -48,7 +47,6 @@ struct Pending {
     id: Value,
     callee: u64,
     deadline: Instant,
-    timer: Option<RegistrationToken>,
 }
 
 impl Methods {
@@ -161,7 +159,7 @@ impl State {
         let number = self.methods.next;
         self.methods.next += 1;
         let deadline = self.time.now() + TIMEOUT;
-        let timer = self.expire_at(deadline);
+        self.expire_at(deadline).map_err(rejected)?;
         let from = self.ipc.name(conn).unwrap_or_default().to_owned();
         self.methods.pending.insert(
             number,
@@ -170,7 +168,6 @@ impl State {
                 id,
                 callee,
                 deadline,
-                timer,
             },
         );
         let event = Event::MethodCalled {
@@ -205,9 +202,6 @@ impl State {
         let Some(pending) = self.methods.pending.remove(&number) else {
             return;
         };
-        if let Some(timer) = pending.timer {
-            self.loop_handle.remove(timer);
-        }
         let message = match result {
             Ok(value) => Message::result(pending.id, value),
             Err(error) => Message::error(pending.id, error),
