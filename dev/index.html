@@ -1068,7 +1068,8 @@ sudo<span class="w"> </span>pacman<span class="w"> </span>-U<span class="w"> </s
 <p>Start chora with the tiling plugin inside a Wayland session:</p>
 <div class="highlight"><pre><span></span><code>chora<span class="w"> </span>--<span class="w"> </span>chora-tiling
 </code></pre></div>
-<p>A window opens. The plugin uses these bindings:</p>
+<p>A window opens. The plugin follows the default keymap of the awesome
+window manager:</p>
 <table>
 <thead>
 <tr>
@@ -1082,26 +1083,39 @@ sudo<span class="w"> </span>pacman<span class="w"> </span>-U<span class="w"> </s
 <td>start a terminal (foot)</td>
 </tr>
 <tr>
-<td>Super+d</td>
+<td>Super+r</td>
 <td>start a launcher (fuzzel)</td>
 </tr>
 <tr>
-<td>Super+q</td>
+<td>Super+Shift+c</td>
 <td>close the focused window</td>
 </tr>
 <tr>
 <td>Super+j, Super+k</td>
 <td>focus the next or previous window</td>
 </tr>
+<tr>
+<td>Super+1 to Super+9</td>
+<td>show a tag</td>
+</tr>
+<tr>
+<td>Super+Shift+1 to Super+Shift+9</td>
+<td>move the focused window to a tag</td>
+</tr>
+<tr>
+<td>Super+space</td>
+<td>switch to the next layout</td>
+</tr>
 </tbody>
 </table>
-<p>GNOME keeps Super for itself. There, start <code>chora -- chora-tiling --mod alt</code>
-to use Alt instead. <code>chora-tiling --help</code> lists all options.</p>
+<p><code>chora-tiling --print-config</code> prints all options and bindings. Copy the
+output to <code>~/.config/chora/tiling.yaml</code> and change it there. GNOME keeps
+Super for itself; there, set <code>modifier: Alt</code> in that file.</p>
 <p>Nested, chora takes the keymap of the host session. <code>XKB_DEFAULT_LAYOUT</code>
 sets another layout, for example <code>XKB_DEFAULT_LAYOUT=de chora --
 chora-tiling</code>. The log names the layouts at the start.</p>
-<p>The safety layer has two fixed bindings: Ctrl+Alt+Escape resets the scene,
-and Ctrl+Alt+BackSpace quits chora.</p>
+<p>The safety layer has fixed bindings: Ctrl+Alt+Escape resets the scene,
+Ctrl+Alt+BackSpace quits chora, and Ctrl+Alt+F1 to F12 switch the VT.</p>
 <p>To let an agent drive chora, grant it screenshots and input, and add
 <code>choractl --name agent mcp</code> as an MCP server of the agent:</p>
 <div class="highlight"><pre><span></span><code>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>screen.capture<span class="w"> </span>input.inject

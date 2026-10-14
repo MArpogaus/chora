@@ -1294,7 +1294,7 @@ for example to draw window decorations as its own surfaces.</p>
   window for development inside another compositor. chora uses winit when
   <code>WAYLAND_DISPLAY</code> or <code>DISPLAY</code> is set, and the hardware otherwise. On
   hardware it draws the cursor of the xcursor theme in <code>XCURSOR_THEME</code>.</li>
-<li>The scene, rendered every frame.</li>
+<li>The scene. The core renders it for each output.</li>
 <li>Input routing (see below).</li>
 <li>The IPC socket.</li>
 <li>The safety layer (see below).</li>
@@ -1387,8 +1387,7 @@ transitions. niri shows what this approach can do. An effect is a GLSL ES
 fragment shader that a node names; the node becomes a layer, and each
 effect is one pass over its texture. The core compiles a shader when a
 transaction names it, rejects the transaction on an error, and compiles it
-again when the file changes. Shader nodes that draw without a texture, and
-uniforms that name other nodes as textures, come later.</p>
+again when the file changes.</p>
 <p>Transforms are 4x4 matrices, so 3D effects need no API change. A node with
 a size and a mesh, or with a transform that is not a plain 2D translation
 and scale, is a <strong>layer</strong>: the core renders it with its descendants into a

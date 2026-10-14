@@ -962,11 +962,11 @@ needs it. Milestone 0.6 moves the plugins into repositories of their own
 <li><strong><code>chora-scene</code> has no Smithay dependency.</strong> Tests of the data model and
   the transaction logic need no GPU and no compositor. The core, <code>choractl</code>
   and plugins share this one definition of the API.</li>
-<li><strong>Reference plugins are workspace members</strong> until milestone 0.6. They keep
-  the API honest.</li>
-<li><strong>The build generates the schemas</strong> from the Rust types. The repository
-  does not contain them. Docs, validation and agents then see the same
-  contract.</li>
+<li><strong>Reference plugins are workspace members.</strong> They keep the API honest.</li>
+<li><strong><code>choractl</code> builds the JSON schemas</strong> from the Rust types at run time, in
+  <code>crates/choractl/src/schema.rs</code>. The repository does not contain them.
+  The MCP tools and the test of the documentation examples then see the
+  same contract.</li>
 </ul>
 <h2 id="related-repositories">Related repositories<a class="headerlink" href="#related-repositories" title="Permanent link">&para;</a></h2>
 <table>

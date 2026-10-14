@@ -1158,7 +1158,7 @@
 
 <h1 id="roadmap">Roadmap<a class="headerlink" href="#roadmap" title="Permanent link">&para;</a></h1>
 <p>The path from the current state to chora 1.0. Version 1.0 is a daily driver
-with a stable, versioned API (D52).</p>
+with a stable, versioned API (D3).</p>
 <h2 id="rules">Rules<a class="headerlink" href="#rules" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Each milestone is a minor release: 0.6, 0.7 and so on.</li>
@@ -1171,7 +1171,11 @@ with a stable, versioned API (D52).</p>
   list. Each ticked check links to its CI run or log. The release of the
   milestone closes the issue.</li>
 <li>Two tracks run in parallel to the core: the XP showroom and the voice
-  pipeline. They have their own milestones. They never block the core.</li>
+  pipeline.</li>
+<li>The showroom track has no milestones of its own. Its CI must be green
+  against each release candidate of the core, so every core gate has that
+  check.</li>
+<li>The voice track has milestones of its own. It never blocks the core.</li>
 </ul>
 <h2 id="current-state">Current state<a class="headerlink" href="#current-state" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1183,17 +1187,18 @@ with a stable, versioned API (D52).</p>
   input injection, grants, programs, assets and output configuration.</li>
 <li><code>choractl</code> loads views and serves MCP.</li>
 <li><code>chora-tiling</code> and the XP showroom are plugins in this repository.</li>
-<li>Pixel tests in a headless sway check the behavior. The core itself has
-  no in-process tests for IPC, transactions, input and the backends.</li>
+<li>The core crate has 37 unit tests. IPC dispatch, transactions and the tty
+  backend have none. Pixel tests in a headless sway check the behavior.</li>
 </ul>
 <h2 id="estimates">Estimates<a class="headerlink" href="#estimates" title="Permanent link">&para;</a></h2>
-<p>The estimates count the lines of Rust that a milestone adds or changes,
-the hours of agent work, the hours of hands-on work of the user, and the
-calendar time with the gate. Agent hours include the tests and the review
-rounds.</p>
+<p>The estimates count the lines of Rust that a milestone adds or changes.
+They also count the hours of agent work and the hours of hands-on work of
+the user. The calendar time includes the gate. Agent hours include the
+tests and the review rounds.</p>
 <p>The basis is this repository: about 26,000 lines of Rust in 54 hours of
-calendar time. A rework of existing code costs more than new code, so the
-estimates assume 150 to 250 lines per agent hour.</p>
+calendar time. A rework of existing code costs more than new code. The
+table uses about 140 to 200 lines per agent hour for 0.6 to 0.9. The
+milestones 0.10 and 1.0 have hardware work and use about 80 to 125.</p>
 <p>The user uses chora as the daily session from milestone 0.10. The
 gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
 <table>
@@ -1261,8 +1266,8 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
 <p>The renderer has the largest risk. A fault on real hardware in 0.10 can
 add one to two weeks.</p>
 <h2 id="06-foundation">0.6: Foundation<a class="headerlink" href="#06-foundation" title="Permanent link">&para;</a></h2>
-<p><strong>Goal:</strong> the project works in the GitHub organization <code>chora</code> with gates,
-and the core can be tested in process.</p>
+<p><strong>Goal:</strong> the project works with gates in the GitHub organization <code>chora</code>.
+Unit tests check the core in process.</p>
 <p>Scope:</p>
 <ul>
 <li>The organization <code>chora</code> with the repositories of D36. The plugins move
@@ -1278,8 +1283,8 @@ and the core can be tested in process.</p>
   queue, focus and grants run in unit tests with a fake clock.</li>
 <li>A headless test backend that renders with pixman in process, for pixel
   tests in Rust.</li>
-<li>A smoke test in a VM with <code>vkms</code> in CI: chora starts on the tty backend,
-  shows a foot window, and a capture shows its pixels (D11).</li>
+<li>A smoke test in a VM with <code>vkms</code> in CI (D11). chora starts on the tty
+  backend and shows a foot window. A capture shows its pixels.</li>
 <li>The website repository builds the user documentation. The reference
   documentation stays with the code of the core.</li>
 </ul>
@@ -1295,6 +1300,11 @@ and the core can be tested in process.</p>
 <li><code>chora-tiling</code> and <code>chora-xp</code> build and pass their tests in their own
    repositories against the tag of the core.</li>
 <li><code>tests/nested.sh</code>, <code>tests/agent.sh</code> and <code>tests/xp.sh</code> are green in CI.</li>
+<li><code>rust-toolchain.toml</code> pins the toolchain, and the job for the minimum
+   Rust version is green.</li>
+<li>Every container image in the workflows has a digest.</li>
+<li>The website builds from its repository.</li>
+<li>The showroom CI is green against the release candidate.</li>
 </ol>
 <h2 id="07-identity-and-processes">0.7: Identity and processes<a class="headerlink" href="#07-identity-and-processes" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> a client cannot take another name or give itself capabilities,
@@ -1309,6 +1319,8 @@ and the core starts no programs.</p>
 <li><code>choractl clients up</code> creates the sockets from
   <code>~/.config/chora/clients.yaml</code>. The emergency reset removes the client
   sockets.</li>
+<li>An example Quadlet unit in <code>dist/</code> for an agent container that mounts its
+  client directory.</li>
 <li>A versioned <code>hello</code> with the protocol version and the features of both
   sides (D29).</li>
 <li>Structured errors: a stable code for each kind of failure, and <code>data</code>
@@ -1319,6 +1331,7 @@ and the core starts no programs.</p>
   (D42). <code>choractl run</code> starts a program through <code>systemd-run --user</code> with
   an activation token. <code>systemctl --user restart</code> restarts a plugin.
   journald keeps the output.</li>
+<li><code>surface.created</code> carries the pid and the activation token.</li>
 </ul>
 <p>Gate:</p>
 <ol>
@@ -1333,8 +1346,8 @@ and the core starts no programs.</p>
 <li><code>choractl run foot</code> starts foot in its own systemd scope, and the
    <code>surface.created</code> event of its window carries the activation token.</li>
 <li>Each error code of the API has a test that provokes it.</li>
-<li>The gate checks of 0.6 still hold, and the showroom CI is green
-   against the release candidate.</li>
+<li>The gate checks of the earlier milestones still hold, and the showroom CI
+   is green against the release candidate.</li>
 </ol>
 <h2 id="08-agent-read-model">0.8: Agent read model<a class="headerlink" href="#08-agent-read-model" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> an agent sees what the user sees, and it can ask the window
@@ -1346,7 +1359,6 @@ manager for changes.</p>
 <li><code>events.subscribe</code> starts with a snapshot of the state, and every event
   has a sequence number. An unknown event name is an error.</li>
 <li>Focus in queries, and a <code>focus.changed</code> event.</li>
-<li><code>surface.created</code> carries the pid and the activation token.</li>
 <li>Queries return the screen rectangle of a node on each output.
   <code>input.inject</code> takes a node and a point inside it.</li>
 <li>A client that does not own a node can request a change: focus, move,
@@ -1364,8 +1376,9 @@ manager for changes.</p>
 </ul>
 <p>Gate:</p>
 <ol>
-<li>An MCP client in CI asks for "focus the second terminal and move it to
-   the right". <code>chora-tiling</code> performs it, and a capture shows it.</li>
+<li>An MCP client in CI calls the tools to focus the second terminal and to
+   request a move to the right. <code>chora-tiling</code> performs both, and a capture
+   shows them.</li>
 <li>Under a camera with pan and zoom, a click on a node through the MCP
    tools hits that node in 20 of 20 tries.</li>
 <li><code>wait_events</code> returns while another tool call runs, and a cancelled
@@ -1376,8 +1389,11 @@ manager for changes.</p>
    sequence numbers.</li>
 <li>The tool list of <code>choractl mcp</code> matches the exported methods of the
    plugins after each <code>methods.export</code>.</li>
-<li>The gate checks of 0.6 and 0.7 still hold, and the showroom CI is
-   green against the release candidate.</li>
+<li>A capture shows the indicator while a client injects input.</li>
+<li>A test shows that the revoke binding removes the capabilities of all
+   agents.</li>
+<li>The gate checks of the earlier milestones still hold, and the showroom CI
+   is green against the release candidate.</li>
 </ol>
 <h2 id="09-renderer">0.9: Renderer<a class="headerlink" href="#09-renderer" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the core renders only what changed, draws the full 4x4 model,
@@ -1404,6 +1420,9 @@ and drives plugins with the frame clock (D17, D24).</p>
 <li>Image decode, shader compile and capture encode run on worker threads.</li>
 <li>The watchdog runs in its own thread with a heartbeat of the main loop
   (D23).</li>
+<li>Debug counters for rendered frames and texture allocations, readable
+  through the API.</li>
+<li>fd passing for images and captures over the IPC socket (D54).</li>
 <li>A measurement of the plugin round trip at 120 Hz decides on a private
   Wayland protocol for plugins (D54).</li>
 </ul>
@@ -1424,10 +1443,12 @@ and drives plugins with the frame clock (D17, D24).</p>
 <li>A main loop that blocks for 5 s triggers the watchdog. A test with a
    debug hook checks it.</li>
 <li>The wobbly windows, the magic lamp and the cube of the showroom run on
-   frame events at 60 Hz and 120 Hz in CI.</li>
+   frame events. At 60 Hz and at 120 Hz in CI, 99 percent of their frames
+   are on time over 30 s.</li>
 <li>The decision on the plugin protocol is in the decision log, with the
    measurement.</li>
-<li>The gate checks of 0.6 to 0.8 still hold.</li>
+<li>The gate checks of the earlier milestones still hold, and the showroom CI
+   is green against the release candidate.</li>
 </ol>
 <h2 id="010-daily-driver">0.10: Daily driver<a class="headerlink" href="#010-daily-driver" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the user works in chora every day on the reference hardware,
@@ -1436,7 +1457,7 @@ and installs it from a package repository.</p>
 <ul>
 <li>Packages through COPR with Packit and subpackages per plugin, and
   PKGBUILDs in the AUR (D49). The release keeps its assets.</li>
-<li>The secureblue image of <code>secureblue-images</code> installs chora from COPR.</li>
+<li>The image of <code>secureblue-images</code> installs chora from COPR.</li>
 <li>The session starts through uwsm (D50). A flavor is a systemd target.</li>
 <li>The tiling flavor: <code>chora-tiling</code> with waybar, fuzzel, mako, swaylock,
   swayidle and kanshi (D51).</li>
@@ -1449,18 +1470,23 @@ and installs it from a package repository.</p>
 </ul>
 <p>Gate:</p>
 <ol>
-<li><code>dnf upgrade</code> on the secureblue image updates chora from COPR, and the
-   login screen offers the session.</li>
+<li>The secureblue image builds with chora from COPR. <code>rpm-ostree upgrade</code>
+   on the reference hardware updates chora, and the login screen offers the
+   session.</li>
 <li>The user works 10 working days in a row only in chora on the reference
    hardware. <code>coredumpctl list chora</code> shows no entry, and the log shows no
    emergency reset that the user did not start.</li>
 <li>A checklist on the reference hardware passes, with the log of each
-   step: an external monitor plugged in and out 10 times, suspend and
-   resume 10 times, lid close and open, VT switch, lock and unlock, a
-   screen share in a browser, an X11 app.</li>
+   step. An external monitor goes in and out 10 times, and the laptop
+   suspends and resumes 10 times. The user closes and opens the lid,
+   switches the VT, and locks and unlocks the session. A screen share in a
+   browser and an X11 app work.</li>
 <li>The <code>vkms</code> job covers hotplug of a second output.</li>
-<li>The gate checks of 0.6 to 0.9 still hold, and the showroom CI is green
-   against the release candidate.</li>
+<li>The AUR packages build in CI.</li>
+<li>A view sets tap and key repeat, and a test shows that the core applies
+   them.</li>
+<li>The gate checks of the earlier milestones still hold, and the showroom CI
+   is green against the release candidate.</li>
 </ol>
 <h2 id="10-stable-api">1.0: Stable API<a class="headerlink" href="#10-stable-api" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the API is version 1 and stays compatible until 2.0.</p>
@@ -1480,13 +1506,17 @@ and installs it from a package repository.</p>
 <li>The user works 30 days with the release candidate as the daily
    session. <code>coredumpctl list chora</code> shows no entry.</li>
 <li>No open issue has the label <code>severity:high</code>.</li>
-<li>The last review round finds nothing that matters.</li>
+<li>The last review round leaves no open finding of high or medium
+   severity.</li>
 <li>The schema job and the documentation test are green.</li>
-<li>The gate checks of 0.6 to 0.10 still hold.</li>
+<li>Every plugin repository of the organization pins protocol version 1,
+   and a CI job checks it.</li>
+<li>The gate checks of the earlier milestones still hold, and the showroom CI
+   is green against the release candidate.</li>
 </ol>
 <h2 id="track-xp-showroom">Track: XP showroom<a class="headerlink" href="#track-xp-showroom" title="Permanent link">&para;</a></h2>
-<p>The showroom lives in <code>chora/chora-xp</code> and grows in parallel (D39). It
-shows the effects of the scene and serves as their test.</p>
+<p>The showroom moves to <code>chora/chora-xp</code> in milestone 0.6 and grows in
+parallel (D39). It shows the effects of the scene and serves as their test.</p>
 <ul>
 <li>Each core milestone ends with a showroom release that uses its API. The
   core gate checks that the showroom CI is green against the release
@@ -1495,9 +1525,9 @@ shows the effects of the scene and serves as their test.</p>
   effect gets a pixel test in <code>tests/xp.sh</code>.</li>
 </ul>
 <h2 id="track-voice-pipeline">Track: voice pipeline<a class="headerlink" href="#track-voice-pipeline" title="Permanent link">&para;</a></h2>
-<p>The voice pipeline lives in <code>chora/chora-voice</code> and starts now (D53). It
-runs as Quadlet units on the reference hardware: speech to text, a
-router model, a main model and text to speech, served by
+<p>The voice pipeline lives in <code>chora/chora-voice</code> and starts with milestone
+0.6 (D53). It runs as Quadlet units on the reference hardware: speech to
+text, a router model, a main model and text to speech, served by
 <a href="https://github.com/gufo-org/gufo">Gufo</a>.</p>
 <table>
 <thead>

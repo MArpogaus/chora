@@ -864,7 +864,7 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Scene</strong></td>
-<td>The tree of nodes that the core renders every frame. It is the single source of truth for the screen content.</td>
+<td>The tree of nodes that the core renders. It is the single source of truth for the screen content.</td>
 </tr>
 <tr>
 <td><strong>Node</strong></td>
@@ -960,7 +960,7 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Capability</strong></td>
-<td>A right of a client beyond the scene API, for example <code>input.inject</code>, <code>screen.capture</code> or <code>input.grab-any</code>. Only the user gives it (D33, D40).</td>
+<td>A right of a client beyond the scene API: <code>input.inject</code>, <code>screen.capture</code> or <code>process.spawn</code>. The user grants it per client name with <code>choractl grant</code>. Client sockets fix it from milestone 0.7 (D33).</td>
 </tr>
 <tr>
 <td><strong>Grant</strong></td>
@@ -972,7 +972,7 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Gate</strong></td>
-<td>The checks that a milestone must pass before the next one starts: CI jobs and steps on the reference hardware with a log (D46).</td>
+<td>The checks that end a milestone; see <a href="../roadmap/">Roadmap</a>.</td>
 </tr>
 <tr>
 <td><strong>Safety layer</strong></td>

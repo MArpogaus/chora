@@ -1820,8 +1820,8 @@ caller. The <code>Client</code> of <code>chora-scene</code> answers with <code>C
 <tbody>
 <tr>
 <td><code>set_layout</code></td>
-<td><code>layout</code>: <code>master_stack</code>, <code>columns</code> or <code>rows</code>; <code>gap</code> in logical pixels; a missing field keeps its value</td>
-<td>the layout, the gap and the tiled windows</td>
+<td><code>layout</code> of the current tag: <code>tile</code>, <code>tile_left</code>, <code>tile_bottom</code>, <code>tile_top</code>, <code>fair</code>, <code>fair_horizontal</code>, <code>spiral</code>, <code>dwindle</code>, <code>max</code>, <code>fullscreen</code>, <code>magnifier</code> or <code>floating</code>; <code>gap</code> in logical pixels; a missing field keeps its value</td>
+<td>the layout, the gap, <code>master_width</code>, <code>masters</code> and <code>columns</code> of the current tag, and the windows that show on the current output</td>
 </tr>
 <tr>
 <td><code>get_layout</code></td>
