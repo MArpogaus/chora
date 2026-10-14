@@ -142,8 +142,6 @@ impl Ipc {
         self.path.as_deref()
     }
 
-    /// The processes of the connections of a client name, each once; `None`
-    /// for a process that the core cannot see.
     /// The connections of a client name and a process that reached the end
     /// of their streams and only wait for answers.
     pub fn ended(&self, name: &str, pid: Pid) -> Vec<u64> {
@@ -155,6 +153,8 @@ impl Ipc {
             .collect()
     }
 
+    /// The processes of the connections of a client name, each once; `None`
+    /// for a process that the core cannot see.
     pub fn peer_pids(&self, name: &str) -> Vec<Option<Pid>> {
         let mut pids = Vec::new();
         for conn in self.conns.values() {

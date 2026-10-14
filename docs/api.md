@@ -286,10 +286,11 @@ in another namespace too. The answer has the `pid` and the `argv`.
 `plugins.restart(name)` restarts a plugin, for example after a rebuild.
 The core finds the process of the connections of the client name,
 reads its command line and working directory from `/proc`, and sends it
-SIGTERM. Once it exited, the core closes its connections that only wait
-for answers, as these reach nobody. Once no connection of the name is
-left, or 5 s after a SIGKILL, the core starts the same command again and
-answers with the new `pid`. A name with several
+SIGTERM, and a SIGKILL 5 s later. Once it exited, the core closes its
+connections that only wait for answers, as these reach nobody. Once no
+connection of the name is left, the core starts the same command again
+and answers with the new `pid`. When that takes more than 6 s, the restart
+fails. A name with several
 processes, or a process in a namespace that the core cannot see, fails.
 
 With `capture: true`, `process.spawn` keeps stdout and stderr of the
