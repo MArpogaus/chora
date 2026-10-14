@@ -1,237 +1,323 @@
 # Roadmap
 
-Each milestone has a goal, a scope and an exit criterion. A milestone is done
-when its exit criterion holds. After M4 the core is feature complete, and
-testing starts (D3). M5 and M6 build on the core.
+The path from the current state to chora 1.0. Version 1.0 is a daily driver
+with a stable, versioned API (D52).
 
-## M0: Workspace and tooling
+## Rules
 
-**Goal:** the first line of Rust meets all guards, and a tag produces a
-package.
+- Each milestone is a minor release: 0.6, 0.7 and so on.
+- Each milestone has a goal, a scope, an estimate and a **gate**.
+- The gate is a list of checks. A check is a CI job or a step on the
+  reference hardware with a log as evidence (D46).
+- A milestone is done when every check of its gate holds. The next
+  milestone of the core starts only then.
+- Each milestone has a gate issue on GitHub with the checks as a task
+  list. Each ticked check links to its CI run or log. The release of the
+  milestone closes the issue.
+- Two tracks run in parallel to the core: the XP showroom and the voice
+  pipeline. They have their own milestones. They never block the core.
 
-- Cargo workspace with `chora-scene`, `chora`, `choractl` and the reference
-  plugins in `plugins/` (D36).
-- Workspace lints: clippy `pedantic`, `cognitive_complexity` and
-  `excessive_nesting`; `unsafe_code` denied. `clippy.toml` sets the limits.
-- CI: build and `cargo test` in a Fedora 44 container; `cargo-deny` for the
-  licenses and advisories of the dependencies.
-- A pre-commit hook that rejects files with a GPL-3.0-only header (D8).
-- Dependabot for Cargo.
-- commitizen for version bumps and the changelog.
-- A release workflow: a `v*` tag builds the RPM in Fedora 44 and attaches it
-  with its SHA256 sum to a GitHub pre-release (D14).
+## Current state
 
-**Exit:** CI is green. The RPM of a test build installs in a Fedora 44
-container, and `chora --version` runs there.
+- The core runs nested and as a login session. It has no long run on real
+  hardware.
+- The scene has five node kinds, 4x4 transforms, cameras, overlay roots,
+  meshes, effects and animations.
+- The API covers scene changes, events, grabs, plugin methods, captures,
+  input injection, grants, programs, assets and output configuration.
+- `choractl` loads views and serves MCP.
+- `chora-tiling` and the XP showroom are plugins in this repository.
+- Pixel tests in a headless sway check the behavior. The core itself has
+  no in-process tests for IPC, transactions, input and the backends.
 
-## M1: Nested proof of concept
+## Estimates
 
-**Goal:** the smallest proof of the concept, inside an existing session.
+The estimates count the lines of Rust that a milestone adds or changes,
+the hours of agent work, the hours of hands-on work of the user, and the
+calendar time with the gate. Agent hours include the tests and the review
+rounds.
 
-- winit backend on a pinned Smithay revision (D16).
-- Protocols: `xdg-shell` with popups, subsurfaces, `xdg-decoration`,
-  `linux-dmabuf`, `viewporter`, `xdg-output`, data device and
-  `primary-selection`.
-- Scene with group, surface and rect nodes, 2D transforms (D18, D19).
-- Transactions that wait for client commits (D22).
-- IPC socket (D29) with `hello`, `scene.query`, `scene.apply`,
-  `events.subscribe`, `input.grab` and `output.list`.
-- Ownership (D31).
-- The startup command (D30).
-- Safety layer: quit and emergency reset (D23).
-- `choractl` with `query`, `apply`, `events` and `outputs`.
-- `chora-tiling`: a reference plugin with a master and stack layout and
-  keybindings to start a terminal, close a window and move the focus.
+The basis is this repository: about 26,000 lines of Rust in 54 hours of
+calendar time. A rework of existing code costs more than new code, so the
+estimates assume 150 to 250 lines per agent hour.
 
-**Exit:** an automated test in a headless sway passes:
+The user uses chora as the daily session from milestone 0.10. The
+gates of 0.10 and 1.0 measure that use, so they set the calendar time.
 
-1. `chora -- chora-tiling` starts nested.
-2. Three foot windows appear without overlap. `scene.query` and a screenshot
-   confirm the layout.
-3. After `kill` of `chora-tiling`, `chora` still runs, and the three surfaces
-   are detached.
-4. The emergency reset puts the three surfaces in the grid. The test sends
-   SIGUSR1, because synthetic keys do not reach a nested compositor.
+| Milestone | Rust lines | Agent hours | User hours | Calendar |
+|-----------|-----------:|------------:|-----------:|---------:|
+| 0.6 Foundation | 2,500 | 14 to 18 | 3 | 1 week |
+| 0.7 Identity and processes | 3,000 | 16 to 20 | 3 | 1 to 2 weeks |
+| 0.8 Agent read model | 4,000 | 20 to 26 | 3 | 2 weeks |
+| 0.9 Renderer | 7,000 | 40 to 50 | 6 | 3 weeks |
+| 0.10 Daily driver | 2,500 | 20 to 30 | 8 plus daily use | 3 weeks |
+| 1.0 Stable API | 1,500 | 12 to 16 | 4 plus daily use | 5 to 6 weeks |
+| **Total** | **20,500** | **122 to 160** | **27** | **15 to 17 weeks** |
 
-The test, `tests/nested.sh`, also checks fixed regressions.
+The renderer has the largest risk. A fault on real hardware in 0.10 can
+add one to two weeks.
 
-## M2: Session on real hardware
+## 0.6: Foundation
 
-**Goal:** chora runs as a login session on AMD and Intel (D11).
+**Goal:** the project works in the GitHub organization `chora` with gates,
+and the core can be tested in process.
 
-- udev, DRM/KMS, libinput and libseat backends; the VT switch bindings.
-- Several outputs, cameras (D20) and the `camera` command;
-  `wlr-output-management` (D27).
-- Commit blockers, as in niri and Pinnacle, so that the new buffers of a
-  transaction appear in the same frame.
-- Protocols: `cursor-shape`, `presentation-time`, `wlr-layer-shell`,
-  `ext-session-lock`, `ext-idle-notify`,
-  `idle-inhibit`, `text-input`, `input-method`, `pointer-constraints`,
-  `relative-pointer`, `ext-foreign-toplevel-list`,
-  `wlr-foreign-toplevel-management`, `xdg-activation`, `fractional-scale`.
-- `xwayland-satellite` (D26).
-- `chora.desktop`, `chora-flavor` and a tiling flavor with a systemd target.
+Scope:
 
-**Exit:**
+- The organization `chora` with the repositories of D36. The plugins move
+  to repositories of their own. They depend on `chora-scene` through a git
+  tag of the core.
+- The git flow of D47 in every repository: a protected `main`, releases
+  from a merge commit and an annotated tag.
+- The release workflow starts from a tag and needs a green CI run of the
+  same commit.
+- A pinned Rust toolchain in `rust-toolchain.toml`, a job for the minimum
+  Rust version, and container images pinned by digest.
+- The core as a library and a binary (D48). IPC dispatch, the transaction
+  queue, focus and grants run in unit tests with a fake clock.
+- A headless test backend that renders with pixman in process, for pixel
+  tests in Rust.
+- A smoke test in a VM with `vkms` in CI: chora starts on the tty backend,
+  shows a foot window, and a capture shows its pixels (D11).
+- The website repository builds the user documentation. The reference
+  documentation stays with the code of the core.
 
-1. Automated, nested: waybar, fuzzel and swaylock work.
-2. On the hardware of the author: a tiling session with bar and launcher runs
-   for 8 hours on an AMD and on an Intel machine, without a crash or a
-   restart of the core.
+Gate:
 
-## M3: Effects and the XP showroom
+1. Every repository of D36 exists, and `main` accepts pull requests only.
+2. A test release `v0.6.0-rc.1` comes from a tag on a merge commit. A
+   tag on a commit with red CI starts no release.
+3. `cargo test` runs at least 40 unit tests of the core crate for IPC,
+   transactions, focus and grants, without a compositor.
+4. One pixel test runs in process on the pixman backend.
+5. The `vkms` job is green in 10 runs in a row.
+6. `chora-tiling` and `chora-xp` build and pass their tests in their own
+   repositories against the tag of the core.
+7. `tests/nested.sh`, `tests/agent.sh` and `tests/xp.sh` are green in CI.
 
-**Goal:** the game-engine half of the idea, shown in a flavor in the style of
-Windows XP (D39). The flavor is a demo, not a daily driver.
+## 0.7: Identity and processes
 
-- Image nodes for assets, and shader nodes, effects and shaders that read
-  nodes as textures (D18).
-- Rendering of a node into a texture, and a mesh that deforms that texture.
-  Wobbly windows and the magic lamp minimize use the mesh.
-- Perspective for the 4x4 transforms, for a 3D desktop cube with flying
-  windows. Layers have no depth test: the order of the siblings decides
-  what is in front.
-- The `animate` command (D28).
-- GLSL hot reload; compile errors as `transaction.rejected`.
-- Damage tracking for static and animated shaders, direct scanout (D24).
-- The watchdog of the safety layer.
-- A measurement of the IPC round trip for effects in every frame. The result
-  decides on in-process WASM plugins (D28).
-- An XP flavor: a stacking window manager with title bars, a taskbar and a
-  start menu, with the assets of `kde-plasma-winxp-launcher`.
+**Goal:** a client cannot take another name or give itself capabilities,
+and the core starts no programs.
 
-**Exit:**
+Scope:
 
-1. Automated, nested: the XP flavor starts. A screenshot shows the taskbar,
-   the start button and two windows with title bars. A drag of a window
-   deforms its mesh. A minimize runs the magic lamp. A key binding turns
-   the desktop cube with four desktops.
-2. On the Intel machine at 60 Hz, four windows with blur and rounded
-   corners and a 300 ms transition: `presentation-time` shows at least 99
-   percent of the frames on time over 60 seconds.
+- One socket directory per client: `$XDG_RUNTIME_DIR/chora/clients/NAME/`
+  with `ipc.sock` and a Wayland socket of `wp-security-context-v1` (D33,
+  D40). The socket fixes the name and the capabilities of its clients.
+- An admin socket for `choractl` only. `grants.set` and the reset work
+  through it alone.
+- `choractl clients up` creates the sockets from
+  `~/.config/chora/clients.yaml`. The emergency reset removes the client
+  sockets.
+- A versioned `hello` with the protocol version and the features of both
+  sides (D29).
+- Structured errors: a stable code for each kind of failure, and `data`
+  with the index of the failed command.
+- The capability `input.grab-any` allows grabs without Ctrl, Alt or Super
+  (D45).
+- `process.spawn`, `process.wait` and `plugins.restart` leave the core
+  (D42). `choractl run` starts a program through `systemd-run --user` with
+  an activation token. `systemctl --user restart` restarts a plugin.
+  journald keeps the output.
 
-## M4: Agent interface
+Gate:
 
-**Goal:** an agent sees and changes the screen.
+1. A Podman container that mounts only `clients/agent/` queries the scene
+   and draws a node. Its `grants.set` and its `hello` with another name
+   fail. A CI job checks this.
+2. A Quadlet unit from `dist/` connects through its client directory
+   after a restart of chora, without a change to the unit.
+3. A client with `input.grab-any` grabs F13 and a letter key. A client
+   without it gets the error code for a missing capability.
+4. The core has no code that forks a process except the startup command.
+5. `choractl run foot` starts foot in its own systemd scope, and the
+   `surface.created` event of its window carries the activation token.
+6. Each error code of the API has a test that provokes it.
+7. The gate checks of 0.6 still hold, and the showroom CI is green
+   against the release candidate.
 
-- Grants for `input.inject` and `screen.capture` (D33, D40).
-- `ext-image-copy-capture` and `wlr-screencopy`; `xdg-desktop-portal-wlr`
-  for screen sharing (D37).
-- Plugin methods: `methods.export` and `methods.call` (D31).
-- `choractl view load` and `choractl view save` with YAML views (D35).
-- `choractl mcp` over stdio, with tools for whole tasks (D34).
-- `wp-security-context-v1`.
+## 0.8: Agent read model
 
-**Exit:** an automated test passes: an MCP client asks for "describe the
-screen", calls `tiling.set_layout`, and the next screenshot shows the new
-layout. The last step of `tests/agent.sh` checks it with
-`tests/mcp-client.py` in CI.
+**Goal:** an agent sees what the user sees, and it can ask the window
+manager for changes.
 
-## M4.1: Agent feedback
+Scope:
 
-**Goal:** an agent builds an interactive view in a few calls, from the
-feedback of the first real MCP sessions (issues #3 to #10).
+- JSON filters replace the selector strings (D32). They can match focus
+  and visibility.
+- `events.subscribe` starts with a snapshot of the state, and every event
+  has a sequence number. An unknown event name is an error.
+- Focus in queries, and a `focus.changed` event.
+- `surface.created` carries the pid and the activation token.
+- Queries return the screen rectangle of a node on each output.
+  `input.inject` takes a node and a point inside it.
+- A client that does not own a node can request a change: focus, move,
+  resize or close. The core sends the request to the owner as an event,
+  and the owner decides (D31). `chora-tiling` handles the requests.
+- Plugin methods carry a description and a JSON schema. `choractl mcp`
+  makes one tool from each method (D34).
+- `choractl mcp` uses rmcp, answers requests in parallel and supports
+  cancellation.
+- Text injection types every character of the text, also characters that
+  the current keymap does not have, for example German umlauts on a US
+  layout.
+- A visible indicator while a client injects input, and a binding of the
+  safety layer that revokes the capabilities of all agents (D23).
 
-- Docs and code agree (#3): `clip` on all nodes, `radius` and `border` on
-  rects, and the `shader` node kind with a uniform that names a node as
-  texture (D18). A test parses every example of `docs/api.md`.
-- A camera takes a uniform scale of the short form (#4), and animates in
-  the core with `duration` and `easing` (#10).
-- `choractl mcp`: item schemas for `apply_commands` and `inject_input`
-  from the types of `chora-scene` (#5), and tools to subscribe to and wait
-  for events (#7).
-- `assets.put` stores an image or a shader of a client in another
-  namespace in a directory of the core, removed with the nodes of the
-  client (#6).
-- `output.reserve` reduces the work area for the life of a connection
-  (#8); the `reserve` of `chora-tiling` goes.
-- `process.spawn` starts a program with the environment of the startup
-  command, behind its own grant (D42), and `plugins.restart` restarts a
-  plugin of a view (#9).
-- Option: harden the grant with an allowlist, for example regular
-  expressions over the argv. `choractl grant` reads the list from a file in
-  `~/.config/chora/` and hands it to the core with the grant, since the
-  core reads no configuration (D35); the core then refuses every other
-  program.
+Gate:
 
-**Exit:** an automated test passes: an MCP client uploads a shader,
-reserves a panel at the edge of the output, draws it as a rounded shader
-node with two buttons, and moves the camera with an animation when the
-user clicks a button, which the client learns from `wait_events`. The last
-step of `tests/agent.sh` checks it with `tests/mcp-client.py panel` in CI.
-The allowlist of the grant `process.spawn` stays an option.
+1. An MCP client in CI asks for "focus the second terminal and move it to
+   the right". `chora-tiling` performs it, and a capture shows it.
+2. Under a camera with pan and zoom, a click on a node through the MCP
+   tools hits that node in 20 of 20 tries.
+3. `wait_events` returns while another tool call runs, and a cancelled
+   call ends within 100 ms.
+4. Injected text `Grüße äöüß` appears unchanged in foot on a US layout.
+5. A subscription that starts during a transaction misses no event and
+   sees no event twice: a test with 1,000 transactions checks the
+   sequence numbers.
+6. The tool list of `choractl mcp` matches the exported methods of the
+   plugins after each `methods.export`.
+7. The gate checks of 0.6 and 0.7 still hold, and the showroom CI is
+   green against the release candidate.
 
-## M4.2: Test round
+## 0.9: Renderer
 
-**Goal:** the API covers what the first test round on real hardware
-missed (issues #12 to #27), without new policy in the core.
+**Goal:** the core renders only what changed, draws the full 4x4 model,
+and drives plugins with the frame clock (D17, D24).
 
-- Grabs: `input.ungrab(binding)`, and `input.key` tells the release of a
-  grabbed key with its state (#18, D45).
-- One overlay root per output, `screen:NAME`, for nodes fixed to the
-  screen (#19, D43).
-- `process.spawn` with `capture`: the core keeps stdout, stderr and the
-  exit status, at most 64 KiB, and `process.wait(pid, timeout)` returns
-  them (#22).
-- `output.configure` for scale and transform (#22, D44).
-- Meshes: an optional `depth` per point, which the transform projects, so
-  the texture maps perspective-correct, and a point behind the eye drops
-  only its triangles, not the layer (#25, #26).
-- Nested, the keymap of the host session: a second Wayland connection to
-  the host reads its `wl_keyboard.keymap`; `XKB_DEFAULT_LAYOUT` still wins
-  (#12).
-- #14 waits for a `WAYLAND_DEBUG=1` log of foot.
+Scope:
 
-**Exit:** `tests/agent.sh` and `tests/nested.sh` check each item, and an
-MCP client runs a probe with `capture`, reads its output, sets the scale
-of the output, and draws a HUD under `screen:NAME` that stays in place
-during an animated camera move. The last step of `tests/agent.sh` checks it
-with `tests/mcp-client.py hud` in CI. #14 still waits for a log.
+- A retained scene: each node keeps its world transform, its bounds and
+  its render resources. Integer handles replace string keys inside the
+  renderer.
+- A scene renderer of chora on GLES 3. It draws each node as a quad with
+  its full matrix. Rounded corners, borders and clips come from signed
+  distance fields in the same pass.
+- A layer renders offscreen only for group opacity, effects or an explicit
+  `cache`. A layer keeps its texture until its subtree changes. Textures
+  have mipmaps, and their resolution follows the size on screen.
+- A redraw state machine per output. Without damage, the output renders
+  nothing and the loop sleeps. A fullscreen surface without effects goes
+  to direct scanout.
+- Frame events with the predicted presentation time for subscribed
+  plugins (D28). Animations run on the same clock. They interpolate
+  translation, rotation and scale apart, run per property, and support
+  springs.
+- Transactions on disjoint surfaces do not wait for each other (D22).
+- Image decode, shader compile and capture encode run on worker threads.
+- The watchdog runs in its own thread with a heartbeat of the main loop
+  (D23).
+- A measurement of the plugin round trip at 120 Hz decides on a private
+  Wayland protocol for plugins (D54).
 
-## M5: Packaging
+Gate:
 
-**Goal:** chora installs like every other desktop on the host.
+1. A static scene with rounded windows, a clipped group and a blurred
+   panel renders 0 frames in 10 s of idle time. A counter of the core
+   shows it, in CI and on the reference hardware.
+2. On the reference hardware at the refresh rate of the internal panel:
+   four windows with blur and rounded corners and a 300 ms transition.
+   `presentation-time` shows 99 percent of the frames on time over 60 s.
+3. A node with rotation and no size renders. A camera with zoom 2 keeps
+   text sharp: a pixel test against a reference capture passes.
+4. A size animation of a layer over 2 s allocates no new texture after the
+   first frame. A counter of the texture pool shows it.
+5. A client that delays its commit for 150 ms delays no transaction of
+   another client. A unit test checks it.
+6. A main loop that blocks for 5 s triggers the watchdog. A test with a
+   debug hook checks it.
+7. The wobbly windows, the magic lamp and the cube of the showroom run on
+   frame events at 60 Hz and 120 Hz in CI.
+8. The decision on the plugin protocol is in the decision log, with the
+   measurement.
+9. The gate checks of 0.6 to 0.8 still hold.
 
-- A derived secureblue image with the chora package (D10, D14).
-- The tiling flavor in the image, and a classic flavor.
-- Services as Quadlet units (D12).
+## 0.10: Daily driver
 
-**Exit:** after an image update, the login screen offers chora. The tiling
-flavor starts, and one Quadlet service connects to the IPC socket.
+**Goal:** the user works in chora every day on the reference hardware,
+and installs it from a package repository.
 
-## M6: Agentic flavor
+Scope:
 
-**Goal:** the agentic workday scenario works end to end.
+- Packages through COPR with Packit and subpackages per plugin, and
+  PKGBUILDs in the AUR (D49). The release keeps its assets.
+- The secureblue image of `secureblue-images` installs chora from COPR.
+- The session starts through uwsm (D50). A flavor is a systemd target.
+- The tiling flavor: `chora-tiling` with waybar, fuzzel, mako, swaylock,
+  swayidle and kanshi (D51).
+- Input device settings through the API: tap, acceleration, natural
+  scroll, key repeat. A view sets them, so the core reads no file (D35).
+- Output hotplug, suspend and resume, lid switch, and the VT switch on the
+  reference hardware.
+- Screen sharing through `xdg-desktop-portal-wlr`, and X11 apps through
+  `xwayland-satellite`.
 
-- A local voice pipeline on AMD Strix Halo, for example the HP ZBook Ultra
-  G1a with 128 GB. [Gufo](https://github.com/gufo-org/gufo) serves the
-  models over an OpenAI-compatible API, one model per process, and runs as
-  Quadlet units (D12):
-  - Qwen3-ASR 1.7B for speech to text, streamed over a WebSocket.
-  - Qwen3-TTS 1.7B for text to speech, streamed as PCM. German is still
-    to check.
-  - Qwen3.8 Flash-Next as the main model, for tasks that need reasoning.
-  - A small model, for example a Qwen with 1.7B to 4B parameters, in
-    llama.cpp with Vulkan. It routes each turn, answers short commands
-    with the tools of `choractl mcp` itself, and gives a first answer
-    while the main model works. With Vulkan it takes none of the four
-    HIP processes that a GPU allows.
-- A voice agent on the CPU: voice activity detection, turns, sentence
-  chunks for the TTS, and barge-in, which stops the audio and cancels the
-  model request. Pipecat for a first prototype; a Rust service later, if
-  the prototype holds. The goal is about one second from the end of the
-  speech to the first audio.
-- A browser in app mode as service for HTML content (D38).
-- A morning view and task views.
-- Task and email sources are MCP servers of the agent, outside chora.
+Gate:
 
-**Exit:** the user says "show my tasks for today", and the agent opens a
-morning view with the tasks from an MCP source. Then the user says "open a
-view for the first task", and the agent opens a view with at least two
-surfaces.
+1. `dnf upgrade` on the secureblue image updates chora from COPR, and the
+   login screen offers the session.
+2. The user works 10 working days in a row only in chora on the reference
+   hardware. `coredumpctl list chora` shows no entry, and the log shows no
+   emergency reset that the user did not start.
+3. A checklist on the reference hardware passes, with the log of each
+   step: an external monitor plugged in and out 10 times, suspend and
+   resume 10 times, lid close and open, VT switch, lock and unlock, a
+   screen share in a browser, an X11 app.
+4. The `vkms` job covers hotplug of a second output.
+5. The gate checks of 0.6 to 0.9 still hold, and the showroom CI is green
+   against the release candidate.
 
-## After M6
+## 1.0: Stable API
 
-- Conformance tests with wlcs, as Pinnacle does.
-- Hardening and testing on the daily system.
+**Goal:** the API is version 1 and stays compatible until 2.0.
+
+Scope:
+
+- The protocol version 1: a JSON schema of all methods, events and errors
+  in the repository, generated from `chora-scene`. A CI job fails on a
+  change of the schema without a change of the protocol version.
+- The reference documentation comes from the schema. A test checks every
+  example of the documentation against it.
+- A final review loop over the whole code base until a round finds
+  nothing that matters (D47).
+- All plugins of the organization use the protocol version 1.
+
+Gate:
+
+1. The user works 30 days with the release candidate as the daily
+   session. `coredumpctl list chora` shows no entry.
+2. No open issue has the label `severity:high`.
+3. The last review round finds nothing that matters.
+4. The schema job and the documentation test are green.
+5. The gate checks of 0.6 to 0.10 still hold.
+
+## Track: XP showroom
+
+The showroom lives in `chora/chora-xp` and grows in parallel (D39). It
+shows the effects of the scene and serves as their test.
+
+- Each core milestone ends with a showroom release that uses its API. The
+  core gate checks that the showroom CI is green against the release
+  candidate.
+- Scope and order of new effects are the decision of the user. Each new
+  effect gets a pixel test in `tests/xp.sh`.
+
+## Track: voice pipeline
+
+The voice pipeline lives in `chora/chora-voice` and starts now (D53). It
+runs as Quadlet units on the reference hardware: speech to text, a
+router model, a main model and text to speech, served by
+[Gufo](https://github.com/gufo-org/gufo).
+
+| Milestone | Goal | Gate | Needs from the core |
+|-----------|------|------|---------------------|
+| V1 Pipeline | speech in, an answer as speech out, with barge-in | median 1.0 s or less from the end of speech to the first audio, over 20 German utterances | nothing |
+| V2 Control | the voice agent drives chora through MCP | "move the terminal to the right" works in 18 of 20 tries | 0.7 (push-to-talk with `input.grab-any`), 0.8 (read model, text injection) |
+| V3 Views | a morning view and task views | "show my tasks for today" opens a view with the tasks of an MCP source; "open a view for the first task" opens a view with two surfaces | 0.8 |
+
+## After 1.0
+
+- Conformance tests with wlcs.
 - Items from the [Idea backlog](ideas.md).
