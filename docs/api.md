@@ -1,9 +1,9 @@
 # API
 
-!!! note "Draft"
-    A first sketch of the one API of chora. Names and shapes will change. The
-    principle stays: plugins, `choractl` and agents use one language of
-    commands and events.
+!!! note "Before 1.0"
+    The API changes without notice before 1.0 (D3). The
+    [Roadmap](roadmap.md) lists the planned changes. Plugins, `choractl` and
+    agents use one language of commands and events.
 
 ## Model
 
@@ -85,8 +85,8 @@ of a mesh of the same grid, for example for a magic lamp minimize.
 
 With `depth`, a grid bends into 3D, for example a strip on a ring around
 the viewer, and a perspective transform projects it. The texture maps
-perspective-correct (#26). A triangle with a point behind the viewer does
-not show; the rest of the mesh does (#25).
+perspective-correct. A triangle with a point behind the viewer does
+not show; the rest of the mesh does.
 
 An effect is a GLSL ES fragment shader with absolute path. It reads the
 layer in `uniform sampler2D tex` at `varying vec2 v_uv`, and may use
@@ -101,7 +101,7 @@ Two hints for shaders. With `precision mediump float`, the common hash
 `fract(sin(dot(p, …)) * 43758.5)` loses its digits and gives garbage;
 noise and hashes need `precision highp float`. `fwidth`, `dFdx` and `dFdy`
 need `GL_OES_standard_derivatives`, which the core enables for a shader
-that uses them (#16).
+that uses them.
 
 The core loads the file of an image when a transaction names it. A file
 that does not load, that is larger than 32 MiB or larger than 8192 pixels
@@ -109,7 +109,7 @@ on a side rejects the transaction. A plugin in a container shares its
 asset directory with the core, as it shares the socket directory.
 
 A client that shares no directory with the core, for example an agent in
-another container, hands its files to the core with `assets.put` (#6). The
+another container, hands its files to the core with `assets.put`. The
 core stores them in `$XDG_RUNTIME_DIR/chora/` and answers with the absolute
 path for `image`, `shader` and effects. A file has at most 512 KiB, a
 client at most 64 files, all clients together at most 64 MiB. A client
@@ -149,7 +149,7 @@ fades the node out and then hides it. The duration is in milliseconds, at
 most one minute. A later `animate` or `update` of the node ends the
 animation where it is. The end sends `animation.done`.
 
-A camera moves the same way, with `duration` and `easing` (#10). It starts
+A camera moves the same way, with `duration` and `easing`. It starts
 where the camera is now, also in the middle of another move, and the end
 sends `animation.done` with the output and then `output.changed`:
 
@@ -239,7 +239,7 @@ different value. For example, `choractl --name tiling` fails while the tiling
 plugin runs.
 
 A reserve of `output.reserve` belongs to a connection and ends with it,
-also when its client crashes (#8). The reserves of all connections on an
+also when its client crashes. The reserves of all connections on an
 output add up, and count from the edges of the area that the exclusive
 zones of layer surfaces leave free. At least one pixel of the work area
 stays. `choractl reserve --top 30` holds a reserve until it ends.
@@ -260,7 +260,8 @@ the core sends `output.changed`. For an output that turns off, it sends
 
 `input.inject` and `screen.capture` see or drive the whole session, and
 `process.spawn` runs any program as the user, so they need a grant of the
-user for the client name (D40, D42):
+user for the client name. Milestone 0.7 replaces the grants with the
+capabilities of client sockets (D33, D40):
 
 ```console
 $ choractl grant agent screen.capture input.inject
@@ -282,25 +283,24 @@ compositor, without the variables of a host session, and with no stdin.
 The core looks the program up in its own `PATH`, so it works for an agent
 in another namespace too. The answer has the `pid` and the `argv`.
 
-`plugins.restart(name)` restarts a plugin, for example after a rebuild
-(#9). The core finds the process of the connections of the client name,
+`plugins.restart(name)` restarts a plugin, for example after a rebuild.
+The core finds the process of the connections of the client name,
 reads its command line and working directory from `/proc`, and sends it
 SIGTERM. Once it exited, or 5 s after a SIGKILL, the core starts the same
 command again and answers with the new `pid`. A name with several
 processes, or a process in a namespace that the core cannot see, fails.
 
 With `capture: true`, `process.spawn` keeps stdout and stderr of the
-program, up to 64 KiB each, for the client that started it (#22).
+program, up to 64 KiB each, for the client that started it.
 `process.wait(pid, timeout_ms)` waits until the program ends or the time
 is up, and answers with `pid`, `running`, `stdout`, `stderr`, `truncated`
 for output that went beyond 64 KiB, and, once the program ended, `status`:
 its exit code, or 128 and the signal. 100 ms after the end of the
 program, the core closes its pipes, also when a child in the background
-still holds them. The first
-answer after the end is the last one; then the core forgets the program.
-At most 32 programs of a client wait for `process.wait`. Their output goes when the last connection of the
-client name closes, so `choractl spawn --capture` waits on its own
-connection.
+still holds them. The first answer after the end is the last one; then
+the core forgets the program. At most 32 programs of a client wait for
+`process.wait`. Their output goes when the last connection of the client
+name closes, so `choractl spawn --capture` waits on its own connection.
 
 Both methods need the grant `process.spawn`, and fail while the session is
 locked:
@@ -313,8 +313,8 @@ $ choractl --name agent spawn --capture -- uname -s
 $ choractl --name agent restart tiling
 ```
 
-A later version may narrow the grant with a list of allowed programs, which
-`choractl grant` reads from a file (D42).
+Milestone 0.7 moves the start of programs from the core to `choractl run`
+and systemd (D42).
 
 ## Screen capture
 
@@ -341,7 +341,7 @@ whose origin is (0, 0), or in the coordinates of the node.
   shrinks. `max_side` must be at least 1.
 - A capture renders the scene again. Layers that the pixel budget of the
   last frame left out of the screen show in the capture; `left_out` names
-  them (#24), and `layers.dropped` tells it as it happens.
+  them, and `layers.dropped` tells it as it happens.
 - A capture fails while the session is locked, and when the PNG file is
   larger than 5 MiB; a smaller `max_side` helps then.
 
@@ -460,11 +460,11 @@ example in the `.mcp.json` of Claude Code:
 | `reserve_space` | space at the edges of an output, as `output.reserve`, while the server runs |
 | `configure_output` | the scale or the transform of an output, as `output.configure` |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
-| `subscribe_events` | start to collect events, and grab keys (#7); `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the earlier subscription |
+| `subscribe_events` | start to collect events, and grab keys; `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the current subscription |
 | `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500) |
 
 The input schemas of `apply_commands` and `inject_input` come from the
-types of `chora-scene` (#5). They list every command, every input event and
+types of `chora-scene`. They list every command, every input event and
 every field, with its description, so the model sees the shape of a call
 before the first try. A test checks that the schemas, the types and the
 examples of this page agree.

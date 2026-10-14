@@ -59,7 +59,7 @@ agent, and the agent arranges content for each task.
 | Part | Source | Effort |
 |------|--------|--------|
 | Scene access for the agent | IPC socket and `choractl mcp` | part of the API |
-| Speech in and out | services: whisper.cpp or faster-whisper, piper | integration |
+| Speech in and out | the voice pipeline of `chora-voice` (D53) | integration |
 | The agent | Claude Code or another MCP client, later a local LLM service | integration |
 | Rich content: greeting, plots, email | the agent writes HTML, a browser in app mode shows it as a surface | generated content |
 | Data exploration | Jupyter, marimo or a plot web app as surfaces | existing tools |
@@ -72,7 +72,7 @@ injection. The agent needs screenshots to see the result of its changes.
 
 ## Conclusions
 
-- The four node kinds cover all three scenarios.
+- The five node kinds cover all three scenarios.
 - Text, images and widgets do not need to live in the core. Existing shells,
   wallpaper tools and a browser in app mode supply them.
 - Two core features decide the success. The protocol coverage lets existing

@@ -2,7 +2,8 @@
 
 The layout of this repository: one Cargo workspace with as few crates as
 possible. A module moves into its own crate only when a second consumer
-needs it.
+needs it. Milestone 0.6 moves the plugins into repositories of their own
+(D36).
 
 ```text
 chora/
@@ -27,8 +28,8 @@ chora/
 - **`chora-scene` has no Smithay dependency.** Tests of the data model and
   the transaction logic need no GPU and no compositor. The core, `choractl`
   and plugins share this one definition of the API.
-- **Reference plugins live in this repository** first, as workspace members.
-  They keep the API honest. They can move out when the API is stable.
+- **Reference plugins are workspace members** until milestone 0.6. They keep
+  the API honest.
 - **The build generates the schemas** from the Rust types. The repository
   does not contain them. Docs, validation and agents then see the same
   contract.

@@ -128,7 +128,7 @@ A copy of the directory in `~/.config/chora/flavors/tiling/` replaces it.
 
 ### The XP flavor
 
-The XP flavor is the showroom of milestone M3 (D39): a stacking desktop in
+The XP flavor is the showroom (D39): a stacking desktop in
 the style of Windows XP. It is a demo, not a daily driver.
 
 ```text
@@ -165,7 +165,7 @@ window. Buttons light up under the pointer, and so do the entries of the
 start menu. Log Off asks every window to close. Turn Off Computer ends
 `chora-xp`; it shuts nothing down.
 
-The effects of M3 run in the plugin, which computes their meshes and
+The effects run in the plugin, which computes their meshes and
 transforms at 60 Hz:
 
 - **Wobbly windows.** A dragged window bends like jelly: the point under

@@ -30,5 +30,8 @@ terms and no synonyms.
 | **Event** | A message from the core about a change, for example `surface.created`. |
 | **Selector** | An expression that finds nodes by id, attribute or meta data, for example `app_id:firefox`. |
 | **Transaction** | A batch of commands that the core applies as one unit. If one command fails, the core applies none of them. |
-| **Grant** | A permission of the user for one client name to use `input.inject`, `screen.capture` or `process.spawn`. |
+| **Capability** | A right of a client beyond the scene API, for example `input.inject`, `screen.capture` or `input.grab-any`. Only the user gives it (D33, D40). |
+| **Grant** | The current form of a capability: a permission of the user for one client name. Client sockets replace it in milestone 0.7. |
+| **Milestone** | A minor release on the way to 1.0, with a goal, a scope and a gate. See [Roadmap](roadmap.md). |
+| **Gate** | The checks that a milestone must pass before the next one starts: CI jobs and steps on the reference hardware with a log (D46). |
 | **Safety layer** | The only built-in behavior of the core: fixed bindings, emergency reset, session lock, watchdog. |

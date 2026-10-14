@@ -1,8 +1,8 @@
 # Architecture
 
-!!! note "Draft"
-    This page follows the [Decisions](decisions.md). The first implementation
-    will refine it.
+!!! note "Current state"
+    This page describes the implementation. The [Roadmap](roadmap.md) lists
+    the planned changes, and the [Decisions](decisions.md) give the reasons.
 
 ## Overview
 
@@ -162,9 +162,11 @@ test: the order of the siblings decides what is in front, and a plugin
 hides the faces that turn away. Pointer input reaches the nodes of a layer
 only where its transform is a plain 2D one.
 
-Damage tracking keeps the GPU load low. Each shader declares if it is static
-or animated, and effects expand the damage area. A fullscreen surface without
-effects goes to direct scanout.
+The core asks each output for a frame once per refresh. It renders only
+when the damage tracker of Smithay reports damage. A layer counts as
+changed in every frame, so a scene with a layer renders in every frame.
+There is no direct scanout. Milestone 0.9 replaces this with a renderer
+of chora that renders only on damage (D17, D24).
 
 ### IPC socket
 
@@ -290,7 +292,9 @@ The safety layer is the only built-in behavior (see
 
 ## Permissions
 
-Version 1 trusts every client of the same user (D33):
+chora trusts every client of the same user. Milestone 0.7 replaces the
+grants with client sockets that fix the name and the capabilities of a
+client (D33, D40):
 
 - Unsandboxed Wayland clients get all protocols, as in sway. So any client
   can, for example, take the keyboard as an input method, or configure the
@@ -302,7 +306,7 @@ Version 1 trusts every client of the same user (D33):
   with their sources, and the security context manager itself.
 - The IPC methods `input.inject`, `screen.capture` and `process.spawn` need
   a **grant** of the user for the client name: `choractl grant NAME
-  CAPABILITY` (D40, D42). A grant protects against mistakes of agents. It is
+  CAPABILITY`. A grant protects against mistakes of agents. It is
   no barrier against hostile code of the same user. The emergency reset
   revokes all grants.
 - `screen.capture`, `input.inject`, `process.spawn` and `plugins.restart`
@@ -318,7 +322,7 @@ Version 1 trusts every client of the same user (D33):
   the system from `localectl`.
 - `chora@.service` runs `chora -- chora-flavor <name>` as part of
   `graphical-session.target`. It drops `WAYLAND_DISPLAY` and `DISPLAY` that
-  an earlier session left in the user manager, which would make chora run
+  another session left in the user manager, which would make chora run
   nested.
 - `chora-flavor <name>` imports `WAYLAND_DISPLAY` and `CHORA_SOCKET` into the
   systemd user manager, and `DISPLAY` when `xwayland-satellite` is
