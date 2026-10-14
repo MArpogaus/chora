@@ -1,6 +1,8 @@
 # Lint and test in the Fedora 44 container that also builds the release, so
-# CI checks the same compiler and the same system libraries. The e2e job
-# runs tests/nested.sh, the nested core, tests/xp.sh, the XP flavor, and
+# CI checks the same system libraries. The check job uses the toolchain of
+# rust-toolchain.toml, the msrv job the minimum Rust version of Cargo.toml,
+# and the e2e job the Rust of Fedora, which also builds the release. The e2e
+# job runs tests/nested.sh, the nested core, tests/xp.sh, the XP flavor, and
 # tests/agent.sh, the agent interface.
 name: ci
 
@@ -15,20 +17,41 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora:44
+    container: registry.fedoraproject.org/fedora:44@sha256:52740d9b1b9d04f1b325ef9625361b3260e992c84b1fe693365f6a188358e5ca
     timeout-minutes: 30
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
       with:
         persist-credentials: false
-    - run: xargs dnf install -y < dist/fedora-build-requires.txt
+    - run: xargs dnf install -y rustup < dist/fedora-build-requires.txt
+    # rustup takes the toolchain of rust-toolchain.toml.
+    - run: rustup-init -y --profile minimal --default-toolchain none
+    - run: echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
     - run: cargo clippy --workspace --all-targets --locked -- -D warnings
     - run: cargo test --workspace --locked
 
+  # The minimum Rust version of Cargo.toml builds the workspace.
+  msrv:
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:44@sha256:52740d9b1b9d04f1b325ef9625361b3260e992c84b1fe693365f6a188358e5ca
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    - run: xargs dnf install -y rustup < dist/fedora-build-requires.txt
+    - run: rustup-init -y --profile minimal --default-toolchain none
+    - run: echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
+    - name: check with the minimum Rust version
+      run: |
+        msrv=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)
+        rustup toolchain install "$msrv" --profile minimal
+        cargo "+$msrv" check --workspace --all-targets --locked
+
   e2e:
     runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora:44
+    container: registry.fedoraproject.org/fedora:44@sha256:52740d9b1b9d04f1b325ef9625361b3260e992c84b1fe693365f6a188358e5ca
     timeout-minutes: 30
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1

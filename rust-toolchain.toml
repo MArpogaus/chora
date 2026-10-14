@@ -1,0 +1,6 @@
+# The toolchain of development and CI. The packages build with the Rust of
+# their distribution; the msrv job of CI checks the minimum version.
+[toolchain]
+channel = "1.99"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

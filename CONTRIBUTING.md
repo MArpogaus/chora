@@ -37,7 +37,9 @@ pre-commit run --all-files
 ## Build and test
 
 The build needs the system libraries in `dist/fedora-build-requires.txt`, or
-their equivalents on other distributions.
+their equivalents on other distributions. With rustup, `rust-toolchain.toml`
+selects the Rust version of development and CI. The `rust-version` in
+`Cargo.toml` is the minimum version.
 
 ```bash
 cargo build --workspace
@@ -77,7 +79,8 @@ tests/agent.sh target/debug
 Each bug fix comes with a test that fails without the fix (D48).
 
 CI runs `cargo clippy`, `cargo test` and the end-to-end test with `--locked`
-in a Fedora 44 container, and `cargo deny` in a separate job.
+in a Fedora 44 container, and `cargo deny` in a separate job. A further job
+checks the build with the minimum Rust version.
 
 ## Releases
 
