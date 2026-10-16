@@ -71,7 +71,7 @@ impl Wm {
         let Some(area) = self.bars.first().map(Bar::area) else {
             return Vec::new();
         };
-        if !self.effects_on() {
+        if !self.effects_on() || !self.effects.toggles.cube {
             return self.show_desktop(cube::offset(self.desktop, steps));
         }
         let mut commands = self.settle_for_turn();

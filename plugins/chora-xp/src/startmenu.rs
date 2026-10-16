@@ -13,6 +13,7 @@ use chora_scene::{Command, NodeKind, PropsUpdate, Transform};
 use crate::{
     apps::{self, Node},
     cascade::{self, Cascade, Margins, Row},
+    control::Setting,
     icons::Icons,
     text::{Font, Text},
     theme::{Picture, Rect, Sheet, Theme},
@@ -33,6 +34,7 @@ const HOVER_DELAY: Duration = Duration::from_millis(350);
 const MIN_BODY: i32 = 330;
 const GROUP: &str = "xp-menu";
 const FRAME_ID: &str = "xp-menu-frame";
+const CONTROL_PANEL: &str = "Control Panel";
 
 /// What an entry does.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -43,6 +45,8 @@ pub enum Action {
     LogOff,
     /// Opens the Turn off computer dialog.
     TurnOff,
+    /// Changes a setting of the Control Panel.
+    Set(Setting),
 }
 
 /// The column or the footer of an entry.
@@ -62,6 +66,8 @@ struct Entry {
     bold: bool,
     kind: Kind,
     action: Action,
+    /// All Programs and the Control Panel open a cascade.
+    cascade: bool,
     /// The rectangle in the menu.
     rect: Rect,
 }
@@ -109,7 +115,11 @@ pub struct Menu {
     parent: String,
     /// The contents of All Programs.
     programs: Vec<Node>,
-    /// The open cascades, All Programs first.
+    /// The contents of the Control Panel, made when the menu opens.
+    control: Vec<Node>,
+    /// The entry whose cascade is open, or was open last.
+    root: usize,
+    /// The open cascades, the one of the entry first.
     cascades: Vec<Cascade>,
     margins: Margins,
     /// An entry or a row that the pointer rests on, and when its cascade
@@ -142,10 +152,15 @@ impl Menu {
             kind: Kind::AllPrograms,
             // Without desktop files, All Programs runs the launcher.
             action: Action::Run(config.launcher.clone()),
+            cascade: !config.apps.is_empty(),
             rect: all,
         });
         entries.extend(places);
         entries.extend(footer(theme, height));
+        let root = entries
+            .iter()
+            .position(|e| e.kind == Kind::AllPrograms)
+            .unwrap_or(0);
         Self {
             user: config.user.clone(),
             entries,
@@ -158,6 +173,8 @@ impl Menu {
             area: [0, 0, 1280, 770],
             parent: String::new(),
             programs: config.apps.clone(),
+            control: Vec::new(),
+            root,
             cascades: Vec::new(),
             margins: Margins::of(theme),
             pending: None,
@@ -253,10 +270,17 @@ impl Menu {
         self.open.is_some()
     }
 
-    /// Shows the menu above a start button; its cascades stay in the work
-    /// area.
-    pub fn open(&mut self, output: &str, [x, bottom]: [i32; 2], area: Rect) -> Vec<Command> {
+    /// Shows the menu above a start button, with the Control Panel of the
+    /// output; its cascades stay in the work area.
+    pub fn open(
+        &mut self,
+        output: &str,
+        [x, bottom]: [i32; 2],
+        area: Rect,
+        control: Vec<Node>,
+    ) -> Vec<Command> {
         self.open = Some(output.into());
+        self.control = control;
         self.origin = [x, bottom - self.height];
         self.area = area;
         vec![
@@ -332,10 +356,7 @@ impl Menu {
                 } else if self.hovered == Some(index) {
                     self.hovered = None;
                 }
-                vec![
-                    self.look(theme, index),
-                    self.look(theme, self.all_programs()),
-                ]
+                vec![self.look(theme, index), self.look(theme, self.root)]
             }
             Press::Row(level, index) => self.relight(theme, level, |c| {
                 if on {
@@ -364,7 +385,7 @@ impl Menu {
             // Only for what is still under the pointer, not for what it
             // crossed on its way into a cascade.
             Press::Entry(i) if self.hovered != Some(i) => Vec::new(),
-            Press::Entry(i) if i == self.all_programs() => self.open_programs(theme, icons),
+            Press::Entry(i) if self.entries[i].cascade => self.open_root(theme, icons, i),
             Press::Entry(_) => self.close_from(theme, 0),
             Press::Row(level, i) if self.cascades[level].hovered != Some(i) => Vec::new(),
             Press::Row(level, i) => self.open_row(theme, icons, level, i),
@@ -404,9 +425,9 @@ impl Menu {
                 if !inside(rect, position) {
                     return (commands, None);
                 }
-                if index == self.all_programs() && !self.programs.is_empty() {
+                if self.entries[index].cascade {
                     self.pending = None;
-                    commands.extend(self.open_programs(theme, icons));
+                    commands.extend(self.open_root(theme, icons, index));
                     return (commands, None);
                 }
                 (commands, Some(self.entries[index].action.clone()))
@@ -422,6 +443,9 @@ impl Menu {
                 self.pending = None;
                 match &self.nodes(level)[index].kind {
                     apps::Kind::Run(command) => (Vec::new(), Some(Action::Run(command.clone()))),
+                    apps::Kind::Pick(setting, _) => {
+                        (Vec::new(), Some(Action::Set(setting.clone())))
+                    }
                     apps::Kind::Group(_) => (self.open_row(theme, icons, level, index), None),
                 }
             }
@@ -436,16 +460,13 @@ impl Menu {
         Some(self.close_from(theme, innermost))
     }
 
-    fn all_programs(&self) -> usize {
-        self.entries
-            .iter()
-            .position(|e| e.kind == Kind::AllPrograms)
-            .unwrap_or(0)
-    }
-
     /// The entries of the cascade of a level.
     fn nodes(&self, level: usize) -> &[Node] {
-        let mut nodes = &self.programs[..];
+        let mut nodes = if self.entries[self.root].kind == Kind::AllPrograms {
+            &self.programs[..]
+        } else {
+            &self.control[..]
+        };
         for cascade in &self.cascades[..level] {
             match cascade.open.map(|i| &nodes[i].kind) {
                 Some(apps::Kind::Group(children)) => nodes = children,
@@ -455,15 +476,25 @@ impl Menu {
         nodes
     }
 
-    /// Opens All Programs, unless it is open.
-    fn open_programs(&mut self, theme: &mut Theme, icons: &mut Icons) -> Vec<Command> {
-        if !self.cascades.is_empty() || self.programs.is_empty() {
+    /// Opens the cascade of All Programs or of the Control Panel, unless
+    /// it is open, and closes the other one. All Programs grows up from its
+    /// button; the Control Panel opens beside the menu, level with its
+    /// row.
+    fn open_root(&mut self, theme: &mut Theme, icons: &mut Icons, index: usize) -> Vec<Command> {
+        if self.root == index && !self.cascades.is_empty() {
             return Vec::new();
         }
-        let [x, y, w, h] = self.entries[self.all_programs()].rect;
-        let button = [self.origin[0] + x, self.origin[1] + y, w, h];
-        let mut commands = self.open_cascade(theme, icons, button, None);
-        commands.push(self.look(theme, self.all_programs()));
+        let mut commands = self.close_from(theme, 0);
+        self.root = index;
+        let [x, y, w, h] = self.entries[index].rect;
+        let row = [self.origin[0] + x, self.origin[1] + y, w, h];
+        let parent = (self.entries[index].kind != Kind::AllPrograms).then(|| {
+            // As if the menu had the shadow of a cascade.
+            let shadow = self.margins.shadow();
+            [self.origin[0], self.origin[1], WIDTH + shadow, self.height]
+        });
+        commands.extend(self.open_cascade(theme, icons, row, parent));
+        commands.push(self.look(theme, index));
         commands
     }
 
@@ -528,7 +559,7 @@ impl Menu {
         }
         let mut commands = commands;
         match level.checked_sub(1) {
-            None => commands.push(self.look(theme, self.all_programs())),
+            None => commands.push(self.look(theme, self.root)),
             Some(parent) => commands.extend(self.relight(theme, parent, |c| c.open = None)),
         }
         commands
@@ -563,15 +594,12 @@ impl Menu {
     }
 
     /// The look of an entry: highlighted under the pointer, while down,
-    /// and for All Programs while its cascade is open and the pointer is
-    /// on no other entry.
+    /// and while its cascade is open and the pointer is on no other entry.
     fn look(&self, theme: &mut Theme, index: usize) -> Command {
         let entry = &self.entries[index];
         let lit = self.hovered == Some(index)
             || self.pressed == Some(Press::Entry(index))
-            || (entry.kind == Kind::AllPrograms
-                && !self.cascades.is_empty()
-                && self.hovered.is_none());
+            || (self.root == index && !self.cascades.is_empty() && self.hovered.is_none());
         Command::Update {
             id: item_id(index),
             props: PropsUpdate {
@@ -588,6 +616,7 @@ fn row_of<'a>(node: &'a Node, icon: Option<&'a Path>) -> Row<'a> {
         title: &node.title,
         icon,
         group: matches!(node.kind, apps::Kind::Group(_)),
+        checked: matches!(node.kind, apps::Kind::Pick(_, true)),
     }
 }
 
@@ -609,6 +638,7 @@ fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
             bold: true,
             kind: Kind::Program,
             action: Action::Run(command.clone()),
+            cascade: false,
             rect: [FRAME + 2, top + i * PROGRAM_ROW, LEFT - 4, PROGRAM_ROW],
         })
         .collect()
@@ -622,6 +652,9 @@ fn places(config: &Config, icons: &mut Icons) -> Vec<Entry> {
         ("My Pictures", open("Pictures"), "folder-pictures", true),
         ("My Music", open("Music"), "folder-music", true),
         ("My Computer", "xdg-open /".into(), "computer", true),
+        ("", String::new(), "", false),
+        // A cascade, as with XP's "Display as a menu".
+        (CONTROL_PANEL, String::new(), "preferences-system", false),
         ("", String::new(), "", false),
         ("Run...", config.launcher.clone(), "system-run", false),
     ];
@@ -639,6 +672,7 @@ fn places(config: &Config, icons: &mut Icons) -> Vec<Entry> {
             bold,
             kind: Kind::Place,
             action: Action::Run(command),
+            cascade: title == CONTROL_PANEL,
             rect: [
                 FRAME + LEFT + 1 + 2,
                 y,
@@ -697,6 +731,7 @@ fn footer(theme: &Theme, height: i32) -> Vec<Entry> {
         bold: false,
         kind: Kind::Footer,
         action,
+        cascade: false,
         rect: [x, y, w, 30],
     };
     vec![
@@ -720,13 +755,7 @@ fn footer(theme: &Theme, height: i32) -> Vec<Entry> {
 /// The picture of an entry, normal or highlighted.
 fn picture(theme: &Theme, entry: &Entry, down: bool) -> Picture {
     let [_, _, w, h] = entry.rect;
-    let mut picture = Picture::new(w, h);
-    if down {
-        picture = match entry.kind {
-            Kind::Footer => picture.frame(Sheet::Winxp, "startmenu-footer-pressed", [0, 0, w, h]),
-            _ => picture.frame(Sheet::Winxp, "menu-highlight", [0, 0, w, h]),
-        };
-    }
+    let mut picture = background(entry, down);
     if entry.kind == Kind::AllPrograms {
         return all_programs(theme, picture, entry, down);
     }
@@ -739,7 +768,11 @@ fn picture(theme: &Theme, entry: &Entry, down: bool) -> Picture {
         picture = picture.file(icon, [pad, (h - icon_size) / 2, icon_size, icon_size]);
     }
     let x = pad + icon_size + if entry.kind == Kind::Footer { 6 } else { 3 };
-    let width = w - x - 4;
+    let mut width = w - x - 4;
+    if entry.cascade {
+        picture = cascade::arrow(theme, picture, down);
+        width -= 12;
+    }
     let color = text_color(entry.kind, down);
     let font = if entry.bold { Font::UiBold } else { Font::Ui };
     match &entry.subtitle {
@@ -752,6 +785,19 @@ fn picture(theme: &Theme, entry: &Entry, down: bool) -> Picture {
                 [x, h / 2 - 2, width, h / 2],
             )),
         None => picture.text(Text::new(&entry.title, font, color, [x, 0, width, h])),
+    }
+}
+
+/// An empty entry, or its highlight.
+fn background(entry: &Entry, down: bool) -> Picture {
+    let [_, _, w, h] = entry.rect;
+    let picture = Picture::new(w, h);
+    match (down, entry.kind) {
+        (false, _) => picture,
+        (true, Kind::Footer) => {
+            picture.frame(Sheet::Winxp, "startmenu-footer-pressed", [0, 0, w, h])
+        }
+        (true, _) => picture.frame(Sheet::Winxp, "menu-highlight", [0, 0, w, h]),
     }
 }
 
@@ -834,7 +880,13 @@ mod tests {
         let programs = programs(&config(), &mut icons);
         let places = places(&config(), &mut icons);
         assert_eq!(body_height(&programs, &places), MIN_BODY);
-        assert_eq!(place_separators(&places, HEADER + 1).len(), 1);
+        assert_eq!(place_separators(&places, HEADER + 1).len(), 2);
+        let cascades: Vec<&str> = places
+            .iter()
+            .filter(|e| e.cascade)
+            .map(|e| e.title.as_str())
+            .collect();
+        assert_eq!(cascades, [CONTROL_PANEL]);
     }
 
     #[test]

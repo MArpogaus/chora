@@ -27,6 +27,9 @@ pub enum Kind {
     Group(Vec<Node>),
     /// A program and its shell command.
     Run(String),
+    /// A setting of the Control Panel, with a check mark if it is the
+    /// current one.
+    Pick(crate::control::Setting, bool),
 }
 
 /// The program groups: the freedesktop main categories and their names

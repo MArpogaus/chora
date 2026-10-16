@@ -10,7 +10,7 @@ use std::{
 use chora_scene::{Command, PropsUpdate};
 
 use super::Wm;
-use crate::{cube::Turn, decoration, lamp::Lamp, wobbly::Wobble};
+use crate::{control::Toggles, cube::Turn, decoration, lamp::Lamp, wobbly::Wobble};
 
 /// How long the magic lamp takes, before slow motion.
 const LAMP_TIME: Duration = Duration::from_millis(400);
@@ -27,6 +27,8 @@ pub struct Effects {
     pub lamps: HashMap<String, Lamp>,
     /// The turn of the cube.
     pub turn: Option<Turn>,
+    /// The effects that the Control Panel turned on.
+    pub toggles: Toggles,
     /// The time of the last frame.
     last: Instant,
     /// No effects until then, after the watchdog dropped them.
@@ -39,6 +41,7 @@ impl Default for Effects {
             wobbles: HashMap::new(),
             lamps: HashMap::new(),
             turn: None,
+            toggles: Toggles::default(),
             last: Instant::now(),
             calm_until: None,
         }
@@ -75,7 +78,8 @@ impl Wm {
 
     /// The window starts to wobble, grabbed at a point of the scene.
     pub(super) fn start_wobble(&mut self, surface: &str, grab: [f64; 2]) {
-        let Some(i) = self.index(surface).filter(|_| self.effects_on()) else {
+        let on = self.effects_on() && self.effects.toggles.wobbly;
+        let Some(i) = self.index(surface).filter(|_| on) else {
             return;
         };
         let w = &self.windows[i];
@@ -127,7 +131,7 @@ impl Wm {
         };
         self.effects.wobbles.remove(surface);
         let (now, duration) = (Instant::now(), self.slow(LAMP_TIME));
-        let calm = !self.effects_on();
+        let calm = !self.effects_on() || !self.effects.toggles.lamp;
         let w = &mut self.windows[i];
         w.minimized = true;
         if calm {
@@ -153,7 +157,7 @@ impl Wm {
             return Vec::new();
         };
         let (now, duration) = (Instant::now(), self.slow(LAMP_TIME));
-        let calm = !self.effects_on();
+        let calm = !self.effects_on() || !self.effects.toggles.lamp;
         let w = &mut self.windows[i];
         w.minimized = false;
         if calm {

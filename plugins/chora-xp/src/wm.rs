@@ -14,13 +14,15 @@ use std::{
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
     SurfaceRequest, Uniform,
-    ipc::{ClientError, Grab, PressState, Subscribe},
+    ipc::{ClientError, Grab, OutputConfigure, PressState, Subscribe},
 };
 use serde_json::Value;
 
 use self::{desktops::desk_id, effects::Effects};
 use crate::{
+    apps,
     conn::Conn,
+    control::{self, Setting},
     cube::DESKTOPS,
     decoration::{self, Button, Part},
     icons::Icons,
@@ -904,7 +906,8 @@ impl Wm {
                     return Vec::new();
                 };
                 let (origin, area) = (bar.origin(), bar.usable());
-                let mut commands = self.menu.open(&output, origin, area);
+                let control = self.control_panel(&output);
+                let mut commands = self.menu.open(&output, origin, area, control);
                 commands.extend(self.start_look(&output));
                 self.grab_escape();
                 commands
@@ -1040,6 +1043,65 @@ impl Wm {
             }
             Action::LogOff => self.open_dialog(Mode::LogOff, output),
             Action::TurnOff => self.open_dialog(Mode::TurnOff, output),
+            Action::Set(setting) => self.set(setting, output),
+        }
+    }
+
+    // The Control Panel of the start menu
+
+    /// The outputs as the core has them.
+    fn outputs(&mut self) -> Vec<OutputInfo> {
+        self.conn
+            .call("output.list", Value::Null)
+            .unwrap_or_else(|err| {
+                eprintln!("chora-xp: {err}");
+                Vec::new()
+            })
+    }
+
+    /// The Control Panel for an output, with the current choices.
+    fn control_panel(&mut self, output: &str) -> Vec<apps::Node> {
+        let scale = self
+            .outputs()
+            .into_iter()
+            .find(|o| o.name == output)
+            .map_or(1.0, |o| o.scale);
+        let dirs = [
+            self.theme.path("wallpaper"),
+            PathBuf::from("/usr/share/backgrounds"),
+        ];
+        let walls = control::wallpapers(&dirs);
+        control::menu(scale, &self.config.wallpaper, &walls, self.effects.toggles)
+    }
+
+    /// Changes a setting: the scale of the output of the menu through the
+    /// core, the wallpaper of every output, or an effect.
+    fn set(&mut self, setting: &Setting, output: Option<&str>) -> Vec<Command> {
+        match setting {
+            Setting::Scale(percent) => {
+                let params = OutputConfigure {
+                    output: output.map(String::from),
+                    scale: Some(f64::from(*percent) / 100.0),
+                    transform: None,
+                };
+                // The core answers with output.changed, which fits the
+                // taskbar and the wallpaper.
+                if let Err(err) = self.conn.call::<_, Value>("output.configure", params) {
+                    eprintln!("chora-xp: {err}");
+                }
+                Vec::new()
+            }
+            Setting::Wallpaper(file) => {
+                self.config.wallpaper.clone_from(file);
+                self.outputs()
+                    .iter()
+                    .map(|o| wallpaper::update(&mut self.theme, file, o))
+                    .collect()
+            }
+            Setting::Effect(effect) => {
+                self.effects.toggles.flip(*effect);
+                Vec::new()
+            }
         }
     }
 

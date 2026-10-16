@@ -182,10 +182,10 @@ renders each picture once:
 - a taskbar at the bottom of the work area of each output, with the start
   button, one button per window of the current desktop, four desktop
   buttons and a clock;
-- the start menu with the user name, programs, places, Log Off and Turn
-  Off Computer, and All Programs with the applications of the desktop
-  files in `$XDG_DATA_HOME/applications` and `$XDG_DATA_DIRS`, in program
-  groups by their main category;
+- the start menu with the user name, programs, places, the Control Panel,
+  Log Off and Turn Off Computer, and All Programs with the applications of
+  the desktop files in `$XDG_DATA_HOME/applications` and `$XDG_DATA_DIRS`,
+  in program groups by their main category;
 - the wallpaper Bløff below everything.
 
 A click on a window raises and focuses it. A drag of a title bar moves the
@@ -197,6 +197,18 @@ the pointer rests on them for 350 ms, or on a click. A click on a program
 starts it and closes the menu; a click outside closes the menu. Escape
 closes nothing yet: the core takes no grab of a key without Ctrl, Alt or
 Super (D45).
+
+The Control Panel opens as a menu, as with XP's "Display as a menu". A
+check mark shows the current choice of each entry, and a click on an
+entry applies it and closes the menu:
+
+- **Desktop**: the wallpaper of every output, from the PNG and SVG files
+  in `theme/wallpaper/` and `/usr/share/backgrounds`, without their
+  subdirectories and at most 20 of each directory;
+- **Display**: the scale of the output of the menu, 100 %, 125 %, 150 % or
+  200 %, through `output.configure`;
+- **Effects**: wobbly windows, the magic lamp and the desktop cube, on or
+  off until `chora-xp` ends.
 
 Log Off and Turn Off Computer open XP's dialogs in the middle of the
 output, and the desktop behind them fades to gray in 1.5 seconds. In Log

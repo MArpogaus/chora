@@ -7,6 +7,7 @@
 mod apps;
 mod cascade;
 mod conn;
+mod control;
 mod cube;
 mod decoration;
 mod icons;

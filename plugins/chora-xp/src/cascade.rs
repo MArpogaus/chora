@@ -42,7 +42,8 @@ impl Margins {
         ])
     }
 
-    fn shadow(self) -> i32 {
+    /// The width of the shadow at the right and the bottom.
+    pub fn shadow(self) -> i32 {
         self.0[3] - self.0[1]
     }
 }
@@ -187,6 +188,15 @@ impl Cascade {
         if let Some(icon) = row.icon {
             picture = picture.file(icon, [4, (ROW - 16) / 2, 16, 16]);
         }
+        if row.checked {
+            let check = if lit {
+                "winxp/check-selected.svg"
+            } else {
+                "winxp/check.svg"
+            };
+            // XP's 8 pixel check box, in the middle of the icon column.
+            picture = picture.file(&theme.path(check), [8, (ROW - 8) / 2, 8, 8]);
+        }
         let color = if lit {
             [255, 255, 255, 255]
         } else {
@@ -200,16 +210,22 @@ impl Cascade {
             [TEXT_X, 0, w - TEXT_X - end, ROW],
         ));
         if row.group {
-            let arrow = if lit {
-                "winxp/cascade-arrow-selected.svg"
-            } else {
-                "winxp/cascade-arrow.svg"
-            };
-            // XP's 8 pixel arrow box, 4 pixels from the right.
-            picture = picture.file(&theme.path(arrow), [w - 4 - 8, (ROW - 8) / 2, 8, 8]);
+            picture = arrow(theme, picture, lit);
         }
         picture
     }
+}
+
+/// The arrow of a group at the right of a picture: XP's 8 pixel arrow
+/// box, 4 pixels from the right, white when the row is lit.
+pub fn arrow(theme: &Theme, picture: Picture, lit: bool) -> Picture {
+    let [w, h] = picture.size;
+    let file = if lit {
+        "winxp/cascade-arrow-selected.svg"
+    } else {
+        "winxp/cascade-arrow.svg"
+    };
+    picture.file(&theme.path(file), [w - 4 - 8, (h - 8) / 2, 8, 8])
 }
 
 /// Whether a row shows highlighted, for the row under the pointer and the
@@ -226,6 +242,8 @@ pub struct Row<'a> {
     pub icon: Option<&'a Path>,
     /// A group opens a cascade.
     pub group: bool,
+    /// A check mark instead of the icon.
+    pub checked: bool,
 }
 
 /// The top-left corner of a cascade of a size (with its shadow): right of
