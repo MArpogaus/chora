@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_scene::Transform;
+use chora_scene::{Easing, Transform};
 
 use crate::theme::Rect;
 
@@ -110,7 +110,7 @@ impl Turn {
 
     /// The faces that turn toward the viewer at a time, the farthest first.
     pub fn faces(&self, t: f64) -> Vec<Face> {
-        let turned = f64::from(self.steps) * FRAC_PI_2 * ease(t);
+        let turned = f64::from(self.steps) * FRAC_PI_2 * Easing::EaseInOut.at(t);
         let mut faces: Vec<Face> = (0..DESKTOPS)
             .map(|desktop| {
                 #[allow(clippy::cast_precision_loss)] // below 4
@@ -170,15 +170,6 @@ pub fn perspective(focal: f64) -> Transform {
     let mut m = *Transform::IDENTITY.matrix();
     m[11] = 1.0 / focal;
     Transform::from_matrix(m)
-}
-
-/// Slow at the start and at the end.
-fn ease(t: f64) -> f64 {
-    if t < 0.5 {
-        4.0 * t * t * t
-    } else {
-        1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
-    }
 }
 
 #[cfg(test)]
