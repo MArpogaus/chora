@@ -717,10 +717,41 @@ impl Wm {
             commands.extend(self.menu.close(&mut self.theme));
         }
         if let Some(i) = self.bars.iter().position(|b| b.output == name) {
-            commands.push(self.bars.remove(i).remove());
+            let bar = self.bars.remove(i);
+            commands.push(bar.remove());
             commands.push(Command::Remove {
                 id: wallpaper::id(name),
             });
+            if let Some(target) = self.bars.first().map(Bar::usable) {
+                commands.extend(self.move_windows(&bar, target));
+            }
+        }
+        commands
+    }
+
+    /// Moves the windows of a removed output to the area of another one, to
+    /// the same place, as far as it fits.
+    fn move_windows(&mut self, bar: &Bar, target: Rect) -> Vec<Command> {
+        let from = bar.usable();
+        let mut commands = Vec::new();
+        for i in 0..self.windows.len() {
+            if !bar.contains(self.windows[i].pos) {
+                continue;
+            }
+            let active = self.focused.as_deref() == Some(self.windows[i].surface.as_str());
+            let w = &mut self.windows[i];
+            w.restore = w.restore.map(|[x, y, rw, rh]| {
+                let [x, y] = moved([x, y], from, target);
+                [x, y, rw, rh]
+            });
+            if w.maximized() {
+                w.maximize(target);
+                commands.push(w.configure(active));
+                commands.extend(w.style(&mut self.theme, active));
+            } else {
+                w.pos = moved(w.pos, from, target);
+            }
+            commands.push(w.place());
         }
         commands
     }
@@ -958,5 +989,28 @@ pub fn spawn(command: &str) {
         .status();
     if let Err(err) = spawned {
         eprintln!("chora-xp: cannot run {command:?}: {err}");
+    }
+}
+
+/// A position in one area at the same place in another, so that at least
+/// the title bar stays inside it.
+fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32; 2] {
+    let keep = 64;
+    [
+        (tx + px - fx).clamp(tx, tx + (tw - keep).max(0)),
+        (ty + py - fy).clamp(ty, ty + (th - keep).max(0)),
+    ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_window_moves_to_the_same_place_on_another_output() {
+        let (from, to) = ([1920, 0, 2560, 1400], [0, 0, 1920, 1040]);
+        assert_eq!(moved([2020, 100], from, to), [100, 100]);
+        // Beyond the new area, the title bar stays inside it.
+        assert_eq!(moved([4300, 1300], from, to), [1856, 976]);
     }
 }
