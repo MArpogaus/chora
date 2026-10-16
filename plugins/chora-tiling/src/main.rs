@@ -84,7 +84,15 @@ struct Tiling {
 }
 
 fn main() -> ExitCode {
-    let args = Args::parse();
+    let args = Args::try_parse().unwrap_or_else(|err| {
+        if err.kind() == clap::error::ErrorKind::UnknownArgument {
+            eprintln!(
+                "chora-tiling: --mod, --terminal, --launcher, --gap and --layout moved into \
+                 the configuration file; chora-tiling --print-config prints it"
+            );
+        }
+        err.exit()
+    });
     if args.print_config {
         print!("{}", config::DEFAULT);
         return ExitCode::SUCCESS;
