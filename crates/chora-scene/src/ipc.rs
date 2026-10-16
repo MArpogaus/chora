@@ -91,6 +91,14 @@ impl RpcError {
     pub fn is_gone_surface(&self) -> bool {
         self.code == Self::GONE_SURFACE
     }
+
+    /// The index of the command that failed a transaction, from the
+    /// message `command N: ...`.
+    #[must_use]
+    pub fn command_index(&self) -> Option<usize> {
+        let rest = self.message.strip_prefix("command ")?;
+        rest[..rest.find(':')?].parse().ok()
+    }
 }
 
 impl Message {
@@ -669,6 +677,35 @@ impl Client {
         Ok(client)
     }
 
+    /// Applies a transaction, and returns the error of the core if it
+    /// rejected it. A command on a surface that is gone, for example of a
+    /// window that closed in the meantime, drops out, and the rest goes
+    /// again: a plugin that cleans up after one closed window must not lose
+    /// that work to a second one.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn apply(&mut self, mut commands: Vec<Command>) -> Result<Option<RpcError>, ClientError> {
+        while !commands.is_empty() {
+            let apply = Apply {
+                commands: commands.clone(),
+            };
+            match self.call::<_, Value>("scene.apply", apply) {
+                Ok(_) => return Ok(None),
+                Err(ClientError::Rpc(err)) if err.is_gone_surface() => {
+                    match err.command_index().filter(|i| *i < commands.len()) {
+                        Some(i) => drop(commands.remove(i)),
+                        None => return Ok(Some(err)),
+                    }
+                }
+                Err(ClientError::Rpc(err)) => return Ok(Some(err)),
+                Err(err) => return Err(err),
+            }
+        }
+        Ok(None)
+    }
+
     /// Sends a request and waits for its response. Events that arrive in
     /// between wait in a queue for [`Client::next_event`].
     ///
@@ -816,6 +853,40 @@ mod tests {
     use std::{io::BufRead, thread};
 
     use super::*;
+
+    #[test]
+    fn apply_drops_the_command_of_a_gone_surface() {
+        let (client, server) = UnixStream::pair().unwrap();
+        let core = thread::spawn(move || {
+            let mut reader = BufReader::new(server.try_clone().unwrap());
+            let mut writer = server;
+            let mut requests = Vec::new();
+            for answer in [
+                r#"{"jsonrpc":"2.0","id":1,"result":null}"#,
+                r#"{"jsonrpc":"2.0","id":2,"error":{"code":2,"message":"command 1: node \"s9\" does not exist"}}"#,
+                r#"{"jsonrpc":"2.0","id":3,"result":null}"#,
+            ] {
+                let mut line = String::new();
+                reader.read_line(&mut line).unwrap();
+                requests.push(line);
+                writeln!(writer, "{answer}").unwrap();
+            }
+            requests
+        });
+        let hello = Hello {
+            name: "wm".into(),
+            keep_nodes: false,
+        };
+        let mut client = Client::from_stream(client, &hello).unwrap();
+        let commands: Vec<Command> = serde_json::from_str(
+            r#"[{"remove": {"id": "frame-s8"}}, {"focus": {"surface": "s9"}}]"#,
+        )
+        .unwrap();
+        assert_eq!(client.apply(commands).unwrap(), None);
+        let requests = core.join().unwrap();
+        assert!(requests[1].contains("s9"));
+        assert!(requests[2].contains("frame-s8") && !requests[2].contains("s9"));
+    }
 
     /// A fake core that answers `hello`, then writes `lines` after the next
     /// request.

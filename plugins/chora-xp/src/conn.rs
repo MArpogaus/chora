@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use chora_scene::{
     Command, Event, Node,
-    ipc::{Apply, Client, ClientError, Hello, Query, RpcError},
+    ipc::{Client, ClientError, Hello, Query, RpcError},
 };
 use serde_json::Value;
 
@@ -41,18 +41,9 @@ impl Conn {
     }
 
     /// Applies a transaction and returns the error of the core, if any.
+    /// Commands on windows that closed in the meantime drop out.
     pub fn try_apply(&mut self, commands: Vec<Command>) -> Result<Option<RpcError>, ClientError> {
-        if commands.is_empty() {
-            return Ok(None);
-        }
-        match self
-            .client
-            .call::<_, Value>("scene.apply", Apply { commands })
-        {
-            Ok(_) => Ok(None),
-            Err(ClientError::Rpc(err)) => Ok(Some(err)),
-            Err(err) => Err(err),
-        }
+        self.client.apply(commands)
     }
 
     /// Applies a transaction. A rejected transaction only logs: a surface

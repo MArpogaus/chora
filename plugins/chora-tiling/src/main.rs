@@ -13,9 +13,7 @@ use std::{collections::HashMap, path::PathBuf, process::ExitCode};
 use chora_scene::{
     Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest, ToplevelState,
     Transform,
-    ipc::{
-        Apply, Client, ClientError, Export, Grab, Hello, PressState, Query, RpcError, Subscribe,
-    },
+    ipc::{Client, ClientError, Export, Grab, Hello, PressState, Query, RpcError, Subscribe},
 };
 use clap::Parser;
 use serde::{Deserialize, Serialize};
@@ -422,9 +420,10 @@ impl Tiling {
     }
 
     fn call_apply(&mut self, commands: Vec<Command>) -> Result<(), ClientError> {
-        self.client
-            .call::<_, Value>("scene.apply", Apply { commands })
-            .map(drop)
+        match self.client.apply(commands)? {
+            None => Ok(()),
+            Some(err) => Err(ClientError::Rpc(err)),
+        }
     }
 
     /// Applies a transaction. A rejected transaction only logs, and the next
