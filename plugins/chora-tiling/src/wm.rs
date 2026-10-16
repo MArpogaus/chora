@@ -632,11 +632,12 @@ impl Wm {
     }
 
     /// Shows other tags on the current output, from the shown tags and their
-    /// count.
+    /// count. At least one tag stays shown, or new windows would get no tag
+    /// that shows.
     fn view(&mut self, select: impl FnOnce(u16, usize) -> u16) {
         if let Some(output) = self.outputs.get_mut(self.current) {
             let selected = select(output.selected, output.tags.len());
-            if selected != output.selected {
+            if selected != 0 && selected != output.selected {
                 output.previous = output.selected;
                 output.selected = selected;
             }
@@ -812,6 +813,11 @@ mod tests {
         assert_eq!(wm.focused(), None);
         wm.act(&Action::ToggleTagView(2));
         assert_eq!(wm.focused(), Some("a"));
+        // The last shown tag stays shown.
+        wm.act(&Action::ToggleTagView(1));
+        wm.act(&Action::ToggleTagView(2));
+        assert_eq!(wm.shown_windows(), ["a"]);
+        wm.act(&Action::ToggleTagView(1));
         wm.act(&Action::ViewTag(3));
         wm.act(&Action::ViewBack);
         assert_eq!(wm.shown_windows(), ["a"]);
