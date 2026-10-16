@@ -10,7 +10,11 @@ use std::{
 use chora_scene::{Decoration, Effect, Event, Scene, SurfaceInfo, SurfaceRequest, ToplevelState};
 use smithay::{
     desktop::{PopupManager, Window},
-    input::{Seat, SeatState, keyboard::Keycode, pointer::CursorImageStatus},
+    input::{
+        Seat, SeatState,
+        keyboard::{KeyboardHandle, Keycode},
+        pointer::CursorImageStatus,
+    },
     output::Output,
     reexports::{
         calloop::{Interest, LoopHandle, LoopSignal, Mode, PostAction, generic::Generic},
@@ -492,7 +496,7 @@ impl State {
         }
         // A launcher ends a popup grab, for example of an open menu.
         let exclusive = self.exclusive_layer();
-        if keyboard.is_grabbed() {
+        if popup_grabbed(&keyboard) {
             if exclusive.is_none() {
                 return;
             }
@@ -510,6 +514,15 @@ impl State {
             keyboard.set_focus(self, target, SERIAL_COUNTER.next_serial());
         }
     }
+}
+
+/// Whether a popup grab holds the keyboard. The grab of an input method
+/// starts without a focus and lets focus changes through, so it does not
+/// count: it lasts as long as the input method runs.
+pub fn popup_grabbed(keyboard: &KeyboardHandle<State>) -> bool {
+    keyboard
+        .grab_start_data()
+        .is_some_and(|d| d.focus.is_some())
 }
 
 fn set_pending(toplevel: &ToplevelSurface, size: Option<[i32; 2]>, states: &[ToplevelState]) {
@@ -752,5 +765,21 @@ mod tests {
         wayland.answer(&mut core, &first);
         let id = wm.send("scene.apply", size(600));
         assert_eq!(wm.answer(&mut core, id), None, "the surface caught up");
+    }
+
+    #[test]
+    fn the_focus_moves_while_an_input_method_grabs_the_keyboard() {
+        let (mut core, _wayland, mut wm, first, second) = two_windows();
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        assert_eq!(keyboard(&core), Some(id(&first)));
+        let keyboard_handle = core.state.seat.get_keyboard().unwrap();
+        keyboard_handle.set_grab(
+            &mut core.state,
+            smithay::wayland::input_method::InputMethodKeyboardGrab::default(),
+            smithay::utils::SERIAL_COUNTER.next_serial(),
+        );
+        wm.ok(&mut core, "scene.apply", focus(Some("s2")));
+        assert_eq!(keyboard(&core), Some(id(&second)));
+        assert!(keyboard_handle.is_grabbed());
     }
 }

@@ -299,7 +299,7 @@ impl XdgShellHandler for State {
             let previous = grab.previous_serial().unwrap_or(serial);
             let keyboard = seat.get_keyboard().expect("the seat has a keyboard");
             let pointer = seat.get_pointer().expect("the seat has a pointer");
-            let keyboard_busy = keyboard.is_grabbed()
+            let keyboard_busy = crate::state::popup_grabbed(&keyboard)
                 && !(keyboard.has_grab(serial) || keyboard.has_grab(previous));
             let pointer_busy =
                 pointer.is_grabbed() && !(pointer.has_grab(serial) || pointer.has_grab(previous));
