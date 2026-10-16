@@ -19,7 +19,7 @@ use std::{
 };
 
 use chora_scene::{
-    Command, Effect,
+    Command, Effect, TransactionError,
     ipc::{Message, RpcError},
 };
 use serde_json::Value;
@@ -162,8 +162,7 @@ impl State {
                 // No other transaction started, so no other needs the
                 // images that this one loaded.
                 self.assets.images.prune(&self.scene);
-                self.ipc
-                    .respond(head.conn, &Message::error(head.id, rejected(error)));
+                self.ipc.respond(head.conn, &Message::error(head.id, error));
                 continue;
             }
             let due = head.deadline.is_some_and(|d| self.time.now() >= d);
@@ -180,13 +179,16 @@ impl State {
 
     /// Checks the transaction on a copy of the scene and sends its
     /// configure events.
-    fn start(&mut self, head: &mut Pending) -> Result<(), String> {
+    fn start(&mut self, head: &mut Pending) -> Result<(), RpcError> {
         let effects = self
             .scene
             .check(&head.owner, &head.commands)
-            .map_err(|e| e.to_string())?;
-        self.assets.images.load_for(&head.commands)?;
-        self.check_effects(&head.commands)?;
+            .map_err(|e| transaction_error(&e))?;
+        self.assets
+            .images
+            .load_for(&head.commands)
+            .map_err(rejected)?;
+        self.check_effects(&head.commands).map_err(rejected)?;
         for effect in &effects {
             if let Effect::Configure {
                 surface,
@@ -285,20 +287,25 @@ impl State {
                 self.refresh_pointer();
                 Message::result(head.id, Value::Null)
             }
-            Err(error) => {
-                let code = if error.is_gone_surface() {
-                    RpcError::GONE_SURFACE
-                } else {
-                    RpcError::REJECTED
-                };
-                Message::error(head.id, RpcError::new(code, error.to_string()))
-            }
+            Err(error) => Message::error(head.id, transaction_error(&error)),
         };
         self.ipc.respond(head.conn, &message);
         head.barrier.signal();
         let surfaces = std::mem::take(&mut head.held);
         self.release(&surfaces);
     }
+}
+
+/// The answer to a transaction that the scene rejected. A surface that is
+/// gone gets its own code, at the check as at the end of a wait, so that a
+/// plugin can tell a closed window from its own mistake.
+fn transaction_error(error: &TransactionError) -> RpcError {
+    let code = if error.is_gone_surface() {
+        RpcError::GONE_SURFACE
+    } else {
+        RpcError::REJECTED
+    };
+    RpcError::new(code, error.to_string())
 }
 
 #[cfg(test)]
@@ -351,6 +358,15 @@ mod tests {
         assert_eq!(error_code, RpcError::REJECTED);
         let nodes = wm.ok(&mut core, "scene.query", json!({"selector": "id:a"}));
         assert_eq!(nodes, json!([]));
+    }
+
+    #[test]
+    fn a_gone_surface_has_its_own_code() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let update = json!({"commands": [{"update": {"id": "s9", "props": {"visible": true}}}]});
+        let (error_code, _) = wm.fails(&mut core, "scene.apply", update);
+        assert_eq!(error_code, RpcError::GONE_SURFACE);
     }
 
     #[test]
