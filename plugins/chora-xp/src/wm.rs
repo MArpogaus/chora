@@ -390,12 +390,13 @@ impl Wm {
         }
         let first = !self.windows[i].shown;
         self.windows[i].size = Some(size);
-        if first {
+        // A window maximized before its first commit keeps its place.
+        if first && !self.windows[i].maximized() {
             let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
             let outer = self.windows[i].outer();
             self.windows[i].pos = window::cascade(&mut self.cascade, outer, area);
-            self.windows[i].shown = true;
         }
+        self.windows[i].shown = true;
         let active = self.is_active(surface);
         let mut commands = self.windows[i].style(&mut self.theme, active);
         if first {

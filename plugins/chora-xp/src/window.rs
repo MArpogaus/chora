@@ -188,7 +188,10 @@ impl Window {
 
     /// Fills an area, keeping the old frame to restore it.
     pub fn maximize(&mut self, area: Rect) {
-        if let (None, Some([w, h])) = (self.restore, self.size) {
+        if self.restore.is_none() {
+            // Before its first commit a window has no size yet; it restores
+            // to the size that it picks (0 in a configure).
+            let [w, h] = self.size.unwrap_or([0, 0]);
             self.restore = Some([self.pos[0], self.pos[1], w, h]);
         }
         let [x, y, w, h] = area;
@@ -204,7 +207,8 @@ impl Window {
     pub fn unmaximize(&mut self, active: bool) -> Option<Command> {
         let [x, y, w, h] = self.restore.take()?;
         self.pos = [x, y];
-        self.size = Some([w, h]);
+        let size = (w > 0 && h > 0).then_some([w, h]);
+        self.size = size;
         let states = if active {
             vec![ToplevelState::Activated]
         } else {
@@ -212,7 +216,7 @@ impl Window {
         };
         Some(Command::Configure {
             surface: self.surface.clone(),
-            size: Some([w, h]),
+            size,
             states,
         })
     }
@@ -255,6 +259,19 @@ pub fn cascade(step: &mut i32, [w, h]: [i32; 2], [ax, ay, aw, ah]: Rect) -> [i32
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_window_maximized_before_its_first_commit_stays_maximized() {
+        let mut w = Window::new("s1", None, None);
+        w.maximize([0, 0, 1280, 770]);
+        assert!(w.maximized());
+        // It restores to a size of its own choice.
+        let Some(Command::Configure { size, .. }) = w.unmaximize(false) else {
+            panic!("a configure");
+        };
+        assert_eq!(size, None);
+        assert!(!w.maximized());
+    }
 
     #[test]
     fn windows_cascade_and_wrap() {
