@@ -10,6 +10,7 @@ use std::{
     collections::{HashMap, HashSet},
     fs::File,
     io::BufReader,
+    os::unix::fs::OpenOptionsExt,
     time::SystemTime,
 };
 
@@ -74,13 +75,10 @@ impl Images {
     }
 
     fn load(&mut self, path: &str) -> Result<(), String> {
-        let meta = std::fs::metadata(path).map_err(|e| format!("{path}: {e}"))?;
+        let (file, meta) = open_file(path, MAX_FILE)?;
         let modified = meta.modified().ok();
         if modified.is_some() && self.cache.get(path).is_some_and(|i| i.modified == modified) {
             return Ok(());
-        }
-        if meta.len() > MAX_FILE {
-            return Err(format!("{path}: larger than {MAX_FILE} bytes"));
         }
         if !self.cache.contains_key(path) && self.cache.len() >= MAX_IMAGES {
             return Err(format!("{path}: the core holds {MAX_IMAGES} images"));
@@ -92,7 +90,7 @@ impl Images {
             .map(|(_, i)| u64::from(i.size[0]) * u64::from(i.size[1]) * 4)
             .sum();
         let budget = MAX_DECODED.saturating_sub(others);
-        let (pixels, size) = decode(path, budget).map_err(|e| format!("{path}: {e}"))?;
+        let (pixels, size) = decode(file, budget).map_err(|e| format!("{path}: {e}"))?;
         #[allow(clippy::cast_possible_wrap)] // at most MAX_SIDE
         let buffer = MemoryRenderBuffer::from_slice(
             &pixels,
@@ -128,10 +126,33 @@ impl Images {
     }
 }
 
+/// Opens a regular file of at most `max` bytes that a client named. A FIFO
+/// or a device would block the event loop, or never end: the open does not
+/// wait for a writer, and the check runs on the open file, so a swap of
+/// the path in between changes nothing.
+pub fn open_file(path: &str, max: u64) -> Result<(File, std::fs::Metadata), String> {
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(
+            smithay::reexports::rustix::fs::OFlags::NONBLOCK
+                .bits()
+                .cast_signed(),
+        )
+        .open(path)
+        .map_err(|e| format!("{path}: {e}"))?;
+    let meta = file.metadata().map_err(|e| format!("{path}: {e}"))?;
+    if !meta.is_file() {
+        return Err(format!("{path}: not a regular file"));
+    }
+    if meta.len() > max {
+        return Err(format!("{path}: larger than {max} bytes"));
+    }
+    Ok((file, meta))
+}
+
 /// Decodes a PNG file into premultiplied RGBA pixels, if they fit into a
 /// budget of bytes.
-fn decode(path: &str, budget: u64) -> Result<(Vec<u8>, [u32; 2]), String> {
-    let file = File::open(path).map_err(|e| e.to_string())?;
+fn decode(file: File, budget: u64) -> Result<(Vec<u8>, [u32; 2]), String> {
     let mut decoder = png::Decoder::new(BufReader::new(file));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
     let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
@@ -363,6 +384,23 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_a_regular_file_opens() {
+        let dir = std::env::temp_dir().join(format!("chora-open-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let fifo = dir.join("fifo");
+        let made = std::process::Command::new("mkfifo").arg(&fifo).status();
+        assert!(made.unwrap().success());
+        let err = open_file(fifo.to_str().unwrap(), 1).unwrap_err();
+        assert!(err.ends_with("not a regular file"), "{err}");
+        assert!(open_file("/dev/zero", 1).is_err());
+        let file = dir.join("big");
+        std::fs::write(&file, b"ab").unwrap();
+        assert!(open_file(file.to_str().unwrap(), 1).is_err());
+        assert!(open_file(file.to_str().unwrap(), 2).is_ok());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn an_image_without_a_slice_is_one_cell() {

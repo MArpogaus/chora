@@ -310,11 +310,9 @@ pub fn check_effect(gles: &mut GlesRenderer, path: &str) -> Result<(), String> {
 }
 
 fn read_source(path: &str) -> Result<String, String> {
-    let meta = std::fs::metadata(path).map_err(|e| format!("{path}: {e}"))?;
-    if meta.len() > MAX_SOURCE {
-        return Err(format!("{path}: larger than {MAX_SOURCE} bytes"));
-    }
-    let source = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
+    let (mut file, _) = crate::images::open_file(path, MAX_SOURCE)?;
+    let mut source = String::new();
+    std::io::Read::read_to_string(&mut file, &mut source).map_err(|e| format!("{path}: {e}"))?;
     Ok(with_derivatives(source))
 }
 
