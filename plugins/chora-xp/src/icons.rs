@@ -7,10 +7,18 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// The themes to search, in order. XP's own icons come from `WinXPSVG`,
-/// when it is installed.
-const THEMES: [&str; 6] = [
-    "WinXPSVG", "Adwaita", "breeze", "Papirus", "Humanity", "hicolor",
+/// The themes to search, in order, by the start of their directory name.
+/// XP's own icons come from `WinXPSVG` or `WindowsXP`, when one is
+/// installed; they come with suffixes such as
+/// `WinXPSVG-plasma5up-scalable-icontheme-blackysgate.de`.
+const THEMES: [&str; 7] = [
+    "WinXPSVG",
+    "WindowsXP",
+    "Adwaita",
+    "breeze",
+    "Papirus",
+    "Humanity",
+    "hicolor",
 ];
 
 /// Finds icons and remembers the answers.
@@ -59,12 +67,25 @@ fn search_all(name: &str) -> Option<PathBuf> {
     let bases: Vec<PathBuf> = data_dirs().iter().map(|d| d.join("icons")).collect();
     THEMES
         .iter()
-        .flat_map(|theme| bases.iter().map(move |base| base.join(theme)))
+        .flat_map(|theme| bases.iter().flat_map(move |base| themes(base, theme)))
         .find_map(|dir| search(&dir, name))
         .or_else(|| {
             let pixmap = Path::new("/usr/share/pixmaps").join(format!("{name}.png"));
             pixmap.is_file().then_some(pixmap)
         })
+}
+
+/// The theme directories of a base whose name starts with a prefix.
+fn themes(base: &Path, prefix: &str) -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = subdirs(base)
+        .into_iter()
+        .filter(|d| {
+            d.file_name()
+                .is_some_and(|n| n.to_string_lossy().starts_with(prefix))
+        })
+        .collect();
+    dirs.sort();
+    dirs
 }
 
 /// Searches the two directory levels of a theme, for example
