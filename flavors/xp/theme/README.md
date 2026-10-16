@@ -2,7 +2,7 @@
 
 chora-xp draws the window frames, the taskbar, the start menu and the
 desktop from these files. It rasterizes the SVG files at runtime. All files
-but the two cascade arrows come from
+but the ones drawn for chora come from
 [kde-plasma-winxp-launcher](https://github.com/MArpogaus/kde-plasma-winxp-launcher)
 (commit `3e08801`), which bundles the Exposé theme and its own Windows XP
 pack. No file here belongs to Microsoft: the fonts, Bliss, the sounds and
@@ -15,6 +15,8 @@ the original start flag stay out, as in the reference repository.
 | `winxp/winxp.svg`, `winxp/tasks.svg` | start button, start menu, notification area, task buttons | the Windows XP pack of kde-plasma-winxp-launcher, in its Plasma theme `desktoptheme/expose/widgets/` | GPL-2.0-or-later, `winxp/LICENSE` |
 | `winxp/start-flag.svg`, `winxp/log-off.svg`, `winxp/turn-off.svg` | the flag of the start button, the icons of Log Off and Turn Off Computer | kde-plasma-winxp-launcher, start menu widget `contents/images/`; original artwork | GPL-2.0-or-later, `winxp/LICENSE` |
 | `winxp/cascade-arrow.svg`, `winxp/cascade-arrow-selected.svg` | the arrow of a program group in All Programs, black and white | drawn for chora after the arrow of XP's menus | GPL-3.0-or-later, as chora |
+| `winxp/switch-user.svg`, `winxp/stand-by.svg`, `winxp/restart.svg` | the icons of the Log Off and Turn Off dialogs | kde-plasma-winxp-launcher (commit `868b5b9`), start menu widget `contents/images/`; original artwork | GPL-2.0-or-later, `winxp/LICENSE` |
+| `winxp/dialog.svg`, `winxp/dialog-button*.svg`, `winxp/dialog-icon-*.svg` | the bands of the Log Off and Turn Off dialogs, the Cancel button normal, under the pointer and down, and the light and the pale look of the big buttons | drawn for chora after the colors of `SessionDialogView.qml` and of XP's dialogs | GPL-3.0-or-later, as chora |
 | `fonts/tahoma.ttf` | Tahoma, the font of menus, task buttons and titles | the metric-compatible Tahoma of the Wine project, from the start menu widget | LGPL-2.1-or-later, `fonts/LICENSE.Tahoma-Wine.LGPL-2.1` |
 | `fonts/LibreFranklin-Bold.ttf` | the label of the start button | Libre Franklin Project, from the start menu widget | OFL-1.1, `fonts/OFL.txt` |
 | `wallpaper/bloff.png` | the wallpaper Bløff, scaled from 3840x2160 to 1920x1080 | Exposé wallpapers by phob1an | CC-BY-SA-4.0, `wallpaper/LICENSE` |

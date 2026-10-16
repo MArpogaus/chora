@@ -11,6 +11,7 @@ mod cube;
 mod decoration;
 mod icons;
 mod lamp;
+mod session;
 mod startmenu;
 mod taskbar;
 mod text;
@@ -95,7 +96,24 @@ fn run(args: &Args) -> Result<(), String> {
         slow: args.slow_motion,
     };
     let mut wm = Wm::start(conn, theme, menu, icons, config).map_err(|e| e.to_string())?;
-    event_loop(&mut wm).map_err(|e| e.to_string())
+    event_loop(&mut wm).map_err(|e| e.to_string())?;
+    if wm.restart {
+        drop(wm);
+        return Err(restart());
+    }
+    Ok(())
+}
+
+/// Restart of the Turn Off dialog: the plugin runs itself again with the
+/// same arguments, in the same process, so that the core and the session
+/// keep it. The connection closes with the exec, and the new instance
+/// adopts the windows as at any start. Returns only on an error.
+fn restart() -> String {
+    use std::os::unix::process::CommandExt as _;
+    let mut args = std::env::args_os();
+    let program = args.next().unwrap_or_else(|| "chora-xp".into());
+    let err = std::process::Command::new(program).args(args).exec();
+    format!("restart: {err}")
 }
 
 /// Handles events until Turn Off. In between, the clock ticks, cascades

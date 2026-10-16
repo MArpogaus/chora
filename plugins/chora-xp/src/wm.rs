@@ -12,7 +12,8 @@ use std::{
 };
 
 use chora_scene::{
-    Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
+    Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
+    SurfaceRequest, Uniform,
     ipc::{ClientError, Grab, PressState, Subscribe},
 };
 use serde_json::Value;
@@ -23,6 +24,7 @@ use crate::{
     cube::DESKTOPS,
     decoration::{self, Button, Part},
     icons::Icons,
+    session::{self, Choice, Dialog, Mode},
     startmenu::{Action, Menu},
     taskbar::{self, Bar, Task},
     theme::{Rect, Theme},
@@ -40,6 +42,9 @@ const MENUS: &str = "xp-menus";
 const LEFT_BUTTON: u32 = 272;
 /// Two presses on a title bar within this time maximize the window.
 const DOUBLE_CLICK: Duration = Duration::from_millis(500);
+/// How long the desktop takes to lose its color behind a dialog, as in
+/// the Session Fade effect of the reference.
+const FADE: Duration = Duration::from_millis(1500);
 
 /// The settings of the window manager.
 pub struct Config {
@@ -121,8 +126,16 @@ pub struct Wm {
     /// Escape, while the start menu holds it.
     escape: Option<String>,
     effects: Effects,
+    /// The Log Off or Turn Off dialog.
+    dialog: Option<Dialog>,
+    /// When the dialog opened, while the desktop fades to gray.
+    fade: Option<Instant>,
+    /// The shader of the fade, in the cache.
+    fade_shader: Option<String>,
     /// Turn Off ended the plugin.
     pub done: bool,
+    /// Restart ended the plugin, to start it again.
+    pub restart: bool,
 }
 
 impl Wm {
@@ -154,7 +167,11 @@ impl Wm {
             hover: None,
             escape: None,
             effects: Effects::default(),
+            dialog: None,
+            fade: None,
+            fade_shader: None,
             done: false,
+            restart: false,
         };
         wm.clock = wm.now();
         wm.create_scene()?;
@@ -682,6 +699,9 @@ impl Wm {
         } else if self.hover.as_deref() == Some(node) {
             self.hover = None;
         }
+        if let Some(dialog) = self.dialog.as_mut().filter(|_| Dialog::owns(node)) {
+            return dialog.hover(&mut self.theme, node, on);
+        }
         if let Some(Part::Button(surface, button)) = Part::of(node) {
             let Some(i) = self.index(&surface) else {
                 return Vec::new();
@@ -802,6 +822,9 @@ impl Wm {
     }
 
     fn pressed(&mut self, node: &str, button: u32, position: [f64; 2]) -> Vec<Command> {
+        if self.dialog.is_some() {
+            return self.press_dialog(node);
+        }
         let start = matches!(taskbar::Part::of(node), Some(taskbar::Part::Start(_)));
         let mut commands = Vec::new();
         if self.menu.is_open() && !Menu::owns(node) && !start {
@@ -932,6 +955,13 @@ impl Wm {
         if let Some(drag) = self.drag.take() {
             self.release_wobble(&drag.surface);
         }
+        if let Some(dialog) = &mut self.dialog {
+            let (mut commands, choice) = dialog.release(&mut self.theme, position);
+            if let Some(choice) = choice {
+                commands.extend(self.choose(choice));
+            }
+            return commands;
+        }
         if let Some(Part::Button(surface, button)) = Part::of(node) {
             return self.release_button(&surface, button, position);
         }
@@ -942,8 +972,9 @@ impl Wm {
             .menu
             .release(&mut self.theme, &mut self.icons, position);
         if let Some(action) = action {
+            let output = self.menu.output().map(String::from);
             commands.extend(self.close_menu());
-            commands.extend(self.run(&action));
+            commands.extend(self.run(&action, output.as_deref()));
         }
         commands
     }
@@ -1001,22 +1032,124 @@ impl Wm {
         commands
     }
 
-    fn run(&mut self, action: &Action) -> Vec<Command> {
+    fn run(&mut self, action: &Action, output: Option<&str>) -> Vec<Command> {
         match action {
             Action::Run(command) => {
                 spawn(command);
                 Vec::new()
             }
-            Action::LogOff => self
-                .windows
-                .iter()
-                .flat_map(|w| close(&w.surface))
-                .collect(),
-            Action::TurnOff => {
-                self.done = true;
-                Vec::new()
+            Action::LogOff => self.open_dialog(Mode::LogOff, output),
+            Action::TurnOff => self.open_dialog(Mode::TurnOff, output),
+        }
+    }
+
+    // The Log Off and Turn Off dialogs
+
+    /// Shows a dialog in the middle of the output of the start menu, and
+    /// lets the desktop behind it fade to gray.
+    fn open_dialog(&mut self, mode: Mode, output: Option<&str>) -> Vec<Command> {
+        let bar = output
+            .and_then(|o| self.bars.iter().find(|b| b.output == o))
+            .or(self.bars.first());
+        let Some(bar) = bar else {
+            return Vec::new();
+        };
+        let [.., w, h] = bar.area();
+        let suspend = session::on_path("systemctl");
+        let dialog = Dialog::new(mode, &bar.output, [w, h], suspend);
+        let mut commands = dialog.create(&mut self.theme);
+        self.dialog = Some(dialog);
+        if self.fade_shader.is_none() {
+            match self.theme.cache_file("fade.frag", session::FADE_SHADER) {
+                Ok(path) => self.fade_shader = Some(path.to_string_lossy().into_owned()),
+                Err(err) => eprintln!("chora-xp: the shader of the fade: {err}"),
             }
         }
+        if self.fade_shader.is_some() && self.effects_on() {
+            self.fade = Some(Instant::now());
+            commands.extend(self.fade_step(0.0));
+        }
+        commands
+    }
+
+    /// The gray of the desktop: the whole plugin becomes a layer with the
+    /// shader of the fade. The dialog sits on the overlay root, outside it.
+    fn fade_step(&self, amount: f64) -> Option<Command> {
+        let shader = self.fade_shader.clone()?;
+        // ponytail: from the origin of the scene; outputs left of or above
+        // it stay in color. Take the bounds of all outputs if that matters.
+        let size = self.bars.iter().fold([1.0_f64, 1.0_f64], |[w, h], bar| {
+            let [x, y, bw, bh] = bar.area();
+            [w.max(f64::from(x + bw)), h.max(f64::from(y + bh))]
+        });
+        Some(Command::Update {
+            id: NAME.into(),
+            props: PropsUpdate {
+                size: Some(size),
+                effects: Some(vec![ShaderEffect {
+                    shader,
+                    uniforms: [("amount".into(), Uniform::Float(amount))].into(),
+                }]),
+                ..PropsUpdate::default()
+            },
+        })
+    }
+
+    /// Whether the desktop still fades.
+    pub fn fading(&self) -> bool {
+        self.fade.is_some_and(|start| start.elapsed() < FADE)
+    }
+
+    /// The next frame of the fade.
+    pub(super) fn fade_frame(&self, now: Instant) -> Option<Command> {
+        let start = self.fade?;
+        let t = now.saturating_duration_since(start).as_secs_f64() / FADE.as_secs_f64();
+        self.fade_step(t.min(1.0))
+    }
+
+    /// A press on a button of the dialog; a press outside it closes it,
+    /// as Cancel does.
+    fn press_dialog(&mut self, node: &str) -> Vec<Command> {
+        let Some(dialog) = &mut self.dialog else {
+            return Vec::new();
+        };
+        match dialog.press(&mut self.theme, node) {
+            Some(commands) => commands,
+            None => self.close_dialog(),
+        }
+    }
+
+    fn close_dialog(&mut self) -> Vec<Command> {
+        if self.dialog.take().is_none() {
+            return Vec::new();
+        }
+        let mut commands = vec![Dialog::remove()];
+        if self.fade.take().is_some() {
+            commands.push(Command::Update {
+                id: NAME.into(),
+                props: PropsUpdate {
+                    effects: Some(Vec::new()),
+                    ..PropsUpdate::default()
+                },
+            });
+        }
+        commands
+    }
+
+    /// Does what a button of a dialog says.
+    fn choose(&mut self, choice: Choice) -> Vec<Command> {
+        let mut commands = self.close_dialog();
+        match choice {
+            Choice::LogOff => commands.extend(self.windows.iter().flat_map(|w| close(&w.surface))),
+            Choice::StandBy => spawn("systemctl suspend"),
+            Choice::TurnOff => self.done = true,
+            Choice::Restart => {
+                self.done = true;
+                self.restart = true;
+            }
+            Choice::SwitchUser | Choice::Cancel => {}
+        }
+        commands
     }
 }
 

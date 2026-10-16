@@ -196,8 +196,18 @@ start menu. All Programs and its groups open their cascading menus when
 the pointer rests on them for 350 ms, or on a click. A click on a program
 starts it and closes the menu; a click outside closes the menu. Escape
 closes nothing yet: the core takes no grab of a key without Ctrl, Alt or
-Super (D45). Log Off asks every window to close. Turn Off Computer ends
-`chora-xp`; it shuts nothing down.
+Super (D45).
+
+Log Off and Turn Off Computer open XP's dialogs in the middle of the
+output, and the desktop behind them fades to gray in 1.5 seconds. In Log
+Off Windows, Log Off asks every window to close; Switch User is always
+disabled, because chora has no second session to switch to. In Turn off
+computer, Stand By runs `systemctl suspend`, and is disabled without
+`systemctl`; Turn Off ends `chora-xp` and shuts nothing down; Restart
+runs `chora-xp` again in the same process, with the same arguments, and
+the new instance adopts the windows. Cancel or a click outside the dialog
+closes it. The buttons light up under the pointer; the keyboard does not
+work the dialogs, for the same reason as Escape.
 
 The effects run in the plugin, which computes their meshes and
 transforms at 60 Hz:

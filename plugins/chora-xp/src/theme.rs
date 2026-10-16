@@ -235,6 +235,14 @@ impl Theme {
         self.dir.join(file)
     }
 
+    /// Writes a file into the cache, for example a shader for the core,
+    /// and returns its path.
+    pub fn cache_file(&self, name: &str, data: &str) -> std::io::Result<PathBuf> {
+        let path = self.cache.join(name);
+        fs::write(&path, data)?;
+        Ok(path)
+    }
+
     /// The width of a line of text in pixels.
     pub fn text_width(&self, line: &str, font: Font) -> f64 {
         self.fonts.width(line, font).unwrap_or(0.0)

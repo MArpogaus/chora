@@ -39,9 +39,9 @@ const FRAME_ID: &str = "xp-menu-frame";
 pub enum Action {
     /// Runs a shell command.
     Run(String),
-    /// Asks every window to close.
+    /// Opens the Log Off Windows dialog.
     LogOff,
-    /// Ends the plugin.
+    /// Opens the Turn off computer dialog.
     TurnOff,
 }
 

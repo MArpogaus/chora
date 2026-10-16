@@ -27,6 +27,8 @@ pub enum Font {
     Start,
     /// The user name in the header of the start menu.
     Name,
+    /// The title of the Log Off and Turn Off dialogs.
+    Dialog,
 }
 
 /// Where a line of text sits in its rectangle.
@@ -96,7 +98,7 @@ struct Spec {
 /// The font database and the look of each font.
 pub struct Fonts {
     options: usvg::Options<'static>,
-    specs: [Spec; 5],
+    specs: [Spec; 6],
 }
 
 impl Fonts {
@@ -125,6 +127,7 @@ impl Fonts {
             spec(&title, 13, true, false),
             spec(&start, 17, true, true),
             spec("Tahoma", 16, true, false),
+            spec("Tahoma", 19, false, false),
         ];
         let options = usvg::Options {
             fontdb: Arc::new(db),
