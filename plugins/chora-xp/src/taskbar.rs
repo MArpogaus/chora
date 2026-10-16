@@ -22,6 +22,9 @@ const TASK_HEIGHT: i32 = 25;
 const TASK_GAP: i32 = 3;
 const TASK_WIDTH: i32 = 160;
 const TRAY_WIDTH: i32 = 82;
+/// The room of an icon in the notification area, and its left edge.
+const TRAY_ICON: i32 = 22;
+const TRAY_ICON_LEFT: i32 = 10;
 /// The buttons of the desktops, left of the tray, as in the virtual
 /// desktop manager of the power toys for XP.
 const PAGER_BUTTON: i32 = 22;
@@ -81,6 +84,8 @@ pub struct Bar {
     area: Rect,
     /// The position of the output in the layout.
     position: [i32; 2],
+    /// The icon in the notification area, left of the clock.
+    pub icon: Option<PathBuf>,
     /// The surfaces with a button, from the left.
     tasks: Vec<String>,
     /// The last update of each task button, to skip repeats.
@@ -94,6 +99,7 @@ impl Bar {
             output: output.name.clone(),
             area: output.layout_area(),
             position: output.position,
+            icon: None,
             tasks: Vec::new(),
             shown: HashMap::new(),
         }
@@ -225,7 +231,7 @@ impl Bar {
     /// The buttons of the desktops, the current one down, and one maybe
     /// under the pointer.
     pub fn pager(&self, theme: &mut Theme, current: usize, hovered: Option<usize>) -> Vec<Command> {
-        let left = self.area[2] - TRAY_WIDTH - PAGER_WIDTH;
+        let left = self.area[2] - self.tray_width() - PAGER_WIDTH;
         (0..DESKTOPS)
             .zip(0..)
             .map(|(desktop, i)| {
@@ -259,28 +265,48 @@ impl Bar {
             .collect()
     }
 
-    /// The notification area with the clock, at the right edge.
+    /// The width of the notification area: it grows for an icon.
+    fn tray_width(&self) -> i32 {
+        TRAY_WIDTH + if self.icon.is_some() { TRAY_ICON } else { 0 }
+    }
+
+    /// The notification area with the icon and the clock, at the right
+    /// edge.
     pub fn tray(&self, theme: &mut Theme, clock: &str) -> Command {
-        let picture = Picture::new(TRAY_WIDTH, HEIGHT)
+        let width = self.tray_width();
+        let mut picture = Picture::new(width, HEIGHT)
             .element(Sheet::Winxp, "tray-left", [0, 0, 2, HEIGHT])
-            .element(Sheet::Winxp, "tray-center", [2, 0, TRAY_WIDTH - 2, HEIGHT])
-            .text(Text::new(clock, Font::Ui, WHITE, [2, 0, TRAY_WIDTH - 4, HEIGHT]).centered());
+            .element(Sheet::Winxp, "tray-center", [2, 0, width - 2, HEIGHT]);
+        if let Some(icon) = &self.icon {
+            picture = picture.file(icon, [TRAY_ICON_LEFT, 7, 16, 16]);
+        }
+        let left = width - TRAY_WIDTH;
+        let picture = picture.text(
+            Text::new(
+                clock,
+                Font::Ui,
+                WHITE,
+                [left + 2, 0, TRAY_WIDTH - 4, HEIGHT],
+            )
+            .centered(),
+        );
         update(
             &format!("xp-tray-{}", self.output),
             PropsUpdate {
                 image: Some(theme.render(&picture)),
-                ..at(f64::from(self.area[2] - TRAY_WIDTH), 0.0)
+                ..at(f64::from(self.area[2] - width), 0.0)
             },
         )
     }
 
     /// Where the tail of a balloon points, in the coordinates of the
-    /// output: the left part of the notification area; and the right
-    /// edge of the work area.
+    /// output: the top of the icon of the notification area; and the
+    /// right edge of the work area.
     pub fn tray_tip(&self) -> ([i32; 2], i32) {
         let [x, y, w, h] = self.area;
         let [x, y] = [x - self.position[0], y - self.position[1]];
-        ([x + w - TRAY_WIDTH + 19, y + h - HEIGHT + 15], x + w)
+        let icon = x + w - self.tray_width() + TRAY_ICON_LEFT + 8;
+        ([icon, y + h - HEIGHT + 8], x + w)
     }
 
     /// The task buttons: new ones for new windows, none for closed ones,
@@ -353,7 +379,7 @@ impl Bar {
     fn task_rect(&self, index: usize) -> Rect {
         let n = i32::try_from(self.tasks.len().max(1)).unwrap_or(i32::MAX);
         let i = i32::try_from(index).unwrap_or(0);
-        let room = self.area[2] - TRAY_WIDTH - PAGER_WIDTH - 6 - TASKS_LEFT;
+        let room = self.area[2] - self.tray_width() - PAGER_WIDTH - 6 - TASKS_LEFT;
         let width = ((room - (n - 1) * TASK_GAP) / n).clamp(24, TASK_WIDTH);
         [
             TASKS_LEFT + i * (width + TASK_GAP),
@@ -400,6 +426,7 @@ mod tests {
             output: "DP-1".into(),
             area: [0, 0, 1280, 800],
             position: [0, 0],
+            icon: None,
             tasks: (0..tasks).map(|i| format!("s{i}")).collect(),
             shown: HashMap::new(),
         }
@@ -423,5 +450,14 @@ mod tests {
             "{x} {w}"
         );
         assert_eq!(bar(1).task_target("s0"), Some([106.0, 773.0, 160.0, 25.0]));
+    }
+
+    #[test]
+    fn the_tray_grows_for_an_icon() {
+        let mut bar = bar(0);
+        assert_eq!(bar.tray_tip(), ([1280 - 82 + 18, 778], 1280));
+        bar.icon = Some("info.svg".into());
+        assert_eq!(bar.tray_width(), 104);
+        assert_eq!(bar.tray_tip().0[0], 1280 - 104 + 18);
     }
 }

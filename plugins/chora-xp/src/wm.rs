@@ -1293,15 +1293,40 @@ impl Wm {
         if self.balloon.take().is_some() {
             commands.push(Balloon::remove());
         }
+        let icon = current
+            .as_ref()
+            .map(|n| n.icon.as_str())
+            .filter(|i| !i.is_empty())
+            .and_then(|i| self.icons.find(i));
+        // The notification area shows the icon of the balloon, or XP's
+        // information icon, while the balloon shows.
+        let tray = current.as_ref().map(|_| {
+            icon.clone()
+                .unwrap_or_else(|| self.theme.path("winxp/balloon-info.svg"))
+        });
+        commands.extend(self.tray_icon(tray));
         let (Some(note), Some(bar)) = (current, self.bars.first()) else {
             return commands;
         };
-        let icon = Some(note.icon.as_str())
-            .filter(|i| !i.is_empty())
-            .and_then(|i| self.icons.find(i));
         let balloon = Balloon::new(&mut self.theme, &note, icon.as_deref(), bar);
         commands.extend(balloon.create(&mut self.theme));
         self.balloon = Some((note, balloon));
+        commands
+    }
+
+    /// Puts an icon into the notification area of the first output, or
+    /// takes it out; the task and desktop buttons make room.
+    fn tray_icon(&mut self, icon: Option<PathBuf>) -> Vec<Command> {
+        let Some(bar) = self.bars.first_mut() else {
+            return Vec::new();
+        };
+        if bar.icon == icon {
+            return Vec::new();
+        }
+        bar.icon = icon;
+        let mut commands = vec![bar.tray(&mut self.theme, &self.clock)];
+        commands.extend(self.pagers());
+        commands.extend(self.sync_tasks());
         commands
     }
 }

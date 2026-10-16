@@ -226,7 +226,9 @@ session bus), so that `notify-send` and programs show XP's balloon tips:
 a pale yellow balloon with a black border above the notification area of
 the first output, with a tail towards the tray, the icon of the
 notification, a bold title, the text wrapped at 300 pixels and a close
-button. One balloon shows at a time, and the others wait their turn. A
+button. While a balloon shows, the notification area grows for its icon,
+or XP's information icon, left of the clock, as on XP, and the tail
+points at it. One balloon shows at a time, and the others wait their turn. A
 balloon closes after its time, which is 10 seconds by default and, as on
 XP, at least 10 and at most 30 seconds; with a time of 0 it stays until a
 click. A click on the close button dismisses it; a click on the balloon
