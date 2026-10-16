@@ -5,6 +5,7 @@ clap = { workspace = true, features = ["env"] }
 resvg = { version = "0.48", default-features = false, features = ["memmap-fonts", "system-fonts", "text"] }
 serde.workspace = true
 serde_json.workspace = true
+zbus = "5.19"
 
 [lints]
 workspace = true

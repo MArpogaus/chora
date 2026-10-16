@@ -21,11 +21,13 @@ use serde_json::Value;
 use self::{desktops::desk_id, effects::Effects};
 use crate::{
     apps,
+    balloon::{self, Balloon, Queue},
     conn::Conn,
     control::{self, Setting},
     cube::DESKTOPS,
     decoration::{self, Button, Part},
     icons::Icons,
+    notify::{Bus, Note, Reason, Request, Signal},
     session::{self, Choice, Dialog, Mode},
     startmenu::{Action, Menu},
     taskbar::{self, Bar, Task},
@@ -134,6 +136,12 @@ pub struct Wm {
     fade: Option<Instant>,
     /// The shader of the fade, in the cache.
     fade_shader: Option<String>,
+    /// The notification server, if the session bus had the name free.
+    bus: Option<Bus>,
+    /// The notifications that show and wait.
+    notes: Queue,
+    /// The balloon that shows, with its notification.
+    balloon: Option<(Note, Balloon)>,
     /// Turn Off ended the plugin.
     pub done: bool,
     /// Restart ended the plugin, to start it again.
@@ -172,6 +180,9 @@ impl Wm {
             dialog: None,
             fade: None,
             fade_shader: None,
+            bus: Bus::start_or_log(),
+            notes: Queue::default(),
+            balloon: None,
             done: false,
             restart: false,
         };
@@ -704,6 +715,9 @@ impl Wm {
         if let Some(dialog) = self.dialog.as_mut().filter(|_| Dialog::owns(node)) {
             return dialog.hover(&mut self.theme, node, on);
         }
+        if let Some((_, balloon)) = self.balloon.as_mut().filter(|_| Balloon::owns(node)) {
+            return balloon.hover(&mut self.theme, node, on);
+        }
         if let Some(Part::Button(surface, button)) = Part::of(node) {
             let Some(i) = self.index(&surface) else {
                 return Vec::new();
@@ -733,8 +747,7 @@ impl Wm {
             &self.config.wallpaper,
             output,
         )];
-        let area = output.layout_area();
-        commands.extend(self.bars[i].resize(&mut self.theme, area, &self.clock));
+        commands.extend(self.bars[i].resize(&mut self.theme, output, &self.clock));
         commands.extend(self.pagers());
         let area = self.bars[i].usable();
         // Maximized windows of the output fill its new area.
@@ -824,6 +837,9 @@ impl Wm {
     }
 
     fn pressed(&mut self, node: &str, button: u32, position: [f64; 2]) -> Vec<Command> {
+        if Balloon::owns(node) {
+            return self.press_balloon(node);
+        }
         if self.dialog.is_some() {
             return self.press_dialog(node);
         }
@@ -1211,6 +1227,81 @@ impl Wm {
             }
             Choice::SwitchUser | Choice::Cancel => {}
         }
+        commands
+    }
+}
+
+impl Wm {
+    // The balloons of the notifications
+
+    /// When the main loop looks at the notifications again: soon, while
+    /// the server runs.
+    pub fn notes_due(&self, now: Instant) -> Option<Instant> {
+        self.bus.as_ref()?;
+        let poll = now + balloon::POLL;
+        Some(self.notes.due().map_or(poll, |due| due.min(poll)))
+    }
+
+    /// Takes the calls of the clients and closes an expired balloon.
+    pub fn notifications(&mut self, now: Instant) -> Result<(), ClientError> {
+        let Some(bus) = &self.bus else {
+            return Ok(());
+        };
+        let requests: Vec<Request> = bus.requests.try_iter().collect();
+        let mut signals = Vec::new();
+        for request in requests {
+            match request {
+                Request::Notify(note) => self.notes.push(note, now),
+                Request::Close(id) => signals.extend(self.notes.close(id, Reason::Closed, now)),
+            }
+        }
+        signals.extend(self.notes.expire(now));
+        let commands = self.after_notes(&signals);
+        if commands.is_empty() {
+            return Ok(());
+        }
+        self.conn.apply(commands)
+    }
+
+    /// A click on the close button dismisses the balloon; one on the
+    /// balloon invokes its default action, too.
+    fn press_balloon(&mut self, node: &str) -> Vec<Command> {
+        let now = Instant::now();
+        let signals = match self.notes.current() {
+            Some(shown) if Balloon::is_close(node) => {
+                self.notes.close(shown.id, Reason::Dismissed, now)
+            }
+            _ => self.notes.click(now),
+        };
+        self.after_notes(&signals)
+    }
+
+    /// Sends the signals and shows the balloon of the current
+    /// notification, if it changed.
+    fn after_notes(&mut self, signals: &[Signal]) -> Vec<Command> {
+        if let Some(bus) = &self.bus {
+            for signal in signals {
+                bus.emit(signal);
+            }
+        }
+        let current = self.notes.current();
+        if self.balloon.as_ref().map(|(note, _)| note) == current {
+            return Vec::new();
+        }
+        let current = current.cloned();
+        let mut commands = Vec::new();
+        if self.balloon.take().is_some() {
+            commands.push(Balloon::remove());
+        }
+        let (Some(note), Some(bar)) = (current, self.bars.first()) else {
+            return commands;
+        };
+        let icon = Some(note.icon.as_str())
+            .filter(|i| !i.is_empty())
+            .and_then(|i| self.icons.find(i));
+        let balloon = Balloon::new(&mut self.theme, &note, icon.as_deref(), bar);
+        commands.extend(balloon.create(&mut self.theme));
+        self.balloon = Some((note, balloon));
         commands
     }
 }

@@ -33,6 +33,7 @@ the official Rust MCP SDK (D34).
 | [resvg](https://github.com/linebender/resvg) | `chora-xp` rasterizes the SVG files of its theme into PNG files for image nodes | Apache-2.0 OR MIT; brings usvg (Apache-2.0 OR MIT) and tiny-skia (BSD-3-Clause) |
 | fontdb, harfrust, skrifa | text of `chora-xp` through usvg: the bundled Tahoma and the system fonts | fontdb and harfrust MIT; skrifa and read-fonts MIT OR Apache-2.0 |
 | chrono | the clock of the taskbar of `chora-xp`, in local time | MIT OR Apache-2.0; with iana-time-zone (MIT OR Apache-2.0) |
+| [zbus](https://github.com/z-galaxy/zbus) | the notification server of `chora-xp` on the session bus, through its blocking API | MIT; 5.19, because 6.0 has no blocking API; brings zvariant (MIT) and the smol crates (Apache-2.0 OR MIT) |
 
 The theme of the XP flavor is artwork, not code: SVG files of Exposé and of
 the Windows XP pack of `kde-plasma-winxp-launcher`, two fonts, a wallpaper

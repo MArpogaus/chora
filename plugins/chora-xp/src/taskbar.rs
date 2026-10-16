@@ -79,6 +79,8 @@ pub struct Bar {
     pub output: String,
     /// The work area of the output.
     area: Rect,
+    /// The position of the output in the layout.
+    position: [i32; 2],
     /// The surfaces with a button, from the left.
     tasks: Vec<String>,
     /// The last update of each task button, to skip repeats.
@@ -91,6 +93,7 @@ impl Bar {
         Self {
             output: output.name.clone(),
             area: output.layout_area(),
+            position: output.position,
             tasks: Vec::new(),
             shown: HashMap::new(),
         }
@@ -161,9 +164,10 @@ impl Bar {
         commands
     }
 
-    /// Moves the taskbar to a new work area.
-    pub fn resize(&mut self, theme: &mut Theme, area: Rect, clock: &str) -> Vec<Command> {
-        self.area = area;
+    /// Moves the taskbar to the new work area of its output.
+    pub fn resize(&mut self, theme: &mut Theme, output: &OutputInfo, clock: &str) -> Vec<Command> {
+        self.area = output.layout_area();
+        self.position = output.position;
         let mut commands = self.layout(theme);
         commands.push(self.tray(theme, clock));
         commands
@@ -268,6 +272,15 @@ impl Bar {
                 ..at(f64::from(self.area[2] - TRAY_WIDTH), 0.0)
             },
         )
+    }
+
+    /// Where the tail of a balloon points, in the coordinates of the
+    /// output: the left part of the notification area; and the right
+    /// edge of the work area.
+    pub fn tray_tip(&self) -> ([i32; 2], i32) {
+        let [x, y, w, h] = self.area;
+        let [x, y] = [x - self.position[0], y - self.position[1]];
+        ([x + w - TRAY_WIDTH + 19, y + h - HEIGHT + 15], x + w)
     }
 
     /// The task buttons: new ones for new windows, none for closed ones,
@@ -386,6 +399,7 @@ mod tests {
         Bar {
             output: "DP-1".into(),
             area: [0, 0, 1280, 800],
+            position: [0, 0],
             tasks: (0..tasks).map(|i| format!("s{i}")).collect(),
             shown: HashMap::new(),
         }

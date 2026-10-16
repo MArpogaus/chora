@@ -221,6 +221,20 @@ the new instance adopts the windows. Cancel or a click outside the dialog
 closes it. The buttons light up under the pointer; the keyboard does not
 work the dialogs, for the same reason as Escape.
 
+`chora-xp` serves notifications (`org.freedesktop.Notifications` on the
+session bus), so that `notify-send` and programs show XP's balloon tips:
+a pale yellow balloon with a black border above the notification area of
+the first output, with a tail towards the tray, the icon of the
+notification, a bold title, the text wrapped at 300 pixels and a close
+button. One balloon shows at a time, and the others wait their turn. A
+balloon closes after its time, which is 10 seconds by default and, as on
+XP, at least 10 and at most 30 seconds; with a time of 0 it stays until a
+click. A click on the close button dismisses it; a click on the balloon
+invokes the action `default` of the notification, if it has one, and
+dismisses it too. If another server, such as GNOME Shell, owns the name
+on the bus, `chora-xp` logs one line and shows no balloons; it never
+takes the name from its owner.
+
 The effects run in the plugin, which computes their meshes and
 transforms at 60 Hz:
 
