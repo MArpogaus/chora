@@ -17,7 +17,7 @@ use resvg::{
     usvg,
 };
 
-use crate::text::{Fonts, Text};
+use crate::text::{Font, Fonts, Text};
 
 /// A rectangle: x, y, width and height in pixels.
 pub type Rect = [i32; 4];
@@ -233,6 +233,11 @@ impl Theme {
     /// A file of the theme directory.
     pub fn path(&self, file: &str) -> PathBuf {
         self.dir.join(file)
+    }
+
+    /// The width of a line of text in pixels.
+    pub fn text_width(&self, line: &str, font: Font) -> f64 {
+        self.fonts.width(line, font).unwrap_or(0.0)
     }
 
     /// The size of an element, rounded to pixels.

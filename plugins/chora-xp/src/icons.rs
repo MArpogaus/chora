@@ -21,7 +21,7 @@ pub struct Icons {
 
 impl Icons {
     /// The file of an icon: an SVG file if there is one, else the largest
-    /// PNG file up to 64 pixels.
+    /// PNG file up to 64 pixels. An absolute path is its own file.
     pub fn find(&mut self, name: &str) -> Option<PathBuf> {
         if let Some(found) = self.found.get(name) {
             return found.clone();
@@ -32,8 +32,9 @@ impl Icons {
     }
 }
 
-/// The directories with icon themes.
-fn bases() -> Vec<PathBuf> {
+/// The XDG data directories: `$XDG_DATA_HOME` first, then
+/// `$XDG_DATA_DIRS`.
+pub fn data_dirs() -> Vec<PathBuf> {
     let home = std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|h| Path::new(&h).join(".local/share")));
@@ -43,15 +44,19 @@ fn bases() -> Vec<PathBuf> {
         .unwrap_or_else(|| "/usr/local/share:/usr/share".into());
     home.into_iter()
         .chain(dirs.split(':').map(PathBuf::from))
-        .map(|d| d.join("icons"))
         .collect()
 }
 
 fn search_all(name: &str) -> Option<PathBuf> {
+    // Desktop files may name an icon by its path.
+    let path = Path::new(name);
+    if path.is_absolute() {
+        return path.is_file().then(|| path.into());
+    }
     if name.is_empty() || name.contains('/') {
         return None;
     }
-    let bases = bases();
+    let bases: Vec<PathBuf> = data_dirs().iter().map(|d| d.join("icons")).collect();
     THEMES
         .iter()
         .flat_map(|theme| bases.iter().map(move |base| base.join(theme)))

@@ -4,6 +4,8 @@
 //! Exposé theme and of the Windows XP pack. Windows wobble, minimize
 //! through a magic lamp, and live on the four faces of a desktop cube.
 
+mod apps;
+mod cascade;
 mod conn;
 mod cube;
 mod decoration;
@@ -49,7 +51,8 @@ struct Args {
     /// The shell command of the terminal, for the start menu and Super+e.
     #[arg(long, default_value = "foot")]
     terminal: String,
-    /// The shell command of All Programs and Run.
+    /// The shell command of Run, and of All Programs when no desktop file
+    /// lists a program.
     #[arg(long, default_value = "fuzzel")]
     launcher: String,
     /// More programs for the start menu, as TITLE=COMMAND.
@@ -95,8 +98,9 @@ fn run(args: &Args) -> Result<(), String> {
     event_loop(&mut wm).map_err(|e| e.to_string())
 }
 
-/// Handles events until Turn Off. In between, the clock ticks, and while
-/// an effect runs, frames follow each other at 60 Hz.
+/// Handles events until Turn Off. In between, the clock ticks, cascades
+/// of the start menu open where the pointer rests, and while an effect
+/// runs, frames follow each other at 60 Hz.
 fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
     let mut tick = Instant::now() + TICK;
     let mut frame = Instant::now();
@@ -106,10 +110,12 @@ fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
         } else {
             tick
         };
+        let until = wm.menu_due().map_or(until, |due| until.min(due));
         if let Some(event) = wm.conn_event(until.saturating_duration_since(Instant::now()))? {
             wm.handle(event)?;
         }
         let now = Instant::now();
+        wm.menu_rest(now)?;
         if wm.animating() && now >= frame {
             wm.frame(now)?;
             frame = now + FRAME;
@@ -140,6 +146,7 @@ fn menu_config(args: &Args) -> startmenu::Config {
             .unwrap_or_else(|_| "User".into()),
         programs,
         launcher: args.launcher.clone(),
+        apps: apps::load(&args.terminal),
     }
 }
 

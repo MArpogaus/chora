@@ -183,14 +183,20 @@ renders each picture once:
   button, one button per window of the current desktop, four desktop
   buttons and a clock;
 - the start menu with the user name, programs, places, Log Off and Turn
-  Off Computer;
+  Off Computer, and All Programs with the applications of the desktop
+  files in `$XDG_DATA_HOME/applications` and `$XDG_DATA_DIRS`, in program
+  groups by their main category;
 - the wallpaper Bløff below everything.
 
 A click on a window raises and focuses it. A drag of a title bar moves the
 window, and a double click maximizes it. A maximized window fills the work
 area above the taskbar. A click on a task button shows or minimizes its
 window. Buttons light up under the pointer, and so do the entries of the
-start menu. Log Off asks every window to close. Turn Off Computer ends
+start menu. All Programs and its groups open their cascading menus when
+the pointer rests on them for 350 ms, or on a click. A click on a program
+starts it and closes the menu; a click outside closes the menu. Escape
+closes nothing yet: the core takes no grab of a key without Ctrl, Alt or
+Super (D45). Log Off asks every window to close. Turn Off Computer ends
 `chora-xp`; it shuts nothing down.
 
 The effects run in the plugin, which computes their meshes and
@@ -223,8 +229,8 @@ these bindings, Super+Ctrl with the arrows stands in.
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `--theme DIR` | `/usr/share/chora/flavors/xp/theme`, or `CHORA_XP_THEME` | the theme directory |
-| `--terminal CMD` | `foot` | the terminal of the start menu and of Super+e |
-| `--launcher CMD` | `fuzzel` | All Programs and Run in the start menu |
+| `--terminal CMD` | `foot` | the terminal of the start menu and of Super+e; `CMD -e` runs the programs with `Terminal=true` |
+| `--launcher CMD` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
 | `--program TITLE=CMD` | | another program in the start menu; repeat for more |
 | `--clock FORMAT` | `%-I:%M %p` | the clock, in the format of strftime |
 | `--wallpaper FILE` | Bløff | a PNG or SVG file |

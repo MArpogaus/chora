@@ -118,6 +118,8 @@ pub struct Wm {
     desktop: usize,
     /// The node under the pointer.
     hover: Option<String>,
+    /// Escape, while the start menu holds it.
+    escape: Option<String>,
     effects: Effects,
     /// Turn Off ended the plugin.
     pub done: bool,
@@ -150,6 +152,7 @@ impl Wm {
             cascade: 0,
             desktop: 0,
             hover: None,
+            escape: None,
             effects: Effects::default(),
             done: false,
         };
@@ -305,6 +308,21 @@ impl Wm {
             Event::EffectsDropped => self.effects_dropped(),
             _ => Vec::new(),
         };
+        self.conn.apply(commands)
+    }
+
+    /// When the pointer has rested on the start menu long enough to open
+    /// or close a cascade.
+    pub fn menu_due(&self) -> Option<Instant> {
+        self.menu.due()
+    }
+
+    /// Opens or closes the cascade where the pointer rests.
+    pub fn menu_rest(&mut self, now: Instant) -> Result<(), ClientError> {
+        let commands = self.menu.rest(&mut self.theme, &mut self.icons, now);
+        if commands.is_empty() {
+            return Ok(());
+        }
         self.conn.apply(commands)
     }
 
@@ -760,6 +778,12 @@ impl Wm {
     // Input
 
     fn key(&mut self, binding: &str) -> Vec<Command> {
+        if self.escape.as_deref() == Some(binding) {
+            return match self.menu.escape(&mut self.theme) {
+                Some(commands) => commands,
+                None => self.close_menu(),
+            };
+        }
         match self
             .keys
             .iter()
@@ -856,9 +880,10 @@ impl Wm {
                 let Some(bar) = self.bars.iter().find(|b| b.output == output) else {
                     return Vec::new();
                 };
-                let origin = bar.origin();
-                let mut commands = self.menu.open(&output, origin);
+                let (origin, area) = (bar.origin(), bar.usable());
+                let mut commands = self.menu.open(&output, origin, area);
                 commands.extend(self.start_look(&output));
+                self.grab_escape();
                 commands
             }
             taskbar::Part::Pager(desktop) => self.turn_to(desktop),
@@ -913,7 +938,9 @@ impl Wm {
         if !Menu::owns(node) {
             return Vec::new();
         }
-        let (mut commands, action) = self.menu.release(&mut self.theme, position);
+        let (mut commands, action) = self
+            .menu
+            .release(&mut self.theme, &mut self.icons, position);
         if let Some(action) = action {
             commands.extend(self.close_menu());
             commands.extend(self.run(&action));
@@ -948,7 +975,24 @@ impl Wm {
         commands
     }
 
+    /// Escape closes the cascades and the menu while it is open, as on XP.
+    /// The core takes no grab without Ctrl, Alt or Super from a client
+    /// without the capability `input.grab-any` (D45), so until it has it,
+    /// only a click closes them.
+    fn grab_escape(&mut self) {
+        let binding = "Escape".parse().expect("a valid binding");
+        if let Ok(normal) = self.conn.call::<_, String>("input.grab", Grab { binding }) {
+            self.escape = Some(normal);
+        }
+    }
+
     fn close_menu(&mut self) -> Vec<Command> {
+        if let Some(binding) = self.escape.take() {
+            let binding = binding.parse().expect("the binding of the grab");
+            if let Err(err) = self.conn.call::<_, Value>("input.ungrab", Grab { binding }) {
+                eprintln!("chora-xp: {err}");
+            }
+        }
         let output = self.menu.output().map(String::from);
         let mut commands = self.menu.close(&mut self.theme);
         if let Some(output) = output {

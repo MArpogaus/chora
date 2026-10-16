@@ -188,7 +188,7 @@ impl Fonts {
     }
 
     /// The width of a line from its start to the right edge of its ink.
-    fn width(&self, line: &str, font: Font) -> Option<f64> {
+    pub fn width(&self, line: &str, font: Font) -> Option<f64> {
         let probe = Text::new(line, font, [0, 0, 0, 255], [0, 0, 4096, 64]);
         let tree = self
             .parse(
