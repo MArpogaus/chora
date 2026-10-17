@@ -4,6 +4,7 @@
 
 use std::{
     fs,
+    os::unix::ffi::OsStringExt as _,
     os::unix::fs::PermissionsExt as _,
     path::{Path, PathBuf},
     time::SystemTime,
@@ -426,6 +427,110 @@ fn parse_df(text: &str) -> Option<(u64, u64)> {
     Some((numbers.next()?.parse().ok()?, numbers.next()?.parse().ok()?))
 }
 
+/// A file or folder in the trash.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Trashed {
+    /// The file as the trash holds it.
+    pub entry: Entry,
+    /// Where it was, from its `.trashinfo` file.
+    pub original: Option<PathBuf>,
+    /// When it went to the trash, as the `.trashinfo` file writes it:
+    /// `2026-10-15T09:12:30`.
+    pub deleted: Option<String>,
+}
+
+/// The trash of the freedesktop.org specification: `Trash` of the
+/// first XDG data directory, `$XDG_DATA_HOME`.
+pub fn trash_root() -> PathBuf {
+    crate::icons::data_dirs()
+        .into_iter()
+        .next()
+        .unwrap_or_default()
+        .join("Trash")
+}
+
+/// The files of a trash, in XP's order, with where they were and when
+/// they went.
+pub fn trash(root: &Path) -> Vec<Trashed> {
+    list(&root.join("files"))
+        .unwrap_or_default()
+        .into_iter()
+        .map(|entry| {
+            let info = root.join("info").join(format!("{}.trashinfo", entry.name));
+            let (original, deleted) = fs::read_to_string(info)
+                .map(|text| trash_info(&text))
+                .unwrap_or_default();
+            Trashed {
+                entry,
+                original,
+                deleted,
+            }
+        })
+        .collect()
+}
+
+/// The path and the date of a `.trashinfo` file. The path is
+/// percent-encoded, as in a URL.
+fn trash_info(text: &str) -> (Option<PathBuf>, Option<String>) {
+    let mut in_section = false;
+    let (mut path, mut date) = (None, None);
+    for line in text.lines().map(str::trim) {
+        if line.starts_with('[') {
+            in_section = line == "[Trash Info]";
+        } else if !in_section {
+        } else if let Some(value) = line.strip_prefix("Path=") {
+            let bytes = percent_decode(value);
+            path = Some(PathBuf::from(std::ffi::OsString::from_vec(bytes)));
+        } else if let Some(value) = line.strip_prefix("DeletionDate=") {
+            date = Some(value.to_string());
+        }
+    }
+    (path, date)
+}
+
+/// The bytes of a percent-encoded text: `%20` is a space.
+fn percent_decode(text: &str) -> Vec<u8> {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let hex = bytes
+            .get(i + 1..i + 3)
+            .and_then(|h| std::str::from_utf8(h).ok())
+            .and_then(|h| u8::from_str_radix(h, 16).ok());
+        match (bytes[i], hex) {
+            (b'%', Some(byte)) => {
+                out.push(byte);
+                i += 3;
+            }
+            (byte, _) => {
+                out.push(byte);
+                i += 1;
+            }
+        }
+    }
+    out
+}
+
+/// Empties a trash: deletes its files and folders for good, and their
+/// `.trashinfo` files. A link goes, not what it points at.
+pub fn empty_trash(root: &Path) -> std::io::Result<()> {
+    for dir in ["files", "info"] {
+        let Ok(entries) = fs::read_dir(root.join(dir)) else {
+            continue;
+        };
+        for entry in entries {
+            let path = entry?.path();
+            if fs::symlink_metadata(&path)?.is_dir() {
+                fs::remove_dir_all(&path)?;
+            } else {
+                fs::remove_file(&path)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -552,5 +657,51 @@ overlay /var/lib/x overlay rw 0 0
         let out = "    1B-blocks      Avail\n 511101108224 98765432100\n";
         assert_eq!(parse_df(out), Some((511_101_108_224, 98_765_432_100)));
         assert_eq!(parse_df("header only\n"), None);
+    }
+
+    #[test]
+    fn a_trashinfo_file_tells_where_and_when() {
+        let text =
+            "[Trash Info]\nPath=/home/u/My%20Notes%2Btodo.txt\nDeletionDate=2026-10-15T09:12:30\n";
+        assert_eq!(
+            trash_info(text),
+            (
+                Some("/home/u/My Notes+todo.txt".into()),
+                Some("2026-10-15T09:12:30".into())
+            )
+        );
+        // Another section does not count, and a broken escape stays.
+        let text = "[Other]\nPath=/x\n[Trash Info]\nPath=/a%2\n";
+        assert_eq!(trash_info(text), (Some("/a%2".into()), None));
+    }
+
+    #[test]
+    fn emptying_the_trash_deletes_files_folders_and_their_info() {
+        let root = std::env::temp_dir().join(format!("chora-xp-trash-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("files/old-dir/sub")).unwrap();
+        fs::create_dir_all(root.join("info")).unwrap();
+        fs::write(root.join("files/a.txt"), "a").unwrap();
+        fs::write(
+            root.join("info/a.txt.trashinfo"),
+            "[Trash Info]\nPath=/x/a.txt\n",
+        )
+        .unwrap();
+        // A link to a folder outside the trash: the folder stays.
+        let outside = root.join("outside");
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("keep"), "k").unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("files/link")).unwrap();
+        let items = trash(&root);
+        assert_eq!(items.len(), 3);
+        // The link to a folder counts as a folder.
+        let names: Vec<&str> = items.iter().map(|t| t.entry.name.as_str()).collect();
+        assert_eq!(names, ["link", "old-dir", "a.txt"]);
+        assert_eq!(items[2].original, Some("/x/a.txt".into()));
+        empty_trash(&root).unwrap();
+        assert_eq!(trash(&root).len(), 0);
+        assert_eq!(fs::read_dir(root.join("info")).unwrap().count(), 0);
+        assert!(outside.join("keep").is_file());
+        fs::remove_dir_all(&root).unwrap();
     }
 }

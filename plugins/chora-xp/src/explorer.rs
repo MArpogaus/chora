@@ -106,6 +106,8 @@ pub enum Outcome {
     Close,
     /// Opens a file with `xdg-open`.
     Open(PathBuf),
+    /// Asks whether to empty the Recycle Bin of these items.
+    EmptyTrash(Vec<String>),
 }
 
 /// Two clicks on an item within this time open it.
@@ -118,6 +120,8 @@ const SCROLL_STEP: i32 = 40;
 enum Target {
     Place(Place),
     ControlPanel,
+    /// Empty the Recycle Bin.
+    EmptyTrash,
     /// A gray link: XP has it, chora not.
     None,
 }
@@ -199,7 +203,7 @@ impl Explorer {
         self.groups = match &self.history.current {
             Place::Folder(path) => vec![folder_group(path)],
             Place::Computer => computer_groups(),
-            Place::Trash => Vec::new(),
+            Place::Trash => vec![trash_group()],
         };
         self.selected = None;
         self.scroll = 0;
@@ -221,9 +225,14 @@ impl Explorer {
         title(&self.history.current)
     }
 
-    /// The icon of the place, for the title bar and the task button.
+    /// The icon of the place, for the title bar and the task button: an
+    /// empty Recycle Bin has the icon of the empty bin.
     pub fn icon(&self, icons: &mut Icons) -> Option<PathBuf> {
-        icons.first_sized(place_icons(&self.history.current), 16)
+        let names = match &self.history.current {
+            Place::Trash if self.items().next().is_none() => &["user-trash"],
+            place => place_icons(place),
+        };
+        icons.first_sized(names, 16)
     }
 
     /// The client size of the page.
@@ -322,6 +331,9 @@ impl Explorer {
             return match target.clone() {
                 Target::Place(place) => self.go(place),
                 Target::ControlPanel => Outcome::ControlPanel,
+                Target::EmptyTrash => {
+                    Outcome::EmptyTrash(self.items().map(|i| i.title.clone()).collect())
+                }
                 Target::None => Outcome::None,
             };
         }
@@ -661,7 +673,7 @@ impl Explorer {
         let (tasks, places) = match &self.history.current {
             Place::Folder(path) => folder_boxes(path),
             Place::Computer => computer_boxes(),
-            Place::Trash => trash_boxes(),
+            Place::Trash => trash_boxes(self.items().next().is_some()),
         };
         let mut boxes: Vec<TaskBox> = tasks.into_iter().collect();
         boxes.push(TaskBox {
@@ -786,15 +798,26 @@ fn computer_boxes() -> (Option<TaskBox>, Vec<Link>) {
     (Some(tasks), places)
 }
 
-/// The places of the Recycle Bin.
-fn trash_boxes() -> (Option<TaskBox>, Vec<Link>) {
+/// The tasks of the Recycle Bin, while it has items, and its places.
+fn trash_boxes(full: bool) -> (Option<TaskBox>, Vec<Link>) {
+    let tasks = full.then(|| TaskBox {
+        title: "Recycle Bin Tasks",
+        body: Body::Links(vec![
+            Link {
+                title: "Empty the Recycle Bin".into(),
+                icon: "user-trash-full",
+                target: Target::EmptyTrash,
+            },
+            Link::gray("Restore all items", "edit-undo"),
+        ]),
+    });
     let places = vec![
         Link::to("Desktop", "user-desktop", Place::Folder(desktop())),
         Link::documents(),
         Link::computer(),
         Link::network(),
     ];
-    (None, places)
+    (tasks, places)
 }
 
 /// A button of the Standard Buttons.
@@ -950,6 +973,51 @@ fn folder_group(path: &std::path::Path) -> Group {
                 lines,
                 icons: e.kind.icons(),
                 open: Some(open),
+                details,
+            }
+        })
+        .collect();
+    Group {
+        heading: None,
+        items,
+    }
+}
+
+/// The items of the Recycle Bin: where each was and when it went.
+fn trash_group() -> Group {
+    let items = folder::trash(&folder::trash_root())
+        .into_iter()
+        .map(|t| {
+            let e = t.entry;
+            let type_name = folder::type_name(&e.name, e.kind);
+            let from = t
+                .original
+                .as_deref()
+                .and_then(std::path::Path::parent)
+                .map(|p| p.display().to_string())
+                .unwrap_or_default();
+            let date = t
+                .deleted
+                .as_deref()
+                .and_then(|d| chrono::NaiveDateTime::parse_from_str(d, "%Y-%m-%dT%H:%M:%S").ok())
+                .map(|d| d.format("%-m/%-d/%Y %-I:%M %p").to_string())
+                .unwrap_or_default();
+            let mut details = vec![
+                (e.name.clone(), true),
+                (type_name, false),
+                ("Original Location:".into(), false),
+                (from.clone(), false),
+                ("Date Deleted:".into(), false),
+                (date.clone(), false),
+            ];
+            if e.kind != Kind::Folder {
+                details.push((format!("Size: {}", folder::size_text(e.size)), false));
+            }
+            Item {
+                title: e.name,
+                lines: vec![from, date],
+                icons: e.kind.icons(),
+                open: None,
                 details,
             }
         })

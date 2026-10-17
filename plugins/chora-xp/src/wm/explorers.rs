@@ -3,13 +3,14 @@
 
 use chora_scene::Command;
 
-use super::{MENUS, Wm, desktops::desk_id, spawn};
+use super::{DIALOGS, MENUS, Panel, Wm, desktops::desk_id, spawn};
 use crate::{
+    confirm::ConfirmDialog,
     context,
     decoration::{self, BORDER, TITLE},
     desktop_icons,
     explorer::{self, Cmd, Explorer, Outcome},
-    folder::Place,
+    folder::{self, Place},
     taskbar::{self, Bar},
     window::Window,
 };
@@ -104,6 +105,7 @@ impl Wm {
             Outcome::Redraw => self.redraw_explorer(id),
             Outcome::Close => self.close_explorer(id),
             Outcome::ControlPanel => self.open_control_panel(),
+            Outcome::EmptyTrash(names) => self.confirm_empty(&names),
             Outcome::Open(path) => {
                 spawn(&desktop_icons::command(&desktop_icons::Open::File(path)));
                 Vec::new()
@@ -186,6 +188,43 @@ impl Wm {
                 commands.extend(e.redraw(&mut self.theme, &mut self.icons));
             }
         }
+        commands
+    }
+
+    /// Asks whether to empty the Recycle Bin, unless the question is open
+    /// already.
+    fn confirm_empty(&mut self, names: &[String]) -> Vec<Command> {
+        if let Some(commands) = self.raise_panel(|p| matches!(p, Panel::Confirm(_))) {
+            return commands;
+        }
+        let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
+        let icon = self.icons.find_sized("user-trash-full", 32);
+        let confirm = ConfirmDialog::new(&self.theme, names, icon, area);
+        let page = confirm.page();
+        let mut panel = Panel::Confirm(confirm);
+        let commands = panel.window().create(&mut self.theme, DIALOGS, page);
+        self.panels.push(panel);
+        commands
+    }
+
+    /// Empties the Recycle Bin for good, and shows the Explorer windows
+    /// of it again.
+    pub(super) fn empty_trash(&mut self) -> Vec<Command> {
+        if let Err(err) = folder::empty_trash(&folder::trash_root()) {
+            eprintln!("chora-xp: empty the Recycle Bin: {err}");
+        }
+        let ids: Vec<String> = self
+            .explorers
+            .iter_mut()
+            .filter(|e| e.history.current == Place::Trash)
+            .map(|e| {
+                e.command(Cmd::Refresh);
+                e.id.clone()
+            })
+            .collect();
+        let mut commands: Vec<Command> =
+            ids.iter().flat_map(|id| self.redraw_explorer(id)).collect();
+        commands.extend(self.refresh_icons());
         commands
     }
 

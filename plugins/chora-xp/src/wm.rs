@@ -23,6 +23,7 @@ use self::{desktops::desk_id, effects::Effects};
 use crate::{
     apps,
     balloon::{self, Balloon, Queue},
+    confirm::ConfirmDialog,
     conn::Conn,
     context::{self, Act},
     control::{self, Setting, Toggles},
@@ -1354,11 +1355,8 @@ impl Wm {
     // The settings dialogs
 
     /// Raises an open dialog of a kind; `None` if none is open.
-    fn raise_panel(&mut self, clock: bool) -> Option<Vec<Command>> {
-        let i = self
-            .panels
-            .iter()
-            .position(|p| matches!(p, Panel::Clock(_)) == clock)?;
+    fn raise_panel(&mut self, kind: fn(&Panel) -> bool) -> Option<Vec<Command>> {
+        let i = self.panels.iter().position(kind)?;
         let panel = self.panels.remove(i);
         let id = panel.window_ref().group();
         self.panels.push(panel);
@@ -1372,7 +1370,7 @@ impl Wm {
     /// Taskbar and Start Menu Properties in the middle of a work area, or
     /// the open one on top.
     fn open_taskbar_dialog(&mut self, area: Rect) -> Vec<Command> {
-        if let Some(commands) = self.raise_panel(false) {
+        if let Some(commands) = self.raise_panel(|p| matches!(p, Panel::Taskbar(_))) {
             return commands;
         }
         let mut panel = TaskbarDialog::new(self.taskbar, area);
@@ -1385,7 +1383,7 @@ impl Wm {
     /// Date and Time Properties in the middle of a work area, or the open
     /// one on top.
     fn open_date_dialog(&mut self, area: Rect) -> Vec<Command> {
-        if let Some(commands) = self.raise_panel(true) {
+        if let Some(commands) = self.raise_panel(|p| matches!(p, Panel::Clock(_))) {
             return commands;
         }
         let now = chrono::Local::now().naive_local();
@@ -1432,8 +1430,15 @@ impl Wm {
         let Some((i, hit)) = hit else {
             return commands;
         };
+        if matches!(self.panels[i], Panel::Confirm(_)) {
+            commands.push(self.panels.remove(i).window_ref().remove());
+            if ConfirmDialog::yes(&hit) {
+                commands.extend(self.empty_trash());
+            }
+            return commands;
+        }
         let outcome = match (&mut self.panels[i], &hit) {
-            (_, Hit::Close) => Outcome::Close,
+            (_, Hit::Close) | (Panel::Confirm(_), _) => Outcome::Close,
             (Panel::Taskbar(panel), hit) => panel.click(hit),
             (Panel::Clock(panel), hit) => match panel.click(hit) {
                 Click::Redraw => Outcome::Redraw,
@@ -1477,6 +1482,7 @@ impl Wm {
                 let page = panel.page(&self.theme, chrono::Local::now().naive_local());
                 panel.dialog.show(&mut self.theme, page)
             }
+            Panel::Confirm(_) => Vec::new(),
         }
     }
 
@@ -1609,6 +1615,9 @@ impl Wm {
             }
             Some(desktop_icons::Open::Computer) => {
                 commands.extend(self.open_explorer(Place::Computer));
+            }
+            Some(desktop_icons::Open::Trash) => {
+                commands.extend(self.open_explorer(Place::Trash));
             }
             Some(open) => spawn(&desktop_icons::command(&open)),
             None => {}
@@ -1918,12 +1927,14 @@ impl Wm {
     }
 }
 
-/// A settings dialog.
+/// A settings dialog, or a question.
 enum Panel {
     /// Taskbar and Start Menu Properties.
     Taskbar(TaskbarDialog),
     /// Date and Time Properties.
     Clock(DateDialog),
+    /// Confirm File Delete before Empty the Recycle Bin.
+    Confirm(ConfirmDialog),
 }
 
 impl Panel {
@@ -1931,13 +1942,14 @@ impl Panel {
         match self {
             Self::Taskbar(panel) => &mut panel.dialog,
             Self::Clock(panel) => &mut panel.dialog,
+            Self::Confirm(panel) => &mut panel.dialog,
         }
     }
 
     fn taskbar(&mut self) -> Option<&mut TaskbarDialog> {
         match self {
             Self::Taskbar(panel) => Some(panel),
-            Self::Clock(_) => None,
+            Self::Clock(_) | Self::Confirm(_) => None,
         }
     }
 
@@ -1945,6 +1957,7 @@ impl Panel {
         match self {
             Self::Taskbar(panel) => &panel.dialog,
             Self::Clock(panel) => &panel.dialog,
+            Self::Confirm(panel) => &panel.dialog,
         }
     }
 }

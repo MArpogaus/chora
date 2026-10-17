@@ -229,10 +229,10 @@ nothing.
 
 A click selects an icon: its label turns white on dark blue, with a dotted
 focus rectangle while no window has the focus. A click on the empty
-desktop takes the selection away. A double click opens the icon: a folder
-and My Documents, and My Computer, in XP's Explorer (see below); the
-Recycle Bin with `gio open trash:///`, else its folder; a
-desktop file runs its program; any other file opens with `xdg-open`. A drag
+desktop takes the selection away. A double click opens the icon: a
+folder, My Documents, My Computer and the Recycle Bin in XP's Explorer
+(see below); a desktop file runs its program; any other file opens with
+`xdg-open`. A drag
 moves an icon to the nearest free cell of the grid, until `chora-xp` ends.
 XP has one desktop, so the icons stay in place while the cube turns: each
 face of the cube shows them on the wallpaper.
@@ -307,8 +307,17 @@ disc, is removable and goes by the name of its directory. Details shows
 the file system, the free space and the size, from `df`. A double click
 opens a drive or a folder in the same window.
 
-The window changes no file: it neither copies, moves, renames nor
-deletes, and it takes no drag and drop. The keyboard does not work it
+The Recycle Bin lists the trash of the freedesktop.org specification,
+`$XDG_DATA_HOME/Trash/files`, with the folder each item came from and
+the date it went, from its file in `Trash/info`. While it has items,
+Recycle Bin Tasks has Empty the Recycle Bin: it asks first, in XP's
+Confirm File Delete or Confirm Multiple File Delete, and Yes deletes the
+files and folders of the trash and their info files for good. Restore
+all items is gray.
+
+The window changes no file other than with Empty the Recycle Bin: it
+neither copies, moves, renames nor deletes, and it takes no drag and
+drop. The keyboard does not work it
 (D45). Its icons come from the icon theme, XP's own when `WindowsXP` of
 `get-microsoft-files.sh` is installed.
 

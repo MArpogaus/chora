@@ -7,6 +7,7 @@
 mod apps;
 mod balloon;
 mod cascade;
+mod confirm;
 mod conn;
 mod context;
 mod control;
