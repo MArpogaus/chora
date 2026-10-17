@@ -356,12 +356,10 @@ impl Bar {
         tray_width(self.clock, self.icon.is_some())
     }
 
-    /// The clock in the coordinates of the output, while it shows: a
-    /// double click there opens Date and Time.
-    #[allow(dead_code)] // Date and Time of the next commit uses it
+    /// The clock in scene coordinates, while it shows: a double click
+    /// there opens Date and Time.
     pub fn clock_rect(&self) -> Option<Rect> {
         let [x, y, w, h] = self.area;
-        let [x, y] = [x - self.position[0], y - self.position[1]];
         self.clock
             .then(|| [x + w - TRAY_WIDTH, y + h - HEIGHT, TRAY_WIDTH, HEIGHT])
     }

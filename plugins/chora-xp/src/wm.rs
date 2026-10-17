@@ -26,6 +26,7 @@ use crate::{
     context::{self, Act},
     control::{self, Setting, Toggles},
     cube::DESKTOPS,
+    datetime::{Click, DateDialog},
     decoration::{self, Button, Part},
     desktop_icons::{self, DesktopIcons},
     dialog::{self, Hit},
@@ -183,6 +184,8 @@ pub struct Wm {
     panels: Vec<Panel>,
     /// When a taskbar that hides itself slides away.
     hide_at: Option<Instant>,
+    /// The last press on a clock, for the double click.
+    last_clock: Option<Instant>,
     /// Turn Off ended the plugin.
     pub done: bool,
     /// Restart ended the plugin, to start it again.
@@ -229,6 +232,7 @@ impl Wm {
             taskbar: taskbar::Settings::default(),
             panels: Vec::new(),
             hide_at: None,
+            last_clock: None,
             done: false,
             restart: false,
         };
@@ -401,7 +405,13 @@ impl Wm {
 
     /// Updates the clock.
     pub fn tick(&mut self) -> Result<(), ClientError> {
-        let commands = self.refresh_icons();
+        let mut commands = self.refresh_icons();
+        // The hands of Date and Time move.
+        for i in 0..self.panels.len() {
+            if matches!(self.panels[i], Panel::Clock(_)) {
+                commands.extend(self.redraw_panel(i));
+            }
+        }
         if !commands.is_empty() {
             self.conn.apply(commands)?;
         }
@@ -1010,7 +1020,20 @@ impl Wm {
             Act::Refresh => self.desk.reload(&mut self.theme, &mut self.icons),
             Act::DesktopProperties => self.desktop_properties(area),
             Act::TaskbarProperties => self.open_taskbar_dialog(area),
-            Act::DateTime => Vec::new(),
+            Act::DateTime => self.open_date_dialog(area),
+            Act::Month(month) => {
+                let Some(i) = self
+                    .panels
+                    .iter()
+                    .position(|p| matches!(p, Panel::Clock(_)))
+                else {
+                    return Vec::new();
+                };
+                if let Panel::Clock(panel) = &mut self.panels[i] {
+                    panel.set_month(month);
+                }
+                self.redraw_panel(i)
+            }
         }
     }
 
@@ -1059,13 +1082,15 @@ impl Wm {
         };
         let mut commands = self.close_menu();
         commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
-        commands.extend(self.menu.open_control(&mut self.theme, &mut self.icons, 0));
+        commands.extend(self.menu.open_control(&mut self.theme, &mut self.icons, 1));
         commands
     }
 
     /// Only the left button works the taskbar, the menu and the desktop.
     fn press_left(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
-        if let Some(part) = taskbar::Part::of(node) {
+        if node.starts_with("xp-tray-") {
+            self.press_clock(position)
+        } else if let Some(part) = taskbar::Part::of(node) {
             self.press_taskbar(part)
         } else if Menu::owns(node) {
             self.menu.press(&mut self.theme, node)
@@ -1299,28 +1324,68 @@ impl Wm {
 
     // The settings dialogs
 
+    /// Raises an open dialog of a kind; `None` if none is open.
+    fn raise_panel(&mut self, clock: bool) -> Option<Vec<Command>> {
+        let i = self
+            .panels
+            .iter()
+            .position(|p| matches!(p, Panel::Clock(_)) == clock)?;
+        let panel = self.panels.remove(i);
+        let id = panel.window_ref().group();
+        self.panels.push(panel);
+        Some(vec![Command::Move {
+            id,
+            parent: None,
+            index: None,
+        }])
+    }
+
     /// Taskbar and Start Menu Properties in the middle of a work area, or
     /// the open one on top.
     fn open_taskbar_dialog(&mut self, area: Rect) -> Vec<Command> {
-        if let Some(i) = self
-            .panels
-            .iter()
-            .position(|p| matches!(p, Panel::Taskbar(_)))
-        {
-            let panel = self.panels.remove(i);
-            let id = panel.window_ref().group();
-            self.panels.push(panel);
-            return vec![Command::Move {
-                id,
-                parent: None,
-                index: None,
-            }];
+        if let Some(commands) = self.raise_panel(false) {
+            return commands;
         }
         let mut panel = TaskbarDialog::new(self.taskbar, area);
         let page = panel.page(&mut self.theme, &self.clock);
         let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
         self.panels.push(Panel::Taskbar(panel));
         commands
+    }
+
+    /// Date and Time Properties in the middle of a work area, or the open
+    /// one on top.
+    fn open_date_dialog(&mut self, area: Rect) -> Vec<Command> {
+        if let Some(commands) = self.raise_panel(true) {
+            return commands;
+        }
+        let now = chrono::Local::now().naive_local();
+        let mut panel = DateDialog::new(now, area);
+        let page = panel.page(&self.theme, now);
+        let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
+        self.panels.push(Panel::Clock(panel));
+        commands
+    }
+
+    /// A double click on the clock of a taskbar opens Date and Time.
+    fn press_clock(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
+        #[allow(clippy::cast_possible_truncation)]
+        let [x, y] = [px.floor() as i32, py.floor() as i32];
+        let on = |[cx, cy, cw, ch]: Rect| (cx..cx + cw).contains(&x) && (cy..cy + ch).contains(&y);
+        let Some(bar) = self.bars.iter().find(|b| b.clock_rect().is_some_and(on)) else {
+            return Vec::new();
+        };
+        let area = bar.usable();
+        let now = Instant::now();
+        let double = self
+            .last_clock
+            .take()
+            .is_some_and(|at| now.duration_since(at) < DOUBLE_CLICK);
+        if !double {
+            self.last_clock = Some(now);
+            return Vec::new();
+        }
+        self.open_date_dialog(area)
     }
 
     /// The release of the button after a press on a dialog: a click on a
@@ -1341,6 +1406,23 @@ impl Wm {
         let outcome = match (&mut self.panels[i], &hit) {
             (_, Hit::Close) => Outcome::Close,
             (Panel::Taskbar(panel), hit) => panel.click(hit),
+            (Panel::Clock(panel), hit) => match panel.click(hit) {
+                Click::Redraw => Outcome::Redraw,
+                Click::Close => Outcome::Close,
+                Click::Months(rect, entries) => {
+                    let (point, width) = panel.list_at(rect);
+                    let area = self
+                        .bars
+                        .iter()
+                        .find(|b| b.contains(point))
+                        .or(self.bars.first());
+                    let area = area.map_or([0, 0, 1280, 800], Bar::area);
+                    let menu = context::Menu::new(&self.theme, entries, point, area, width);
+                    commands.extend(menu.create(&mut self.theme, MENUS));
+                    self.context = Some((menu, area));
+                    return commands;
+                }
+            },
         };
         match outcome {
             Outcome::Redraw => commands.extend(self.redraw_panel(i)),
@@ -1360,6 +1442,10 @@ impl Wm {
         match &mut self.panels[i] {
             Panel::Taskbar(panel) => {
                 let page = panel.page(&mut self.theme, &self.clock);
+                panel.dialog.show(&mut self.theme, page)
+            }
+            Panel::Clock(panel) => {
+                let page = panel.page(&self.theme, chrono::Local::now().naive_local());
                 panel.dialog.show(&mut self.theme, page)
             }
         }
@@ -1554,12 +1640,16 @@ impl Wm {
                 self.effects.toggles.flip(*effect);
                 Vec::new()
             }
-            Setting::Taskbar => {
+            Setting::Taskbar | Setting::DateTime => {
                 let area = output
                     .and_then(|o| self.bars.iter().find(|b| b.output == o))
                     .or(self.bars.first())
                     .map_or([0, 0, 1280, 770], Bar::usable);
-                self.open_taskbar_dialog(area)
+                if *setting == Setting::Taskbar {
+                    self.open_taskbar_dialog(area)
+                } else {
+                    self.open_date_dialog(area)
+                }
             }
         }
     }
@@ -1792,25 +1882,29 @@ impl Wm {
 enum Panel {
     /// Taskbar and Start Menu Properties.
     Taskbar(TaskbarDialog),
+    /// Date and Time Properties.
+    Clock(DateDialog),
 }
 
 impl Panel {
     fn window(&mut self) -> &mut dialog::Dialog {
         match self {
             Self::Taskbar(panel) => &mut panel.dialog,
+            Self::Clock(panel) => &mut panel.dialog,
         }
     }
 
-    #[allow(clippy::unnecessary_wraps)] // Date and Time joins next
     fn taskbar(&mut self) -> Option<&mut TaskbarDialog> {
         match self {
             Self::Taskbar(panel) => Some(panel),
+            Self::Clock(_) => None,
         }
     }
 
     fn window_ref(&self) -> &dialog::Dialog {
         match self {
             Self::Taskbar(panel) => &panel.dialog,
+            Self::Clock(panel) => &panel.dialog,
         }
     }
 }

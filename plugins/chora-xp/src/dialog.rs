@@ -559,6 +559,11 @@ impl Dialog {
         format!("{}-{part}", self.prefix)
     }
 
+    /// The top-left corner of the client area in the scene.
+    pub fn client(&self) -> [i32; 2] {
+        [self.origin[0] + BORDER, self.origin[1] + TITLE]
+    }
+
     /// The group of the dialog: raise it with a move to the end.
     pub fn group(&self) -> String {
         self.prefix.clone()

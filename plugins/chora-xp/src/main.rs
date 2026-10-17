@@ -11,9 +11,9 @@ mod conn;
 mod context;
 mod control;
 mod cube;
+mod datetime;
 mod decoration;
 mod desktop_icons;
-#[allow(dead_code)] // Date and Time of the next commit uses the rest
 mod dialog;
 mod icons;
 mod lamp;

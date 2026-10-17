@@ -258,6 +258,7 @@ The Control Panel opens as a menu, as with XP's "Display as a menu". A
 check mark shows the current choice of each entry, and a click on an
 entry applies it and closes the menu:
 
+- **Date and Time**: opens Date and Time Properties;
 - **Desktop**: the wallpaper of every output, from the PNG, JPEG and SVG
   files in `theme/wallpaper/`, `/usr/share/backgrounds` and
   `wallpapers/WindowsXP` of the XDG data directories, without their
@@ -265,7 +266,7 @@ entry applies it and closes the menu:
 - **Display**: the scale of the output of the menu, 100 %, 125 %, 150 % or
   200 %, through `output.configure`;
 - **Effects**: wobbly windows, the magic lamp, the desktop cube and XP's
-  sounds, on or off until `chora-xp` ends.
+  sounds, on or off until `chora-xp` ends;
 - **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.
 
 Properties of the taskbar menu, and Control Panel > Taskbar and Start
@@ -293,6 +294,23 @@ does not work it (D45). The settings last until `chora-xp` ends:
 - **Start Menu** shows a preview of the start menu. The Classic Start
   menu and the Customize buttons are gray: `chora-xp` has only XP's
   start menu.
+
+A double click on the clock, Adjust Date/Time of the clock menu and
+Control Panel > Date and Time open XP's Date and Time Properties, drawn
+in the same way:
+
+- **Date & Time** shows the month in a drop-down list and the year with
+  arrow buttons, the month calendar with weeks from Sunday and the chosen
+  day in blue, the analog clock with its moving hands and the digital
+  time. A click on the list opens the twelve months, the arrows change
+  the year and a click on a day chooses it. Below, it names the time
+  zone of the system: `TZ`, else the link `/etc/localtime`.
+- **Time Zone** shows the zone with its offset from GMT. XP's world map
+  is left out.
+
+chora cannot set the clock of the system without privileges, so the
+dialog changes nothing: OK, Cancel and the close button close it, and
+Apply stays gray. Internet Time is left out.
 
 Log Off and Turn Off Computer open XP's dialogs in the middle of the
 output, and the desktop behind them fades to gray in 1.5 seconds. In Log

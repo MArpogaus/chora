@@ -23,6 +23,8 @@ pub enum Setting {
     Effect(Effect),
     /// Opens Taskbar and Start Menu Properties.
     Taskbar,
+    /// Opens Date and Time Properties.
+    DateTime,
 }
 
 /// An effect that the menu turns on and off.
@@ -148,6 +150,11 @@ pub fn menu(scale: f64, wallpaper: &Path, walls: &[PathBuf], toggles: Toggles) -
         kind: Kind::Group(children),
     };
     vec![
+        Node {
+            title: "Date and Time".into(),
+            icon: "preferences-system-time".into(),
+            kind: Kind::Pick(Setting::DateTime, false),
+        },
         group("Desktop", "preferences-desktop-wallpaper", walls),
         group("Display", "preferences-desktop-display", scales),
         group("Effects", "preferences-desktop-effects", effects),
@@ -204,11 +211,11 @@ mod tests {
         let mut toggles = Toggles::default();
         toggles.flip(Effect::Lamp);
         let menu = menu(1.25, Path::new("/w/b.svg"), &walls, toggles);
-        assert_eq!(picks(&menu[0]), [("A", false), ("B", true)]);
+        assert_eq!(picks(&menu[1]), [("A", false), ("B", true)]);
         assert_eq!(name_of("blue_hills-2"), "Blue hills 2");
         assert_eq!(name_of("purplef"), "Purple flower");
         assert_eq!(
-            picks(&menu[1]),
+            picks(&menu[2]),
             [
                 ("100%", false),
                 ("125%", true),
@@ -217,7 +224,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            picks(&menu[2]),
+            picks(&menu[3]),
             [
                 ("Wobbly Windows", true),
                 ("Magic Lamp", false),

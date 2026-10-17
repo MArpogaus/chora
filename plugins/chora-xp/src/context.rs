@@ -53,6 +53,8 @@ pub enum Act {
     Refresh,
     /// Properties of the desktop.
     DesktopProperties,
+    /// A month of the month list of Date and Time, from 1.
+    Month(u32),
 }
 
 /// A row of a menu.
@@ -150,7 +152,7 @@ pub fn taskbar(locked: bool) -> Vec<Entry> {
 /// taskbar.
 pub fn clock(locked: bool) -> Vec<Entry> {
     let mut entries = vec![
-        Entry::item("Adjust Date/Time", Act::DateTime).enabled(false),
+        Entry::item("Adjust Date/Time", Act::DateTime),
         Entry::gray("Customize Notifications..."),
         Entry::separator(),
     ];
