@@ -764,25 +764,55 @@ impl Scene {
         done
     }
 
-    /// Removes the effects of all nodes, for the watchdog: the meshes and
-    /// the shaders, also at the start and the end of animations. Returns
-    /// whether there were some.
-    pub fn drop_effects(&mut self) -> bool {
+    /// Removes the effects of the nodes of an owner, for the watchdog: the
+    /// meshes and the shaders, also at the start and the end of
+    /// animations. Returns whether there were some.
+    pub fn drop_effects(&mut self, owner: &str) -> bool {
+        let of_owner =
+            |node: Option<&Node>| node.is_some_and(|n| n.owner.as_deref() == Some(owner));
         let mut found = false;
         let ids: Vec<String> = self.nodes.keys().cloned().collect();
         for id in ids {
-            if let Some(node) = self.nodes.get_mut(&id) {
+            if let Some(node) = self.nodes.get_mut(&id).filter(|n| of_owner(Some(n))) {
                 found |= strip(&mut node.props);
             }
         }
         let ids: Vec<String> = self.animations.keys().cloned().collect();
         for id in ids {
+            if !of_owner(self.nodes.get(&id)) {
+                continue;
+            }
             if let Some(animation) = self.animations.get_mut(&id) {
                 found |= strip(&mut animation.from);
                 found |= animation.to.mesh.take().is_some() | animation.to.effects.take().is_some();
             }
         }
         found
+    }
+
+    /// The load that the visible nodes of each owner put on a frame, for
+    /// the watchdog: a node counts 1, a layer 25 more, and each effect 25
+    /// more.
+    #[must_use]
+    pub fn load_by_owner(&self) -> BTreeMap<String, u64> {
+        // ponytail: fixed weights from the thresholds of #59, where 200
+        // rounded rects slow a frame as much as 5000 plain ones; measure
+        // the passes of each owner if the blame misses.
+        const LAYER: u64 = 25;
+        let mut load = BTreeMap::new();
+        let overlays = self.nodes.keys().filter(|id| is_overlay(id));
+        for start in std::iter::once(ROOT).chain(overlays.map(String::as_str)) {
+            for placed in self.walk(start, false) {
+                let node = placed.node;
+                let Some(owner) = &node.owner else {
+                    continue;
+                };
+                let effects = node.props.effects.len() as u64;
+                let cost = 1 + LAYER * (u64::from(node.is_layer()) + effects);
+                *load.entry(owner.clone()).or_default() += cost;
+            }
+        }
+        load
     }
 
     /// Moves the cameras forward by a time in milliseconds. Returns the

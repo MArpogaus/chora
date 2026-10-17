@@ -187,7 +187,7 @@ or an empty list. It always sees the current titles.
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version |
 | `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again |
-| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of all nodes, because frames were slow for two seconds |
+| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow, the core disconnects that client and removes its nodes, also with `keep_nodes` |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |

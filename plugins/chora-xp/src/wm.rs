@@ -424,7 +424,7 @@ impl Wm {
             } => self.key(&binding),
             Event::PointerEntered { node, .. } => self.hovered(&node, true),
             Event::PointerLeft { node } => self.hovered(&node, false),
-            Event::EffectsDropped => self.effects_dropped(),
+            Event::EffectsDropped { .. } => self.effects_dropped(),
             _ => Vec::new(),
         };
         let mut commands = commands;

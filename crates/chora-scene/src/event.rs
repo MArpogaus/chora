@@ -123,10 +123,13 @@ pub enum Event {
         position: [f64; 2],
     },
     /// Frames took too long again and again, so the watchdog of the core
-    /// removed the effects of all nodes. If frames stay slow, the emergency
-    /// reset follows.
+    /// removed the effects of the nodes of the client whose nodes cost the
+    /// most. If frames stay slow, the core disconnects that client.
     #[serde(rename = "effects.dropped")]
-    EffectsDropped,
+    EffectsDropped {
+        /// The name of the client.
+        client: String,
+    },
     /// The layers of nodes did not fit into the pixel budget of a frame and
     /// stay out of the output, or are back. Sent when the list of an
     /// output changes; an empty list means that all layers show again.

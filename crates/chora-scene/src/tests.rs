@@ -701,10 +701,14 @@ fn dropped_effects_stay_gone_during_an_animation() {
         easing: Easing::Linear,
     };
     scene.apply("wm", &[rect, fade]).unwrap();
-    assert!(scene.drop_effects());
+    assert!(
+        !scene.drop_effects("panel"),
+        "only the effects of the owner"
+    );
+    assert!(scene.drop_effects("wm"));
     scene.advance(100.0);
     assert!(scene.node("r").unwrap().props.mesh.is_none());
-    assert!(!scene.drop_effects());
+    assert!(!scene.drop_effects("wm"));
 }
 
 /// A create command from JSON props.
@@ -795,11 +799,32 @@ fn a_clip_needs_no_surface_and_makes_a_layer() {
 }
 
 #[test]
+fn the_watchdog_weighs_the_visible_nodes_of_each_owner() {
+    let mut scene = Scene::default();
+    let plain = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1]});
+    let round = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1], "radius": 4});
+    let effect = serde_json::json!({"size": [10, 10], "effects": [{"shader": "/e.frag"}]});
+    let hidden = serde_json::json!({"size": [10, 10], "visible": false});
+    scene.apply("wm", &[create("a", "rect", &plain)]).unwrap();
+    scene.apply("wm", &[create("b", "rect", &hidden)]).unwrap();
+    scene
+        .apply("panel", &[create("c", "rect", &round)])
+        .unwrap();
+    scene
+        .apply("loader", &[create("d", "group", &effect)])
+        .unwrap();
+    let load = scene.load_by_owner();
+    assert_eq!(load.get("wm"), Some(&1), "a hidden node costs nothing");
+    assert_eq!(load.get("panel"), Some(&26));
+    assert_eq!(load.get("loader"), Some(&51));
+}
+
+#[test]
 fn the_watchdog_takes_the_shader_of_a_shader_node() {
     let mut scene = Scene::default();
     let props = serde_json::json!({"size": [10, 10], "shader": "/s.frag"});
     scene.apply("wm", &[create("s", "shader", &props)]).unwrap();
-    assert!(scene.drop_effects());
+    assert!(scene.drop_effects("wm"));
     assert!(scene.node("s").unwrap().props.shader.is_none());
 }
 

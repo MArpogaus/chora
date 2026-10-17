@@ -292,9 +292,15 @@ The safety layer is the only built-in behavior (see
   that it rendered under this lock. When the lock client crashes, the
   session stays locked, and only then can a new lock client take over.
 - **Watchdog.** When frames take longer to render than a refresh of their
-  output for two seconds, the core removes the effects, the meshes and the
-  shaders of shader nodes, and sends `effects.dropped`. When they stay slow for two more seconds, it
-  starts the emergency reset, which disconnects the plugins.
+  output for two seconds, the core blames the client whose visible nodes
+  cost the most: a node counts 1, a layer and each effect 25 more. It
+  removes the effects, the meshes and the shaders of shader nodes of that
+  client and sends `effects.dropped` with its name; the nodes of other
+  clients keep theirs. When frames stay slow for two more seconds and the
+  client had a load of at least 500, the core disconnects it, at most once
+  a minute. Its nodes go as on any disconnect, also those of a client with
+  `keep_nodes`. The watchdog never starts the emergency reset; only the
+  binding and SIGUSR1 do.
 
 ## Permissions
 
