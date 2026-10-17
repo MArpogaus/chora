@@ -10,9 +10,9 @@ use chora_scene::{Command, NodeKind, PropsUpdate, Transform};
 use super::{WALLPAPERS, Wm};
 use crate::{
     cube::{self, DESKTOPS, Face, Turn, View},
-    decoration,
+    decoration, desktop_icons,
     taskbar::Bar,
-    wallpaper,
+    theme::Picture,
 };
 
 /// How long a quarter turn takes, before slow motion.
@@ -81,7 +81,12 @@ impl Wm {
         self.effects.turn = Some(Turn::new(self.desktop, steps, View::of(area), duration));
         let [x, y, w, h] = area;
         let size = [f64::from(w), f64::from(h)];
-        let image = wallpaper::image(&mut self.theme, &self.config.wallpaper, [w, h]);
+        // XP has one desktop: every face shows the wallpaper with the
+        // icons, and the icons themselves hide until the turn ends.
+        let face = Picture::new(w, h).cover(&self.config.wallpaper);
+        let face = self.desk.paint(&mut self.theme, &mut self.icons, face);
+        let image = self.theme.render(&face);
+        commands.push(visible(desktop_icons::GROUP, false));
         commands.push(Command::Create {
             id: CUBE_BACKGROUND.into(),
             kind: NodeKind::Rect,
@@ -221,6 +226,7 @@ impl Wm {
         let mut commands: Vec<Command> = (0..DESKTOPS)
             .map(|d| visible(&desk_id(d), d == self.desktop))
             .collect();
+        commands.push(visible(desktop_icons::GROUP, true));
         for w in &mut self.windows {
             w.held = false;
             commands.push(w.place());

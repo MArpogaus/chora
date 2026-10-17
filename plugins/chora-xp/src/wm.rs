@@ -26,6 +26,7 @@ use crate::{
     control::{self, Setting, Toggles},
     cube::DESKTOPS,
     decoration::{self, Button, Part},
+    desktop_icons::{self, DesktopIcons},
     icons::{self, Icons},
     notify::{Bus, Note, Reason, Request, Signal},
     session::{self, Choice, Dialog, Mode},
@@ -65,6 +66,24 @@ pub struct Config {
     /// The effects and sounds that are on at the start.
     pub toggles: Toggles,
 }
+
+/// The events of the core that the plugin handles.
+const EVENTS: [&str; 14] = [
+    "surface.created",
+    "surface.changed",
+    "surface.destroyed",
+    "surface.detached",
+    "surface.requested",
+    "pointer.pressed",
+    "pointer.moved",
+    "pointer.released",
+    "pointer.entered",
+    "pointer.left",
+    "output.changed",
+    "output.removed",
+    "input.key",
+    "effects.dropped",
+];
 
 /// What a key binding does.
 #[derive(Clone, Copy)]
@@ -145,6 +164,8 @@ pub struct Wm {
     notes: Queue,
     /// The balloon that shows, with its notification.
     balloon: Option<(Note, Balloon)>,
+    /// The icons on the desktop of the first output.
+    desk: DesktopIcons,
     /// Turn Off ended the plugin.
     pub done: bool,
     /// Restart ended the plugin, to start it again.
@@ -166,6 +187,7 @@ impl Wm {
             theme,
             icons,
             clock: String::new(),
+            desk: DesktopIcons::new(&config.terminal),
             effects: Effects::new(config.toggles),
             config,
             windows: Vec::new(),
@@ -192,26 +214,10 @@ impl Wm {
         wm.clock = wm.now();
         wm.create_scene()?;
         wm.grab()?;
-        let events = [
-            "surface.created",
-            "surface.changed",
-            "surface.destroyed",
-            "surface.detached",
-            "surface.requested",
-            "pointer.pressed",
-            "pointer.moved",
-            "pointer.released",
-            "pointer.entered",
-            "pointer.left",
-            "output.changed",
-            "output.removed",
-            "input.key",
-            "effects.dropped",
-        ];
         wm.conn.call::<_, Value>(
             "events.subscribe",
             Subscribe {
-                events: events.map(String::from).to_vec(),
+                events: EVENTS.map(String::from).to_vec(),
             },
         )?;
         for node in wm.conn.query("kind:surface")? {
@@ -235,7 +241,7 @@ impl Wm {
             props: PropsUpdate::default(),
         };
         let mut commands = vec![group(NAME, ROOT)];
-        for id in [WALLPAPERS, WINDOWS, BARS, MENUS] {
+        for id in [WALLPAPERS, desktop_icons::GROUP, WINDOWS, BARS, MENUS] {
             commands.push(group(id, NAME));
         }
         for desktop in 0..DESKTOPS {
@@ -254,6 +260,7 @@ impl Wm {
             commands.extend(self.add_output(output));
         }
         commands.extend(self.menu.create(&mut self.theme, MENUS));
+        commands.extend(self.refresh_icons());
         match self.conn.try_apply(commands)? {
             None => {
                 self.play(Sound::Logon);
@@ -365,6 +372,10 @@ impl Wm {
 
     /// Updates the clock.
     pub fn tick(&mut self) -> Result<(), ClientError> {
+        let commands = self.refresh_icons();
+        if !commands.is_empty() {
+            self.conn.apply(commands)?;
+        }
         let now = self.now();
         if now != self.clock {
             self.clock = now;
@@ -463,7 +474,9 @@ impl Wm {
     /// Moves the focus: the old and the new window change their look.
     fn focus(&mut self, target: Option<&str>) -> Vec<Command> {
         let previous = std::mem::replace(&mut self.focused, target.map(String::from));
-        let mut commands = Vec::new();
+        let mut commands = self
+            .desk
+            .focus(&mut self.theme, &mut self.icons, target.is_none());
         if previous.as_deref() != target {
             for surface in [previous.as_deref(), target].into_iter().flatten() {
                 commands.extend(self.restyle(surface));
@@ -769,6 +782,7 @@ impl Wm {
             commands.extend(w.style(&mut self.theme, active));
         }
         commands.extend(self.sync_tasks());
+        commands.extend(self.refresh_icons());
         commands
     }
 
@@ -786,6 +800,7 @@ impl Wm {
             if let Some(target) = self.bars.first().map(Bar::usable) {
                 commands.extend(self.move_windows(&bar, target));
             }
+            commands.extend(self.refresh_icons());
         }
         commands
     }
@@ -859,18 +874,25 @@ impl Wm {
             commands.extend(self.activate(node));
         } else if let Some(part) = Part::of(node) {
             commands.extend(self.press_decoration(&part, button, position));
-        } else if button != LEFT_BUTTON {
-            // Only the left button works the taskbar and the menu.
-        } else if let Some(part) = taskbar::Part::of(node) {
-            commands.extend(self.press_taskbar(part));
-        } else if Menu::owns(node) {
-            commands.extend(self.menu.press(&mut self.theme, node));
-        } else if wallpaper::owns(node) {
-            // A click on the desktop takes the focus from the windows.
-            commands.extend(self.focus(None));
-            commands.extend(self.sync_tasks());
+        } else if button == LEFT_BUTTON {
+            commands.extend(self.press_left(node, position));
         }
         commands
+    }
+
+    /// Only the left button works the taskbar, the menu and the desktop.
+    fn press_left(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
+        if let Some(part) = taskbar::Part::of(node) {
+            self.press_taskbar(part)
+        } else if Menu::owns(node) {
+            self.menu.press(&mut self.theme, node)
+        } else if DesktopIcons::owns(node) {
+            self.press_icon(node, position)
+        } else if wallpaper::owns(node) {
+            self.press_wallpaper()
+        } else {
+            Vec::new()
+        }
     }
 
     fn press_decoration(&mut self, part: &Part, button: u32, position: [f64; 2]) -> Vec<Command> {
@@ -950,6 +972,9 @@ impl Wm {
     }
 
     fn dragged(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
+        if self.desk.pressed() {
+            return self.desk.drag([px, py]);
+        }
         let Some(drag) = &mut self.drag else {
             return Vec::new();
         };
@@ -980,6 +1005,9 @@ impl Wm {
     fn released(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
         if let Some(drag) = self.drag.take() {
             self.release_wobble(&drag.surface);
+        }
+        if self.desk.pressed() {
+            return self.desk.release(position);
         }
         if let Some(dialog) = &mut self.dialog {
             let (mut commands, choice) = dialog.release(&mut self.theme, position);
@@ -1068,6 +1096,41 @@ impl Wm {
             Action::TurnOff => self.open_dialog(Mode::TurnOff, output),
             Action::Set(setting) => self.set(setting, output),
         }
+    }
+
+    // The icons on the desktop
+
+    /// Looks at the Desktop folder and the trash, and shows the icons on
+    /// the work area of the first output.
+    fn refresh_icons(&mut self) -> Vec<Command> {
+        let Some(area) = self.bars.first().map(Bar::usable) else {
+            return Vec::new();
+        };
+        self.desk.refresh(&mut self.theme, &mut self.icons, area)
+    }
+
+    /// A click on the desktop takes the focus from the windows and the
+    /// selection from the icons.
+    fn press_wallpaper(&mut self) -> Vec<Command> {
+        let mut commands = self.focus(None);
+        commands.extend(self.sync_tasks());
+        commands.extend(self.desk.select(&mut self.theme, &mut self.icons, None));
+        commands
+    }
+
+    /// A click on an icon gives the desktop the focus and selects the
+    /// icon; a double click opens it.
+    fn press_icon(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
+        let mut commands = self.focus(None);
+        commands.extend(self.sync_tasks());
+        let (more, open) = self
+            .desk
+            .press(&mut self.theme, &mut self.icons, node, position);
+        commands.extend(more);
+        if let Some(open) = open {
+            spawn(&desktop_icons::command(&open));
+        }
+        commands
     }
 
     // The Control Panel of the start menu

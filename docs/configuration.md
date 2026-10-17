@@ -203,6 +203,7 @@ renders each picture once:
   Log Off and Turn Off Computer, and All Programs with the applications of
   the desktop files in `$XDG_DATA_HOME/applications` and `$XDG_DATA_DIRS`,
   in program groups by their main category;
+- the icons of the desktop, between the wallpaper and the windows;
 - the wallpaper below everything: Bliss when it is installed, else Bløff.
 
 A click on a window raises and focuses it. A drag of a title bar moves the
@@ -214,6 +215,27 @@ the pointer rests on them for 350 ms, or on a click. A click on a program
 starts it and closes the menu; a click outside closes the menu. Escape
 closes nothing yet: the core takes no grab of a key without Ctrl, Alt or
 Super (D45).
+
+The desktop of the first output shows XP's icons in its grid of 75 by 75
+pixels: My Documents (`XDG_DOCUMENTS_DIR`, else the home directory) and My
+Computer at the top left, then the folders and files of the Desktop folder
+(`XDG_DESKTOP_DIR`, else `~/Desktop`) by name, folders first, in columns
+from the top. The Recycle Bin sits at the bottom right and shows whether
+`$XDG_DATA_HOME/Trash/files` has files. A desktop file shows its name and
+icon. Each label is Tahoma in white with a black shadow, in at most two
+lines. `chora-xp` looks at the Desktop folder and the trash once a second.
+My Network Places is left out, because without a network browser it opens
+nothing.
+
+A click selects an icon: its label turns white on dark blue, with a dotted
+focus rectangle while no window has the focus. A click on the empty
+desktop takes the selection away. A double click opens the icon: a folder,
+My Documents and My Computer (`/`) with `xdg-open`, until XP's Explorer
+comes; the Recycle Bin with `gio open trash:///`, else its folder; a
+desktop file runs its program; any other file opens with `xdg-open`. A drag
+moves an icon to the nearest free cell of the grid, until `chora-xp` ends.
+XP has one desktop, so the icons stay in place while the cube turns: each
+face of the cube shows them on the wallpaper.
 
 The Control Panel opens as a menu, as with XP's "Display as a menu". A
 check mark shows the current choice of each entry, and a click on an

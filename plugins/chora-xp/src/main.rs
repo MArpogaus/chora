@@ -11,6 +11,7 @@ mod conn;
 mod control;
 mod cube;
 mod decoration;
+mod desktop_icons;
 mod icons;
 mod lamp;
 mod notify;

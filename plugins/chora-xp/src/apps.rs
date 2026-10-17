@@ -194,11 +194,7 @@ fn group(entries: impl Iterator<Item = Entry>, terminal: &str) -> Vec<Node> {
             .iter()
             .find_map(|c| GROUPS.iter().find(|(main, _)| main == c))
             .map(|(_, name)| *name);
-        let command = if entry.terminal {
-            format!("{terminal} -e {}", entry.exec)
-        } else {
-            entry.exec
-        };
+        let command = command(entry.exec, entry.terminal, terminal);
         let node = Node {
             title: entry.name,
             icon: entry.icon,
@@ -225,6 +221,25 @@ fn group(entries: impl Iterator<Item = Entry>, terminal: &str) -> Vec<Node> {
     sort(&mut loose);
     out.extend(loose);
     out
+}
+
+/// The command of a program, in the terminal if it needs one.
+fn command(exec: String, in_terminal: bool, terminal: &str) -> String {
+    if in_terminal {
+        format!("{terminal} -e {exec}")
+    } else {
+        exec
+    }
+}
+
+/// The name, icon and command of a desktop file, for an icon on the
+/// desktop, if it is an application to show.
+pub fn launcher(path: &Path, terminal: &str) -> Option<(String, String, String)> {
+    let entry = parse(&fs::read_to_string(path).ok()?, &[])?;
+    (!entry.hidden && !entry.exec.is_empty()).then(|| {
+        let command = command(entry.exec, entry.terminal, terminal);
+        (entry.name, entry.icon, command)
+    })
 }
 
 fn sort(nodes: &mut [Node]) {
