@@ -1,144 +1,248 @@
-//! Wobbly windows: the points of a grid over the window spring toward
-//! their places in the window, which follows the pointer. The point under
-//! the pointer stays under it; points far from it have weaker springs, so
-//! they lag behind and the window bends. After the release all springs
-//! are equal, and the window shakes until it settles.
+//! Wobbly windows, with the model and the default parameters of `KWin`'s
+//! wobbly windows effect: a 4x4 grid of control points over the window
+//! hangs on springs. Each free point keeps its distance to its neighbours;
+//! the point under the pointer is pulled to its place in the window, also
+//! after the release, so that the window settles where it is. The drawn
+//! mesh is a finer grid through the Bézier surface of the control points.
+
+// The grids have at most 21 points a side, so `usize` to `f64` is exact.
+#![allow(clippy::cast_precision_loss)]
 
 use chora_scene::Mesh;
 
-/// Cells along each side of the grid.
-const CELLS: u32 = 8;
-/// The spring constant at the grab point and far from it, in 1/s².
-const NEAR: f64 = 1600.0;
-const FAR: f64 = 110.0;
-/// The distance over which the springs weaken, in pixels.
-const FALLOFF: f64 = 260.0;
-/// The spring constant after the release.
-const LOOSE: f64 = 260.0;
-/// The damping ratio: below 1 the window overshoots and shakes.
-const DAMPING: f64 = 0.28;
-/// A point is still when it is this close to its place, in pixels, and
-/// slower than ten times that per second.
-const STILL: f64 = 0.4;
+/// Control points along each side.
+const SIDE: usize = 4;
+const COUNT: usize = SIDE * SIDE;
+/// Cells along each side of the drawn mesh.
+const CELLS: u32 = 20;
+/// `KWin`'s default level (`set_0`): spring stiffness, the share of the
+/// velocity kept per step, and the scale from velocity to movement.
+const STIFFNESS: f64 = 0.15;
+const DRAG: f64 = 0.80;
+const MOVE_FACTOR: f64 = 0.10;
+/// The cap of velocity and acceleration, per axis.
+const MAX: f64 = 1000.0;
+/// The grid rests when the summed accelerations and velocities fall below
+/// these.
+const STOP_ACCELERATION: f64 = 0.5;
+const STOP_VELOCITY: f64 = 0.5;
+/// The longest integration step, in milliseconds.
+const STEP_MS: f64 = 10.0;
 
 /// The state of the grid of one window.
 pub struct Wobble {
-    /// The places of the points in the window, in node coordinates.
-    rest: Vec<[f64; 2]>,
-    /// The points in scene coordinates.
-    at: Vec<[f64; 2]>,
-    /// Their velocities in pixels per second.
-    speed: Vec<[f64; 2]>,
-    /// The spring constant of each point.
-    spring: Vec<f64>,
-    /// The point under the pointer while the button is down.
-    grab: Option<usize>,
+    /// The width and height of the window.
+    size: [f64; 2],
+    /// The control points in scene coordinates, row by row.
+    at: [[f64; 2]; COUNT],
+    velocity: [[f64; 2]; COUNT],
+    /// The point pulled to its place: the one nearest to the grab.
+    grab: usize,
+    /// Whether the pointer still holds the window.
+    held: bool,
+    /// Whether the last step moved anything.
+    moving: bool,
 }
 
 impl Wobble {
     /// A flat grid over a window of a size at an origin, grabbed at a point
     /// in scene coordinates.
     pub fn new(size: [f64; 2], origin: [f64; 2], grab: [f64; 2]) -> Self {
-        let rest = Mesh::flat(CELLS, CELLS, size).points;
-        let at: Vec<[f64; 2]> = rest.iter().map(|p| add(*p, origin)).collect();
-        let local = sub(grab, origin);
-        let nearest = (0..rest.len())
-            .min_by(|a, b| distance(rest[*a], local).total_cmp(&distance(rest[*b], local)))
-            .unwrap_or(0);
-        let spring = rest
-            .iter()
-            .map(|p| FAR + (NEAR - FAR) * (-distance(*p, local) / FALLOFF).exp())
-            .collect();
-        Self {
-            speed: vec![[0.0; 2]; rest.len()],
-            rest,
-            at,
-            spring,
-            grab: Some(nearest),
+        let cell = |axis: usize| size[axis] / (SIDE - 1) as f64;
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // clamped
+        let index = |axis: usize| {
+            ((grab[axis] - origin[axis]) / cell(axis))
+                .round()
+                .clamp(0.0, (SIDE - 1) as f64) as usize
+        };
+        let mut wobble = Self {
+            size,
+            at: [[0.0; 2]; COUNT],
+            velocity: [[0.0; 2]; COUNT],
+            grab: index(1) * SIDE + index(0),
+            held: true,
+            moving: true,
+        };
+        for i in 0..COUNT {
+            wobble.at[i] = wobble.place(i, origin);
         }
+        wobble
     }
 
-    /// Lets go of the grab point: all springs become equal.
+    /// Lets go of the window; it shakes until it settles.
     pub fn release(&mut self) {
-        self.grab = None;
-        self.spring.fill(LOOSE);
+        self.held = false;
     }
 
-    /// Moves the points by a time step in seconds, for a window at an
-    /// origin. Short sub-steps keep the stiff springs stable.
+    /// Advances the grid by a time in seconds, for a window at an origin.
     pub fn step(&mut self, origin: [f64; 2], dt: f64) {
-        let dt = dt.clamp(0.0, 0.05);
-        let steps = 8;
-        let h = dt / f64::from(steps);
-        for _ in 0..steps {
-            for i in 0..self.at.len() {
-                self.step_point(i, origin, h);
-            }
+        let mut left = (dt.clamp(0.0, 0.1) * 1000.0).max(0.0);
+        while left > 0.0 {
+            let ms = left.min(STEP_MS);
+            left -= ms;
+            self.integrate(origin, ms);
         }
     }
 
-    fn step_point(&mut self, i: usize, origin: [f64; 2], h: f64) {
-        let place = add(self.rest[i], origin);
-        if self.grab == Some(i) {
-            self.at[i] = place;
-            self.speed[i] = [0.0; 2];
-            return;
-        }
-        let k = self.spring[i];
-        let damping = 2.0 * DAMPING * k.sqrt();
-        for axis in [0, 1] {
-            let force = k * (place[axis] - self.at[i][axis]) - damping * self.speed[i][axis];
-            self.speed[i][axis] += force * h;
-            self.at[i][axis] += self.speed[i][axis] * h;
-            // A huge jump of the window must not throw the grid away.
-            self.at[i][axis] = self.at[i][axis].clamp(place[axis] - 600.0, place[axis] + 600.0);
-        }
+    /// Whether the grid rests, after the release.
+    pub fn settled(&self, _origin: [f64; 2]) -> bool {
+        !self.held && !self.moving
     }
 
-    /// Whether every point rests at its place, after the release.
-    pub fn settled(&self, origin: [f64; 2]) -> bool {
-        self.grab.is_none()
-            && self
-                .at
-                .iter()
-                .zip(&self.rest)
-                .zip(&self.speed)
-                .all(|((a, r), v)| {
-                    distance(*a, add(*r, origin)) < STILL && v[0].hypot(v[1]) < 10.0 * STILL
-                })
-    }
-
-    /// The largest distance of a point from its place, in pixels.
+    /// The largest distance of a control point from its place, in pixels.
     #[cfg(test)]
     pub fn bend(&self, origin: [f64; 2]) -> f64 {
-        self.at
-            .iter()
-            .zip(&self.rest)
-            .map(|(a, r)| distance(*a, add(*r, origin)))
+        (0..COUNT)
+            .map(|i| {
+                let p = self.place(i, origin);
+                (self.at[i][0] - p[0]).hypot(self.at[i][1] - p[1])
+            })
             .fold(0.0, f64::max)
     }
 
-    /// The grid in the node coordinates of a window at an origin.
+    /// The drawn mesh in the node coordinates of a window at an origin.
     pub fn mesh(&self, origin: [f64; 2]) -> Mesh {
+        let n = CELLS as usize;
+        let mut points = Vec::with_capacity((n + 1) * (n + 1));
+        for row in 0..=n {
+            for col in 0..=n {
+                let [x, y] = self.bezier(col as f64 / n as f64, row as f64 / n as f64);
+                points.push([x - origin[0], y - origin[1]]);
+            }
+        }
         Mesh {
             cols: CELLS,
             rows: CELLS,
-            points: self.at.iter().map(|p| sub(*p, origin)).collect(),
+            points,
             depth: Vec::new(),
         }
     }
+
+    /// The place of a control point in a window at an origin.
+    fn place(&self, i: usize, origin: [f64; 2]) -> [f64; 2] {
+        let (col, row) = (i % SIDE, i / SIDE);
+        let last = (SIDE - 1) as f64;
+        [
+            origin[0] + self.size[0] * col as f64 / last,
+            origin[1] + self.size[1] * row as f64 / last,
+        ]
+    }
+
+    /// One step of `ms` milliseconds.
+    fn integrate(&mut self, origin: [f64; 2], ms: f64) {
+        let mut acceleration = [[0.0; 2]; COUNT];
+        for (i, acc) in acceleration.iter_mut().enumerate() {
+            let place = self.place(i, origin);
+            if i == self.grab {
+                *acc = [
+                    (place[0] - self.at[i][0]) * STIFFNESS,
+                    (place[1] - self.at[i][1]) * STIFFNESS,
+                ];
+                continue;
+            }
+            // Each neighbour pulls the point to keep the distance between
+            // their places.
+            let near = neighbours(i);
+            for j in &near {
+                let rest = self.place(*j, origin);
+                for axis in [0, 1] {
+                    let stretch =
+                        (self.at[*j][axis] - self.at[i][axis]) - (rest[axis] - place[axis]);
+                    acc[axis] += stretch * STIFFNESS;
+                }
+            }
+            for value in acc.iter_mut() {
+                *value /= near.len() as f64;
+            }
+        }
+        let acceleration = smooth(&acceleration);
+        let mut acc_sum = 0.0;
+        for (velocity, acc) in self.velocity.iter_mut().zip(acceleration) {
+            for axis in [0, 1] {
+                let acc = acc[axis].clamp(-MAX, MAX);
+                velocity[axis] = acc * ms + velocity[axis] * DRAG;
+                acc_sum += acc.abs();
+            }
+        }
+        self.velocity = smooth(&self.velocity);
+        let mut vel_sum = 0.0;
+        for (at, velocity) in self.at.iter_mut().zip(&mut self.velocity) {
+            for axis in [0, 1] {
+                velocity[axis] = velocity[axis].clamp(-MAX, MAX);
+                at[axis] += velocity[axis] * ms * MOVE_FACTOR;
+                vel_sum += velocity[axis].abs();
+            }
+        }
+        self.moving = acc_sum >= STOP_ACCELERATION || vel_sum >= STOP_VELOCITY;
+    }
+
+    /// A point of the Bézier surface of the control points at (u, v) from
+    /// 0 to 1.
+    fn bezier(&self, u: f64, v: f64) -> [f64; 2] {
+        let weights = |t: f64| {
+            let s = 1.0 - t;
+            [s * s * s, 3.0 * s * s * t, 3.0 * s * t * t, t * t * t]
+        };
+        let (wu, wv) = (weights(u), weights(v));
+        let mut point = [0.0; 2];
+        for (row, a) in wv.iter().enumerate() {
+            for (col, b) in wu.iter().enumerate() {
+                let p = self.at[row * SIDE + col];
+                point[0] += a * b * p[0];
+                point[1] += a * b * p[1];
+            }
+        }
+        point
+    }
 }
 
-fn add(a: [f64; 2], b: [f64; 2]) -> [f64; 2] {
-    [a[0] + b[0], a[1] + b[1]]
+/// The left, right, upper and lower neighbours of a control point.
+fn neighbours(i: usize) -> Vec<usize> {
+    let (col, row) = (i % SIDE, i / SIDE);
+    let mut near = Vec::with_capacity(4);
+    if col > 0 {
+        near.push(i - 1);
+    }
+    if col + 1 < SIDE {
+        near.push(i + 1);
+    }
+    if row > 0 {
+        near.push(i - SIDE);
+    }
+    if row + 1 < SIDE {
+        near.push(i + SIDE);
+    }
+    near
 }
 
-fn sub(a: [f64; 2], b: [f64; 2]) -> [f64; 2] {
-    [a[0] - b[0], a[1] - b[1]]
-}
-
-fn distance(a: [f64; 2], b: [f64; 2]) -> f64 {
-    (a[0] - b[0]).hypot(a[1] - b[1])
+/// Blends each value with its ring of up to 8 neighbours; the value itself
+/// weighs as much as all of them together, as in `KWin`.
+fn smooth(data: &[[f64; 2]; COUNT]) -> [[f64; 2]; COUNT] {
+    let mut out = [[0.0; 2]; COUNT];
+    for (i, value) in out.iter_mut().enumerate() {
+        #[allow(clippy::cast_possible_wrap)] // a 4x4 grid
+        let (col, row) = ((i % SIDE) as isize, (i / SIDE) as isize);
+        let mut sum = [0.0; 2];
+        let mut count = 0.0;
+        for dr in -1..=1 {
+            for dc in -1..=1 {
+                let (c, r) = (col + dc, row + dr);
+                let side = SIDE.cast_signed();
+                if (dr, dc) == (0, 0) || !(0..side).contains(&c) || !(0..side).contains(&r) {
+                    continue;
+                }
+                #[allow(clippy::cast_sign_loss)] // checked above
+                let j = (r * side + c) as usize;
+                sum[0] += data[j][0];
+                sum[1] += data[j][1];
+                count += 1.0;
+            }
+        }
+        for axis in [0, 1] {
+            value[axis] = (sum[axis] + count * data[i][axis]) / (2.0 * count);
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -146,26 +250,24 @@ mod tests {
     use super::*;
 
     #[test]
-    #[allow(clippy::float_cmp)] // the grab point sits exactly at its place
-    fn a_drag_bends_the_far_side_and_the_grab_point_follows() {
+    fn a_drag_bends_the_far_side_more_than_the_grab_point() {
         let size = [400.0, 300.0];
         let mut w = Wobble::new(size, [0.0, 0.0], [200.0, 10.0]);
         // The window jumps 100 pixels to the right with the pointer.
         w.step([100.0, 0.0], 1.0 / 60.0);
+        let at = |i: usize| w.at[i];
+        let grab_lag = 100.0 + w.place(w.grab, [0.0, 0.0])[0] - at(w.grab)[0];
+        let corner_lag = 100.0 + w.place(COUNT - 1, [0.0, 0.0])[0] - at(COUNT - 1)[0];
+        assert!(corner_lag > grab_lag + 10.0, "{corner_lag} vs {grab_lag}");
+        assert!(w.bend([100.0, 0.0]) > 20.0);
+        // The drawn mesh has the fine grid and starts at the top-left
+        // control point.
         let mesh = w.mesh([100.0, 0.0]);
-        let grab = w.grab.unwrap();
-        assert_eq!(mesh.points[grab], w.rest[grab]);
-        let corner = mesh.points.len() - 1;
-        assert!(
-            mesh.points[corner][0] < w.rest[corner][0] - 50.0,
-            "{:?}",
-            mesh.points[corner]
-        );
-        assert!(w.bend([100.0, 0.0]) > 50.0);
+        assert_eq!(mesh.points.len(), 21 * 21);
     }
 
     #[test]
-    fn the_grid_settles_after_the_release() {
+    fn the_grid_settles_where_the_window_is() {
         let mut w = Wobble::new([400.0, 300.0], [0.0, 0.0], [200.0, 10.0]);
         w.step([80.0, 40.0], 1.0 / 60.0);
         w.release();
@@ -176,5 +278,16 @@ mod tests {
             assert!(frames < 600, "still wobbling after 10 s");
         }
         assert!(frames > 10, "it settled at once");
+        assert!(w.bend([80.0, 40.0]) < 2.0, "{}", w.bend([80.0, 40.0]));
+    }
+
+    #[test]
+    fn a_flat_grid_maps_to_the_window() {
+        let w = Wobble::new([400.0, 300.0], [10.0, 20.0], [0.0, 0.0]);
+        let mesh = w.mesh([10.0, 20.0]);
+        let last = mesh.points.len() - 1;
+        assert!((mesh.points[0][0]).abs() < 1e-9 && (mesh.points[0][1]).abs() < 1e-9);
+        assert!((mesh.points[last][0] - 400.0).abs() < 1e-9);
+        assert!((mesh.points[last][1] - 300.0).abs() < 1e-9);
     }
 }
