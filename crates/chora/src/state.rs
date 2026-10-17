@@ -548,14 +548,11 @@ impl State {
     /// layer surface takes it or a node gets the focus.
     pub fn update_focus(&mut self) {
         let keyboard = self.seat.get_keyboard().expect("the seat has a keyboard");
-        // A click gives a layer surface the keyboard only while it is a
-        // mapped layer surface that takes the keyboard: its role, its
-        // keyboard interactivity or its output can go.
-        if let Some(layer) = &self.layer_focus
-            && self.keyboard_layer(layer).as_ref() != Some(layer)
-        {
-            self.layer_focus = None;
-        }
+        // A clicked layer surface keeps the keyboard only while it accepts it.
+        self.layer_focus = self
+            .layer_focus
+            .take()
+            .and_then(|l| self.keyboard_layer(&l));
         if self.lock.is_some() {
             self.scene.unfocus_node();
             let target = self.lock_focus();
