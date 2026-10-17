@@ -131,11 +131,8 @@ struct Conn {
     hello_by: Instant,
     keep_nodes: bool,
     resume: bool,
-    /// The name of the client socket of the connection (D33); `None` for
-    /// the main socket.
-    fixed: Option<String>,
-    /// The connection came through the admin socket (D40).
-    admin: bool,
+    /// The socket that the connection came through.
+    socket: Socket,
     events: Option<Vec<String>>,
     /// The edges of `output.reserve` by output name.
     reserves: HashMap<String, Edges>,
@@ -156,10 +153,6 @@ pub fn listen(state: &mut State) -> io::Result<PathBuf> {
     let mut assets = path.clone();
     assets.set_extension("assets");
     state.ipc.uploads.open(assets)?;
-    match std::fs::remove_file(&path) {
-        Err(err) if err.kind() != ErrorKind::NotFound => return Err(err),
-        _ => {}
-    }
     state.ipc.listener = Some(bind(state, &path, Socket::Main)?);
     let admin = chora_scene::ipc::admin_socket(&path);
     state.ipc.admin = Some((bind(state, &admin, Socket::Admin)?, admin));
@@ -168,18 +161,18 @@ pub fn listen(state: &mut State) -> io::Result<PathBuf> {
 }
 
 /// Where a connection came from.
-#[derive(Clone, Copy)]
-enum Socket<'a> {
+#[derive(Clone, PartialEq, Eq)]
+enum Socket {
     Main,
     /// The admin socket of `choractl` (D40).
     Admin,
     /// A client socket of a name (D33).
-    Client(&'a str),
+    Client(String),
 }
 
 /// Binds the main or the admin socket, with mode 0600, and accepts its
 /// connections in the event loop.
-fn bind(state: &State, path: &Path, socket: Socket<'static>) -> io::Result<RegistrationToken> {
+fn bind(state: &State, path: &Path, socket: Socket) -> io::Result<RegistrationToken> {
     match std::fs::remove_file(path) {
         Err(err) if err.kind() != ErrorKind::NotFound => return Err(err),
         _ => {}
@@ -192,7 +185,7 @@ fn bind(state: &State, path: &Path, socket: Socket<'static>) -> io::Result<Regis
         .insert_source(
             Generic::new(listener, Interest::READ, Mode::Level),
             move |_, listener, state| {
-                if let Some(error) = state.ipc_accept_all(listener, socket) {
+                if let Some(error) = state.ipc_accept_all(listener, &socket) {
                     tracing::warn!("IPC socket: {error}");
                 }
                 Ok(PostAction::Continue)
@@ -393,12 +386,14 @@ impl Ipc {
 
     /// Whether a connection came through the admin socket.
     fn admin(&self, conn: u64) -> bool {
-        self.conns.get(&conn).is_some_and(|c| c.admin)
+        self.conns
+            .get(&conn)
+            .is_some_and(|c| c.socket == Socket::Admin)
     }
 
     /// The name of the client socket of a connection.
     fn fixed(&self, conn: u64) -> Option<&str> {
-        self.conns.get(&conn)?.fixed.as_deref()
+        self.conns.get(&conn)?.fixed()
     }
 
     /// The client name of a connection.
@@ -415,11 +410,8 @@ impl Ipc {
     fn refusal(&self, pid: Option<Pid>, fixed: Option<&str>) -> Option<String> {
         let total = self.conns.len();
         if let Some(name) = fixed {
-            let socket = self
-                .conns
-                .values()
-                .filter(|c| c.fixed.as_deref() == Some(name));
-            let clients = self.conns.values().filter(|c| c.fixed.is_some()).count();
+            let socket = self.conns.values().filter(|c| c.fixed() == Some(name));
+            let clients = self.conns.values().filter(|c| c.fixed().is_some()).count();
             if socket.count() >= clients::MAX_PER_SOCKET {
                 return Some(format!(
                     "too many connections: this client socket holds {}",
@@ -456,6 +448,14 @@ impl Ipc {
 }
 
 impl Conn {
+    /// The name of the client socket of the connection (D33).
+    fn fixed(&self) -> Option<&str> {
+        match &self.socket {
+            Socket::Client(name) => Some(name),
+            Socket::Main | Socket::Admin => None,
+        }
+    }
+
     fn push(&mut self, line: &[u8]) {
         if self.output.len() + line.len() > MAX_OUTPUT {
             self.overflow = true;
@@ -518,11 +518,11 @@ impl State {
     /// Accepts every waiting connection. When accepting fails, for example
     /// because no file descriptors are left, the listener pauses for a
     /// second instead of stopping the compositor. Returns the error to log.
-    fn ipc_accept_all(&mut self, listener: &UnixListener, socket: Socket) -> Option<String> {
+    fn ipc_accept_all(&mut self, listener: &UnixListener, socket: &Socket) -> Option<String> {
         loop {
             match listener.accept() {
                 Ok((stream, _)) => {
-                    if let Err(err) = self.ipc_accept_as(stream, socket) {
+                    if let Err(err) = self.ipc_accept_as(stream, socket.clone()) {
                         break Some(err);
                     }
                 }
@@ -575,8 +575,8 @@ impl State {
         fn failed(err: impl std::fmt::Display) -> String {
             format!("a connection failed: {err}")
         }
-        let fixed = match socket {
-            Socket::Client(name) => Some(name),
+        let fixed = match &socket {
+            Socket::Client(name) => Some(name.as_str()),
             Socket::Main | Socket::Admin => None,
         };
         stream.set_nonblocking(true).map_err(failed)?;
@@ -610,8 +610,7 @@ impl State {
             hello_by,
             keep_nodes: false,
             resume: false,
-            fixed: fixed.map(String::from),
-            admin: matches!(socket, Socket::Admin),
+            socket,
             events: None,
             reserves: HashMap::new(),
             reader: Some(token),
@@ -1391,7 +1390,7 @@ mod tests {
                 .ipc
                 .conns
                 .values()
-                .filter(|c| c.fixed.is_some())
+                .filter(|c| c.fixed().is_some())
                 .count()
         };
         assert_eq!(fixed_conns(&core), clients::MAX_PER_SOCKET);
@@ -1446,7 +1445,7 @@ mod tests {
             .ipc
             .conns
             .iter()
-            .find(|(_, c)| c.fixed.is_some())
+            .find(|(_, c)| c.fixed().is_some())
             .map(|(id, _)| *id);
         let own: Vec<chora_scene::Command> =
             serde_json::from_value(image("j", &own)["commands"].clone()).unwrap();

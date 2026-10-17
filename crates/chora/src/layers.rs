@@ -141,22 +141,29 @@ impl State {
     /// The layer surface of a surface, or of the root of a popup, if it
     /// accepts the keyboard.
     pub fn keyboard_layer(&self, surface: &WlSurface) -> Option<WlSurface> {
-        self.outputs.iter().find_map(|output| {
-            let map = layer_map_for_output(output);
-            map.layer_for_surface(surface, WindowSurfaceType::ALL)
-                .filter(|l| l.cached_state().keyboard_interactivity != KeyboardInteractivity::None)
-                .map(|l| l.wl_surface().clone())
-        })
+        self.layer_keyboard(surface)
+            .filter(|(_, k)| *k != KeyboardInteractivity::None)
+            .map(|(l, _)| l)
     }
 
     /// Whether a surface is a layer surface that takes the keyboard on
     /// demand, as the search field of a panel does.
     pub fn on_demand_layer(&self, surface: &WlSurface) -> bool {
-        self.outputs.iter().any(|output| {
-            layer_map_for_output(output)
-                .layer_for_surface(surface, WindowSurfaceType::ALL)
-                .is_some_and(|l| {
-                    l.cached_state().keyboard_interactivity == KeyboardInteractivity::OnDemand
+        self.layer_keyboard(surface)
+            .is_some_and(|(_, k)| k == KeyboardInteractivity::OnDemand)
+    }
+
+    /// The layer surface of a surface, or of the root of a popup, and how
+    /// it takes the keyboard.
+    fn layer_keyboard(&self, surface: &WlSurface) -> Option<(WlSurface, KeyboardInteractivity)> {
+        self.outputs.iter().find_map(|output| {
+            let map = layer_map_for_output(output);
+            map.layer_for_surface(surface, WindowSurfaceType::ALL)
+                .map(|l| {
+                    (
+                        l.wl_surface().clone(),
+                        l.cached_state().keyboard_interactivity,
+                    )
                 })
         })
     }

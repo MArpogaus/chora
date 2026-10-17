@@ -45,14 +45,14 @@ impl State {
             return Err(rejected(format!("{name:?}: the socket path is too long")));
         }
         let listener = open(&path).map_err(|e| rejected(format!("{name:?}: {e}")))?;
-        let fixed = name.clone();
+        let fixed = Socket::Client(name.clone());
         let token = self
             .loop_handle
             .insert_source(
                 Generic::new(listener, Interest::READ, Mode::Level),
                 move |_, listener, state| {
-                    if let Some(error) = state.ipc_accept_all(listener, Socket::Client(&fixed)) {
-                        tracing::warn!("client socket {fixed:?}: {error}");
+                    if let Some(error) = state.ipc_accept_all(listener, &fixed) {
+                        tracing::warn!("client socket: {error}");
                     }
                     Ok(PostAction::Continue)
                 },
