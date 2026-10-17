@@ -277,7 +277,8 @@ and `text-input` with `input-method`. Activation requests of
 layer surface that takes the keyboard exclusively, for example a launcher,
 has it from its first commit until it goes away, and it ends a popup grab.
 
-A click gives the keyboard to a layer surface that accepts it on demand.
+A click gives the keyboard to a layer surface that accepts it on demand,
+and ends the keyboard focus of a node.
 The layer surface keeps it until one of these occurs:
 
 - A click goes elsewhere, or a surface gets the focus.

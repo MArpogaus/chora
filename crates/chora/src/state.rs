@@ -546,9 +546,14 @@ impl State {
     }
 
     /// Gives the keyboard to a layer surface after a click, or takes it
-    /// back.
+    /// back. A click on such a layer surface ends the focus of a node, as
+    /// a click on a toplevel does.
     pub fn set_layer_focus(&mut self, layer: Option<WlSurface>) {
-        if self.layer_focus != layer {
+        let node = layer.is_some() && self.scene.focused_node().is_some();
+        if node {
+            self.scene.unfocus_node();
+        }
+        if node || self.layer_focus != layer {
             self.layer_focus = layer;
             self.update_focus();
         }
@@ -831,6 +836,22 @@ mod tests {
         assert_eq!(keyboard(&core), Some(id(&second)));
         wayland.destroy_layer(&mut core, &bar);
         assert_eq!(keyboard(&core), Some(id(&second)));
+    }
+
+    #[test]
+    fn a_clicked_layer_surface_takes_the_keyboard_from_a_focused_node() {
+        let (mut core, mut wayland, mut wm, _first, _second) = two_windows();
+        let output = core.add_output("HDMI-1", (800, 600));
+        wayland.roundtrip(&mut core);
+        let desk = apply(&json!([
+            {"create": {"id": "desk", "kind": "rect", "parent": "root", "props": {"size": [1, 1]}}},
+            {"focus_node": {"node": "desk"}},
+        ]));
+        wm.ok(&mut core, "scene.apply", desk);
+        assert!(core.state.key_node().is_some());
+        let panel = click_layer(&mut core, &mut wayland, &output);
+        assert_eq!(keyboard(&core), Some(panel.surface.id().protocol_id()));
+        assert_eq!(core.state.key_node(), None);
     }
 
     #[test]

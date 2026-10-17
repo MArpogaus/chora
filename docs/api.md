@@ -209,7 +209,9 @@ cases:
 - A surface gets the focus, by a command or by the core.
 
 A layer surface that takes the keyboard exclusively, for example a
-launcher, gets the keys before the node.
+launcher, gets the keys before the node. A click on a layer surface that
+takes the keyboard on demand, for example the search field of a panel,
+ends the focus of the node and gives the keyboard to that surface.
 
 ## Window managers
 
