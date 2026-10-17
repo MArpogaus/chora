@@ -127,11 +127,14 @@ enum Key {
     Cube,
     /// Ctrl+Escape opens or closes the start menu, as on XP.
     Start,
+    /// Alt+Space opens the system menu of the focused window.
+    System,
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them.
-const KEYS: [(&str, &str, Key); 10] = [
+const KEYS: [(&str, &str, Key); 11] = [
+    ("Alt+space", "", Key::System),
     ("Ctrl+Escape", "", Key::Start),
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
@@ -1180,6 +1183,10 @@ impl Wm {
                 Some(output) => self.press_taskbar(taskbar::Part::Start(output)),
                 None => Vec::new(),
             },
+            Some(Key::System) => match self.focused.clone() {
+                Some(surface) => self.system_below_icon(&surface),
+                None => Vec::new(),
+            },
             Some(Key::Cube) | None => Vec::new(),
         }
     }
@@ -1663,6 +1670,12 @@ impl Wm {
             return self.close_window(surface);
         }
         self.last_icon = Some((surface.into(), now));
+        self.system_below_icon(surface)
+    }
+
+    /// The system menu of a window below the icon of its title bar, as a
+    /// click on the icon and Alt+Space open it.
+    fn system_below_icon(&mut self, surface: &str) -> Vec<Command> {
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
