@@ -98,6 +98,7 @@ impl State {
     /// Removes the node of a toplevel that the client destroyed or
     /// unmapped, and tells the plugins with `surface.destroyed`.
     fn surface_gone(&mut self, id: &str) {
+        self.unfocus(id);
         self.unlist_toplevel(id);
         self.early_requests.remove(id);
         let existed = self.scene.remove_surface(id);
@@ -122,9 +123,6 @@ impl State {
             // the next commit without a buffer maps it again, with a new
             // initial configure and `surface.created`.
             if self.scene.node(id).is_some() {
-                if self.focused_surface().as_deref() == Some(id) {
-                    self.focus(None);
-                }
                 self.surface_gone(id);
                 return;
             }

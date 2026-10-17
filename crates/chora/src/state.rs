@@ -448,9 +448,7 @@ impl State {
                     }
                 }
                 Effect::Detached(surface) => {
-                    if self.focused_surface().as_deref() == Some(surface.as_str()) {
-                        self.focus(None);
-                    }
+                    self.unfocus(&surface);
                     self.emit(&Event::SurfaceDetached { surface });
                 }
                 Effect::Camera(name) => {
@@ -510,6 +508,18 @@ impl State {
     pub fn focus(&mut self, surface: Option<&str>) {
         self.scene.set_focused(surface);
         self.focus_of_scene(surface);
+    }
+
+    /// Clears the focus of a surface that goes or becomes detached. A layer
+    /// surface that a click focused keeps the keyboard.
+    pub fn unfocus(&mut self, surface: &str) {
+        if self.focus_wanted.as_deref() != Some(surface) {
+            return;
+        }
+        self.scene.set_focused(None);
+        self.focus_wanted = None;
+        self.update_focus();
+        self.restate_toplevel(surface);
     }
 
     /// Moves the focus that a transaction set; the scene knows it already.
@@ -846,6 +856,31 @@ mod tests {
         assert_eq!(wm.event_names(&mut core), ["surface.created"]);
         wayland.attach(&mut core, &first, (100, 100));
         assert!(core.state.scene.node("s1").is_some());
+    }
+
+    #[test]
+    fn a_clicked_layer_surface_keeps_the_keyboard_when_the_focused_toplevel_goes() {
+        for unmap in [false, true] {
+            let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+            let output = core.add_output("HDMI-1", (800, 600));
+            wayland.roundtrip(&mut core);
+            wayland.attach(&mut core, &first, (100, 100));
+            wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+            let panel = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::OnDemand);
+            let layer = smithay::desktop::layer_map_for_output(&output)
+                .layers()
+                .next()
+                .map(|l| l.wl_surface().clone());
+            core.state.set_layer_focus(layer);
+            if unmap {
+                wayland.unmap(&mut core, &first);
+            } else {
+                wayland.destroy(&mut core, &first);
+            }
+            let panel = Some(panel.surface.id().protocol_id());
+            assert_eq!(keyboard(&core), panel, "unmap={unmap}");
+            assert_eq!(core.state.focused_surface(), None, "unmap={unmap}");
+        }
     }
 
     #[test]
