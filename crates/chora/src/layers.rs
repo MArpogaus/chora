@@ -39,9 +39,15 @@ impl WlrLayerShellHandler for State {
         &mut self,
         surface: WlrLayerSurface,
         output: Option<WlOutput>,
-        _layer: Layer,
+        layer: Layer,
         namespace: String,
     ) {
+        if layer == Layer::Overlay
+            && crate::security::named(&self.display_handle, surface.wl_surface())
+        {
+            surface.send_close();
+            return;
+        }
         let output = output
             .as_ref()
             .and_then(Output::from_resource)
@@ -94,6 +100,18 @@ impl State {
                 .get::<LayerSurfaceData>()
                 .is_some_and(|d| d.lock().expect("not poisoned").initial_configure_sent)
         });
+        // A client of a client socket that moves its layer surface to the
+        // overlay layer loses it.
+        let overlay = layer_map_for_output(&output)
+            .layer_for_surface(surface, WindowSurfaceType::TOPLEVEL)
+            .filter(|l| l.layer() == Layer::Overlay)
+            .cloned();
+        if let Some(layer) =
+            overlay.filter(|_| crate::security::named(&self.display_handle, surface))
+        {
+            layer.layer_surface().send_close();
+            layer_map_for_output(&output).unmap_layer(&layer);
+        }
         // The placement comes first, so that the initial configure has a
         // size.
         self.layers_changed(&output);
@@ -159,13 +177,21 @@ impl State {
         self.outputs.iter().find_map(|output| {
             let map = layer_map_for_output(output);
             map.layer_for_surface(surface, WindowSurfaceType::ALL)
-                .map(|l| {
-                    (
-                        l.wl_surface().clone(),
-                        l.cached_state().keyboard_interactivity,
-                    )
-                })
+                .map(|l| (l.wl_surface().clone(), self.interactivity(l)))
         })
+    }
+
+    /// How a layer surface takes the keyboard: a client of a client socket
+    /// gets it on demand at most.
+    fn interactivity(&self, layer: &LayerSurface) -> KeyboardInteractivity {
+        let wanted = layer.cached_state().keyboard_interactivity;
+        if wanted == KeyboardInteractivity::Exclusive
+            && crate::security::named(&self.display_handle, layer.wl_surface())
+        {
+            KeyboardInteractivity::OnDemand
+        } else {
+            wanted
+        }
     }
 
     /// The topmost layer surface that takes the keyboard as long as it is
@@ -176,9 +202,7 @@ impl State {
             ABOVE.iter().find_map(|layer| {
                 map.layers_on(*layer)
                     .rev()
-                    .find(|l| {
-                        l.cached_state().keyboard_interactivity == KeyboardInteractivity::Exclusive
-                    })
+                    .find(|l| self.interactivity(l) == KeyboardInteractivity::Exclusive)
                     .map(|l| l.wl_surface().clone())
             })
         })

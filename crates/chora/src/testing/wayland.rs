@@ -104,7 +104,7 @@ pub struct LockSurface {
 /// A layer surface of the client.
 pub struct LayerSurface {
     pub surface: WlSurface,
-    layer: ZwlrLayerSurfaceV1,
+    pub layer: ZwlrLayerSurfaceV1,
 }
 
 impl Wayland {

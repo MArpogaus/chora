@@ -1457,6 +1457,36 @@ mod tests {
     }
 
     #[test]
+    fn a_client_socket_gets_no_overlay_and_no_exclusive_keyboard() {
+        use wayland_protocols_wlr::layer_shell::v1::client::{
+            zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::KeyboardInteractivity,
+        };
+        let (mut core, dir) = socket_dir("wayland-overlay");
+        let output = core.add_output("A", (800, 600));
+        let mut admin = core.admin();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let path = PathBuf::from(created["wayland"].as_str().unwrap());
+        let mut agent = Wayland::connect_to(&mut core, &path);
+        let layers = |core: &Core| {
+            let _ = core;
+            smithay::desktop::layer_map_for_output(&output)
+                .layers()
+                .count()
+        };
+        agent.layer(&mut core, Layer::Overlay, KeyboardInteractivity::None);
+        assert_eq!(layers(&core), 0, "no overlay");
+        let panel = agent.layer(&mut core, Layer::Top, KeyboardInteractivity::Exclusive);
+        assert_eq!(layers(&core), 1, "a panel stays");
+        assert_eq!(core.state.exclusive_layer(), None, "no exclusive keyboard");
+        panel.layer.set_layer(Layer::Overlay);
+        panel.surface.commit();
+        agent.roundtrip(&mut core);
+        assert_eq!(layers(&core), 0, "no move to the overlay layer");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn clients_create_refuses_a_live_name() {
         let (mut core, dir) = socket_dir("live");
         let mut admin = core.admin();

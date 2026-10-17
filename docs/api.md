@@ -507,7 +507,10 @@ socket, with these exceptions:
   the windows or control the windows of others.
 
 The layer shell stays, so a panel can run in a container. Such a client
-can draw overlays above all windows.
+can draw above all windows in the top layer, but the core refuses the
+overlay layer. A layer surface of it takes the keyboard on demand at
+most, never exclusively. So it cannot fake a lock screen or keep the
+keyboard.
 
 The client gets the grants of the name at the time it connects. Its
 windows carry the name: a query shows it in `surface.client`.

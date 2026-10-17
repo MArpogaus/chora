@@ -24,7 +24,7 @@ use smithay::{
             ext::idle_notify::v1::server::ext_idle_notifier_v1::ExtIdleNotifierV1,
             wp::idle_inhibit::zv1::server::zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1,
         },
-        wayland_server::{DataInit, DisplayHandle, New},
+        wayland_server::{DataInit, DisplayHandle, New, Resource, protocol::wl_surface::WlSurface},
     },
     wayland::{GlobalData, GlobalDispatch2, idle_notify::IdleNotifierState},
 };
@@ -69,6 +69,16 @@ pub fn idle_notifier(
     dh.remove_global::<State>(state.global());
     dh.create_global::<State, ExtIdleNotifierV1, _>(2, UnrestrictedGlobal);
     state
+}
+
+/// Whether a surface belongs to a client of a client socket. Such a
+/// client gets no overlay layer and no exclusive keyboard, so it cannot
+/// fake a lock screen or keep the keyboard.
+pub fn named(dh: &DisplayHandle, surface: &WlSurface) -> bool {
+    dh.get_client(surface.id())
+        .ok()
+        .and_then(|c| c.get_data::<ClientState>().map(|d| d.name.is_some()))
+        .unwrap_or(false)
 }
 
 /// The data of a global that only unrestricted clients see. It binds the
