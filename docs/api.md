@@ -295,6 +295,12 @@ parameters that do not exist, 1 for a request that breaks a rule, and 2
 for a transaction that names a surface node that is gone, for example of a
 window that closed in the meantime. A plugin can ignore code 2.
 
+A request is one line of at most 1 MiB (`MAX_LINE`). The core reads a
+longer line to its end, answers it with code 1 and the id `null`, and
+closes the connection. The core holds at most 8 MiB (`MAX_OUTPUT`) of
+answers and events that a connection did not read yet; a connection that
+passes this limit closes, so a client reads its socket while it waits.
+
 A connection sends `hello` once, within 5 s. Connections with the same name share their
 nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
 different value. For example, `choractl --name tiling` fails while the tiling

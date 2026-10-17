@@ -98,6 +98,9 @@ struct Conn {
     output: Vec<u8>,
     /// The output passed `MAX_OUTPUT`; the connection closes.
     overflow: bool,
+    /// A line passed `MAX_LINE`: the core skips the rest of it, answers
+    /// with an error and closes the connection.
+    too_long: bool,
     name: Option<String>,
     /// The deadline of `hello`.
     hello_by: Instant,
@@ -434,6 +437,7 @@ impl State {
             input: Vec::new(),
             output: Vec::new(),
             overflow: false,
+            too_long: false,
             name: None,
             hello_by,
             keep_nodes: false,
@@ -447,23 +451,40 @@ impl State {
 
     /// Reads at most `READ_PER_WAKEUP` bytes and handles the complete
     /// lines. After the end of the stream, the requests that arrived still
-    /// get their answers, also from waiting transactions.
+    /// get their answers, also from waiting transactions. A line longer than
+    /// `MAX_LINE` is read to its end and dropped, so that the client can
+    /// finish its write and read the error; then the connection closes.
     fn ipc_readable(&mut self, id: u64) -> PostAction {
         let open = self.ipc.conns.get_mut(&id).is_some_and(Conn::read);
-        while let Some(line) = self.ipc.conns.get_mut(&id).and_then(Conn::next_line) {
+        while let Some(line) = self
+            .ipc
+            .conns
+            .get_mut(&id)
+            .filter(|c| !c.too_long)
+            .and_then(Conn::next_line)
+        {
             self.ipc_handle_line(id, &line);
         }
         let Some(conn) = self.ipc.conns.get_mut(&id) else {
             return PostAction::Remove;
         };
-        let too_long = conn.input.len() > MAX_LINE;
-        if open && !too_long {
+        conn.too_long |= conn.input.len() > MAX_LINE;
+        if conn.too_long {
+            let ended = conn.input.contains(&b'\n');
+            conn.input.clear();
+            if open && !ended {
+                return PostAction::Continue;
+            }
+        } else if open {
             return PostAction::Continue;
         }
         conn.input = Vec::new();
         conn.reader = None;
-        if too_long {
-            let error = RpcError::new(RpcError::INVALID_PARAMS, "line too long");
+        if conn.too_long {
+            let error = rejected(format!(
+                "the request is longer than {MAX_LINE} bytes, the limit of a line; \
+                 the core closes the connection"
+            ));
             self.ipc.respond(id, &Message::error(Value::Null, error));
         }
         PostAction::Remove
@@ -964,24 +985,33 @@ mod tests {
     }
 
     #[test]
-    fn a_line_that_is_too_long_ends_the_connection() {
+    fn a_line_that_is_too_long_gets_an_error_before_the_close() {
         let mut core = Core::new();
         let mut client = core.connect();
-        let chunk = vec![b'x'; 32 << 10];
+        let mut line = vec![b'x'; MAX_LINE + (64 << 10)];
+        line.push(b'\n');
         let mut sent = 0;
-        while sent <= MAX_LINE {
-            match client.write(&chunk) {
-                Ok(n) => sent += n,
-                Err(err) if err.kind() == ErrorKind::WouldBlock => core.dispatch(),
-                Err(err) => panic!("{err}"),
-            }
-        }
         let mut responses = Vec::new();
-        for _ in 0..(MAX_LINE / READ_PER_WAKEUP + 2) {
+        while sent < line.len() {
+            match client.write(&line[sent..]) {
+                Ok(n) => sent += n,
+                Err(err) if err.kind() == ErrorKind::WouldBlock => {}
+                Err(err) => panic!("the core must read the whole line: {err}"),
+            }
             core.dispatch();
             responses.extend(client.responses());
         }
-        assert_eq!(responses[0]["error"]["message"], "line too long");
+        for _ in 0..3 {
+            core.dispatch();
+            responses.extend(client.responses());
+        }
+        assert_eq!(responses.len(), 1);
+        assert_eq!(responses[0]["error"]["code"], REJECTED);
+        assert_eq!(
+            responses[0]["error"]["message"],
+            "the request is longer than 1048576 bytes, the limit of a line; \
+             the core closes the connection"
+        );
         assert!(client.closed(&mut core));
     }
 

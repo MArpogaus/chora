@@ -192,7 +192,7 @@ Limits keep a buggy client from exhausting the core:
 |-------|-------|--------------------|
 | connections | 128 | the core refuses new connections |
 | time until `hello` | 5 s | the core closes the connection |
-| line length | 1 MiB | the core closes the connection |
+| line length | 1 MiB | the core answers with an error and closes the connection |
 | output buffer of a connection | 8 MiB | the core closes the connection |
 | waiting transactions of a connection | 16 | the core rejects the transaction |
 | groups and rects in the scene | 16,384 | the core rejects the `create` |
