@@ -137,12 +137,14 @@ within the grace time rebuilds them from there, for example `choractl
 restart tiling` after a rebuild.
 
 `chora-tiling` claims the box around the work areas of its outputs
-(D55). `--output NAME`, repeatable, limits it to some outputs, as for
-`chora-xp`, so that each window manager takes its own outputs. It leaves
-a new window that the core reserves for another client to that client.
-When the last of its `--output` outputs goes, it gives its windows away,
-and another window manager adopts them; it takes new windows again when
-one of its outputs comes back.
+(D55). `--output NAME` limits it to some outputs, as for `chora-xp`, and
+can come more than once. So each window manager takes its own outputs.
+It leaves a new window that the core reserves for another client to that
+client. When the last of its `--output` outputs goes, it gives its
+windows away, and another window manager adopts them. It takes new
+windows again when one of its outputs comes back. Next to `chora-xp`,
+tiling needs `modifier: Super`: with `Alt`, tiling grabs Alt+Space for
+`next_layout`, and the system menu of XP does not open.
 
 ## Flavors
 
@@ -415,18 +417,18 @@ open in Explorer too, and the window calls these folders by their names
 in XP.
 
 Desktop icons dropped on the window of a folder go into the folder, or
-into the folder item under the pointer; on a file item they go back to
+into the folder item under the pointer. On a file item they go back to
 their places, as XP does not allow that drop. A file or a folder moves
 on the same file system and is copied to another one, as XP moves on one
-drive and copies to another. When the folder has a file of the name, XP's
-Confirm File Replace asks first, for each such file in turn, and Yes
-replaces it. A folder on either side of a name stays, and `chora-xp`
-logs it. A drop on the window of the Recycle
-Bin, or on its desktop icon, asks first, as Delete does, and Yes sends
-the files to the Recycle Bin. Beyond this and Empty the Recycle Bin, the
-window changes no file. The keyboard does not work it (D45). Its icons
-come from the icon theme, XP's own when `WindowsXP` of
-`get-microsoft-files.sh` is installed.
+drive and copies to another. When the folder has a file of the name,
+XP's Confirm File Replace asks first, for each such file in turn. Yes
+replaces the file. A folder on either side of a name stays, and
+`chora-xp` logs it. A drop on the window of the Recycle Bin, or on its
+desktop icon, asks first, as Delete does. Yes sends the files to the
+Recycle Bin. Beyond this and Empty the Recycle Bin, the window changes
+no file. The keyboard does not work it (D45). Its icons come from the
+icon theme, XP's own when `WindowsXP` of `get-microsoft-files.sh` is
+installed.
 
 The Control Panel opens as a menu, as with XP's "Display as a menu". A
 check mark shows the current choice of each entry, and a click on an
@@ -606,10 +608,11 @@ target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme
 
 ## Services
 
-A service runs as a Quadlet unit with Podman, or in distrobox. It connects
-to the IPC socket, appears as a Wayland client, or both. A container
-mounts only its client directory, which `choractl clients create NAME`
-makes (in Quadlet: `%t/chora/clients/NAME`). It sets `CHORA_SOCKET` to the
-`ipc.sock` and `WAYLAND_DISPLAY` to the `wayland.sock` in that directory.
-The directory of the core holds the admin socket, so a container never
-mounts it (see [API](api.md#client-sockets)).
+A service runs as a Quadlet unit with Podman, or in distrobox. It
+connects to the IPC socket, appears as a Wayland client, or both. A
+container mounts only its client directory, which `choractl clients
+create NAME` makes (in Quadlet: `%t/chora/clients/NAME`). It sets
+`CHORA_SOCKET` to the `ipc.sock` and `WAYLAND_DISPLAY` to the
+`wayland.sock` in that directory. The directory of the core holds the
+admin socket, so a container never mounts it (see
+[API](api.md#client-sockets)).
