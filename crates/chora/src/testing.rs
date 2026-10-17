@@ -100,6 +100,12 @@ impl Core {
     }
 }
 
+/// The parameters of `scene.apply` that create a red rect under the root.
+pub fn rect(id: &str) -> Value {
+    json!({"commands": [{"create": {"id": id, "kind": "rect", "parent": "root",
+        "props": {"size": [10, 10], "color": [1, 0, 0, 1]}}}]})
+}
+
 /// The client side of an IPC connection. A drop shuts the socket down, so
 /// that the core sees the end at once. This also holds while a forked child
 /// of another test keeps a copy of the socket until its `exec`.

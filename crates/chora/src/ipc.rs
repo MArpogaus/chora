@@ -808,14 +808,9 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::testing::{Client, Core};
+    use crate::testing::{Client, Core, rect};
 
     const REJECTED: i64 = RpcError::REJECTED;
-
-    fn rect(id: &str) -> Value {
-        json!({"commands": [{"create": {"id": id, "kind": "rect", "parent": "root",
-            "props": {"size": [10, 10], "color": [1, 0, 0, 1]}}}]})
-    }
 
     fn ids(client: &mut Client, core: &mut Core, selector: &str) -> Vec<String> {
         let nodes = client.ok(core, "scene.query", json!({"selector": selector}));

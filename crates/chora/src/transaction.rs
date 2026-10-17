@@ -397,7 +397,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::testing::{Client, Core};
+    use crate::testing::{Client, Core, rect};
 
     /// A transaction of a connection that waits for the configures of
     /// surfaces.
@@ -418,11 +418,6 @@ mod tests {
             barrier: Barrier::new(false),
             held: Vec::new(),
         }
-    }
-
-    fn rect(id: &str) -> Value {
-        json!({"commands": [{"create": {"id": id, "kind": "rect", "parent": "root",
-            "props": {"size": [10, 10]}}}]})
     }
 
     /// A core whose first connection `wm` waits for `s1` and `s2`.
