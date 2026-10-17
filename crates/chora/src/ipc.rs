@@ -1046,10 +1046,9 @@ mod tests {
         let mut client = core.named("wm");
         let conn = *core.state.ipc.conns.keys().next().expect("a connection");
         // A child between its fork and its exec holds such a copy.
-        let copy = core.state.ipc.conns[&conn].stream.try_clone().unwrap();
+        let _copy = core.state.ipc.conns[&conn].stream.try_clone().unwrap();
         client.shut_down_writes();
         assert!(client.closed(&mut core));
-        drop(copy);
     }
 
     #[test]
