@@ -8,7 +8,7 @@
 
 use std::collections::BTreeMap;
 
-use chora_scene::{Command, Node, PropsUpdate, ipc::ClientError};
+use chora_scene::{Command, Node, NodeKind, PropsUpdate, ipc::ClientError};
 use serde::{Deserialize, Serialize};
 
 use super::{Bar, NAME, Wm};
@@ -127,7 +127,17 @@ impl Wm {
                 }
             }
         }
-        let commands = self.remove_scene()?;
+        // The surfaces stay reserved for chora-xp, so that no other window
+        // manager takes them before the new scene adopts them (D55).
+        let mut commands: Vec<Command> = nodes
+            .iter()
+            .filter(|n| n.kind == NodeKind::Surface)
+            .map(|n| Command::Remove {
+                id: n.id.clone(),
+                to: Some(NAME.into()),
+            })
+            .collect();
+        commands.extend(self.remove_scene()?);
         self.apply(commands)?;
         Ok(explorers)
     }
