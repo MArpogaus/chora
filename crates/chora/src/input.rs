@@ -182,6 +182,8 @@ fn pressed_key(
     handle: &KeysymHandle<'_>,
     injected: bool,
 ) -> FilterResult<KeyAction> {
+    // Another key ends the repeat of a node key.
+    state.held.repeat = None;
     let syms = (handle.raw_syms(), handle.modified_syms());
     let (action, suppressed) = if let Some(action) = press_action(state, mods, &syms, injected) {
         (action, Suppressed::Swallow)
@@ -940,10 +942,17 @@ mod tests {
         press(&mut core, A, false);
         core.advance(ms(400));
         assert_eq!(node_keys(&mut xp, &mut core, A), ["released"]);
-        // A modifier does not repeat.
+        // Another key ends the repeat; a modifier does not repeat.
+        press(&mut core, A, true);
+        assert_eq!(node_keys(&mut xp, &mut core, A), ["pressed"]);
         press(&mut core, SHIFT, true);
         core.advance(ms(400));
-        assert_eq!(node_keys(&mut xp, &mut core, SHIFT), ["pressed"]);
+        let codes: Vec<Value> = events(&mut xp, &mut core)
+            .into_iter()
+            .filter(|e| e["event"] == "node.key")
+            .map(|e| e["code"].clone())
+            .collect();
+        assert_eq!(codes, [SHIFT]);
     }
 
     #[test]

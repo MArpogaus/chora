@@ -195,8 +195,8 @@ carries the text that it types:
   nothing; the core does no compose.
 - The core repeats a held key as a Wayland client does: after 200 ms,
   25 times a second, with the same `pressed` event. Modifiers do not
-  repeat. The repeat ends with the release of the key or the focus of
-  the node.
+  repeat. The repeat ends when the key goes up, when another key goes
+  down, or when the node loses the focus.
 - The safety layer and the grabs come first, also for injected keys.
 
 The focus returns to the focused surface, which gets an enter, in these
