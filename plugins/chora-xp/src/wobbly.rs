@@ -46,6 +46,8 @@ pub struct Wobble {
     moving: bool,
     /// The time the grid reached.
     last: Instant,
+    /// The time since the last whole step, in milliseconds.
+    pending: f64,
 }
 
 impl Wobble {
@@ -67,6 +69,7 @@ impl Wobble {
             held: true,
             moving: true,
             last: Instant::now(),
+            pending: 0.0,
         };
         for i in 0..COUNT {
             wobble.at[i] = wobble.place(i, origin);
@@ -88,13 +91,14 @@ impl Wobble {
         self.step(origin, dt);
     }
 
-    /// Advances the grid by a time in seconds, for a window at an origin.
-    pub fn step(&mut self, origin: [f64; 2], dt: f64) {
-        let mut left = (dt.clamp(0.0, 0.1) * 1000.0).max(0.0);
-        while left > 0.0 {
-            let ms = left.min(STEP_MS);
-            left -= ms;
-            self.integrate(origin, ms);
+    /// Advances the grid by a time in seconds, for a window at an origin,
+    /// in whole steps of 10 ms: the rest waits for the next call, so that
+    /// the grid moves the same at any rate of the pointer.
+    fn step(&mut self, origin: [f64; 2], dt: f64) {
+        self.pending += dt.clamp(0.0, 0.1) * 1000.0;
+        while self.pending >= STEP_MS {
+            self.pending -= STEP_MS;
+            self.integrate(origin, STEP_MS);
         }
     }
 
@@ -269,13 +273,11 @@ mod tests {
         let mut w = Wobble::new(size, [0.0, 0.0], [200.0, 10.0]);
         // The window jumps 100 pixels to the right with the pointer.
         w.step([100.0, 0.0], 1.0 / 60.0);
-        let at = |i: usize| w.at[i];
-        let grab_lag = 100.0 + w.place(w.grab, [0.0, 0.0])[0] - at(w.grab)[0];
-        let corner_lag = 100.0 + w.place(COUNT - 1, [0.0, 0.0])[0] - at(COUNT - 1)[0];
+        let grab_lag = 100.0 + w.place(w.grab, [0.0, 0.0])[0] - w.at[w.grab][0];
+        let corner_lag = 100.0 + w.place(COUNT - 1, [0.0, 0.0])[0] - w.at[COUNT - 1][0];
         assert!(corner_lag > grab_lag + 10.0, "{corner_lag} vs {grab_lag}");
         assert!(w.bend([100.0, 0.0]) > 20.0);
-        // The drawn mesh has the fine grid and starts at the top-left
-        // control point.
+        // The drawn mesh has the fine grid.
         let mesh = w.mesh([100.0, 0.0]);
         assert_eq!(mesh.points.len(), 21 * 21);
     }
@@ -305,19 +307,40 @@ mod tests {
         assert!((mesh.points[last][1] - 300.0).abs() < 1e-9);
     }
 
-    #[test]
-    fn the_drawn_point_under_the_pointer_lags_little_in_a_steady_drag() {
-        // A window of 400 by 300 grabbed at the top middle, dragged by
-        // 20 pixels per frame for a second.
+    /// A drag of a window of 400 by 300, grabbed at the top middle, at
+    /// 1200 pixels a second for half a second, with a move of the pointer
+    /// every `ms` milliseconds; the largest bend and the drawn point under
+    /// the pointer at the end.
+    fn drag(ms: u64) -> (f64, f64) {
         let grab = [200.0, 0.0];
         let mut w = Wobble::new([400.0, 300.0], [0.0, 0.0], grab);
+        let start = Instant::now();
+        w.last = start;
+        let mut bend: f64 = 0.0;
         let mut origin = [0.0, 0.0];
-        for _ in 0..60 {
-            origin[0] += 20.0;
-            w.step(origin, 1.0 / 60.0);
+        for t in (ms..=500).step_by(usize::try_from(ms).unwrap_or(1)) {
+            #[allow(clippy::cast_precision_loss)]
+            let x = 1.2 * t as f64;
+            origin = [x, 0.0];
+            w.advance(origin, start + std::time::Duration::from_millis(t));
+            bend = bend.max(w.bend(origin));
         }
         let drawn = w.bezier(0.5, 0.0);
-        let lag = (origin[0] + grab[0]) - drawn[0];
-        assert!(lag > 1.0 && lag < 10.0, "the drawn point lags {lag} pixels");
+        (bend, origin[0] + grab[0] - drawn[0])
+    }
+
+    #[test]
+    fn the_grid_moves_the_same_at_any_rate_of_the_pointer() {
+        // Within one step of 10 ms, in which the window moves 12 pixels.
+        let (frames, lag) = drag(10);
+        for ms in [1, 2, 8] {
+            let (bend, _) = drag(ms);
+            assert!(
+                (bend - frames).abs() < 13.0,
+                "{bend} at {ms} ms, {frames} at 10 ms"
+            );
+        }
+        // The drawn point under the pointer lags only a little.
+        assert!(lag > 1.0 && lag < 15.0, "the drawn point lags {lag} pixels");
     }
 }
