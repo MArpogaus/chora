@@ -1046,6 +1046,18 @@ mod tests {
     }
 
     #[test]
+    fn a_closed_connection_ends_while_a_forked_child_holds_its_socket() {
+        let mut core = Core::new();
+        let mut client = core.named("wm");
+        let conn = *core.state.ipc.conns.keys().next().expect("a connection");
+        // A child between its fork and its exec holds such a copy.
+        let copy = core.state.ipc.conns[&conn].stream.try_clone().unwrap();
+        client.shut_down_writes();
+        assert!(client.closed(&mut core));
+        drop(copy);
+    }
+
+    #[test]
     fn a_process_wait_gets_its_answer_after_the_end_of_the_stream() {
         let mut core = Core::new();
         core.state.ipc.path = Some("/nonexistent.sock".into());
