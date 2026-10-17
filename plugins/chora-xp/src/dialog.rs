@@ -148,12 +148,6 @@ impl Control {
             && self.rect[2..] == other.rect[2..]
     }
 
-    /// Whether a point of the client area is on the control.
-    fn contains(&self, [px, py]: [i32; 2]) -> bool {
-        let [x, y, w, h] = self.rect;
-        (x..x + w).contains(&px) && (y..y + h).contains(&py)
-    }
-
     /// The control under the pointer, down or not.
     pub fn picture(&self, hovered: bool, down: bool) -> Picture {
         let [_, _, w, h] = self.rect;
@@ -230,23 +224,27 @@ enum Look {
 pub struct Page {
     /// The face, the tab page, group boxes and text.
     pub body: Option<Picture>,
-    /// The controls, bottom first.
+    /// The controls, the lowest first.
     pub controls: Vec<Control>,
-    /// The area of the scrolled controls, above the others.
-    pub scroll: Option<Scroll>,
+    /// Where the scrolled controls start in the client area, as the view
+    /// of an Explorer window: the top-left corner of the view, moved up
+    /// by the offset of the scroll. They lie in a group above the other
+    /// controls, which a scroll moves; only the controls that come, go
+    /// or change change. The owner leaves out or cuts the controls at the
+    /// edges of the view, without a clip, because a node with a clip is a
+    /// layer that the core draws again in every frame.
+    pub scroll: Option<[i32; 2]>,
 }
 
-/// An area of a page whose controls scroll, as the view of an Explorer
-/// window: a scroll moves their group, and only the controls that come
-/// into the area, leave it or change change. The owner leaves out or cuts
-/// the controls at the edges of the area, without a clip, because a node
-/// with a clip is a layer that the core draws again in every frame.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Scroll {
-    /// The area in the client area.
-    pub rect: Rect,
-    /// How far it is scrolled down.
-    pub offset: i32,
+impl Page {
+    /// Where a control shows in the client area.
+    pub fn place_of(&self, control: &Control) -> [i32; 2] {
+        let [x, y, ..] = control.rect;
+        match self.scroll.filter(|_| control.scrolled) {
+            Some([sx, sy]) => [x + sx, y + sy],
+            None => [x, y],
+        }
+    }
 }
 
 /// A row of tabs from the left edge of a page at `x`, `y` the top of the
@@ -604,7 +602,7 @@ pub enum Hit {
 
 /// The nodes of a page in a group of their own: the body and one image
 /// node per control, by its name. A dialog shows its page in one, and so
-/// does an Explorer window, whose view scrolls in a clipped group.
+/// does an Explorer window, whose view scrolls in a group of its own.
 pub struct Content {
     /// The id of the group, and the first part of the ids of its nodes.
     prefix: String,
@@ -688,18 +686,12 @@ impl Content {
             commands.extend(self.create_control(theme, i));
         }
         // The scrolled controls lie above the others.
-        if let Some(scroll) = self.page.scroll {
-            commands.push(Command::Create {
-                id: self.id("scroll"),
-                kind: NodeKind::Group,
-                parent: self.prefix.clone(),
-                props: at([scroll.rect[0], scroll.rect[1]]),
-            });
+        if let Some(origin) = self.page.scroll {
             commands.push(Command::Create {
                 id: self.id("scrolled"),
                 kind: NodeKind::Group,
-                parent: self.id("scroll"),
-                props: at([0, -scroll.offset]),
+                parent: self.prefix.clone(),
+                props: at(origin),
             });
         }
         for i in (0..count).filter(|&i| self.page.controls[i].scrolled) {
@@ -760,28 +752,13 @@ impl Content {
         {
             commands.push(update(self.id("body"), theme.render(body)));
         }
-        if let (Some(was), Some(now)) = (old.scroll, self.page.scroll) {
-            commands.extend(self.scroll_moves(was, now));
-        }
-        commands.extend(self.control_changes(theme, &old.controls));
-        commands
-    }
-
-    /// The moves of the scrolled area from where it was.
-    fn scroll_moves(&self, was: Scroll, now: Scroll) -> Vec<Command> {
-        let mut commands = Vec::new();
-        if was.rect[..2] != now.rect[..2] {
-            commands.push(Command::Update {
-                id: self.id("scroll"),
-                props: at([now.rect[0], now.rect[1]]),
-            });
-        }
-        if was.offset != now.offset {
+        if let Some(origin) = self.page.scroll.filter(|o| old.scroll != Some(*o)) {
             commands.push(Command::Update {
                 id: self.id("scrolled"),
-                props: at([0, -now.offset]),
+                props: at(origin),
             });
         }
+        commands.extend(self.control_changes(theme, &old.controls));
         commands
     }
 
@@ -874,26 +851,13 @@ impl Content {
             .iter()
             .find(|c| c.name == name)
             .and_then(|c| {
-                let [x, y] = self.local(c, point)?;
-                c.contains([x, y])
-                    .then(|| Hit::Control(name.clone(), [x - c.rect[0], y - c.rect[1]]))
+                let [x, y] = self.page.place_of(c);
+                let [w, h] = [c.rect[2], c.rect[3]];
+                let [px, py] = [point[0] - x, point[1] - y];
+                ((0..w).contains(&px) && (0..h).contains(&py))
+                    .then(|| Hit::Control(name.clone(), [px, py]))
             });
         (commands, hit)
-    }
-
-    /// A point of the group in the coordinates of the rectangle of a
-    /// control: a scrolled one counts from the top of its area, and only
-    /// inside the area.
-    fn local(&self, control: &Control, [x, y]: [i32; 2]) -> Option<[i32; 2]> {
-        if !control.scrolled {
-            return Some([x, y]);
-        }
-        let Scroll {
-            rect: [sx, sy, sw, sh],
-            offset,
-        } = self.page.scroll?;
-        ((sx..sx + sw).contains(&x) && (sy..sy + sh).contains(&y))
-            .then_some([x - sx, y - sy + offset])
     }
 
     /// The control under the pointer.
@@ -1213,7 +1177,7 @@ pub mod tests {
         for c in &page.controls {
             let hovered = dialog.content.hovered() == Some(c.name.as_str());
             let p = c.picture(hovered, false);
-            layers.push((theme.render(&p), [c.rect[0], c.rect[1]], p.size));
+            layers.push((theme.render(&p), page.place_of(c), p.size));
         }
         for (file, [x, y], [w, h]) in layers {
             picture = picture.file(Path::new(&file), [x + BORDER, y + TITLE, w, h]);

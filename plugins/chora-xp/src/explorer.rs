@@ -21,7 +21,7 @@ use chora_scene::Command;
 
 use crate::{
     context::{Act, Entry},
-    dialog::{BLACK, Content, Control, GRAY, Hit, Page, Scroll},
+    dialog::{BLACK, Content, Control, GRAY, Hit, Page},
     folder::{self, History, Kind, Place},
     icons::{self, Icons},
     text::{Font, Text},
@@ -536,10 +536,7 @@ impl Explorer {
         self.scroll = g.offset;
         let [vx, vy, vw, vh] = g.view;
         let width = if g.bar { vw - SCROLL_W } else { vw };
-        page.scroll = Some(Scroll {
-            rect: [vx, vy, width, vh],
-            offset: g.offset,
-        });
+        page.scroll = Some([vx, vy - g.offset]);
         page.controls.push(Control::area(
             "view",
             [vx, vy, width, vh],
@@ -1438,17 +1435,9 @@ mod tests {
         if let Some(body) = &page.body {
             layers.push((theme.render(body), [0, 0], body.size));
         }
-        let scroll = page.scroll.unwrap_or_default();
         for control in &page.controls {
             let look = control.picture(false, false);
-            let mut at = [control.rect[0], control.rect[1]];
-            if control.scrolled {
-                at = [
-                    at[0] + scroll.rect[0],
-                    at[1] + scroll.rect[1] - scroll.offset,
-                ];
-            }
-            layers.push((theme.render(&look), at, look.size));
+            layers.push((theme.render(&look), page.place_of(control), look.size));
         }
         for (file, [x, y], [w, h]) in layers {
             picture = picture.file(std::path::Path::new(&file), [x, y, w, h]);
