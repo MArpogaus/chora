@@ -3,7 +3,9 @@
 //! Recycle Bin at the bottom right. Each icon is an image node with the
 //! 32-pixel icon and its label in white with a black shadow below it. A
 //! click selects an icon, a double click opens it, a drag moves it to
-//! another cell of the grid.
+//! another cell of the grid. A drag on the empty desktop draws XP's
+//! selection rectangle and selects the icons it touches; a drag of one of
+//! them moves them all.
 
 use std::{
     collections::HashMap,
@@ -75,16 +77,23 @@ pub struct Item {
     pub open: Open,
 }
 
-/// The icon under the pointer while the left button is down.
+/// The icon under the pointer while the left button is down, with the
+/// other selected icons that move along.
 struct Press {
     key: String,
     /// The pointer at the press.
     start: [f64; 2],
-    /// The cell of the icon at the press.
-    origin: [i32; 2],
-    /// The pointer went far enough to drag the icon.
+    /// The selected icons and their cells at the press.
+    origins: Vec<(String, [i32; 2])>,
+    /// The pointer went far enough to drag the icons.
     moving: bool,
 }
+
+/// The id of XP's selection rectangle.
+const BAND: &str = "xp-band";
+/// Its fill: XP's selection blue, translucent, and its border.
+const BAND_FILL: [f64; 4] = [49.0 / 255.0, 106.0 / 255.0, 197.0 / 255.0, 0.3];
+const BAND_BORDER: [f64; 4] = [49.0 / 255.0, 106.0 / 255.0, 197.0 / 255.0, 1.0];
 
 /// The icons on the desktop of the first output.
 pub struct DesktopIcons {
@@ -96,11 +105,13 @@ pub struct DesktopIcons {
     moved: HashMap<String, [i32; 2]>,
     /// The current place of each icon.
     places: Vec<[i32; 2]>,
-    selected: Option<String>,
+    selected: Vec<String>,
     /// The desktop has the focus: no window has it.
     focused: bool,
     last_press: Option<(String, Instant)>,
     press: Option<Press>,
+    /// The corner of the selection rectangle where the drag began.
+    band: Option<[f64; 2]>,
     /// Arrange Icons By Type, else by name.
     by_type: bool,
 }
@@ -115,10 +126,11 @@ impl DesktopIcons {
             area: [0, 0, 0, 0],
             moved: HashMap::new(),
             places: Vec::new(),
-            selected: None,
+            selected: Vec::new(),
             focused: true,
             last_press: None,
             press: None,
+            band: None,
             by_type: false,
         }
     }
@@ -214,7 +226,7 @@ impl DesktopIcons {
 
     /// The picture of an icon and its place.
     fn look(&self, theme: &mut Theme, icons: &mut Icons, i: usize) -> Command {
-        let selected = self.selected.as_deref() == Some(self.items[i].key.as_str());
+        let selected = self.selected.contains(&self.items[i].key);
         let picture = picture(theme, icons, &self.items[i], selected, self.focused);
         let [x, y] = self.places[i].map(f64::from);
         Command::Update {
@@ -239,18 +251,17 @@ impl DesktopIcons {
         face
     }
 
-    /// The desktop gains or loses the focus: the selected label shows the
+    /// The desktop gains or loses the focus: the selected labels show the
     /// dotted focus rectangle only while it has it.
     pub fn focus(&mut self, theme: &mut Theme, icons: &mut Icons, focused: bool) -> Vec<Command> {
         if self.focused == focused {
             return Vec::new();
         }
         self.focused = focused;
-        self.selected
-            .clone()
-            .and_then(|key| self.find(&key))
+        let keys = self.selected.clone();
+        keys.iter()
+            .filter_map(|key| self.find(key))
             .map(|i| self.look(theme, icons, i))
-            .into_iter()
             .collect()
     }
 
@@ -261,14 +272,25 @@ impl DesktopIcons {
         icons: &mut Icons,
         key: Option<String>,
     ) -> Vec<Command> {
-        let old = std::mem::replace(&mut self.selected, key);
-        if old == self.selected {
-            return Vec::new();
-        }
-        [old, self.selected.clone()]
+        self.set_selection(theme, icons, key.into_iter().collect())
+    }
+
+    /// Selects some icons, and shows those whose look changed.
+    fn set_selection(
+        &mut self,
+        theme: &mut Theme,
+        icons: &mut Icons,
+        keys: Vec<String>,
+    ) -> Vec<Command> {
+        let old = std::mem::replace(&mut self.selected, keys);
+        let changed: Vec<usize> = (0..self.items.len())
+            .filter(|&i| {
+                let key = &self.items[i].key;
+                old.contains(key) != self.selected.contains(key)
+            })
+            .collect();
+        changed
             .into_iter()
-            .flatten()
-            .filter_map(|key| self.find(&key))
             .map(|i| self.look(theme, icons, i))
             .collect()
     }
@@ -278,8 +300,9 @@ impl DesktopIcons {
         self.items.get(Self::index(node)?).cloned()
     }
 
-    /// A press of the left button on an icon selects it; the second press
-    /// of a double click returns what to open.
+    /// A press of the left button on an icon selects it, unless it is one
+    /// of the selected icons; the second press of a double click returns
+    /// what to open.
     pub fn press(
         &mut self,
         theme: &mut Theme,
@@ -292,28 +315,74 @@ impl DesktopIcons {
         };
         let key = self.items[i].key.clone();
         let now = Instant::now();
-        let commands = self.select(theme, icons, Some(key.clone()));
+        let commands = if self.selected.contains(&key) {
+            Vec::new()
+        } else {
+            self.select(theme, icons, Some(key.clone()))
+        };
         if is_double(self.last_press.take(), &key, now) {
             return (commands, Some(self.items[i].open.clone()));
         }
         self.last_press = Some((key.clone(), now));
+        let origins = self
+            .selected
+            .iter()
+            .filter_map(|k| Some((k.clone(), self.places[self.find(k)?])))
+            .collect();
         self.press = Some(Press {
             key,
             start: position,
-            origin: self.places[i],
+            origins,
             moving: false,
         });
         (commands, None)
     }
 
-    /// Whether an icon is down under the pointer.
-    pub fn pressed(&self) -> bool {
-        self.press.is_some()
+    /// A press on the empty desktop: the selection goes, and a drag draws
+    /// the selection rectangle from here.
+    pub fn press_empty(
+        &mut self,
+        theme: &mut Theme,
+        icons: &mut Icons,
+        position: [f64; 2],
+    ) -> Vec<Command> {
+        self.band = Some(position);
+        let mut commands = vec![Command::Create {
+            id: BAND.into(),
+            kind: NodeKind::Rect,
+            parent: GROUP.into(),
+            props: PropsUpdate {
+                visible: Some(false),
+                color: Some(BAND_FILL),
+                border: Some(Some(chora_scene::Border {
+                    width: 1.0,
+                    color: BAND_BORDER,
+                })),
+                input: Some(InputMode::Pass),
+                ..PropsUpdate::default()
+            },
+        }];
+        commands.extend(self.set_selection(theme, icons, Vec::new()));
+        commands
     }
 
-    /// The pointer moved while an icon is down: the icon follows it once
-    /// it went a few pixels.
-    pub fn drag(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
+    /// Whether the left button is down on an icon or the empty desktop.
+    pub fn pressed(&self) -> bool {
+        self.press.is_some() || self.band.is_some()
+    }
+
+    /// The pointer moved while the button is down: the selection
+    /// rectangle follows it and selects the icons it touches, or the
+    /// icons follow it once it went a few pixels.
+    pub fn drag(
+        &mut self,
+        theme: &mut Theme,
+        icons: &mut Icons,
+        [px, py]: [f64; 2],
+    ) -> Vec<Command> {
+        if let Some(start) = self.band {
+            return self.drag_band(theme, icons, band_rect(start, [px, py]));
+        }
         let Some(press) = &mut self.press else {
             return Vec::new();
         };
@@ -322,54 +391,132 @@ impl DesktopIcons {
         if !press.moving {
             return Vec::new();
         }
-        let [x, y] = press.origin.map(f64::from);
-        let key = press.key.clone();
-        let Some(i) = self.find(&key) else {
-            return Vec::new();
-        };
-        vec![Command::Update {
-            id: Self::id(i),
-            props: PropsUpdate {
-                transform: Some(Transform::translate(x + dx, y + dy, 0.0)),
-                ..PropsUpdate::default()
-            },
-        }]
+        let origins = press.origins.clone();
+        origins
+            .iter()
+            .filter_map(|(key, origin)| {
+                let [x, y] = origin.map(f64::from);
+                Some(Command::Update {
+                    id: Self::id(self.find(key)?),
+                    props: PropsUpdate {
+                        transform: Some(Transform::translate(x + dx, y + dy, 0.0)),
+                        ..PropsUpdate::default()
+                    },
+                })
+            })
+            .collect()
     }
 
-    /// The release of a dragged icon: it snaps to the nearest cell, or
-    /// goes back if another icon is there.
-    pub fn release(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
-        let Some(press) = self.press.take().filter(|p| p.moving) else {
-            return Vec::new();
-        };
-        let Some(i) = self.find(&press.key) else {
-            return Vec::new();
-        };
-        #[allow(clippy::cast_possible_truncation)]
-        let dropped = [
-            press.origin[0] + (px - press.start[0]).round() as i32,
-            press.origin[1] + (py - press.start[1]).round() as i32,
-        ];
-        let cell = snap(dropped, self.area);
-        // ponytail: a taken cell sends the icon back; XP finds the
-        // nearest free one.
-        let taken =
-            self.places.iter().enumerate().any(|(j, p)| {
-                j != i && (p[0] - cell[0]).abs() < CELL && (p[1] - cell[1]).abs() < CELL
-            });
-        if !taken {
-            self.places[i] = cell;
-            self.moved.insert(press.key, cell);
-        }
-        let [x, y] = self.places[i].map(f64::from);
-        vec![Command::Update {
-            id: Self::id(i),
+    /// The selection rectangle at a rectangle of the scene, and the icons
+    /// it touches selected.
+    fn drag_band(&mut self, theme: &mut Theme, icons: &mut Icons, rect: Rect) -> Vec<Command> {
+        let [x, y, w, h] = rect.map(f64::from);
+        let mut commands = vec![Command::Update {
+            id: BAND.into(),
             props: PropsUpdate {
                 transform: Some(Transform::translate(x, y, 0.0)),
+                size: Some([w.max(1.0), h.max(1.0)]),
+                visible: Some(true),
                 ..PropsUpdate::default()
             },
-        }]
+        }];
+        let touched = self
+            .items
+            .iter()
+            .zip(&self.places)
+            .filter(|(_, place)| touches(rect, **place))
+            .map(|(item, _)| item.key.clone())
+            .collect();
+        commands.extend(self.set_selection(theme, icons, touched));
+        commands
     }
+
+    /// The release of the button: the selection rectangle goes, or the
+    /// dragged icons snap to the nearest cells. If a cell is taken by an
+    /// icon that stays, or by two of them, they all go back. A click
+    /// without a drag on one of several selected icons selects it alone.
+    pub fn release(
+        &mut self,
+        theme: &mut Theme,
+        icons: &mut Icons,
+        [px, py]: [f64; 2],
+    ) -> Vec<Command> {
+        if self.band.take().is_some() {
+            return vec![Command::Remove { id: BAND.into() }];
+        }
+        let Some(press) = self.press.take() else {
+            return Vec::new();
+        };
+        if !press.moving {
+            return self.select(theme, icons, Some(press.key));
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        let d = [
+            (px - press.start[0]).round() as i32,
+            (py - press.start[1]).round() as i32,
+        ];
+        let moved: Vec<(usize, [i32; 2])> = press
+            .origins
+            .iter()
+            .filter_map(|(key, [x, y])| {
+                Some((self.find(key)?, snap([x + d[0], y + d[1]], self.area)))
+            })
+            .collect();
+        let staying: Vec<[i32; 2]> = (0..self.places.len())
+            .filter(|j| moved.iter().all(|(i, _)| i != j))
+            .map(|j| self.places[j])
+            .collect();
+        let cells: Vec<[i32; 2]> = moved.iter().map(|(_, c)| *c).collect();
+        // ponytail: all or nothing; XP finds the nearest free cell for each.
+        if fits(&cells, &staying) {
+            for (i, cell) in &moved {
+                self.places[*i] = *cell;
+                self.moved.insert(self.items[*i].key.clone(), *cell);
+            }
+        }
+        moved
+            .iter()
+            .map(|(i, _)| {
+                let [x, y] = self.places[*i].map(f64::from);
+                Command::Update {
+                    id: Self::id(*i),
+                    props: PropsUpdate {
+                        transform: Some(Transform::translate(x, y, 0.0)),
+                        ..PropsUpdate::default()
+                    },
+                }
+            })
+            .collect()
+    }
+}
+
+/// The rectangle between two corners, in whole pixels.
+#[allow(clippy::cast_possible_truncation)]
+fn band_rect([ax, ay]: [f64; 2], [bx, by]: [f64; 2]) -> Rect {
+    let [x, y] = [ax.min(bx).floor() as i32, ay.min(by).floor() as i32];
+    let [r, b] = [ax.max(bx).floor() as i32, ay.max(by).floor() as i32];
+    [x, y, r - x, b - y]
+}
+
+/// Whether a selection rectangle touches the icon of a cell: the icon
+/// itself or the first line of its label.
+fn touches([x, y, w, h]: Rect, [cx, cy]: [i32; 2]) -> bool {
+    let [ix, iy, iw, ih] = [
+        cx + (CELL - LABEL_PX) / 2,
+        cy + ICON_TOP,
+        LABEL_PX,
+        LABEL_TOP - ICON_TOP + LINE,
+    ];
+    x <= ix + iw && ix <= x + w && y <= iy + ih && iy <= y + h
+}
+
+/// Whether moved icons fit into their cells: no two in one cell, and
+/// none on an icon that stays.
+fn fits(cells: &[[i32; 2]], staying: &[[i32; 2]]) -> bool {
+    let near = |a: [i32; 2], b: [i32; 2]| (a[0] - b[0]).abs() < CELL && (a[1] - b[1]).abs() < CELL;
+    cells.iter().enumerate().all(|(i, c)| {
+        cells[i + 1..].iter().all(|o| !near(*c, *o)) && staying.iter().all(|s| !near(*c, *s))
+    })
 }
 
 /// The picture of an icon: the icon centered at the top of a cell and
@@ -671,6 +818,62 @@ mod tests {
         let (cells, bin) = layout(5, [0, 0, 300, 160]);
         assert_eq!(bin, [222, 74]);
         assert_eq!(cells, [[0, 0], [0, 75], [75, 0], [75, 75], [300, 0]]);
+    }
+
+    #[test]
+    fn the_selection_rectangle_touches_icons_and_labels() {
+        // From any corner to the opposite one.
+        assert_eq!(band_rect([50.4, 90.0], [10.0, 20.7]), [10, 20, 40, 70]);
+        let cell = [0, 75];
+        // The icon of the cell spans x 1 to 73, y 77 to 128.
+        assert!(touches([60, 60, 20, 20], cell));
+        assert!(touches([70, 120, 30, 30], cell));
+        assert!(!touches([74, 60, 20, 20], cell));
+        assert!(!touches([0, 129, 75, 20], cell));
+        assert!(!touches([0, 40, 75, 36], cell));
+    }
+
+    #[test]
+    fn a_band_selects_and_a_drag_moves_the_selected_icons_together() {
+        let (mut theme, cache) = crate::dialog::tests::theme("band");
+        let mut icons = Icons::default();
+        let mut desk = DesktopIcons::new("foot");
+        let item = |key: &str| Item {
+            key: key.into(),
+            title: key.into(),
+            icon: String::new(),
+            open: Open::File(key.into()),
+        };
+        desk.items = vec![item("a"), item("b"), item("c")];
+        desk.places = vec![[0, 0], [0, 75], [300, 300]];
+        desk.area = [0, 0, 800, 570];
+        // A band from the empty desktop over the first two icons.
+        desk.press_empty(&mut theme, &mut icons, [100.0, 10.0]);
+        assert_eq!(desk.band, Some([100.0, 10.0]));
+        desk.drag(&mut theme, &mut icons, [20.0, 100.0]);
+        assert_eq!(desk.selected, ["a", "b"]);
+        desk.release(&mut theme, &mut icons, [20.0, 100.0]);
+        assert_eq!(desk.band, None);
+        // A drag of one of them moves both by two cells to the right.
+        desk.press(&mut theme, &mut icons, "xp-icon-1", [37.0, 100.0]);
+        assert_eq!(desk.drag(&mut theme, &mut icons, [187.0, 104.0]).len(), 2);
+        desk.release(&mut theme, &mut icons, [187.0, 104.0]);
+        assert_eq!(desk.places, [[150, 0], [150, 75], [300, 300]]);
+        // A click on the empty desktop clears the selection.
+        desk.press_empty(&mut theme, &mut icons, [600.0, 10.0]);
+        desk.release(&mut theme, &mut icons, [600.0, 10.0]);
+        assert_eq!(desk.selected, Vec::<String>::new());
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn moved_icons_fit_into_free_cells_only() {
+        let staying = [[0, 0], [0, 75]];
+        assert!(fits(&[[75, 0], [75, 75]], &staying));
+        // One of them on an icon that stays, or two in one cell.
+        assert!(!fits(&[[75, 0], [0, 75]], &staying));
+        assert!(!fits(&[[150, 0], [150, 0]], &staying));
+        assert!(fits(&[], &staying));
     }
 
     #[test]

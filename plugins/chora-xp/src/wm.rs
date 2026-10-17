@@ -1201,7 +1201,7 @@ impl Wm {
         } else if DesktopIcons::owns(node) {
             self.press_icon(node, position)
         } else if wallpaper::owns(node) {
-            self.press_wallpaper()
+            self.press_wallpaper(position)
         } else {
             Vec::new()
         }
@@ -1334,7 +1334,7 @@ impl Wm {
             return panel.window().drag([px, py], top);
         }
         if self.desk.pressed() {
-            return self.desk.drag([px, py]);
+            return self.desk.drag(&mut self.theme, &mut self.icons, [px, py]);
         }
         if let Some(commands) = self.drag_explorer([px, py]) {
             return commands;
@@ -1397,7 +1397,9 @@ impl Wm {
             return self.release_explorer(i, position);
         }
         if self.desk.pressed() {
-            return self.desk.release(position);
+            return self
+                .desk
+                .release(&mut self.theme, &mut self.icons, position);
         }
         if let Some(dialog) = &mut self.dialog {
             let (mut commands, choice) = dialog.release(&mut self.theme, position);
@@ -1935,11 +1937,14 @@ impl Wm {
     }
 
     /// A click on the desktop takes the focus from the windows and the
-    /// selection from the icons.
-    fn press_wallpaper(&mut self) -> Vec<Command> {
+    /// selection from the icons; a drag draws the selection rectangle.
+    fn press_wallpaper(&mut self, position: [f64; 2]) -> Vec<Command> {
         let mut commands = self.focus(None);
         commands.extend(self.sync_tasks());
-        commands.extend(self.desk.select(&mut self.theme, &mut self.icons, None));
+        commands.extend(
+            self.desk
+                .press_empty(&mut self.theme, &mut self.icons, position),
+        );
         commands
     }
 

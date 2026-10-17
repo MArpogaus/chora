@@ -255,6 +255,14 @@ folder, My Documents, My Computer and the Recycle Bin in XP's Explorer
 (see below); a desktop file runs its program; any other file opens with
 `xdg-open`. A drag
 moves an icon to the nearest free cell of the grid, until `chora-xp` ends.
+A drag on the empty desktop draws XP's selection rectangle, in XP's
+selection blue with a translucent fill and a line of 1 pixel, and selects
+every icon whose picture or first line of its label it touches, while it
+grows and shrinks. A drag of one of the selected icons moves all of them,
+each to the cell at the same offset; if one of them would land on an icon
+that stays, or two in one cell, they all go back. A click on one of the
+selected icons selects it alone, and a click on the empty desktop selects
+nothing.
 XP has one desktop, so the icons stay in place while the cube turns: each
 face of the cube shows them on the wallpaper.
 
