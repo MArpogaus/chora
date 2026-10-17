@@ -202,9 +202,7 @@ impl Tiling {
             .collect();
         self.apply(commands)?;
         for id in &ids {
-            self.wm.remove_window(id);
-            self.sent.remove(id);
-            self.saved.remove(id);
+            self.forget_window(id);
         }
         Ok(())
     }
@@ -355,9 +353,7 @@ impl Tiling {
                 self.adopt(&surface)?;
             }
             Event::SurfaceDestroyed { surface } => {
-                self.wm.remove_window(&surface);
-                self.sent.remove(&surface);
-                self.saved.remove(&surface);
+                self.forget_window(&surface);
             }
             Event::SurfaceChanged {
                 surface,
@@ -468,9 +464,7 @@ impl Tiling {
         };
         self.call_apply(vec![give])
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
-        self.wm.remove_window(&surface);
-        self.sent.remove(&surface);
-        self.saved.remove(&surface);
+        self.forget_window(&surface);
         self.relayout()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         Ok(Value::String(surface))
@@ -627,6 +621,14 @@ impl Tiling {
             .map(|(id, text)| (id, BTreeMap::from([(WINDOW_KEY.to_owned(), text)])))
             .chain([(NAME.to_owned(), self.wm.group_meta())])
             .collect()
+    }
+
+    /// Forgets a window that left tiling: its place in the model, and
+    /// what the core shows of it.
+    fn forget_window(&mut self, id: &str) {
+        self.wm.remove_window(id);
+        self.sent.remove(id);
+        self.saved.remove(id);
     }
 
     /// Forgets what the core shows, so that the next transaction sends all.
