@@ -220,8 +220,9 @@ or an empty list. It always sees the current titles.
 | `input.key` | the grabbed `binding` and its `state`: `pressed` when its key goes down, `released` when it goes up |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
-| `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME` |
-| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node and position; `pointer.released` with the button |
+| `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, and the `modifiers` that are down |
+| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position and modifiers; `pointer.released` with the button |
+| `pointer.scroll` | the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, `dx` and `dy` in logical pixels, `discrete` wheel steps, `source` (`wheel`, `finger`, `continuous` or `wheel_tilt`) and modifiers; only to the owner of the node |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version |
 | `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again |
@@ -239,7 +240,20 @@ The core does not act on a request, also not on `close`. A plugin answers
 with commands, for example `close`. A press over a surface reaches its
 client as well; a press over a rect or an image goes to plugins only, with
 the moves and the release that follow, so that a plugin can drag a window
-by its title bar. Later milestones add events for size limits.
+by its title bar. `modifiers` lists `Ctrl`, `Alt`, `Shift` and `Super` as
+they are down, for example for a Ctrl+click.
+
+Scrolling over a surface reaches its client through Wayland. Over a rect,
+an image or a shader node, the core sends `pointer.scroll` to the
+connections of the owner of the node that subscribed to it, so that a
+list of a plugin scrolls:
+
+```json
+{"event": "pointer.scroll", "node": "start-menu", "position": [40, 700],
+ "dx": 0, "dy": 15, "discrete": [0, 1], "source": "wheel", "modifiers": []}
+```
+
+Later milestones add events for size limits.
 
 ## IPC methods
 

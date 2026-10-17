@@ -223,7 +223,7 @@ fn event_tools() -> Vec<Value> {
     vec![
         tool(
             "subscribe_events",
-            "Start to collect events for wait_events, and grab keys, which then arrive as input.key events. Replaces the earlier subscription. Events: surface.created, surface.changed, surface.destroyed, surface.requested, pointer.pressed, pointer.moved, pointer.released, pointer.entered, pointer.left, input.key, animation.done, output.changed and others.",
+            "Start to collect events for wait_events, and grab keys, which then arrive as input.key events. Replaces the earlier subscription. Events: surface.created, surface.changed, surface.destroyed, surface.requested, pointer.pressed, pointer.moved, pointer.released, pointer.scroll, pointer.entered, pointer.left, input.key, node.key, animation.done, output.changed and others.",
             &json!({
                 "events": {"type": "array", "items": {"type": "string"}, "description": "event names; every event if empty or missing"},
                 "keys": {"type": "array", "items": {"type": "string"}, "description": "bindings to grab, for example Super+F1; they need Ctrl, Alt or Super"},

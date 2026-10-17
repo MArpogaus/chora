@@ -105,6 +105,9 @@ pub enum Event {
         /// The pointer in scene coordinates, or in output coordinates for a
         /// node under `screen:NAME`.
         position: [f64; 2],
+        /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
+        #[serde(default)]
+        modifiers: Vec<String>,
     },
     /// The pointer came over a node that takes pointer input: the top one
     /// under it, a surface, a rect or an image. Not during a drag of a
@@ -133,6 +136,9 @@ pub enum Event {
         /// The pointer in scene coordinates, or in output coordinates for a
         /// node under `screen:NAME`.
         position: [f64; 2],
+        /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
+        #[serde(default)]
+        modifiers: Vec<String>,
     },
     /// The button of a press over a rect or an image went up.
     #[serde(rename = "pointer.released")]
@@ -144,6 +150,33 @@ pub enum Event {
         /// The pointer in scene coordinates, or in output coordinates for a
         /// node under `screen:NAME`.
         position: [f64; 2],
+        /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
+        #[serde(default)]
+        modifiers: Vec<String>,
+    },
+    /// The wheel or the touchpad scrolled over a rect, an image or a shader
+    /// node that takes pointer input. Only the connections of the owner of
+    /// the node that subscribed get it; a surface gets its scrolling
+    /// through Wayland.
+    #[serde(rename = "pointer.scroll")]
+    PointerScroll {
+        /// The node under the pointer.
+        node: String,
+        /// The pointer in scene coordinates, or in output coordinates for a
+        /// node under `screen:NAME`.
+        position: [f64; 2],
+        /// Horizontal, in logical pixels.
+        dx: f64,
+        /// Vertical, in logical pixels; positive scrolls down.
+        dy: f64,
+        /// The steps of a wheel, horizontal and vertical: 1 for one notch,
+        /// fractions for a wheel with fine steps, 0 for a touchpad.
+        discrete: [f64; 2],
+        /// Where the scrolling comes from.
+        source: ScrollSource,
+        /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
+        #[serde(default)]
+        modifiers: Vec<String>,
     },
     /// Frames took too long again and again, so the watchdog of the core
     /// removed the effects of the nodes of the client whose nodes cost the
@@ -220,6 +253,21 @@ pub enum Event {
         #[serde(default)]
         params: serde_json::Value,
     },
+}
+
+/// The source of scrolling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScrollSource {
+    /// A mouse wheel.
+    Wheel,
+    /// A finger on a touchpad.
+    Finger,
+    /// Continuous scrolling, for example of a trackpoint or of
+    /// `input.inject`.
+    Continuous,
+    /// The tilt of a wheel to the side.
+    WheelTilt,
 }
 
 /// A change that a client asks for.

@@ -417,6 +417,7 @@ impl Wm {
                 node,
                 button,
                 position,
+                ..
             } => self.pressed(&node, button, position),
             Event::PointerMoved { position, .. } => self.dragged(position),
             Event::PointerReleased { node, position, .. } => self.released(&node, position),

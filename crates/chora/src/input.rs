@@ -9,7 +9,7 @@
 
 use std::sync::atomic::Ordering;
 
-use chora_scene::{Event as SceneEvent, NodeKind, ipc::PressState};
+use chora_scene::{Event as SceneEvent, NodeKind, ScrollSource, ipc::PressState};
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
@@ -224,6 +224,12 @@ fn node_key(
     }
 }
 
+/// The names of the modifiers of the keyboard that are down.
+fn modifiers(state: &State) -> Vec<String> {
+    let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+    modifier_names(&keyboard.modifier_state())
+}
+
 /// The names of the modifiers that are down, as bindings name them.
 pub fn modifier_names(mods: &ModifiersState) -> Vec<String> {
     [
@@ -400,7 +406,12 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
         if grab.position != position {
             grab.position = position;
             let node = grab.node.clone();
-            state.emit(&SceneEvent::PointerMoved { node, position });
+            let modifiers = modifiers(state);
+            state.emit(&SceneEvent::PointerMoved {
+                node,
+                position,
+                modifiers,
+            });
         }
         None
     } else {
@@ -452,6 +463,7 @@ pub fn press_button(state: &mut State, code: u32, button_state: ButtonState, tim
 
 /// Scrolls by logical pixels, as a touchpad does.
 pub fn scroll(state: &mut State, dx: f64, dy: f64, time: InputTime) {
+    scroll_node(state, [dx, dy], [0.0; 2], AxisSource::Continuous);
     let mut frame = AxisFrame::new(time).source(AxisSource::Continuous);
     for (axis, amount) in [(Axis::Horizontal, dx), (Axis::Vertical, dy)] {
         if amount != 0.0 {
@@ -498,6 +510,7 @@ fn press_node(state: &mut State, button: u32) {
         node: node.clone(),
         button,
         position,
+        modifiers: modifiers(state),
     });
     if area {
         state.node_grab = Some(NodeGrab {
@@ -534,10 +547,12 @@ fn release_node(state: &mut State, button: u32) {
     let position = state.spot(state.pointer_layout).map_or([0.0; 2], |s| {
         position_for(&state.scene, &state.outputs, &node, &s)
     });
+    let modifiers = modifiers(state);
     state.emit(&SceneEvent::PointerReleased {
         node,
         button,
         position,
+        modifiers,
     });
 }
 
@@ -576,14 +591,57 @@ fn click_focus(state: &mut State) {
     }
 }
 
+/// Tells the owner of the node under the pointer about scrolling, unless
+/// the node is a surface, whose client gets it through Wayland.
+fn scroll_node(state: &mut State, delta: [f64; 2], discrete: [f64; 2], source: AxisSource) {
+    #[allow(clippy::float_cmp)] // the end of a scroll on a touchpad is exactly 0
+    if delta == [0.0; 2] && discrete == [0.0; 2] {
+        return;
+    }
+    let Some(spot) = state.spot(state.pointer_layout) else {
+        return;
+    };
+    let Some(node) = render::node_under(state, &spot) else {
+        return;
+    };
+    let owner = state.scene.node(&node).and_then(|n| {
+        (n.kind != NodeKind::Surface)
+            .then(|| n.owner.clone())
+            .flatten()
+    });
+    let Some(owner) = owner else {
+        return;
+    };
+    let position = position_for(&state.scene, &state.outputs, &node, &spot);
+    let event = SceneEvent::PointerScroll {
+        node,
+        position,
+        dx: delta[0],
+        dy: delta[1],
+        discrete,
+        source: match source {
+            AxisSource::Wheel => ScrollSource::Wheel,
+            AxisSource::Finger => ScrollSource::Finger,
+            AxisSource::WheelTilt => ScrollSource::WheelTilt,
+            AxisSource::Continuous => ScrollSource::Continuous,
+        },
+        modifiers: modifiers(state),
+    };
+    state.ipc.send_to_client(&owner, &event);
+}
+
 fn axis<I: InputBackend>(state: &mut State, event: &I::PointerAxisEvent) {
     let source = event.source();
     let mut frame = AxisFrame::new(event.time()).source(source);
-    for axis in [Axis::Horizontal, Axis::Vertical] {
+    let mut delta = [0.0; 2];
+    let mut steps = [0.0; 2];
+    for (i, axis) in [Axis::Horizontal, Axis::Vertical].into_iter().enumerate() {
         let discrete = event.amount_v120(axis);
         let amount = event
             .amount(axis)
             .unwrap_or_else(|| discrete.unwrap_or(0.0) * 15.0 / 120.0);
+        delta[i] = amount;
+        steps[i] = discrete.unwrap_or(0.0) / 120.0;
         if amount != 0.0 {
             frame = frame.value(axis, amount);
             if let Some(d) = discrete {
@@ -596,6 +654,7 @@ fn axis<I: InputBackend>(state: &mut State, event: &I::PointerAxisEvent) {
             frame = frame.stop(axis);
         }
     }
+    scroll_node(state, delta, steps, source);
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     pointer.axis(state, frame);
     pointer.frame(state);
@@ -605,7 +664,7 @@ fn axis<I: InputBackend>(state: &mut State, event: &I::PointerAxisEvent) {
 mod tests {
     use serde_json::{Value, json};
     use smithay::{
-        backend::input::{InputTime, KeyState},
+        backend::input::{ButtonState, InputTime, KeyState},
         input::keyboard::Keycode,
     };
 
@@ -801,5 +860,85 @@ mod tests {
         tap(&mut core, A);
         let keys = events(&mut xp, &mut core);
         assert!(keys.iter().all(|e| e["event"] != "node.key"), "{keys:?}");
+    }
+
+    fn move_to(core: &mut Core, x: f64, y: f64) {
+        super::move_pointer(&mut core.state, (x, y).into(), InputTime::now());
+    }
+
+    fn click(core: &mut Core, down: bool) {
+        let state = if down {
+            ButtonState::Pressed
+        } else {
+            ButtonState::Released
+        };
+        super::press_button(&mut core.state, 272, state, InputTime::now());
+    }
+
+    /// The events of a kind.
+    fn named(events: &[Value], name: &str) -> Vec<Value> {
+        events
+            .iter()
+            .filter(|e| e["event"] == name)
+            .cloned()
+            .collect()
+    }
+
+    #[test]
+    fn pointer_events_carry_the_modifiers() {
+        let (mut core, _wayland, _window, _wm, mut xp) = window_and_menu();
+        apply(
+            &mut xp,
+            &mut core,
+            &json!([{"update": {"id": "menu", "props": {"transform": {"translate": [400, 0]}}}}]),
+        );
+        move_to(&mut core, 450.0, 50.0);
+        press(&mut core, CTRL, true);
+        click(&mut core, true);
+        move_to(&mut core, 460.0, 50.0);
+        press(&mut core, CTRL, false);
+        click(&mut core, false);
+        let all = events(&mut xp, &mut core);
+        let ctrl = json!(["Ctrl"]);
+        assert_eq!(named(&all, "pointer.pressed")[0]["modifiers"], ctrl);
+        assert_eq!(named(&all, "pointer.moved")[0]["modifiers"], ctrl);
+        assert_eq!(named(&all, "pointer.released")[0]["modifiers"], json!([]));
+    }
+
+    #[test]
+    fn scrolling_over_a_node_goes_to_its_owner_and_over_a_surface_to_its_client() {
+        let (mut core, mut wayland, window, mut wm, mut xp) = window_and_menu();
+        wayland.attach(&mut core, &window, (100, 100));
+        apply(
+            &mut xp,
+            &mut core,
+            &json!([{"update": {"id": "menu", "props": {"transform": {"translate": [400, 0]}}}}]),
+        );
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        move_to(&mut core, 450.0, 50.0);
+        press(&mut core, SHIFT, true);
+        super::scroll(&mut core.state, 0.0, 15.0, InputTime::now());
+        press(&mut core, SHIFT, false);
+        let scrolls = named(&events(&mut xp, &mut core), "pointer.scroll");
+        assert_eq!(
+            scrolls,
+            [
+                json!({"event": "pointer.scroll", "node": "menu", "position": [450.0, 50.0],
+                    "dx": 0.0, "dy": 15.0, "discrete": [0.0, 0.0], "source": "continuous",
+                    "modifiers": ["Shift"]})
+            ]
+        );
+        assert_eq!(
+            named(&events(&mut wm, &mut core), "pointer.scroll"),
+            Vec::<Value>::new()
+        );
+        move_to(&mut core, 50.0, 50.0);
+        let entered = named(&events(&mut xp, &mut core), "pointer.entered");
+        assert_eq!(entered[0]["node"], "s1", "the pointer is over the window");
+        super::scroll(&mut core.state, 0.0, 15.0, InputTime::now());
+        assert_eq!(
+            named(&events(&mut xp, &mut core), "pointer.scroll"),
+            Vec::<Value>::new()
+        );
     }
 }
