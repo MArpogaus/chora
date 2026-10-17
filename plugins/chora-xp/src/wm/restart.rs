@@ -28,6 +28,10 @@ pub(super) struct KeptWindow {
     pub restore: Option<Rect>,
     /// The place in the stack, the lowest first.
     pub z: usize,
+    /// The place on the taskbar, the first first.
+    pub opened: usize,
+    /// The window is minimized.
+    pub minimized: bool,
     /// The place of an Explorer window.
     pub place: Option<Place>,
 }
@@ -60,6 +64,12 @@ impl Wm {
                 desktop: w.desktop,
                 restore: w.restore,
                 z,
+                opened: self
+                    .opened
+                    .iter()
+                    .position(|s| *s == w.surface)
+                    .unwrap_or(usize::MAX),
+                minimized: w.minimized,
                 place: self
                     .explorers
                     .iter()
@@ -144,6 +154,7 @@ impl Wm {
         } else {
             commands.extend(w.fit(k.frame, active));
         }
+        w.minimized = k.minimized;
         commands.extend(w.style(&mut self.theme, active));
         commands.push(w.place());
         commands
@@ -161,6 +172,8 @@ mod tests {
             desktop: 1,
             restore: Some([5, 6, 70, 80]),
             z: 2,
+            opened: 1,
+            minimized: true,
             place: Some(Place::Trash),
         };
         let meta = meta(&kept).meta.expect("meta");

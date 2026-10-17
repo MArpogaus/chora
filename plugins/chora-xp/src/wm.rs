@@ -346,18 +346,32 @@ impl Wm {
             .chain(explorers.into_iter().map(|k| (k.z, Next::Explorer(k))))
             .collect();
         next.sort_by_key(|(z, _)| *z);
+        // The places on the taskbar before the restart, by window.
+        let mut opened = Vec::new();
         for (_, next) in next {
             match next {
                 Next::Surface(node) => {
+                    if let Some(k) = self.kept.get(&node.id) {
+                        opened.push((k.opened, node.id.clone()));
+                    }
                     let info = node.surface.unwrap_or_default();
                     self.adopt(&node.id, info.app_id, info.title.as_deref())?;
                 }
                 Next::Explorer(k) => {
+                    let place = k.opened;
                     let commands = self.reopen(k);
                     self.apply(commands)?;
+                    if let Some(e) = self.explorers.last() {
+                        opened.push((place, e.id.clone()));
+                    }
                 }
             }
         }
+        // The kept windows first, in their old order on the taskbar.
+        opened.sort_by_key(|(place, _)| *place);
+        let kept: Vec<String> = opened.into_iter().map(|(_, id)| id).collect();
+        self.opened.retain(|s| !kept.contains(s));
+        self.opened.splice(0..0, kept);
         let top = self.topmost_except("");
         let mut commands = self.focus(top.as_deref());
         commands.extend(self.sync_tasks());
@@ -672,12 +686,17 @@ impl Wm {
                 w.maximize(area);
                 commands.extend(w.configure(active));
             }
+            w.minimized = k.minimized;
         } else if first && !self.windows[i].maximized() {
             // A window maximized before its first commit keeps its place.
             let outer = self.windows[i].outer();
             self.windows[i].pos = window::cascade(&mut self.cascade, outer, area);
         }
         self.windows[i].shown = true;
+        // A kept minimized window stays hidden.
+        if self.windows[i].minimized {
+            commands.push(self.windows[i].place());
+        }
         commands.extend(self.windows[i].style(&mut self.theme, active));
         if first {
             commands.extend(self.sync_tasks());
