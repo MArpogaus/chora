@@ -207,7 +207,28 @@ renders each picture once:
 - the wallpaper below everything: Bliss when it is installed, else Bløff.
 
 A click on a window raises and focuses it. A drag of a title bar moves the
-window, and a double click maximizes it. A maximized window fills the work
+window, and a double click maximizes it. A drag of the border of the frame
+resizes the window: the 4 pixel border and 6 pixels of the shadow outside
+it take the press, and the corners reach 16 pixels along both edges. The
+client gets the new size once per frame while the button is down, and the
+edges that the drag does not move stay in place. A window is at least 112
+by 35 pixels with its frame, so that the buttons of the title bar fit. A
+window that draws its own frame resizes from a strip of 6 pixels around
+it. A maximized window does not resize, and a window does not wobble while
+it resizes. The pointer keeps its arrow over the border: plugins cannot
+set the cursor. The core reports no size limits of a client yet, so a
+client that wants another size than it gets simply takes its own, and the
+frame follows it.
+
+A right click on a title bar, a click on the icon of a title bar and a
+right click on a task button open XP's system menu, in the look of the
+context menus below: Restore, Move, Size, Minimize, Maximize and Close in
+bold with `Alt+F4`, with XP's glyphs. Restore is gray unless the window is
+maximized or minimized, Minimize is gray for a minimized window and
+Maximize for a maximized one. Move and Size are always gray, as XP works
+them with the arrow keys, and the keyboard does not reach `chora-xp`
+(D45). The click on the icon opens the menu below the icon, the others at
+the pointer. A double click on the icon closes the window, as on XP. A maximized window fills the work
 area above the taskbar. A click on a task button shows or minimizes its
 window. Buttons light up under the pointer, and so do the entries of the
 start menu. All Programs and its groups open their cascading menus when
@@ -259,9 +280,9 @@ window of its own: the window has XP's frame and a task button with the
 icon and the name of the place, and it raises on a click, minimizes
 through the magic lamp, maximizes and wobbles like the windows of
 clients. It opens at 785 by 559 pixels, the size of XP's My Computer, or
-smaller on a small output, and keeps its size: only maximize and the
-Tile rows of the taskbar menu change it, as `chora-xp` resizes no window
-from its edges. From the top:
+smaller on a small output, and resizes from its edges down to 428 by 294
+pixels: the task pane keeps its width, and the view and its scroll bar
+take the rest. From the top:
 
 - the menu bar with File, Edit, View, Favorites, Tools and Help, and
   XP's flag when it is installed. A click opens a menu: File > Close
