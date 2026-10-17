@@ -41,7 +41,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_scene::ipc::ClientError;
+use chora_scene::{Event, ipc::ClientError};
 use clap::Parser;
 
 use crate::{conn::Conn, icons::Icons, startmenu::Menu, theme::Theme, wm::Wm};
@@ -158,7 +158,11 @@ fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
             .notes_due(Instant::now())
             .map_or(until, |due| until.min(due));
         if let Some(event) = wm.conn_event(until.saturating_duration_since(Instant::now()))? {
+            let (event, next) = last_move(wm, event)?;
             wm.handle(event)?;
+            if let Some(next) = next {
+                wm.handle(next)?;
+            }
         }
         let now = Instant::now();
         wm.menu_rest(now)?;
@@ -173,6 +177,19 @@ fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
         }
     }
     Ok(())
+}
+
+/// Moves of the pointer that queued up, as during a slow redraw of a
+/// drag, count as the last one: the event to handle, and the one after
+/// the moves.
+fn last_move(wm: &mut Wm, mut event: Event) -> Result<(Event, Option<Event>), ClientError> {
+    while matches!(event, Event::PointerMoved { .. }) {
+        match wm.conn_event(Duration::from_micros(1))? {
+            Some(next @ Event::PointerMoved { .. }) => event = next,
+            next => return Ok((event, next)),
+        }
+    }
+    Ok((event, None))
 }
 
 /// The programs of the start menu: the terminal, then the extra ones.
