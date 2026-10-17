@@ -13,7 +13,7 @@ mod control;
 mod cube;
 mod decoration;
 mod desktop_icons;
-#[allow(dead_code)] // the settings dialogs of the next commits use it
+#[allow(dead_code)] // Date and Time of the next commit uses the rest
 mod dialog;
 mod icons;
 mod lamp;
@@ -22,6 +22,7 @@ mod session;
 mod sound;
 mod startmenu;
 mod taskbar;
+mod taskbar_dialog;
 mod text;
 mod theme;
 mod wallpaper;

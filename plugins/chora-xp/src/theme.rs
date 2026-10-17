@@ -177,6 +177,42 @@ impl Picture {
         self
     }
 
+    /// Adds the layers of another picture, moved by an offset.
+    pub fn layers_of(mut self, other: Self, [dx, dy]: [i32; 2]) -> Self {
+        let shift = |[x, y, w, h]: Rect| [x + dx, y + dy, w, h];
+        for layer in other.layers {
+            self.layers.push(match layer {
+                Layer::Element { sheet, id, rect } => Layer::Element {
+                    sheet,
+                    id,
+                    rect: shift(rect),
+                },
+                Layer::Frame {
+                    sheet,
+                    prefix,
+                    rect,
+                } => Layer::Frame {
+                    sheet,
+                    prefix,
+                    rect: shift(rect),
+                },
+                Layer::File { path, rect, cover } => Layer::File {
+                    path,
+                    rect: shift(rect),
+                    cover,
+                },
+                Layer::Text(mut text) => {
+                    text.rect = shift(text.rect);
+                    Layer::Text(text)
+                }
+                Layer::Svg(body) => {
+                    Layer::Svg(format!(r#"<g transform="translate({dx} {dy})">{body}</g>"#))
+                }
+            });
+        }
+        self
+    }
+
     /// Adds SVG elements, drawn in the coordinates of the picture.
     pub fn svg(mut self, body: impl Into<String>) -> Self {
         self.layers.push(Layer::Svg(body.into()));

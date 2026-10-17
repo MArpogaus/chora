@@ -142,7 +142,7 @@ pub fn taskbar(locked: bool) -> Vec<Entry> {
         Entry::gray("Task Manager"),
         Entry::separator(),
         Entry::item("Lock the Taskbar", Act::Lock).checked(locked),
-        Entry::item("Properties", Act::TaskbarProperties).enabled(false),
+        Entry::item("Properties", Act::TaskbarProperties),
     ]
 }
 

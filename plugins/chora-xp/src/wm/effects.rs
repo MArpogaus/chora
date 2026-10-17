@@ -61,7 +61,11 @@ impl Wm {
     /// Whether an effect needs frames.
     pub fn animating(&self) -> bool {
         let e = &self.effects;
-        !e.wobbles.is_empty() || !e.lamps.is_empty() || e.turn.is_some() || self.fading()
+        !e.wobbles.is_empty()
+            || !e.lamps.is_empty()
+            || e.turn.is_some()
+            || self.fading()
+            || self.sliding()
     }
 
     /// Moves every effect one frame forward, in one transaction.
@@ -74,6 +78,7 @@ impl Wm {
         commands.extend(self.lamp_frame(now));
         commands.extend(self.cube_frame(now));
         commands.extend(self.fade_frame(now));
+        commands.extend(self.slide_frame(now, dt));
         self.conn.apply(commands)
     }
 

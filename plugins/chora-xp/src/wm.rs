@@ -28,12 +28,14 @@ use crate::{
     cube::DESKTOPS,
     decoration::{self, Button, Part},
     desktop_icons::{self, DesktopIcons},
+    dialog::{self, Hit},
     icons::{self, Icons},
     notify::{Bus, Note, Reason, Request, Signal},
     session::{self, Choice, Dialog, Mode},
     sound::{self, Sound},
     startmenu::{Action, Menu},
     taskbar::{self, Bar, Task},
+    taskbar_dialog::{Outcome, TaskbarDialog},
     theme::{Rect, Theme},
     wallpaper,
     window::{self, Window},
@@ -44,7 +46,11 @@ pub const NAME: &str = "xp";
 const WALLPAPERS: &str = "xp-wallpapers";
 const WINDOWS: &str = "xp-windows";
 const BARS: &str = "xp-bars";
+/// The settings dialogs, above the taskbar and below the menus.
+const DIALOGS: &str = "xp-dialogs";
 const MENUS: &str = "xp-menus";
+/// How long a taskbar that hides itself waits after the pointer left it.
+const HIDE_DELAY: Duration = Duration::from_millis(500);
 /// The left mouse button.
 const LEFT_BUTTON: u32 = 272;
 /// The right mouse button, which opens the context menus.
@@ -171,9 +177,12 @@ pub struct Wm {
     desk: DesktopIcons,
     /// The open context menu, and the work area of its output.
     context: Option<(context::Menu, Rect)>,
-    /// Lock the Taskbar: chora-xp neither moves nor sizes the taskbar, so
-    /// it only shows the check mark.
-    locked: bool,
+    /// The settings of Taskbar and Start Menu Properties.
+    taskbar: taskbar::Settings,
+    /// The settings dialogs, bottom first.
+    panels: Vec<Panel>,
+    /// When a taskbar that hides itself slides away.
+    hide_at: Option<Instant>,
     /// Turn Off ended the plugin.
     pub done: bool,
     /// Restart ended the plugin, to start it again.
@@ -217,7 +226,9 @@ impl Wm {
             notes: Queue::default(),
             balloon: None,
             context: None,
-            locked: true,
+            taskbar: taskbar::Settings::default(),
+            panels: Vec::new(),
+            hide_at: None,
             done: false,
             restart: false,
         };
@@ -251,7 +262,14 @@ impl Wm {
             props: PropsUpdate::default(),
         };
         let mut commands = vec![group(NAME, ROOT)];
-        for id in [WALLPAPERS, desktop_icons::GROUP, WINDOWS, BARS, MENUS] {
+        for id in [
+            WALLPAPERS,
+            desktop_icons::GROUP,
+            WINDOWS,
+            BARS,
+            DIALOGS,
+            MENUS,
+        ] {
             commands.push(group(id, NAME));
         }
         for desktop in 0..DESKTOPS {
@@ -283,7 +301,8 @@ impl Wm {
     fn add_output(&mut self, output: &OutputInfo) -> Vec<Command> {
         let mut commands =
             wallpaper::create(&mut self.theme, &self.config.wallpaper, output, WALLPAPERS);
-        let bar = Bar::new(output);
+        let mut bar = Bar::new(output);
+        bar.configure(self.taskbar);
         commands.extend(bar.create(&mut self.theme, BARS, &self.clock, self.desktop));
         self.bars.push(bar);
         commands
@@ -742,9 +761,20 @@ impl Wm {
         } else if self.hover.as_deref() == Some(node) {
             self.hover = None;
         }
+        let mut commands = self.auto_hide();
         if let Some((menu, _)) = self.context.as_mut().filter(|_| context::Menu::owns(node)) {
-            return menu.hover(&mut self.theme, MENUS, node, on);
+            commands.extend(menu.hover(&mut self.theme, MENUS, node, on));
+            return commands;
         }
+        if let Some(panel) = self.panels.iter_mut().find(|p| p.window_ref().owns(node)) {
+            commands.extend(panel.window().hover(&mut self.theme, node, on));
+            return commands;
+        }
+        commands.extend(self.hovered_node(node, on));
+        commands
+    }
+
+    fn hovered_node(&mut self, node: &str, on: bool) -> Vec<Command> {
         if let Some(dialog) = self.dialog.as_mut().filter(|_| Dialog::owns(node)) {
             return dialog.hover(&mut self.theme, node, on);
         }
@@ -890,6 +920,17 @@ impl Wm {
         if self.dialog.is_some() {
             return self.press_dialog(node);
         }
+        if let Some(i) = self.panels.iter().position(|p| p.window_ref().owns(node)) {
+            let mut panel = self.panels.remove(i);
+            let mut commands = vec![Command::Move {
+                id: panel.window().group(),
+                parent: None,
+                index: None,
+            }];
+            commands.extend(panel.window().press(&mut self.theme, node, position));
+            self.panels.push(panel);
+            return commands;
+        }
         let start = matches!(taskbar::Part::of(node), Some(taskbar::Part::Start(_)));
         let mut commands = Vec::new();
         if self.menu.is_open() && !Menu::owns(node) && !start {
@@ -911,9 +952,9 @@ impl Wm {
     /// the desktop.
     fn press_right(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
         let entries = if node.starts_with("xp-tray-") {
-            context::clock(self.locked)
+            context::clock(self.taskbar.locked)
         } else if node.starts_with("xp-panel-") || node.starts_with("xp-pager-") {
-            context::taskbar(self.locked)
+            context::taskbar(self.taskbar.locked)
         } else if wallpaper::owns(node) || DesktopIcons::owns(node) {
             context::desktop()
         } else {
@@ -958,17 +999,18 @@ impl Wm {
                     .collect();
                 shown.iter().flat_map(|s| self.minimize(s)).collect()
             }
-            Act::Lock => {
-                self.locked = !self.locked;
-                Vec::new()
-            }
+            Act::Lock => self.set_taskbar(taskbar::Settings {
+                locked: !self.taskbar.locked,
+                ..self.taskbar
+            }),
             Act::ArrangeByName | Act::ArrangeByType => {
                 self.desk
                     .arrange(&mut self.theme, &mut self.icons, act == Act::ArrangeByType)
             }
             Act::Refresh => self.desk.reload(&mut self.theme, &mut self.icons),
             Act::DesktopProperties => self.desktop_properties(area),
-            Act::TaskbarProperties | Act::DateTime => Vec::new(),
+            Act::TaskbarProperties => self.open_taskbar_dialog(area),
+            Act::DateTime => Vec::new(),
         }
     }
 
@@ -1113,6 +1155,10 @@ impl Wm {
     }
 
     fn dragged(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
+        let top = self.bars.iter().map(|b| b.usable()[1]).min().unwrap_or(0);
+        if let Some(panel) = self.panels.iter_mut().find(|p| p.window_ref().dragging()) {
+            return panel.window().drag([px, py], top);
+        }
         if self.desk.pressed() {
             return self.desk.drag([px, py]);
         }
@@ -1155,6 +1201,9 @@ impl Wm {
         }
         if let Some(drag) = self.drag.take() {
             self.release_wobble(&drag.surface);
+        }
+        if dialog::Dialog::any_owns(node) {
+            return self.release_panel(position);
         }
         if self.desk.pressed() {
             return self.desk.release(position);
@@ -1246,6 +1295,168 @@ impl Wm {
             Action::TurnOff => self.open_dialog(Mode::TurnOff, output),
             Action::Set(setting) => self.set(setting, output),
         }
+    }
+
+    // The settings dialogs
+
+    /// Taskbar and Start Menu Properties in the middle of a work area, or
+    /// the open one on top.
+    fn open_taskbar_dialog(&mut self, area: Rect) -> Vec<Command> {
+        if let Some(i) = self
+            .panels
+            .iter()
+            .position(|p| matches!(p, Panel::Taskbar(_)))
+        {
+            let panel = self.panels.remove(i);
+            let id = panel.window_ref().group();
+            self.panels.push(panel);
+            return vec![Command::Move {
+                id,
+                parent: None,
+                index: None,
+            }];
+        }
+        let mut panel = TaskbarDialog::new(self.taskbar, area);
+        let page = panel.page(&mut self.theme, &self.clock);
+        let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
+        self.panels.push(Panel::Taskbar(panel));
+        commands
+    }
+
+    /// The release of the button after a press on a dialog: a click on a
+    /// control or on the close button.
+    fn release_panel(&mut self, position: [f64; 2]) -> Vec<Command> {
+        let mut commands = Vec::new();
+        let mut hit = None;
+        for (i, panel) in self.panels.iter_mut().enumerate() {
+            let (more, h) = panel.window().release(&mut self.theme, position);
+            commands.extend(more);
+            if let Some(h) = h {
+                hit = Some((i, h));
+            }
+        }
+        let Some((i, hit)) = hit else {
+            return commands;
+        };
+        let outcome = match (&mut self.panels[i], &hit) {
+            (_, Hit::Close) => Outcome::Close,
+            (Panel::Taskbar(panel), hit) => panel.click(hit),
+        };
+        match outcome {
+            Outcome::Redraw => commands.extend(self.redraw_panel(i)),
+            Outcome::Close => commands.push(self.panels.remove(i).window_ref().remove()),
+            Outcome::Apply(settings, close) => {
+                if close {
+                    commands.push(self.panels.remove(i).window_ref().remove());
+                }
+                commands.extend(self.set_taskbar(settings));
+            }
+        }
+        commands
+    }
+
+    /// Shows the page of a dialog again.
+    fn redraw_panel(&mut self, i: usize) -> Vec<Command> {
+        match &mut self.panels[i] {
+            Panel::Taskbar(panel) => {
+                let page = panel.page(&mut self.theme, &self.clock);
+                panel.dialog.show(&mut self.theme, page)
+            }
+        }
+    }
+
+    /// Takes the settings of the taskbar: every taskbar shows or hides
+    /// its clock and hides itself or not, the maximized windows fill the
+    /// new work area, and the taskbars stay above the windows or not.
+    fn set_taskbar(&mut self, settings: taskbar::Settings) -> Vec<Command> {
+        let old = std::mem::replace(&mut self.taskbar, settings);
+        let mut commands = Vec::new();
+        for i in 0..self.bars.len() {
+            let before = self.bars[i].usable();
+            self.bars[i].configure(settings);
+            commands.push(self.bars[i].tray(&mut self.theme, &self.clock));
+            commands.extend(self.refit(before, self.bars[i].usable()));
+        }
+        if old.on_top != settings.on_top {
+            // Above the windows, or between the icons and the windows.
+            let index = if settings.on_top { 3 } else { 2 };
+            commands.push(Command::Move {
+                id: BARS.into(),
+                parent: Some(NAME.into()),
+                index: Some(index),
+            });
+        }
+        commands.extend(self.pagers());
+        commands.extend(self.sync_tasks());
+        commands.extend(self.refresh_icons());
+        for i in 0..self.panels.len() {
+            if let Some(panel) = self.panels[i].taskbar() {
+                panel.changed(settings);
+                commands.extend(self.redraw_panel(i));
+            }
+        }
+        commands
+    }
+
+    /// The maximized windows of an old work area fill the new one.
+    fn refit(&mut self, old: Rect, area: Rect) -> Vec<Command> {
+        let mut commands = Vec::new();
+        if old == area {
+            return commands;
+        }
+        for w in self
+            .windows
+            .iter_mut()
+            .filter(|w| w.maximized() && w.pos == [old[0], old[1]])
+        {
+            w.maximize(area);
+            let active = self.focused.as_deref() == Some(w.surface.as_str());
+            commands.push(w.configure(active));
+            commands.extend(w.style(&mut self.theme, active));
+        }
+        commands
+    }
+
+    /// A taskbar that hides itself comes back while the pointer is on it,
+    /// and slides away a moment after the pointer left it.
+    fn auto_hide(&mut self) -> Vec<Command> {
+        if !self.taskbar.auto_hide {
+            return Vec::new();
+        }
+        let hover = self.hover.clone().unwrap_or_default();
+        let on = self.bars.iter().position(|b| b.owns(&hover));
+        if let Some(i) = on {
+            self.bars[i].hide(false);
+            self.hide_at = None;
+        } else if self.hide_at.is_none() {
+            self.hide_at = Some(Instant::now() + HIDE_DELAY);
+        }
+        Vec::new()
+    }
+
+    /// The slides of the taskbars, in a frame of the effects. A taskbar
+    /// stays while its start menu or a context menu is open.
+    pub(super) fn slide_frame(&mut self, now: Instant, dt: f64) -> Vec<Command> {
+        if self.hide_at.is_some_and(|at| now >= at) {
+            if self.menu.is_open() || self.context.is_some() {
+                self.hide_at = Some(now + HIDE_DELAY);
+            } else {
+                self.hide_at = None;
+                let hover = self.hover.clone().unwrap_or_default();
+                for bar in self.bars.iter_mut().filter(|b| !b.owns(&hover)) {
+                    bar.hide(true);
+                }
+            }
+        }
+        self.bars
+            .iter_mut()
+            .filter_map(|b| b.slide(dt.min(0.05)))
+            .collect()
+    }
+
+    /// Whether a taskbar slides or waits to.
+    pub(super) fn sliding(&self) -> bool {
+        self.hide_at.is_some() || self.bars.iter().any(Bar::sliding)
     }
 
     // The icons on the desktop
@@ -1342,6 +1553,13 @@ impl Wm {
             Setting::Effect(effect) => {
                 self.effects.toggles.flip(*effect);
                 Vec::new()
+            }
+            Setting::Taskbar => {
+                let area = output
+                    .and_then(|o| self.bars.iter().find(|b| b.output == o))
+                    .or(self.bars.first())
+                    .map_or([0, 0, 1280, 770], Bar::usable);
+                self.open_taskbar_dialog(area)
             }
         }
     }
@@ -1567,6 +1785,33 @@ impl Wm {
         commands.extend(self.pagers());
         commands.extend(self.sync_tasks());
         commands
+    }
+}
+
+/// A settings dialog.
+enum Panel {
+    /// Taskbar and Start Menu Properties.
+    Taskbar(TaskbarDialog),
+}
+
+impl Panel {
+    fn window(&mut self) -> &mut dialog::Dialog {
+        match self {
+            Self::Taskbar(panel) => &mut panel.dialog,
+        }
+    }
+
+    #[allow(clippy::unnecessary_wraps)] // Date and Time joins next
+    fn taskbar(&mut self) -> Option<&mut TaskbarDialog> {
+        match self {
+            Self::Taskbar(panel) => Some(panel),
+        }
+    }
+
+    fn window_ref(&self) -> &dialog::Dialog {
+        match self {
+            Self::Taskbar(panel) => &panel.dialog,
+        }
     }
 }
 

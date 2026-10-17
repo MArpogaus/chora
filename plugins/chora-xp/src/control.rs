@@ -21,6 +21,8 @@ pub enum Setting {
     Wallpaper(PathBuf),
     /// Turns an effect on or off.
     Effect(Effect),
+    /// Opens Taskbar and Start Menu Properties.
+    Taskbar,
 }
 
 /// An effect that the menu turns on and off.
@@ -149,6 +151,11 @@ pub fn menu(scale: f64, wallpaper: &Path, walls: &[PathBuf], toggles: Toggles) -
         group("Desktop", "preferences-desktop-wallpaper", walls),
         group("Display", "preferences-desktop-display", scales),
         group("Effects", "preferences-desktop-effects", effects),
+        Node {
+            title: "Taskbar and Start Menu".into(),
+            icon: "preferences-system-windows".into(),
+            kind: Kind::Pick(Setting::Taskbar, false),
+        },
     ]
 }
 

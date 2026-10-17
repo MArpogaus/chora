@@ -266,6 +266,33 @@ entry applies it and closes the menu:
   200 %, through `output.configure`;
 - **Effects**: wobbly windows, the magic lamp, the desktop cube and XP's
   sounds, on or off until `chora-xp` ends.
+- **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.
+
+Properties of the taskbar menu, and Control Panel > Taskbar and Start
+Menu, open XP's Taskbar and Start Menu Properties. `chora-xp` draws this
+dialog itself, in XP's Luna style: the frame of the theme with the
+title and the close button, tabs, group boxes, check boxes, radio
+buttons and push buttons that light up under the pointer. A drag of the
+title bar moves it. The close button and Cancel close it without a
+change, OK takes the changes and closes it, and Apply takes them and
+keeps it open. The dialog stays above the windows, and the keyboard
+does not work it (D45). The settings last until `chora-xp` ends:
+
+- **Taskbar** shows a preview of the taskbar above its check boxes. Lock
+  the taskbar only changes the check mark, as in the context menu.
+  Auto-hide the taskbar lets the taskbars slide away half a second after
+  the pointer left them, down to a strip of 2 pixels at the bottom
+  edge; the pointer on the strip brings a taskbar back. The work area
+  then reaches down to the strip, and maximized windows grow into it.
+  Keep the taskbar on top of other windows puts the taskbars above the
+  windows, or below them when it is off. Show the clock shows the clock
+  in the notification area, or shrinks the area without it. Group
+  similar taskbar buttons, Show Quick Launch, Hide inactive icons and
+  Customize are gray: `chora-xp` has neither grouping, Quick Launch nor
+  hidden icons.
+- **Start Menu** shows a preview of the start menu. The Classic Start
+  menu and the Customize buttons are gray: `chora-xp` has only XP's
+  start menu.
 
 Log Off and Turn Off Computer open XP's dialogs in the middle of the
 output, and the desktop behind them fades to gray in 1.5 seconds. In Log
