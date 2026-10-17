@@ -119,10 +119,9 @@ impl State {
             .expect("windows are toplevels")
             .clone();
         if !toplevel.is_initial_configure_sent() {
-            // A commit without a buffer unmapped a toplevel that has a node,
-            // and Smithay reset its role. It goes as a destroyed one does;
-            // the next commit without a buffer maps it again, with a new
-            // initial configure and `surface.created`.
+            // A commit without a buffer unmapped this toplevel, and Smithay
+            // reset its role state. Its next commit is an initial commit, so
+            // the toplevel goes as a destroyed one does.
             if self.scene.node(id).is_some() {
                 self.surface_gone(id);
                 return;

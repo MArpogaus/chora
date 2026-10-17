@@ -349,8 +349,8 @@ impl State {
         TimeoutAction::Drop
     }
 
-    /// Sends a late answer; a connection after the end of its stream can
-    /// close then.
+    /// Sends a late answer. A connection whose client closed its side can
+    /// then close.
     fn answer_late(&mut self, conn: u64, id: &Value, result: Result<Value, RpcError>) {
         if let Some(i) = self.ipc.late.iter().position(|c| *c == conn) {
             self.ipc.late.swap_remove(i);
