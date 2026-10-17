@@ -9,7 +9,6 @@ mod view;
 
 use std::{
     io::{Read, Write},
-    path::Path,
     process::ExitCode,
 };
 
@@ -339,13 +338,15 @@ fn connect(command: &Cmd, hello: &Hello) -> Result<Client, String> {
         command,
         Cmd::Grant { .. } | Cmd::Revoke { .. } | Cmd::Clients { .. }
     );
-    if admin {
-        let main = std::env::var_os(SOCKET_ENV).ok_or("CHORA_SOCKET is not set")?;
-        Client::connect(admin_socket(Path::new(&main)), hello)
-    } else {
-        Client::from_env(hello)
+    if !admin {
+        return Client::from_env(hello).map_err(|e| e.to_string());
     }
-    .map_err(|e| e.to_string())
+    let main = std::env::var_os(SOCKET_ENV).ok_or("CHORA_SOCKET is not set")?;
+    // A symlink to the socket names the directory of the core only once
+    // resolved.
+    let main = std::fs::canonicalize(&main).unwrap_or_else(|_| main.into());
+    let path = admin_socket(&main);
+    Client::connect(&path, hello).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// The commands for grants, programs and outputs.
