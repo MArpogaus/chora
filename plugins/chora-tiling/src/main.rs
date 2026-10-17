@@ -95,9 +95,7 @@ struct Tiling {
     /// only.
     sent: HashMap<String, Placement>,
     order: Vec<String>,
-    focus: Option<String>,
-    /// Whether the core has `focus`.
-    focus_sent: bool,
+    focus: ShownFocus,
     /// The meta that the core has, by node: what a restart rebuilds from.
     saved: HashMap<String, BTreeMap<String, String>>,
     /// The claim that the core has (D55).
@@ -158,8 +156,7 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         grabs: Vec::new(),
         sent: HashMap::new(),
         order: Vec::new(),
-        focus: None,
-        focus_sent: false,
+        focus: ShownFocus::default(),
         saved: HashMap::new(),
         claimed: None,
     };
@@ -470,13 +467,8 @@ impl Tiling {
         Ok(Value::String(surface))
     }
 
-    /// Another window manager took the focus: the next focus of a window
-    /// of tiling goes out again, even to the same window. Nothing goes
-    /// out now, so that no relayout takes the focus back.
     fn focus_changed(&mut self, surface: Option<&str>) {
-        if surface != self.focus.as_deref() {
-            self.focus_sent = false;
-        }
+        self.focus.moved(surface);
     }
 
     /// An output goes; without one of `--output` the windows go too.
@@ -491,8 +483,11 @@ impl Tiling {
     /// Focuses a window under the pointer. While another window manager
     /// has the focus, the focused window of tiling takes it again.
     fn pointer_focus(&mut self, node: &str, clicked: bool, moved: bool) -> bool {
-        self.wm
-            .pointer_focus(node, clicked, moved, !self.focus_sent)
+        let took = self.wm.pointer_focus(node, clicked, moved, self.focus.lost);
+        if took {
+            self.focus.take();
+        }
+        took
     }
 
     fn act(&mut self, binding: &str) -> Result<(), ClientError> {
@@ -500,7 +495,13 @@ impl Tiling {
             return Ok(());
         };
         let action = action.clone();
-        match self.wm.act(&action) {
+        let before = self.wm.focused().map(String::from);
+        let effect = self.wm.act(&action);
+        // A binding that moves the focus of tiling takes it back.
+        if self.wm.focused() != before.as_deref() {
+            self.focus.take();
+        }
+        match effect {
             Some(Effect::Relayout) => self.relayout(),
             Some(Effect::Spawn(command)) => {
                 spawn(&command);
@@ -556,7 +557,9 @@ impl Tiling {
         };
         match self.call_apply(vec![attach]) {
             Ok(()) => {
+                // A new window of tiling takes the focus.
                 self.wm.add_window(surface);
+                self.focus.take();
                 Ok(())
             }
             Err(ClientError::Rpc(err)) => {
@@ -584,7 +587,8 @@ impl Tiling {
             }));
         }
         let focus = self.wm.focused().map(String::from);
-        if !self.focus_sent || self.focus != focus {
+        let send_focus = self.focus.sends(focus.as_deref());
+        if send_focus {
             commands.push(Command::Focus {
                 surface: focus.clone(),
             });
@@ -610,7 +614,10 @@ impl Tiling {
         self.saved = saved;
         self.claimed = claim;
         self.sent = placements.into_iter().map(|p| (p.id.clone(), p)).collect();
-        (self.order, self.focus, self.focus_sent) = (order, focus, true);
+        self.order = order;
+        if send_focus {
+            self.focus.sent(focus);
+        }
         self.apply(commands)
     }
 
@@ -637,7 +644,7 @@ impl Tiling {
         self.saved.clear();
         self.claimed = None;
         self.order.clear();
-        self.focus_sent = false;
+        self.focus.sent = false;
     }
 
     fn call_apply(&mut self, commands: Vec<Command>) -> Result<(), ClientError> {
@@ -756,9 +763,74 @@ fn spawn(command: &str) {
     }
 }
 
+/// The keyboard focus as tiling shows it to the core.
+#[derive(Debug, Default)]
+struct ShownFocus {
+    /// The focus of the last transaction that sent one.
+    surface: Option<String>,
+    /// Whether the core has `surface`.
+    sent: bool,
+    /// Another window manager took the focus since. Tiling sends none
+    /// until one of its windows takes the focus back, so that no relayout
+    /// takes it.
+    lost: bool,
+}
+
+impl ShownFocus {
+    /// The core moved the focus.
+    fn moved(&mut self, surface: Option<&str>) {
+        if surface != self.surface.as_deref() {
+            self.lost = true;
+        } else if self.sent {
+            self.lost = false;
+        }
+    }
+
+    /// A window of tiling takes the focus back: by the pointer, a binding
+    /// or as a new window. The next transaction sends it, even when it is
+    /// the one sent before.
+    fn take(&mut self) {
+        if self.lost {
+            self.lost = false;
+            self.sent = false;
+        }
+    }
+
+    /// Whether a transaction sends a focus.
+    fn sends(&self, focus: Option<&str>) -> bool {
+        !self.lost && (!self.sent || self.surface.as_deref() != focus)
+    }
+
+    /// A transaction sent a focus.
+    fn sent(&mut self, focus: Option<String>) {
+        self.surface = focus;
+        self.sent = true;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_relayout_takes_no_focus_from_another_window_manager() {
+        let mut shown = ShownFocus::default();
+        assert!(shown.sends(Some("s3")));
+        shown.sent(Some("s3".into()));
+        assert!(!shown.sends(Some("s3")));
+        // chora-xp takes the focus: a relayout, even with a new focus of
+        // tiling, as after a window exits, sends nothing.
+        shown.moved(Some("s1"));
+        assert!(!shown.sends(Some("s3")));
+        assert!(!shown.sends(Some("s4")));
+        // The pointer on s3 takes it back, though tiling sent s3 before.
+        shown.take();
+        assert!(shown.sends(Some("s3")));
+        shown.sent(Some("s3".into()));
+        // The core confirms the focus of tiling.
+        shown.moved(Some("s3"));
+        assert!(!shown.lost && !shown.sends(Some("s3")));
+    }
 
     #[test]
     fn a_window_new_to_the_core_hides_too() {
