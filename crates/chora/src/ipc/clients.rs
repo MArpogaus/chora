@@ -7,7 +7,10 @@
 use std::{
     os::unix::net::{UnixListener, UnixStream},
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+    },
 };
 
 use chora_scene::ipc::Capability;
@@ -19,12 +22,15 @@ use serde_json::{Value, json};
 use smithay::reexports::calloop::{Interest, Mode, PostAction, generic::Generic};
 
 use super::{RpcError, Socket, private_dir, rejected};
-use crate::state::{ClientState, State};
+use crate::state::{ClientState, Slot, State};
 
 /// The most client sockets.
 const MAX_SOCKETS: usize = 64;
 /// The most connections of one client socket, as of one process.
 pub(super) const MAX_PER_SOCKET: usize = 16;
+/// The most Wayland clients of one client socket, as of its IPC socket.
+#[allow(clippy::cast_possible_truncation)] // 16
+const MAX_PER_SOCKET_U32: u32 = MAX_PER_SOCKET as u32;
 /// The connections that client sockets never take, so that the main
 /// socket keeps room.
 pub(super) const KEPT_FOR_MAIN: usize = 32;
@@ -63,11 +69,15 @@ impl State {
             },
         );
         let owner = name.clone();
+        let count = Arc::new(AtomicU32::new(0));
         let wayland = self.loop_handle.insert_source(
             Generic::new(wayland, Interest::READ, Mode::Level),
             move |_, listener, state| {
                 while let Ok((stream, _)) = listener.accept() {
-                    state.insert_named_client(stream, &owner);
+                    // Beyond the cap, the stream closes at once.
+                    if count.load(Ordering::Relaxed) < MAX_PER_SOCKET_U32 {
+                        state.insert_named_client(stream, &owner, &count);
+                    }
                 }
                 Ok(PostAction::Continue)
             },
@@ -88,14 +98,16 @@ impl State {
 
     /// Inserts a Wayland client of the client socket of a name, with the
     /// grants of the name at this moment.
-    fn insert_named_client(&mut self, stream: UnixStream, name: &str) {
+    fn insert_named_client(&mut self, stream: UnixStream, name: &str, count: &Arc<AtomicU32>) {
         let granted = [Capability::InputInject, Capability::ScreenCapture]
             .into_iter()
             .filter(|c| self.grants.allows(name, *c))
             .collect();
+        count.fetch_add(1, Ordering::Relaxed);
         let data = ClientState {
             name: Some(name.into()),
             granted,
+            _slot: Some(Slot(count.clone())),
             ..ClientState::default()
         };
         if let Err(err) = self.display_handle.insert_client(stream, Arc::new(data)) {

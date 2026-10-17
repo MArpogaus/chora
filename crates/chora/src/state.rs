@@ -717,6 +717,20 @@ pub struct ClientState {
     pub name: Option<String>,
     /// The grants of that name when the client connected.
     pub granted: Vec<chora_scene::ipc::Capability>,
+    /// The place of the client among the clients of its socket; held for
+    /// its drop.
+    pub _slot: Option<Slot>,
+}
+
+/// A place among the Wayland clients of a client socket; it frees itself
+/// when the client goes.
+#[derive(Debug)]
+pub struct Slot(pub std::sync::Arc<AtomicU32>);
+
+impl Drop for Slot {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    }
 }
 
 impl ClientData for ClientState {}

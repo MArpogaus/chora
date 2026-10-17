@@ -1402,6 +1402,32 @@ mod tests {
     }
 
     #[test]
+    fn a_client_wayland_socket_holds_at_most_16_clients() {
+        let (mut core, dir) = socket_dir("wayland-cap");
+        let mut admin = core.admin();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let path = PathBuf::from(created["wayland"].as_str().unwrap());
+        let mut clients: Vec<Wayland> = (0..clients::MAX_PER_SOCKET)
+            .map(|_| Wayland::connect_to(&mut core, &path))
+            .collect();
+        // The 17th closes at once: it reads the end of the stream.
+        let refused = |core: &mut Core| {
+            let mut extra = UnixStream::connect(&path).unwrap();
+            core.dispatch();
+            extra.set_nonblocking(true).unwrap();
+            matches!(std::io::Read::read(&mut extra, &mut [0; 1]), Ok(0))
+        };
+        assert!(refused(&mut core));
+        clients.pop();
+        for _ in 0..3 {
+            core.dispatch();
+        }
+        assert!(!refused(&mut core), "a gone client frees its place");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn clients_create_refuses_a_live_name() {
         let (mut core, dir) = socket_dir("live");
         let mut admin = core.admin();

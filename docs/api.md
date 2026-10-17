@@ -480,8 +480,9 @@ path:
   admin socket.
 - Its `image`, `shader` and effect paths name only its own files of
   `assets.put`.
-- It holds at most 16 connections. All client sockets together leave 32
-  connections to the main socket.
+- It holds at most 16 connections, and its Wayland socket at most 16
+  clients. All client sockets together leave 32 connections to the main
+  socket.
 - The main socket refuses a `hello` with a name that has a client
   socket, so no client of the main socket takes that name.
 - `clients.create` fails for a name with a connection or in its grace
