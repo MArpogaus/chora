@@ -563,12 +563,13 @@ caller. The `Client` of `chora-scene` answers with `Client::answer`.
   exporter disconnects. A connection has at most 64 calls in flight, and it
   cannot call its own methods.
 
-`chora-tiling` exports two methods:
+`chora-tiling` exports three methods. It also takes the surfaces that other clients give to `tiling`.
 
 | Method | Parameters | Result |
 |--------|------------|--------|
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
+| `give` | `to`: a client name | hands the focused window to `to` with the `give` command, and answers with its surface id |
 
 ## Plugins
 

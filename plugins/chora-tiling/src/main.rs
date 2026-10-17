@@ -57,6 +57,13 @@ struct SetLayout {
     gap: Option<u16>,
 }
 
+/// Parameters of `tiling.give`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Give {
+    to: String,
+}
+
 /// The answer of `tiling.set_layout` and `tiling.get_layout`.
 #[derive(Serialize)]
 struct LayoutInfo {
@@ -180,13 +187,16 @@ impl Tiling {
             self.call_apply(vec![group])?;
         }
         self.grab_all()?;
-        let names = ["set_layout", "get_layout"].map(String::from).to_vec();
+        let names = ["set_layout", "get_layout", "give"]
+            .map(String::from)
+            .to_vec();
         self.client
             .call::<_, Value>("methods.export", Export { names })?;
         let events = [
             "surface.created",
             "surface.destroyed",
             "surface.detached",
+            "surface.given",
             "surface.changed",
             "surface.requested",
             "output.changed",
@@ -201,7 +211,8 @@ impl Tiling {
             },
         )?;
         for node in self.query("kind:surface")? {
-            if let (Some(id), None) = (node["id"].as_str(), node["owner"].as_str()) {
+            let free = node["to"].as_str().is_none_or(|to| to == NAME);
+            if let (Some(id), None, true) = (node["id"].as_str(), node["owner"].as_str(), free) {
                 self.adopt(id)?;
             }
         }
@@ -295,6 +306,7 @@ impl Tiling {
                 self.wm.remove_window(&surface);
                 self.adopt(&surface)?;
             }
+            Event::SurfaceGiven { surface, to } if to == NAME => self.adopt(&surface)?,
             Event::SurfaceDestroyed { surface } => {
                 self.wm.remove_window(&surface);
                 self.sent.remove(&surface);
@@ -361,6 +373,9 @@ impl Tiling {
 
     /// Runs an exported method. A failed relayout fails the method.
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        if method == "give" {
+            return self.give(params);
+        }
         if method == "set_layout" {
             let change: SetLayout = serde_json::from_value(params)
                 .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))?;
@@ -384,6 +399,29 @@ impl Tiling {
             windows: self.wm.shown_windows(),
         };
         Ok(serde_json::to_value(info).expect("layouts always serialize"))
+    }
+
+    /// Hands the focused window to another client, and answers with its id.
+    fn give(&mut self, params: Value) -> Result<Value, RpcError> {
+        let Give { to } = serde_json::from_value(params)
+            .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))?;
+        let surface = self
+            .wm
+            .focused()
+            .ok_or_else(|| RpcError::new(RpcError::REJECTED, "no focused window"))?
+            .to_owned();
+        let give = Command::Give {
+            surface: surface.clone(),
+            to,
+        };
+        self.call_apply(vec![give])
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        self.wm.remove_window(&surface);
+        self.sent.remove(&surface);
+        self.saved.remove(&surface);
+        self.relayout()
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        Ok(Value::String(surface))
     }
 
     fn act(&mut self, binding: &str) -> Result<(), ClientError> {
