@@ -756,7 +756,7 @@ impl Wm {
         commands.push(Command::Focus {
             surface: client.map(String::from),
         });
-        commands.extend(self.desktop_keys());
+        commands.push(self.desktop_keys());
         commands
     }
 
@@ -1622,10 +1622,12 @@ impl Wm {
 
     /// The desktop takes the keyboard while no window has the focus, for
     /// Shift+F10 and the Menu key.
-    fn desktop_keys(&self) -> Option<Command> {
-        self.focused.is_none().then(|| Command::FocusNode {
-            node: Some(desktop_icons::GROUP.into()),
-        })
+    /// The keyboard of the plugin's nodes: the desktop's while no window
+    /// has the focus, else none, so that the focused window gets it.
+    fn desktop_keys(&self) -> Command {
+        Command::FocusNode {
+            node: self.focused.is_none().then(|| desktop_icons::GROUP.into()),
+        }
     }
 
     /// A row of a context menu acts: the menu closes first.
@@ -1690,7 +1692,7 @@ impl Wm {
         commands.extend(menu.remove());
         commands.extend(self.menu.hold(&mut self.theme, None));
         // The keyboard goes back to the desktop, when it had it.
-        commands.extend(self.desktop_keys());
+        commands.push(self.desktop_keys());
         commands
     }
 
@@ -2161,8 +2163,7 @@ impl Wm {
         let mut commands = self.menu.close(&mut self.theme);
         if let Some(output) = output {
             // The hidden menu gives the keyboard back.
-            commands.push(Command::FocusNode { node: None });
-            commands.extend(self.desktop_keys());
+            commands.push(self.desktop_keys());
             commands.extend(self.start_look(&output));
         }
         commands

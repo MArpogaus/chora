@@ -435,7 +435,10 @@ impl Explorer {
         let moved = match cmd {
             Cmd::Back => self.history.back(),
             Cmd::Forward => self.history.forward(),
-            Cmd::Up => self.history.up(),
+            Cmd::Up => {
+                self.history.up();
+                true
+            }
             Cmd::Refresh => true,
             Cmd::Close => return Outcome::Close,
             Cmd::Documents => return self.go(Place::Folder(documents())),

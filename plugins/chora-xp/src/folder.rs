@@ -113,10 +113,9 @@ impl History {
         true
     }
 
-    /// Goes up, as a new place; false at the top.
-    pub fn up(&mut self) -> bool {
+    /// Goes up, as a new place.
+    pub fn up(&mut self) {
         self.go(self.current.up());
-        true
     }
 }
 
@@ -805,7 +804,7 @@ mod tests {
         let mut h = History::new(folder("/home/u"));
         assert!(!h.can_back() && !h.back());
         h.go(folder("/home/u/Music"));
-        assert!(h.up());
+        h.up();
         assert_eq!(h.current, folder("/home/u"));
         assert!(h.back());
         assert_eq!(h.current, folder("/home/u/Music"));
@@ -825,7 +824,7 @@ mod tests {
         h.back();
         h.go(Place::Computer);
         assert!(!h.can_forward());
-        assert!(h.up());
+        h.up();
         assert_eq!(h.current, Place::Folder(crate::explorer::desktop()));
         assert_eq!(folder("/").up(), Place::Computer);
         assert_eq!(folder("/").title(), "/");

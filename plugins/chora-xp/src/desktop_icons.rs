@@ -355,7 +355,6 @@ impl DesktopIcons {
         commands
     }
 
-    /// The icon that a node shows.
     /// Whether a point of the scene is on the Recycle Bin, as the target
     /// of a drop.
     pub fn on_trash(&self, [px, py]: [i32; 2]) -> bool {
@@ -372,6 +371,7 @@ impl DesktopIcons {
         Some((Self::id(i), [x + CELL / 2, y + CELL / 2]))
     }
 
+    /// The icon that a node shows.
     pub fn item(&self, node: &str) -> Option<Item> {
         self.items.get(Self::index(node)?).cloned()
     }
