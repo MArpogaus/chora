@@ -269,6 +269,9 @@ or an empty list. It always sees the current titles.
 
 The response of `scene.apply` reports the result of a transaction: `null`
 when it applied, an error with the index of the failed command when not.
+`choractl apply FILE` reads one list of commands as JSON or YAML, from
+standard input when the file is `-`; it prints nothing when it applied
+and the reason when not, so the exit code is the answer.
 A request that a client makes before its first commit follows its
 `surface.created`. A taskbar asks through `wlr-foreign-toplevel-management`.
 The core does not act on a request, also not on `close`. A plugin answers
