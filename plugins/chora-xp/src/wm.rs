@@ -2134,19 +2134,13 @@ impl Wm {
             return self.desk.on_trash([x, y]).then_some(Drop::Trash);
         };
         let id = window.surface.clone();
-        let explorer = self.explorers.iter().find(|e| e.id == id)?;
-        match &explorer.history.current {
-            Place::Trash => Some(Drop::Trash),
-            Place::Folder(dir) => {
-                let [ox, oy] = self.client_origin(&id);
-                match explorer.drop_at([x - ox, y - oy]) {
-                    DropAt::Window => Some(Drop::Folder(id, dir.clone())),
-                    DropAt::Folder(dir) => Some(Drop::Folder(id, dir)),
-                    DropAt::Nowhere => Some(Drop::Nowhere),
-                }
-            }
-            Place::Computer => None,
-        }
+        let explorer = self.explorers.iter().find(|e| e.id == id);
+        let [ox, oy] = self.client_origin(&id);
+        Some(drop_on_window(
+            explorer.map(|e| &e.history.current),
+            id,
+            || explorer.map_or(DropAt::Nowhere, |e| e.drop_at([x - ox, y - oy])),
+        ))
     }
 
     /// Drops the dragged desktop icons: their files and folders go into a
@@ -3144,6 +3138,22 @@ fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32
     ]
 }
 
+/// Where a drop of desktop icons on a window goes: into the folder of an
+/// Explorer window, or a folder item in it, or to the Recycle Bin. Any
+/// other window, as a client or My Computer, takes nothing, and the
+/// icons go back to their places, so that none hides under the window.
+fn drop_on_window(place: Option<&Place>, id: String, at: impl FnOnce() -> DropAt) -> Drop {
+    match place {
+        Some(Place::Trash) => Drop::Trash,
+        Some(Place::Folder(dir)) => match at() {
+            DropAt::Window => Drop::Folder(id, dir.clone()),
+            DropAt::Folder(dir) => Drop::Folder(id, dir),
+            DropAt::Nowhere => Drop::Nowhere,
+        },
+        Some(Place::Computer) | None => Drop::Nowhere,
+    }
+}
+
 /// Drops files and folders into a folder. Returns the files whose name
 /// the folder has as a file already, for Confirm File Replace; a folder
 /// on either side of a name stays, with a line in the log.
@@ -3179,6 +3189,29 @@ mod tests {
         assert!(is_own("xp"));
         assert!(!is_own("tiling"));
         assert!(!is_own(""));
+    }
+
+    #[test]
+    fn icons_dropped_on_a_window_without_a_folder_go_back() {
+        let at = || DropAt::Window;
+        assert!(matches!(
+            drop_on_window(None, "s1".into(), at),
+            Drop::Nowhere
+        ));
+        let computer = Place::Computer;
+        assert!(matches!(
+            drop_on_window(Some(&computer), "e".into(), at),
+            Drop::Nowhere
+        ));
+        assert!(matches!(
+            drop_on_window(Some(&Place::Trash), "e".into(), at),
+            Drop::Trash
+        ));
+        let docs = Place::Folder("/d".into());
+        assert!(matches!(
+            drop_on_window(Some(&docs), "e".into(), at),
+            Drop::Folder(id, dir) if id == "e" && dir == Path::new("/d")
+        ));
     }
 
     #[test]
