@@ -614,6 +614,10 @@ impl Menu {
     /// A key on the entries of the two columns.
     fn entry_key(&mut self, theme: &mut Theme, icons: &mut Icons, key: &str) -> MenuKey {
         let left = |e: &Entry| e.rect[0] < LEFT;
+        // Log Off and Turn Off take no part in the walk, as on XP.
+        let walk: Vec<usize> = (0..self.entries.len())
+            .filter(|&j| self.entries[j].kind != Kind::Footer)
+            .collect();
         let target = match (key, self.hovered) {
             // A cascade that the pointer opened closes first.
             ("Escape", _) => {
@@ -622,10 +626,12 @@ impl Menu {
                     None => MenuKey::Close,
                 };
             }
-            ("Down" | "Up", None) => self.entries.iter().position(left),
+            ("Down" | "Up", None) => walk.iter().copied().find(|&j| left(&self.entries[j])),
             ("Down" | "Up", Some(i)) => {
                 // The entries of the column, from the top.
-                let mut column: Vec<usize> = (0..self.entries.len())
+                let mut column: Vec<usize> = walk
+                    .iter()
+                    .copied()
                     .filter(|&j| left(&self.entries[j]) == left(&self.entries[i]))
                     .collect();
                 column.sort_by_key(|&j| self.entries[j].rect[1]);
@@ -650,7 +656,8 @@ impl Menu {
             ("Left" | "Right", Some(i)) => {
                 // The entry of the other column nearest in height.
                 let y = self.entries[i].rect[1];
-                (0..self.entries.len())
+                walk.iter()
+                    .copied()
                     .filter(|&j| left(&self.entries[j]) != left(&self.entries[i]))
                     .min_by_key(|&j| (self.entries[j].rect[1] - y).abs())
             }
@@ -1162,6 +1169,21 @@ mod tests {
         key(&mut menu, "Escape");
         assert!(menu.cascades.is_empty());
         assert!(matches!(key(&mut menu, "Escape"), MenuKey::Close));
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_keys_leave_out_log_off_and_turn_off() {
+        let (mut theme, cache) = crate::dialog::tests::theme("startfooter");
+        let mut icons = Icons::default();
+        let mut menu = Menu::new(&config(), &theme, &mut icons);
+        for key in [
+            "Down", "Down", "Down", "Right", "Down", "Down", "Left", "Up",
+        ] {
+            menu.key(&mut theme, &mut icons, key);
+            let hovered = menu.hovered.map(|i| menu.entries[i].kind);
+            assert!(hovered != Some(Kind::Footer), "{key} lit a footer button");
+        }
         let _ = std::fs::remove_dir_all(cache);
     }
 }
