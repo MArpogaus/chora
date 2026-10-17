@@ -286,6 +286,10 @@ pub struct Theme {
 
 /// How many rendered files the cache keeps.
 const CACHE_SIZE: usize = 512;
+/// How many pictures of rendered files the theme remembers.
+const PICTURES: usize = 8192;
+/// The largest scale of the pictures.
+const MAX_SCALE: f64 = 4.0;
 
 impl Theme {
     /// Loads the theme from a directory. Rendered files go to `cache`,
@@ -398,7 +402,7 @@ impl Theme {
         if path != self.blank && !self.pictures.contains_key(&path) {
             // ponytail: forget all at a size, rather than track which
             // files nodes still show; those keep their scale.
-            if self.pictures.len() >= 8192 {
+            if self.pictures.len() >= PICTURES {
                 self.pictures.clear();
             }
             self.pictures.insert(path.clone(), picture.clone());
@@ -443,14 +447,10 @@ impl Theme {
         }
     }
 
-    /// Takes the scale of the outputs, the largest one. Returns whether
-    /// it changed.
+    /// Takes the largest scale of the outputs, at least 1, but at most 4.
+    /// Returns whether it changed.
     pub fn set_scale(&mut self, scale: f64) -> bool {
-        let scale = if scale.is_finite() {
-            scale.clamp(1.0, 4.0)
-        } else {
-            1.0
-        };
+        let scale = scale.min(MAX_SCALE);
         if (scale - self.scale).abs() < 1e-9 {
             return false;
         }

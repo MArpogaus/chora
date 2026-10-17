@@ -400,19 +400,9 @@ impl Wm {
         self.conn.try_apply(commands)
     }
 
-    /// The commands of a change of the outputs, after the pictures of a
-    /// new scale.
-    fn rescaled(
-        &mut self,
-        change: impl FnOnce(&mut Self) -> Vec<Command>,
-    ) -> Result<Vec<Command>, ClientError> {
-        let mut commands = self.rescale()?;
-        commands.extend(change(self));
-        Ok(commands)
-    }
-
-    /// Renders the pictures that show again when the largest scale of the
-    /// outputs changed, so that they stay sharp.
+    /// Renders the shown pictures again when the largest scale of the
+    /// outputs changes, so that they stay sharp. Its commands go before
+    /// those of the change, so that the new pictures of the change win.
     fn rescale(&mut self) -> Result<Vec<Command>, ClientError> {
         let outputs = self.outputs();
         if !self.theme.set_scale(max_scale(&outputs)) {
@@ -432,14 +422,11 @@ impl Wm {
             else {
                 continue;
             };
-            // A node of another size stretches its picture.
-            #[allow(clippy::float_cmp)] // whole pixels
-            let own = props.size.is_none_or(|s| s == size);
             commands.push(Command::Update {
                 id: node.id,
                 props: PropsUpdate {
                     image: Some(image),
-                    size: own.then_some(size),
+                    size: props.size.or(Some(size)),
                     ..PropsUpdate::default()
                 },
             });
@@ -494,10 +481,10 @@ impl Wm {
             Event::PointerScroll {
                 node, dy, discrete, ..
             } => self.scroll_explorer(&node, dy, discrete[1]),
-            // The pictures of the new scale first, so that the new
-            // pictures of the change win.
-            Event::OutputChanged { output } => self.rescaled(|wm| wm.output_changed(&output))?,
-            Event::OutputRemoved { name } => self.rescaled(|wm| wm.output_removed(&name))?,
+            Event::OutputChanged { output } => {
+                [self.rescale()?, self.output_changed(&output)].concat()
+            }
+            Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
             // A binding acts on its press, not on its release.
             Event::InputKey {
                 binding,
@@ -957,7 +944,6 @@ impl Wm {
             commands.extend(self.sync_tasks());
             return commands;
         };
-        let old = self.bars[i].usable();
         let mine: Vec<usize> = (0..self.windows.len())
             .filter(|&w| self.bars[i].contains(self.windows[w].pos))
             .collect();
@@ -969,32 +955,27 @@ impl Wm {
         commands.extend(self.bars[i].resize(&mut self.theme, output, &self.clock));
         commands.extend(self.pagers());
         let area = self.bars[i].usable();
-        // Maximized windows of the output fill its new area.
-        for w in self
-            .windows
-            .iter_mut()
-            .filter(|w| w.maximized() && w.pos == [old[0], old[1]])
-        {
-            w.maximize(area);
-            let active = self.focused.as_deref() == Some(w.surface.as_str());
-            commands.extend(w.configure(active));
-            commands.extend(w.style(&mut self.theme, active));
-        }
         commands.extend(self.keep_inside(&mine, area));
         commands.extend(self.sync_tasks());
         commands.extend(self.refresh_icons());
         commands
     }
 
-    /// Moves windows back into an area, as after a new scale or mode of
-    /// their output: a window keeps its size where it fits, else it
-    /// shrinks to the area. Maximized windows fit already.
+    /// Moves windows into the new area of their output: a maximized one
+    /// fills it, another keeps its size where it fits, else it shrinks
+    /// to the area.
     fn keep_inside(&mut self, windows: &[usize], area: Rect) -> Vec<Command> {
         let mut commands = Vec::new();
         for &i in windows {
             let active = self.focused.as_deref() == Some(self.windows[i].surface.as_str());
             let w = &mut self.windows[i];
-            if w.maximized() || !w.shown {
+            if w.maximized() {
+                w.maximize(area);
+                commands.extend(w.configure(active));
+                commands.extend(w.style(&mut self.theme, active));
+                continue;
+            }
+            if !w.shown {
                 continue;
             }
             let [x, y, fw, fh] = window::inside(w.rect(), area);
