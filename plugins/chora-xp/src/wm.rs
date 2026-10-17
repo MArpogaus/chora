@@ -61,6 +61,9 @@ const BARS: &str = "xp-bars";
 /// The settings dialogs, above the taskbar and below the menus.
 const DIALOGS: &str = "xp-dialogs";
 const MENUS: &str = "xp-menus";
+/// The key that Shift+F10 and the Menu key stand for.
+const MENU_KEY: &str = "ContextMenu";
+
 /// The node of XP's Alt+Tab.
 const SWITCHER: &str = "xp-alttab";
 /// How long a taskbar that hides itself waits after the pointer left it.
@@ -568,15 +571,11 @@ impl Wm {
             Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
             event @ (Event::InputKey { .. }
             | Event::InputButton { .. }
-            | Event::InputMoved { .. }) => self.input(event),
+            | Event::InputMoved { .. }
+            | Event::NodeKey { .. }) => self.input(event),
             Event::PointerEntered { node, .. } => self.hovered(&node, true),
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
-            Event::NodeKey {
-                key,
-                state: PressState::Pressed,
-                ..
-            } => self.node_key(&key),
             _ => Vec::new(),
         };
         let mut commands = commands;
@@ -749,6 +748,7 @@ impl Wm {
         commands.push(Command::Focus {
             surface: client.map(String::from),
         });
+        commands.extend(self.desktop_keys());
         commands
     }
 
@@ -1176,6 +1176,17 @@ impl Wm {
     /// The events of the grabs of keys and buttons.
     fn input(&mut self, event: Event) -> Vec<Command> {
         match event {
+            Event::NodeKey {
+                key,
+                state: PressState::Pressed,
+                modifiers,
+                ..
+            } => {
+                // Shift+F10 and the Menu key open a context menu, as on XP.
+                let shift = modifiers.iter().any(|m| m == "Shift");
+                let menu = key == "Menu" || (key == "F10" && shift);
+                self.node_key(if menu { MENU_KEY } else { &key })
+            }
             // A binding acts on its press, not on its release.
             Event::InputKey {
                 binding,
@@ -1569,13 +1580,44 @@ impl Wm {
             };
         }
         if !self.menu.is_open() {
-            return Vec::new();
+            return if key == MENU_KEY {
+                self.desktop_menu_key()
+            } else {
+                Vec::new()
+            };
         }
         match self.menu.key(&mut self.theme, &mut self.icons, key) {
             context::Key::Commands(commands) => commands,
             context::Key::Act(action) => self.close_and_run(&action),
             context::Key::Close => self.close_menu(),
         }
+    }
+
+    /// Shift+F10 or the Menu key while the desktop has the keyboard: the
+    /// menu of the selected icon, or of the desktop, with its access keys.
+    fn desktop_menu_key(&mut self) -> Vec<Command> {
+        let (node, point) = if let Some(selected) = self.desk.selected_node() {
+            selected
+        } else {
+            let Some(bar) = self.bars.first() else {
+                return Vec::new();
+            };
+            let [x, y, w, h] = bar.usable();
+            (wallpaper::id(&bar.output), [x + w / 2, y + h / 2])
+        };
+        let mut commands = self.press_right(&node, point.map(f64::from));
+        if let Some((menu, _)) = &mut self.context {
+            commands.extend(menu.show_cues(&mut self.theme));
+        }
+        commands
+    }
+
+    /// The desktop takes the keyboard while no window has the focus, for
+    /// Shift+F10 and the Menu key.
+    fn desktop_keys(&self) -> Option<Command> {
+        self.focused.is_none().then(|| Command::FocusNode {
+            node: Some(desktop_icons::GROUP.into()),
+        })
     }
 
     /// A row of a context menu acts: the menu closes first.
@@ -1621,10 +1663,13 @@ impl Wm {
 
     fn close_context(&mut self) -> Vec<Command> {
         self.bar_menu = None;
-        self.context
-            .take()
-            .map(|(menu, _)| menu.remove())
-            .unwrap_or_default()
+        let Some((menu, _)) = self.context.take() else {
+            return Vec::new();
+        };
+        let mut commands = menu.remove();
+        // The keyboard goes back to the desktop, when it had it.
+        commands.extend(self.desktop_keys());
+        commands
     }
 
     /// Does what a row of a context menu says, on the output of the menu.
@@ -2061,6 +2106,7 @@ impl Wm {
         if let Some(output) = output {
             // The hidden menu gives the keyboard back.
             commands.push(Command::FocusNode { node: None });
+            commands.extend(self.desktop_keys());
             commands.extend(self.start_look(&output));
         }
         commands

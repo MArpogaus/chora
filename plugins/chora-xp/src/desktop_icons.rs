@@ -344,6 +344,14 @@ impl DesktopIcons {
     }
 
     /// The icon that a node shows.
+    /// The node of the first selected icon and the middle of its picture
+    /// in the scene, for a menu that the keyboard opens.
+    pub fn selected_node(&self) -> Option<(String, [i32; 2])> {
+        let i = self.find(self.selected.first()?)?;
+        let [x, y] = self.places[i];
+        Some((Self::id(i), [x + CELL / 2, y + CELL / 2]))
+    }
+
     pub fn item(&self, node: &str) -> Option<Item> {
         self.items.get(Self::index(node)?).cloned()
     }

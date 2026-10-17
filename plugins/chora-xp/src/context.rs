@@ -779,7 +779,7 @@ impl Menu {
     }
 
     /// The access keys show from the first key on: all rows again.
-    fn show_cues(&mut self, theme: &mut Theme) -> Vec<Command> {
+    pub fn show_cues(&mut self, theme: &mut Theme) -> Vec<Command> {
         if std::mem::replace(&mut self.cues, true) {
             return Vec::new();
         }

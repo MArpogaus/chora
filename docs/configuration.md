@@ -300,6 +300,8 @@ Escape closes the submenu, then the menu. Home and End go to the first and
 the last row. Once a key works the menu, it underlines XP's access keys.
 A letter acts on the row of its access key, or goes to the next one of
 several. A drop-down list opens on its current value.
+While no window has the focus, the desktop takes the keyboard: Shift+F10
+and the Menu key open the menu of the selected icon, or of the desktop.
 
 - **The taskbar**: Cascade Windows and Tile Windows Horizontally (one
   above the other) or Vertically (side by side) arrange the windows of
