@@ -47,8 +47,6 @@ pub enum Sheet {
     Minimize,
     /// The restore button of a maximized window.
     Restore,
-    /// The panel of Exposé, the background of the taskbar.
-    Panel,
     /// The XP artwork: start button, start menu, notification area.
     Winxp,
     /// The task buttons.
@@ -56,13 +54,12 @@ pub enum Sheet {
 }
 
 impl Sheet {
-    const ALL: [Self; 8] = [
+    const ALL: [Self; 7] = [
         Self::Decoration,
         Self::Close,
         Self::Maximize,
         Self::Minimize,
         Self::Restore,
-        Self::Panel,
         Self::Winxp,
         Self::Tasks,
     ];
@@ -75,7 +72,6 @@ impl Sheet {
             Self::Maximize => "expose/maximize.svg",
             Self::Minimize => "expose/minimize.svg",
             Self::Restore => "expose/restore.svg",
-            Self::Panel => "expose/panel-background.svg",
             Self::Winxp => "winxp/winxp.svg",
             Self::Tasks => "winxp/tasks.svg",
         }

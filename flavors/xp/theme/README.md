@@ -11,7 +11,6 @@ the original start flag stay out, as in the reference repository.
 | Path | Content | Source | License |
 |------|---------|--------|---------|
 | `expose/decoration.svg`, `expose/close.svg`, `expose/maximize.svg`, `expose/minimize.svg`, `expose/restore.svg`, `expose/exposerc` | window frame, title bar buttons and their layout | [Exposé](https://www.opencode.net/phob1an/expose) by phob1an (Mark Whittaker), Aurorae theme `aurorae/themes/expose/` | GPL-3.0, `expose/LICENSE` |
-| `expose/panel-background.svg` | the bar of the taskbar | Exposé, Plasma theme `desktoptheme/expose/widgets/` | GPL-3.0, `expose/LICENSE` |
 | `winxp/winxp.svg`, `winxp/tasks.svg` | start button, start menu, notification area, task buttons | the Windows XP pack of kde-plasma-winxp-launcher, in its Plasma theme `desktoptheme/expose/widgets/` | GPL-2.0-or-later, `winxp/LICENSE` |
 | `winxp/start-flag.svg`, `winxp/log-off.svg`, `winxp/turn-off.svg` | the flag of the start button, the icons of Log Off and Turn Off Computer | kde-plasma-winxp-launcher, start menu widget `contents/images/`; original artwork | GPL-2.0-or-later, `winxp/LICENSE` |
 | `winxp/cascade-arrow.svg`, `winxp/cascade-arrow-selected.svg` | the arrow of a program group in All Programs, black and white | drawn for chora after the arrow of XP's menus | GPL-3.0-or-later, as chora |
