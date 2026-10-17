@@ -16,6 +16,8 @@ use smithay::{
     },
 };
 
+use chora_scene::ipc::Capability;
+
 use crate::state::{ClientState, State};
 
 /// Whether a client connected outside of a sandbox, and so sees the
@@ -24,6 +26,35 @@ pub fn trusted(client: &Client) -> bool {
     client
         .get_data::<ClientState>()
         .is_none_or(|c| c.security_context.is_none())
+}
+
+/// Whether a client sees a privileged protocol that a capability covers,
+/// or that none covers with `None`. A client of a client socket sees it
+/// only with the grant of its name at its connection (D33).
+fn allowed(client: &Client, capability: Option<Capability>) -> bool {
+    let Some(data) = client.get_data::<ClientState>() else {
+        return true;
+    };
+    match (&data.security_context, &data.name) {
+        (Some(_), _) => false,
+        (None, Some(_)) => capability.is_some_and(|c| data.granted.contains(&c)),
+        (None, None) => true,
+    }
+}
+
+/// Whether a client sees screencopy and image capture.
+pub fn may_capture(client: &Client) -> bool {
+    allowed(client, Some(Capability::ScreenCapture))
+}
+
+/// Whether a client sees the input method.
+pub fn may_inject(client: &Client) -> bool {
+    allowed(client, Some(Capability::InputInject))
+}
+
+/// Whether a client sees output management, which no grant covers.
+pub fn may_configure_outputs(client: &Client) -> bool {
+    allowed(client, None)
 }
 
 impl SecurityContextHandler for State {

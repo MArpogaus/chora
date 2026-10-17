@@ -225,7 +225,7 @@ fn create_globals(dh: &DisplayHandle, clock: &Clock<Monotonic>) {
     ViewporterState::new::<State>(dh);
     IdleInhibitManagerState::new::<State>(dh);
     TextInputManagerState::new::<State>(dh);
-    InputMethodManagerState::new::<State, _>(dh, trusted);
+    InputMethodManagerState::new::<State, _>(dh, crate::security::may_inject);
     SecurityContextState::new::<State, _>(dh, trusted);
     FractionalScaleManagerState::new::<State>(dh);
     CursorShapeManagerState::new::<State>(dh);
@@ -432,6 +432,12 @@ impl State {
         } else {
             Decoration::Client
         });
+        let client = (self.display_handle)
+            .get_client(smithay::reexports::wayland_server::Resource::id(
+                toplevel.wl_surface(),
+            ))
+            .ok()
+            .and_then(|c| c.get_data::<ClientState>()?.name.clone());
         with_states(toplevel.wl_surface(), |states| {
             let data = states
                 .data_map
@@ -444,6 +450,7 @@ impl State {
                 title: data.title.clone(),
                 size: Some([size.w, size.h]),
                 decoration,
+                client: client.clone(),
             }
         })
     }
@@ -695,6 +702,11 @@ pub struct ClientState {
     /// The sandbox of a client that connected through
     /// `wp-security-context-v1`.
     pub security_context: Option<SecurityContext>,
+    /// The client name of the client socket that the client connected
+    /// through (D33).
+    pub name: Option<String>,
+    /// The grants of that name when the client connected.
+    pub granted: Vec<chora_scene::ipc::Capability>,
 }
 
 impl ClientData for ClientState {}

@@ -70,7 +70,7 @@ impl GlobalDispatch2<ZwlrScreencopyManagerV1, State> for ScreencopyGlobal {
     }
 
     fn can_view(&self, client: &Client) -> bool {
-        crate::security::trusted(client)
+        crate::security::may_capture(client)
     }
 }
 

@@ -77,7 +77,7 @@ pub struct Ipc {
     /// their grace time.
     graces: HashMap<String, Instant>,
     /// The client sockets by name: the source of the listener and the path.
-    clients: HashMap<String, (RegistrationToken, PathBuf)>,
+    clients: HashMap<String, clients::ClientSocket>,
 }
 
 /// What a grab waits for: a key or a pointer button.
@@ -214,10 +214,12 @@ fn private_dir(dir: &Path) -> io::Result<()> {
 
 impl Drop for Ipc {
     fn drop(&mut self) {
-        let clients = self.clients.values().map(|(_, path)| path);
         let admin = self.admin.iter().map(|(_, path)| path);
-        for path in self.path.iter().chain(admin).chain(clients) {
+        for path in self.path.iter().chain(admin) {
             let _ = std::fs::remove_file(path);
+        }
+        for socket in self.clients.values() {
+            socket.remove_files();
         }
     }
 }
@@ -529,7 +531,7 @@ impl State {
                 Err(err) if err.kind() == ErrorKind::WouldBlock => break None,
                 Err(err) => {
                     let token = match socket {
-                        Socket::Client(name) => self.ipc.clients.get(name).map(|(t, _)| *t),
+                        Socket::Client(name) => self.ipc.clients.get(name).map(|s| s.ipc),
                         Socket::Admin => self.ipc.admin.as_ref().map(|(t, _)| *t),
                         Socket::Main => self.ipc.listener,
                     };
@@ -1334,6 +1336,53 @@ mod tests {
         let mut client = core.connect_to(&path);
         client.ok(core, "hello", json!({"name": name}));
         (client, path)
+    }
+
+    #[test]
+    fn a_client_wayland_socket_names_its_windows_and_hides_protocols_without_grants() {
+        let (mut core, dir) = socket_dir("wayland");
+        let mut admin = core.admin();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let path = PathBuf::from(created["wayland"].as_str().unwrap());
+        assert_eq!(path, dir.join("clients/agent/wayland.sock"));
+        let offers =
+            |wayland: &Wayland, part: &str| wayland.interfaces().iter().any(|i| i.contains(part));
+        let privileged = [
+            "zwlr_screencopy",
+            "ext_image_copy_capture",
+            "input_method",
+            "zwlr_output_manager",
+        ];
+        let plain = Wayland::connect(&mut core);
+        assert!(
+            privileged.iter().all(|p| offers(&plain, p)),
+            "{:?}",
+            plain.interfaces()
+        );
+        let mut agent = Wayland::connect_to(&mut core, &path);
+        assert!(offers(&agent, "wl_compositor"));
+        for part in privileged {
+            assert!(!offers(&agent, part), "{part}: {:?}", agent.interfaces());
+        }
+        agent.toplevel(&mut core, "app");
+        let surface = core
+            .state
+            .scene
+            .node("s1")
+            .unwrap()
+            .surface
+            .clone()
+            .unwrap();
+        assert_eq!(surface.client.as_deref(), Some("agent"));
+        let grant = json!({"client": "agent", "capabilities": ["screen.capture"]});
+        admin.ok(&mut core, "grants.set", grant);
+        let granted = Wayland::connect_to(&mut core, &path);
+        assert!(offers(&granted, "zwlr_screencopy") && offers(&granted, "ext_image_copy_capture"));
+        assert!(!offers(&granted, "input_method") && !offers(&granted, "zwlr_output_manager"));
+        core.state.reset();
+        assert!(!path.exists());
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

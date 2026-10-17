@@ -208,6 +208,10 @@ pub struct SurfaceInfo {
     /// Who draws the frame of the window.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub decoration: Option<Decoration>,
+    /// The client name of the client socket that the window came through
+    /// (D33).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client: Option<String>,
 }
 
 /// One element of the scene.

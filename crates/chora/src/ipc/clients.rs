@@ -4,7 +4,14 @@
 //! It names only its own assets as files. The main socket refuses a
 //! `hello` with a name that has a client socket.
 
-use std::{os::unix::net::UnixListener, path::Path};
+use std::{
+    os::unix::net::{UnixListener, UnixStream},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+
+use chora_scene::ipc::Capability;
+use smithay::reexports::calloop::RegistrationToken;
 
 use chora_scene::Command;
 use serde::Deserialize;
@@ -12,7 +19,7 @@ use serde_json::{Value, json};
 use smithay::reexports::calloop::{Interest, Mode, PostAction, generic::Generic};
 
 use super::{RpcError, Socket, private_dir, rejected};
-use crate::state::State;
+use crate::state::{ClientState, State};
 
 /// The most client sockets.
 const MAX_SOCKETS: usize = 64;
@@ -32,34 +39,68 @@ pub struct Create {
 }
 
 impl State {
-    /// `clients.create`: opens the client socket of a name and returns its
-    /// path.
+    /// `clients.create`: opens the client socket and the Wayland socket of
+    /// a name, and returns their paths.
     pub(super) fn ipc_client_socket(&mut self, create: &Create) -> Result<Value, RpcError> {
         let name = &create.name;
         self.check_new_socket(name)?;
         let base = (self.ipc.path.as_ref())
             .and_then(|p| p.parent())
             .ok_or_else(|| rejected("the core has no socket directory"))?;
-        let path = base.join("clients").join(name).join("ipc.sock");
-        if path.as_os_str().len() > MAX_SOCKET_PATH {
+        let dir = base.join("clients").join(name);
+        if dir.join(WAYLAND).as_os_str().len() > MAX_SOCKET_PATH {
             return Err(rejected(format!("{name:?}: the socket path is too long")));
         }
-        let listener = open(&path).map_err(|e| rejected(format!("{name:?}: {e}")))?;
+        let (ipc, wayland) = open(&dir).map_err(|e| rejected(format!("{name:?}: {e}")))?;
         let fixed = Socket::Client(name.clone());
-        let token = self
-            .loop_handle
-            .insert_source(
-                Generic::new(listener, Interest::READ, Mode::Level),
-                move |_, listener, state| {
-                    if let Some(error) = state.ipc_accept_all(listener, &fixed) {
-                        tracing::warn!("client socket: {error}");
-                    }
-                    Ok(PostAction::Continue)
-                },
-            )
-            .map_err(|e| rejected(e.to_string()))?;
-        self.ipc.clients.insert(name.clone(), (token, path.clone()));
-        Ok(json!({"path": path}))
+        let ipc = self.loop_handle.insert_source(
+            Generic::new(ipc, Interest::READ, Mode::Level),
+            move |_, listener, state| {
+                if let Some(error) = state.ipc_accept_all(listener, &fixed) {
+                    tracing::warn!("client socket: {error}");
+                }
+                Ok(PostAction::Continue)
+            },
+        );
+        let owner = name.clone();
+        let wayland = self.loop_handle.insert_source(
+            Generic::new(wayland, Interest::READ, Mode::Level),
+            move |_, listener, state| {
+                while let Ok((stream, _)) = listener.accept() {
+                    state.insert_named_client(stream, &owner);
+                }
+                Ok(PostAction::Continue)
+            },
+        );
+        let (Ok(ipc), Ok(wayland)) = (ipc, wayland) else {
+            return Err(rejected("no event source for a client socket"));
+        };
+        self.ipc.clients.insert(
+            name.clone(),
+            ClientSocket {
+                ipc,
+                wayland,
+                dir: dir.clone(),
+            },
+        );
+        Ok(json!({"path": dir.join(IPC), "wayland": dir.join(WAYLAND)}))
+    }
+
+    /// Inserts a Wayland client of the client socket of a name, with the
+    /// grants of the name at this moment.
+    fn insert_named_client(&mut self, stream: UnixStream, name: &str) {
+        let granted = [Capability::InputInject, Capability::ScreenCapture]
+            .into_iter()
+            .filter(|c| self.grants.allows(name, *c))
+            .collect();
+        let data = ClientState {
+            name: Some(name.into()),
+            granted,
+            ..ClientState::default()
+        };
+        if let Err(err) = self.display_handle.insert_client(stream, Arc::new(data)) {
+            tracing::warn!(?err, "a wayland client of {name:?} failed to connect");
+        }
     }
 
     /// Why `clients.create` of a name must fail, if it must.
@@ -89,12 +130,10 @@ impl State {
     /// Removes all client sockets, for the emergency reset (D40). Their
     /// connections close with the others.
     pub fn remove_client_sockets(&mut self) {
-        for (_, (token, path)) in self.ipc.clients.drain() {
-            self.loop_handle.remove(token);
-            let _ = std::fs::remove_file(&path);
-            if let Some(dir) = path.parent() {
-                let _ = std::fs::remove_dir(dir);
-            }
+        for (_, socket) in self.ipc.clients.drain() {
+            self.loop_handle.remove(socket.ipc);
+            self.loop_handle.remove(socket.wayland);
+            socket.remove_files();
         }
     }
 
@@ -126,19 +165,49 @@ impl State {
     }
 }
 
-/// Creates the private directories of a client socket and binds it. A
-/// failed bind leaves no directory of the client behind.
-fn open(path: &Path) -> std::io::Result<UnixListener> {
-    let dir = path.parent().expect("the socket has a directory");
+/// The file names of the two sockets in the directory of a client.
+const IPC: &str = "ipc.sock";
+const WAYLAND: &str = "wayland.sock";
+
+/// The listeners of the IPC and the Wayland socket of a client name, and
+/// their directory.
+pub(super) struct ClientSocket {
+    pub ipc: RegistrationToken,
+    wayland: RegistrationToken,
+    dir: PathBuf,
+}
+
+impl ClientSocket {
+    /// Removes the sockets and their directory.
+    pub fn remove_files(&self) {
+        remove(&self.dir);
+    }
+}
+
+/// Creates the private directories of a client and binds its IPC and its
+/// Wayland socket. A failure leaves no socket or directory of the client.
+fn open(dir: &Path) -> std::io::Result<(UnixListener, UnixListener)> {
     private_dir(dir.parent().expect("clients/"))?;
     private_dir(dir)?;
+    let bound = bind(&dir.join(IPC)).and_then(|ipc| Ok((ipc, bind(&dir.join(WAYLAND))?)));
+    if bound.is_err() {
+        remove(dir);
+    }
+    bound
+}
+
+fn bind(path: &Path) -> std::io::Result<UnixListener> {
     match std::fs::remove_file(path) {
         Err(err) if err.kind() != std::io::ErrorKind::NotFound => return Err(err),
         _ => {}
     }
-    let bound = UnixListener::bind(path).and_then(|l| l.set_nonblocking(true).map(|()| l));
-    if bound.is_err() {
-        let _ = std::fs::remove_dir(dir);
-    }
-    bound
+    let listener = UnixListener::bind(path)?;
+    listener.set_nonblocking(true)?;
+    Ok(listener)
+}
+
+fn remove(dir: &Path) {
+    let _ = std::fs::remove_file(dir.join(IPC));
+    let _ = std::fs::remove_file(dir.join(WAYLAND));
+    let _ = std::fs::remove_dir(dir);
 }

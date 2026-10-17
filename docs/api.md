@@ -472,6 +472,9 @@ path:
 {"jsonrpc": "2.0", "id": 1, "method": "clients.create", "params": {"name": "agent"}}
 ```
 
+- `clients.create` also opens `clients/NAME/wayland.sock`, a Wayland
+  socket for the windows of the client. Its answer has the `path` of the
+  IPC socket and the `wayland` path.
 - A connection through it says `hello` with that name only.
 - It cannot change grants or make client sockets, as these need the
   admin socket.
@@ -492,15 +495,22 @@ path:
 The callers of `methods.call` are certain only for names with a client
 socket.
 
-A container that mounts only its client directory cannot take another
-name or give itself capabilities through the API. This step leaves gaps
-that later steps of 0.7 close:
+A Wayland client of `wayland.sock` gets the protocols of the main Wayland
+socket, with these exceptions:
 
-- A program of `process.spawn` gets `CHORA_SOCKET`, the main socket. So
-  a grant of `process.spawn` gives a container the main socket. D42 moves
-  the start of programs out of the core.
-- The main Wayland socket offers screencopy, the input method and output
-  management. A Wayland socket per client closes this gap.
+- Screencopy and image capture need the grant `screen.capture` of the
+  name.
+- The input method needs the grant `input.inject`.
+- Output management is not offered.
+
+The client gets the grants of the name at the time it connects. Its
+windows carry the name: a query shows it in `surface.client`.
+
+A container that mounts only its client directory cannot take another
+name or give itself capabilities. One gap stays until a later step of
+0.7: a program of `process.spawn` gets `CHORA_SOCKET`, the main socket.
+So a grant of `process.spawn` gives a container the main socket. D42
+moves the start of programs out of the core.
 
 ## Programs
 

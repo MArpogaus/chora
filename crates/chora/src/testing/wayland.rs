@@ -61,6 +61,8 @@ struct App {
     shm: Option<WlShm>,
     /// The serials of the key events, press and release, in order.
     key_serials: Vec<u32>,
+    /// The interfaces of all globals that the core offered.
+    interfaces: Vec<String>,
     synced: bool,
     /// The configures of each surface, by its index.
     surfaces: Vec<Configures>,
@@ -113,6 +115,22 @@ impl Wayland {
             .display_handle
             .insert_client(theirs, Arc::new(ClientState::default()))
             .expect("the core takes the client");
+        Self::from_socket(core, ours)
+    }
+
+    /// Connects through a socket file of the core and binds the globals.
+    pub fn connect_to(core: &mut Core, path: &std::path::Path) -> Self {
+        let ours = UnixStream::connect(path).expect("the socket listens");
+        core.dispatch();
+        Self::from_socket(core, ours)
+    }
+
+    /// The interfaces of the globals that the core offered.
+    pub fn interfaces(&self) -> &[String] {
+        &self.app.interfaces
+    }
+
+    fn from_socket(core: &mut Core, ours: UnixStream) -> Self {
         let conn = Connection::from_socket(ours).expect("a connection");
         let queue = conn.new_event_queue();
         conn.display().get_registry(&queue.handle(), ());
@@ -370,6 +388,7 @@ impl Dispatch<WlRegistry, ()> for App {
         else {
             return;
         };
+        app.interfaces.push(interface.clone());
         match interface.as_str() {
             "wl_compositor" => app.compositor = Some(registry.bind(name, version, qh, ())),
             "xdg_wm_base" => app.wm_base = Some(registry.bind(name, version, qh, ())),

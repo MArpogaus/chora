@@ -605,9 +605,9 @@ target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme
 ## Services
 
 A service runs as a Quadlet unit with Podman, or in distrobox. It connects
-to the IPC socket, appears as a Wayland client, or both. A container mounts
-only its client directory, which `choractl clients create NAME` makes (in
-Quadlet: `%t/chora/clients/NAME`). It sets `CHORA_SOCKET` to the
-`ipc.sock` and `WAYLAND_DISPLAY` to the `wayland.sock` in that directory. The directory of the core holds the admin
-socket, so a container never mounts it (see
-[API](api.md#client-sockets)).
+to the IPC socket, appears as a Wayland client, or both. A container
+mounts only its client directory, which `choractl clients create NAME`
+makes (in Quadlet: `%t/chora/clients/NAME`). It sets `CHORA_SOCKET` to the
+`ipc.sock` and `WAYLAND_DISPLAY` to the `wayland.sock` in that directory.
+The directory of the core holds the admin socket, so a container never
+mounts it (see [API](api.md#client-sockets)).
