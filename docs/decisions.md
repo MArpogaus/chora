@@ -87,7 +87,7 @@ that the code does not implement yet.
 | D52 | The milestones run 0.6 to 1.0 as in the [Roadmap](roadmap.md) | A stable API needs real use and a testable core first. |
 | D53 | The voice pipeline lives in `chora-voice` and runs in parallel to the core; the core supplies push-to-talk grabs, text injection, the read model and an agent indicator | The pipeline is a product of its own. It needs only the API of the core. |
 | D54 | Plugins use the JSON-RPC API with frame events and fd passing; a private Wayland protocol for plugins comes only if a measurement at 120 Hz in milestone 0.9 shows the need | One API to maintain. The measurement decides. |
-| D55 | Window managers share the scene through claims: a claim is a scene area of one client; a new toplevel goes to the claim under the pointer; a window manager hands a surface to another with `remove` and `to` (see [below](#d55-window-managers-per-claim)) | The user chose one window manager per area over a single window manager role (issue #73). Ownership, `attach` and `surface.detached` stay the mechanism, and a camera switches between areas. |
+| D55 | Window managers share the scene through claims: a claim is a scene area of one client; a new toplevel goes to the claim under the pointer; a window manager hands a surface to another with `give` (see [below](#d55-window-managers-per-claim)) | The user chose one window manager per area over a single window manager role (issue #73). Ownership, `attach` and `surface.detached` stay the mechanism, and a camera switches between areas. |
 
 ## Designs
 
@@ -114,11 +114,13 @@ surface. Outside of all claims, any client attaches it, as before.
 
 1. A owns `s1`, for example at the end of a drag into the claim of B.
    A finds B in the claims of `scene.query`.
-2. A sends `remove: {id: s1, to: B}`. `to` must name a connected client.
-   As for every `remove`, the surface becomes detached and loses the
+2. A sends `give: {surface: s1, to: B}`. `to` must name a connected
+   client. As for a `remove`, the surface becomes detached and loses the
    keyboard focus.
-3. The core reserves `s1` for B and sends `surface.detached` with `to: B`.
-   An `attach` of another client fails.
+3. The core reserves `s1` for B and sends `surface.given` with `to: B`.
+   An `attach` of another client fails. A separate command and event, in
+   place of `to` on `remove` and `surface.detached`, leave the existing
+   plugins unchanged.
 4. B attaches `s1`, places it by its own rules, and can give it the
    focus.
 5. When the last connection of B closes, the reservation ends. The core

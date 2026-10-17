@@ -159,6 +159,7 @@ impl Default for Scene {
             children: Vec::new(),
             props: Props::default(),
             surface: None,
+            to: None,
         };
         Self {
             nodes: OrdMap::unit(ROOT.into(), root),
@@ -231,6 +232,7 @@ impl Scene {
             children: Vec::new(),
             props: Props::default(),
             surface: Some(info),
+            to: None,
         };
         self.nodes.insert(id.into(), node);
         self.surfaces += 1;
@@ -293,6 +295,14 @@ impl Scene {
         Ok(effects)
     }
 
+    /// Reserves a detached surface for a client name: only that client can
+    /// attach it.
+    pub fn reserve(&mut self, surface: &str, to: Option<&str>) {
+        if let Some(node) = self.nodes.get_mut(surface) {
+            node.to = to.map(String::from);
+        }
+    }
+
     fn apply_one(
         &mut self,
         owner: &str,
@@ -323,6 +333,13 @@ impl Scene {
             Command::Remove { id } => {
                 self.owned_mut(owner, id)?;
                 effects.extend(self.remove_subtree(id).into_iter().map(Effect::Detached));
+                Ok(())
+            }
+            Command::Give { surface, to } => {
+                self.owned_surface(owner, surface)?;
+                self.remove_subtree(surface);
+                self.reserve(surface, Some(to));
+                effects.push(Effect::Given(surface.clone()));
                 Ok(())
             }
             Command::Configure {
@@ -466,7 +483,13 @@ impl Scene {
     }
 
     fn attach(&mut self, owner: &str, surface: &str, parent: &str) -> Result<(), SceneError> {
-        match self.surface(surface)?.owner.as_deref() {
+        let node = self.surface(surface)?;
+        if let Some(to) = node.to.as_ref().filter(|to| *to != owner) {
+            return Err(SceneError::Invalid(format!(
+                "surface {surface:?} is reserved for {to:?}"
+            )));
+        }
+        match node.owner.as_deref() {
             None => {}
             Some(o) if o == owner => return Err(SceneError::Attached(surface.into())),
             Some(other) => return Err(SceneError::NotOwner(surface.into(), other.into())),
@@ -474,7 +497,9 @@ impl Scene {
         self.group(parent)?;
         self.unlink(surface);
         self.link(surface, parent, None);
-        self.node_mut(surface)?.owner = Some(owner.into());
+        let node = self.node_mut(surface)?;
+        node.owner = Some(owner.into());
+        node.to = None;
         Ok(())
     }
 
@@ -529,6 +554,17 @@ impl Scene {
             self.cameras.remove(output);
             self.camera_moves.remove(output);
         }
+        // The surfaces reserved for the client are free to take again.
+        let reserved: Vec<String> = self
+            .nodes
+            .values()
+            .filter(|n| n.to.as_deref() == Some(owner))
+            .map(|n| n.id.clone())
+            .collect();
+        for id in reserved {
+            self.reserve(&id, None);
+            detached.push(id);
+        }
         self.focus_returns.remove(owner);
         let detached = detached.into_iter().map(Effect::Detached);
         detached
@@ -582,6 +618,7 @@ impl Scene {
             .map(|(id, [x, y, w, h])| {
                 let node = self.nodes.get_mut(id).expect("collected above");
                 node.owner = None;
+                node.to = None;
                 node.parent = Some(ROOT.into());
                 node.props = Props::default();
                 node.props.transform = Transform::translate(x, y, 0.0);
@@ -626,6 +663,7 @@ impl Scene {
             children: Vec::new(),
             props: Props::default(),
             surface: None,
+            to: None,
         };
         self.nodes.insert(id, node);
     }
@@ -1295,6 +1333,7 @@ fn owned_node(owner: &str, id: &str, kind: NodeKind, update: &PropsUpdate) -> No
         children: Vec::new(),
         props,
         surface: None,
+        to: None,
     }
 }
 

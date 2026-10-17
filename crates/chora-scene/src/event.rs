@@ -51,6 +51,14 @@ pub enum Event {
         /// The surface node.
         surface: String,
     },
+    /// The owner of a surface handed it to another client with `give`.
+    #[serde(rename = "surface.given")]
+    SurfaceGiven {
+        /// The surface node.
+        surface: String,
+        /// The only client that can attach it.
+        to: String,
+    },
     /// A client, or a taskbar for it, asks for a change that a plugin
     /// decides, for example fullscreen.
     #[serde(rename = "surface.requested")]

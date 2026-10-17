@@ -576,6 +576,7 @@ mod tests {
             children: Vec::new(),
             props: Props::default(),
             surface: None,
+            to: None,
         };
         let all = vec![
             node("a", "view-x", "root"),

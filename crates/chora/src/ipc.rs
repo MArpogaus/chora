@@ -346,6 +346,11 @@ impl Ipc {
             .collect()
     }
 
+    /// Whether a client name has a connection.
+    pub fn has_client(&self, name: &str) -> bool {
+        self.conns.values().any(|c| c.name.as_deref() == Some(name))
+    }
+
     /// The client name of a connection.
     pub fn name(&self, conn: u64) -> Option<&str> {
         self.conns.get(&conn)?.name.as_deref()
@@ -1044,6 +1049,59 @@ mod tests {
 
     fn owned(reader: &mut Client, core: &mut Core) -> Value {
         reader.ok(core, "scene.query", json!({"selector": "owner:wm"}))
+    }
+
+    fn give(to: &str) -> Value {
+        json!({"commands": [{"give": {"surface": "s1", "to": to}}]})
+    }
+
+    fn attach_s1(parent: &str) -> Value {
+        json!({"commands": [{"attach": {"surface": "s1", "parent": parent}}]})
+    }
+
+    #[test]
+    fn a_given_surface_goes_only_to_its_receiver() {
+        let mut core = Core::new();
+        let (mut wm, _wayland) = resumable(&mut core);
+        let focus = json!({"commands": [{"focus": {"surface": "s1"}}]});
+        wm.ok(&mut core, "scene.apply", focus);
+        let mut b = core.named("b");
+        b.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let group =
+            json!({"commands": [{"create": {"id": "bg", "kind": "group", "parent": "root"}}]});
+        b.ok(&mut core, "scene.apply", group);
+        let mut other = core.named("other");
+        let (_, message) = wm.fails(&mut core, "scene.apply", give("nobody"));
+        assert!(message.contains("no connection"), "{message}");
+        wm.ok(&mut core, "scene.apply", give("b"));
+        let events = b.events_now(&mut core);
+        let given: Vec<&Value> = events
+            .iter()
+            .map(|e| &e["params"])
+            .filter(|e| e["event"] == "surface.given")
+            .collect();
+        assert_eq!(
+            given,
+            [&json!({"event": "surface.given", "surface": "s1", "to": "b"})]
+        );
+        assert_eq!(core.state.focused_surface(), None, "the focus stays behind");
+        let (_, message) = other.fails(&mut core, "scene.apply", attach_s1("root"));
+        assert!(message.contains("reserved for \"b\""), "{message}");
+        b.ok(&mut core, "scene.apply", attach_s1("bg"));
+        let node = core.state.scene.node("s1").unwrap();
+        assert_eq!(
+            (node.owner.as_deref(), node.to.as_deref()),
+            (Some("b"), None)
+        );
+        // A reservation for a client that goes ends: anyone takes it.
+        b.ok(&mut core, "scene.apply", give("other"));
+        drop(other);
+        core.dispatch();
+        assert!(
+            b.event_names(&mut core)
+                .contains(&"surface.detached".to_owned())
+        );
+        b.ok(&mut core, "scene.apply", attach_s1("bg"));
     }
 
     #[test]

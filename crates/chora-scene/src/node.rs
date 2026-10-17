@@ -230,6 +230,9 @@ pub struct Node {
     /// The client data of a surface node.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub surface: Option<SurfaceInfo>,
+    /// The only client name that can attach this detached surface (D55).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to: Option<String>,
 }
 
 impl Node {

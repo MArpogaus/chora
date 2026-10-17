@@ -453,6 +453,14 @@ impl State {
                     }
                     self.emit(&Event::SurfaceDetached { surface });
                 }
+                Effect::Given(surface) => {
+                    if self.focused_surface() == Some(surface.as_str()) {
+                        self.focus(None);
+                    }
+                    let to = self.scene.node(&surface).and_then(|n| n.to.clone());
+                    let to = to.expect("give reserves the surface");
+                    self.emit(&Event::SurfaceGiven { surface, to });
+                }
                 Effect::Camera(name) => {
                     for output in self.output_info().into_iter().filter(|o| o.name == name) {
                         self.emit(&Event::OutputChanged { output });

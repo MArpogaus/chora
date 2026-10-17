@@ -300,6 +300,11 @@ impl State {
     /// waits for the first frame.
     fn check_effects(&mut self, commands: &[Command]) -> Result<(), String> {
         for command in commands {
+            if let Command::Give { to, .. } = command
+                && !self.ipc.has_client(to)
+            {
+                return Err(format!("{to:?} has no connection"));
+            }
             let (Command::Create { props, .. }
             | Command::Update { props, .. }
             | Command::Animate { props, .. }) = command

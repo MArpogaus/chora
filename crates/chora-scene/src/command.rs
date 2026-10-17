@@ -66,6 +66,15 @@ pub enum Command {
         /// The node.
         id: String,
     },
+    /// Hands an own surface to another client: the surface becomes
+    /// detached, and only `to` can attach it. The core sends
+    /// `surface.given`.
+    Give {
+        /// The surface node.
+        surface: String,
+        /// The client name that gets the surface; it needs a connection.
+        to: String,
+    },
     /// Asks a client for a new size or new toplevel states.
     Configure {
         /// The surface node.
@@ -150,6 +159,9 @@ pub enum Effect {
     Close(String),
     /// A surface lost its parent and its owner; tell the clients.
     Detached(String),
+    /// A surface lost its parent and its owner for another client; tell
+    /// the clients.
+    Given(String),
     /// The camera of an output changed; tell the clients.
     Camera(String),
 }
