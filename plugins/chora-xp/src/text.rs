@@ -275,6 +275,14 @@ impl Fonts {
                 r#" stroke="{fill}" stroke-opacity="{alpha:.3}" stroke-width="0.6" stroke-linejoin="round""#
             );
         }
+        if text.font == Font::Title {
+            // XP draws window titles without smoothing, with stems of two
+            // pixels: no anti-aliasing, and a thin stroke for the weight.
+            let _ = write!(
+                out,
+                r#" text-rendering="optimizeSpeed" stroke="{fill}" stroke-opacity="{alpha:.3}" stroke-width="0.3" stroke-linejoin="round""#
+            );
+        }
         let _ = write!(out, ">{}</text>", escape(line));
         if spec.slant == Slant::Sheared {
             out += "</g>";
