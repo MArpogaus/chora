@@ -145,7 +145,8 @@ struct Conn {
 pub fn listen(state: &mut State) -> io::Result<PathBuf> {
     let runtime = std::env::var_os("XDG_RUNTIME_DIR")
         .ok_or_else(|| io::Error::other("XDG_RUNTIME_DIR is not set"))?;
-    let dir = private_dir(Path::new(&runtime))?;
+    let dir = Path::new(&runtime).join("chora");
+    private_dir(&dir)?;
     let mut path = dir.join(&state.socket_name);
     path.set_extension("sock");
     let mut assets = path.clone();
@@ -174,23 +175,22 @@ pub fn listen(state: &mut State) -> io::Result<PathBuf> {
     Ok(path)
 }
 
-/// Creates `RUNTIME/chora` with mode 0700 and checks that it is a real
-/// directory of the owner of `RUNTIME`.
-fn private_dir(runtime: &Path) -> io::Result<PathBuf> {
-    let dir = runtime.join("chora");
+/// Creates a directory with mode 0700, or sets that mode on an old one,
+/// and checks that it is a real directory of the owner of its parent.
+fn private_dir(dir: &Path) -> io::Result<()> {
+    let parent = dir.parent().ok_or_else(|| io::Error::other("no parent"))?;
     std::fs::DirBuilder::new()
         .mode(0o700)
         .recursive(true)
-        .create(&dir)?;
-    let meta = std::fs::symlink_metadata(&dir)?;
-    if !meta.is_dir() || meta.uid() != std::fs::metadata(runtime)?.uid() {
+        .create(dir)?;
+    let meta = std::fs::symlink_metadata(dir)?;
+    if !meta.is_dir() || meta.uid() != std::fs::metadata(parent)?.uid() {
         return Err(io::Error::other(format!(
-            "{} is no directory of the runtime dir owner",
+            "{} is no directory of the owner of its parent",
             dir.display()
         )));
     }
-    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))?;
-    Ok(dir)
+    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))
 }
 
 impl Drop for Ipc {
@@ -380,8 +380,27 @@ impl Ipc {
     }
 
     /// Why a new connection of a process cannot get a slot, if it cannot.
-    fn refusal(&self, pid: Option<Pid>) -> Option<String> {
+    fn refusal(&self, pid: Option<Pid>, fixed: Option<&str>) -> Option<String> {
         let total = self.conns.len();
+        if let Some(name) = fixed {
+            let socket = self
+                .conns
+                .values()
+                .filter(|c| c.fixed.as_deref() == Some(name));
+            let clients = self.conns.values().filter(|c| c.fixed.is_some()).count();
+            if socket.count() >= clients::MAX_PER_SOCKET {
+                return Some(format!(
+                    "too many connections: this client socket holds {}",
+                    clients::MAX_PER_SOCKET
+                ));
+            }
+            if clients >= MAX_CONNECTIONS - clients::KEPT_FOR_MAIN {
+                return Some(format!(
+                    "too many connections: the last {} are kept for the main socket",
+                    clients::KEPT_FOR_MAIN
+                ));
+            }
+        }
         let own = pid.map_or(0, |pid| {
             self.conns.values().filter(|c| c.pid == Some(pid)).count()
         });
@@ -520,7 +539,7 @@ impl State {
         }
         stream.set_nonblocking(true).map_err(failed)?;
         let pid = socket_peercred(&stream).ok().map(|c| c.pid);
-        if let Some(reason) = self.ipc.refusal(pid) {
+        if let Some(reason) = self.ipc.refusal(pid, fixed) {
             let error = rejected(reason.clone());
             let _ = (&stream).write_all(&line(&Message::error(Value::Null, error)));
             return Err(format!("refusing a connection: {reason}"));
@@ -637,6 +656,9 @@ impl State {
                 let Some(owner) = self.ipc.name(conn).map(str::to_owned) else {
                     return Some(Err(rejected("send hello first")));
                 };
+                if let Err(e) = self.check_paths(conn, &apply.commands) {
+                    return Some(Err(e));
+                }
                 self.submit_transaction(conn, id, owner, apply.commands);
                 return None;
             }
@@ -921,6 +943,8 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
     use crate::testing::{Client, Core, rect, wayland::Wayland};
 
     const REJECTED: i64 = RpcError::REJECTED;
@@ -1239,6 +1263,171 @@ mod tests {
             core.state.scene.node("g").is_some(),
             "the timer of the old grace time removes nothing"
         );
+    }
+
+    /// A core whose main socket would be in a fresh directory.
+    fn socket_dir(tag: &str) -> (Core, PathBuf) {
+        let dir = std::env::temp_dir().join(format!("chora-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut core = Core::new();
+        core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+        (core, dir)
+    }
+
+    /// A client socket of a name, and a client through it after hello.
+    fn fixed(core: &mut Core, admin: &mut Client, name: &str) -> (Client, PathBuf) {
+        let created = admin.ok(core, "clients.create", json!({"name": name}));
+        let path = PathBuf::from(created["path"].as_str().unwrap());
+        let mut client = core.connect_to(&path);
+        client.ok(core, "hello", json!({"name": name}));
+        (client, path)
+    }
+
+    #[test]
+    fn clients_create_refuses_a_live_name() {
+        let (mut core, dir) = socket_dir("live");
+        let mut admin = core.connect();
+        let squatter = core.named("agent");
+        let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "agent"}));
+        assert!(
+            message.contains("connected or in its grace time"),
+            "{message}"
+        );
+        drop(squatter);
+        let resumed = hello_resume(&mut core);
+        drop(resumed);
+        core.dispatch();
+        let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "wm"}));
+        assert!(message.contains("grace time"), "{message}");
+        admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn the_reset_removes_the_client_sockets() {
+        let (mut core, dir) = socket_dir("reset");
+        let mut admin = core.connect();
+        let (_agent, path) = fixed(&mut core, &mut admin, "agent");
+        core.state.reset();
+        core.dispatch();
+        assert!(!path.exists());
+        assert!(UnixStream::connect(&path).is_err());
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_client_socket_leaves_room_for_the_main_socket() {
+        let (mut core, dir) = socket_dir("flood");
+        let mut admin = core.connect();
+        let (first, path) = fixed(&mut core, &mut admin, "agent");
+        // Each connection as from a process of its own, as in a container.
+        let connect = |core: &mut Core, path: &Path| {
+            let client = core.connect_to(path);
+            as_other_processes(core);
+            client
+        };
+        // One more than the cap, with the first: the last is refused.
+        let flood: Vec<Client> = (1..=clients::MAX_PER_SOCKET)
+            .map(|_| connect(&mut core, &path))
+            .collect();
+        let fixed_conns = |core: &Core| {
+            core.state
+                .ipc
+                .conns
+                .values()
+                .filter(|c| c.fixed.is_some())
+                .count()
+        };
+        assert_eq!(fixed_conns(&core), clients::MAX_PER_SOCKET);
+        drop((first, flood));
+        // Many client sockets together keep room for the main socket.
+        let mut all = Vec::new();
+        for i in 0..8 {
+            let created = admin.ok(
+                &mut core,
+                "clients.create",
+                json!({"name": format!("c{i}")}),
+            );
+            let path = PathBuf::from(created["path"].as_str().unwrap());
+            all.extend((0..clients::MAX_PER_SOCKET).map(|_| connect(&mut core, &path)));
+        }
+        core.dispatch();
+        assert_eq!(fixed_conns(&core), MAX_CONNECTIONS - clients::KEPT_FOR_MAIN);
+        core.named("main");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_client_socket_names_only_its_own_assets() {
+        let (mut core, dir) = socket_dir("paths");
+        core.state
+            .ipc
+            .uploads
+            .open(dir.join("wayland-1.assets"))
+            .unwrap();
+        let mut admin = core.connect();
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let image = |id: &str, path: &str| {
+            json!({"commands": [{"create": {"id": id, "kind": "image", "parent": "root",
+                "props": {"image": path}}}]})
+        };
+        for path in ["/etc/hostname", "/nonexistent.png"] {
+            let (_, message) = agent.fails(&mut core, "scene.apply", image("i", path));
+            assert!(message.contains("only its own assets"), "{message}");
+        }
+        let effect = json!({"commands": [{"create": {"id": "e", "kind": "group", "parent": "root",
+            "props": {"size": [1, 1], "effects": [{"shader": "/etc/hostname"}]}}}]});
+        let (_, message) = agent.fails(&mut core, "scene.apply", effect);
+        assert!(message.contains("only its own assets"), "{message}");
+        let put = json!({"name": "x.png", "data": "AAAA"});
+        let own = agent.ok(&mut core, "assets.put", put)["path"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let conn = core
+            .state
+            .ipc
+            .conns
+            .iter()
+            .find(|(_, c)| c.fixed.is_some())
+            .map(|(id, _)| *id);
+        let own: Vec<chora_scene::Command> =
+            serde_json::from_value(image("j", &own)["commands"].clone()).unwrap();
+        assert!(core.state.check_paths(conn.unwrap(), &own).is_ok());
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_client_socket_dir_is_private_and_fits_a_socket_path() {
+        // A long directory, so that a long name passes no socket path.
+        let (mut core, dir) = socket_dir("dirs-long");
+        let old = dir.join("clients/agent");
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o777)).unwrap();
+        let mut admin = core.connect();
+        fixed(&mut core, &mut admin, "agent");
+        let mode = std::fs::metadata(&old).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o700);
+        let long = "a".repeat(64);
+        let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": long}));
+        assert!(message.contains("too long"), "{message}");
+        assert!(!dir.join("clients").join(&long).exists());
+        for i in 1..64 {
+            admin.ok(
+                &mut core,
+                "clients.create",
+                json!({"name": format!("c{i}")}),
+            );
+        }
+        let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "c64"}));
+        assert!(message.contains("64 client sockets"), "{message}");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

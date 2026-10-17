@@ -111,6 +111,17 @@ impl Uploads {
         Ok(())
     }
 
+    /// Whether a path names a file that a client stored.
+    pub fn owns(&self, client: &str, path: &Path) -> bool {
+        let (Some(root), Some(name)) = (&self.dir, path.file_name()) else {
+            return false;
+        };
+        path.parent() == Some(&root.join(hex(client)))
+            && name
+                .to_str()
+                .is_some_and(|n| self.files.get(client).is_some_and(|f| f.contains_key(n)))
+    }
+
     /// Removes all files of a client.
     pub fn drop_client(&mut self, client: &str) {
         if self.files.remove(client).is_some()

@@ -218,6 +218,7 @@ impl State {
             self.ipc_close(conn);
         }
         self.end_graces();
+        self.remove_client_sockets();
         self.grants.clear();
         self.node_grab = None;
         self.button_grab = None;

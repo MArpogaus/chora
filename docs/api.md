@@ -378,8 +378,9 @@ node end as at any disconnect, and `client.disconnected` follows at once.
 - After the grace time, the core removes the nodes as at any disconnect:
   the surfaces become detached, and the core sends `surface.detached` for
   each.
-- No client of another name can change the kept nodes. A name with a
-  client socket is trusted; see [Client sockets](#client-sockets).
+- No client of another name can change the kept nodes. Only a name with
+  a client socket is safe from other clients that take it (see
+  [Client sockets](#client-sockets)).
 - A toplevel that maps during the grace time gets `surface.created` as
   usual, and stays without an owner if no other plugin attaches it. The
   resumed plugin takes it as at any start, with a query of `kind:surface`
@@ -446,9 +447,10 @@ $ choractl revoke agent
 
 A grant lasts until `choractl revoke` or the end of the session. The
 emergency reset revokes all grants. A client of a client socket cannot
-change grants. A client of the main socket still can, so a grant protects
-against hostile code only when that code sees its client socket alone.
-`choractl mcp` offers no tool for grants.
+change grants. A client of the main socket still can. So a grant protects
+against hostile code only when that code sees its client socket alone,
+with the gaps that [Client sockets](#client-sockets) lists. `choractl
+mcp` offers no tool for grants.
 
 ## Client sockets
 
@@ -462,16 +464,34 @@ socket, with mode 0700:
 
 - A connection through it says `hello` with that name only.
 - It cannot call `grants.set`, `grants.revoke` or `clients.create`.
+- Its `image`, `shader` and effect paths name only its own files of
+  `assets.put`.
+- It holds at most 16 connections. All client sockets together leave 32
+  connections to the main socket.
 - The main socket refuses a `hello` with a name that has a client
   socket, so no client of the main socket takes that name.
+- `clients.create` fails for a name with a connection or in its grace
+  time, and beyond 64 client sockets.
 - The name has lowercase letters, digits, `_`, `-` and `.`, and starts
-  with a letter. A second `clients.create` of a name fails.
-- The socket goes when chora exits.
+  with a letter. Its socket path must fit a Unix socket. A second
+  `clients.create` of a name fails.
+- The emergency reset removes the client sockets, and so does the exit of
+  chora.
 
-A container mounts only its client directory, so its clients cannot take
-another name or give themselves capabilities. The main socket stays open
-to all clients of the user. Later steps of 0.7 add an admin socket for
-`choractl` and `choractl clients up`.
+The callers of `methods.call` are certain only for names with a client
+socket.
+
+A container that mounts only its client directory cannot take another
+name or give itself capabilities through the API. This step leaves gaps
+that later steps of 0.7 close:
+
+- Any client of the main socket can call `clients.create`. The admin
+  socket for `choractl` closes this gap.
+- A program of `process.spawn` gets `CHORA_SOCKET`, the main socket. So
+  a grant of `process.spawn` gives a container the main socket. D42 moves
+  the start of programs out of the core.
+- The main Wayland socket offers screencopy, the input method and output
+  management. A Wayland socket per client closes this gap.
 
 ## Programs
 

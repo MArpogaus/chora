@@ -325,7 +325,8 @@ The safety layer is the only built-in behavior (see
 
 chora trusts every client of the same user. Milestone 0.7 replaces the
 grants with client sockets that fix the name and the capabilities of a
-client (D33, D40):
+client (D33, D40). The first step is in: a client socket fixes the name
+of its clients (see [API](api.md#client-sockets)).
 
 - Unsandboxed Wayland clients get all protocols, as in sway. So any client
   can, for example, take the keyboard as an input method, or configure the
