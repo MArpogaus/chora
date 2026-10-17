@@ -653,14 +653,6 @@ impl Content {
 
     /// Creates the group with the nodes of a page.
     pub fn create(&mut self, theme: &mut Theme, page: Page) -> Vec<Command> {
-        // The names are the ids of the nodes.
-        debug_assert!(
-            page.controls
-                .iter()
-                .enumerate()
-                .all(|(i, c)| page.controls[..i].iter().all(|o| o.name != c.name)),
-            "two controls of a page have one name"
-        );
         self.page = page;
         let mut commands = vec![Command::Create {
             id: self.prefix.clone(),
@@ -1210,7 +1202,7 @@ pub mod tests {
                 Control::push("ok", "OK", [156, 287]).default(),
                 Control::push("apply", "Apply", [318, 287]).enabled(false),
             ],
-            scroll: None,
+            ..Page::default()
         };
         dialog.create(&mut theme, "root", page);
         let [ox, oy] = dialog.origin;
@@ -1304,7 +1296,7 @@ pub mod tests {
             Page {
                 body: Some(body),
                 controls,
-                scroll: None,
+                ..Page::default()
             },
         );
         dialog.content.hovered = Some("hot".into());

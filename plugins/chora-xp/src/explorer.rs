@@ -164,7 +164,7 @@ pub struct Explorer {
     /// The selected item, over all groups.
     selected: Option<usize>,
     /// How far the view is scrolled down.
-    scroll: i32,
+    offset: i32,
     /// The last click on an item, for the double click.
     last_click: Option<(usize, Instant)>,
     /// The thumb of the scroll bar is down: the pointer and the offset
@@ -184,7 +184,7 @@ impl Explorer {
             links: Vec::new(),
             groups: Vec::new(),
             selected: None,
-            scroll: 0,
+            offset: 0,
             last_click: None,
             thumb: None,
         }
@@ -206,7 +206,7 @@ impl Explorer {
             Place::Trash => vec![trash_group()],
         };
         self.selected = None;
-        self.scroll = 0;
+        self.offset = 0;
         self.last_click = None;
     }
 
@@ -266,7 +266,7 @@ impl Explorer {
     /// of the scroll bar starts a drag.
     pub fn press(&mut self, theme: &mut Theme, node: &str, position: [f64; 2]) -> Vec<Command> {
         if self.content.name_of(node).as_deref() == Some("sb-thumb") {
-            self.thumb = Some((position[1], self.scroll));
+            self.thumb = Some((position[1], self.offset));
         }
         self.content.press(theme, node).unwrap_or_default()
     }
@@ -292,8 +292,8 @@ impl Explorer {
             geometry.layout.height,
             (from, moved),
         );
-        let changed = offset != self.scroll;
-        self.scroll = offset;
+        let changed = offset != self.offset;
+        self.offset = offset;
         changed
     }
 
@@ -357,12 +357,12 @@ impl Explorer {
         if let Some(i) = name.strip_prefix("item-").and_then(|i| i.parse().ok()) {
             return Some(self.click_item(i));
         }
+        if name == "view" || name.starts_with("heading-") {
+            self.selected = None;
+            return Some(Outcome::Redraw);
+        }
         let page = self.geometry().view[3] - 2 * SCROLL_W;
         let step = match name {
-            _ if name == "view" || name.starts_with("heading-") => {
-                self.selected = None;
-                return Some(Outcome::Redraw);
-            }
             "sb-up" => -SCROLL_STEP,
             "sb-down" => SCROLL_STEP,
             // Above the thumb a page up, below it a page down.
@@ -377,11 +377,11 @@ impl Explorer {
     fn scroll_by(&mut self, step: i32) -> Outcome {
         let geometry = self.geometry();
         let max = view::max_scroll(geometry.layout.height, geometry.view[3]);
-        let offset = (self.scroll + step).clamp(0, max);
-        if offset == self.scroll {
+        let offset = (self.offset + step).clamp(0, max);
+        if offset == self.offset {
             return Outcome::None;
         }
-        self.scroll = offset;
+        self.offset = offset;
         Outcome::Redraw
     }
 
@@ -486,7 +486,7 @@ impl Explorer {
                 .iter()
                 .map(|(title, x)| menu_title(theme, title, *x))
                 .collect(),
-            scroll: None,
+            ..Page::default()
         };
         let mut body = Picture::new(w, h).svg(chrome([w, h]));
         // XP's flag at the right of the menu bar.
@@ -517,7 +517,7 @@ impl Explorer {
         }
         let track = view[3] - 2 * SCROLL_W;
         let offset = self
-            .scroll
+            .offset
             .clamp(0, view::max_scroll(layout.height, view[3]));
         let thumb = view::thumb(track, view[3], layout.height, offset);
         Geometry {
@@ -533,7 +533,7 @@ impl Explorer {
     /// show in the scrolled area, and the scroll bar.
     fn view(&mut self, page: &mut Page, theme: &mut Theme, icons: &mut Icons) {
         let g = self.geometry();
-        self.scroll = g.offset;
+        self.offset = g.offset;
         let [vx, vy, vw, vh] = g.view;
         let width = if g.bar { vw - SCROLL_W } else { vw };
         page.scroll = Some([vx, vy - g.offset]);
@@ -1530,17 +1530,17 @@ mod tests {
         let page = explorer.page(&mut theme, &mut icons);
         assert!(page.controls.iter().any(|c| c.name == "sb-thumb"));
         assert_eq!(explorer.click("sb-down", [0, 0]), Outcome::Redraw);
-        assert_eq!(explorer.scroll, SCROLL_STEP);
+        assert_eq!(explorer.offset, SCROLL_STEP);
         assert_eq!(explorer.click("sb-up", [0, 0]), Outcome::Redraw);
         assert_eq!(explorer.click("sb-up", [0, 0]), Outcome::None);
         // A click on the track below the thumb pages down.
         assert_eq!(explorer.click("sb-track", [8, 300]), Outcome::Redraw);
-        assert_eq!(explorer.scroll, SIZE[1] - VIEW_Y - 2 * SCROLL_W);
+        assert_eq!(explorer.offset, SIZE[1] - VIEW_Y - 2 * SCROLL_W);
         explorer.thumb = Some((0.0, 0));
         assert!(explorer.drag([0.0, 10_000.0]));
         let g = explorer.geometry();
         assert_eq!(
-            explorer.scroll,
+            explorer.offset,
             view::max_scroll(g.layout.height, g.view[3])
         );
         explorer.create(&mut theme, &mut icons);

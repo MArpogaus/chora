@@ -24,7 +24,7 @@ const LEFT: i32 = 16;
 /// The width of the scroll bar.
 pub const SCROLL_W: i32 = 17;
 /// The height of a heading with its line and the space below it.
-pub const HEADING: i32 = 30;
+const HEADING: i32 = 30;
 /// The space below the tiles of a group.
 const GROUP_GAP: i32 = 13;
 /// The space above the tiles of a view without headings.
