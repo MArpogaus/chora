@@ -474,7 +474,7 @@ where
     #[allow(clippy::cast_possible_truncation)]
     let (size, color) = (
         (width.round() as i32, height.round() as i32),
-        props.color?.map(|c| c as f32),
+        premultiplied(props.color?).map(|c| c as f32),
     );
     let buffer = rects.entry(placed.node.id.clone()).or_default();
     buffer.update(size, color);
@@ -485,6 +485,12 @@ where
         alpha,
         Kind::Unspecified,
     )))
+}
+
+/// A color of the scene, which has straight alpha, as the renderer takes
+/// it: with the red, green and blue multiplied by the alpha.
+pub fn premultiplied([r, g, b, a]: [f64; 4]) -> [f64; 4] {
+    [r * a, g * a, b * a, a]
 }
 
 /// The render elements of an image node, if its file is loaded.
@@ -818,7 +824,14 @@ fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f64, Logical
 mod tests {
     use chora_scene::Transform;
 
-    use super::location_and_scale;
+    use super::{location_and_scale, premultiplied};
+
+    #[test]
+    fn a_color_with_alpha_is_premultiplied_for_the_renderer() {
+        assert_eq!(premultiplied([1.0, 1.0, 1.0, 0.5]), [0.5, 0.5, 0.5, 0.5]);
+        assert_eq!(premultiplied([1.0, 0.0, 0.5, 0.0]), [0.0; 4]);
+        assert_eq!(premultiplied([0.2, 0.4, 0.8, 1.0]), [0.2, 0.4, 0.8, 1.0]);
+    }
 
     #[test]
     fn mirrored_and_collapsed_nodes_are_not_drawn() {

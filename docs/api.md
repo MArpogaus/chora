@@ -51,7 +51,7 @@ This table is the one list of node properties.
 | `meta` | all | free key/value pairs to tag and find nodes |
 | `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
 | `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; optional `depth`: the z of each point, which the transform of the node projects; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
-| `color` | rect | RGBA, each from 0 to 1 |
+| `color` | rect | RGBA, each from 0 to 1, with straight alpha: `[1, 1, 1, 0.5]` is white at half opacity |
 | `radius` | rect | the radius of the corners in logical pixels; the rect becomes a layer |
 | `border` | rect | `{"width": w, "color": [r, g, b, a]}`: a line of `w` logical pixels along the inner edge; the rect becomes a layer; `null` removes it |
 | `image` | image | absolute path of a PNG file; the core loads it again after a change |
@@ -92,9 +92,11 @@ An effect is a GLSL ES fragment shader with absolute path. It reads the
 layer in `uniform sampler2D tex` at `varying vec2 v_uv`, and may use
 `uniform float alpha`, `uniform vec2 size` (the texture size in pixels),
 `uniform float time` (seconds) and its own `float` and `vec2` to `vec4`
-uniforms. A transaction that names a shader that does not compile fails
-with the log of the compiler. The core compiles a shader again when its
-file changes. The package installs examples in `/usr/share/chora/shaders/`:
+uniforms. The texture holds premultiplied colors, and the shader writes
+premultiplied colors; the core passes the uniforms as they are, so a
+color uniform is whatever the shader takes it to be. A transaction that
+names a shader that does not compile fails with the log of the compiler.
+The core compiles a shader again when its file changes. The package installs examples in `/usr/share/chora/shaders/`:
 `grayscale.frag`, `rounded.frag` and `blur.frag` (with `radius`).
 
 Two hints for shaders. With `precision mediump float`, the common hash

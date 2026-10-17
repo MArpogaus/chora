@@ -466,10 +466,9 @@ pub fn passes(node: &Node, scale: f64) -> Vec<Pass<'_>> {
     let props = &node.props;
     let mut out = Vec::new();
     if node.kind == NodeKind::Rect && (props.radius > 0.0 || props.border.is_some()) {
-        let border = props.border.map(|b| {
-            let [r, g, bl, a] = b.color;
-            (b.width * scale, [r * a, g * a, bl * a, a])
-        });
+        let border = props
+            .border
+            .map(|b| (b.width * scale, crate::render::premultiplied(b.color)));
         out.push(Pass::Shape {
             radius: props.radius * scale,
             border,
