@@ -263,9 +263,8 @@ impl Ipc {
         }
     }
 
-    /// The connection that grabbed the pressed binding, and the binding in
-    /// its normal form.
-    pub fn grab_for(&self, mods: &ModifiersState, syms: &[Keysym]) -> Option<(u64, String)> {
+    /// The connection that grabbed the pressed binding, and the binding.
+    pub fn grab_for(&self, mods: &ModifiersState, syms: &[Keysym]) -> Option<(u64, Binding)> {
         self.grab_of(
             mods,
             |t| matches!(t, Trigger::Key(sym) if syms.contains(&sym)),
@@ -273,8 +272,8 @@ impl Ipc {
     }
 
     /// The connection that grabbed a pressed pointer button with the
-    /// modifiers, and the binding in its normal form.
-    pub fn button_grab_for(&self, mods: &ModifiersState, button: u32) -> Option<(u64, String)> {
+    /// modifiers, and the binding.
+    pub fn button_grab_for(&self, mods: &ModifiersState, button: u32) -> Option<(u64, Binding)> {
         self.grab_of(mods, |t| t == Trigger::Button(button))
     }
 
@@ -282,7 +281,7 @@ impl Ipc {
         &self,
         mods: &ModifiersState,
         matches: impl Fn(Trigger) -> bool,
-    ) -> Option<(u64, String)> {
+    ) -> Option<(u64, Binding)> {
         self.grabs
             .iter()
             .find(|(b, trigger, _)| {
@@ -290,7 +289,7 @@ impl Ipc {
                 (m.ctrl, m.alt, m.shift, m.logo) == (mods.ctrl, mods.alt, mods.shift, mods.logo)
                     && matches(*trigger)
             })
-            .map(|(b, _, conn)| (*conn, b.to_string()))
+            .map(|(b, _, conn)| (*conn, b.clone()))
     }
 
     /// The connections without a name whose deadline of `hello` passed.
@@ -945,7 +944,7 @@ mod tests {
         let a = [Keysym::a];
         assert_eq!(
             core.state.ipc.grab_for(&logo, &a),
-            Some((0, "Super+a".into()))
+            Some((0, "Super+a".parse().unwrap()))
         );
         assert_eq!(core.state.ipc.grab_for(&both, &a), None);
         assert_eq!(core.state.ipc.grab_for(&logo, &[Keysym::b]), None);

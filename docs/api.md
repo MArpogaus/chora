@@ -217,7 +217,7 @@ or an empty list. It always sees the current titles.
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
 | `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
-| `input.key` | the grabbed `binding` and its `state`: `pressed` when its key goes down, `released` when it goes up |
+| `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when the first of its modifiers goes up (see [IPC methods](#ipc-methods)) |
 | `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; only to the connection of the grab |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
@@ -305,6 +305,13 @@ stays. `choractl reserve --top 30` holds a reserve until it ends.
 A key binding needs Ctrl, Alt or Super, so that typing still works. The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
 belong to no client. A binding has one owner at a time.
+
+A key grab is held from the press of its key until one of its modifiers
+goes up. Each press of the key in that time sends `pressed`; the release
+of the key sends nothing and reaches no surface. When the first modifier
+goes up, the client gets one `released`. So an Alt+Tab switcher sees Alt
+down, Tab, Tab, Alt up as `pressed`, `pressed`, `released`, and knows when
+to switch.
 
 A button binding names a pointer button in place of the key: `BTN_LEFT`,
 `BTN_RIGHT`, `BTN_MIDDLE`, `BTN_SIDE`, `BTN_EXTRA`, `BTN_FORWARD` or

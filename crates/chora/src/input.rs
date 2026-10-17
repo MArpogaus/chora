@@ -9,7 +9,7 @@
 
 use std::sync::atomic::Ordering;
 
-use chora_scene::{Event as SceneEvent, NodeKind, ScrollSource, ipc::PressState};
+use chora_scene::{Binding, Event as SceneEvent, NodeKind, ScrollSource, ipc::PressState};
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
@@ -29,7 +29,7 @@ use smithay::{
 use crate::{
     output::{Spot, output_area},
     render,
-    state::{ButtonGrab, ClientState, NodeGrab, State, Suppressed},
+    state::{ButtonGrab, ClientState, HeldGrab, NodeGrab, State, Suppressed},
 };
 
 /// What a key press does besides reaching a client.
@@ -43,9 +43,7 @@ enum KeyAction {
     /// Switch to another virtual terminal.
     SwitchVt(i32),
     /// Send `input.key` to the client that grabbed the binding.
-    Grab(u64, String),
-    /// Send the release of a grabbed key to the client of the grab.
-    Ungrab(u64, String),
+    Grab(u64, Binding),
     /// Send a key to the owner of the node with the keyboard focus.
     Node(String, SceneEvent),
 }
@@ -126,9 +124,16 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
                 backend.change_vt(vt);
             }
         }
-        Some(KeyAction::Grab(conn, binding)) => grabbed(state, conn, binding, PressState::Pressed),
-        Some(KeyAction::Ungrab(conn, binding)) => {
-            grabbed(state, conn, binding, PressState::Released);
+        Some(KeyAction::Grab(conn, binding)) => {
+            grabbed(state, conn, &binding, PressState::Pressed);
+            if !state
+                .held
+                .grabs
+                .iter()
+                .any(|h| h.conn == conn && h.binding == binding)
+            {
+                state.held.grabs.push(HeldGrab { conn, binding });
+            }
         }
         Some(KeyAction::Node(owner, event)) => state.ipc.send_to_client(&owner, &event),
         Some(KeyAction::Swallow) => {}
@@ -138,6 +143,9 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
             serial,
             key_state == KeyState::Pressed,
         ),
+    }
+    if key_state == KeyState::Released {
+        release_grabs(state, &keyboard.modifier_state());
     }
 }
 
@@ -149,11 +157,10 @@ fn released_key(
     mods: &ModifiersState,
     handle: &KeysymHandle<'_>,
 ) -> FilterResult<KeyAction> {
-    let Some(i) = state.suppressed_keys.iter().position(|(k, _)| *k == code) else {
+    let Some(i) = state.held.keys.iter().position(|(k, _)| *k == code) else {
         return FilterResult::Forward;
     };
-    FilterResult::Intercept(match state.suppressed_keys.remove(i).1 {
-        Suppressed::Grab(conn, binding) => KeyAction::Ungrab(conn, binding),
+    FilterResult::Intercept(match state.held.keys.remove(i).1 {
         Suppressed::Node(owner, node) => {
             KeyAction::Node(owner, node_key(node, mods, handle, PressState::Released))
         }
@@ -172,11 +179,7 @@ fn pressed_key(
 ) -> FilterResult<KeyAction> {
     let syms = (handle.raw_syms(), handle.modified_syms());
     let (action, suppressed) = if let Some(action) = press_action(state, mods, &syms, injected) {
-        let suppressed = match &action {
-            KeyAction::Grab(conn, binding) => Suppressed::Grab(*conn, binding.clone()),
-            _ => Suppressed::Swallow,
-        };
-        (action, suppressed)
+        (action, Suppressed::Swallow)
     } else if let Some((node, owner)) = state.key_node() {
         let event = node_key(node.clone(), mods, handle, PressState::Pressed);
         (
@@ -187,18 +190,37 @@ fn pressed_key(
         return FilterResult::Forward;
     };
     // A repeated press without a release keeps one entry.
-    state.suppressed_keys.retain(|(k, _)| *k != code);
-    state.suppressed_keys.push((code, suppressed));
+    state.held.keys.retain(|(k, _)| *k != code);
+    state.held.keys.push((code, suppressed));
     FilterResult::Intercept(action)
 }
 
 /// Tells the client of a grab that its key went down or up.
-fn grabbed(state: &mut State, conn: u64, binding: String, press: PressState) {
+fn grabbed(state: &mut State, conn: u64, binding: &Binding, press: PressState) {
     let event = chora_scene::Event::InputKey {
-        binding,
+        binding: binding.to_string(),
         state: press,
     };
     state.ipc.send_to(conn, &event);
+}
+
+/// Ends the held key grabs of which a modifier went up, each with one
+/// `released`, so that an Alt+Tab switcher learns when Alt went up.
+fn release_grabs(state: &mut State, mods: &ModifiersState) {
+    let (ended, held) = std::mem::take(&mut state.held.grabs)
+        .into_iter()
+        .partition(|h| {
+            let m = h.binding.mods;
+            (m.ctrl && !mods.ctrl)
+                || (m.alt && !mods.alt)
+                || (m.shift && !mods.shift)
+                || (m.logo && !mods.logo)
+        });
+    state.held.grabs = held;
+    let ended: Vec<HeldGrab> = ended;
+    for grab in ended {
+        grabbed(state, grab.conn, &grab.binding, PressState::Released);
+    }
 }
 
 /// The `node.key` event of a key for the node with the keyboard focus.
@@ -492,6 +514,7 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
         let Some((conn, binding)) = state.ipc.button_grab_for(&mods, code) else {
             return false;
         };
+        let binding = binding.to_string();
         state.button_grab = Some(ButtonGrab {
             conn,
             binding: binding.clone(),
@@ -1066,5 +1089,48 @@ mod tests {
         assert_eq!(message, "unknown key \"BTN_NOPE\"");
         wm.ok(&mut core, "input.grab", grab("Ctrl+Alt+BTN_RIGHT"));
         wm.ok(&mut core, "input.ungrab", grab("Ctrl+Alt+BTN_RIGHT"));
+    }
+
+    const TAB: u32 = 15;
+
+    /// The states of the `input.key` events of a binding.
+    fn key_states(client: &mut Client, core: &mut Core, binding: &str) -> Vec<String> {
+        events(client, core)
+            .into_iter()
+            .filter(|e| e["event"] == "input.key" && e["binding"] == binding)
+            .map(|e| e["state"].as_str().unwrap_or_default().to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn a_held_grab_ends_when_its_modifier_goes_up() {
+        let (mut core, mut wayland, _window, mut wm, _xp) = window_and_menu();
+        wm.ok(&mut core, "input.grab", json!({"binding": "Alt+Tab"}));
+        press(&mut core, ALT, true);
+        tap(&mut core, TAB);
+        tap(&mut core, TAB);
+        assert_eq!(
+            key_states(&mut wm, &mut core, "Alt+Tab"),
+            ["pressed", "pressed"]
+        );
+        press(&mut core, ALT, false);
+        assert_eq!(key_states(&mut wm, &mut core, "Alt+Tab"), ["released"]);
+        // A modifier that goes up before the key ends the grab as well, and
+        // the release of the key reaches no surface.
+        press(&mut core, ALT, true);
+        press(&mut core, TAB, true);
+        press(&mut core, ALT, false);
+        assert_eq!(
+            key_states(&mut wm, &mut core, "Alt+Tab"),
+            ["pressed", "released"]
+        );
+        press(&mut core, TAB, false);
+        assert_eq!(
+            key_states(&mut wm, &mut core, "Alt+Tab"),
+            Vec::<String>::new()
+        );
+        wayland.roundtrip(&mut core);
+        // Only the presses and releases of Alt reach the window.
+        assert_eq!(wayland.key_serials().len(), 4);
     }
 }

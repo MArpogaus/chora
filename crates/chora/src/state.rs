@@ -7,7 +7,9 @@ use std::{
     time::Instant,
 };
 
-use chora_scene::{Decoration, Effect, Event, Scene, SurfaceInfo, SurfaceRequest, ToplevelState};
+use chora_scene::{
+    Binding, Decoration, Effect, Event, Scene, SurfaceInfo, SurfaceRequest, ToplevelState,
+};
 use smithay::{
     desktop::{PopupManager, Window},
     input::{
@@ -83,12 +85,28 @@ pub struct ButtonGrab {
     pub button: u32,
 }
 
+/// A key grab whose key went down while all its modifiers stay down: the
+/// connection of the grab and the binding. It ends with one `released`
+/// when one of the modifiers goes up.
+pub struct HeldGrab {
+    pub conn: u64,
+    pub binding: Binding,
+}
+
+/// The keys whose press did not reach a surface, and the held key grabs.
+#[derive(Default)]
+pub struct Held {
+    /// Keys whose press went to the safety layer, a grab or a node, so that
+    /// their release must not reach a surface.
+    pub keys: Vec<(Keycode, Suppressed)>,
+    /// The key grabs that are held.
+    pub grabs: Vec<HeldGrab>,
+}
+
 /// Where the release of a key goes whose press did not reach a surface.
 pub enum Suppressed {
     /// Nowhere, as after a binding of the safety layer.
     Swallow,
-    /// To the connection of a grab, with the binding.
-    Grab(u64, String),
     /// To the owner of the node with the keyboard focus, with the node.
     Node(String, String),
 }
@@ -179,9 +197,8 @@ pub struct State {
     pub image_capture: ImageCapture,
     /// The screencopy frames that wait for the next tick.
     pub copies: Copies,
-    /// Keys whose press went to the safety layer, a grab or a node, so that
-    /// their release must not reach a surface.
-    pub suppressed_keys: Vec<(Keycode, Suppressed)>,
+    /// The keys and the key grabs that are down.
+    pub held: Held,
 }
 
 /// Creates the globals that live as long as the display and whose state
@@ -291,7 +308,7 @@ impl State {
             methods: Methods::default(),
             image_capture: ImageCapture::new(&dh),
             copies: Copies::default(),
-            suppressed_keys: Vec::new(),
+            held: Held::default(),
         }
     }
 
