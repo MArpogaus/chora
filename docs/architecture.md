@@ -281,8 +281,8 @@ The layer surface keeps it until one of these occurs:
 - Its role goes, or it no longer accepts the keyboard.
 - Its output goes.
 
-A popup grabs the input only with the serial of the last press or of the
-last key or button event, press or release, that its client got: a menu
+A popup grabs the input only with the serial of the last press, or of the
+last key or button event that its client got. A release counts, so a menu
 opens on F10 when the key goes up.
 
 ## Safety layer
