@@ -219,6 +219,7 @@ impl State {
         }
         self.grants.clear();
         self.node_grab = None;
+        self.button_grab = None;
         let effects = self.scene.reset(self.reset_area());
         self.send_configures(&effects);
         let first = self

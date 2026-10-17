@@ -75,6 +75,14 @@ pub struct NodeGrab {
     pub position: [f64; 2],
 }
 
+/// A grab of a button that is down: the connection of the grab, the
+/// binding, and the button.
+pub struct ButtonGrab {
+    pub conn: u64,
+    pub binding: String,
+    pub button: u32,
+}
+
 /// Where the release of a key goes whose press did not reach a surface.
 pub enum Suppressed {
     /// Nowhere, as after a binding of the safety layer.
@@ -137,6 +145,8 @@ pub struct State {
     /// The rect or image node of a press and its button, until the button
     /// goes up.
     pub node_grab: Option<NodeGrab>,
+    /// The grab of a button with modifiers, until the button goes up.
+    pub button_grab: Option<ButtonGrab>,
     /// The node of the last `pointer.entered`.
     pub hovered: Option<String>,
     /// A layer surface that a click focused.
@@ -229,6 +239,7 @@ impl State {
         let idle_notifier_state = IdleNotifierState::new(&dh, loop_handle.clone());
         let clock = Clock::<Monotonic>::new();
         create_globals(&dh, &clock);
+        let toplevel_list = ForeignToplevelListState::new_with_filter::<Self>(&dh, trusted);
         Self {
             start_time: Instant::now(),
             animated_at: Instant::now(),
@@ -259,15 +270,14 @@ impl State {
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
             node_grab: None,
+            button_grab: None,
             hovered: None,
             watchdog: Watchdog::from_env(),
             layer_focus: None,
             configured: HashMap::new(),
             idle_notifier_state,
             idle_inhibitors: Vec::new(),
-            foreign_toplevel_list_state: ForeignToplevelListState::new_with_filter::<Self>(
-                &dh, trusted,
-            ),
+            foreign_toplevel_list_state: toplevel_list,
             foreign_toplevels: HashMap::new(),
             foreign_toplevel_manager_state: ForeignToplevelManagerState::new(&dh),
             activation_state: XdgActivationState::new::<Self>(&dh),

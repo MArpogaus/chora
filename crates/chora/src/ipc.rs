@@ -56,7 +56,40 @@ pub struct Ipc {
     listener: Option<RegistrationToken>,
     conns: HashMap<u64, Conn>,
     next: u64,
-    grabs: Vec<(Binding, Keysym, u64)>,
+    grabs: Vec<(Binding, Trigger, u64)>,
+}
+
+/// What a grab waits for: a key or a pointer button.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Trigger {
+    Key(Keysym),
+    Button(u32),
+}
+
+/// The names of the pointer buttons of a binding, with their Linux codes.
+const BUTTONS: [(&str, u32); 7] = [
+    ("BTN_LEFT", 0x110),
+    ("BTN_RIGHT", 0x111),
+    ("BTN_MIDDLE", 0x112),
+    ("BTN_SIDE", 0x113),
+    ("BTN_EXTRA", 0x114),
+    ("BTN_FORWARD", 0x115),
+    ("BTN_BACK", 0x116),
+];
+
+/// The key or the button of a binding.
+fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
+    if let Some((_, code)) = BUTTONS
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case(&binding.key))
+    {
+        return Ok(Trigger::Button(*code));
+    }
+    let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
+    if sym.raw() == 0 {
+        return Err(rejected(format!("unknown key {:?}", binding.key)));
+    }
+    Ok(Trigger::Key(sym))
 }
 
 struct Conn {
@@ -233,12 +266,29 @@ impl Ipc {
     /// The connection that grabbed the pressed binding, and the binding in
     /// its normal form.
     pub fn grab_for(&self, mods: &ModifiersState, syms: &[Keysym]) -> Option<(u64, String)> {
+        self.grab_of(
+            mods,
+            |t| matches!(t, Trigger::Key(sym) if syms.contains(&sym)),
+        )
+    }
+
+    /// The connection that grabbed a pressed pointer button with the
+    /// modifiers, and the binding in its normal form.
+    pub fn button_grab_for(&self, mods: &ModifiersState, button: u32) -> Option<(u64, String)> {
+        self.grab_of(mods, |t| t == Trigger::Button(button))
+    }
+
+    fn grab_of(
+        &self,
+        mods: &ModifiersState,
+        matches: impl Fn(Trigger) -> bool,
+    ) -> Option<(u64, String)> {
         self.grabs
             .iter()
-            .find(|(b, sym, _)| {
+            .find(|(b, trigger, _)| {
                 let m = b.mods;
                 (m.ctrl, m.alt, m.shift, m.logo) == (mods.ctrl, mods.alt, mods.shift, mods.logo)
-                    && syms.contains(sym)
+                    && matches(*trigger)
             })
             .map(|(b, _, conn)| (*conn, b.to_string()))
     }
@@ -534,9 +584,10 @@ impl State {
         Ok(serde_json::json!(self.scene.query(&selector)))
     }
 
-    /// Grabs a binding for a named connection. A binding needs Ctrl, Alt or
-    /// Super, so that typing still works, and Ctrl+Alt belongs to the safety
-    /// layer. The result is the binding in the normal form of `input.key`.
+    /// Grabs a binding of a key or a pointer button for a named connection.
+    /// A binding needs Ctrl, Alt or Super, so that typing and clicking still
+    /// work, and Ctrl+Alt with the keys of the safety layer belongs to it.
+    /// The result is the binding in the normal form of `input.key`.
     fn ipc_grab(&mut self, conn: u64, binding: Binding) -> Result<Value, RpcError> {
         if self.ipc.name(conn).is_none() {
             return Err(rejected("send hello first"));
@@ -545,33 +596,30 @@ impl State {
         if !(m.ctrl || m.alt || m.logo) {
             return Err(rejected(format!("{binding} needs Ctrl, Alt or Super")));
         }
-        let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
-        if sym.raw() == 0 {
-            return Err(rejected(format!("unknown key {:?}", binding.key)));
-        }
-        if m.ctrl && m.alt && is_safety_key(sym) {
+        let trigger = trigger(&binding)?;
+        if m.ctrl && m.alt && matches!(trigger, Trigger::Key(sym) if is_safety_key(sym)) {
             return Err(rejected(format!("{binding} belongs to the safety layer")));
         }
         if self
             .ipc
             .grabs
             .iter()
-            .any(|(b, s, _)| b.mods == binding.mods && *s == sym)
+            .any(|(b, t, _)| b.mods == binding.mods && *t == trigger)
         {
             return Err(rejected(format!("{binding} is grabbed already")));
         }
         let normal = binding.to_string();
-        self.ipc.grabs.push((binding, sym, conn));
+        self.ipc.grabs.push((binding, trigger, conn));
         Ok(Value::String(normal))
     }
 
     /// Ends a grab of a connection (D45).
     fn ipc_ungrab(&mut self, conn: u64, binding: &Binding) -> Result<Value, RpcError> {
-        let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
+        let trigger = trigger(binding)?;
         let before = self.ipc.grabs.len();
         self.ipc
             .grabs
-            .retain(|(b, s, c)| !(*c == conn && b.mods == binding.mods && *s == sym));
+            .retain(|(b, t, c)| !(*c == conn && b.mods == binding.mods && *t == trigger));
         if self.ipc.grabs.len() == before {
             return Err(rejected(format!("{binding} is no grab of this connection")));
         }

@@ -218,6 +218,7 @@ or an empty list. It always sees the current titles.
 | `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` when its key goes down, `released` when it goes up |
+| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; only to the connection of the grab |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, and the `modifiers` that are down |
@@ -266,7 +267,7 @@ client sends `hello` first. The core answers every request.
 | `scene.query(selector)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name |
-| `input.grab(binding)` | get the events of a key, a button or a gesture; returns the binding as `input.key` names it |
+| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
@@ -304,6 +305,23 @@ stays. `choractl reserve --top 30` holds a reserve until it ends.
 A key binding needs Ctrl, Alt or Super, so that typing still works. The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
 belong to no client. A binding has one owner at a time.
+
+A button binding names a pointer button in place of the key: `BTN_LEFT`,
+`BTN_RIGHT`, `BTN_MIDDLE`, `BTN_SIDE`, `BTN_EXTRA`, `BTN_FORWARD` or
+`BTN_BACK`. It needs Ctrl, Alt or Super too, so that a plain click still
+works. While its button is down, the client of the grab gets the press,
+each move and the release, also when the modifiers went up first, and no
+surface gets them:
+
+```json
+{"event": "input.button", "binding": "Super+BTN_LEFT", "state": "pressed",
+ "position": [812, 140], "output": "DP-1", "local": [812, 140]}
+{"event": "input.moved", "binding": "Super+BTN_LEFT",
+ "position": [830, 152], "output": "DP-1", "local": [830, 152]}
+```
+
+A window manager moves a window with `Super+BTN_LEFT` so, wherever the
+pointer grabs it.
 
 The core implements `wlr-output-management`, so kanshi and wlr-randr
 configure the outputs (see
@@ -520,7 +538,7 @@ example in the `.mcp.json` of Claude Code:
 | `reserve_space` | space at the edges of an output, as `output.reserve`, while the server runs |
 | `configure_output` | the scale or the transform of an output, as `output.configure` |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
-| `subscribe_events` | start to collect events, and grab keys; `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the current subscription |
+| `subscribe_events` | start to collect events, and grab keys and buttons; `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the current subscription |
 | `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500) |
 
 The input schemas of `apply_commands` and `inject_input` come from the

@@ -69,6 +69,35 @@ pub enum Event {
         #[serde(default)]
         state: crate::ipc::PressState,
     },
+    /// The button of a grabbed binding, such as `Super+BTN_LEFT`, went
+    /// down or up. Only the connection of the grab gets it, subscribed or
+    /// not; `input.moved` follows each move until the button goes up.
+    #[serde(rename = "input.button")]
+    InputButton {
+        /// The binding as the client grabbed it.
+        binding: String,
+        /// Pressed or released.
+        #[serde(default)]
+        state: crate::ipc::PressState,
+        /// The pointer in scene coordinates.
+        position: [f64; 2],
+        /// The output under the pointer.
+        output: String,
+        /// The pointer in the logical coordinates of the output.
+        local: [f64; 2],
+    },
+    /// The pointer moved while the button of a grabbed binding is down.
+    #[serde(rename = "input.moved")]
+    InputMoved {
+        /// The binding as the client grabbed it.
+        binding: String,
+        /// The pointer in scene coordinates.
+        position: [f64; 2],
+        /// The output under the pointer.
+        output: String,
+        /// The pointer in the logical coordinates of the output.
+        local: [f64; 2],
+    },
     /// A key went down or up while a node of the client has the keyboard
     /// focus of `focus_node`. Only the connections of the owner of the node
     /// that subscribed get it.

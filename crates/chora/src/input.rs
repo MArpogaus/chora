@@ -29,7 +29,7 @@ use smithay::{
 use crate::{
     output::{Spot, output_area},
     render,
-    state::{ClientState, NodeGrab, State, Suppressed},
+    state::{ButtonGrab, ClientState, NodeGrab, State, Suppressed},
 };
 
 /// What a key press does besides reaching a client.
@@ -287,8 +287,10 @@ fn grab_action(state: &State, mods: &ModifiersState, syms: &[Keysym]) -> Option<
 /// the outputs.
 fn relative_motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionEvent) {
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
+    // A grabbed button keeps the motion from the surfaces.
     let under = state
         .spot(state.pointer_layout)
+        .filter(|_| state.button_grab.is_none())
         .and_then(|spot| render::surface_under(state, &spot));
     let focus = under.as_ref().map(|u| (u.surface.clone(), u.location));
     let relative = RelativeMotionEvent {
@@ -396,8 +398,18 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
     let Some(spot) = state.spot(layout) else {
         return;
     };
-    if state.node_grab.is_none() {
+    if state.node_grab.is_none() && state.button_grab.is_none() {
         hover(state, &spot, moved);
+    }
+    if let Some(grab) = state.button_grab.as_ref().filter(|_| moved) {
+        let (binding, conn) = (grab.binding.clone(), grab.conn);
+        let event = SceneEvent::InputMoved {
+            binding,
+            position: [spot.scene.x, spot.scene.y],
+            output: spot.output.name(),
+            local: [spot.local.x, spot.local.y],
+        };
+        state.ipc.send_to(conn, &event);
     }
     // The drag of a node goes to plugins only, with each new position.
     let under = if let Some(grab) = &mut state.node_grab {
@@ -413,6 +425,8 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
                 modifiers,
             });
         }
+        None
+    } else if state.button_grab.is_some() {
         None
     } else {
         render::surface_under(state, &spot).map(|u| (u.surface, u.location))
@@ -439,6 +453,9 @@ fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
 
 /// A pointer button goes down or up.
 pub fn press_button(state: &mut State, code: u32, button_state: ButtonState, time: InputTime) {
+    if grab_button(state, code, button_state, time) {
+        return;
+    }
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     let serial = SERIAL_COUNTER.next_serial();
     if button_state == ButtonState::Pressed {
@@ -459,6 +476,50 @@ pub fn press_button(state: &mut State, code: u32, button_state: ButtonState, tim
         },
     );
     pointer.frame(state);
+}
+
+/// A button with modifiers that a client grabbed: the press, the moves and
+/// the release go to the client of the grab and to no surface. The release
+/// comes also when the modifiers went up first. Returns whether the grab
+/// took the button.
+fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: InputTime) -> bool {
+    let grab = if button_state == ButtonState::Pressed {
+        if state.button_grab.is_some() || state.lock.is_some() {
+            return false;
+        }
+        let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+        let mods = keyboard.modifier_state();
+        let Some((conn, binding)) = state.ipc.button_grab_for(&mods, code) else {
+            return false;
+        };
+        state.button_grab = Some(ButtonGrab {
+            conn,
+            binding: binding.clone(),
+            button: code,
+        });
+        (conn, binding, PressState::Pressed)
+    } else {
+        let Some(grab) = state.button_grab.take_if(|g| g.button == code) else {
+            return false;
+        };
+        (grab.conn, grab.binding, PressState::Released)
+    };
+    let Some(spot) = state.spot(state.pointer_layout) else {
+        return true;
+    };
+    let (conn, binding, press) = grab;
+    let event = SceneEvent::InputButton {
+        binding,
+        state: press,
+        position: [spot.scene.x, spot.scene.y],
+        output: spot.output.name(),
+        local: [spot.local.x, spot.local.y],
+    };
+    state.ipc.send_to(conn, &event);
+    // The surface under the pointer gets a leave, and an enter after the
+    // release.
+    move_pointer(state, state.pointer_layout, time);
+    true
 }
 
 /// Scrolls by logical pixels, as a touchpad does.
@@ -940,5 +1001,70 @@ mod tests {
             named(&events(&mut xp, &mut core), "pointer.scroll"),
             Vec::<Value>::new()
         );
+    }
+
+    const SUPER: u32 = 125;
+
+    fn pointer_focused(core: &Core) -> bool {
+        let pointer = core.state.seat.get_pointer().expect("a pointer");
+        pointer.current_focus().is_some()
+    }
+
+    #[test]
+    fn a_grabbed_button_goes_with_its_moves_to_the_grab_and_to_no_surface() {
+        let (mut core, mut wayland, window, mut wm, mut xp) = window_and_menu();
+        wayland.attach(&mut core, &window, (100, 100));
+        apply(&mut xp, &mut core, &json!([{"remove": {"id": "menu"}}]));
+        let grab = json!({"binding": "Super+BTN_LEFT"});
+        assert_eq!(wm.ok(&mut core, "input.grab", grab), "Super+BTN_LEFT");
+        wm.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["pointer.pressed"]}),
+        );
+        move_to(&mut core, 50.0, 50.0);
+        assert!(pointer_focused(&core));
+        press(&mut core, SUPER, true);
+        click(&mut core, true);
+        assert!(!pointer_focused(&core), "the window gets a leave");
+        move_to(&mut core, 60.0, 70.0);
+        // The release comes also after the modifier went up.
+        press(&mut core, SUPER, false);
+        click(&mut core, false);
+        assert!(pointer_focused(&core), "the window gets an enter");
+        let at = |x: f64, y: f64| json!({"position": [x, y], "output": "HDMI-1", "local": [x, y]});
+        let mut expected = Vec::new();
+        for (name, state, x, y) in [
+            ("input.button", Some("pressed"), 50.0, 50.0),
+            ("input.moved", None, 60.0, 70.0),
+            ("input.button", Some("released"), 60.0, 70.0),
+        ] {
+            let mut event = at(x, y);
+            event["event"] = json!(name);
+            event["binding"] = json!("Super+BTN_LEFT");
+            if let Some(state) = state {
+                event["state"] = json!(state);
+            }
+            expected.push(event);
+        }
+        assert_eq!(events(&mut wm, &mut core), expected);
+        // Without the modifier, the window gets the click.
+        click(&mut core, true);
+        click(&mut core, false);
+        let pressed = named(&events(&mut wm, &mut core), "pointer.pressed");
+        assert_eq!(pressed[0]["node"], "s1");
+    }
+
+    #[test]
+    fn a_button_grab_needs_a_modifier_and_a_known_button() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let grab = |binding: &str| json!({"binding": binding});
+        let (_, message) = wm.fails(&mut core, "input.grab", grab("BTN_LEFT"));
+        assert_eq!(message, "BTN_LEFT needs Ctrl, Alt or Super");
+        let (_, message) = wm.fails(&mut core, "input.grab", grab("Alt+BTN_NOPE"));
+        assert_eq!(message, "unknown key \"BTN_NOPE\"");
+        wm.ok(&mut core, "input.grab", grab("Ctrl+Alt+BTN_RIGHT"));
+        wm.ok(&mut core, "input.ungrab", grab("Ctrl+Alt+BTN_RIGHT"));
     }
 }
