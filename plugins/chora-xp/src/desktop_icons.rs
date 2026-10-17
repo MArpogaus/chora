@@ -11,6 +11,7 @@ use std::{
     collections::HashMap,
     fmt::Write as _,
     fs,
+    os::unix::fs::PermissionsExt as _,
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
@@ -18,7 +19,7 @@ use std::{
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
-    apps, balloon,
+    apps, balloon, folder,
     icons::Icons,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
@@ -583,8 +584,15 @@ fn picture(
     // The box as on XP: 1 pixel of room left of the ink, 2 right of it.
     let boxed = [(CELL - text - 2) / 2, LABEL_TOP, text + 3, rows * LINE + 2];
     let mut picture = Picture::new(CELL, LABEL_TOP + boxed[3]);
-    let icon = match item.open {
+    let icon = match &item.open {
         Open::Run(_) => icons.program(&item.icon),
+        // The icon of the type, as Explorer shows it.
+        Open::File(path) => {
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            let executable = fs::metadata(path).is_ok_and(|m| m.permissions().mode() & 0o111 != 0);
+            let kind = folder::Kind::of(&name, false, executable);
+            icons.first_sized(kind.icons(), ICON.unsigned_abs())
+        }
         _ => icons.find(&item.icon),
     };
     if let Some(file) = icon {
@@ -766,8 +774,6 @@ fn scan(dir: &Path, terminal: &str) -> Vec<Item> {
                     open: Open::Run(command),
                 };
             }
-            // ponytail: one icon for all files; a MIME lookup would give
-            // each type its own.
             Item {
                 key,
                 title: name,
