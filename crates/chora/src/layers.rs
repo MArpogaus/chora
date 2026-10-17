@@ -149,6 +149,18 @@ impl State {
         })
     }
 
+    /// Whether a surface is a layer surface that takes the keyboard on
+    /// demand, as the search field of a panel does.
+    pub fn on_demand_layer(&self, surface: &WlSurface) -> bool {
+        self.outputs.iter().any(|output| {
+            layer_map_for_output(output)
+                .layer_for_surface(surface, WindowSurfaceType::ALL)
+                .is_some_and(|l| {
+                    l.cached_state().keyboard_interactivity == KeyboardInteractivity::OnDemand
+                })
+        })
+    }
+
     /// The topmost layer surface that takes the keyboard as long as it is
     /// mapped, as a launcher does.
     pub fn exclusive_layer(&self) -> Option<WlSurface> {

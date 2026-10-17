@@ -546,10 +546,11 @@ impl State {
     }
 
     /// Gives the keyboard to a layer surface after a click, or takes it
-    /// back. A click on such a layer surface ends the focus of a node, as
-    /// a click on a toplevel does.
+    /// back. A click on a layer surface that takes the keyboard on demand
+    /// ends the focus of a node, as a click on a toplevel does.
     pub fn set_layer_focus(&mut self, layer: Option<WlSurface>) {
-        let node = layer.is_some() && self.scene.focused_node().is_some();
+        let node = layer.as_ref().is_some_and(|l| self.on_demand_layer(l))
+            && self.scene.focused_node().is_some();
         if node {
             self.scene.unfocus_node();
         }
@@ -852,6 +853,25 @@ mod tests {
         let panel = click_layer(&mut core, &mut wayland, &output);
         assert_eq!(keyboard(&core), Some(panel.surface.id().protocol_id()));
         assert_eq!(core.state.key_node(), None);
+    }
+
+    #[test]
+    fn a_click_on_an_exclusive_launcher_keeps_the_node_focus() {
+        let (mut core, mut wayland, mut wm, _first, _second) = two_windows();
+        let output = core.add_output("HDMI-1", (800, 600));
+        wayland.roundtrip(&mut core);
+        let desk = apply(&json!([
+            {"create": {"id": "desk", "kind": "rect", "parent": "root", "props": {"size": [1, 1]}}},
+            {"focus_node": {"node": "desk"}},
+        ]));
+        wm.ok(&mut core, "scene.apply", desk);
+        wayland.layer(&mut core, Layer::Overlay, KeyboardInteractivity::Exclusive);
+        let launcher = smithay::desktop::layer_map_for_output(&output)
+            .layers()
+            .next()
+            .map(|l| l.wl_surface().clone());
+        core.state.set_layer_focus(launcher);
+        assert!(core.state.scene.focused_node().is_some());
     }
 
     #[test]

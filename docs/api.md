@@ -209,9 +209,9 @@ cases:
 - A surface gets the focus, by a command or by the core.
 
 A layer surface that takes the keyboard exclusively, for example a
-launcher, gets the keys before the node. A click on a layer surface that
-takes the keyboard on demand, for example the search field of a panel,
-ends the focus of the node and gives the keyboard to that surface.
+launcher, gets the keys before the node. Some layer surfaces take the
+keyboard on demand, for example the search field of a panel. A click on
+such a surface ends the focus of the node and gives it the keyboard.
 
 ## Window managers
 
@@ -249,7 +249,7 @@ or an empty list. It always sees the current titles.
 | `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own. `to` names the window manager that the core reserved it for (see [Window managers](#window-managers)). |
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
 | `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`. When `to` disconnects, the surface is free again, and all clients get `surface.detached`. With `resume`, this occurs at the end of the grace time. |
-| `focus.changed` | the keyboard focus moved to another surface, by a `focus` of any client or by the core: `surface`, or `null` without a focus; window managers draw their frames active or not (D55) |
+| `focus.changed` | the focused surface changed, by a `focus` of a client or by the core: `surface`, or `null`. Window managers draw their frames from it (D55). |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up (see [IPC methods](#ipc-methods)) |
 | `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; only to the connection of the grab |
