@@ -665,7 +665,10 @@ impl ClientData for ClientState {}
 #[cfg(test)]
 mod tests {
     use serde_json::{Value, json};
-    use smithay::backend::input::{InputTime, KeyState};
+    use smithay::{
+        backend::input::{InputTime, KeyState},
+        output::Output,
+    };
     use wayland_client::Proxy;
     use wayland_protocols::xdg::shell::client::xdg_toplevel::State as Xdg;
     use wayland_protocols_wlr::layer_shell::v1::client::{
@@ -674,7 +677,7 @@ mod tests {
 
     use crate::testing::{
         Client, Core,
-        wayland::{Toplevel, Wayland},
+        wayland::{LayerSurface, Toplevel, Wayland},
     };
 
     /// The protocol id of the surface with the keyboard focus.
@@ -695,6 +698,18 @@ mod tests {
 
     fn focus(surface: Option<&str>) -> Value {
         apply(&json!([{"focus": {"surface": surface}}]))
+    }
+
+    /// A layer surface on the output that accepts the keyboard on demand,
+    /// with the keyboard as after a click.
+    fn click_layer(core: &mut Core, wayland: &mut Wayland, output: &Output) -> LayerSurface {
+        let panel = wayland.layer(core, Layer::Top, KeyboardInteractivity::OnDemand);
+        let layer = smithay::desktop::layer_map_for_output(output)
+            .layers()
+            .next()
+            .map(|l| l.wl_surface().clone());
+        core.state.set_layer_focus(layer);
+        panel
     }
 
     /// A core with a window manager that attached two toplevels `s1` and
@@ -794,12 +809,7 @@ mod tests {
             let output = core.add_output("HDMI-1", (800, 600));
             wayland.roundtrip(&mut core);
             wm.ok(&mut core, "scene.apply", focus(Some("s1")));
-            let panel = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::OnDemand);
-            let layer = smithay::desktop::layer_map_for_output(&output)
-                .layers()
-                .next()
-                .map(|l| l.wl_surface().clone());
-            core.state.set_layer_focus(layer);
+            let panel = click_layer(&mut core, &mut wayland, &output);
             assert_eq!(keyboard(&core), Some(panel.surface.id().protocol_id()));
             match case {
                 "role" => wayland.destroy_layer_role(&mut core, &panel),
@@ -864,12 +874,7 @@ mod tests {
             wayland.roundtrip(&mut core);
             wayland.attach(&mut core, &first, (100, 100));
             wm.ok(&mut core, "scene.apply", focus(Some("s1")));
-            let panel = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::OnDemand);
-            let layer = smithay::desktop::layer_map_for_output(&output)
-                .layers()
-                .next()
-                .map(|l| l.wl_surface().clone());
-            core.state.set_layer_focus(layer);
+            let panel = click_layer(&mut core, &mut wayland, &output);
             if unmap {
                 wayland.unmap(&mut core, &first);
             } else {
