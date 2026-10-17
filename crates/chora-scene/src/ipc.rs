@@ -727,7 +727,15 @@ impl Client {
         };
         let mut line = serde_json::to_string(&request)?;
         line.push('\n');
-        self.writer.write_all(line.as_bytes())?;
+        if let Err(err) = self.writer.write_all(line.as_bytes()) {
+            // A core that refuses a connection sends the reason first.
+            return Err(match self.read() {
+                Ok(Message {
+                    error: Some(error), ..
+                }) => error.into(),
+                _ => err.into(),
+            });
+        }
         loop {
             let message = self.read()?;
             // An error without id answers a request that the core could not
@@ -938,6 +946,21 @@ mod tests {
             matches!(err, ClientError::Rpc(RpcError { code: -32700, .. })),
             "{err}"
         );
+    }
+
+    #[test]
+    fn a_refused_connection_gives_its_reason() {
+        let (client, server) = UnixStream::pair().unwrap();
+        writeln!(
+            &server,
+            r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":1,"message":"too many connections"}}}}"#
+        )
+        .unwrap();
+        drop(server);
+        let Err(err) = Client::from_stream(client, &hello()) else {
+            panic!("the hello fails");
+        };
+        assert_eq!(err.to_string(), "too many connections (code 1)");
     }
 
     #[test]

@@ -303,6 +303,12 @@ passes this limit closes, so a client reads its socket while it waits. An
 answer that does not fit, for example of a query of all nodes, fails with
 code 1 instead, and the connection stays.
 
+The core takes at most 128 connections, at most 16 of one process. The
+last 8 go only to a process without a connection, so `choractl` and a
+window manager that starts again still connect while one client holds many.
+A refused connection gets an error line with code 1 and the reason, `too
+many connections: ...`, before the core closes it.
+
 A connection sends `hello` once, within 5 s. Connections with the same name share their
 nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
 different value. For example, `choractl --name tiling` fails while the tiling

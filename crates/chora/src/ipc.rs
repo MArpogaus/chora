@@ -36,6 +36,12 @@ use smithay::{
 use crate::{captured::Processes, state::State, uploads::Uploads};
 
 const MAX_CONNECTIONS: usize = 128;
+/// The most connections of one process, so that one client cannot take
+/// every slot.
+const MAX_PER_PROCESS: usize = 16;
+/// The last slots go only to processes without a connection, for example
+/// `choractl` or a window manager that starts again.
+const KEPT_FOR_NEW_PROCESSES: usize = 8;
 const MAX_LINE: usize = 1 << 20;
 const MAX_OUTPUT: usize = 8 << 20;
 const READ_PER_WAKEUP: usize = 64 << 10;
@@ -94,6 +100,8 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
 
 struct Conn {
     stream: UnixStream,
+    /// The process of the client; `None` if the core cannot see it.
+    pid: Option<Pid>,
     input: Vec<u8>,
     output: Vec<u8>,
     /// The output passed `MAX_OUTPUT`; the connection closes.
@@ -326,6 +334,30 @@ impl Ipc {
     pub fn conn_ids(&self) -> Vec<u64> {
         self.conns.keys().copied().collect()
     }
+
+    /// Why a new connection of a process cannot get a slot, if it cannot.
+    fn refusal(&self, pid: Option<Pid>) -> Option<String> {
+        let total = self.conns.len();
+        let own = pid.map_or(0, |pid| {
+            self.conns.values().filter(|c| c.pid == Some(pid)).count()
+        });
+        if total >= MAX_CONNECTIONS {
+            Some(format!(
+                "too many connections: the core holds {MAX_CONNECTIONS}"
+            ))
+        } else if own >= MAX_PER_PROCESS {
+            Some(format!(
+                "too many connections: this process holds {MAX_PER_PROCESS}"
+            ))
+        } else if own > 0 && total >= MAX_CONNECTIONS - KEPT_FOR_NEW_PROCESSES {
+            Some(format!(
+                "too many connections: the last {KEPT_FOR_NEW_PROCESSES} are kept for \
+                 processes without one"
+            ))
+        } else {
+            None
+        }
+    }
 }
 
 impl Conn {
@@ -423,15 +455,20 @@ impl State {
         }
     }
 
-    /// Registers a connection, or refuses it beyond `MAX_CONNECTIONS`.
+    /// Registers a connection, or refuses it beyond the limits of all
+    /// connections and of its process. A refused connection gets an error
+    /// line before the close.
     pub fn ipc_accept(&mut self, stream: UnixStream) -> Result<(), String> {
         fn failed(err: impl std::fmt::Display) -> String {
             format!("a connection failed: {err}")
         }
-        if self.ipc.conns.len() >= MAX_CONNECTIONS {
-            return Err("too many connections; refusing one".into());
-        }
         stream.set_nonblocking(true).map_err(failed)?;
+        let pid = socket_peercred(&stream).ok().map(|c| c.pid);
+        if let Some(reason) = self.ipc.refusal(pid) {
+            let error = rejected(reason.clone());
+            let _ = (&stream).write_all(&line(&Message::error(Value::Null, error)));
+            return Err(format!("refusing a connection: {reason}"));
+        }
         // The event loop watches a copy; reads go through `Conn::stream`.
         let watched = stream.try_clone().map_err(failed)?;
         let id = self.ipc.next;
@@ -447,6 +484,7 @@ impl State {
             .map_err(failed)?;
         let conn = Conn {
             stream,
+            pid,
             input: Vec::new(),
             output: Vec::new(),
             overflow: false,
@@ -1064,12 +1102,52 @@ mod tests {
         assert!(!named.closed(&mut core));
     }
 
-    #[test]
-    fn the_core_refuses_connections_beyond_its_limit() {
-        let mut core = Core::new();
-        let clients: Vec<Client> = (0..MAX_CONNECTIONS).map(|_| core.connect()).collect();
-        let (_, theirs) = UnixStream::pair().unwrap();
+    /// The error line of a refused connection.
+    fn refused(core: &mut Core) -> String {
+        let (mut ours, theirs) = UnixStream::pair().unwrap();
         assert!(core.state.ipc_accept(theirs).is_err());
+        let mut answer = String::new();
+        ours.read_to_string(&mut answer).unwrap();
+        let answer: Value = serde_json::from_str(&answer).unwrap();
+        assert_eq!(answer["error"]["code"], REJECTED);
+        answer["error"]["message"].as_str().unwrap().to_owned()
+    }
+
+    /// Gives all connections other processes, as if each came from its
+    /// own.
+    fn as_other_processes(core: &mut Core) {
+        for (id, conn) in &mut core.state.ipc.conns {
+            conn.pid = Pid::from_raw(1_000_000 + i32::try_from(*id).unwrap());
+        }
+    }
+
+    #[test]
+    fn the_core_refuses_connections_beyond_its_limits_with_a_reason() {
+        let mut core = Core::new();
+        let mut clients: Vec<Client> = (0..MAX_PER_PROCESS).map(|_| core.connect()).collect();
+        assert_eq!(
+            refused(&mut core),
+            "too many connections: this process holds 16"
+        );
+        as_other_processes(&mut core);
+        while clients.len() < MAX_CONNECTIONS - KEPT_FOR_NEW_PROCESSES {
+            clients.push(core.connect());
+            as_other_processes(&mut core);
+        }
+        // A process without a connection gets a kept slot, but no second.
+        clients.push(core.connect());
+        assert_eq!(
+            refused(&mut core),
+            "too many connections: the last 8 are kept for processes without one"
+        );
+        while clients.len() < MAX_CONNECTIONS {
+            as_other_processes(&mut core);
+            clients.push(core.connect());
+        }
+        assert_eq!(
+            refused(&mut core),
+            "too many connections: the core holds 128"
+        );
         drop(clients);
         core.dispatch();
         let (_, theirs) = UnixStream::pair().unwrap();
