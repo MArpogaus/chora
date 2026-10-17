@@ -425,6 +425,32 @@ mod tests {
     }
 
     #[test]
+    fn a_translucent_rect_has_straight_alpha() {
+        let mut core = Core::with_renderer();
+        core.add_output("test-1", (64, 48));
+        let mut wm = core.named("wm");
+        let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+        wm.ok(&mut core, "grants.set", grant);
+        let rect = |id: &str, x: u32, radius: u32| {
+            json!({"create": {"id": id, "kind": "rect", "parent": "root", "props": {
+                "size": [20, 20], "color": [1.0, 1.0, 1.0, 0.5], "radius": radius,
+                "transform": {"translate": [x, 4]}}}})
+        };
+        let commands = json!({"commands": [rect("plain", 4, 0), rect("round", 32, 4)]});
+        wm.ok(&mut core, "scene.apply", commands);
+        let picture = wm.ok(&mut core, "screen.capture", json!({"output": "test-1"}));
+        let (width, rgba) = decode(&picture);
+        let pixel = |x: usize, y: usize| &rgba[(y * width + x) * 4..][..3];
+        for (x, what) in [(14, "a rect"), (42, "a rounded rect")] {
+            let gray = pixel(x, 14);
+            assert!(
+                gray.iter().all(|c| c.abs_diff(128) <= 2),
+                "{what}: {gray:?}"
+            );
+        }
+    }
+
+    #[test]
     fn flipping_swaps_the_rows() {
         let mut rows = vec![1, 1, 2, 2, 3, 3];
         flip_rows(&mut rows, 2);
