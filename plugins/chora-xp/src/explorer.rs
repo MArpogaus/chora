@@ -1225,7 +1225,7 @@ fn menu_title(theme: &Theme, title: &str, x: i32) -> Control {
     #[allow(clippy::cast_possible_truncation)]
     let width = theme.text_width(title, Font::Ui).ceil() as i32 + 12;
     let rect = [x - 6, 1, width, MENU_H - 2];
-    let draw = |color, hot: bool| {
+    let draw = |color: [u8; 4], hot: bool| {
         let mut picture = Picture::new(width, MENU_H - 2);
         if hot {
             picture = picture.svg(format!(
@@ -1233,7 +1233,20 @@ fn menu_title(theme: &Theme, title: &str, x: i32) -> Control {
                 MENU_H - 2
             ));
         }
-        picture.text(Text::new(
+        // The underlined letter of the reference: the first one, the "a"
+        // of Favorites.
+        let at = usize::from(title == "Favorites");
+        let (before, letter) = (&title[..at], &title[..=at]);
+        let [from, to] = [before, letter].map(|t| theme.text_width(t, Font::Ui).round());
+        let line = format!(
+            r#"<rect x="{}" y="15" width="{}" height="1" fill="rgb({},{},{})"/>"#,
+            6.0 + from,
+            to - from,
+            color[0],
+            color[1],
+            color[2]
+        );
+        picture.svg(line).text(Text::new(
             title,
             Font::Ui,
             color,
