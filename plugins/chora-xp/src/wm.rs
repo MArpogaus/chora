@@ -339,8 +339,8 @@ impl Wm {
         };
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
-        let kept = wm.take_kept()?;
-        wm.create_scene()?;
+        let (kept, old_root) = wm.take_kept()?;
+        wm.create_scene(old_root)?;
         wm.grab()?;
         wm.conn.call::<_, Value>(
             "events.subscribe",
@@ -410,7 +410,10 @@ impl Wm {
     /// The groups, the wallpapers, the taskbars and the hidden menu, in
     /// one transaction, and XP's logon sound. It fails if another instance
     /// runs.
-    fn create_scene(&mut self) -> Result<(), ClientError> {
+    /// Builds the scene. The root group that a restart kept goes in the
+    /// same transaction, so that the plugin holds a claim throughout and
+    /// the surfaces reserved for it stay so (D55).
+    fn create_scene(&mut self, old_root: bool) -> Result<(), ClientError> {
         let outputs: Vec<OutputInfo> = self.conn.call("output.list", Value::Null)?;
         self.theme.set_scale(max_scale(&outputs));
         let group = |id: &str, parent: &str| Command::Create {
@@ -419,7 +422,14 @@ impl Wm {
             parent: parent.into(),
             props: PropsUpdate::default(),
         };
-        let mut commands = vec![group(NAME, ROOT)];
+        let mut commands: Vec<Command> = old_root
+            .then(|| Command::Remove {
+                id: NAME.into(),
+                to: None,
+            })
+            .into_iter()
+            .collect();
+        commands.push(group(NAME, ROOT));
         for id in [
             WALLPAPERS,
             desktop_icons::GROUP,

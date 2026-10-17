@@ -109,8 +109,10 @@ impl Wm {
     /// Reads the windows that a restart kept into `kept`, and removes the
     /// kept nodes, whose surfaces the new scene adopts. Sets the current
     /// desktop. Nodes without the meta of Restart, as after a crash, go
-    /// too. Returns the Explorer windows to open again.
-    pub(super) fn take_kept(&mut self) -> Result<Vec<KeptWindow>, ClientError> {
+    /// too. Returns the Explorer windows to open again, and whether the
+    /// root group is still there: it holds the claim of the plugin, so
+    /// it goes only with the creation of the new one.
+    pub(super) fn take_kept(&mut self) -> Result<(Vec<KeptWindow>, bool), ClientError> {
         let nodes = self.conn.query(&format!("owner:{NAME}"))?;
         if let Some(desktop) = nodes.iter().find(|n| n.id == NAME).and_then(read) {
             self.desktop = desktop;
@@ -137,9 +139,14 @@ impl Wm {
                 to: Some(NAME.into()),
             })
             .collect();
-        commands.extend(self.remove_scene()?);
+        let old_root = nodes.iter().any(|n| n.id == NAME);
+        commands.extend(
+            self.remove_scene()?
+                .into_iter()
+                .filter(|c| !matches!(c, Command::Remove { id, .. } if id == NAME)),
+        );
         self.apply(commands)?;
-        Ok(explorers)
+        Ok((explorers, old_root))
     }
 
     /// Opens a kept Explorer window again where it was: its frame, its
