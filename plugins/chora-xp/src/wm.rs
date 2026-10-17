@@ -1680,6 +1680,7 @@ impl Wm {
             return commands;
         };
         commands.extend(menu.remove());
+        commands.extend(self.menu.hold(&mut self.theme, None));
         // The keyboard goes back to the desktop, when it had it.
         commands.extend(self.desktop_keys());
         commands

@@ -30,7 +30,8 @@ impl Wm {
                 (Action::Run(_), _) => context::Target::Program(false),
                 _ => context::Target::Place(false),
             };
-            (Target::Start(item), kind, Vec::new())
+            let held = self.menu.hold(&mut self.theme, Some(node));
+            (Target::Start(item), kind, held)
         } else if DesktopIcons::owns(node) {
             let item = self.desk.item(node)?;
             let kind = match &item.open {

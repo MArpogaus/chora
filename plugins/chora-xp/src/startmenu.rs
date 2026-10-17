@@ -149,6 +149,8 @@ pub struct Menu {
     /// An entry or a row that the pointer rests on, and when its cascade
     /// opens or closes.
     pending: Option<(Instant, Press)>,
+    /// The entry or the row whose context menu is open: it stays lit.
+    held: Option<Press>,
 }
 
 impl Menu {
@@ -203,6 +205,7 @@ impl Menu {
             cascades: Vec::new(),
             margins: Margins::of(theme),
             pending: None,
+            held: None,
         }
     }
 
@@ -446,6 +449,10 @@ impl Menu {
         let Some(part) = self.part(node) else {
             return Vec::new();
         };
+        // The entry of an open context menu stays lit.
+        if !on && self.held == Some(part) {
+            return Vec::new();
+        }
         if on {
             self.pending = Some((Instant::now() + HOVER_DELAY, part));
         }
@@ -465,6 +472,27 @@ impl Menu {
                     c.hovered = None;
                 }
             }),
+        }
+    }
+
+    /// The context menu of an entry or a row opens, and it stays lit, as
+    /// on XP; with no node the menu closed, and the light goes.
+    pub fn hold(&mut self, theme: &mut Theme, node: Option<&str>) -> Vec<Command> {
+        if let Some(part) = node.and_then(|n| self.part(n)) {
+            self.held = Some(part);
+            return Vec::new();
+        }
+        match self.held.take() {
+            Some(Press::Entry(i)) if self.hovered == Some(i) => {
+                self.hovered = None;
+                vec![self.look(theme, i)]
+            }
+            Some(Press::Row(level, i)) => self.relight(theme, level, |c| {
+                if c.hovered == Some(i) {
+                    c.hovered = None;
+                }
+            }),
+            _ => Vec::new(),
         }
     }
 
