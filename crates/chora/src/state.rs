@@ -471,12 +471,10 @@ impl State {
                     }
                     self.emit(&Event::SurfaceDetached { surface });
                 }
-                Effect::Reserved(surface) => {
+                Effect::Reserved(surface, to) => {
                     if self.focused_surface() == Some(surface.as_str()) {
                         self.focus(None);
                     }
-                    let to = self.scene.node(&surface).and_then(|n| n.to.clone());
-                    let to = to.expect("a remove with to reserves the surface");
                     self.ipc
                         .send_to_client(&to, &Event::SurfaceDetached { surface });
                 }

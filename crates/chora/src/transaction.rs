@@ -297,7 +297,7 @@ impl State {
     /// Compiles the shaders of the effects and of the shader nodes that the
     /// commands name, unless they compiled before in their current version.
     /// Without a backend, for example before the first output, the check
-    /// waits for the first frame.
+    /// waits for the first frame. The `to` of a `remove` needs a connection.
     fn check_effects(&mut self, commands: &[Command]) -> Result<(), String> {
         for command in commands {
             if let Command::Remove { to: Some(to), .. } = command

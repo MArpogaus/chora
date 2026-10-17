@@ -361,7 +361,7 @@ impl Scene {
                 self.owned_surface(owner, id)?;
                 self.remove_subtree(id);
                 self.reserve(id, Some(to));
-                effects.push(Effect::Reserved(id.clone()));
+                effects.push(Effect::Reserved(id.clone(), to.clone()));
                 Ok(())
             }
             Command::Configure {
@@ -576,22 +576,27 @@ impl Scene {
             self.cameras.remove(output);
             self.camera_moves.remove(output);
         }
-        // The surfaces reserved for the client are free to take again.
-        let reserved: Vec<String> = self
-            .nodes
-            .values()
-            .filter(|n| n.to.as_deref() == Some(owner))
-            .map(|n| n.id.clone())
-            .collect();
-        for id in reserved {
-            self.reserve(&id, None);
-            detached.push(id);
-        }
         self.focus_returns.remove(owner);
         let detached = detached.into_iter().map(Effect::Detached);
         detached
+            .chain(self.unreserve(owner))
             .chain(cameras.into_iter().map(Effect::Camera))
             .collect()
+    }
+
+    /// Ends the reservations for a client name: the surfaces are free to
+    /// take again. Returns a `Detached` effect for each.
+    pub fn unreserve(&mut self, name: &str) -> Vec<Effect> {
+        let reserved: Vec<String> = self
+            .nodes
+            .values()
+            .filter(|n| n.to.as_deref() == Some(name))
+            .map(|n| n.id.clone())
+            .collect();
+        for id in &reserved {
+            self.reserve(id, None);
+        }
+        reserved.into_iter().map(Effect::Detached).collect()
     }
 
     /// The emergency reset: removes every node except the root and the

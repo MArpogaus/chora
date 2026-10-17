@@ -155,9 +155,9 @@ pub enum Effect {
     Close(String),
     /// A surface lost its parent and its owner; tell the clients.
     Detached(String),
-    /// A surface lost its parent and its owner, reserved for another
-    /// client; tell that client.
-    Reserved(String),
+    /// A surface lost its parent and its owner, reserved for a client
+    /// name; tell that client.
+    Reserved(String, String),
     /// The camera of an output changed; tell the clients.
     Camera(String),
 }

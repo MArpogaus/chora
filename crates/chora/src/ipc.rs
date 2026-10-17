@@ -799,6 +799,10 @@ impl State {
             self.ipc.graces.insert(name.clone(), end);
         } else if !closed.keep_nodes {
             self.drop_nodes(&name);
+        } else {
+            // Kept nodes stay, but a surface reserved for the name is free.
+            let effects = self.scene.unreserve(&name);
+            self.execute(effects);
         }
         self.ipc.processes.drop_client(&name);
         self.emit(&Event::ClientDisconnected { name });
@@ -1059,7 +1063,7 @@ mod tests {
         reader.ok(core, "scene.query", json!({"selector": "owner:wm"}))
     }
 
-    fn give(to: &str) -> Value {
+    fn remove_s1_to(to: &str) -> Value {
         json!({"commands": [{"remove": {"id": "s1", "to": to}}]})
     }
 
@@ -1104,6 +1108,26 @@ mod tests {
     }
 
     #[test]
+    fn a_reservation_for_a_keep_nodes_client_ends_with_it() {
+        let mut core = Core::new();
+        let (mut wm, _wayland) = resumable(&mut core);
+        let mut agent = core.connect();
+        agent.ok(
+            &mut core,
+            "hello",
+            json!({"name": "agent", "keep_nodes": true}),
+        );
+        let mut other = core.named("other");
+        other.ok(&mut core, "events.subscribe", json!({"events": []}));
+        wm.ok(&mut core, "scene.apply", remove_s1_to("agent"));
+        drop(agent);
+        core.dispatch();
+        let names = other.event_names(&mut core);
+        assert!(names.contains(&"surface.detached".to_owned()), "{names:?}");
+        other.ok(&mut core, "scene.apply", attach_s1("root"));
+    }
+
+    #[test]
     fn a_surface_removed_to_a_client_goes_only_to_it() {
         let mut core = Core::new();
         let (mut wm, _wayland) = resumable(&mut core);
@@ -1116,9 +1140,9 @@ mod tests {
         b.ok(&mut core, "scene.apply", group);
         let mut other = core.named("other");
         other.ok(&mut core, "events.subscribe", json!({"events": []}));
-        let (_, message) = wm.fails(&mut core, "scene.apply", give("nobody"));
+        let (_, message) = wm.fails(&mut core, "scene.apply", remove_s1_to("nobody"));
         assert!(message.contains("no connection"), "{message}");
-        wm.ok(&mut core, "scene.apply", give("b"));
+        wm.ok(&mut core, "scene.apply", remove_s1_to("b"));
         let detached = json!({"event": "surface.detached", "surface": "s1"});
         let heard = |events: Vec<Value>| events.iter().any(|e| e["params"] == detached);
         assert!(heard(b.events_now(&mut core)));
@@ -1133,7 +1157,7 @@ mod tests {
             (Some("b"), None)
         );
         // A reservation for a client that goes ends: anyone takes it.
-        b.ok(&mut core, "scene.apply", give("other"));
+        b.ok(&mut core, "scene.apply", remove_s1_to("other"));
         drop(other);
         core.dispatch();
         assert!(
