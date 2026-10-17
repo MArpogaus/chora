@@ -2,6 +2,10 @@
 //! the clients but drops the nodes of the plugin with their meta, so
 //! the old instance writes the places of the windows and the Explorer
 //! windows into a file of its cache, and the new one reads them.
+//!
+//! ponytail: a stopgap until the core keeps the nodes of a plugin that
+//! restarts for a grace period; then rebuild from the plugin's own nodes
+//! and delete this file.
 
 use std::collections::HashMap;
 
@@ -9,13 +13,13 @@ use chora_scene::Command;
 use serde::{Deserialize, Serialize};
 
 use super::Wm;
-use crate::{folder::Place, theme::Rect};
+use crate::{folder::Place, theme::Rect, window::Window};
 
 /// The file in the cache directory.
 const FILE: &str = "restart.json";
 
 /// The windows of the old instance.
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub(super) struct Kept {
     /// The windows of clients, by their surfaces.
     windows: HashMap<String, KeptWindow>,
@@ -24,10 +28,11 @@ pub(super) struct Kept {
 }
 
 /// Where a window was.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub(super) struct KeptWindow {
     /// The frame.
     pub frame: Rect,
+    /// The desktop, a face of the cube.
     pub desktop: usize,
     /// The frame before maximizing, for a maximized window.
     pub restore: Option<Rect>,
@@ -36,37 +41,29 @@ pub(super) struct KeptWindow {
 impl Wm {
     /// Writes the windows for the next instance, before a restart.
     pub(super) fn keep_for_restart(&self) {
-        let keep = |surface: &str| {
-            let w = self.windows.iter().find(|w| w.surface == surface)?;
+        let keep = |w: &Window| {
             w.shown.then(|| KeptWindow {
                 frame: w.rect(),
                 desktop: w.desktop,
                 restore: w.restore,
             })
         };
-        let kept = Kept {
-            windows: self
-                .windows
-                .iter()
-                .filter(|w| !w.own)
-                .filter_map(|w| Some((w.surface.clone(), keep(&w.surface)?)))
-                .collect(),
-            explorers: self
-                .windows
-                .iter()
-                .filter_map(|w| {
-                    let e = self.explorers.iter().find(|e| e.id == w.surface)?;
-                    Some((e.history.current.clone(), keep(&w.surface)?))
-                })
-                .collect(),
+        let mut kept = Kept {
+            windows: HashMap::new(),
+            explorers: Vec::new(),
         };
+        for w in &self.windows {
+            let Some(k) = keep(w) else { continue };
+            match self.explorers.iter().find(|e| e.id == w.surface) {
+                Some(e) => kept.explorers.push((e.history.current.clone(), k)),
+                None => {
+                    kept.windows.insert(w.surface.clone(), k);
+                }
+            }
+        }
         let written = serde_json::to_string(&kept)
-            .map_err(|e| e.to_string())
-            .and_then(|json| {
-                self.theme
-                    .cache_file(FILE, &json)
-                    .map_err(|e| e.to_string())
-            });
+            .map_err(std::io::Error::other)
+            .and_then(|json| self.theme.cache_file(FILE, &json));
         if let Err(err) = written {
             eprintln!("chora-xp: keep the windows for the restart: {err}");
         }
