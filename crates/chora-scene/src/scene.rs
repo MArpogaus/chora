@@ -288,20 +288,15 @@ impl Scene {
     /// Runs the commands in place; a failure leaves a partial change.
     fn run(&mut self, owner: &str, commands: &[Command]) -> Result<Vec<Effect>, TransactionError> {
         let mut effects = Vec::new();
+        let had = self.holds_claim(owner);
         for (index, command) in commands.iter().enumerate() {
-            // A window manager that gives up its last claim frees the
-            // surfaces reserved for it.
-            let gives_up = match command {
-                Command::Remove { to: None, .. } => true,
-                Command::Update { props, .. } => props.claim == Some(None),
-                _ => false,
-            };
-            let had = gives_up && self.holds_claim(owner);
             self.apply_one(owner, command, &mut effects)
                 .map_err(|error| TransactionError { index, error })?;
-            if had && !self.holds_claim(owner) {
-                effects.extend(self.unreserve(owner));
-            }
+        }
+        // A window manager that gave up its last claim frees the surfaces
+        // reserved for it.
+        if had && !self.holds_claim(owner) {
+            effects.extend(self.unreserve(owner));
         }
         Ok(effects)
     }

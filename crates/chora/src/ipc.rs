@@ -1827,6 +1827,21 @@ mod tests {
         assert_eq!(core.state.scene.node("a").unwrap().props.claim, None);
     }
 
+    #[test]
+    fn a_claim_made_again_in_the_same_transaction_keeps_the_reservations() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 800.0, 600.0]);
+        let mut wayland = Wayland::connect(&mut core);
+        core.state.pointer_layout = (100.0, 100.0).into();
+        wayland.toplevel(&mut core, "foot");
+        let again = json!({"commands": [{"remove": {"id": "a"}},
+            {"create": {"id": "a", "kind": "group", "parent": "root",
+                "props": {"claim": [0.0, 0.0, 800.0, 600.0]}}}]});
+        a.ok(&mut core, "scene.apply", again);
+        assert_eq!(reserved_for(&core, "s1").as_deref(), Some("a"));
+    }
+
     // A dialog goes to the window manager of its parent, not by the pointer.
     #[test]
     fn a_child_toplevel_goes_to_the_manager_of_its_parent() {
