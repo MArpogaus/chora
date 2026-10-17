@@ -101,7 +101,23 @@ pub struct Held {
     pub keys: Vec<(Keycode, Suppressed)>,
     /// The key grabs that are held.
     pub grabs: Vec<HeldGrab>,
+    /// The last key that went to a node, while it is down: it repeats.
+    pub repeat: Option<Repeat>,
 }
+
+/// A held key that went to a node: its code, the owner of the node, the
+/// `node.key` event, and when it repeats next.
+pub struct Repeat {
+    pub code: Keycode,
+    pub owner: String,
+    pub event: chora_scene::Event,
+    pub next: Instant,
+}
+
+/// The delay before a held key repeats, in milliseconds, and its repeats
+/// per second; the same for surfaces and for nodes.
+pub const REPEAT_DELAY: u64 = 200;
+pub const REPEAT_RATE: u64 = 25;
 
 /// Where the release of a key goes whose press did not reach a surface.
 pub enum Suppressed {
@@ -238,7 +254,9 @@ fn new_assets(loop_handle: &LoopHandle<'static, State>) -> Assets {
 fn new_seat(dh: &DisplayHandle) -> (SeatState<State>, Seat<State>) {
     let mut seat_state = SeatState::new();
     let mut seat = seat_state.new_wl_seat(dh, "seat0");
-    seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), 200, 25)
+    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)] // small
+    let (delay, rate) = (REPEAT_DELAY as i32, REPEAT_RATE as i32);
+    seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), delay, rate)
         .expect("the default keymap compiles");
     seat.add_pointer();
     (seat_state, seat)

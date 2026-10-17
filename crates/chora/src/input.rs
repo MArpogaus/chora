@@ -6,7 +6,7 @@
 //! for a while: a popup grab, a layer surface such as a launcher, and the
 //! lock screen.
 
-use std::sync::atomic::Ordering;
+use std::{sync::atomic::Ordering, time::Duration};
 
 use chora_scene::{Binding, Event as SceneEvent, NodeKind, ScrollSource, ipc::PressState};
 use smithay::{
@@ -28,7 +28,10 @@ use smithay::{
 use crate::{
     output::{Spot, output_area},
     render,
-    state::{ButtonGrab, ClientState, HeldGrab, NodeGrab, State, Suppressed},
+    state::{
+        ButtonGrab, ClientState, HeldGrab, NodeGrab, REPEAT_DELAY, REPEAT_RATE, Repeat, State,
+        Suppressed,
+    },
 };
 
 /// What a key press does besides reaching a client.
@@ -156,6 +159,9 @@ fn released_key(
     mods: &ModifiersState,
     handle: &KeysymHandle<'_>,
 ) -> FilterResult<KeyAction> {
+    if state.held.repeat.as_ref().is_some_and(|r| r.code == code) {
+        state.held.repeat = None;
+    }
     let Some(i) = state.held.keys.iter().position(|(k, _)| *k == code) else {
         return FilterResult::Forward;
     };
@@ -181,6 +187,16 @@ fn pressed_key(
         (action, Suppressed::Swallow)
     } else if let Some((node, owner)) = state.key_node() {
         let event = node_key(node.clone(), mods, handle, PressState::Pressed);
+        if !handle.modified_sym().is_modifier_key() {
+            let next = state.time.now() + Duration::from_millis(REPEAT_DELAY);
+            let _ = state.expire_at(next);
+            state.held.repeat = Some(Repeat {
+                code,
+                owner: owner.clone(),
+                event: event.clone(),
+                next,
+            });
+        }
         (
             KeyAction::Node(owner.clone(), event),
             Suppressed::Node(owner, node),
@@ -217,6 +233,31 @@ fn release_grabs(state: &mut State, mods: &ModifiersState) {
     let ended: Vec<HeldGrab> = ended;
     for grab in ended {
         grabbed(state, grab.conn, &grab.binding, PressState::Released);
+    }
+}
+
+impl State {
+    /// Sends the held key of a node again when its time came, as a client
+    /// repeats a held key of `wl_keyboard`. The repeat ends with the focus
+    /// of the node.
+    pub fn repeat_key(&mut self) {
+        let Some(repeat) = self.held.repeat.take() else {
+            return;
+        };
+        let SceneEvent::NodeKey { node, .. } = &repeat.event else {
+            return;
+        };
+        if self.key_node() != Some((node.clone(), repeat.owner.clone())) {
+            return;
+        }
+        if repeat.next > self.time.now() {
+            self.held.repeat = Some(repeat);
+            return;
+        }
+        self.ipc.send_to_client(&repeat.owner, &repeat.event);
+        let next = repeat.next + Duration::from_millis(1000 / REPEAT_RATE);
+        let _ = self.expire_at(next);
+        self.held.repeat = Some(Repeat { next, ..repeat });
     }
 }
 
@@ -872,6 +913,37 @@ mod tests {
             wm_keys.iter().all(|e| e["event"] != "node.key"),
             "only the owner: {wm_keys:?}"
         );
+    }
+
+    /// The states of the `node.key` events of a key code.
+    fn node_keys(xp: &mut Client, core: &mut Core, linux: u32) -> Vec<String> {
+        events(xp, core)
+            .into_iter()
+            .filter(|e| e["event"] == "node.key" && e["code"] == linux)
+            .map(|e| e["state"].as_str().unwrap_or_default().to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn a_held_key_repeats_for_a_node_as_for_a_surface() {
+        let (mut core, _wayland, _window, _wm, mut xp) = window_and_menu();
+        apply(&mut xp, &mut core, &focus_node(Some("menu")));
+        press(&mut core, A, true);
+        assert_eq!(node_keys(&mut xp, &mut core, A), ["pressed"]);
+        let ms = std::time::Duration::from_millis;
+        core.advance(ms(199));
+        assert!(node_keys(&mut xp, &mut core, A).is_empty(), "the delay");
+        core.advance(ms(1));
+        assert_eq!(node_keys(&mut xp, &mut core, A), ["pressed"]);
+        core.advance(ms(40));
+        assert_eq!(node_keys(&mut xp, &mut core, A), ["pressed"], "25 a second");
+        press(&mut core, A, false);
+        core.advance(ms(400));
+        assert_eq!(node_keys(&mut xp, &mut core, A), ["released"]);
+        // A modifier does not repeat.
+        press(&mut core, SHIFT, true);
+        core.advance(ms(400));
+        assert_eq!(node_keys(&mut xp, &mut core, SHIFT), ["pressed"]);
     }
 
     #[test]

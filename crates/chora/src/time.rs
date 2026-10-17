@@ -46,6 +46,7 @@ impl crate::state::State {
         for name in self.ipc.graces_over(now) {
             self.drop_nodes(&name);
         }
+        self.repeat_key();
         for call in self.methods.due(now) {
             self.end_call(call, Err(rejected("the method gave no answer in time")));
         }

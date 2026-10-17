@@ -192,7 +192,10 @@ carries the text that it types:
 - `text` is missing for a release, for a key without text such as
   `Return`, and while Ctrl, Alt or Super is down. A dead key types
   nothing; the core does no compose.
-- The core repeats no key. A plugin repeats a held key itself.
+- The core repeats a held key as a Wayland client does: after 200 ms,
+  25 times a second, with the same `pressed` event. Modifiers do not
+  repeat. The repeat ends with the release of the key or the focus of
+  the node.
 - The safety layer and the grabs come first, also for injected keys.
 
 The focus returns to the focused surface, which gets an enter, in these
