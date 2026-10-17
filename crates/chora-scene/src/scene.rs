@@ -390,6 +390,13 @@ impl Scene {
         if let Some((other, _)) = self.cameras.get(output).filter(|(o, _)| o != owner) {
             return Err(SceneError::CameraOwner(output.into(), other.clone()));
         }
+        // Only outputs that the core knows, so that no client claims an
+        // output before it plugs in or uses up the cameras with names.
+        if transform.is_some() && !self.default_cameras.contains_key(output) {
+            return Err(SceneError::Invalid(format!(
+                "there is no output {output:?}"
+            )));
+        }
         if timing.is_some_and(|(d, _)| !(0.0..=MAX_DURATION).contains(&d)) {
             return Err(SceneError::Invalid(format!(
                 "the duration of the camera of {output:?} is not from 0 to {MAX_DURATION} ms"

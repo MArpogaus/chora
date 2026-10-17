@@ -469,6 +469,7 @@ fn a_camera_move_needs_a_duration_up_to_a_minute_and_ends_with_its_owner() {
 #[test]
 fn a_camera_belongs_to_the_client_that_sets_it_first() {
     let mut scene = Scene::default();
+    scene.set_default_camera("DP-1", Transform::IDENTITY);
     let zoom = Transform::scale(2.0, 2.0, 1.0);
     let effects = scene.apply("wm", &[camera("DP-1", Some(zoom))]).unwrap();
     assert_eq!(effects, vec![Effect::Camera("DP-1".into())]);
@@ -486,6 +487,7 @@ fn a_camera_belongs_to_the_client_that_sets_it_first() {
 #[test]
 fn a_disconnect_restores_the_default_camera() {
     let mut scene = Scene::default();
+    scene.set_default_camera("DP-1", Transform::IDENTITY);
     let pan = Transform::translate(-100.0, 0.0, 0.0);
     scene.apply("wm", &[camera("DP-1", Some(pan))]).unwrap();
     assert_eq!(scene.disconnect("wm"), vec![Effect::Camera("DP-1".into())]);
@@ -498,6 +500,7 @@ fn a_disconnect_restores_the_default_camera() {
 #[test]
 fn a_camera_needs_a_positive_2d_scale() {
     let mut scene = Scene::default();
+    scene.set_default_camera("DP-1", Transform::IDENTITY);
     let mut perspective = [0.0; 16];
     for i in [0, 5, 10, 15] {
         perspective[i] = 1.0;
@@ -523,6 +526,7 @@ fn a_camera_needs_a_positive_2d_scale() {
 #[test]
 fn a_camera_ignores_the_z_axis() {
     let mut scene = Scene::default();
+    scene.set_default_camera("DP-1", Transform::IDENTITY);
     let uniform: Transform = serde_json::from_value(serde_json::json!({"scale": 1.5})).unwrap();
     scene.apply("wm", &[camera("DP-1", Some(uniform))]).unwrap();
     assert_eq!(scene.camera("DP-1"), Some(&Transform::scale(1.5, 1.5, 1.0)));
@@ -550,6 +554,10 @@ fn adding_a_surface_again_keeps_its_node() {
 fn the_number_of_cameras_has_a_limit() {
     let mut scene = Scene::default();
     let pan = Some(Transform::translate(-10.0, 0.0, 0.0));
+    for i in 0..MAX_CAMERAS {
+        scene.set_default_camera(&format!("out-{i}"), Transform::IDENTITY);
+    }
+    scene.set_default_camera("one-more", Transform::IDENTITY);
     let cameras: Vec<Command> = (0..MAX_CAMERAS)
         .map(|i| camera(&format!("out-{i}"), pan))
         .collect();
@@ -560,6 +568,20 @@ fn the_number_of_cameras_has_a_limit() {
         .unwrap();
     let err = scene.apply("wm", &[camera("one-more", pan)]).unwrap_err();
     assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
+}
+
+#[test]
+fn a_camera_needs_an_output_that_the_core_knows() {
+    let mut scene = Scene::default();
+    let pan = Some(Transform::translate(-10.0, 0.0, 0.0));
+    let err = scene.apply("bad", &[camera("HDMI-1", pan)]).unwrap_err();
+    assert_eq!(
+        err.error,
+        SceneError::Invalid("there is no output \"HDMI-1\"".into())
+    );
+    scene.apply("bad", &[camera("HDMI-1", None)]).unwrap();
+    scene.set_default_camera("HDMI-1", Transform::IDENTITY);
+    scene.apply("wm", &[camera("HDMI-1", pan)]).unwrap();
 }
 
 #[test]

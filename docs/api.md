@@ -137,7 +137,7 @@ prints the path.
 | `focus` | set the keyboard focus to an own surface, or clear it without a surface; a client that cleared the focus may give it back once to the surface that had it, also of another client |
 | `focus_node` | give the keyboard to an own node that is no surface, or without a node give it back (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `close` | ask a client to close a surface |
-| `camera` | set the camera of an output, or restore its default camera without a transform; with a `duration`, move it there; the first client that sets the camera owns it, and a `camera` without a transform gives it up |
+| `camera` | set the camera of an output that is or was plugged in, or restore its default camera without a transform; with a `duration`, move it there; the first client that sets the camera owns it, and a `camera` without a transform gives it up |
 
 `animate` lets plugins and agents animate without code in every frame:
 

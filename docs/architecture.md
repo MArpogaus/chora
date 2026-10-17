@@ -125,7 +125,9 @@ The output scale then gives the pixels.
 - The `camera` command replaces the default, for example to pan or zoom. A
   camera is a 2D translation of at most 10^7 and a scale from 1/64 to 64.
   It ignores the z axis, so a uniform scale such as `{"scale": 1.5}` works.
-  The first client that sets the camera of an output owns it. When the owner
+  A camera needs an output that is plugged in or was, so no client
+  claims an output before it appears. The first client that sets the
+  camera of an output owns it. When the owner
   disconnects, the output gets its default camera back, unless the owner
   keeps its nodes with `keep_nodes`. The reset restores all default cameras.
 - Two outputs side by side get two adjacent default cameras. A window across
