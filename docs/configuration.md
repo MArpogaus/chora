@@ -249,7 +249,9 @@ Computer at the top left, then the folders and files of the Desktop folder
 (`XDG_DESKTOP_DIR`, else `~/Desktop`) by name, folders first, in columns
 from the top. The Recycle Bin sits at the bottom right and shows whether
 `$XDG_DATA_HOME/Trash/files` has files. A desktop file shows its name and
-icon. Each label is Tahoma in white with a black shadow, in at most two
+icon. A program, a desktop file or a window without an icon gets XP's
+icon of a program, `application-x-executable` of the icon theme. Each
+label is Tahoma in white with a black shadow, in at most two
 lines. `chora-xp` looks at the Desktop folder and the trash once a second.
 The icons that stay keep their cells. A new icon takes the first free
 cell of the columns.

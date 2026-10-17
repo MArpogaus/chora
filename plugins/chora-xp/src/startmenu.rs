@@ -406,7 +406,7 @@ impl Menu {
                 Some(Item {
                     title: node.title.clone(),
                     action: Action::Run(command.clone()),
-                    icon: icons.find(&node.icon),
+                    icon: icons.program(&node.icon),
                     program: None,
                 })
             }
@@ -631,7 +631,13 @@ impl Menu {
             .map(|n| theme.text_width(&n.title, Font::Ui))
             .collect();
         let mut cascade = Cascade::new(level, &widths, self.margins, [row, self.area], parent);
-        cascade.icons = nodes.iter().map(|n| icons.find(&n.icon)).collect();
+        cascade.icons = nodes
+            .iter()
+            .map(|n| match n.kind {
+                apps::Kind::Run(_) => icons.program(&n.icon),
+                _ => icons.find(&n.icon),
+            })
+            .collect();
         let rows: Vec<Row<'_>> = nodes
             .iter()
             .zip(&cascade.icons)
@@ -728,7 +734,7 @@ fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
         .map(|((title, command, icon), i)| Entry {
             title: title.clone(),
             subtitle: Some(command.clone()),
-            icon: icons.find(icon),
+            icon: icons.program(icon),
             bold: true,
             kind: Kind::Program,
             action: Action::Run(command.clone()),

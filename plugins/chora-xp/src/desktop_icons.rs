@@ -583,7 +583,11 @@ fn picture(
     // The box as on XP: 1 pixel of room left of the ink, 2 right of it.
     let boxed = [(CELL - text - 2) / 2, LABEL_TOP, text + 3, rows * LINE + 2];
     let mut picture = Picture::new(CELL, LABEL_TOP + boxed[3]);
-    if let Some(file) = icons.find(&item.icon) {
+    let icon = match item.open {
+        Open::Run(_) => icons.program(&item.icon),
+        _ => icons.find(&item.icon),
+    };
+    if let Some(file) = icon {
         picture = picture.file(&file, [ICON_X, ICON_TOP, ICON, ICON]);
     }
     if selected {

@@ -552,7 +552,9 @@ impl Wm {
         }
         let previous = self.focused.clone();
         let mut window = Window::new(surface, app_id, title);
-        window.icon = window.app_id.as_deref().and_then(|a| self.icons.find(a));
+        window.icon = self
+            .icons
+            .program(window.app_id.as_deref().unwrap_or_default());
         window.desktop = self.desktop;
         self.windows.push(window);
         self.opened.push(surface.into());
@@ -759,7 +761,7 @@ impl Wm {
             return Vec::new();
         }
         self.windows[i].title = title;
-        self.windows[i].icon = app_id.as_deref().and_then(|a| self.icons.find(a));
+        self.windows[i].icon = self.icons.program(app_id.as_deref().unwrap_or_default());
         self.windows[i].app_id = app_id;
         let active = self.is_active(surface);
         let mut commands = self.windows[i].style(&mut self.theme, active);

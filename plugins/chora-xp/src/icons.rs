@@ -39,6 +39,13 @@ impl Icons {
         found
     }
 
+    /// The file of the icon of a program, else XP's generic program
+    /// icon, a blank window, as for a program without an icon.
+    pub fn program(&mut self, name: &str) -> Option<PathBuf> {
+        self.find(name)
+            .or_else(|| self.find("application-x-executable"))
+    }
+
     /// The file of an icon for a size in pixels: a PNG file of that size
     /// first, as XP draws its small icons by hand, else as [`find`].
     ///
