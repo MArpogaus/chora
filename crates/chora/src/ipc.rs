@@ -706,6 +706,9 @@ impl State {
         let Some(closed) = self.ipc.conns.remove(&conn) else {
             return;
         };
+        // The client sees the end at once, also while a child that the core
+        // forks holds a copy of the socket until its exec.
+        let _ = closed.stream.shutdown(std::net::Shutdown::Both);
         if let Some(reader) = closed.reader {
             self.loop_handle.remove(reader);
         }
