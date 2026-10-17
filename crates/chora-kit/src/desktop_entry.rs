@@ -31,8 +31,8 @@ pub struct Entry {
 /// later ones.
 #[must_use]
 pub fn applications() -> Vec<Entry> {
-    let desktops = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
-    let desktops: Vec<&str> = desktops.split(':').filter(|d| !d.is_empty()).collect();
+    let desktops = current_desktops();
+    let desktops: Vec<&str> = desktops.iter().map(String::as_str).collect();
     let mut entries = HashMap::new();
     for dir in xdg::data_dirs() {
         let dir = dir.join("applications");
@@ -45,6 +45,17 @@ pub fn applications() -> Vec<Entry> {
         }
     }
     entries.into_values().flatten().collect()
+}
+
+/// The names of the current desktop, from `$XDG_CURRENT_DESKTOP`, for
+/// `OnlyShowIn` and `NotShowIn`.
+fn current_desktops() -> Vec<String> {
+    std::env::var("XDG_CURRENT_DESKTOP")
+        .unwrap_or_default()
+        .split(':')
+        .filter(|d| !d.is_empty())
+        .map(String::from)
+        .collect()
 }
 
 /// The desktop files below a directory and their IDs: the path from
@@ -160,7 +171,9 @@ pub fn command(exec: String, in_terminal: bool, terminal: &str) -> String {
 /// the desktop, if it is an application to show.
 #[must_use]
 pub fn launcher(path: &Path, terminal: &str) -> Option<(String, String, String)> {
-    let entry = parse(&fs::read_to_string(path).ok()?, &[])?;
+    let desktops = current_desktops();
+    let desktops: Vec<&str> = desktops.iter().map(String::as_str).collect();
+    let entry = parse(&fs::read_to_string(path).ok()?, &desktops)?;
     (!entry.hidden && !entry.exec.is_empty()).then(|| {
         let command = command(entry.exec, entry.terminal, terminal);
         (entry.name, entry.icon, command)
