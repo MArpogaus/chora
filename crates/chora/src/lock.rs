@@ -134,6 +134,8 @@ impl SessionLockHandler for State {
         lock.surfaces.retain(|(name, _)| *name != output.name());
         lock.surfaces.push((output.name(), surface));
         self.update_focus();
+        // The pointer enters the lock surface without a move.
+        self.refresh_pointer();
     }
 }
 
@@ -192,7 +194,7 @@ impl State {
     }
 
     /// Sends each lock surface the size of its output again, after an
-    /// output changed, for example its mode.
+    /// output changed, for example its mode, scale or transform.
     pub fn resize_lock_surfaces(&self) {
         let Some(lock) = &self.lock else { return };
         for (name, surface) in &lock.surfaces {
@@ -235,4 +237,31 @@ impl State {
 /// failed.
 fn refuse_lock() {
     tracing::warn!("a second client tried to lock the session");
+}
+
+#[cfg(test)]
+mod tests {
+    use smithay::output::Scale;
+
+    use crate::testing::{Core, wayland::Wayland};
+
+    #[test]
+    fn a_lock_surface_follows_its_output_and_gets_the_pointer_at_once() {
+        let mut core = Core::new();
+        let output = core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        let lock = wayland.lock(&mut core);
+        let surface = wayland.lock_surface(&mut core, &lock);
+        assert_eq!(wayland.lock_configures(&surface).size, (800, 600));
+        let pointer = core.state.seat.get_pointer().expect("a pointer");
+        assert_eq!(
+            pointer.current_focus().as_ref(),
+            core.state.lock_focus().as_ref()
+        );
+        assert!(pointer.current_focus().is_some());
+        output.change_current_state(None, None, Some(Scale::Fractional(2.0)), None);
+        core.state.output_changed();
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.lock_configures(&surface).size, (400, 300));
+    }
 }

@@ -137,6 +137,7 @@ impl State {
             self.emit(&Event::OutputChanged { output });
         }
         self.output_management.update(&self.outputs);
+        self.resize_lock_surfaces();
     }
 
     /// Tests a configuration of the outputs, and applies it if `apply`.

@@ -23,7 +23,9 @@ use wayland_client::{
     },
 };
 use wayland_protocols::ext::session_lock::v1::client::{
-    ext_session_lock_manager_v1::ExtSessionLockManagerV1, ext_session_lock_v1::ExtSessionLockV1,
+    ext_session_lock_manager_v1::ExtSessionLockManagerV1,
+    ext_session_lock_surface_v1::{self, ExtSessionLockSurfaceV1},
+    ext_session_lock_v1::ExtSessionLockV1,
 };
 use wayland_protocols::xdg::shell::client::{
     xdg_popup::{self, XdgPopup},
@@ -88,6 +90,11 @@ pub struct Toplevel {
 
 /// A popup of the client.
 pub struct Popup {
+    index: usize,
+}
+
+/// A lock surface of the client.
+pub struct LockSurface {
     index: usize,
 }
 
@@ -298,6 +305,24 @@ impl Wayland {
         self.roundtrip(core);
     }
 
+    /// A lock surface of a lock on the output; it acks each configure.
+    pub fn lock_surface(&mut self, core: &mut Core, lock: &ExtSessionLockV1) -> LockSurface {
+        let qh = self.queue.handle();
+        let index = self.app.surfaces.len();
+        self.app.surfaces.push(Configures::default());
+        let compositor = self.app.compositor.as_ref().expect("wl_compositor");
+        let surface = compositor.create_surface(&qh, ());
+        let output = self.app.output.as_ref().expect("wl_output");
+        lock.get_lock_surface(&surface, output, &qh, index);
+        self.roundtrip(core);
+        LockSurface { index }
+    }
+
+    /// The configures of a lock surface.
+    pub fn lock_configures(&self, lock: &LockSurface) -> &Configures {
+        &self.app.surfaces[lock.index]
+    }
+
     /// Destroys a layer surface.
     pub fn destroy_layer(&mut self, core: &mut Core, layer: &LayerSurface) {
         layer.layer.destroy();
@@ -431,6 +456,32 @@ impl Dispatch<ZwlrLayerSurfaceV1, usize> for App {
             // A layer surface answers each configure at once.
             layer.ack_configure(serial);
             app.surfaces[*index].count += 1;
+        }
+    }
+}
+
+impl Dispatch<ExtSessionLockSurfaceV1, usize> for App {
+    fn event(
+        app: &mut Self,
+        surface: &ExtSessionLockSurfaceV1,
+        event: ext_session_lock_surface_v1::Event,
+        index: &usize,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let ext_session_lock_surface_v1::Event::Configure {
+            serial,
+            width,
+            height,
+        } = event
+        {
+            surface.ack_configure(serial);
+            let configures = &mut app.surfaces[*index];
+            configures.size = (
+                i32::try_from(width).expect("a width"),
+                i32::try_from(height).expect("a height"),
+            );
+            configures.count += 1;
         }
     }
 }
