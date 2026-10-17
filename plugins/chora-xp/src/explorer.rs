@@ -540,9 +540,9 @@ impl Explorer {
         page.controls.push(Control::area(
             "view",
             [vx, vy, width, vh],
-            Picture::new(width, vh).svg(format!(
-                r##"<rect width="{width}" height="{vh}" fill="#FFFFFF"/>"##
-            )),
+            // Transparent over the white of the chrome: it only takes
+            // the clicks on the empty view.
+            Picture::new(width, vh),
         ));
         // What shows of the headings and the tiles, in the coordinates of
         // the view without scrolling: only those at the edges change as it
