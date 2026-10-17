@@ -387,7 +387,7 @@ impl Tiling {
                 }
             }
             Event::PointerPressed { node, .. } => {
-                if !self.wm.pointer_focus(&node, true, true) {
+                if !self.pressed(&node) {
                     return Ok(());
                 }
             }
@@ -474,6 +474,20 @@ impl Tiling {
         self.relayout()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         Ok(Value::String(surface))
+    }
+
+    /// A click focuses a window. Another window manager may have taken
+    /// the focus since tiling last sent it, so a click on the focused
+    /// window sends it again. False when nothing changes.
+    fn pressed(&mut self, node: &str) -> bool {
+        if self.wm.pointer_focus(node, true, true) {
+            return true;
+        }
+        if !self.wm.has(node) {
+            return false;
+        }
+        self.focus_sent = false;
+        true
     }
 
     fn act(&mut self, binding: &str) -> Result<(), ClientError> {
