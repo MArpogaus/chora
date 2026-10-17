@@ -43,7 +43,7 @@ This table is the one list of node properties.
 |----------|-------|---------|
 | `id` | all | stable id; ids of the form `s1`, `s2` belong to surfaces, and the core assigns them |
 | `owner` | all | client name of the owner; read-only |
-| `to` | surface | the only client name that can attach this detached surface, after a `give`; read-only |
+| `to` | surface | the only client name that can attach this detached surface, after a `remove` with `to`; read-only |
 | `transform` | all | a 4x4 matrix, or the short form translate, scale, rotate |
 | `opacity`, `visible` | all | |
 | `clip` | group, rect, image, shader | `{"radius": r}`: the node and its descendants show only inside its size, with corners rounded by `r` logical pixels, and take pointer input only there; the node becomes a layer; `null` removes the clip |
@@ -134,8 +134,7 @@ path.
 | `update` | change node properties |
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
-| `remove` | remove a node; a removed surface becomes detached |
-| `give` | hand an own surface to the client `to`, which needs a connection: the surface becomes detached, and only `to` can attach it (D55) |
+| `remove` | remove a node; a removed surface becomes detached; with `to`, a client name with a connection, only `to` can attach the surface, and only `to` gets `surface.detached` (D55) |
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
 | `focus` | set the keyboard focus to an own surface, or clear it without a surface. A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return. |
 | `focus_node` | give the keyboard to an own node that is no surface, or without a node give it back (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
@@ -223,8 +222,7 @@ or an empty list. It always sees the current titles.
 |-------|------|
 | `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own |
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
-| `surface.given` | surface id and `to`: its owner handed it over with `give`, and only the client `to` can attach it. When the last connection of `to` closes, `surface.detached` follows, and any client can attach it. |
-| `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. |
+| `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`; when the last connection of `to` closes, all get it again. |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up (see [IPC methods](#ipc-methods)) |
 | `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; only to the connection of the grab |
@@ -563,13 +561,13 @@ caller. The `Client` of `chora-scene` answers with `Client::answer`.
   exporter disconnects. A connection has at most 64 calls in flight, and it
   cannot call its own methods.
 
-`chora-tiling` exports three methods. It also takes the surfaces that other clients give to `tiling`.
+`chora-tiling` exports three methods:
 
 | Method | Parameters | Result |
 |--------|------------|--------|
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
-| `give` | `to`: a client name | hands the focused window to `to` with the `give` command, and answers with its surface id |
+| `give` | `to`: a client name | hands the focused window to `to` with a `remove` with `to`, and answers with its surface id |
 
 ## Plugins
 
