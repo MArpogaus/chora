@@ -389,7 +389,7 @@ impl Theme {
     /// The PNG file of a picture at the scale, rendered on first use. A
     /// picture that fails to render logs and gets a transparent pixel.
     pub fn render(&mut self, picture: &Picture) -> String {
-        let path = self.render_at(picture, self.scale);
+        let path = self.render_at(picture, self.scale, false);
         if path != self.blank && !self.pictures.contains_key(&path) {
             // ponytail: forget all at a size, rather than track which
             // files nodes still show; those keep their scale.
@@ -405,13 +405,16 @@ impl Theme {
     /// a slice: the core takes the insets of a slice in pixels of the
     /// file, also for the corners on the screen.
     pub fn render_flat(&mut self, picture: &Picture) -> String {
-        self.render_at(picture, 1.0)
+        self.render_at(picture, 1.0, true)
     }
 
-    fn render_at(&mut self, picture: &Picture, scale: f64) -> String {
+    /// The file of a picture at a scale; a flat file never shares the
+    /// path of a sharp one, so that a rescale never touches it.
+    fn render_at(&mut self, picture: &Picture, scale: f64, flat: bool) -> String {
         let mut hasher = DefaultHasher::new();
         picture.hash(&mut hasher);
         scale.to_bits().hash(&mut hasher);
+        flat.hash(&mut hasher);
         let key = hasher.finish() | 1;
         self.clock += 1;
         if let Some(entry) = self.rendered.get_mut(&key) {
@@ -939,7 +942,7 @@ mod tests {
         let file = cache.join("tile.png");
         tile.save_png(&file).expect("a PNG file");
         let picture = Picture::new(16, 4).fit(&file, [0, 0, 16, 4], Fit::Tile([8, 4]));
-        let image = Pixmap::load_png(theme.render_at(&picture, 2.0)).expect("a PNG file");
+        let image = Pixmap::load_png(theme.render_at(&picture, 2.0, false)).expect("a PNG file");
         // Logical x 6 is in the blue half of the first tile.
         let pixel = image.pixel(12, 4).expect("inside");
         assert!(pixel.blue() > 200 && pixel.red() < 50, "{pixel:?}");
