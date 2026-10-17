@@ -782,12 +782,14 @@ struct ShownFocus {
 }
 
 impl ShownFocus {
-    /// The core moved the focus.
+    /// The core moved the focus. An empty focus is no loss: it happens
+    /// when the focused window of tiling itself exits, and tiling must
+    /// then still focus its next window.
     fn moved(&mut self, surface: Option<&str>) {
-        if surface != self.surface.as_deref() {
-            self.lost = true;
-        } else if self.sent {
-            self.lost = false;
+        match surface {
+            None => {}
+            Some(s) if Some(s) == self.surface.as_deref() => self.lost = false,
+            Some(_) => self.lost = true,
         }
     }
 
@@ -846,6 +848,19 @@ mod tests {
         // The core confirms the focus of tiling.
         shown.moved(Some("s3"));
         assert!(!shown.lost && !shown.sends(Some("s3")));
+    }
+
+    #[test]
+    fn a_focus_emptied_by_a_closed_window_is_no_loss() {
+        let mut shown = ShownFocus::default();
+        shown.sent(Some("s3".into()));
+        // The focused window of tiling exits: the core empties the focus.
+        shown.moved(None);
+        assert!(!shown.lost, "an empty focus is not another owner");
+        assert!(shown.sends(Some("s4")), "the next window gets the focus");
+        // Another window manager still takes it with its own window.
+        shown.moved(Some("s9"));
+        assert!(shown.lost && !shown.sends(Some("s4")));
     }
 
     #[test]
