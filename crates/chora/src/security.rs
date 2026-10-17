@@ -24,9 +24,15 @@ use smithay::{
             ext::idle_notify::v1::server::ext_idle_notifier_v1::ExtIdleNotifierV1,
             wp::idle_inhibit::zv1::server::zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1,
         },
-        wayland_server::{DataInit, DisplayHandle, New, Resource, protocol::wl_surface::WlSurface},
+        wayland_server::{
+            DataInit, DisplayHandle, New, Resource, backend::ClientId,
+            protocol::wl_surface::WlSurface,
+        },
     },
-    wayland::{GlobalData, GlobalDispatch2, idle_notify::IdleNotifierState},
+    wayland::{
+        GlobalData, GlobalDispatch2, idle_notify::IdleNotifierState,
+        pointer_constraints::with_pointer_constraint,
+    },
 };
 
 use crate::state::{ClientState, State};
@@ -94,6 +100,43 @@ fn outside_client_sockets(client: &Client) -> bool {
 /// client without any press has 0, which never counts.
 pub fn last_press(client: &ClientState, serial: u32) -> bool {
     serial != 0 && serial == client.last_press.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+impl State {
+    /// The client whose surface has the keyboard.
+    pub fn keyboard_client(&self) -> Option<ClientId> {
+        let surface = self.seat.get_keyboard()?.current_focus()?;
+        Some(self.display_handle.get_client(surface.id()).ok()?.id())
+    }
+
+    /// Whether the client of a surface has the keyboard, or needs not:
+    /// a client of a client socket acts on its own only with the focus.
+    pub fn focused_or_unnamed(&self, surface: &WlSurface) -> bool {
+        if !named(&self.display_handle, surface) {
+            return true;
+        }
+        let client = self.display_handle.get_client(surface.id()).ok();
+        client.is_some_and(|c| Some(c.id()) == self.keyboard_client())
+    }
+
+    /// Ends the pointer constraint of a client of a client socket that
+    /// lost the keyboard: it holds the pointer only with the focus.
+    pub fn release_pointer_constraint(&self) {
+        let Some(pointer) = self.seat.get_pointer() else {
+            return;
+        };
+        let Some(surface) = pointer.current_focus() else {
+            return;
+        };
+        if self.focused_or_unnamed(&surface) {
+            return;
+        }
+        with_pointer_constraint(&surface, &pointer, |constraint| {
+            if let Some(constraint) = constraint.filter(|c| c.is_active()) {
+                constraint.deactivate();
+            }
+        });
+    }
 }
 
 /// The data of a global that only clients outside client sockets see. It binds the

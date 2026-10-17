@@ -504,7 +504,7 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
         },
     );
     pointer.frame(state);
-    if let Some((surface, location)) = under {
+    if let Some((surface, location)) = under.filter(|(s, _)| state.focused_or_unnamed(s)) {
         activate_constraint(&pointer, &surface, spot.scene - location);
     }
 }

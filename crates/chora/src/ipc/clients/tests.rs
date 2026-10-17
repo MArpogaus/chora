@@ -555,3 +555,104 @@ fn a_popup_grab_with_serial_zero_keeps_no_keyboard() {
         "a popup with serial 0 took the keyboard from the launcher"
     );
 }
+
+/// The agent gets one key press while it has the focus, then the user moves
+/// to a launcher of the main socket. Returns the press serial.
+fn agent_pressed_then_launcher(
+    core: &mut Core,
+    agent: &mut Wayland,
+    user: &mut Wayland,
+    output: &smithay::output::Output,
+) -> (
+    u32,
+    Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
+) {
+    let id = core
+        .state
+        .windows
+        .keys()
+        .next()
+        .cloned()
+        .expect("the agent window");
+    core.state.focus(Some(&id));
+    let a = smithay::input::keyboard::Keycode::new(38);
+    for state in [KeyState::Pressed, KeyState::Released] {
+        crate::input::key(&mut core.state, a, state, InputTime::now(), false);
+    }
+    agent.roundtrip(core);
+    let press = *agent.key_serials().first().expect("the agent got the key");
+    user.layer(core, Layer::Top, KeyboardInteractivity::OnDemand);
+    let launcher = smithay::desktop::layer_map_for_output(output)
+        .layers()
+        .next()
+        .map(|l| l.wl_surface().clone());
+    core.state.set_layer_focus(launcher.clone());
+    let keyboard = core.state.seat.get_keyboard().unwrap();
+    assert_eq!(keyboard.current_focus(), launcher, "the user moved on");
+    (press, launcher)
+}
+
+/// An old press grabs no keyboard with a popup after the user moved on.
+#[test]
+fn an_old_press_grabs_no_keyboard_after_the_focus_moved() {
+    let (mut core, dir) = socket_dir("old-press");
+    let output = core.add_output("A", (800, 600));
+    let mut admin = core.admin();
+    let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+    let path = PathBuf::from(created["wayland"].as_str().unwrap());
+    let mut user = Wayland::connect(&mut core);
+    let mut agent = Wayland::connect_to(&mut core, &path);
+    let top = agent.toplevel(&mut core, "agent");
+    let (press, launcher) = agent_pressed_then_launcher(&mut core, &mut agent, &mut user, &output);
+    let popup = agent.popup(&mut core, &top, press);
+    let done = agent.popup_done(&popup);
+    let focus = core.state.seat.get_keyboard().unwrap().current_focus();
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert!(
+        done || focus == launcher,
+        "a popup with an old press took the keyboard from the launcher"
+    );
+}
+
+delegate_noop!(App: wayland_protocols::wp::pointer_constraints::zv1::client::zwp_pointer_constraints_v1::ZwpPointerConstraintsV1);
+delegate_noop!(App: ignore wayland_protocols::wp::pointer_constraints::zv1::client::zwp_locked_pointer_v1::ZwpLockedPointerV1);
+
+/// A full-screen top-layer panel of a client socket locks no pointer that
+/// only passes over it, without the keyboard focus.
+#[test]
+fn a_hover_locks_no_pointer_of_a_client_socket() {
+    use wayland_protocols::wp::pointer_constraints::zv1::client::zwp_pointer_constraints_v1::{
+        Lifetime, ZwpPointerConstraintsV1,
+    };
+    let (mut core, dir) = socket_dir("hover");
+    core.add_output("A", (64, 48));
+    let mut admin = core.admin();
+    let mut agent = named(&mut core, &mut admin, None);
+    let seat: WlSeat = agent.bind(7);
+    let pointer = seat.get_pointer(&agent.queue.handle(), ());
+    let none = KeyboardInteractivity::None;
+    let (surface, _role, _b, _f) = map_layer(&mut agent, &mut core, Layer::Top, None, none);
+    let constraints: ZwpPointerConstraintsV1 = agent.bind(1);
+    let _lock = constraints.lock_pointer(
+        &surface,
+        &pointer,
+        None,
+        Lifetime::Persistent,
+        &agent.queue.handle(),
+        (),
+    );
+    agent.roundtrip(&mut core);
+    // The user only moves the pointer across the screen.
+    crate::input::move_pointer(&mut core.state, (30.0, 20.0).into(), InputTime::now());
+    agent.roundtrip(&mut core);
+    let server = core.state.seat.get_pointer().unwrap();
+    let focus = server.current_focus().expect("the panel has the pointer");
+    let mut active = false;
+    smithay::wayland::pointer_constraints::with_pointer_constraint(&focus, &server, |c| {
+        active = c.is_some_and(|c| c.is_active());
+    });
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert!(!active, "a hover locked the pointer for a client socket");
+}

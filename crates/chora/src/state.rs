@@ -605,6 +605,7 @@ impl State {
             if keyboard.current_focus() != target {
                 keyboard.set_focus(self, target, SERIAL_COUNTER.next_serial());
             }
+            self.release_pointer_constraint();
             return;
         }
         // A launcher ends a popup grab, for example of an open menu.
@@ -631,6 +632,7 @@ impl State {
         if keyboard.current_focus() != target {
             keyboard.set_focus(self, target, SERIAL_COUNTER.next_serial());
         }
+        self.release_pointer_constraint();
     }
 }
 

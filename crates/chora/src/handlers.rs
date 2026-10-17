@@ -352,7 +352,8 @@ impl State {
             .and_then(|c| c.get_data::<ClientState>())
             .is_some_and(|d| {
                 if d.name.is_some() {
-                    return crate::security::last_press(d, serial);
+                    return crate::security::last_press(d, serial)
+                        && self.focused_or_unnamed(surface);
                 }
                 [&d.last_press, &d.last_input]
                     .iter()
@@ -442,7 +443,7 @@ impl XdgDecorationHandler for State {
 impl PointerConstraintsHandler for State {
     /// Activates a new constraint at once if the pointer is on its surface.
     fn new_constraint(&mut self, surface: &WlSurface, pointer: &PointerHandle<Self>) {
-        if pointer.current_focus().as_ref() == Some(surface) {
+        if pointer.current_focus().as_ref() == Some(surface) && self.focused_or_unnamed(surface) {
             with_pointer_constraint(surface, pointer, |constraint| {
                 if let Some(constraint) = constraint {
                     constraint.activate();
