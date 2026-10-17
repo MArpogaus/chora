@@ -89,6 +89,17 @@ struct Press {
     moving: bool,
 }
 
+/// When [`DesktopIcons::show`] shows the icons.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Show {
+    /// Only when the icons or the work area changed; the cells stay.
+    Changed,
+    /// Also when nothing changed; the cells stay.
+    Again,
+    /// In the columns again.
+    Arranged,
+}
+
 /// The id of XP's selection rectangle.
 const BAND: &str = "xp-band";
 /// Its fill: XP's selection blue, translucent, and its border.
@@ -152,35 +163,31 @@ impl DesktopIcons {
     /// icons out on a work area. Returns the commands that show them if
     /// anything changed.
     pub fn refresh(&mut self, theme: &mut Theme, icons: &mut Icons, area: Rect) -> Vec<Command> {
-        self.show(theme, icons, area, false)
+        self.show(theme, icons, area, Show::Changed)
     }
 
-    /// Shows the icons, also when nothing changed with `again`. The icons
-    /// that stay keep their cells on the same work area; new ones take
-    /// free cells.
+    /// Shows the icons: with [`Show::Changed`] only when something
+    /// changed. The icons that stay keep their cells on the same work
+    /// area, unless they are arranged; new icons take free cells.
     fn show(
         &mut self,
         theme: &mut Theme,
         icons: &mut Icons,
         area: Rect,
-        again: bool,
+        how: Show,
     ) -> Vec<Command> {
         let mut items = items(&self.terminal);
         if self.by_type {
             by_type(&mut items);
         }
-        if items == self.items && area == self.area && !again {
+        if items == self.items && area == self.area && how == Show::Changed {
             return Vec::new();
         }
         let mut commands: Vec<Command> = (0..self.items.len())
             .map(|i| Command::Remove { id: Self::id(i) })
             .collect();
-        let kept: HashMap<String, [i32; 2]> = if area == self.area {
-            self.items
-                .iter()
-                .map(|item| item.key.clone())
-                .zip(self.places.iter().copied())
-                .collect()
+        let kept = if area == self.area && how != Show::Arranged {
+            self.cells()
         } else {
             HashMap::new()
         };
@@ -214,13 +221,21 @@ impl DesktopIcons {
     pub fn arrange(&mut self, theme: &mut Theme, icons: &mut Icons, by_type: bool) -> Vec<Command> {
         self.by_type = by_type;
         self.moved.clear();
-        self.places.clear();
-        self.reload(theme, icons)
+        self.show(theme, icons, self.area, Show::Arranged)
     }
 
     /// Refresh: shows the icons again, also when nothing changed.
     pub fn reload(&mut self, theme: &mut Theme, icons: &mut Icons) -> Vec<Command> {
-        self.show(theme, icons, self.area, true)
+        self.show(theme, icons, self.area, Show::Again)
+    }
+
+    /// The cell of each icon, by its key.
+    fn cells(&self) -> HashMap<String, [i32; 2]> {
+        self.items
+            .iter()
+            .map(|item| item.key.clone())
+            .zip(self.places.iter().copied())
+            .collect()
     }
 
     fn find(&self, key: &str) -> Option<usize> {
@@ -231,6 +246,7 @@ impl DesktopIcons {
     /// the next free cell of the columns, and the Recycle Bin at the
     /// bottom right.
     fn place(&self, kept: &HashMap<String, [i32; 2]>) -> Vec<[i32; 2]> {
+        // Enough cells for the new icons beside the kept ones.
         let (grid, bin) = layout(self.items.len() + kept.len(), self.area);
         let fixed = |item: &Item| {
             if item.open == Open::Trash {
@@ -999,12 +1015,7 @@ mod tests {
         desk.places = desk.place(&HashMap::new());
         assert_eq!(desk.places, [[0, 0], [0, 75], [0, 150]]);
         // b goes to the trash: c stays where it is.
-        let kept: HashMap<String, [i32; 2]> = desk
-            .items
-            .iter()
-            .map(|i| i.key.clone())
-            .zip(desk.places.iter().copied())
-            .collect();
+        let kept = desk.cells();
         desk.items = vec![item("a"), item("c")];
         assert_eq!(desk.place(&kept), [[0, 0], [0, 150]]);
         // A new icon takes the free cell of b.
