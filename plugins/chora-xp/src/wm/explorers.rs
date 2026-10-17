@@ -99,7 +99,7 @@ impl Wm {
     }
 
     /// Acts on the outcome of an Explorer window.
-    fn explorer_outcome(&mut self, id: &str, outcome: Outcome) -> Vec<Command> {
+    pub(super) fn explorer_outcome(&mut self, id: &str, outcome: Outcome) -> Vec<Command> {
         match outcome {
             Outcome::None => Vec::new(),
             Outcome::Redraw => self.redraw_explorer(id),
@@ -120,7 +120,11 @@ impl Wm {
                     .or(self.bars.first())
                     .map_or([0, 0, 1280, 800], Bar::area);
                 let menu = context::Menu::new(&self.theme, entries, point, area, 0);
-                self.show_context(menu, area)
+                let commands = self.show_context(menu, area);
+                if self.explorers.iter().any(|e| e.id == id && e.bar_open()) {
+                    self.bar_menu = Some(id.into());
+                }
+                commands
             }
         }
     }

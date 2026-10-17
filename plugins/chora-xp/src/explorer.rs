@@ -172,6 +172,8 @@ pub struct Explorer {
     /// The thumb of the scroll bar is down: the pointer and the offset
     /// at the press.
     thumb: Option<(f64, i32)>,
+    /// The menu of the menu bar that opened last, by its place in it.
+    bar_menu: Option<usize>,
 }
 
 impl Explorer {
@@ -189,6 +191,7 @@ impl Explorer {
             offset: 0,
             last_click: None,
             thumb: None,
+            bar_menu: None,
         }
         .loaded()
     }
@@ -334,11 +337,12 @@ impl Explorer {
         if let Some(outcome) = self.click_view(name, at) {
             return outcome;
         }
+        self.bar_menu = None;
         if let Some(menu) = name.strip_prefix("menu-") {
-            let Some(&(title, x)) = MENUS.iter().find(|(t, _)| *t == menu) else {
+            let Some(i) = MENUS.iter().position(|(t, _)| *t == menu) else {
                 return Outcome::None;
             };
-            return Outcome::Menu(self.menu(title), [x - 6, MENU_H]);
+            return self.bar(i);
         }
         if let Some(title) = name.strip_prefix("box-") {
             if let Some(i) = self.collapsed.iter().position(|t| *t == title) {
@@ -451,6 +455,26 @@ impl Explorer {
         self.history.go(place);
         self.arrived();
         Outcome::Redraw
+    }
+
+    /// The menu of the menu bar at a place in it, open below its title.
+    fn bar(&mut self, i: usize) -> Outcome {
+        let (title, x) = MENUS[i];
+        self.bar_menu = Some(i);
+        Outcome::Menu(self.menu(title), [x - 6, MENU_H])
+    }
+
+    /// The menu of the menu bar beside the open one, to the right or to
+    /// the left, around the ends, as Left and Right go on XP. `None` when
+    /// no menu of the menu bar is open.
+    pub fn bar_beside(&mut self, right: bool) -> Option<Outcome> {
+        let i = self.bar_menu?;
+        Some(self.bar(crate::context::wrap(i, right, MENUS.len())))
+    }
+
+    /// Whether the menu that opened last is one of the menu bar.
+    pub fn bar_open(&self) -> bool {
+        self.bar_menu.is_some()
     }
 
     /// The rows of a menu of the menu bar.

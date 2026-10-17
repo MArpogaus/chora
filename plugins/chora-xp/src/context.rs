@@ -717,6 +717,17 @@ impl Menu {
         }
     }
 
+    /// Whether Left or Right would go beside the menu instead of into or
+    /// out of a submenu: no submenu is open, and for Right the lit row
+    /// opens none.
+    pub fn goes_beside(&self, right: bool) -> bool {
+        let root = &self.levels[0];
+        let opens = root
+            .hovered
+            .is_some_and(|i| root.entries[i].enabled && !root.entries[i].sub.is_empty());
+        self.levels.len() == 1 && !(right && opens)
+    }
+
     /// Moves the highlight of a level to a row, or takes it away.
     fn light(&mut self, theme: &mut Theme, level: usize, row: Option<usize>) -> Vec<Command> {
         let old = std::mem::replace(&mut self.levels[level].hovered, row);

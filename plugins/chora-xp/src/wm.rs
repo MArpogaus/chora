@@ -254,6 +254,8 @@ pub struct Wm {
     switcher: Option<Switcher>,
     /// Alt+Escape, while the switcher holds it.
     switch_escape: Option<String>,
+    /// The Explorer window whose menu bar opened the open context menu.
+    bar_menu: Option<String>,
     /// Where the pointer took the cube, while Super and the left button
     /// are down.
     cube_grab: Option<f64>,
@@ -313,6 +315,7 @@ impl Wm {
             restart: false,
             switcher: None,
             switch_escape: None,
+            bar_menu: None,
             cube_grab: None,
             kept: HashMap::new(),
         };
@@ -1478,6 +1481,9 @@ impl Wm {
     /// A key while a node of the plugin has the keyboard: a context menu
     /// or the start menu.
     fn node_key(&mut self, key: &str) -> Vec<Command> {
+        if let Some(commands) = self.bar_key(key) {
+            return commands;
+        }
         if let Some((menu, area)) = &mut self.context {
             let area = *area;
             return match menu.key(&mut self.theme, MENUS, key) {
@@ -1512,7 +1518,33 @@ impl Wm {
         commands
     }
 
+    /// Left and Right in a menu of the menu bar of Explorer go to the
+    /// menu beside it, as on XP. `None` for other keys and menus.
+    fn bar_key(&mut self, key: &str) -> Option<Vec<Command>> {
+        let right = match key {
+            "Right" => true,
+            "Left" => false,
+            _ => return None,
+        };
+        let id = self.bar_menu.clone()?;
+        let (menu, _) = self.context.as_ref()?;
+        if !menu.goes_beside(right) {
+            return None;
+        }
+        let outcome = self
+            .explorers
+            .iter_mut()
+            .find(|e| e.id == id)?
+            .bar_beside(right)?;
+        let mut commands = self.close_context();
+        commands.extend(self.explorer_outcome(&id, outcome));
+        // The menu beside opens on its first row.
+        commands.extend(self.node_key("Home"));
+        Some(commands)
+    }
+
     fn close_context(&mut self) -> Vec<Command> {
+        self.bar_menu = None;
         self.context
             .take()
             .map(|(menu, _)| menu.remove())
