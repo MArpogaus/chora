@@ -282,8 +282,8 @@ impl XdgShellHandler for State {
     /// A popup grab, for example of a menu: input goes to the popup until a
     /// click outside closes it.
     fn grab(&mut self, surface: PopupSurface, seat: WlSeat, serial: Serial) {
-        // A popup grabs the input only for the press that opened it, and
-        // never while the session is locked.
+        // A popup grabs the input only for the input event of its client
+        // that opened it, and never while the session is locked.
         if self.lock.is_some() || !self.pressed(surface.wl_surface(), serial) {
             surface.send_popup_done();
             return;
@@ -315,14 +315,19 @@ impl XdgShellHandler for State {
 }
 
 impl State {
-    /// Whether a serial is the one of the last press that the client of a
-    /// surface got.
+    /// Whether a serial is the one of the last press or of the last key or
+    /// button event that the client of a surface got.
     fn pressed(&self, surface: &WlSurface, serial: Serial) -> bool {
         let client = self.display_handle.get_client(surface.id()).ok();
+        let serial = u32::from(serial);
         client
             .as_ref()
             .and_then(|c| c.get_data::<ClientState>())
-            .is_some_and(|d| d.last_press.load(Ordering::Relaxed) == u32::from(serial))
+            .is_some_and(|d| {
+                [&d.last_press, &d.last_input]
+                    .iter()
+                    .any(|s| s.load(Ordering::Relaxed) == serial)
+            })
     }
 
     fn surface_changed(&mut self, surface: &ToplevelSurface) {

@@ -260,7 +260,8 @@ layer surface that takes the keyboard exclusively, for example a launcher,
 has it from its first commit until it goes away, and it ends a popup grab.
 A click gives the keyboard to a layer surface that accepts it on demand,
 until the next click elsewhere. A popup grabs the input only with the serial
-of the press that opened it.
+of the last press or of the last key or button event, press or release,
+that its client got: a menu opens on F10 when the key goes up.
 
 ## Safety layer
 

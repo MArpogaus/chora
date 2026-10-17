@@ -587,6 +587,9 @@ pub struct ClientState {
     pub compositor_state: CompositorClientState,
     /// The serial of the last key or button press that the client got.
     pub last_press: AtomicU32,
+    /// The serial of the last key or button event, press or release, that
+    /// the client got.
+    pub last_input: AtomicU32,
     /// The sandbox of a client that connected through
     /// `wp-security-context-v1`.
     pub security_context: Option<SecurityContext>,
@@ -597,6 +600,7 @@ impl ClientData for ClientState {}
 #[cfg(test)]
 mod tests {
     use serde_json::{Value, json};
+    use smithay::backend::input::{InputTime, KeyState};
     use wayland_client::Proxy;
     use wayland_protocols::xdg::shell::client::xdg_toplevel::State as Xdg;
     use wayland_protocols_wlr::layer_shell::v1::client::{
@@ -765,6 +769,25 @@ mod tests {
         wayland.answer(&mut core, &first);
         let id = wm.send("scene.apply", size(600));
         assert_eq!(wm.answer(&mut core, id), None, "the surface caught up");
+    }
+
+    #[test]
+    fn a_popup_grabs_with_the_serial_of_a_key_release() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        core.add_output("HDMI-1", (800, 600));
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        let f10 = smithay::input::keyboard::Keycode::new(76);
+        for key_state in [KeyState::Pressed, KeyState::Released] {
+            crate::input::key(&mut core.state, f10, key_state, InputTime::now(), false);
+        }
+        wayland.roundtrip(&mut core);
+        let [press, release] = wayland.key_serials()[..] else {
+            panic!("a press and a release: {:?}", wayland.key_serials());
+        };
+        let menu = wayland.popup(&mut core, &first, release);
+        assert!(!wayland.popup_done(&menu), "the release opens the grab");
+        let stale = wayland.popup(&mut core, &first, press.wrapping_sub(1));
+        assert!(wayland.popup_done(&stale), "only an event of the client");
     }
 
     #[test]

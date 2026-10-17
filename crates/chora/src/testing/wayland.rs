@@ -9,12 +9,16 @@ use wayland_client::{
     protocol::{
         wl_callback::{self, WlCallback},
         wl_compositor::WlCompositor,
+        wl_keyboard::{self, WlKeyboard},
         wl_output::{self, WlOutput},
         wl_registry::{self, WlRegistry},
+        wl_seat::{self, WlSeat},
         wl_surface::WlSurface,
     },
 };
 use wayland_protocols::xdg::shell::client::{
+    xdg_popup::{self, XdgPopup},
+    xdg_positioner::XdgPositioner,
     xdg_surface::{self, XdgSurface},
     xdg_toplevel::{self, XdgToplevel},
     xdg_wm_base::{self, XdgWmBase},
@@ -41,6 +45,9 @@ struct App {
     wm_base: Option<XdgWmBase>,
     layer_shell: Option<ZwlrLayerShellV1>,
     output: Option<WlOutput>,
+    seat: Option<WlSeat>,
+    /// The serials of the key events, press and release, in order.
+    key_serials: Vec<u32>,
     synced: bool,
     /// The configures of each surface, by its index.
     surfaces: Vec<Configures>,
@@ -56,6 +63,8 @@ pub struct Configures {
     pub states: Vec<xdg_toplevel::State>,
     /// How many configures arrived.
     pub count: usize,
+    /// Whether the core closed the popup.
+    pub done: bool,
 }
 
 /// A toplevel of the client.
@@ -63,6 +72,11 @@ pub struct Toplevel {
     pub surface: WlSurface,
     xdg: XdgSurface,
     role: XdgToplevel,
+    index: usize,
+}
+
+/// A popup of the client.
+pub struct Popup {
     index: usize,
 }
 
@@ -134,6 +148,36 @@ impl Wayland {
             role,
             index,
         }
+    }
+
+    /// A popup of a toplevel that grabs the input with a serial, after its
+    /// first commit.
+    pub fn popup(&mut self, core: &mut Core, parent: &Toplevel, serial: u32) -> Popup {
+        let qh = self.queue.handle();
+        let index = self.app.surfaces.len();
+        self.app.surfaces.push(Configures::default());
+        let compositor = self.app.compositor.as_ref().expect("wl_compositor");
+        let surface = compositor.create_surface(&qh, ());
+        let wm_base = self.app.wm_base.as_ref().expect("xdg_wm_base");
+        let positioner = wm_base.create_positioner(&qh, ());
+        positioner.set_size(50, 50);
+        positioner.set_anchor_rect(0, 0, 1, 1);
+        let xdg = wm_base.get_xdg_surface(&surface, &qh, index);
+        let popup = xdg.get_popup(Some(&parent.xdg), &positioner, &qh, index);
+        popup.grab(self.app.seat.as_ref().expect("wl_seat"), serial);
+        surface.commit();
+        self.roundtrip(core);
+        Popup { index }
+    }
+
+    /// Whether the core closed a popup.
+    pub fn popup_done(&self, popup: &Popup) -> bool {
+        self.app.surfaces[popup.index].done
+    }
+
+    /// The serials of the key events that the client got.
+    pub fn key_serials(&self) -> &[u32] {
+        &self.app.key_serials
     }
 
     /// A layer surface on the output, after its first configure.
@@ -214,6 +258,7 @@ impl Dispatch<WlRegistry, ()> for App {
             "wl_compositor" => app.compositor = Some(registry.bind(name, version, qh, ())),
             "xdg_wm_base" => app.wm_base = Some(registry.bind(name, version, qh, ())),
             "zwlr_layer_shell_v1" => app.layer_shell = Some(registry.bind(name, version, qh, ())),
+            "wl_seat" => app.seat = Some(registry.bind(name, version.min(7), qh, ())),
             "wl_output" if app.output.is_none() => {
                 app.output = Some(registry.bind(name, version, qh, ()));
             }
@@ -329,6 +374,56 @@ impl Dispatch<WlOutput, ()> for App {
     }
 }
 
+impl Dispatch<WlSeat, ()> for App {
+    fn event(
+        _: &mut Self,
+        seat: &WlSeat,
+        event: wl_seat::Event,
+        (): &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_seat::Event::Capabilities {
+            capabilities: WEnum::Value(c),
+        } = event
+            && c.contains(wl_seat::Capability::Keyboard)
+        {
+            seat.get_keyboard(qh, ());
+        }
+    }
+}
+
+impl Dispatch<WlKeyboard, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &WlKeyboard,
+        event: wl_keyboard::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_keyboard::Event::Key { serial, .. } = event {
+            app.key_serials.push(serial);
+        }
+    }
+}
+
+impl Dispatch<XdgPopup, usize> for App {
+    fn event(
+        app: &mut Self,
+        _: &XdgPopup,
+        event: xdg_popup::Event,
+        index: &usize,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let xdg_popup::Event::PopupDone = event {
+            app.surfaces[*index].done = true;
+        }
+    }
+}
+
 delegate_noop!(App: ignore WlCompositor);
+delegate_noop!(App: XdgPositioner);
 delegate_noop!(App: ignore WlSurface);
 delegate_noop!(App: ZwlrLayerShellV1);

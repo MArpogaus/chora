@@ -147,11 +147,12 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
             grabbed(state, conn, binding, PressState::Released);
         }
         Some(KeyAction::Swallow) => {}
-        None => {
-            if key_state == KeyState::Pressed {
-                note_press(state, keyboard.current_focus(), serial);
-            }
-        }
+        None => note_input(
+            state,
+            keyboard.current_focus(),
+            serial,
+            key_state == KeyState::Pressed,
+        ),
     }
 }
 
@@ -358,9 +359,10 @@ pub fn press_button(state: &mut State, code: u32, button_state: ButtonState, tim
     let serial = SERIAL_COUNTER.next_serial();
     if button_state == ButtonState::Pressed {
         click_focus(state);
-        note_press(state, pointer.current_focus(), serial);
+        note_input(state, pointer.current_focus(), serial, true);
         press_node(state, code);
     } else {
+        note_input(state, pointer.current_focus(), serial, false);
         release_node(state, code);
     }
     pointer.button(
@@ -466,12 +468,17 @@ fn release_node(state: &mut State, button: u32) {
     });
 }
 
-/// Notes the serial of a press for the client that gets it. Its popups may
-/// grab the input with this serial only.
-fn note_press(state: &State, surface: Option<WlSurface>, serial: Serial) {
+/// Notes the serial of a key or button event for the client that gets it.
+/// Its popups may grab the input with the serial of its last press or of
+/// its last event: toolkits name the newest event, which for a menu that
+/// opens from the keyboard is the release of the key.
+fn note_input(state: &State, surface: Option<WlSurface>, serial: Serial, press: bool) {
     let client = surface.and_then(|s| state.display_handle.get_client(s.id()).ok());
     if let Some(data) = client.as_ref().and_then(|c| c.get_data::<ClientState>()) {
-        data.last_press.store(u32::from(serial), Ordering::Relaxed);
+        if press {
+            data.last_press.store(u32::from(serial), Ordering::Relaxed);
+        }
+        data.last_input.store(u32::from(serial), Ordering::Relaxed);
     }
 }
 
