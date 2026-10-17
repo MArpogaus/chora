@@ -66,6 +66,7 @@ impl Wm {
             || e.turn.is_some()
             || self.fading()
             || self.sliding()
+            || self.resize_due()
     }
 
     /// Moves every effect one frame forward, in one transaction.
@@ -74,7 +75,8 @@ impl Wm {
             .saturating_duration_since(self.effects.last)
             .as_secs_f64();
         self.effects.last = now;
-        let mut commands = self.wobble_frame(dt);
+        let mut commands = self.resize_frame();
+        commands.extend(self.wobble_frame(dt));
         commands.extend(self.lamp_frame(now));
         commands.extend(self.cube_frame(now));
         commands.extend(self.fade_frame(now));

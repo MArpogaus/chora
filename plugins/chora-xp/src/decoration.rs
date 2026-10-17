@@ -13,6 +13,7 @@ use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 use crate::{
     text::{Font, Text},
     theme::{Picture, Rect, Sheet, Theme},
+    window::GRIP,
 };
 
 /// The width of the left, right and bottom borders.
@@ -91,6 +92,12 @@ fn button_id(surface: &str, button: Button) -> String {
     format!("xp-{}-{surface}", button.name())
 }
 
+/// The invisible strips around a window that draws its own frame, which
+/// take the presses on its edges: top, bottom, left and right.
+fn grip_id(surface: &str, side: usize) -> String {
+    format!("xp-grip{side}-{surface}")
+}
+
 /// A node of a decoration, by its id.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Part {
@@ -100,6 +107,8 @@ pub enum Part {
     Title(String),
     /// A button of a surface.
     Button(String, Button),
+    /// A strip around a surface that draws its own frame.
+    Grip(String),
 }
 
 impl Part {
@@ -111,6 +120,7 @@ impl Part {
         match kind {
             "frame" => Some(Self::Frame(surface)),
             "title" => Some(Self::Title(surface)),
+            grip if grip.starts_with("grip") => Some(Self::Grip(surface)),
             name => Button::ALL
                 .into_iter()
                 .find(|b| b.name() == name)
@@ -200,7 +210,7 @@ pub fn create(surface: &str, parent: &str, own: bool) -> Vec<Command> {
         parent: group_id(surface),
         props: PropsUpdate::default(),
     }));
-    commands.push(if own {
+    let surface_node = if own {
         Command::Create {
             id: surface.into(),
             kind: NodeKind::Group,
@@ -212,14 +222,27 @@ pub fn create(surface: &str, parent: &str, own: bool) -> Vec<Command> {
             surface: surface.into(),
             parent: group_id(surface),
         }
-    });
+    };
+    commands.push(surface_node);
+    // Above the surface, so that they win over the shadow of a client.
+    commands.extend((0..4).map(|side| Command::Create {
+        id: grip_id(surface, side),
+        kind: NodeKind::Rect,
+        parent: group_id(surface),
+        props: PropsUpdate {
+            visible: Some(false),
+            color: Some([0.0; 4]),
+            input: Some(InputMode::Accept),
+            ..PropsUpdate::default()
+        },
+    }));
     commands
 }
 
 /// The updates that give a decoration its look.
 pub fn update(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Vec<Command> {
     if !look.framed {
-        return unframed(surface);
+        return unframed(surface, look);
     }
     let mut commands = vec![
         frame(theme, surface, look),
@@ -232,12 +255,19 @@ pub fn update(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Vec<Command>
     for button in Button::ALL {
         commands.push(self::button(theme, surface, look, button));
     }
+    commands.extend((0..4).map(|side| Command::Update {
+        id: grip_id(surface, side),
+        props: PropsUpdate {
+            visible: Some(false),
+            ..PropsUpdate::default()
+        },
+    }));
     commands
 }
 
 /// A window that draws its own frame: the parts of the frame hide, and the
 /// client sits at the corner of the frame.
-fn unframed(surface: &str) -> Vec<Command> {
+fn unframed(surface: &str, look: &Look<'_>) -> Vec<Command> {
     let hide = |id: String| Command::Update {
         id,
         props: PropsUpdate {
@@ -254,6 +284,25 @@ fn unframed(surface: &str) -> Vec<Command> {
         },
     ];
     commands.extend(Button::ALL.map(|b| hide(button_id(surface, b))));
+    // The strips just outside the client, the corners on the top and
+    // the bottom one.
+    let ([w, h], g) = (look.size, GRIP);
+    let strips = [
+        [-g, -g, w + 2 * g, g],
+        [-g, h, w + 2 * g, g],
+        [-g, 0, g, h],
+        [w, 0, g, h],
+    ];
+    for (side, [x, y, sw, sh]) in strips.into_iter().enumerate() {
+        commands.push(Command::Update {
+            id: grip_id(surface, side),
+            props: PropsUpdate {
+                visible: Some(!look.maximized),
+                size: Some([f64::from(sw), f64::from(sh)]),
+                ..at([f64::from(x), f64::from(y)])
+            },
+        });
+    }
     commands
 }
 
@@ -382,6 +431,7 @@ mod tests {
             Part::of(&button_id("s12", Button::Minimize)),
             Some(Part::Button("s12".into(), Button::Minimize))
         );
+        assert_eq!(Part::of("xp-grip2-s3"), Some(Part::Grip("s3".into())));
         assert_eq!(Part::of("xp-win-s3"), None);
         assert_eq!(Part::of("s3"), None);
     }

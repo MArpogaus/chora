@@ -6,9 +6,79 @@ use std::path::PathBuf;
 use chora_scene::{Command, Mesh, PropsUpdate, ToplevelState, Transform};
 
 use crate::{
-    decoration::{self, Button, Look, SHADOW},
+    decoration::{self, BORDER, Button, Look, SHADOW},
     theme::{Rect, Theme},
 };
+
+/// How far beyond its frame a window still takes a press on an edge, the
+/// only grip of a window that draws its own frame.
+pub const GRIP: i32 = 6;
+/// How far a corner reaches along its two edges, as on XP.
+const CORNER: i32 = 16;
+/// The smallest frame: XP keeps the buttons and a bit of the title.
+const MIN_FRAME: [i32; 2] = [112, decoration::TITLE + BORDER + 1];
+
+/// The edges that a drag of the border of a frame moves.
+#[allow(clippy::struct_excessive_bools)] // four edges
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Edges {
+    /// The left edge.
+    pub left: bool,
+    /// The right edge.
+    pub right: bool,
+    /// The top edge.
+    pub top: bool,
+    /// The bottom edge.
+    pub bottom: bool,
+}
+
+/// The edges under a point of the scene: within `inside` pixels inside a
+/// frame or [`GRIP`] pixels outside it. Near a corner both of its edges
+/// move. `None` when the point is not on the border.
+pub fn edges_at([x, y, w, h]: Rect, inside: i32, [px, py]: [f64; 2]) -> Option<Edges> {
+    #[allow(clippy::cast_possible_truncation)]
+    let [px, py] = [px.floor() as i32, py.floor() as i32];
+    let near = |p: i32, from: i32, to: i32| (from - GRIP..to + GRIP).contains(&p);
+    if !near(px, x, x + w) || !near(py, y, y + h) {
+        return None;
+    }
+    let mut found = Edges {
+        left: px < x + inside,
+        right: px >= x + w - inside,
+        top: py < y + inside,
+        bottom: py >= y + h - inside,
+    };
+    if found.left || found.right {
+        found.top |= py < y + CORNER;
+        found.bottom |= py >= y + h - CORNER;
+    }
+    if found.top || found.bottom {
+        found.left |= px < x + CORNER;
+        found.right |= px >= x + w - CORNER;
+    }
+    (found != Edges::default()).then_some(found)
+}
+
+/// A frame after a drag of its edges by a distance: the opposite edges
+/// stay, and the frame keeps a smallest size.
+pub fn resized([x, y, w, h]: Rect, edges: Edges, [dx, dy]: [i32; 2], [mw, mh]: [i32; 2]) -> Rect {
+    let (x, w) = edge([x, w], dx, [edges.left, edges.right], mw);
+    let (y, h) = edge([y, h], dy, [edges.top, edges.bottom], mh);
+    [x, y, w, h]
+}
+
+/// One axis of [`resized`]: the low edge moves with the far edge fixed,
+/// or the high edge moves.
+fn edge([pos, size]: [i32; 2], d: i32, [low, high]: [bool; 2], min: i32) -> (i32, i32) {
+    if low {
+        let new = (size - d).max(min);
+        (pos + size - new, new)
+    } else if high {
+        (pos, (size + d).max(min))
+    } else {
+        (pos, size)
+    }
+}
 
 /// A window that the plugin manages.
 #[allow(clippy::struct_excessive_bools)] // independent states of a window
@@ -266,6 +336,58 @@ impl Window {
     }
 }
 
+impl Window {
+    /// The edges of the border under a point, for a resize; never for a
+    /// maximized window. A window that draws its own frame has only the
+    /// grip outside it.
+    pub fn edges(&self, point: [f64; 2]) -> Option<Edges> {
+        if self.maximized() || !self.shown || self.minimized {
+            return None;
+        }
+        let inside = if self.framed { BORDER } else { 0 };
+        edges_at(self.rect(), inside, point)
+    }
+
+    /// The smallest frame, for a resize.
+    pub fn min_frame(&self) -> [i32; 2] {
+        if !self.framed {
+            return [1, 1];
+        }
+        let [w, h] = if self.own {
+            decoration::outer(crate::explorer::MIN_SIZE, false)
+        } else {
+            MIN_FRAME
+        };
+        [w.max(MIN_FRAME[0]), h.max(MIN_FRAME[1])]
+    }
+
+    /// Asks for a new frame during a resize: a window of the plugin takes
+    /// it at once; a client gets a configure and its frame follows its
+    /// commit.
+    pub fn resize_to(&mut self, [x, y, w, h]: Rect, active: bool) -> Option<Command> {
+        let size = if self.framed {
+            decoration::inner([w, h], false)
+        } else {
+            [w, h]
+        };
+        if self.own {
+            self.pos = [x, y];
+            self.size = Some(size);
+            return None;
+        }
+        let states = if active {
+            vec![ToplevelState::Activated]
+        } else {
+            Vec::new()
+        };
+        Some(Command::Configure {
+            surface: self.surface.clone(),
+            size: Some(size),
+            states,
+        })
+    }
+}
+
 /// The title of a window: its title, else its application id.
 pub fn title_of(title: Option<&str>, app_id: Option<&str>) -> String {
     title
@@ -323,6 +445,87 @@ pub fn tile(count: usize, [x, y, w, h]: Rect, columns: bool) -> Vec<Rect> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The edges as letters: `l`, `r`, `t` and `b`.
+    fn named(edges: Option<Edges>) -> String {
+        let Some(e) = edges else {
+            return "-".into();
+        };
+        [(e.left, 'l'), (e.right, 'r'), (e.top, 't'), (e.bottom, 'b')]
+            .into_iter()
+            .filter_map(|(on, c)| on.then_some(c))
+            .collect()
+    }
+
+    #[test]
+    fn the_border_and_the_grip_outside_take_the_edges() {
+        let frame = [100, 100, 400, 300];
+        // The 4 pixel border inside, and 6 pixels of the shadow outside;
+        // the corners reach 16 pixels along both edges.
+        let cases = [
+            (100.0, 250.0, "l"),
+            (94.0, 250.0, "l"),
+            (93.9, 250.0, "-"),
+            (104.0, 250.0, "-"),
+            (499.0, 250.0, "r"),
+            (505.5, 250.0, "r"),
+            (506.0, 250.0, "-"),
+            (300.0, 103.0, "t"),
+            (300.0, 104.0, "-"),
+            (300.0, 397.0, "b"),
+            (101.0, 101.0, "lt"),
+            (115.0, 101.0, "lt"),
+            (116.0, 101.0, "t"),
+            (101.0, 115.0, "lt"),
+            (498.0, 102.0, "rt"),
+            (95.0, 398.0, "lb"),
+            (503.0, 403.0, "rb"),
+        ];
+        for (x, y, want) in cases {
+            assert_eq!(named(edges_at(frame, BORDER, [x, y])), want, "{x} {y}");
+        }
+        // A window that draws its own frame has only the grip outside.
+        assert_eq!(named(edges_at(frame, 0, [100.0, 250.0])), "-");
+        assert_eq!(named(edges_at(frame, 0, [97.0, 250.0])), "l");
+    }
+
+    #[test]
+    fn a_resize_keeps_the_opposite_edges_and_a_smallest_size() {
+        let frame = [100, 100, 400, 300];
+        let min = [112, 35];
+        let left_top = Edges {
+            left: true,
+            top: true,
+            ..Edges::default()
+        };
+        // Left and top move; right (500) and bottom (400) stay.
+        assert_eq!(
+            resized(frame, left_top, [-20, 30], min),
+            [80, 130, 420, 270]
+        );
+        assert_eq!(
+            resized(frame, left_top, [1000, 1000], min),
+            [388, 365, 112, 35]
+        );
+        let right = Edges {
+            right: true,
+            ..Edges::default()
+        };
+        assert_eq!(resized(frame, right, [50, 99], min), [100, 100, 450, 300]);
+        assert_eq!(resized(frame, right, [-999, 0], min), [100, 100, 112, 300]);
+    }
+
+    #[test]
+    fn a_maximized_window_does_not_resize() {
+        let mut w = Window::new("s1", None, None);
+        w.size = Some([400, 300]);
+        w.shown = true;
+        w.pos = [10, 10];
+        assert!(w.edges([12.0, 100.0]).is_some());
+        w.maximize([0, 0, 1280, 770]);
+        assert_eq!(w.edges([1.0, 100.0]), None);
+        assert_eq!(w.min_frame(), [112, 35]);
+    }
 
     #[test]
     fn tiles_fill_the_area() {

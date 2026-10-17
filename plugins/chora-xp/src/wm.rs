@@ -6,6 +6,7 @@
 mod desktops;
 mod effects;
 mod explorers;
+mod resize;
 
 use std::{
     path::PathBuf,
@@ -141,6 +142,25 @@ struct Drag {
     last: [f64; 2],
 }
 
+/// A border of a frame that the pointer drags.
+struct Resize {
+    surface: String,
+    edges: window::Edges,
+    /// The pointer at the press.
+    start: [f64; 2],
+    /// The frame at the press.
+    from: Rect,
+    /// The frame to ask for in the next frame of the effects.
+    pending: Option<Rect>,
+    /// The last frame that the pointer wanted. The core reports the
+    /// pointer again after each transaction, also when it did not move.
+    target: Rect,
+    /// The client size of the last configure.
+    asked: Option<[i32; 2]>,
+    /// The button went up; the last commit of the client may follow.
+    released: bool,
+}
+
 /// The state of the window manager.
 pub struct Wm {
     conn: Conn,
@@ -155,6 +175,7 @@ pub struct Wm {
     bars: Vec<Bar>,
     menu: Menu,
     drag: Option<Drag>,
+    resize: Option<Resize>,
     last_title: Option<(String, Instant)>,
     keys: Vec<(String, Key)>,
     cascade: i32,
@@ -224,6 +245,7 @@ impl Wm {
             bars: Vec::new(),
             menu,
             drag: None,
+            resize: None,
             last_title: None,
             keys: Vec::new(),
             cascade: 0,
@@ -507,6 +529,7 @@ impl Wm {
         }
         let first = !self.windows[i].shown;
         self.windows[i].size = Some(size);
+        self.anchor(i);
         // A window maximized before its first commit keeps its place.
         if first && !self.windows[i].maximized() {
             let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
@@ -642,6 +665,9 @@ impl Wm {
         self.opened.retain(|s| s != surface);
         if self.drag.as_ref().is_some_and(|d| d.surface == surface) {
             self.drag = None;
+        }
+        if self.resize.as_ref().is_some_and(|r| r.surface == surface) {
+            self.resize = None;
         }
         self.effects.wobbles.remove(surface);
         self.effects.lamps.remove(surface);
@@ -939,6 +965,7 @@ impl Wm {
             menu.press(node);
             return Vec::new();
         }
+        self.resize = None;
         let mut commands = self.close_context();
         commands.extend(self.press_node(node, button, position));
         commands
@@ -1128,9 +1155,20 @@ impl Wm {
     }
 
     fn press_decoration(&mut self, part: &Part, button: u32, position: [f64; 2]) -> Vec<Command> {
-        let (Part::Frame(surface) | Part::Title(surface) | Part::Button(surface, _)) = part;
+        let (Part::Frame(surface)
+        | Part::Title(surface)
+        | Part::Button(surface, _)
+        | Part::Grip(surface)) = part;
         let mut commands = self.activate(surface);
         if button != LEFT_BUTTON {
+            return commands;
+        }
+        let edges = self.index(surface).and_then(|i| {
+            let w = &self.windows[i];
+            w.edges(position).filter(|_| !w.held).map(|e| (e, w.rect()))
+        });
+        if let (Some((edges, from)), false) = (edges, matches!(part, Part::Button(..))) {
+            commands.extend(self.start_resize(surface, edges, from, position));
             return commands;
         }
         match part {
@@ -1141,7 +1179,7 @@ impl Wm {
                     commands.extend(self.windows[i].style(&mut self.theme, true));
                 }
             }
-            Part::Frame(_) => {}
+            Part::Frame(_) | Part::Grip(_) => {}
         }
         commands
     }
@@ -1214,6 +1252,14 @@ impl Wm {
         if let Some(commands) = self.drag_explorer([px, py]) {
             return commands;
         }
+        if let Some(r) = self.resize.as_ref().filter(|r| !r.released) {
+            let target = self.resize_target(r, [px, py]);
+            if let Some(r) = self.resize.as_mut().filter(|r| r.target != target) {
+                r.target = target;
+                r.pending = Some(target);
+            }
+            return Vec::new();
+        }
         let Some(drag) = &mut self.drag else {
             return Vec::new();
         };
@@ -1253,6 +1299,9 @@ impl Wm {
         }
         if let Some(drag) = self.drag.take() {
             self.release_wobble(&drag.surface);
+        }
+        if let Some(commands) = self.release_resize(position) {
+            return commands;
         }
         if dialog::Dialog::any_owns(node) {
             return self.release_panel(position);
