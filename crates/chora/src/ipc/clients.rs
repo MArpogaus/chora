@@ -62,11 +62,12 @@ impl State {
         }
         let (ipc, wayland) = open(&dir).map_err(|e| rejected(format!("{name:?}: {e}")))?;
         let fixed = Socket::Client(name.clone());
+        let path = dir.join(IPC);
         let ipc = self.loop_handle.insert_source(
             Generic::new(ipc, Interest::READ, Mode::Level),
             move |_, listener, state| {
                 if let Some(error) = state.ipc_accept_all(listener, &fixed) {
-                    tracing::warn!("client socket: {error}");
+                    tracing::warn!("{}: {error}", path.display());
                 }
                 Ok(PostAction::Continue)
             },

@@ -449,13 +449,20 @@ impl Ipc {
     }
 }
 
-impl Conn {
-    /// The name of the client socket of the connection (D33).
-    fn fixed(&self) -> Option<&str> {
-        match &self.socket {
+impl Socket {
+    /// The name of a client socket (D33).
+    fn name(&self) -> Option<&str> {
+        match self {
             Socket::Client(name) => Some(name),
             Socket::Main | Socket::Admin => None,
         }
+    }
+}
+
+impl Conn {
+    /// The name of the client socket of the connection (D33).
+    fn fixed(&self) -> Option<&str> {
+        self.socket.name()
     }
 
     fn push(&mut self, line: &[u8]) {
@@ -577,13 +584,9 @@ impl State {
         fn failed(err: impl std::fmt::Display) -> String {
             format!("a connection failed: {err}")
         }
-        let fixed = match &socket {
-            Socket::Client(name) => Some(name.as_str()),
-            Socket::Main | Socket::Admin => None,
-        };
         stream.set_nonblocking(true).map_err(failed)?;
         let pid = socket_peercred(&stream).ok().map(|c| c.pid);
-        if let Some(reason) = self.ipc.refusal(pid, fixed) {
+        if let Some(reason) = self.ipc.refusal(pid, socket.name()) {
             let error = rejected(reason.clone());
             let _ = (&stream).write_all(&line(&Message::error(Value::Null, error)));
             return Err(format!("refusing a connection: {reason}"));
