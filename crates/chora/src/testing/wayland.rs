@@ -71,8 +71,9 @@ struct App {
 pub struct Configures {
     /// The serial of the newest configure that the client did not ack.
     pending: Option<u32>,
-    /// The size and the states of the newest toplevel configure.
+    /// The size of the newest toplevel or lock configure.
     pub size: (i32, i32),
+    /// The states of the newest toplevel configure.
     pub states: Vec<xdg_toplevel::State>,
     /// How many configures arrived.
     pub count: usize,
