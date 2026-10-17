@@ -491,8 +491,11 @@ Off Windows, Log Off asks every window to close; Switch User is always
 disabled, because chora has no second session to switch to. In Turn off
 computer, Stand By runs `systemctl suspend`, and is disabled without
 `systemctl`; Turn Off ends `chora-xp` and shuts nothing down; Restart
-runs `chora-xp` again in the same process, with the same arguments, and
-the new instance adopts the windows. Cancel or a click outside the dialog
+runs `chora-xp` again in the same process, with the same arguments. The
+core keeps the nodes of `chora-xp` for a short time (`resume`). The
+windows keep their places, desktops, maximized state and stacking. The
+Explorer windows open again. The current desktop stays, and its top
+window gets the focus. Cancel or a click outside the dialog
 closes it. The buttons light up under the pointer; the keyboard does not
 work the dialogs, for the same reason as Escape.
 

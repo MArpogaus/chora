@@ -8,8 +8,10 @@ mod effects;
 mod explorers;
 mod items;
 mod resize;
+mod restart;
 
 use std::{
+    collections::HashMap,
     path::PathBuf,
     time::{Duration, Instant},
 };
@@ -231,6 +233,9 @@ pub struct Wm {
     pub done: bool,
     /// Restart ended the plugin, to start it again.
     pub restart: bool,
+    /// The windows of clients before a restart, by surface, until they
+    /// show again.
+    kept: HashMap<String, restart::KeptWindow>,
 }
 
 impl Wm {
@@ -283,8 +288,11 @@ impl Wm {
             item: None,
             done: false,
             restart: false,
+            kept: HashMap::new(),
         };
         wm.clock = wm.now();
+        // The nodes that a restart kept: read, then built again.
+        let kept = wm.take_kept()?;
         wm.create_scene()?;
         wm.grab()?;
         wm.conn.call::<_, Value>(
@@ -293,6 +301,7 @@ impl Wm {
                 events: EVENTS.map(String::from).to_vec(),
             },
         )?;
+        wm.restore_kept(kept)?;
         for node in wm.conn.query("kind:surface")? {
             if node.owner.is_none() {
                 let info = node.surface.unwrap_or_default();
@@ -555,10 +564,12 @@ impl Wm {
         window.icon = self
             .icons
             .program(window.app_id.as_deref().unwrap_or_default());
-        window.desktop = self.desktop;
+        // A window keeps its desktop over a restart.
+        window.desktop = self.kept.get(surface).map_or(self.desktop, |k| k.desktop);
+        let desk = desk_id(window.desktop);
         self.windows.push(window);
         self.opened.push(surface.into());
-        let mut commands = decoration::create(surface, &desk_id(self.desktop), false);
+        let mut commands = decoration::create(surface, &desk, false);
         commands.extend(self.focus(Some(surface)));
         if let Some(err) = self.try_apply(commands)? {
             // Another client took it first.
@@ -595,15 +606,27 @@ impl Wm {
         let first = !self.windows[i].shown;
         self.windows[i].size = Some(size);
         self.anchor(i);
-        // A window maximized before its first commit keeps its place.
-        if first && !self.windows[i].maximized() {
-            let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
+        let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
+        let kept = first.then(|| self.kept.remove(surface)).flatten();
+        let active = self.is_active(surface);
+        let mut commands = Vec::new();
+        if let Some(k) = kept {
+            // A window keeps its place and its maximized state over a
+            // restart; the client hears of the state again.
+            let w = &mut self.windows[i];
+            w.pos = [k.frame[0], k.frame[1]];
+            if let Some(restore) = k.restore {
+                w.restore = Some(restore);
+                w.maximize(area);
+                commands.extend(w.configure(active));
+            }
+        } else if first && !self.windows[i].maximized() {
+            // A window maximized before its first commit keeps its place.
             let outer = self.windows[i].outer();
             self.windows[i].pos = window::cascade(&mut self.cascade, outer, area);
         }
         self.windows[i].shown = true;
-        let active = self.is_active(surface);
-        let mut commands = self.windows[i].style(&mut self.theme, active);
+        commands.extend(self.windows[i].style(&mut self.theme, active));
         if first {
             commands.extend(self.sync_tasks());
         }
@@ -2266,9 +2289,22 @@ impl Wm {
             Choice::StandBy => spawn("systemctl suspend"),
             Choice::TurnOff => {
                 self.play(Sound::ShutDown);
+                // Nodes of a plugin with resume outlive it for a while.
+                match self.remove_scene() {
+                    // The dialog goes already.
+                    Ok(remove) => {
+                        let rest: Vec<Command> = remove
+                            .into_iter()
+                            .filter(|r| !commands.contains(r))
+                            .collect();
+                        commands.extend(rest);
+                    }
+                    Err(err) => eprintln!("chora-xp: {err}"),
+                }
                 self.done = true;
             }
             Choice::Restart => {
+                commands.extend(self.keep_for_restart());
                 self.done = true;
                 self.restart = true;
             }
