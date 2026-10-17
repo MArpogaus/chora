@@ -120,7 +120,8 @@ client at most 64 files, all clients together at most 64 MiB. A client
 name with assets has at most 120 bytes. A second put
 of a name replaces the file, and the nodes that use it load it again. The
 files of a client go with its nodes: at the last disconnect without
-`keep_nodes`, otherwise when chora exits. `choractl asset put NAME FILE`
+`keep_nodes`, after the grace time of `resume`, otherwise when chora
+exits. `choractl asset put NAME FILE`
 prints the path.
 
 ## Commands
@@ -195,7 +196,8 @@ carries the text that it types:
 
 The focus returns to the focused surface, which gets an enter, when the
 owner sends `{"focus_node": {}}`, when the node goes, when its client
-disconnects, also with `keep_nodes`, and when the session locks. The
+disconnects, also with `keep_nodes` or `resume`, and when the session
+locks. The
 focus of a surface, by a command or by the core, ends it too. A layer
 surface that takes the keyboard exclusively, for example a launcher, gets
 the keys before the node.
@@ -227,7 +229,7 @@ or an empty list. It always sees the current titles.
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version |
 | `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again |
-| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow, the core disconnects that client and removes its nodes, also with `keep_nodes` |
+| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow, the core disconnects that client and removes its nodes, also with `keep_nodes` or `resume` |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
@@ -267,7 +269,7 @@ answers every request.
 
 | Method | Purpose |
 |--------|---------|
-| `hello(name, keep_nodes)` | name the client; `keep_nodes` keeps its nodes and cameras after the disconnect; returns `{"version": ...}` |
+| `hello(name, keep_nodes, resume)` | name the client; `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` for a grace time of 10 s (see below); returns `{"version": ..., "resumed": ...}` |
 | `scene.query(selector)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name |
@@ -318,9 +320,38 @@ after an update. This is a first step: the versioned `hello` of D29, with
 the protocol version and the features of both sides, follows in 0.7.
 
 A connection sends `hello` once, within 5 s. Connections with the same name share their
-nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
-different value. For example, `choractl --name tiling` fails while the tiling
-plugin runs.
+nodes, so they must agree on `keep_nodes` and `resume`. The core refuses a
+`hello` with different values. For example, `choractl --name tiling` fails
+while the tiling plugin runs.
+
+`resume` lets a plugin restart without a loss, for example after a crash
+or a change of its configuration. When the last connection of a name
+with `resume` closes, the core keeps the nodes of the name for a grace
+time of 10 s (`GRACE`): their tree, stacking, properties and `meta`, the
+surfaces that they hold, the cameras and the assets. The grabs, the
+exported methods, the reserves and the keyboard focus of a node end as
+at any disconnect, and `client.disconnected` follows at once.
+
+```json
+{"jsonrpc": "2.0", "id": 1, "method": "hello", "params": {"name": "tiling", "resume": true}}
+{"jsonrpc": "2.0", "id": 1, "result": {"version": "0.5.4+1ea0e89abc", "resumed": true}}
+```
+
+- A `hello` of the same name with `resume` within the grace time gets the
+  nodes back: `resumed` is true. The plugin then rebuilds its model from
+  `scene.query` with `owner:NAME` instead of creating its nodes again.
+- A `hello` of the name without `resume` removes the kept nodes first, so
+  the client starts as without a grace time. `resumed` is false.
+- After the grace time, the core removes the nodes as at any disconnect:
+  the surfaces become detached and get `surface.detached`.
+- No other client can change the kept nodes, as they still belong to the
+  name.
+- A toplevel that maps during the grace time gets `surface.created` as
+  usual, and stays without an owner if no other plugin attaches it. The
+  resumed plugin takes it as at any start, with a query of `kind:surface`
+  for surfaces without an owner.
+- The emergency reset and a disconnect of the watchdog end the grace time
+  at once.
 
 A reserve of `output.reserve` belongs to a connection and ends with it,
 also when its client crashes. The reserves of all connections on an
