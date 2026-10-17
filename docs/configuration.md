@@ -372,8 +372,8 @@ opens a drive or a folder in the same window.
 
 The Recycle Bin lists the trash of the freedesktop.org specification,
 `$XDG_DATA_HOME/Trash/files`, with the folder each item came from and
-the date it went, from its file in `Trash/info`. While it has items,
-Recycle Bin Tasks has Empty the Recycle Bin: it asks first, in XP's
+the date it went, from its file in `Trash/info`. Recycle Bin Tasks has
+Empty the Recycle Bin, gray while the bin is empty. It asks first, in XP's
 Confirm File Delete or Confirm Multiple File Delete, and Yes deletes the
 files and folders of the trash and their info files for good. Restore
 all items is gray.

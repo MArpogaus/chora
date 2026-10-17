@@ -837,16 +837,19 @@ fn computer_boxes() -> (Option<TaskBox>, Vec<Link>) {
 
 /// The tasks of the Recycle Bin, while it has items, and its places.
 fn trash_boxes(full: bool) -> (Option<TaskBox>, Vec<Link>) {
-    let tasks = full.then(|| TaskBox {
+    // An empty bin keeps its tasks, gray, as on XP.
+    let empty = if full {
+        Link {
+            title: "Empty the Recycle Bin".into(),
+            icon: "user-trash-full",
+            target: Target::EmptyTrash,
+        }
+    } else {
+        Link::gray("Empty the Recycle Bin", "user-trash-full")
+    };
+    let tasks = Some(TaskBox {
         title: "Recycle Bin Tasks",
-        body: Body::Links(vec![
-            Link {
-                title: "Empty the Recycle Bin".into(),
-                icon: "user-trash-full",
-                target: Target::EmptyTrash,
-            },
-            Link::gray("Restore all items", "edit-undo"),
-        ]),
+        body: Body::Links(vec![empty, Link::gray("Restore all items", "edit-undo")]),
     });
     let places = vec![
         Link::to("Desktop", "user-desktop", Place::Folder(desktop())),
