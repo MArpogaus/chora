@@ -117,7 +117,12 @@ impl State {
         };
         match self.display_handle.insert_client(stream, Arc::new(data)) {
             Ok(client) => {
+                let handle = self.display_handle.backend_handle();
                 if let Some(socket) = self.ipc.clients.get_mut(name) {
+                    // Clients that went leave the list here.
+                    socket
+                        .clients
+                        .retain(|id| handle.get_client_data(id.clone()).is_ok());
                     socket.clients.push(client.id());
                 }
             }
@@ -232,7 +237,7 @@ pub(super) struct ClientSocket {
     wayland: RegistrationToken,
     dir: PathBuf,
     /// The Wayland clients that connected through it.
-    clients: Vec<ClientId>,
+    pub clients: Vec<ClientId>,
 }
 
 impl ClientSocket {

@@ -1490,6 +1490,23 @@ mod tests {
     }
 
     #[test]
+    fn a_client_socket_forgets_the_wayland_clients_that_went() {
+        let (mut core, dir) = socket_dir("wayland-gone");
+        let mut admin = core.admin();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let path = PathBuf::from(created["wayland"].as_str().unwrap());
+        for _ in 0..3 {
+            let gone = Wayland::connect_to(&mut core, &path);
+            drop(gone);
+            core.dispatch();
+        }
+        let _live = Wayland::connect_to(&mut core, &path);
+        assert_eq!(core.state.ipc.clients["agent"].clients.len(), 1);
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn clients_create_refuses_a_live_name() {
         let (mut core, dir) = socket_dir("live");
         let mut admin = core.admin();
