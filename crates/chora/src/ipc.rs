@@ -667,6 +667,14 @@ impl State {
                 hello.name, peer.keep_nodes, peer.resume
             )));
         }
+        // Resume is for a name without a live connection: a second instance
+        // must not take the nodes of a running one.
+        if hello.resume && peer.is_some() {
+            return Err(rejected(format!(
+                "{:?} is connected; resume needs a name without a live connection",
+                hello.name
+            )));
+        }
         let known = peer.is_some();
         if hello.resume {
             self.ipc.graces.remove(&hello.name);
@@ -1159,6 +1167,19 @@ mod tests {
             core.state.scene.node("g").is_some(),
             "the timer of the old grace time removes nothing"
         );
+    }
+
+    #[test]
+    fn a_resume_while_the_name_is_connected_fails_and_keeps_the_nodes() {
+        let mut core = Core::new();
+        let mut reader = core.named("reader");
+        let (_wm, _wayland) = resumable(&mut core);
+        let before = owned(&mut reader, &mut core);
+        let mut second = core.connect();
+        let hello = json!({"name": "wm", "resume": true});
+        let (_, message) = second.fails(&mut core, "hello", hello);
+        assert!(message.contains("is connected"), "{message}");
+        assert_eq!(owned(&mut reader, &mut core), before);
     }
 
     #[test]

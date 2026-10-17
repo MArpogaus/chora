@@ -348,6 +348,9 @@ A connection sends `hello` once, within 5 s. Connections with the same name shar
 nodes, so they must agree on `keep_nodes` and `resume`. The core refuses a
 `hello` with different values. For example, `choractl --name tiling` fails
 while the tiling plugin runs. With `keep_nodes`, `resume` has no effect.
+A `hello` with `resume` also fails while another connection of the name
+is live, so a second instance of a plugin cannot take the nodes of the
+first. The error says that the name is connected.
 
 `resume` lets a plugin restart without a loss, for example after a crash
 or a change of its configuration. When the last connection of a name
@@ -364,8 +367,7 @@ node end as at any disconnect, and `client.disconnected` follows at once.
 - A `hello` of the same name with `resume` within the grace time gets the
   nodes back. The plugin finds them with `scene.query` and `owner:NAME`.
   When the list is not empty, it rebuilds its model from them instead of
-  creating its nodes again. A running instance of the same name also owns
-  them.
+  creating its nodes again.
 - A `hello` of the name without `resume` removes the kept nodes first, so
   the client starts as without a grace time.
 - After the grace time, the core removes the nodes as at any disconnect:
