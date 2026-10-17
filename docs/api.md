@@ -520,7 +520,10 @@ and read what the user types into it.
 An `xdg-activation` token or a popup grab of such a client needs the
 serial of its last key or button press, and never 0. A token also needs
 the keyboard focus on the client, and uses the press up. So the client
-takes the focus only after input of the user, once per press.
+takes the focus only after input, once per press. Synthetic input from
+`input.inject` sets that serial too, so a client with that grant can
+create the press itself. When the token is used, it must still be at
+most 10 s old and the client must still have the keyboard focus.
 
 The client gets the grants of the name at the time it connects. A
 revoke of a capability that it got disconnects it, and so does the
