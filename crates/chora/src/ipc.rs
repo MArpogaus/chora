@@ -48,6 +48,9 @@ const READ_PER_WAKEUP: usize = 64 << 10;
 /// How long a new connection may wait before its `hello`, so that idle
 /// connections cannot take every slot.
 const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
+/// How long the core keeps the nodes of a client with `resume` after its
+/// last connection closed, so that a restart gets them back.
+pub const GRACE: Duration = Duration::from_secs(10);
 
 /// The connections of the IPC socket.
 #[derive(Default)]
@@ -66,6 +69,9 @@ pub struct Ipc {
     conns: HashMap<u64, Conn>,
     next: u64,
     grabs: Vec<(Binding, Trigger, u64)>,
+    /// The client names with `resume` without a connection, and the end of
+    /// their grace time.
+    graces: HashMap<String, Instant>,
 }
 
 /// What a grab waits for: a key or a pointer button.
@@ -116,6 +122,7 @@ struct Conn {
     /// The deadline of `hello`.
     hello_by: Instant,
     keep_nodes: bool,
+    resume: bool,
     events: Option<Vec<String>>,
     /// The edges of `output.reserve` by output name.
     reserves: HashMap<String, Edges>,
@@ -328,6 +335,20 @@ impl Ipc {
             .collect()
     }
 
+    /// The client names whose grace time ended.
+    pub fn graces_over(&self, now: Instant) -> Vec<String> {
+        self.graces
+            .iter()
+            .filter(|(_, end)| **end <= now)
+            .map(|(name, _)| name.clone())
+            .collect()
+    }
+
+    /// The client names in their grace time.
+    pub fn graces(&self) -> Vec<String> {
+        self.graces.keys().cloned().collect()
+    }
+
     /// The client name of a connection.
     pub fn name(&self, conn: u64) -> Option<&str> {
         self.conns.get(&conn)?.name.as_deref()
@@ -495,6 +516,7 @@ impl State {
             name: None,
             hello_by,
             keep_nodes: false,
+            resume: false,
             events: None,
             reserves: HashMap::new(),
             reader: Some(token),
@@ -624,7 +646,8 @@ impl State {
     }
 
     /// Names a connection. All connections of a name share one
-    /// `keep_nodes` setting.
+    /// `keep_nodes` and one `resume` setting. With `resume`, a name in its
+    /// grace time gets its nodes back; without, they go first.
     fn ipc_hello(&mut self, conn: u64, hello: Hello) -> Result<Value, RpcError> {
         if self.ipc.name(conn).is_some() {
             return Err(rejected("hello was sent already"));
@@ -634,21 +657,37 @@ impl State {
             .conns
             .values()
             .find(|c| c.name.as_deref() == Some(&hello.name));
-        if let Some(peer) = peer.filter(|p| p.keep_nodes != hello.keep_nodes) {
+        if let Some(peer) =
+            peer.filter(|p| (p.keep_nodes, p.resume) != (hello.keep_nodes, hello.resume))
+        {
             return Err(rejected(format!(
-                "{:?} is in use with keep_nodes {}",
-                hello.name, peer.keep_nodes
+                "{:?} is in use with keep_nodes {} and resume {}",
+                hello.name, peer.keep_nodes, peer.resume
             )));
         }
         let known = peer.is_some();
+        let resumed = hello.resume && self.ipc.graces.remove(&hello.name).is_some();
+        if self.ipc.graces.contains_key(&hello.name) {
+            self.drop_nodes(&hello.name);
+        }
         if let Some(c) = self.ipc.conns.get_mut(&conn) {
             c.name = Some(hello.name.clone());
             c.keep_nodes = hello.keep_nodes;
+            c.resume = hello.resume;
         }
         if !known {
             self.emit(&Event::ClientConnected { name: hello.name });
         }
-        Ok(serde_json::json!({"version": chora_scene::ipc::VERSION}))
+        Ok(serde_json::json!({"version": chora_scene::ipc::VERSION, "resumed": resumed}))
+    }
+
+    /// Removes the nodes, the cameras and the assets of a client name, and
+    /// ends its grace time.
+    pub fn drop_nodes(&mut self, name: &str) {
+        self.ipc.graces.remove(name);
+        let effects = self.scene.disconnect(name);
+        self.execute(effects);
+        self.ipc.uploads.drop_client(name);
     }
 
     fn query(&self, selector: &str) -> Result<Value, RpcError> {
@@ -701,7 +740,8 @@ impl State {
     }
 
     /// Closes a connection. Without `keep_nodes`, the nodes and the assets
-    /// of its name go when the last connection of the name closes.
+    /// of its name go when the last connection of the name closes; with
+    /// `resume`, they go after the grace time.
     pub fn ipc_close(&mut self, conn: u64) {
         let Some(closed) = self.ipc.conns.remove(&conn) else {
             return;
@@ -734,10 +774,15 @@ impl State {
             self.scene.unfocus_node();
             self.update_focus();
         }
-        if !closed.keep_nodes {
-            let effects = self.scene.disconnect(&name);
-            self.execute(effects);
-            self.ipc.uploads.drop_client(&name);
+        if closed.resume && !closed.keep_nodes {
+            let end = self.time.now() + GRACE;
+            if self.expire_at(end).is_ok() {
+                self.ipc.graces.insert(name.clone(), end);
+            } else {
+                self.drop_nodes(&name);
+            }
+        } else if !closed.keep_nodes {
+            self.drop_nodes(&name);
         }
         self.ipc.processes.drop_client(&name);
         self.emit(&Event::ClientDisconnected { name });
@@ -808,7 +853,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::testing::{Client, Core, rect};
+    use crate::testing::{Client, Core, rect, wayland::Wayland};
 
     const REJECTED: i64 = RpcError::REJECTED;
 
@@ -829,7 +874,8 @@ mod tests {
         let mut core = Core::new();
         let mut client = core.connect();
         let answer = client.ok(&mut core, "hello", json!({"name": "wm"}));
-        assert_eq!(answer, json!({"version": chora_scene::ipc::VERSION}));
+        let version = json!({"version": chora_scene::ipc::VERSION, "resumed": false});
+        assert_eq!(answer, version);
         assert_eq!(core.state.ipc.name(1), None);
         assert_eq!(core.state.ipc.name(0), Some("wm"));
         let (error_code, message) = client.fails(&mut core, "hello", json!({"name": "other"}));
@@ -905,7 +951,10 @@ mod tests {
         let mut second = core.connect();
         let (error_code, message) = second.fails(&mut core, "hello", json!({"name": "wm"}));
         assert_eq!(error_code, REJECTED);
-        assert_eq!(message, "\"wm\" is in use with keep_nodes true");
+        assert_eq!(
+            message,
+            "\"wm\" is in use with keep_nodes true and resume false"
+        );
         second.ok(
             &mut core,
             "hello",
@@ -964,6 +1013,103 @@ mod tests {
         drop(kept);
         core.dispatch();
         assert_eq!(ids(&mut reader, &mut core, "kind:rect"), ["k"]);
+    }
+
+    /// A window manager with `resume` that holds a group with meta and a
+    /// transform, two rects in it in order, and the surface `s1` of a
+    /// toplevel in it.
+    fn resumable(core: &mut Core) -> (Client, Wayland) {
+        let mut wayland = Wayland::connect(core);
+        wayland.toplevel(core, "foot");
+        let mut wm = core.connect();
+        let answer = wm.ok(core, "hello", json!({"name": "wm", "resume": true}));
+        assert_eq!(answer["resumed"], false);
+        let size = json!({"size": [1, 1]});
+        let commands = json!({"commands": [
+            {"create": {"id": "g", "kind": "group", "parent": "root",
+                "props": {"meta": {"tag": "9"}, "transform": {"translate": [40, 50]}}}},
+            {"create": {"id": "a", "kind": "rect", "parent": "g", "props": size}},
+            {"create": {"id": "b", "kind": "rect", "parent": "g", "props": size}},
+            {"attach": {"surface": "s1", "parent": "g"}},
+        ]});
+        wm.ok(core, "scene.apply", commands);
+        (wm, wayland)
+    }
+
+    fn hello_resume(core: &mut Core) -> (Client, Value) {
+        let mut wm = core.connect();
+        let answer = wm.ok(core, "hello", json!({"name": "wm", "resume": true}));
+        (wm, answer["resumed"].clone())
+    }
+
+    fn owned(reader: &mut Client, core: &mut Core) -> Value {
+        reader.ok(core, "scene.query", json!({"selector": "owner:wm"}))
+    }
+
+    #[test]
+    fn a_client_with_resume_gets_its_nodes_back_within_the_grace_time() {
+        let mut core = Core::new();
+        let mut reader = core.named("reader");
+        let (wm, _wayland) = resumable(&mut core);
+        let before = owned(&mut reader, &mut core);
+        assert_eq!(before.as_array().map(Vec::len), Some(4));
+        drop(wm);
+        core.dispatch();
+        core.advance(GRACE.saturating_sub(Duration::from_millis(1)));
+        assert_eq!(owned(&mut reader, &mut core), before);
+        let (mut wm, resumed) = hello_resume(&mut core);
+        assert_eq!(resumed, true);
+        assert_eq!(owned(&mut reader, &mut core), before);
+        assert_eq!(
+            core.state.scene.node("g").unwrap().children,
+            ["a", "b", "s1"]
+        );
+        let hide = json!({"commands": [{"update": {"id": "s1", "props": {"visible": false}}}]});
+        wm.ok(&mut core, "scene.apply", hide);
+        core.advance(GRACE);
+        assert!(core.state.scene.node("g").is_some(), "the grace time ended");
+    }
+
+    #[test]
+    fn the_nodes_go_after_the_grace_time() {
+        let mut core = Core::new();
+        let mut reader = core.named("reader");
+        let (wm, _wayland) = resumable(&mut core);
+        drop(wm);
+        core.dispatch();
+        core.advance(GRACE);
+        assert_eq!(owned(&mut reader, &mut core), json!([]));
+        assert_eq!(core.state.scene.node("s1").unwrap().owner, None);
+        assert_eq!(hello_resume(&mut core).1, false);
+    }
+
+    #[test]
+    fn only_the_name_and_only_with_resume_gets_the_nodes_back() {
+        let mut core = Core::new();
+        let mut reader = core.named("reader");
+        let (wm, _wayland) = resumable(&mut core);
+        drop(wm);
+        core.dispatch();
+        let mut other = core.named("other");
+        let hide = json!({"commands": [{"update": {"id": "g", "props": {"visible": false}}}]});
+        let (error_code, _) = other.fails(&mut core, "scene.apply", hide);
+        assert_eq!(error_code, REJECTED);
+        let _plain = core.named("wm");
+        assert_eq!(
+            owned(&mut reader, &mut core),
+            json!([]),
+            "a hello without resume"
+        );
+    }
+
+    #[test]
+    fn the_reset_ends_the_grace_time() {
+        let mut core = Core::new();
+        let (wm, _wayland) = resumable(&mut core);
+        drop(wm);
+        core.dispatch();
+        core.state.reset();
+        assert_eq!(hello_resume(&mut core).1, false);
     }
 
     #[test]

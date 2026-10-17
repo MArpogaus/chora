@@ -35,13 +35,16 @@ impl Time {
 }
 
 impl crate::state::State {
-    /// Ends what passed its deadline: connections without `hello`, method
-    /// calls without an answer, and transactions whose clients did not
-    /// commit in time.
+    /// Ends what passed its deadline: connections without `hello`, grace
+    /// times, method calls without an answer, and transactions whose
+    /// clients did not commit in time.
     pub fn expire(&mut self) {
         let now = self.time.now();
         for conn in self.ipc.silent(now) {
             self.ipc_close(conn);
+        }
+        for name in self.ipc.graces_over(now) {
+            self.drop_nodes(&name);
         }
         for call in self.methods.due(now) {
             self.end_call(call, Err(rejected("the method gave no answer in time")));

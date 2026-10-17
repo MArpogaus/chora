@@ -188,7 +188,8 @@ impl State {
     }
 
     /// Disconnects all connections of a client name and removes its nodes,
-    /// also those of a client with `keep_nodes`: they are the load.
+    /// also those of a client with `keep_nodes` or `resume`: they are the
+    /// load.
     fn disconnect_client(&mut self, client: &str) {
         tracing::warn!(%client, "frames stay slow; the watchdog disconnects a client");
         let conns: Vec<u64> = self
@@ -200,8 +201,7 @@ impl State {
         for conn in conns {
             self.ipc_close(conn);
         }
-        let effects = self.scene.disconnect(client);
-        self.execute(effects);
+        self.drop_nodes(client);
     }
 
     /// The emergency reset: disconnects all clients of the IPC socket,
@@ -216,6 +216,9 @@ impl State {
         }
         for conn in self.ipc.conn_ids() {
             self.ipc_close(conn);
+        }
+        for name in self.ipc.graces() {
+            self.drop_nodes(&name);
         }
         self.grants.clear();
         self.node_grab = None;
@@ -329,6 +332,11 @@ mod tests {
     /// A core with a window manager that listens, a loader with one effect,
     /// and a client with `keep_nodes` and 20 effects.
     fn three_clients() -> (Core, Client, Client, Client) {
+        three_clients_with(&json!({"name": "heavy", "keep_nodes": true}))
+    }
+
+    /// `three_clients` with another `hello` of the heavy client.
+    fn three_clients_with(hello: &Value) -> (Core, Client, Client, Client) {
         let mut core = Core::new();
         let mut wm = core.named("wm");
         wm.ok(
@@ -340,8 +348,7 @@ mod tests {
         let glass = json!({"commands": [effect("glass")]});
         loader.ok(&mut core, "scene.apply", glass);
         let mut heavy = core.connect();
-        let hello = json!({"name": "heavy", "keep_nodes": true});
-        heavy.ok(&mut core, "hello", hello);
+        heavy.ok(&mut core, "hello", hello.clone());
         let commands: Vec<Value> = (0..20).map(|i| effect(&format!("h{i}"))).collect();
         heavy.ok(&mut core, "scene.apply", json!({"commands": commands}));
         wm.take_events();
@@ -370,5 +377,17 @@ mod tests {
         assert!(!loader.closed(&mut core));
         assert!(!wm.closed(&mut core));
         assert_eq!(effects(&core, "glass"), 1);
+    }
+
+    #[test]
+    fn the_watchdog_ends_the_grace_time_of_a_client() {
+        let hello = json!({"name": "heavy", "resume": true});
+        let (mut core, _wm, _loader, mut heavy) = three_clients_with(&hello);
+        slow_frames(&mut core, 4200);
+        assert!(heavy.closed(&mut core));
+        assert!(core.state.scene.node("h0").is_none(), "no grace time");
+        let mut again = core.connect();
+        let answer = again.ok(&mut core, "hello", hello);
+        assert_eq!(answer["resumed"], false);
     }
 }

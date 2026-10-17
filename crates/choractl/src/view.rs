@@ -164,6 +164,7 @@ fn connect(view: &str) -> Result<Client, String> {
     let hello = Hello {
         name: owner(view),
         keep_nodes: true,
+        resume: false,
     };
     Client::from_env(&hello).map_err(|e| e.to_string())
 }

@@ -267,6 +267,7 @@ fn run(args: Args) -> Result<(), String> {
     let hello = Hello {
         name: args.name.unwrap_or_else(|| "choractl".into()),
         keep_nodes: true,
+        resume: false,
     };
     let mut client = Client::from_env(&hello).map_err(|e| e.to_string())?;
     let result = match args.command {
