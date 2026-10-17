@@ -104,6 +104,10 @@ impl State {
         self.configured_forget(id);
         self.unlist_toplevel(id);
         self.early_requests.remove(id);
+        if let Some(toplevel) = self.windows.get(id).and_then(Window::toplevel) {
+            let surface = toplevel.wl_surface();
+            self.pending_activations.retain(|(s, _)| *s != *surface);
+        }
         let existed = self.scene.remove_surface(id);
         self.transactions.forget(id);
         self.complete_transactions();
@@ -111,6 +115,23 @@ impl State {
         if existed {
             self.emit(&Event::SurfaceDestroyed { surface: id.into() });
         }
+    }
+
+    /// The process of the surface's client and the activation token that
+    /// mapped it, for `surface.created`.
+    fn created_origin(&mut self, surface: &WlSurface) -> (Option<u32>, Option<String>) {
+        let pid = self
+            .display_handle
+            .get_client(surface.id())
+            .ok()
+            .and_then(|c| c.get_credentials(&self.display_handle).ok())
+            .map(|c| c.pid.cast_unsigned());
+        let token = self
+            .pending_activations
+            .iter()
+            .position(|(s, _)| s == surface)
+            .map(|i| self.pending_activations.remove(i).1);
+        (pid, token)
     }
 
     /// Handles a commit of a toplevel: the initial configure and the
@@ -145,12 +166,15 @@ impl State {
                 .map(String::from);
             self.scene.reserve(id, to.as_deref());
             self.list_toplevel(id);
+            let (pid, token) = self.created_origin(toplevel.wl_surface());
             self.emit(&Event::SurfaceCreated {
                 surface: id.into(),
                 app_id: info.app_id,
                 title: info.title,
                 decoration: info.decoration,
                 to,
+                pid,
+                token,
             });
             self.send_early_requests(id);
             return;

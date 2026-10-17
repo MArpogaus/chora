@@ -210,6 +210,9 @@ pub struct State {
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
     pub windows: HashMap<String, Window>,
+    /// Activations of surfaces that have not committed yet: the token
+    /// travels with the first `surface.created` of that surface.
+    pub pending_activations: Vec<(WlSurface, String)>,
     pub assets: Assets,
     next_surface: u64,
     pub ipc: Ipc,
@@ -272,6 +275,7 @@ fn new_seat(dh: &DisplayHandle) -> (SeatState<State>, Seat<State>) {
 }
 
 impl State {
+    #[allow(clippy::too_many_lines)] // one field after the other
     pub fn new(
         display: Display<State>,
         loop_handle: LoopHandle<'static, State>,
@@ -328,6 +332,7 @@ impl State {
             early_requests: HashMap::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
+            pending_activations: Vec::new(),
             next_surface: 1,
             ipc: Ipc::default(),
             transactions: Transactions::default(),

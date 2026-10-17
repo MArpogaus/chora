@@ -255,6 +255,8 @@ impl XdgActivationHandler for State {
         if !self.token_use_allowed(&token_data) {
             return;
         }
+        self.pending_activations
+            .push((surface.clone(), token.as_str().to_owned()));
         let toplevel = self
             .windows
             .values()

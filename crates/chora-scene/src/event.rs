@@ -25,6 +25,13 @@ pub enum Event {
         /// (D55).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         to: Option<String>,
+        /// The process that made the surface, as the socket reports it; a
+        /// client can spoof this, so it is a hint, not a check.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pid: Option<u32>,
+        /// The activation token that mapped the surface, when one did.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        token: Option<String>,
     },
     /// The title, the application id, the size or the decoration of a
     /// surface changed.
