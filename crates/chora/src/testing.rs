@@ -271,6 +271,7 @@ impl Client {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use serde_json::json;
 
