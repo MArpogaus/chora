@@ -286,7 +286,7 @@ impl State {
         .filter(|(state, _)| configured.contains(state))
         .map(|(_, wlr)| wlr)
         .collect();
-        if self.focused_surface().as_deref() == Some(surface) {
+        if self.focused_surface() == Some(surface) {
             states.push(handle::State::Activated);
         }
         states

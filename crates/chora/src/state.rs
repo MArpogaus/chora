@@ -448,7 +448,7 @@ impl State {
                     }
                 }
                 Effect::Detached(surface) => {
-                    if self.focused_surface().as_deref() == Some(surface.as_str()) {
+                    if self.focused_surface() == Some(surface.as_str()) {
                         self.focus(None);
                     }
                     self.emit(&Event::SurfaceDetached { surface });
@@ -490,8 +490,8 @@ impl State {
     }
 
     /// The surface node that has the focus, as plugins set it.
-    pub fn focused_surface(&self) -> Option<String> {
-        self.focus_wanted.clone()
+    pub fn focused_surface(&self) -> Option<&str> {
+        self.focus_wanted.as_deref()
     }
 
     /// Focuses a surface node, or nothing. A layer surface that a click
@@ -734,7 +734,7 @@ mod tests {
         assert_eq!(keyboard(&core), None);
         wm.ok(&mut core, "scene.apply", focus(Some("s1")));
         assert_eq!(keyboard(&core), Some(id(&first)));
-        assert_eq!(core.state.focused_surface().as_deref(), Some("s1"));
+        assert_eq!(core.state.focused_surface(), Some("s1"));
         wm.ok(&mut core, "scene.apply", focus(Some("s2")));
         assert_eq!(keyboard(&core), Some(id(&second)));
         wm.ok(&mut core, "scene.apply", focus(None));
@@ -893,7 +893,7 @@ mod tests {
         wm.ok(&mut core, "scene.apply", focus(Some("s2")));
         core.state.reset();
         core.dispatch();
-        assert_eq!(core.state.focused_surface().as_deref(), Some("s1"));
+        assert_eq!(core.state.focused_surface(), Some("s1"));
         assert_eq!(keyboard(&core), Some(id(&first)));
     }
 

@@ -98,7 +98,7 @@ impl State {
     /// Removes the node of a toplevel that the client destroyed or
     /// unmapped, and tells the plugins with `surface.destroyed`.
     fn surface_gone(&mut self, id: &str) {
-        if self.focused_surface().as_deref() == Some(id) {
+        if self.focused_surface() == Some(id) {
             self.focus(None);
         }
         self.configured_forget(id);
