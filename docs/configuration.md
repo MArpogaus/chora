@@ -190,12 +190,12 @@ uses them instead of the free files of the theme:
   and `canberra-gtk-play` on the `PATH` plays them in the background.
 
 `chora-xp` draws everything as image nodes. It rasterizes the SVG files of
-the theme with resvg into PNG files in `$XDG_RUNTIME_DIR/chora-xp/`, and
-renders each picture once, at the largest scale of the outputs, so that
-text and icons stay sharp on a scaled output; after a change of the scale
-it renders them again. The frames of windows and the background of the
-taskbar stay at scale 1, because the core takes the insets of a slice in
-pixels of the file. The pictures:
+the theme with resvg into PNG files in `$XDG_RUNTIME_DIR/chora-xp/`. It
+renders each picture once, at the largest scale of the outputs, but at
+most 4. Thus text and icons stay sharp on a scaled output. After a change
+of the scale, it renders the pictures again. The borders of windows and
+dialogs and the background of the taskbar stay at scale 1. The core
+reads the insets of a slice in pixels of the file. The pictures:
 
 - a frame around each window, with its title and the minimize, maximize
   and close buttons; a window that draws its own frame, as GTK programs
@@ -233,9 +233,9 @@ Maximize for a maximized one. Move and Size are always gray, as XP works
 them with the arrow keys, and the keyboard does not reach `chora-xp`
 (D45). The click on the icon opens the menu below the icon, the others at
 the pointer. A double click on the icon closes the window, as on XP. A maximized window fills the work
-area above the taskbar. When the mode or the scale of an output changes,
-its windows move back into its work area, and a window that does not fit
-shrinks to it. A click on a task button shows or minimizes its
+area above the taskbar. When an output changes, for example its mode or
+its scale, its shown windows move back into its work area. A window that
+does not fit shrinks to it. A click on a task button shows or minimizes its
 window. Buttons light up under the pointer, and so do the entries of the
 start menu. All Programs and its groups open their cascading menus when
 the pointer rests on them for 350 ms, or on a click. A click on a program
@@ -250,9 +250,9 @@ Computer at the top left, then the folders and files of the Desktop folder
 from the top. The Recycle Bin sits at the bottom right and shows whether
 `$XDG_DATA_HOME/Trash/files` has files. A desktop file shows its name and
 icon. Each label is Tahoma in white with a black shadow, in at most two
-lines. `chora-xp` looks at the Desktop folder and the trash once a second;
-the icons that stay keep their cells, and a new icon takes the first
-free cell of the columns.
+lines. `chora-xp` looks at the Desktop folder and the trash once a second.
+The icons that stay keep their cells. A new icon takes the first free
+cell of the columns.
 My Network Places is left out, because without a network browser it opens
 nothing.
 
@@ -290,9 +290,9 @@ says and closes the menu; a click outside closes it.
   into their columns, in that order; Refresh shows them again; Properties
   opens Display Properties (see below). Paste and Paste Shortcut are
   gray.
-- **An icon of the desktop**: the right button selects it, or keeps
-  the selection when the icon is part of it, and opens XP's menu of its
-  kind; the rows act on the icon under the pointer. Open, in bold, does what a double click does.
+- **An icon of the desktop**: the right button selects the icon and
+  opens XP's menu of its kind. When the icon is part of the selection,
+  the selection stays. The rows act on the icon under the pointer. Open, in bold, does what a double click does.
   A folder and My Documents have Explore, which opens the folder in
   Explorer, as My Computer and the Recycle Bin do. Delete of a file or a
   folder of the Desktop folder asks in XP's Confirm File Delete or
