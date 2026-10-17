@@ -31,6 +31,9 @@ const BUTTON_GAP: i32 = 2;
 /// The space between the buttons and the right edge of the frame, and
 /// between the left edge and the title.
 const EDGE: i32 = 6;
+/// The icon of the application in the title bar, from the corner of the
+/// frame; a click on it opens the system menu.
+pub const ICON: Rect = [EDGE, 7, 16, 16];
 
 /// A button of the title bar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -352,7 +355,8 @@ fn title(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
     let mut picture = Picture::new(width, TITLE);
     let mut left = 2;
     if let Some(icon) = look.icon {
-        picture = picture.file(icon, [0, 7, 16, 16]);
+        let [_, y, w, h] = ICON;
+        picture = picture.file(icon, [0, y, w, h]);
         left = 21;
     }
     let mut text = Text::new(

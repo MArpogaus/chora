@@ -203,6 +203,10 @@ pub struct Wm {
     desk: DesktopIcons,
     /// The open context menu, and the work area of its output.
     context: Option<(context::Menu, Rect)>,
+    /// The window of the open system menu.
+    sys_window: Option<String>,
+    /// The last press on the icon of a title bar, for the double click.
+    last_icon: Option<(String, Instant)>,
     /// The settings of Taskbar and Start Menu Properties.
     taskbar: taskbar::Settings,
     /// The settings dialogs, bottom first.
@@ -259,6 +263,8 @@ impl Wm {
             notes: Queue::default(),
             balloon: None,
             context: None,
+            sys_window: None,
+            last_icon: None,
             taskbar: taskbar::Settings::default(),
             panels: Vec::new(),
             hide_at: None,
@@ -1011,6 +1017,11 @@ impl Wm {
     /// The right button opens the menu of the clock, of the taskbar or of
     /// the desktop.
     fn press_right(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
+        #[allow(clippy::cast_possible_truncation)]
+        let point = position.map(|p| p.floor() as i32);
+        if let Some(taskbar::Part::Task(surface)) = taskbar::Part::of(node) {
+            return self.open_system(&surface, point);
+        }
         let entries = if node.starts_with("xp-tray-") {
             context::clock(self.taskbar.locked)
         } else if node.starts_with("xp-panel-") || node.starts_with("xp-pager-") {
@@ -1020,8 +1031,6 @@ impl Wm {
         } else {
             return Vec::new();
         };
-        #[allow(clippy::cast_possible_truncation)]
-        let point = position.map(|p| p.floor() as i32);
         let Some(bar) = self
             .bars
             .iter()
@@ -1035,6 +1044,52 @@ impl Wm {
         let commands = menu.create(&mut self.theme, MENUS);
         self.context = Some((menu, usable));
         commands
+    }
+
+    /// XP's system menu of a window at a point.
+    fn open_system(&mut self, surface: &str, point: [i32; 2]) -> Vec<Command> {
+        let Some(i) = self.index(surface) else {
+            return Vec::new();
+        };
+        let w = &self.windows[i];
+        let entries = context::system(w.maximized(), w.minimized);
+        let Some(bar) = self
+            .bars
+            .iter()
+            .find(|b| b.contains(point))
+            .or(self.bars.first())
+        else {
+            return Vec::new();
+        };
+        let (area, usable) = (bar.area(), bar.usable());
+        let menu = context::Menu::new(&self.theme, entries, point, area, 0);
+        let commands = menu.create(&mut self.theme, MENUS);
+        self.context = Some((menu, usable));
+        self.sys_window = Some(surface.into());
+        commands
+    }
+
+    /// Does what a row of the system menu says to its window.
+    fn act_window(&mut self, sys: context::Sys) -> Vec<Command> {
+        let Some(surface) = self.sys_window.take() else {
+            return Vec::new();
+        };
+        let Some(i) = self.index(&surface) else {
+            return Vec::new();
+        };
+        let (maximized, minimized) = (self.windows[i].maximized(), self.windows[i].minimized);
+        match sys {
+            context::Sys::Restore if minimized => self.activate(&surface),
+            context::Sys::Restore | context::Sys::Maximize => {
+                let mut commands = self.activate(&surface);
+                if maximized == (sys == context::Sys::Restore) {
+                    commands.extend(self.toggle_maximize(&surface));
+                }
+                commands
+            }
+            context::Sys::Minimize => self.minimize(&surface),
+            context::Sys::Close => self.close_window(&surface),
+        }
     }
 
     fn close_context(&mut self) -> Vec<Command> {
@@ -1072,6 +1127,7 @@ impl Wm {
             Act::TaskbarProperties => self.open_taskbar_dialog(area),
             Act::DateTime => self.open_date_dialog(area),
             Act::Explore(cmd) => self.explore(cmd),
+            Act::Window(sys) => self.act_window(sys),
             Act::Month(month) => {
                 let Some(i) = self
                     .panels
@@ -1160,7 +1216,20 @@ impl Wm {
         | Part::Button(surface, _)
         | Part::Grip(surface)) = part;
         let mut commands = self.activate(surface);
+        let Some(i) = self.index(surface) else {
+            return commands;
+        };
+        if button == RIGHT_BUTTON && matches!(part, Part::Title(_)) {
+            #[allow(clippy::cast_possible_truncation)]
+            let point = position.map(|p| p.floor() as i32);
+            commands.extend(self.open_system(surface, point));
+            return commands;
+        }
         if button != LEFT_BUTTON {
+            return commands;
+        }
+        if matches!(part, Part::Title(_)) && self.windows[i].on_icon(position) {
+            commands.extend(self.press_icon_of(surface));
             return commands;
         }
         let edges = self.index(surface).and_then(|i| {
@@ -1182,6 +1251,27 @@ impl Wm {
             Part::Frame(_) | Part::Grip(_) => {}
         }
         commands
+    }
+
+    /// A click on the icon of a title bar opens the system menu below
+    /// it; a double click closes the window, as on XP.
+    fn press_icon_of(&mut self, surface: &str) -> Vec<Command> {
+        let now = Instant::now();
+        let double = self
+            .last_icon
+            .take()
+            .is_some_and(|(s, at)| s == surface && now.duration_since(at) < DOUBLE_CLICK);
+        if double {
+            return self.close_window(surface);
+        }
+        self.last_icon = Some((surface.into(), now));
+        let Some(i) = self.index(surface) else {
+            return Vec::new();
+        };
+        let w = &self.windows[i];
+        let border = if w.maximized() { 0 } else { decoration::BORDER };
+        let point = [w.pos[0] + border, w.pos[1] + decoration::TITLE];
+        self.open_system(surface, point)
     }
 
     /// A press on a title bar starts a drag; the second press of a double

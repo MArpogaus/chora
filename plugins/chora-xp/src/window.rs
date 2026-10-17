@@ -328,6 +328,17 @@ impl Window {
         })
     }
 
+    /// Whether a point in scene coordinates is on the icon of the title
+    /// bar.
+    pub fn on_icon(&self, [px, py]: [f64; 2]) -> bool {
+        let [ix, iy, iw, ih] = decoration::ICON;
+        let (x, y) = (f64::from(self.pos[0] + ix), f64::from(self.pos[1] + iy));
+        self.framed
+            && self.icon.is_some()
+            && (x..x + f64::from(iw)).contains(&px)
+            && (y..y + f64::from(ih)).contains(&py)
+    }
+
     /// Whether a point in scene coordinates is on a button.
     pub fn on_button(&self, button: Button, [px, py]: [f64; 2]) -> bool {
         let [bx, by, bw, bh] = decoration::button_rect(self.outer()[0], button);

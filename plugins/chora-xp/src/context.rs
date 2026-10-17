@@ -27,6 +27,8 @@ const TEXT_X: i32 = 17;
 /// The room right of the text, for the arrow of a submenu.
 const TEXT_END: i32 = 24;
 const PREFIX: &str = "xp-ctx-";
+/// The room between the text and the shortcut of a row.
+const KEY_GAP: f64 = 20.0;
 
 /// What a row does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -57,9 +59,37 @@ pub enum Act {
     Month(u32),
     /// A row of a menu of the Explorer window that has the focus.
     Explore(crate::explorer::Cmd),
+    /// A row of the system menu of a window.
+    Window(Sys),
+}
+
+/// What a row of XP's system menu does to its window.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Sys {
+    /// Restore: out of the maximized or the minimized state.
+    Restore,
+    /// Minimize.
+    Minimize,
+    /// Maximize.
+    Maximize,
+    /// Close.
+    Close,
+}
+
+impl Sys {
+    /// XP's glyph of the row, from Marlett, in a 9 by 9 box.
+    fn glyph(self) -> &'static str {
+        match self {
+            Self::Restore => "M2 0h7v6H7V5h1V2H3v1H2zM0 3h7v6H0zM1 5h5v3H1z",
+            Self::Minimize => "M1 7h6v2H1z",
+            Self::Maximize => "M0 0h9v9H0zM1 2h7v6H1z",
+            Self::Close => "M1 1l7 7M8 1L1 8",
+        }
+    }
 }
 
 /// A row of a menu.
+#[allow(clippy::struct_excessive_bools)] // independent states of a row
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Entry {
     title: String,
@@ -68,6 +98,12 @@ pub struct Entry {
     checked: bool,
     /// A row with an arrow, which opens its submenu.
     group: bool,
+    /// The default row, in bold.
+    bold: bool,
+    /// The shortcut at the right edge, such as `Alt+F4`.
+    key: &'static str,
+    /// The glyph left of a row of the system menu.
+    glyph: Option<Sys>,
     sub: Vec<Entry>,
 }
 
@@ -80,6 +116,9 @@ impl Entry {
             enabled: true,
             checked: false,
             group: false,
+            bold: false,
+            key: "",
+            glyph: None,
             sub: Vec::new(),
         }
     }
@@ -122,6 +161,20 @@ impl Entry {
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
+    }
+
+    fn font(&self) -> Font {
+        if self.bold { Font::UiBold } else { Font::Ui }
+    }
+
+    /// The width of the text and of the shortcut with its gap.
+    fn width(&self, theme: &Theme) -> f64 {
+        let key = if self.key.is_empty() {
+            0.0
+        } else {
+            theme.text_width(self.key, Font::Ui) + KEY_GAP
+        };
+        theme.text_width(&self.title, self.font()) + key
     }
 
     fn is_separator(&self) -> bool {
@@ -181,6 +234,30 @@ pub fn desktop() -> Vec<Entry> {
     ]
 }
 
+/// XP's system menu of a window, as the title bar and the task button
+/// open it. Move and Size are gray, as the keyboard does not work them
+/// (D45); Close is the default row.
+pub fn system(maximized: bool, minimized: bool) -> Vec<Entry> {
+    let row = |title: &str, sys: Sys, enabled: bool| Entry {
+        act: enabled.then_some(Act::Window(sys)),
+        glyph: Some(sys),
+        ..Entry::item(title, Act::Window(sys)).enabled(enabled)
+    };
+    vec![
+        row("Restore", Sys::Restore, maximized || minimized),
+        Entry::gray("Move"),
+        Entry::gray("Size"),
+        row("Minimize", Sys::Minimize, !minimized),
+        row("Maximize", Sys::Maximize, !maximized),
+        Entry::separator(),
+        Entry {
+            bold: true,
+            key: "Alt+F4",
+            ..row("Close", Sys::Close, true)
+        },
+    ]
+}
+
 /// One menu: the root or the submenu.
 struct Level {
     entries: Vec<Entry>,
@@ -193,10 +270,7 @@ struct Level {
 
 impl Level {
     fn new(entries: Vec<Entry>, theme: &Theme, min_width: i32) -> Self {
-        let widest = entries
-            .iter()
-            .map(|e| theme.text_width(&e.title, Font::Ui))
-            .fold(0.0, f64::max);
+        let widest = entries.iter().map(|e| e.width(theme)).fold(0.0, f64::max);
         #[allow(clippy::cast_possible_truncation)]
         let w = (widest.ceil() as i32 + TEXT_X + TEXT_END + 2 * PAD).max(min_width) + SHADOW;
         let h = entries.iter().map(Entry::height).sum::<i32>() + 2 * PAD + SHADOW;
@@ -484,20 +558,56 @@ fn row(theme: &Theme, entry: &Entry, [w, h]: [i32; 2], lit: bool) -> Picture {
         (true, true) => [255, 255, 255, 255],
         (true, false) => [0, 0, 0, 255],
     };
-    picture = picture.text(Text::new(
+    let [r, g, b, _] = color;
+    picture = system_parts(picture, theme, entry, [w, h], color).text(Text::new(
         &entry.title,
-        Font::Ui,
+        entry.font(),
         color,
         [TEXT_X, 0, w - TEXT_X - TEXT_END + 4, h],
     ));
     if entry.group {
         // XP's arrow of a submenu, 4 by 7 pixels, in the color of the text.
-        let [r, g, b, _] = color;
         let y = f64::from(h) / 2.0;
         picture = picture.svg(format!(
             r#"<path d="M{} {}l4 3.5l-4 3.5z" fill="rgb({r},{g},{b})"/>"#,
             w - 12,
             y - 3.5
+        ));
+    }
+    picture
+}
+
+/// The glyph and the shortcut of a row of the system menu.
+#[allow(clippy::many_single_char_names)] // colors and coordinates
+fn system_parts(
+    mut picture: Picture,
+    theme: &Theme,
+    entry: &Entry,
+    [w, h]: [i32; 2],
+    [r, g, b, _]: [u8; 4],
+) -> Picture {
+    if let Some(sys) = entry.glyph {
+        let color = format!("rgb({r},{g},{b})");
+        // The cross of Close is a line, the others are areas.
+        let (fill, stroke) = if sys == Sys::Close {
+            ("none", color.as_str())
+        } else {
+            (color.as_str(), "none")
+        };
+        picture = picture.svg(format!(
+            r#"<path transform="translate(4 {})" d="{}" fill="{fill}" fill-rule="evenodd" stroke="{stroke}" stroke-width="1.5"/>"#,
+            (h - 9) / 2,
+            sys.glyph()
+        ));
+    }
+    if !entry.key.is_empty() {
+        #[allow(clippy::cast_possible_truncation)]
+        let kw = theme.text_width(entry.key, Font::Ui).ceil() as i32;
+        picture = picture.text(Text::new(
+            entry.key,
+            Font::Ui,
+            [r, g, b, 255],
+            [w - TEXT_END + 4 - kw, 0, kw + 2, h],
         ));
     }
     picture
@@ -548,6 +658,41 @@ mod tests {
         assert_eq!(level.row(1)[1], PAD + ROW);
         assert_eq!(level.row(2)[1], PAD + ROW + SEPARATOR);
         assert!(!level.lit(7), "Task Manager is gray");
+    }
+
+    #[test]
+    fn the_system_menu_follows_the_state_of_the_window() {
+        let state = |entries: Vec<Entry>| -> Vec<(String, bool)> {
+            entries
+                .into_iter()
+                .filter(|e| !e.is_separator())
+                .map(|e| (e.title, e.enabled))
+                .collect()
+        };
+        let rows = |r: [bool; 6]| -> Vec<(String, bool)> {
+            ["Restore", "Move", "Size", "Minimize", "Maximize", "Close"]
+                .into_iter()
+                .zip(r)
+                .map(|(t, e)| (t.to_string(), e))
+                .collect()
+        };
+        assert_eq!(
+            state(system(false, false)),
+            rows([false, false, false, true, true, true])
+        );
+        assert_eq!(
+            state(system(true, false)),
+            rows([true, false, false, true, false, true])
+        );
+        assert_eq!(
+            state(system(false, true)),
+            rows([true, false, false, false, true, true])
+        );
+        let close = system(false, false).pop().expect("Close");
+        assert!(close.bold);
+        assert_eq!(close.key, "Alt+F4");
+        assert_eq!(close.act, Some(Act::Window(Sys::Close)));
+        assert_eq!(system(true, false)[4].act, None, "Maximize is gray");
     }
 
     #[test]
