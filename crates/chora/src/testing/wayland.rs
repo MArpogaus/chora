@@ -252,6 +252,18 @@ impl Wayland {
         self.roundtrip(core);
     }
 
+    /// Unmaps a toplevel with a commit without a buffer.
+    pub fn unmap(&mut self, core: &mut Core, toplevel: &Toplevel) {
+        toplevel.surface.attach(None, 0, 0);
+        self.commit(core, toplevel);
+    }
+
+    /// Commits a toplevel without a change, as its initial commit does.
+    pub fn commit(&mut self, core: &mut Core, toplevel: &Toplevel) {
+        toplevel.surface.commit();
+        self.roundtrip(core);
+    }
+
     /// Destroys a toplevel.
     pub fn destroy(&mut self, core: &mut Core, toplevel: &Toplevel) {
         toplevel.role.destroy();

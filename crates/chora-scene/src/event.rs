@@ -39,7 +39,9 @@ pub enum Event {
         #[serde(default)]
         decoration: Option<Decoration>,
     },
-    /// The client destroyed a surface.
+    /// The client destroyed a surface, or unmapped it with a commit without
+    /// a buffer; a surface that maps again comes back with
+    /// `surface.created` and the same id.
     #[serde(rename = "surface.destroyed")]
     SurfaceDestroyed {
         /// The surface node.

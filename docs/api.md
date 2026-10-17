@@ -215,7 +215,7 @@ or an empty list. It always sees the current titles.
 |-------|------|
 | `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own |
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
-| `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
+| `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created`; a toplevel that its client unmaps with a commit without a buffer, as tray apps hide windows, also counts as destroyed and loses the focus, and comes back with `surface.created` and the same id when it maps again |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when the first of its modifiers goes up (see [IPC methods](#ipc-methods)) |
 | `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; only to the connection of the grab |

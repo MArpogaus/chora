@@ -828,6 +828,27 @@ mod tests {
     }
 
     #[test]
+    fn an_unmapped_toplevel_goes_with_the_keyboard_until_it_maps_again() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        let events = json!({"events": ["surface.created", "surface.destroyed"]});
+        wm.ok(&mut core, "events.subscribe", events);
+        wayland.attach(&mut core, &first, (100, 100));
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        assert_eq!(keyboard(&core), Some(id(&first)));
+        wayland.unmap(&mut core, &first);
+        assert_eq!(keyboard(&core), None);
+        assert_eq!(core.state.focused_surface(), None);
+        assert!(core.state.scene.node("s1").is_none());
+        assert_eq!(wm.event_names(&mut core), ["surface.destroyed"]);
+        let configures = wayland.configures(&first).count;
+        wayland.commit(&mut core, &first);
+        assert_eq!(wayland.configures(&first).count, configures + 1);
+        assert_eq!(wm.event_names(&mut core), ["surface.created"]);
+        wayland.attach(&mut core, &first, (100, 100));
+        assert!(core.state.scene.node("s1").is_some());
+    }
+
+    #[test]
     fn the_emergency_reset_focuses_the_first_surface() {
         let (mut core, _wayland, mut wm, first, _second) = two_windows();
         core.add_output("HDMI-1", (800, 600));

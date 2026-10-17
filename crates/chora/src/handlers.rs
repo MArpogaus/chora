@@ -95,6 +95,20 @@ impl CompositorHandler for State {
 }
 
 impl State {
+    /// Removes the node of a toplevel that the client destroyed or
+    /// unmapped, and tells the plugins with `surface.destroyed`.
+    fn surface_gone(&mut self, id: &str) {
+        self.unlist_toplevel(id);
+        self.early_requests.remove(id);
+        let existed = self.scene.remove_surface(id);
+        self.transactions.forget(id);
+        self.complete_transactions();
+        // A toplevel without a first commit never had a node or an event.
+        if existed {
+            self.emit(&Event::SurfaceDestroyed { surface: id.into() });
+        }
+    }
+
     /// Handles a commit of a toplevel: the initial configure and the
     /// `surface.created` event.
     fn toplevel_committed(&mut self, id: &str) {
@@ -103,8 +117,18 @@ impl State {
             .expect("windows are toplevels")
             .clone();
         if !toplevel.is_initial_configure_sent() {
-            // A client that maps a surface again after it unmapped it, with
-            // a commit without a buffer, keeps its node and its configure.
+            // A commit without a buffer unmapped a toplevel that has a node,
+            // and Smithay reset its role. It goes as a destroyed one does;
+            // the next commit without a buffer maps it again, with a new
+            // initial configure and `surface.created`.
+            if self.scene.node(id).is_some() {
+                if self.focused_surface().as_deref() == Some(id) {
+                    self.focus(None);
+                }
+                self.surface_gone(id);
+                return;
+            }
+            // A client that maps a surface again gets its last configure.
             self.reconfigure(id);
             toplevel.send_configure();
             let info = self.surface_info(id);
@@ -215,15 +239,7 @@ impl XdgShellHandler for State {
         };
         self.windows.remove(&id);
         self.configured_forget(&id);
-        self.unlist_toplevel(&id);
-        self.early_requests.remove(&id);
-        let existed = self.scene.remove_surface(&id);
-        self.transactions.forget(&id);
-        self.complete_transactions();
-        // A toplevel without a first commit never had a node or an event.
-        if existed {
-            self.emit(&Event::SurfaceDestroyed { surface: id });
-        }
+        self.surface_gone(&id);
     }
 
     fn title_changed(&mut self, surface: ToplevelSurface) {
