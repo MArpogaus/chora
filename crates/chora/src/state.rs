@@ -280,8 +280,7 @@ impl State {
         let dh = display.handle();
         let (seat_state, seat) = new_seat(&dh);
         add_display(display, &loop_handle);
-        let idle_notifier_state = IdleNotifierState::new(&dh, loop_handle.clone());
-        crate::security::idle_notifier_global(&dh, idle_notifier_state.global());
+        let idle_notifier_state = crate::security::idle_notifier(&dh, &loop_handle);
         let clock = Clock::<Monotonic>::new();
         create_globals(&dh, &clock);
         let toplevel_list = ForeignToplevelListState::new_with_filter::<Self>(&dh, unrestricted);

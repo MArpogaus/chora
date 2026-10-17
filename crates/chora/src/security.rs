@@ -19,13 +19,14 @@ use smithay::{
 use chora_scene::ipc::Capability;
 use smithay::{
     reexports::{
+        calloop::LoopHandle,
         wayland_protocols::{
             ext::idle_notify::v1::server::ext_idle_notifier_v1::ExtIdleNotifierV1,
             wp::idle_inhibit::zv1::server::zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1,
         },
-        wayland_server::{DataInit, DisplayHandle, New, backend::GlobalId},
+        wayland_server::{DataInit, DisplayHandle, New},
     },
-    wayland::{GlobalData, GlobalDispatch2},
+    wayland::{GlobalData, GlobalDispatch2, idle_notify::IdleNotifierState},
 };
 
 use crate::state::{ClientState, State};
@@ -58,11 +59,16 @@ pub fn idle_inhibit_global(dh: &DisplayHandle) {
     dh.create_global::<State, ZwpIdleInhibitManagerV1, _>(1, UnrestrictedGlobal);
 }
 
-/// Replaces the idle notify global of Smithay with one that only
-/// unrestricted clients see.
-pub fn idle_notifier_global(dh: &DisplayHandle, smithay: GlobalId) {
-    dh.remove_global::<State>(smithay);
+/// The state of idle notify, with a global that only unrestricted clients
+/// see in place of the global of Smithay.
+pub fn idle_notifier(
+    dh: &DisplayHandle,
+    loop_handle: &LoopHandle<'static, State>,
+) -> IdleNotifierState<State> {
+    let state = IdleNotifierState::new(dh, loop_handle.clone());
+    dh.remove_global::<State>(state.global());
     dh.create_global::<State, ExtIdleNotifierV1, _>(2, UnrestrictedGlobal);
+    state
 }
 
 /// The data of a global that only unrestricted clients see. It binds the
