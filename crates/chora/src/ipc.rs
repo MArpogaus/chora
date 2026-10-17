@@ -1435,6 +1435,28 @@ mod tests {
     }
 
     #[test]
+    fn a_revoke_and_the_reset_disconnect_the_wayland_clients_that_had_the_grant() {
+        let (mut core, dir) = socket_dir("wayland-revoke");
+        let mut admin = core.admin();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let path = PathBuf::from(created["wayland"].as_str().unwrap());
+        let grant = json!({"client": "agent", "capabilities": ["screen.capture"]});
+        admin.ok(&mut core, "grants.set", grant.clone());
+        let mut capturer = Wayland::connect_to(&mut core, &path);
+        let inject = json!({"client": "agent", "capabilities": ["input.inject"]});
+        admin.ok(&mut core, "grants.revoke", inject);
+        assert!(!capturer.closed(&mut core), "it had no input.inject");
+        admin.ok(&mut core, "grants.revoke", grant);
+        assert!(capturer.closed(&mut core), "the revoke ends screen.capture");
+        let mut plain = Wayland::connect_to(&mut core, &path);
+        assert!(!plain.closed(&mut core));
+        core.state.reset();
+        assert!(plain.closed(&mut core), "the reset ends all of them");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn clients_create_refuses_a_live_name() {
         let (mut core, dir) = socket_dir("live");
         let mut admin = core.admin();

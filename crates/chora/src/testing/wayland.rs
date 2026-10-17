@@ -125,6 +125,28 @@ impl Wayland {
         Self::from_socket(core, ours)
     }
 
+    /// Whether the core closed the connection, within a few turns. A sync
+    /// makes the core read the connection, as any request of a live client
+    /// would; the core closes a killed client when it reads.
+    pub fn closed(&mut self, core: &mut Core) -> bool {
+        for _ in 0..5 {
+            self.conn.display().sync(&self.queue.handle(), ());
+            core.dispatch();
+            if self.conn.flush().is_err() {
+                return true;
+            }
+            if let Some(guard) = self.queue.prepare_read() {
+                match guard.read() {
+                    Err(wayland_client::backend::WaylandError::Io(e))
+                        if e.kind() == std::io::ErrorKind::WouldBlock => {}
+                    Err(_) => return true,
+                    Ok(_) => {}
+                }
+            }
+        }
+        false
+    }
+
     /// The interfaces of the globals that the core offered.
     pub fn interfaces(&self) -> &[String] {
         &self.app.interfaces

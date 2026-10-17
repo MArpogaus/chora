@@ -14,7 +14,10 @@ use std::{
 };
 
 use chora_scene::ipc::Capability;
-use smithay::reexports::calloop::RegistrationToken;
+use smithay::reexports::{
+    calloop::RegistrationToken,
+    wayland_server::backend::{ClientId, DisconnectReason},
+};
 
 use chora_scene::Command;
 use serde::Deserialize;
@@ -91,6 +94,7 @@ impl State {
                 ipc,
                 wayland,
                 dir: dir.clone(),
+                clients: Vec::new(),
             },
         );
         Ok(json!({"path": dir.join(IPC), "wayland": dir.join(WAYLAND)}))
@@ -110,9 +114,37 @@ impl State {
             _slot: Some(Slot(count.clone())),
             ..ClientState::default()
         };
-        if let Err(err) = self.display_handle.insert_client(stream, Arc::new(data)) {
-            tracing::warn!(?err, "a wayland client of {name:?} failed to connect");
+        match self.display_handle.insert_client(stream, Arc::new(data)) {
+            Ok(client) => {
+                if let Some(socket) = self.ipc.clients.get_mut(name) {
+                    socket.clients.push(client.id());
+                }
+            }
+            Err(err) => tracing::warn!(?err, "a wayland client of {name:?} failed to connect"),
         }
+    }
+
+    /// Disconnects the Wayland clients of the client socket of a name that
+    /// got one of the capabilities, or all of them without capabilities,
+    /// so that a revoke ends what a client got at its connection.
+    pub fn disconnect_wayland(&mut self, name: &str, capabilities: &[Capability]) {
+        let Some(socket) = self.ipc.clients.get_mut(name) else {
+            return;
+        };
+        let handle = self.display_handle.backend_handle();
+        socket.clients.retain(|id| {
+            let Ok(data) = handle.get_client_data(id.clone()) else {
+                return false;
+            };
+            let granted = data
+                .downcast_ref::<ClientState>()
+                .map_or(&[][..], |c| &c.granted);
+            let hit = capabilities.is_empty() || capabilities.iter().any(|c| granted.contains(c));
+            if hit {
+                handle.kill_client(id.clone(), DisconnectReason::ConnectionClosed);
+            }
+            !hit
+        });
     }
 
     /// Why `clients.create` of a name must fail, if it must.
@@ -142,6 +174,10 @@ impl State {
     /// Removes all client sockets, for the emergency reset (D40). Their
     /// connections close with the others.
     pub fn remove_client_sockets(&mut self) {
+        let names: Vec<String> = self.ipc.clients.keys().cloned().collect();
+        for name in names {
+            self.disconnect_wayland(&name, &[]);
+        }
         for (_, socket) in self.ipc.clients.drain() {
             self.loop_handle.remove(socket.ipc);
             self.loop_handle.remove(socket.wayland);
@@ -187,6 +223,8 @@ pub(super) struct ClientSocket {
     pub ipc: RegistrationToken,
     wayland: RegistrationToken,
     dir: PathBuf,
+    /// The Wayland clients that connected through it.
+    clients: Vec<ClientId>,
 }
 
 impl ClientSocket {
