@@ -23,6 +23,7 @@ use crate::{
     apps,
     balloon::{self, Balloon, Queue},
     conn::Conn,
+    context::{self, Act},
     control::{self, Setting, Toggles},
     cube::DESKTOPS,
     decoration::{self, Button, Part},
@@ -46,6 +47,8 @@ const BARS: &str = "xp-bars";
 const MENUS: &str = "xp-menus";
 /// The left mouse button.
 const LEFT_BUTTON: u32 = 272;
+/// The right mouse button, which opens the context menus.
+const RIGHT_BUTTON: u32 = 273;
 /// Two presses on a title bar within this time maximize the window.
 const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 /// How long the desktop takes to lose its color behind a dialog, as in
@@ -166,6 +169,11 @@ pub struct Wm {
     balloon: Option<(Note, Balloon)>,
     /// The icons on the desktop of the first output.
     desk: DesktopIcons,
+    /// The open context menu, and the work area of its output.
+    context: Option<(context::Menu, Rect)>,
+    /// Lock the Taskbar: chora-xp neither moves nor sizes the taskbar, so
+    /// it only shows the check mark.
+    locked: bool,
     /// Turn Off ended the plugin.
     pub done: bool,
     /// Restart ended the plugin, to start it again.
@@ -208,6 +216,8 @@ impl Wm {
             bus: Bus::start_or_log(),
             notes: Queue::default(),
             balloon: None,
+            context: None,
+            locked: true,
             done: false,
             restart: false,
         };
@@ -732,6 +742,9 @@ impl Wm {
         } else if self.hover.as_deref() == Some(node) {
             self.hover = None;
         }
+        if let Some((menu, _)) = self.context.as_mut().filter(|_| context::Menu::owns(node)) {
+            return menu.hover(&mut self.theme, MENUS, node, on);
+        }
         if let Some(dialog) = self.dialog.as_mut().filter(|_| Dialog::owns(node)) {
             return dialog.hover(&mut self.theme, node, on);
         }
@@ -858,7 +871,19 @@ impl Wm {
         }
     }
 
+    /// A press on a context menu goes to it; one elsewhere closes it and
+    /// goes on.
     fn pressed(&mut self, node: &str, button: u32, position: [f64; 2]) -> Vec<Command> {
+        if let Some((menu, _)) = self.context.as_mut().filter(|_| context::Menu::owns(node)) {
+            menu.press(node);
+            return Vec::new();
+        }
+        let mut commands = self.close_context();
+        commands.extend(self.press_node(node, button, position));
+        commands
+    }
+
+    fn press_node(&mut self, node: &str, button: u32, position: [f64; 2]) -> Vec<Command> {
         if Balloon::owns(node) {
             return self.press_balloon(node);
         }
@@ -876,7 +901,123 @@ impl Wm {
             commands.extend(self.press_decoration(&part, button, position));
         } else if button == LEFT_BUTTON {
             commands.extend(self.press_left(node, position));
+        } else if button == RIGHT_BUTTON {
+            commands.extend(self.press_right(node, position));
         }
+        commands
+    }
+
+    /// The right button opens the menu of the clock, of the taskbar or of
+    /// the desktop.
+    fn press_right(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
+        let entries = if node.starts_with("xp-tray-") {
+            context::clock(self.locked)
+        } else if node.starts_with("xp-panel-") || node.starts_with("xp-pager-") {
+            context::taskbar(self.locked)
+        } else if wallpaper::owns(node) || DesktopIcons::owns(node) {
+            context::desktop()
+        } else {
+            return Vec::new();
+        };
+        #[allow(clippy::cast_possible_truncation)]
+        let point = position.map(|p| p.floor() as i32);
+        let Some(bar) = self
+            .bars
+            .iter()
+            .find(|b| b.contains(point))
+            .or(self.bars.first())
+        else {
+            return Vec::new();
+        };
+        let (area, usable) = (bar.area(), bar.usable());
+        let menu = context::Menu::new(&self.theme, entries, point, area, 0);
+        let commands = menu.create(&mut self.theme, MENUS);
+        self.context = Some((menu, usable));
+        commands
+    }
+
+    fn close_context(&mut self) -> Vec<Command> {
+        self.context
+            .take()
+            .map(|(menu, _)| menu.remove())
+            .unwrap_or_default()
+    }
+
+    /// Does what a row of a context menu says, on the output of the menu.
+    fn act(&mut self, act: Act, area: Rect) -> Vec<Command> {
+        match act {
+            Act::Cascade => self.arrange_windows(area, None),
+            Act::TileRows => self.arrange_windows(area, Some(false)),
+            Act::TileColumns => self.arrange_windows(area, Some(true)),
+            Act::ShowDesktop => {
+                let shown: Vec<String> = self
+                    .windows
+                    .iter()
+                    .filter(|w| w.shown && !w.minimized && w.desktop == self.desktop)
+                    .map(|w| w.surface.clone())
+                    .collect();
+                shown.iter().flat_map(|s| self.minimize(s)).collect()
+            }
+            Act::Lock => {
+                self.locked = !self.locked;
+                Vec::new()
+            }
+            Act::ArrangeByName | Act::ArrangeByType => {
+                self.desk
+                    .arrange(&mut self.theme, &mut self.icons, act == Act::ArrangeByType)
+            }
+            Act::Refresh => self.desk.reload(&mut self.theme, &mut self.icons),
+            Act::DesktopProperties => self.desktop_properties(area),
+            Act::TaskbarProperties | Act::DateTime => Vec::new(),
+        }
+    }
+
+    /// Cascades the windows of the current desktop on an output, from the
+    /// bottom one, or tiles them in rows or columns.
+    fn arrange_windows(&mut self, area: Rect, columns: Option<bool>) -> Vec<Command> {
+        let [ax, ay, aw, ah] = area;
+        let inside = |[x, y, w, h]: Rect| {
+            let [cx, cy] = [x + w / 2, y + h / 2];
+            (ax..ax + aw).contains(&cx) && (ay..ay + ah).contains(&cy)
+        };
+        let chosen: Vec<usize> = (0..self.windows.len())
+            .filter(|&i| {
+                let w = &self.windows[i];
+                w.shown && !w.minimized && w.desktop == self.desktop && inside(w.rect())
+            })
+            .collect();
+        let tiles = columns.map(|c| window::tile(chosen.len(), area, c));
+        let mut step = 0;
+        let mut commands = Vec::new();
+        for (n, i) in chosen.into_iter().enumerate() {
+            let active = self.is_active(&self.windows[i].surface);
+            let w = &mut self.windows[i];
+            if let Some(tiles) = &tiles {
+                commands.push(w.fit(tiles[n], active));
+            } else {
+                commands.extend(w.unmaximize(active));
+                w.pos = window::cascade(&mut step, w.outer(), area);
+            }
+            commands.extend(w.style(&mut self.theme, active));
+        }
+        commands
+    }
+
+    /// Properties of the desktop: the start menu opens with Control Panel
+    /// > Desktop, the list of the wallpapers.
+    fn desktop_properties(&mut self, area: Rect) -> Vec<Command> {
+        let center = [area[0] + area[2] / 2, area[1] + area[3] / 2];
+        let Some(output) = self
+            .bars
+            .iter()
+            .find(|b| b.contains(center))
+            .map(|b| b.output.clone())
+        else {
+            return Vec::new();
+        };
+        let mut commands = self.close_menu();
+        commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
+        commands.extend(self.menu.open_control(&mut self.theme, &mut self.icons, 0));
         commands
     }
 
@@ -1003,6 +1144,15 @@ impl Wm {
     }
 
     fn released(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
+        if let Some((menu, area)) = self.context.as_mut().filter(|_| context::Menu::owns(node)) {
+            let area = *area;
+            let Some(act) = menu.release(position) else {
+                return Vec::new();
+            };
+            let mut commands = self.close_context();
+            commands.extend(self.act(act, area));
+            return commands;
+        }
         if let Some(drag) = self.drag.take() {
             self.release_wobble(&drag.surface);
         }

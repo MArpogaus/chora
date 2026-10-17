@@ -221,6 +221,29 @@ impl Window {
         })
     }
 
+    /// Puts the frame into a rectangle, unmaximized: the configure with
+    /// the new client size.
+    pub fn fit(&mut self, [x, y, w, h]: Rect, active: bool) -> Command {
+        self.restore = None;
+        self.pos = [x, y];
+        let size = if self.framed {
+            decoration::inner([w, h], false)
+        } else {
+            [w, h]
+        };
+        self.size = Some(size);
+        let states = if active {
+            vec![ToplevelState::Activated]
+        } else {
+            Vec::new()
+        };
+        Command::Configure {
+            surface: self.surface.clone(),
+            size: Some(size),
+            states,
+        }
+    }
+
     /// Whether a point in scene coordinates is on a button.
     pub fn on_button(&self, button: Button, [px, py]: [f64; 2]) -> bool {
         let [bx, by, bw, bh] = decoration::button_rect(self.outer()[0], button);
@@ -256,9 +279,47 @@ pub fn cascade(step: &mut i32, [w, h]: [i32; 2], [ax, ay, aw, ah]: Rect) -> [i32
     ]
 }
 
+/// The frames of `count` windows tiled over an area: in rows one above
+/// the other, or in columns side by side. The last one takes the pixels
+/// that the division leaves.
+// ponytail: strips only; XP tiles four and more windows in a grid.
+#[allow(clippy::many_single_char_names)] // coordinates
+pub fn tile(count: usize, [x, y, w, h]: Rect, columns: bool) -> Vec<Rect> {
+    let n = i32::try_from(count.max(1)).unwrap_or(i32::MAX);
+    (0..n)
+        .map(|i| {
+            let (along, start) = if columns { (w, x) } else { (h, y) };
+            let step = along / n;
+            let from = start + i * step;
+            let size = if i == n - 1 {
+                start + along - from
+            } else {
+                step
+            };
+            if columns {
+                [from, y, size, h]
+            } else {
+                [x, from, w, size]
+            }
+        })
+        .take(count)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tiles_fill_the_area() {
+        let area = [0, 0, 1280, 770];
+        assert_eq!(
+            tile(3, area, false),
+            [[0, 0, 1280, 256], [0, 256, 1280, 256], [0, 512, 1280, 258]]
+        );
+        assert_eq!(tile(2, area, true), [[0, 0, 640, 770], [640, 0, 640, 770]]);
+        assert_eq!(tile(0, area, true), Vec::<Rect>::new());
+    }
 
     #[test]
     fn a_window_maximized_before_its_first_commit_stays_maximized() {

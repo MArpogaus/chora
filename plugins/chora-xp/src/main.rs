@@ -8,6 +8,7 @@ mod apps;
 mod balloon;
 mod cascade;
 mod conn;
+mod context;
 mod control;
 mod cube;
 mod decoration;

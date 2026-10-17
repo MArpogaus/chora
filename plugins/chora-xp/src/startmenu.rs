@@ -299,6 +299,24 @@ impl Menu {
         ]
     }
 
+    /// Opens the cascade of the Control Panel, and in it the group at an
+    /// index, as clicks on them would.
+    pub fn open_control(
+        &mut self,
+        theme: &mut Theme,
+        icons: &mut Icons,
+        group: usize,
+    ) -> Vec<Command> {
+        let Some(index) = self.entries.iter().position(|e| e.title == CONTROL_PANEL) else {
+            return Vec::new();
+        };
+        let mut commands = self.open_root(theme, icons, index);
+        if !self.cascades.is_empty() && group < self.nodes(0).len() {
+            commands.extend(self.open_row(theme, icons, 0, group));
+        }
+        commands
+    }
+
     /// Hides the menu and closes its cascades.
     pub fn close(&mut self, theme: &mut Theme) -> Vec<Command> {
         if self.open.take().is_none() {

@@ -237,6 +237,23 @@ moves an icon to the nearest free cell of the grid, until `chora-xp` ends.
 XP has one desktop, so the icons stay in place while the cube turns: each
 face of the cube shows them on the wallpaper.
 
+The right button opens XP's context menus: white, with a gray border, a
+soft shadow and the selection in XP's blue. A click on a row does what it
+says and closes the menu; a click outside closes it.
+
+- **The taskbar**: Cascade Windows and Tile Windows Horizontally (one
+  above the other) or Vertically (side by side) arrange the windows of
+  the current desktop on the output of the menu; Show the Desktop
+  minimizes them. Lock the Taskbar shows a check mark and changes
+  nothing else, because `chora-xp` neither moves nor sizes the taskbar.
+  Toolbars and Task Manager are gray: `chora-xp` has neither.
+- **The clock**: Adjust Date/Time, then the rows of the taskbar.
+  Customize Notifications is gray.
+- **The desktop**: Arrange Icons By Name or Type puts the icons back
+  into their columns, in that order; Refresh shows them again; Properties
+  opens the start menu with Control Panel > Desktop. Paste and Paste
+  Shortcut are gray.
+
 The Control Panel opens as a menu, as with XP's "Display as a menu". A
 check mark shows the current choice of each entry, and a click on an
 entry applies it and closes the menu:

@@ -101,6 +101,8 @@ pub struct DesktopIcons {
     focused: bool,
     last_press: Option<(String, Instant)>,
     press: Option<Press>,
+    /// Arrange Icons By Type, else by name.
+    by_type: bool,
 }
 
 impl DesktopIcons {
@@ -117,6 +119,7 @@ impl DesktopIcons {
             focused: true,
             last_press: None,
             press: None,
+            by_type: false,
         }
     }
 
@@ -137,7 +140,10 @@ impl DesktopIcons {
     /// icons out on a work area. Returns the commands that show them if
     /// anything changed.
     pub fn refresh(&mut self, theme: &mut Theme, icons: &mut Icons, area: Rect) -> Vec<Command> {
-        let items = items(&self.terminal);
+        let mut items = items(&self.terminal);
+        if self.by_type {
+            by_type(&mut items);
+        }
         if items == self.items && area == self.area {
             return Vec::new();
         }
@@ -167,6 +173,20 @@ impl DesktopIcons {
             commands.push(self.look(theme, icons, i));
         }
         commands
+    }
+
+    /// Arrange Icons By Name or Type: the moved icons go back into the
+    /// columns, in the new order.
+    pub fn arrange(&mut self, theme: &mut Theme, icons: &mut Icons, by_type: bool) -> Vec<Command> {
+        self.by_type = by_type;
+        self.moved.clear();
+        self.reload(theme, icons)
+    }
+
+    /// Refresh: shows the icons again, also when nothing changed.
+    pub fn reload(&mut self, theme: &mut Theme, icons: &mut Icons) -> Vec<Command> {
+        let area = std::mem::take(&mut self.area);
+        self.refresh(theme, icons, area)
     }
 
     fn find(&self, key: &str) -> Option<usize> {
@@ -421,6 +441,22 @@ fn label(title: &str, max: usize, width: impl Fn(&str) -> f64) -> Vec<String> {
     lines
 }
 
+/// The files of the Desktop folder by type: folders first, then by the
+/// extension, and by name within a type. My Documents and My Computer
+/// stay first, the Recycle Bin last.
+fn by_type(items: &mut [Item]) {
+    let end = items.len().saturating_sub(1);
+    if let Some(files) = items.get_mut(2..end) {
+        files.sort_by_cached_key(|item| {
+            let folder = matches!(item.open, Open::Folder(_));
+            let extension = Path::new(&item.key)
+                .extension()
+                .map(|e| e.to_string_lossy().to_lowercase());
+            (!folder, extension)
+        });
+    }
+}
+
 /// The cells of `count` icons in columns from the top left of a work
 /// area, and the cell of the Recycle Bin at its bottom right; the columns
 /// skip the cell of the bin.
@@ -607,6 +643,34 @@ fn quote(word: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn arrange_by_type_keeps_the_special_icons_in_place() {
+        let item = |key: &str, open: Open| Item {
+            key: key.into(),
+            title: key.into(),
+            icon: String::new(),
+            open,
+        };
+        let file = |key: &str| item(key, Open::File(key.into()));
+        let mut items = vec![
+            item("docs", Open::Computer),
+            item("computer", Open::Computer),
+            file("/d/a.txt"),
+            file("/d/b.png"),
+            item("/d/c", Open::Folder("/d/c".into())),
+            file("/d/d.png"),
+            item("trash", Open::Trash),
+        ];
+        by_type(&mut items);
+        let keys: Vec<&str> = items.iter().map(|i| i.key.as_str()).collect();
+        assert_eq!(
+            keys,
+            [
+                "docs", "computer", "/d/c", "/d/b.png", "/d/d.png", "/d/a.txt", "trash"
+            ]
+        );
+    }
 
     fn mono(s: &str) -> f64 {
         5.0 * f64::from(u16::try_from(s.chars().count()).unwrap_or(u16::MAX))
