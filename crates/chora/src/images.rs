@@ -198,6 +198,35 @@ impl Images {
         MAX_DECODED.saturating_sub(others)
     }
 
+    /// Loads a file again in the background, so that the nodes that use
+    /// it draw the new bytes from the next frame on. Only paths that the
+    /// cache already holds are reloaded; a file that no node shows loads
+    /// when a transaction names it. A file that fails to load keeps the
+    /// old image.
+    pub fn reload(&mut self, path: &str) {
+        if !self.cache.contains_key(path) {
+            return;
+        }
+        let reloaded = u64::MAX;
+        let Ok((file, meta)) = open_file(path, MAX_FILE) else {
+            return;
+        };
+        let modified = meta.modified().ok();
+        if modified.is_some() && self.cache.get(path).is_some_and(|i| i.modified == modified) {
+            return;
+        }
+        let job = Job {
+            ticket: reloaded,
+            path: path.to_owned(),
+            file,
+            modified,
+            budget: self.budget(path),
+        };
+        if let Some(worker) = &self.worker {
+            let _ = worker.send(job);
+        }
+    }
+
     /// Drops the images that no node shows and that no waiting
     /// transaction names.
     pub fn prune(&mut self, scene: &Scene, named: &HashSet<&str>) {

@@ -215,6 +215,15 @@ impl State {
     /// transaction go on.
     pub fn decoded(&mut self, decoded: Decoded) {
         let ticket = decoded.ticket;
+        if ticket == u64::MAX {
+            // A file that a node already shows, loaded again after
+            // `assets.put` replaced it. The next frame draws the new
+            // bytes; a failure keeps the old image.
+            if let Err(error) = self.assets.images.insert(decoded) {
+                tracing::warn!(error, "a replaced asset does not load");
+            }
+            return;
+        }
         let Some(pending) = self
             .transactions
             .staged

@@ -207,6 +207,9 @@ impl State {
         let path = path
             .to_str()
             .ok_or_else(|| rejected("the asset directory is no UTF-8 path"))?;
+        // A replace must reach the nodes that show the file: the docs
+        // promise that they load it again.
+        self.assets.images.reload(path);
         Ok(serde_json::json!(Asset { path: path.into() }))
     }
 }
