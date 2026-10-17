@@ -560,6 +560,8 @@ pub enum Dropped {
     Moved,
     /// Copied, to another file system, as XP copies to another drive.
     Copied,
+    /// Left as it is: it is in the folder already.
+    Stayed,
 }
 
 /// Drops a file or a folder into a folder, as XP does: a move on the same
@@ -569,6 +571,9 @@ pub fn drop_into(path: &Path, dir: &Path) -> std::io::Result<Dropped> {
     let name = path
         .file_name()
         .ok_or_else(|| std::io::Error::other("no file name"))?;
+    if path.parent() == Some(dir) {
+        return Ok(Dropped::Stayed);
+    }
     let target = dir.join(name);
     if target.symlink_metadata().is_ok() {
         return Err(std::io::Error::new(
@@ -908,6 +913,11 @@ overlay /var/lib/x overlay rw 0 0
         fs::write(dir.join("a.txt"), "b").expect("a file");
         assert!(drop_into(&dir.join("a.txt"), &dir.join("into")).is_err());
         assert!(dir.join("a.txt").is_file());
+        // A file into its own folder stays.
+        assert_eq!(
+            drop_into(&dir.join("a.txt"), &dir).ok(),
+            Some(Dropped::Stayed)
+        );
         // Not a folder into itself.
         assert!(drop_into(&dir.join("into"), &dir.join("into")).is_err());
         // The copy of another file system takes the folder whole.

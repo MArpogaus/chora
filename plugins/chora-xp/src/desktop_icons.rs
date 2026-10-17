@@ -356,6 +356,14 @@ impl DesktopIcons {
     }
 
     /// The icon that a node shows.
+    /// Whether a point of the scene is on the Recycle Bin, as the target
+    /// of a drop.
+    pub fn on_trash(&self, [px, py]: [i32; 2]) -> bool {
+        self.items.iter().zip(&self.places).any(|(item, [x, y])| {
+            item.open == Open::Trash && (*x..x + CELL).contains(&px) && (*y..y + CELL).contains(&py)
+        })
+    }
+
     /// The node of the first selected icon and the middle of its picture
     /// in the scene, for a menu that the keyboard opens.
     pub fn selected_node(&self) -> Option<(String, [i32; 2])> {

@@ -472,6 +472,26 @@ impl Explorer {
         Some(self.bar(crate::context::wrap(i, right, MENUS.len())))
     }
 
+    /// The folder of the item under a point of the client area, for a
+    /// drop on it.
+    pub fn folder_at(&self, [px, py]: [i32; 2]) -> Option<PathBuf> {
+        let g = self.geometry();
+        let [vx, vy, vw, vh] = g.view;
+        if !(vx..vx + vw).contains(&px) || !(vy..vy + vh).contains(&py) {
+            return None;
+        }
+        let [x, y] = [px - vx, py - vy + g.offset];
+        self.items()
+            .zip(&g.layout.tiles)
+            .find(|(_, [tx, ty])| {
+                (*tx..tx + view::TILE[0]).contains(&x) && (*ty..ty + view::TILE[1]).contains(&y)
+            })
+            .and_then(|(item, _)| match &item.open {
+                Some(Open::Place(Place::Folder(path))) => Some(path.clone()),
+                _ => None,
+            })
+    }
+
     /// Whether the menu that opened last is one of the menu bar.
     pub fn bar_open(&self) -> bool {
         self.bar_menu.is_some()

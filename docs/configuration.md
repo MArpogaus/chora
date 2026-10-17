@@ -410,10 +410,12 @@ home directory and its folders `Pictures` and `Music`) and My Computer
 open in Explorer too, and the window calls these folders by their names
 in XP.
 
-Desktop icons dropped on the window of a folder go into the folder: a
-file or a folder moves on the same file system and is copied to
-another one, as XP moves on one drive and copies to another. A name
-that the folder has already stays out, and `chora-xp` logs it. Beyond
+Desktop icons dropped on the window of a folder go into the folder, or
+into the folder item under the pointer: a file or a folder moves on the
+same file system and is copied to another one, as XP moves on one drive
+and copies to another. A name that the folder has already stays out,
+and `chora-xp` logs it. A drop on the window of the Recycle Bin, or on
+its desktop icon, sends the files to the Recycle Bin. Beyond
 this and Empty the Recycle Bin, the window changes no file. The keyboard does not work it (D45). Its icons come from the icon
 theme, XP's own when `WindowsXP` of `get-microsoft-files.sh` is
 installed.

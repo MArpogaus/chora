@@ -38,7 +38,7 @@ use crate::{
     dialog::{self, Hit},
     display::{self, DisplayDialog, EffectsDialog},
     explorer::Explorer,
-    folder::Place,
+    folder::{self, Place},
     icons::Icons,
     notify::{Bus, Note, Reason, Request, Signal},
     properties::PropertiesDialog,
@@ -61,6 +61,14 @@ const BARS: &str = "xp-bars";
 /// The settings dialogs, above the taskbar and below the menus.
 const DIALOGS: &str = "xp-dialogs";
 const MENUS: &str = "xp-menus";
+/// Where desktop icons drop.
+enum Drop {
+    /// Into a folder, shown in an Explorer window.
+    Folder(String, PathBuf),
+    /// Into the Recycle Bin.
+    Trash,
+}
+
 /// The key that Shift+F10 and the Menu key stand for.
 const MENU_KEY: &str = "ContextMenu";
 
@@ -2020,23 +2028,22 @@ impl Wm {
     }
 
     /// The release after a press on the desktop: the icons drop on an
-    /// Explorer window, or into their cells.
+    /// Explorer window or on the Recycle Bin, or into their cells.
     fn release_icons(&mut self, position: [f64; 2]) -> Vec<Command> {
-        if let Some(commands) = self.drop_on_explorer(position) {
+        #[allow(clippy::cast_possible_truncation)]
+        let point = position.map(|p| p.floor() as i32);
+        if let Some(commands) = self.drop_target(point).and_then(|t| self.drop_icons(t)) {
             return commands;
         }
         self.desk
             .release(&mut self.theme, &mut self.icons, position)
     }
 
-    /// Desktop icons dropped on an Explorer window of a folder: their
-    /// files and folders go into it, moved on the same file system and
-    /// copied to another one, as on XP. `None` when the drop is no drag
-    /// onto such a window.
-    fn drop_on_explorer(&mut self, [px, py]: [f64; 2]) -> Option<Vec<Command>> {
-        #[allow(clippy::cast_possible_truncation)]
-        let [x, y] = [px.floor() as i32, py.floor() as i32];
-        let id = self
+    /// Where a drag of desktop icons that ends at a point drops them: the
+    /// Explorer window there, a folder in it, or the Recycle Bin, on the
+    /// desktop or in a window. `None` for the desktop itself.
+    fn drop_target(&self, [x, y]: [i32; 2]) -> Option<Drop> {
+        let window = self
             .windows
             .iter()
             .rev()
@@ -2044,25 +2051,51 @@ impl Wm {
             .find(|w| {
                 let [wx, wy, ww, wh] = w.rect();
                 (wx..wx + ww).contains(&x) && (wy..wy + wh).contains(&y)
-            })
-            .map(|w| w.surface.clone())?;
-        let explorer = self.explorers.iter().find(|e| e.id == id)?;
-        let crate::folder::Place::Folder(dir) = explorer.history.current.clone() else {
-            return None;
+            });
+        let Some(window) = window else {
+            return self.desk.on_trash([x, y]).then_some(Drop::Trash);
         };
+        let id = window.surface.clone();
+        let explorer = self.explorers.iter().find(|e| e.id == id)?;
+        match &explorer.history.current {
+            Place::Trash => Some(Drop::Trash),
+            Place::Folder(dir) => {
+                let [ox, oy] = self.client_origin(&id);
+                let dir = explorer
+                    .folder_at([x - ox, y - oy])
+                    .unwrap_or_else(|| dir.clone());
+                Some(Drop::Folder(id, dir))
+            }
+            Place::Computer => None,
+        }
+    }
+
+    /// Drops the dragged desktop icons: their files and folders go into a
+    /// folder, moved on the same file system and copied to another one,
+    /// or to the Recycle Bin, as on XP. `None` without a drag.
+    fn drop_icons(&mut self, target: Drop) -> Option<Vec<Command>> {
         let (paths, mut commands) = self.desk.drop_out()?;
-        for path in &paths {
-            if let Err(err) = crate::folder::drop_into(path, &dir) {
-                eprintln!("chora-xp: drop {}: {err}", path.display());
+        match target {
+            Drop::Trash => {
+                for path in &paths {
+                    commands.extend(self.trash(path));
+                }
+            }
+            Drop::Folder(id, dir) => {
+                for path in &paths {
+                    if let Err(err) = folder::drop_into(path, &dir) {
+                        eprintln!("chora-xp: drop {}: {err}", path.display());
+                    }
+                }
+                // The window of the folder, and the desktop, show the change.
+                if let Some(e) = self.explorers.iter_mut().find(|e| e.id == id) {
+                    e.command(crate::explorer::Cmd::Refresh);
+                }
+                commands.extend(self.redraw_explorer(&id));
+                commands.extend(self.refresh_icons());
+                commands.extend(self.activate(&id));
             }
         }
-        // The window of the folder, and the desktop, show the change.
-        if let Some(e) = self.explorers.iter_mut().find(|e| e.id == id) {
-            e.command(crate::explorer::Cmd::Refresh);
-        }
-        commands.extend(self.redraw_explorer(&id));
-        commands.extend(self.refresh_icons());
-        commands.extend(self.activate(&id));
         Some(commands)
     }
 
@@ -2074,16 +2107,16 @@ impl Wm {
             id: surface.into(),
             to: Some(HANDOVER.into()),
         }];
-        match self.try_apply(remove) {
-            Ok(None) => self.forget(surface),
-            Ok(Some(err)) => {
-                eprintln!("chora-xp: {surface} stays: {err}");
-                Vec::new()
-            }
-            Err(err) => {
-                eprintln!("chora-xp: {surface} stays: {err}");
-                Vec::new()
-            }
+        let result = self.try_apply(remove);
+        if let Ok(None) = result {
+            return self.forget(surface);
+        }
+        eprintln!("chora-xp: {surface} stays: {result:?}");
+        // Back into a work area of chora-xp.
+        let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
+        match self.index(surface) {
+            Some(i) => self.keep_inside(&[i], area),
+            None => Vec::new(),
         }
     }
 

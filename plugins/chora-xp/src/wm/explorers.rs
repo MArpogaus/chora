@@ -76,7 +76,7 @@ impl Wm {
     }
 
     /// The top-left corner of the client area of a window in the scene.
-    fn client_origin(&self, surface: &str) -> [i32; 2] {
+    pub(super) fn client_origin(&self, surface: &str) -> [i32; 2] {
         self.index(surface).map_or([0, 0], |i| {
             let w = &self.windows[i];
             let border = if w.maximized() { 0 } else { BORDER };
