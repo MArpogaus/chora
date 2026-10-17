@@ -106,7 +106,7 @@ fn main() -> ExitCode {
 fn run(args: &Args) -> Result<(), String> {
     let conn = Conn::connect(wm::NAME).map_err(|e| e.to_string())?;
     let theme = Theme::load(&args.theme, &cache_dir()).map_err(|e| format!("theme: {e}"))?;
-    let mut icons = Icons::new(&crate::icons::THEMES);
+    let mut icons = Icons::new(crate::icons::THEMES);
     let menu = Menu::new(&menu_config(args), &theme, &mut icons);
     let config = wm::Config {
         terminal: args.terminal.clone(),

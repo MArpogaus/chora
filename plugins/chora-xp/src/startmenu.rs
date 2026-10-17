@@ -1137,7 +1137,7 @@ mod tests {
 
     #[test]
     fn the_columns_have_the_height_of_xp() {
-        let mut icons = Icons::new(&crate::icons::THEMES);
+        let mut icons = Icons::new(crate::icons::THEMES);
         let programs = programs(&config(), &mut icons);
         let places = places(&config(), &mut icons);
         assert_eq!(body_height(&programs, &places), MIN_BODY);
@@ -1160,7 +1160,7 @@ mod tests {
     #[test]
     fn the_keys_walk_the_columns_and_the_cascades() {
         let (mut theme, cache) = crate::dialog::tests::theme("startkeys");
-        let mut icons = Icons::new(&crate::icons::THEMES);
+        let mut icons = Icons::new(crate::icons::THEMES);
         let run = |title: &str| Node {
             title: title.into(),
             icon: String::new(),
@@ -1196,7 +1196,7 @@ mod tests {
     #[test]
     fn the_keys_leave_out_log_off_and_turn_off() {
         let (mut theme, cache) = crate::dialog::tests::theme("startfooter");
-        let mut icons = Icons::new(&crate::icons::THEMES);
+        let mut icons = Icons::new(crate::icons::THEMES);
         let mut menu = Menu::new(&config(), &theme, &mut icons);
         for key in [
             "Down", "Down", "Down", "Right", "Down", "Down", "Left", "Up",

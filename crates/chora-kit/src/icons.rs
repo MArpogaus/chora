@@ -9,7 +9,7 @@ use std::{
 
 /// Finds icons and remembers the answers.
 pub struct Icons {
-    themes: &'static [&'static str],
+    themes: Vec<String>,
     found: HashMap<String, Option<PathBuf>>,
 }
 
@@ -18,9 +18,9 @@ impl Icons {
     /// name, such as `breeze` for `breeze` and `breeze-dark`, then
     /// `/usr/share/pixmaps`.
     #[must_use]
-    pub fn new(themes: &'static [&'static str]) -> Self {
+    pub fn new(themes: impl IntoIterator<Item = impl Into<String>>) -> Self {
         Self {
-            themes,
+            themes: themes.into_iter().map(Into::into).collect(),
             found: HashMap::new(),
         }
     }
@@ -31,7 +31,7 @@ impl Icons {
         if let Some(found) = self.found.get(name) {
             return found.clone();
         }
-        let found = search_all(self.themes, name, None);
+        let found = search_all(&self.themes, name, None);
         self.found.insert(name.into(), found.clone());
         found
     }
@@ -58,7 +58,7 @@ impl Icons {
         if let Some(found) = self.found.get(&key) {
             return found.clone();
         }
-        let found = search_all(self.themes, name, Some(size));
+        let found = search_all(&self.themes, name, Some(size));
         self.found.insert(key, found.clone());
         found
     }
@@ -69,7 +69,7 @@ impl Icons {
     }
 }
 
-fn search_all(order: &[&str], name: &str, size: Option<u32>) -> Option<PathBuf> {
+fn search_all(order: &[String], name: &str, size: Option<u32>) -> Option<PathBuf> {
     // Desktop files may name an icon by its path.
     let path = Path::new(name);
     if path.is_absolute() {

@@ -1532,7 +1532,7 @@ mod tests {
     #[test]
     fn the_chrome_looks_like_xp() {
         let (mut theme, cache) = theme("explorer");
-        let mut icons = Icons::new(&crate::icons::THEMES);
+        let mut icons = Icons::new(crate::icons::THEMES);
         let mut explorer = Explorer::new("xpx1", Place::Computer, SIZE);
         explorer.create(&mut theme, &mut icons);
         preview(&mut theme, &explorer, "explorer-computer");
@@ -1582,7 +1582,7 @@ mod tests {
     fn a_double_click_opens_a_folder_in_the_same_window() {
         let dir = folder("open");
         let (mut theme, cache) = theme("open");
-        let mut icons = Icons::new(&crate::icons::THEMES);
+        let mut icons = Icons::new(crate::icons::THEMES);
         let mut explorer = Explorer::new("xpx1", Place::Folder(dir.clone()), SIZE);
         explorer.create(&mut theme, &mut icons);
         preview(&mut theme, &explorer, "explorer-folder");
@@ -1607,7 +1607,7 @@ mod tests {
     fn the_scroll_bar_scrolls_a_long_folder() {
         let dir = folder("scroll");
         let (mut theme, cache) = theme("scroll");
-        let mut icons = Icons::new(&crate::icons::THEMES);
+        let mut icons = Icons::new(crate::icons::THEMES);
         let mut explorer = Explorer::new("xpx1", Place::Folder(dir.clone()), SIZE);
         let page = explorer.page(&mut theme, &mut icons);
         assert!(page.controls.iter().any(|c| c.name == "sb-thumb"));
@@ -1635,7 +1635,7 @@ mod tests {
     fn a_scroll_keeps_the_nodes() {
         let dir = folder("keep");
         let (mut theme, cache) = theme("keep");
-        let mut icons = Icons::new(&crate::icons::THEMES);
+        let mut icons = Icons::new(crate::icons::THEMES);
         let mut explorer = Explorer::new("xpx1", Place::Folder(dir.clone()), SIZE);
         // A scroll keeps the nodes: it moves their group, and creates and
         // removes only the tiles that come and go.
