@@ -50,7 +50,7 @@ impl Icons {
     }
 
     /// The file of an icon for a size in pixels: a PNG file of that size
-    /// first, as XP draws its small icons by hand, else as [`find`].
+    /// first, as themes draw their small icons by hand, else as [`find`].
     ///
     /// [`find`]: Self::find
     pub fn find_sized(&mut self, name: &str, size: u32) -> Option<PathBuf> {
