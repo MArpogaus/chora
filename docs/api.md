@@ -258,8 +258,12 @@ Later milestones add events for size limits.
 
 ## IPC methods
 
-JSON-RPC 2.0, one message per line, on the socket in `CHORA_SOCKET`. Every
-client sends `hello` first. The core answers every request.
+JSON-RPC 2.0, one message per line, on the socket in `CHORA_SOCKET`. A
+client sends `hello` first. A method that changes the session or needs a
+grant fails before `hello`. `scene.query`, `events.subscribe`,
+`output.list`, `clients.list`, `grants.set`, `grants.revoke` and
+`grants.list` also work before it, for tools that only read. The core
+answers every request.
 
 | Method | Purpose |
 |--------|---------|
