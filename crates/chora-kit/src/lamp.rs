@@ -30,6 +30,7 @@ pub struct Lamp {
 
 impl Lamp {
     /// A minimize, or with `restore` the way back, starting now.
+    #[must_use]
     pub fn new(from: [f64; 4], to: [f64; 4], duration: Duration, restore: bool) -> Self {
         Self {
             from,
@@ -51,12 +52,14 @@ impl Lamp {
     }
 
     /// The time from 0 to 1.
+    #[must_use]
     pub fn time(&self, now: Instant) -> f64 {
         let elapsed = now.saturating_duration_since(self.start).as_secs_f64();
         (elapsed / self.duration.as_secs_f64().max(1e-3)).min(1.0)
     }
 
     /// The grid at a time, in the node coordinates of the window.
+    #[must_use]
     pub fn mesh(&self, time: f64) -> Mesh {
         let t = if self.restore { 1.0 - time } else { time };
         let [x, y, _, _] = self.from;
@@ -75,6 +78,7 @@ impl Lamp {
 
 /// The grid points of the genie in scene coordinates at a progress from 0
 /// (the window) to 1 (inside the button).
+#[must_use]
 pub fn genie(from: [f64; 4], to: [f64; 4], progress: f64) -> Vec<[f64; 2]> {
     let [left0, top0, width, height] = from;
     let [left1, top1, width1, height1] = to;

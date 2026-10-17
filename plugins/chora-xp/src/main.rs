@@ -20,7 +20,6 @@ mod display;
 mod explorer;
 mod folder;
 mod icons;
-mod lamp;
 mod notify;
 mod properties;
 mod session;
