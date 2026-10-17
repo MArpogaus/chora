@@ -130,6 +130,12 @@ pointer raises nothing. The binding
 `MOD+Ctrl+r` reads the file again. Mouse moves and resizes of floating
 windows do not exist.
 
+`chora-tiling` connects with `resume` (see [API](api.md#ipc-methods)). It
+keeps the tags and the layouts of each output, and the tags and the states
+of each window, in the `meta` of its nodes. A restart within the grace time
+rebuilds them from there, for example `choractl restart tiling` after a
+rebuild.
+
 ## Flavors
 
 A flavor is a directory with views, plugin manifests and services, plus a
@@ -492,7 +498,8 @@ disabled, because chora has no second session to switch to. In Turn off
 computer, Stand By runs `systemctl suspend`. Without `systemctl`, Stand
 By is disabled. Turn Off ends `chora-xp` and shuts nothing down. Restart
 runs `chora-xp` again in the same process, with the same arguments. The
-core keeps the nodes of `chora-xp` for a short time (`resume`). The
+core keeps the nodes of `chora-xp` for the grace time of `resume` (see
+[API](api.md#ipc-methods)). The
 windows keep their places, desktops, maximized state and stacking. The
 Explorer windows open again. The current desktop stays, and its top
 window gets the focus. Cancel or a click outside the dialog

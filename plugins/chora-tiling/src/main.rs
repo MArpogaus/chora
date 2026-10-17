@@ -8,7 +8,11 @@ mod config;
 mod layout;
 mod wm;
 
-use std::{collections::HashMap, path::PathBuf, process::ExitCode};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::PathBuf,
+    process::ExitCode,
+};
 
 use chora_scene::{
     Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest, ToplevelState,
@@ -22,7 +26,7 @@ use serde_json::Value;
 use crate::{
     config::{Action, Config},
     layout::Layout,
-    wm::{Effect, Placement, States, Wm},
+    wm::{Effect, Placement, States, WINDOW_KEY, Wm},
 };
 
 /// The client name, and the group that holds the windows.
@@ -81,6 +85,8 @@ struct Tiling {
     focus: Option<String>,
     /// Whether the core has `focus`.
     focus_sent: bool,
+    /// The meta that the core has, by node: what a restart rebuilds from.
+    saved: HashMap<String, BTreeMap<String, String>>,
 }
 
 fn main() -> ExitCode {
@@ -126,7 +132,7 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let hello = Hello {
         name: NAME.into(),
         keep_nodes: false,
-        resume: false,
+        resume: true,
     };
     let mut tiling = Tiling {
         client: Client::from_env(&hello)?,
@@ -138,6 +144,7 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         order: Vec::new(),
         focus: None,
         focus_sent: false,
+        saved: HashMap::new(),
     };
     tiling.start()?;
     loop {
@@ -159,7 +166,11 @@ impl Tiling {
             self.wm
                 .set_output(&output.name, output.layout_area(), full_area(output));
         }
-        if self.query(&format!("id:{NAME}"))?.is_empty() {
+        // The nodes that the core kept over a restart with resume.
+        let kept = self.query(&format!("owner:{NAME}"))?;
+        if kept.iter().any(|n| n["id"] == NAME) {
+            self.restore(&kept);
+        } else {
             let group = Command::Create {
                 id: NAME.into(),
                 kind: NodeKind::Group,
@@ -195,6 +206,34 @@ impl Tiling {
             }
         }
         self.relayout()
+    }
+
+    /// Rebuilds the model from the meta of the kept nodes. A kept window
+    /// without meta comes back as a new one.
+    fn restore(&mut self, kept: &[Value]) {
+        let meta = |node: &Value| {
+            serde_json::from_value::<BTreeMap<String, String>>(node["meta"].clone())
+                .unwrap_or_default()
+        };
+        let group = kept
+            .iter()
+            .find(|n| n["id"] == NAME)
+            .map(meta)
+            .unwrap_or_default();
+        let windows: Vec<(String, String)> = kept
+            .iter()
+            .filter(|n| n["kind"] == "surface")
+            .filter_map(|n| {
+                let text = meta(n).remove(WINDOW_KEY).unwrap_or_default();
+                Some((n["id"].as_str()?.to_owned(), text))
+            })
+            .collect();
+        self.wm.restore(&group, &windows);
+        for (id, _) in &windows {
+            if !self.wm.has(id) {
+                self.wm.add_window(id);
+            }
+        }
     }
 
     /// Grabs every binding of the configuration. A binding that another
@@ -259,6 +298,7 @@ impl Tiling {
             Event::SurfaceDestroyed { surface } => {
                 self.wm.remove_window(&surface);
                 self.sent.remove(&surface);
+                self.saved.remove(&surface);
             }
             Event::SurfaceChanged {
                 surface,
@@ -413,17 +453,32 @@ impl Tiling {
                 surface: focus.clone(),
             });
         }
+        let saved = self.meta();
+        for (id, meta) in &saved {
+            commands.extend(meta_change(self.saved.get(id), id, meta));
+        }
         if commands.is_empty() {
             return Ok(());
         }
+        self.saved = saved;
         self.sent = placements.into_iter().map(|p| (p.id.clone(), p)).collect();
         (self.order, self.focus, self.focus_sent) = (order, focus, true);
         self.apply(commands)
     }
 
+    /// The meta of the group and of each window, by node.
+    fn meta(&self) -> HashMap<String, BTreeMap<String, String>> {
+        let windows = self.wm.window_meta().into_iter();
+        windows
+            .map(|(id, text)| (id, BTreeMap::from([(WINDOW_KEY.to_owned(), text)])))
+            .chain([(NAME.to_owned(), self.wm.group_meta())])
+            .collect()
+    }
+
     /// Forgets what the core shows, so that the next transaction sends all.
     fn forget(&mut self) {
         self.sent.clear();
+        self.saved.clear();
         self.order.clear();
         self.focus_sent = false;
     }
@@ -473,6 +528,29 @@ fn changes(sent: Option<&Placement>, placement: &Placement) -> Vec<Command> {
         });
     }
     commands
+}
+
+/// The update from the saved meta of a node to its new meta; an empty
+/// value removes a key that went.
+fn meta_change(
+    saved: Option<&BTreeMap<String, String>>,
+    id: &str,
+    meta: &BTreeMap<String, String>,
+) -> Option<Command> {
+    if saved == Some(meta) {
+        return None;
+    }
+    let mut update = meta.clone();
+    for key in saved.into_iter().flat_map(BTreeMap::keys) {
+        update.entry(key.clone()).or_default();
+    }
+    Some(Command::Update {
+        id: id.into(),
+        props: PropsUpdate {
+            meta: Some(update),
+            ..PropsUpdate::default()
+        },
+    })
 }
 
 /// Hides a window that showed or is new to the core, and takes its focus
