@@ -355,6 +355,56 @@ pub fn arrow_button([x, y, w, h]: Rect, spin: bool) -> String {
     svg
 }
 
+/// The face of a push button of a size, enabled or gray, without its
+/// label, for controls that draw their own, such as a color button.
+pub fn push_face(w: i32, h: i32, enabled: bool) -> String {
+    button_svg(
+        w,
+        h,
+        if enabled {
+            Look::Normal
+        } else {
+            Look::Disabled
+        },
+    )
+}
+
+/// A drop-down list of a size with its text, gray when disabled.
+pub fn combo([w, h]: [i32; 2], text: &str, enabled: bool) -> Picture {
+    let color = if enabled { BLACK } else { GRAY };
+    let mut picture = Picture::new(w, h)
+        .svg(field([0, 0, w, h]))
+        .svg(arrow_button([w - 18, 2, 16, h - 4], false));
+    if !enabled {
+        // XP pales the button of a disabled list.
+        picture = picture.svg(format!(
+            r##"<rect x="{}" y="2" width="16" height="{}" fill="#fff" fill-opacity="0.55"/>"##,
+            w - 18,
+            h - 4
+        ));
+    }
+    picture.text(Text::new(text, Font::Ui, color, [4, 0, w - 24, h]))
+}
+
+/// A sunken frame around a rectangle, as around a sample picture: dark
+/// lines at the top and the left, light ones at the bottom and the right.
+#[allow(clippy::many_single_char_names)] // coordinates
+pub fn sunken([x, y, w, h]: Rect) -> String {
+    let [l, t] = [f64::from(x) + 0.5, f64::from(y) + 0.5];
+    let [r, b] = [f64::from(x + w) - 0.5, f64::from(y + h) - 0.5];
+    format!(
+        r##"<path d="M{l} {b}V{t}H{r}" fill="none" stroke="#ACA899"/><path d="M{} {}V{}H{}" fill="none" stroke="#716F64"/><path d="M{r} {t}V{b}H{l}" fill="none" stroke="#FFFFFF"/><path d="M{} {}V{}H{}" fill="none" stroke="#F1EFE2"/>"##,
+        l + 1.0,
+        b - 1.0,
+        t + 1.0,
+        r - 1.0,
+        r - 1.0,
+        t + 1.0,
+        b - 1.0,
+        l + 1.0,
+    )
+}
+
 /// A Luna push button: a dark blue rounded border and a white face that
 /// grows gray to the bottom; a blue rim for the default button, an
 /// orange one under the pointer, a darker face when down and pale colors

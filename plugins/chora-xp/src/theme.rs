@@ -14,7 +14,8 @@ use std::{
 
 use resvg::{
     tiny_skia::{
-        FilterQuality, IntSize, Pixmap, PixmapMut, PixmapPaint, PremultipliedColorU8, Transform,
+        self, FilterQuality, IntSize, Paint, Pattern, Pixmap, PixmapMut, PixmapPaint,
+        PremultipliedColorU8, SpreadMode, Transform,
     },
     usvg,
 };
@@ -104,9 +105,8 @@ pub enum Layer {
         path: PathBuf,
         /// The rectangle.
         rect: Rect,
-        /// Scale to cover the rectangle and cut the overflow, keeping the
-        /// aspect ratio.
-        cover: bool,
+        /// How the file fills the rectangle.
+        fit: Fit,
     },
     /// A file as [`Layer::File`], in light gray, as XP shows the icon of
     /// a disabled button.
@@ -166,7 +166,17 @@ impl Picture {
         self.layers.push(Layer::File {
             path: path.into(),
             rect,
-            cover: false,
+            fit: Fit::Inside,
+        });
+        self
+    }
+
+    /// Adds a file that fills a rectangle in a way of [`Fit`].
+    pub fn fit(mut self, path: &Path, rect: Rect, fit: Fit) -> Self {
+        self.layers.push(Layer::File {
+            path: path.into(),
+            rect,
+            fit,
         });
         self
     }
@@ -176,16 +186,6 @@ impl Picture {
         self.layers.push(Layer::Gray {
             path: path.into(),
             rect,
-        });
-        self
-    }
-
-    /// Adds an SVG or PNG file that covers the whole picture.
-    pub fn cover(mut self, path: &Path) -> Self {
-        self.layers.push(Layer::File {
-            path: path.into(),
-            rect: [0, 0, self.size[0], self.size[1]],
-            cover: true,
         });
         self
     }
@@ -215,10 +215,10 @@ impl Picture {
                     prefix,
                     rect: shift(rect),
                 },
-                Layer::File { path, rect, cover } => Layer::File {
+                Layer::File { path, rect, fit } => Layer::File {
                     path,
                     rect: shift(rect),
-                    cover,
+                    fit,
                 },
                 Layer::Gray { path, rect } => Layer::Gray {
                     path,
@@ -438,7 +438,7 @@ impl Theme {
                 self.draw_frame(*sheet, prefix, *rect, pixmap);
                 Ok(())
             }
-            Layer::File { path, rect, cover } => self.draw_file(path, *rect, *cover, pixmap),
+            Layer::File { path, rect, fit } => self.draw_file(path, *rect, *fit, pixmap),
             Layer::Gray { path, rect } => self.draw_gray(path, *rect, pixmap),
             Layer::Text(text) => self.fonts.draw(text, pixmap),
             Layer::Svg(body) => {
@@ -516,7 +516,7 @@ impl Theme {
     /// luma, halfway to white.
     fn draw_gray(&self, path: &Path, rect: Rect, pixmap: &mut PixmapMut<'_>) -> Result<(), String> {
         let mut temp = Pixmap::new(pixmap.width(), pixmap.height()).ok_or("no pixels")?;
-        self.draw_file(path, rect, false, &mut temp.as_mut())?;
+        self.draw_file(path, rect, Fit::Inside, &mut temp.as_mut())?;
         for pixel in temp.pixels_mut() {
             let [red, green, blue] = [pixel.red(), pixel.green(), pixel.blue()].map(u32::from);
             let alpha = pixel.alpha();
@@ -536,31 +536,90 @@ impl Theme {
         &self,
         path: &Path,
         rect: Rect,
-        cover: bool,
+        fit: Fit,
         pixmap: &mut PixmapMut<'_>,
     ) -> Result<(), String> {
         let error = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
-        if path
-            .extension()
-            .is_some_and(|e| e.eq_ignore_ascii_case("svg"))
-        {
+        let image = if is_svg(path) {
             let data = fs::read(path).map_err(|e| error(&e))?;
             let tree = usvg::Tree::from_data(&data, self.fonts.options()).map_err(|e| error(&e))?;
             let size = tree.size();
-            let transform = fit(rect, [size.width(), size.height()], cover);
-            resvg::render(&tree, transform, pixmap);
-            return Ok(());
-        }
-        let image = load_raster(path).map_err(|e| error(&e))?;
+            if !matches!(fit, Fit::Tile(_)) {
+                resvg::render(
+                    &tree,
+                    place(rect, [size.width(), size.height()], fit),
+                    pixmap,
+                );
+                return Ok(());
+            }
+            // A tile of an SVG file: its pixels at its own size.
+            let [w, h] = [size.width(), size.height()].map(f32::ceil);
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let mut tile = Pixmap::new(w as u32, h as u32).ok_or_else(|| error(&"empty"))?;
+            resvg::render(&tree, Transform::identity(), &mut tile.as_mut());
+            tile
+        } else {
+            load_raster(path).map_err(|e| error(&e))?
+        };
         #[allow(clippy::cast_precision_loss)]
         let size = [image.width() as f32, image.height() as f32];
+        let transform = place(rect, size, fit);
+        if let Fit::Tile(_) = fit {
+            let paint = Paint {
+                shader: Pattern::new(
+                    image.as_ref(),
+                    SpreadMode::Repeat,
+                    FilterQuality::Bicubic,
+                    1.0,
+                    transform,
+                ),
+                ..Paint::default()
+            };
+            #[allow(clippy::cast_precision_loss)]
+            let [x, y, w, h] = rect.map(|n| n as f32);
+            if let Some(area) = tiny_skia::Rect::from_xywh(x, y, w, h) {
+                pixmap.fill_rect(area, &paint, Transform::identity(), None);
+            }
+            return Ok(());
+        }
         let paint = PixmapPaint {
             quality: FilterQuality::Bicubic,
             ..PixmapPaint::default()
         };
-        pixmap.draw_pixmap(0, 0, image.as_ref(), &paint, fit(rect, size, cover), None);
+        pixmap.draw_pixmap(0, 0, image.as_ref(), &paint, transform, None);
         Ok(())
     }
+
+    /// The width and height of an SVG, PNG or JPEG file in pixels, from
+    /// its header.
+    pub fn image_size(&self, path: &Path) -> Option<[i32; 2]> {
+        #[allow(clippy::cast_possible_truncation)]
+        let size = if is_svg(path) {
+            let tree = usvg::Tree::from_data(&fs::read(path).ok()?, self.fonts.options()).ok()?;
+            [tree.size().width(), tree.size().height()].map(|n| n.round() as i32)
+        } else if is_jpeg(path) {
+            let file = std::io::BufReader::new(fs::File::open(path).ok()?);
+            let mut decoder = JpegDecoder::new(file);
+            decoder.decode_headers().ok()?;
+            let (w, h) = decoder.dimensions()?;
+            [i32::try_from(w).ok()?, i32::try_from(h).ok()?]
+        } else {
+            // The IHDR chunk of a PNG file: width and height at 16 and 20.
+            let mut head = [0; 24];
+            std::io::Read::read_exact(&mut fs::File::open(path).ok()?, &mut head).ok()?;
+            let word = |at: usize| {
+                u32::from_be_bytes([head[at], head[at + 1], head[at + 2], head[at + 3]])
+            };
+            [i32::try_from(word(16)).ok()?, i32::try_from(word(20)).ok()?]
+        };
+        (size[0] > 0 && size[1] > 0).then_some(size)
+    }
+}
+
+/// Whether a file is an SVG file, by its extension.
+fn is_svg(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("svg"))
 }
 
 /// A PNG or JPEG file as a pixmap.
@@ -585,16 +644,36 @@ pub fn is_jpeg(path: &Path) -> bool {
         .is_some_and(|e| e.eq_ignore_ascii_case("jpg") || e.eq_ignore_ascii_case("jpeg"))
 }
 
-/// The transform that scales a size into a rectangle: to fit inside and
-/// centered, or to cover it.
-fn fit(rect: Rect, [width, height]: [f32; 2], cover: bool) -> Transform {
+/// How a file fills a rectangle.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub enum Fit {
+    /// Inside the rectangle and centered, keeping the aspect ratio.
+    Inside,
+    /// Over the whole rectangle, keeping the aspect ratio: the overflow
+    /// is cut.
+    Cover,
+    /// Over the whole rectangle, out of its aspect ratio.
+    Stretch,
+    /// Tiles of a width and height from the top-left corner of the
+    /// rectangle, repeated over it.
+    Tile([i32; 2]),
+}
+
+/// The transform that puts an image of a size into a rectangle; for a
+/// tile, the transform of the first tile.
+fn place(rect: Rect, [width, height]: [f32; 2], fit: Fit) -> Transform {
     #[allow(clippy::cast_precision_loss)]
     let [x, y, room_x, room_y] = rect.map(|n| n as f32);
     let (across, down) = (room_x / width, room_y / height);
-    let scale = if cover {
-        across.max(down)
-    } else {
-        across.min(down)
+    let scale = match fit {
+        Fit::Inside => across.min(down),
+        Fit::Cover => across.max(down),
+        Fit::Stretch => return Transform::from_translate(x, y).pre_scale(across, down),
+        Fit::Tile([w, h]) => {
+            #[allow(clippy::cast_precision_loss)]
+            let [w, h] = [w as f32, h as f32];
+            return Transform::from_translate(x, y).pre_scale(w / width, h / height);
+        }
     };
     Transform::from_translate(
         x + (room_x - width * scale) / 2.0,

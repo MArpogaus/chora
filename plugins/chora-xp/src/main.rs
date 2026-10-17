@@ -16,6 +16,7 @@ mod datetime;
 mod decoration;
 mod desktop_icons;
 mod dialog;
+mod display;
 mod explorer;
 mod folder;
 mod icons;
@@ -105,11 +106,12 @@ fn run(args: &Args) -> Result<(), String> {
     let config = wm::Config {
         terminal: args.terminal.clone(),
         clock: args.clock.clone(),
-        wallpaper: args
-            .wallpaper
-            .clone()
-            .or_else(|| icons::data_file("wallpapers/WindowsXP/bliss.jpg"))
-            .unwrap_or_else(|| theme.path("wallpaper/bloff.png")),
+        wallpaper: wallpaper::Style::new(
+            args.wallpaper
+                .clone()
+                .or_else(|| icons::data_file("wallpapers/WindowsXP/bliss.jpg"))
+                .unwrap_or_else(|| theme.path("wallpaper/bloff.png")),
+        ),
         slow: args.slow_motion,
         toggles: control::Toggles {
             sounds: !args.no_sounds,

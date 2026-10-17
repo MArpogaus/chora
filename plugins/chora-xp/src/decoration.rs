@@ -409,6 +409,34 @@ fn button(theme: &mut Theme, surface: &str, look: &Look<'_>, button: Button) -> 
     }
 }
 
+/// A whole frame of an outer size with its title and buttons as one
+/// picture, for the samples of Display Properties: the shadow reaches
+/// beyond the picture, so it shows where the sample lies on another one.
+pub fn sample(title: &str, [w, h]: [i32; 2], active: bool) -> Picture {
+    let inactive = if active { "" } else { "-inactive" };
+    let mut picture = Picture::new(w, h).frame(
+        Sheet::Decoration,
+        &format!("decoration{inactive}"),
+        [-SHADOW, -SHADOW, w + 2 * SHADOW, h + 2 * SHADOW],
+    );
+    let color = if active {
+        [255, 255, 255, 255]
+    } else {
+        [216, 228, 248, 255]
+    };
+    let mut text = Text::new(title, Font::Title, color, [EDGE + 2, 1, w, TITLE]);
+    if active {
+        text = text.shadow([10, 24, 131, 255]);
+    }
+    picture = picture.text(text);
+    let state = if active { "active" } else { "inactive" };
+    for button in Button::ALL {
+        let rect = [button.x(w), BUTTON_TOP, BUTTON, BUTTON];
+        picture = picture.frame(button.sheet(false), state, rect);
+    }
+    picture
+}
+
 /// Props that put a node at a position relative to the top-left corner of
 /// the frame.
 fn at([x, y]: [f64; 2]) -> PropsUpdate {

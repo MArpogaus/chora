@@ -33,9 +33,10 @@ use crate::{
     decoration::{self, Button, Part},
     desktop_icons::{self, DesktopIcons},
     dialog::{self, Hit},
+    display::{self, DisplayDialog, EffectsDialog},
     explorer::Explorer,
     folder::Place,
-    icons::{self, Icons},
+    icons::Icons,
     notify::{Bus, Note, Reason, Request, Signal},
     session::{self, Choice, Dialog, Mode},
     sound::{self, Sound},
@@ -73,8 +74,8 @@ pub struct Config {
     pub terminal: String,
     /// The strftime format of the clock.
     pub clock: String,
-    /// The wallpaper file.
-    pub wallpaper: PathBuf,
+    /// The background of the desktop.
+    pub wallpaper: wallpaper::Style,
     /// Stretches the time of the magic lamp and of the cube, for tests
     /// and demos; 1 is the normal speed.
     pub slow: f64,
@@ -219,6 +220,8 @@ pub struct Wm {
     explorers: Vec<Explorer>,
     /// The number of Explorer windows so far, for their ids.
     explorer_count: u32,
+    /// The tab of Display Properties when it last closed, as XP keeps it.
+    display_tab: usize,
     /// Turn Off ended the plugin.
     pub done: bool,
     /// Restart ended the plugin, to start it again.
@@ -271,6 +274,7 @@ impl Wm {
             last_clock: None,
             explorers: Vec::new(),
             explorer_count: 0,
+            display_tab: 0,
             done: false,
             restart: false,
         };
@@ -1123,11 +1127,13 @@ impl Wm {
                     .arrange(&mut self.theme, &mut self.icons, act == Act::ArrangeByType)
             }
             Act::Refresh => self.desk.reload(&mut self.theme, &mut self.icons),
-            Act::DesktopProperties => self.desktop_properties(area),
+            Act::DesktopProperties => self.open_display_dialog(area),
             Act::TaskbarProperties => self.open_taskbar_dialog(area),
             Act::DateTime => self.open_date_dialog(area),
             Act::Explore(cmd) => self.explore(cmd),
             Act::Window(sys) => self.act_window(sys),
+            Act::Position(index) => self.with_display(|d| d.set_position(index)),
+            Act::Color(color) => self.with_display(|d| d.set_color(color)),
             Act::Month(month) => {
                 let Some(i) = self
                     .panels
@@ -1172,24 +1178,6 @@ impl Wm {
             }
             commands.extend(w.style(&mut self.theme, active));
         }
-        commands
-    }
-
-    /// Properties of the desktop: the start menu opens with Control Panel
-    /// > Desktop, the list of the wallpapers.
-    fn desktop_properties(&mut self, area: Rect) -> Vec<Command> {
-        let center = [area[0] + area[2] / 2, area[1] + area[3] / 2];
-        let Some(output) = self
-            .bars
-            .iter()
-            .find(|b| b.contains(center))
-            .map(|b| b.output.clone())
-        else {
-            return Vec::new();
-        };
-        let mut commands = self.close_menu();
-        commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
-        commands.extend(self.menu.open_control(&mut self.theme, &mut self.icons, 1));
         commands
     }
 
@@ -1311,7 +1299,7 @@ impl Wm {
                     return Vec::new();
                 };
                 let (origin, area) = (bar.origin(), bar.usable());
-                let control = self.control_panel(&output);
+                let control = self.control_panel();
                 let mut commands = self.menu.open(&output, origin, area, control);
                 commands.extend(self.start_look(&output));
                 self.grab_escape();
@@ -1534,6 +1522,177 @@ impl Wm {
         commands
     }
 
+    /// Display Properties for the output of a work area, or the open one
+    /// on top.
+    fn open_display_dialog(&mut self, area: Rect) -> Vec<Command> {
+        if let Some(commands) = self.raise_panel(|p| matches!(p, Panel::Display(_))) {
+            return commands;
+        }
+        let center = [area[0] + area[2] / 2, area[1] + area[3] / 2];
+        let name = self
+            .bars
+            .iter()
+            .find(|b| b.contains(center))
+            .or(self.bars.first())
+            .map(|b| b.output.clone())
+            .unwrap_or_default();
+        let screen = self
+            .outputs()
+            .into_iter()
+            .find(|o| o.name == name)
+            .map_or_else(
+                || display::Screen {
+                    output: name.clone(),
+                    physical: [area[2], area[3]],
+                    scale: 100,
+                },
+                |o| {
+                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                    display::Screen {
+                        output: o.name.clone(),
+                        physical: o.size.map(|n| (f64::from(n) * o.scale).round() as i32),
+                        scale: (o.scale * 100.0).round() as u32,
+                    }
+                },
+            );
+        let walls = control::wallpapers(&wallpaper::dirs(&self.theme));
+        let art = display::Art {
+            picture: self.icons.find_sized("image-x-generic", 16),
+            bin: self
+                .icons
+                .first_sized(&["user-trash-full", "user-trash"], 32),
+            walls,
+        };
+        let style = self.config.wallpaper.clone();
+        let mut panel = DisplayDialog::new(style, screen, self.display_tab, area, art);
+        let page = panel.page(&mut self.theme);
+        let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
+        self.panels.push(Panel::Display(panel));
+        commands
+    }
+
+    /// Changes the open Display Properties and shows it again.
+    fn with_display(&mut self, change: impl FnOnce(&mut DisplayDialog)) -> Vec<Command> {
+        let Some(i) = self
+            .panels
+            .iter()
+            .position(|p| matches!(p, Panel::Display(_)))
+        else {
+            return Vec::new();
+        };
+        if let Panel::Display(panel) = &mut self.panels[i] {
+            change(panel);
+        }
+        self.redraw_panel(i)
+    }
+
+    /// A click on Display Properties or its Effects.
+    fn click_display(&mut self, i: usize, hit: &Hit) -> Vec<Command> {
+        let click = match &mut self.panels[i] {
+            Panel::Effects(panel) => {
+                match panel.click(hit) {
+                    display::Effects::Redraw => {
+                        let page = panel.page();
+                        return panel.dialog.show(&mut self.theme, page);
+                    }
+                    display::Effects::Take(toggles) => self.effects.toggles = toggles,
+                    display::Effects::Close => {}
+                }
+                return vec![self.panels.remove(i).window_ref().remove()];
+            }
+            Panel::Display(panel) => panel.click(hit),
+            _ => return Vec::new(),
+        };
+        match click {
+            display::Click::Redraw => self.redraw_panel(i),
+            display::Click::Close => self.close_display(i),
+            display::Click::Apply {
+                style,
+                scale,
+                close,
+            } => {
+                let output = match &self.panels[i] {
+                    Panel::Display(panel) => panel.output().to_string(),
+                    _ => String::new(),
+                };
+                let mut commands = if close {
+                    self.close_display(i)
+                } else {
+                    self.redraw_panel(i)
+                };
+                if style != self.config.wallpaper {
+                    commands.extend(self.set_wallpaper(style));
+                }
+                let current = self
+                    .outputs()
+                    .into_iter()
+                    .find(|o| o.name == output)
+                    .map(|o| o.scale);
+                if current.is_some_and(|c| (c * 100.0 - f64::from(scale)).abs() >= 0.5) {
+                    commands.extend(self.set(&Setting::Scale(scale), Some(&output)));
+                }
+                commands
+            }
+            display::Click::List(rect, entries) => self.open_display_list(i, rect, entries),
+            display::Click::Effects => self.open_effects(),
+        }
+    }
+
+    /// A drop-down list of Display Properties below a rectangle of it.
+    fn open_display_list(
+        &mut self,
+        i: usize,
+        rect: Rect,
+        entries: Vec<context::Entry>,
+    ) -> Vec<Command> {
+        let Panel::Display(panel) = &self.panels[i] else {
+            return Vec::new();
+        };
+        let (point, width) = panel.list_at(rect);
+        let area = self
+            .bars
+            .iter()
+            .find(|b| b.contains(point))
+            .or(self.bars.first())
+            .map_or([0, 0, 1280, 800], Bar::area);
+        let menu = context::Menu::new(&self.theme, entries, point, area, width);
+        let commands = menu.create(&mut self.theme, MENUS);
+        self.context = Some((menu, area));
+        commands
+    }
+
+    /// Effects of Appearance, or the open one on top.
+    fn open_effects(&mut self) -> Vec<Command> {
+        if let Some(commands) = self.raise_panel(|p| matches!(p, Panel::Effects(_))) {
+            return commands;
+        }
+        let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
+        let panel = EffectsDialog::new(self.effects.toggles, area);
+        let page = panel.page();
+        let mut panel = Panel::Effects(panel);
+        let commands = panel.window().create(&mut self.theme, DIALOGS, page);
+        self.panels.push(panel);
+        commands
+    }
+
+    /// Closes Display Properties, keeping its tab for the next time.
+    fn close_display(&mut self, i: usize) -> Vec<Command> {
+        let panel = self.panels.remove(i);
+        if let Panel::Display(display) = &panel {
+            self.display_tab = display.tab;
+        }
+        vec![panel.window_ref().remove()]
+    }
+
+    /// Shows a background on every output.
+    fn set_wallpaper(&mut self, style: wallpaper::Style) -> Vec<Command> {
+        self.config.wallpaper = style;
+        self.outputs()
+            .iter()
+            .map(|o| wallpaper::update(&mut self.theme, &self.config.wallpaper, o))
+            .collect()
+    }
+
     /// A double click on the clock of a taskbar opens Date and Time.
     fn press_clock(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
         #[allow(clippy::cast_possible_truncation)]
@@ -1577,8 +1736,14 @@ impl Wm {
             }
             return commands;
         }
+        if matches!(self.panels[i], Panel::Display(_) | Panel::Effects(_)) {
+            commands.extend(self.click_display(i, &hit));
+            return commands;
+        }
         let outcome = match (&mut self.panels[i], &hit) {
-            (_, Hit::Close) | (Panel::Confirm(_), _) => Outcome::Close,
+            (_, Hit::Close) | (Panel::Confirm(_) | Panel::Display(_) | Panel::Effects(_), _) => {
+                Outcome::Close
+            }
             (Panel::Taskbar(panel), hit) => panel.click(hit),
             (Panel::Clock(panel), hit) => match panel.click(hit) {
                 Click::Redraw => Outcome::Redraw,
@@ -1622,7 +1787,11 @@ impl Wm {
                 let page = panel.page(&self.theme, chrono::Local::now().naive_local());
                 panel.dialog.show(&mut self.theme, page)
             }
-            Panel::Confirm(_) => Vec::new(),
+            Panel::Display(panel) => {
+                let page = panel.page(&mut self.theme);
+                panel.dialog.show(&mut self.theme, page)
+            }
+            Panel::Confirm(_) | Panel::Effects(_) => Vec::new(),
         }
     }
 
@@ -1780,23 +1949,10 @@ impl Wm {
     }
 
     /// The Control Panel for an output, with the current choices.
-    fn control_panel(&mut self, output: &str) -> Vec<apps::Node> {
-        let scale = self
-            .outputs()
-            .into_iter()
-            .find(|o| o.name == output)
-            .map_or(1.0, |o| o.scale);
-        let mut dirs = vec![
-            self.theme.path("wallpaper"),
-            PathBuf::from("/usr/share/backgrounds"),
-        ];
-        dirs.extend(
-            icons::data_dirs()
-                .into_iter()
-                .map(|d| d.join("wallpapers/WindowsXP")),
-        );
-        let walls = control::wallpapers(&dirs);
-        control::menu(scale, &self.config.wallpaper, &walls, self.effects.toggles)
+    fn control_panel(&mut self) -> Vec<apps::Node> {
+        let walls = control::wallpapers(&wallpaper::dirs(&self.theme));
+        let current = self.config.wallpaper.file.as_deref();
+        control::menu(current, &walls, self.effects.toggles)
     }
 
     /// Changes a setting: the scale of the output of the menu through the
@@ -1817,25 +1973,25 @@ impl Wm {
                 Vec::new()
             }
             Setting::Wallpaper(file) => {
-                self.config.wallpaper.clone_from(file);
-                self.outputs()
-                    .iter()
-                    .map(|o| wallpaper::update(&mut self.theme, file, o))
-                    .collect()
+                let style = wallpaper::Style {
+                    file: Some(file.clone()),
+                    ..self.config.wallpaper.clone()
+                };
+                self.set_wallpaper(style)
             }
             Setting::Effect(effect) => {
                 self.effects.toggles.flip(*effect);
                 Vec::new()
             }
-            Setting::Taskbar | Setting::DateTime => {
+            Setting::Taskbar | Setting::DateTime | Setting::Display => {
                 let area = output
                     .and_then(|o| self.bars.iter().find(|b| b.output == o))
                     .or(self.bars.first())
                     .map_or([0, 0, 1280, 770], Bar::usable);
-                if *setting == Setting::Taskbar {
-                    self.open_taskbar_dialog(area)
-                } else {
-                    self.open_date_dialog(area)
+                match setting {
+                    Setting::Taskbar => self.open_taskbar_dialog(area),
+                    Setting::DateTime => self.open_date_dialog(area),
+                    _ => self.open_display_dialog(area),
                 }
             }
         }
@@ -2077,6 +2233,10 @@ enum Panel {
     Clock(DateDialog),
     /// Confirm File Delete before Empty the Recycle Bin.
     Confirm(ConfirmDialog),
+    /// Display Properties.
+    Display(DisplayDialog),
+    /// Effects of Display Properties.
+    Effects(EffectsDialog),
 }
 
 impl Panel {
@@ -2085,13 +2245,15 @@ impl Panel {
             Self::Taskbar(panel) => &mut panel.dialog,
             Self::Clock(panel) => &mut panel.dialog,
             Self::Confirm(panel) => &mut panel.dialog,
+            Self::Display(panel) => &mut panel.dialog,
+            Self::Effects(panel) => &mut panel.dialog,
         }
     }
 
     fn taskbar(&mut self) -> Option<&mut TaskbarDialog> {
         match self {
             Self::Taskbar(panel) => Some(panel),
-            Self::Clock(_) | Self::Confirm(_) => None,
+            _ => None,
         }
     }
 
@@ -2100,6 +2262,8 @@ impl Panel {
             Self::Taskbar(panel) => &panel.dialog,
             Self::Clock(panel) => &panel.dialog,
             Self::Confirm(panel) => &panel.dialog,
+            Self::Display(panel) => &panel.dialog,
+            Self::Effects(panel) => &panel.dialog,
         }
     }
 }

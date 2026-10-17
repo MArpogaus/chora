@@ -1,13 +1,13 @@
 //! Control Panel as a menu, as XP's start menu could show it: Display
-//! with the scale of the output, Desktop with the wallpapers, and Effects
-//! with the effects of the plugin. The current choice of each has a check
+//! opens Display Properties, Desktop lists the wallpapers, and Effects
+//! the effects of the plugin. The current choice of each has a check
 //! mark. Effects also turns XP's sounds on and off.
 
 use std::path::{Path, PathBuf};
 
 use crate::apps::{Kind, Node};
 
-/// The scales of Display, in percent.
+/// The scales of the outputs that Display Properties offers, in percent.
 pub const SCALES: [u32; 4] = [100, 125, 150, 200];
 /// The most wallpapers of a directory on the menu.
 const MAX_WALLPAPERS: usize = 20;
@@ -25,6 +25,8 @@ pub enum Setting {
     Taskbar,
     /// Opens Date and Time Properties.
     DateTime,
+    /// Opens Display Properties.
+    Display,
 }
 
 /// An effect that the menu turns on and off.
@@ -112,27 +114,23 @@ pub fn wallpapers(dirs: &[PathBuf]) -> Vec<PathBuf> {
     out
 }
 
-/// The cascade of the Control Panel for the scale of the output, the
-/// wallpaper and the effects.
-pub fn menu(scale: f64, wallpaper: &Path, walls: &[PathBuf], toggles: Toggles) -> Vec<Node> {
+/// The cascade of the Control Panel for the wallpaper and the effects.
+pub fn menu(wallpaper: Option<&Path>, walls: &[PathBuf], toggles: Toggles) -> Vec<Node> {
     let pick = |title: String, setting, checked| Node {
         title,
         icon: String::new(),
         kind: Kind::Pick(setting, checked),
     };
-    let scales = SCALES
-        .iter()
-        .map(|&p| {
-            let checked = (scale * 100.0 - f64::from(p)).abs() < 0.5;
-            pick(format!("{p}%"), Setting::Scale(p), checked)
-        })
-        .collect();
     let walls = walls
         .iter()
         .map(|w| {
             let stem = w.file_stem().unwrap_or_default().to_string_lossy();
             let title = name_of(&stem);
-            pick(title, Setting::Wallpaper(w.clone()), w == wallpaper)
+            pick(
+                title,
+                Setting::Wallpaper(w.clone()),
+                Some(w.as_path()) == wallpaper,
+            )
         })
         .collect();
     let effects = [
@@ -156,7 +154,11 @@ pub fn menu(scale: f64, wallpaper: &Path, walls: &[PathBuf], toggles: Toggles) -
             kind: Kind::Pick(Setting::DateTime, false),
         },
         group("Desktop", "preferences-desktop-wallpaper", walls),
-        group("Display", "preferences-desktop-display", scales),
+        Node {
+            title: "Display".into(),
+            icon: "preferences-desktop-display".into(),
+            kind: Kind::Pick(Setting::Display, false),
+        },
         group("Effects", "preferences-desktop-effects", effects),
         Node {
             title: "Taskbar and Start Menu".into(),
@@ -168,7 +170,7 @@ pub fn menu(scale: f64, wallpaper: &Path, walls: &[PathBuf], toggles: Toggles) -
 
 /// The name of a wallpaper file as XP shows it: "blue-hills" is "Blue
 /// hills", and XP's short file names have their long names.
-fn name_of(stem: &str) -> String {
+pub fn name_of(stem: &str) -> String {
     let long = match stem {
         "moon" => "Moon flower",
         "purplef" => "Purple flower",
@@ -210,19 +212,11 @@ mod tests {
         let walls = [PathBuf::from("/w/a.png"), PathBuf::from("/w/b.svg")];
         let mut toggles = Toggles::default();
         toggles.flip(Effect::Lamp);
-        let menu = menu(1.25, Path::new("/w/b.svg"), &walls, toggles);
+        let menu = menu(Some(Path::new("/w/b.svg")), &walls, toggles);
         assert_eq!(picks(&menu[1]), [("A", false), ("B", true)]);
         assert_eq!(name_of("blue_hills-2"), "Blue hills 2");
         assert_eq!(name_of("purplef"), "Purple flower");
-        assert_eq!(
-            picks(&menu[2]),
-            [
-                ("100%", false),
-                ("125%", true),
-                ("150%", false),
-                ("200%", false)
-            ]
-        );
+        assert_eq!(menu[2].kind, Kind::Pick(Setting::Display, false));
         assert_eq!(
             picks(&menu[3]),
             [

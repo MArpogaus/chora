@@ -9,7 +9,7 @@
 //! window manager does: nothing more, a menu, a program, the Control
 //! Panel.
 
-mod view;
+pub mod view;
 
 use std::{
     fmt::Write as _,

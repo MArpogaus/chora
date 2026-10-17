@@ -29,6 +29,8 @@ const TEXT_END: i32 = 24;
 const PREFIX: &str = "xp-ctx-";
 /// The room between the text and the shortcut of a row.
 const KEY_GAP: f64 = 20.0;
+/// The room of the sample of a color before the text.
+const SWATCH: i32 = 28;
 
 /// What a row does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -57,6 +59,10 @@ pub enum Act {
     DesktopProperties,
     /// A month of the month list of Date and Time, from 1.
     Month(u32),
+    /// A position of the wallpaper in Display Properties, by index.
+    Position(usize),
+    /// A color of the desktop in Display Properties.
+    Color([u8; 3]),
     /// A row of a menu of the Explorer window that has the focus.
     Explore(crate::explorer::Cmd),
     /// A row of the system menu of a window.
@@ -104,6 +110,8 @@ pub struct Entry {
     key: &'static str,
     /// The glyph left of a row of the system menu.
     glyph: Option<Sys>,
+    /// A sample of a color before the text, as in a palette.
+    swatch: Option<[u8; 3]>,
     sub: Vec<Entry>,
 }
 
@@ -119,6 +127,7 @@ impl Entry {
             bold: false,
             key: "",
             glyph: None,
+            swatch: None,
             sub: Vec::new(),
         }
     }
@@ -163,6 +172,12 @@ impl Entry {
         self
     }
 
+    /// With a sample of a color before the text.
+    pub fn swatch(mut self, color: [u8; 3]) -> Self {
+        self.swatch = Some(color);
+        self
+    }
+
     fn font(&self) -> Font {
         if self.bold { Font::UiBold } else { Font::Ui }
     }
@@ -174,7 +189,12 @@ impl Entry {
         } else {
             theme.text_width(self.key, Font::Ui) + KEY_GAP
         };
-        theme.text_width(&self.title, self.font()) + key
+        let swatch = if self.swatch.is_some() {
+            f64::from(SWATCH)
+        } else {
+            0.0
+        };
+        theme.text_width(&self.title, self.font()) + key + swatch
     }
 
     fn is_separator(&self) -> bool {
@@ -559,11 +579,20 @@ fn row(theme: &Theme, entry: &Entry, [w, h]: [i32; 2], lit: bool) -> Picture {
         (true, false) => [0, 0, 0, 255],
     };
     let [r, g, b, _] = color;
+    let mut x = TEXT_X;
+    if let Some([sr, sg, sb]) = entry.swatch {
+        picture = picture.svg(format!(
+            r##"<rect x="{}" y="3.5" width="21" height="{}" fill="rgb({sr},{sg},{sb})" stroke="#000"/>"##,
+            f64::from(x) + 0.5,
+            h - 7
+        ));
+        x += SWATCH;
+    }
     picture = system_parts(picture, theme, entry, [w, h], color).text(Text::new(
         &entry.title,
         entry.font(),
         color,
-        [TEXT_X, 0, w - TEXT_X - TEXT_END + 4, h],
+        [x, 0, w - x - TEXT_END + 4, h],
     ));
     if entry.group {
         // XP's arrow of a submenu, 4 by 7 pixels, in the color of the text.

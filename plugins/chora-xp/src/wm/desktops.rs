@@ -12,7 +12,7 @@ use crate::{
     cube::{self, DESKTOPS, Face, Turn, View},
     decoration, desktop_icons,
     taskbar::Bar,
-    theme::Picture,
+    wallpaper,
 };
 
 /// How long a quarter turn takes, before slow motion.
@@ -83,7 +83,7 @@ impl Wm {
         let size = [f64::from(w), f64::from(h)];
         // XP has one desktop: every face shows the wallpaper with the
         // icons, and the icons themselves hide until the turn ends.
-        let face = Picture::new(w, h).cover(&self.config.wallpaper);
+        let face = wallpaper::picture(&self.theme, &self.config.wallpaper, [w, h], [w, h]);
         let face = self.desk.paint(&mut self.theme, &mut self.icons, face);
         let image = self.theme.render(&face);
         commands.push(visible(desktop_icons::GROUP, false));

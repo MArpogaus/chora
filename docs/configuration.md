@@ -272,8 +272,8 @@ says and closes the menu; a click outside closes it.
   Customize Notifications is gray.
 - **The desktop**: Arrange Icons By Name or Type puts the icons back
   into their columns, in that order; Refresh shows them again; Properties
-  opens the start menu with Control Panel > Desktop. Paste and Paste
-  Shortcut are gray.
+  opens Display Properties (see below). Paste and Paste Shortcut are
+  gray.
 
 `chora-xp` draws XP's Windows Explorer itself, as the client of a
 window of its own: the window has XP's frame and a task button with the
@@ -354,11 +354,10 @@ entry applies it and closes the menu:
 
 - **Date and Time**: opens Date and Time Properties;
 - **Desktop**: the wallpaper of every output, from the PNG, JPEG and SVG
-  files in `theme/wallpaper/`, `/usr/share/backgrounds` and
-  `wallpapers/WindowsXP` of the XDG data directories, without their
+  files in `wallpapers/WindowsXP` of the XDG data directories,
+  `theme/wallpaper/` and `/usr/share/backgrounds`, without their
   subdirectories and at most 20 of each directory;
-- **Display**: the scale of the output of the menu, 100 %, 125 %, 150 % or
-  200 %, through `output.configure`;
+- **Display**: opens Display Properties;
 - **Effects**: wobbly windows, the magic lamp, the desktop cube and XP's
   sounds, on or off until `chora-xp` ends;
 - **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.
@@ -405,6 +404,42 @@ in the same way:
 chora cannot set the clock of the system without privileges, so the
 dialog changes nothing: OK, Cancel and the close button close it, and
 Apply stays gray. Internet Time is left out.
+
+Properties of the desktop menu and Control Panel > Display open XP's
+Display Properties, 404 by 455 pixels, drawn in the same way. It opens on
+the tab that was open when it last closed, Themes the first time. Apply
+and OK show the background on every output and set the scale of the
+output of the dialog; Cancel and the close button close it without them.
+The settings last until `chora-xp` ends:
+
+- **Themes** shows the sample of the theme: the wallpaper with an active
+  window and the Recycle Bin. Windows XP is the only theme, so the list,
+  Save As and Delete are gray.
+- **Desktop** shows XP's monitor with the chosen background, and the
+  list Background: (None) and the wallpapers of Control Panel > Desktop,
+  with arrows and a track that scroll it. A click on a row chooses it.
+  Position places the picture: Center at its own size in the middle,
+  Tile repeated from the top-left corner, Stretch over the screen out of
+  its aspect ratio, and Fill, which XP lacks, over the screen at its
+  aspect ratio with the overflow cut off, as Windows 7 names it. Fill is
+  the default, so that Bliss keeps its shape on a wide output; XP's own
+  default is Stretch. Color chooses the color of the desktop behind a
+  centered picture, or without one, from a palette of twelve colors with
+  XP's desktop blue first. Browse is gray: `chora-xp` has no file
+  chooser yet. Customize Desktop is gray too.
+- **Screen Saver** shows the monitor and XP's controls, all gray:
+  `chora-xp` has no screen saver and no power settings.
+- **Appearance** shows a sample with an inactive window, an active
+  window and a message box on the color of the desktop. The style, the
+  color scheme and the font size are gray, as is Advanced. Effects opens
+  a small dialog with check boxes for the wobbly windows, the magic lamp,
+  the desktop cube and the sounds, as Control Panel > Effects; OK takes
+  them.
+- **Settings** shows the monitor with the desktop and a taskbar, and the
+  name of the output. The slider of Screen resolution chooses the scale
+  of the output, 200 %, 150 %, 125 % or 100 % from Less to More, and
+  names the size that it gives, such as "1280 by 800 pixels". Color
+  quality, Troubleshoot and Advanced are gray.
 
 Log Off and Turn Off Computer open XP's dialogs in the middle of the
 output, and the desktop behind them fades to gray in 1.5 seconds. In Log
