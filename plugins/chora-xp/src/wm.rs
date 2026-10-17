@@ -8,8 +8,10 @@ mod effects;
 mod explorers;
 mod items;
 mod resize;
+mod restart;
 
 use std::{
+    collections::HashMap,
     path::PathBuf,
     time::{Duration, Instant},
 };
@@ -231,6 +233,9 @@ pub struct Wm {
     pub done: bool,
     /// Restart ended the plugin, to start it again.
     pub restart: bool,
+    /// The windows of clients before a restart, by surface, until they
+    /// show again.
+    kept: HashMap<String, restart::KeptWindow>,
 }
 
 impl Wm {
@@ -283,9 +288,12 @@ impl Wm {
             item: None,
             done: false,
             restart: false,
+            kept: HashMap::new(),
         };
         wm.clock = wm.now();
         wm.create_scene()?;
+        let commands = wm.reopen_kept();
+        wm.apply(commands)?;
         wm.grab()?;
         wm.conn.call::<_, Value>(
             "events.subscribe",
@@ -566,10 +574,12 @@ impl Wm {
         let previous = self.focused.clone();
         let mut window = Window::new(surface, app_id, title);
         window.icon = window.app_id.as_deref().and_then(|a| self.icons.find(a));
-        window.desktop = self.desktop;
+        // A window keeps its desktop over a restart.
+        window.desktop = self.kept.get(surface).map_or(self.desktop, |k| k.desktop);
+        let desk = desk_id(window.desktop);
         self.windows.push(window);
         self.opened.push(surface.into());
-        let mut commands = decoration::create(surface, &desk_id(self.desktop), false);
+        let mut commands = decoration::create(surface, &desk, false);
         commands.extend(self.focus(Some(surface)));
         if let Some(err) = self.try_apply(commands)? {
             // Another client took it first.
@@ -606,8 +616,14 @@ impl Wm {
         let first = !self.windows[i].shown;
         self.windows[i].size = Some(size);
         self.anchor(i);
-        // A window maximized before its first commit keeps its place.
-        if first && !self.windows[i].maximized() {
+        // A window keeps its place and its maximized state over a
+        // restart.
+        let kept = first.then(|| self.kept.remove(surface)).flatten();
+        if let Some(k) = kept {
+            self.windows[i].pos = [k.frame[0], k.frame[1]];
+            self.windows[i].restore = k.restore;
+        } else if first && !self.windows[i].maximized() {
+            // A window maximized before its first commit keeps its place.
             let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
             let outer = self.windows[i].outer();
             self.windows[i].pos = window::cascade(&mut self.cascade, outer, area);
@@ -2277,6 +2293,7 @@ impl Wm {
                 self.done = true;
             }
             Choice::Restart => {
+                self.keep_for_restart();
                 self.done = true;
                 self.restart = true;
             }

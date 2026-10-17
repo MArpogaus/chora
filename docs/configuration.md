@@ -487,7 +487,11 @@ disabled, because chora has no second session to switch to. In Turn off
 computer, Stand By runs `systemctl suspend`, and is disabled without
 `systemctl`; Turn Off ends `chora-xp` and shuts nothing down; Restart
 runs `chora-xp` again in the same process, with the same arguments, and
-the new instance adopts the windows. Cancel or a click outside the dialog
+the new instance adopts the windows. They keep their places, desktops
+and maximized state, and the Explorer windows open again at their
+places, from `restart.json` in the cache directory of `chora-xp`: the
+core keeps the surfaces, but drops the nodes of a plugin with their
+meta. The windows of clients come above the Explorer windows. Cancel or a click outside the dialog
 closes it. The buttons light up under the pointer; the keyboard does not
 work the dialogs, for the same reason as Escape.
 
