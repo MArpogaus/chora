@@ -293,7 +293,10 @@ soft shadow and the selection in XP's blue. A click on a row does what it
 says and closes the menu; a click outside closes it. An open menu takes
 the keyboard. Up and Down move the highlight over the enabled rows.
 Right opens a submenu, Left closes it. Return does what the row says.
-Escape closes the submenu, then the menu.
+Escape closes the submenu, then the menu. Home and End go to the first and
+the last row. Once a key works the menu, it underlines XP's access keys.
+A letter acts on the row of its access key, or goes to the next one of
+several. A drop-down list opens on its current value.
 
 - **The taskbar**: Cascade Windows and Tile Windows Horizontally (one
   above the other) or Vertically (side by side) arrange the windows of

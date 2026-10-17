@@ -244,6 +244,21 @@ impl Entry {
         theme.text_width(&self.title, self.font()) + key + swatch
     }
 
+    /// The place of the access key in the title, XP's underlined letter.
+    fn access(&self) -> Option<usize> {
+        ACCESS
+            .iter()
+            .find(|(title, _)| *title == self.title)
+            .map(|(_, at)| *at)
+    }
+
+    /// Whether a typed letter is the access key of the row.
+    fn has_access(&self, letter: &str) -> bool {
+        self.access()
+            .and_then(|at| self.title.get(at..=at))
+            .is_some_and(|key| key.eq_ignore_ascii_case(letter))
+    }
+
     fn is_separator(&self) -> bool {
         self.title.is_empty()
     }
@@ -464,6 +479,90 @@ impl Level {
     }
 }
 
+/// The underlined access key of a row whose text starts at `x`.
+#[allow(clippy::many_single_char_names)] // a place and a color
+fn underline(
+    picture: Picture,
+    theme: &Theme,
+    entry: &Entry,
+    [x, h]: [i32; 2],
+    [r, g, b]: [u8; 3],
+) -> Picture {
+    let Some(at) = entry.access() else {
+        return picture;
+    };
+    let [from, to] = [at, at + 1].map(|n| {
+        entry
+            .title
+            .get(..n)
+            .map_or(0.0, |t| theme.text_width(t, entry.font()).round())
+    });
+    picture.svg(format!(
+        r#"<rect x="{}" y="{}" width="{}" height="1" fill="rgb({r},{g},{b})"/>"#,
+        f64::from(x) + from,
+        h / 2 + 6,
+        (to - from).max(1.0),
+    ))
+}
+
+/// The access keys of XP's menus: the title of a row and the place of
+/// its underlined letter.
+const ACCESS: &[(&str, usize)] = &[
+    ("About Windows", 0),
+    ("Add to Favorites...", 0),
+    ("Adjust Date/Time", 0),
+    ("Arrange Icons By", 8),
+    ("Cascade Windows", 2),
+    ("Close", 0),
+    ("Copy", 0),
+    ("Create Shortcut", 7),
+    ("Customize Notifications...", 0),
+    ("Cut", 2),
+    ("Delete", 0),
+    ("Details", 0),
+    ("Disconnect Network Drive...", 0),
+    ("Empty Recycle Bin", 14),
+    ("Explore", 0),
+    ("Explorer Bar", 0),
+    ("Folder Options...", 7),
+    ("Go To", 0),
+    ("Help and Support Center", 0),
+    ("Icons", 3),
+    ("Invert Selection", 0),
+    ("List", 0),
+    ("Lock the Taskbar", 0),
+    ("Map Network Drive...", 0),
+    ("Maximize", 2),
+    ("Minimize", 2),
+    ("Move", 0),
+    ("Name", 0),
+    ("New", 2),
+    ("Open", 0),
+    ("Open With", 7),
+    ("Organize Favorites...", 0),
+    ("Paste", 0),
+    ("Paste Shortcut", 6),
+    ("Properties", 1),
+    ("Refresh", 1),
+    ("Remove from This List", 17),
+    ("Rename", 4),
+    ("Restore", 0),
+    ("Select All", 7),
+    ("Send To", 2),
+    ("Show the Desktop", 0),
+    ("Size", 0),
+    ("Status Bar", 7),
+    ("Synchronize...", 0),
+    ("Task Manager", 3),
+    ("Thumbnails", 1),
+    ("Tile Windows Horizontally", 13),
+    ("Tile Windows Vertically", 14),
+    ("Tiles", 4),
+    ("Toolbars", 0),
+    ("Type", 0),
+    ("Undo", 0),
+];
+
 /// What a key does in a menu, a context menu or the start menu.
 #[derive(Debug, PartialEq)]
 pub enum Key<A> {
@@ -491,6 +590,9 @@ pub struct Menu {
     area: Rect,
     /// The row that went down.
     down: Option<(usize, usize)>,
+    /// The keyboard works the menu: its access keys show underlined, as
+    /// XP shows them only then.
+    cues: bool,
 }
 
 impl Menu {
@@ -515,6 +617,7 @@ impl Menu {
             levels: vec![level],
             area,
             down: None,
+            cues: false,
         }
     }
 
@@ -570,7 +673,7 @@ impl Menu {
         let menu = &self.levels[level];
         let entry = &menu.entries[index];
         let [_, _, w, h] = menu.row(index);
-        let picture = row(theme, entry, [w, h], menu.lit(index));
+        let picture = row(theme, entry, [w, h], menu.lit(index), self.cues);
         theme.render(&picture)
     }
 
@@ -665,6 +768,30 @@ impl Menu {
     /// highlight over the enabled rows, Right and Left open and close the
     /// submenu, Return acts, and Escape closes the submenu or the menu.
     pub fn key(&mut self, theme: &mut Theme, parent: &str, key: &str) -> Key<Act> {
+        let mut commands = self.show_cues(theme);
+        match self.step(theme, parent, key) {
+            Key::Commands(more) => {
+                commands.extend(more);
+                Key::Commands(commands)
+            }
+            other => other,
+        }
+    }
+
+    /// The access keys show from the first key on: all rows again.
+    fn show_cues(&mut self, theme: &mut Theme) -> Vec<Command> {
+        if std::mem::replace(&mut self.cues, true) {
+            return Vec::new();
+        }
+        (0..self.levels.len())
+            .flat_map(|level| (0..self.levels[level].entries.len()).map(move |i| (level, i)))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|(level, i)| self.relook(theme, level, i))
+            .collect()
+    }
+
+    fn step(&mut self, theme: &mut Theme, parent: &str, key: &str) -> Key<Act> {
         let level = self.levels.len() - 1;
         let current = self.levels[level].hovered;
         match key {
@@ -700,13 +827,14 @@ impl Menu {
                 Key::Commands(commands)
             }
             "Escape" => Key::Close,
+            letter if letter.chars().count() == 1 => self.access_key(theme, parent, letter),
             "Return" | "KP_Enter" | "space" => {
                 let Some(i) = current else {
                     return Key::Commands(Vec::new());
                 };
                 let entry = &self.levels[level].entries[i];
                 if level == 0 && entry.enabled && !entry.sub.is_empty() {
-                    return self.key(theme, parent, "Right");
+                    return self.step(theme, parent, "Right");
                 }
                 match entry.act.filter(|_| entry.enabled) {
                     Some(act) => Key::Act(act),
@@ -726,6 +854,37 @@ impl Menu {
             .hovered
             .is_some_and(|i| root.entries[i].enabled && !root.entries[i].sub.is_empty());
         self.levels.len() == 1 && !(right && opens)
+    }
+
+    /// A letter: the one enabled row with it as its access key acts, as
+    /// Return would; with several, the highlight goes to the next one.
+    fn access_key(&mut self, theme: &mut Theme, parent: &str, letter: &str) -> Key<Act> {
+        let level = self.levels.len() - 1;
+        let menu = &self.levels[level];
+        let rows: Vec<usize> = (0..menu.entries.len())
+            .filter(|&i| menu.entries[i].enabled && menu.entries[i].has_access(letter))
+            .collect();
+        match rows[..] {
+            [] => Key::Commands(Vec::new()),
+            [only] => {
+                let mut commands = self.light(theme, level, Some(only));
+                match self.step(theme, parent, "Return") {
+                    Key::Commands(more) => {
+                        commands.extend(more);
+                        Key::Commands(commands)
+                    }
+                    other => other,
+                }
+            }
+            _ => {
+                let next = rows
+                    .iter()
+                    .copied()
+                    .find(|&i| Some(i) > menu.hovered)
+                    .unwrap_or(rows[0]);
+                Key::Commands(self.light(theme, level, Some(next)))
+            }
+        }
     }
 
     /// Moves the highlight of a level to a row, or takes it away.
@@ -804,7 +963,7 @@ fn frame(w: i32, h: i32) -> Picture {
 /// A row: the highlight, the check mark, the text and the arrow of a
 /// submenu, or a separator.
 #[allow(clippy::many_single_char_names)] // colors and coordinates
-fn row(theme: &Theme, entry: &Entry, [w, h]: [i32; 2], lit: bool) -> Picture {
+fn row(theme: &Theme, entry: &Entry, [w, h]: [i32; 2], lit: bool, cues: bool) -> Picture {
     let mut picture = Picture::new(w, h);
     if entry.is_separator() {
         return picture.svg(format!(
@@ -838,6 +997,9 @@ fn row(theme: &Theme, entry: &Entry, [w, h]: [i32; 2], lit: bool) -> Picture {
             h - 7
         ));
         x += SWATCH;
+    }
+    if cues {
+        picture = underline(picture, theme, entry, [x, h], [r, g, b]);
     }
     picture = system_parts(picture, theme, entry, [w, h], color).text(Text::new(
         &entry.title,
@@ -1042,6 +1204,7 @@ mod tests {
             }],
             area: SCREEN,
             down: None,
+            cues: false,
         };
         assert_eq!(menu.part("xp-ctx-0-6"), Some((0, 6)));
         assert_eq!(menu.part("xp-ctx-0-7"), None);
@@ -1114,6 +1277,22 @@ mod tests {
         ];
         let list = Menu::new(&theme, list, [10, 10], SCREEN, 120);
         assert_eq!(list.levels[0].hovered, Some(1));
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_letter_acts_on_the_row_of_its_access_key() {
+        let (mut theme, cache) = crate::dialog::tests::theme("menuaccess");
+        let mut menu = keyed(&theme);
+        assert!(!menu.cues);
+        // Ca&scade Windows; the gray &Toolbars takes no letter.
+        assert!(matches!(
+            menu.key(&mut theme, "root", "t"),
+            Key::Commands(_)
+        ));
+        assert_eq!(menu.levels[0].hovered, None);
+        assert!(menu.cues);
+        assert_eq!(menu.key(&mut theme, "root", "S"), Key::Act(Act::Cascade));
         let _ = std::fs::remove_dir_all(cache);
     }
 }
