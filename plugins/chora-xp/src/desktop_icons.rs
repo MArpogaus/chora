@@ -337,10 +337,22 @@ impl DesktopIcons {
                 old.contains(key) != self.selected.contains(key)
             })
             .collect();
-        changed
-            .into_iter()
-            .map(|i| self.look(theme, icons, i))
-            .collect()
+        let mut commands: Vec<Command> = changed
+            .iter()
+            .map(|&i| self.look(theme, icons, i))
+            .collect();
+        // A selected label shows whole, above the icons below it, as on XP.
+        commands.extend(
+            changed
+                .into_iter()
+                .filter(|&i| self.selected.contains(&self.items[i].key))
+                .map(|i| Command::Move {
+                    id: Self::id(i),
+                    parent: None,
+                    index: None,
+                }),
+        );
+        commands
     }
 
     /// The icon that a node shows.
