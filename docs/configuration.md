@@ -418,8 +418,9 @@ into the folder item under the pointer; on a file item they go back to
 their places, as XP does not allow that drop. A file or a folder moves
 on the same file system and is copied to another one, as XP moves on one
 drive and copies to another. When the folder has a file of the name, XP's
-Confirm File Replace asks first, and Yes replaces it; a folder of the
-name stays, and `chora-xp` logs it. A drop on the window of the Recycle
+Confirm File Replace asks first, for each such file in turn, and Yes
+replaces it. A folder on either side of a name stays, and `chora-xp`
+logs it. A drop on the window of the Recycle
 Bin, or on its desktop icon, asks first, as Delete does, and Yes sends
 the files to the Recycle Bin. Beyond this and Empty the Recycle Bin, the
 window changes no file. The keyboard does not work it (D45). Its icons

@@ -12,7 +12,7 @@ mod restart;
 
 use std::{
     collections::HashMap,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 
@@ -2125,20 +2125,9 @@ impl Wm {
             Drop::Trash => commands.extend(self.confirm_trash(paths)),
             Drop::Nowhere => {}
             Drop::Folder(id, dir) => {
-                let mut clash = None;
-                for path in &paths {
-                    match folder::drop_into(path, &dir) {
-                        Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
-                            clash.get_or_insert_with(|| path.clone());
-                        }
-                        Err(err) => eprintln!("chora-xp: drop {}: {err}", path.display()),
-                        Ok(_) => {}
-                    }
-                }
-                // XP asks before it replaces a file; one question a drop.
-                if let Some(path) = clash {
-                    commands.extend(self.confirm_replace(path, dir.clone()));
-                }
+                let clashes = drop_files(paths, &dir);
+                // XP asks before it replaces a file, for each file in turn.
+                commands.extend(self.confirm_replace(clashes, dir.clone()));
                 // The window of the folder, and the desktop, show the change.
                 if let Some(e) = self.explorers.iter_mut().find(|e| e.id == id) {
                     e.command(crate::explorer::Cmd::Refresh);
@@ -2538,13 +2527,13 @@ impl Wm {
             Panel::Confirm(confirm) => {
                 let then = confirm.then.clone();
                 commands.extend(self.close_panel(i));
-                if ConfirmDialog::yes(hit) {
-                    commands.extend(match then {
-                        Then::Trash(paths) => self.trash(&paths),
-                        Then::Empty => self.empty_trash(),
-                        Then::Replace(path, dir) => self.replace(&path, &dir),
-                    });
-                }
+                let yes = ConfirmDialog::yes(hit);
+                commands.extend(match then {
+                    Then::Trash(paths) if yes => self.trash(&paths),
+                    Then::Empty if yes => self.empty_trash(),
+                    Then::Trash(_) | Then::Empty => Vec::new(),
+                    Then::Replace(paths, dir) => self.replace_next(&paths, dir, yes),
+                });
             }
             Panel::Properties(_) => {
                 let button = matches!(hit, Hit::Control(n, _) if n == "ok" || n == "cancel");
@@ -3119,6 +3108,32 @@ fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32
         (tx + px - fx).clamp(tx, tx + (tw - keep).max(0)),
         (ty + py - fy).clamp(ty, ty + (th - keep).max(0)),
     ]
+}
+
+/// Drops files and folders into a folder. Returns the files whose name
+/// the folder has as a file already, for Confirm File Replace; a folder
+/// on either side of a name stays, with a line in the log.
+fn drop_files(paths: Vec<PathBuf>, dir: &Path) -> Vec<PathBuf> {
+    let mut clashes = Vec::new();
+    for path in paths {
+        match folder::drop_into(&path, dir) {
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                let there = dir.join(path.file_name().unwrap_or_default());
+                if path.is_dir() || there.is_dir() {
+                    eprintln!(
+                        "chora-xp: drop {}: {} has a folder or file of the name; both stay",
+                        path.display(),
+                        dir.display()
+                    );
+                } else {
+                    clashes.push(path);
+                }
+            }
+            Err(err) => eprintln!("chora-xp: drop {}: {err}", path.display()),
+            Ok(_) => {}
+        }
+    }
+    clashes
 }
 
 #[cfg(test)]

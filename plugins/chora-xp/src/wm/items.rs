@@ -156,8 +156,12 @@ impl Wm {
         commands
     }
 
-    /// Asks whether a dropped file replaces the file of its name.
-    pub(super) fn confirm_replace(&mut self, path: PathBuf, dir: PathBuf) -> Vec<Command> {
+    /// Asks whether a dropped file replaces the file of its name, for the
+    /// first of the files; the others follow in turn.
+    pub(super) fn confirm_replace(&mut self, paths: Vec<PathBuf>, dir: PathBuf) -> Vec<Command> {
+        if paths.is_empty() {
+            return Vec::new();
+        }
         let mut commands = Vec::new();
         if let Some(i) = self
             .panels
@@ -167,7 +171,7 @@ impl Wm {
             commands.push(self.panels.remove(i).window_ref().remove());
         }
         let icon = self.icons.find_sized("dialog-warning", 32);
-        let confirm = ConfirmDialog::replace(&self.theme, path, dir, icon, self.work_area());
+        let confirm = ConfirmDialog::replace(&self.theme, paths, dir, icon, self.work_area());
         let page = confirm.page();
         let mut panel = Panel::Confirm(confirm);
         commands.extend(panel.window().create(&mut self.theme, DIALOGS, page));
@@ -194,13 +198,24 @@ impl Wm {
         commands
     }
 
-    /// Yes of Confirm File Replace: the dropped file takes the place of
-    /// the file of its name, and the icons and Explorer windows show it.
-    pub(super) fn replace(&mut self, path: &Path, dir: &Path) -> Vec<Command> {
-        if let Err(err) = folder::replace_into(path, dir) {
-            eprintln!("chora-xp: replace {}: {err}", path.display());
+    /// The answer to Confirm File Replace for the first file: Yes puts it
+    /// in place of the file of its name, and the icons and Explorer
+    /// windows show it. Then the question for the next file.
+    pub(super) fn replace_next(
+        &mut self,
+        paths: &[PathBuf],
+        dir: PathBuf,
+        yes: bool,
+    ) -> Vec<Command> {
+        let mut commands = Vec::new();
+        if let (Some(path), true) = (paths.first(), yes) {
+            if let Err(err) = folder::replace_into(path, &dir) {
+                eprintln!("chora-xp: replace {}: {err}", path.display());
+            }
+            commands.extend(self.refresh_trash());
         }
-        self.refresh_trash()
+        commands.extend(self.confirm_replace(paths.iter().skip(1).cloned().collect(), dir));
+        commands
     }
 
     /// Sends files and folders to the Recycle Bin, and shows the icons

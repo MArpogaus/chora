@@ -29,8 +29,9 @@ pub enum Then {
     Empty,
     /// Sends files and folders to the Recycle Bin.
     Trash(Vec<PathBuf>),
-    /// Drops a file into a folder in place of the file of its name.
-    Replace(PathBuf, PathBuf),
+    /// Drops the first file into a folder in place of the file of its
+    /// name; the question for the next file follows.
+    Replace(Vec<PathBuf>, PathBuf),
 }
 
 impl ConfirmDialog {
@@ -89,23 +90,24 @@ impl ConfirmDialog {
     }
 
     /// The question before a drop replaces a file of the same name in a
-    /// folder, as XP asks it.
+    /// folder, as XP asks it, for the first of the files.
     pub fn replace(
         theme: &Theme,
-        path: PathBuf,
+        paths: Vec<PathBuf>,
         dir: PathBuf,
         icon: Option<PathBuf>,
         area: Rect,
     ) -> Self {
-        let name = path
-            .file_name()
+        let name = paths
+            .first()
+            .and_then(|p| p.file_name())
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
         let question = format!(
             "This folder already contains a file named '{name}'. Would you like to replace it?"
         );
         let mut dialog = Self::ask(theme, "Confirm File Replace", question, icon, area);
-        dialog.then = Then::Replace(path, dir);
+        dialog.then = Then::Replace(paths, dir);
         dialog
     }
 
@@ -185,7 +187,8 @@ mod tests {
             both.question,
             "Are you sure you want to send these 2 items to the Recycle Bin?"
         );
-        let replace = ConfirmDialog::replace(&theme, "/d/a.txt".into(), "/e".into(), None, area);
+        let replace =
+            ConfirmDialog::replace(&theme, vec!["/d/a.txt".into()], "/e".into(), None, area);
         assert!(replace.question.contains("a file named 'a.txt'"));
         let _ = std::fs::remove_dir_all(cache);
     }
