@@ -182,6 +182,33 @@ impl Tiling {
         self.outputs.is_empty() || self.outputs.iter().any(|o| o == output)
     }
 
+    /// Whether `--output` names outputs and none of them is there: the
+    /// plugin then leaves all windows to other window managers.
+    fn without_outputs(&self) -> bool {
+        !self.outputs.is_empty() && self.wm.outputs.is_empty()
+    }
+
+    /// Gives all windows away with a remove without `to`, so that another
+    /// window manager adopts them, when the last output of `--output`
+    /// goes.
+    fn give_all_away(&mut self) -> Result<(), ClientError> {
+        let ids: Vec<String> = self.wm.windows.iter().map(|w| w.id.clone()).collect();
+        let commands = ids
+            .iter()
+            .map(|id| Command::Remove {
+                id: id.clone(),
+                to: None,
+            })
+            .collect();
+        self.apply(commands)?;
+        for id in &ids {
+            self.wm.remove_window(id);
+            self.sent.remove(id);
+            self.saved.remove(id);
+        }
+        Ok(())
+    }
+
     fn start(&mut self) -> Result<(), ClientError> {
         let outputs: Vec<OutputInfo> = self.client.call("output.list", Value::Null)?;
         for output in &outputs {
@@ -344,7 +371,12 @@ impl Tiling {
                 self.wm
                     .set_output(&output.name, output.layout_area(), full_area(&output));
             }
-            Event::OutputRemoved { name } => self.wm.remove_output(&name),
+            Event::OutputRemoved { name } => {
+                self.wm.remove_output(&name);
+                if self.without_outputs() {
+                    self.give_all_away()?;
+                }
+            }
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
@@ -464,6 +496,9 @@ impl Tiling {
     /// Takes a surface without an owner. A surface that another client took
     /// first, or whose app id `--ignore` names, stays out of the layout.
     fn adopt(&mut self, surface: &str) -> Result<(), ClientError> {
+        if self.without_outputs() {
+            return Ok(());
+        }
         let ignored = self.query(&format!("id:{surface}"))?.iter().any(|node| {
             node["surface"]["app_id"]
                 .as_str()

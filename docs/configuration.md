@@ -140,6 +140,9 @@ restart tiling` after a rebuild.
 (D55). `--output NAME`, repeatable, limits it to some outputs, as for
 `chora-xp`, so that each window manager takes its own outputs. It leaves
 a new window that the core reserves for another client to that client.
+When the last of its `--output` outputs goes, it gives its windows away,
+and another window manager adopts them; it takes new windows again when
+one of its outputs comes back.
 
 ## Flavors
 
