@@ -113,7 +113,9 @@ pub enum Outcome {
 /// Two clicks on an item within this time open it.
 const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 /// An arrow of the scroll bar scrolls this far.
-pub const SCROLL_STEP: i32 = 40;
+const SCROLL_STEP: i32 = 40;
+/// A notch of the wheel scrolls this far, three lines as on XP.
+const WHEEL_STEP: i32 = 3 * SCROLL_STEP;
 
 /// Where a link of the task pane goes.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -277,10 +279,9 @@ impl Explorer {
     }
 
     /// The pointer moved while the thumb is down: the view follows.
-    /// Returns whether it scrolled.
-    pub fn drag(&mut self, position: [f64; 2]) -> bool {
+    pub fn drag(&mut self, position: [f64; 2]) -> Outcome {
         let Some((start, from)) = self.thumb else {
-            return false;
+            return Outcome::None;
         };
         let geometry = self.geometry();
         #[allow(clippy::cast_possible_truncation)]
@@ -294,7 +295,22 @@ impl Explorer {
         );
         let changed = offset != self.offset;
         self.offset = offset;
-        changed
+        if changed {
+            Outcome::Redraw
+        } else {
+            Outcome::None
+        }
+    }
+
+    /// The wheel scrolled by notches, or a touchpad by `dy` pixels.
+    pub fn wheel(&mut self, dy: f64, notches: f64) -> Outcome {
+        let pixels = if notches == 0.0 {
+            dy
+        } else {
+            notches * f64::from(WHEEL_STEP)
+        };
+        #[allow(clippy::cast_possible_truncation)] // a few hundred pixels
+        self.scroll_by(pixels.round() as i32)
     }
 
     /// The release of the button at a point of the client area.
@@ -374,7 +390,7 @@ impl Explorer {
     }
 
     /// Scrolls the view, as far as it goes.
-    pub fn scroll_by(&mut self, step: i32) -> Outcome {
+    fn scroll_by(&mut self, step: i32) -> Outcome {
         let geometry = self.geometry();
         let max = view::max_scroll(geometry.layout.height, geometry.view[3]);
         let offset = (self.offset + step).clamp(0, max);
@@ -1537,7 +1553,7 @@ mod tests {
         assert_eq!(explorer.click("sb-track", [8, 300]), Outcome::Redraw);
         assert_eq!(explorer.offset, SIZE[1] - VIEW_Y - 2 * SCROLL_W);
         explorer.thumb = Some((0.0, 0));
-        assert!(explorer.drag([0.0, 10_000.0]));
+        assert_eq!(explorer.drag([0.0, 10_000.0]), Outcome::Redraw);
         let g = explorer.geometry();
         assert_eq!(
             explorer.offset,
@@ -1581,6 +1597,10 @@ mod tests {
             c,
             Command::Remove { id } if id == "xpx1-view"
         )));
+        // A notch of the wheel scrolls three lines.
+        assert_eq!(explorer.wheel(15.0, 1.0), Outcome::Redraw);
+        assert_eq!(explorer.offset, SCROLL_STEP + WHEEL_STEP);
+        explorer.wheel(0.0, -1.0);
         // Back where it was, the tiles show as before, from the cache.
         explorer.click("sb-up", [0, 0]);
         let back = explorer.redraw(&mut theme, &mut icons);

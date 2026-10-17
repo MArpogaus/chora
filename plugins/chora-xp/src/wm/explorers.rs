@@ -98,7 +98,7 @@ impl Wm {
         commands
     }
 
-    /// Does what a click on an Explorer window says.
+    /// Acts on the outcome of an Explorer window.
     fn explorer_outcome(&mut self, id: &str, outcome: Outcome) -> Vec<Command> {
         match outcome {
             Outcome::None => Vec::new(),
@@ -160,20 +160,12 @@ impl Wm {
         commands
     }
 
-    /// The wheel or the touchpad scrolled over an Explorer window: a
-    /// notch scrolls its view by three lines, as on XP, a touchpad by its
-    /// pixels.
+    /// The wheel or the touchpad scrolled over an Explorer window.
     pub(super) fn scroll_explorer(&mut self, node: &str, dy: f64, notches: f64) -> Vec<Command> {
         let Some(i) = self.explorer_of(node) else {
             return Vec::new();
         };
-        let pixels = if notches == 0.0 {
-            dy
-        } else {
-            notches * f64::from(3 * explorer::SCROLL_STEP)
-        };
-        #[allow(clippy::cast_possible_truncation)] // a few hundred pixels
-        let outcome = self.explorers[i].scroll_by(pixels.round() as i32);
+        let outcome = self.explorers[i].wheel(dy, notches);
         let id = self.explorers[i].id.clone();
         self.explorer_outcome(&id, outcome)
     }
@@ -182,10 +174,9 @@ impl Wm {
     /// when no thumb is down.
     pub(super) fn drag_explorer(&mut self, position: [f64; 2]) -> Option<Vec<Command>> {
         let e = self.explorers.iter_mut().find(|e| e.dragging())?;
-        if !e.drag(position) {
-            return Some(Vec::new());
-        }
-        Some(e.redraw(&mut self.theme, &mut self.icons))
+        let outcome = e.drag(position);
+        let id = e.id.clone();
+        Some(self.explorer_outcome(&id, outcome))
     }
 
     /// Lays out the Explorer windows whose size changed: maximized,
