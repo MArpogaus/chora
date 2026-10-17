@@ -494,9 +494,10 @@ impl State {
         self.focus_wanted.as_deref()
     }
 
-    /// Focuses a surface node, or nothing. A layer surface that a click
-    /// focused gives the keyboard back to a new focused surface. Taskbars learn first which surface
-    /// lost the focus, because some expect one active toplevel at a time.
+    /// Focuses a surface node, or nothing. A new focused surface takes the
+    /// keyboard from a layer surface that a click focused. Taskbars learn
+    /// first which surface lost the focus, because some expect one active
+    /// toplevel at a time.
     pub fn focus(&mut self, surface: Option<&str>) {
         self.scene.set_focused(surface);
         self.focus_of_scene(surface);
