@@ -312,7 +312,6 @@ fn named(core: &mut Core, admin: &mut crate::testing::Client, grant: Option<&str
 /// A frame queued before a revoke gets nothing of the screen into the shm
 /// of the killed client.
 #[test]
-#[ignore = "the next commits fix it"]
 fn a_revoke_drops_the_queued_frames_of_a_capturer() {
     let (mut core, dir) = socket_dir("cap");
     core.add_output("A", (64, 48));

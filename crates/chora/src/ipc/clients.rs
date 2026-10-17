@@ -133,6 +133,7 @@ impl State {
             return;
         };
         let handle = self.display_handle.backend_handle();
+        let mut killed = Vec::new();
         socket.clients.retain(|id| {
             let Ok(data) = handle.get_client_data(id.clone()) else {
                 return false;
@@ -143,9 +144,15 @@ impl State {
             let hit = capabilities.is_empty() || capabilities.iter().any(|c| granted.contains(c));
             if hit {
                 handle.kill_client(id.clone(), DisconnectReason::ConnectionClosed);
+                killed.push(id.clone());
             }
             !hit
         });
+        // A killed client stays until its next request; its frames that
+        // wait for a tick must not get the screen.
+        let gone = |client: Option<ClientId>| client.is_some_and(|id| killed.contains(&id));
+        self.copies.wlr.retain(|c| !gone(c.client()));
+        self.copies.ext.retain(|w| !gone(w.client()));
     }
 
     /// Why `clients.create` of a name must fail, if it must.

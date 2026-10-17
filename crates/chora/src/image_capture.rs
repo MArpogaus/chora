@@ -121,6 +121,10 @@ impl Waiting {
     /// frame. A source of a new size gives the session the new size first.
     pub fn serve(self, state: &mut State, pictures: &mut Pictures) {
         let Waiting { session, frame } = self;
+        // A client that went gets nothing.
+        if session.client().is_none() {
+            return;
+        }
         let target = match ready(state, &session) {
             Ok(target) => target,
             Err(reason) => {
