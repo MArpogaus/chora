@@ -108,7 +108,7 @@ pub struct Config {
 const HANDOVER: &str = "tiling";
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 18] = [
+const EVENTS: [&str; 19] = [
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -123,6 +123,7 @@ const EVENTS: [&str; 18] = [
     "output.changed",
     "output.removed",
     "input.key",
+    "focus.changed",
     "node.key",
     "input.button",
     "input.moved",
@@ -584,6 +585,9 @@ impl Wm {
             Event::PointerEntered { node, .. } => self.hovered(&node, true),
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
+            Event::FocusChanged {
+                surface: Some(surface),
+            } => self.focus_moved(&surface),
             _ => Vec::new(),
         };
         let mut commands = commands;
@@ -1353,6 +1357,22 @@ impl Wm {
         if let Some(surface) = self.focused.clone() {
             commands.extend(self.system_below_icon(&surface));
         }
+        commands
+    }
+
+    /// The core moved the keyboard focus to a surface: when it is no window
+    /// of `chora-xp`, as one of another window manager, the window of
+    /// `chora-xp` looks inactive and Alt+Space goes back to the clients.
+    fn focus_moved(&mut self, surface: &str) -> Vec<Command> {
+        if self.index(surface).is_some() {
+            return Vec::new();
+        }
+        let Some(previous) = self.focused.take() else {
+            return Vec::new();
+        };
+        self.grab_system_key(false);
+        let mut commands = self.restyle(&previous);
+        commands.extend(self.sync_tasks());
         commands
     }
 
