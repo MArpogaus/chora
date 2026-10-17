@@ -25,7 +25,7 @@ use smithay::{
             shell::server::xdg_toplevel,
         },
         wayland_server::{
-            Display, DisplayHandle, Resource, backend::ClientData, protocol::wl_surface::WlSurface,
+            Display, DisplayHandle, backend::ClientData, protocol::wl_surface::WlSurface,
         },
     },
     utils::{Clock, Logical, Monotonic, Point, SERIAL_COUNTER, Serial},
@@ -548,6 +548,14 @@ impl State {
     /// layer surface takes it or a node gets the focus.
     pub fn update_focus(&mut self) {
         let keyboard = self.seat.get_keyboard().expect("the seat has a keyboard");
+        // A click gives a layer surface the keyboard only while it is a
+        // mapped layer surface that takes the keyboard: its role, its
+        // keyboard interactivity or its output can go.
+        if let Some(layer) = &self.layer_focus
+            && self.keyboard_layer(layer).as_ref() != Some(layer)
+        {
+            self.layer_focus = None;
+        }
         if self.lock.is_some() {
             self.scene.unfocus_node();
             let target = self.lock_focus();
@@ -572,7 +580,7 @@ impl State {
             .and_then(|s| self.windows.get(s))
             .and_then(Window::toplevel)
             .map(|t| t.wl_surface().clone());
-        let clicked = self.layer_focus.clone().filter(Resource::is_alive);
+        let clicked = self.layer_focus.clone();
         let target = if node {
             None
         } else {
@@ -788,6 +796,35 @@ mod tests {
         assert_eq!(keyboard(&core), Some(id(&second)));
         wayland.destroy_layer(&mut core, &bar);
         assert_eq!(keyboard(&core), Some(id(&second)));
+    }
+
+    #[test]
+    fn a_clicked_layer_surface_gives_the_keyboard_back_when_it_cannot_keep_it() {
+        for case in ["role", "interactivity", "output"] {
+            let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+            let output = core.add_output("HDMI-1", (800, 600));
+            wayland.roundtrip(&mut core);
+            wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+            let panel = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::OnDemand);
+            let layer = smithay::desktop::layer_map_for_output(&output)
+                .layers()
+                .next()
+                .map(|l| l.wl_surface().clone());
+            core.state.set_layer_focus(layer);
+            assert_eq!(keyboard(&core), Some(panel.surface.id().protocol_id()));
+            match case {
+                "role" => wayland.destroy_layer_role(&mut core, &panel),
+                "interactivity" => {
+                    wayland.set_layer_keyboard(&mut core, &panel, KeyboardInteractivity::None);
+                }
+                _ => {
+                    core.state.remove_output(&output);
+                    core.dispatch();
+                }
+            }
+            assert_eq!(keyboard(&core), Some(id(&first)), "{case}");
+            assert_eq!(core.state.layer_focus, None, "{case}");
+        }
     }
 
     #[test]

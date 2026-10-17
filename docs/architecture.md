@@ -274,7 +274,8 @@ and `text-input` with `input-method`. Activation requests of
 layer surface that takes the keyboard exclusively, for example a launcher,
 has it from its first commit until it goes away, and it ends a popup grab.
 A click gives the keyboard to a layer surface that accepts it on demand,
-until the next click elsewhere. A popup grabs the input only with the serial
+until the next click elsewhere, until its role goes, until it no longer
+takes the keyboard, or until its output goes. A popup grabs the input only with the serial
 of the last press or of the last key or button event, press or release,
 that its client got: a menu opens on F10 when the key goes up.
 

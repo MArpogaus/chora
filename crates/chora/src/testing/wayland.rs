@@ -268,6 +268,24 @@ impl Wayland {
         lock
     }
 
+    /// Destroys the role of a layer surface and keeps its `wl_surface`.
+    pub fn destroy_layer_role(&mut self, core: &mut Core, layer: &LayerSurface) {
+        layer.layer.destroy();
+        self.roundtrip(core);
+    }
+
+    /// Sets the keyboard interactivity of a layer surface and commits.
+    pub fn set_layer_keyboard(
+        &mut self,
+        core: &mut Core,
+        layer: &LayerSurface,
+        keyboard: KeyboardInteractivity,
+    ) {
+        layer.layer.set_keyboard_interactivity(keyboard);
+        layer.surface.commit();
+        self.roundtrip(core);
+    }
+
     /// Destroys a layer surface.
     pub fn destroy_layer(&mut self, core: &mut Core, layer: &LayerSurface) {
         layer.layer.destroy();
