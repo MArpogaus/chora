@@ -105,7 +105,7 @@ impl Wm {
                     Open::Trash => self.open_explorer(Place::Trash),
                     _ => Vec::new(),
                 },
-                Item::Delete => self.confirm_trash(PathBuf::from(&item.key)),
+                Item::Delete => self.confirm_trash(vec![PathBuf::from(&item.key)]),
                 Item::EmptyTrash => {
                     let names: Vec<String> = folder::trash(&folder::trash_root())
                         .into_iter()
@@ -175,8 +175,8 @@ impl Wm {
         commands
     }
 
-    /// Asks whether to send a file or folder to the Recycle Bin.
-    fn confirm_trash(&mut self, path: PathBuf) -> Vec<Command> {
+    /// Asks whether to send files and folders to the Recycle Bin.
+    pub(super) fn confirm_trash(&mut self, paths: Vec<PathBuf>) -> Vec<Command> {
         let mut commands = Vec::new();
         if let Some(i) = self
             .panels
@@ -186,7 +186,7 @@ impl Wm {
             commands.push(self.panels.remove(i).window_ref().remove());
         }
         let icon = self.icons.find_sized("user-trash-full", 32);
-        let confirm = ConfirmDialog::trash(&self.theme, path, icon, self.work_area());
+        let confirm = ConfirmDialog::trash(&self.theme, paths, icon, self.work_area());
         let page = confirm.page();
         let mut panel = Panel::Confirm(confirm);
         commands.extend(panel.window().create(&mut self.theme, DIALOGS, page));
@@ -203,12 +203,14 @@ impl Wm {
         self.refresh_trash()
     }
 
-    /// Sends a file or folder to the Recycle Bin, and shows the icons and
-    /// the Explorer windows of the bin again.
-    pub(super) fn trash(&mut self, path: &Path) -> Vec<Command> {
+    /// Sends files and folders to the Recycle Bin, and shows the icons
+    /// and the Explorer windows of the bin again.
+    pub(super) fn trash(&mut self, paths: &[PathBuf]) -> Vec<Command> {
         let date = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string();
-        if let Err(err) = folder::trash_file(&folder::trash_root(), path, &date) {
-            eprintln!("chora-xp: delete {}: {err}", path.display());
+        for path in paths {
+            if let Err(err) = folder::trash_file(&folder::trash_root(), path, &date) {
+                eprintln!("chora-xp: delete {}: {err}", path.display());
+            }
         }
         self.refresh_trash()
     }

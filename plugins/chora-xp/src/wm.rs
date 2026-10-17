@@ -2108,11 +2108,8 @@ impl Wm {
     fn drop_icons(&mut self, target: Drop) -> Option<Vec<Command>> {
         let (paths, mut commands) = self.desk.drop_out()?;
         match target {
-            Drop::Trash => {
-                for path in &paths {
-                    commands.extend(self.trash(path));
-                }
-            }
+            // XP asks first, as for Delete.
+            Drop::Trash => commands.extend(self.confirm_trash(paths)),
             Drop::Folder(id, dir) => {
                 let mut clash = None;
                 for path in &paths {
@@ -2523,7 +2520,7 @@ impl Wm {
                 commands.extend(self.close_panel(i));
                 if ConfirmDialog::yes(hit) {
                     commands.extend(match then {
-                        Then::Trash(path) => self.trash(&path),
+                        Then::Trash(paths) => self.trash(&paths),
                         Then::Empty => self.empty_trash(),
                         Then::Replace(path, dir) => self.replace(&path, &dir),
                     });

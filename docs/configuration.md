@@ -418,11 +418,12 @@ into the folder item under the pointer: a file or a folder moves on the
 same file system and is copied to another one, as XP moves on one drive
 and copies to another. When the folder has a file of the name, XP's
 Confirm File Replace asks first, and Yes replaces it; a folder of the
-name stays, and `chora-xp` logs it. A drop on the window of the Recycle Bin, or on
-its desktop icon, sends the files to the Recycle Bin. Beyond
-this and Empty the Recycle Bin, the window changes no file. The keyboard does not work it (D45). Its icons come from the icon
-theme, XP's own when `WindowsXP` of `get-microsoft-files.sh` is
-installed.
+name stays, and `chora-xp` logs it. A drop on the window of the Recycle
+Bin, or on its desktop icon, asks first, as Delete does, and Yes sends
+the files to the Recycle Bin. Beyond this and Empty the Recycle Bin, the
+window changes no file. The keyboard does not work it (D45). Its icons
+come from the icon theme, XP's own when `WindowsXP` of
+`get-microsoft-files.sh` is installed.
 
 The Control Panel opens as a menu, as with XP's "Display as a menu". A
 check mark shows the current choice of each entry, and a click on an

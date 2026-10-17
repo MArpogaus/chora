@@ -27,8 +27,8 @@ pub struct ConfirmDialog {
 pub enum Then {
     /// Empties the Recycle Bin.
     Empty,
-    /// Sends a file or a folder to the Recycle Bin.
-    Trash(PathBuf),
+    /// Sends files and folders to the Recycle Bin.
+    Trash(Vec<PathBuf>),
     /// Drops a file into a folder in place of the file of its name.
     Replace(PathBuf, PathBuf),
 }
@@ -53,14 +53,24 @@ impl ConfirmDialog {
         Self::ask(theme, title, question, icon, area)
     }
 
-    /// The question before Delete sends a file or a folder to the
-    /// Recycle Bin, as XP asks it.
-    pub fn trash(theme: &Theme, path: PathBuf, icon: Option<PathBuf>, area: Rect) -> Self {
-        let name = path
-            .file_name()
+    /// The question before Delete or a drop on the Recycle Bin sends
+    /// files and folders there, as XP asks it: one by its name, more by
+    /// their number.
+    pub fn trash(theme: &Theme, paths: Vec<PathBuf>, icon: Option<PathBuf>, area: Rect) -> Self {
+        let name = paths
+            .first()
+            .and_then(|p| p.file_name())
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
-        let (title, question) = if path.is_dir() {
+        let (title, question) = if paths.len() > 1 {
+            (
+                "Confirm Multiple File Delete",
+                format!(
+                    "Are you sure you want to send these {} items to the Recycle Bin?",
+                    paths.len()
+                ),
+            )
+        } else if paths.first().is_some_and(|p| p.is_dir()) {
             (
                 "Confirm Folder Delete",
                 format!(
@@ -74,7 +84,7 @@ impl ConfirmDialog {
             )
         };
         let mut dialog = Self::ask(theme, title, question, icon, area);
-        dialog.then = Then::Trash(path);
+        dialog.then = Then::Trash(paths);
         dialog
     }
 
@@ -164,12 +174,17 @@ mod tests {
         preview(&mut theme, &two.dialog, "confirm");
         assert!(ConfirmDialog::yes(&Hit::Control("yes".into(), [1, 1])));
         assert!(!ConfirmDialog::yes(&Hit::Close));
-        let file = ConfirmDialog::trash(&theme, "/d/notes.txt".into(), None, area);
+        let file = ConfirmDialog::trash(&theme, vec!["/d/notes.txt".into()], None, area);
         assert_eq!(
             file.question,
             "Are you sure you want to send 'notes.txt' to the Recycle Bin?"
         );
-        assert_eq!(file.then, Then::Trash("/d/notes.txt".into()));
+        assert_eq!(file.then, Then::Trash(vec!["/d/notes.txt".into()]));
+        let both = ConfirmDialog::trash(&theme, vec!["/a".into(), "/b".into()], None, area);
+        assert_eq!(
+            both.question,
+            "Are you sure you want to send these 2 items to the Recycle Bin?"
+        );
         let replace = ConfirmDialog::replace(&theme, "/d/a.txt".into(), "/e".into(), None, area);
         assert!(replace.question.contains("a file named 'a.txt'"));
         let _ = std::fs::remove_dir_all(cache);
