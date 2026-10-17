@@ -512,6 +512,7 @@ const ACCESS: &[(&str, usize)] = &[
     ("Add to Favorites...", 0),
     ("Adjust Date/Time", 0),
     ("Arrange Icons By", 8),
+    ("Back", 0),
     ("Cascade Windows", 2),
     ("Close", 0),
     ("Copy", 0),
@@ -525,6 +526,7 @@ const ACCESS: &[(&str, usize)] = &[
     ("Explore", 0),
     ("Explorer Bar", 0),
     ("Folder Options...", 7),
+    ("Forward", 0),
     ("Go To", 0),
     ("Help and Support Center", 0),
     ("Icons", 3),
@@ -561,6 +563,7 @@ const ACCESS: &[(&str, usize)] = &[
     ("Toolbars", 0),
     ("Type", 0),
     ("Undo", 0),
+    ("Up One Level", 0),
 ];
 
 /// What a key does in a menu, a context menu or the start menu.
@@ -606,10 +609,6 @@ impl Menu {
         min_width: i32,
     ) -> Self {
         let mut level = Level::new(entries, theme, min_width);
-        // A drop-down list starts on its current value, as on XP.
-        if min_width > 0 {
-            level.hovered = level.entries.iter().position(|e| e.checked);
-        }
         let [x, y] = place([level.rect[2], level.rect[3]], point, area);
         level.rect[0] = x;
         level.rect[1] = y;
@@ -619,6 +618,21 @@ impl Menu {
             down: None,
             cues: false,
         }
+    }
+
+    /// A drop-down list as wide as its field: it opens on its current
+    /// value, the checked row, as on XP.
+    pub fn list(
+        theme: &Theme,
+        entries: Vec<Entry>,
+        point: [i32; 2],
+        area: Rect,
+        width: i32,
+    ) -> Self {
+        let mut list = Self::new(theme, entries, point, area, width);
+        let root = &mut list.levels[0];
+        root.hovered = root.entries.iter().position(|e| e.checked);
+        list
     }
 
     /// Whether a node belongs to a context menu.
@@ -849,11 +863,15 @@ impl Menu {
     /// out of a submenu: no submenu is open, and for Right the lit row
     /// opens none.
     pub fn goes_beside(&self, right: bool) -> bool {
-        let root = &self.levels[0];
-        let opens = root
+        let level = &self.levels[self.levels.len() - 1];
+        let opens = level
             .hovered
-            .is_some_and(|i| root.entries[i].enabled && !root.entries[i].sub.is_empty());
-        self.levels.len() == 1 && !(right && opens)
+            .is_some_and(|i| level.entries[i].enabled && !level.entries[i].sub.is_empty());
+        if right {
+            !opens
+        } else {
+            self.levels.len() == 1
+        }
     }
 
     /// A letter: the one enabled row with it as its access key acts, as
@@ -1275,7 +1293,7 @@ mod tests {
             Entry::item("January", Act::Cascade),
             Entry::item("February", Act::Cascade).checked(true),
         ];
-        let list = Menu::new(&theme, list, [10, 10], SCREEN, 120);
+        let list = Menu::list(&theme, list, [10, 10], SCREEN, 120);
         assert_eq!(list.levels[0].hovered, Some(1));
         let _ = std::fs::remove_dir_all(cache);
     }

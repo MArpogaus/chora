@@ -477,6 +477,11 @@ impl Explorer {
         self.bar_menu.is_some()
     }
 
+    /// The menu of the menu bar closed: its title is no longer lit.
+    pub fn bar_closed(&mut self) {
+        self.bar_menu = None;
+    }
+
     /// The rows of a menu of the menu bar.
     fn menu(&self, title: &str) -> Vec<Entry> {
         match title {
@@ -529,7 +534,8 @@ impl Explorer {
             body: None,
             controls: MENUS
                 .iter()
-                .map(|(title, x)| menu_title(theme, title, *x))
+                .enumerate()
+                .map(|(i, (title, x))| menu_title(theme, title, *x, self.bar_menu == Some(i)))
                 .collect(),
             ..Page::default()
         };
@@ -1295,7 +1301,7 @@ fn chrome([w, h]: [i32; 2]) -> String {
 }
 
 /// The title of a menu: white on XP's blue under the pointer.
-fn menu_title(theme: &Theme, title: &str, x: i32) -> Control {
+fn menu_title(theme: &Theme, title: &str, x: i32, open: bool) -> Control {
     #[allow(clippy::cast_possible_truncation)]
     let width = theme.text_width(title, Font::Ui).ceil() as i32 + 12;
     let rect = [x - 6, 1, width, MENU_H - 2];
@@ -1327,12 +1333,13 @@ fn menu_title(theme: &Theme, title: &str, x: i32) -> Control {
             [6, 0, width - 6, MENU_H - 2],
         ))
     };
-    Control::hover(
-        &format!("menu-{title}"),
-        rect,
-        draw(BLACK, false),
-        draw(WHITE, true),
-    )
+    // The title of the open menu stays lit, as on XP.
+    let normal = if open {
+        draw(WHITE, true)
+    } else {
+        draw(BLACK, false)
+    };
+    Control::hover(&format!("menu-{title}"), rect, normal, draw(WHITE, true))
 }
 
 /// The light frame of a toolbar button under the pointer.

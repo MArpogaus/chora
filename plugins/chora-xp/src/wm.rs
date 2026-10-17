@@ -1654,7 +1654,13 @@ impl Wm {
             .iter_mut()
             .find(|e| e.id == id)?
             .bar_beside(right)?;
-        let mut commands = self.close_context();
+        // The menu goes, and the title of the next one lights up.
+        self.bar_menu = None;
+        let mut commands = self
+            .context
+            .take()
+            .map(|(menu, _)| menu.remove())
+            .unwrap_or_default();
         commands.extend(self.explorer_outcome(&id, outcome));
         // The menu beside opens on its first row.
         commands.extend(self.node_key("Home"));
@@ -1662,11 +1668,18 @@ impl Wm {
     }
 
     fn close_context(&mut self) -> Vec<Command> {
-        self.bar_menu = None;
+        let mut commands = Vec::new();
+        // The title of a menu of the menu bar goes dark.
+        if let Some(id) = self.bar_menu.take()
+            && let Some(e) = self.explorers.iter_mut().find(|e| e.id == id)
+        {
+            e.bar_closed();
+            commands.extend(self.redraw_explorer(&id));
+        }
         let Some((menu, _)) = self.context.take() else {
-            return Vec::new();
+            return commands;
         };
-        let mut commands = menu.remove();
+        commands.extend(menu.remove());
         // The keyboard goes back to the desktop, when it had it.
         commands.extend(self.desktop_keys());
         commands
@@ -2300,7 +2313,7 @@ impl Wm {
             .find(|b| b.contains(point))
             .or(self.bars.first())
             .map_or([0, 0, 1280, 800], Bar::area);
-        let menu = context::Menu::new(&self.theme, entries, point, area, width);
+        let menu = context::Menu::list(&self.theme, entries, point, area, width);
         self.show_context(menu, area)
     }
 
@@ -2407,7 +2420,7 @@ impl Wm {
                         .find(|b| b.contains(point))
                         .or(self.bars.first());
                     let area = area.map_or([0, 0, 1280, 800], Bar::area);
-                    let menu = context::Menu::new(&self.theme, entries, point, area, width);
+                    let menu = context::Menu::list(&self.theme, entries, point, area, width);
                     commands.extend(self.show_context(menu, area));
                     return commands;
                 }

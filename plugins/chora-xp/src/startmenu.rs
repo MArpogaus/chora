@@ -608,6 +608,9 @@ impl Menu {
                     None => Key::Close,
                 };
             }
+            // &Log Off and T&urn Off Computer, as on XP.
+            ("l" | "L", _) => return Key::Act(Action::LogOff),
+            ("u" | "U", _) => return Key::Act(Action::TurnOff),
             ("Down" | "Up", None) => self.column(true).first().copied(),
             ("Home" | "End", Some(i)) => {
                 let column = self.column(self.entries[i].rect[0] < LEFT);

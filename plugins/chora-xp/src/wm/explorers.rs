@@ -120,9 +120,10 @@ impl Wm {
                     .or(self.bars.first())
                     .map_or([0, 0, 1280, 800], Bar::area);
                 let menu = context::Menu::new(&self.theme, entries, point, area, 0);
-                let commands = self.show_context(menu, area);
+                let mut commands = self.show_context(menu, area);
                 if self.explorers.iter().any(|e| e.id == id && e.bar_open()) {
                     self.bar_menu = Some(id.into());
+                    commands.extend(self.redraw_explorer(id));
                 }
                 commands
             }
