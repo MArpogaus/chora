@@ -111,7 +111,10 @@ name, not a connection, so several `choractl` calls share their nodes.
   detached.
 - When the last connection of a name closes, the core removes the nodes of
   that name. Its surfaces become detached. A client that connects with
-  `keep_nodes`, for example `choractl`, keeps its nodes.
+  `keep_nodes`, for example `choractl`, keeps its nodes. A client that
+  connects with `resume`, for example a window manager, keeps them for a
+  grace time of 10 s; a restart within it gets them back (see
+  [API](api.md#ipc-methods)).
 
 ### Cameras
 
@@ -129,7 +132,8 @@ The output scale then gives the pixels.
   claims an output before it appears. The first client that sets the
   camera of an output owns it. When the owner
   disconnects, the output gets its default camera back, unless the owner
-  keeps its nodes with `keep_nodes`. The reset restores all default cameras.
+  keeps its nodes with `keep_nodes`, or with `resume` until the end of its
+  grace time. The reset restores all default cameras.
 - Two outputs side by side get two adjacent default cameras. A window across
   two outputs then needs no special case.
 
@@ -294,9 +298,9 @@ The safety layer is the only built-in behavior (see
   [Input injection](api.md#input-injection).
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
-- **Emergency reset.** The core disconnects all plugins, revokes all grants,
-  removes all effects, restores the default cameras and puts all surfaces in
-  a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
+- **Emergency reset.** The core disconnects all plugins, ends their grace
+  times, revokes all grants, removes all effects, restores the default
+  cameras and puts all surfaces in a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
   configuration cannot break it. The reset also changes the focus (see
   [Input flow](#input-flow)).
 - **Session lock.** The core enforces `ext-session-lock`. One client owns
@@ -315,8 +319,8 @@ The safety layer is the only built-in behavior (see
   clients keep theirs. When frames stay slow for two more seconds and the
   client had a load of at least 500, the core disconnects it, at most once
   a minute. Its nodes go as on any disconnect, also those of a client with
-  `keep_nodes`. The watchdog never starts the emergency reset; only the
-  binding and SIGUSR1 do.
+  `keep_nodes` or `resume`, without a grace time. The watchdog never
+  starts the emergency reset; only the binding and SIGUSR1 do.
 
 ## Permissions
 
