@@ -8,6 +8,8 @@
 // The grids have at most 21 points a side, so `usize` to `f64` is exact.
 #![allow(clippy::cast_precision_loss)]
 
+use std::time::Instant;
+
 use chora_scene::Mesh;
 
 /// Control points along each side.
@@ -42,6 +44,8 @@ pub struct Wobble {
     held: bool,
     /// Whether the last step moved anything.
     moving: bool,
+    /// The time the grid reached.
+    last: Instant,
 }
 
 impl Wobble {
@@ -62,6 +66,7 @@ impl Wobble {
             grab: index(1) * SIDE + index(0),
             held: true,
             moving: true,
+            last: Instant::now(),
         };
         for i in 0..COUNT {
             wobble.at[i] = wobble.place(i, origin);
@@ -72,6 +77,15 @@ impl Wobble {
     /// Lets go of the window; it shakes until it settles.
     pub fn release(&mut self) {
         self.held = false;
+    }
+
+    /// Advances the grid to a time, for a window at an origin: in each
+    /// frame, and when the pointer moves the window, so that the drawn
+    /// mesh never lags the pointer by the rest of a frame.
+    pub fn advance(&mut self, origin: [f64; 2], now: Instant) {
+        let dt = now.saturating_duration_since(self.last).as_secs_f64();
+        self.last = now;
+        self.step(origin, dt);
     }
 
     /// Advances the grid by a time in seconds, for a window at an origin.
@@ -85,7 +99,7 @@ impl Wobble {
     }
 
     /// Whether the grid rests, after the release.
-    pub fn settled(&self, _origin: [f64; 2]) -> bool {
+    pub fn settled(&self) -> bool {
         !self.held && !self.moving
     }
 
@@ -272,7 +286,7 @@ mod tests {
         w.step([80.0, 40.0], 1.0 / 60.0);
         w.release();
         let mut frames = 0;
-        while !w.settled([80.0, 40.0]) {
+        while !w.settled() {
             w.step([80.0, 40.0], 1.0 / 60.0);
             frames += 1;
             assert!(frames < 600, "still wobbling after 10 s");
@@ -289,5 +303,21 @@ mod tests {
         assert!((mesh.points[0][0]).abs() < 1e-9 && (mesh.points[0][1]).abs() < 1e-9);
         assert!((mesh.points[last][0] - 400.0).abs() < 1e-9);
         assert!((mesh.points[last][1] - 300.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn the_drawn_point_under_the_pointer_lags_little_in_a_steady_drag() {
+        // A window of 400 by 300 grabbed at the top middle, dragged by
+        // 20 pixels per frame for a second.
+        let grab = [200.0, 0.0];
+        let mut w = Wobble::new([400.0, 300.0], [0.0, 0.0], grab);
+        let mut origin = [0.0, 0.0];
+        for _ in 0..60 {
+            origin[0] += 20.0;
+            w.step(origin, 1.0 / 60.0);
+        }
+        let drawn = w.bezier(0.5, 0.0);
+        let lag = (origin[0] + grab[0]) - drawn[0];
+        assert!(lag > 1.0 && lag < 10.0, "the drawn point lags {lag} pixels");
     }
 }

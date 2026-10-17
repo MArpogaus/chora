@@ -76,7 +76,7 @@ impl Wm {
             .as_secs_f64();
         self.effects.last = now;
         let mut commands = self.resize_frame();
-        commands.extend(self.wobble_frame(dt));
+        commands.extend(self.wobble_frame(now));
         commands.extend(self.lamp_frame(now));
         commands.extend(self.cube_frame(now));
         commands.extend(self.fade_frame(now));
@@ -118,14 +118,16 @@ impl Wm {
         }
     }
 
-    /// The mesh of a wobbling window or dialog at its current place.
-    pub(super) fn wobble_mesh(&self, key: &str) -> Option<Command> {
-        let wobble = self.effects.wobbles.get(key)?;
+    /// The mesh of a wobbling window or dialog at its current place, with
+    /// the grid advanced to now.
+    pub(super) fn wobble_mesh(&mut self, key: &str) -> Option<Command> {
         let (group, origin, size) = self.wobble_target(key)?;
+        let wobble = self.effects.wobbles.get_mut(key)?;
+        wobble.advance(origin, Instant::now());
         Some(mesh_update(&group, size, wobble.mesh(origin)))
     }
 
-    fn wobble_frame(&mut self, dt: f64) -> Vec<Command> {
+    fn wobble_frame(&mut self, now: Instant) -> Vec<Command> {
         let mut commands = Vec::new();
         let mut settled = Vec::new();
         let keys: Vec<String> = self.effects.wobbles.keys().cloned().collect();
@@ -137,8 +139,8 @@ impl Wm {
             let Some(wobble) = self.effects.wobbles.get_mut(&key) else {
                 continue;
             };
-            wobble.step(origin, dt);
-            if wobble.settled(origin) {
+            wobble.advance(origin, now);
+            if wobble.settled() {
                 settled.push(key);
                 commands.push(unmesh(&group));
             } else {
