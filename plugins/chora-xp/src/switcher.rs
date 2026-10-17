@@ -36,7 +36,7 @@ pub struct Entry {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Switcher {
     pub entries: Vec<Entry>,
-    pub selected: usize,
+    chosen: usize,
 }
 
 impl Switcher {
@@ -46,24 +46,25 @@ impl Switcher {
         if entries.is_empty() {
             return None;
         }
-        let mut switcher = Self {
-            entries,
-            selected: 0,
-        };
+        let mut switcher = Self { entries, chosen: 0 };
         switcher.step(step);
         Some(switcher)
     }
 
-    /// Moves the choice by a step, around the ends.
+    /// Moves the choice to the next window, or with a negative step to the
+    /// previous one, around the ends.
     pub fn step(&mut self, step: i32) {
-        let count = i64::try_from(self.entries.len()).unwrap_or(1);
-        let next = (i64::try_from(self.selected).unwrap_or(0) + i64::from(step)).rem_euclid(count);
-        self.selected = usize::try_from(next).unwrap_or(0);
+        let n = self.entries.len();
+        self.chosen = if step < 0 {
+            (self.chosen + n - 1) % n
+        } else {
+            (self.chosen + 1) % n
+        };
     }
 
     /// The chosen window.
     pub fn chosen(&self) -> &str {
-        &self.entries[self.selected].surface
+        &self.entries[self.chosen].surface
     }
 
     /// The picture of the box.
@@ -84,7 +85,7 @@ impl Switcher {
         for (i, entry) in self.entries.iter().enumerate() {
             let i = i32::try_from(i).unwrap_or(0);
             let [x, y] = [pad + i % columns * CELL, pad + i / columns * CELL];
-            if i == i32::try_from(self.selected).unwrap_or(-1) {
+            if usize::try_from(i) == Ok(self.chosen) {
                 picture = picture.frame(Sheet::Winxp, "alttab-selection", [x, y, CELL, CELL]);
             }
             if let Some(icon) = &entry.icon {
@@ -95,7 +96,7 @@ impl Switcher {
         let title: Rect = [pad, pad + gh + GAP, gw, TITLE];
         picture = picture.frame(Sheet::Winxp, "alttab-title", title);
         let [x, y, tw, th] = title;
-        let text = &self.entries[self.selected].title;
+        let text = &self.entries[self.chosen].title;
         picture
             .text(Text::new(text, Font::Ui, BLACK, [x + inset, y, tw - 2 * inset, th]).centered())
     }

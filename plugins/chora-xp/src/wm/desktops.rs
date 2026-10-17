@@ -12,6 +12,7 @@ use crate::{
     cube::{self, DESKTOPS, Face, Turn, View},
     decoration, desktop_icons,
     taskbar::Bar,
+    theme::Rect,
     wallpaper,
 };
 
@@ -62,8 +63,7 @@ impl Wm {
         commands
     }
 
-    /// Starts a turn of the cube by some quarter turns: the faces with the
-    /// wallpaper go below the windows of each desktop.
+    /// Starts a turn of the cube by some quarter turns.
     pub(super) fn turn(&mut self, steps: i32) -> Vec<Command> {
         if self.effects.turn.is_some() || steps == 0 {
             return Vec::new();
@@ -77,7 +77,10 @@ impl Wm {
         let duration = self
             .slow(TURN_TIME)
             .mul_f64(f64::from(steps.unsigned_abs()));
-        self.begin_turn(Turn::new(self.desktop, steps, View::of(area), duration))
+        self.begin_turn(
+            Turn::new(self.desktop, steps, View::of(area), duration),
+            area,
+        )
     }
 
     /// Super and the left button down: the pointer turns the cube, from
@@ -90,7 +93,7 @@ impl Wm {
             return Vec::new();
         }
         self.cube_grab = Some(x);
-        self.begin_turn(Turn::held(self.desktop, View::of(area)))
+        self.begin_turn(Turn::held(self.desktop, View::of(area)), area)
     }
 
     /// The pointer moved with Super and the left button down.
@@ -99,7 +102,8 @@ impl Wm {
             return Vec::new();
         };
         turn.hold(x - start);
-        self.cube_frame(Instant::now())
+        // The frames of the effects draw it.
+        Vec::new()
     }
 
     /// The left button went up: the cube turns on to the nearest face.
@@ -113,8 +117,7 @@ impl Wm {
 
     /// Shows the faces of the cube for a turn: the faces with the
     /// wallpaper go below the windows of each desktop.
-    fn begin_turn(&mut self, turn: Turn) -> Vec<Command> {
-        let area = self.bars.first().map_or([0, 0, 1280, 800], Bar::area);
+    fn begin_turn(&mut self, turn: Turn, area: Rect) -> Vec<Command> {
         let mut commands = self.settle_for_turn();
         self.effects.turn = Some(turn);
         let [x, y, w, h] = area;

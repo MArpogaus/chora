@@ -63,6 +63,8 @@ pub struct Turn {
     begin: f64,
     /// The angle while the pointer turns the cube.
     held: Option<f64>,
+    /// The pointer turned the cube: its phase follows the angle.
+    by_pointer: bool,
 }
 
 /// A face that shows: its desktop, its turn in radians and its depth.
@@ -87,6 +89,7 @@ impl Turn {
             duration,
             begin: 0.0,
             held: None,
+            by_pointer: false,
         }
     }
 
@@ -94,6 +97,7 @@ impl Turn {
     pub fn held(from: usize, view: View) -> Self {
         Self {
             held: Some(0.0),
+            by_pointer: true,
             ..Self::new(from, 0, view, Duration::ZERO)
         }
     }
@@ -116,6 +120,8 @@ impl Turn {
         self.steps = steps;
         self.begin = angle;
         self.start = Instant::now();
+        // At least a fifth of a quarter turn, so that a turn just short
+        // of a face still shows.
         self.duration = quarter.mul_f64(rest.max(0.2));
     }
 
@@ -135,7 +141,7 @@ impl Turn {
     /// How far the cube is between its faces at a time, from 0 to 1: it
     /// moves back and its windows fly off by this share.
     pub fn phase(&self, t: f64) -> f64 {
-        if self.held.is_some() || self.begin != 0.0 {
+        if self.by_pointer {
             (2.0 * self.angle(t)).sin().abs()
         } else {
             (PI * t).sin()
@@ -309,5 +315,13 @@ mod tests {
         back.hold(100.0);
         back.release(Duration::from_millis(800));
         assert_eq!(back.target(), 2);
+    }
+
+    #[test]
+    fn a_click_without_a_drag_keeps_the_cube_still() {
+        let mut turn = Turn::held(1, view());
+        turn.release(Duration::from_millis(800));
+        assert_eq!(turn.target(), 1);
+        assert!(turn.phase(0.5).abs() < 1e-9, "{}", turn.phase(0.5));
     }
 }

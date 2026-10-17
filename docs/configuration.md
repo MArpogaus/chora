@@ -541,11 +541,11 @@ of another client changes nothing.
 | Binding | Action |
 |---------|--------|
 | Alt+F4 | close the focused window |
-| Alt+Tab, Alt+Shift+Tab | XP's switcher: the icons of the windows of the desktop, the most recent first; Tab chooses the next, Shift+Tab the one before, and the release of Alt activates the chosen window |
+| Alt+Tab, Alt+Shift+Tab | open XP's switcher with the windows of the desktop, the most recent first. Tab chooses the next window, Shift+Tab the previous window. The release of Alt activates the chosen window. |
 | Super+e | start the terminal |
 | Ctrl+Alt+Left, Ctrl+Alt+Right | turn the cube to the previous or next desktop |
 | Ctrl+Alt+Shift+Left, Ctrl+Alt+Shift+Right | turn the cube and take the focused window along |
-| Super and a drag with the left button | turn the cube with the pointer: a drag over the width of the output is a quarter turn; at the release the cube turns on to the nearest desktop |
+| Super and a drag with the left button | turn the cube with the pointer. A drag over the width of the output is a quarter turn. At the release, the cube turns to the nearest desktop. |
 | a desktop button 1 to 4 | turn the cube to that desktop |
 
 The safety layer keeps only Ctrl+Alt with BackSpace, Escape and F1 to F12,

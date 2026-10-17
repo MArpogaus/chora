@@ -132,7 +132,7 @@ const KEYS: [(&str, &str, Key); 9] = [
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
     ("Alt+Tab", "", Key::Switch(1)),
-    ("Alt+Shift+Tab", "Alt+Shift+ISO_Left_Tab", Key::Switch(-1)),
+    ("Alt+Shift+Tab", "", Key::Switch(-1)),
     ("Super+e", "", Key::Terminal),
     ("Ctrl+Alt+Left", "Super+Ctrl+Left", Key::Turn(-1)),
     ("Ctrl+Alt+Right", "Super+Ctrl+Right", Key::Turn(1)),
@@ -1103,9 +1103,9 @@ impl Wm {
                 state: PressState::Pressed,
             } => self.key(&binding),
             Event::InputKey {
-                binding,
                 state: PressState::Released,
-            } => self.key_released(&binding),
+                ..
+            } => self.key_released(),
             Event::InputButton {
                 state, position, ..
             } => match state {
@@ -1163,20 +1163,17 @@ impl Wm {
                 .map(|w| switcher::Entry {
                     surface: w.surface.clone(),
                     title: w.title.clone(),
-                    icon: self
-                        .icons
-                        .program_sized(w.app_id.as_deref().unwrap_or_default(), 32),
+                    icon: match self.explorers.iter().find(|e| e.id == w.surface) {
+                        Some(e) => e.icon_sized(&mut self.icons, 32),
+                        None => self
+                            .icons
+                            .program_sized(w.app_id.as_deref().unwrap_or_default(), 32),
+                    },
                 })
                 .collect::<Vec<_>>();
-            let Some(mut switcher) = Switcher::new(entries, step) else {
+            let Some(switcher) = Switcher::new(entries, step) else {
                 return Vec::new();
             };
-            // The icons of the windows of the plugin.
-            for entry in &mut switcher.entries {
-                if let Some(e) = self.explorers.iter().find(|e| e.id == entry.surface) {
-                    entry.icon = e.icon_sized(&mut self.icons, 32).or(entry.icon.take());
-                }
-            }
             self.switcher = Some(switcher);
         }
         let Some(switcher) = &self.switcher else {
@@ -1212,7 +1209,7 @@ impl Wm {
 
     /// The release of the modifier of a key: Alt up after Alt+Tab
     /// activates the chosen window.
-    fn key_released(&mut self, _binding: &str) -> Vec<Command> {
+    fn key_released(&mut self) -> Vec<Command> {
         let Some(switcher) = self.switcher.take() else {
             return Vec::new();
         };
