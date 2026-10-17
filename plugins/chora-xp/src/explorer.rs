@@ -1582,6 +1582,12 @@ mod tests {
                 .count()
         };
         assert!(created(&commands) <= 4, "{commands:?}");
+        // Only the tiles at the edges get new pictures.
+        let pictures = commands
+            .iter()
+            .filter(|c| matches!(c, Command::Update { props, .. } if props.image.is_some()))
+            .count();
+        assert!(pictures <= 6, "{pictures} new pictures");
         assert!(!commands.iter().any(|c| matches!(
             c,
             Command::Remove { id } if id == "xpx1-view"

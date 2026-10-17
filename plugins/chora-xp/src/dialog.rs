@@ -140,6 +140,14 @@ impl Control {
         self
     }
 
+    /// Whether another control looks the same, wherever it is.
+    fn looks_like(&self, other: &Self) -> bool {
+        self.kind == other.kind
+            && self.label == other.label
+            && self.enabled == other.enabled
+            && self.rect[2..] == other.rect[2..]
+    }
+
     /// Whether a point of the client area is on the control.
     fn contains(&self, [px, py]: [i32; 2]) -> bool {
         let [x, y, w, h] = self.rect;
@@ -796,7 +804,7 @@ impl Content {
                     props: at([control.rect[0], control.rect[1]]),
                 });
             }
-            if was != control {
+            if !was.looks_like(control) {
                 commands.push(self.control_look(theme, i));
             }
         }
