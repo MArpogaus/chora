@@ -14,6 +14,8 @@ use crate::{
     apps::{self, Node},
     cascade::{self, Cascade, Margins, Row},
     control::Setting,
+    desktop_icons, explorer,
+    folder::Place,
     icons::Icons,
     text::{Font, Text},
     theme::{Picture, Rect, Sheet, Theme},
@@ -47,6 +49,8 @@ pub enum Action {
     TurnOff,
     /// Changes a setting of the Control Panel.
     Set(Setting),
+    /// Opens a place in XP's Explorer.
+    Explore(Place),
 }
 
 /// The column or the footer of an entry.
@@ -664,21 +668,43 @@ fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
 
 /// The places of the right column; an empty title is a separator.
 fn places(config: &Config, icons: &mut Icons) -> Vec<Entry> {
-    let open = |dir: &str| format!("xdg-open \"$HOME/{dir}\"");
+    // The user directories, else the folders of XP's names in the home
+    // directory.
+    let folder = |var: &str, name: &str| {
+        let home = std::env::var_os("HOME").map_or_else(|| "/".into(), PathBuf::from);
+        let dir = desktop_icons::user_dir(var).unwrap_or_else(|| home.join(name));
+        Action::Explore(Place::Folder(dir))
+    };
+    let run = |command: &str| Action::Run(command.into());
     let list = [
-        ("My Documents", open("Documents"), "folder-documents", true),
-        ("My Pictures", open("Pictures"), "folder-pictures", true),
-        ("My Music", open("Music"), "folder-music", true),
-        ("My Computer", "xdg-open /".into(), "computer", true),
-        ("", String::new(), "", false),
+        (
+            "My Documents",
+            Action::Explore(Place::Folder(explorer::documents())),
+            "folder-documents",
+            true,
+        ),
+        (
+            "My Pictures",
+            folder("PICTURES", "Pictures"),
+            "folder-pictures",
+            true,
+        ),
+        ("My Music", folder("MUSIC", "Music"), "folder-music", true),
+        (
+            "My Computer",
+            Action::Explore(Place::Computer),
+            "computer",
+            true,
+        ),
+        ("", run(""), "", false),
         // A cascade, as with XP's "Display as a menu".
-        (CONTROL_PANEL, String::new(), "preferences-system", false),
-        ("", String::new(), "", false),
-        ("Run...", config.launcher.clone(), "system-run", false),
+        (CONTROL_PANEL, run(""), "preferences-system", false),
+        ("", run(""), "", false),
+        ("Run...", run(&config.launcher), "system-run", false),
     ];
     let mut y = HEADER + 1 + 5;
     let mut entries = Vec::new();
-    for (title, command, icon, bold) in list {
+    for (title, action, icon, bold) in list {
         if title.is_empty() {
             y += SEPARATOR;
             continue;
@@ -689,7 +715,7 @@ fn places(config: &Config, icons: &mut Icons) -> Vec<Entry> {
             icon: icons.find(icon),
             bold,
             kind: Kind::Place,
-            action: Action::Run(command),
+            action,
             cascade: title == CONTROL_PANEL,
             rect: [
                 FRAME + LEFT + 1 + 2,

@@ -315,11 +315,17 @@ Confirm File Delete or Confirm Multiple File Delete, and Yes deletes the
 files and folders of the trash and their info files for good. Restore
 all items is gray.
 
+My Documents, My Pictures and My Music of the start menu
+(`XDG_DOCUMENTS_DIR`, `XDG_PICTURES_DIR` and `XDG_MUSIC_DIR`, else the
+home directory and its folders `Pictures` and `Music`) and My Computer
+open in Explorer too, and the window calls these folders by their names
+in XP.
+
 The window changes no file other than with Empty the Recycle Bin: it
 neither copies, moves, renames nor deletes, and it takes no drag and
-drop. The keyboard does not work it
-(D45). Its icons come from the icon theme, XP's own when `WindowsXP` of
-`get-microsoft-files.sh` is installed.
+drop. The keyboard does not work it (D45). Its icons come from the icon
+theme, XP's own when `WindowsXP` of `get-microsoft-files.sh` is
+installed.
 
 The Control Panel opens as a menu, as with XP's "Display as a menu". A
 check mark shows the current choice of each entry, and a click on an

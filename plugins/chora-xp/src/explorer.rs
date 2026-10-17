@@ -602,7 +602,7 @@ impl Explorer {
         }
         body.text(Text::new(
             &match &self.history.current {
-                Place::Folder(path) if *path == documents() => title(&self.history.current),
+                Place::Folder(path) if special(path).is_some() => title(&self.history.current),
                 place => place.address(),
             },
             Font::Ui,
@@ -1119,19 +1119,34 @@ const BOX_TITLES: [&str; 5] = [
 /// The icons of a place, the most fitting first.
 fn place_icons(place: &Place) -> &'static [&'static str] {
     match place {
-        Place::Folder(path) if *path == documents() => &["folder-documents", "folder"],
-        Place::Folder(_) => &["folder"],
+        Place::Folder(path) => special(path).map_or(&["folder"], |(_, icons)| icons),
         Place::Computer => &["computer"],
         Place::Trash => &["user-trash-full", "user-trash"],
     }
 }
 
-/// The name of a place, with My Documents by its name in XP.
+/// The name of a place, with the folders of XP's start menu by their
+/// names in XP.
 fn title(place: &Place) -> String {
     match place {
-        Place::Folder(path) if *path == documents() => "My Documents".into(),
+        Place::Folder(path) => special(path).map_or_else(|| place.title(), |(t, _)| t.into()),
         place => place.title(),
     }
+}
+
+/// The name and the icons of My Documents, My Pictures and My Music.
+fn special(path: &std::path::Path) -> Option<(&'static str, &'static [&'static str])> {
+    if path == documents() {
+        return Some(("My Documents", &["folder-documents", "folder"]));
+    }
+    let user = |var| crate::desktop_icons::user_dir(var);
+    if user("PICTURES").is_some_and(|p| p == path) {
+        return Some(("My Pictures", &["folder-pictures", "folder"]));
+    }
+    if user("MUSIC").is_some_and(|p| p == path) {
+        return Some(("My Music", &["folder-music", "folder"]));
+    }
+    None
 }
 
 /// My Documents: `XDG_DOCUMENTS_DIR`, else the home directory.

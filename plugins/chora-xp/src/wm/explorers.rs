@@ -107,7 +107,7 @@ impl Wm {
             Outcome::ControlPanel => self.open_control_panel(),
             Outcome::EmptyTrash(names) => self.confirm_empty(&names),
             Outcome::Open(path) => {
-                spawn(&desktop_icons::command(&desktop_icons::Open::File(path)));
+                spawn(&desktop_icons::xdg_open(&path));
                 Vec::new()
             }
             Outcome::Menu(entries, [x, y]) => {

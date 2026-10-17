@@ -1349,6 +1349,7 @@ impl Wm {
             Action::LogOff => self.open_dialog(Mode::LogOff, output),
             Action::TurnOff => self.open_dialog(Mode::TurnOff, output),
             Action::Set(setting) => self.set(setting, output),
+            Action::Explore(place) => self.open_explorer(place.clone()),
         }
     }
 
@@ -1609,19 +1610,21 @@ impl Wm {
             .desk
             .press(&mut self.theme, &mut self.icons, node, position);
         commands.extend(more);
-        match open {
-            Some(desktop_icons::Open::Folder(path)) => {
-                commands.extend(self.open_explorer(Place::Folder(path)));
+        let place = match open {
+            Some(desktop_icons::Open::Folder(path)) => Place::Folder(path),
+            Some(desktop_icons::Open::Computer) => Place::Computer,
+            Some(desktop_icons::Open::Trash) => Place::Trash,
+            Some(desktop_icons::Open::Run(command)) => {
+                spawn(&command);
+                return commands;
             }
-            Some(desktop_icons::Open::Computer) => {
-                commands.extend(self.open_explorer(Place::Computer));
+            Some(desktop_icons::Open::File(path)) => {
+                spawn(&desktop_icons::xdg_open(&path));
+                return commands;
             }
-            Some(desktop_icons::Open::Trash) => {
-                commands.extend(self.open_explorer(Place::Trash));
-            }
-            Some(open) => spawn(&desktop_icons::command(&open)),
-            None => {}
-        }
+            None => return commands,
+        };
+        commands.extend(self.open_explorer(place));
         commands
     }
 

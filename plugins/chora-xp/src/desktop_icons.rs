@@ -17,7 +17,7 @@ use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
     apps, balloon,
-    icons::{self, Icons},
+    icons::Icons,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };
@@ -601,37 +601,16 @@ fn parse_user_dir(text: &str, var: &str, home: &str) -> Option<PathBuf> {
 }
 
 /// The files of the trash: `Trash/files` of `$XDG_DATA_HOME`.
-pub fn trash_dir() -> PathBuf {
-    icons::data_dirs()
-        .into_iter()
-        .next()
-        .unwrap_or_default()
-        .join("Trash/files")
+fn trash_dir() -> PathBuf {
+    crate::folder::trash_root().join("files")
 }
 
 fn trash_full(dir: &Path) -> bool {
     fs::read_dir(dir).is_ok_and(|mut d| d.next().is_some())
 }
 
-/// The shell command that opens an icon. Folders, My Computer and the
-/// Recycle Bin go through [`explore`].
-pub fn command(open: &Open) -> String {
-    match open {
-        Open::Folder(path) => explore(path),
-        Open::Computer => explore(Path::new("/")),
-        // The trash of GVFS, else its folder.
-        Open::Trash => format!(
-            "gio open trash:/// 2>/dev/null || {}",
-            explore(&trash_dir())
-        ),
-        Open::Run(command) => command.clone(),
-        Open::File(path) => format!("xdg-open {}", quote(&path.to_string_lossy())),
-    }
-}
-
-/// Opens a folder. The hook for XP's Explorer: until it comes, the
-/// file manager of `xdg-open` shows the folder.
-fn explore(path: &Path) -> String {
+/// The shell command that opens a file with the program of its type.
+pub fn xdg_open(path: &Path) -> String {
     format!("xdg-open {}", quote(&path.to_string_lossy()))
 }
 
@@ -760,7 +739,9 @@ mod tests {
 
     #[test]
     fn paths_are_quoted_for_the_shell() {
-        let open = Open::File("/tmp/it's here".into());
-        assert_eq!(command(&open), r"xdg-open '/tmp/it'\''s here'");
+        assert_eq!(
+            xdg_open(Path::new("/tmp/it's here")),
+            r"xdg-open '/tmp/it'\''s here'"
+        );
     }
 }
