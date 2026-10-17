@@ -1783,23 +1783,18 @@ impl Wm {
         commands
     }
 
-    /// Closes a dialog; Display Properties keeps its tab for the next
-    /// time. When no window has the focus, as after the click on the
-    /// desktop that opened the dialog, the topmost window of the desktop
-    /// gets it, as XP activates the next window.
+    /// Closes a dialog. Display Properties keeps its tab for the next
+    /// time. If no window has the focus, the topmost window of the
+    /// desktop gets it, as in XP.
     fn close_panel(&mut self, i: usize) -> Vec<Command> {
         let panel = self.panels.remove(i);
         if let Panel::Display(display) = &panel {
             self.display_tab = display.tab;
         }
         let mut commands = vec![panel.window_ref().remove()];
-        let top = self
-            .windows
-            .iter()
-            .rev()
-            .find(|w| w.desktop == self.desktop && w.shown && !w.minimized)
-            .map(|w| w.surface.clone());
-        if let Some(top) = top.filter(|_| self.focused.is_none()) {
+        if self.focused.is_none()
+            && let Some(top) = self.topmost_except("")
+        {
             commands.extend(self.focus(Some(&top)));
             commands.extend(self.sync_tasks());
         }
