@@ -46,6 +46,12 @@ impl Icons {
             .or_else(|| self.find("application-x-executable"))
     }
 
+    /// The icon of a program as [`Self::program`], for a size in pixels.
+    pub fn program_sized(&mut self, name: &str, size: u32) -> Option<PathBuf> {
+        self.find_sized(name, size)
+            .or_else(|| self.find_sized("application-x-executable", size))
+    }
+
     /// The file of an icon for a size in pixels: a PNG file of that size
     /// first, as XP draws its small icons by hand, else as [`find`].
     ///

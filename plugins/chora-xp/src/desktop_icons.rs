@@ -176,7 +176,7 @@ impl DesktopIcons {
         area: Rect,
         how: Show,
     ) -> Vec<Command> {
-        let mut items = items(&self.terminal);
+        let mut items = items(&self.terminal, icons);
         if self.by_type {
             by_type(&mut items);
         }
@@ -584,18 +584,7 @@ fn picture(
     // The box as on XP: 1 pixel of room left of the ink, 2 right of it.
     let boxed = [(CELL - text - 2) / 2, LABEL_TOP, text + 3, rows * LINE + 2];
     let mut picture = Picture::new(CELL, LABEL_TOP + boxed[3]);
-    let icon = match &item.open {
-        Open::Run(_) => icons.program(&item.icon),
-        // The icon of the type, as Explorer shows it.
-        Open::File(path) => {
-            let name = path.file_name().unwrap_or_default().to_string_lossy();
-            let executable = fs::metadata(path).is_ok_and(|m| m.permissions().mode() & 0o111 != 0);
-            let kind = folder::Kind::of(&name, false, executable);
-            icons.first_sized(kind.icons(), ICON.unsigned_abs())
-        }
-        _ => icons.find(&item.icon),
-    };
-    if let Some(file) = icon {
+    if let Some(file) = icons.find(&item.icon) {
         picture = picture.file(&file, [ICON_X, ICON_TOP, ICON, ICON]);
     }
     if selected {
@@ -697,7 +686,7 @@ fn is_double(last: Option<(String, Instant)>, key: &str, now: Instant) -> bool {
 /// The icons of the desktop: My Documents, My Computer, the files of the
 /// Desktop folder by name, folders first, and the Recycle Bin. My Network
 /// Places is left out: without a network browser it opens nothing.
-fn items(terminal: &str) -> Vec<Item> {
+fn items(terminal: &str, icons: &mut Icons) -> Vec<Item> {
     let home = std::env::var_os("HOME").map_or_else(|| PathBuf::from("/"), PathBuf::from);
     let documents = user_dir("DOCUMENTS").unwrap_or_else(|| home.clone());
     let mut items = vec![
@@ -716,7 +705,7 @@ fn items(terminal: &str) -> Vec<Item> {
     ];
     let desktop = user_dir("DESKTOP").unwrap_or_else(|| home.join("Desktop"));
     if desktop != home {
-        items.extend(scan(&desktop, terminal));
+        items.extend(scan(&desktop, terminal, icons));
     }
     let full = trash_full(&trash_dir());
     items.push(Item {
@@ -735,8 +724,9 @@ fn items(terminal: &str) -> Vec<Item> {
 
 /// The files and folders of a directory as icons, without the hidden
 /// ones: folders first, then by name. A desktop file shows its name and
-/// icon and runs its program.
-fn scan(dir: &Path, terminal: &str) -> Vec<Item> {
+/// icon, or XP's icon of a program, and runs its program. A file shows
+/// the icon of its type, as Explorer gives it, found here once.
+fn scan(dir: &Path, terminal: &str, icons: &mut Icons) -> Vec<Item> {
     let mut paths: Vec<PathBuf> = fs::read_dir(dir)
         .into_iter()
         .flatten()
@@ -770,18 +760,29 @@ fn scan(dir: &Path, terminal: &str) -> Vec<Item> {
                 return Item {
                     key,
                     title,
-                    icon,
+                    icon: found(icons.program_sized(&icon, SIZE)),
                     open: Open::Run(command),
                 };
             }
+            let executable = fs::metadata(&path).is_ok_and(|m| m.permissions().mode() & 0o111 != 0);
+            let kind = folder::Kind::of(&name, false, executable);
             Item {
                 key,
                 title: name,
-                icon: "text-x-generic".into(),
+                icon: found(icons.first_sized(kind.icons(), SIZE)),
                 open: Open::File(path),
             }
         })
         .collect()
+}
+
+/// The size of the icons in pixels.
+const SIZE: u32 = ICON.unsigned_abs();
+
+/// The path of a found icon file as the icon of an item, else nothing.
+fn found(file: Option<PathBuf>) -> String {
+    file.map(|f| f.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }
 
 /// A user directory of `user-dirs.dirs`, such as `DESKTOP`: from the
@@ -980,12 +981,13 @@ mod tests {
             "[Desktop Entry]\nType=Application\nName=Editor\nExec=edit %F\nIcon=ed\n",
         )
         .unwrap();
-        let items = scan(&dir, "foot");
+        let items = scan(&dir, "foot", &mut Icons::default());
         let titles: Vec<&str> = items.iter().map(|i| i.title.as_str()).collect();
         assert_eq!(titles, ["zeta", "Alpha.txt", "Editor"]);
         assert_eq!(items[0].open, Open::Folder(dir.join("zeta")));
         assert_eq!(items[2].open, Open::Run("edit".into()));
-        assert_eq!(items[2].icon, "ed");
+        // No theme has the icon "ed": XP's icon of a program, if any.
+        assert!(items[2].icon.is_empty() || items[2].icon.contains("application-x-executable"));
         assert!(!trash_full(&dir.join("zeta")));
         assert!(trash_full(&dir));
         assert!(!trash_full(&dir.join("missing")));

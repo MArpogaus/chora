@@ -835,7 +835,7 @@ fn computer_boxes() -> (Option<TaskBox>, Vec<Link>) {
     (Some(tasks), places)
 }
 
-/// The tasks of the Recycle Bin, while it has items, and its places.
+/// The tasks of the Recycle Bin and its places.
 fn trash_boxes(full: bool) -> (Option<TaskBox>, Vec<Link>) {
     // An empty bin keeps its tasks, gray, as on XP.
     let empty = if full {
