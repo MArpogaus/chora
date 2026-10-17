@@ -1,11 +1,10 @@
 //! Input routing: the safety layer first, then grabs, then a node with the
 //! keyboard focus, then the focused surface.
 //!
-//! Plugins set the focus. The core changes it in three cases only: the
-//! reset focuses the first surface, a click on a surface without an owner
-//! focuses it, and a surface that becomes detached loses it. Protocols take
-//! the keyboard for a while: a popup grab, a layer surface such as a
-//! launcher, and the lock screen.
+//! Plugins set the focus. The core changes it only in the cases that the
+//! input flow of `docs/architecture.md` lists. Protocols take the keyboard
+//! for a while: a popup grab, a layer surface such as a launcher, and the
+//! lock screen.
 
 use std::sync::atomic::Ordering;
 
