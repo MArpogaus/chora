@@ -50,7 +50,7 @@ const READ_PER_WAKEUP: usize = 64 << 10;
 const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
 /// How long the core keeps the nodes of a client with `resume` after its
 /// last connection closed, so that a restart gets them back.
-pub const GRACE: Duration = Duration::from_secs(10);
+const GRACE: Duration = Duration::from_secs(10);
 
 /// The connections of the IPC socket.
 #[derive(Default)]
@@ -107,6 +107,8 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     Ok(Trigger::Key(sym))
 }
 
+// Each bool is one fact of the connection; no state machine joins them.
+#[allow(clippy::struct_excessive_bools)]
 struct Conn {
     stream: UnixStream,
     /// The process of the client; `None` if the core cannot see it.
@@ -342,11 +344,6 @@ impl Ipc {
             .filter(|(_, end)| **end <= now)
             .map(|(name, _)| name.clone())
             .collect()
-    }
-
-    /// The client names in their grace time.
-    pub fn graces(&self) -> Vec<String> {
-        self.graces.keys().cloned().collect()
     }
 
     /// The client name of a connection.
@@ -666,8 +663,9 @@ impl State {
             )));
         }
         let known = peer.is_some();
-        let resumed = hello.resume && self.ipc.graces.remove(&hello.name).is_some();
-        if self.ipc.graces.contains_key(&hello.name) {
+        if hello.resume {
+            self.ipc.graces.remove(&hello.name);
+        } else if self.ipc.graces.contains_key(&hello.name) {
             self.drop_nodes(&hello.name);
         }
         if let Some(c) = self.ipc.conns.get_mut(&conn) {
@@ -678,7 +676,7 @@ impl State {
         if !known {
             self.emit(&Event::ClientConnected { name: hello.name });
         }
-        Ok(serde_json::json!({"version": chora_scene::ipc::VERSION, "resumed": resumed}))
+        Ok(serde_json::json!({"version": chora_scene::ipc::VERSION}))
     }
 
     /// Removes the nodes, the cameras and the assets of a client name, and
@@ -688,6 +686,14 @@ impl State {
         let effects = self.scene.disconnect(name);
         self.execute(effects);
         self.ipc.uploads.drop_client(name);
+    }
+
+    /// Ends every grace time and removes the kept nodes.
+    pub fn end_graces(&mut self) {
+        let names: Vec<String> = self.ipc.graces.keys().cloned().collect();
+        for name in names {
+            self.drop_nodes(&name);
+        }
     }
 
     fn query(&self, selector: &str) -> Result<Value, RpcError> {
@@ -776,11 +782,8 @@ impl State {
         }
         if closed.resume && !closed.keep_nodes {
             let end = self.time.now() + GRACE;
-            if self.expire_at(end).is_ok() {
-                self.ipc.graces.insert(name.clone(), end);
-            } else {
-                self.drop_nodes(&name);
-            }
+            let _ = self.expire_at(end);
+            self.ipc.graces.insert(name.clone(), end);
         } else if !closed.keep_nodes {
             self.drop_nodes(&name);
         }
@@ -874,8 +877,7 @@ mod tests {
         let mut core = Core::new();
         let mut client = core.connect();
         let answer = client.ok(&mut core, "hello", json!({"name": "wm"}));
-        let version = json!({"version": chora_scene::ipc::VERSION, "resumed": false});
-        assert_eq!(answer, version);
+        assert_eq!(answer, json!({"version": chora_scene::ipc::VERSION}));
         assert_eq!(core.state.ipc.name(1), None);
         assert_eq!(core.state.ipc.name(0), Some("wm"));
         let (error_code, message) = client.fails(&mut core, "hello", json!({"name": "other"}));
@@ -1021,9 +1023,7 @@ mod tests {
     fn resumable(core: &mut Core) -> (Client, Wayland) {
         let mut wayland = Wayland::connect(core);
         wayland.toplevel(core, "foot");
-        let mut wm = core.connect();
-        let answer = wm.ok(core, "hello", json!({"name": "wm", "resume": true}));
-        assert_eq!(answer["resumed"], false);
+        let mut wm = hello_resume(core);
         let size = json!({"size": [1, 1]});
         let commands = json!({"commands": [
             {"create": {"id": "g", "kind": "group", "parent": "root",
@@ -1036,10 +1036,10 @@ mod tests {
         (wm, wayland)
     }
 
-    fn hello_resume(core: &mut Core) -> (Client, Value) {
+    fn hello_resume(core: &mut Core) -> Client {
         let mut wm = core.connect();
-        let answer = wm.ok(core, "hello", json!({"name": "wm", "resume": true}));
-        (wm, answer["resumed"].clone())
+        wm.ok(core, "hello", json!({"name": "wm", "resume": true}));
+        wm
     }
 
     fn owned(reader: &mut Client, core: &mut Core) -> Value {
@@ -1057,8 +1057,7 @@ mod tests {
         core.dispatch();
         core.advance(GRACE.saturating_sub(Duration::from_millis(1)));
         assert_eq!(owned(&mut reader, &mut core), before);
-        let (mut wm, resumed) = hello_resume(&mut core);
-        assert_eq!(resumed, true);
+        let mut wm = hello_resume(&mut core);
         assert_eq!(owned(&mut reader, &mut core), before);
         assert_eq!(
             core.state.scene.node("g").unwrap().children,
@@ -1067,7 +1066,10 @@ mod tests {
         let hide = json!({"commands": [{"update": {"id": "s1", "props": {"visible": false}}}]});
         wm.ok(&mut core, "scene.apply", hide);
         core.advance(GRACE);
-        assert!(core.state.scene.node("g").is_some(), "the grace time ended");
+        assert!(
+            core.state.scene.node("g").is_some(),
+            "the timer of the old grace time removes nothing"
+        );
     }
 
     #[test]
@@ -1080,7 +1082,8 @@ mod tests {
         core.advance(GRACE);
         assert_eq!(owned(&mut reader, &mut core), json!([]));
         assert_eq!(core.state.scene.node("s1").unwrap().owner, None);
-        assert_eq!(hello_resume(&mut core).1, false);
+        let _wm = hello_resume(&mut core);
+        assert_eq!(owned(&mut reader, &mut core), json!([]));
     }
 
     #[test]
@@ -1109,7 +1112,7 @@ mod tests {
         drop(wm);
         core.dispatch();
         core.state.reset();
-        assert_eq!(hello_resume(&mut core).1, false);
+        assert!(core.state.ipc.graces.is_empty());
     }
 
     #[test]

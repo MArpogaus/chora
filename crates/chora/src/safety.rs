@@ -217,9 +217,7 @@ impl State {
         for conn in self.ipc.conn_ids() {
             self.ipc_close(conn);
         }
-        for name in self.ipc.graces() {
-            self.drop_nodes(&name);
-        }
+        self.end_graces();
         self.grants.clear();
         self.node_grab = None;
         self.button_grab = None;
@@ -386,8 +384,5 @@ mod tests {
         slow_frames(&mut core, 4200);
         assert!(heavy.closed(&mut core));
         assert!(core.state.scene.node("h0").is_none(), "no grace time");
-        let mut again = core.connect();
-        let answer = again.ok(&mut core, "hello", hello);
-        assert_eq!(answer["resumed"], false);
     }
 }

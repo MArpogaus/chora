@@ -162,8 +162,9 @@ pub struct Hello {
     #[serde(default)]
     pub keep_nodes: bool,
     /// Keep the nodes for a grace time after the last connection of the
-    /// name closes, and get them back with a `hello` within it.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    /// name closes, and get them back with a `hello` within it. With
+    /// `keep_nodes`, `resume` has no effect.
+    #[serde(default)]
     pub resume: bool,
 }
 
@@ -649,9 +650,6 @@ pub struct Client {
     partial: Vec<u8>,
     /// The version of the core from its answer to `hello`.
     core_version: Option<String>,
-    /// The core gave the nodes of the name back, from its answer to
-    /// `hello`.
-    resumed: bool,
 }
 
 impl Client {
@@ -688,11 +686,9 @@ impl Client {
             events: VecDeque::new(),
             partial: Vec::new(),
             core_version: None,
-            resumed: false,
         };
         let answer: Value = client.call("hello", hello)?;
         client.core_version = answer["version"].as_str().map(str::to_owned);
-        client.resumed = answer["resumed"] == true;
         if client.core_version.as_deref() != Some(VERSION) {
             static WARNED: std::sync::Once = std::sync::Once::new();
             WARNED.call_once(|| {
@@ -714,15 +710,6 @@ impl Client {
     #[must_use]
     pub fn core_version(&self) -> Option<&str> {
         self.core_version.as_deref()
-    }
-
-    /// Whether the core gave back the nodes of the name, kept since a
-    /// disconnect within the grace time of `resume`: the client then
-    /// rebuilds its state from `scene.query owner:NAME` instead of
-    /// creating its nodes.
-    #[must_use]
-    pub fn resumed(&self) -> bool {
-        self.resumed
     }
 
     /// Applies a transaction, and returns the error of the core if it
