@@ -54,6 +54,53 @@ pairs, a Wayland client, outputs, and a time that the test moves forward.
 Pixel tests render with the software driver of Mesa, from
 `mesa-dri-drivers` on Fedora.
 
+All testing runs headless: `chora --headless OUTPUTS -- STARTUP` runs a
+whole session on virtual outputs, without a host display, GPU or seat.
+OUTPUTS is `WxH[@SCALE][+X+Y]`, comma separated, for example
+`1280x800@1.5,1920x1080+1280+0`; the outputs are `HEADLESS-1`,
+`HEADLESS-2` and so on. Input comes only from `input.inject`. Captures
+render the same scene as the frame loop, in a separate pass. `choractl
+add-output 1024x768` and `choractl remove-output HEADLESS-2` plug outputs
+in and out for hotplug tests; `choractl configure-output` changes their
+scale and transform.
+
+`tests/headless-session.sh` starts such a session in a private
+`XDG_RUNTIME_DIR` under `/tmp`, without the `WAYLAND_DISPLAY` and
+`DISPLAY` of the host. It prints `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and
+`CHORA_SOCKET` as lines `KEY=VALUE`, waits, and on a signal or at the end
+of the core stops the core with all its programs and removes the
+directory. An agent or a CI job uses it so:
+
+```bash
+tests/headless-session.sh 1280x800 -- target/debug/chora-tiling >session.env &
+session=$!
+until grep -q CHORA_SOCKET session.env; do sleep 0.1; done
+set -a; . ./session.env; set +a
+target/debug/choractl grant agent process.spawn screen.capture input.inject
+target/debug/choractl --name agent spawn foot
+target/debug/choractl --name agent capture shot.png
+kill $session
+```
+
+`CHORA_BIN` sets the directory of `chora` (default `target/debug`), and
+`CHORA_LOG` the log file of the core. Programs of `choractl spawn` get the
+environment of the core. Without system Mesa, the software EGL driver and
+the clients can come from Fedora RPMs unpacked into the home directory:
+
+```bash
+export __EGL_VENDOR_LIBRARY_DIRS=$HOME/.local/opt/mesa-egl/usr/share/glvnd/egl_vendor.d
+export LD_LIBRARY_PATH=$HOME/.local/opt/mesa-egl/usr/lib64
+# a client, for example foot, with its own libraries and fonts
+choractl --name agent spawn env \
+    LD_LIBRARY_PATH=$HOME/.local/opt/clients/usr/lib64:$LD_LIBRARY_PATH \
+    FONTCONFIG_FILE=$HOME/.local/opt/clients/fonts.conf \
+    $HOME/.local/opt/clients/usr/bin/foot -f "DejaVu Sans Mono:size=10"
+```
+
+`dnf download --resolve PACKAGE` and `rpm2cpio FILE | cpio -idm` in
+`~/.local/opt/clients` add further programs. The same variables let the
+pixel unit tests run.
+
 The end-to-end test starts chora nested in a headless sway. It checks the
 scene, transactions, layer shell, the session lock, effects, the safety
 bindings and the watchdog. It needs
