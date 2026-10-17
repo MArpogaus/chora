@@ -684,8 +684,9 @@ impl Theme {
         };
         #[allow(clippy::cast_precision_loss)]
         let size = [image.width() as f32, image.height() as f32];
-        let transform = base.pre_concat(place(rect, size, fit));
+        let transform = place(rect, size, fit);
         if let Fit::Tile(_) = fit {
+            // fill_rect applies its transform to the pattern too.
             let paint = Paint {
                 shader: Pattern::new(
                     image.as_ref(),
@@ -707,7 +708,14 @@ impl Theme {
             quality: FilterQuality::Bicubic,
             ..PixmapPaint::default()
         };
-        pixmap.draw_pixmap(0, 0, image.as_ref(), &paint, transform, None);
+        pixmap.draw_pixmap(
+            0,
+            0,
+            image.as_ref(),
+            &paint,
+            base.pre_concat(transform),
+            None,
+        );
         Ok(())
     }
 
@@ -911,6 +919,39 @@ mod tests {
             _ => None,
         });
         assert_eq!(sizes, [Some([100.0, 30.0]), None]);
+        let _ = fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn tiles_keep_their_size_at_a_scale() {
+        let (mut theme, cache) = theme("tile");
+        // A tile of 8 by 4, red on the left, blue on the right.
+        let mut tile = Pixmap::new(8, 4).expect("pixels");
+        tile.fill_rect(
+            tiny_skia::Rect::from_xywh(0.0, 0.0, 4.0, 4.0).expect("a rect"),
+            &Paint {
+                shader: tiny_skia::Shader::SolidColor(tiny_skia::Color::from_rgba8(255, 0, 0, 255)),
+                ..Paint::default()
+            },
+            Transform::identity(),
+            None,
+        );
+        tile.fill_rect(
+            tiny_skia::Rect::from_xywh(4.0, 0.0, 4.0, 4.0).expect("a rect"),
+            &Paint {
+                shader: tiny_skia::Shader::SolidColor(tiny_skia::Color::from_rgba8(0, 0, 255, 255)),
+                ..Paint::default()
+            },
+            Transform::identity(),
+            None,
+        );
+        let file = cache.join("tile.png");
+        tile.save_png(&file).expect("a PNG file");
+        let picture = Picture::new(16, 4).fit(&file, [0, 0, 16, 4], Fit::Tile([8, 4]));
+        let image = Pixmap::load_png(theme.render_at(&picture, 2.0)).expect("a PNG file");
+        // Logical x 6 is in the blue half of the first tile.
+        let pixel = image.pixel(12, 4).expect("inside");
+        assert!(pixel.blue() > 200 && pixel.red() < 50, "{pixel:?}");
         let _ = fs::remove_dir_all(cache);
     }
 }
