@@ -247,7 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn the_limits_hold() {
+    fn an_upload_beyond_the_size_or_file_limit_fails() {
         let (mut uploads, _dir) = uploads("limits");
         assert!(uploads.put("agent", "big", &vec![0; MAX_FILE + 1]).is_err());
         for i in 0..MAX_FILES {

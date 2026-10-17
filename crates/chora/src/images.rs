@@ -519,7 +519,7 @@ mod tests {
     }
 
     #[test]
-    fn premultiplied_alpha() {
+    fn decoded_pixels_are_premultiplied_rgba() {
         assert_eq!(
             rgba(png::ColorType::Rgba, &[255, 128, 0, 128]),
             [128, 64, 0, 128]
