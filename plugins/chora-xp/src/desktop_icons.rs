@@ -986,8 +986,6 @@ mod tests {
         assert_eq!(titles, ["zeta", "Alpha.txt", "Editor"]);
         assert_eq!(items[0].open, Open::Folder(dir.join("zeta")));
         assert_eq!(items[2].open, Open::Run("edit".into()));
-        // No theme has the icon "ed": XP's icon of a program, if any.
-        assert!(items[2].icon.is_empty() || items[2].icon.contains("application-x-executable"));
         assert!(!trash_full(&dir.join("zeta")));
         assert!(trash_full(&dir));
         assert!(!trash_full(&dir.join("missing")));

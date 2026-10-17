@@ -92,14 +92,14 @@ impl Wobble {
         self.step(origin, dt);
     }
 
-    /// Advances the grid by a time in seconds, for a window at an origin,
-    /// in whole steps of 10 ms, as `KWin`'s model: the rest waits for the
-    /// next call, and the drawn mesh moves the points on by it.
+    /// Advances the grid by a time in seconds, in whole steps of 10 ms, as
+    /// in the `KWin` model. The rest waits for the next call. The drawn
+    /// mesh moves the points on by it.
     fn step(&mut self, origin: [f64; 2], dt: f64) {
         self.pending += dt.clamp(0.0, 0.1) * 1000.0;
         while self.pending >= STEP_MS {
             self.pending -= STEP_MS;
-            self.integrate(origin, STEP_MS);
+            self.integrate(origin);
         }
     }
 
@@ -147,8 +147,9 @@ impl Wobble {
         ]
     }
 
-    /// One step of `ms` milliseconds.
-    fn integrate(&mut self, origin: [f64; 2], ms: f64) {
+    /// One step of 10 ms.
+    fn integrate(&mut self, origin: [f64; 2]) {
+        let ms = STEP_MS;
         let mut acceleration = [[0.0; 2]; COUNT];
         for (i, acc) in acceleration.iter_mut().enumerate() {
             let place = self.place(i, origin);
