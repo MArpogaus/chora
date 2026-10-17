@@ -172,6 +172,15 @@ cursors, which the package installs to `/usr/share/icons/ModernXP`.
 `theme/README.md` lists the source and the license of every file of the
 theme.
 
+When the files of Windows XP are installed in the XDG data directory, as
+`get-microsoft-files.sh` of `kde-plasma-winxp-launcher` does, `chora-xp`
+uses them instead of the free files of the theme:
+
+- `fonts/WindowsXP/`: XP's Tahoma for the text, Trebuchet MS Bold for the
+  titles and Franklin Gothic Medium Italic for the start button. These
+  fonts go before the system fonts, so XP's Tahoma wins over the Tahoma
+  of newer Windows.
+
 `chora-xp` draws everything as image nodes. It rasterizes the SVG files of
 the theme with resvg into PNG files in `$XDG_RUNTIME_DIR/chora-xp/`, and
 renders each picture once:

@@ -30,7 +30,11 @@ artwork that chora-xp reads, not code of chora.
 
 ## XP's own files
 
-With Trebuchet MS or Franklin Gothic Medium installed, chora-xp uses them
-for the titles and the start button. Bliss works as a wallpaper with
-`chora-xp --wallpaper FILE`. `get-microsoft-files.sh` of the reference
-repository downloads these files.
+`get-microsoft-files.sh` of the reference repository installs files of
+Windows XP into the XDG data directory, `~/.local/share` by default.
+chora-xp reads them at run time, when they are there, and uses the free
+files above when they are not. The repository holds none of them.
+
+| File in the XDG data directory | Use |
+|--------------------------------|-----|
+| `fonts/WindowsXP/*.ttf` | XP's fonts, before all other fonts: Tahoma and Tahoma Bold for menus and buttons, Trebuchet MS Bold for the titles, Franklin Gothic Medium Italic for the start button |

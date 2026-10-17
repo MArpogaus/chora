@@ -1,6 +1,7 @@
 //! Text through usvg and fontdb: each line of text becomes a small SVG
 //! document with a `<text>` element, which resvg renders with the bundled
-//! font or a system font.
+//! font or a system font. XP's own fonts in `fonts/WindowsXP` of the XDG
+//! data directories come first, when they are installed.
 
 use std::{fmt::Write as _, path::Path, sync::Arc};
 
@@ -8,11 +9,11 @@ use resvg::{
     tiny_skia::{PixmapMut, Transform},
     usvg::{
         self,
-        fontdb::{Database, Family, Query, Weight},
+        fontdb::{Database, Family, Query, Style, Weight},
     },
 };
 
-use crate::theme::Rect;
+use crate::{icons::data_dirs, theme::Rect};
 
 /// The fonts of the theme.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -91,8 +92,34 @@ struct Spec {
     bold: bool,
     /// The family has no bold face, so a thin stroke thickens the glyphs.
     faux_bold: bool,
+    slant: Slant,
+}
+
+/// How a font slants.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Slant {
+    Upright,
+    /// The italic face of the family.
+    Italic,
     /// The family has no italic face, so a shear slants the glyphs.
-    slant: bool,
+    Sheared,
+}
+
+impl Spec {
+    fn new(db: &Database, family: &str, size: u32, bold: bool, italic: bool) -> Self {
+        let slant = match (italic, has_italic(db, family)) {
+            (false, _) => Slant::Upright,
+            (true, true) => Slant::Italic,
+            (true, false) => Slant::Sheared,
+        };
+        Self {
+            family: family.into(),
+            size,
+            bold,
+            faux_bold: bold && !has_bold(db, family),
+            slant,
+        }
+    }
 }
 
 /// The font database and the look of each font.
@@ -105,6 +132,12 @@ impl Fonts {
     /// Loads the system fonts and the fonts of the theme directory.
     pub fn load(dir: &Path) -> Self {
         let mut db = Database::new();
+        // Of equal faces, a query takes the first one, so XP's own Tahoma
+        // goes before the Tahoma of newer Windows and the Wine Tahoma of
+        // the theme.
+        for data in data_dirs() {
+            db.load_fonts_dir(data.join("fonts/WindowsXP"));
+        }
         db.load_system_fonts();
         for file in ["fonts/tahoma.ttf", "fonts/LibreFranklin-Bold.ttf"] {
             if let Err(err) = db.load_font_file(dir.join(file)) {
@@ -114,13 +147,8 @@ impl Fonts {
         db.set_sans_serif_family("Tahoma");
         let title = first_family(&db, &["Trebuchet MS", "Tahoma"]);
         let start = first_family(&db, &["Franklin Gothic Medium", "Libre Franklin", "Tahoma"]);
-        let spec = |family: &str, size, bold, slant| Spec {
-            family: family.into(),
-            size,
-            bold,
-            faux_bold: bold && !has_bold(&db, family),
-            slant,
-        };
+        // XP draws "start" in Franklin Gothic Medium Italic, made bold.
+        let spec = |family: &str, size, bold, italic| Spec::new(&db, family, size, bold, italic);
         let specs = [
             spec("Tahoma", 11, false, false),
             spec("Tahoma", 11, true, false),
@@ -214,7 +242,7 @@ impl Fonts {
         let fill = format!("rgb({},{},{})", color[0], color[1], color[2]);
         let alpha = f64::from(color[3]) / 255.0;
         let mut out = String::new();
-        if spec.slant {
+        if spec.slant == Slant::Sheared {
             // skewX(-8) shears around the origin; the shift keeps the
             // baseline in place.
             let _ = write!(
@@ -225,9 +253,14 @@ impl Fonts {
         }
         let _ = write!(
             out,
-            r#"<text x="{x:.2}" y="{baseline:.2}" font-family="{}" font-size="{size}" font-weight="{}" fill="{fill}" fill-opacity="{alpha:.3}" xml:space="preserve""#,
+            r#"<text x="{x:.2}" y="{baseline:.2}" font-family="{}" font-size="{size}" font-weight="{}" font-style="{}" fill="{fill}" fill-opacity="{alpha:.3}" xml:space="preserve""#,
             escape(&spec.family),
             if spec.bold { "bold" } else { "normal" },
+            if spec.slant == Slant::Italic {
+                "italic"
+            } else {
+                "normal"
+            },
         );
         if spec.faux_bold {
             let _ = write!(
@@ -236,7 +269,7 @@ impl Fonts {
             );
         }
         let _ = write!(out, ">{}</text>", escape(line));
-        if spec.slant {
+        if spec.slant == Slant::Sheared {
             out += "</g>";
         }
         out
@@ -276,6 +309,17 @@ fn has_bold(db: &Database, family: &str) -> bool {
     .is_some_and(|face| face.weight.0 >= 600)
 }
 
+/// Whether a family has an italic face.
+fn has_italic(db: &Database, family: &str) -> bool {
+    db.query(&Query {
+        families: &[Family::Name(family)],
+        style: Style::Italic,
+        ..Query::default()
+    })
+    .and_then(|id| db.face(id))
+    .is_some_and(|face| face.style != Style::Normal)
+}
+
 /// Escapes text for XML.
 fn escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
@@ -294,7 +338,25 @@ fn escape(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::escape;
+    use super::*;
+
+    #[test]
+    fn missing_faces_are_faked() {
+        let mut db = Database::new();
+        db.load_fonts_dir(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../flavors/xp/theme/fonts"
+        ));
+        // The Wine Tahoma has no bold face; Libre Franklin has no italic.
+        let bold = Spec::new(&db, "Tahoma", 11, true, false);
+        assert!(bold.faux_bold && bold.slant == Slant::Upright);
+        let start = Spec::new(&db, "Libre Franklin", 17, true, true);
+        assert!(!start.faux_bold && start.slant == Slant::Sheared);
+        assert_eq!(
+            first_family(&db, &["Franklin Gothic Medium", "Libre Franklin"]),
+            "Libre Franklin"
+        );
+    }
 
     #[test]
     fn markup_in_titles_stays_text() {
