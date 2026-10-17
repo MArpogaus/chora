@@ -2,7 +2,7 @@
 //! image nodes: XP's blue bar, the green start button, one button per
 //! window and the notification area with the clock.
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fmt::Write as _, path::PathBuf};
 
 use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, Transform};
 
@@ -18,6 +18,14 @@ const START_WIDTH: i32 = 100;
 /// The left edge of the first task button.
 const TASKS_LEFT: i32 = 106;
 const TASK_TOP: i32 = 3;
+/// The rows of XP's taskbar, top first, as Luna draws it: a light edge,
+/// then the blue that the task buttons stand out from.
+const ROWS: [&str; HEIGHT as usize] = [
+    "3168d5", "3888e9", "4993e6", "307be5", "286add", "245dd7", "2359d6", "2257d5", "2257d5",
+    "2257d6", "2157d7", "2259d7", "225ad9", "235bd9", "235cdb", "245ddb", "245edc", "245ddb",
+    "245edc", "255fdc", "2660dd", "2661dd", "2662df", "2662df", "2663e0", "2663e0", "2561de",
+    "235bd9", "1e50c4", "1941a5",
+];
 const TASK_HEIGHT: i32 = 25;
 const TASK_GAP: i32 = 3;
 const TASK_WIDTH: i32 = 160;
@@ -276,13 +284,10 @@ impl Bar {
     }
 
     /// The group at the bottom of the work area and the background over
-    /// its width: the top edge and the center of the panel of Exposé.
+    /// its width, XP's rows of blue.
     fn layout(&self, theme: &mut Theme) -> Vec<Command> {
         let [x, y] = self.origin().map(f64::from);
-        let top = theme.size(Sheet::Panel, "top").map_or(6, |s| s[1]);
-        let picture = Picture::new(32, top + 32)
-            .element(Sheet::Panel, "top", [0, 0, 32, top])
-            .element(Sheet::Panel, "center", [0, top, 32, 32]);
+        let picture = Picture::new(32, HEIGHT).svg(rows(32, 0));
         vec![
             update(&self.group(), at(x, y + self.offset)),
             update(
@@ -290,7 +295,7 @@ impl Bar {
                 PropsUpdate {
                     image: Some(theme.render_flat(&picture)),
                     size: Some([f64::from(self.area[2]), f64::from(HEIGHT)]),
-                    slice: Some([0.0, f64::from(top), 0.0, 0.0]),
+                    slice: Some([0.0; 4]),
                     ..PropsUpdate::default()
                 },
             ),
@@ -545,14 +550,12 @@ pub fn preview(
     [hidden, on_top]: [bool; 2],
     clock: Option<&str>,
 ) -> Picture {
-    let top = theme.size(Sheet::Panel, "top").map_or(6, |s| s[1]);
     let bar_y = if hidden { h - HIDDEN_STRIP } else { h - HEIGHT };
     let mut picture = Picture::new(w, h)
         .svg(format!(
             r##"<rect width="{w}" height="{h}" fill="#5A7EDC"/>"##
         ))
-        .element(Sheet::Panel, "top", [0, bar_y, w, top])
-        .element(Sheet::Panel, "center", [0, bar_y + top, w, HEIGHT - top]);
+        .svg(rows(w, bar_y));
     if hidden {
         return picture;
     }
@@ -616,6 +619,19 @@ fn at(x: f64, y: f64) -> PropsUpdate {
         transform: Some(Transform::translate(x, y, 0.0)),
         ..PropsUpdate::default()
     }
+}
+
+/// XP's rows of the taskbar as SVG, `width` wide from `top` down.
+fn rows(width: i32, top: i32) -> String {
+    ROWS.iter()
+        .zip(top..)
+        .fold(String::new(), |mut out, (color, y)| {
+            let _ = write!(
+                out,
+                r##"<rect y="{y}" width="{width}" height="1" fill="#{color}"/>"##
+            );
+            out
+        })
 }
 
 #[cfg(test)]
