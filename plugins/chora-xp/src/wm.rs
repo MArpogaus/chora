@@ -125,11 +125,14 @@ enum Key {
     Switch(i32),
     /// Super and the left button turn the cube with the pointer.
     Cube,
+    /// Ctrl+Escape opens or closes the start menu, as on XP.
+    Start,
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them.
-const KEYS: [(&str, &str, Key); 9] = [
+const KEYS: [(&str, &str, Key); 10] = [
+    ("Ctrl+Escape", "", Key::Start),
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
     ("Alt+Tab", "", Key::Switch(1)),
@@ -1173,6 +1176,10 @@ impl Wm {
             Some(Key::Turn(steps)) => self.turn(steps),
             Some(Key::Carry(steps)) => self.carry(steps),
             Some(Key::Switch(step)) => self.switch(step),
+            Some(Key::Start) => match self.bars.first().map(|b| b.output.clone()) {
+                Some(output) => self.press_taskbar(taskbar::Part::Start(output)),
+                None => Vec::new(),
+            },
             Some(Key::Cube) | None => Vec::new(),
         }
     }
