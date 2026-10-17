@@ -152,19 +152,41 @@ impl DesktopIcons {
     /// icons out on a work area. Returns the commands that show them if
     /// anything changed.
     pub fn refresh(&mut self, theme: &mut Theme, icons: &mut Icons, area: Rect) -> Vec<Command> {
+        self.show(theme, icons, area, false)
+    }
+
+    /// Shows the icons, also when nothing changed with `again`. The icons
+    /// that stay keep their cells on the same work area; new ones take
+    /// free cells.
+    fn show(
+        &mut self,
+        theme: &mut Theme,
+        icons: &mut Icons,
+        area: Rect,
+        again: bool,
+    ) -> Vec<Command> {
         let mut items = items(&self.terminal);
         if self.by_type {
             by_type(&mut items);
         }
-        if items == self.items && area == self.area {
+        if items == self.items && area == self.area && !again {
             return Vec::new();
         }
         let mut commands: Vec<Command> = (0..self.items.len())
             .map(|i| Command::Remove { id: Self::id(i) })
             .collect();
+        let kept: HashMap<String, [i32; 2]> = if area == self.area {
+            self.items
+                .iter()
+                .map(|item| item.key.clone())
+                .zip(self.places.iter().copied())
+                .collect()
+        } else {
+            HashMap::new()
+        };
         self.items = items;
         self.area = area;
-        self.places = self.place();
+        self.places = self.place(&kept);
         if self
             .press
             .as_ref()
@@ -192,35 +214,38 @@ impl DesktopIcons {
     pub fn arrange(&mut self, theme: &mut Theme, icons: &mut Icons, by_type: bool) -> Vec<Command> {
         self.by_type = by_type;
         self.moved.clear();
+        self.places.clear();
         self.reload(theme, icons)
     }
 
     /// Refresh: shows the icons again, also when nothing changed.
     pub fn reload(&mut self, theme: &mut Theme, icons: &mut Icons) -> Vec<Command> {
-        let area = std::mem::take(&mut self.area);
-        self.refresh(theme, icons, area)
+        self.show(theme, icons, self.area, true)
     }
 
     fn find(&self, key: &str) -> Option<usize> {
         self.items.iter().position(|item| item.key == key)
     }
 
-    /// Where each icon goes: its moved place, else the next free cell of
-    /// the columns, and the Recycle Bin at the bottom right.
-    fn place(&self) -> Vec<[i32; 2]> {
-        let (grid, bin) = layout(self.items.len(), self.area);
-        let mut free = grid.into_iter();
+    /// Where each icon goes: its moved place, else the cell it kept, else
+    /// the next free cell of the columns, and the Recycle Bin at the
+    /// bottom right.
+    fn place(&self, kept: &HashMap<String, [i32; 2]>) -> Vec<[i32; 2]> {
+        let (grid, bin) = layout(self.items.len() + kept.len(), self.area);
+        let fixed = |item: &Item| {
+            if item.open == Open::Trash {
+                return Some(bin);
+            }
+            self.moved
+                .get(&item.key)
+                .or_else(|| kept.get(&item.key))
+                .copied()
+        };
+        let taken: Vec<[i32; 2]> = self.items.iter().filter_map(fixed).collect();
+        let mut free = grid.into_iter().filter(|c| !taken.contains(c));
         self.items
             .iter()
-            .map(|item| {
-                if let Some(place) = self.moved.get(&item.key) {
-                    *place
-                } else if item.open == Open::Trash {
-                    bin
-                } else {
-                    free.next().unwrap_or(bin)
-                }
-            })
+            .map(|item| fixed(item).unwrap_or_else(|| free.next().unwrap_or(bin)))
             .collect()
     }
 
@@ -951,5 +976,32 @@ mod tests {
             xdg_open(Path::new("/tmp/it's here")),
             r"xdg-open '/tmp/it'\''s here'"
         );
+    }
+
+    #[test]
+    fn icons_keep_their_cells_and_new_ones_take_free_cells() {
+        let mut desk = DesktopIcons::new("foot");
+        let item = |key: &str| Item {
+            key: key.into(),
+            title: key.into(),
+            icon: String::new(),
+            open: Open::File(key.into()),
+        };
+        desk.area = [0, 0, 800, 570];
+        desk.items = vec![item("a"), item("b"), item("c")];
+        desk.places = desk.place(&HashMap::new());
+        assert_eq!(desk.places, [[0, 0], [0, 75], [0, 150]]);
+        // b goes to the trash: c stays where it is.
+        let kept: HashMap<String, [i32; 2]> = desk
+            .items
+            .iter()
+            .map(|i| i.key.clone())
+            .zip(desk.places.iter().copied())
+            .collect();
+        desk.items = vec![item("a"), item("c")];
+        assert_eq!(desk.place(&kept), [[0, 0], [0, 150]]);
+        // A new icon takes the free cell of b.
+        desk.items = vec![item("a"), item("aa"), item("c")];
+        assert_eq!(desk.place(&kept), [[0, 0], [0, 75], [0, 150]]);
     }
 }
