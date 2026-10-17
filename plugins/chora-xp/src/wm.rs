@@ -320,20 +320,49 @@ impl Wm {
                 events: EVENTS.map(String::from).to_vec(),
             },
         )?;
-        wm.restore_kept(kept)?;
-        wm.adopt_all()?;
+        wm.adopt_all(kept)?;
         Ok(wm)
     }
 
-    /// Adopts the surfaces without an owner, as at a start.
-    fn adopt_all(&mut self) -> Result<(), ClientError> {
-        for node in self.conn.query("kind:surface")? {
-            if node.owner.is_none() {
-                let info = node.surface.unwrap_or_default();
-                self.adopt(&node.id, info.app_id, info.title.as_deref())?;
+    /// Adopts the surfaces without an owner, as at a start, and opens the
+    /// Explorer windows of a restart again, all in their order before the
+    /// restart. Only a window of the current desktop gets the focus.
+    fn adopt_all(&mut self, explorers: Vec<restart::KeptWindow>) -> Result<(), ClientError> {
+        enum Next {
+            Surface(Box<chora_scene::Node>),
+            Explorer(restart::KeptWindow),
+        }
+        let mut next: Vec<(usize, Next)> = self
+            .conn
+            .query("kind:surface")?
+            .into_iter()
+            .filter(|n| n.owner.is_none())
+            .map(|n| {
+                (
+                    self.kept.get(&n.id).map_or(usize::MAX, |k| k.z),
+                    Next::Surface(Box::new(n)),
+                )
+            })
+            .chain(explorers.into_iter().map(|k| (k.z, Next::Explorer(k))))
+            .collect();
+        next.sort_by_key(|(z, _)| *z);
+        for (_, next) in next {
+            match next {
+                Next::Surface(node) => {
+                    let info = node.surface.unwrap_or_default();
+                    self.adopt(&node.id, info.app_id, info.title.as_deref())?;
+                }
+                Next::Explorer(k) => {
+                    let commands = self.reopen(k);
+                    self.apply(commands)?;
+                }
             }
         }
-        Ok(())
+        let top = self.topmost_except("");
+        let mut commands = self.focus(top.as_deref());
+        commands.extend(self.sync_tasks());
+        commands.extend(self.relayout_explorers());
+        self.apply(commands)
     }
 
     /// The groups, the wallpapers, the taskbars and the hidden menu, in
@@ -2414,18 +2443,6 @@ impl Wm {
             Choice::StandBy => spawn("systemctl suspend"),
             Choice::TurnOff => {
                 self.play(Sound::ShutDown);
-                // Nodes of a plugin with resume outlive it for a while.
-                match self.remove_scene() {
-                    // The dialog goes already.
-                    Ok(remove) => {
-                        let rest: Vec<Command> = remove
-                            .into_iter()
-                            .filter(|r| !commands.contains(r))
-                            .collect();
-                        commands.extend(rest);
-                    }
-                    Err(err) => eprintln!("chora-xp: {err}"),
-                }
                 self.done = true;
             }
             Choice::Restart => {

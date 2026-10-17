@@ -83,6 +83,11 @@ pub fn group_id(surface: &str) -> String {
     format!("xp-win-{surface}")
 }
 
+/// The surface of a group of [`group_id`].
+pub fn surface_of(group: &str) -> Option<&str> {
+    group.strip_prefix("xp-win-")
+}
+
 fn frame_id(surface: &str) -> String {
     format!("xp-frame-{surface}")
 }
