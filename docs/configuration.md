@@ -250,7 +250,9 @@ Computer at the top left, then the folders and files of the Desktop folder
 from the top. The Recycle Bin sits at the bottom right and shows whether
 `$XDG_DATA_HOME/Trash/files` has files. A desktop file shows its name and
 icon. Each label is Tahoma in white with a black shadow, in at most two
-lines. `chora-xp` looks at the Desktop folder and the trash once a second.
+lines. `chora-xp` looks at the Desktop folder and the trash once a second;
+the icons that stay keep their cells, and a new icon takes the first
+free cell of the columns.
 My Network Places is left out, because without a network browser it opens
 nothing.
 
