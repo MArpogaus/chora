@@ -81,8 +81,7 @@ fn desktop_files(dir: &Path, base: &Path) -> Vec<(String, PathBuf)> {
 /// The `[Desktop Entry]` group of a desktop file, if it has one with a
 /// name. `desktops` are the names of the current desktop for `OnlyShowIn`
 /// and `NotShowIn`.
-#[must_use]
-pub fn parse(text: &str, desktops: &[&str]) -> Option<Entry> {
+fn parse(text: &str, desktops: &[&str]) -> Option<Entry> {
     let mut entry = Entry::default();
     let mut found = false;
     let mut group = false;
@@ -167,16 +166,31 @@ pub fn command(exec: String, in_terminal: bool, terminal: &str) -> String {
     }
 }
 
-/// The name, icon and command of a desktop file, as for a launcher on
-/// the desktop, if it is an application to show.
+/// A desktop file as a launcher shows it.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Launcher {
+    /// The name.
+    pub name: String,
+    /// The icon name, or the path of an icon file.
+    pub icon: String,
+    /// The command line, in the terminal if the program needs one.
+    pub command: String,
+}
+
+/// The launcher of a desktop file, as on the desktop, if it is an
+/// application to show.
 #[must_use]
-pub fn launcher(path: &Path, terminal: &str) -> Option<(String, String, String)> {
+pub fn launcher(path: &Path, terminal: &str) -> Option<Launcher> {
     let desktops = current_desktops();
     let desktops: Vec<&str> = desktops.iter().map(String::as_str).collect();
     let entry = parse(&fs::read_to_string(path).ok()?, &desktops)?;
     (!entry.hidden && !entry.exec.is_empty()).then(|| {
         let command = command(entry.exec, entry.terminal, terminal);
-        (entry.name, entry.icon, command)
+        Launcher {
+            name: entry.name,
+            icon: entry.icon,
+            command,
+        }
     })
 }
 

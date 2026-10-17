@@ -817,13 +817,13 @@ fn scan(dir: &Path, terminal: &str, icons: &mut Icons) -> Vec<Item> {
                 };
             }
             if path.extension().is_some_and(|e| e == "desktop")
-                && let Some((title, icon, command)) = desktop_entry::launcher(&path, terminal)
+                && let Some(launcher) = desktop_entry::launcher(&path, terminal)
             {
                 return Item {
                     key,
-                    title,
-                    icon: found(icons.program_sized(&icon, SIZE)),
-                    open: Open::Run(command),
+                    title: launcher.name,
+                    icon: found(icons.program_sized(&launcher.icon, SIZE)),
+                    open: Open::Run(launcher.command),
                 };
             }
             let executable = fs::metadata(&path).is_ok_and(|m| m.permissions().mode() & 0o111 != 0);

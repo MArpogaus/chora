@@ -78,8 +78,7 @@ impl Lamp {
 
 /// The grid points of the genie in scene coordinates at a progress from 0
 /// (the window) to 1 (inside the button).
-#[must_use]
-pub fn genie(from: [f64; 4], to: [f64; 4], progress: f64) -> Vec<[f64; 2]> {
+fn genie(from: [f64; 4], to: [f64; 4], progress: f64) -> Vec<[f64; 2]> {
     let [left0, top0, width, height] = from;
     let [left1, top1, width1, height1] = to;
     let bend = smooth((progress / BEND).min(1.0));
