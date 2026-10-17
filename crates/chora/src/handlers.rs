@@ -99,6 +99,7 @@ impl State {
     /// unmapped, and tells the plugins with `surface.destroyed`.
     fn surface_gone(&mut self, id: &str) {
         self.unfocus(id);
+        self.configured_forget(id);
         self.unlist_toplevel(id);
         self.early_requests.remove(id);
         let existed = self.scene.remove_surface(id);
@@ -126,8 +127,6 @@ impl State {
                 self.surface_gone(id);
                 return;
             }
-            // A client that maps a surface again gets its last configure.
-            self.reconfigure(id);
             toplevel.send_configure();
             let info = self.surface_info(id);
             if self.scene.add_surface(id, info.clone()) {
@@ -236,7 +235,6 @@ impl XdgShellHandler for State {
             return;
         };
         self.windows.remove(&id);
-        self.configured_forget(&id);
         self.surface_gone(&id);
     }
 

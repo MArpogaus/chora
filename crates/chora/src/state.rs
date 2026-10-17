@@ -461,7 +461,6 @@ impl State {
     }
 
     /// Sends a configure event and returns its serial, if the state changed.
-    /// The configure stays known, for a client that maps the surface again.
     pub fn configure(
         &mut self,
         surface: &str,
@@ -483,18 +482,9 @@ impl State {
             .map_or(&[], |(_, states)| states.as_slice())
     }
 
-    /// Forgets the configure of a destroyed surface.
+    /// Forgets the configure of a surface that goes.
     pub fn configured_forget(&mut self, surface: &str) {
         self.configured.remove(surface);
-    }
-
-    /// Prepares the initial configure of a surface that a client maps again:
-    /// the last configure of its plugin.
-    pub fn reconfigure(&self, surface: &str) {
-        let toplevel = self.windows.get(surface).and_then(Window::toplevel);
-        if let (Some(toplevel), Some((size, states))) = (toplevel, self.configured.get(surface)) {
-            set_pending(toplevel, *size, states);
-        }
     }
 
     /// The surface node that has the focus, as plugins set it.
@@ -856,6 +846,25 @@ mod tests {
         assert_eq!(wm.event_names(&mut core), ["surface.created"]);
         wayland.attach(&mut core, &first, (100, 100));
         assert!(core.state.scene.node("s1").is_some());
+    }
+
+    #[test]
+    fn an_unmapped_toplevel_maps_again_without_its_old_configure() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        let configure = apply(&json!([
+            {"configure": {"surface": "s1", "size": [400, 300], "states": ["activated"]}},
+        ]));
+        let id = wm.send("scene.apply", configure);
+        wayland.roundtrip(&mut core);
+        wayland.answer(&mut core, &first);
+        core.dispatch();
+        assert_eq!(wm.answer(&mut core, id), Some(Ok(Value::Null)));
+        wayland.attach(&mut core, &first, (400, 300));
+        wayland.unmap(&mut core, &first);
+        wayland.commit(&mut core, &first);
+        let configures = wayland.configures(&first);
+        assert_eq!(configures.size, (0, 0));
+        assert_eq!(configures.states, []);
     }
 
     #[test]
