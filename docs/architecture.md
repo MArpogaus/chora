@@ -264,7 +264,7 @@ Plugins set the focus. The core changes it in three cases only:
 
 - The emergency reset focuses the first surface.
 - A click on a surface without an owner focuses it.
-- A surface that becomes detached, unmaps or goes loses the focus.
+- A surface that becomes detached, unmaps or goes away loses the focus.
 
 The core still implements the protocol mechanisms around focus: popup
 grabs, the keyboard interactivity of `wlr-layer-shell` and
