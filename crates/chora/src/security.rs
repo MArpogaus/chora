@@ -53,21 +53,21 @@ fn allowed(client: &Client, capability: Option<Capability>) -> bool {
     }
 }
 
-/// Offers idle inhibit, which Smithay offers to all clients, only to
-/// unrestricted ones.
+/// Offers idle inhibit, which Smithay offers to all clients, only outside
+/// client sockets.
 pub fn idle_inhibit_global(dh: &DisplayHandle) {
-    dh.create_global::<State, ZwpIdleInhibitManagerV1, _>(1, UnrestrictedGlobal);
+    dh.create_global::<State, ZwpIdleInhibitManagerV1, _>(1, OutsideClientSockets);
 }
 
-/// The state of idle notify, with a global that only unrestricted clients
-/// see in place of the global of Smithay.
+/// The state of idle notify, with a global that clients of client sockets
+/// do not see in place of the global of Smithay.
 pub fn idle_notifier(
     dh: &DisplayHandle,
     loop_handle: &LoopHandle<'static, State>,
 ) -> IdleNotifierState<State> {
     let state = IdleNotifierState::new(dh, loop_handle.clone());
     dh.remove_global::<State>(state.global());
-    dh.create_global::<State, ExtIdleNotifierV1, _>(2, UnrestrictedGlobal);
+    dh.create_global::<State, ExtIdleNotifierV1, _>(2, OutsideClientSockets);
     state
 }
 
@@ -81,11 +81,19 @@ pub fn named(dh: &DisplayHandle, surface: &WlSurface) -> bool {
         .unwrap_or(false)
 }
 
-/// The data of a global that only unrestricted clients see. It binds the
-/// global as Smithay does, for globals that Smithay offers to all.
-pub struct UnrestrictedGlobal;
+/// Whether a client came through the main socket or a sandbox, not a
+/// client socket. A video player in a sandbox may inhibit idle.
+fn outside_client_sockets(client: &Client) -> bool {
+    client
+        .get_data::<ClientState>()
+        .is_none_or(|c| c.name.is_none())
+}
 
-impl GlobalDispatch2<ZwpIdleInhibitManagerV1, State> for UnrestrictedGlobal {
+/// The data of a global that only clients outside client sockets see. It binds the
+/// global as Smithay does, for globals that Smithay offers to all.
+pub struct OutsideClientSockets;
+
+impl GlobalDispatch2<ZwpIdleInhibitManagerV1, State> for OutsideClientSockets {
     fn bind(
         &self,
         _: &mut State,
@@ -98,11 +106,11 @@ impl GlobalDispatch2<ZwpIdleInhibitManagerV1, State> for UnrestrictedGlobal {
     }
 
     fn can_view(&self, client: &Client) -> bool {
-        unrestricted(client)
+        outside_client_sockets(client)
     }
 }
 
-impl GlobalDispatch2<ExtIdleNotifierV1, State> for UnrestrictedGlobal {
+impl GlobalDispatch2<ExtIdleNotifierV1, State> for OutsideClientSockets {
     fn bind(
         &self,
         _: &mut State,
@@ -115,7 +123,7 @@ impl GlobalDispatch2<ExtIdleNotifierV1, State> for UnrestrictedGlobal {
     }
 
     fn can_view(&self, client: &Client) -> bool {
-        unrestricted(client)
+        outside_client_sockets(client)
     }
 }
 
@@ -130,9 +138,8 @@ pub fn may_inject(client: &Client) -> bool {
 }
 
 /// Whether a client sees the protocols that no grant covers: output
-/// management, the session lock, both foreign toplevel protocols, the
-/// security context manager, idle inhibit and idle notify. A client of a
-/// client socket never sees them.
+/// management, the session lock, both foreign toplevel protocols and the
+/// security context manager. A client of a client socket never sees them.
 pub fn unrestricted(client: &Client) -> bool {
     allowed(client, None)
 }

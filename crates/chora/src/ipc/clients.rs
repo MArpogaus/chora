@@ -262,3 +262,6 @@ fn remove(dir: &Path) {
     let _ = std::fs::remove_file(dir.join(WAYLAND));
     let _ = std::fs::remove_dir(dir);
 }
+
+#[cfg(test)]
+mod tests;
