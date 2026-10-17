@@ -19,7 +19,7 @@ use std::{
 
 use chora_scene::{
     Binding, Event, Selector,
-    ipc::{Apply, Edges, Grab, Hello, Message, Query, Request, RpcError, Subscribe},
+    ipc::{Apply, Capability, Edges, Grab, Hello, Message, Query, Request, RpcError, Subscribe},
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -845,15 +845,18 @@ impl State {
 
     /// Grabs a binding of a key or a pointer button for a named connection.
     /// A binding needs Ctrl, Alt or Super, so that typing and clicking still
-    /// work, and Ctrl+Alt with the keys of the safety layer belongs to it.
-    /// The result is the binding in the normal form of `input.key`.
+    /// work; `input.grab-any` lifts this (D45). Ctrl+Alt with the keys of
+    /// the safety layer belongs to the safety layer either way. The result
+    /// is the binding in the normal form of `input.key`.
     fn ipc_grab(&mut self, conn: u64, binding: Binding) -> Result<Value, RpcError> {
-        if self.ipc.name(conn).is_none() {
+        let Some(name) = self.ipc.name(conn).map(str::to_owned) else {
             return Err(rejected("send hello first"));
-        }
+        };
         let m = binding.mods;
-        if !(m.ctrl || m.alt || m.logo) {
-            return Err(rejected(format!("{binding} needs Ctrl, Alt or Super")));
+        if !(m.ctrl || m.alt || m.logo || self.grants.allows(&name, Capability::GrabAny)) {
+            return Err(rejected(format!(
+                "{binding} needs Ctrl, Alt or Super or the capability input.grab-any"
+            )));
         }
         let trigger = trigger(&binding)?;
         if m.ctrl && m.alt && matches!(trigger, Trigger::Key(sym) if is_safety_key(sym)) {
@@ -1752,7 +1755,10 @@ mod tests {
         let normal = wm.ok(&mut core, "input.grab", grab("Super+Shift+Return"));
         assert_eq!(normal, "Shift+Super+Return");
         for (binding, message) in [
-            ("Shift+a", "Shift+a needs Ctrl, Alt or Super"),
+            (
+                "Shift+a",
+                "Shift+a needs Ctrl, Alt or Super or the capability input.grab-any",
+            ),
             (
                 "Ctrl+Alt+BackSpace",
                 "Ctrl+Alt+BackSpace belongs to the safety layer",
@@ -1763,6 +1769,29 @@ mod tests {
             let (error_code, got) = wm.fails(&mut core, "input.grab", grab(binding));
             assert_eq!((error_code, got.as_str()), (REJECTED, message));
         }
+    }
+
+    #[test]
+    fn grab_any_grabs_keys_without_a_modifier() {
+        let mut core = Core::new();
+        let grant = json!({"client": "agent", "capabilities": ["input.grab-any"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let grab = |binding: &str| json!({"binding": binding});
+        assert_eq!(agent.ok(&mut core, "input.grab", grab("F13")), "F13");
+        assert_eq!(agent.ok(&mut core, "input.grab", grab("a")), "a");
+        // the safety layer stays free even with the capability
+        let (_, message) = agent.fails(&mut core, "input.grab", grab("Ctrl+Alt+F3"));
+        assert_eq!(message, "Ctrl+Alt+F3 belongs to the safety layer");
+        core.admin()
+            .ok(&mut core, "grants.revoke", json!({"client": "agent"}));
+        // revoked: the next bare grab fails
+        let mut late = core.named("agent");
+        let (_, message) = late.fails(&mut core, "input.grab", grab("b"));
+        assert_eq!(
+            message,
+            "b needs Ctrl, Alt or Super or the capability input.grab-any"
+        );
     }
 
     #[test]

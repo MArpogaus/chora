@@ -408,11 +408,20 @@ pub enum Capability {
     /// `process.spawn`: start programs, and restart plugins.
     #[serde(rename = "process.spawn")]
     ProcessSpawn,
+    /// `input.grab-any`: grab keys and buttons without Ctrl, Alt or Super
+    /// (D45).
+    #[serde(rename = "input.grab-any")]
+    GrabAny,
 }
 
 impl Capability {
     /// Every capability.
-    pub const ALL: [Self; 3] = [Self::InputInject, Self::ScreenCapture, Self::ProcessSpawn];
+    pub const ALL: [Self; 4] = [
+        Self::InputInject,
+        Self::ScreenCapture,
+        Self::ProcessSpawn,
+        Self::GrabAny,
+    ];
 
     /// The name, which is also the name of the method.
     #[must_use]
@@ -421,6 +430,7 @@ impl Capability {
             Self::InputInject => "input.inject",
             Self::ScreenCapture => "screen.capture",
             Self::ProcessSpawn => "process.spawn",
+            Self::GrabAny => "input.grab-any",
         }
     }
 }

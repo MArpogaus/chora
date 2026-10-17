@@ -1162,7 +1162,10 @@ mod tests {
         let mut wm = core.named("wm");
         let grab = |binding: &str| json!({"binding": binding});
         let (_, message) = wm.fails(&mut core, "input.grab", grab("BTN_LEFT"));
-        assert_eq!(message, "BTN_LEFT needs Ctrl, Alt or Super");
+        assert_eq!(
+            message,
+            "BTN_LEFT needs Ctrl, Alt or Super or the capability input.grab-any"
+        );
         let (_, message) = wm.fails(&mut core, "input.grab", grab("Alt+BTN_NOPE"));
         assert_eq!(message, "unknown key \"BTN_NOPE\"");
         wm.ok(&mut core, "input.grab", grab("Ctrl+Alt+BTN_RIGHT"));
