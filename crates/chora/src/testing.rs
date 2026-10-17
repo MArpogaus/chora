@@ -52,14 +52,14 @@ impl Core {
     pub fn connect(&mut self) -> Client {
         let (ours, theirs) = UnixStream::pair().expect("a socket pair");
         self.state.ipc_accept(theirs).expect("the core accepts");
-        ours.set_nonblocking(true).expect("a socket option");
-        Client {
-            stream: ours,
-            input: Vec::new(),
-            events: Vec::new(),
-            responses: Vec::new(),
-            next: 1,
-        }
+        Client::new(ours)
+    }
+
+    /// A new IPC connection through a socket file of the core.
+    pub fn connect_to(&mut self, path: &std::path::Path) -> Client {
+        let ours = UnixStream::connect(path).expect("the socket listens");
+        self.dispatch();
+        Client::new(ours)
     }
 
     /// A new IPC connection after `hello` with a name.
@@ -126,6 +126,17 @@ impl Drop for Client {
 }
 
 impl Client {
+    fn new(stream: UnixStream) -> Self {
+        stream.set_nonblocking(true).expect("a socket option");
+        Self {
+            stream,
+            input: Vec::new(),
+            events: Vec::new(),
+            responses: Vec::new(),
+            next: 1,
+        }
+    }
+
     /// Sends one raw line.
     pub fn send_line(&mut self, line: &[u8]) {
         self.stream.write_all(line).expect("the core reads");

@@ -35,6 +35,8 @@ use smithay::{
 
 use crate::{captured::Processes, state::State, uploads::Uploads};
 
+mod clients;
+
 const MAX_CONNECTIONS: usize = 128;
 /// The most connections of one process, so that one client cannot take
 /// every slot.
@@ -72,6 +74,8 @@ pub struct Ipc {
     /// The client names with `resume` without a connection, and the end of
     /// their grace time.
     graces: HashMap<String, Instant>,
+    /// The client sockets by name: the source of the listener and the path.
+    clients: HashMap<String, (RegistrationToken, PathBuf)>,
 }
 
 /// What a grab waits for: a key or a pointer button.
@@ -125,6 +129,9 @@ struct Conn {
     hello_by: Instant,
     keep_nodes: bool,
     resume: bool,
+    /// The name of the client socket of the connection (D33); `None` for
+    /// the main socket.
+    fixed: Option<String>,
     events: Option<Vec<String>>,
     /// The edges of `output.reserve` by output name.
     reserves: HashMap<String, Edges>,
@@ -155,7 +162,7 @@ pub fn listen(state: &mut State) -> io::Result<PathBuf> {
         .insert_source(
             Generic::new(listener, Interest::READ, Mode::Level),
             |_, listener, state| {
-                if let Some(error) = state.ipc_accept_all(listener) {
+                if let Some(error) = state.ipc_accept_all(listener, None) {
                     tracing::warn!("IPC socket: {error}");
                 }
                 Ok(PostAction::Continue)
@@ -188,7 +195,8 @@ fn private_dir(runtime: &Path) -> io::Result<PathBuf> {
 
 impl Drop for Ipc {
     fn drop(&mut self) {
-        if let Some(path) = &self.path {
+        let clients = self.clients.values().map(|(_, path)| path);
+        for path in self.path.iter().chain(clients) {
             let _ = std::fs::remove_file(path);
         }
     }
@@ -351,6 +359,11 @@ impl Ipc {
         self.conns.values().any(|c| c.name.as_deref() == Some(name))
     }
 
+    /// The name of the client socket of a connection.
+    fn fixed(&self, conn: u64) -> Option<&str> {
+        self.conns.get(&conn)?.fixed.as_deref()
+    }
+
     /// The client name of a connection.
     pub fn name(&self, conn: u64) -> Option<&str> {
         self.conns.get(&conn)?.name.as_deref()
@@ -449,25 +462,30 @@ impl State {
     /// Accepts every waiting connection. When accepting fails, for example
     /// because no file descriptors are left, the listener pauses for a
     /// second instead of stopping the compositor. Returns the error to log.
-    fn ipc_accept_all(&mut self, listener: &UnixListener) -> Option<String> {
+    /// A listener of a client socket gives its name in `fixed`.
+    fn ipc_accept_all(&mut self, listener: &UnixListener, fixed: Option<&str>) -> Option<String> {
         loop {
             match listener.accept() {
                 Ok((stream, _)) => {
-                    if let Err(err) = self.ipc_accept(stream) {
+                    if let Err(err) = self.ipc_accept_as(stream, fixed) {
                         break Some(err);
                     }
                 }
                 Err(err) if err.kind() == ErrorKind::WouldBlock => break None,
                 Err(err) => {
-                    self.ipc_pause_listener();
+                    let token = match fixed {
+                        Some(name) => self.ipc.clients.get(name).map(|(t, _)| *t),
+                        None => self.ipc.listener,
+                    };
+                    self.ipc_pause_listener(token);
                     break Some(format!("accepting fails, pausing for a second: {err}"));
                 }
             }
         }
     }
 
-    fn ipc_pause_listener(&mut self) {
-        let Some(token) = self.ipc.listener else {
+    fn ipc_pause_listener(&mut self, token: Option<RegistrationToken>) {
+        let Some(token) = token else {
             return;
         };
         self.loop_handle.disable(&token).ok();
@@ -484,7 +502,14 @@ impl State {
     /// Registers a connection, or refuses it beyond the limits of all
     /// connections and of its process. A refused connection gets an error
     /// line before the close.
+    #[cfg(test)]
     pub fn ipc_accept(&mut self, stream: UnixStream) -> Result<(), String> {
+        self.ipc_accept_as(stream, None)
+    }
+
+    /// Registers a connection of the main socket, or with `fixed` of a
+    /// client socket.
+    fn ipc_accept_as(&mut self, stream: UnixStream, fixed: Option<&str>) -> Result<(), String> {
         fn failed(err: impl std::fmt::Display) -> String {
             format!("a connection failed: {err}")
         }
@@ -519,6 +544,7 @@ impl State {
             hello_by,
             keep_nodes: false,
             resume: false,
+            fixed: fixed.map(String::from),
             events: None,
             reserves: HashMap::new(),
             reader: Some(token),
@@ -628,9 +654,13 @@ impl State {
                 self.ipc_headless_output(conn, &request.method, params)
             }
             "clients.list" => Ok(self.clients()),
+            "grants.set" | "grants.revoke" if self.ipc.fixed(conn).is_some() => {
+                Err(rejected("a client socket cannot change grants"))
+            }
             "grants.set" | "grants.revoke" | "grants.list" => {
                 self.ipc_grants(&request.method, params)
             }
+            "clients.create" => params_of(params).and_then(|c| self.ipc_client_socket(conn, &c)),
             "screen.capture" => self.ipc_capture(conn, params),
             "input.inject" => self.ipc_inject(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
@@ -653,6 +683,19 @@ impl State {
     fn ipc_hello(&mut self, conn: u64, hello: Hello) -> Result<Value, RpcError> {
         if self.ipc.name(conn).is_some() {
             return Err(rejected("hello was sent already"));
+        }
+        // A client socket fixes the name (D33).
+        match self.ipc.fixed(conn) {
+            Some(fixed) if fixed != hello.name => {
+                return Err(rejected(format!("this socket belongs to {fixed:?}")));
+            }
+            None if self.ipc.clients.contains_key(&hello.name) => {
+                return Err(rejected(format!(
+                    "{:?} has a client socket and connects only through it",
+                    hello.name
+                )));
+            }
+            _ => {}
         }
         let peer = self
             .ipc
@@ -1191,6 +1234,42 @@ mod tests {
             core.state.scene.node("g").is_some(),
             "the timer of the old grace time removes nothing"
         );
+    }
+
+    #[test]
+    fn a_client_socket_fixes_the_name_and_grants_nothing() {
+        let dir = std::env::temp_dir().join(format!("chora-clients-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut core = Core::new();
+        core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+        let mut admin = core.connect();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let path = PathBuf::from(created["path"].as_str().unwrap());
+        assert_eq!(path, dir.join("clients/agent/ipc.sock"));
+        let mut agent = core.connect_to(&path);
+        let (_, message) = agent.fails(&mut core, "hello", json!({"name": "tiling"}));
+        assert!(message.contains("belongs to \"agent\""), "{message}");
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        let (_, message) = agent.fails(&mut core, "grants.set", grant);
+        assert!(message.contains("cannot change grants"), "{message}");
+        let (_, message) = agent.fails(&mut core, "clients.create", json!({"name": "x"}));
+        assert!(message.contains("cannot make"), "{message}");
+        agent.ok(&mut core, "hello", json!({"name": "agent"}));
+        agent.ok(&mut core, "scene.apply", rect("r"));
+        assert_eq!(
+            core.state.scene.node("r").unwrap().owner.as_deref(),
+            Some("agent")
+        );
+        let mut other = core.connect();
+        let (_, message) = other.fails(&mut core, "hello", json!({"name": "agent"}));
+        assert!(message.contains("connects only through it"), "{message}");
+        let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "agent"}));
+        assert!(message.contains("already"), "{message}");
+        let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "../x"}));
+        assert!(message.contains("lowercase"), "{message}");
+        drop(core);
+        assert!(!path.exists(), "the core removes the socket");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

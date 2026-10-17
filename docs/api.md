@@ -288,8 +288,8 @@ Later milestones add events for size limits.
 JSON-RPC 2.0, one message per line, on the socket in `CHORA_SOCKET`. A
 client sends `hello` first. A method that changes the session or needs a
 grant fails before `hello`. `scene.query`, `events.subscribe`,
-`output.list`, `clients.list`, `grants.set`, `grants.revoke` and
-`grants.list` also work before it, for tools that only read. The core
+`output.list`, `clients.list`, `clients.create`, `grants.set`,
+`grants.revoke` and `grants.list` also work before it, for tools. The core
 answers every request.
 
 | Method | Purpose |
@@ -302,7 +302,8 @@ answers every request.
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `process.spawn` for a client name; `choractl grant` and `choractl revoke` call them |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `process.spawn` for a client name; `choractl grant` and `choractl revoke` call them; a client socket cannot change grants |
+| `clients.create(name)` | open the client socket of a name and return its `path` (see [Client sockets](#client-sockets)); a client socket cannot call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
 | `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; returns the output |
@@ -373,8 +374,8 @@ node end as at any disconnect, and `client.disconnected` follows at once.
 - After the grace time, the core removes the nodes as at any disconnect:
   the surfaces become detached, and the core sends `surface.detached` for
   each.
-- No client of another name can change the kept nodes. Names are not
-  authenticated before 0.7 (D33/D40).
+- No client of another name can change the kept nodes. A name with a
+  client socket is trusted; see [Client sockets](#client-sockets).
 - A toplevel that maps during the grace time gets `surface.created` as
   usual, and stays without an owner if no other plugin attaches it. The
   resumed plugin takes it as at any start, with a query of `kind:surface`
@@ -440,9 +441,33 @@ $ choractl revoke agent
 ```
 
 A grant lasts until `choractl revoke` or the end of the session. The
-emergency reset revokes all grants. A grant protects against mistakes of
-agents, not against hostile code of the same user, which can call
-`grants.set` itself. `choractl mcp` offers no tool for grants.
+emergency reset revokes all grants. A client of a client socket cannot
+change grants. A client of the main socket still can, so a grant protects
+against hostile code only when that code sees its client socket alone.
+`choractl mcp` offers no tool for grants.
+
+## Client sockets
+
+A client socket fixes the name of its clients (D33). `clients.create`
+with a name opens `clients/NAME/ipc.sock` in the directory of the main
+socket, with mode 0700:
+
+```json
+{"jsonrpc": "2.0", "id": 1, "method": "clients.create", "params": {"name": "agent"}}
+```
+
+- A connection through it says `hello` with that name only.
+- It cannot call `grants.set`, `grants.revoke` or `clients.create`.
+- The main socket refuses a `hello` with a name that has a client
+  socket, so no client of the main socket takes that name.
+- The name has lowercase letters, digits, `_`, `-` and `.`, and starts
+  with a letter. A second `clients.create` of a name fails.
+- The socket goes when chora exits.
+
+A container mounts only its client directory, so its clients cannot take
+another name or give themselves capabilities. The main socket stays open
+to all clients of the user. Later steps of 0.7 add an admin socket for
+`choractl` and `choractl clients up`.
 
 ## Programs
 

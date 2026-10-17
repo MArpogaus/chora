@@ -64,7 +64,7 @@ impl Methods {
 
 /// Whether a method name is valid: lowercase letters, digits, `_`, `-` and
 /// `.`, starting with a letter.
-fn valid_name(name: &str) -> bool {
+pub(crate) fn valid_name(name: &str) -> bool {
     name.len() <= MAX_NAME
         && name.starts_with(|c: char| c.is_ascii_lowercase())
         && name
