@@ -933,7 +933,7 @@ impl Scene {
 
     /// A client focuses its own surfaces. After it cleared the focus, it may
     /// give the focus back to the surface that had it, also of another
-    /// client.
+    /// client. A new focus ends every return, as in [`Scene::set_focused`].
     fn focus_command(&mut self, owner: &str, surface: Option<&str>) -> Result<(), SceneError> {
         // The focus follows the commands, so that a later command of the
         // same transaction sees it.
@@ -949,6 +949,9 @@ impl Scene {
             self.focus_returns.remove(owner);
         } else {
             self.owned_surface(owner, id)?;
+        }
+        if self.focused.as_deref() != Some(id) {
+            self.focus_returns = OrdMap::new();
         }
         self.focused = Some(id.into());
         self.focused_node = None;

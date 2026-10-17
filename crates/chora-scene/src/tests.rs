@@ -876,6 +876,15 @@ fn a_client_that_cleared_the_focus_gives_it_back() {
     scene.apply("walk", &[focus(None)]).unwrap();
     scene.set_focused(Some("s2"));
     assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    // So does a focus that the window manager gave elsewhere since.
+    scene.add_surface("s2", SurfaceInfo::default());
+    scene
+        .apply("wm", &[attach("s2", ROOT), focus(Some("s1"))])
+        .unwrap();
+    scene.apply("walk", &[focus(None)]).unwrap();
+    scene.apply("wm", &[focus(Some("s2"))]).unwrap();
+    let err = scene.apply("walk", &[focus(Some("s1"))]).unwrap_err();
+    assert_eq!(err.error, SceneError::NotOwner("s1".into(), "wm".into()));
     // A transaction that focuses an own surface and clears the focus gives
     // it back to that surface.
     scene.add_surface("s5", SurfaceInfo::default());
