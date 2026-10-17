@@ -1897,9 +1897,7 @@ impl Wm {
             return self.release_explorer(i, position);
         }
         if self.desk.pressed() {
-            return self
-                .desk
-                .release(&mut self.theme, &mut self.icons, position);
+            return self.release_icons(position);
         }
         if let Some(dialog) = &mut self.dialog {
             let (mut commands, choice) = dialog.release(&mut self.theme, position);
@@ -1921,6 +1919,53 @@ impl Wm {
             commands.extend(self.close_and_run(&action));
         }
         commands
+    }
+
+    /// The release after a press on the desktop: the icons drop on an
+    /// Explorer window, or into their cells.
+    fn release_icons(&mut self, position: [f64; 2]) -> Vec<Command> {
+        if let Some(commands) = self.drop_on_explorer(position) {
+            return commands;
+        }
+        self.desk
+            .release(&mut self.theme, &mut self.icons, position)
+    }
+
+    /// Desktop icons dropped on an Explorer window of a folder: their
+    /// files and folders go into it, moved on the same file system and
+    /// copied to another one, as on XP. `None` when the drop is no drag
+    /// onto such a window.
+    fn drop_on_explorer(&mut self, [px, py]: [f64; 2]) -> Option<Vec<Command>> {
+        #[allow(clippy::cast_possible_truncation)]
+        let [x, y] = [px.floor() as i32, py.floor() as i32];
+        let id = self
+            .windows
+            .iter()
+            .rev()
+            .filter(|w| w.desktop == self.desktop && w.shown && !w.minimized)
+            .find(|w| {
+                let [wx, wy, ww, wh] = w.rect();
+                (wx..wx + ww).contains(&x) && (wy..wy + wh).contains(&y)
+            })
+            .map(|w| w.surface.clone())?;
+        let explorer = self.explorers.iter().find(|e| e.id == id)?;
+        let crate::folder::Place::Folder(dir) = explorer.history.current.clone() else {
+            return None;
+        };
+        let (paths, mut commands) = self.desk.drop_out()?;
+        for path in &paths {
+            if let Err(err) = crate::folder::drop_into(path, &dir) {
+                eprintln!("chora-xp: drop {}: {err}", path.display());
+            }
+        }
+        // The window of the folder, and the desktop, show the change.
+        if let Some(e) = self.explorers.iter_mut().find(|e| e.id == id) {
+            e.command(crate::explorer::Cmd::Refresh);
+        }
+        commands.extend(self.redraw_explorer(&id));
+        commands.extend(self.refresh_icons());
+        commands.extend(self.activate(&id));
+        Some(commands)
     }
 
     /// A window dragged out of the work areas of `chora-xp` goes to the

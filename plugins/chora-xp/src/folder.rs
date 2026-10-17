@@ -556,6 +556,55 @@ pub fn trash_file(root: &Path, path: &Path, date: &str) -> std::io::Result<Strin
     unreachable!("the names never run out")
 }
 
+/// What a drop into a folder did with a file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Dropped {
+    /// Moved, on the same file system.
+    Moved,
+    /// Copied, to another file system, as XP copies to another drive.
+    Copied,
+}
+
+/// Drops a file or a folder into a folder, as XP does: a move on the same
+/// file system, a copy to another one. A name that the folder has already
+/// stays as it is, and the drop fails.
+pub fn drop_into(path: &Path, dir: &Path) -> std::io::Result<Dropped> {
+    let name = path
+        .file_name()
+        .ok_or_else(|| std::io::Error::other("no file name"))?;
+    let target = dir.join(name);
+    if target.symlink_metadata().is_ok() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            format!("{} exists", target.display()),
+        ));
+    }
+    if dir.starts_with(path) {
+        return Err(std::io::Error::other("a folder into itself"));
+    }
+    match fs::rename(path, &target) {
+        Ok(()) => Ok(Dropped::Moved),
+        Err(err) if err.kind() == std::io::ErrorKind::CrossesDevices => {
+            copy_all(path, &target)?;
+            Ok(Dropped::Copied)
+        }
+        Err(err) => Err(err),
+    }
+}
+
+/// Copies a file, or a folder with all it holds.
+fn copy_all(from: &Path, to: &Path) -> std::io::Result<()> {
+    if !from.is_dir() {
+        return fs::copy(from, to).map(|_| ());
+    }
+    fs::create_dir(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        copy_all(&entry.path(), &to.join(entry.file_name()))?;
+    }
+    Ok(())
+}
+
 /// The `n`th name for a file in the trash: the name itself, then with a
 /// number before the extension.
 fn numbered(name: &str, n: u32) -> String {
@@ -844,5 +893,28 @@ overlay /var/lib/x overlay rw 0 0
         assert_eq!(fs::read_dir(root.join("info")).unwrap().count(), 0);
         assert!(outside.join("keep").is_file());
         fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn a_drop_moves_into_the_folder_and_keeps_what_is_there() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-drop-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("into")).expect("a folder");
+        fs::write(dir.join("a.txt"), "a").expect("a file");
+        assert_eq!(
+            drop_into(&dir.join("a.txt"), &dir.join("into")).ok(),
+            Some(Dropped::Moved)
+        );
+        assert!(dir.join("into/a.txt").is_file() && !dir.join("a.txt").exists());
+        // The name is taken: the file stays where it is.
+        fs::write(dir.join("a.txt"), "b").expect("a file");
+        assert!(drop_into(&dir.join("a.txt"), &dir.join("into")).is_err());
+        assert!(dir.join("a.txt").is_file());
+        // Not a folder into itself.
+        assert!(drop_into(&dir.join("into"), &dir.join("into")).is_err());
+        // The copy of another file system takes the folder whole.
+        copy_all(&dir.join("into"), &dir.join("copy")).expect("a copy");
+        assert!(dir.join("copy/a.txt").is_file());
+        let _ = fs::remove_dir_all(dir);
     }
 }

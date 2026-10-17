@@ -483,6 +483,34 @@ impl DesktopIcons {
     /// dragged icons snap to the nearest cells. If a cell is taken by an
     /// icon that stays, or by two of them, they all go back. A click
     /// without a drag on one of several selected icons selects it alone.
+    /// The icons of a drag end outside the desktop, as on a folder of
+    /// Explorer: the files and folders that they stand for, and the
+    /// commands that put the icons back. `None` without a drag.
+    pub fn drop_out(&mut self) -> Option<(Vec<PathBuf>, Vec<Command>)> {
+        let press = self.press.take_if(|p| p.moving)?;
+        let mut paths = Vec::new();
+        let mut commands = Vec::new();
+        for (key, _) in &press.origins {
+            let Some(i) = self.find(key) else { continue };
+            let item = &self.items[i];
+            // My Documents, My Computer and the Recycle Bin stay.
+            if matches!(item.open, Open::File(_) | Open::Run(_))
+                || (matches!(item.open, Open::Folder(_)) && item.title != "My Documents")
+            {
+                paths.push(PathBuf::from(key));
+            }
+            let [x, y] = self.places[i].map(f64::from);
+            commands.push(Command::Update {
+                id: Self::id(i),
+                props: PropsUpdate {
+                    transform: Some(Transform::translate(x, y, 0.0)),
+                    ..PropsUpdate::default()
+                },
+            });
+        }
+        Some((paths, commands))
+    }
+
     pub fn release(
         &mut self,
         theme: &mut Theme,

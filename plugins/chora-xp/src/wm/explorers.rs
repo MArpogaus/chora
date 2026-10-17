@@ -143,7 +143,7 @@ impl Wm {
 
     /// Shows the page of an Explorer window again, with its title and
     /// icon in the title bar and on the task button.
-    fn redraw_explorer(&mut self, id: &str) -> Vec<Command> {
+    pub(super) fn redraw_explorer(&mut self, id: &str) -> Vec<Command> {
         let Some(e) = self.explorers.iter_mut().find(|e| e.id == id) else {
             return Vec::new();
         };
