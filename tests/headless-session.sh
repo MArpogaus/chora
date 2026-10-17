@@ -55,6 +55,9 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM HUP
 
+# llvmpipe starts a thread per core; 4 render a headless frame at half the
+# CPU cost of 32.
+export LP_NUM_THREADS=${LP_NUM_THREADS:-4}
 env -u WAYLAND_DISPLAY -u DISPLAY -u WAYLAND_SOCKET XDG_RUNTIME_DIR="$runtime" \
     setsid "$bin/chora" --headless "$outputs" -- "$@" >"$log" 2>&1 &
 pid=$!
