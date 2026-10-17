@@ -226,6 +226,17 @@ impl State {
                     let size = w.geometry().size;
                     [f64::from(size.w), f64::from(size.h)]
                 }),
+                // An image without a size has the size of its file, as
+                // when it draws.
+                NodeKind::Image => placed.node.props.size.or_else(|| {
+                    placed
+                        .node
+                        .props
+                        .image
+                        .as_deref()
+                        .and_then(|p| self.assets.images.get(p))
+                        .map(|i| [f64::from(i.size[0]), f64::from(i.size[1])])
+                }),
                 _ => placed.node.props.size,
             };
             let Some([w, h]) = size else { continue };
