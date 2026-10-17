@@ -123,20 +123,17 @@ enum Key {
     Carry(i32),
     /// XP's Alt+Tab, forward or back.
     Switch(i32),
-    /// Alt+Escape closes the switcher.
-    CancelSwitch,
     /// Super and the left button turn the cube with the pointer.
     Cube,
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them.
-const KEYS: [(&str, &str, Key); 10] = [
+const KEYS: [(&str, &str, Key); 9] = [
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
     ("Alt+Tab", "", Key::Switch(1)),
     ("Alt+Shift+Tab", "", Key::Switch(-1)),
-    ("Alt+Escape", "", Key::CancelSwitch),
     ("Super+e", "", Key::Terminal),
     ("Ctrl+Alt+Left", "Super+Ctrl+Left", Key::Turn(-1)),
     ("Ctrl+Alt+Right", "Super+Ctrl+Right", Key::Turn(1)),
@@ -249,6 +246,8 @@ pub struct Wm {
     pub restart: bool,
     /// XP's Alt+Tab while Alt is down.
     switcher: Option<Switcher>,
+    /// Alt+Escape, while the switcher holds it.
+    switch_escape: Option<String>,
     /// Where the pointer took the cube, while Super and the left button
     /// are down.
     cube_grab: Option<f64>,
@@ -307,6 +306,7 @@ impl Wm {
             done: false,
             restart: false,
             switcher: None,
+            switch_escape: None,
             cube_grab: None,
             kept: HashMap::new(),
         };
@@ -1153,6 +1153,9 @@ impl Wm {
     }
 
     fn key(&mut self, binding: &str) -> Vec<Command> {
+        if self.switch_escape.as_deref() == Some(binding) {
+            return self.cancel_switch();
+        }
         match self
             .keys
             .iter()
@@ -1170,7 +1173,6 @@ impl Wm {
             Some(Key::Turn(steps)) => self.turn(steps),
             Some(Key::Carry(steps)) => self.carry(steps),
             Some(Key::Switch(step)) => self.switch(step),
-            Some(Key::CancelSwitch) => self.cancel_switch(),
             Some(Key::Cube) | None => Vec::new(),
         }
     }
@@ -1214,6 +1216,7 @@ impl Wm {
                 return commands;
             };
             self.switcher = Some(switcher);
+            self.grab_switch_escape();
         }
         commands.extend(self.show_switcher(open));
         commands
@@ -1263,7 +1266,7 @@ impl Wm {
 
     /// Alt+Escape: the switcher closes without a switch.
     fn cancel_switch(&mut self) -> Vec<Command> {
-        if self.switcher.take().is_none() {
+        if self.end_switch().is_none() {
             return Vec::new();
         }
         vec![Command::Remove {
@@ -1275,7 +1278,7 @@ impl Wm {
     /// The release of the modifier of a key: Alt up after Alt+Tab
     /// activates the chosen window.
     fn key_released(&mut self) -> Vec<Command> {
-        let Some(switcher) = self.switcher.take() else {
+        let Some(switcher) = self.end_switch() else {
             return Vec::new();
         };
         let mut commands = vec![Command::Remove {
@@ -1284,6 +1287,27 @@ impl Wm {
         }];
         commands.extend(self.activate(switcher.chosen()));
         commands
+    }
+
+    /// Takes Alt+Escape from the clients only while the switcher shows,
+    /// so that it cancels the switch.
+    fn grab_switch_escape(&mut self) {
+        let binding = "Alt+Escape".parse().expect("a valid binding");
+        match self.conn.call::<_, String>("input.grab", Grab { binding }) {
+            Ok(normal) => self.switch_escape = Some(normal),
+            Err(err) => eprintln!("chora-xp: {err}"),
+        }
+    }
+
+    /// Closes the switcher and gives Alt+Escape back.
+    fn end_switch(&mut self) -> Option<Switcher> {
+        if let Some(binding) = self.switch_escape.take() {
+            let binding = binding.parse().expect("the binding of the grab");
+            if let Err(err) = self.conn.call::<_, Value>("input.ungrab", Grab { binding }) {
+                eprintln!("chora-xp: {err}");
+            }
+        }
+        self.switcher.take()
     }
 
     /// A press on a context menu goes to it; one elsewhere closes it and
