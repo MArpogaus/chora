@@ -564,6 +564,10 @@ impl Menu {
         let count = self.cascades[level].count;
         let current = self.cascades[level].hovered.unwrap_or(0);
         match key {
+            "Home" | "End" => {
+                let row = if key == "Home" { 0 } else { count - 1 };
+                Key::Commands(self.relight(theme, level, |c| c.hovered = Some(row)))
+            }
             "Down" | "Up" => {
                 let next = wrap(current, key == "Down", count);
                 Key::Commands(self.relight(theme, level, |c| c.hovered = Some(next)))
@@ -596,11 +600,6 @@ impl Menu {
 
     /// A key on the entries of the two columns.
     fn entry_key(&mut self, theme: &mut Theme, icons: &mut Icons, key: &str) -> Key<Action> {
-        let left = |e: &Entry| e.rect[0] < LEFT;
-        // Log Off and Turn Off take no part in the walk, as on XP.
-        let walk: Vec<usize> = (0..self.entries.len())
-            .filter(|&j| self.entries[j].kind != Kind::Footer)
-            .collect();
         let target = match (key, self.hovered) {
             // A cascade that the pointer opened closes first.
             ("Escape", _) => {
@@ -609,18 +608,20 @@ impl Menu {
                     None => Key::Close,
                 };
             }
-            ("Down" | "Up", None) => walk.iter().copied().find(|&j| left(&self.entries[j])),
+            ("Down" | "Up", None) => self.column(true).first().copied(),
+            ("Home" | "End", Some(i)) => {
+                let column = self.column(self.entries[i].rect[0] < LEFT);
+                if key == "Home" {
+                    column.first()
+                } else {
+                    column.last()
+                }
+                .copied()
+            }
             ("Down" | "Up", Some(i)) => {
-                // The entries of the column, from the top.
-                let mut column: Vec<usize> = walk
-                    .iter()
-                    .copied()
-                    .filter(|&j| left(&self.entries[j]) == left(&self.entries[i]))
-                    .collect();
-                column.sort_by_key(|&j| self.entries[j].rect[1]);
+                let column = self.column(self.entries[i].rect[0] < LEFT);
                 let at = column.iter().position(|&j| j == i).unwrap_or(0);
-                let n = column.len();
-                Some(column[wrap(at, key == "Down", n)])
+                Some(column[wrap(at, key == "Down", column.len())])
             }
             ("Right" | "Return" | "KP_Enter" | "space", Some(i)) if self.entries[i].cascade => {
                 let mut commands = self.open_root(theme, icons, i);
@@ -632,10 +633,9 @@ impl Menu {
             }
             ("Left" | "Right", Some(i)) => {
                 // The entry of the other column nearest in height.
-                let y = self.entries[i].rect[1];
-                walk.iter()
-                    .copied()
-                    .filter(|&j| left(&self.entries[j]) != left(&self.entries[i]))
+                let [x, y, ..] = self.entries[i].rect;
+                self.column(x >= LEFT)
+                    .into_iter()
                     .min_by_key(|&j| (self.entries[j].rect[1] - y).abs())
             }
             _ => None,
@@ -647,6 +647,19 @@ impl Menu {
         let mut commands: Vec<Command> = old.map(|i| self.look(theme, i)).into_iter().collect();
         commands.push(self.look(theme, target));
         Key::Commands(commands)
+    }
+
+    /// The entries of the left or the right column, from the top, that the
+    /// arrow keys walk: Log Off and Turn Off take no part, as on XP.
+    fn column(&self, left: bool) -> Vec<usize> {
+        let mut column: Vec<usize> = (0..self.entries.len())
+            .filter(|&j| {
+                let e = &self.entries[j];
+                e.kind != Kind::Footer && (e.rect[0] < LEFT) == left
+            })
+            .collect();
+        column.sort_by_key(|&j| self.entries[j].rect[1]);
+        column
     }
 
     /// The entries of the cascade of a level.

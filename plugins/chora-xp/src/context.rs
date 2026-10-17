@@ -504,6 +504,10 @@ impl Menu {
         min_width: i32,
     ) -> Self {
         let mut level = Level::new(entries, theme, min_width);
+        // A drop-down list starts on its current value, as on XP.
+        if min_width > 0 {
+            level.hovered = level.entries.iter().position(|e| e.checked);
+        }
         let [x, y] = place([level.rect[2], level.rect[3]], point, area);
         level.rect[0] = x;
         level.rect[1] = y;
@@ -670,6 +674,12 @@ impl Menu {
                     return Key::Commands(Vec::new());
                 };
                 Key::Commands(self.light(theme, level, Some(next)))
+            }
+            "Home" | "End" => {
+                let last = self.levels[level].entries.len().saturating_sub(1);
+                let (from, step) = if key == "Home" { (last, 1) } else { (0, -1) };
+                let row = self.levels[level].next(Some(from), step);
+                Key::Commands(self.light(theme, level, row))
             }
             "Right" if level == 0 => match current {
                 Some(i)
@@ -1076,6 +1086,23 @@ mod tests {
             menu.key(&mut theme, "root", "Return"),
             Key::Act(Act::Cascade)
         );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn home_and_end_go_to_the_ends_and_a_list_starts_on_its_value() {
+        let (mut theme, cache) = crate::dialog::tests::theme("menuhome");
+        let mut menu = keyed(&theme);
+        menu.key(&mut theme, "root", "End");
+        assert_eq!(menu.levels[0].hovered, Some(3));
+        menu.key(&mut theme, "root", "Home");
+        assert_eq!(menu.levels[0].hovered, Some(0));
+        let list = vec![
+            Entry::item("January", Act::Cascade),
+            Entry::item("February", Act::Cascade).checked(true),
+        ];
+        let list = Menu::new(&theme, list, [10, 10], SCREEN, 120);
+        assert_eq!(list.levels[0].hovered, Some(1));
         let _ = std::fs::remove_dir_all(cache);
     }
 }
