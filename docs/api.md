@@ -48,7 +48,7 @@ This table is the one list of node properties.
 | `clip` | group, rect, image, shader | `{"radius": r}`: the node and its descendants show only inside its size, with corners rounded by `r` logical pixels, and take pointer input only there; the node becomes a layer; `null` removes the clip |
 | `effects` | group, rect, image | up to 8 effects `{"shader": path, "uniforms": {name: number or 2 to 4 numbers}}`; the node becomes a layer, and the core applies the shaders in order; `[]` removes them |
 | `input` | all | `accept`, `pass` or `block`; `pass` and `block` apply to all descendants |
-| `meta` | all | free key/value pairs to tag and find nodes |
+| `meta` | all | free key/value pairs to tag and find nodes; an empty value removes a key; at most 32 keys, 1 KiB per key or value and 4 KiB in all per node |
 | `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
 | `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; optional `depth`: the z of each point, which the transform of the node projects; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
 | `color` | rect | RGBA, each from 0 to 1, with straight alpha: `[1, 1, 1, 0.5]` is white at half opacity |
@@ -299,7 +299,9 @@ A request is one line of at most 1 MiB (`MAX_LINE`). The core reads a
 longer line to its end, answers it with code 1 and the id `null`, and
 closes the connection. The core holds at most 8 MiB (`MAX_OUTPUT`) of
 answers and events that a connection did not read yet; a connection that
-passes this limit closes, so a client reads its socket while it waits.
+passes this limit closes, so a client reads its socket while it waits. An
+answer that does not fit, for example of a query of all nodes, fails with
+code 1 instead, and the connection stays.
 
 A connection sends `hello` once, within 5 s. Connections with the same name share their
 nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a

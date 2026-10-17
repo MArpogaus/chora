@@ -410,6 +410,17 @@ pub struct PropsUpdate {
     pub uniforms: Option<BTreeMap<String, Uniform>>,
 }
 
+/// Sets the keys of an update of `meta`; an empty value removes its key.
+pub(crate) fn apply_meta(meta: &mut BTreeMap<String, String>, update: &BTreeMap<String, String>) {
+    for (k, v) in update {
+        if v.is_empty() {
+            meta.remove(k);
+        } else {
+            meta.insert(k.clone(), v.clone());
+        }
+    }
+}
+
 impl Props {
     /// Applies an update.
     pub fn apply(&mut self, update: &PropsUpdate) {
@@ -425,12 +436,8 @@ impl Props {
         if let Some(i) = update.input {
             self.input = i;
         }
-        for (k, v) in update.meta.iter().flatten() {
-            if v.is_empty() {
-                self.meta.remove(k);
-            } else {
-                self.meta.insert(k.clone(), v.clone());
-            }
+        if let Some(meta) = &update.meta {
+            apply_meta(&mut self.meta, meta);
         }
         self.apply_drawing(update);
     }

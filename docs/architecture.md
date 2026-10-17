@@ -193,10 +193,11 @@ Limits keep a buggy client from exhausting the core:
 | connections | 128 | the core refuses new connections |
 | time until `hello` | 5 s | the core closes the connection |
 | line length | 1 MiB | the core answers with an error and closes the connection |
-| output buffer of a connection | 8 MiB | the core closes the connection |
+| output buffer of a connection | 8 MiB | the core closes the connection; an answer that does not fit becomes an error |
 | waiting transactions of a connection | 16 | the core rejects the transaction |
 | groups and rects in the scene | 16,384 | the core rejects the `create` |
 | cameras | 64 | the core rejects the `camera` |
+| `meta` of a node | 32 keys, 1 KiB per key or value, 4 KiB in all | the core rejects the command |
 
 A plugin can export **methods**, for example `tiling.set_layout`. The core
 forwards a method call to the plugin as an event and returns the answer to

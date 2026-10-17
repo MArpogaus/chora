@@ -259,11 +259,24 @@ impl Ipc {
         }
     }
 
-    /// Sends a response to one connection.
+    /// Sends a response to one connection. A result that does not fit in
+    /// the output of the connection becomes an error, so that a large
+    /// answer, for example of a query of all nodes, does not close it.
     pub fn respond(&mut self, conn: u64, message: &Message) {
-        if let Some(c) = self.conns.get_mut(&conn) {
-            c.push(&line(message));
+        let Some(c) = self.conns.get_mut(&conn) else {
+            return;
+        };
+        let mut bytes = line(message);
+        if message.result.is_some() && c.output.len() + bytes.len() > MAX_OUTPUT {
+            let error = rejected(format!(
+                "the answer has {} bytes and does not fit in the output of the connection, \
+                 {MAX_OUTPUT} bytes; ask for less, for example with a narrower selector",
+                bytes.len()
+            ));
+            let id = message.id.clone().unwrap_or(Value::Null);
+            bytes = line(&Message::error(id, error));
         }
+        c.push(&bytes);
     }
 
     /// The connection that grabbed the pressed binding, and the binding.
@@ -1013,6 +1026,30 @@ mod tests {
              the core closes the connection"
         );
         assert!(client.closed(&mut core));
+    }
+
+    #[test]
+    fn an_answer_beyond_the_output_limit_is_an_error() {
+        let mut core = Core::new();
+        let mut c = core.named("c");
+        let value = "x".repeat(1000);
+        let meta: serde_json::Map<String, Value> =
+            (0..4).map(|i| (format!("k{i}"), json!(value))).collect();
+        for batch in 0..250 {
+            let nodes: Vec<Value> = (0..10)
+                .map(|i| {
+                    json!({"create": {"id": format!("g{}", batch * 10 + i),
+                    "kind": "group", "parent": "root", "props": {"meta": meta}}})
+                })
+                .collect();
+            c.ok(&mut core, "scene.apply", json!({"commands": nodes}));
+        }
+        let mut asker = core.named("asker");
+        let (error_code, message) = asker.fails(&mut core, "scene.query", json!({}));
+        assert_eq!(error_code, REJECTED);
+        assert!(message.contains("does not fit in the output"), "{message}");
+        assert!(!asker.closed(&mut core));
+        assert_eq!(ids(&mut asker, &mut core, "id:g7"), ["g7"]);
     }
 
     #[test]

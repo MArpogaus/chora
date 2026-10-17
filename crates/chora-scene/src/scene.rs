@@ -9,6 +9,7 @@ use crate::{
     MAX_NODE_TEXTURES, MAX_UNIFORMS, Node, NodeKind, Props, PropsUpdate, ROOT, Selector,
     ShaderEffect, SurfaceInfo, ToplevelState, Transform, Uniform,
     animation::{Animation, CameraMove},
+    node::apply_meta,
 };
 
 /// Why a command failed.
@@ -311,6 +312,7 @@ impl Scene {
                 props,
             } => {
                 check_props(id, *kind, props)?;
+                check_meta(id, &BTreeMap::new(), props)?;
                 if *kind == NodeKind::Shader && props.shader.is_none() {
                     return Err(SceneError::Invalid(format!(
                         "the shader node {id:?} needs a shader"
@@ -731,6 +733,7 @@ impl Scene {
         }
         let node = self.owned_mut(owner, id)?;
         check_props(id, node.kind, props)?;
+        check_meta(id, &node.props.meta, props)?;
         self.animations.remove(id);
         let node = self.nodes.get_mut(id).expect("owned above");
         let Some((duration, easing)) = timing else {
@@ -1056,6 +1059,37 @@ fn is_surface_id(id: &str) -> bool {
 
 /// The longest path of an image file.
 const MAX_PATH: usize = 4096;
+/// The most keys in the meta data of a node.
+const MAX_META_KEYS: usize = 32;
+/// The longest key or value of the meta data, in bytes.
+const MAX_META_VALUE: usize = 1024;
+/// The most bytes of all keys and values of the meta data of a node.
+const MAX_META_BYTES: usize = 4096;
+
+/// The meta data of a node after an update stays within its limits, so
+/// that no client fills the memory of the core or the answers of queries.
+fn check_meta(
+    id: &str,
+    meta: &BTreeMap<String, String>,
+    props: &PropsUpdate,
+) -> Result<(), SceneError> {
+    let Some(update) = &props.meta else {
+        return Ok(());
+    };
+    let mut after = meta.clone();
+    apply_meta(&mut after, update);
+    let long = after
+        .iter()
+        .any(|(k, v)| k.len() > MAX_META_VALUE || v.len() > MAX_META_VALUE);
+    let bytes: usize = after.iter().map(|(k, v)| k.len() + v.len()).sum();
+    if after.len() > MAX_META_KEYS || long || bytes > MAX_META_BYTES {
+        return Err(SceneError::Invalid(format!(
+            "the meta data of {id:?} takes at most {MAX_META_KEYS} keys, \
+             {MAX_META_VALUE} bytes per key or value and {MAX_META_BYTES} bytes in all"
+        )));
+    }
+    Ok(())
+}
 
 /// Only rects and images have a size, only rects a color, only images a
 /// file and a slice. Image paths are absolute, sizes and slices are not

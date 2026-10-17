@@ -961,3 +961,58 @@ fn a_client_gives_the_keyboard_to_its_own_node_until_a_surface_takes_it() {
         .unwrap();
     assert_eq!(scene.focused_node(), None);
 }
+
+fn set_meta(id: &str, meta: &[(&str, String)]) -> Command {
+    Command::Update {
+        id: id.into(),
+        props: PropsUpdate {
+            meta: Some(meta.iter().map(|(k, v)| ((*k).into(), v.clone())).collect()),
+            ..PropsUpdate::default()
+        },
+    }
+}
+
+#[test]
+fn the_meta_data_of_a_node_has_limits() {
+    let mut scene = Scene::default();
+    scene.apply("c", &[group("g", ROOT)]).unwrap();
+    let error =
+        |scene: &mut Scene, command: Command| scene.apply("c", &[command]).unwrap_err().error;
+    let limits = SceneError::Invalid(
+        "the meta data of \"g\" takes at most 32 keys, 1024 bytes per key or value \
+         and 4096 bytes in all"
+            .into(),
+    );
+    let long = "x".repeat(1025);
+    assert_eq!(error(&mut scene, set_meta("g", &[("k", long)])), limits);
+    let value = "x".repeat(1000);
+    for i in 0..4 {
+        let key = format!("k{i}");
+        scene
+            .apply("c", &[set_meta("g", &[(&key, value.clone())])])
+            .unwrap();
+    }
+    assert_eq!(
+        error(&mut scene, set_meta("g", &[("k4", value.clone())])),
+        limits,
+        "the updates add up"
+    );
+    // An empty value removes a key and makes room.
+    scene
+        .apply(
+            "c",
+            &[set_meta("g", &[("k0", String::new()), ("k4", value)])],
+        )
+        .unwrap();
+    let many: Vec<(String, String)> = (0..33).map(|i| (format!("n{i}"), "v".into())).collect();
+    let create = Command::Create {
+        id: "h".into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            meta: Some(many.into_iter().collect()),
+            ..PropsUpdate::default()
+        },
+    };
+    assert!(matches!(error(&mut scene, create), SceneError::Invalid(_)));
+}
