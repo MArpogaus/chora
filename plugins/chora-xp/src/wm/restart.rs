@@ -138,21 +138,18 @@ impl Wm {
         let current = std::mem::replace(&mut self.desktop, k.desktop);
         let mut commands = self.open_explorer(place);
         self.desktop = current;
-        let Some(i) = self
-            .explorers
-            .last()
-            .and_then(|e| self.index(&e.id.clone()))
-        else {
+        let Some(i) = self.explorers.last().and_then(|e| self.index(&e.id)) else {
             return commands;
         };
-        let active = self.is_active(&self.windows[i].surface.clone());
-        let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
+        let active = self.is_active(&self.windows[i].surface);
+        let area = self.bars.first().map(Bar::usable);
         let w = &mut self.windows[i];
-        if let Some(restore) = k.restore {
-            w.restore = Some(restore);
-            w.maximize(area);
-        } else {
-            commands.extend(w.fit(k.frame, active));
+        match (k.restore, area) {
+            (Some(restore), Some(area)) => {
+                w.restore = Some(restore);
+                w.maximize(area);
+            }
+            _ => commands.extend(w.fit(k.frame, active)),
         }
         w.minimized = k.minimized;
         commands.extend(w.style(&mut self.theme, active));
