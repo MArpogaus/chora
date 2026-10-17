@@ -12,6 +12,8 @@ mod control;
 mod cube;
 mod decoration;
 mod desktop_icons;
+#[allow(dead_code)] // the settings dialogs of the next commits use it
+mod dialog;
 mod icons;
 mod lamp;
 mod notify;

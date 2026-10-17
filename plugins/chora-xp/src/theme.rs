@@ -108,6 +108,9 @@ pub enum Layer {
     },
     /// A line of text.
     Text(Text),
+    /// SVG elements in the coordinates of the picture, such as the
+    /// rectangles and gradients of a control.
+    Svg(String),
 }
 
 /// An image as a stack of layers, bottom first.
@@ -171,6 +174,12 @@ impl Picture {
     /// Adds a line of text.
     pub fn text(mut self, text: Text) -> Self {
         self.layers.push(Layer::Text(text));
+        self
+    }
+
+    /// Adds SVG elements, drawn in the coordinates of the picture.
+    pub fn svg(mut self, body: impl Into<String>) -> Self {
+        self.layers.push(Layer::Svg(body.into()));
         self
     }
 }
@@ -372,6 +381,17 @@ impl Theme {
             }
             Layer::File { path, rect, cover } => self.draw_file(path, *rect, *cover, pixmap),
             Layer::Text(text) => self.fonts.draw(text, pixmap),
+            Layer::Svg(body) => {
+                let svg = format!(
+                    r#"<svg xmlns="http://www.w3.org/2000/svg" width="{}" height="{}">{body}</svg>"#,
+                    pixmap.width(),
+                    pixmap.height()
+                );
+                let tree = usvg::Tree::from_str(&svg, self.fonts.options())
+                    .map_err(|e| format!("svg layer: {e}"))?;
+                resvg::render(&tree, Transform::identity(), pixmap);
+                Ok(())
+            }
         }
     }
 
