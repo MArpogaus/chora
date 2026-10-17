@@ -94,6 +94,8 @@ struct Tiling {
     focus_sent: bool,
     /// The meta that the core has, by node: what a restart rebuilds from.
     saved: HashMap<String, BTreeMap<String, String>>,
+    /// The claim that the core has (D55).
+    claimed: Option<[f64; 4]>,
 }
 
 fn main() -> ExitCode {
@@ -152,6 +154,7 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         focus: None,
         focus_sent: false,
         saved: HashMap::new(),
+        claimed: None,
     };
     tiling.start()?;
     loop {
@@ -299,6 +302,8 @@ impl Tiling {
         match event {
             // The start adopts surfaces that the events then announce.
             Event::SurfaceCreated { surface, .. } if self.wm.has(&surface) => return Ok(()),
+            // The core reserved it for another window manager.
+            Event::SurfaceCreated { to: Some(to), .. } if to != NAME => return Ok(()),
             // A detached surface has no owner any more, so it is free to take.
             Event::SurfaceCreated { surface, .. } | Event::SurfaceDetached { surface } => {
                 self.wm.remove_window(&surface);
@@ -493,10 +498,21 @@ impl Tiling {
         for (id, meta) in &saved {
             commands.extend(meta_change(self.saved.get(id), id, meta));
         }
+        let claim = self.wm.claim();
+        if claim != self.claimed {
+            commands.push(Command::Update {
+                id: NAME.into(),
+                props: PropsUpdate {
+                    claim,
+                    ..PropsUpdate::default()
+                },
+            });
+        }
         if commands.is_empty() {
             return Ok(());
         }
         self.saved = saved;
+        self.claimed = claim;
         self.sent = placements.into_iter().map(|p| (p.id.clone(), p)).collect();
         (self.order, self.focus, self.focus_sent) = (order, focus, true);
         self.apply(commands)
@@ -515,6 +531,7 @@ impl Tiling {
     fn forget(&mut self) {
         self.sent.clear();
         self.saved.clear();
+        self.claimed = None;
         self.order.clear();
         self.focus_sent = false;
     }

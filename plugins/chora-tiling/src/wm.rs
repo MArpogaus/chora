@@ -685,6 +685,20 @@ impl Wm {
         }
     }
 
+    /// The claim of the plugin (D55): the box around the work areas of
+    /// its outputs. ponytail: one box, so the gaps between outputs of
+    /// another shape count too; a claim per output if that ever matters.
+    pub fn claim(&self) -> Option<[f64; 4]> {
+        let areas = self.outputs.iter().map(|o| o.area);
+        let [x0, y0] = [
+            areas.clone().map(|a| a[0]).min()?,
+            areas.clone().map(|a| a[1]).min()?,
+        ];
+        let x1 = areas.clone().map(|a| a[0] + a[2]).max()?;
+        let y1 = areas.map(|a| a[1] + a[3]).max()?;
+        Some([x0, y0, x1 - x0, y1 - y0].map(f64::from))
+    }
+
     /// What a restart needs of the outputs, as meta of the group: the
     /// current output, and the shown tags and the tags of each output.
     pub fn group_meta(&self) -> BTreeMap<String, String> {
@@ -1165,5 +1179,13 @@ mod tests {
         old.act(&Action::ViewTag(2));
         assert_eq!(new.current(), old.current());
         assert_eq!(new.arrange(), old.arrange());
+    }
+
+    #[test]
+    fn the_claim_holds_the_work_areas_of_all_outputs() {
+        let mut wm = wm(&[]);
+        assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 60.0]));
+        wm.set_output("B", [100, 10, 50, 40], [100, 0, 50, 50]);
+        assert_eq!(wm.claim(), Some([0.0, 0.0, 150.0, 60.0]));
     }
 }

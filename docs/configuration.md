@@ -132,9 +132,13 @@ windows do not exist.
 
 `chora-tiling` connects with `resume` (see [API](api.md#ipc-methods)). It
 keeps the tags and the layouts of each output, and the tags, the states
-and the stacking of each window, in the `meta` of its nodes. A restart within the grace time
-rebuilds them from there, for example `choractl restart tiling` after a
-rebuild.
+and the stacking of each window, in the `meta` of its nodes. A restart
+within the grace time rebuilds them from there, for example `choractl
+restart tiling` after a rebuild.
+
+`chora-tiling` claims the box around the work areas of its outputs (D55).
+It leaves a new window that the core reserves for another client to that
+client.
 
 ## Flavors
 
