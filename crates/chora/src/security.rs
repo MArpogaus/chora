@@ -52,8 +52,10 @@ pub fn may_inject(client: &Client) -> bool {
     allowed(client, Some(Capability::InputInject))
 }
 
-/// Whether a client sees output management, which no grant covers.
-pub fn may_configure_outputs(client: &Client) -> bool {
+/// Whether a client sees the protocols that no grant covers: output
+/// management, the session lock and both foreign toplevel protocols. A
+/// client of a client socket never sees them.
+pub fn unrestricted(client: &Client) -> bool {
     allowed(client, None)
 }
 

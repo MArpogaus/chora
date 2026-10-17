@@ -491,7 +491,7 @@ impl GlobalDispatch<ZwlrOutputManagerV1, ()> for State {
     }
 
     fn can_view(client: Client, (): &()) -> bool {
-        crate::security::may_configure_outputs(&client)
+        crate::security::unrestricted(&client)
     }
 }
 

@@ -1386,6 +1386,22 @@ mod tests {
     }
 
     #[test]
+    fn a_client_wayland_socket_offers_no_lock_and_no_window_list() {
+        let (mut core, dir) = socket_dir("wayland-lock");
+        let mut admin = core.admin();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let path = PathBuf::from(created["wayland"].as_str().unwrap());
+        let agent = Wayland::connect_to(&mut core, &path);
+        let offers = |part: &str| agent.interfaces().iter().any(|i| i.contains(part));
+        for part in ["session_lock", "foreign_toplevel"] {
+            assert!(!offers(part), "{part}: {:?}", agent.interfaces());
+        }
+        assert!(offers("zwlr_layer_shell"), "panels in containers");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn clients_create_refuses_a_live_name() {
         let (mut core, dir) = socket_dir("live");
         let mut admin = core.admin();

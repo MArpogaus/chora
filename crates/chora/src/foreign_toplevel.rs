@@ -329,7 +329,7 @@ impl GlobalDispatch2<ZwlrForeignToplevelManagerV1, State> for ManagerGlobal {
     }
 
     fn can_view(&self, client: &Client) -> bool {
-        crate::security::trusted(client)
+        crate::security::unrestricted(client)
     }
 }
 

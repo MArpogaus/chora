@@ -501,7 +501,12 @@ socket, with these exceptions:
 - Screencopy and image capture need the grant `screen.capture` of the
   name.
 - The input method needs the grant `input.inject`.
-- Output management is not offered.
+- Output management, the session lock and both foreign toplevel
+  protocols are not offered. So the client cannot lock the session, list
+  the windows or control the windows of others.
+
+The layer shell stays, so a panel can run in a container. Such a client
+can draw overlays above all windows.
 
 The client gets the grants of the name at the time it connects. Its
 windows carry the name: a query shows it in `surface.client`.

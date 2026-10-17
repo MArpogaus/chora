@@ -62,10 +62,20 @@ use smithay::{
 use smithay::wayland::security_context::{SecurityContext, SecurityContextState};
 
 use crate::{
-    backend::Backend, copies::Copies, foreign_toplevel::ForeignToplevelManagerState,
-    grants::Grants, image_capture::ImageCapture, ipc::Ipc, lock::Lock, methods::Methods,
-    output_management::OutputManagement, render::Assets, safety::Watchdog, security::trusted,
-    time::Time, transaction::Transactions,
+    backend::Backend,
+    copies::Copies,
+    foreign_toplevel::ForeignToplevelManagerState,
+    grants::Grants,
+    image_capture::ImageCapture,
+    ipc::Ipc,
+    lock::Lock,
+    methods::Methods,
+    output_management::OutputManagement,
+    render::Assets,
+    safety::Watchdog,
+    security::{trusted, unrestricted},
+    time::Time,
+    transaction::Transactions,
 };
 
 /// The drag of a rect or an image node: the node, the button, and the last
@@ -274,7 +284,7 @@ impl State {
         let idle_notifier_state = IdleNotifierState::new(&dh, loop_handle.clone());
         let clock = Clock::<Monotonic>::new();
         create_globals(&dh, &clock);
-        let toplevel_list = ForeignToplevelListState::new_with_filter::<Self>(&dh, trusted);
+        let toplevel_list = ForeignToplevelListState::new_with_filter::<Self>(&dh, unrestricted);
         Self {
             start_time: Instant::now(),
             animated_at: Instant::now(),
@@ -283,7 +293,7 @@ impl State {
             time: Time::default(),
             compositor_state: CompositorState::new::<Self>(&dh),
             layer_shell_state: WlrLayerShellState::new_with_filter::<Self, _>(&dh, trusted),
-            lock_state: SessionLockManagerState::new::<Self, _>(&dh, trusted),
+            lock_state: SessionLockManagerState::new::<Self, _>(&dh, unrestricted),
             lock: None,
             xdg_shell_state: XdgShellState::new::<Self>(&dh),
             shm_state: ShmState::new::<Self>(&dh, vec![]),
