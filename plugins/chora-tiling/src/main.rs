@@ -126,6 +126,7 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let hello = Hello {
         name: NAME.into(),
         keep_nodes: false,
+        resume: false,
     };
     let mut tiling = Tiling {
         client: Client::from_env(&hello)?,

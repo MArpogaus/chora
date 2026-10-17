@@ -20,6 +20,7 @@ impl Conn {
         let hello = Hello {
             name: name.into(),
             keep_nodes: false,
+            resume: false,
         };
         Ok(Self {
             client: Client::from_env(&hello)?,
