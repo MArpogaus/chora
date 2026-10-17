@@ -275,9 +275,9 @@ from its edges. From the top:
 - the blue task pane with XP's boxes: the tasks of the place, Other
   Places and Details. A click on the title of a box closes or opens it.
   The links of Other Places go to the parent folder, My Documents and My
-  Computer in the same window; Control Panel and Change a setting open
-  the Control Panel of the start menu. The tasks that change files,
-  Shared Documents and My Network Places are gray.
+  Computer, and Shared Documents when it exists, in the same window;
+  Control Panel and Change a setting open the Control Panel of the start
+  menu. The tasks that change files and My Network Places are gray.
 
 The view of a folder is XP's Tiles view: a 48 pixel icon for each folder
 and file, its name, and in gray its type and size as XP writes them,

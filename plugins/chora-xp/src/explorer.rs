@@ -788,7 +788,10 @@ fn computer_boxes() -> (Option<TaskBox>, Vec<Link>) {
     let places = vec![
         Link::network(),
         Link::documents(),
-        Link::gray("Shared Documents", "folder-publicshare"),
+        shared().map_or_else(
+            || Link::gray("Shared Documents", "folder-publicshare"),
+            |dir| Link::to("Shared Documents", "folder-publicshare", Place::Folder(dir)),
+        ),
         Link {
             title: "Control Panel".into(),
             icon: "preferences-system",
@@ -1039,7 +1042,7 @@ fn computer_groups() -> Vec<Group> {
         details: vec![(title, true), ("File Folder".into(), false)],
     };
     let mut files = Vec::new();
-    if let Some(shared) = crate::desktop_icons::user_dir("PUBLICSHARE").filter(|p| p.is_dir()) {
+    if let Some(shared) = shared() {
         files.push(folder(
             "Shared Documents".into(),
             shared,
@@ -1147,6 +1150,11 @@ fn special(path: &std::path::Path) -> Option<(&'static str, &'static [&'static s
         return Some(("My Music", &["folder-music", "folder"]));
     }
     None
+}
+
+/// Shared Documents: `XDG_PUBLICSHARE_DIR`, if it exists.
+fn shared() -> Option<PathBuf> {
+    crate::desktop_icons::user_dir("PUBLICSHARE").filter(|p| p.is_dir())
 }
 
 /// My Documents: `XDG_DOCUMENTS_DIR`, else the home directory.
