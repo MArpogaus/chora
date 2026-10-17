@@ -221,7 +221,10 @@ reads the insets of a slice in pixels of the file. The pictures:
 - the wallpaper below everything: Bliss when it is installed, else Bløff.
 
 A click on a window raises and focuses it. A drag of a title bar moves the
-window, and a double click maximizes it. A drag of the border of the frame
+window, and a double click maximizes it. `chora-xp` claims the box around the work areas
+of its outputs (D55). `--output NAME` limits it to some outputs. A window
+dragged out of these work areas goes to the window manager `tiling` with
+`remove` and `to`. Without `tiling`, the window stays. A drag of the border of the frame
 resizes the window: the 4 pixel border and 6 pixels of the shadow outside
 it take the press, and the corners reach 16 pixels along both edges. The
 client gets the new size once per frame while the button is down, and the

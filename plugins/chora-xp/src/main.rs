@@ -88,6 +88,10 @@ struct Args {
     /// Plays no sounds; Control Panel > Effects > Sounds turns them on.
     #[arg(long)]
     no_sounds: bool,
+    /// Manages only this output, by name, and leaves the others to other
+    /// window managers; all outputs without it. Repeat it for more.
+    #[arg(long = "output", value_name = "NAME")]
+    outputs: Vec<String>,
 }
 
 fn main() -> ExitCode {
@@ -115,6 +119,7 @@ fn run(args: &Args) -> Result<(), String> {
                 .unwrap_or_else(|| theme.path("wallpaper/bloff.png")),
         ),
         slow: args.slow_motion,
+        outputs: args.outputs.clone(),
         toggles: control::Toggles {
             sounds: !args.no_sounds,
             ..control::Toggles::default()

@@ -88,7 +88,13 @@ pub struct Config {
     pub slow: f64,
     /// The effects and sounds that are on at the start.
     pub toggles: Toggles,
+    /// The outputs that the plugin manages, by name; all when empty.
+    pub outputs: Vec<String>,
 }
+
+/// The window manager that a window dragged out of the work areas of
+/// `chora-xp` goes to (D55).
+const HANDOVER: &str = "tiling";
 
 /// The events of the core that the plugin handles.
 const EVENTS: [&str; 18] = [
@@ -425,8 +431,11 @@ impl Wm {
             }
         }
         for output in &outputs {
-            commands.extend(self.add_output(output));
+            if self.manages(&output.name) {
+                commands.extend(self.add_output(output));
+            }
         }
+        commands.extend(self.claim());
         commands.extend(self.menu.create(&mut self.theme, MENUS));
         commands.extend(self.refresh_icons());
         match self.try_apply(commands)? {
@@ -1032,10 +1041,36 @@ impl Wm {
         }
     }
 
+    /// The claim of the plugin on its root group: the box around the work
+    /// areas of its outputs, where new windows come to it (D55).
+    fn claim(&self) -> Option<Command> {
+        let areas = self.bars.iter().map(Bar::area);
+        let x0 = areas.clone().map(|a| a[0]).min()?;
+        let y0 = areas.clone().map(|a| a[1]).min()?;
+        let x1 = areas.clone().map(|a| a[0] + a[2]).max()?;
+        let y1 = areas.map(|a| a[1] + a[3]).max()?;
+        Some(Command::Update {
+            id: NAME.into(),
+            props: PropsUpdate {
+                claim: Some([x0, y0, x1 - x0, y1 - y0].map(f64::from)),
+                ..PropsUpdate::default()
+            },
+        })
+    }
+
+    /// Whether the plugin manages an output.
+    fn manages(&self, output: &str) -> bool {
+        self.config.outputs.is_empty() || self.config.outputs.iter().any(|o| o == output)
+    }
+
     fn output_changed(&mut self, output: &OutputInfo) -> Vec<Command> {
+        if !self.manages(&output.name) {
+            return Vec::new();
+        }
         let Some(i) = self.bars.iter().position(|b| b.output == output.name) else {
             let mut commands = self.add_output(output);
             commands.extend(self.sync_tasks());
+            commands.extend(self.claim());
             return commands;
         };
         let mine: Vec<usize> = (0..self.windows.len())
@@ -1052,6 +1087,7 @@ impl Wm {
         commands.extend(self.keep_inside(&mine, area));
         commands.extend(self.sync_tasks());
         commands.extend(self.refresh_icons());
+        commands.extend(self.claim());
         commands
     }
 
@@ -1102,6 +1138,7 @@ impl Wm {
                 commands.extend(self.move_windows(&bar, target));
             }
             commands.extend(self.refresh_icons());
+            commands.extend(self.claim());
         }
         commands
     }
@@ -1835,6 +1872,11 @@ impl Wm {
         }
         if let Some(drag) = self.drag.take() {
             self.release_wobble(&drag.surface);
+            #[allow(clippy::cast_possible_truncation)]
+            let point = position.map(|p| p.floor() as i32);
+            if !self.bars.iter().any(|b| b.contains(point)) && !self.is_explorer(&drag.surface) {
+                return self.hand_over(&drag.surface);
+            }
         }
         if let Some(group) = self
             .panels
@@ -1879,6 +1921,27 @@ impl Wm {
             commands.extend(self.close_and_run(&action));
         }
         commands
+    }
+
+    /// A window dragged out of the work areas of `chora-xp` goes to the
+    /// window manager there, `tiling`, which places it by its own rules
+    /// (D55). Without that client the core refuses, and the window stays.
+    fn hand_over(&mut self, surface: &str) -> Vec<Command> {
+        let remove = vec![Command::Remove {
+            id: surface.into(),
+            to: Some(HANDOVER.into()),
+        }];
+        match self.try_apply(remove) {
+            Ok(None) => self.forget(surface),
+            Ok(Some(err)) => {
+                eprintln!("chora-xp: {surface} stays: {err}");
+                Vec::new()
+            }
+            Err(err) => {
+                eprintln!("chora-xp: {surface} stays: {err}");
+                Vec::new()
+            }
+        }
     }
 
     /// A button acts when the pointer goes up on it.
