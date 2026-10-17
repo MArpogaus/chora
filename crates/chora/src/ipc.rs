@@ -645,7 +645,7 @@ impl State {
         if !known {
             self.emit(&Event::ClientConnected { name: hello.name });
         }
-        Ok(Value::Null)
+        Ok(serde_json::json!({"version": chora_scene::ipc::VERSION}))
     }
 
     fn query(&self, selector: &str) -> Result<Value, RpcError> {
@@ -822,9 +822,11 @@ mod tests {
     }
 
     #[test]
-    fn hello_names_a_connection_once() {
+    fn hello_names_a_connection_once_and_tells_the_version() {
         let mut core = Core::new();
-        let mut client = core.named("wm");
+        let mut client = core.connect();
+        let answer = client.ok(&mut core, "hello", json!({"name": "wm"}));
+        assert_eq!(answer, json!({"version": chora_scene::ipc::VERSION}));
         assert_eq!(core.state.ipc.name(1), None);
         assert_eq!(core.state.ipc.name(0), Some("wm"));
         let (error_code, message) = client.fails(&mut core, "hello", json!({"name": "other"}));

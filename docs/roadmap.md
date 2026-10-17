@@ -126,7 +126,8 @@ Scope:
 - An example Quadlet unit in `dist/` for an agent container that mounts its
   client directory.
 - A versioned `hello` with the protocol version and the features of both
-  sides (D29).
+  sides (D29). Until then `hello` answers with the version of the build,
+  and the client library warns on a mismatch.
 - Structured errors: a stable code for each kind of failure, and `data`
   with the index of the failed command.
 - The capability `input.grab-any` allows grabs without Ctrl, Alt or Super

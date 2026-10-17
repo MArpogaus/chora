@@ -67,7 +67,7 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let command = match args.split_first() {
         None => &[][..],
         Some((first, _)) if first == "--version" => {
-            println!("chora {}", env!("CARGO_PKG_VERSION"));
+            println!("chora {}", chora_scene::ipc::VERSION);
             return Ok(());
         }
         Some((first, rest)) if first == "--" => rest,

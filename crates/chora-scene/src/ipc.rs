@@ -19,6 +19,12 @@ use crate::{Command, Event};
 /// The environment variable with the path of the IPC socket.
 pub const SOCKET_ENV: &str = "CHORA_SOCKET";
 
+/// The version of this build: the crate version and, when it was built in
+/// a git checkout, the commit, for example `0.5.4+1ea0e89abc`. `hello`
+/// answers with the version of the core, so that a client of another build
+/// can tell. The versioned `hello` of D29 replaces this.
+pub const VERSION: &str = env!("CHORA_VERSION");
+
 /// A request or a notification from the client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Request {
@@ -637,6 +643,8 @@ pub struct Client {
     /// The start of a line that a timeout interrupted, as bytes, since a
     /// timeout can split a character.
     partial: Vec<u8>,
+    /// The version of the core from its answer to `hello`.
+    core_version: Option<String>,
 }
 
 impl Client {
@@ -672,9 +680,31 @@ impl Client {
             next_id: 1,
             events: VecDeque::new(),
             partial: Vec::new(),
+            core_version: None,
         };
-        client.call::<_, Value>("hello", hello)?;
+        let answer: Value = client.call("hello", hello)?;
+        client.core_version = answer["version"].as_str().map(str::to_owned);
+        if client.core_version.as_deref() != Some(VERSION) {
+            static WARNED: std::sync::Once = std::sync::Once::new();
+            WARNED.call_once(|| {
+                let core = client
+                    .core_version
+                    .as_deref()
+                    .unwrap_or("of an older build");
+                eprintln!(
+                    "warning: chora {core} and this client {VERSION} are different builds; \
+                     requests may fail"
+                );
+            });
+        }
         Ok(client)
+    }
+
+    /// The version of the core, from its answer to `hello`; `None` for a
+    /// core that does not tell it.
+    #[must_use]
+    pub fn core_version(&self) -> Option<&str> {
+        self.core_version.as_deref()
     }
 
     /// Applies a transaction, and returns the error of the core if it
@@ -946,6 +976,21 @@ mod tests {
             matches!(err, ClientError::Rpc(RpcError { code: -32700, .. })),
             "{err}"
         );
+    }
+
+    #[test]
+    fn the_client_keeps_the_version_of_the_core() {
+        let (client, server) = UnixStream::pair().unwrap();
+        writeln!(
+            &server,
+            r#"{{"jsonrpc":"2.0","id":1,"result":{{"version":"0.0.1+abc"}}}}"#
+        )
+        .unwrap();
+        let client = Client::from_stream(client, &hello()).unwrap();
+        assert_eq!(client.core_version(), Some("0.0.1+abc"));
+        let old = Client::from_stream(fake_core(&[]), &hello()).unwrap();
+        assert_eq!(old.core_version(), None);
+        assert!(VERSION.starts_with(env!("CARGO_PKG_VERSION")));
     }
 
     #[test]

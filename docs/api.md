@@ -267,7 +267,7 @@ answers every request.
 
 | Method | Purpose |
 |--------|---------|
-| `hello(name, keep_nodes)` | name the client; `keep_nodes` keeps its nodes and cameras after the disconnect |
+| `hello(name, keep_nodes)` | name the client; `keep_nodes` keeps its nodes and cameras after the disconnect; returns `{"version": ...}` |
 | `scene.query(selector)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name |
@@ -308,6 +308,14 @@ last 8 go only to a process without a connection, so `choractl` and a
 window manager that starts again still connect while one client holds many.
 A refused connection gets an error line with code 1 and the reason, `too
 many connections: ...`, before the core closes it.
+
+`hello` answers with the version of the core: the crate version and,
+for a build in a git checkout, the commit, for example
+`{"version": "0.5.4+1ea0e89abc"}`. `chora --version` prints the same.
+The client library of `chora-scene` warns once on stderr when the core is
+another build, so `choractl` and the plugins tell why a request fails
+after an update. This is a first step: the versioned `hello` of D29, with
+the protocol version and the features of both sides, follows in 0.7.
 
 A connection sends `hello` once, within 5 s. Connections with the same name share their
 nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
