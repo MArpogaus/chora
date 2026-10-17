@@ -72,7 +72,7 @@ that the code does not implement yet.
 | D42 | The core starts no program except the startup command; `choractl run` starts programs through `systemd-run --user` with an activation token; `systemctl --user restart` restarts a plugin; journald keeps the output | systemd already supervises processes. The activation token links a program to its window. |
 | D43 | Nodes fixed to the screen live under one overlay root per output, `screen:NAME`: in the logical coordinates of the output, without its camera, above the scene and below the top and overlay layers of layer shell | A HUD stays in place while a camera moves. A root per output answers on which output a node shows. Its nodes work as all others: input, effects, ownership. |
 | D44 | `output.configure` sets scale and transform of an output through the API, on the same path as `wlr-output-management` | One path keeps both ways in step. |
-| D45 | Grabs need Ctrl, Alt or Super, except for a client with the capability `input.grab-any`; `input.ungrab` ends a grab; a key grab tells when the first of its modifiers goes up; there is no exclusive keyboard grab | Typing works unless the user gives a capability, for example for push-to-talk. Games and 3D clients get every key through Wayland. |
+| D45 | Grabs need Ctrl, Alt or Super, except for a client with the capability `input.grab-any`; `input.ungrab` ends a grab; a key grab tells when the first of its modifiers goes up, except Shift; there is no exclusive keyboard grab | Typing works unless the user gives a capability, for example for push-to-talk. Games and 3D clients get every key through Wayland. |
 
 ## Process
 

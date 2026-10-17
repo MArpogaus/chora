@@ -203,17 +203,15 @@ fn grabbed(state: &mut State, conn: u64, binding: &Binding, press: PressState) {
     state.ipc.send_to(conn, &event);
 }
 
-/// Ends the held key grabs of which a modifier went up, each with one
-/// `released`, so that an Alt+Tab switcher learns when Alt went up.
+/// Ends the held key grabs of which Ctrl, Alt or Super went up, each with
+/// one `released`, so that an Alt+Tab switcher learns when Alt went up.
+/// Shift does not end a grab: Alt+Shift+Tab steps back while Alt stays.
 fn release_grabs(state: &mut State, mods: &ModifiersState) {
     let (ended, held) = std::mem::take(&mut state.held.grabs)
         .into_iter()
         .partition(|h| {
             let m = h.binding.mods;
-            (m.ctrl && !mods.ctrl)
-                || (m.alt && !mods.alt)
-                || (m.shift && !mods.shift)
-                || (m.logo && !mods.logo)
+            (m.ctrl && !mods.ctrl) || (m.alt && !mods.alt) || (m.logo && !mods.logo)
         });
     state.held.grabs = held;
     let ended: Vec<HeldGrab> = ended;
@@ -1131,5 +1129,19 @@ mod tests {
         wayland.roundtrip(&mut core);
         // Only the presses and releases of Alt reach the window.
         assert_eq!(wayland.key_serials().len(), 4);
+    }
+
+    #[test]
+    fn shift_does_not_end_a_held_grab() {
+        let (mut core, _wayland, _window, mut wm, _xp) = window_and_menu();
+        wm.ok(&mut core, "input.grab", json!({"binding": "Alt+Shift+Tab"}));
+        press(&mut core, ALT, true);
+        press(&mut core, SHIFT, true);
+        tap(&mut core, TAB);
+        press(&mut core, SHIFT, false);
+        let binding = "Alt+Shift+Tab";
+        assert_eq!(key_states(&mut wm, &mut core, binding), ["pressed"]);
+        press(&mut core, ALT, false);
+        assert_eq!(key_states(&mut wm, &mut core, binding), ["released"]);
     }
 }

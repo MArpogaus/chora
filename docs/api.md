@@ -370,9 +370,10 @@ bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
 belong to no client. A binding has one owner at a time.
 
 A key grab is held from the press of its key until one of its modifiers
-goes up. Each press of the key in that time sends `pressed`; the release
-of the key sends nothing and reaches no surface. When the first modifier
-goes up, the client gets one `released`. So an Alt+Tab switcher sees Alt
+Ctrl, Alt or Super goes up. Shift does not end a key grab. Each press of
+the key in that time sends `pressed`; the release of the key sends nothing
+and reaches no surface. When the grab ends, the client gets one
+`released`. So an Alt+Tab switcher sees Alt
 down, Tab, Tab, Alt up as `pressed`, `pressed`, `released`, and knows when
 to switch.
 
