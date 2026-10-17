@@ -289,7 +289,7 @@ impl Bar {
             update(
                 &format!("xp-panel-{}", self.output),
                 PropsUpdate {
-                    image: Some(theme.render(&picture)),
+                    image: Some(theme.render_flat(&picture)),
                     size: Some([f64::from(self.area[2]), f64::from(HEIGHT)]),
                     slice: Some([0.0, f64::from(top), 0.0, 0.0]),
                     ..PropsUpdate::default()

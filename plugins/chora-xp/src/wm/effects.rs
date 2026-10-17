@@ -81,7 +81,7 @@ impl Wm {
         commands.extend(self.cube_frame(now));
         commands.extend(self.fade_frame(now));
         commands.extend(self.slide_frame(now, dt));
-        self.conn.apply(commands)
+        self.apply(commands)
     }
 
     /// The group that wobbles for a key, a surface or the group of a

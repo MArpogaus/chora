@@ -191,7 +191,11 @@ uses them instead of the free files of the theme:
 
 `chora-xp` draws everything as image nodes. It rasterizes the SVG files of
 the theme with resvg into PNG files in `$XDG_RUNTIME_DIR/chora-xp/`, and
-renders each picture once:
+renders each picture once, at the largest scale of the outputs, so that
+text and icons stay sharp on a scaled output; after a change of the scale
+it renders them again. The frames of windows and the background of the
+taskbar stay at scale 1, because the core takes the insets of a slice in
+pixels of the file. The pictures:
 
 - a frame around each window, with its title and the minimize, maximize
   and close buttons; a window that draws its own frame, as GTK programs

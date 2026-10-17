@@ -174,8 +174,14 @@ impl Fonts {
         &self.specs[font as usize]
     }
 
-    /// Draws a line of text onto a pixmap.
-    pub fn draw(&self, text: &Text, pixmap: &mut PixmapMut<'_>) -> Result<(), String> {
+    /// Draws a line of text onto a pixmap, in the coordinates that `base`
+    /// scales to pixels.
+    pub fn draw(
+        &self,
+        text: &Text,
+        base: Transform,
+        pixmap: &mut PixmapMut<'_>,
+    ) -> Result<(), String> {
         let [x, _, w, _] = text.rect;
         let line = self.fit(&text.line, text.font, w);
         let x = match text.align {
@@ -191,7 +197,7 @@ impl Fonts {
         }
         body += &self.element(&line, text, [x, 0.0], text.color);
         let tree = self.parse(&body, pixmap.width(), pixmap.height())?;
-        resvg::render(&tree, Transform::identity(), pixmap);
+        resvg::render(&tree, base, pixmap);
         Ok(())
     }
 

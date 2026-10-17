@@ -3,7 +3,10 @@
 //!
 //! A [`Picture`] describes an image as layers: elements of the SVG files
 //! by id, frames by prefix, icons, fills and text. Each picture renders
-//! once; the name of its file is the hash of the description.
+//! once per scale; the name of its file is the hash of the description
+//! and the scale. Its size is in logical pixels, and its file has the
+//! pixels of the largest scale of the outputs, so that text and icons
+//! stay sharp on a scaled output.
 
 use std::{
     cell::RefCell,
@@ -24,6 +27,8 @@ use zune_jpeg::{
     JpegDecoder,
     zune_core::{colorspace::ColorSpace, options::DecoderOptions},
 };
+
+use chora_scene::Command;
 
 use crate::text::{Font, Fonts, Text};
 
@@ -271,6 +276,12 @@ pub struct Theme {
     blank: String,
     /// The widths of lines of text, as their layout is slow.
     widths: RefCell<HashMap<(String, Font), f64>>,
+    /// Pixels per logical pixel of the rendered files.
+    scale: f64,
+    /// The pictures of the rendered files at the scale, by path, to give
+    /// image nodes their logical size and to render them again at
+    /// another scale.
+    pictures: HashMap<String, Picture>,
 }
 
 /// How many rendered files the cache keeps.
@@ -299,6 +310,8 @@ impl Theme {
             clock: 0,
             blank: String::new(),
             widths: RefCell::default(),
+            scale: 1.0,
+            pictures: HashMap::new(),
         };
         theme.blank = theme
             .write(0, &Pixmap::new(1, 1).expect("one pixel"))
@@ -352,7 +365,7 @@ impl Theme {
         let size = [l + center[0] + r, t + center[1] + b];
         let picture = Picture::new(size[0], size[1]).frame(sheet, prefix, [0, 0, size[0], size[1]]);
         Frame {
-            image: self.render(&picture),
+            image: self.render_flat(&picture),
             slice: [l, t, r, b].map(f64::from),
         }
     }
@@ -369,18 +382,39 @@ impl Theme {
         ]
     }
 
-    /// The PNG file of a picture, rendered on first use. A picture that
-    /// fails to render logs and gets a transparent pixel.
+    /// The PNG file of a picture at the scale, rendered on first use. A
+    /// picture that fails to render logs and gets a transparent pixel.
     pub fn render(&mut self, picture: &Picture) -> String {
+        let path = self.render_at(picture, self.scale);
+        if path != self.blank && !self.pictures.contains_key(&path) {
+            // ponytail: forget all at a size, rather than track which
+            // files nodes still show; those keep their scale.
+            if self.pictures.len() >= 8192 {
+                self.pictures.clear();
+            }
+            self.pictures.insert(path.clone(), picture.clone());
+        }
+        path
+    }
+
+    /// The PNG file of a picture at its own size, for an image node with
+    /// a slice: the core takes the insets of a slice in pixels of the
+    /// file, also for the corners on the screen.
+    pub fn render_flat(&mut self, picture: &Picture) -> String {
+        self.render_at(picture, 1.0)
+    }
+
+    fn render_at(&mut self, picture: &Picture, scale: f64) -> String {
         let mut hasher = DefaultHasher::new();
         picture.hash(&mut hasher);
+        scale.to_bits().hash(&mut hasher);
         let key = hasher.finish() | 1;
         self.clock += 1;
         if let Some(entry) = self.rendered.get_mut(&key) {
             entry.used = self.clock;
             return entry.path.clone();
         }
-        let written = self.draw(picture).and_then(|p| self.write(key, &p));
+        let written = self.draw(picture, scale).and_then(|p| self.write(key, &p));
         match written {
             Ok(path) => {
                 self.evict();
@@ -396,6 +430,44 @@ impl Theme {
             Err(err) => {
                 eprintln!("chora-xp: rendering failed: {err}");
                 self.blank.clone()
+            }
+        }
+    }
+
+    /// Takes the scale of the outputs, the largest one. Returns whether
+    /// it changed.
+    pub fn set_scale(&mut self, scale: f64) -> bool {
+        let scale = if scale.is_finite() {
+            scale.clamp(1.0, 4.0)
+        } else {
+            1.0
+        };
+        if (scale - self.scale).abs() < 1e-9 {
+            return false;
+        }
+        self.scale = scale;
+        true
+    }
+
+    /// A rendered file at the current scale with its logical size, for a
+    /// file of an earlier scale; `None` for a file of no picture.
+    pub fn rerender(&mut self, path: &str) -> Option<(String, [f64; 2])> {
+        let picture = self.pictures.get(path)?.clone();
+        Some((self.render(&picture), picture.size.map(f64::from)))
+    }
+
+    /// Gives the image nodes of rendered pictures their logical size,
+    /// unless a command sets a size or a slice itself.
+    pub fn size_images(&self, commands: &mut [Command]) {
+        for command in commands {
+            let (Command::Create { props, .. } | Command::Update { props, .. }) = command else {
+                continue;
+            };
+            if props.size.is_some() || props.slice.is_some() {
+                continue;
+            }
+            if let Some(picture) = props.image.as_ref().and_then(|p| self.pictures.get(p)) {
+                props.size = Some(picture.size.map(f64::from));
             }
         }
     }
@@ -430,32 +502,45 @@ impl Theme {
             .map_err(|p| format!("not UTF-8: {}", p.display()))
     }
 
-    fn draw(&self, picture: &Picture) -> Result<Pixmap, String> {
-        let [w, h] = picture.size.map(|n| u32::try_from(n).unwrap_or(1));
+    fn draw(&self, picture: &Picture, scale: f64) -> Result<Pixmap, String> {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let [w, h] = picture
+            .size
+            .map(|n| (f64::from(n) * scale).ceil().max(1.0) as u32);
         let mut pixmap = Pixmap::new(w, h).ok_or("an empty picture")?;
+        #[allow(clippy::cast_possible_truncation)]
+        let base = Transform::from_scale(scale as f32, scale as f32);
         for layer in &picture.layers {
             // A missing icon or element leaves the rest of the picture.
-            if let Err(err) = self.draw_layer(layer, &mut pixmap.as_mut()) {
+            if let Err(err) = self.draw_layer(layer, (base, &mut pixmap.as_mut())) {
                 eprintln!("chora-xp: {err}");
             }
         }
         Ok(pixmap)
     }
 
-    fn draw_layer(&self, layer: &Layer, pixmap: &mut PixmapMut<'_>) -> Result<(), String> {
+    /// Draws a layer in the coordinates of the picture, which `base`
+    /// scales to pixels.
+    fn draw_layer(
+        &self,
+        layer: &Layer,
+        (base, pixmap): (Transform, &mut PixmapMut<'_>),
+    ) -> Result<(), String> {
         match layer {
-            Layer::Element { sheet, id, rect } => self.draw_element(*sheet, id, *rect, pixmap),
+            Layer::Element { sheet, id, rect } => {
+                self.draw_element(*sheet, id, *rect, (base, pixmap))
+            }
             Layer::Frame {
                 sheet,
                 prefix,
                 rect,
             } => {
-                self.draw_frame(*sheet, prefix, *rect, pixmap);
+                self.draw_frame(*sheet, prefix, *rect, (base, pixmap));
                 Ok(())
             }
-            Layer::File { path, rect, fit } => self.draw_file(path, *rect, *fit, pixmap),
-            Layer::Gray { path, rect } => self.draw_gray(path, *rect, pixmap),
-            Layer::Text(text) => self.fonts.draw(text, pixmap),
+            Layer::File { path, rect, fit } => self.draw_file(path, *rect, *fit, (base, pixmap)),
+            Layer::Gray { path, rect } => self.draw_gray(path, *rect, (base, pixmap)),
+            Layer::Text(text) => self.fonts.draw(text, base, pixmap),
             Layer::Svg(body) => {
                 let svg = format!(
                     r#"<svg xmlns="http://www.w3.org/2000/svg" width="{}" height="{}">{body}</svg>"#,
@@ -464,7 +549,7 @@ impl Theme {
                 );
                 let tree = usvg::Tree::from_str(&svg, self.fonts.options())
                     .map_err(|e| format!("svg layer: {e}"))?;
-                resvg::render(&tree, Transform::identity(), pixmap);
+                resvg::render(&tree, base, pixmap);
                 Ok(())
             }
         }
@@ -476,7 +561,7 @@ impl Theme {
         sheet: Sheet,
         id: &str,
         rect: Rect,
-        pixmap: &mut PixmapMut<'_>,
+        (base, pixmap): (Transform, &mut PixmapMut<'_>),
     ) -> Result<(), String> {
         let missing = || format!("{} has no element {id:?}", sheet.file());
         let node = self.sheets[&sheet].node_by_id(id).ok_or_else(missing)?;
@@ -489,7 +574,8 @@ impl Theme {
         };
         let [x, y, w, h] = rect.map(f64::from);
         #[allow(clippy::cast_possible_truncation)]
-        let transform = Transform::from_translate(x as f32, y as f32)
+        let transform = base
+            .pre_translate(x as f32, y as f32)
             .pre_scale(w as f32 / bbox.width(), h as f32 / bbox.height())
             .pre_translate(-bbox.x(), -bbox.y())
             .pre_concat(parent_transform(node))
@@ -500,7 +586,13 @@ impl Theme {
 
     /// Draws the nine parts of a frame over a rectangle; missing parts
     /// stay empty.
-    fn draw_frame(&self, sheet: Sheet, prefix: &str, rect: Rect, pixmap: &mut PixmapMut<'_>) {
+    fn draw_frame(
+        &self,
+        sheet: Sheet,
+        prefix: &str,
+        rect: Rect,
+        (base, pixmap): (Transform, &mut PixmapMut<'_>),
+    ) {
         let [left, top, right, bottom] = self.borders(sheet, prefix);
         let [x, y, width, height] = rect;
         let middle = (width - left - right).max(0);
@@ -521,7 +613,7 @@ impl Theme {
         for (name, cell) in cells {
             if cell[2] > 0 && cell[3] > 0 {
                 // A frame without some of its parts is fine.
-                let _ = self.draw_element(sheet, &part(prefix, name), cell, pixmap);
+                let _ = self.draw_element(sheet, &part(prefix, name), cell, (base, pixmap));
             }
         }
     }
@@ -529,9 +621,14 @@ impl Theme {
     /// Draws an SVG, PNG or JPEG file scaled to a rectangle.
     /// A file in light gray: drawn alone, then each pixel turns to its
     /// luma, halfway to white.
-    fn draw_gray(&self, path: &Path, rect: Rect, pixmap: &mut PixmapMut<'_>) -> Result<(), String> {
+    fn draw_gray(
+        &self,
+        path: &Path,
+        rect: Rect,
+        (base, pixmap): (Transform, &mut PixmapMut<'_>),
+    ) -> Result<(), String> {
         let mut temp = Pixmap::new(pixmap.width(), pixmap.height()).ok_or("no pixels")?;
-        self.draw_file(path, rect, Fit::Inside, &mut temp.as_mut())?;
+        self.draw_file(path, rect, Fit::Inside, (base, &mut temp.as_mut()))?;
         for pixel in temp.pixels_mut() {
             let [red, green, blue] = [pixel.red(), pixel.green(), pixel.blue()].map(u32::from);
             let alpha = pixel.alpha();
@@ -552,7 +649,7 @@ impl Theme {
         path: &Path,
         rect: Rect,
         fit: Fit,
-        pixmap: &mut PixmapMut<'_>,
+        (base, pixmap): (Transform, &mut PixmapMut<'_>),
     ) -> Result<(), String> {
         let error = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
         let image = if is_svg(path) {
@@ -562,7 +659,7 @@ impl Theme {
             if !matches!(fit, Fit::Tile(_)) {
                 resvg::render(
                     &tree,
-                    place(rect, [size.width(), size.height()], fit),
+                    base.pre_concat(place(rect, [size.width(), size.height()], fit)),
                     pixmap,
                 );
                 return Ok(());
@@ -578,7 +675,7 @@ impl Theme {
         };
         #[allow(clippy::cast_precision_loss)]
         let size = [image.width() as f32, image.height() as f32];
-        let transform = place(rect, size, fit);
+        let transform = base.pre_concat(place(rect, size, fit));
         if let Fit::Tile(_) = fit {
             let paint = Paint {
                 shader: Pattern::new(
@@ -593,7 +690,7 @@ impl Theme {
             #[allow(clippy::cast_precision_loss)]
             let [x, y, w, h] = rect.map(|n| n as f32);
             if let Some(area) = tiny_skia::Rect::from_xywh(x, y, w, h) {
-                pixmap.fill_rect(area, &paint, Transform::identity(), None);
+                pixmap.fill_rect(area, &paint, base, None);
             }
             return Ok(());
         }
@@ -773,6 +870,38 @@ mod tests {
         let image = Pixmap::load_png(theme.render(&picture)).expect("a PNG file");
         let pixel = image.pixel(50, 15).expect("inside");
         assert!(pixel.green() > pixel.red() && pixel.green() > pixel.blue());
+        let _ = fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn pictures_render_at_the_scale_with_their_logical_size() {
+        let (mut theme, cache) = theme("scale");
+        let picture =
+            Picture::new(100, 30).element(Sheet::Winxp, "startbutton-normal", [0, 0, 100, 30]);
+        let flat = theme.render(&picture);
+        assert!(theme.set_scale(1.5));
+        assert!(!theme.set_scale(1.5));
+        let (sharp, size) = theme.rerender(&flat).expect("a picture");
+        let image = Pixmap::load_png(&sharp).expect("a PNG file");
+        assert_eq!([image.width(), image.height()], [150, 45]);
+        assert_eq!(size, [100.0, 30.0]);
+        // The node of the picture gets its logical size, one with a
+        // slice keeps the pixels of its file.
+        let image = |slice: Option<[f64; 4]>| Command::Update {
+            id: "n".into(),
+            props: chora_scene::PropsUpdate {
+                image: Some(sharp.clone()),
+                slice,
+                ..chora_scene::PropsUpdate::default()
+            },
+        };
+        let mut commands = [image(None), image(Some([1.0; 4]))];
+        theme.size_images(&mut commands);
+        let sizes = commands.map(|c| match c {
+            Command::Update { props, .. } => props.size,
+            _ => None,
+        });
+        assert_eq!(sizes, [Some([100.0, 30.0]), None]);
         let _ = fs::remove_dir_all(cache);
     }
 }

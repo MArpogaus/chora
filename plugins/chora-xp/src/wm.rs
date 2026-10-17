@@ -17,7 +17,7 @@ use std::{
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
     SurfaceRequest, Uniform,
-    ipc::{ClientError, Grab, OutputConfigure, PressState, Subscribe},
+    ipc::{ClientError, Grab, OutputConfigure, PressState, RpcError, Subscribe},
 };
 use serde_json::Value;
 
@@ -306,6 +306,7 @@ impl Wm {
     /// runs.
     fn create_scene(&mut self) -> Result<(), ClientError> {
         let outputs: Vec<OutputInfo> = self.conn.call("output.list", Value::Null)?;
+        self.theme.set_scale(max_scale(&outputs));
         let group = |id: &str, parent: &str| Command::Create {
             id: id.into(),
             kind: NodeKind::Group,
@@ -340,7 +341,7 @@ impl Wm {
         }
         commands.extend(self.menu.create(&mut self.theme, MENUS));
         commands.extend(self.refresh_icons());
-        match self.conn.try_apply(commands)? {
+        match self.try_apply(commands)? {
             None => {
                 self.play(Sound::Logon);
                 Ok(())
@@ -377,6 +378,48 @@ impl Wm {
         Ok(())
     }
 
+    /// Applies a transaction, with the logical sizes of the pictures.
+    fn apply(&mut self, mut commands: Vec<Command>) -> Result<(), ClientError> {
+        self.theme.size_images(&mut commands);
+        self.conn.apply(commands)
+    }
+
+    /// Applies a transaction, as [`Self::apply`], and returns the error of
+    /// the core.
+    fn try_apply(&mut self, mut commands: Vec<Command>) -> Result<Option<RpcError>, ClientError> {
+        self.theme.size_images(&mut commands);
+        self.conn.try_apply(commands)
+    }
+
+    /// Renders the pictures that show again when the largest scale of the
+    /// outputs changed, so that they stay sharp.
+    fn rescale(&mut self) -> Result<Vec<Command>, ClientError> {
+        let outputs = self.outputs();
+        if !self.theme.set_scale(max_scale(&outputs)) {
+            return Ok(Vec::new());
+        }
+        let mut commands = Vec::new();
+        for node in self.conn.query(&format!("owner:{NAME} kind:image"))? {
+            let props = &node.props;
+            let Some((image, size)) = props.image.as_deref().and_then(|p| self.theme.rerender(p))
+            else {
+                continue;
+            };
+            // A node of another size stretches its picture.
+            #[allow(clippy::float_cmp)] // whole pixels
+            let own = props.size.is_none_or(|s| s == size);
+            commands.push(Command::Update {
+                id: node.id,
+                props: PropsUpdate {
+                    image: Some(image),
+                    size: own.then_some(size),
+                    ..PropsUpdate::default()
+                },
+            });
+        }
+        Ok(commands)
+    }
+
     /// The next event, or `None` after a timeout.
     pub fn conn_event(&mut self, timeout: Duration) -> Result<Option<Event>, ClientError> {
         self.conn.next_event(timeout)
@@ -393,7 +436,7 @@ impl Wm {
             } => return self.adopt(&surface, app_id, title.as_deref()),
             Event::SurfaceDetached { surface } => {
                 let commands = self.forget(&surface);
-                self.conn.apply(commands)?;
+                self.apply(commands)?;
                 // Free again, so it is free to take, as at the start.
                 return self.adopt(&surface, None, None);
             }
@@ -421,8 +464,18 @@ impl Wm {
             } => self.pressed(&node, button, position),
             Event::PointerMoved { position, .. } => self.dragged(position),
             Event::PointerReleased { node, position, .. } => self.released(&node, position),
-            Event::OutputChanged { output } => self.output_changed(&output),
-            Event::OutputRemoved { name } => self.output_removed(&name),
+            // The pictures of the new scale first, so that the new
+            // pictures of the change win.
+            Event::OutputChanged { output } => {
+                let mut commands = self.rescale()?;
+                commands.extend(self.output_changed(&output));
+                commands
+            }
+            Event::OutputRemoved { name } => {
+                let mut commands = self.rescale()?;
+                commands.extend(self.output_removed(&name));
+                commands
+            }
             // A binding acts on its press, not on its release.
             Event::InputKey {
                 binding,
@@ -435,7 +488,7 @@ impl Wm {
         };
         let mut commands = commands;
         commands.extend(self.relayout_explorers());
-        self.conn.apply(commands)
+        self.apply(commands)
     }
 
     /// When the pointer has rested on the start menu long enough to open
@@ -450,7 +503,7 @@ impl Wm {
         if commands.is_empty() {
             return Ok(());
         }
-        self.conn.apply(commands)
+        self.apply(commands)
     }
 
     /// Updates the clock.
@@ -463,7 +516,7 @@ impl Wm {
             }
         }
         if !commands.is_empty() {
-            self.conn.apply(commands)?;
+            self.apply(commands)?;
         }
         let now = self.now();
         if now != self.clock {
@@ -473,7 +526,7 @@ impl Wm {
                 .iter()
                 .map(|bar| bar.tray(&mut self.theme, &self.clock))
                 .collect();
-            self.conn.apply(commands)?;
+            self.apply(commands)?;
         }
         Ok(())
     }
@@ -511,7 +564,7 @@ impl Wm {
         self.opened.push(surface.into());
         let mut commands = decoration::create(surface, &desk_id(self.desktop), false);
         commands.extend(self.focus(Some(surface)));
-        if let Some(err) = self.conn.try_apply(commands)? {
+        if let Some(err) = self.try_apply(commands)? {
             // Another client took it first.
             eprintln!("chora-xp: {surface}: {err}");
             self.windows.retain(|w| w.surface != surface);
@@ -531,7 +584,7 @@ impl Wm {
         if let Some(size) = info.size.filter(|[w, h]| *w > 0 && *h > 0) {
             commands.extend(self.resized(surface, size));
         }
-        self.conn.apply(commands)
+        self.apply(commands)
     }
 
     /// The commands for a new client size: a new window shows, and the
@@ -2226,7 +2279,7 @@ impl Wm {
         if commands.is_empty() {
             return Ok(());
         }
-        self.conn.apply(commands)
+        self.apply(commands)
     }
 
     /// A click on the close button dismisses the balloon; one on the
@@ -2374,6 +2427,11 @@ fn close(surface: &str) -> Vec<Command> {
     vec![Command::Close {
         surface: surface.into(),
     }]
+}
+
+/// The largest scale of some outputs, at least 1.
+fn max_scale(outputs: &[OutputInfo]) -> f64 {
+    outputs.iter().map(|o| o.scale).fold(1.0, f64::max)
 }
 
 /// Runs a shell command. `&` lets the shell exit at once, so the command
