@@ -26,6 +26,7 @@ mod properties;
 mod session;
 mod sound;
 mod startmenu;
+mod switcher;
 mod taskbar;
 mod taskbar_dialog;
 mod text;

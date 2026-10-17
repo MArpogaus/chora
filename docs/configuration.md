@@ -534,6 +534,7 @@ of another client changes nothing.
 | Binding | Action |
 |---------|--------|
 | Alt+F4 | close the focused window |
+| Alt+Tab, Alt+Shift+Tab | XP's switcher: the icons of the windows of the desktop, the most recent first; Tab chooses the next, Shift+Tab the one before, and the release of Alt activates the chosen window |
 | Super+e | start the terminal |
 | Ctrl+Alt+Left, Ctrl+Alt+Right | turn the cube to the previous or next desktop |
 | Ctrl+Alt+Shift+Left, Ctrl+Alt+Shift+Right | turn the cube and take the focused window along |

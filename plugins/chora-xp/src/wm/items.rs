@@ -128,7 +128,7 @@ impl Wm {
         }
     }
 
-    fn work_area(&self) -> Rect {
+    pub(super) fn work_area(&self) -> Rect {
         self.bars.first().map_or([0, 0, 1280, 770], Bar::usable)
     }
 

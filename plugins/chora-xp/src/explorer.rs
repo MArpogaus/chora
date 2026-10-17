@@ -230,11 +230,16 @@ impl Explorer {
     /// The icon of the place, for the title bar and the task button: an
     /// empty Recycle Bin has the icon of the empty bin.
     pub fn icon(&self, icons: &mut Icons) -> Option<PathBuf> {
+        self.icon_sized(icons, 16)
+    }
+
+    /// The icon of the place for a size in pixels.
+    pub fn icon_sized(&self, icons: &mut Icons, size: u32) -> Option<PathBuf> {
         let names = match &self.history.current {
             Place::Trash if self.items().next().is_none() => &["user-trash"],
             place => place_icons(place),
         };
-        icons.first_sized(names, 16)
+        icons.first_sized(names, size)
     }
 
     /// The client size of the page.

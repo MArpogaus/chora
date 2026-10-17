@@ -18,7 +18,7 @@ use std::{
 
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
-    SurfaceRequest, Uniform,
+    SurfaceRequest, Transform, Uniform,
     ipc::{ClientError, Grab, OutputConfigure, PressState, RpcError, Subscribe},
 };
 use serde_json::Value;
@@ -45,6 +45,7 @@ use crate::{
     session::{self, Choice, Dialog, Mode},
     sound::{self, Sound},
     startmenu::{self, Action, Menu},
+    switcher::{self, Switcher},
     taskbar::{self, Bar, Task},
     taskbar_dialog::{Outcome, TaskbarDialog},
     theme::{Rect, Theme},
@@ -60,6 +61,8 @@ const BARS: &str = "xp-bars";
 /// The settings dialogs, above the taskbar and below the menus.
 const DIALOGS: &str = "xp-dialogs";
 const MENUS: &str = "xp-menus";
+/// The node of XP's Alt+Tab.
+const SWITCHER: &str = "xp-alttab";
 /// How long a taskbar that hides itself waits after the pointer left it.
 const HIDE_DELAY: Duration = Duration::from_millis(500);
 /// The left mouse button.
@@ -115,12 +118,16 @@ enum Key {
     Turn(i32),
     /// Moves the focused window along with a turn.
     Carry(i32),
+    /// XP's Alt+Tab, forward or back.
+    Switch(i32),
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them.
-const KEYS: [(&str, &str, Key); 6] = [
+const KEYS: [(&str, &str, Key); 8] = [
     ("Alt+F4", "", Key::Close),
+    ("Alt+Tab", "", Key::Switch(1)),
+    ("Alt+Shift+Tab", "Alt+Shift+ISO_Left_Tab", Key::Switch(-1)),
     ("Super+e", "", Key::Terminal),
     ("Ctrl+Alt+Left", "Super+Ctrl+Left", Key::Turn(-1)),
     ("Ctrl+Alt+Right", "Super+Ctrl+Right", Key::Turn(1)),
@@ -233,6 +240,8 @@ pub struct Wm {
     pub done: bool,
     /// Restart ended the plugin, to start it again.
     pub restart: bool,
+    /// XP's Alt+Tab while Alt is down.
+    switcher: Option<Switcher>,
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
@@ -288,6 +297,7 @@ impl Wm {
             item: None,
             done: false,
             restart: false,
+            switcher: None,
             kept: HashMap::new(),
         };
         wm.clock = wm.now();
@@ -302,13 +312,19 @@ impl Wm {
             },
         )?;
         wm.restore_kept(kept)?;
-        for node in wm.conn.query("kind:surface")? {
+        wm.adopt_all()?;
+        Ok(wm)
+    }
+
+    /// Adopts the surfaces without an owner, as at a start.
+    fn adopt_all(&mut self) -> Result<(), ClientError> {
+        for node in self.conn.query("kind:surface")? {
             if node.owner.is_none() {
                 let info = node.surface.unwrap_or_default();
-                wm.adopt(&node.id, info.app_id, info.title.as_deref())?;
+                self.adopt(&node.id, info.app_id, info.title.as_deref())?;
             }
         }
-        Ok(wm)
+        Ok(())
     }
 
     /// The groups, the wallpapers, the taskbars and the hidden menu, in
@@ -484,6 +500,10 @@ impl Wm {
                 binding,
                 state: PressState::Pressed,
             } => self.key(&binding),
+            Event::InputKey {
+                binding,
+                state: PressState::Released,
+            } => self.key_released(&binding),
             Event::PointerEntered { node, .. } => self.hovered(&node, true),
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
@@ -1065,8 +1085,84 @@ impl Wm {
             }
             Some(Key::Turn(steps)) => self.turn(steps),
             Some(Key::Carry(steps)) => self.carry(steps),
+            Some(Key::Switch(step)) => self.switch(step),
             None => Vec::new(),
         }
+    }
+
+    /// Alt+Tab: opens XP's switcher, or moves its choice.
+    fn switch(&mut self, step: i32) -> Vec<Command> {
+        let open = self.switcher.is_some();
+        if let Some(switcher) = &mut self.switcher {
+            switcher.step(step);
+        } else {
+            // The windows of the desktop, the most recent first.
+            let entries = self
+                .windows
+                .iter()
+                .rev()
+                .filter(|w| w.shown && w.desktop == self.desktop)
+                .map(|w| switcher::Entry {
+                    surface: w.surface.clone(),
+                    title: w.title.clone(),
+                    icon: self
+                        .icons
+                        .program_sized(w.app_id.as_deref().unwrap_or_default(), 32),
+                })
+                .collect::<Vec<_>>();
+            let Some(mut switcher) = Switcher::new(entries, step) else {
+                return Vec::new();
+            };
+            // The icons of the windows of the plugin.
+            for entry in &mut switcher.entries {
+                if let Some(e) = self.explorers.iter().find(|e| e.id == entry.surface) {
+                    entry.icon = e.icon_sized(&mut self.icons, 32).or(entry.icon.take());
+                }
+            }
+            self.switcher = Some(switcher);
+        }
+        let Some(switcher) = &self.switcher else {
+            return Vec::new();
+        };
+        let picture = switcher.picture(&self.theme);
+        let [w, h] = picture.size;
+        let [x, y, aw, ah] = self.work_area();
+        let image = self.theme.render(&picture);
+        let props = PropsUpdate {
+            image: Some(image),
+            transform: Some(Transform::translate(
+                f64::from(x + (aw - w) / 2),
+                f64::from(y + (ah - h) / 2),
+                0.0,
+            )),
+            ..PropsUpdate::default()
+        };
+        vec![if open {
+            Command::Update {
+                id: SWITCHER.into(),
+                props,
+            }
+        } else {
+            Command::Create {
+                id: SWITCHER.into(),
+                kind: NodeKind::Image,
+                parent: MENUS.into(),
+                props,
+            }
+        }]
+    }
+
+    /// The release of the modifier of a key: Alt up after Alt+Tab
+    /// activates the chosen window.
+    fn key_released(&mut self, _binding: &str) -> Vec<Command> {
+        let Some(switcher) = self.switcher.take() else {
+            return Vec::new();
+        };
+        let mut commands = vec![Command::Remove {
+            id: SWITCHER.into(),
+        }];
+        commands.extend(self.activate(switcher.chosen()));
+        commands
     }
 
     /// A press on a context menu goes to it; one elsewhere closes it and
