@@ -39,7 +39,21 @@ use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 
 use crate::state::State;
 
-const USAGE: &str = "usage: chora [--version] [-- COMMAND [ARGS...]]";
+const USAGE: &str =
+    "usage: chora [--version] [--headless WxH[@SCALE][+X+Y][,...]] [-- COMMAND [ARGS...]]";
+
+/// The virtual outputs of `--headless`, and the arguments after them.
+fn headless_outputs(
+    args: &[String],
+) -> Result<(Option<Vec<backend::headless::Spec>>, &[String]), String> {
+    match args {
+        [flag, specs, rest @ ..] if flag == "--headless" => {
+            Ok((Some(backend::headless::parse_specs(specs)?), rest))
+        }
+        [flag] if flag == "--headless" => Err(USAGE.into()),
+        _ => Ok((None, args)),
+    }
+}
 
 /// Runs the compositor with the arguments of the command line, without the
 /// program name.
@@ -49,6 +63,7 @@ const USAGE: &str = "usage: chora [--version] [-- COMMAND [ARGS...]]";
 /// Wrong arguments, and a failed start of the event loop, the display, the
 /// IPC socket or the backend.
 pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let (headless, args) = headless_outputs(args)?;
     let command = match args.split_first() {
         None => &[][..],
         Some((first, _)) if first == "--version" => {
@@ -92,7 +107,7 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(child) = child {
         process::reap(child);
     }
-    backend::init(&mut state)?;
+    backend::init(&mut state, headless.as_deref())?;
     input::log_layout(&mut state);
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
     event_loop.run(None, &mut state, State::after_events)?;

@@ -222,6 +222,7 @@ client sends `hello` first. The core answers every request.
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
 | `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; returns the output |
+| `output.add(spec)`, `output.remove(output)` | for tests on the headless backend only: add a virtual output `WxH[@SCALE][+X+Y]`, which returns the output, or remove one, as a monitor plugs in or out; other backends refuse, and the last output stays; `choractl add-output` and `choractl remove-output` call them |
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |

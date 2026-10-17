@@ -123,6 +123,20 @@ enum Cmd {
         #[arg(long)]
         transform: Option<String>,
     },
+    /// Add a virtual output, as a monitor plugs in, and print it: `WxH`
+    /// with an optional `@SCALE` and `+X+Y`. Only for tests on the headless
+    /// backend.
+    AddOutput {
+        /// For example `1920x1080@1.5+1280+0`.
+        spec: String,
+    },
+    /// Remove a virtual output, as a monitor unplugs. Only for tests on the
+    /// headless backend.
+    RemoveOutput {
+        /// The output, for example `HEADLESS-2`.
+        #[arg(value_name = "NAME")]
+        output: String,
+    },
     /// Restart a plugin: stop the process of a client name, and start its
     /// command again. Needs a grant of `process.spawn`.
     Restart {
@@ -265,6 +279,8 @@ fn run(args: Args) -> Result<(), String> {
         command @ (Cmd::Spawn { .. }
         | Cmd::Restart { .. }
         | Cmd::ConfigureOutput { .. }
+        | Cmd::AddOutput { .. }
+        | Cmd::RemoveOutput { .. }
         | Cmd::Reserve(_)
         | Cmd::Grant { .. }
         | Cmd::Revoke { .. }
@@ -323,6 +339,10 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
                 serde_json::json!({"output": output, "scale": scale, "transform": transform});
             show(client, "output.configure", params)
         }
+        Cmd::AddOutput { spec } => show(client, "output.add", serde_json::json!({"spec": spec})),
+        Cmd::RemoveOutput { output } => client
+            .call::<_, Value>("output.remove", serde_json::json!({"output": output}))
+            .map(drop),
         _ => unreachable!("only commands for grants, programs and outputs come here"),
     }
 }

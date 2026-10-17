@@ -10,7 +10,7 @@
 flowchart TB
     subgraph core["chora (Rust, Smithay)"]
         protocols["Wayland protocols"]
-        backends["Backends: DRM/KMS and libinput, winit for development"]
+        backends["Backends: DRM/KMS and libinput, winit for development, headless for tests"]
         scene["Scene: group, surface, rect, image, shader"]
         render["Renderer: GLES and GLSL shaders"]
         input["Input router"]
@@ -44,6 +44,10 @@ The compositor binary `chora`. Its tasks, and nothing more:
   window for development inside another compositor. chora uses winit when
   `WAYLAND_DISPLAY` or `DISPLAY` is set, and the hardware otherwise. On
   hardware it draws the cursor of the xcursor theme in `XCURSOR_THEME`.
+  `chora --headless 1280x800` runs on virtual outputs for tests and agents:
+  the software renderer of Mesa draws each output into a texture at 60 Hz,
+  with damage, and input comes only from `input.inject`. It needs no host
+  display, GPU or seat.
 - The scene. The core renders it for each output.
 - Input routing (see below).
 - The IPC socket.
@@ -137,7 +141,9 @@ whole before it applies it. If one part fails, the core changes nothing and
 answers `failed`. One output must stay on. After a change, the core places
 the layer surfaces again and announces the outputs to plugins (see
 [API](api.md#ipc-methods)). On winit, the window decides the mode, and the
-output cannot turn off. No backend has adaptive sync.
+output cannot turn off. Headless outputs accept every change; tests add and
+remove them with `output.add` and `output.remove`, as monitors that plug in
+and out. No backend has adaptive sync.
 
 ### Renderer
 

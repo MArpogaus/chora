@@ -466,6 +466,9 @@ impl State {
             "output.configure" => {
                 params_of(params).and_then(|c| self.ipc_output_configure(conn, &c))
             }
+            "output.add" | "output.remove" => {
+                self.ipc_headless_output(conn, &request.method, params)
+            }
             "clients.list" => Ok(self.clients()),
             "grants.set" | "grants.revoke" | "grants.list" => {
                 self.ipc_grants(&request.method, params)
