@@ -59,6 +59,9 @@ pub struct Ipc {
     pub restarting: HashSet<String>,
     /// The output of the programs of `process.spawn` with `capture`.
     pub processes: Processes,
+    /// The connections that wait for a late answer of `process.wait` or
+    /// `plugins.restart`, once per answer.
+    pub late: Vec<u64>,
     listener: Option<RegistrationToken>,
     conns: HashMap<u64, Conn>,
     next: u64,
@@ -757,6 +760,7 @@ impl State {
     fn ipc_write(&mut self) -> Vec<u64> {
         let transactions = &self.transactions;
         let methods = &self.methods;
+        let late = &self.ipc.late;
         self.ipc
             .conns
             .iter_mut()
@@ -765,7 +769,8 @@ impl State {
                 let answered = conn.reader.is_none()
                     && conn.output.is_empty()
                     && !transactions.waits_for(*id)
-                    && !methods.waits_for(*id);
+                    && !methods.waits_for(*id)
+                    && !late.contains(id);
                 (broken || answered).then_some(*id)
             })
             .collect()
@@ -1035,6 +1040,33 @@ mod tests {
             Some(Ok(json!([{"methods": [], "name": "wm"}])))
         );
         assert!(client.closed(&mut core));
+    }
+
+    #[test]
+    fn a_process_wait_gets_its_answer_after_the_end_of_the_stream() {
+        let mut core = Core::new();
+        core.state.ipc.path = Some("/nonexistent.sock".into());
+        let mut ctl = core.named("ctl");
+        let grant = json!({"client": "agent", "capabilities": ["process.spawn"]});
+        ctl.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let spawn = json!({"argv": ["sleep", "0.2"], "capture": true});
+        let pid = agent.ok(&mut core, "process.spawn", spawn)["pid"].clone();
+        let id = agent.send("process.wait", json!({"pid": pid, "timeout_ms": 5000}));
+        agent.shut_down_writes();
+        let started = Instant::now();
+        let answer = loop {
+            assert!(started.elapsed() < Duration::from_secs(5), "no answer");
+            std::thread::sleep(Duration::from_millis(20));
+            core.dispatch();
+            let messages = agent.read().expect("the connection waits for the answer");
+            if let Some(answer) = messages.into_iter().find(|m| m["id"] == id) {
+                break answer;
+            }
+        };
+        assert_eq!(answer["result"]["running"], false, "{answer}");
+        assert_eq!(answer["result"]["status"], 0, "{answer}");
+        assert!(agent.closed(&mut core));
     }
 
     #[test]

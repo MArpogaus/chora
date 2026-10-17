@@ -185,8 +185,8 @@ handoff is necessary. Events are JSON-RPC notifications on the same
 connection.
 
 When a client closes its side of the connection, the core still answers the
-requests that arrived, also those of waiting transactions. Then it closes
-the connection.
+requests that arrived, also those of waiting transactions, method calls,
+`process.wait` and `plugins.restart`. Then it closes the connection.
 
 Limits keep a buggy client from exhausting the core:
 
