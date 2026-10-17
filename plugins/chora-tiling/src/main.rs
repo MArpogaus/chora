@@ -212,8 +212,11 @@ impl Tiling {
                 events: events.map(String::from).to_vec(),
             },
         )?;
+        // Free surfaces, and those the core reserved for tiling, for example
+        // during the grace time of a restart.
         for node in self.query("kind:surface")? {
-            if let (Some(id), None) = (node["id"].as_str(), node["owner"].as_str()) {
+            let ours = node["to"].is_null() || node["to"] == NAME;
+            if let (Some(id), None, true) = (node["id"].as_str(), node["owner"].as_str(), ours) {
                 self.adopt(id)?;
             }
         }

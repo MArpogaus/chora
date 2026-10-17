@@ -359,6 +359,11 @@ impl Ipc {
         self.conns.values().any(|c| c.name.as_deref() == Some(name))
     }
 
+    /// Whether a client name has a connection or is in its grace time.
+    pub fn live(&self, name: &str) -> bool {
+        self.has_client(name) || self.graces.contains_key(name)
+    }
+
     /// The name of the client socket of a connection.
     fn fixed(&self, conn: u64) -> Option<&str> {
         self.conns.get(&conn)?.fixed.as_deref()
@@ -1578,5 +1583,64 @@ mod tests {
         core.dispatch();
         assert_eq!(core.state.ipc.reserved("HDMI-1").top, 10);
         assert_eq!(core.state.ipc.reserved("DP-1"), Edges::default());
+    }
+
+    // A claim of a keep_nodes client outlives it; new toplevels must not
+    // stay reserved for a client that is gone.
+    #[test]
+    fn a_claim_of_a_gone_client_reserves_nothing() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut gone = core.connect();
+        gone.ok(
+            &mut core,
+            "hello",
+            json!({"name": "wmb", "keep_nodes": true}),
+        );
+        let group = json!({"commands": [{"create": {"id": "g", "kind": "group",
+            "parent": "root", "props": {"claim": [0.0, 0.0, 800.0, 600.0]}}}]});
+        gone.ok(&mut core, "scene.apply", group);
+        drop(gone);
+        core.dispatch();
+        let mut other = core.named("xp");
+        let mut wayland = Wayland::connect(&mut core);
+        core.state.pointer_layout = (100.0, 100.0).into();
+        wayland.toplevel(&mut core, "foot");
+        assert_eq!(
+            reserved_for(&core, "s1"),
+            None,
+            "reserved for a gone client"
+        );
+        other.ok(&mut core, "scene.apply", attach_s1("root"));
+    }
+
+    #[test]
+    fn the_reservations_end_with_the_last_claim() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 800.0, 600.0]);
+        let mut wayland = Wayland::connect(&mut core);
+        core.state.pointer_layout = (100.0, 100.0).into();
+        wayland.toplevel(&mut core, "foot");
+        assert_eq!(reserved_for(&core, "s1").as_deref(), Some("a"));
+        let remove = json!({"commands": [{"remove": {"id": "a"}}]});
+        a.ok(&mut core, "scene.apply", remove);
+        assert_eq!(reserved_for(&core, "s1"), None);
+    }
+
+    // A dialog goes to the window manager of its parent, not by the pointer.
+    #[test]
+    fn a_child_toplevel_goes_to_the_manager_of_its_parent() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 400.0, 600.0]);
+        let _b = claimer(&mut core, "b", [400.0, 0.0, 400.0, 600.0]);
+        let mut wayland = Wayland::connect(&mut core);
+        core.state.pointer_layout = (100.0, 100.0).into();
+        let parent = wayland.toplevel(&mut core, "app");
+        a.ok(&mut core, "scene.apply", attach_s1("a"));
+        core.state.pointer_layout = (600.0, 100.0).into();
+        wayland.child(&mut core, &parent);
+        assert_eq!(reserved_for(&core, "s2").as_deref(), Some("a"));
     }
 }

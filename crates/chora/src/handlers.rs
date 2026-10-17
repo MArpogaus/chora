@@ -136,8 +136,12 @@ impl State {
                 .spot(self.pointer_layout)
                 .map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
             let focused = self.focused_surface().map(String::from);
+            let parent = toplevel.parent().and_then(|p| self.surface_id(&p));
+            let ipc = &self.ipc;
             let to = (self.scene)
-                .manager_of_new(focused.as_deref(), pointer)
+                .manager_of_new(parent.as_deref(), focused.as_deref(), pointer, |n| {
+                    ipc.live(n)
+                })
                 .map(String::from);
             self.scene.reserve(id, to.as_deref());
             self.list_toplevel(id);

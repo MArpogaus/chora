@@ -169,6 +169,27 @@ impl Wayland {
         }
     }
 
+    /// A child toplevel of `parent` after its first commit, for dialogs.
+    pub fn child(&mut self, core: &mut Core, parent: &Toplevel) -> Toplevel {
+        let qh = self.queue.handle();
+        let index = self.app.surfaces.len();
+        self.app.surfaces.push(Configures::default());
+        let compositor = self.app.compositor.as_ref().expect("wl_compositor");
+        let surface = compositor.create_surface(&qh, ());
+        let wm_base = self.app.wm_base.as_ref().expect("xdg_wm_base");
+        let xdg = wm_base.get_xdg_surface(&surface, &qh, index);
+        let role = xdg.get_toplevel(&qh, index);
+        role.set_parent(Some(&parent.role));
+        surface.commit();
+        self.roundtrip(core);
+        Toplevel {
+            surface,
+            xdg,
+            role,
+            index,
+        }
+    }
+
     /// A popup of a toplevel that grabs the input with a serial, after its
     /// first commit.
     pub fn popup(&mut self, core: &mut Core, parent: &Toplevel, serial: u32) -> Popup {

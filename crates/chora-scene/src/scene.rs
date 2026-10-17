@@ -289,32 +289,61 @@ impl Scene {
     fn run(&mut self, owner: &str, commands: &[Command]) -> Result<Vec<Effect>, TransactionError> {
         let mut effects = Vec::new();
         for (index, command) in commands.iter().enumerate() {
+            // A window manager that gives up its last claim frees the
+            // surfaces reserved for it.
+            let gives_up = matches!(command, Command::Remove { to: None, .. });
+            let had = gives_up && self.holds_claim(owner);
             self.apply_one(owner, command, &mut effects)
                 .map_err(|error| TransactionError { index, error })?;
+            if had && !self.holds_claim(owner) {
+                effects.extend(self.unreserve(owner));
+            }
         }
         Ok(effects)
     }
 
-    /// The window manager of a new toplevel (D55): the owner of the
-    /// focused node, else of the focused surface, if it holds a claim;
-    /// else the owner of the smallest claim that contains the pointer.
+    /// The window manager of a new toplevel (D55): the owner of its
+    /// parent toplevel; else the owner of the focused node, else of the
+    /// focused surface, if it holds a claim; else the owner of the smallest
+    /// claim that contains the pointer. Only owners that `live` accepts
+    /// count, so a claim of a client that is gone reserves nothing.
     #[must_use]
-    pub fn manager_of_new(&self, focused: Option<&str>, [px, py]: [f64; 2]) -> Option<&str> {
+    pub fn manager_of_new(
+        &self,
+        parent: Option<&str>,
+        focused: Option<&str>,
+        [px, py]: [f64; 2],
+        live: impl Fn(&str) -> bool,
+    ) -> Option<&str> {
+        let owner = |id: Option<&str>| self.nodes.get(id?)?.owner.as_deref();
         let claims = || {
             self.nodes
                 .values()
                 .filter_map(|n| Some((n.owner.as_deref()?, n.props.claim?)))
+                .filter(|(owner, _)| live(owner))
         };
-        let focus = self
-            .focused_node_owner()
-            .or_else(|| self.nodes.get(focused?)?.owner.as_deref())
-            .filter(|owner| claims().any(|(o, _)| o == *owner));
-        focus.or_else(|| {
+        let focus = || {
+            self.focused_node_owner()
+                .or_else(|| owner(focused))
+                .filter(|o| claims().any(|(c, _)| c == *o))
+        };
+        let pointer = || {
             claims()
                 .filter(|(_, [x, y, w, h])| (*x..x + w).contains(&px) && (*y..y + h).contains(&py))
                 .min_by(|(_, a), (_, b)| (a[2] * a[3]).total_cmp(&(b[2] * b[3])))
                 .map(|(owner, _)| owner)
-        })
+        };
+        owner(parent)
+            .filter(|o| live(o))
+            .or_else(focus)
+            .or_else(pointer)
+    }
+
+    /// Whether a client name holds a claim.
+    fn holds_claim(&self, name: &str) -> bool {
+        self.nodes
+            .values()
+            .any(|n| n.owner.as_deref() == Some(name) && n.props.claim.is_some())
     }
 
     /// Reserves a detached surface for a client name: only that client can

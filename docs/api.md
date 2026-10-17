@@ -217,15 +217,19 @@ Several window managers share the scene (D55). A window manager sets
 `claim` on a node, for example on its root group. At the first commit of
 a toplevel, the core reserves it for one window manager:
 
-1. the owner of the node or surface with the keyboard focus, if it holds
-   a claim;
-2. else the owner of the smallest claim that contains the pointer.
+1. the owner of its parent toplevel, for a dialog;
+2. else the owner of the node or surface with the keyboard focus, if it
+   holds a claim;
+3. else the owner of the smallest claim that contains the pointer.
 
-Only that client can attach the surface, and `surface.created` names it in
+Only clients with a connection or in their grace time count. Only the
+chosen client can attach the surface, and `surface.created` names it in
 `to`. Without a match, any client attaches the surface. When the last
 connection of the client closes, the reservation ends with
-`surface.detached`. A `remove` with `to` hands a surface to another window
-manager in the same way.
+`surface.detached`. With `resume`, it ends at the end of the grace time.
+When a window manager removes its last claim, its reservations end too. A
+`remove` with `to` hands a surface to another window manager in the same
+way.
 
 ## Selectors
 
@@ -240,7 +244,7 @@ or an empty list. It always sees the current titles.
 
 | Event | Data |
 |-------|------|
-| `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own; `to` when the core reserved it for a window manager (see [Window managers](#window-managers)) |
+| `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own. `to` names the window manager that the core reserved it for (see [Window managers](#window-managers)). |
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
 | `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`. When `to` disconnects, the surface is free again, and all clients get `surface.detached`. With `resume`, this occurs at the end of the grace time. |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
@@ -350,7 +354,7 @@ nodes, so they must agree on `keep_nodes` and `resume`. The core refuses a
 `hello` with different values. For example, `choractl --name tiling` fails
 while the tiling plugin runs. With `keep_nodes`, `resume` has no effect.
 A `hello` with `resume` also fails while another connection of the name
-is live, so a second instance of a plugin cannot take the nodes of the
+is live. So a second instance of a plugin cannot take the nodes of the
 first. The error says that the name is connected.
 
 `resume` lets a plugin restart without a loss, for example after a crash
