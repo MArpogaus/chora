@@ -10,7 +10,7 @@ chora/
 ├── crates/
 │   ├── chora-scene/   # scene model, commands, events, selectors, IPC types and client; no Smithay
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
-│   ├── chora-kit/     # building blocks for plugins: wobbly windows, magic lamp, icon themes
+│   ├── chora-kit/     # building blocks for plugins: wobbly windows, magic lamp, icons, desktop entries
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
 │   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome

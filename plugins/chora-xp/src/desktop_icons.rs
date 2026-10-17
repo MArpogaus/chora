@@ -16,11 +16,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::icons::Icons;
+use chora_kit::{desktop_entry, icons::Icons};
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
-    apps, balloon, folder,
+    balloon, folder,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };
@@ -817,7 +817,7 @@ fn scan(dir: &Path, terminal: &str, icons: &mut Icons) -> Vec<Item> {
                 };
             }
             if path.extension().is_some_and(|e| e == "desktop")
-                && let Some((title, icon, command)) = apps::launcher(&path, terminal)
+                && let Some((title, icon, command)) = desktop_entry::launcher(&path, terminal)
             {
                 return Item {
                     key,
