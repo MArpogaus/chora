@@ -44,7 +44,7 @@ use crate::{
     properties::PropertiesDialog,
     session::{self, Choice, Dialog, Mode},
     sound::{self, Sound},
-    startmenu::{self, Action, Menu, MenuKey},
+    startmenu::{self, Action, Menu},
     switcher::{self, Switcher},
     taskbar::{self, Bar, Task},
     taskbar_dialog::{Outcome, TaskbarDialog},
@@ -1462,7 +1462,7 @@ impl Wm {
     fn show_context(&mut self, menu: context::Menu, area: Rect) -> Vec<Command> {
         let mut commands = menu.create(&mut self.theme, MENUS);
         commands.push(Command::FocusNode {
-            node: Some(context::Menu::focus_node()),
+            node: Some(context::FOCUS.into()),
         });
         self.context = Some((menu, area));
         commands
@@ -1483,9 +1483,9 @@ impl Wm {
             return Vec::new();
         }
         match self.menu.key(&mut self.theme, &mut self.icons, key) {
-            MenuKey::Commands(commands) => commands,
-            MenuKey::Act(action) => self.close_and_run(&action),
-            MenuKey::Close => self.close_menu(),
+            context::Key::Commands(commands) => commands,
+            context::Key::Act(action) => self.close_and_run(&action),
+            context::Key::Close => self.close_menu(),
         }
     }
 
@@ -1713,7 +1713,7 @@ impl Wm {
                 let mut commands = self.menu.open(&output, origin, area, control);
                 commands.extend(self.start_look(&output));
                 commands.push(Command::FocusNode {
-                    node: Some(Menu::focus_node().into()),
+                    node: Some(startmenu::FOCUS.into()),
                 });
                 commands
             }
@@ -1866,11 +1866,9 @@ impl Wm {
     fn close_menu(&mut self) -> Vec<Command> {
         let output = self.menu.output().map(String::from);
         let mut commands = self.menu.close(&mut self.theme);
-        // The hidden menu gives the keyboard back.
-        if output.is_some() {
-            commands.push(Command::FocusNode { node: None });
-        }
         if let Some(output) = output {
+            // The hidden menu gives the keyboard back.
+            commands.push(Command::FocusNode { node: None });
             commands.extend(self.start_look(&output));
         }
         commands

@@ -13,6 +13,7 @@ use chora_scene::{Command, NodeKind, PropsUpdate, Transform};
 use crate::{
     apps::{self, Node},
     cascade::{self, Cascade, Margins, Row},
+    context::{Key, wrap},
     control::Setting,
     desktop_icons, explorer,
     folder::Place,
@@ -35,6 +36,8 @@ const ALL_PROGRAMS: i32 = 24;
 const HOVER_DELAY: Duration = Duration::from_millis(350);
 const MIN_BODY: i32 = 330;
 const GROUP: &str = "xp-menu";
+/// The node that takes the keyboard while the menu is open.
+pub const FOCUS: &str = GROUP;
 const FRAME_ID: &str = "xp-menu-frame";
 const CONTROL_PANEL: &str = "Control Panel";
 
@@ -74,17 +77,6 @@ struct Entry {
     cascade: bool,
     /// The rectangle in the menu.
     rect: Rect,
-}
-
-/// What a key does in the start menu.
-#[derive(Debug)]
-pub enum MenuKey {
-    /// The menu changes its look.
-    Commands(Vec<Command>),
-    /// An entry or a row acts; the menu closes.
-    Act(Action),
-    /// The menu closes.
-    Close,
 }
 
 /// The programs and the places of the menu.
@@ -561,16 +553,11 @@ impl Menu {
         }
     }
 
-    /// The node that takes the keyboard while the menu is open.
-    pub fn focus_node() -> &'static str {
-        GROUP
-    }
-
     /// A key while the menu is open, as on XP: Up and Down move the
     /// highlight in a column or a cascade, Left and Right go between the
     /// columns and into and out of the cascades, Return acts, and Escape
     /// closes the innermost cascade, then the menu.
-    pub fn key(&mut self, theme: &mut Theme, icons: &mut Icons, key: &str) -> MenuKey {
+    pub fn key(&mut self, theme: &mut Theme, icons: &mut Icons, key: &str) -> Key<Action> {
         let Some(level) = self.cascades.iter().rposition(|c| c.hovered.is_some()) else {
             return self.entry_key(theme, icons, key);
         };
@@ -578,22 +565,18 @@ impl Menu {
         let current = self.cascades[level].hovered.unwrap_or(0);
         match key {
             "Down" | "Up" => {
-                let next = if key == "Down" {
-                    (current + 1) % count
-                } else {
-                    (current + count - 1) % count
-                };
-                MenuKey::Commands(self.relight(theme, level, |c| c.hovered = Some(next)))
+                let next = wrap(current, key == "Down", count);
+                Key::Commands(self.relight(theme, level, |c| c.hovered = Some(next)))
             }
-            "Right" | "Return" | "KP_Enter" => match &self.nodes(level)[current].kind {
+            "Right" | "Return" | "KP_Enter" | "space" => match &self.nodes(level)[current].kind {
                 apps::Kind::Group(_) => {
                     let mut commands = self.open_row(theme, icons, level, current);
                     commands.extend(self.relight(theme, level + 1, |c| c.hovered = Some(0)));
-                    MenuKey::Commands(commands)
+                    Key::Commands(commands)
                 }
-                _ if key == "Right" => MenuKey::Commands(Vec::new()),
-                apps::Kind::Run(command) => MenuKey::Act(Action::Run(command.clone())),
-                apps::Kind::Pick(setting, _) => MenuKey::Act(Action::Set(setting.clone())),
+                _ if key == "Right" => Key::Commands(Vec::new()),
+                apps::Kind::Run(command) => Key::Act(Action::Run(command.clone())),
+                apps::Kind::Pick(setting, _) => Key::Act(Action::Set(setting.clone())),
             },
             "Left" | "Escape" => {
                 let mut commands = self.close_from(theme, level);
@@ -605,14 +588,14 @@ impl Menu {
                 } else {
                     commands.extend(self.relight(theme, level - 1, |_| {}));
                 }
-                MenuKey::Commands(commands)
+                Key::Commands(commands)
             }
-            _ => MenuKey::Commands(Vec::new()),
+            _ => Key::Commands(Vec::new()),
         }
     }
 
     /// A key on the entries of the two columns.
-    fn entry_key(&mut self, theme: &mut Theme, icons: &mut Icons, key: &str) -> MenuKey {
+    fn entry_key(&mut self, theme: &mut Theme, icons: &mut Icons, key: &str) -> Key<Action> {
         let left = |e: &Entry| e.rect[0] < LEFT;
         // Log Off and Turn Off take no part in the walk, as on XP.
         let walk: Vec<usize> = (0..self.entries.len())
@@ -622,8 +605,8 @@ impl Menu {
             // A cascade that the pointer opened closes first.
             ("Escape", _) => {
                 return match self.cascades.len().checked_sub(1) {
-                    Some(innermost) => MenuKey::Commands(self.close_from(theme, innermost)),
-                    None => MenuKey::Close,
+                    Some(innermost) => Key::Commands(self.close_from(theme, innermost)),
+                    None => Key::Close,
                 };
             }
             ("Down" | "Up", None) => walk.iter().copied().find(|&j| left(&self.entries[j])),
@@ -637,21 +620,15 @@ impl Menu {
                 column.sort_by_key(|&j| self.entries[j].rect[1]);
                 let at = column.iter().position(|&j| j == i).unwrap_or(0);
                 let n = column.len();
-                Some(
-                    column[if key == "Down" {
-                        (at + 1) % n
-                    } else {
-                        (at + n - 1) % n
-                    }],
-                )
+                Some(column[wrap(at, key == "Down", n)])
             }
-            ("Right" | "Return" | "KP_Enter", Some(i)) if self.entries[i].cascade => {
+            ("Right" | "Return" | "KP_Enter" | "space", Some(i)) if self.entries[i].cascade => {
                 let mut commands = self.open_root(theme, icons, i);
                 commands.extend(self.relight(theme, 0, |c| c.hovered = Some(0)));
-                return MenuKey::Commands(commands);
+                return Key::Commands(commands);
             }
-            ("Return" | "KP_Enter", Some(i)) => {
-                return MenuKey::Act(self.entries[i].action.clone());
+            ("Return" | "KP_Enter" | "space", Some(i)) => {
+                return Key::Act(self.entries[i].action.clone());
             }
             ("Left" | "Right", Some(i)) => {
                 // The entry of the other column nearest in height.
@@ -664,12 +641,12 @@ impl Menu {
             _ => None,
         };
         let Some(target) = target else {
-            return MenuKey::Commands(Vec::new());
+            return Key::Commands(Vec::new());
         };
         let old = self.hovered.replace(target);
         let mut commands: Vec<Command> = old.map(|i| self.look(theme, i)).into_iter().collect();
         commands.push(self.look(theme, target));
-        MenuKey::Commands(commands)
+        Key::Commands(commands)
     }
 
     /// The entries of the cascade of a level.
@@ -1163,12 +1140,12 @@ mod tests {
         key(&mut menu, "Right");
         key(&mut menu, "Right");
         assert_eq!(menu.cascades.len(), 2);
-        assert!(matches!(key(&mut menu, "Return"), MenuKey::Act(Action::Run(c)) if c == "calc"));
+        assert!(matches!(key(&mut menu, "Return"), Key::Act(Action::Run(c)) if c == "calc"));
         // Escape closes the cascades one by one, then the menu.
         key(&mut menu, "Escape");
         key(&mut menu, "Escape");
         assert!(menu.cascades.is_empty());
-        assert!(matches!(key(&mut menu, "Escape"), MenuKey::Close));
+        assert!(matches!(key(&mut menu, "Escape"), Key::Close));
         let _ = std::fs::remove_dir_all(cache);
     }
 

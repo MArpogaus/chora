@@ -27,6 +27,8 @@ const TEXT_X: i32 = 17;
 /// The room right of the text, for the arrow of a submenu.
 const TEXT_END: i32 = 24;
 const PREFIX: &str = "xp-ctx-";
+/// The node that takes the keyboard while a menu is open: its root.
+pub const FOCUS: &str = "xp-ctx-0";
 /// The room between the text and the shortcut of a row.
 const KEY_GAP: f64 = 20.0;
 /// The room of the sample of a color before the text.
@@ -450,14 +452,9 @@ impl Level {
     fn next(&self, from: Option<usize>, step: i32) -> Option<usize> {
         let n = self.entries.len();
         let start = from.unwrap_or(if step > 0 { n - 1 } else { 0 });
-        (1..=n)
-            .map(|k| {
-                if step > 0 {
-                    (start + k) % n
-                } else {
-                    (start + n * k - k) % n
-                }
-            })
+        std::iter::successors(Some(start), |&i| Some(wrap(i, step > 0, n)))
+            .skip(1)
+            .take(n)
             .find(|&i| self.entries[i].enabled)
     }
 
@@ -467,15 +464,25 @@ impl Level {
     }
 }
 
-/// What a key does in a menu.
+/// What a key does in a menu, a context menu or the start menu.
 #[derive(Debug, PartialEq)]
-pub enum Key {
+pub enum Key<A> {
     /// The menu changes its look.
     Commands(Vec<Command>),
     /// A row acts; the menu closes.
-    Act(Act),
+    Act(A),
     /// The menu closes.
     Close,
+}
+
+/// The place one step down or, with `forward` false, up from a place in
+/// a list of `n`, around the ends.
+pub fn wrap(at: usize, forward: bool, n: usize) -> usize {
+    if forward {
+        (at + 1) % n
+    } else {
+        (at + n - 1) % n
+    }
 }
 
 /// The open menu, with its submenu.
@@ -650,15 +657,10 @@ impl Menu {
         commands
     }
 
-    /// The node that takes the keyboard while the menu is open.
-    pub fn focus_node() -> String {
-        group_id(0)
-    }
-
     /// A key while the menu is open, as on XP: Up and Down move the
     /// highlight over the enabled rows, Right and Left open and close the
     /// submenu, Return acts, and Escape closes the submenu or the menu.
-    pub fn key(&mut self, theme: &mut Theme, parent: &str, key: &str) -> Key {
+    pub fn key(&mut self, theme: &mut Theme, parent: &str, key: &str) -> Key<Act> {
         let level = self.levels.len() - 1;
         let current = self.levels[level].hovered;
         match key {
