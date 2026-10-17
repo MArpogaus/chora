@@ -9,12 +9,17 @@
 //! blocker until the transaction applies, as in niri and Pinnacle. So the
 //! new buffers of a transaction and its scene changes show in one frame.
 //!
+//! A transaction that names an image file waits aside until a worker
+//! thread decoded the file; transactions of other connections go on
+//! meanwhile, and the later transactions of the same connection wait
+//! behind it. A file that fails to decode rejects the transaction.
+//!
 //! A surface that misses a deadline is late. No transaction waits for it
 //! until it commits a buffer for its newest configure, so a hung client
 //! delays the queue once, not once per transaction.
 
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     time::{Duration, Instant},
 };
 
@@ -32,7 +37,7 @@ use smithay::{
     },
 };
 
-use crate::{ipc::rejected, state::State};
+use crate::{images::Decoded, ipc::rejected, state::State};
 
 /// How long a transaction waits for its clients.
 pub const DEADLINE: Duration = Duration::from_millis(150);
@@ -43,6 +48,10 @@ const MAX_PENDING: usize = 16;
 #[derive(Default)]
 pub struct Transactions {
     queue: VecDeque<Pending>,
+    /// The transactions that wait for their images, or behind one of their
+    /// connection that does, in the order of their arrival.
+    staged: Vec<Pending>,
+    next_ticket: u64,
     /// The late surfaces, and the newest configure serial of each.
     late: HashMap<String, Serial>,
 }
@@ -52,6 +61,12 @@ struct Pending {
     id: Value,
     owner: String,
     commands: Vec<Command>,
+    /// Names the images that the worker decodes for the transaction.
+    ticket: u64,
+    /// How many images the worker still decodes for it.
+    decoding: usize,
+    /// The first image that failed to load.
+    failed: Option<String>,
     /// The configure serial that each surface still has to commit.
     waiting: HashMap<String, Serial>,
     /// Set when the configure events are out.
@@ -98,14 +113,49 @@ impl Transactions {
         }
     }
 
-    /// Whether a transaction of the connection waits in the queue.
+    fn all(&self) -> impl Iterator<Item = &Pending> {
+        self.queue.iter().chain(&self.staged)
+    }
+
+    /// Whether a transaction of the connection waits.
     pub fn waits_for(&self, conn: u64) -> bool {
-        self.queue.iter().any(|p| p.conn == conn)
+        self.all().any(|p| p.conn == conn)
+    }
+
+    /// The image files that the waiting transactions name, which the cache
+    /// keeps for them.
+    fn images(&self) -> HashSet<&str> {
+        self.all()
+            .flat_map(|p| &p.commands)
+            .filter_map(|c| match c {
+                Command::Create { props, .. }
+                | Command::Update { props, .. }
+                | Command::Animate { props, .. } => props.image.as_deref(),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Moves the transactions whose images are in to the queue, each
+    /// connection in order.
+    fn promote(&mut self) {
+        let mut blocked = HashSet::new();
+        let mut i = 0;
+        while i < self.staged.len() {
+            let pending = &self.staged[i];
+            if pending.decoding == 0 && !blocked.contains(&pending.conn) {
+                self.queue.push_back(self.staged.remove(i));
+            } else {
+                blocked.insert(pending.conn);
+                i += 1;
+            }
+        }
     }
 
     /// Drops the transactions of a closed connection. Returns the surfaces
     /// whose commits they held, for `release`.
     pub fn drop_conn(&mut self, conn: u64) -> Vec<WlSurface> {
+        self.staged.retain(|p| p.conn != conn);
         let mut held = Vec::new();
         self.queue.retain_mut(|p| {
             if p.conn != conn {
@@ -128,28 +178,65 @@ impl State {
         owner: String,
         commands: Vec<Command>,
     ) {
-        let waiting = self
-            .transactions
-            .queue
-            .iter()
-            .filter(|p| p.conn == conn)
-            .count();
+        let waiting = self.transactions.all().filter(|p| p.conn == conn).count();
         if waiting >= MAX_PENDING {
             let error = rejected("too many waiting transactions");
             self.ipc.respond(conn, &Message::error(id, error));
             return;
         }
-        self.transactions.queue.push_back(Pending {
+        let ticket = self.transactions.next_ticket;
+        self.transactions.next_ticket += 1;
+        let (decoding, failed) = match self.assets.images.decode_for(ticket, &commands) {
+            Ok(n) => (n, None),
+            Err(error) => (0, Some(error)),
+        };
+        let pending = Pending {
             conn,
             id,
             owner,
             commands,
+            ticket,
+            decoding,
+            failed,
             waiting: HashMap::new(),
             deadline: None,
             barrier: Barrier::new(false),
             held: Vec::new(),
-        });
+        };
+        if decoding > 0 || self.transactions.staged.iter().any(|p| p.conn == conn) {
+            self.transactions.staged.push(pending);
+        } else {
+            self.transactions.queue.push_back(pending);
+            self.complete_transactions();
+        }
+    }
+
+    /// Puts an image that the worker decoded into the cache, and lets its
+    /// transaction go on.
+    pub fn decoded(&mut self, decoded: Decoded) {
+        let ticket = decoded.ticket;
+        let Some(pending) = self
+            .transactions
+            .staged
+            .iter_mut()
+            .find(|p| p.ticket == ticket)
+        else {
+            // The connection closed.
+            return;
+        };
+        pending.decoding -= 1;
+        if let Err(error) = self.assets.images.insert(decoded) {
+            pending.failed.get_or_insert(error);
+        }
+        self.transactions.promote();
         self.complete_transactions();
+    }
+
+    /// Drops the images that no node shows and no waiting transaction
+    /// names.
+    fn prune_images(&mut self) {
+        let named = self.transactions.images();
+        self.assets.images.prune(&self.scene, &named);
     }
 
     /// Starts and completes the transactions at the head of the queue, as
@@ -159,9 +246,7 @@ impl State {
             if head.deadline.is_none()
                 && let Err(error) = self.start(&mut head)
             {
-                // No other transaction started, so no other needs the
-                // images that this one loaded.
-                self.assets.images.prune(&self.scene);
+                self.prune_images();
                 self.ipc.respond(head.conn, &Message::error(head.id, error));
                 continue;
             }
@@ -184,10 +269,9 @@ impl State {
             .scene
             .check(&head.owner, &head.commands)
             .map_err(|e| transaction_error(&e))?;
-        self.assets
-            .images
-            .load_for(&head.commands)
-            .map_err(rejected)?;
+        if let Some(error) = head.failed.take() {
+            return Err(rejected(error));
+        }
         self.check_effects(&head.commands).map_err(rejected)?;
         for effect in &effects {
             if let Effect::Configure {
@@ -280,7 +364,7 @@ impl State {
     fn finish(&mut self, mut head: Pending) {
         self.sync_default_cameras();
         let applied = self.scene.apply(&head.owner, &head.commands);
-        self.assets.images.prune(&self.scene);
+        self.prune_images();
         let message = match applied {
             Ok(effects) => {
                 self.execute(effects);
@@ -323,6 +407,9 @@ mod tests {
             id: json!(id),
             owner: "wm".into(),
             commands: Vec::new(),
+            ticket: id,
+            decoding: 0,
+            failed: None,
             waiting: surfaces
                 .iter()
                 .map(|(s, serial)| ((*s).to_owned(), Serial::from(*serial)))
@@ -346,6 +433,78 @@ mod tests {
         let head = waiting(0, 99, &[("s1", 1), ("s2", 1)], deadline);
         core.state.transactions.queue.push_back(head);
         (core, wm)
+    }
+
+    /// Writes a gray PNG file of a size and returns its path.
+    fn png(name: &str, side: u32) -> String {
+        let path = std::env::temp_dir().join(format!("chora-{}-{name}.png", std::process::id()));
+        let file = std::io::BufWriter::new(std::fs::File::create(&path).unwrap());
+        let mut encoder = png::Encoder::new(file, side, side);
+        encoder.set_color(png::ColorType::Grayscale);
+        let mut writer = encoder.write_header().unwrap();
+        writer
+            .write_image_data(&vec![128; (side * side) as usize])
+            .unwrap();
+        path.to_str().unwrap().to_owned()
+    }
+
+    fn image(id: &str, path: &str) -> Value {
+        json!({"commands": [{"create": {"id": id, "kind": "image", "parent": "root",
+            "props": {"image": path}}}]})
+    }
+
+    /// The responses of a client, once the worker decoded the images and
+    /// `n` arrived.
+    fn decoded(core: &mut Core, client: &mut Client, n: usize) -> Vec<Value> {
+        let mut responses = Vec::new();
+        for _ in 0..1000 {
+            core.dispatch();
+            responses.extend(client.responses());
+            if responses.len() >= n {
+                return responses;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("no answer after the decode");
+    }
+
+    #[test]
+    fn a_decode_does_not_stop_other_clients() {
+        let mut core = Core::new();
+        let mut loader = core.named("loader");
+        let mut panel = core.named("panel");
+        let path = png("large", 2048);
+        let first = loader.send("scene.apply", image("picture", &path));
+        let second = loader.send("scene.apply", rect("after"));
+        let other = panel.send("scene.apply", rect("p"));
+        assert_eq!(panel.answer(&mut core, other), Some(Ok(Value::Null)));
+        assert_eq!(loader.responses(), Vec::<Value>::new(), "both wait");
+        let responses = decoded(&mut core, &mut loader, 2);
+        let ids: Vec<Value> = responses.iter().map(|r| r["id"].clone()).collect();
+        assert_eq!(ids, [json!(first), json!(second)], "in order");
+        assert!(
+            responses.iter().all(|r| r["result"].is_null()),
+            "{responses:?}"
+        );
+        assert_eq!(core.state.assets.images.get(&path).unwrap().size, [2048; 2]);
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn an_image_that_fails_to_decode_rejects_the_transaction() {
+        let mut core = Core::new();
+        let mut loader = core.named("loader");
+        let path = std::env::temp_dir().join(format!("chora-{}-bad.png", std::process::id()));
+        std::fs::write(&path, b"no png").unwrap();
+        let path = path.to_str().unwrap();
+        let id = loader.send("scene.apply", image("picture", path));
+        let response = decoded(&mut core, &mut loader, 1).remove(0);
+        assert_eq!(response["id"], json!(id));
+        let message = response["error"]["message"].as_str().unwrap();
+        assert!(message.starts_with(path), "{message}");
+        let nodes = loader.ok(&mut core, "scene.query", json!({"selector": "id:picture"}));
+        assert_eq!(nodes, json!([]));
+        std::fs::remove_file(path).unwrap();
     }
 
     #[test]

@@ -105,9 +105,11 @@ noise and hashes need `precision highp float`. `fwidth`, `dFdx` and `dFdy`
 need `GL_OES_standard_derivatives`, which the core enables for a shader
 that uses them.
 
-The core loads the file of an image when a transaction names it. A file
-that does not load, that is larger than 32 MiB or larger than 8192 pixels
-on a side rejects the transaction. A plugin in a container shares its
+The core loads the file of an image when a transaction names it, on a
+worker thread: the transaction answers when the file is decoded, while
+other clients go on, and the later transactions of the same connection
+wait for it. A file that does not load, that is larger than 32 MiB or
+larger than 8192 pixels on a side rejects the transaction. A plugin in a container shares its
 asset directory with the core, as it shares the socket directory.
 
 A client that shares no directory with the core, for example an agent in

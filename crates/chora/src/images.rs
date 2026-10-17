@@ -2,7 +2,9 @@
 //! example the parts of a window border.
 //!
 //! The core loads a file when a transaction names it, and again when the
-//! file changed since. A file that fails to load rejects the transaction.
+//! file changed since. A worker thread decodes the files, so that a large
+//! image does not stop the event loop; the transaction waits for them. A
+//! file that fails to load rejects the transaction.
 //! An image with a slice draws as up to nine cells: the corners keep their
 //! size, the edges stretch in one direction and the center in both.
 
@@ -11,8 +13,11 @@ use std::{
     fs::File,
     io::BufReader,
     os::unix::fs::OpenOptionsExt,
+    sync::mpsc,
     time::SystemTime,
 };
+
+use smithay::reexports::calloop::channel;
 
 use chora_scene::{Command, NodeKind, Scene};
 use smithay::{
@@ -50,16 +55,62 @@ pub struct Image {
     pub version: Id,
 }
 
-/// The loaded images by path.
+/// The loaded images by path, and the worker that decodes the files.
 #[derive(Default)]
 pub struct Images {
     cache: HashMap<String, Image>,
+    worker: Option<mpsc::Sender<Job>>,
+}
+
+/// A file for the worker to decode, for the transaction of a ticket.
+struct Job {
+    ticket: u64,
+    path: String,
+    file: File,
+    modified: Option<SystemTime>,
+    budget: u64,
+}
+
+/// A file that the worker decoded, or why it failed.
+pub struct Decoded {
+    pub ticket: u64,
+    path: String,
+    modified: Option<SystemTime>,
+    result: Result<(Vec<u8>, [u32; 2]), String>,
 }
 
 impl Images {
-    /// Loads the images that the commands name, unless the cache holds them
-    /// unchanged.
-    pub fn load_for(&mut self, commands: &[Command]) -> Result<(), String> {
+    /// Starts the worker thread, which sends each file it decoded to the
+    /// event loop. It ends when `Images` goes.
+    pub fn start_worker(&mut self, done: channel::Sender<Decoded>) {
+        let (jobs, todo) = mpsc::channel::<Job>();
+        let worker = std::thread::Builder::new()
+            .name("chora-images".into())
+            .spawn(move || {
+                for job in todo {
+                    let result = decode(job.file, job.budget);
+                    let decoded = Decoded {
+                        ticket: job.ticket,
+                        path: job.path,
+                        modified: job.modified,
+                        result,
+                    };
+                    if done.send(decoded).is_err() {
+                        break;
+                    }
+                }
+            });
+        match worker {
+            Ok(_) => self.worker = Some(jobs),
+            Err(err) => tracing::error!(?err, "no thread to decode images"),
+        }
+    }
+
+    /// Sends the files that the commands name to the worker, unless the
+    /// cache holds them unchanged. Returns how many it sent; each comes
+    /// back as a `Decoded` with the ticket.
+    pub fn decode_for(&mut self, ticket: u64, commands: &[Command]) -> Result<usize, String> {
+        let mut sent = HashSet::new();
         for command in commands {
             let (Command::Create { props, .. }
             | Command::Update { props, .. }
@@ -67,30 +118,47 @@ impl Images {
             else {
                 continue;
             };
-            if let Some(path) = &props.image {
-                self.load(path)?;
+            let Some(path) = &props.image else {
+                continue;
+            };
+            if sent.contains(path.as_str()) {
+                continue;
             }
+            let (file, meta) = open_file(path, MAX_FILE)?;
+            let modified = meta.modified().ok();
+            if modified.is_some() && self.cache.get(path).is_some_and(|i| i.modified == modified) {
+                continue;
+            }
+            self.room_for(path)?;
+            let worker = self.worker.as_ref().ok_or("no thread decodes images")?;
+            let job = Job {
+                ticket,
+                path: path.clone(),
+                file,
+                modified,
+                budget: self.budget(path),
+            };
+            worker
+                .send(job)
+                .map_err(|_| "the thread that decodes images is gone")?;
+            sent.insert(path.as_str());
         }
-        Ok(())
+        Ok(sent.len())
     }
 
-    fn load(&mut self, path: &str) -> Result<(), String> {
-        let (file, meta) = open_file(path, MAX_FILE)?;
-        let modified = meta.modified().ok();
-        if modified.is_some() && self.cache.get(path).is_some_and(|i| i.modified == modified) {
-            return Ok(());
+    /// Puts a decoded file into the cache, if it still fits: other files
+    /// may have come in since the worker started.
+    pub fn insert(&mut self, decoded: Decoded) -> Result<(), String> {
+        let path = decoded.path;
+        let (pixels, size) = decoded.result.map_err(|e| format!("{path}: {e}"))?;
+        self.room_for(&path)?;
+        let bytes = u64::from(size[0]) * u64::from(size[1]) * 4;
+        if bytes > self.budget(&path) {
+            return Err(format!(
+                "{path}: {}x{} pixels exceed the {MAX_DECODED} bytes of all images",
+                size[0], size[1]
+            ));
         }
-        if !self.cache.contains_key(path) && self.cache.len() >= MAX_IMAGES {
-            return Err(format!("{path}: the core holds {MAX_IMAGES} images"));
-        }
-        let others: u64 = self
-            .cache
-            .iter()
-            .filter(|(p, _)| p.as_str() != path)
-            .map(|(_, i)| u64::from(i.size[0]) * u64::from(i.size[1]) * 4)
-            .sum();
-        let budget = MAX_DECODED.saturating_sub(others);
-        let (pixels, size) = decode(file, budget).map_err(|e| format!("{path}: {e}"))?;
         #[allow(clippy::cast_possible_wrap)] // at most MAX_SIDE
         let buffer = MemoryRenderBuffer::from_slice(
             &pixels,
@@ -103,21 +171,43 @@ impl Images {
         let image = Image {
             buffer,
             size,
-            modified,
+            modified: decoded.modified,
             version: Id::new(),
         };
-        self.cache.insert(path.into(), image);
+        self.cache.insert(path, image);
         Ok(())
     }
 
-    /// Drops the images that no node shows.
-    pub fn prune(&mut self, scene: &Scene) {
+    /// Fails if the cache is full and does not hold the path.
+    fn room_for(&self, path: &str) -> Result<(), String> {
+        if !self.cache.contains_key(path) && self.cache.len() >= MAX_IMAGES {
+            return Err(format!("{path}: the core holds {MAX_IMAGES} images"));
+        }
+        Ok(())
+    }
+
+    /// The bytes of decoded pixels that a file may take besides the other
+    /// files.
+    fn budget(&self, path: &str) -> u64 {
+        let others: u64 = self
+            .cache
+            .iter()
+            .filter(|(p, _)| p.as_str() != path)
+            .map(|(_, i)| u64::from(i.size[0]) * u64::from(i.size[1]) * 4)
+            .sum();
+        MAX_DECODED.saturating_sub(others)
+    }
+
+    /// Drops the images that no node shows and that no waiting
+    /// transaction names.
+    pub fn prune(&mut self, scene: &Scene, named: &HashSet<&str>) {
         let used: HashSet<&str> = scene
             .nodes()
             .filter(|n| n.kind == NodeKind::Image)
             .filter_map(|n| n.props.image.as_deref())
             .collect();
-        self.cache.retain(|path, _| used.contains(path.as_str()));
+        self.cache
+            .retain(|path, _| used.contains(path.as_str()) || named.contains(path.as_str()));
     }
 
     /// The image of a path, if it is loaded.

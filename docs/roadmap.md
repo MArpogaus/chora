@@ -232,7 +232,8 @@ Scope:
   translation, rotation and scale apart, run per property, and support
   springs.
 - Transactions on disjoint surfaces do not wait for each other (D22).
-- Image decode, shader compile and capture encode run on worker threads.
+- Shader compile and capture encode run on worker threads, as the image
+  decode does.
 - The watchdog runs in its own thread with a heartbeat of the main loop
   (D23).
 - Debug counters for rendered frames and texture allocations, readable

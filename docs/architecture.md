@@ -221,6 +221,12 @@ A surface that misses the deadline is late. No transaction waits for it
 until it commits a buffer for its newest configure. A hung client
 thus delays the queue once, not once per transaction.
 
+A transaction that names an image file waits until a worker thread has
+decoded the file, so a large PNG does not stop the event loop. It waits
+outside the queue: the transactions of other connections, input and
+frames go on, and only the later transactions of the same connection wait
+behind it. A file that fails to decode rejects the transaction.
+
 ## Frame flow
 
 ```mermaid

@@ -17,7 +17,7 @@ use smithay::{
     },
     output::Output,
     reexports::{
-        calloop::{Interest, LoopHandle, LoopSignal, Mode, PostAction, generic::Generic},
+        calloop::{Interest, LoopHandle, LoopSignal, Mode, PostAction, channel, generic::Generic},
         wayland_protocols::xdg::{
             decoration::zv1::server::zxdg_toplevel_decoration_v1 as xdg_toplevel_decoration,
             shell::server::xdg_toplevel,
@@ -183,6 +183,21 @@ fn create_globals(dh: &DisplayHandle, clock: &Clock<Monotonic>) {
     crate::screencopy::create_global(dh);
 }
 
+/// The assets, with the worker that decodes images for the event loop.
+fn new_assets(loop_handle: &LoopHandle<'static, State>) -> Assets {
+    let mut assets = Assets::default();
+    let (done, decoded) = channel::channel();
+    loop_handle
+        .insert_source(decoded, |event, (), state| {
+            if let channel::Event::Msg(decoded) = event {
+                state.decoded(decoded);
+            }
+        })
+        .expect("the event loop takes the channel of the images");
+    assets.images.start_worker(done);
+    assets
+}
+
 /// The one seat, with a keyboard of the default keymap and a pointer.
 fn new_seat(dh: &DisplayHandle) -> (SeatState<State>, Seat<State>) {
     let mut seat_state = SeatState::new();
@@ -223,6 +238,7 @@ impl State {
             seat_state,
             seat,
             display_handle: dh.clone(),
+            assets: new_assets(&loop_handle),
             loop_handle,
             loop_signal,
             socket_name: OsString::new(),
@@ -249,7 +265,6 @@ impl State {
             early_requests: HashMap::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
-            assets: Assets::default(),
             next_surface: 1,
             ipc: Ipc::default(),
             transactions: Transactions::default(),
