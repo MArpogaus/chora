@@ -145,6 +145,11 @@ impl Fonts {
                 eprintln!("chora-xp: font {file}: {err}");
             }
         }
+        Self::with(db)
+    }
+
+    /// The looks of the fonts from a font database.
+    fn with(mut db: Database) -> Self {
         db.set_sans_serif_family("Tahoma");
         let title = first_family(&db, &["Trebuchet MS", "Tahoma"]);
         let start = first_family(&db, &["Franklin Gothic Medium", "Libre Franklin", "Tahoma"]);
@@ -269,18 +274,23 @@ impl Fonts {
                 "normal"
             },
         );
-        if spec.faux_bold {
-            let _ = write!(
-                out,
-                r#" stroke="{fill}" stroke-opacity="{alpha:.3}" stroke-width="0.6" stroke-linejoin="round""#
-            );
+        // XP draws window titles without smoothing, with stems of two
+        // pixels: no anti-aliasing, and a thin stroke for the weight. A
+        // family without a bold face takes a thicker stroke; one stroke
+        // in all, as SVG allows one attribute of a name.
+        let title = text.font == Font::Title;
+        if title {
+            out += r#" text-rendering="optimizeSpeed""#;
         }
-        if text.font == Font::Title {
-            // XP draws window titles without smoothing, with stems of two
-            // pixels: no anti-aliasing, and a thin stroke for the weight.
+        let stroke = match (spec.faux_bold, title) {
+            (true, _) => Some(0.6),
+            (false, true) => Some(0.3),
+            (false, false) => None,
+        };
+        if let Some(width) = stroke {
             let _ = write!(
                 out,
-                r#" text-rendering="optimizeSpeed" stroke="{fill}" stroke-opacity="{alpha:.3}" stroke-width="0.3" stroke-linejoin="round""#
+                r#" stroke="{fill}" stroke-opacity="{alpha:.3}" stroke-width="{width}" stroke-linejoin="round""#
             );
         }
         let _ = write!(out, ">{}</text>", escape(line));
@@ -371,6 +381,29 @@ mod tests {
             first_family(&db, &["Franklin Gothic Medium", "Libre Franklin"]),
             "Libre Franklin"
         );
+    }
+
+    #[test]
+    fn a_title_renders_without_a_bold_face() {
+        // Only the Wine Tahoma of the theme, as without Trebuchet MS.
+        let mut db = Database::new();
+        db.load_fonts_dir(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../flavors/xp/theme/fonts"
+        ));
+        let fonts = Fonts::with(db);
+        assert!(fonts.spec(Font::Title).faux_bold);
+        let mut pixmap = resvg::tiny_skia::Pixmap::new(120, 20).expect("a pixmap");
+        let title = Text::new(
+            "My Computer",
+            Font::Title,
+            [255, 255, 255, 255],
+            [0, 0, 120, 20],
+        );
+        fonts
+            .draw(&title, Transform::identity(), &mut pixmap.as_mut())
+            .expect("the title parses");
+        assert!(pixmap.pixels().iter().any(|p| p.alpha() > 0));
     }
 
     #[test]
