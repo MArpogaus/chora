@@ -336,15 +336,6 @@ impl Theme {
         Ok(path)
     }
 
-    /// The text of a file of [`Self::cache_file`], which goes with the
-    /// read.
-    pub fn take_cache_file(&self, name: &str) -> Option<String> {
-        let path = self.cache.join(name);
-        let text = fs::read_to_string(&path).ok()?;
-        let _ = fs::remove_file(path);
-        Some(text)
-    }
-
     /// The width of a line of text in pixels.
     pub fn text_width(&self, line: &str, font: Font) -> f64 {
         let key = (line.to_owned(), font);

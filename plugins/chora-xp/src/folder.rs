@@ -11,7 +11,7 @@ use std::{
 };
 
 /// What an Explorer window shows.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Place {
     /// A folder of the file system.
     Folder(PathBuf),
