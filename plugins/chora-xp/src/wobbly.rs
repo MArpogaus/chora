@@ -3,8 +3,8 @@
 //! hangs on springs. Each point keeps its distance to its neighbours, and
 //! a spring pulls the point under the pointer to its place in the window.
 //! The pull lasts after the release, so the window settles where it is.
-//! The drawn
-//! mesh is a finer grid through the Bézier surface of the control points.
+//! The drawn mesh is a finer grid through the Bézier surface of the
+//! control points.
 
 // The grids have at most 21 points a side, so `usize` to `f64` is exact.
 #![allow(clippy::cast_precision_loss)]

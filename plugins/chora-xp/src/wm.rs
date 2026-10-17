@@ -420,7 +420,7 @@ impl Wm {
                 id: node.id,
                 props: PropsUpdate {
                     image: Some(image),
-                    size: props.size.or(Some(size)),
+                    size: props.size.is_none().then_some(size),
                     ..PropsUpdate::default()
                 },
             });

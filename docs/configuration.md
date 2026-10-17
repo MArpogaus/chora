@@ -487,10 +487,10 @@ The settings last until `chora-xp` ends:
 
 Log Off and Turn Off Computer open XP's dialogs in the middle of the
 output, and the desktop behind them fades to gray in 1.5 seconds. In Log
-Off Windows, Log Off asks every window to close; Switch User is always
+Off Windows, Log Off asks every window to close. Switch User is always
 disabled, because chora has no second session to switch to. In Turn off
-computer, Stand By runs `systemctl suspend`, and is disabled without
-`systemctl`; Turn Off ends `chora-xp` and shuts nothing down; Restart
+computer, Stand By runs `systemctl suspend`. Without `systemctl`, Stand
+By is disabled. Turn Off ends `chora-xp` and shuts nothing down. Restart
 runs `chora-xp` again in the same process, with the same arguments. The
 core keeps the nodes of `chora-xp` for a short time (`resume`). The
 windows keep their places, desktops, maximized state and stacking. The
