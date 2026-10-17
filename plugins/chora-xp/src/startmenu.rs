@@ -76,6 +76,17 @@ struct Entry {
     rect: Rect,
 }
 
+/// What a key does in the start menu.
+#[derive(Debug)]
+pub enum MenuKey {
+    /// The menu changes its look.
+    Commands(Vec<Command>),
+    /// An entry or a row acts; the menu closes.
+    Act(Action),
+    /// The menu closes.
+    Close,
+}
+
 /// The programs and the places of the menu.
 #[derive(Clone)]
 pub struct Config {
@@ -547,11 +558,108 @@ impl Menu {
         }
     }
 
-    /// Closes the innermost cascade, as Escape does on XP. `None` when
-    /// none is open: then Escape closes the menu.
-    pub fn escape(&mut self, theme: &mut Theme) -> Option<Vec<Command>> {
-        let innermost = self.cascades.len().checked_sub(1)?;
-        Some(self.close_from(theme, innermost))
+    /// The node that takes the keyboard while the menu is open.
+    pub fn focus_node() -> &'static str {
+        GROUP
+    }
+
+    /// A key while the menu is open, as on XP: Up and Down move the
+    /// highlight in a column or a cascade, Left and Right go between the
+    /// columns and into and out of the cascades, Return acts, and Escape
+    /// closes the innermost cascade, then the menu.
+    pub fn key(&mut self, theme: &mut Theme, icons: &mut Icons, key: &str) -> MenuKey {
+        let Some(level) = self.cascades.iter().rposition(|c| c.hovered.is_some()) else {
+            return self.entry_key(theme, icons, key);
+        };
+        let count = self.cascades[level].count;
+        let current = self.cascades[level].hovered.unwrap_or(0);
+        match key {
+            "Down" | "Up" => {
+                let next = if key == "Down" {
+                    (current + 1) % count
+                } else {
+                    (current + count - 1) % count
+                };
+                MenuKey::Commands(self.relight(theme, level, |c| c.hovered = Some(next)))
+            }
+            "Right" | "Return" | "KP_Enter" => match &self.nodes(level)[current].kind {
+                apps::Kind::Group(_) => {
+                    let mut commands = self.open_row(theme, icons, level, current);
+                    commands.extend(self.relight(theme, level + 1, |c| c.hovered = Some(0)));
+                    MenuKey::Commands(commands)
+                }
+                _ if key == "Right" => MenuKey::Commands(Vec::new()),
+                apps::Kind::Run(command) => MenuKey::Act(Action::Run(command.clone())),
+                apps::Kind::Pick(setting, _) => MenuKey::Act(Action::Set(setting.clone())),
+            },
+            "Left" | "Escape" => {
+                let mut commands = self.close_from(theme, level);
+                if level == 0 {
+                    // Back to the entry of the cascade.
+                    let old = self.hovered.replace(self.root);
+                    commands.extend(old.map(|i| self.look(theme, i)));
+                    commands.push(self.look(theme, self.root));
+                } else {
+                    commands.extend(self.relight(theme, level - 1, |_| {}));
+                }
+                MenuKey::Commands(commands)
+            }
+            _ => MenuKey::Commands(Vec::new()),
+        }
+    }
+
+    /// A key on the entries of the two columns.
+    fn entry_key(&mut self, theme: &mut Theme, icons: &mut Icons, key: &str) -> MenuKey {
+        let left = |e: &Entry| e.rect[0] < LEFT;
+        let target = match (key, self.hovered) {
+            // A cascade that the pointer opened closes first.
+            ("Escape", _) => {
+                return match self.cascades.len().checked_sub(1) {
+                    Some(innermost) => MenuKey::Commands(self.close_from(theme, innermost)),
+                    None => MenuKey::Close,
+                };
+            }
+            ("Down" | "Up", None) => self.entries.iter().position(left),
+            ("Down" | "Up", Some(i)) => {
+                // The entries of the column, from the top.
+                let mut column: Vec<usize> = (0..self.entries.len())
+                    .filter(|&j| left(&self.entries[j]) == left(&self.entries[i]))
+                    .collect();
+                column.sort_by_key(|&j| self.entries[j].rect[1]);
+                let at = column.iter().position(|&j| j == i).unwrap_or(0);
+                let n = column.len();
+                Some(
+                    column[if key == "Down" {
+                        (at + 1) % n
+                    } else {
+                        (at + n - 1) % n
+                    }],
+                )
+            }
+            ("Right" | "Return" | "KP_Enter", Some(i)) if self.entries[i].cascade => {
+                let mut commands = self.open_root(theme, icons, i);
+                commands.extend(self.relight(theme, 0, |c| c.hovered = Some(0)));
+                return MenuKey::Commands(commands);
+            }
+            ("Return" | "KP_Enter", Some(i)) => {
+                return MenuKey::Act(self.entries[i].action.clone());
+            }
+            ("Left" | "Right", Some(i)) => {
+                // The entry of the other column nearest in height.
+                let y = self.entries[i].rect[1];
+                (0..self.entries.len())
+                    .filter(|&j| left(&self.entries[j]) != left(&self.entries[i]))
+                    .min_by_key(|&j| (self.entries[j].rect[1] - y).abs())
+            }
+            _ => None,
+        };
+        let Some(target) = target else {
+            return MenuKey::Commands(Vec::new());
+        };
+        let old = self.hovered.replace(target);
+        let mut commands: Vec<Command> = old.map(|i| self.look(theme, i)).into_iter().collect();
+        commands.push(self.look(theme, target));
+        MenuKey::Commands(commands)
     }
 
     /// The entries of the cascade of a level.
@@ -1016,5 +1124,41 @@ mod tests {
         assert_eq!(item_index(&item_id(7)), Some(7));
         assert_eq!(item_index("xp-menu-frame"), None);
         assert!(Menu::owns("xp-item-0") && Menu::owns("xp-menu-frame"));
+    }
+
+    #[test]
+    fn the_keys_walk_the_columns_and_the_cascades() {
+        let (mut theme, cache) = crate::dialog::tests::theme("startkeys");
+        let mut icons = Icons::default();
+        let run = |title: &str| Node {
+            title: title.into(),
+            icon: String::new(),
+            kind: apps::Kind::Run(title.into()),
+        };
+        let config = Config {
+            apps: vec![Node {
+                title: "Accessories".into(),
+                icon: String::new(),
+                kind: apps::Kind::Group(vec![run("calc")]),
+            }],
+            ..config()
+        };
+        let mut menu = Menu::new(&config, &theme, &mut icons);
+        let mut key = |menu: &mut Menu, k: &str| menu.key(&mut theme, &mut icons, k);
+        key(&mut menu, "Down");
+        assert_eq!(menu.entries[menu.hovered.unwrap()].title, "Terminal");
+        // Down again reaches All Programs; Right opens it on its group,
+        // and Right again opens the group on its program.
+        key(&mut menu, "Down");
+        key(&mut menu, "Right");
+        key(&mut menu, "Right");
+        assert_eq!(menu.cascades.len(), 2);
+        assert!(matches!(key(&mut menu, "Return"), MenuKey::Act(Action::Run(c)) if c == "calc"));
+        // Escape closes the cascades one by one, then the menu.
+        key(&mut menu, "Escape");
+        key(&mut menu, "Escape");
+        assert!(menu.cascades.is_empty());
+        assert!(matches!(key(&mut menu, "Escape"), MenuKey::Close));
+        let _ = std::fs::remove_dir_all(cache);
     }
 }

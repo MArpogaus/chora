@@ -44,7 +44,7 @@ use crate::{
     properties::PropertiesDialog,
     session::{self, Choice, Dialog, Mode},
     sound::{self, Sound},
-    startmenu::{self, Action, Menu},
+    startmenu::{self, Action, Menu, MenuKey},
     switcher::{self, Switcher},
     taskbar::{self, Bar, Task},
     taskbar_dialog::{Outcome, TaskbarDialog},
@@ -206,8 +206,6 @@ pub struct Wm {
     desktop: usize,
     /// The node under the pointer.
     hover: Option<String>,
-    /// Escape, while the start menu holds it.
-    escape: Option<String>,
     effects: Effects,
     /// The Log Off or Turn Off dialog.
     dialog: Option<Dialog>,
@@ -289,7 +287,6 @@ impl Wm {
             cascade: 0,
             desktop: 0,
             hover: None,
-            escape: None,
             dialog: None,
             fade: None,
             fade_shader: None,
@@ -1150,12 +1147,6 @@ impl Wm {
     }
 
     fn key(&mut self, binding: &str) -> Vec<Command> {
-        if self.escape.as_deref() == Some(binding) {
-            return match self.menu.escape(&mut self.theme) {
-                Some(commands) => commands,
-                None => self.close_menu(),
-            };
-        }
         match self
             .keys
             .iter()
@@ -1453,7 +1444,19 @@ impl Wm {
                 context::Key::Close => self.close_context(),
             };
         }
-        Vec::new()
+        if !self.menu.is_open() {
+            return Vec::new();
+        }
+        match self.menu.key(&mut self.theme, &mut self.icons, key) {
+            MenuKey::Commands(commands) => commands,
+            MenuKey::Act(action) => {
+                let output = self.menu.output().map(String::from);
+                let mut commands = self.close_menu();
+                commands.extend(self.run(&action, output.as_deref()));
+                commands
+            }
+            MenuKey::Close => self.close_menu(),
+        }
     }
 
     fn close_context(&mut self) -> Vec<Command> {
@@ -1663,7 +1666,9 @@ impl Wm {
                 let control = self.control_panel();
                 let mut commands = self.menu.open(&output, origin, area, control);
                 commands.extend(self.start_look(&output));
-                self.grab_escape();
+                commands.push(Command::FocusNode {
+                    node: Some(Menu::focus_node().into()),
+                });
                 commands
             }
             taskbar::Part::Pager(desktop) => self.turn_to(desktop),
@@ -1816,26 +1821,13 @@ impl Wm {
         commands
     }
 
-    /// Escape closes the cascades and the menu while it is open, as on XP.
-    /// The core takes no grab without Ctrl, Alt or Super from a client
-    /// without the capability `input.grab-any` (D45), so until it has it,
-    /// only a click closes them.
-    fn grab_escape(&mut self) {
-        let binding = "Escape".parse().expect("a valid binding");
-        if let Ok(normal) = self.conn.call::<_, String>("input.grab", Grab { binding }) {
-            self.escape = Some(normal);
-        }
-    }
-
     fn close_menu(&mut self) -> Vec<Command> {
-        if let Some(binding) = self.escape.take() {
-            let binding = binding.parse().expect("the binding of the grab");
-            if let Err(err) = self.conn.call::<_, Value>("input.ungrab", Grab { binding }) {
-                eprintln!("chora-xp: {err}");
-            }
-        }
         let output = self.menu.output().map(String::from);
         let mut commands = self.menu.close(&mut self.theme);
+        // The hidden menu gives the keyboard back.
+        if output.is_some() {
+            commands.push(Command::FocusNode { node: None });
+        }
         if let Some(output) = output {
             commands.extend(self.start_look(&output));
         }

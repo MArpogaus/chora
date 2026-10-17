@@ -245,9 +245,11 @@ does not fit shrinks to it. A click on a task button shows or minimizes its
 window. Buttons light up under the pointer, and so do the entries of the
 start menu. All Programs and its groups open their cascading menus when
 the pointer rests on them for 350 ms, or on a click. A click on a program
-starts it and closes the menu; a click outside closes the menu. Escape
-closes nothing yet: the core takes no grab of a key without Ctrl, Alt or
-Super (D45).
+starts it and closes the menu; a click outside closes the menu. The open
+menu takes the keyboard. Up and Down move in a column or a cascade. Left
+and Right go between the columns and into and out of the cascades.
+Return starts the entry. Escape closes the innermost cascade, then the
+menu.
 
 The desktop of the first output shows XP's icons in its grid of 75 by 75
 pixels: My Documents (`XDG_DOCUMENTS_DIR`, else the home directory) and My
