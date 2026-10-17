@@ -8,6 +8,7 @@ use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, Transform};
 
 use crate::{
     cube::DESKTOPS,
+    icons,
     text::{Font, Text},
     theme::{Picture, Rect, Sheet, Theme},
 };
@@ -210,7 +211,7 @@ impl Bar {
                 &format!("startbutton-{look}"),
                 [0, 0, START_WIDTH, HEIGHT],
             )
-            .file(&theme.path("winxp/start-flag.svg"), [10, 5 + shift, 20, 20])
+            .file(&start_flag(theme), [10, 5 + shift, 20, 20])
             .text(
                 Text::new("start", Font::Start, WHITE, [35, 1 + shift, 62, HEIGHT])
                     .shadow([0, 20, 0, 180]),
@@ -401,6 +402,14 @@ impl Bar {
     pub fn remove(&self) -> Command {
         Command::Remove { id: self.group() }
     }
+}
+
+/// The flag of the start button: XP's own `start_flag.png` of the
+/// Windows XP pack, 20 pixels as on XP, when it is installed, else the
+/// flag of the theme.
+fn start_flag(theme: &Theme) -> PathBuf {
+    icons::data_file("winxp-kde/start_flag.png")
+        .unwrap_or_else(|| theme.path("winxp/start-flag.svg"))
 }
 
 fn update(id: &str, props: PropsUpdate) -> Command {

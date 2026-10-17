@@ -182,6 +182,8 @@ uses them instead of the free files of the theme:
   of newer Windows.
 - `wallpapers/WindowsXP/*.jpg`: Bliss (`bliss.jpg`) is the wallpaper
   instead of Bløff, and Control Panel > Desktop lists all of them.
+- `winxp-kde/start_flag.png`: XP's flag on the start button, at its own
+  size of 20 pixels.
 
 `chora-xp` draws everything as image nodes. It rasterizes the SVG files of
 the theme with resvg into PNG files in `$XDG_RUNTIME_DIR/chora-xp/`, and
