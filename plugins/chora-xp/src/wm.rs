@@ -133,14 +133,11 @@ enum Key {
     Cube,
     /// Ctrl+Escape opens or closes the start menu, as on XP.
     Start,
-    /// Alt+Space opens the system menu of the focused window.
-    System,
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them.
-const KEYS: [(&str, &str, Key); 11] = [
-    ("Alt+space", "", Key::System),
+const KEYS: [(&str, &str, Key); 10] = [
     ("Ctrl+Escape", "", Key::Start),
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
@@ -260,6 +257,8 @@ pub struct Wm {
     switcher: Option<Switcher>,
     /// Alt+Escape, while the switcher holds it.
     switch_escape: Option<String>,
+    /// Alt+Space, while a window of `chora-xp` has the focus.
+    system_key: Option<String>,
     /// The Explorer window whose menu bar opened the open context menu.
     bar_menu: Option<String>,
     /// Where the pointer took the cube, while Super and the left button
@@ -321,6 +320,7 @@ impl Wm {
             restart: false,
             switcher: None,
             switch_escape: None,
+            system_key: None,
             bar_menu: None,
             cube_grab: None,
             kept: HashMap::new(),
@@ -731,6 +731,7 @@ impl Wm {
     /// Moves the focus: the old and the new window change their look.
     fn focus(&mut self, target: Option<&str>) -> Vec<Command> {
         let previous = std::mem::replace(&mut self.focused, target.map(String::from));
+        self.grab_system_key(target.is_some());
         // A context menu closes with the focus, as on XP: the core takes
         // its keyboard away.
         let mut commands = self.close_context();
@@ -1199,6 +1200,9 @@ impl Wm {
     }
 
     fn key(&mut self, binding: &str) -> Vec<Command> {
+        if self.system_key.as_deref() == Some(binding) {
+            return self.system_key_pressed();
+        }
         if self.switch_escape.as_deref() == Some(binding) {
             return self.cancel_switch();
         }
@@ -1220,19 +1224,11 @@ impl Wm {
             Some(Key::Carry(steps)) => self.carry(steps),
             Some(Key::Switch(step)) => self.switch(step),
             // Not under the shade of Log Off or Turn Off.
-            Some(Key::Start | Key::System) if self.dialog.is_some() => Vec::new(),
+            Some(Key::Start) if self.dialog.is_some() => Vec::new(),
             Some(Key::Start) => {
                 let mut commands = self.close_context();
                 if let Some(output) = self.bars.first().map(|b| b.output.clone()) {
                     commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
-                }
-                commands
-            }
-            Some(Key::System) => {
-                let mut commands = self.close_context();
-                commands.extend(self.close_menu());
-                if let Some(surface) = self.focused.clone() {
-                    commands.extend(self.system_below_icon(&surface));
                 }
                 commands
             }
@@ -1324,6 +1320,40 @@ impl Wm {
             Some(true) => self.show_switcher(true),
             Some(false) => self.cancel_switch(),
             None => Vec::new(),
+        }
+    }
+
+    /// Alt+Space: the system menu of the focused window, after the open
+    /// menus close; nothing under the shade of Log Off or Turn Off.
+    fn system_key_pressed(&mut self) -> Vec<Command> {
+        if self.dialog.is_some() {
+            return Vec::new();
+        }
+        let mut commands = self.close_context();
+        commands.extend(self.close_menu());
+        if let Some(surface) = self.focused.clone() {
+            commands.extend(self.system_below_icon(&surface));
+        }
+        commands
+    }
+
+    /// Takes Alt+Space while a window of `chora-xp` has the focus, and
+    /// gives it back to the clients without one.
+    fn grab_system_key(&mut self, on: bool) {
+        if on == self.system_key.is_some() {
+            return;
+        }
+        let binding = match self.system_key.take() {
+            Some(held) => held.parse().expect("the binding of the grab"),
+            None => "Alt+space".parse().expect("a valid binding"),
+        };
+        if on {
+            match self.conn.call::<_, String>("input.grab", Grab { binding }) {
+                Ok(normal) => self.system_key = Some(normal),
+                Err(err) => eprintln!("chora-xp: {err}"),
+            }
+        } else if let Err(err) = self.conn.call::<_, Value>("input.ungrab", Grab { binding }) {
+            eprintln!("chora-xp: {err}");
         }
     }
 
