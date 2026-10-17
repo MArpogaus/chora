@@ -342,7 +342,8 @@ impl XdgShellHandler for State {
 
 impl State {
     /// Whether a serial is the one of the last press or of the last key or
-    /// button event that the client of a surface got.
+    /// button event that the client of a surface got. A client of a client
+    /// socket needs its last press, as for a token.
     fn pressed(&self, surface: &WlSurface, serial: Serial) -> bool {
         let client = self.display_handle.get_client(surface.id()).ok();
         let serial = u32::from(serial);
@@ -350,6 +351,9 @@ impl State {
             .as_ref()
             .and_then(|c| c.get_data::<ClientState>())
             .is_some_and(|d| {
+                if d.name.is_some() {
+                    return crate::security::last_press(d, serial);
+                }
                 [&d.last_press, &d.last_input]
                     .iter()
                     .any(|s| s.load(Ordering::Relaxed) == serial)

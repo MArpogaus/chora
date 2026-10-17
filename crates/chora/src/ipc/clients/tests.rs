@@ -527,7 +527,6 @@ fn a_sandbox_keeps_the_idle_globals() {
 /// A popup grab of a client socket with serial 0 and no input takes no
 /// keyboard.
 #[test]
-#[ignore = "the next commits fix it"]
 fn a_popup_grab_with_serial_zero_keeps_no_keyboard() {
     let (mut core, dir) = socket_dir("popup");
     let output = core.add_output("A", (800, 600));
