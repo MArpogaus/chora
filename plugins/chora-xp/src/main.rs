@@ -39,6 +39,7 @@ mod wobbly;
 use std::{
     path::PathBuf,
     process::ExitCode,
+    sync::atomic::{AtomicBool, Ordering},
     time::{Duration, Instant},
 };
 
@@ -100,7 +101,24 @@ fn main() -> ExitCode {
     }
 }
 
+/// SIGTERM or SIGINT came: the plugin ends as at Turn Off.
+static STOP: AtomicBool = AtomicBool::new(false);
+
+/// Lets SIGTERM and SIGINT end the event loop, so that the plugin removes
+/// its scene, which the core would keep for the grace time of `resume`.
+#[allow(unsafe_code)]
+fn stop_on_signals() -> Result<(), String> {
+    for signal in [libc::SIGTERM, libc::SIGINT] {
+        // SAFETY: the action only stores to an atomic, which is safe in a
+        // signal handler.
+        unsafe { signal_hook_registry::register(signal, || STOP.store(true, Ordering::SeqCst)) }
+            .map_err(|e| format!("signal {signal}: {e}"))?;
+    }
+    Ok(())
+}
+
 fn run(args: &Args) -> Result<(), String> {
+    stop_on_signals()?;
     let conn = Conn::connect(wm::NAME).map_err(|e| e.to_string())?;
     let theme = Theme::load(&args.theme, &cache_dir()).map_err(|e| format!("theme: {e}"))?;
     let mut icons = Icons::default();
@@ -122,15 +140,12 @@ fn run(args: &Args) -> Result<(), String> {
     };
     let mut wm = Wm::start(conn, theme, menu, icons, config).map_err(|e| e.to_string())?;
     event_loop(&mut wm).map_err(|e| e.to_string())?;
-    // Nodes of a plugin with resume outlive it for the grace time.
-    if !wm.restart {
-        wm.leave().map_err(|e| e.to_string())?;
-    }
     if wm.restart {
         drop(wm);
         return Err(restart());
     }
-    Ok(())
+    // Nodes of a plugin with resume outlive it for the grace time.
+    wm.leave().map_err(|e| e.to_string())
 }
 
 /// Restart of the Turn Off dialog: the plugin runs itself again with the
@@ -152,7 +167,7 @@ fn restart() -> String {
 fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
     let mut tick = Instant::now() + TICK;
     let mut frame = Instant::now();
-    while !wm.done {
+    while !wm.done && !STOP.load(Ordering::SeqCst) {
         let until = if wm.animating() {
             frame.min(tick)
         } else {

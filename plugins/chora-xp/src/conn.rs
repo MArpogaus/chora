@@ -37,8 +37,13 @@ impl Conn {
     }
 
     /// The next event, or `None` after `timeout` without one.
+    /// A signal that interrupts the wait is no event: the read of a
+    /// socket with a timeout does not restart.
     pub fn next_event(&mut self, timeout: Duration) -> Result<Option<Event>, ClientError> {
-        self.client.next_event_timeout(timeout)
+        match self.client.next_event_timeout(timeout) {
+            Err(ClientError::Io(e)) if e.kind() == std::io::ErrorKind::Interrupted => Ok(None),
+            other => other,
+        }
     }
 
     /// Applies a transaction and returns the error of the core, if any.
