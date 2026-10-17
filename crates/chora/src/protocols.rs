@@ -210,7 +210,8 @@ impl XdgActivationHandler for State {
     /// its last key or button press, so that a container cannot take the
     /// focus without input of the user. Other clients keep every token.
     fn token_created(&mut self, _token: XdgActivationToken, data: XdgActivationTokenData) -> bool {
-        let client = data.client_id.and_then(|id| {
+        let id = data.client_id.clone();
+        let client = id.clone().and_then(|id| {
             self.display_handle
                 .backend_handle()
                 .get_client_data(id)
@@ -222,7 +223,24 @@ impl XdgActivationHandler for State {
         else {
             return true;
         };
-        token_allowed(client, data.serial.map(|(s, _)| u32::from(s)))
+        let focused = self
+            .seat
+            .get_keyboard()
+            .and_then(|k| k.current_focus())
+            .and_then(|s| self.display_handle.get_client(Resource::id(&s)).ok())
+            .map(|c| c.id());
+        let allowed = token_allowed(
+            client,
+            data.serial.map(|(s, _)| u32::from(s)),
+            focused == id,
+        );
+        if allowed && client.name.is_some() {
+            // One press gives one token.
+            client
+                .last_press
+                .store(0, std::sync::atomic::Ordering::Relaxed);
+        }
+        allowed
     }
 
     /// Passes the request to plugins; a token works once.
@@ -247,9 +265,9 @@ impl XdgActivationHandler for State {
 
 /// Whether a client may keep an activation token with a serial: a client
 /// of a client socket needs the serial of its last press.
-fn token_allowed(client: &ClientState, serial: Option<u32>) -> bool {
+fn token_allowed(client: &ClientState, serial: Option<u32>, focused: bool) -> bool {
     client.name.is_none()
-        || serial.is_some_and(|s| s == client.last_press.load(std::sync::atomic::Ordering::Relaxed))
+        || (focused && serial.is_some_and(|s| crate::security::last_press(client, s)))
 }
 
 #[cfg(test)]
@@ -257,7 +275,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_client_socket_keeps_a_token_only_with_its_last_press() {
+    fn a_client_socket_keeps_a_token_only_with_its_last_press_and_the_focus() {
         let named = ClientState {
             name: Some("agent".into()),
             ..ClientState::default()
@@ -265,11 +283,16 @@ mod tests {
         named
             .last_press
             .store(7, std::sync::atomic::Ordering::Relaxed);
-        assert!(!token_allowed(&named, None));
-        assert!(!token_allowed(&named, Some(6)));
-        assert!(token_allowed(&named, Some(7)));
+        assert!(!token_allowed(&named, None, true));
+        assert!(!token_allowed(&named, Some(6), true));
+        assert!(!token_allowed(&named, Some(7), false), "without the focus");
+        assert!(token_allowed(&named, Some(7), true));
+        named
+            .last_press
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+        assert!(!token_allowed(&named, Some(0), true), "no press at all");
         assert!(
-            token_allowed(&ClientState::default(), None),
+            token_allowed(&ClientState::default(), None, false),
             "other clients"
         );
     }

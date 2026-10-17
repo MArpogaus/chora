@@ -348,7 +348,6 @@ fn a_revoke_drops_the_queued_frames_of_a_capturer() {
 
 /// A client without any input gets no token with serial 0.
 #[test]
-#[ignore = "the next commits fix it"]
 fn a_token_with_serial_zero_is_refused() {
     let (mut core, dir) = socket_dir("zero");
     core.add_output("A", (64, 48));
@@ -424,7 +423,6 @@ fn map_layer(
 /// click; that click mints no tokens once the user moved on to another
 /// client.
 #[test]
-#[ignore = "the next commits fix it"]
 fn one_old_press_mints_no_tokens_after_the_focus_moved() {
     let (mut core, dir) = socket_dir("lock");
     core.add_output("A", (64, 48));

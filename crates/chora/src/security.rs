@@ -89,6 +89,13 @@ fn outside_client_sockets(client: &Client) -> bool {
         .is_none_or(|c| c.name.is_none())
 }
 
+/// Whether a serial is the last key or button press of a client: a
+/// client of a client socket needs one for a token or a popup grab. A
+/// client without any press has 0, which never counts.
+pub fn last_press(client: &ClientState, serial: u32) -> bool {
+    serial != 0 && serial == client.last_press.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// The data of a global that only clients outside client sockets see. It binds the
 /// global as Smithay does, for globals that Smithay offers to all.
 pub struct OutsideClientSockets;
