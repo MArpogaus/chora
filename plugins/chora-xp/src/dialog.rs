@@ -793,7 +793,11 @@ impl Dialog {
         let [ow, oh] = outer(size);
         let prefix = format!("xp-dlg-{name}");
         Self {
-            content: Content::new(&format!("{prefix}-content"), &prefix, [BORDER, TITLE]),
+            content: Content::new(
+                &format!("{prefix}-content"),
+                &prefix,
+                [BORDER + SHADOW, TITLE + SHADOW],
+            ),
             prefix,
             title: title.into(),
             size,
@@ -828,12 +832,19 @@ impl Dialog {
         self.prefix.clone()
     }
 
+    /// The top-left corner of the group in the scene, the corner of the
+    /// shadow, and its size: the frame with its shadow, so that a layer of
+    /// the group holds the whole dialog, as for the effects.
+    pub fn layer(&self) -> ([f64; 2], [f64; 2]) {
+        let [x, y] = self.origin.map(|n| f64::from(n - SHADOW));
+        ([x, y], decoration::area(outer(self.size)))
+    }
+
     /// Creates the frame, the title and the close button, and shows a
     /// page.
     pub fn create(&mut self, theme: &mut Theme, parent: &str, page: Page) -> Vec<Command> {
         let [ow, oh] = outer(self.size);
         let frame = theme.frame(Sheet::Decoration, "decoration");
-        let shadow = f64::from(SHADOW);
         let image = |id: String, props: PropsUpdate| Command::Create {
             id,
             kind: NodeKind::Image,
@@ -854,15 +865,14 @@ impl Dialog {
                 id: self.prefix.clone(),
                 kind: NodeKind::Group,
                 parent: parent.into(),
-                props: at(self.origin),
+                props: at(shadowed(self.origin, -1)),
             },
             image(
                 self.id("frame"),
                 PropsUpdate {
                     image: Some(frame.image),
-                    size: Some([f64::from(ow) + 2.0 * shadow, f64::from(oh) + 2.0 * shadow]),
+                    size: Some(decoration::area([ow, oh])),
                     slice: Some(frame.slice),
-                    transform: Some(Transform::translate(-shadow, -shadow, 0.0)),
                     ..PropsUpdate::default()
                 },
             ),
@@ -871,7 +881,7 @@ impl Dialog {
                 PropsUpdate {
                     image: Some(theme.render(&title)),
                     input: Some(InputMode::Accept),
-                    ..at([EDGE, 0])
+                    ..at(shadowed([EDGE, 0], 1))
                 },
             ),
             image(self.id("close"), PropsUpdate::default()),
@@ -900,7 +910,7 @@ impl Dialog {
             props: PropsUpdate {
                 image: Some(theme.render(&picture)),
                 input: Some(InputMode::Accept),
-                ..at([x, y])
+                ..at(shadowed([x, y], 1))
             },
         }
     }
@@ -949,7 +959,7 @@ impl Dialog {
         self.origin = origin;
         vec![Command::Update {
             id: self.prefix.clone(),
-            props: at(origin),
+            props: at(shadowed(origin, -1)),
         }]
     }
 
@@ -1000,6 +1010,12 @@ fn update(id: String, image: String) -> Command {
             ..PropsUpdate::default()
         },
     }
+}
+
+/// A point moved by the shadow: the group sits at the corner of the
+/// shadow, `-1`, and the parts of the frame lie inside it, `1`.
+fn shadowed([x, y]: [i32; 2], sign: i32) -> [i32; 2] {
+    [x + sign * SHADOW, y + sign * SHADOW]
 }
 
 fn at([x, y]: [i32; 2]) -> PropsUpdate {
@@ -1125,6 +1141,17 @@ pub mod tests {
         assert!(dialog.dragging());
         dialog.drag([350.0, 100.0], 0);
         assert_eq!(dialog.origin, [origin[0] + 50, origin[1] - 160]);
+        // The group sits at the corner of the shadow, for the layer of
+        // the wobble.
+        let ([lx, ly], [lw, _]) = dialog.layer();
+        assert_eq!(
+            [lx, ly],
+            [
+                f64::from(origin[0] + 50 - SHADOW),
+                f64::from(origin[1] - 160 - SHADOW)
+            ]
+        );
+        assert_eq!(lw, f64::from(outer([200, 100])[0] + 2 * SHADOW));
         // Not above the top of the work area.
         dialog.drag([350.0, -900.0], 0);
         assert_eq!(dialog.origin[1], 0);

@@ -397,8 +397,10 @@ Properties of the taskbar menu, and Control Panel > Taskbar and Start
 Menu, open XP's Taskbar and Start Menu Properties. `chora-xp` draws this
 dialog itself, in XP's Luna style: the frame of the theme with the
 title and the close button, tabs, group boxes, check boxes, radio
-buttons and push buttons that light up under the pointer. A drag of the
-title bar moves it. The close button and Cancel close it without a
+buttons and push buttons that light up under the pointer. A drag of the title bar moves it,
+and it wobbles as a window does, as do Date and Time, Display
+Properties and the other dialogs that XP lets move; the Log Off and
+Turn Off dialogs stay fixed in the middle. The close button and Cancel close it without a
 change, OK takes the changes and closes it, and Apply takes them and
 keeps it open. The dialog stays above the windows, and the keyboard
 does not work it (D45). The settings last until `chora-xp` ends:

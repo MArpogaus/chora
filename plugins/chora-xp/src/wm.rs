@@ -994,15 +994,7 @@ impl Wm {
             return self.press_dialog(node);
         }
         if let Some(i) = self.panels.iter().position(|p| p.window_ref().owns(node)) {
-            let mut panel = self.panels.remove(i);
-            let mut commands = vec![Command::Move {
-                id: panel.window().group(),
-                parent: None,
-                index: None,
-            }];
-            commands.extend(panel.window().press(&mut self.theme, node, position));
-            self.panels.push(panel);
-            return commands;
+            return self.press_panel(i, node, position);
         }
         let start = matches!(taskbar::Part::of(node), Some(taskbar::Part::Start(_)));
         let mut commands = Vec::new();
@@ -1019,6 +1011,28 @@ impl Wm {
             commands.extend(self.press_left(node, position));
         } else if button == RIGHT_BUTTON {
             commands.extend(self.press_right(node, position));
+        }
+        commands
+    }
+
+    /// A press on a dialog raises it; its title bar starts a drag, its
+    /// controls go down.
+    fn press_panel(&mut self, i: usize, node: &str, position: [f64; 2]) -> Vec<Command> {
+        let mut panel = self.panels.remove(i);
+        let mut commands = vec![Command::Move {
+            id: panel.window().group(),
+            parent: None,
+            index: None,
+        }];
+        commands.extend(panel.window().press(&mut self.theme, node, position));
+        let dragging = panel
+            .window_ref()
+            .dragging()
+            .then(|| panel.window_ref().group());
+        self.panels.push(panel);
+        // XP's settings dialogs move freely, so they wobble too.
+        if let Some(group) = dragging {
+            self.start_wobble(&group, position);
         }
         commands
     }
@@ -1331,7 +1345,10 @@ impl Wm {
     fn dragged(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
         let top = self.bars.iter().map(|b| b.usable()[1]).min().unwrap_or(0);
         if let Some(panel) = self.panels.iter_mut().find(|p| p.window_ref().dragging()) {
-            return panel.window().drag([px, py], top);
+            let group = panel.window_ref().group();
+            let mut commands = panel.window().drag([px, py], top);
+            commands.extend(self.wobble_mesh(&group));
+            return commands;
         }
         if self.desk.pressed() {
             return self.desk.drag(&mut self.theme, &mut self.icons, [px, py]);
@@ -1386,6 +1403,15 @@ impl Wm {
         }
         if let Some(drag) = self.drag.take() {
             self.release_wobble(&drag.surface);
+        }
+        if let Some(group) = self
+            .panels
+            .iter()
+            .map(Panel::window_ref)
+            .find(|d| d.dragging())
+            .map(dialog::Dialog::group)
+        {
+            self.release_wobble(&group);
         }
         if let Some(commands) = self.release_resize(position) {
             return commands;

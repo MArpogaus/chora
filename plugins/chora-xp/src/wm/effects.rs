@@ -21,7 +21,7 @@ const CALM: Duration = Duration::from_secs(15);
 
 /// The running effects.
 pub struct Effects {
-    /// Windows that wobble, by surface.
+    /// Windows that wobble, by surface, and dialogs, by group.
     pub wobbles: HashMap<String, Wobble>,
     /// Windows that minimize or restore, by surface.
     pub lamps: HashMap<String, Lamp>,
@@ -84,16 +84,31 @@ impl Wm {
         self.conn.apply(commands)
     }
 
-    /// The window starts to wobble, grabbed at a point of the scene.
-    pub(super) fn start_wobble(&mut self, surface: &str, grab: [f64; 2]) {
+    /// The group that wobbles for a key, a surface or the group of a
+    /// dialog, its top-left corner in the scene and its size.
+    fn wobble_target(&self, key: &str) -> Option<(String, [f64; 2], [f64; 2])> {
+        if let Some(w) = self.windows.iter().find(|w| w.surface == key) {
+            return Some((decoration::group_id(key), w.origin(), w.area()));
+        }
+        let dialog = self
+            .panels
+            .iter()
+            .map(super::Panel::window_ref)
+            .find(|d| d.group() == key)?;
+        let (origin, size) = dialog.layer();
+        Some((key.into(), origin, size))
+    }
+
+    /// A window or a dialog starts to wobble, grabbed at a point of the
+    /// scene.
+    pub(super) fn start_wobble(&mut self, key: &str, grab: [f64; 2]) {
         let on = self.effects_on() && self.effects.toggles.wobbly;
-        let Some(i) = self.index(surface).filter(|_| on) else {
+        let Some((_, origin, size)) = self.wobble_target(key).filter(|_| on) else {
             return;
         };
-        let w = &self.windows[i];
         self.effects.last = Instant::now();
-        let wobble = Wobble::new(w.area(), w.origin(), grab);
-        self.effects.wobbles.insert(surface.into(), wobble);
+        let wobble = Wobble::new(size, origin, grab);
+        self.effects.wobbles.insert(key.into(), wobble);
     }
 
     /// The pointer lets go: the window shakes until it settles.
@@ -103,31 +118,35 @@ impl Wm {
         }
     }
 
-    /// The mesh of a wobbling window at its current place.
-    pub(super) fn wobble_mesh(&self, surface: &str) -> Option<Command> {
-        let wobble = self.effects.wobbles.get(surface)?;
-        let w = &self.windows[self.index(surface)?];
-        Some(mesh_update(surface, w.area(), wobble.mesh(w.origin())))
+    /// The mesh of a wobbling window or dialog at its current place.
+    pub(super) fn wobble_mesh(&self, key: &str) -> Option<Command> {
+        let wobble = self.effects.wobbles.get(key)?;
+        let (group, origin, size) = self.wobble_target(key)?;
+        Some(mesh_update(&group, size, wobble.mesh(origin)))
     }
 
     fn wobble_frame(&mut self, dt: f64) -> Vec<Command> {
         let mut commands = Vec::new();
         let mut settled = Vec::new();
-        for (surface, wobble) in &mut self.effects.wobbles {
-            let Some(w) = self.windows.iter().find(|w| &w.surface == surface) else {
-                settled.push(surface.clone());
+        let keys: Vec<String> = self.effects.wobbles.keys().cloned().collect();
+        for key in keys {
+            let Some((group, origin, size)) = self.wobble_target(&key) else {
+                settled.push(key);
                 continue;
             };
-            wobble.step(w.origin(), dt);
-            if wobble.settled(w.origin()) {
-                settled.push(surface.clone());
-                commands.push(w.unmesh());
+            let Some(wobble) = self.effects.wobbles.get_mut(&key) else {
+                continue;
+            };
+            wobble.step(origin, dt);
+            if wobble.settled(origin) {
+                settled.push(key);
+                commands.push(unmesh(&group));
             } else {
-                commands.push(mesh_update(surface, w.area(), wobble.mesh(w.origin())));
+                commands.push(mesh_update(&group, size, wobble.mesh(origin)));
             }
         }
-        for surface in settled {
-            self.effects.wobbles.remove(&surface);
+        for key in settled {
+            self.effects.wobbles.remove(&key);
         }
         commands
     }
@@ -154,7 +173,11 @@ impl Wm {
             Some(lamp) => lamp,
             None => Lamp::new(w.bounds(), button, duration, false),
         };
-        let first = mesh_update(surface, w.area(), lamp.mesh(lamp.time(now)));
+        let first = mesh_update(
+            &decoration::group_id(surface),
+            w.area(),
+            lamp.mesh(lamp.time(now)),
+        );
         self.effects.lamps.insert(surface.into(), lamp);
         vec![first]
     }
@@ -181,7 +204,11 @@ impl Wm {
             None => Lamp::new(w.bounds(), button, duration, true),
         };
         // The mesh first, so that the window shows inside the button.
-        let mut update = mesh_update(surface, w.area(), lamp.mesh(lamp.time(now)));
+        let mut update = mesh_update(
+            &decoration::group_id(surface),
+            w.area(),
+            lamp.mesh(lamp.time(now)),
+        );
         if let Command::Update { props, .. } = &mut update {
             props.visible = Some(true);
             props.transform = Some(w.transform());
@@ -199,7 +226,11 @@ impl Wm {
                 continue;
             };
             let t = lamp.time(now);
-            commands.push(mesh_update(surface, w.area(), lamp.mesh(t)));
+            commands.push(mesh_update(
+                &decoration::group_id(surface),
+                w.area(),
+                lamp.mesh(t),
+            ));
             if t >= 1.0 {
                 done.push(surface.clone());
             }
@@ -245,13 +276,29 @@ impl Wm {
     }
 }
 
-/// The mesh of a window group, with its size, so that it is a layer.
-fn mesh_update(surface: &str, size: [f64; 2], mesh: chora_scene::Mesh) -> Command {
+/// The mesh of a group, with its size, so that it is a layer.
+fn mesh_update(group: &str, size: [f64; 2], mesh: chora_scene::Mesh) -> Command {
     Command::Update {
-        id: decoration::group_id(surface),
+        id: group.into(),
         props: PropsUpdate {
             size: Some(size),
             mesh: Some(mesh),
+            ..PropsUpdate::default()
+        },
+    }
+}
+
+/// Removes the mesh of a group, at the end of an effect.
+fn unmesh(group: &str) -> Command {
+    Command::Update {
+        id: group.into(),
+        props: PropsUpdate {
+            mesh: Some(chora_scene::Mesh {
+                cols: 1,
+                rows: 1,
+                points: Vec::new(),
+                depth: Vec::new(),
+            }),
             ..PropsUpdate::default()
         },
     }
