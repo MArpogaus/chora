@@ -230,8 +230,8 @@ nothing.
 A click selects an icon: its label turns white on dark blue, with a dotted
 focus rectangle while no window has the focus. A click on the empty
 desktop takes the selection away. A double click opens the icon: a folder
-and My Documents in XP's Explorer (see below); My Computer (`/`) with
-`xdg-open`; the Recycle Bin with `gio open trash:///`, else its folder; a
+and My Documents, and My Computer, in XP's Explorer (see below); the
+Recycle Bin with `gio open trash:///`, else its folder; a
 desktop file runs its program; any other file opens with `xdg-open`. A drag
 moves an icon to the nearest free cell of the grid, until `chora-xp` ends.
 XP has one desktop, so the icons stay in place while the cube turns: each
@@ -293,6 +293,19 @@ than the window gets XP's blue scroll bar: its arrows scroll by 40
 pixels, a click on the track by a page, and the thumb follows a drag.
 The mouse wheel does not scroll, because the core sends no wheel events
 to plugins.
+
+My Computer shows XP's groups under their headings with the blue line:
+Files Stored on This Computer with Shared Documents (`XDG_PUBLICSHARE_DIR`,
+when it exists) and "USER's Documents" (My Documents); Hard Disk Drives;
+and Devices with Removable Storage. The drives come from
+`/proc/self/mounts`: the mounts of disk file systems (btrfs, ext2 to
+ext4, xfs, f2fs, vfat, exfat, NTFS and others) and of discs, each device
+once at its shortest mount point, without the bind mounts of a container
+below `/dev`, `/sys`, `/proc`, `/etc`, `/var/lib` and `/var/log`. A disk
+is "Local Disk (/)"; a medium below `/run/media` or `/media`, or a
+disc, is removable and goes by the name of its directory. Details shows
+the file system, the free space and the size, from `df`. A double click
+opens a drive or a folder in the same window.
 
 The window changes no file: it neither copies, moves, renames nor
 deletes, and it takes no drag and drop. The keyboard does not work it

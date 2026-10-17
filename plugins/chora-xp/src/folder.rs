@@ -314,6 +314,118 @@ fn natural(name: &str) -> Vec<Chunk> {
     chunks
 }
 
+/// A mounted file system that My Computer shows as a drive.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Drive {
+    /// The device, such as `/dev/nvme0n1p2`.
+    pub device: String,
+    /// Where it is mounted.
+    pub dir: PathBuf,
+    /// The file system, such as `ext4`.
+    pub fs: String,
+    /// A removable medium: below `/run/media` or `/media`, or a disc.
+    pub removable: bool,
+}
+
+impl Drive {
+    /// XP's name of the drive: `Local Disk (/)` for a disk, the name of
+    /// the medium for a removable one.
+    pub fn title(&self) -> String {
+        match self.dir.file_name() {
+            Some(name) if self.removable => name.to_string_lossy().into_owned(),
+            _ => format!("Local Disk ({})", self.dir.display()),
+        }
+    }
+}
+
+/// The file systems of disks and media; the others, such as `proc`,
+/// `tmpfs` or `overlay`, are no drives.
+const DISK_FILE_SYSTEMS: [&str; 17] = [
+    "btrfs", "ext2", "ext3", "ext4", "xfs", "f2fs", "jfs", "reiserfs", "zfs", "bcachefs", "vfat",
+    "exfat", "ntfs", "ntfs3", "fuseblk", "hfsplus", "iso9660",
+];
+
+/// Directories whose mounts are no drives.
+const SYSTEM_DIRS: [&str; 6] = ["/dev", "/sys", "/proc", "/etc", "/var/lib", "/var/log"];
+
+/// The drives of `/proc/self/mounts`: the mounts of disk file systems
+/// and of discs (`udf` too), each device once, at its shortest path, as
+/// a file system with subvolumes mounts its device several times.
+pub fn drives(mounts: &str) -> Vec<Drive> {
+    let mut drives: Vec<Drive> = Vec::new();
+    for line in mounts.lines() {
+        let mut fields = line.split_whitespace();
+        let (Some(device), Some(dir), Some(fs)) = (fields.next(), fields.next(), fields.next())
+        else {
+            continue;
+        };
+        if !DISK_FILE_SYSTEMS.contains(&fs) && fs != "udf" {
+            continue;
+        }
+        let dir = PathBuf::from(unescape(dir));
+        // A container binds files and system directories of a disk
+        // there, such as /etc/hostname.
+        if SYSTEM_DIRS.iter().any(|d| dir.starts_with(d)) {
+            continue;
+        }
+        let disc = matches!(fs, "iso9660" | "udf");
+        let removable = disc || dir.starts_with("/run/media") || dir.starts_with("/media");
+        let drive = Drive {
+            device: unescape(device),
+            dir,
+            fs: fs.into(),
+            removable,
+        };
+        match drives.iter_mut().find(|d| d.device == drive.device) {
+            Some(known) if drive.dir.as_os_str().len() < known.dir.as_os_str().len() => {
+                *known = drive;
+            }
+            Some(_) => {}
+            None => drives.push(drive),
+        }
+    }
+    drives.sort_by(|a, b| a.dir.cmp(&b.dir));
+    drives
+}
+
+/// A field of `/proc/self/mounts`, whose spaces and tabs come as octal
+/// escapes such as `\040`.
+fn unescape(field: &str) -> String {
+    let mut out = String::new();
+    let mut rest = field;
+    while let Some(i) = rest.find('\\') {
+        out += &rest[..i];
+        let code = rest
+            .get(i + 1..i + 4)
+            .and_then(|o| u8::from_str_radix(o, 8).ok());
+        if let Some(byte) = code {
+            out.push(char::from(byte));
+            rest = &rest[i + 4..];
+        } else {
+            out.push('\\');
+            rest = &rest[i + 1..];
+        }
+    }
+    out + rest
+}
+
+/// The total and the free bytes of the file system of a directory, from
+/// `df`: its second line holds them.
+pub fn space(dir: &Path) -> Option<(u64, u64)> {
+    let output = std::process::Command::new("df")
+        .args(["-B1", "--output=size,avail"])
+        .arg(dir)
+        .output()
+        .ok()?;
+    parse_df(&String::from_utf8_lossy(&output.stdout))
+}
+
+/// The size and the free bytes of the output of `df --output=size,avail`.
+fn parse_df(text: &str) -> Option<(u64, u64)> {
+    let mut numbers = text.lines().nth(1)?.split_whitespace();
+    Some((numbers.next()?.parse().ok()?, numbers.next()?.parse().ok()?))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -409,5 +521,36 @@ mod tests {
         assert_eq!(folder("/").up(), Some(Place::Computer));
         assert_eq!(folder("/").title(), "/");
         assert_eq!(folder("/home/u").title(), "u");
+    }
+
+    #[test]
+    fn drives_are_the_disks_and_media_of_the_mounts() {
+        let mounts = "\
+/dev/nvme0n1p3 / btrfs rw,subvol=/root 0 0
+proc /proc proc rw 0 0
+tmpfs /tmp tmpfs rw 0 0
+/dev/nvme0n1p3 /home btrfs rw,subvol=/home 0 0
+/dev/sdb1 /etc/hostname btrfs ro 0 0
+/dev/nvme0n1p1 /boot/efi vfat rw 0 0
+/dev/sda1 /run/media/u/MY\\040STICK exfat rw 0 0
+/dev/sr0 /mnt/cd iso9660 ro 0 0
+overlay /var/lib/x overlay rw 0 0
+";
+        let drives = drives(mounts);
+        let titles: Vec<String> = drives.iter().map(Drive::title).collect();
+        assert_eq!(
+            titles,
+            ["Local Disk (/)", "Local Disk (/boot/efi)", "cd", "MY STICK"]
+        );
+        let removable: Vec<bool> = drives.iter().map(|d| d.removable).collect();
+        assert_eq!(removable, [false, false, true, true]);
+        assert_eq!(drives[0].device, "/dev/nvme0n1p3");
+    }
+
+    #[test]
+    fn df_gives_the_size_and_the_free_space() {
+        let out = "    1B-blocks      Avail\n 511101108224 98765432100\n";
+        assert_eq!(parse_df(out), Some((511_101_108_224, 98_765_432_100)));
+        assert_eq!(parse_df("header only\n"), None);
     }
 }

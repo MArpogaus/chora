@@ -1607,6 +1607,9 @@ impl Wm {
             Some(desktop_icons::Open::Folder(path)) => {
                 commands.extend(self.open_explorer(Place::Folder(path)));
             }
+            Some(desktop_icons::Open::Computer) => {
+                commands.extend(self.open_explorer(Place::Computer));
+            }
             Some(open) => spawn(&desktop_icons::command(&open)),
             None => {}
         }

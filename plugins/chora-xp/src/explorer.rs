@@ -198,7 +198,8 @@ impl Explorer {
     fn arrived(&mut self) {
         self.groups = match &self.history.current {
             Place::Folder(path) => vec![folder_group(path)],
-            Place::Computer | Place::Trash => Vec::new(),
+            Place::Computer => computer_groups(),
+            Place::Trash => Vec::new(),
         };
         self.selected = None;
         self.scroll = 0;
@@ -956,6 +957,85 @@ fn folder_group(path: &std::path::Path) -> Group {
     Group {
         heading: None,
         items,
+    }
+}
+
+/// The groups of My Computer: the documents, the hard disks and the
+/// removable media, each a group under XP's heading when it has items.
+fn computer_groups() -> Vec<Group> {
+    let folder = |title: String, path: PathBuf, icons| Item {
+        title: title.clone(),
+        lines: Vec::new(),
+        icons,
+        open: Some(Open::Place(Place::Folder(path))),
+        details: vec![(title, true), ("File Folder".into(), false)],
+    };
+    let mut files = Vec::new();
+    if let Some(shared) = crate::desktop_icons::user_dir("PUBLICSHARE").filter(|p| p.is_dir()) {
+        files.push(folder(
+            "Shared Documents".into(),
+            shared,
+            &["folder-publicshare", "folder"],
+        ));
+    }
+    let user = std::env::var("USER").unwrap_or_else(|_| "User".into());
+    files.push(folder(
+        format!("{user}'s Documents"),
+        documents(),
+        &["folder-documents", "folder"],
+    ));
+    let mounts = std::fs::read_to_string("/proc/self/mounts").unwrap_or_default();
+    let (removable, disks): (Vec<_>, Vec<_>) = folder::drives(&mounts)
+        .into_iter()
+        .partition(|d| d.removable);
+    let groups = [
+        ("Files Stored on This Computer", files),
+        ("Hard Disk Drives", disks.iter().map(drive_item).collect()),
+        (
+            "Devices with Removable Storage",
+            removable.iter().map(drive_item).collect(),
+        ),
+    ];
+    groups
+        .into_iter()
+        .filter(|(_, items)| !items.is_empty())
+        .map(|(heading, items)| Group {
+            heading: Some(heading.into()),
+            items,
+        })
+        .collect()
+}
+
+/// A drive of My Computer: its free space and size for Details, from
+/// `df`.
+fn drive_item(drive: &folder::Drive) -> Item {
+    let title = drive.title();
+    let (kind, icons): (&str, &'static [&'static str]) = match drive.fs.as_str() {
+        "iso9660" | "udf" => (
+            "CD Drive",
+            &["media-optical", "drive-optical", "drive-removable-media"],
+        ),
+        _ if drive.removable => (
+            "Removable Disk",
+            &["drive-removable-media", "drive-harddisk"],
+        ),
+        _ => ("Local Disk", &["drive-harddisk"]),
+    };
+    let mut details = vec![
+        (title.clone(), true),
+        (kind.into(), false),
+        (format!("File System: {}", drive.fs), false),
+    ];
+    if let Some((total, free)) = folder::space(&drive.dir) {
+        details.push((format!("Free Space: {}", folder::size_text(free)), false));
+        details.push((format!("Total Size: {}", folder::size_text(total)), false));
+    }
+    Item {
+        title,
+        lines: Vec::new(),
+        icons,
+        open: Some(Open::Place(Place::Folder(drive.dir.clone()))),
+        details,
     }
 }
 
