@@ -233,7 +233,9 @@ Maximize for a maximized one. Move and Size are always gray, as XP works
 them with the arrow keys, and the keyboard does not reach `chora-xp`
 (D45). The click on the icon opens the menu below the icon, the others at
 the pointer. A double click on the icon closes the window, as on XP. A maximized window fills the work
-area above the taskbar. A click on a task button shows or minimizes its
+area above the taskbar. When the mode or the scale of an output changes,
+its windows move back into its work area, and a window that does not fit
+shrinks to it. A click on a task button shows or minimizes its
 window. Buttons light up under the pointer, and so do the entries of the
 start menu. All Programs and its groups open their cascading menus when
 the pointer rests on them for 350 ms, or on a click. A click on a program

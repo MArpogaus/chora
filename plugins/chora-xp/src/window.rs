@@ -399,6 +399,12 @@ impl Window {
     }
 }
 
+/// A frame moved into an area, and shrunk to it where it does not fit.
+pub fn inside([x, y, w, h]: Rect, [ax, ay, aw, ah]: Rect) -> Rect {
+    let [w, h] = [w.min(aw), h.min(ah)];
+    [x.clamp(ax, ax + aw - w), y.clamp(ay, ay + ah - h), w, h]
+}
+
 /// The title of a window: its title, else its application id.
 pub fn title_of(title: Option<&str>, app_id: Option<&str>) -> String {
     title
@@ -456,6 +462,14 @@ pub fn tile(count: usize, [x, y, w, h]: Rect, columns: bool) -> Vec<Rect> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_frame_moves_into_the_area_and_shrinks_to_it() {
+        let area = [0, 0, 853, 503];
+        assert_eq!(inside([504, 244, 744, 567], area), [109, 0, 744, 503]);
+        assert_eq!(inside([10, 10, 100, 100], area), [10, 10, 100, 100]);
+        assert_eq!(inside([-50, 600, 900, 50], area), [0, 453, 853, 50]);
+    }
 
     /// The edges as letters: `l`, `r`, `t` and `b`.
     fn named(edges: Option<Edges>) -> String {

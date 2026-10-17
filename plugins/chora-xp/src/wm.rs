@@ -928,6 +928,9 @@ impl Wm {
             return commands;
         };
         let old = self.bars[i].usable();
+        let mine: Vec<usize> = (0..self.windows.len())
+            .filter(|&w| self.bars[i].contains(self.windows[w].pos))
+            .collect();
         let mut commands = vec![wallpaper::update(
             &mut self.theme,
             &self.config.wallpaper,
@@ -947,8 +950,34 @@ impl Wm {
             commands.extend(w.configure(active));
             commands.extend(w.style(&mut self.theme, active));
         }
+        commands.extend(self.keep_inside(&mine, area));
         commands.extend(self.sync_tasks());
         commands.extend(self.refresh_icons());
+        commands
+    }
+
+    /// Moves windows back into an area, as after a new scale or mode of
+    /// their output: a window keeps its size where it fits, else it
+    /// shrinks to the area. Maximized windows fit already.
+    fn keep_inside(&mut self, windows: &[usize], area: Rect) -> Vec<Command> {
+        let mut commands = Vec::new();
+        for &i in windows {
+            let active = self.focused.as_deref() == Some(self.windows[i].surface.as_str());
+            let w = &mut self.windows[i];
+            if w.maximized() || !w.shown {
+                continue;
+            }
+            let [x, y, fw, fh] = window::inside(w.rect(), area);
+            if [fw, fh] != w.outer() {
+                commands.extend(w.fit([x, y, fw, fh], active));
+                commands.extend(w.style(&mut self.theme, active));
+            } else if [x, y] != w.pos {
+                w.pos = [x, y];
+            } else {
+                continue;
+            }
+            commands.push(w.place());
+        }
         commands
     }
 
