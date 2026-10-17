@@ -87,51 +87,57 @@ that the code does not implement yet.
 | D52 | The milestones run 0.6 to 1.0 as in the [Roadmap](roadmap.md) | A stable API needs real use and a testable core first. |
 | D53 | The voice pipeline lives in `chora-voice` and runs in parallel to the core; the core supplies push-to-talk grabs, text injection, the read model and an agent indicator | The pipeline is a product of its own. It needs only the API of the core. |
 | D54 | Plugins use the JSON-RPC API with frame events and fd passing; a private Wayland protocol for plugins comes only if a measurement at 120 Hz in milestone 0.9 shows the need | One API to maintain. The measurement decides. |
-| D55 | Window managers share the scene through claims: a claim is a scene area of one client; a new toplevel goes to the claim under the pointer; a window manager hands a surface to another with `give` (see [below](#d55-window-managers-per-claim)) | The user chose one window manager per area over a single window manager role (issue #73). Ownership, `attach` and `surface.detached` stay the mechanism, and a camera switches between areas. |
+| D55 | Window managers share the scene through claims: a claim is a scene area of one window manager; step 1 hands a surface from one window manager to another with `remove` and `to`; step 2 routes a new toplevel to the owner of a claim (see [below](#d55-window-managers-per-claim)) | The user chose one window manager per claim over a single window manager role (issue #73). Ownership, `attach` and `surface.detached` stay the mechanism, and a camera switches between claims. |
 
 ## Designs
 
 ### D55: window managers per claim
 
 Issue #73 calls the area of a window manager a view. The glossary uses
-"view" for a YAML arrangement (D5), so this design says **claim**.
+"view" for a YAML arrangement (D5), so this design says **claim**. The
+design has two steps. Step 1 is the handover. Step 2 adds claims and the
+routing of new toplevels.
 
-**Claim.** A claim is a rectangle in scene coordinates: the property
-`claim: [x, y, w, h]` of a node. The owner of the node holds the claim.
-A window manager sets it on its root group. The claim ends with its node,
-so `resume` keeps it for the grace time. A claim that overlaps a claim of
-another client fails the transaction. An output shows a claim through its
-camera. So two window managers sit on two outputs, or at two places in the
-scene, and a camera move switches one output between them.
+#### Step 1: handover
 
-**New toplevels.** At the first commit of a toplevel, the core takes the
-pointer position in scene coordinates. When a claim contains it, the core
-reserves the surface for the owner of the claim. `surface.created` then
-carries `to` with that client name, and only that client can attach the
-surface. Outside of all claims, any client attaches it, as before.
+Window manager A hands surface `s1` to window manager B:
 
-**Handover.** Window manager A hands surface `s1` to window manager B:
-
-1. A owns `s1`, for example at the end of a drag into the claim of B.
-   A finds B in the claims of `scene.query`.
-2. A sends `give: {surface: s1, to: B}`. `to` must name a connected
-   client. As for a `remove`, the surface becomes detached and loses the
+1. A owns `s1`, for example at the end of a drag out of its area. A knows
+   B by a fixed name or by a `meta` tag on the root group of B.
+2. A sends `remove: {id: s1, to: B}`. `to` must name a connected client.
+   As at every `remove`, the surface becomes detached and loses the
    keyboard focus.
-3. The core reserves `s1` for B and sends `surface.given` with `to: B`.
-   An `attach` of another client fails. A separate command and event, in
-   place of `to` on `remove` and `surface.detached`, leave the existing
-   plugins unchanged.
+3. The core reserves `s1` for B and sends `surface.detached` with `to: B`
+   to B only. An `attach` of another client fails.
 4. B attaches `s1`, places it by its own rules, and can give it the
-   focus.
-5. When the last connection of B closes, the reservation ends. The core
-   sends `surface.detached` without `to`, and any client can attach the
-   surface. With `resume`, this happens at the end of the grace time.
+   focus. A plugin that adopts every detached surface needs no change.
+5. When the last connection of B closes, the reservation ends. With
+   `resume`, it ends after the grace time. The core then sends
+   `surface.detached` to all, and any client can attach the surface.
 
 **Focus and grabs.** The keyboard focus does not move with the surface.
 The receiving window manager sets it with `focus` after the `attach`.
 Grabs belong to connections and do not move. A ends its drag at the
 release of the button, and then hands the surface over. The client of the
 surface keeps its pointer and keyboard input as before.
+
+#### Step 2: claims, later
+
+A claim is a rectangle in scene coordinates: the property
+`claim: [x, y, w, h]` of a node. The owner of the node holds the claim. A
+window manager sets it on its root group, and the claim ends with its
+node. Window managers claim the whole work area of their outputs. An
+output shows a claim through its camera. So two window managers sit on two
+outputs, or at two places in the scene, and a camera move switches one
+output between them. With claims, A finds B in the claims of
+`scene.query`.
+
+At the first commit of a toplevel, the core picks the owner in this
+order: the client that asked for its activation token (D42); else the
+owner of the focused surface or node; else the owner of the claim under
+the pointer. When claims overlap, the smallest claim that contains the
+point wins. The core reserves the surface for that client, as at a
+handover. Outside of all claims, the race of #73 stays.
 
 **Out of scope for now.**
 
