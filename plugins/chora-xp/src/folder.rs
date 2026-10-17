@@ -615,9 +615,12 @@ pub fn replace_into(path: &Path, dir: &Path) -> std::io::Result<Dropped> {
             let mut part = name.to_os_string();
             part.push(".part");
             let part = dir.join(part);
-            fs::copy(path, &part)?;
-            fs::rename(&part, &target)?;
-            Ok(Dropped::Copied)
+            let copied = fs::copy(path, &part).and_then(|_| fs::rename(&part, &target));
+            if copied.is_err() {
+                // No half copy stays behind to fill the disk.
+                let _ = fs::remove_file(&part);
+            }
+            copied.map(|()| Dropped::Copied)
         }
         Err(err) => Err(err),
     }
