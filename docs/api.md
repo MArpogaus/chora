@@ -457,7 +457,7 @@ $ choractl revoke agent
 A grant lasts until `choractl revoke` or the end of the session. The
 emergency reset revokes all grants. A Wayland client of a client socket
 gets the grants of its name when it connects. A revoke of one of them,
-and the reset, disconnect it. Only the admin socket changes grants.
+and the reset, disconnect it and drop its waiting frames. Only the admin socket changes grants.
 A process of the user on the host reaches the admin socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that [Client sockets](#client-sockets) lists.
@@ -504,21 +504,28 @@ socket, with these exceptions:
 - Screencopy and image capture need the grant `screen.capture` of the
   name.
 - The input method needs the grant `input.inject`.
-- Output management, the session lock and both foreign toplevel
-  protocols are not offered. So the client cannot lock the session, list
-  the windows or control the windows of others.
+- Output management, the session lock, both foreign toplevel protocols,
+  the security context manager, idle inhibit and idle notify are not
+  offered. So the client cannot lock the session, list the windows,
+  control the windows of others, open a socket of its own or keep the
+  screen awake.
 
 The layer shell stays, so a panel can run in a container. Such a client
-can draw above all windows in the top layer, but the core refuses the
+can draw over all windows in the top layer, but the core refuses the
 overlay layer. A layer surface of it takes the keyboard on demand at
-most, never exclusively. So it cannot fake a lock screen or keep the
-keyboard. An `xdg-activation` token of such a client works only with the
-serial of its last key or button press, so it takes no focus without
-input of the user.
+most, never exclusively. After a click on it, it gets the keys until a
+click goes elsewhere. So a full-screen panel can look like a lock screen
+and read what the user types into it.
+
+An `xdg-activation` token or a popup grab of such a client needs the
+serial of its last key or button press, and never 0. A token also needs
+the keyboard focus on the client, and uses the press up. So the client
+takes the focus only after input of the user, once per press.
 
 The client gets the grants of the name at the time it connects. A
 revoke of a capability that it got disconnects it, and so does the
-emergency reset. Its windows carry the name: a query shows it in
+emergency reset. Its frames of screencopy and image capture that wait
+then get nothing. Its socket closes at its next request. Its windows carry the name: a query shows it in
 `surface.client`. It reads the clipboard only while it has the keyboard
 focus, as every Wayland client does.
 
