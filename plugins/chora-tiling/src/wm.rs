@@ -257,8 +257,9 @@ impl Wm {
     }
 
     /// Focuses a window under the pointer, as the configuration says. A
-    /// pointer that stood still focuses nothing.
-    pub fn pointer_focus(&mut self, id: &str, clicked: bool, moved: bool) -> bool {
+    /// pointer that stood still focuses nothing. `lost`: another window
+    /// manager has the focus, so the focused window takes it again.
+    pub fn pointer_focus(&mut self, id: &str, clicked: bool, moved: bool, lost: bool) -> bool {
         let follow = self.config.focus == Focus::FollowMouse
             && moved
             && self
@@ -266,11 +267,12 @@ impl Wm {
                 .is_some_and(|t| t.layout != Layout::Magnifier);
         let shown = self.window(id).is_some_and(|w| self.shows(w));
         let index = self.current;
-        let done = if clicked {
-            self.last_on(index, &self.raised) == Some(id) && self.focused() == Some(id)
-        } else {
-            self.focused() == Some(id)
-        };
+        let done = !lost
+            && if clicked {
+                self.last_on(index, &self.raised) == Some(id) && self.focused() == Some(id)
+            } else {
+                self.focused() == Some(id)
+            };
         if !shown || !(clicked || follow) || done {
             return false;
         }
@@ -1115,10 +1117,10 @@ mod tests {
     fn the_focus_that_follows_the_pointer_raises_nothing() {
         let mut wm = wm(&["a", "f"]);
         wm.act(&Action::ToggleFloating);
-        wm.pointer_focus("a", false, true);
+        wm.pointer_focus("a", false, true, false);
         assert_eq!(wm.focused(), Some("a"));
         assert_eq!(wm.arrange().pop().unwrap().id, "f");
-        wm.pointer_focus("a", true, true);
+        wm.pointer_focus("a", true, true, false);
         assert_eq!(wm.arrange().pop().unwrap().id, "a", "a click raises");
     }
 
@@ -1153,13 +1155,13 @@ mod tests {
         wm.act(&Action::ToggleOnTop);
         wm.act(&Action::FocusNext);
         wm.act(&Action::ToggleFullscreen);
-        wm.pointer_focus("o", false, true);
+        wm.pointer_focus("o", false, true, false);
         let ids: Vec<String> = wm.arrange().into_iter().map(|p| p.id).collect();
         assert_eq!(ids, ["a", "b", "o"], "the fullscreen b stays over a");
-        wm.pointer_focus("a", true, true);
-        wm.pointer_focus("b", false, true);
+        wm.pointer_focus("a", true, true, false);
+        wm.pointer_focus("b", false, true, false);
         assert_eq!(wm.arrange()[1].id, "a", "the pointer does not raise b");
-        wm.pointer_focus("b", true, true);
+        wm.pointer_focus("b", true, true, false);
         assert_eq!(wm.arrange()[1].id, "b", "a click does");
     }
 

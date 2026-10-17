@@ -246,6 +246,7 @@ impl Tiling {
             "output.removed",
             "pointer.entered",
             "pointer.pressed",
+            "focus.changed",
         ];
         self.client.call::<_, Value>(
             "events.subscribe",
@@ -371,23 +372,22 @@ impl Tiling {
                 self.wm
                     .set_output(&output.name, output.layout_area(), full_area(&output));
             }
-            Event::OutputRemoved { name } => {
-                self.wm.remove_output(&name);
-                if self.without_outputs() {
-                    self.give_all_away()?;
-                }
+            Event::FocusChanged { surface } => {
+                self.focus_changed(surface.as_deref());
+                return Ok(());
             }
+            Event::OutputRemoved { name } => self.output_removed(&name)?,
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
             } => return self.act(&binding),
             Event::PointerEntered { node, moved } => {
-                if !self.wm.pointer_focus(&node, false, moved) {
+                if !self.pointer_focus(&node, false, moved) {
                     return Ok(());
                 }
             }
             Event::PointerPressed { node, .. } => {
-                if !self.pressed(&node) {
+                if !self.pointer_focus(&node, true, true) {
                     return Ok(());
                 }
             }
@@ -476,18 +476,29 @@ impl Tiling {
         Ok(Value::String(surface))
     }
 
-    /// A click focuses a window. Another window manager may have taken
-    /// the focus since tiling last sent it, so a click on the focused
-    /// window sends it again. False when nothing changes.
-    fn pressed(&mut self, node: &str) -> bool {
-        if self.wm.pointer_focus(node, true, true) {
-            return true;
+    /// Another window manager took the focus: the next focus of a window
+    /// of tiling goes out again, even to the same window. Nothing goes
+    /// out now, so that no relayout takes the focus back.
+    fn focus_changed(&mut self, surface: Option<&str>) {
+        if surface != self.focus.as_deref() {
+            self.focus_sent = false;
         }
-        if !self.wm.has(node) {
-            return false;
+    }
+
+    /// An output goes; without one of `--output` the windows go too.
+    fn output_removed(&mut self, name: &str) -> Result<(), ClientError> {
+        self.wm.remove_output(name);
+        if self.without_outputs() {
+            self.give_all_away()?;
         }
-        self.focus_sent = false;
-        true
+        Ok(())
+    }
+
+    /// Focuses a window under the pointer. While another window manager
+    /// has the focus, the focused window of tiling takes it again.
+    fn pointer_focus(&mut self, node: &str, clicked: bool, moved: bool) -> bool {
+        self.wm
+            .pointer_focus(node, clicked, moved, !self.focus_sent)
     }
 
     fn act(&mut self, binding: &str) -> Result<(), ClientError> {
