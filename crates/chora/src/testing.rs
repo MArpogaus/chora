@@ -57,7 +57,7 @@ impl Core {
             stream: ours,
             input: Vec::new(),
             events: Vec::new(),
-            answers: Vec::new(),
+            responses: Vec::new(),
             next: 1,
         }
     }
@@ -115,7 +115,7 @@ pub struct Client {
     /// The events that arrived and that no test took yet.
     events: Vec<Value>,
     /// The responses that arrived and that no test took yet.
-    answers: Vec<Value>,
+    responses: Vec<Value>,
     next: u64,
 }
 
@@ -178,7 +178,7 @@ impl Client {
     pub fn responses(&mut self) -> Vec<Value> {
         let messages = self.read().unwrap_or_default();
         self.keep(messages);
-        std::mem::take(&mut self.answers)
+        std::mem::take(&mut self.responses)
     }
 
     /// Keeps messages as events and responses for later.
@@ -187,18 +187,17 @@ impl Client {
             .into_iter()
             .partition(|m| m.get("method").is_some());
         self.events.extend(events);
-        self.answers.extend(responses);
+        self.responses.extend(responses);
     }
 
     /// The answer of the request with this id, after one turn of the core.
     /// `None` while the answer waits. Other responses stay for later.
     pub fn answer(&mut self, core: &mut Core, id: u64) -> Option<Result<Value, Value>> {
         core.dispatch();
-        let mut responses = self.responses();
-        let found = responses.iter().position(|r| r["id"] == id);
-        let response = found.map(|i| responses.remove(i));
-        self.answers = responses;
-        let response = response?;
+        let messages = self.read().unwrap_or_default();
+        self.keep(messages);
+        let i = self.responses.iter().position(|r| r["id"] == id)?;
+        let response = self.responses.remove(i);
         Some(match response.get("error") {
             Some(error) => Err(error.clone()),
             None => Ok(response["result"].clone()),
