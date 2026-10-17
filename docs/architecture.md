@@ -277,7 +277,7 @@ has it from its first commit until it goes away, and it ends a popup grab.
 A click gives the keyboard to a layer surface that accepts it on demand.
 The layer surface keeps it until one of these occurs:
 
-- A click goes elsewhere, or a plugin sets the focus.
+- A click goes elsewhere, or a plugin focuses a surface.
 - Its role goes, or it no longer accepts the keyboard.
 - Its output goes.
 

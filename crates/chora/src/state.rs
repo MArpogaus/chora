@@ -448,7 +448,9 @@ impl State {
                     }
                 }
                 Effect::Detached(surface) => {
-                    self.unfocus(&surface);
+                    if self.focused_surface().as_deref() == Some(surface.as_str()) {
+                        self.focus(None);
+                    }
                     self.emit(&Event::SurfaceDetached { surface });
                 }
                 Effect::Camera(name) => {
@@ -493,29 +495,19 @@ impl State {
     }
 
     /// Focuses a surface node, or nothing. A layer surface that a click
-    /// focused gives the keyboard back. Taskbars learn first which surface
+    /// focused gives the keyboard back to a new focused surface. Taskbars learn first which surface
     /// lost the focus, because some expect one active toplevel at a time.
     pub fn focus(&mut self, surface: Option<&str>) {
         self.scene.set_focused(surface);
         self.focus_of_scene(surface);
     }
 
-    /// Clears the focus of a surface that goes or becomes detached. A layer
-    /// surface that a click focused keeps the keyboard.
-    pub fn unfocus(&mut self, surface: &str) {
-        if self.focus_wanted.as_deref() != Some(surface) {
-            return;
-        }
-        self.scene.set_focused(None);
-        self.focus_wanted = None;
-        self.update_focus();
-        self.restate_toplevel(surface);
-    }
-
     /// Moves the focus that a transaction set; the scene knows it already.
     fn focus_of_scene(&mut self, surface: Option<&str>) {
         let previous = std::mem::replace(&mut self.focus_wanted, surface.map(Into::into));
-        self.layer_focus = None;
+        if surface.is_some() {
+            self.layer_focus = None;
+        }
         self.update_focus();
         for id in [previous, self.focus_wanted.clone()].into_iter().flatten() {
             self.restate_toplevel(&id);
