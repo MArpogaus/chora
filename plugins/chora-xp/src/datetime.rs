@@ -192,6 +192,7 @@ impl DateDialog {
         Page {
             body: Some(body),
             controls,
+            scroll: None,
         }
     }
 

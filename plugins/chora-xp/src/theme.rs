@@ -6,6 +6,7 @@
 //! once; the name of its file is the hash of the description.
 
 use std::{
+    cell::RefCell,
     collections::HashMap,
     fs,
     hash::{DefaultHasher, Hash, Hasher},
@@ -268,6 +269,8 @@ pub struct Theme {
     clock: u64,
     /// A transparent pixel, for pictures that fail to render.
     blank: String,
+    /// The widths of lines of text, as their layout is slow.
+    widths: RefCell<HashMap<(String, Font), f64>>,
 }
 
 /// How many rendered files the cache keeps.
@@ -295,6 +298,7 @@ impl Theme {
             rendered: HashMap::new(),
             clock: 0,
             blank: String::new(),
+            widths: RefCell::default(),
         };
         theme.blank = theme
             .write(0, &Pixmap::new(1, 1).expect("one pixel"))
@@ -317,7 +321,18 @@ impl Theme {
 
     /// The width of a line of text in pixels.
     pub fn text_width(&self, line: &str, font: Font) -> f64 {
-        self.fonts.width(line, font).unwrap_or(0.0)
+        let key = (line.to_owned(), font);
+        if let Some(width) = self.widths.borrow().get(&key) {
+            return *width;
+        }
+        let width = self.fonts.width(line, font).unwrap_or(0.0);
+        let mut widths = self.widths.borrow_mut();
+        // ponytail: forget all at a size, rather than track their use.
+        if widths.len() >= 4096 {
+            widths.clear();
+        }
+        widths.insert(key, width);
+        width
     }
 
     /// The size of an element, rounded to pixels.

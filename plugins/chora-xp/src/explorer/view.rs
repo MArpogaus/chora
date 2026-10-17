@@ -12,7 +12,7 @@ use crate::{
     dialog::{self, BLACK},
     folder::Place,
     text::{Font, Text},
-    theme::{Picture, Rect, Theme},
+    theme::{Fit, Picture, Rect, Theme},
 };
 
 /// The step from one tile to the next, across and down.
@@ -24,7 +24,7 @@ const LEFT: i32 = 16;
 /// The width of the scroll bar.
 pub const SCROLL_W: i32 = 17;
 /// The height of a heading with its line and the space below it.
-const HEADING: i32 = 30;
+pub const HEADING: i32 = 30;
 /// The space below the tiles of a group.
 const GROUP_GAP: i32 = 13;
 /// The space above the tiles of a view without headings.
@@ -186,31 +186,24 @@ pub fn tile(theme: &Theme, item: &Item, icon: Option<&Path>, selected: bool) -> 
     picture
 }
 
-/// The white background of a view of a size, with the headings of a
-/// layout scrolled by an offset: bold black text over XP's blue line,
+/// A heading of a view of a width: bold black text over XP's blue line,
 /// which fades to white.
-pub fn background([w, h]: [i32; 2], layout: &Layout, offset: i32) -> Picture {
-    let mut picture = Picture::new(w, h).svg(format!(
-        r##"<rect width="{w}" height="{h}" fill="#FFFFFF"/>"##
-    ));
-    for (heading, top) in &layout.headings {
-        let y = top - offset;
-        if y + HEADING < 0 || y > h {
-            continue;
-        }
-        picture = picture
-            .svg(format!(
-                r##"<defs><linearGradient id="l" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3D95FF"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient></defs><rect y="{}" width="300" height="1" fill="url(#l)"/>"##,
-                y + 18
-            ))
-            .text(Text::new(heading, Font::UiBold, BLACK, [14, y + 3, w - 28, 13]));
-    }
-    picture
+pub fn heading(heading: &str, w: i32) -> Picture {
+    Picture::new(w, HEADING)
+        .svg(r##"<defs><linearGradient id="l" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3D95FF"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient></defs><rect y="18" width="300" height="1" fill="url(#l)"/>"##)
+        .text(Text::new(heading, Font::UiBold, BLACK, [14, 3, w - 28, 13]))
 }
 
 /// A part of a picture that shows inside a rectangle: the rectangle
-/// where they overlap and the picture moved into it, or `None`.
-pub fn clip(picture: Picture, [x, y]: [i32; 2], [cx, cy, cw, ch]: Rect) -> Option<(Rect, Picture)> {
+/// where they overlap and the picture moved into it, or `None`. A part
+/// is cut from the rendered picture, so that it costs no new layout of
+/// its text and icons.
+pub fn clip(
+    theme: &mut Theme,
+    picture: Picture,
+    [x, y]: [i32; 2],
+    [cx, cy, cw, ch]: Rect,
+) -> Option<(Rect, Picture)> {
     let [w, h] = picture.size;
     let (left, top) = (x.max(cx), y.max(cy));
     let (right, bottom) = ((x + w).min(cx + cw), (y + h).min(cy + ch));
@@ -221,7 +214,8 @@ pub fn clip(picture: Picture, [x, y]: [i32; 2], [cx, cy, cw, ch]: Rect) -> Optio
         return Some(([x, y, w, h], picture));
     }
     let (iw, ih) = (right - left, bottom - top);
-    let part = Picture::new(iw, ih).layers_of(picture, [x - left, y - top]);
+    let whole = theme.render(&picture);
+    let part = Picture::new(iw, ih).fit(Path::new(&whole), [x - left, y - top, w, h], Fit::Stretch);
     Some(([left, top, iw, ih], part))
 }
 
@@ -340,16 +334,19 @@ mod tests {
 
     #[test]
     fn a_tile_shows_only_inside_the_view() {
+        let (mut theme, cache) = crate::dialog::tests::theme("clip");
+        let theme = &mut theme;
         let picture = Picture::new(214, 56);
         let view = [210, 86, 500, 400];
         assert_eq!(
-            clip(picture.clone(), [226, 100], view).map(|c| c.0),
+            clip(theme, picture.clone(), [226, 100], view).map(|c| c.0),
             Some([226, 100, 214, 56])
         );
         assert_eq!(
-            clip(picture.clone(), [226, 60], view).map(|c| c.0),
+            clip(theme, picture.clone(), [226, 60], view).map(|c| c.0),
             Some([226, 86, 214, 30])
         );
-        assert_eq!(clip(picture, [226, 500], view), None);
+        assert_eq!(clip(theme, picture, [226, 500], view), None);
+        let _ = std::fs::remove_dir_all(cache);
     }
 }

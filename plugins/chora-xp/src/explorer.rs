@@ -21,7 +21,7 @@ use chora_scene::Command;
 
 use crate::{
     context::{Act, Entry},
-    dialog::{BLACK, Content, Control, GRAY, Hit, Page},
+    dialog::{BLACK, Content, Control, GRAY, Hit, Page, Scroll},
     folder::{self, History, Kind, Place},
     icons::{self, Icons},
     text::{Font, Text},
@@ -359,7 +359,7 @@ impl Explorer {
         }
         let page = self.geometry().view[3] - 2 * SCROLL_W;
         let step = match name {
-            "view" => {
+            _ if name == "view" || name.starts_with("heading-") => {
                 self.selected = None;
                 return Some(Outcome::Redraw);
             }
@@ -478,7 +478,7 @@ impl Explorer {
     // The page
 
     /// The page of the current state at the current size.
-    fn page(&mut self, theme: &Theme, icons: &mut Icons) -> Page {
+    fn page(&mut self, theme: &mut Theme, icons: &mut Icons) -> Page {
         let [w, h] = self.size;
         let mut page = Page {
             body: None,
@@ -486,6 +486,7 @@ impl Explorer {
                 .iter()
                 .map(|(title, x)| menu_title(theme, title, *x))
                 .collect(),
+            scroll: None,
         };
         let mut body = Picture::new(w, h).svg(chrome([w, h]));
         // XP's flag at the right of the menu bar.
@@ -501,7 +502,7 @@ impl Explorer {
         page.body = Some(self.address_bar(body, icons));
         page.controls.extend(address_buttons(w, icons));
         self.task_pane(&mut page, theme, icons);
-        page.controls.extend(self.view(theme, icons));
+        self.view(&mut page, theme, icons);
         page
     }
 
@@ -528,28 +529,48 @@ impl Explorer {
         }
     }
 
-    /// The controls of the view: the background with the headings, the
-    /// tiles that show, and the scroll bar.
-    fn view(&mut self, theme: &Theme, icons: &mut Icons) -> Vec<Control> {
+    /// The view: the white background, the headings and the tiles that
+    /// show in the scrolled area, and the scroll bar.
+    fn view(&mut self, page: &mut Page, theme: &mut Theme, icons: &mut Icons) {
         let g = self.geometry();
         self.scroll = g.offset;
         let [vx, vy, vw, vh] = g.view;
         let width = if g.bar { vw - SCROLL_W } else { vw };
-        let mut controls = vec![Control::area(
+        page.scroll = Some(Scroll {
+            rect: [vx, vy, width, vh],
+            offset: g.offset,
+        });
+        page.controls.push(Control::area(
             "view",
             [vx, vy, width, vh],
-            view::background([width, vh], &g.layout, g.offset),
-        )];
-        let clip = [vx, vy, width, vh];
-        for (i, (item, [x, y])) in self.items().zip(&g.layout.tiles).enumerate() {
-            let at = [vx + x, vy + y - g.offset];
-            if at[1] >= vy + vh || at[1] + view::TILE[1] <= vy {
+            Picture::new(width, vh).svg(format!(
+                r##"<rect width="{width}" height="{vh}" fill="#FFFFFF"/>"##
+            )),
+        ));
+        // What shows of the headings and the tiles, in the coordinates of
+        // the view without scrolling: only those at the edges change as it
+        // scrolls.
+        let shown = [0, g.offset, width, vh];
+        let mut parts = Vec::new();
+        for (i, (heading, y)) in g.layout.headings.iter().enumerate() {
+            parts.push((
+                format!("heading-{i}"),
+                view::heading(heading, width),
+                [0, *y],
+            ));
+        }
+        for (i, (item, &[x, y])) in self.items().zip(&g.layout.tiles).enumerate() {
+            if y >= g.offset + vh || y + view::TILE[1] <= g.offset {
                 continue;
             }
             let icon = icons.first_sized(item.icons, 48);
             let tile = view::tile(theme, item, icon.as_deref(), self.selected == Some(i));
-            if let Some((rect, picture)) = view::clip(tile, at, clip) {
-                controls.push(Control::area(&format!("item-{i}"), rect, picture));
+            parts.push((format!("item-{i}"), tile, [x, y]));
+        }
+        for (name, picture, at) in parts {
+            if let Some((rect, picture)) = view::clip(theme, picture, at, shown) {
+                page.controls
+                    .push(Control::area(&name, rect, picture).scrolled());
             }
         }
         if g.bar {
@@ -557,10 +578,10 @@ impl Explorer {
             for (name, ([x, y, w, h], picture)) in
                 names.iter().zip(view::scroll_bar([SCROLL_W, vh], g.thumb))
             {
-                controls.push(Control::area(name, [vx + width + x, vy + y, w, h], picture));
+                page.controls
+                    .push(Control::area(name, [vx + width + x, vy + y, w, h], picture));
             }
         }
-        controls
     }
 
     /// The Standard Buttons: Back and Forward as the history allows, Up
@@ -1417,9 +1438,17 @@ mod tests {
         if let Some(body) = &page.body {
             layers.push((theme.render(body), [0, 0], body.size));
         }
-        for c in &page.controls {
-            let p = c.picture(false, false);
-            layers.push((theme.render(&p), [c.rect[0], c.rect[1]], p.size));
+        let scroll = page.scroll.unwrap_or_default();
+        for control in &page.controls {
+            let look = control.picture(false, false);
+            let mut at = [control.rect[0], control.rect[1]];
+            if control.scrolled {
+                at = [
+                    at[0] + scroll.rect[0],
+                    at[1] + scroll.rect[1] - scroll.offset,
+                ];
+            }
+            layers.push((theme.render(&look), at, look.size));
         }
         for (file, [x, y], [w, h]) in layers {
             picture = picture.file(std::path::Path::new(&file), [x, y, w, h]);
@@ -1509,7 +1538,7 @@ mod tests {
         let (mut theme, cache) = theme("scroll");
         let mut icons = Icons::default();
         let mut explorer = Explorer::new("xpx1", Place::Folder(dir.clone()), SIZE);
-        let page = explorer.page(&theme, &mut icons);
+        let page = explorer.page(&mut theme, &mut icons);
         assert!(page.controls.iter().any(|c| c.name == "sb-thumb"));
         assert_eq!(explorer.click("sb-down", [0, 0]), Outcome::Redraw);
         assert_eq!(explorer.scroll, SCROLL_STEP);
@@ -1527,6 +1556,40 @@ mod tests {
         );
         explorer.create(&mut theme, &mut icons);
         preview(&mut theme, &explorer, "explorer-scrolled");
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_scroll_keeps_the_nodes() {
+        let dir = folder("keep");
+        let (mut theme, cache) = theme("keep");
+        let mut icons = Icons::default();
+        let mut explorer = Explorer::new("xpx1", Place::Folder(dir.clone()), SIZE);
+        // A scroll keeps the nodes: it moves their group, and creates and
+        // removes only the tiles that come and go.
+        explorer.create(&mut theme, &mut icons);
+        assert_eq!(explorer.click("sb-down", [0, 0]), Outcome::Redraw);
+        let commands = explorer.redraw(&mut theme, &mut icons);
+        assert!(commands.iter().any(|c| matches!(
+            c,
+            Command::Update { id, .. } if id == "xpx1-view-scrolled"
+        )));
+        let created = |commands: &[Command]| {
+            commands
+                .iter()
+                .filter(|c| matches!(c, Command::Create { .. } | Command::Remove { .. }))
+                .count()
+        };
+        assert!(created(&commands) <= 4, "{commands:?}");
+        assert!(!commands.iter().any(|c| matches!(
+            c,
+            Command::Remove { id } if id == "xpx1-view"
+        )));
+        // Back where it was, the tiles show as before, from the cache.
+        explorer.click("sb-up", [0, 0]);
+        let back = explorer.redraw(&mut theme, &mut icons);
+        assert!(created(&back) <= 4, "{back:?}");
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(cache);
     }

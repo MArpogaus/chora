@@ -225,6 +225,7 @@ impl DisplayDialog {
         Page {
             body: Some(body),
             controls,
+            scroll: None,
         }
     }
 
@@ -852,6 +853,7 @@ impl EffectsDialog {
                 Control::push("ok", "OK", [w - 2 * 73 - 6 - 11, h - 32]).default(),
                 Control::push("cancel", "Cancel", [w - 73 - 11, h - 32]),
             ],
+            scroll: None,
         }
     }
 

@@ -100,6 +100,7 @@ impl ConfirmDialog {
                 Control::push("yes", "Yes", [left, h - 32]).default(),
                 Control::push("no", "No", [left + BUTTON[0] + 6, h - 32]),
             ],
+            scroll: None,
         }
     }
 
