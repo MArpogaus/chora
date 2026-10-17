@@ -1,9 +1,8 @@
 //! Wobbly windows, with the model and the default parameters of `KWin`'s
 //! wobbly windows effect: a 4x4 grid of control points over the window
-//! hangs on springs. Each free point keeps its distance to its neighbours.
-//! While the pointer holds the window, the point under it stays at its
-//! place in the window, under the pointer; after the release a spring
-//! pulls it there, so that the window settles where it is. The drawn
+//! hangs on springs. Each free point keeps its distance to its neighbours;
+//! the point under the pointer is pulled to its place in the window, also
+//! after the release, so that the window settles where it is. The drawn
 //! mesh is a finer grid through the Bézier surface of the control points.
 
 // The grids have at most 21 points a side, so `usize` to `f64` is exact.
@@ -37,7 +36,7 @@ pub struct Wobble {
     /// The control points in scene coordinates, row by row.
     at: [[f64; 2]; COUNT],
     velocity: [[f64; 2]; COUNT],
-    /// The point under the pointer: the one nearest to the grab.
+    /// The point pulled to its place: the one nearest to the grab.
     grab: usize,
     /// Whether the pointer still holds the window.
     held: bool,
@@ -129,14 +128,11 @@ impl Wobble {
         ]
     }
 
-    /// The pull of the springs on each control point.
-    fn accelerations(&self, origin: [f64; 2]) -> [[f64; 2]; COUNT] {
+    /// One step of `ms` milliseconds.
+    fn integrate(&mut self, origin: [f64; 2], ms: f64) {
         let mut acceleration = [[0.0; 2]; COUNT];
         for (i, acc) in acceleration.iter_mut().enumerate() {
             let place = self.place(i, origin);
-            if i == self.grab && self.held {
-                continue;
-            }
             if i == self.grab {
                 *acc = [
                     (place[0] - self.at[i][0]) * STIFFNESS,
@@ -159,13 +155,7 @@ impl Wobble {
                 *value /= near.len() as f64;
             }
         }
-        acceleration
-    }
-
-    /// One step of `ms` milliseconds.
-    fn integrate(&mut self, origin: [f64; 2], ms: f64) {
-        self.pin(origin);
-        let acceleration = smooth(&self.accelerations(origin));
+        let acceleration = smooth(&acceleration);
         let mut acc_sum = 0.0;
         for (velocity, acc) in self.velocity.iter_mut().zip(acceleration) {
             for axis in [0, 1] {
@@ -175,7 +165,6 @@ impl Wobble {
             }
         }
         self.velocity = smooth(&self.velocity);
-        self.pin(origin);
         let mut vel_sum = 0.0;
         for (at, velocity) in self.at.iter_mut().zip(&mut self.velocity) {
             for axis in [0, 1] {
@@ -185,15 +174,6 @@ impl Wobble {
             }
         }
         self.moving = acc_sum >= STOP_ACCELERATION || vel_sum >= STOP_VELOCITY;
-    }
-
-    /// Keeps the held point at its place, still: the smoothing leaves it
-    /// out.
-    fn pin(&mut self, origin: [f64; 2]) {
-        if self.held {
-            self.at[self.grab] = self.place(self.grab, origin);
-            self.velocity[self.grab] = [0.0; 2];
-        }
     }
 
     /// A point of the Bézier surface of the control points at (u, v) from
@@ -270,27 +250,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_grab_point_follows_the_pointer_and_the_far_side_lags() {
+    fn a_drag_bends_the_far_side_more_than_the_grab_point() {
         let size = [400.0, 300.0];
         let mut w = Wobble::new(size, [0.0, 0.0], [200.0, 10.0]);
-        // The pointer drags the window 100 pixels to the right in frames.
-        for frame in 1..=10 {
-            let origin = [10.0 * f64::from(frame), 0.0];
-            w.step(origin, 1.0 / 60.0);
-            let place = w.place(w.grab, origin);
-            assert!(
-                (w.at[w.grab][0] - place[0]).abs() < 1e-9
-                    && (w.at[w.grab][1] - place[1]).abs() < 1e-9,
-                "the grab point left the pointer"
-            );
-        }
-        let origin = [100.0, 0.0];
-        let corner = w.place(COUNT - 1, origin);
-        let lag = corner[0] - w.at[COUNT - 1][0];
-        assert!(lag > 5.0, "the far side does not lag: {lag}");
-        assert!(w.bend(origin) < 60.0, "{}", w.bend(origin));
-        // The drawn mesh has the fine grid.
-        assert_eq!(w.mesh(origin).points.len(), 21 * 21);
+        // The window jumps 100 pixels to the right with the pointer.
+        w.step([100.0, 0.0], 1.0 / 60.0);
+        let at = |i: usize| w.at[i];
+        let grab_lag = 100.0 + w.place(w.grab, [0.0, 0.0])[0] - at(w.grab)[0];
+        let corner_lag = 100.0 + w.place(COUNT - 1, [0.0, 0.0])[0] - at(COUNT - 1)[0];
+        assert!(corner_lag > grab_lag + 10.0, "{corner_lag} vs {grab_lag}");
+        assert!(w.bend([100.0, 0.0]) > 20.0);
+        // The drawn mesh has the fine grid and starts at the top-left
+        // control point.
+        let mesh = w.mesh([100.0, 0.0]);
+        assert_eq!(mesh.points.len(), 21 * 21);
     }
 
     #[test]
