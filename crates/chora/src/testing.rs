@@ -57,6 +57,7 @@ impl Core {
             stream: ours,
             input: Vec::new(),
             events: Vec::new(),
+            answers: Vec::new(),
             next: 1,
         }
     }
@@ -107,6 +108,8 @@ pub struct Client {
     input: Vec<u8>,
     /// The events that arrived and that no test took yet.
     events: Vec<Value>,
+    /// The responses that arrived and that no test took yet.
+    answers: Vec<Value>,
     next: u64,
 }
 
@@ -165,22 +168,31 @@ impl Client {
         (open || !messages.is_empty()).then_some(messages)
     }
 
-    /// Reads the messages and keeps the events. Returns the responses.
+    /// Reads the messages and keeps the events. Takes the responses.
     pub fn responses(&mut self) -> Vec<Value> {
         let messages = self.read().unwrap_or_default();
-        let (events, responses) = messages
+        self.keep(messages);
+        std::mem::take(&mut self.answers)
+    }
+
+    /// Keeps messages as events and responses for later.
+    fn keep(&mut self, messages: Vec<Value>) {
+        let (events, responses): (Vec<Value>, Vec<Value>) = messages
             .into_iter()
             .partition(|m| m.get("method").is_some());
-        let events: Vec<Value> = events;
         self.events.extend(events);
-        responses
+        self.answers.extend(responses);
     }
 
     /// The answer of the request with this id, after one turn of the core.
-    /// `None` while the answer waits.
+    /// `None` while the answer waits. Other responses stay for later.
     pub fn answer(&mut self, core: &mut Core, id: u64) -> Option<Result<Value, Value>> {
         core.dispatch();
-        let response = self.responses().into_iter().find(|r| r["id"] == id)?;
+        let mut responses = self.responses();
+        let found = responses.iter().position(|r| r["id"] == id);
+        let response = found.map(|i| responses.remove(i));
+        self.answers = responses;
+        let response = response?;
         Some(match response.get("error") {
             Some(error) => Err(error.clone()),
             None => Ok(response["result"].clone()),
@@ -247,9 +259,26 @@ impl Client {
         match self.read() {
             None => true,
             Some(messages) => {
-                self.events.extend(messages);
+                self.keep(messages);
                 false
             }
         }
+    }
+}
+
+mod tests {
+    use serde_json::json;
+
+    use super::Core;
+
+    #[test]
+    fn an_answer_stays_while_the_client_waits_for_another() {
+        let mut core = Core::new();
+        let mut client = core.named("wm");
+        let query = json!({"selector": "id:root"});
+        let first = client.send("scene.query", query.clone());
+        let second = client.send("scene.query", query);
+        assert!(client.answer(&mut core, second).is_some());
+        assert!(client.answer(&mut core, first).is_some());
     }
 }
