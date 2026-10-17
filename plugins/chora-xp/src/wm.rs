@@ -421,6 +421,13 @@ impl Wm {
         let mut commands = Vec::new();
         for node in self.conn.query(&format!("owner:{NAME} kind:image"))? {
             let props = &node.props;
+            // A file with insets stays at scale 1 (see Theme::render_flat).
+            if props
+                .slice
+                .is_some_and(|s| s.iter().any(|&inset| inset > 0.0))
+            {
+                continue;
+            }
             let Some((image, size)) = props.image.as_deref().and_then(|p| self.theme.rerender(p))
             else {
                 continue;
