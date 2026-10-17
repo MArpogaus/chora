@@ -91,7 +91,7 @@ pub struct Config {
 }
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 15] = [
+const EVENTS: [&str; 17] = [
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -106,6 +106,8 @@ const EVENTS: [&str; 15] = [
     "output.changed",
     "output.removed",
     "input.key",
+    "input.button",
+    "input.moved",
     "effects.dropped",
 ];
 
@@ -120,11 +122,14 @@ enum Key {
     Carry(i32),
     /// XP's Alt+Tab, forward or back.
     Switch(i32),
+    /// Super and the left button turn the cube with the pointer.
+    Cube,
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them.
-const KEYS: [(&str, &str, Key); 8] = [
+const KEYS: [(&str, &str, Key); 9] = [
+    ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
     ("Alt+Tab", "", Key::Switch(1)),
     ("Alt+Shift+Tab", "Alt+Shift+ISO_Left_Tab", Key::Switch(-1)),
@@ -242,6 +247,9 @@ pub struct Wm {
     pub restart: bool,
     /// XP's Alt+Tab while Alt is down.
     switcher: Option<Switcher>,
+    /// Where the pointer took the cube, while Super and the left button
+    /// are down.
+    cube_grab: Option<f64>,
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
@@ -298,6 +306,7 @@ impl Wm {
             done: false,
             restart: false,
             switcher: None,
+            cube_grab: None,
             kept: HashMap::new(),
         };
         wm.clock = wm.now();
@@ -495,15 +504,9 @@ impl Wm {
                 [self.rescale()?, self.output_changed(&output)].concat()
             }
             Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
-            // A binding acts on its press, not on its release.
-            Event::InputKey {
-                binding,
-                state: PressState::Pressed,
-            } => self.key(&binding),
-            Event::InputKey {
-                binding,
-                state: PressState::Released,
-            } => self.key_released(&binding),
+            event @ (Event::InputKey { .. }
+            | Event::InputButton { .. }
+            | Event::InputMoved { .. }) => self.input(event),
             Event::PointerEntered { node, .. } => self.hovered(&node, true),
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
@@ -1062,6 +1065,32 @@ impl Wm {
 
     // Input
 
+    /// The events of the grabs of keys and buttons.
+    fn input(&mut self, event: Event) -> Vec<Command> {
+        match event {
+            // A binding acts on its press, not on its release.
+            Event::InputKey {
+                binding,
+                state: PressState::Pressed,
+            } => self.key(&binding),
+            Event::InputKey {
+                binding,
+                state: PressState::Released,
+            } => self.key_released(&binding),
+            Event::InputButton {
+                state, position, ..
+            } => match state {
+                PressState::Pressed => self.grab_cube(position),
+                PressState::Released => {
+                    self.release_cube();
+                    Vec::new()
+                }
+            },
+            Event::InputMoved { position, .. } => self.drag_cube(position),
+            _ => Vec::new(),
+        }
+    }
+
     fn key(&mut self, binding: &str) -> Vec<Command> {
         if self.escape.as_deref() == Some(binding) {
             return match self.menu.escape(&mut self.theme) {
@@ -1086,7 +1115,7 @@ impl Wm {
             Some(Key::Turn(steps)) => self.turn(steps),
             Some(Key::Carry(steps)) => self.carry(steps),
             Some(Key::Switch(step)) => self.switch(step),
-            None => Vec::new(),
+            Some(Key::Cube) | None => Vec::new(),
         }
     }
 

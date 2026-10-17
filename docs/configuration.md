@@ -538,6 +538,7 @@ of another client changes nothing.
 | Super+e | start the terminal |
 | Ctrl+Alt+Left, Ctrl+Alt+Right | turn the cube to the previous or next desktop |
 | Ctrl+Alt+Shift+Left, Ctrl+Alt+Shift+Right | turn the cube and take the focused window along |
+| Super and a drag with the left button | turn the cube with the pointer: a drag over the width of the output is a quarter turn; at the release the cube turns on to the nearest desktop |
 | a desktop button 1 to 4 | turn the cube to that desktop |
 
 The safety layer keeps only Ctrl+Alt with BackSpace, Escape and F1 to F12,

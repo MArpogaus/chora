@@ -74,11 +74,49 @@ impl Wm {
         if !self.effects_on() || !self.effects.toggles.cube {
             return self.show_desktop(cube::offset(self.desktop, steps));
         }
-        let mut commands = self.settle_for_turn();
         let duration = self
             .slow(TURN_TIME)
             .mul_f64(f64::from(steps.unsigned_abs()));
-        self.effects.turn = Some(Turn::new(self.desktop, steps, View::of(area), duration));
+        self.begin_turn(Turn::new(self.desktop, steps, View::of(area), duration))
+    }
+
+    /// Super and the left button down: the pointer turns the cube, from
+    /// a point of the scene.
+    pub(super) fn grab_cube(&mut self, [x, _]: [f64; 2]) -> Vec<Command> {
+        let Some(area) = self.bars.first().map(Bar::area) else {
+            return Vec::new();
+        };
+        if self.effects.turn.is_some() || !self.effects_on() || !self.effects.toggles.cube {
+            return Vec::new();
+        }
+        self.cube_grab = Some(x);
+        self.begin_turn(Turn::held(self.desktop, View::of(area)))
+    }
+
+    /// The pointer moved with Super and the left button down.
+    pub(super) fn drag_cube(&mut self, [x, _]: [f64; 2]) -> Vec<Command> {
+        let (Some(start), Some(turn)) = (self.cube_grab, self.effects.turn.as_mut()) else {
+            return Vec::new();
+        };
+        turn.hold(x - start);
+        self.cube_frame(Instant::now())
+    }
+
+    /// The left button went up: the cube turns on to the nearest face.
+    pub(super) fn release_cube(&mut self) {
+        self.cube_grab = None;
+        let quarter = self.slow(TURN_TIME);
+        if let Some(turn) = &mut self.effects.turn {
+            turn.release(quarter);
+        }
+    }
+
+    /// Shows the faces of the cube for a turn: the faces with the
+    /// wallpaper go below the windows of each desktop.
+    fn begin_turn(&mut self, turn: Turn) -> Vec<Command> {
+        let area = self.bars.first().map_or([0, 0, 1280, 800], Bar::area);
+        let mut commands = self.settle_for_turn();
+        self.effects.turn = Some(turn);
         let [x, y, w, h] = area;
         let size = [f64::from(w), f64::from(h)];
         // XP has one desktop: every face shows the wallpaper with the
@@ -170,7 +208,7 @@ impl Wm {
             });
             commands.extend(self.fly(face, t));
         }
-        if t >= 1.0 {
+        if turn.done(t) {
             commands.extend(self.finish_turn());
         }
         commands
@@ -192,7 +230,7 @@ impl Wm {
             .iter()
             .enumerate()
             .map(|(i, w)| {
-                let lift = Turn::lift(t, i, count);
+                let lift = Turn::lift(turn.phase(t), i, count);
                 let transform = cube::transform(&view, face.angle, push, lift).then(&w.transform());
                 Command::Update {
                     id: decoration::group_id(&w.surface),
