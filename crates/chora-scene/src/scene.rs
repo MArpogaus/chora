@@ -945,10 +945,7 @@ impl Scene {
         } else {
             self.owned_surface(owner, id)?;
         }
-        if self.focused.as_deref() != Some(id) {
-            self.focus_returns = OrdMap::new();
-        }
-        self.focused = Some(id.into());
+        self.set_focused(Some(id));
         self.focused_node = None;
         Ok(())
     }
