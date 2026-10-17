@@ -516,7 +516,7 @@ impl Tiling {
     /// Passes a surface that the core reserved for tiling on to other
     /// window managers while tiling has no output: it takes it and lets
     /// it go at once, without `to`.
-    fn pass_on(&mut self, surface: &str) -> Result<(), ClientError> {
+    fn pass_on_reserved(&mut self, surface: &str) -> Result<(), ClientError> {
         let reserved = self
             .query(&format!("id:{surface}"))?
             .iter()
@@ -524,24 +524,14 @@ impl Tiling {
         if !reserved {
             return Ok(());
         }
-        let commands = vec![
-            Command::Attach {
-                surface: surface.into(),
-                parent: NAME.into(),
-            },
-            Command::Remove {
-                id: surface.into(),
-                to: None,
-            },
-        ];
-        self.apply(commands)
+        self.apply(pass_on(surface))
     }
 
     /// Takes a surface without an owner. A surface that another client took
     /// first, or whose app id `--ignore` names, stays out of the layout.
     fn adopt(&mut self, surface: &str) -> Result<(), ClientError> {
         if self.without_outputs() {
-            return self.pass_on(surface);
+            return self.pass_on_reserved(surface);
         }
         let ignored = self.query(&format!("id:{surface}"))?.iter().any(|node| {
             node["surface"]["app_id"]
@@ -763,6 +753,21 @@ fn spawn(command: &str) {
     }
 }
 
+/// Takes a surface and lets it go at once, without `to`: the core then
+/// announces it as detached, free for any window manager.
+fn pass_on(surface: &str) -> Vec<Command> {
+    vec![
+        Command::Attach {
+            surface: surface.into(),
+            parent: NAME.into(),
+        },
+        Command::Remove {
+            id: surface.into(),
+            to: None,
+        },
+    ]
+}
+
 /// The keyboard focus as tiling shows it to the core.
 #[derive(Debug, Default)]
 struct ShownFocus {
@@ -811,6 +816,17 @@ impl ShownFocus {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_window_passed_on_is_free_for_any_window_manager() {
+        assert!(matches!(
+            &pass_on("s1")[..],
+            [
+                Command::Attach { surface, parent },
+                Command::Remove { id, to: None },
+            ] if surface == "s1" && parent == NAME && id == "s1"
+        ));
+    }
 
     #[test]
     fn a_relayout_takes_no_focus_from_another_window_manager() {
