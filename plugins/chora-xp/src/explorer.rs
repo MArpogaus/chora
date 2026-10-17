@@ -113,7 +113,7 @@ pub enum Outcome {
 /// Two clicks on an item within this time open it.
 const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 /// An arrow of the scroll bar scrolls this far.
-const SCROLL_STEP: i32 = 40;
+pub const SCROLL_STEP: i32 = 40;
 
 /// Where a link of the task pane goes.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -374,7 +374,7 @@ impl Explorer {
     }
 
     /// Scrolls the view, as far as it goes.
-    fn scroll_by(&mut self, step: i32) -> Outcome {
+    pub fn scroll_by(&mut self, step: i32) -> Outcome {
         let geometry = self.geometry();
         let max = view::max_scroll(geometry.layout.height, geometry.view[3]);
         let offset = (self.offset + step).clamp(0, max);

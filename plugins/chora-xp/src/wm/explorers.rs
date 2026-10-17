@@ -160,6 +160,24 @@ impl Wm {
         commands
     }
 
+    /// The wheel or the touchpad scrolled over an Explorer window: a
+    /// notch scrolls its view by three lines, as on XP, a touchpad by its
+    /// pixels.
+    pub(super) fn scroll_explorer(&mut self, node: &str, dy: f64, notches: f64) -> Vec<Command> {
+        let Some(i) = self.explorer_of(node) else {
+            return Vec::new();
+        };
+        let pixels = if notches == 0.0 {
+            dy
+        } else {
+            notches * f64::from(3 * explorer::SCROLL_STEP)
+        };
+        #[allow(clippy::cast_possible_truncation)] // a few hundred pixels
+        let outcome = self.explorers[i].scroll_by(pixels.round() as i32);
+        let id = self.explorers[i].id.clone();
+        self.explorer_outcome(&id, outcome)
+    }
+
     /// The pointer moved while the thumb of a scroll bar is down; `None`
     /// when no thumb is down.
     pub(super) fn drag_explorer(&mut self, position: [f64; 2]) -> Option<Vec<Command>> {

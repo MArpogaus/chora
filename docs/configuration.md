@@ -349,8 +349,8 @@ view selects nothing. A double click opens a folder in the same window,
 with Back, Forward and Up, and a file with `xdg-open`. A view longer
 than the window gets XP's blue scroll bar: its arrows scroll by 40
 pixels, a click on the track by a page, and the thumb follows a drag.
-The mouse wheel does not scroll, because the core sends no wheel events
-to plugins.
+A notch of the mouse wheel scrolls by three times 40 pixels, as XP
+scrolls three lines, and a touchpad by its own pixels.
 
 My Computer shows XP's groups under their headings with the blue line:
 Files Stored on This Computer with Shared Documents (`XDG_PUBLICSHARE_DIR`,

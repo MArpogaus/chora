@@ -86,7 +86,7 @@ pub struct Config {
 }
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 14] = [
+const EVENTS: [&str; 15] = [
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -97,6 +97,7 @@ const EVENTS: [&str; 14] = [
     "pointer.released",
     "pointer.entered",
     "pointer.left",
+    "pointer.scroll",
     "output.changed",
     "output.removed",
     "input.key",
@@ -391,6 +392,17 @@ impl Wm {
         self.conn.try_apply(commands)
     }
 
+    /// The commands of a change of the outputs, after the pictures of a
+    /// new scale.
+    fn rescaled(
+        &mut self,
+        change: impl FnOnce(&mut Self) -> Vec<Command>,
+    ) -> Result<Vec<Command>, ClientError> {
+        let mut commands = self.rescale()?;
+        commands.extend(change(self));
+        Ok(commands)
+    }
+
     /// Renders the pictures that show again when the largest scale of the
     /// outputs changed, so that they stay sharp.
     fn rescale(&mut self) -> Result<Vec<Command>, ClientError> {
@@ -464,18 +476,13 @@ impl Wm {
             } => self.pressed(&node, button, position),
             Event::PointerMoved { position, .. } => self.dragged(position),
             Event::PointerReleased { node, position, .. } => self.released(&node, position),
+            Event::PointerScroll {
+                node, dy, discrete, ..
+            } => self.scroll_explorer(&node, dy, discrete[1]),
             // The pictures of the new scale first, so that the new
             // pictures of the change win.
-            Event::OutputChanged { output } => {
-                let mut commands = self.rescale()?;
-                commands.extend(self.output_changed(&output));
-                commands
-            }
-            Event::OutputRemoved { name } => {
-                let mut commands = self.rescale()?;
-                commands.extend(self.output_removed(&name));
-                commands
-            }
+            Event::OutputChanged { output } => self.rescaled(|wm| wm.output_changed(&output))?,
+            Event::OutputRemoved { name } => self.rescaled(|wm| wm.output_removed(&name))?,
             // A binding acts on its press, not on its release.
             Event::InputKey {
                 binding,
