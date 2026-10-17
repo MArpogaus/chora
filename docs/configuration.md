@@ -405,7 +405,8 @@ the date it went, from its file in `Trash/info`. Recycle Bin Tasks has
 Empty the Recycle Bin, gray while the bin is empty. It asks first, in XP's
 Confirm File Delete or Confirm Multiple File Delete, and Yes deletes the
 files and folders of the trash and their info files for good. Restore
-all items is gray.
+all items is gray. Each question of `chora-xp` takes the keyboard while
+it shows, and Escape answers No.
 
 My Documents, My Pictures and My Music of the start menu
 (`XDG_DOCUMENTS_DIR`, `XDG_PICTURES_DIR` and `XDG_MUSIC_DIR`, else the

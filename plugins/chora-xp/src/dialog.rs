@@ -914,6 +914,11 @@ impl Dialog {
             .is_some_and(|rest| rest.is_empty() || rest.starts_with('-'))
     }
 
+    /// The root node of the dialog, which can take the keyboard.
+    pub fn node(&self) -> &str {
+        &self.prefix
+    }
+
     /// Whether any dialog owns a node.
     pub fn any_owns(node: &str) -> bool {
         node.starts_with("xp-dlg-")

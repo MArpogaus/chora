@@ -272,6 +272,9 @@ pub struct Wm {
     switcher: Option<Switcher>,
     /// Alt+Escape, while the switcher holds it.
     switch_escape: Option<String>,
+    /// The question of Confirm File Delete or Replace that has the
+    /// keyboard.
+    asking: Option<Then>,
     /// Alt+Space, while a window of `chora-xp` has the focus.
     system_key: Option<String>,
     /// The Explorer window whose menu bar opened the open context menu.
@@ -335,6 +338,7 @@ impl Wm {
             restart: false,
             switcher: None,
             switch_escape: None,
+            asking: None,
             system_key: None,
             bar_menu: None,
             cube_grab: None,
@@ -605,6 +609,7 @@ impl Wm {
         };
         let mut commands = commands;
         commands.extend(self.relayout_explorers());
+        commands.extend(self.sync_question_keys());
         self.apply(commands)
     }
 
@@ -1453,6 +1458,28 @@ impl Wm {
         }
     }
 
+    /// A question of Confirm File Delete or Replace takes the keyboard
+    /// while it shows, so that Escape answers No, as on XP; after it, the
+    /// keyboard goes back.
+    fn sync_question_keys(&mut self) -> Option<Command> {
+        let asks = self.question().and_then(|i| match &self.panels[i] {
+            Panel::Confirm(confirm) => Some(confirm.then.clone()),
+            _ => None,
+        });
+        if asks == self.asking {
+            return None;
+        }
+        self.asking = asks;
+        Some(self.desktop_keys())
+    }
+
+    /// The open question, if any.
+    fn question(&self) -> Option<usize> {
+        self.panels
+            .iter()
+            .position(|p| matches!(p, Panel::Confirm(_)))
+    }
+
     /// Closes the switcher and gives Alt+Escape back.
     fn end_switch(&mut self) -> Option<Switcher> {
         if let Some(binding) = self.switch_escape.take() {
@@ -1618,6 +1645,9 @@ impl Wm {
     /// A key while a node of the plugin has the keyboard: a context menu
     /// or the start menu.
     fn node_key(&mut self, key: &str) -> Vec<Command> {
+        if let (Some(i), "Escape") = (self.question(), key) {
+            return self.answer(i, &Hit::Close).unwrap_or_default();
+        }
         if let Some(commands) = self.bar_key(key) {
             return commands;
         }
@@ -1662,11 +1692,15 @@ impl Wm {
         commands
     }
 
-    /// The desktop takes the keyboard while no window has the focus, for
-    /// Shift+F10 and the Menu key.
-    /// The keyboard of the plugin's nodes: the desktop's while no window
-    /// has the focus, else none, so that the focused window gets it.
+    /// The keyboard of the plugin's nodes: an open question's; else the
+    /// desktop's while no window has the focus, for Shift+F10 and the
+    /// Menu key; else none, so that the focused window gets it.
     fn desktop_keys(&self) -> Command {
+        if let Some(Panel::Confirm(confirm)) = self.question().map(|i| &self.panels[i]) {
+            return Command::FocusNode {
+                node: Some(confirm.dialog.node().into()),
+            };
+        }
         Command::FocusNode {
             node: self.focused.is_none().then(|| desktop_icons::GROUP.into()),
         }
