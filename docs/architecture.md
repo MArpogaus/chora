@@ -185,7 +185,7 @@ handoff is necessary. Events are JSON-RPC notifications on the same
 connection.
 
 When a client closes its side of the connection, the core still answers the
-requests that arrived, also those of waiting transactions, method calls,
+requests that arrived, also those of waiting transactions, `methods.call`,
 `process.wait` and `plugins.restart`. Then it closes the connection.
 
 Limits keep a buggy client from exhausting the core:
@@ -273,11 +273,17 @@ and `text-input` with `input-method`. Activation requests of
 `xdg-activation` and of taskbars go to plugins as `surface.requested`. A
 layer surface that takes the keyboard exclusively, for example a launcher,
 has it from its first commit until it goes away, and it ends a popup grab.
-A click gives the keyboard to a layer surface that accepts it on demand,
-until the next click elsewhere, until its role goes, until it no longer
-takes the keyboard, or until its output goes. A popup grabs the input only with the serial
-of the last press or of the last key or button event, press or release,
-that its client got: a menu opens on F10 when the key goes up.
+
+A click gives the keyboard to a layer surface that accepts it on demand.
+The layer surface keeps it until one of these occurs:
+
+- A click goes elsewhere, or a plugin sets the focus.
+- Its role goes, or it no longer accepts the keyboard.
+- Its output goes.
+
+A popup grabs the input only with the serial of the last press or of the
+last key or button event, press or release, that its client got: a menu
+opens on F10 when the key goes up.
 
 ## Safety layer
 
