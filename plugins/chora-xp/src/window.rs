@@ -41,6 +41,9 @@ pub struct Window {
     pub pressed: Option<Button>,
     /// The button of the title bar under the pointer.
     pub hovered: Option<Button>,
+    /// The plugin draws the client, too, as for an Explorer window: no
+    /// client gets a configure or the focus.
+    pub own: bool,
 }
 
 impl Window {
@@ -61,6 +64,7 @@ impl Window {
             shown: false,
             pressed: None,
             hovered: None,
+            own: false,
         }
     }
 
@@ -100,8 +104,12 @@ impl Window {
     }
 
     /// The configure command: the focus and the maximized state, and the
-    /// size of a maximized window. Other windows choose their size.
-    pub fn configure(&self, active: bool) -> Command {
+    /// size of a maximized window. Other windows choose their size. None
+    /// for a window of the plugin.
+    pub fn configure(&self, active: bool) -> Option<Command> {
+        if self.own {
+            return None;
+        }
         let mut states = Vec::new();
         if active {
             states.push(ToplevelState::Activated);
@@ -112,11 +120,11 @@ impl Window {
         } else {
             None
         };
-        Command::Configure {
+        Some(Command::Configure {
             surface: self.surface.clone(),
             size,
             states,
-        }
+        })
     }
 
     /// The decoration in its look and the group at its place. Nothing for
@@ -209,6 +217,9 @@ impl Window {
         self.pos = [x, y];
         let size = (w > 0 && h > 0).then_some([w, h]);
         self.size = size;
+        if self.own {
+            return None;
+        }
         let states = if active {
             vec![ToplevelState::Activated]
         } else {
@@ -223,7 +234,7 @@ impl Window {
 
     /// Puts the frame into a rectangle, unmaximized: the configure with
     /// the new client size.
-    pub fn fit(&mut self, [x, y, w, h]: Rect, active: bool) -> Command {
+    pub fn fit(&mut self, [x, y, w, h]: Rect, active: bool) -> Option<Command> {
         self.restore = None;
         self.pos = [x, y];
         let size = if self.framed {
@@ -232,16 +243,19 @@ impl Window {
             [w, h]
         };
         self.size = Some(size);
+        if self.own {
+            return None;
+        }
         let states = if active {
             vec![ToplevelState::Activated]
         } else {
             Vec::new()
         };
-        Command::Configure {
+        Some(Command::Configure {
             surface: self.surface.clone(),
             size: Some(size),
             states,
-        }
+        })
     }
 
     /// Whether a point in scene coordinates is on a button.

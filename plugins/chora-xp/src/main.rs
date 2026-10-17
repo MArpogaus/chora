@@ -15,6 +15,8 @@ mod datetime;
 mod decoration;
 mod desktop_icons;
 mod dialog;
+mod explorer;
+mod folder;
 mod icons;
 mod lamp;
 mod notify;

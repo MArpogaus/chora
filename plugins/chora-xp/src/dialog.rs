@@ -51,6 +51,8 @@ pub enum Kind {
     Tab(bool),
     /// A picture of the owner that takes clicks, such as a calendar.
     Area(Picture),
+    /// A picture of the owner, and another one under the pointer.
+    Hover(Picture, Picture),
 }
 
 /// A control of a page.
@@ -107,6 +109,11 @@ impl Control {
     /// A picture that takes clicks.
     pub fn area(name: &str, rect: Rect, picture: Picture) -> Self {
         Self::new(name, Kind::Area(picture), "", rect)
+    }
+
+    /// A picture that takes clicks and changes under the pointer.
+    pub fn hover(name: &str, rect: Rect, normal: Picture, hot: Picture) -> Self {
+        Self::new(name, Kind::Hover(normal, hot), "", rect)
     }
 
     /// The default button.
@@ -177,6 +184,13 @@ impl Control {
                 )
             }
             Kind::Area(picture) => picture.clone(),
+            Kind::Hover(normal, hot_picture) => {
+                if hot {
+                    hot_picture.clone()
+                } else {
+                    normal.clone()
+                }
+            }
         }
     }
 }
@@ -505,11 +519,204 @@ pub enum Hit {
     Control(String, [i32; 2]),
 }
 
-/// What is down.
+/// The nodes of a page in a group of their own: the body and one image
+/// node per control. A dialog shows its page in one, and so does an
+/// Explorer window.
+pub struct Content {
+    /// The id of the group, and the first part of the ids of its nodes.
+    prefix: String,
+    /// The parent of the group.
+    parent: String,
+    /// The place of the group in its parent.
+    offset: [i32; 2],
+    page: Page,
+    /// The control under the pointer, by name.
+    hovered: Option<String>,
+    /// The control that is down, by name.
+    down: Option<String>,
+}
+
+impl Content {
+    /// The content of a group `prefix` in a parent, at a place in it.
+    pub fn new(prefix: &str, parent: &str, offset: [i32; 2]) -> Self {
+        Self {
+            prefix: prefix.into(),
+            parent: parent.into(),
+            offset,
+            page: Page::default(),
+            hovered: None,
+            down: None,
+        }
+    }
+
+    /// Whether a node is the group or one of its nodes.
+    pub fn owns(&self, node: &str) -> bool {
+        node.strip_prefix(&self.prefix)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('-'))
+    }
+
+    fn id(&self, part: &str) -> String {
+        format!("{}-{part}", self.prefix)
+    }
+
+    /// The page that shows.
+    #[cfg(test)]
+    pub fn page(&self) -> &Page {
+        &self.page
+    }
+
+    /// Creates the group with the nodes of a page.
+    pub fn create(&mut self, theme: &mut Theme, page: Page) -> Vec<Command> {
+        self.page = page;
+        let mut commands = vec![Command::Create {
+            id: self.prefix.clone(),
+            kind: NodeKind::Group,
+            parent: self.parent.clone(),
+            props: at(self.offset),
+        }];
+        if let Some(body) = &self.page.body {
+            commands.push(Command::Create {
+                id: self.id("body"),
+                kind: NodeKind::Image,
+                parent: self.prefix.clone(),
+                props: PropsUpdate {
+                    image: Some(theme.render(body)),
+                    // A click on the face stays in the window.
+                    input: Some(InputMode::Accept),
+                    ..PropsUpdate::default()
+                },
+            });
+        }
+        for (i, control) in self.page.controls.iter().enumerate() {
+            commands.push(Command::Create {
+                id: self.id(&format!("c{i}")),
+                kind: NodeKind::Image,
+                parent: self.prefix.clone(),
+                props: PropsUpdate {
+                    input: Some(InputMode::Accept),
+                    ..at([control.rect[0], control.rect[1]])
+                },
+            });
+        }
+        for i in 0..self.page.controls.len() {
+            commands.push(self.control_look(theme, i));
+        }
+        commands
+    }
+
+    /// Shows a page: only the parts that changed when the controls stay
+    /// the same, else the whole group again.
+    pub fn show(&mut self, theme: &mut Theme, page: Page) -> Vec<Command> {
+        let same = page.controls.len() == self.page.controls.len()
+            && page
+                .controls
+                .iter()
+                .zip(&self.page.controls)
+                .all(|(a, b)| a.name == b.name && a.rect == b.rect)
+            && page.body.is_some() == self.page.body.is_some();
+        if !same {
+            let mut commands = vec![Command::Remove {
+                id: self.prefix.clone(),
+            }];
+            commands.extend(self.create(theme, page));
+            return commands;
+        }
+        let old = std::mem::replace(&mut self.page, page);
+        let mut commands = Vec::new();
+        if old.body != self.page.body
+            && let Some(body) = &self.page.body
+        {
+            commands.push(update(self.id("body"), theme.render(body)));
+        }
+        for i in 0..self.page.controls.len() {
+            if old.controls[i] != self.page.controls[i] {
+                commands.push(self.control_look(theme, i));
+            }
+        }
+        commands
+    }
+
+    fn index(&self, node: &str) -> Option<usize> {
+        let i: usize = node
+            .strip_prefix(&self.prefix)?
+            .strip_prefix("-c")?
+            .parse()
+            .ok()?;
+        (i < self.page.controls.len()).then_some(i)
+    }
+
+    fn control_look(&self, theme: &mut Theme, i: usize) -> Command {
+        let control = &self.page.controls[i];
+        let hovered = self.hovered.as_deref() == Some(control.name.as_str());
+        let down = self.down.as_deref() == Some(control.name.as_str());
+        let picture = control.picture(hovered, down);
+        update(self.id(&format!("c{i}")), theme.render(&picture))
+    }
+
+    /// The name of the enabled control that a node shows.
+    pub fn name_of(&self, node: &str) -> Option<String> {
+        let control = &self.page.controls[self.index(node)?];
+        control.enabled.then(|| control.name.clone())
+    }
+
+    fn relook(&self, theme: &mut Theme, name: &str) -> Vec<Command> {
+        self.page
+            .controls
+            .iter()
+            .position(|c| c.name == name)
+            .map(|i| self.control_look(theme, i))
+            .into_iter()
+            .collect()
+    }
+
+    /// The pointer came onto a node or left it.
+    pub fn hover(&mut self, theme: &mut Theme, node: &str, on: bool) -> Vec<Command> {
+        let Some(name) = self.name_of(node) else {
+            return Vec::new();
+        };
+        if on {
+            self.hovered = Some(name.clone());
+        } else if self.hovered.as_ref() == Some(&name) {
+            self.hovered = None;
+        }
+        self.relook(theme, &name)
+    }
+
+    /// A press on a node: an enabled control goes down. `None` when the
+    /// node is no such control.
+    pub fn press(&mut self, theme: &mut Theme, node: &str) -> Option<Vec<Command>> {
+        let name = self.name_of(node)?;
+        self.down = Some(name.clone());
+        Some(self.relook(theme, &name))
+    }
+
+    /// The release of the button at a point of the group: what was
+    /// clicked, if the pointer is still on what went down.
+    pub fn release(&mut self, theme: &mut Theme, point: [i32; 2]) -> (Vec<Command>, Option<Hit>) {
+        let Some(name) = self.down.take() else {
+            return (Vec::new(), None);
+        };
+        let commands = self.relook(theme, &name);
+        let hit = self
+            .page
+            .controls
+            .iter()
+            .find(|c| c.name == name && c.contains(point))
+            .map(|c| Hit::Control(name.clone(), [point[0] - c.rect[0], point[1] - c.rect[1]]));
+        (commands, hit)
+    }
+
+    /// The control under the pointer.
+    #[cfg(test)]
+    pub fn hovered(&self) -> Option<&str> {
+        self.hovered.as_deref()
+    }
+}
+
+/// What is down in the frame of a dialog.
 #[derive(Clone, Debug, PartialEq)]
 enum Down {
     Close,
-    Control(String),
     /// The title bar: the pointer and the origin at the press.
     Title([f64; 2], [i32; 2]),
 }
@@ -523,8 +730,9 @@ pub struct Dialog {
     size: [i32; 2],
     /// The top-left corner of the frame in scene coordinates.
     origin: [i32; 2],
-    page: Page,
-    hovered: Option<String>,
+    content: Content,
+    /// The pointer is on the close button.
+    close_hot: bool,
     down: Option<Down>,
 }
 
@@ -533,13 +741,14 @@ impl Dialog {
     /// `name` is unique among the dialogs.
     pub fn new(name: &str, title: &str, size: [i32; 2], [x, y, w, h]: Rect) -> Self {
         let [ow, oh] = outer(size);
+        let prefix = format!("xp-dlg-{name}");
         Self {
-            prefix: format!("xp-dlg-{name}"),
+            content: Content::new(&format!("{prefix}-content"), &prefix, [BORDER, TITLE]),
+            prefix,
             title: title.into(),
             size,
             origin: [x + (w - ow) / 2, (y + (h - oh) / 2).max(y)],
-            page: Page::default(),
-            hovered: None,
+            close_hot: false,
             down: None,
         }
     }
@@ -616,108 +825,22 @@ impl Dialog {
                 },
             ),
             image(self.id("close"), PropsUpdate::default()),
-            Command::Create {
-                id: self.id("content"),
-                kind: NodeKind::Group,
-                parent: self.prefix.clone(),
-                props: at([BORDER, TITLE]),
-            },
         ];
         commands.push(self.close_look(theme));
-        commands.extend(self.content(theme, page));
+        commands.extend(self.content.create(theme, page));
         commands
     }
 
     /// Shows a page: only the parts that changed when the controls stay
     /// the same, else the whole content again.
     pub fn show(&mut self, theme: &mut Theme, page: Page) -> Vec<Command> {
-        let same = page.controls.len() == self.page.controls.len()
-            && page
-                .controls
-                .iter()
-                .zip(&self.page.controls)
-                .all(|(a, b)| a.name == b.name && a.rect == b.rect);
-        if !same {
-            let mut commands = vec![Command::Remove {
-                id: self.id("content"),
-            }];
-            commands.push(Command::Create {
-                id: self.id("content"),
-                kind: NodeKind::Group,
-                parent: self.prefix.clone(),
-                props: at([BORDER, TITLE]),
-            });
-            commands.extend(self.content(theme, page));
-            return commands;
-        }
-        let old = std::mem::replace(&mut self.page, page);
-        let mut commands = Vec::new();
-        if old.body != self.page.body
-            && let Some(body) = &self.page.body
-        {
-            commands.push(update(self.id("body"), theme.render(body)));
-        }
-        for i in 0..self.page.controls.len() {
-            if old.controls[i] != self.page.controls[i] {
-                commands.push(self.control_look(theme, i));
-            }
-        }
-        commands
-    }
-
-    /// The nodes of a page in the content group.
-    fn content(&mut self, theme: &mut Theme, page: Page) -> Vec<Command> {
-        self.page = page;
-        let mut commands = Vec::new();
-        if let Some(body) = &self.page.body {
-            commands.push(Command::Create {
-                id: self.id("body"),
-                kind: NodeKind::Image,
-                parent: self.id("content"),
-                props: PropsUpdate {
-                    image: Some(theme.render(body)),
-                    ..PropsUpdate::default()
-                },
-            });
-        }
-        for (i, control) in self.page.controls.iter().enumerate() {
-            commands.push(Command::Create {
-                id: self.id(&format!("c{i}")),
-                kind: NodeKind::Image,
-                parent: self.id("content"),
-                props: PropsUpdate {
-                    input: Some(InputMode::Accept),
-                    ..at([control.rect[0], control.rect[1]])
-                },
-            });
-        }
-        for i in 0..self.page.controls.len() {
-            commands.push(self.control_look(theme, i));
-        }
-        commands
-    }
-
-    fn index(&self, node: &str) -> Option<usize> {
-        let i: usize = node
-            .strip_prefix(&self.prefix)?
-            .strip_prefix("-c")?
-            .parse()
-            .ok()?;
-        (i < self.page.controls.len()).then_some(i)
-    }
-
-    fn control_look(&self, theme: &mut Theme, i: usize) -> Command {
-        let control = &self.page.controls[i];
-        let hovered = self.hovered.as_deref() == Some(control.name.as_str());
-        let down = self.down == Some(Down::Control(control.name.clone()));
-        let picture = control.picture(hovered, down);
-        update(self.id(&format!("c{i}")), theme.render(&picture))
+        self.content.show(theme, page)
     }
 
     fn close_look(&self, theme: &mut Theme) -> Command {
-        let state = match (&self.down, self.hovered.as_deref()) {
-            (Some(Down::Close), Some("close")) => "pressed",
-            (_, Some("close")) => "hover",
+        let state = match (&self.down, self.close_hot) {
+            (Some(Down::Close), true) => "pressed",
+            (_, true) => "hover",
             _ => "active",
         };
         let [x, y, w, h] = decoration::button_rect(outer(self.size)[0], Button::Close);
@@ -732,39 +855,13 @@ impl Dialog {
         }
     }
 
-    /// The name of the control or button that a node shows.
-    fn name_of(&self, node: &str) -> Option<String> {
-        if node == self.id("close") {
-            return Some("close".into());
-        }
-        let control = &self.page.controls[self.index(node)?];
-        control.enabled.then(|| control.name.clone())
-    }
-
     /// The pointer came onto a node of the dialog or left it.
     pub fn hover(&mut self, theme: &mut Theme, node: &str, on: bool) -> Vec<Command> {
-        let Some(name) = self.name_of(node) else {
-            return Vec::new();
-        };
-        if on {
-            self.hovered = Some(name.clone());
-        } else if self.hovered.as_ref() == Some(&name) {
-            self.hovered = None;
-        }
-        self.relook(theme, &name)
-    }
-
-    fn relook(&self, theme: &mut Theme, name: &str) -> Vec<Command> {
-        if name == "close" {
+        if node == self.id("close") {
+            self.close_hot = on;
             return vec![self.close_look(theme)];
         }
-        self.page
-            .controls
-            .iter()
-            .position(|c| c.name == name)
-            .map(|i| self.control_look(theme, i))
-            .into_iter()
-            .collect()
+        self.content.hover(theme, node, on)
     }
 
     /// A press on a node of the dialog, at a point of the scene: the title
@@ -774,15 +871,11 @@ impl Dialog {
             self.down = Some(Down::Title(position, self.origin));
             return Vec::new();
         }
-        let Some(name) = self.name_of(node) else {
-            return Vec::new();
-        };
-        self.down = Some(if name == "close" {
-            Down::Close
-        } else {
-            Down::Control(name.clone())
-        });
-        self.relook(theme, &name)
+        if node == self.id("close") {
+            self.down = Some(Down::Close);
+            return vec![self.close_look(theme)];
+        }
+        self.content.press(theme, node).unwrap_or_default()
     }
 
     /// Whether the title bar is down.
@@ -828,20 +921,8 @@ impl Dialog {
                 let inside = (bx..bx + bw).contains(&x) && (by..by + bh).contains(&y);
                 (vec![self.close_look(theme)], inside.then_some(Hit::Close))
             }
-            Some(Down::Control(name)) => {
-                let commands = self.relook(theme, &name);
-                let point = [x - BORDER, y - TITLE];
-                let hit = self
-                    .page
-                    .controls
-                    .iter()
-                    .find(|c| c.name == name && c.contains(point))
-                    .map(|c| {
-                        Hit::Control(name.clone(), [point[0] - c.rect[0], point[1] - c.rect[1]])
-                    });
-                (commands, hit)
-            }
-            Some(Down::Title(..)) | None => (Vec::new(), None),
+            Some(Down::Title(..)) => (Vec::new(), None),
+            None => self.content.release(theme, [x - BORDER, y - TITLE]),
         }
     }
 
@@ -919,11 +1000,12 @@ pub mod tests {
         let close = decoration::button_rect(ow, Button::Close);
         picture = picture.frame(Sheet::Close, "active", close);
         let mut layers = Vec::new();
-        if let Some(body) = &dialog.page.body {
+        let page = dialog.content.page();
+        if let Some(body) = &page.body {
             layers.push((theme.render(body), [0, 0], body.size));
         }
-        for c in &dialog.page.controls {
-            let hovered = dialog.hovered.as_deref() == Some(c.name.as_str());
+        for c in &page.controls {
+            let hovered = dialog.content.hovered() == Some(c.name.as_str());
             let p = c.picture(hovered, false);
             layers.push((theme.render(&p), [c.rect[0], c.rect[1]], p.size));
         }
@@ -967,20 +1049,20 @@ pub mod tests {
             d.release(theme, at).1
         };
         assert_eq!(
-            click(&mut dialog, &mut theme, "xp-dlg-t-c0", [160, 290]),
+            click(&mut dialog, &mut theme, "xp-dlg-t-content-c0", [160, 290]),
             Some(Hit::Control("ok".into(), [4, 3]))
         );
         // A disabled button takes no click, and a release elsewhere
         // clicks nothing.
         assert_eq!(
-            click(&mut dialog, &mut theme, "xp-dlg-t-c1", [320, 290]),
+            click(&mut dialog, &mut theme, "xp-dlg-t-content-c1", [320, 290]),
             None
         );
         assert_eq!(
-            click(&mut dialog, &mut theme, "xp-dlg-t-c0", [10, 10]),
+            click(&mut dialog, &mut theme, "xp-dlg-t-content-c0", [10, 10]),
             None
         );
-        assert!(dialog.owns("xp-dlg-t-c0") && !dialog.owns("xp-dlg-tt-c0"));
+        assert!(dialog.owns("xp-dlg-t-content-c0") && !dialog.owns("xp-dlg-tt-c0"));
         let _ = std::fs::remove_dir_all(cache);
     }
 
@@ -1037,7 +1119,7 @@ pub mod tests {
                 controls,
             },
         );
-        dialog.hovered = Some("hot".into());
+        dialog.content.hovered = Some("hot".into());
         preview(&mut theme, &dialog, "kit");
         let _ = std::fs::remove_dir_all(cache);
     }

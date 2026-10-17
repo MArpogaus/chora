@@ -229,9 +229,9 @@ nothing.
 
 A click selects an icon: its label turns white on dark blue, with a dotted
 focus rectangle while no window has the focus. A click on the empty
-desktop takes the selection away. A double click opens the icon: a folder,
-My Documents and My Computer (`/`) with `xdg-open`, until XP's Explorer
-comes; the Recycle Bin with `gio open trash:///`, else its folder; a
+desktop takes the selection away. A double click opens the icon: a folder
+and My Documents in XP's Explorer (see below); My Computer (`/`) with
+`xdg-open`; the Recycle Bin with `gio open trash:///`, else its folder; a
 desktop file runs its program; any other file opens with `xdg-open`. A drag
 moves an icon to the nearest free cell of the grid, until `chora-xp` ends.
 XP has one desktop, so the icons stay in place while the cube turns: each
@@ -253,6 +253,36 @@ says and closes the menu; a click outside closes it.
   into their columns, in that order; Refresh shows them again; Properties
   opens the start menu with Control Panel > Desktop. Paste and Paste
   Shortcut are gray.
+
+`chora-xp` draws XP's Windows Explorer itself, as the client of a
+window of its own: the window has XP's frame and a task button with the
+icon and the name of the place, and it raises on a click, minimizes
+through the magic lamp, maximizes and wobbles like the windows of
+clients. It opens at 785 by 559 pixels, the size of XP's My Computer, or
+smaller on a small output, and keeps its size: only maximize and the
+Tile rows of the taskbar menu change it, as `chora-xp` resizes no window
+from its edges. From the top:
+
+- the menu bar with File, Edit, View, Favorites, Tools and Help, and
+  XP's flag when it is installed. A click opens a menu: File > Close
+  closes the window; View has Tiles, Go To (Back, Forward, Up One Level,
+  My Documents, My Computer, Recycle Bin) and Refresh. The other rows
+  are gray;
+- the Standard Buttons: Back, Forward and Up, as the history of the
+  window allows, and Views with Tiles. Search and Folders are gray;
+- the address bar with the path and the icon of the place, its list of
+  places, and Go, which shows the place again;
+- the blue task pane with XP's boxes: the tasks of the place, Other
+  Places and Details. A click on the title of a box closes or opens it.
+  The links of Other Places go to the parent folder, My Documents and My
+  Computer in the same window; Control Panel and Change a setting open
+  the Control Panel of the start menu. The tasks that change files,
+  Shared Documents and My Network Places are gray.
+
+The window changes no file: it neither copies, moves, renames nor
+deletes, and it takes no drag and drop. The keyboard does not work it
+(D45). Its icons come from the icon theme, XP's own when `WindowsXP` of
+`get-microsoft-files.sh` is installed.
 
 The Control Panel opens as a menu, as with XP's "Display as a menu". A
 check mark shows the current choice of each entry, and a click on an

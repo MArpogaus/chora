@@ -13,7 +13,9 @@ use std::{
 };
 
 use resvg::{
-    tiny_skia::{FilterQuality, IntSize, Pixmap, PixmapMut, PixmapPaint, Transform},
+    tiny_skia::{
+        FilterQuality, IntSize, Pixmap, PixmapMut, PixmapPaint, PremultipliedColorU8, Transform,
+    },
     usvg,
 };
 use zune_jpeg::{
@@ -106,6 +108,14 @@ pub enum Layer {
         /// aspect ratio.
         cover: bool,
     },
+    /// A file as [`Layer::File`], in light gray, as XP shows the icon of
+    /// a disabled button.
+    Gray {
+        /// The file.
+        path: PathBuf,
+        /// The rectangle.
+        rect: Rect,
+    },
     /// A line of text.
     Text(Text),
     /// SVG elements in the coordinates of the picture, such as the
@@ -161,6 +171,15 @@ impl Picture {
         self
     }
 
+    /// Adds an SVG or PNG file in light gray.
+    pub fn gray(mut self, path: &Path, rect: Rect) -> Self {
+        self.layers.push(Layer::Gray {
+            path: path.into(),
+            rect,
+        });
+        self
+    }
+
     /// Adds an SVG or PNG file that covers the whole picture.
     pub fn cover(mut self, path: &Path) -> Self {
         self.layers.push(Layer::File {
@@ -200,6 +219,10 @@ impl Picture {
                     path,
                     rect: shift(rect),
                     cover,
+                },
+                Layer::Gray { path, rect } => Layer::Gray {
+                    path,
+                    rect: shift(rect),
                 },
                 Layer::Text(mut text) => {
                     text.rect = shift(text.rect);
@@ -416,6 +439,7 @@ impl Theme {
                 Ok(())
             }
             Layer::File { path, rect, cover } => self.draw_file(path, *rect, *cover, pixmap),
+            Layer::Gray { path, rect } => self.draw_gray(path, *rect, pixmap),
             Layer::Text(text) => self.fonts.draw(text, pixmap),
             Layer::Svg(body) => {
                 let svg = format!(
@@ -488,6 +512,26 @@ impl Theme {
     }
 
     /// Draws an SVG, PNG or JPEG file scaled to a rectangle.
+    /// A file in light gray: drawn alone, then each pixel turns to its
+    /// luma, halfway to white.
+    fn draw_gray(&self, path: &Path, rect: Rect, pixmap: &mut PixmapMut<'_>) -> Result<(), String> {
+        let mut temp = Pixmap::new(pixmap.width(), pixmap.height()).ok_or("no pixels")?;
+        self.draw_file(path, rect, false, &mut temp.as_mut())?;
+        for pixel in temp.pixels_mut() {
+            let [red, green, blue] = [pixel.red(), pixel.green(), pixel.blue()].map(u32::from);
+            let alpha = pixel.alpha();
+            // Premultiplied, white is the alpha.
+            let luma = (red * 30 + green * 59 + blue * 11) / 100;
+            let light = u8::try_from(u32::midpoint(luma, u32::from(alpha))).unwrap_or(u8::MAX);
+            if let Some(gray) = PremultipliedColorU8::from_rgba(light, light, light, alpha) {
+                *pixel = gray;
+            }
+        }
+        let paint = PixmapPaint::default();
+        pixmap.draw_pixmap(0, 0, temp.as_ref(), &paint, Transform::identity(), None);
+        Ok(())
+    }
+
     fn draw_file(
         &self,
         path: &Path,

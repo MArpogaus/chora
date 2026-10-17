@@ -5,6 +5,7 @@
 
 mod desktops;
 mod effects;
+mod explorers;
 
 use std::{
     path::PathBuf,
@@ -30,6 +31,8 @@ use crate::{
     decoration::{self, Button, Part},
     desktop_icons::{self, DesktopIcons},
     dialog::{self, Hit},
+    explorer::Explorer,
+    folder::Place,
     icons::{self, Icons},
     notify::{Bus, Note, Reason, Request, Signal},
     session::{self, Choice, Dialog, Mode},
@@ -186,6 +189,10 @@ pub struct Wm {
     hide_at: Option<Instant>,
     /// The last press on a clock, for the double click.
     last_clock: Option<Instant>,
+    /// The Explorer windows, drawn by the plugin.
+    explorers: Vec<Explorer>,
+    /// The number of Explorer windows so far, for their ids.
+    explorer_count: u32,
     /// Turn Off ended the plugin.
     pub done: bool,
     /// Restart ended the plugin, to start it again.
@@ -233,6 +240,8 @@ impl Wm {
             panels: Vec::new(),
             hide_at: None,
             last_clock: None,
+            explorers: Vec::new(),
+            explorer_count: 0,
             done: false,
             restart: false,
         };
@@ -385,6 +394,8 @@ impl Wm {
             Event::EffectsDropped => self.effects_dropped(),
             _ => Vec::new(),
         };
+        let mut commands = commands;
+        commands.extend(self.relayout_explorers());
         self.conn.apply(commands)
     }
 
@@ -459,7 +470,7 @@ impl Wm {
         window.desktop = self.desktop;
         self.windows.push(window);
         self.opened.push(surface.into());
-        let mut commands = decoration::create(surface, &desk_id(self.desktop));
+        let mut commands = decoration::create(surface, &desk_id(self.desktop), false);
         commands.extend(self.focus(Some(surface)));
         if let Some(err) = self.conn.try_apply(commands)? {
             // Another client took it first.
@@ -521,8 +532,10 @@ impl Wm {
                 commands.extend(self.restyle(surface));
             }
         }
+        // A window of the plugin takes the focus from the clients.
+        let client = target.filter(|t| !self.is_explorer(t));
         commands.push(Command::Focus {
-            surface: target.map(String::from),
+            surface: client.map(String::from),
         });
         commands
     }
@@ -533,7 +546,7 @@ impl Wm {
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
-        let mut commands = vec![self.windows[i].configure(active)];
+        let mut commands: Vec<Command> = self.windows[i].configure(active).into_iter().collect();
         commands.extend(self.windows[i].style(&mut self.theme, active));
         commands
     }
@@ -613,7 +626,7 @@ impl Wm {
                 .bar_at(self.windows[i].rect())
                 .map_or([0, 0, 1280, 770], Bar::usable);
             self.windows[i].maximize(area);
-            commands.push(self.windows[i].configure(active));
+            commands.extend(self.windows[i].configure(active));
         }
         commands.extend(self.windows[i].style(&mut self.theme, active));
         commands
@@ -780,6 +793,10 @@ impl Wm {
             commands.extend(panel.window().hover(&mut self.theme, node, on));
             return commands;
         }
+        if let Some(i) = self.explorer_of(node) {
+            commands.extend(self.explorers[i].hover(&mut self.theme, node, on));
+            return commands;
+        }
         commands.extend(self.hovered_node(node, on));
         commands
     }
@@ -831,7 +848,7 @@ impl Wm {
         {
             w.maximize(area);
             let active = self.focused.as_deref() == Some(w.surface.as_str());
-            commands.push(w.configure(active));
+            commands.extend(w.configure(active));
             commands.extend(w.style(&mut self.theme, active));
         }
         commands.extend(self.sync_tasks());
@@ -875,7 +892,7 @@ impl Wm {
             });
             if w.maximized() {
                 w.maximize(target);
-                commands.push(w.configure(active));
+                commands.extend(w.configure(active));
                 commands.extend(w.style(&mut self.theme, active));
             } else {
                 w.pos = moved(w.pos, from, target);
@@ -900,7 +917,10 @@ impl Wm {
             .find(|(b, _)| b == binding)
             .map(|(_, k)| *k)
         {
-            Some(Key::Close) => self.focused.as_deref().map(close).unwrap_or_default(),
+            Some(Key::Close) => match self.focused.clone() {
+                Some(surface) => self.close_window(&surface),
+                None => Vec::new(),
+            },
             Some(Key::Terminal) => {
                 spawn(&self.config.terminal);
                 Vec::new()
@@ -946,7 +966,9 @@ impl Wm {
         if self.menu.is_open() && !Menu::owns(node) && !start {
             commands.extend(self.close_menu());
         }
-        if self.index(node).is_some() {
+        if let Some(i) = self.explorer_of(node) {
+            commands.extend(self.press_explorer(i, node));
+        } else if self.index(node).is_some() {
             commands.extend(self.activate(node));
         } else if let Some(part) = Part::of(node) {
             commands.extend(self.press_decoration(&part, button, position));
@@ -1021,6 +1043,7 @@ impl Wm {
             Act::DesktopProperties => self.desktop_properties(area),
             Act::TaskbarProperties => self.open_taskbar_dialog(area),
             Act::DateTime => self.open_date_dialog(area),
+            Act::Explore(cmd) => self.explore(cmd),
             Act::Month(month) => {
                 let Some(i) = self
                     .panels
@@ -1058,7 +1081,7 @@ impl Wm {
             let active = self.is_active(&self.windows[i].surface);
             let w = &mut self.windows[i];
             if let Some(tiles) = &tiles {
-                commands.push(w.fit(tiles[n], active));
+                commands.extend(w.fit(tiles[n], active));
             } else {
                 commands.extend(w.unmaximize(active));
                 w.pos = window::cascade(&mut step, w.outer(), area);
@@ -1230,6 +1253,9 @@ impl Wm {
         if dialog::Dialog::any_owns(node) {
             return self.release_panel(position);
         }
+        if let Some(i) = self.explorer_of(node) {
+            return self.release_explorer(i, position);
+        }
         if self.desk.pressed() {
             return self.desk.release(position);
         }
@@ -1276,7 +1302,7 @@ impl Wm {
         let mut commands = window.style(&mut self.theme, active);
         if inside {
             commands.extend(match button {
-                Button::Close => close(surface),
+                Button::Close => self.close_window(surface),
                 Button::Maximize => self.toggle_maximize(surface),
                 Button::Minimize => self.minimize(surface),
             });
@@ -1497,7 +1523,7 @@ impl Wm {
         {
             w.maximize(area);
             let active = self.focused.as_deref() == Some(w.surface.as_str());
-            commands.push(w.configure(active));
+            commands.extend(w.configure(active));
             commands.extend(w.style(&mut self.theme, active));
         }
         commands
@@ -1574,8 +1600,12 @@ impl Wm {
             .desk
             .press(&mut self.theme, &mut self.icons, node, position);
         commands.extend(more);
-        if let Some(open) = open {
-            spawn(&desktop_icons::command(&open));
+        match open {
+            Some(desktop_icons::Open::Folder(path)) => {
+                commands.extend(self.open_explorer(Place::Folder(path)));
+            }
+            Some(open) => spawn(&desktop_icons::command(&open)),
+            None => {}
         }
         commands
     }
@@ -1760,7 +1790,11 @@ impl Wm {
         match choice {
             Choice::LogOff => {
                 self.play(Sound::LogOff);
-                commands.extend(self.windows.iter().flat_map(|w| close(&w.surface)));
+                let surfaces: Vec<String> =
+                    self.windows.iter().map(|w| w.surface.clone()).collect();
+                for surface in surfaces {
+                    commands.extend(self.close_window(&surface));
+                }
             }
             Choice::StandBy => spawn("systemctl suspend"),
             Choice::TurnOff => {
@@ -1905,6 +1939,17 @@ impl Panel {
         match self {
             Self::Taskbar(panel) => &panel.dialog,
             Self::Clock(panel) => &panel.dialog,
+        }
+    }
+}
+
+impl Wm {
+    /// Asks a client to close its window, or closes an Explorer window.
+    fn close_window(&mut self, surface: &str) -> Vec<Command> {
+        if self.is_explorer(surface) {
+            self.close_explorer(surface)
+        } else {
+            close(surface)
         }
     }
 }

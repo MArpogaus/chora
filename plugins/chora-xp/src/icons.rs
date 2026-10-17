@@ -34,9 +34,28 @@ impl Icons {
         if let Some(found) = self.found.get(name) {
             return found.clone();
         }
-        let found = search_all(name);
+        let found = search_all(name, None);
         self.found.insert(name.into(), found.clone());
         found
+    }
+
+    /// The file of an icon for a size in pixels: a PNG file of that size
+    /// first, as XP draws its small icons by hand, else as [`find`].
+    ///
+    /// [`find`]: Self::find
+    pub fn find_sized(&mut self, name: &str, size: u32) -> Option<PathBuf> {
+        let key = format!("{name}@{size}");
+        if let Some(found) = self.found.get(&key) {
+            return found.clone();
+        }
+        let found = search_all(name, Some(size));
+        self.found.insert(key, found.clone());
+        found
+    }
+
+    /// The first of several icons that a theme has.
+    pub fn first_sized(&mut self, names: &[&str], size: u32) -> Option<PathBuf> {
+        names.iter().find_map(|n| self.find_sized(n, size))
     }
 }
 
@@ -64,7 +83,7 @@ pub fn data_file(file: &str) -> Option<PathBuf> {
         .find(|p| p.is_file())
 }
 
-fn search_all(name: &str) -> Option<PathBuf> {
+fn search_all(name: &str, size: Option<u32>) -> Option<PathBuf> {
     // Desktop files may name an icon by its path.
     let path = Path::new(name);
     if path.is_absolute() {
@@ -77,7 +96,7 @@ fn search_all(name: &str) -> Option<PathBuf> {
     THEMES
         .iter()
         .flat_map(|theme| bases.iter().flat_map(move |base| themes(base, theme)))
-        .find_map(|dir| search(&dir, name))
+        .find_map(|dir| search(&dir, name, size))
         .or_else(|| {
             let pixmap = Path::new("/usr/share/pixmaps").join(format!("{name}.png"));
             pixmap.is_file().then_some(pixmap)
@@ -99,11 +118,11 @@ fn themes(base: &Path, prefix: &str) -> Vec<PathBuf> {
 
 /// Searches the two directory levels of a theme, for example
 /// `48x48/apps` or `apps/48`.
-fn search(theme: &Path, name: &str) -> Option<PathBuf> {
+fn search(theme: &Path, name: &str, size: Option<u32>) -> Option<PathBuf> {
     let mut best: Option<(u32, PathBuf)> = None;
     for outer in subdirs(theme) {
         for inner in subdirs(&outer) {
-            let Some(candidate) = candidate(&inner, name) else {
+            let Some(candidate) = candidate(&inner, name, size) else {
                 continue;
             };
             if best.as_ref().is_none_or(|(rank, _)| candidate.0 > *rank) {
@@ -114,9 +133,10 @@ fn search(theme: &Path, name: &str) -> Option<PathBuf> {
     best.map(|(_, path)| path)
 }
 
-/// An icon in a directory and its rank: SVG files first, then larger PNG
-/// files up to 64 pixels. Symbolic icons are monochrome and do not count.
-fn candidate(dir: &Path, name: &str) -> Option<(u32, PathBuf)> {
+/// An icon in a directory and its rank: a PNG file of the wanted size,
+/// then SVG files, then larger PNG files up to 64 pixels. Symbolic icons
+/// are monochrome and do not count.
+fn candidate(dir: &Path, name: &str, wanted: Option<u32>) -> Option<(u32, PathBuf)> {
     let text = dir.to_string_lossy();
     if text.contains("symbolic") {
         return None;
@@ -131,7 +151,8 @@ fn candidate(dir: &Path, name: &str) -> Option<(u32, PathBuf)> {
         .take(2)
         .find_map(|part| part.split('x').next()?.parse::<u32>().ok())
         .unwrap_or(16);
-    (png.is_file() && size <= 64).then_some((size, png))
+    let rank = if wanted == Some(size) { 2000 } else { size };
+    (png.is_file() && size <= 64).then_some((rank, png))
 }
 
 fn subdirs(dir: &Path) -> Vec<PathBuf> {

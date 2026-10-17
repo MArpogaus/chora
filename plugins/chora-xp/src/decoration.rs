@@ -177,8 +177,9 @@ fn client_offset(maximized: bool) -> [f64; 2] {
 }
 
 /// Creates the nodes of a decoration in a hidden group, bottom to top.
-/// The surface follows them, so that it lies above them.
-pub fn create(surface: &str, parent: &str) -> Vec<Command> {
+/// The surface follows them, so that it lies above them; for a window of
+/// the plugin, `own`, a group of that id takes its place.
+pub fn create(surface: &str, parent: &str, own: bool) -> Vec<Command> {
     let group = Command::Create {
         id: group_id(surface),
         kind: NodeKind::Group,
@@ -199,9 +200,18 @@ pub fn create(surface: &str, parent: &str) -> Vec<Command> {
         parent: group_id(surface),
         props: PropsUpdate::default(),
     }));
-    commands.push(Command::Attach {
-        surface: surface.into(),
-        parent: group_id(surface),
+    commands.push(if own {
+        Command::Create {
+            id: surface.into(),
+            kind: NodeKind::Group,
+            parent: group_id(surface),
+            props: PropsUpdate::default(),
+        }
+    } else {
+        Command::Attach {
+            surface: surface.into(),
+            parent: group_id(surface),
+        }
     });
     commands
 }

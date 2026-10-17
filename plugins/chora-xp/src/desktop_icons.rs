@@ -580,7 +580,7 @@ fn scan(dir: &Path, terminal: &str) -> Vec<Item> {
 
 /// A user directory of `user-dirs.dirs`, such as `DESKTOP`: from the
 /// environment variable `XDG_DESKTOP_DIR` first, then from the file.
-fn user_dir(name: &str) -> Option<PathBuf> {
+pub fn user_dir(name: &str) -> Option<PathBuf> {
     let var = format!("XDG_{name}_DIR");
     if let Some(dir) = std::env::var_os(&var) {
         return Some(dir.into());

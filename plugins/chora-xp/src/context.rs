@@ -55,6 +55,8 @@ pub enum Act {
     DesktopProperties,
     /// A month of the month list of Date and Time, from 1.
     Month(u32),
+    /// A row of a menu of the Explorer window that has the focus.
+    Explore(crate::explorer::Cmd),
 }
 
 /// A row of a menu.
