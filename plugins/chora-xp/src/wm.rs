@@ -1219,14 +1219,23 @@ impl Wm {
             Some(Key::Turn(steps)) => self.turn(steps),
             Some(Key::Carry(steps)) => self.carry(steps),
             Some(Key::Switch(step)) => self.switch(step),
-            Some(Key::Start) => match self.bars.first().map(|b| b.output.clone()) {
-                Some(output) => self.press_taskbar(taskbar::Part::Start(output)),
-                None => Vec::new(),
-            },
-            Some(Key::System) => match self.focused.clone() {
-                Some(surface) => self.system_below_icon(&surface),
-                None => Vec::new(),
-            },
+            // Not under the shade of Log Off or Turn Off.
+            Some(Key::Start | Key::System) if self.dialog.is_some() => Vec::new(),
+            Some(Key::Start) => {
+                let mut commands = self.close_context();
+                if let Some(output) = self.bars.first().map(|b| b.output.clone()) {
+                    commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
+                }
+                commands
+            }
+            Some(Key::System) => {
+                let mut commands = self.close_context();
+                commands.extend(self.close_menu());
+                if let Some(surface) = self.focused.clone() {
+                    commands.extend(self.system_below_icon(&surface));
+                }
+                commands
+            }
             Some(Key::Cube) | None => Vec::new(),
         }
     }
