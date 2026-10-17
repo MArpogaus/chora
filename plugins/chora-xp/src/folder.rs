@@ -435,13 +435,12 @@ pub struct Trashed {
     pub deleted: Option<String>,
 }
 
-/// The trash of the freedesktop.org specification: `Trash` of the
-/// first XDG data directory, `$XDG_DATA_HOME`.
+/// The trash of the freedesktop.org specification: `Trash` of the XDG
+/// data home. Without one, `/Trash`, which a user cannot write, so that
+/// no trash lands in the current directory.
 pub fn trash_root() -> PathBuf {
-    chora_kit::xdg::data_dirs()
-        .into_iter()
-        .next()
-        .unwrap_or_default()
+    chora_kit::xdg::data_home()
+        .unwrap_or_else(|| "/".into())
         .join("Trash")
 }
 
