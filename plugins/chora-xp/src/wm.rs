@@ -16,6 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chora_kit::icons::Icons;
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
     SurfaceRequest, Transform, Uniform,
@@ -39,7 +40,6 @@ use crate::{
     display::{self, DisplayDialog, EffectsDialog},
     explorer::Explorer,
     folder::{self, Place},
-    icons::Icons,
     notify::{Bus, Note, Reason, Request, Signal},
     properties::PropertiesDialog,
     session::{self, Choice, Dialog, Mode},

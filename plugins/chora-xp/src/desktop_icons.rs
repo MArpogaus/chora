@@ -16,11 +16,11 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chora_kit::icons::Icons;
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
     apps, balloon, folder,
-    icons::Icons,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };
@@ -953,7 +953,7 @@ mod tests {
     #[test]
     fn a_band_selects_and_a_drag_moves_the_selected_icons_together() {
         let (mut theme, cache) = crate::dialog::tests::theme("band");
-        let mut icons = Icons::default();
+        let mut icons = Icons::new(&crate::icons::THEMES);
         let mut desk = DesktopIcons::new("foot");
         let item = |key: &str| Item {
             key: key.into(),
@@ -1043,7 +1043,7 @@ mod tests {
             "[Desktop Entry]\nType=Application\nName=Editor\nExec=edit %F\nIcon=ed\n",
         )
         .unwrap();
-        let items = scan(&dir, "foot", &mut Icons::default());
+        let items = scan(&dir, "foot", &mut Icons::new(&crate::icons::THEMES));
         let titles: Vec<&str> = items.iter().map(|i| i.title.as_str()).collect();
         assert_eq!(titles, ["zeta", "Alpha.txt", "Editor"]);
         assert_eq!(items[0].open, Open::Folder(dir.join("zeta")));

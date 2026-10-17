@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::icons;
+use chora_kit::xdg;
 
 /// An entry of All Programs or of one of its groups.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -72,7 +72,7 @@ pub fn load(terminal: &str) -> Vec<Node> {
     let desktops: Vec<&str> = desktops.split(':').filter(|d| !d.is_empty()).collect();
     // A desktop file ID in an earlier directory hides those in later ones.
     let mut entries = HashMap::new();
-    for dir in icons::data_dirs() {
+    for dir in xdg::data_dirs() {
         let dir = dir.join("applications");
         for (id, path) in desktop_files(&dir, &dir) {
             entries.entry(id).or_insert_with(|| {

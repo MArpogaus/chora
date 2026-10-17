@@ -8,7 +8,6 @@ use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, Transform};
 
 use crate::{
     cube::DESKTOPS,
-    icons,
     text::{Font, Text},
     theme::{Picture, Rect, Sheet, Theme},
 };
@@ -601,7 +600,7 @@ pub fn preview(
 /// Windows XP pack, 20 pixels as on XP, when it is installed, else the
 /// flag of the theme.
 fn start_flag(theme: &Theme) -> PathBuf {
-    icons::data_file("winxp-kde/start_flag.png")
+    chora_kit::xdg::data_file("winxp-kde/start_flag.png")
         .unwrap_or_else(|| theme.path("winxp/start-flag.svg"))
 }
 

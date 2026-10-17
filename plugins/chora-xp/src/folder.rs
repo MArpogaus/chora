@@ -438,7 +438,7 @@ pub struct Trashed {
 /// The trash of the freedesktop.org specification: `Trash` of the
 /// first XDG data directory, `$XDG_DATA_HOME`.
 pub fn trash_root() -> PathBuf {
-    crate::icons::data_dirs()
+    chora_kit::xdg::data_dirs()
         .into_iter()
         .next()
         .unwrap_or_default()

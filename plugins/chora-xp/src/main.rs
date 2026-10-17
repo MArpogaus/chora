@@ -40,10 +40,11 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chora_kit::icons::Icons;
 use chora_scene::{Event, ipc::ClientError};
 use clap::Parser;
 
-use crate::{conn::Conn, icons::Icons, startmenu::Menu, theme::Theme, wm::Wm};
+use crate::{conn::Conn, startmenu::Menu, theme::Theme, wm::Wm};
 
 /// How often the plugin checks the clock.
 const TICK: Duration = Duration::from_secs(1);
@@ -105,7 +106,7 @@ fn main() -> ExitCode {
 fn run(args: &Args) -> Result<(), String> {
     let conn = Conn::connect(wm::NAME).map_err(|e| e.to_string())?;
     let theme = Theme::load(&args.theme, &cache_dir()).map_err(|e| format!("theme: {e}"))?;
-    let mut icons = Icons::default();
+    let mut icons = Icons::new(&crate::icons::THEMES);
     let menu = Menu::new(&menu_config(args), &theme, &mut icons);
     let config = wm::Config {
         terminal: args.terminal.clone(),
@@ -113,7 +114,7 @@ fn run(args: &Args) -> Result<(), String> {
         wallpaper: wallpaper::Style::new(
             args.wallpaper
                 .clone()
-                .or_else(|| icons::data_file("wallpapers/WindowsXP/bliss.jpg"))
+                .or_else(|| chora_kit::xdg::data_file("wallpapers/WindowsXP/bliss.jpg"))
                 .unwrap_or_else(|| theme.path("wallpaper/bloff.png")),
         ),
         slow: args.slow_motion,

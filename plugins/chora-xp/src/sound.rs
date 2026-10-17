@@ -4,7 +4,7 @@
 
 use std::process::Command;
 
-use crate::{icons, session::on_path};
+use crate::session::on_path;
 
 /// The players to try, with their arguments before the file.
 const PLAYERS: [&str; 3] = ["pw-play", "paplay", "canberra-gtk-play -f"];
@@ -37,7 +37,9 @@ impl Sound {
 /// Plays a sound, if the theme has it and a player is installed. Returns
 /// at once: the shell starts the player in the background.
 pub fn play(sound: Sound) {
-    let Some(file) = icons::data_file(&format!("sounds/WindowsXP/stereo/{}", sound.file())) else {
+    let Some(file) =
+        chora_kit::xdg::data_file(&format!("sounds/WindowsXP/stereo/{}", sound.file()))
+    else {
         return;
     };
     let Some(player) = player(on_path) else {

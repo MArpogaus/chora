@@ -162,7 +162,7 @@ pub fn update(theme: &mut Theme, style: &Style, output: &OutputInfo) -> Command 
 /// The directories of the wallpapers: XP's in the XDG data directories,
 /// the theme's and the system's.
 pub fn dirs(theme: &Theme) -> Vec<PathBuf> {
-    let mut dirs: Vec<PathBuf> = crate::icons::data_dirs()
+    let mut dirs: Vec<PathBuf> = chora_kit::xdg::data_dirs()
         .into_iter()
         .map(|d| d.join("wallpapers/WindowsXP"))
         .collect();

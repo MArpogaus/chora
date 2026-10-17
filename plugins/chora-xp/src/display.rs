@@ -975,7 +975,7 @@ mod tests {
     #[test]
     fn the_tabs_look_like_xp() {
         let (mut theme, cache) = theme("display");
-        let bliss = crate::icons::data_file("wallpapers/WindowsXP/bliss.jpg")
+        let bliss = chora_kit::xdg::data_file("wallpapers/WindowsXP/bliss.jpg")
             .unwrap_or_else(|| theme.path("wallpaper/bloff.png"));
         let mut walls = vec![bliss.clone()];
         walls.extend((0..8).map(|i| PathBuf::from(format!("/w/wall-{i}.png"))));

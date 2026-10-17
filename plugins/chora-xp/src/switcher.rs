@@ -152,7 +152,7 @@ mod tests {
     fn the_box_holds_seven_icons_a_row() {
         let (mut theme, cache) = crate::dialog::tests::theme("alttab");
         let mut list = entries(9);
-        let mut icons = crate::icons::Icons::default();
+        let mut icons = chora_kit::icons::Icons::new(&crate::icons::THEMES);
         for entry in &mut list {
             entry.icon = icons.program_sized("", 32);
         }

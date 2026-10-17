@@ -5,6 +5,7 @@
 
 use std::{fmt::Write as _, path::Path, sync::Arc};
 
+use chora_kit::xdg::data_dirs;
 use resvg::{
     tiny_skia::{PixmapMut, Transform},
     usvg::{
@@ -13,7 +14,7 @@ use resvg::{
     },
 };
 
-use crate::{icons::data_dirs, theme::Rect};
+use crate::theme::Rect;
 
 /// The fonts of the theme.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
