@@ -1059,6 +1059,42 @@ mod tests {
         json!({"commands": [{"attach": {"surface": "s1", "parent": parent}}]})
     }
 
+    /// A window manager with a group that claims an area.
+    fn claimer(core: &mut Core, name: &str, claim: [f64; 4]) -> Client {
+        let mut wm = core.named(name);
+        let group = json!({"commands": [{"create": {"id": name, "kind": "group",
+            "parent": "root", "props": {"claim": claim}}}]});
+        wm.ok(core, "scene.apply", group);
+        wm
+    }
+
+    fn reserved_for(core: &Core, surface: &str) -> Option<String> {
+        core.state.scene.node(surface).and_then(|n| n.to.clone())
+    }
+
+    #[test]
+    fn a_new_toplevel_goes_to_the_focus_or_the_smallest_claim_under_the_pointer() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 800.0, 600.0]);
+        let _b = claimer(&mut core, "b", [100.0, 100.0, 200.0, 200.0]);
+        let mut wayland = Wayland::connect(&mut core);
+        core.state.pointer_layout = (150.0, 150.0).into();
+        wayland.toplevel(&mut core, "one");
+        assert_eq!(reserved_for(&core, "s1").as_deref(), Some("b"), "smallest");
+        let (_, message) = a.fails(&mut core, "scene.apply", attach_s1("a"));
+        assert!(message.contains("reserved"), "{message}");
+        core.state.pointer_layout = (500.0, 500.0).into();
+        wayland.toplevel(&mut core, "two");
+        assert_eq!(reserved_for(&core, "s2").as_deref(), Some("a"));
+        let take = json!({"commands": [{"attach": {"surface": "s2", "parent": "a"}},
+            {"focus": {"surface": "s2"}}]});
+        a.ok(&mut core, "scene.apply", take);
+        core.state.pointer_layout = (150.0, 150.0).into();
+        wayland.toplevel(&mut core, "three");
+        assert_eq!(reserved_for(&core, "s3").as_deref(), Some("a"), "the focus");
+    }
+
     #[test]
     fn a_surface_removed_to_a_client_goes_only_to_it() {
         let mut core = Core::new();

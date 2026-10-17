@@ -295,6 +295,28 @@ impl Scene {
         Ok(effects)
     }
 
+    /// The window manager of a new toplevel (D55): the owner of the
+    /// focused node, else of the focused surface, if it holds a claim;
+    /// else the owner of the smallest claim that contains the pointer.
+    #[must_use]
+    pub fn manager_of_new(&self, focused: Option<&str>, [px, py]: [f64; 2]) -> Option<&str> {
+        let claims = || {
+            self.nodes
+                .values()
+                .filter_map(|n| Some((n.owner.as_deref()?, n.props.claim?)))
+        };
+        let focus = self
+            .focused_node_owner()
+            .or_else(|| self.nodes.get(focused?)?.owner.as_deref())
+            .filter(|owner| claims().any(|(o, _)| o == *owner));
+        focus.or_else(|| {
+            claims()
+                .filter(|(_, [x, y, w, h])| (*x..x + w).contains(&px) && (*y..y + h).contains(&py))
+                .min_by(|(_, a), (_, b)| (a[2] * a[3]).total_cmp(&(b[2] * b[3])))
+                .map(|(owner, _)| owner)
+        })
+    }
+
     /// Reserves a detached surface for a client name: only that client can
     /// attach it.
     pub fn reserve(&mut self, surface: &str, to: Option<&str>) {
@@ -1137,6 +1159,14 @@ fn check_meta(
 fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
     check_kinds(id, kind, props)?;
     check_numbers(id, props)?;
+    if props
+        .claim
+        .is_some_and(|c| !c.iter().all(|v| v.is_finite()) || c[2] < 0.0 || c[3] < 0.0)
+    {
+        return Err(SceneError::Invalid(format!(
+            "the claim of {id:?} needs finite numbers and no negative size"
+        )));
+    }
     check_shapes(id, props)?;
     if props
         .mesh

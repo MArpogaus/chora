@@ -131,12 +131,22 @@ impl State {
             toplevel.send_configure();
             let info = self.surface_info(id);
             self.scene.add_surface(id, info.clone());
+            // Without an output, the pointer is in no claim.
+            let pointer = self
+                .spot(self.pointer_layout)
+                .map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
+            let focused = self.focused_surface().map(String::from);
+            let to = (self.scene)
+                .manager_of_new(focused.as_deref(), pointer)
+                .map(String::from);
+            self.scene.reserve(id, to.as_deref());
             self.list_toplevel(id);
             self.emit(&Event::SurfaceCreated {
                 surface: id.into(),
                 app_id: info.app_id,
                 title: info.title,
                 decoration: info.decoration,
+                to,
             });
             self.send_early_requests(id);
             return;

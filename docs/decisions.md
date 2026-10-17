@@ -87,7 +87,7 @@ that the code does not implement yet.
 | D52 | The milestones run 0.6 to 1.0 as in the [Roadmap](roadmap.md) | A stable API needs real use and a testable core first. |
 | D53 | The voice pipeline lives in `chora-voice` and runs in parallel to the core; the core supplies push-to-talk grabs, text injection, the read model and an agent indicator | The pipeline is a product of its own. It needs only the API of the core. |
 | D54 | Plugins use the JSON-RPC API with frame events and fd passing; a private Wayland protocol for plugins comes only if a measurement at 120 Hz in milestone 0.9 shows the need | One API to maintain. The measurement decides. |
-| D55 | Window managers share the scene through claims: a claim is a scene area of one window manager; step 1 hands a surface from one window manager to another with `remove` and `to`; step 2 routes a new toplevel to the owner of a claim (see [below](#d55-window-managers-per-claim)) | The user chose one window manager per claim over a single window manager role (issue #73). Ownership, `attach` and `surface.detached` stay the mechanism, and a camera switches between claims. |
+| D55 | Window managers share the scene through claims. A claim is a scene area of one window manager. A window manager hands a surface to another with `remove` and `to`. The core gives a new toplevel to a window manager (see [below](#d55-window-managers-per-claim)). | The user chose one window manager per claim over a single window manager role (issue #73). Ownership, `attach` and `surface.detached` stay the mechanism, and a camera switches between claims. |
 
 ## Designs
 
@@ -121,7 +121,7 @@ Grabs belong to connections and do not move. A ends its drag at the
 release of the button, and then hands the surface over. The client of the
 surface keeps its pointer and keyboard input as before.
 
-#### Step 2: claims, later
+#### Step 2: claims
 
 A claim is a rectangle in scene coordinates: the property
 `claim: [x, y, w, h]` of a node. The owner of the node holds the claim. A
@@ -132,12 +132,14 @@ outputs, or at two places in the scene, and a camera move switches one
 output between them. With claims, A finds B in the claims of
 `scene.query`.
 
-At the first commit of a toplevel, the core picks the owner in this
-order: the client that asked for its activation token (D42); else the
-owner of the focused surface or node; else the owner of the claim under
-the pointer. When claims overlap, the smallest claim that contains the
-point wins. The core reserves the surface for that client, as at a
-handover. Outside of all claims, the race of #73 stays.
+At the first commit of a toplevel, the core picks its window manager.
+The first choice is the client that asked for its activation token (D42).
+Until clients can ask for tokens, the core skips this choice. The second
+choice is the owner of the focused node or surface, if it holds a claim.
+The last choice is the owner of the claim under the pointer. When claims
+overlap, the smallest claim that contains the point wins. The core
+reserves the surface for that client, as at a handover. Outside of all
+claims, the race of #73 stays.
 
 **Out of scope for now.**
 

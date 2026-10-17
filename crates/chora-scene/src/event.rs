@@ -21,6 +21,10 @@ pub enum Event {
         /// Who draws the frame of the window.
         #[serde(default)]
         decoration: Option<Decoration>,
+        /// The only client that can attach it, if the core reserved it
+        /// (D55).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        to: Option<String>,
     },
     /// The title, the application id, the size or the decoration of a
     /// surface changed.

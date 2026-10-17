@@ -43,7 +43,8 @@ This table is the one list of node properties.
 |----------|-------|---------|
 | `id` | all | stable id; ids of the form `s1`, `s2` belong to surfaces, and the core assigns them |
 | `owner` | all | client name of the owner; read-only |
-| `to` | surface | the only client name that can attach this detached surface, after a `remove` with `to`; read-only |
+| `to` | surface | the only client name that can attach this detached surface, after a `remove` with `to` or for a new toplevel; read-only |
+| `claim` | all | `[x, y, w, h]` in scene coordinates: the area of the owner as a window manager; a new toplevel can go to it (see [below](#window-managers)) |
 | `transform` | all | a 4x4 matrix, or the short form translate, scale, rotate |
 | `opacity`, `visible` | all | |
 | `clip` | group, rect, image, shader | `{"radius": r}`: the node and its descendants show only inside its size, with corners rounded by `r` logical pixels, and take pointer input only there; the node becomes a layer; `null` removes the clip |
@@ -210,6 +211,22 @@ cases:
 A layer surface that takes the keyboard exclusively, for example a
 launcher, gets the keys before the node.
 
+## Window managers
+
+Several window managers share the scene (D55). A window manager sets
+`claim` on a node, for example on its root group. At the first commit of
+a toplevel, the core reserves it for one window manager:
+
+1. the owner of the node or surface with the keyboard focus, if it holds
+   a claim;
+2. else the owner of the smallest claim that contains the pointer.
+
+Only that client can attach the surface, and `surface.created` names it in
+`to`. Without a match, any client attaches the surface. When the last
+connection of the client closes, the reservation ends with
+`surface.detached`. A `remove` with `to` hands a surface to another window
+manager in the same way.
+
 ## Selectors
 
 A selector finds nodes: `id:work`, `kind:surface`, `owner:tiling`,
@@ -223,7 +240,7 @@ or an empty list. It always sees the current titles.
 
 | Event | Data |
 |-------|------|
-| `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own |
+| `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own; `to` when the core reserved it for a window manager (see [Window managers](#window-managers)) |
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
 | `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`; when the last connection of `to` closes, all get it again. |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |

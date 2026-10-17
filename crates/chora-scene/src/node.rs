@@ -299,6 +299,10 @@ pub struct Props {
     /// The uniforms of the shader of a shader node.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub uniforms: BTreeMap<String, Uniform>,
+    /// The scene area of the owner as a window manager: x, y, width and
+    /// height in scene coordinates (D55).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim: Option<[f64; 4]>,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde passes a reference
@@ -336,6 +340,7 @@ impl Default for Props {
             clip: None,
             shader: None,
             uniforms: BTreeMap::new(),
+            claim: None,
         }
     }
 }
@@ -411,6 +416,11 @@ pub struct PropsUpdate {
     /// The uniforms of the shader of a shader node. Replaces all uniforms.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uniforms: Option<BTreeMap<String, Uniform>>,
+    /// The scene area of the owner as a window manager: x, y, width and
+    /// height in scene coordinates. A new toplevel can go to the owner
+    /// (D55).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub claim: Option<[f64; 4]>,
 }
 
 /// Sets the keys of an update of `meta`; an empty value removes its key.
@@ -441,6 +451,9 @@ impl Props {
         }
         if let Some(meta) = &update.meta {
             apply_meta(&mut self.meta, meta);
+        }
+        if update.claim.is_some() {
+            self.claim = update.claim;
         }
         self.apply_drawing(update);
     }
