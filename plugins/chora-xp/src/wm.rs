@@ -1741,14 +1741,14 @@ impl Wm {
                     display::Effects::Take(toggles) => self.effects.toggles = toggles,
                     display::Effects::Close => {}
                 }
-                return vec![self.panels.remove(i).window_ref().remove()];
+                return self.close_panel(i);
             }
             Panel::Display(panel) => panel.click(hit),
             _ => return Vec::new(),
         };
         match click {
             display::Click::Redraw => self.redraw_panel(i),
-            display::Click::Close => self.close_display(i),
+            display::Click::Close => self.close_panel(i),
             display::Click::Apply {
                 style,
                 scale,
@@ -1759,7 +1759,7 @@ impl Wm {
                     _ => String::new(),
                 };
                 let mut commands = if close {
-                    self.close_display(i)
+                    self.close_panel(i)
                 } else {
                     self.redraw_panel(i)
                 };
@@ -1818,13 +1818,27 @@ impl Wm {
         commands
     }
 
-    /// Closes Display Properties, keeping its tab for the next time.
-    fn close_display(&mut self, i: usize) -> Vec<Command> {
+    /// Closes a dialog; Display Properties keeps its tab for the next
+    /// time. When no window has the focus, as after the click on the
+    /// desktop that opened the dialog, the topmost window of the desktop
+    /// gets it, as XP activates the next window.
+    fn close_panel(&mut self, i: usize) -> Vec<Command> {
         let panel = self.panels.remove(i);
         if let Panel::Display(display) = &panel {
             self.display_tab = display.tab;
         }
-        vec![panel.window_ref().remove()]
+        let mut commands = vec![panel.window_ref().remove()];
+        let top = self
+            .windows
+            .iter()
+            .rev()
+            .find(|w| w.desktop == self.desktop && w.shown && !w.minimized)
+            .map(|w| w.surface.clone());
+        if let Some(top) = top.filter(|_| self.focused.is_none()) {
+            commands.extend(self.focus(Some(&top)));
+            commands.extend(self.sync_tasks());
+        }
+        commands
     }
 
     /// Shows a background on every output.
@@ -1907,10 +1921,10 @@ impl Wm {
         };
         match outcome {
             Outcome::Redraw => commands.extend(self.redraw_panel(i)),
-            Outcome::Close => commands.push(self.panels.remove(i).window_ref().remove()),
+            Outcome::Close => commands.extend(self.close_panel(i)),
             Outcome::Apply(settings, close) => {
                 if close {
-                    commands.push(self.panels.remove(i).window_ref().remove());
+                    commands.extend(self.close_panel(i));
                 }
                 commands.extend(self.set_taskbar(settings));
             }
@@ -1925,7 +1939,7 @@ impl Wm {
         match &self.panels[i] {
             Panel::Confirm(confirm) => {
                 let trash = confirm.trash.clone();
-                commands.push(self.panels.remove(i).window_ref().remove());
+                commands.extend(self.close_panel(i));
                 if ConfirmDialog::yes(hit) {
                     commands.extend(match trash {
                         Some(path) => self.trash(&path),
@@ -1936,7 +1950,7 @@ impl Wm {
             Panel::Properties(_) => {
                 let button = matches!(hit, Hit::Control(n, _) if n == "ok" || n == "cancel");
                 if button || *hit == Hit::Close {
-                    commands.push(self.panels.remove(i).window_ref().remove());
+                    commands.extend(self.close_panel(i));
                 }
             }
             _ => return None,
