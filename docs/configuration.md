@@ -513,8 +513,9 @@ transforms at 60 Hz:
   the cube in perspective, and the windows fly off their faces and land
   again. The taskbar lists the windows of the current desktop.
 
-If frames get too slow, the core drops the effects; `chora-xp` then goes
-without them for 15 seconds.
+If frames get too slow because of `chora-xp`, the core drops its effects;
+`chora-xp` then goes without them for 15 seconds. A drop of the effects
+of another client changes nothing.
 
 | Binding | Action |
 |---------|--------|

@@ -429,7 +429,7 @@ impl Wm {
             } => self.key(&binding),
             Event::PointerEntered { node, .. } => self.hovered(&node, true),
             Event::PointerLeft { node } => self.hovered(&node, false),
-            Event::EffectsDropped { .. } => self.effects_dropped(),
+            Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
             _ => Vec::new(),
         };
         let mut commands = commands;
@@ -2363,6 +2363,12 @@ impl Wm {
     }
 }
 
+/// Whether the watchdog of the core named chora-xp, and not another
+/// client, when it dropped the effects.
+fn is_own(client: &str) -> bool {
+    client == NAME
+}
+
 fn close(surface: &str) -> Vec<Command> {
     vec![Command::Close {
         surface: surface.into(),
@@ -2393,6 +2399,13 @@ fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_a_drop_of_its_own_effects_calms_the_plugin() {
+        assert!(is_own("xp"));
+        assert!(!is_own("tiling"));
+        assert!(!is_own(""));
+    }
 
     #[test]
     fn a_window_moves_to_the_same_place_on_another_output() {
