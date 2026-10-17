@@ -27,7 +27,7 @@ use self::{desktops::desk_id, effects::Effects};
 use crate::{
     apps,
     balloon::{self, Balloon, Queue},
-    confirm::ConfirmDialog,
+    confirm::{ConfirmDialog, Then},
     conn::Conn,
     context::{self, Act},
     control::{self, Setting, Toggles},
@@ -2082,10 +2082,19 @@ impl Wm {
                 }
             }
             Drop::Folder(id, dir) => {
+                let mut clash = None;
                 for path in &paths {
-                    if let Err(err) = folder::drop_into(path, &dir) {
-                        eprintln!("chora-xp: drop {}: {err}", path.display());
+                    match folder::drop_into(path, &dir) {
+                        Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                            clash.get_or_insert_with(|| path.clone());
+                        }
+                        Err(err) => eprintln!("chora-xp: drop {}: {err}", path.display()),
+                        Ok(_) => {}
                     }
+                }
+                // XP asks before it replaces a file; one question a drop.
+                if let Some(path) = clash {
+                    commands.extend(self.confirm_replace(path, dir.clone()));
                 }
                 // The window of the folder, and the desktop, show the change.
                 if let Some(e) = self.explorers.iter_mut().find(|e| e.id == id) {
@@ -2479,12 +2488,13 @@ impl Wm {
         let mut commands = Vec::new();
         match &self.panels[i] {
             Panel::Confirm(confirm) => {
-                let trash = confirm.trash.clone();
+                let then = confirm.then.clone();
                 commands.extend(self.close_panel(i));
                 if ConfirmDialog::yes(hit) {
-                    commands.extend(match trash {
-                        Some(path) => self.trash(&path),
-                        None => self.empty_trash(),
+                    commands.extend(match then {
+                        Then::Trash(path) => self.trash(&path),
+                        Then::Empty => self.empty_trash(),
+                        Then::Replace(path, dir) => self.replace(&path, &dir),
                     });
                 }
             }

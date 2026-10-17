@@ -1,6 +1,7 @@
 //! XP's Confirm File Delete: the question before Empty the Recycle Bin
 //! deletes for good, or before Delete sends a file or a folder to the
-//! Recycle Bin. The icon of the bin, the question, Yes and No.
+//! Recycle Bin; and Confirm File Replace before a drop replaces a file.
+//! An icon, the question, Yes and No.
 
 use std::path::PathBuf;
 
@@ -17,8 +18,19 @@ pub struct ConfirmDialog {
     question: String,
     icon: Option<PathBuf>,
     size: [i32; 2],
-    /// The file that Yes sends to the Recycle Bin; none to empty it.
-    pub trash: Option<PathBuf>,
+    /// What Yes does.
+    pub then: Then,
+}
+
+/// What Yes does.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Then {
+    /// Empties the Recycle Bin.
+    Empty,
+    /// Sends a file or a folder to the Recycle Bin.
+    Trash(PathBuf),
+    /// Drops a file into a folder in place of the file of its name.
+    Replace(PathBuf, PathBuf),
 }
 
 impl ConfirmDialog {
@@ -62,7 +74,28 @@ impl ConfirmDialog {
             )
         };
         let mut dialog = Self::ask(theme, title, question, icon, area);
-        dialog.trash = Some(path);
+        dialog.then = Then::Trash(path);
+        dialog
+    }
+
+    /// The question before a drop replaces a file of the same name in a
+    /// folder, as XP asks it.
+    pub fn replace(
+        theme: &Theme,
+        path: PathBuf,
+        dir: PathBuf,
+        icon: Option<PathBuf>,
+        area: Rect,
+    ) -> Self {
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let question = format!(
+            "This folder already contains a file named '{name}'. Would you like to replace it?"
+        );
+        let mut dialog = Self::ask(theme, "Confirm File Replace", question, icon, area);
+        dialog.then = Then::Replace(path, dir);
         dialog
     }
 
@@ -81,7 +114,7 @@ impl ConfirmDialog {
             question,
             icon,
             size,
-            trash: None,
+            then: Then::Empty,
         }
     }
 
@@ -136,7 +169,9 @@ mod tests {
             file.question,
             "Are you sure you want to send 'notes.txt' to the Recycle Bin?"
         );
-        assert_eq!(file.trash, Some("/d/notes.txt".into()));
+        assert_eq!(file.then, Then::Trash("/d/notes.txt".into()));
+        let replace = ConfirmDialog::replace(&theme, "/d/a.txt".into(), "/e".into(), None, area);
+        assert!(replace.question.contains("a file named 'a.txt'"));
         let _ = std::fs::remove_dir_all(cache);
     }
 }

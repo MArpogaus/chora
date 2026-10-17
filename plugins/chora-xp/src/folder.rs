@@ -594,6 +594,17 @@ pub fn drop_into(path: &Path, dir: &Path) -> std::io::Result<Dropped> {
     }
 }
 
+/// Drops a file into a folder in place of the file of its name there, as
+/// Yes of XP's Confirm File Replace does. A folder of the name stays.
+pub fn replace_into(path: &Path, dir: &Path) -> std::io::Result<Dropped> {
+    let target = dir.join(path.file_name().unwrap_or_default());
+    if target.is_dir() {
+        return Err(std::io::Error::other("a folder of the name is there"));
+    }
+    fs::remove_file(&target)?;
+    drop_into(path, dir)
+}
+
 /// Copies a file, or a folder with all it holds.
 fn copy_all(from: &Path, to: &Path) -> std::io::Result<()> {
     if !from.is_dir() {

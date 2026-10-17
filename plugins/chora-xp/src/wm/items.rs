@@ -156,6 +156,25 @@ impl Wm {
         commands
     }
 
+    /// Asks whether a dropped file replaces the file of its name.
+    pub(super) fn confirm_replace(&mut self, path: PathBuf, dir: PathBuf) -> Vec<Command> {
+        let mut commands = Vec::new();
+        if let Some(i) = self
+            .panels
+            .iter()
+            .position(|p| matches!(p, Panel::Confirm(_)))
+        {
+            commands.push(self.panels.remove(i).window_ref().remove());
+        }
+        let icon = self.icons.find_sized("dialog-warning", 32);
+        let confirm = ConfirmDialog::replace(&self.theme, path, dir, icon, self.work_area());
+        let page = confirm.page();
+        let mut panel = Panel::Confirm(confirm);
+        commands.extend(panel.window().create(&mut self.theme, DIALOGS, page));
+        self.panels.push(panel);
+        commands
+    }
+
     /// Asks whether to send a file or folder to the Recycle Bin.
     fn confirm_trash(&mut self, path: PathBuf) -> Vec<Command> {
         let mut commands = Vec::new();
@@ -173,6 +192,15 @@ impl Wm {
         commands.extend(panel.window().create(&mut self.theme, DIALOGS, page));
         self.panels.push(panel);
         commands
+    }
+
+    /// Yes of Confirm File Replace: the dropped file takes the place of
+    /// the file of its name, and the icons and Explorer windows show it.
+    pub(super) fn replace(&mut self, path: &Path, dir: &Path) -> Vec<Command> {
+        if let Err(err) = folder::replace_into(path, dir) {
+            eprintln!("chora-xp: replace {}: {err}", path.display());
+        }
+        self.refresh_trash()
     }
 
     /// Sends a file or folder to the Recycle Bin, and shows the icons and
