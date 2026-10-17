@@ -42,12 +42,11 @@ impl Wm {
                 }
                 Open::Run(_) | Open::File(_) => context::Target::File,
             };
-            // The right button selects the icon, as the left one does.
             let mut commands = self.focus(None);
-            commands.extend(self.desk.select(
+            commands.extend(self.desk.select_for_menu(
                 &mut self.theme,
                 &mut self.icons,
-                Some(item.key.clone()),
+                item.key.clone(),
             ));
             (Target::Icon(item), kind, commands)
         } else {

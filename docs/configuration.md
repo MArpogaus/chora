@@ -290,8 +290,9 @@ says and closes the menu; a click outside closes it.
   into their columns, in that order; Refresh shows them again; Properties
   opens Display Properties (see below). Paste and Paste Shortcut are
   gray.
-- **An icon of the desktop**: the right button selects it and opens
-  XP's menu of its kind. Open, in bold, does what a double click does.
+- **An icon of the desktop**: the right button selects it, or keeps
+  the selection when the icon is part of it, and opens XP's menu of its
+  kind; the rows act on the icon under the pointer. Open, in bold, does what a double click does.
   A folder and My Documents have Explore, which opens the folder in
   Explorer, as My Computer and the Recycle Bin do. Delete of a file or a
   folder of the Desktop folder asks in XP's Confirm File Delete or

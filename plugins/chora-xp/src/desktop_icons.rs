@@ -290,14 +290,18 @@ impl DesktopIcons {
             .collect()
     }
 
-    /// Selects an icon, or none.
-    pub fn select(
+    /// The right button on an icon: it alone is selected, unless it is
+    /// part of the selection, which stays, as on XP.
+    pub fn select_for_menu(
         &mut self,
         theme: &mut Theme,
         icons: &mut Icons,
-        key: Option<String>,
+        key: String,
     ) -> Vec<Command> {
-        self.set_selection(theme, icons, key.into_iter().collect())
+        if self.selected.contains(&key) {
+            return Vec::new();
+        }
+        self.set_selection(theme, icons, vec![key])
     }
 
     /// Selects some icons, and shows those whose look changed.
@@ -343,7 +347,7 @@ impl DesktopIcons {
         let commands = if self.selected.contains(&key) {
             Vec::new()
         } else {
-            self.select(theme, icons, Some(key.clone()))
+            self.set_selection(theme, icons, vec![key.clone()])
         };
         if is_double(self.last_press.take(), &key, now) {
             return (commands, Some(self.items[i].open.clone()));
@@ -473,7 +477,7 @@ impl DesktopIcons {
             return Vec::new();
         };
         if !press.moving {
-            return self.select(theme, icons, Some(press.key));
+            return self.set_selection(theme, icons, vec![press.key]);
         }
         #[allow(clippy::cast_possible_truncation)]
         let d = [
@@ -884,6 +888,9 @@ mod tests {
         assert_eq!(desk.drag(&mut theme, &mut icons, [187.0, 104.0]).len(), 2);
         desk.release(&mut theme, &mut icons, [187.0, 104.0]);
         assert_eq!(desk.places, [[150, 0], [150, 75], [300, 300]]);
+        // The right button on one of them keeps both selected.
+        desk.select_for_menu(&mut theme, &mut icons, "a".into());
+        assert_eq!(desk.selected, ["a", "b"]);
         // A click on the empty desktop clears the selection.
         desk.press_empty(&mut theme, &mut icons, [600.0, 10.0]);
         desk.release(&mut theme, &mut icons, [600.0, 10.0]);
