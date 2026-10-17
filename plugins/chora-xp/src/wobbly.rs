@@ -29,7 +29,7 @@ const MAX: f64 = 1000.0;
 /// these.
 const STOP_ACCELERATION: f64 = 0.5;
 const STOP_VELOCITY: f64 = 0.5;
-/// The longest integration step, in milliseconds.
+/// The integration step, in milliseconds.
 const STEP_MS: f64 = 10.0;
 
 /// The state of the grid of one window.
@@ -47,6 +47,8 @@ pub struct Wobble {
     moving: bool,
     /// The time of the last call of `advance`.
     last: Instant,
+    /// The time since the last whole step, in milliseconds.
+    pending: f64,
 }
 
 impl Wobble {
@@ -68,6 +70,7 @@ impl Wobble {
             held: true,
             moving: true,
             last: Instant::now(),
+            pending: 0.0,
         };
         for i in 0..COUNT {
             wobble.at[i] = wobble.place(i, origin);
@@ -90,13 +93,13 @@ impl Wobble {
     }
 
     /// Advances the grid by a time in seconds, for a window at an origin,
-    /// in steps of at most 10 ms.
+    /// in whole steps of 10 ms, as `KWin`'s model: the rest waits for the
+    /// next call, and the drawn mesh moves the points on by it.
     fn step(&mut self, origin: [f64; 2], dt: f64) {
-        let mut left = dt.clamp(0.0, 0.1) * 1000.0;
-        while left > 0.0 {
-            let ms = left.min(STEP_MS);
-            left -= ms;
-            self.integrate(origin, ms);
+        self.pending += dt.clamp(0.0, 0.1) * 1000.0;
+        while self.pending >= STEP_MS {
+            self.pending -= STEP_MS;
+            self.integrate(origin, STEP_MS);
         }
     }
 
@@ -176,9 +179,7 @@ impl Wobble {
         for (velocity, acc) in self.velocity.iter_mut().zip(acceleration) {
             for axis in [0, 1] {
                 let acc = acc[axis].clamp(-MAX, MAX);
-                // The drag of a whole step, so that short steps keep as
-                // much of the velocity over the same time.
-                velocity[axis] = acc * ms + velocity[axis] * DRAG.powf(ms / STEP_MS);
+                velocity[axis] = acc * ms + velocity[axis] * DRAG;
                 acc_sum += acc.abs();
             }
         }
@@ -205,7 +206,11 @@ impl Wobble {
         let mut point = [0.0; 2];
         for (row, a) in wv.iter().enumerate() {
             for (col, b) in wu.iter().enumerate() {
-                let p = self.at[row * SIDE + col];
+                // Moved on by the time since the last step.
+                let i = row * SIDE + col;
+                let p = [0, 1].map(|axis| {
+                    self.at[i][axis] + self.velocity[i][axis] * self.pending * MOVE_FACTOR
+                });
                 point[0] += a * b * p[0];
                 point[1] += a * b * p[1];
             }
@@ -366,5 +371,34 @@ mod tests {
         let spread = moves.iter().copied().fold(f64::MIN, f64::max)
             - moves.iter().copied().fold(f64::MAX, f64::min);
         assert!(spread < 6.0, "the drawn window moves {moves:?}");
+    }
+
+    /// The mean lag of the drawn point under the pointer in a steady drag
+    /// at 1200 pixels a second, with a move every `ms` milliseconds.
+    fn lag(ms: usize) -> f64 {
+        let grab = [200.0, 0.0];
+        let mut w = Wobble::new([400.0, 300.0], [0.0, 0.0], grab);
+        let start = Instant::now();
+        w.last = start;
+        let (mut sum, mut n) = (0.0, 0.0);
+        for t in (ms..=600).step_by(ms) {
+            let origin = [1.2 * t as f64, 0.0];
+            let at = std::time::Duration::from_millis(u64::try_from(t).unwrap_or(0));
+            w.advance(origin, start + at);
+            if t > 300 {
+                sum += origin[0] + grab[0] - w.bezier(0.5, 0.0)[0];
+                n += 1.0;
+            }
+        }
+        sum / n
+    }
+
+    #[test]
+    fn the_drawn_point_lags_the_same_at_any_rate_of_the_pointer() {
+        let (slow, fast) = (lag(8), lag(1));
+        assert!(
+            (fast - slow).abs() < 5.0,
+            "lag {slow:.1} px at 125 Hz, {fast:.1} px at 1000 Hz"
+        );
     }
 }
