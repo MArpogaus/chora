@@ -5,8 +5,9 @@
 # mesh, the minimize button sends the window through the magic lamp and
 # the task button brings it back, the start menu opens and starts a
 # terminal, the buttons of the title bar maximize and close a window, and
-# the desktop buttons turn the cube to another desktop and back. Buttons
-# light up under the pointer.
+# the desktop buttons turn the cube to another desktop and back, and
+# Escape answers No to Confirm File Delete. Buttons light up under the
+# pointer.
 #
 # A virtual pointer of the host drives chora, as in tests/nested.sh. Its
 # coordinates are those of the 1280x800 output, which shows the scene
@@ -57,6 +58,8 @@ WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
 pids+=($!)
 wait_for test -S "$XDG_RUNTIME_DIR/wayland-1"
 export WAYLAND_DISPLAY=wayland-1
+# A home of its own: step 13 drops a file of the Desktop into the bin.
+export HOME=$XDG_RUNTIME_DIR
 
 step "1. chora -- chora-xp starts nested"
 CHORA_FRAME_BUDGET_US=500000 "$bin/chora" -- "$bin/chora-xp" --theme "$theme" --slow-motion 5 \
@@ -284,6 +287,48 @@ wait_for has_node_count 0 id:xp-face-0
 desk_visible 0 false || fail "the first desktop still shows"
 keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
+step "13. Escape answers No to Confirm File Delete"
+# A file of the Desktop, dropped on the Recycle Bin, asks first; Escape
+# answers No, as on XP, and the file stays.
+desk_icons() {
+    query kind:image |
+        jq -c '[.[] | select(.id | startswith("xp-icon-")) | .id]'
+}
+old_icons=$(desk_icons)
+mkdir -p "$HOME/Desktop"
+echo delete-me >"$HOME/Desktop/x.txt"
+new_icon() {
+    query kind:image |
+        jq -r --argjson old "$old_icons" '[.[]
+            | select(.id | startswith("xp-icon-"))
+            | select(.id as $i | $old | index($i) | not)] | .[0].id // empty'
+}
+icon_is_there() { test -n "$(new_icon)"; }
+wait_for icon_is_there
+icon_at() {
+    query "id:$1" |
+        jq -r '.[0].transform.matrix | "\(.[12] + 40 | floor) \(.[13] + 40 | floor)"'
+}
+read -r fx fy <<<"$(icon_at "$(new_icon)")"
+# The Recycle Bin is the icon at the bottom right.
+bin_node=$(query kind:image |
+    jq -r '[.[] | select(.id | startswith("xp-icon-"))] |
+        max_by(.transform.matrix[13]) | .id')
+read -r bx by <<<"$(icon_at "$bin_node")"
+timeout 20 "$bin/chora-probe" drag "$fx" "$fy" "$bx" "$by" >>"$out/probe.log" 2>&1 &
+job=$!
+asked() { test "$(query id:xp-dlg-confirm | jq -r '.[0].visible // false')" = "true"; }
+wait_for asked
+grim "$out/confirm.png"
+wait "$job" || fail "the drop failed: $out/probe.log"
+keys 1 || fail "the keys failed: $out/probe.log"
+answered() {
+    test "$(query id:xp-dlg-confirm | jq -r '.[0].visible // false')" = "false"
+}
+wait_for answered
+test -f "$HOME/Desktop/x.txt" || fail "Escape answered Yes"
+grim "$out/escape-no.png"
+
 kill -0 "$chora_pid" || fail "chora died"
 pgrep -x chora-xp >/dev/null || fail "chora-xp died: $out/chora.log"
 
