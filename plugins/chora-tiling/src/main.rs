@@ -518,11 +518,35 @@ impl Tiling {
         }
     }
 
+    /// Passes a surface that the core reserved for tiling on to other
+    /// window managers while tiling has no output: it takes it and lets
+    /// it go at once, without `to`.
+    fn pass_on(&mut self, surface: &str) -> Result<(), ClientError> {
+        let reserved = self
+            .query(&format!("id:{surface}"))?
+            .iter()
+            .any(|node| node["to"] == NAME);
+        if !reserved {
+            return Ok(());
+        }
+        let commands = vec![
+            Command::Attach {
+                surface: surface.into(),
+                parent: NAME.into(),
+            },
+            Command::Remove {
+                id: surface.into(),
+                to: None,
+            },
+        ];
+        self.apply(commands)
+    }
+
     /// Takes a surface without an owner. A surface that another client took
     /// first, or whose app id `--ignore` names, stays out of the layout.
     fn adopt(&mut self, surface: &str) -> Result<(), ClientError> {
         if self.without_outputs() {
-            return Ok(());
+            return self.pass_on(surface);
         }
         let ignored = self.query(&format!("id:{surface}"))?.iter().any(|node| {
             node["surface"]["app_id"]
