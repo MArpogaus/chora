@@ -455,7 +455,9 @@ $ choractl revoke agent
 ```
 
 A grant lasts until `choractl revoke` or the end of the session. The
-emergency reset revokes all grants. Only the admin socket changes grants.
+emergency reset revokes all grants. A Wayland client of a client socket
+gets the grants of its name when it connects. A revoke of one of them,
+and the reset, disconnect it. Only the admin socket changes grants.
 A process of the user on the host reaches the admin socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that [Client sockets](#client-sockets) lists.
@@ -514,14 +516,18 @@ keyboard. An `xdg-activation` token of such a client works only with the
 serial of its last key or button press, so it takes no focus without
 input of the user.
 
-The client gets the grants of the name at the time it connects. Its
-windows carry the name: a query shows it in `surface.client`.
+The client gets the grants of the name at the time it connects. A
+revoke of a capability that it got disconnects it, and so does the
+emergency reset. Its windows carry the name: a query shows it in
+`surface.client`. It reads the clipboard only while it has the keyboard
+focus, as every Wayland client does.
 
 A container that mounts only its client directory cannot take another
 name or give itself capabilities. One gap stays until a later step of
-0.7: a program of `process.spawn` gets `CHORA_SOCKET`, the main socket.
-So a grant of `process.spawn` gives a container the main socket. D42
-moves the start of programs out of the core.
+0.7: a program of `process.spawn` gets `CHORA_SOCKET` and
+`WAYLAND_DISPLAY` of the core. So a grant of `process.spawn` gives a
+container the main IPC socket and the main Wayland socket with all
+protocols. D42 moves the start of programs out of the core.
 
 ## Programs
 

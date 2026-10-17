@@ -116,7 +116,7 @@ and the core starts no programs.
 Scope:
 
 - One socket directory per client: `$XDG_RUNTIME_DIR/chora/clients/NAME/`
-  with `ipc.sock` and a Wayland socket of `wp-security-context-v1` (D33,
+  with `ipc.sock` and a Wayland socket of its own, `wayland.sock` (D33,
   D40). The socket fixes the name and the capabilities of its clients.
 - An admin socket for `choractl` only. `grants.set`, `grants.revoke` and
   `clients.create` work through it alone. This is done.
