@@ -445,10 +445,37 @@ impl Level {
         ]
     }
 
+    /// The next enabled row after a row, or before it with a negative
+    /// step, around the ends; from none, the first or the last one.
+    fn next(&self, from: Option<usize>, step: i32) -> Option<usize> {
+        let n = self.entries.len();
+        let start = from.unwrap_or(if step > 0 { n - 1 } else { 0 });
+        (1..=n)
+            .map(|k| {
+                if step > 0 {
+                    (start + k) % n
+                } else {
+                    (start + n * k - k) % n
+                }
+            })
+            .find(|&i| self.entries[i].enabled)
+    }
+
     fn lit(&self, index: usize) -> bool {
         self.entries[index].enabled
             && (self.hovered == Some(index) || (self.open == Some(index) && self.hovered.is_none()))
     }
+}
+
+/// What a key does in a menu.
+#[derive(Debug, PartialEq)]
+pub enum Key {
+    /// The menu changes its look.
+    Commands(Vec<Command>),
+    /// A row acts; the menu closes.
+    Act(Act),
+    /// The menu closes.
+    Close,
 }
 
 /// The open menu, with its submenu.
@@ -617,6 +644,71 @@ impl Menu {
             commands.push(self.relook(theme, 0, open));
         }
         commands
+    }
+
+    /// The node that takes the keyboard while the menu is open.
+    pub fn focus_node() -> String {
+        group_id(0)
+    }
+
+    /// A key while the menu is open, as on XP: Up and Down move the
+    /// highlight over the enabled rows, Right and Left open and close the
+    /// submenu, Return acts, and Escape closes the submenu or the menu.
+    pub fn key(&mut self, theme: &mut Theme, parent: &str, key: &str) -> Key {
+        let level = self.levels.len() - 1;
+        let current = self.levels[level].hovered;
+        match key {
+            "Down" | "Up" => {
+                let step = if key == "Down" { 1 } else { -1 };
+                let Some(next) = self.levels[level].next(current, step) else {
+                    return Key::Commands(Vec::new());
+                };
+                Key::Commands(self.light(theme, level, Some(next)))
+            }
+            "Right" if level == 0 => match current {
+                Some(i)
+                    if self.levels[0].entries[i].enabled
+                        && !self.levels[0].entries[i].sub.is_empty() =>
+                {
+                    let mut commands = self.open_sub(theme, parent, i);
+                    let first = self.levels[1].next(None, 1);
+                    commands.extend(self.light(theme, 1, first));
+                    Key::Commands(commands)
+                }
+                _ => Key::Commands(Vec::new()),
+            },
+            "Left" | "Escape" if level == 1 => {
+                let open = self.levels[0].open;
+                let mut commands = self.close_sub(theme);
+                commands.extend(self.light(theme, 0, open));
+                Key::Commands(commands)
+            }
+            "Escape" => Key::Close,
+            "Return" | "KP_Enter" | "space" => {
+                let Some(i) = current else {
+                    return Key::Commands(Vec::new());
+                };
+                let entry = &self.levels[level].entries[i];
+                if level == 0 && entry.enabled && !entry.sub.is_empty() {
+                    return self.key(theme, parent, "Right");
+                }
+                match entry.act.filter(|_| entry.enabled) {
+                    Some(act) => Key::Act(act),
+                    None => Key::Commands(Vec::new()),
+                }
+            }
+            _ => Key::Commands(Vec::new()),
+        }
+    }
+
+    /// Moves the highlight of a level to a row, or takes it away.
+    fn light(&mut self, theme: &mut Theme, level: usize, row: Option<usize>) -> Vec<Command> {
+        let old = std::mem::replace(&mut self.levels[level].hovered, row);
+        [old, row]
+            .into_iter()
+            .flatten()
+            .map(|i| self.relook(theme, level, i))
+            .collect()
     }
 
     /// A press on a node of the menu.
@@ -928,5 +1020,56 @@ mod tests {
         assert_eq!(menu.part("xp-ctx-0-7"), None);
         assert_eq!(menu.part("xp-ctx-1-0"), None);
         assert_eq!(menu.part("xp-ctx-0-frame"), None);
+    }
+
+    /// A menu with a row, a gray row, a separator and a submenu.
+    fn keyed(theme: &Theme) -> Menu {
+        let entries = vec![
+            Entry::item("Cascade Windows", Act::Cascade),
+            Entry::gray("Toolbars"),
+            Entry::separator(),
+            Entry::sub(
+                "Arrange",
+                vec![Entry::item("Show the Desktop", Act::ShowDesktop)],
+            ),
+        ];
+        Menu::new(theme, entries, [10, 10], SCREEN, 0)
+    }
+
+    #[test]
+    fn the_keys_move_over_the_enabled_rows_into_the_submenu() {
+        let (mut theme, cache) = crate::dialog::tests::theme("menukeys");
+        let mut menu = keyed(&theme);
+        menu.key(&mut theme, "root", "Down");
+        assert_eq!(menu.levels[0].hovered, Some(0));
+        // The gray row and the separator are skipped.
+        menu.key(&mut theme, "root", "Down");
+        assert_eq!(menu.levels[0].hovered, Some(3));
+        // Right opens the submenu on its first row; Return acts there.
+        menu.key(&mut theme, "root", "Right");
+        assert_eq!(menu.levels.len(), 2);
+        assert_eq!(
+            menu.key(&mut theme, "root", "Return"),
+            Key::Act(Act::ShowDesktop)
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn escape_closes_the_submenu_then_the_menu() {
+        let (mut theme, cache) = crate::dialog::tests::theme("menuescape");
+        let mut menu = keyed(&theme);
+        menu.key(&mut theme, "root", "Up");
+        menu.key(&mut theme, "root", "Right");
+        menu.key(&mut theme, "root", "Escape");
+        assert_eq!(menu.levels.len(), 1);
+        assert_eq!(menu.key(&mut theme, "root", "Escape"), Key::Close);
+        // Up goes around to the first enabled row from the last one.
+        menu.key(&mut theme, "root", "Up");
+        assert_eq!(
+            menu.key(&mut theme, "root", "Return"),
+            Key::Act(Act::Cascade)
+        );
+        let _ = std::fs::remove_dir_all(cache);
     }
 }

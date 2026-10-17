@@ -91,7 +91,7 @@ pub struct Config {
 }
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 17] = [
+const EVENTS: [&str; 18] = [
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -106,6 +106,7 @@ const EVENTS: [&str; 17] = [
     "output.changed",
     "output.removed",
     "input.key",
+    "node.key",
     "input.button",
     "input.moved",
     "effects.dropped",
@@ -553,6 +554,11 @@ impl Wm {
             Event::PointerEntered { node, .. } => self.hovered(&node, true),
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
+            Event::NodeKey {
+                key,
+                state: PressState::Pressed,
+                ..
+            } => self.node_key(&key),
             _ => Vec::new(),
         };
         let mut commands = commands;
@@ -1333,9 +1339,7 @@ impl Wm {
         };
         let (area, usable) = (bar.area(), bar.usable());
         let menu = context::Menu::new(&self.theme, entries, point, area, 0);
-        let commands = menu.create(&mut self.theme, MENUS);
-        self.context = Some((menu, usable));
-        commands
+        self.show_context(menu, usable)
     }
 
     /// XP's system menu of a window at a point.
@@ -1355,10 +1359,8 @@ impl Wm {
         };
         let (area, usable) = (bar.area(), bar.usable());
         let menu = context::Menu::new(&self.theme, entries, point, area, 0);
-        let commands = menu.create(&mut self.theme, MENUS);
-        self.context = Some((menu, usable));
         self.sys_window = Some(surface.into());
-        commands
+        self.show_context(menu, usable)
     }
 
     /// Does what a row of the system menu says to its window.
@@ -1382,6 +1384,34 @@ impl Wm {
             context::Sys::Minimize => self.minimize(&surface),
             context::Sys::Close => self.close_window(&surface),
         }
+    }
+
+    /// Shows a context menu, which takes the keyboard.
+    fn show_context(&mut self, menu: context::Menu, area: Rect) -> Vec<Command> {
+        let mut commands = menu.create(&mut self.theme, MENUS);
+        commands.push(Command::FocusNode {
+            node: Some(context::Menu::focus_node()),
+        });
+        self.context = Some((menu, area));
+        commands
+    }
+
+    /// A key while a node of the plugin has the keyboard: a context menu
+    /// or the start menu.
+    fn node_key(&mut self, key: &str) -> Vec<Command> {
+        if let Some((menu, area)) = &mut self.context {
+            let area = *area;
+            return match menu.key(&mut self.theme, MENUS, key) {
+                context::Key::Commands(commands) => commands,
+                context::Key::Act(act) => {
+                    let mut commands = self.close_context();
+                    commands.extend(self.act(act, area));
+                    commands
+                }
+                context::Key::Close => self.close_context(),
+            };
+        }
+        Vec::new()
     }
 
     fn close_context(&mut self) -> Vec<Command> {
@@ -1959,9 +1989,7 @@ impl Wm {
             .or(self.bars.first())
             .map_or([0, 0, 1280, 800], Bar::area);
         let menu = context::Menu::new(&self.theme, entries, point, area, width);
-        let commands = menu.create(&mut self.theme, MENUS);
-        self.context = Some((menu, area));
-        commands
+        self.show_context(menu, area)
     }
 
     /// Effects of Appearance, or the open one on top.
@@ -2068,8 +2096,7 @@ impl Wm {
                         .or(self.bars.first());
                     let area = area.map_or([0, 0, 1280, 800], Bar::area);
                     let menu = context::Menu::new(&self.theme, entries, point, area, width);
-                    commands.extend(menu.create(&mut self.theme, MENUS));
-                    self.context = Some((menu, area));
+                    commands.extend(self.show_context(menu, area));
                     return commands;
                 }
             },

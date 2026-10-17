@@ -3,7 +3,7 @@
 
 use chora_scene::Command;
 
-use super::{DIALOGS, MENUS, Panel, Wm, desktops::desk_id, spawn};
+use super::{DIALOGS, Panel, Wm, desktops::desk_id, spawn};
 use crate::{
     confirm::ConfirmDialog,
     context,
@@ -120,9 +120,7 @@ impl Wm {
                     .or(self.bars.first())
                     .map_or([0, 0, 1280, 800], Bar::area);
                 let menu = context::Menu::new(&self.theme, entries, point, area, 0);
-                let commands = menu.create(&mut self.theme, MENUS);
-                self.context = Some((menu, area));
-                commands
+                self.show_context(menu, area)
             }
         }
     }

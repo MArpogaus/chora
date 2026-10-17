@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use chora_scene::Command;
 
-use super::{DIALOGS, MENUS, Panel, Target, Wm};
+use super::{DIALOGS, Panel, Target, Wm};
 use crate::{
     confirm::ConfirmDialog,
     context::{self, Item},
@@ -59,8 +59,7 @@ impl Wm {
             .or(self.bars.first())
             .map_or([0, 0, 1280, 800], Bar::area);
         let menu = context::Menu::new(&self.theme, context::item(kind), point, area, 0);
-        commands.extend(menu.create(&mut self.theme, MENUS));
-        self.context = Some((menu, area));
+        commands.extend(self.show_context(menu, area));
         self.item = Some(target);
         Some(commands)
     }
