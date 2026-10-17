@@ -193,7 +193,7 @@ impl Wm {
 
     /// Asks whether to empty the Recycle Bin, unless the question is open
     /// already.
-    fn confirm_empty(&mut self, names: &[String]) -> Vec<Command> {
+    pub(super) fn confirm_empty(&mut self, names: &[String]) -> Vec<Command> {
         if let Some(commands) = self.raise_panel(|p| matches!(p, Panel::Confirm(_))) {
             return commands;
         }
@@ -213,10 +213,16 @@ impl Wm {
         if let Err(err) = folder::empty_trash(&folder::trash_root()) {
             eprintln!("chora-xp: empty the Recycle Bin: {err}");
         }
+        self.refresh_trash()
+    }
+
+    /// Shows the desktop icons and the Explorer windows again after the
+    /// trash changed: those of the Recycle Bin and of the folders that a
+    /// file left.
+    pub(super) fn refresh_trash(&mut self) -> Vec<Command> {
         let ids: Vec<String> = self
             .explorers
             .iter_mut()
-            .filter(|e| e.history.current == Place::Trash)
             .map(|e| {
                 e.command(Cmd::Refresh);
                 e.id.clone()

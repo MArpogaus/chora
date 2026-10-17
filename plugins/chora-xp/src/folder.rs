@@ -512,6 +512,86 @@ fn percent_decode(text: &str) -> Vec<u8> {
     out
 }
 
+/// Moves a file or folder into a trash, as the freedesktop.org
+/// specification says: first the `.trashinfo` file in `info/` with the
+/// percent-encoded path and the date, made only if no such file exists,
+/// so that its name is reserved; then the file itself by a rename into
+/// `files/`. A name that the trash holds already gets a number: `a.2.txt`.
+/// The date is the local time as `2026-10-17T08:55:31`. Returns the name
+/// in the trash. A file on another file system than the trash fails, and
+/// stays where it is.
+pub fn trash_file(root: &Path, path: &Path, date: &str) -> std::io::Result<String> {
+    use std::io::Write as _;
+    let (files, info) = (root.join("files"), root.join("info"));
+    fs::create_dir_all(&files)?;
+    fs::create_dir_all(&info)?;
+    let path = std::path::absolute(path)?;
+    let name = path
+        .file_name()
+        .ok_or_else(|| std::io::Error::other("no file name"))?
+        .to_string_lossy()
+        .into_owned();
+    for n in 1.. {
+        let candidate = numbered(&name, n);
+        let info_file = info.join(format!("{candidate}.trashinfo"));
+        if files.join(&candidate).symlink_metadata().is_ok() {
+            continue;
+        }
+        let mut file = match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&info_file)
+        {
+            Ok(file) => file,
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(err),
+        };
+        file.write_all(trash_info_text(&path, date).as_bytes())?;
+        if let Err(err) = fs::rename(&path, files.join(&candidate)) {
+            let _ = fs::remove_file(&info_file);
+            return Err(err);
+        }
+        return Ok(candidate);
+    }
+    unreachable!("the names never run out")
+}
+
+/// The `n`th name for a file in the trash: the name itself, then with a
+/// number before the extension.
+fn numbered(name: &str, n: u32) -> String {
+    if n == 1 {
+        return name.into();
+    }
+    match name.rsplit_once('.').filter(|(stem, _)| !stem.is_empty()) {
+        Some((stem, ext)) => format!("{stem}.{n}.{ext}"),
+        None => format!("{name}.{n}"),
+    }
+}
+
+/// The text of a `.trashinfo` file.
+fn trash_info_text(path: &Path, date: &str) -> String {
+    use std::os::unix::ffi::OsStrExt as _;
+    format!(
+        "[Trash Info]\nPath={}\nDeletionDate={date}\n",
+        percent_encode(path.as_os_str().as_bytes())
+    )
+}
+
+/// Percent-encodes the bytes of a path as a URL does, keeping the
+/// slashes and the characters that need no encoding.
+fn percent_encode(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::with_capacity(bytes.len());
+    for &b in bytes {
+        if b.is_ascii_alphanumeric() || b"/-_.~".contains(&b) {
+            out.push(char::from(b));
+        } else {
+            let _ = write!(out, "%{b:02X}");
+        }
+    }
+    out
+}
+
 /// Empties a trash: deletes its files and folders for good, and their
 /// `.trashinfo` files. A link goes, not what it points at.
 pub fn empty_trash(root: &Path) -> std::io::Result<()> {
@@ -557,6 +637,67 @@ mod tests {
         assert_eq!(Kind::of("data.bin2", false, false), Kind::Generic);
         assert_eq!(Kind::of(".bashrc", false, false), Kind::Generic);
         assert_eq!(Kind::of("x.txt", true, false), Kind::Folder);
+    }
+
+    #[test]
+    fn a_file_goes_to_the_trash_with_its_info() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-trash1-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let (desk, root) = (dir.join("Desktop"), dir.join("data/Trash"));
+        fs::create_dir_all(desk.join("a folder")).unwrap();
+        fs::write(desk.join("notes 100%.txt"), "x").unwrap();
+        let date = "2026-10-17T08:55:31";
+        let name = trash_file(&root, &desk.join("notes 100%.txt"), date).unwrap();
+        assert_eq!(name, "notes 100%.txt");
+        assert!(!desk.join("notes 100%.txt").exists());
+        assert!(root.join("files/notes 100%.txt").is_file());
+        let info = fs::read_to_string(root.join("info/notes 100%.txt.trashinfo")).unwrap();
+        let path = format!("{}/notes%20100%25.txt", desk.display());
+        assert_eq!(
+            info,
+            format!("[Trash Info]\nPath={path}\nDeletionDate={date}\n")
+        );
+        // It reads back as the Recycle Bin shows it.
+        assert_eq!(
+            trash_info(&info),
+            (Some(desk.join("notes 100%.txt")), Some(date.into()))
+        );
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn names_in_the_trash_get_numbers() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-trash2-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let (desk, root) = (dir.join("Desktop"), dir.join("data/Trash"));
+        fs::create_dir_all(desk.join("a folder")).unwrap();
+        let date = "2026-10-17T08:55:31";
+        let trash = |name: &str| trash_file(&root, &desk.join(name), date).ok();
+        for (content, expected) in [
+            ("x", "notes.txt"),
+            ("y", "notes.2.txt"),
+            ("z", "notes.3.txt"),
+        ] {
+            fs::write(desk.join("notes.txt"), content).unwrap();
+            assert_eq!(trash("notes.txt").as_deref(), Some(expected));
+        }
+        fs::write(desk.join("b"), "x").unwrap();
+        assert_eq!(trash("b").as_deref(), Some("b"));
+        fs::write(desk.join("b"), "y").unwrap();
+        assert_eq!(trash("b").as_deref(), Some("b.2"));
+        assert_eq!(trash("a folder").as_deref(), Some("a folder"));
+        assert!(root.join("files/a folder").is_dir());
+        // A missing file fails and leaves no info behind.
+        assert_eq!(trash("gone"), None);
+        assert!(!root.join("info/gone.trashinfo").exists());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn trash_names_and_paths_are_encoded() {
+        assert_eq!(numbered(".bashrc", 3), ".bashrc.3");
+        assert_eq!(numbered("a.tar.gz", 2), "a.tar.2.gz");
+        assert_eq!(percent_encode("/ä b".as_bytes()), "/%C3%A4%20b");
     }
 
     #[test]

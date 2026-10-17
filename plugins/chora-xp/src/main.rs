@@ -22,6 +22,7 @@ mod folder;
 mod icons;
 mod lamp;
 mod notify;
+mod properties;
 mod session;
 mod sound;
 mod startmenu;

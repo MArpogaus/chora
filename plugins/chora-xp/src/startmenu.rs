@@ -77,6 +77,7 @@ struct Entry {
 }
 
 /// The programs and the places of the menu.
+#[derive(Clone)]
 pub struct Config {
     /// The user name for the header.
     pub user: String,
@@ -97,9 +98,25 @@ enum Press {
     Row(usize, usize),
 }
 
+/// An entry of the menu or a program of a cascade, for its context menu
+/// and its Properties.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Item {
+    /// The name.
+    pub title: String,
+    /// What Open does.
+    pub action: Action,
+    /// The icon.
+    pub icon: Option<PathBuf>,
+    /// The index of a program of the left column, which can leave it.
+    pub program: Option<usize>,
+}
+
 /// The start menu, one for all outputs, with the cascades of All
 /// Programs.
 pub struct Menu {
+    /// What the menu was made of, to make it again without a program.
+    config: Config,
     user: String,
     entries: Vec<Entry>,
     /// The left column ends with a separator and All Programs.
@@ -166,6 +183,7 @@ impl Menu {
             .position(|e| e.kind == Kind::AllPrograms)
             .unwrap_or(0);
         Self {
+            config: config.clone(),
             user: config.user.clone(),
             entries,
             separators,
@@ -359,6 +377,60 @@ impl Menu {
         }
         let (level, i) = cascade::row_of(node)?;
         (self.cascades.get(level)?.count > i).then_some(Press::Row(level, i))
+    }
+
+    /// The program or place that a node shows: an entry of the columns or
+    /// a program of a cascade. `None` for All Programs, the Control Panel,
+    /// the footer and the groups.
+    pub fn item(&self, node: &str, icons: &mut Icons) -> Option<Item> {
+        match self.part(node)? {
+            Press::Entry(i) => {
+                let e = &self.entries[i];
+                let program = match e.kind {
+                    Kind::Program => Some(i),
+                    Kind::Place if !e.cascade => None,
+                    _ => return None,
+                };
+                Some(Item {
+                    title: e.title.clone(),
+                    action: e.action.clone(),
+                    icon: e.icon.clone(),
+                    program,
+                })
+            }
+            Press::Row(level, i) => {
+                let node = self.nodes(level).get(i)?;
+                let apps::Kind::Run(command) = &node.kind else {
+                    return None;
+                };
+                Some(Item {
+                    title: node.title.clone(),
+                    action: Action::Run(command.clone()),
+                    icon: icons.find(&node.icon),
+                    program: None,
+                })
+            }
+        }
+    }
+
+    /// Remove from This List: the menu without a program of its left
+    /// column, made again under its node, until `chora-xp` ends.
+    pub fn remove_program(
+        &mut self,
+        index: usize,
+        theme: &mut Theme,
+        icons: &mut Icons,
+    ) -> Vec<Command> {
+        let mut config = self.config.clone();
+        if index >= config.programs.len() {
+            return Vec::new();
+        }
+        config.programs.remove(index);
+        let parent = self.parent.clone();
+        *self = Self::new(&config, theme, icons);
+        let mut commands = vec![Command::Remove { id: GROUP.into() }];
+        commands.extend(self.create(theme, &parent));
+        commands
     }
 
     /// Highlights the entry or the row under the pointer, as XP does, or

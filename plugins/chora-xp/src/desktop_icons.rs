@@ -273,6 +273,11 @@ impl DesktopIcons {
             .collect()
     }
 
+    /// The icon that a node shows.
+    pub fn item(&self, node: &str) -> Option<Item> {
+        self.items.get(Self::index(node)?).cloned()
+    }
+
     /// A press of the left button on an icon selects it; the second press
     /// of a double click returns what to open.
     pub fn press(

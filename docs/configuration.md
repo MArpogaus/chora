@@ -274,6 +274,29 @@ says and closes the menu; a click outside closes it.
   into their columns, in that order; Refresh shows them again; Properties
   opens Display Properties (see below). Paste and Paste Shortcut are
   gray.
+- **An icon of the desktop**: the right button selects it and opens
+  XP's menu of its kind. Open, in bold, does what a double click does.
+  A folder and My Documents have Explore, which opens the folder in
+  Explorer, as My Computer and the Recycle Bin do. Delete of a file or a
+  folder of the Desktop folder asks in XP's Confirm File Delete or
+  Confirm Folder Delete, and Yes moves it to the trash of the
+  freedesktop.org specification: `$XDG_DATA_HOME/Trash/files`, with its
+  `.trashinfo` file in `Trash/info` that holds its percent-encoded path
+  and the date. A name that the trash holds already gets a number, as
+  `notes.2.txt`. A file on another file system than the trash stays
+  where it is, and `chora-xp` logs why. Properties shows the type, the
+  folder, the size or the number of items in a folder, and the times it
+  was created, changed and opened. The Recycle Bin has Empty Recycle
+  Bin while it holds files, and its Properties count them. Send To,
+  Open With, Search, Cut, Copy, Create Shortcut and Rename are gray, as
+  are Delete of My Documents and all rows of My Computer but Open and
+  Explore: its Properties would be XP's System Properties.
+- **A program or a place of the start menu, or a program of All
+  Programs**: Open in bold, Explore for the folders, Remove from This
+  List for the programs of the left column, which leave the menu until
+  `chora-xp` ends, and Properties with the name, the icon and the
+  command or the folder. Run as, Pin to Start menu, Send To and Rename
+  are gray.
 
 `chora-xp` draws XP's Windows Explorer itself, as the client of a
 window of its own: the window has XP's frame and a task button with the

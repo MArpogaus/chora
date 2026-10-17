@@ -1,5 +1,6 @@
-//! XP's Confirm File Delete, the question before Empty the Recycle Bin
-//! deletes for good: the icon of the bin, the question, Yes and No.
+//! XP's Confirm File Delete: the question before Empty the Recycle Bin
+//! deletes for good, or before Delete sends a file or a folder to the
+//! Recycle Bin. The icon of the bin, the question, Yes and No.
 
 use std::path::PathBuf;
 
@@ -16,6 +17,8 @@ pub struct ConfirmDialog {
     question: String,
     icon: Option<PathBuf>,
     size: [i32; 2],
+    /// The file that Yes sends to the Recycle Bin; none to empty it.
+    pub trash: Option<PathBuf>,
 }
 
 impl ConfirmDialog {
@@ -35,14 +38,50 @@ impl ConfirmDialog {
                 ),
             ),
         };
+        Self::ask(theme, title, question, icon, area)
+    }
+
+    /// The question before Delete sends a file or a folder to the
+    /// Recycle Bin, as XP asks it.
+    pub fn trash(theme: &Theme, path: PathBuf, icon: Option<PathBuf>, area: Rect) -> Self {
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let (title, question) = if path.is_dir() {
+            (
+                "Confirm Folder Delete",
+                format!(
+                    "Are you sure you want to remove the folder '{name}' and move all its contents to the Recycle Bin?"
+                ),
+            )
+        } else {
+            (
+                "Confirm File Delete",
+                format!("Are you sure you want to send '{name}' to the Recycle Bin?"),
+            )
+        };
+        let mut dialog = Self::ask(theme, title, question, icon, area);
+        dialog.trash = Some(path);
+        dialog
+    }
+
+    fn ask(
+        theme: &Theme,
+        title: &str,
+        question: String,
+        icon: Option<PathBuf>,
+        area: Rect,
+    ) -> Self {
         #[allow(clippy::cast_possible_truncation)]
         let text = theme.text_width(&question, Font::Ui).ceil() as i32;
-        let size = [(text + 75).clamp(260, 480), 98];
+        let size = [(text + 75).clamp(260, 560), 98];
         Self {
             dialog: Dialog::new("confirm", title, size, area),
             question,
             icon,
             size,
+            trash: None,
         }
     }
 
@@ -91,6 +130,12 @@ mod tests {
         preview(&mut theme, &two.dialog, "confirm");
         assert!(ConfirmDialog::yes(&Hit::Control("yes".into(), [1, 1])));
         assert!(!ConfirmDialog::yes(&Hit::Close));
+        let file = ConfirmDialog::trash(&theme, "/d/notes.txt".into(), None, area);
+        assert_eq!(
+            file.question,
+            "Are you sure you want to send 'notes.txt' to the Recycle Bin?"
+        );
+        assert_eq!(file.trash, Some("/d/notes.txt".into()));
         let _ = std::fs::remove_dir_all(cache);
     }
 }

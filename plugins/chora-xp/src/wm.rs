@@ -6,6 +6,7 @@
 mod desktops;
 mod effects;
 mod explorers;
+mod items;
 mod resize;
 
 use std::{
@@ -38,9 +39,10 @@ use crate::{
     folder::Place,
     icons::Icons,
     notify::{Bus, Note, Reason, Request, Signal},
+    properties::PropertiesDialog,
     session::{self, Choice, Dialog, Mode},
     sound::{self, Sound},
-    startmenu::{Action, Menu},
+    startmenu::{self, Action, Menu},
     taskbar::{self, Bar, Task},
     taskbar_dialog::{Outcome, TaskbarDialog},
     theme::{Rect, Theme},
@@ -222,6 +224,8 @@ pub struct Wm {
     explorer_count: u32,
     /// The tab of Display Properties when it last closed, as XP keeps it.
     display_tab: usize,
+    /// The icon or the start menu entry of the open context menu.
+    item: Option<Target>,
     /// Turn Off ended the plugin.
     pub done: bool,
     /// Restart ended the plugin, to start it again.
@@ -275,6 +279,7 @@ impl Wm {
             explorers: Vec::new(),
             explorer_count: 0,
             display_tab: 0,
+            item: None,
             done: false,
             restart: false,
         };
@@ -1026,6 +1031,9 @@ impl Wm {
         if let Some(taskbar::Part::Task(surface)) = taskbar::Part::of(node) {
             return self.open_system(&surface, point);
         }
+        if let Some(commands) = self.open_item_menu(node, point) {
+            return commands;
+        }
         let entries = if node.starts_with("xp-tray-") {
             context::clock(self.taskbar.locked)
         } else if node.starts_with("xp-panel-") || node.starts_with("xp-pager-") {
@@ -1132,6 +1140,7 @@ impl Wm {
             Act::DateTime => self.open_date_dialog(area),
             Act::Explore(cmd) => self.explore(cmd),
             Act::Window(sys) => self.act_window(sys),
+            Act::Item(item) => self.act_item(item),
             Act::Position(index) => self.with_display(|d| d.set_position(index)),
             Act::Color(color) => self.with_display(|d| d.set_color(color)),
             Act::Month(month) => {
@@ -1729,11 +1738,8 @@ impl Wm {
         let Some((i, hit)) = hit else {
             return commands;
         };
-        if matches!(self.panels[i], Panel::Confirm(_)) {
-            commands.push(self.panels.remove(i).window_ref().remove());
-            if ConfirmDialog::yes(&hit) {
-                commands.extend(self.empty_trash());
-            }
+        if let Some(more) = self.answer(i, &hit) {
+            commands.extend(more);
             return commands;
         }
         if matches!(self.panels[i], Panel::Display(_) | Panel::Effects(_)) {
@@ -1741,9 +1747,11 @@ impl Wm {
             return commands;
         }
         let outcome = match (&mut self.panels[i], &hit) {
-            (_, Hit::Close) | (Panel::Confirm(_) | Panel::Display(_) | Panel::Effects(_), _) => {
-                Outcome::Close
-            }
+            (_, Hit::Close)
+            | (
+                Panel::Confirm(_) | Panel::Display(_) | Panel::Effects(_) | Panel::Properties(_),
+                _,
+            ) => Outcome::Close,
             (Panel::Taskbar(panel), hit) => panel.click(hit),
             (Panel::Clock(panel), hit) => match panel.click(hit) {
                 Click::Redraw => Outcome::Redraw,
@@ -1776,6 +1784,32 @@ impl Wm {
         commands
     }
 
+    /// A click on a question or on Properties: Yes deletes or empties,
+    /// the buttons close. `None` for the other dialogs.
+    fn answer(&mut self, i: usize, hit: &Hit) -> Option<Vec<Command>> {
+        let mut commands = Vec::new();
+        match &self.panels[i] {
+            Panel::Confirm(confirm) => {
+                let trash = confirm.trash.clone();
+                commands.push(self.panels.remove(i).window_ref().remove());
+                if ConfirmDialog::yes(hit) {
+                    commands.extend(match trash {
+                        Some(path) => self.trash(&path),
+                        None => self.empty_trash(),
+                    });
+                }
+            }
+            Panel::Properties(_) => {
+                let button = matches!(hit, Hit::Control(n, _) if n == "ok" || n == "cancel");
+                if button || *hit == Hit::Close {
+                    commands.push(self.panels.remove(i).window_ref().remove());
+                }
+            }
+            _ => return None,
+        }
+        Some(commands)
+    }
+
     /// Shows the page of a dialog again.
     fn redraw_panel(&mut self, i: usize) -> Vec<Command> {
         match &mut self.panels[i] {
@@ -1791,7 +1825,7 @@ impl Wm {
                 let page = panel.page(&mut self.theme);
                 panel.dialog.show(&mut self.theme, page)
             }
-            Panel::Confirm(_) | Panel::Effects(_) => Vec::new(),
+            Panel::Confirm(_) | Panel::Effects(_) | Panel::Properties(_) => Vec::new(),
         }
     }
 
@@ -1918,22 +1952,29 @@ impl Wm {
             .desk
             .press(&mut self.theme, &mut self.icons, node, position);
         commands.extend(more);
-        let place = match open {
-            Some(desktop_icons::Open::Folder(path)) => Place::Folder(path),
-            Some(desktop_icons::Open::Computer) => Place::Computer,
-            Some(desktop_icons::Open::Trash) => Place::Trash,
-            Some(desktop_icons::Open::Run(command)) => {
-                spawn(&command);
-                return commands;
-            }
-            Some(desktop_icons::Open::File(path)) => {
-                spawn(&desktop_icons::xdg_open(&path));
-                return commands;
-            }
-            None => return commands,
-        };
-        commands.extend(self.open_explorer(place));
+        if let Some(open) = open {
+            commands.extend(self.open_icon(open));
+        }
         commands
+    }
+
+    /// Opens what an icon stands for: a place in Explorer, a program or
+    /// a file with the program of its type.
+    fn open_icon(&mut self, open: desktop_icons::Open) -> Vec<Command> {
+        let place = match open {
+            desktop_icons::Open::Folder(path) => Place::Folder(path),
+            desktop_icons::Open::Computer => Place::Computer,
+            desktop_icons::Open::Trash => Place::Trash,
+            desktop_icons::Open::Run(command) => {
+                spawn(&command);
+                return Vec::new();
+            }
+            desktop_icons::Open::File(path) => {
+                spawn(&desktop_icons::xdg_open(&path));
+                return Vec::new();
+            }
+        };
+        self.open_explorer(place)
     }
 
     // The Control Panel of the start menu
@@ -2237,6 +2278,16 @@ enum Panel {
     Display(DisplayDialog),
     /// Effects of Display Properties.
     Effects(EffectsDialog),
+    /// Properties of an icon or an entry of the start menu.
+    Properties(PropertiesDialog),
+}
+
+/// What a context menu of an icon or of the start menu acts on.
+enum Target {
+    /// An entry of the start menu.
+    Start(startmenu::Item),
+    /// An icon of the desktop.
+    Icon(desktop_icons::Item),
 }
 
 impl Panel {
@@ -2247,6 +2298,7 @@ impl Panel {
             Self::Confirm(panel) => &mut panel.dialog,
             Self::Display(panel) => &mut panel.dialog,
             Self::Effects(panel) => &mut panel.dialog,
+            Self::Properties(panel) => &mut panel.dialog,
         }
     }
 
@@ -2264,6 +2316,7 @@ impl Panel {
             Self::Confirm(panel) => &panel.dialog,
             Self::Display(panel) => &panel.dialog,
             Self::Effects(panel) => &panel.dialog,
+            Self::Properties(panel) => &panel.dialog,
         }
     }
 }

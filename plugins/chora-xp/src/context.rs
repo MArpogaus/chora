@@ -67,6 +67,45 @@ pub enum Act {
     Explore(crate::explorer::Cmd),
     /// A row of the system menu of a window.
     Window(Sys),
+    /// A row of the menu of a desktop icon or a start menu entry.
+    Item(Item),
+}
+
+/// What a row of the menu of a desktop icon or of an entry of the start
+/// menu does to it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Item {
+    /// Open, as a double click does.
+    Open,
+    /// Explore: opens a folder in Explorer.
+    Explore,
+    /// Delete: moves the file to the Recycle Bin.
+    Delete,
+    /// Empty Recycle Bin.
+    EmptyTrash,
+    /// Remove from This List: the program leaves the start menu.
+    Remove,
+    /// Properties.
+    Properties,
+}
+
+/// What an icon or an entry is, for its menu.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Target {
+    /// A folder of the Desktop folder.
+    Folder,
+    /// A file or a desktop file of the Desktop folder.
+    File,
+    /// My Documents.
+    Documents,
+    /// My Computer.
+    Computer,
+    /// The Recycle Bin, empty or not.
+    Trash(bool),
+    /// A program of the start menu; one of its left column can leave it.
+    Program(bool),
+    /// A place of the start menu; a folder can be explored.
+    Place(bool),
 }
 
 /// What a row of XP's system menu does to its window.
@@ -172,6 +211,12 @@ impl Entry {
         self
     }
 
+    /// In bold, as the default row.
+    pub fn bold(mut self) -> Self {
+        self.bold = true;
+        self
+    }
+
     /// With a sample of a color before the text.
     pub fn swatch(mut self, color: [u8; 3]) -> Self {
         self.swatch = Some(color);
@@ -252,6 +297,93 @@ pub fn desktop() -> Vec<Entry> {
         Entry::separator(),
         Entry::item("Properties", Act::DesktopProperties),
     ]
+}
+
+/// XP's menu of a desktop icon or of an entry of the start menu, by what
+/// it is. Open is the default row; what `chora-xp` cannot do is gray.
+pub fn item(target: Target) -> Vec<Entry> {
+    let row = |title: &str, item: Item| Entry::item(title, Act::Item(item));
+    let open = row("Open", Item::Open).bold();
+    let explore = row("Explore", Item::Explore);
+    let send_to = Entry::sub("Send To", Vec::new()).enabled(false);
+    let properties = row("Properties", Item::Properties);
+    let sep = Entry::separator;
+    let gray = Entry::gray;
+    match target {
+        Target::Folder | Target::File | Target::Documents => {
+            file_rows(target, open, explore, send_to, properties)
+        }
+        Target::Computer => vec![
+            open,
+            explore,
+            gray("Search..."),
+            gray("Manage"),
+            sep(),
+            gray("Map Network Drive..."),
+            gray("Disconnect Network Drive..."),
+            sep(),
+            gray("Create Shortcut"),
+            gray("Delete"),
+            gray("Rename"),
+            sep(),
+            gray("Properties"),
+        ],
+        Target::Trash(full) => vec![
+            open,
+            explore,
+            row("Empty Recycle Bin", Item::EmptyTrash).enabled(full),
+            sep(),
+            gray("Create Shortcut"),
+            sep(),
+            properties,
+        ],
+        Target::Program(removable) => vec![
+            open,
+            gray("Run as..."),
+            gray("Pin to Start menu"),
+            sep(),
+            send_to,
+            sep(),
+            row("Remove from This List", Item::Remove).enabled(removable),
+            gray("Rename"),
+            sep(),
+            properties,
+        ],
+        Target::Place(folder) => {
+            let mut rows = vec![open];
+            if folder {
+                rows.extend([explore, gray("Search...")]);
+            }
+            rows.extend([sep(), send_to, sep(), gray("Rename"), sep(), properties]);
+            rows
+        }
+    }
+}
+
+/// The rows of a folder, a file or My Documents.
+fn file_rows(
+    target: Target,
+    open: Entry,
+    explore: Entry,
+    send_to: Entry,
+    properties: Entry,
+) -> Vec<Entry> {
+    let (sep, gray) = (Entry::separator, Entry::gray);
+    let mut rows = vec![open];
+    if target == Target::File {
+        rows.push(Entry::sub("Open With", Vec::new()).enabled(false));
+    } else {
+        rows.extend([explore, gray("Search...")]);
+    }
+    rows.extend([sep(), send_to, sep(), gray("Cut"), gray("Copy"), sep()]);
+    rows.extend([
+        gray("Create Shortcut"),
+        Entry::item("Delete", Act::Item(Item::Delete)).enabled(target != Target::Documents),
+        gray("Rename"),
+        sep(),
+        properties,
+    ]);
+    rows
 }
 
 /// XP's system menu of a window, as the title bar and the task button
@@ -722,6 +854,62 @@ mod tests {
         assert_eq!(close.key, "Alt+F4");
         assert_eq!(close.act, Some(Act::Window(Sys::Close)));
         assert_eq!(system(true, false)[4].act, None, "Maximize is gray");
+    }
+
+    #[test]
+    fn icons_and_entries_have_xp_menus() {
+        let rows = |t: Target| -> Vec<(String, bool)> {
+            item(t)
+                .into_iter()
+                .filter(|e| !e.is_separator())
+                .map(|e| (e.title, e.enabled))
+                .collect()
+        };
+        let enabled = |t: Target| -> Vec<String> {
+            rows(t)
+                .into_iter()
+                .filter(|(_, e)| *e)
+                .map(|(t, _)| t)
+                .collect()
+        };
+        assert_eq!(
+            enabled(Target::Folder),
+            ["Open", "Explore", "Delete", "Properties"]
+        );
+        assert_eq!(enabled(Target::File), ["Open", "Delete", "Properties"]);
+        assert_eq!(
+            enabled(Target::Documents),
+            ["Open", "Explore", "Properties"]
+        );
+        assert_eq!(enabled(Target::Computer), ["Open", "Explore"]);
+        assert_eq!(
+            enabled(Target::Trash(true)),
+            ["Open", "Explore", "Empty Recycle Bin", "Properties"]
+        );
+        assert_eq!(
+            enabled(Target::Trash(false)),
+            ["Open", "Explore", "Properties"]
+        );
+        assert_eq!(
+            enabled(Target::Program(true)),
+            ["Open", "Remove from This List", "Properties"]
+        );
+        assert_eq!(enabled(Target::Place(false)), ["Open", "Properties"]);
+    }
+
+    #[test]
+    fn open_is_the_default_row() {
+        let rows = |t: Target| -> Vec<(String, bool)> {
+            item(t)
+                .into_iter()
+                .filter(|e| !e.is_separator())
+                .map(|e| (e.title, e.enabled))
+                .collect()
+        };
+        // Open is the default row; the gray rows do nothing.
+        let menu = item(Target::File);
+        assert!(menu[0].bold && menu[0].act == Some(Act::Item(Item::Open)));
+        assert!(rows(Target::File).contains(&("Rename".into(), false)));
     }
 
     #[test]
