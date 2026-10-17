@@ -27,7 +27,7 @@ use smithay::{
             ImportMem, Renderer,
             element::{
                 Element, Id, Kind, RenderElement, UnderlyingStorage,
-                memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
+                memory::{MemoryBuffer, MemoryRenderBuffer, MemoryRenderBufferRenderElement},
             },
             utils::{CommitCounter, DamageSet, OpaqueRegions},
         },
@@ -76,7 +76,7 @@ pub struct Decoded {
     pub ticket: u64,
     path: String,
     modified: Option<SystemTime>,
-    result: Result<(Vec<u8>, [u32; 2]), String>,
+    result: Result<(MemoryBuffer, [u32; 2]), String>,
 }
 
 impl Images {
@@ -88,7 +88,15 @@ impl Images {
             .name("chora-images".into())
             .spawn(move || {
                 for job in todo {
-                    let result = decode(job.file, job.budget);
+                    // The copy into the buffer runs here too: for a large
+                    // image it takes a while.
+                    let result = decode(job.file, job.budget).map(|(pixels, size)| {
+                        #[allow(clippy::cast_possible_wrap)] // at most MAX_SIDE
+                        let buffer_size = (size[0] as i32, size[1] as i32);
+                        let memory =
+                            MemoryBuffer::from_slice(&pixels, Fourcc::Abgr8888, buffer_size);
+                        (memory, size)
+                    });
                     let decoded = Decoded {
                         ticket: job.ticket,
                         path: job.path,
@@ -150,7 +158,7 @@ impl Images {
     /// may have come in since the worker started.
     pub fn insert(&mut self, decoded: Decoded) -> Result<(), String> {
         let path = decoded.path;
-        let (pixels, size) = decoded.result.map_err(|e| format!("{path}: {e}"))?;
+        let (memory, size) = decoded.result.map_err(|e| format!("{path}: {e}"))?;
         self.room_for(&path)?;
         let bytes = u64::from(size[0]) * u64::from(size[1]) * 4;
         if bytes > self.budget(&path) {
@@ -159,15 +167,7 @@ impl Images {
                 size[0], size[1]
             ));
         }
-        #[allow(clippy::cast_possible_wrap)] // at most MAX_SIDE
-        let buffer = MemoryRenderBuffer::from_slice(
-            &pixels,
-            Fourcc::Abgr8888,
-            (size[0] as i32, size[1] as i32),
-            1,
-            Transform::Normal,
-            None,
-        );
+        let buffer = MemoryRenderBuffer::from_memory(memory, 1, Transform::Normal, None);
         let image = Image {
             buffer,
             size,
