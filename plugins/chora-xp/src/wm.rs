@@ -23,12 +23,13 @@ use crate::{
     apps,
     balloon::{self, Balloon, Queue},
     conn::Conn,
-    control::{self, Setting},
+    control::{self, Setting, Toggles},
     cube::DESKTOPS,
     decoration::{self, Button, Part},
     icons::{self, Icons},
     notify::{Bus, Note, Reason, Request, Signal},
     session::{self, Choice, Dialog, Mode},
+    sound::{self, Sound},
     startmenu::{Action, Menu},
     taskbar::{self, Bar, Task},
     theme::{Rect, Theme},
@@ -61,6 +62,8 @@ pub struct Config {
     /// Stretches the time of the magic lamp and of the cube, for tests
     /// and demos; 1 is the normal speed.
     pub slow: f64,
+    /// The effects and sounds that are on at the start.
+    pub toggles: Toggles,
 }
 
 /// What a key binding does.
@@ -163,6 +166,7 @@ impl Wm {
             theme,
             icons,
             clock: String::new(),
+            effects: Effects::new(config.toggles),
             config,
             windows: Vec::new(),
             opened: Vec::new(),
@@ -176,7 +180,6 @@ impl Wm {
             desktop: 0,
             hover: None,
             escape: None,
-            effects: Effects::default(),
             dialog: None,
             fade: None,
             fade_shader: None,
@@ -221,7 +224,8 @@ impl Wm {
     }
 
     /// The groups, the wallpapers, the taskbars and the hidden menu, in
-    /// one transaction. It fails if another instance runs.
+    /// one transaction, and XP's logon sound. It fails if another instance
+    /// runs.
     fn create_scene(&mut self) -> Result<(), ClientError> {
         let outputs: Vec<OutputInfo> = self.conn.call("output.list", Value::Null)?;
         let group = |id: &str, parent: &str| Command::Create {
@@ -251,7 +255,10 @@ impl Wm {
         }
         commands.extend(self.menu.create(&mut self.theme, MENUS));
         match self.conn.try_apply(commands)? {
-            None => Ok(()),
+            None => {
+                self.play(Sound::Logon);
+                Ok(())
+            }
             Some(err) => Err(ClientError::Rpc(err)),
         }
     }
@@ -1219,13 +1226,26 @@ impl Wm {
         commands
     }
 
+    /// Plays one of XP's sounds, unless the Control Panel turned them off.
+    fn play(&self, sound: Sound) {
+        if self.effects.toggles.sounds {
+            sound::play(sound);
+        }
+    }
+
     /// Does what a button of a dialog says.
     fn choose(&mut self, choice: Choice) -> Vec<Command> {
         let mut commands = self.close_dialog();
         match choice {
-            Choice::LogOff => commands.extend(self.windows.iter().flat_map(|w| close(&w.surface))),
+            Choice::LogOff => {
+                self.play(Sound::LogOff);
+                commands.extend(self.windows.iter().flat_map(|w| close(&w.surface)));
+            }
             Choice::StandBy => spawn("systemctl suspend"),
-            Choice::TurnOff => self.done = true,
+            Choice::TurnOff => {
+                self.play(Sound::ShutDown);
+                self.done = true;
+            }
             Choice::Restart => {
                 self.done = true;
                 self.restart = true;
@@ -1316,6 +1336,7 @@ impl Wm {
         let balloon = Balloon::new(&mut self.theme, &note, icon.as_deref(), bar);
         commands.extend(balloon.create(&mut self.theme));
         self.balloon = Some((note, balloon));
+        self.play(Sound::Balloon);
         commands
     }
 

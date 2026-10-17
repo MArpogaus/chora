@@ -15,6 +15,7 @@ mod icons;
 mod lamp;
 mod notify;
 mod session;
+mod sound;
 mod startmenu;
 mod taskbar;
 mod text;
@@ -73,6 +74,9 @@ struct Args {
     /// to show them slowly.
     #[arg(long, value_name = "FACTOR", default_value_t = 1.0)]
     slow_motion: f64,
+    /// Plays no sounds; Control Panel > Effects > Sounds turns them on.
+    #[arg(long)]
+    no_sounds: bool,
 }
 
 fn main() -> ExitCode {
@@ -99,6 +103,10 @@ fn run(args: &Args) -> Result<(), String> {
             .or_else(|| icons::data_file("wallpapers/WindowsXP/bliss.jpg"))
             .unwrap_or_else(|| theme.path("wallpaper/bloff.png")),
         slow: args.slow_motion,
+        toggles: control::Toggles {
+            sounds: !args.no_sounds,
+            ..control::Toggles::default()
+        },
     };
     let mut wm = Wm::start(conn, theme, menu, icons, config).map_err(|e| e.to_string())?;
     event_loop(&mut wm).map_err(|e| e.to_string())?;

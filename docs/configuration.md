@@ -184,6 +184,10 @@ uses them instead of the free files of the theme:
   instead of Bløff, and Control Panel > Desktop lists all of them.
 - `winxp-kde/start_flag.png`: XP's flag on the start button, at its own
   size of 20 pixels.
+- `sounds/WindowsXP/stereo/`: XP's sounds. `login.wav` plays when
+  `chora-xp` starts, `logout.wav` on Log Off, `shutdown.wav` on Turn Off
+  and `notify.wav` when a balloon opens. The first of `pw-play`, `paplay`
+  and `canberra-gtk-play` on the `PATH` plays them in the background.
 
 `chora-xp` draws everything as image nodes. It rasterizes the SVG files of
 the theme with resvg into PNG files in `$XDG_RUNTIME_DIR/chora-xp/`, and
@@ -221,8 +225,8 @@ entry applies it and closes the menu:
   subdirectories and at most 20 of each directory;
 - **Display**: the scale of the output of the menu, 100 %, 125 %, 150 % or
   200 %, through `output.configure`;
-- **Effects**: wobbly windows, the magic lamp and the desktop cube, on or
-  off until `chora-xp` ends.
+- **Effects**: wobbly windows, the magic lamp, the desktop cube and XP's
+  sounds, on or off until `chora-xp` ends.
 
 Log Off and Turn Off Computer open XP's dialogs in the middle of the
 output, and the desktop behind them fades to gray in 1.5 seconds. In Log
@@ -287,6 +291,7 @@ these bindings, Super+Ctrl with the arrows stands in.
 | `--clock FORMAT` | `%-I:%M %p` | the clock, in the format of strftime |
 | `--wallpaper FILE` | Bliss if installed, else Bløff | a PNG, JPEG or SVG file |
 | `--slow-motion FACTOR` | `1` | stretch the magic lamp and the cube, to show them slowly |
+| `--no-sounds` | | start without XP's sounds; Control Panel > Effects > Sounds turns them on |
 
 To try the flavor from a source tree, start it nested:
 

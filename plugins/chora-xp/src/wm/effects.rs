@@ -35,13 +35,14 @@ pub struct Effects {
     calm_until: Option<Instant>,
 }
 
-impl Default for Effects {
-    fn default() -> Self {
+impl Effects {
+    /// No effect runs yet; the toggles say which may.
+    pub fn new(toggles: Toggles) -> Self {
         Self {
             wobbles: HashMap::new(),
             lamps: HashMap::new(),
             turn: None,
-            toggles: Toggles::default(),
+            toggles,
             last: Instant::now(),
             calm_until: None,
         }

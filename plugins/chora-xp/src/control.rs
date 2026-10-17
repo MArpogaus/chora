@@ -1,7 +1,7 @@
 //! Control Panel as a menu, as XP's start menu could show it: Display
 //! with the scale of the output, Desktop with the wallpapers, and Effects
 //! with the effects of the plugin. The current choice of each has a check
-//! mark.
+//! mark. Effects also turns XP's sounds on and off.
 
 use std::path::{Path, PathBuf};
 
@@ -32,9 +32,12 @@ pub enum Effect {
     Lamp,
     /// The desktop cube.
     Cube,
+    /// XP's sounds.
+    Sounds,
 }
 
 /// Which effects are on, for the session.
+#[allow(clippy::struct_excessive_bools)] // independent switches
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Toggles {
     /// Wobbly windows.
@@ -43,6 +46,8 @@ pub struct Toggles {
     pub lamp: bool,
     /// The desktop cube.
     pub cube: bool,
+    /// XP's sounds.
+    pub sounds: bool,
 }
 
 impl Default for Toggles {
@@ -51,6 +56,7 @@ impl Default for Toggles {
             wobbly: true,
             lamp: true,
             cube: true,
+            sounds: true,
         }
     }
 }
@@ -61,6 +67,7 @@ impl Toggles {
             Effect::Wobbly => self.wobbly,
             Effect::Lamp => self.lamp,
             Effect::Cube => self.cube,
+            Effect::Sounds => self.sounds,
         }
     }
 
@@ -70,6 +77,7 @@ impl Toggles {
             Effect::Wobbly => &mut self.wobbly,
             Effect::Lamp => &mut self.lamp,
             Effect::Cube => &mut self.cube,
+            Effect::Sounds => &mut self.sounds,
         };
         *on = !*on;
     }
@@ -127,6 +135,7 @@ pub fn menu(scale: f64, wallpaper: &Path, walls: &[PathBuf], toggles: Toggles) -
         ("Wobbly Windows", Effect::Wobbly),
         ("Magic Lamp", Effect::Lamp),
         ("Desktop Cube", Effect::Cube),
+        ("Sounds", Effect::Sounds),
     ]
     .into_iter()
     .map(|(title, e)| pick(title.into(), Setting::Effect(e), toggles.get(e)))
@@ -205,7 +214,8 @@ mod tests {
             [
                 ("Wobbly Windows", true),
                 ("Magic Lamp", false),
-                ("Desktop Cube", true)
+                ("Desktop Cube", true),
+                ("Sounds", true)
             ]
         );
     }
