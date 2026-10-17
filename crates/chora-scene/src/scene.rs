@@ -291,7 +291,11 @@ impl Scene {
         for (index, command) in commands.iter().enumerate() {
             // A window manager that gives up its last claim frees the
             // surfaces reserved for it.
-            let gives_up = matches!(command, Command::Remove { to: None, .. });
+            let gives_up = match command {
+                Command::Remove { to: None, .. } => true,
+                Command::Update { props, .. } => props.claim == Some(None),
+                _ => false,
+            };
             let had = gives_up && self.holds_claim(owner);
             self.apply_one(owner, command, &mut effects)
                 .map_err(|error| TransactionError { index, error })?;
@@ -1195,6 +1199,7 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
     check_numbers(id, props)?;
     if props
         .claim
+        .flatten()
         .is_some_and(|c| !c.iter().all(|v| v.is_finite()) || c[2] < 0.0 || c[3] < 0.0)
     {
         return Err(SceneError::Invalid(format!(

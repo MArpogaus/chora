@@ -418,9 +418,14 @@ pub struct PropsUpdate {
     pub uniforms: Option<BTreeMap<String, Uniform>>,
     /// The scene area of the owner as a window manager: x, y, width and
     /// height in scene coordinates. A new toplevel can go to the owner
-    /// (D55).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub claim: Option<[f64; 4]>,
+    /// (D55). `null` removes the claim.
+    #[allow(clippy::option_option)] // three states: keep, remove, set
+    #[serde(
+        default,
+        deserialize_with = "nullable",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub claim: Option<Option<[f64; 4]>>,
 }
 
 /// Sets the keys of an update of `meta`; an empty value removes its key.
@@ -452,8 +457,8 @@ impl Props {
         if let Some(meta) = &update.meta {
             apply_meta(&mut self.meta, meta);
         }
-        if update.claim.is_some() {
-            self.claim = update.claim;
+        if let Some(claim) = update.claim {
+            self.claim = claim;
         }
         self.apply_drawing(update);
     }

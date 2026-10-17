@@ -1052,7 +1052,7 @@ impl Wm {
         Some(Command::Update {
             id: NAME.into(),
             props: PropsUpdate {
-                claim: Some([x0, y0, x1 - x0, y1 - y0].map(f64::from)),
+                claim: Some(Some([x0, y0, x1 - x0, y1 - y0].map(f64::from))),
                 ..PropsUpdate::default()
             },
         })

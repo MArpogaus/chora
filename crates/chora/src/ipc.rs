@@ -1628,6 +1628,16 @@ mod tests {
         assert_eq!(reserved_for(&core, "s1"), None);
     }
 
+    // A claim goes with null.
+    #[test]
+    fn a_claim_goes_with_null() {
+        let mut core = Core::new();
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 10.0, 10.0]);
+        let clear = json!({"commands": [{"update": {"id": "a", "props": {"claim": null}}}]});
+        a.ok(&mut core, "scene.apply", clear);
+        assert_eq!(core.state.scene.node("a").unwrap().props.claim, None);
+    }
+
     // A dialog goes to the window manager of its parent, not by the pointer.
     #[test]
     fn a_child_toplevel_goes_to_the_manager_of_its_parent() {

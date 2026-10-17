@@ -506,7 +506,8 @@ impl Tiling {
             commands.push(Command::Update {
                 id: NAME.into(),
                 props: PropsUpdate {
-                    claim,
+                    // No outputs: no claim, so `null`.
+                    claim: Some(claim),
                     ..PropsUpdate::default()
                 },
             });
