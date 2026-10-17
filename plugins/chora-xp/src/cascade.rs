@@ -175,6 +175,7 @@ impl Cascade {
     pub fn remove(&self) -> Command {
         Command::Remove {
             id: group_id(self.level),
+            to: None,
         }
     }
 

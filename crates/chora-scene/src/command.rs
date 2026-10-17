@@ -65,15 +65,11 @@ pub enum Command {
     Remove {
         /// The node.
         id: String,
-    },
-    /// Hands an own surface to another client: the surface becomes
-    /// detached, and only `to` can attach it. The core sends
-    /// `surface.given`.
-    Give {
-        /// The surface node.
-        surface: String,
-        /// The client name that gets the surface; it needs a connection.
-        to: String,
+        /// For a surface: the client name that gets it (D55). Only this
+        /// client can attach it, and only it gets `surface.detached`. It
+        /// needs a connection.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        to: Option<String>,
     },
     /// Asks a client for a new size or new toplevel states.
     Configure {
@@ -159,9 +155,9 @@ pub enum Effect {
     Close(String),
     /// A surface lost its parent and its owner; tell the clients.
     Detached(String),
-    /// A surface lost its parent and its owner for another client; tell
-    /// the clients.
-    Given(String),
+    /// A surface lost its parent and its owner, reserved for another
+    /// client; tell that client.
+    Reserved(String),
     /// The camera of an output changed; tell the clients.
     Camera(String),
 }

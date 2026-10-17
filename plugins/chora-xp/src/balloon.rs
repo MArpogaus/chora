@@ -348,7 +348,10 @@ impl Balloon {
 
     /// Removes the balloon.
     pub fn remove() -> Command {
-        Command::Remove { id: GROUP.into() }
+        Command::Remove {
+            id: GROUP.into(),
+            to: None,
+        }
     }
 }
 

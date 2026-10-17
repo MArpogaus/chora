@@ -439,7 +439,10 @@ impl Menu {
         config.programs.remove(index);
         let parent = self.parent.clone();
         *self = Self::new(&config, theme, icons);
-        let mut commands = vec![Command::Remove { id: GROUP.into() }];
+        let mut commands = vec![Command::Remove {
+            id: GROUP.into(),
+            to: None,
+        }];
         commands.extend(self.create(theme, &parent));
         commands
     }

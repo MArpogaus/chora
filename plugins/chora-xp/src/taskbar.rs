@@ -398,6 +398,7 @@ impl Bar {
             .filter(|s| !tasks.iter().any(|t| t.surface == s.as_str()))
             .map(|s| Command::Remove {
                 id: self.task_id(s),
+                to: None,
             })
             .collect();
         for task in tasks {
@@ -479,7 +480,10 @@ impl Bar {
 
     /// Removes the taskbar.
     pub fn remove(&self) -> Command {
-        Command::Remove { id: self.group() }
+        Command::Remove {
+            id: self.group(),
+            to: None,
+        }
     }
 }
 

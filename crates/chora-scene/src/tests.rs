@@ -96,7 +96,13 @@ fn removing_a_group_detaches_foreign_surfaces_inside() {
     scene.apply("view", &[group("work", ROOT)]).unwrap();
     scene.apply("wm", &[attach("s1", "work")]).unwrap();
     scene
-        .apply("view", &[Command::Remove { id: "work".into() }])
+        .apply(
+            "view",
+            &[Command::Remove {
+                id: "work".into(),
+                to: None,
+            }],
+        )
         .unwrap();
     assert_eq!(scene.node("s1").unwrap().parent, None);
 }
@@ -250,7 +256,13 @@ fn remove_reports_the_surfaces_it_detaches() {
     scene.apply("view", &[group("work", ROOT)]).unwrap();
     scene.apply("wm", &[attach("s1", "work")]).unwrap();
     let effects = scene
-        .apply("view", &[Command::Remove { id: "work".into() }])
+        .apply(
+            "view",
+            &[Command::Remove {
+                id: "work".into(),
+                to: None,
+            }],
+        )
         .unwrap();
     assert_eq!(effects, vec![Effect::Detached("s1".into())]);
 }
@@ -666,7 +678,13 @@ fn an_update_or_a_removal_ends_an_animation() {
     assert!(!scene.animating());
     scene.apply("wm", &[animate]).unwrap();
     scene
-        .apply("wm", &[Command::Remove { id: "r".into() }])
+        .apply(
+            "wm",
+            &[Command::Remove {
+                id: "r".into(),
+                to: None,
+            }],
+        )
         .unwrap();
     assert!(!scene.animating());
     assert_eq!(scene.advance(200.0), Vec::<String>::new());
@@ -905,7 +923,10 @@ fn a_gone_surface_is_no_missing_node_of_the_client() {
         surface: Some("s7".into()),
     };
     assert!(scene.apply("wm", &[focus]).unwrap_err().is_gone_surface());
-    let remove = Command::Remove { id: "tiles".into() };
+    let remove = Command::Remove {
+        id: "tiles".into(),
+        to: None,
+    };
     assert!(!scene.apply("wm", &[remove]).unwrap_err().is_gone_surface());
 }
 
@@ -939,6 +960,7 @@ fn an_overlay_root_holds_nodes_fixed_to_its_output() {
     assert!(scene.apply("agent", &[fake]).is_err());
     let remove = Command::Remove {
         id: overlay_id("DP-1"),
+        to: None,
     };
     assert!(scene.apply("agent", &[remove]).is_err());
     // The reset empties the overlay, and keeps it.
@@ -976,7 +998,13 @@ fn a_client_gives_the_keyboard_to_its_own_node_until_a_surface_takes_it() {
     assert_eq!(scene.focused_node(), None);
     scene.apply("xp", &[focus_node(Some("menu"))]).unwrap();
     scene
-        .apply("xp", &[Command::Remove { id: "menu".into() }])
+        .apply(
+            "xp",
+            &[Command::Remove {
+                id: "menu".into(),
+                to: None,
+            }],
+        )
         .unwrap();
     assert_eq!(scene.focused_node(), None);
 }

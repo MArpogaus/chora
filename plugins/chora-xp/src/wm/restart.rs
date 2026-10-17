@@ -99,7 +99,10 @@ impl Wm {
         Ok(nodes
             .iter()
             .filter(|n| n.parent.as_deref().is_none_or(|p| !owned(p)))
-            .map(|n| Command::Remove { id: n.id.clone() })
+            .map(|n| Command::Remove {
+                id: n.id.clone(),
+                to: None,
+            })
             .collect())
     }
 

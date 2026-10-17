@@ -330,16 +330,16 @@ impl Scene {
             Command::Move { id, parent, index } => {
                 self.move_node(owner, id, parent.as_deref(), *index)
             }
-            Command::Remove { id } => {
+            Command::Remove { id, to: None } => {
                 self.owned_mut(owner, id)?;
                 effects.extend(self.remove_subtree(id).into_iter().map(Effect::Detached));
                 Ok(())
             }
-            Command::Give { surface, to } => {
-                self.owned_surface(owner, surface)?;
-                self.remove_subtree(surface);
-                self.reserve(surface, Some(to));
-                effects.push(Effect::Given(surface.clone()));
+            Command::Remove { id, to: Some(to) } => {
+                self.owned_surface(owner, id)?;
+                self.remove_subtree(id);
+                self.reserve(id, Some(to));
+                effects.push(Effect::Reserved(id.clone()));
                 Ok(())
             }
             Command::Configure {

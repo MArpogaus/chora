@@ -839,6 +839,7 @@ impl Wm {
         self.effects.lamps.remove(surface);
         commands.push(Command::Remove {
             id: decoration::group_id(surface),
+            to: None,
         });
         if self.is_active(surface) {
             let next = self.topmost_except(surface);
@@ -1082,6 +1083,7 @@ impl Wm {
             commands.push(bar.remove());
             commands.push(Command::Remove {
                 id: wallpaper::id(name),
+                to: None,
             });
             if let Some(target) = self.bars.first().map(Bar::usable) {
                 commands.extend(self.move_windows(&bar, target));
@@ -1262,6 +1264,7 @@ impl Wm {
         }
         vec![Command::Remove {
             id: SWITCHER.into(),
+            to: None,
         }]
     }
 
@@ -1273,6 +1276,7 @@ impl Wm {
         };
         let mut commands = vec![Command::Remove {
             id: SWITCHER.into(),
+            to: None,
         }];
         commands.extend(self.activate(switcher.chosen()));
         commands

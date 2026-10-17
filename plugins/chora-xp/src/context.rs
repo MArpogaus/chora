@@ -578,6 +578,7 @@ impl Menu {
         (0..self.levels.len())
             .map(|level| Command::Remove {
                 id: group_id(level),
+                to: None,
             })
             .collect()
     }
@@ -639,7 +640,10 @@ impl Menu {
         if matches!(self.down, Some((1, _))) {
             self.down = None;
         }
-        let mut commands = vec![Command::Remove { id: group_id(1) }];
+        let mut commands = vec![Command::Remove {
+            id: group_id(1),
+            to: None,
+        }];
         if let Some(open) = self.levels[0].open.take() {
             commands.push(self.relook(theme, 0, open));
         }

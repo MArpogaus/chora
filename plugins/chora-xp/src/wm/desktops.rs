@@ -255,8 +255,12 @@ impl Wm {
         };
         let mut commands = vec![Command::Remove {
             id: CUBE_BACKGROUND.into(),
+            to: None,
         }];
-        commands.extend((0..DESKTOPS).map(|d| Command::Remove { id: face_id(d) }));
+        commands.extend((0..DESKTOPS).map(|d| Command::Remove {
+            id: face_id(d),
+            to: None,
+        }));
         commands.extend(self.show_desktop(turn.target()));
         commands
     }

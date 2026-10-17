@@ -233,7 +233,10 @@ impl Dialog {
 
     /// Removes the dialog.
     pub fn remove() -> Command {
-        Command::Remove { id: GROUP.into() }
+        Command::Remove {
+            id: GROUP.into(),
+            to: None,
+        }
     }
 
     /// A button lights up under the pointer.

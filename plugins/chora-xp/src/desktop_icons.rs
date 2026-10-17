@@ -184,7 +184,10 @@ impl DesktopIcons {
             return Vec::new();
         }
         let mut commands: Vec<Command> = (0..self.items.len())
-            .map(|i| Command::Remove { id: Self::id(i) })
+            .map(|i| Command::Remove {
+                id: Self::id(i),
+                to: None,
+            })
             .collect();
         let kept = if area == self.area && how != Show::Arranged {
             self.cells()
@@ -487,7 +490,10 @@ impl DesktopIcons {
         [px, py]: [f64; 2],
     ) -> Vec<Command> {
         if self.band.take().is_some() {
-            return vec![Command::Remove { id: BAND.into() }];
+            return vec![Command::Remove {
+                id: BAND.into(),
+                to: None,
+            }];
         }
         let Some(press) = self.press.take() else {
             return Vec::new();

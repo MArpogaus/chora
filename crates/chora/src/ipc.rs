@@ -1052,7 +1052,7 @@ mod tests {
     }
 
     fn give(to: &str) -> Value {
-        json!({"commands": [{"give": {"surface": "s1", "to": to}}]})
+        json!({"commands": [{"remove": {"id": "s1", "to": to}}]})
     }
 
     fn attach_s1(parent: &str) -> Value {
@@ -1060,7 +1060,7 @@ mod tests {
     }
 
     #[test]
-    fn a_given_surface_goes_only_to_its_receiver() {
+    fn a_surface_removed_to_a_client_goes_only_to_it() {
         let mut core = Core::new();
         let (mut wm, _wayland) = resumable(&mut core);
         let focus = json!({"commands": [{"focus": {"surface": "s1"}}]});
@@ -1071,19 +1071,14 @@ mod tests {
             json!({"commands": [{"create": {"id": "bg", "kind": "group", "parent": "root"}}]});
         b.ok(&mut core, "scene.apply", group);
         let mut other = core.named("other");
+        other.ok(&mut core, "events.subscribe", json!({"events": []}));
         let (_, message) = wm.fails(&mut core, "scene.apply", give("nobody"));
         assert!(message.contains("no connection"), "{message}");
         wm.ok(&mut core, "scene.apply", give("b"));
-        let events = b.events_now(&mut core);
-        let given: Vec<&Value> = events
-            .iter()
-            .map(|e| &e["params"])
-            .filter(|e| e["event"] == "surface.given")
-            .collect();
-        assert_eq!(
-            given,
-            [&json!({"event": "surface.given", "surface": "s1", "to": "b"})]
-        );
+        let detached = json!({"event": "surface.detached", "surface": "s1"});
+        let heard = |events: Vec<Value>| events.iter().any(|e| e["params"] == detached);
+        assert!(heard(b.events_now(&mut core)));
+        assert!(!heard(other.events_now(&mut core)), "only b hears of it");
         assert_eq!(core.state.focused_surface(), None, "the focus stays behind");
         let (_, message) = other.fails(&mut core, "scene.apply", attach_s1("root"));
         assert!(message.contains("reserved for \"b\""), "{message}");

@@ -1603,7 +1603,7 @@ mod tests {
         assert!(pictures <= 6, "{pictures} new pictures");
         assert!(!commands.iter().any(|c| matches!(
             c,
-            Command::Remove { id } if id == "xpx1-view"
+            Command::Remove { id, to: None } if id == "xpx1-view"
         )));
         // A notch of the wheel scrolls three lines.
         assert_eq!(explorer.wheel(15.0, 1.0), Outcome::Redraw);

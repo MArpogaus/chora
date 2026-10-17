@@ -372,7 +372,7 @@ fn removals(client: &mut Client, view: &str) -> Result<Vec<Command>, String> {
         .map_err(|e| e.to_string())?;
     Ok(top_owned(&all, &owner(view))
         .into_iter()
-        .map(|id| Command::Remove { id })
+        .map(|id| Command::Remove { id, to: None })
         .collect())
 }
 

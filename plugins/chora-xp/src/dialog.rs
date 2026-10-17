@@ -734,6 +734,7 @@ impl Content {
         if !same {
             let mut commands = vec![Command::Remove {
                 id: self.prefix.clone(),
+                to: None,
             }];
             commands.extend(self.create(theme, page));
             return commands;
@@ -760,7 +761,10 @@ impl Content {
         let mut commands: Vec<Command> = old
             .iter()
             .filter(|c| !self.page.controls.iter().any(|n| n.name == c.name))
-            .map(|c| Command::Remove { id: self.node(c) })
+            .map(|c| Command::Remove {
+                id: self.node(c),
+                to: None,
+            })
             .collect();
         for i in 0..self.page.controls.len() {
             let control = &self.page.controls[i];
@@ -1087,6 +1091,7 @@ impl Dialog {
     pub fn remove(&self) -> Command {
         Command::Remove {
             id: self.prefix.clone(),
+            to: None,
         }
     }
 }

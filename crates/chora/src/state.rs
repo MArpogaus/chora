@@ -453,13 +453,14 @@ impl State {
                     }
                     self.emit(&Event::SurfaceDetached { surface });
                 }
-                Effect::Given(surface) => {
+                Effect::Reserved(surface) => {
                     if self.focused_surface() == Some(surface.as_str()) {
                         self.focus(None);
                     }
                     let to = self.scene.node(&surface).and_then(|n| n.to.clone());
-                    let to = to.expect("give reserves the surface");
-                    self.emit(&Event::SurfaceGiven { surface, to });
+                    let to = to.expect("a remove with to reserves the surface");
+                    self.ipc
+                        .send_to_client(&to, &Event::SurfaceDetached { surface });
                 }
                 Effect::Camera(name) => {
                     for output in self.output_info().into_iter().filter(|o| o.name == name) {
