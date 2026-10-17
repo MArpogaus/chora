@@ -65,6 +65,7 @@ resolver = "3"
 [workspace.dependencies]
 base64 = "0.23"
 calloop = { version = "0.14", features = ["signals"] }
+chora-kit = { path = "crates/chora-kit" }
 chora-scene = { path = "crates/chora-scene" }
 clap = { version = "4", features = ["derive"] }
 imbl = "7"

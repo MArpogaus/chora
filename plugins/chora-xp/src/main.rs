@@ -34,7 +34,6 @@ mod theme;
 mod wallpaper;
 mod window;
 mod wm;
-mod wobbly;
 
 use std::{
     path::PathBuf,

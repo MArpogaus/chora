@@ -2,7 +2,7 @@
 
 The layout of this repository: one Cargo workspace with as few crates as
 possible. A module moves into its own crate only when a second consumer
-needs it. Milestone 0.6 moves the plugins into repositories of their own
+can use it. Milestone 0.6 moves the plugins into repositories of their own
 (D36).
 
 ```text
@@ -10,6 +10,7 @@ chora/
 ├── crates/
 │   ├── chora-scene/   # scene model, commands, events, selectors, IPC types and client; no Smithay
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
+│   ├── chora-kit/     # building blocks for plugins: window effects
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
 │   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome
@@ -28,6 +29,9 @@ chora/
 - **`chora-scene` has no Smithay dependency.** Tests of the data model and
   the transaction logic need no GPU and no compositor. The core, `choractl`
   and plugins share this one definition of the API.
+- **`chora-kit` holds what more than one window manager can use** and
+  what is not part of the API of the core. Code of one plugin stays in
+  that plugin.
 - **Reference plugins are workspace members.** They keep the API honest.
 - **`choractl` builds the JSON schemas** from the Rust types at run time, in
   `crates/choractl/src/schema.rs`. The repository does not contain them.

@@ -54,6 +54,7 @@ pub struct Wobble {
 impl Wobble {
     /// A flat grid over a window of a size at an origin, grabbed at a point
     /// in scene coordinates.
+    #[must_use]
     pub fn new(size: [f64; 2], origin: [f64; 2], grab: [f64; 2]) -> Self {
         let cell = |axis: usize| size[axis] / (SIDE - 1) as f64;
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // clamped
@@ -104,6 +105,7 @@ impl Wobble {
     }
 
     /// Whether the grid rests, after the release.
+    #[must_use]
     pub fn settled(&self) -> bool {
         !self.held && !self.moving
     }
@@ -120,6 +122,7 @@ impl Wobble {
     }
 
     /// The drawn mesh in the node coordinates of a window at an origin.
+    #[must_use]
     pub fn mesh(&self, origin: [f64; 2]) -> Mesh {
         let n = CELLS as usize;
         let mut points = Vec::with_capacity((n + 1) * (n + 1));

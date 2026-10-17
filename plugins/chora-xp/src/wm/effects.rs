@@ -7,10 +7,11 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chora_kit::wobbly::Wobble;
 use chora_scene::{Command, PropsUpdate};
 
 use super::Wm;
-use crate::{control::Toggles, cube::Turn, decoration, lamp::Lamp, wobbly::Wobble};
+use crate::{control::Toggles, cube::Turn, decoration, lamp::Lamp};
 
 /// How long the magic lamp takes, before slow motion.
 const LAMP_TIME: Duration = Duration::from_millis(400);

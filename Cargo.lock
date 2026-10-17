@@ -464,6 +464,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "chora-kit"
+version = "0.5.4"
+dependencies = [
+ "chora-scene",
+]
+
+[[package]]
 name = "chora-probe"
 version = "0.5.4"
 dependencies = [
@@ -500,6 +507,7 @@ dependencies = [
 name = "chora-xp"
 version = "0.5.4"
 dependencies = [
+ "chora-kit",
  "chora-scene",
  "chrono",
  "clap",
