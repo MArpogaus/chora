@@ -2,17 +2,23 @@
 //! and the configures that they get. The client and the core run in one
 //! thread, so a roundtrip turns the event loop of the core.
 
-use std::{os::unix::net::UnixStream, sync::Arc};
+use std::{
+    os::{fd::AsFd, unix::net::UnixStream},
+    sync::Arc,
+};
 
 use wayland_client::{
     Connection, Dispatch, EventQueue, QueueHandle, WEnum, delegate_noop,
     protocol::{
+        wl_buffer::WlBuffer,
         wl_callback::{self, WlCallback},
         wl_compositor::WlCompositor,
         wl_keyboard::{self, WlKeyboard},
         wl_output::{self, WlOutput},
         wl_registry::{self, WlRegistry},
         wl_seat::{self, WlSeat},
+        wl_shm::{self, WlShm},
+        wl_shm_pool::WlShmPool,
         wl_surface::WlSurface,
     },
 };
@@ -46,6 +52,7 @@ struct App {
     layer_shell: Option<ZwlrLayerShellV1>,
     output: Option<WlOutput>,
     seat: Option<WlSeat>,
+    shm: Option<WlShm>,
     /// The serials of the key events, press and release, in order.
     key_serials: Vec<u32>,
     synced: bool,
@@ -221,6 +228,26 @@ impl Wayland {
         self.roundtrip(core);
     }
 
+    /// Acks the newest configure of a toplevel, if any, and commits a
+    /// transparent buffer of a size.
+    pub fn attach(&mut self, core: &mut Core, toplevel: &Toplevel, (w, h): (i32, i32)) {
+        if let Some(serial) = self.app.surfaces[toplevel.index].pending.take() {
+            toplevel.xdg.ack_configure(serial);
+        }
+        let file = tempfile();
+        file.set_len(u64::try_from(w * h * 4).expect("a size"))
+            .expect("the file grows");
+        let qh = self.queue.handle();
+        let shm = self.app.shm.as_ref().expect("wl_shm");
+        let pool = shm.create_pool(file.as_fd(), w * h * 4, &qh, ());
+        let buffer = pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Argb8888, &qh, ());
+        pool.destroy();
+        toplevel.surface.attach(Some(&buffer), 0, 0);
+        toplevel.surface.damage(0, 0, w, h);
+        toplevel.surface.commit();
+        self.roundtrip(core);
+    }
+
     /// Destroys a toplevel.
     pub fn destroy(&mut self, core: &mut Core, toplevel: &Toplevel) {
         toplevel.role.destroy();
@@ -258,6 +285,7 @@ impl Dispatch<WlRegistry, ()> for App {
             "wl_compositor" => app.compositor = Some(registry.bind(name, version, qh, ())),
             "xdg_wm_base" => app.wm_base = Some(registry.bind(name, version, qh, ())),
             "zwlr_layer_shell_v1" => app.layer_shell = Some(registry.bind(name, version, qh, ())),
+            "wl_shm" => app.shm = Some(registry.bind(name, 1, qh, ())),
             "wl_seat" => app.seat = Some(registry.bind(name, version.min(7), qh, ())),
             "wl_output" if app.output.is_none() => {
                 app.output = Some(registry.bind(name, version, qh, ()));
@@ -425,5 +453,23 @@ impl Dispatch<XdgPopup, usize> for App {
 
 delegate_noop!(App: ignore WlCompositor);
 delegate_noop!(App: XdgPositioner);
+delegate_noop!(App: ignore WlShm);
+delegate_noop!(App: WlShmPool);
+delegate_noop!(App: ignore WlBuffer);
+
+/// A new file that is gone from the file system, for a shm pool.
+fn tempfile() -> std::fs::File {
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let path = std::env::temp_dir().join(format!("chora-test-{}-{n}", std::process::id()));
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .expect("a temporary file");
+    std::fs::remove_file(&path).expect("the file goes");
+    file
+}
 delegate_noop!(App: ignore WlSurface);
 delegate_noop!(App: ZwlrLayerShellV1);
