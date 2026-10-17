@@ -1468,11 +1468,7 @@ impl Wm {
             let area = *area;
             return match menu.key(&mut self.theme, MENUS, key) {
                 context::Key::Commands(commands) => commands,
-                context::Key::Act(act) => {
-                    let mut commands = self.close_context();
-                    commands.extend(self.act(act, area));
-                    commands
-                }
+                context::Key::Act(act) => self.close_and_act(act, area),
                 context::Key::Close => self.close_context(),
             };
         }
@@ -1481,14 +1477,25 @@ impl Wm {
         }
         match self.menu.key(&mut self.theme, &mut self.icons, key) {
             MenuKey::Commands(commands) => commands,
-            MenuKey::Act(action) => {
-                let output = self.menu.output().map(String::from);
-                let mut commands = self.close_menu();
-                commands.extend(self.run(&action, output.as_deref()));
-                commands
-            }
+            MenuKey::Act(action) => self.close_and_run(&action),
             MenuKey::Close => self.close_menu(),
         }
+    }
+
+    /// A row of a context menu acts: the menu closes first.
+    fn close_and_act(&mut self, act: Act, area: Rect) -> Vec<Command> {
+        let mut commands = self.close_context();
+        commands.extend(self.act(act, area));
+        commands
+    }
+
+    /// An entry of the start menu acts on its output: the menu closes
+    /// first.
+    fn close_and_run(&mut self, action: &Action) -> Vec<Command> {
+        let output = self.menu.output().map(String::from);
+        let mut commands = self.close_menu();
+        commands.extend(self.run(action, output.as_deref()));
+        commands
     }
 
     fn close_context(&mut self) -> Vec<Command> {
@@ -1772,9 +1779,7 @@ impl Wm {
             let Some(act) = menu.release(position) else {
                 return Vec::new();
             };
-            let mut commands = self.close_context();
-            commands.extend(self.act(act, area));
-            return commands;
+            return self.close_and_act(act, area);
         }
         if let Some(drag) = self.drag.take() {
             self.release_wobble(&drag.surface);
@@ -1819,9 +1824,7 @@ impl Wm {
             .menu
             .release(&mut self.theme, &mut self.icons, position);
         if let Some(action) = action {
-            let output = self.menu.output().map(String::from);
-            commands.extend(self.close_menu());
-            commands.extend(self.run(&action, output.as_deref()));
+            commands.extend(self.close_and_run(&action));
         }
         commands
     }

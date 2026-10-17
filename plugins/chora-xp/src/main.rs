@@ -122,15 +122,12 @@ fn run(args: &Args) -> Result<(), String> {
     };
     let mut wm = Wm::start(conn, theme, menu, icons, config).map_err(|e| e.to_string())?;
     event_loop(&mut wm).map_err(|e| e.to_string())?;
-    // Nodes of a plugin with resume outlive it for the grace time.
-    if !wm.restart {
-        wm.leave().map_err(|e| e.to_string())?;
-    }
     if wm.restart {
         drop(wm);
         return Err(restart());
     }
-    Ok(())
+    // Nodes of a plugin with resume outlive it for the grace time.
+    wm.leave().map_err(|e| e.to_string())
 }
 
 /// Restart of the Turn Off dialog: the plugin runs itself again with the
