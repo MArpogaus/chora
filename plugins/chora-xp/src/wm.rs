@@ -123,17 +123,20 @@ enum Key {
     Carry(i32),
     /// XP's Alt+Tab, forward or back.
     Switch(i32),
+    /// Alt+Escape closes the switcher.
+    CancelSwitch,
     /// Super and the left button turn the cube with the pointer.
     Cube,
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them.
-const KEYS: [(&str, &str, Key); 9] = [
+const KEYS: [(&str, &str, Key); 10] = [
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
     ("Alt+Tab", "", Key::Switch(1)),
     ("Alt+Shift+Tab", "", Key::Switch(-1)),
+    ("Alt+Escape", "", Key::CancelSwitch),
     ("Super+e", "", Key::Terminal),
     ("Ctrl+Alt+Left", "Super+Ctrl+Left", Key::Turn(-1)),
     ("Ctrl+Alt+Right", "Super+Ctrl+Right", Key::Turn(1)),
@@ -826,6 +829,7 @@ impl Wm {
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
+        let mut commands = self.drop_from_switcher(surface);
         self.windows.remove(i);
         self.opened.retain(|s| s != surface);
         if self.drag.as_ref().is_some_and(|d| d.surface == surface) {
@@ -836,9 +840,9 @@ impl Wm {
         }
         self.effects.wobbles.remove(surface);
         self.effects.lamps.remove(surface);
-        let mut commands = vec![Command::Remove {
+        commands.push(Command::Remove {
             id: decoration::group_id(surface),
-        }];
+        });
         if self.is_active(surface) {
             let next = self.topmost_except(surface);
             commands.extend(self.focus(next.as_deref()));
@@ -1169,22 +1173,35 @@ impl Wm {
             Some(Key::Turn(steps)) => self.turn(steps),
             Some(Key::Carry(steps)) => self.carry(steps),
             Some(Key::Switch(step)) => self.switch(step),
+            Some(Key::CancelSwitch) => self.cancel_switch(),
             Some(Key::Cube) | None => Vec::new(),
         }
     }
 
     /// Alt+Tab: opens XP's switcher, or moves its choice.
     fn switch(&mut self, step: i32) -> Vec<Command> {
+        // Not under the shade of Log Off or Turn Off.
+        if self.dialog.is_some() {
+            return Vec::new();
+        }
         let open = self.switcher.is_some();
+        let mut commands = Vec::new();
         if let Some(switcher) = &mut self.switcher {
             switcher.step(step);
         } else {
-            // The windows of the desktop, the most recent first.
-            let entries = self
+            commands.extend(self.close_menu());
+            commands.extend(self.close_context());
+            // The windows of the desktop, the most recent first, the
+            // minimized ones last, as on XP.
+            let mut windows: Vec<&Window> = self
                 .windows
                 .iter()
                 .rev()
                 .filter(|w| w.shown && w.desktop == self.desktop)
+                .collect();
+            windows.sort_by_key(|w| w.minimized);
+            let entries = windows
+                .into_iter()
                 .map(|w| switcher::Entry {
                     surface: w.surface.clone(),
                     title: w.title.clone(),
@@ -1197,10 +1214,16 @@ impl Wm {
                 })
                 .collect::<Vec<_>>();
             let Some(switcher) = Switcher::new(entries, step) else {
-                return Vec::new();
+                return commands;
             };
             self.switcher = Some(switcher);
         }
+        commands.extend(self.show_switcher(open));
+        commands
+    }
+
+    /// The box of the switcher, new or again.
+    fn show_switcher(&mut self, again: bool) -> Vec<Command> {
         let Some(switcher) = &self.switcher else {
             return Vec::new();
         };
@@ -1217,7 +1240,7 @@ impl Wm {
             )),
             ..PropsUpdate::default()
         };
-        vec![if open {
+        vec![if again {
             Command::Update {
                 id: SWITCHER.into(),
                 props,
@@ -1229,6 +1252,25 @@ impl Wm {
                 parent: MENUS.into(),
                 props,
             }
+        }]
+    }
+
+    /// A window that closes leaves the switcher; the last one closes it.
+    fn drop_from_switcher(&mut self, surface: &str) -> Vec<Command> {
+        match self.switcher.as_mut().map(|s| s.remove(surface)) {
+            Some(true) => self.show_switcher(true),
+            Some(false) => self.cancel_switch(),
+            None => Vec::new(),
+        }
+    }
+
+    /// Alt+Escape: the switcher closes without a switch.
+    fn cancel_switch(&mut self) -> Vec<Command> {
+        if self.switcher.take().is_none() {
+            return Vec::new();
+        }
+        vec![Command::Remove {
+            id: SWITCHER.into(),
         }]
     }
 

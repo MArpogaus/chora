@@ -62,6 +62,17 @@ impl Switcher {
         };
     }
 
+    /// Drops a window that closed. Returns whether windows are left.
+    pub fn remove(&mut self, surface: &str) -> bool {
+        if let Some(i) = self.entries.iter().position(|e| e.surface == surface) {
+            self.entries.remove(i);
+            if i < self.chosen || self.chosen == self.entries.len() {
+                self.chosen = self.chosen.saturating_sub(1);
+            }
+        }
+        !self.entries.is_empty()
+    }
+
     /// The chosen window.
     pub fn chosen(&self) -> &str {
         &self.entries[self.chosen].surface
@@ -127,6 +138,14 @@ mod tests {
         let back = Switcher::new(entries(3), -1).expect("windows");
         assert_eq!(back.chosen(), "s2");
         assert!(Switcher::new(Vec::new(), 1).is_none());
+        // A window that closes leaves; the choice stays on its window.
+        let mut s = Switcher::new(entries(3), 1).expect("windows");
+        s.step(1);
+        assert!(s.remove("s0"));
+        assert_eq!(s.chosen(), "s2");
+        assert!(s.remove("s2"));
+        assert_eq!(s.chosen(), "s1");
+        assert!(!s.remove("s1"));
     }
 
     #[test]
