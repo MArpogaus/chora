@@ -414,9 +414,10 @@ open in Explorer too, and the window calls these folders by their names
 in XP.
 
 Desktop icons dropped on the window of a folder go into the folder, or
-into the folder item under the pointer: a file or a folder moves on the
-same file system and is copied to another one, as XP moves on one drive
-and copies to another. When the folder has a file of the name, XP's
+into the folder item under the pointer; on a file item they go back to
+their places, as XP does not allow that drop. A file or a folder moves
+on the same file system and is copied to another one, as XP moves on one
+drive and copies to another. When the folder has a file of the name, XP's
 Confirm File Replace asks first, and Yes replaces it; a folder of the
 name stays, and `chora-xp` logs it. A drop on the window of the Recycle
 Bin, or on its desktop icon, asks first, as Delete does, and Yes sends
@@ -607,6 +608,6 @@ A service runs as a Quadlet unit with Podman, or in distrobox. It connects
 to the IPC socket, appears as a Wayland client, or both. A container mounts
 only its client directory, which `choractl clients create NAME` makes (in
 Quadlet: `%t/chora/clients/NAME`). It sets `CHORA_SOCKET` to the
-`ipc.sock` in that directory. The directory of the core holds the admin
+`ipc.sock` and `WAYLAND_DISPLAY` to the `wayland.sock` in that directory. The directory of the core holds the admin
 socket, so a container never mounts it (see
 [API](api.md#client-sockets)).

@@ -38,7 +38,7 @@ use crate::{
     desktop_icons::{self, DesktopIcons},
     dialog::{self, Hit},
     display::{self, DisplayDialog, EffectsDialog},
-    explorer::Explorer,
+    explorer::{DropAt, Explorer},
     folder::{self, Place},
     notify::{Bus, Note, Reason, Request, Signal},
     properties::PropertiesDialog,
@@ -67,6 +67,9 @@ enum Drop {
     Folder(String, PathBuf),
     /// Into the Recycle Bin.
     Trash,
+    /// On an item that takes no drop, as a file: the icons go back, as
+    /// XP shows "not allowed" there.
+    Nowhere,
 }
 
 /// The key that Shift+F10 and the Menu key stand for.
@@ -2102,10 +2105,11 @@ impl Wm {
             Place::Trash => Some(Drop::Trash),
             Place::Folder(dir) => {
                 let [ox, oy] = self.client_origin(&id);
-                let dir = explorer
-                    .folder_at([x - ox, y - oy])
-                    .unwrap_or_else(|| dir.clone());
-                Some(Drop::Folder(id, dir))
+                match explorer.drop_at([x - ox, y - oy]) {
+                    DropAt::Window => Some(Drop::Folder(id, dir.clone())),
+                    DropAt::Folder(dir) => Some(Drop::Folder(id, dir)),
+                    DropAt::Nowhere => Some(Drop::Nowhere),
+                }
             }
             Place::Computer => None,
         }
@@ -2119,6 +2123,7 @@ impl Wm {
         match target {
             // XP asks first, as for Delete.
             Drop::Trash => commands.extend(self.confirm_trash(paths)),
+            Drop::Nowhere => {}
             Drop::Folder(id, dir) => {
                 let mut clash = None;
                 for path in &paths {

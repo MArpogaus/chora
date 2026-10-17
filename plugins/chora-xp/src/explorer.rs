@@ -29,6 +29,16 @@ use crate::{
 };
 use view::{Group, Item, Open, SCROLL_W};
 
+/// Where a drop on an Explorer window goes.
+pub enum DropAt {
+    /// Into the folder of the window, as on no item.
+    Window,
+    /// Into a folder item.
+    Folder(PathBuf),
+    /// Nowhere, as on a file: XP shows "not allowed".
+    Nowhere,
+}
+
 /// The client size of a new window: XP's My Computer of the reference.
 pub const SIZE: [i32; 2] = [777, 525];
 /// The smallest client size that keeps the toolbar and the pane whole.
@@ -475,13 +485,12 @@ impl Explorer {
         Some(self.bar(crate::context::wrap(i, right, MENUS.len())))
     }
 
-    /// The folder of the item under a point of the client area, for a
-    /// drop on it.
-    pub fn folder_at(&self, [px, py]: [i32; 2]) -> Option<PathBuf> {
+    /// What is under a point of the client area, for a drop on it.
+    pub fn drop_at(&self, [px, py]: [i32; 2]) -> DropAt {
         let g = self.geometry();
         let [vx, vy, vw, vh] = g.view;
         if !(vx..vx + vw).contains(&px) || !(vy..vy + vh).contains(&py) {
-            return None;
+            return DropAt::Window;
         }
         let [x, y] = [px - vx, py - vy + g.offset];
         self.items()
@@ -489,9 +498,9 @@ impl Explorer {
             .find(|(_, [tx, ty])| {
                 (*tx..tx + view::TILE[0]).contains(&x) && (*ty..ty + view::TILE[1]).contains(&y)
             })
-            .and_then(|(item, _)| match &item.open {
-                Some(Open::Place(Place::Folder(path))) => Some(path.clone()),
-                _ => None,
+            .map_or(DropAt::Window, |(item, _)| match &item.open {
+                Some(Open::Place(Place::Folder(path))) => DropAt::Folder(path.clone()),
+                _ => DropAt::Nowhere,
             })
     }
 
