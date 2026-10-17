@@ -55,6 +55,15 @@ pub fn data_dirs() -> Vec<PathBuf> {
         .collect()
 }
 
+/// The first of the XDG data directories that has a file, for example
+/// `wallpapers/WindowsXP/bliss.jpg`.
+pub fn data_file(file: &str) -> Option<PathBuf> {
+    data_dirs()
+        .into_iter()
+        .map(|d| d.join(file))
+        .find(|p| p.is_file())
+}
+
 fn search_all(name: &str) -> Option<PathBuf> {
     // Desktop files may name an icon by its path.
     let path = Path::new(name);

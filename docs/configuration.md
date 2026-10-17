@@ -180,6 +180,8 @@ uses them instead of the free files of the theme:
   titles and Franklin Gothic Medium Italic for the start button. These
   fonts go before the system fonts, so XP's Tahoma wins over the Tahoma
   of newer Windows.
+- `wallpapers/WindowsXP/*.jpg`: Bliss (`bliss.jpg`) is the wallpaper
+  instead of Bløff, and Control Panel > Desktop lists all of them.
 
 `chora-xp` draws everything as image nodes. It rasterizes the SVG files of
 the theme with resvg into PNG files in `$XDG_RUNTIME_DIR/chora-xp/`, and
@@ -195,7 +197,7 @@ renders each picture once:
   Log Off and Turn Off Computer, and All Programs with the applications of
   the desktop files in `$XDG_DATA_HOME/applications` and `$XDG_DATA_DIRS`,
   in program groups by their main category;
-- the wallpaper Bløff below everything.
+- the wallpaper below everything: Bliss when it is installed, else Bløff.
 
 A click on a window raises and focuses it. A drag of a title bar moves the
 window, and a double click maximizes it. A maximized window fills the work
@@ -211,8 +213,9 @@ The Control Panel opens as a menu, as with XP's "Display as a menu". A
 check mark shows the current choice of each entry, and a click on an
 entry applies it and closes the menu:
 
-- **Desktop**: the wallpaper of every output, from the PNG and SVG files
-  in `theme/wallpaper/` and `/usr/share/backgrounds`, without their
+- **Desktop**: the wallpaper of every output, from the PNG, JPEG and SVG
+  files in `theme/wallpaper/`, `/usr/share/backgrounds` and
+  `wallpapers/WindowsXP` of the XDG data directories, without their
   subdirectories and at most 20 of each directory;
 - **Display**: the scale of the output of the menu, 100 %, 125 %, 150 % or
   200 %, through `output.configure`;
@@ -280,7 +283,7 @@ these bindings, Super+Ctrl with the arrows stands in.
 | `--launcher CMD` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
 | `--program TITLE=CMD` | | another program in the start menu; repeat for more |
 | `--clock FORMAT` | `%-I:%M %p` | the clock, in the format of strftime |
-| `--wallpaper FILE` | Bløff | a PNG or SVG file |
+| `--wallpaper FILE` | Bliss if installed, else Bløff | a PNG, JPEG or SVG file |
 | `--slow-motion FACTOR` | `1` | stretch the magic lamp and the cube, to show them slowly |
 
 To try the flavor from a source tree, start it nested:

@@ -52,6 +52,9 @@ opt-level = 3
 [profile.dev.package.usvg]
 opt-level = 3
 
+[profile.dev.package.zune-jpeg]
+opt-level = 3
+
 [profile.release]
 lto = "thin"
 

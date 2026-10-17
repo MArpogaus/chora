@@ -26,7 +26,7 @@ use crate::{
     control::{self, Setting},
     cube::DESKTOPS,
     decoration::{self, Button, Part},
-    icons::Icons,
+    icons::{self, Icons},
     notify::{Bus, Note, Reason, Request, Signal},
     session::{self, Choice, Dialog, Mode},
     startmenu::{Action, Menu},
@@ -1082,10 +1082,15 @@ impl Wm {
             .into_iter()
             .find(|o| o.name == output)
             .map_or(1.0, |o| o.scale);
-        let dirs = [
+        let mut dirs = vec![
             self.theme.path("wallpaper"),
             PathBuf::from("/usr/share/backgrounds"),
         ];
+        dirs.extend(
+            icons::data_dirs()
+                .into_iter()
+                .map(|d| d.join("wallpapers/WindowsXP")),
+        );
         let walls = control::wallpapers(&dirs);
         control::menu(scale, &self.config.wallpaper, &walls, self.effects.toggles)
     }

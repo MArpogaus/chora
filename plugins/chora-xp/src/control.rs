@@ -75,7 +75,7 @@ impl Toggles {
     }
 }
 
-/// The PNG and SVG files of directories, without their subdirectories:
+/// The PNG, JPEG and SVG files of directories, without their subdirectories:
 /// each directory sorted by name, at most 20 of each.
 pub fn wallpapers(dirs: &[PathBuf]) -> Vec<PathBuf> {
     let mut out = Vec::new();
@@ -87,9 +87,10 @@ pub fn wallpapers(dirs: &[PathBuf]) -> Vec<PathBuf> {
             .map(|e| e.path())
             .filter(|p| {
                 p.is_file()
-                    && p.extension().is_some_and(|e| {
-                        e.eq_ignore_ascii_case("png") || e.eq_ignore_ascii_case("svg")
-                    })
+                    && (crate::theme::is_jpeg(p)
+                        || p.extension().is_some_and(|e| {
+                            e.eq_ignore_ascii_case("png") || e.eq_ignore_ascii_case("svg")
+                        }))
             })
             .collect();
         files.sort();
@@ -143,8 +144,19 @@ pub fn menu(scale: f64, wallpaper: &Path, walls: &[PathBuf], toggles: Toggles) -
 }
 
 /// The name of a wallpaper file as XP shows it: "blue-hills" is "Blue
-/// hills".
+/// hills", and XP's short file names have their long names.
 fn name_of(stem: &str) -> String {
+    let long = match stem {
+        "moon" => "Moon flower",
+        "purplef" => "Purple flower",
+        "redmoon" => "Red moon desert",
+        "stoneh" => "Stonehenge",
+        "vortec" => "Vortec space",
+        _ => "",
+    };
+    if !long.is_empty() {
+        return long.into();
+    }
     let words = stem.replace(['-', '_'], " ");
     let mut chars = words.chars();
     chars
@@ -178,6 +190,7 @@ mod tests {
         let menu = menu(1.25, Path::new("/w/b.svg"), &walls, toggles);
         assert_eq!(picks(&menu[0]), [("A", false), ("B", true)]);
         assert_eq!(name_of("blue_hills-2"), "Blue hills 2");
+        assert_eq!(name_of("purplef"), "Purple flower");
         assert_eq!(
             picks(&menu[1]),
             [
@@ -201,7 +214,7 @@ mod tests {
     fn wallpapers_are_the_pictures_of_the_first_level() {
         let dir = std::env::temp_dir().join(format!("chora-xp-walls-{}", std::process::id()));
         std::fs::create_dir_all(dir.join("sub")).expect("a directory");
-        for name in ["b.PNG", "a.svg", "c.jpg", "sub/d.png"] {
+        for name in ["b.PNG", "a.svg", "c.jpg", "d.txt", "sub/e.png"] {
             std::fs::write(dir.join(name), "").expect("a file");
         }
         for i in 0..25 {
@@ -209,7 +222,10 @@ mod tests {
         }
         let found = wallpapers(&[dir.clone(), dir.join("missing")]);
         assert_eq!(found.len(), MAX_WALLPAPERS);
-        assert_eq!(found[..2], [dir.join("a.svg"), dir.join("b.PNG")]);
+        assert_eq!(
+            found[..3],
+            [dir.join("a.svg"), dir.join("b.PNG"), dir.join("c.jpg")]
+        );
         let _ = std::fs::remove_dir_all(dir);
     }
 }

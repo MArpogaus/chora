@@ -65,7 +65,8 @@ struct Args {
     /// The format of the clock, as in strftime.
     #[arg(long, default_value = "%-I:%M %p")]
     clock: String,
-    /// The wallpaper, a PNG or SVG file; Bløff of the theme by default.
+    /// The wallpaper, a PNG, JPEG or SVG file; XP's Bliss when it is
+    /// installed, else Bløff of the theme.
     #[arg(long)]
     wallpaper: Option<PathBuf>,
     /// Stretches the time of the magic lamp and of the cube by a factor,
@@ -95,6 +96,7 @@ fn run(args: &Args) -> Result<(), String> {
         wallpaper: args
             .wallpaper
             .clone()
+            .or_else(|| icons::data_file("wallpapers/WindowsXP/bliss.jpg"))
             .unwrap_or_else(|| theme.path("wallpaper/bloff.png")),
         slow: args.slow_motion,
     };

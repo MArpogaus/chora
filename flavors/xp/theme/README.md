@@ -38,3 +38,4 @@ files above when they are not. The repository holds none of them.
 | File in the XDG data directory | Use |
 |--------------------------------|-----|
 | `fonts/WindowsXP/*.ttf` | XP's fonts, before all other fonts: Tahoma and Tahoma Bold for menus and buttons, Trebuchet MS Bold for the titles, Franklin Gothic Medium Italic for the start button |
+| `wallpapers/WindowsXP/*.jpg` | the wallpapers of Control Panel > Desktop; `bliss.jpg` is the default wallpaper |

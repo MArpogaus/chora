@@ -13,8 +13,12 @@ use std::{
 };
 
 use resvg::{
-    tiny_skia::{FilterQuality, Pixmap, PixmapMut, PixmapPaint, Transform},
+    tiny_skia::{FilterQuality, IntSize, Pixmap, PixmapMut, PixmapPaint, Transform},
     usvg,
+};
+use zune_jpeg::{
+    JpegDecoder,
+    zune_core::{colorspace::ColorSpace, options::DecoderOptions},
 };
 
 use crate::text::{Font, Fonts, Text};
@@ -92,7 +96,7 @@ pub enum Layer {
         /// The rectangle.
         rect: Rect,
     },
-    /// An SVG or PNG file, scaled to a rectangle.
+    /// An SVG, PNG or JPEG file, scaled to a rectangle.
     File {
         /// The file.
         path: PathBuf,
@@ -427,7 +431,7 @@ impl Theme {
         }
     }
 
-    /// Draws an SVG or a PNG file scaled to a rectangle.
+    /// Draws an SVG, PNG or JPEG file scaled to a rectangle.
     fn draw_file(
         &self,
         path: &Path,
@@ -447,7 +451,7 @@ impl Theme {
             resvg::render(&tree, transform, pixmap);
             return Ok(());
         }
-        let image = Pixmap::load_png(path).map_err(|e| error(&e))?;
+        let image = load_raster(path).map_err(|e| error(&e))?;
         #[allow(clippy::cast_precision_loss)]
         let size = [image.width() as f32, image.height() as f32];
         let paint = PixmapPaint {
@@ -457,6 +461,28 @@ impl Theme {
         pixmap.draw_pixmap(0, 0, image.as_ref(), &paint, fit(rect, size, cover), None);
         Ok(())
     }
+}
+
+/// A PNG or JPEG file as a pixmap.
+fn load_raster(path: &Path) -> Result<Pixmap, String> {
+    if !is_jpeg(path) {
+        return Pixmap::load_png(path).map_err(|e| e.to_string());
+    }
+    let file = std::io::BufReader::new(fs::File::open(path).map_err(|e| e.to_string())?);
+    let options = DecoderOptions::default().jpeg_set_out_colorspace(ColorSpace::RGBA);
+    let mut decoder = JpegDecoder::new_with_options(file, options);
+    // Opaque pixels are premultiplied already.
+    let pixels = decoder.decode().map_err(|e| e.to_string())?;
+    let info = decoder.info().ok_or("no JPEG header")?;
+    IntSize::from_wh(info.width.into(), info.height.into())
+        .and_then(|size| Pixmap::from_vec(pixels, size))
+        .ok_or_else(|| "a broken JPEG file".into())
+}
+
+/// Whether a file is a JPEG file, by its extension.
+pub fn is_jpeg(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("jpg") || e.eq_ignore_ascii_case("jpeg"))
 }
 
 /// The transform that scales a size into a rectangle: to fit inside and
@@ -534,6 +560,15 @@ mod tests {
         let image = Pixmap::load_png(&frame.image).expect("a PNG file");
         assert_eq!([image.width(), image.height()], [156, 162]);
         let _ = fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn jpeg_files_decode() {
+        let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/red.jpg");
+        let image = load_raster(&file).expect("a JPEG file");
+        assert_eq!([image.width(), image.height()], [8, 8]);
+        let pixel = image.pixel(4, 4).expect("inside");
+        assert!(pixel.red() > 150 && pixel.green() < 80 && pixel.alpha() == 255);
     }
 
     #[test]
