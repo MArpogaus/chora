@@ -594,14 +594,33 @@ pub fn drop_into(path: &Path, dir: &Path) -> std::io::Result<Dropped> {
 }
 
 /// Drops a file into a folder in place of the file of its name there, as
-/// Yes of XP's Confirm File Replace does. A folder of the name stays.
+/// Yes of XP's Confirm File Replace does: one rename on the same file
+/// system, so that the folder always has one of the two files. To another
+/// file system, a copy beside the old file takes its place. A folder on
+/// either side stays.
 pub fn replace_into(path: &Path, dir: &Path) -> std::io::Result<Dropped> {
-    let target = dir.join(path.file_name().unwrap_or_default());
-    if target.is_dir() {
+    let name = path
+        .file_name()
+        .ok_or_else(|| std::io::Error::other("no file name"))?;
+    let target = dir.join(name);
+    if target.is_dir() || path.is_dir() {
         return Err(std::io::Error::other("a folder of the name is there"));
     }
-    fs::remove_file(&target)?;
-    drop_into(path, dir)
+    if path.parent() == Some(dir) {
+        return Ok(Dropped::Stayed);
+    }
+    match fs::rename(path, &target) {
+        Ok(()) => Ok(Dropped::Moved),
+        Err(err) if err.kind() == std::io::ErrorKind::CrossesDevices => {
+            let mut part = name.to_os_string();
+            part.push(".part");
+            let part = dir.join(part);
+            fs::copy(path, &part)?;
+            fs::rename(&part, &target)?;
+            Ok(Dropped::Copied)
+        }
+        Err(err) => Err(err),
+    }
 }
 
 /// Copies a file, or a folder with all it holds.
@@ -933,6 +952,29 @@ overlay /var/lib/x overlay rw 0 0
         // The copy of another file system takes the folder whole.
         copy_all(&dir.join("into"), &dir.join("copy")).expect("a copy");
         assert!(dir.join("copy/a.txt").is_file());
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn yes_of_confirm_file_replace_puts_the_dropped_file_in_place() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-replace-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("into/sub")).expect("folders");
+        fs::write(dir.join("into/a.txt"), "old").expect("a file");
+        fs::write(dir.join("a.txt"), "new").expect("a file");
+        assert_eq!(
+            replace_into(&dir.join("a.txt"), &dir.join("into")).ok(),
+            Some(Dropped::Moved)
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join("into/a.txt")).ok(),
+            Some("new".into())
+        );
+        assert!(!dir.join("a.txt").exists());
+        // A folder of the name stays.
+        fs::write(dir.join("sub"), "file").expect("a file");
+        assert!(replace_into(&dir.join("sub"), &dir.join("into")).is_err());
+        assert!(dir.join("into/sub").is_dir() && dir.join("sub").is_file());
         let _ = fs::remove_dir_all(dir);
     }
 }
