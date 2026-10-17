@@ -165,7 +165,7 @@ Scope:
   and visibility.
 - `events.subscribe` starts with a snapshot of the state, and every event
   has a sequence number. An unknown event name is an error.
-- Focus in queries, and a `focus.changed` event.
+- Focus in queries. The `focus.changed` event exists already.
 - Queries return the screen rectangle of a node on each output.
   `input.inject` takes a node and a point inside it.
 - A client that does not own a node can request a change: focus, move,

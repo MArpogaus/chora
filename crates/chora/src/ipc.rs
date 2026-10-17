@@ -1842,6 +1842,47 @@ mod tests {
         assert_eq!(reserved_for(&core, "s1").as_deref(), Some("a"));
     }
 
+    #[test]
+    fn a_window_manager_hears_when_another_takes_the_focus() {
+        let mut core = Core::new();
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "one");
+        wayland.toplevel(&mut core, "two");
+        let mut a = core.named("a");
+        let mut b = core.named("b");
+        b.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["focus.changed"]}),
+        );
+        let take = |s: &str| {
+            json!({"commands": [{"attach": {"surface": s, "parent": "root"}},
+            {"focus": {"surface": s}}]})
+        };
+        a.ok(&mut core, "scene.apply", take("s1"));
+        let heard = |b: &mut Client, core: &mut Core| -> Vec<Value> {
+            b.events_now(core)
+                .into_iter()
+                .map(|e| e["params"].clone())
+                .collect()
+        };
+        assert_eq!(
+            heard(&mut b, &mut core),
+            [json!({"event": "focus.changed", "surface": "s1"})]
+        );
+        b.ok(&mut core, "scene.apply", take("s2"));
+        assert_eq!(
+            heard(&mut b, &mut core),
+            [json!({"event": "focus.changed", "surface": "s2"})]
+        );
+        let clear = json!({"commands": [{"focus": {}}]});
+        b.ok(&mut core, "scene.apply", clear);
+        assert_eq!(
+            heard(&mut b, &mut core),
+            [json!({"event": "focus.changed", "surface": null})]
+        );
+    }
+
     // A dialog goes to the window manager of its parent, not by the pointer.
     #[test]
     fn a_child_toplevel_goes_to_the_manager_of_its_parent() {

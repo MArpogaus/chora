@@ -55,6 +55,13 @@ pub enum Event {
         /// The surface node.
         surface: String,
     },
+    /// A plugin or the core moved the keyboard focus to another surface,
+    /// so that window managers draw their frames active or not (D55).
+    #[serde(rename = "focus.changed")]
+    FocusChanged {
+        /// The focused surface node; `None` without a focus.
+        surface: Option<String>,
+    },
     /// A client, or a taskbar for it, asks for a change that a plugin
     /// decides, for example fullscreen.
     #[serde(rename = "surface.requested")]

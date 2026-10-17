@@ -535,6 +535,11 @@ impl State {
             self.layer_focus = None;
         }
         self.update_focus();
+        if previous.as_deref() != surface {
+            self.emit(&Event::FocusChanged {
+                surface: surface.map(Into::into),
+            });
+        }
         for id in [previous, self.focus_wanted.clone()].into_iter().flatten() {
             self.restate_toplevel(&id);
         }
