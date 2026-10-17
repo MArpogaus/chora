@@ -296,7 +296,13 @@ JSON-RPC 2.0, one message per line, on the socket in `CHORA_SOCKET`. A
 client sends `hello` first. A method that changes the session or needs a
 grant fails before `hello`. `scene.query`, `events.subscribe`,
 `output.list`, `clients.list`, `clients.create`, `grants.set`,
-`grants.revoke` and `grants.list` also work before it, for tools. The core
+`grants.revoke` and `grants.list` also work before it, for tools.
+
+The core opens an admin socket next to the IPC socket, for example
+`wayland-1.admin.sock` next to `wayland-1.sock` (D40). It offers all
+methods. Only there do `grants.set`, `grants.revoke` and `clients.create`
+work. `choractl grant`, `choractl revoke` and `choractl clients create`
+use it. The core
 answers every request.
 
 | Method | Purpose |
@@ -309,8 +315,8 @@ answers every request.
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `process.spawn` for a client name; `choractl grant` and `choractl revoke` call them; a client socket cannot change grants |
-| `clients.create(name)` | open the client socket of a name and return its `path` (see [Client sockets](#client-sockets)); a client socket cannot call it |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `process.spawn` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket |
+| `clients.create(name)` | open the client socket of a name and return its `path` (see [Client sockets](#client-sockets)); only on the admin socket; `choractl clients create NAME` calls it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
 | `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; returns the output |
@@ -449,24 +455,26 @@ $ choractl revoke agent
 ```
 
 A grant lasts until `choractl revoke` or the end of the session. The
-emergency reset revokes all grants. A client of a client socket cannot
-change grants. A client of the main socket still can. So a grant protects
-against hostile code only when that code sees its client socket alone,
-with the gaps that [Client sockets](#client-sockets) lists. `choractl
-mcp` offers no tool for grants.
+emergency reset revokes all grants. Only the admin socket changes grants.
+A process of the user on the host reaches the admin socket too. So a
+grant protects against hostile code only when that code sees its client
+socket alone, with the gaps that [Client sockets](#client-sockets) lists.
+`choractl mcp` offers no tool for grants.
 
 ## Client sockets
 
 A client socket fixes the name of its clients (D33). `clients.create`
-with a name opens `clients/NAME/ipc.sock` in the directory of the main
-socket, with mode 0700:
+on the admin socket opens `clients/NAME/ipc.sock` in the directory of the
+main socket, with mode 0700. `choractl clients create agent` prints its
+path:
 
 ```json
 {"jsonrpc": "2.0", "id": 1, "method": "clients.create", "params": {"name": "agent"}}
 ```
 
 - A connection through it says `hello` with that name only.
-- It cannot call `grants.set`, `grants.revoke` or `clients.create`.
+- It cannot change grants or make client sockets, as these need the
+  admin socket.
 - Its `image`, `shader` and effect paths name only its own files of
   `assets.put`.
 - It holds at most 16 connections. All client sockets together leave 32
@@ -488,8 +496,6 @@ A container that mounts only its client directory cannot take another
 name or give itself capabilities through the API. This step leaves gaps
 that later steps of 0.7 close:
 
-- Any client of the main socket can call `clients.create`. The admin
-  socket for `choractl` closes this gap.
 - A program of `process.spawn` gets `CHORA_SOCKET`, the main socket. So
   a grant of `process.spawn` gives a container the main socket. D42 moves
   the start of programs out of the core.

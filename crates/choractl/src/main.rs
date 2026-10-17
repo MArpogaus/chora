@@ -9,6 +9,7 @@ mod view;
 
 use std::{
     io::{Read, Write},
+    path::Path,
     process::ExitCode,
 };
 
@@ -19,7 +20,7 @@ use chora_scene::{
     ipc::{
         Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, Edges,
         GrantChange, Hello, Inject, MethodCall, Picture, ProcessWait, Query, Reserve, Restart,
-        Spawn, Subscribe,
+        SOCKET_ENV, Spawn, Subscribe, admin_socket,
     },
 };
 use clap::{Parser, Subcommand};
@@ -72,8 +73,8 @@ enum Cmd {
         params: Option<String>,
     },
     /// Grant a client name `input.inject`, `screen.capture` or
-    /// `process.spawn`, until the
-    /// session ends or a revoke.
+    /// `process.spawn`, until the session ends or a revoke. Goes through
+    /// the admin socket.
     Grant {
         /// The client name, for example `agent`.
         client: String,
@@ -82,6 +83,7 @@ enum Cmd {
         capabilities: Vec<Capability>,
     },
     /// Revoke grants of a client name; all of them without a capability.
+    /// Goes through the admin socket.
     Revoke {
         /// The client name.
         client: String,
@@ -150,6 +152,12 @@ enum Cmd {
     Asset {
         #[command(subcommand)]
         action: AssetCmd,
+    },
+    /// Manage the client sockets, which fix the name of their clients.
+    /// Goes through the admin socket.
+    Clients {
+        #[command(subcommand)]
+        action: ClientsCmd,
     },
     /// Load, unload or save a view: plugins and nodes from a YAML file.
     View {
@@ -224,6 +232,16 @@ struct ReserveArgs {
 }
 
 #[derive(Subcommand)]
+enum ClientsCmd {
+    /// Open the client socket of a name, `clients/NAME/ipc.sock` next to
+    /// `CHORA_SOCKET`, and print its path.
+    Create {
+        /// The client name, for example `agent`.
+        client: String,
+    },
+}
+
+#[derive(Subcommand)]
 enum AssetCmd {
     /// Store a file under a name and print its path. A second put of the
     /// name replaces the file.
@@ -269,7 +287,7 @@ fn run(args: Args) -> Result<(), String> {
         keep_nodes: true,
         resume: false,
     };
-    let mut client = Client::from_env(&hello).map_err(|e| e.to_string())?;
+    let mut client = connect(&args.command, &hello)?;
     let result = match args.command {
         Cmd::Query { selector } => show(&mut client, "scene.query", Query { selector }),
         Cmd::Apply { .. } => client
@@ -285,7 +303,8 @@ fn run(args: Args) -> Result<(), String> {
         | Cmd::Reserve(_)
         | Cmd::Grant { .. }
         | Cmd::Revoke { .. }
-        | Cmd::Grants) => session(&mut client, command),
+        | Cmd::Grants
+        | Cmd::Clients { .. }) => session(&mut client, command),
         Cmd::Call {
             client: callee,
             method,
@@ -302,18 +321,31 @@ fn run(args: Args) -> Result<(), String> {
             node,
             max_side,
         } => {
-            return capture_to(
-                &mut client,
-                &Capture {
-                    output,
-                    node,
-                    max_side,
-                },
-                &file,
-            );
+            let capture = Capture {
+                output,
+                node,
+                max_side,
+            };
+            return capture_to(&mut client, &capture, &file);
         }
     };
     result.map_err(|e| e.to_string())
+}
+
+/// Connects to the core: grants and client sockets through the admin
+/// socket (D40), the rest through `CHORA_SOCKET`.
+fn connect(command: &Cmd, hello: &Hello) -> Result<Client, String> {
+    let admin = matches!(
+        command,
+        Cmd::Grant { .. } | Cmd::Revoke { .. } | Cmd::Clients { .. }
+    );
+    if admin {
+        let main = std::env::var_os(SOCKET_ENV).ok_or("CHORA_SOCKET is not set")?;
+        Client::connect(admin_socket(Path::new(&main)), hello)
+    } else {
+        Client::from_env(hello)
+    }
+    .map_err(|e| e.to_string())
 }
 
 /// The commands for grants, programs and outputs.
@@ -329,6 +361,9 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             capabilities,
         } => grants(client, "grants.revoke", name, capabilities),
         Cmd::Grants => show(client, "grants.list", Value::Null),
+        Cmd::Clients {
+            action: ClientsCmd::Create { client: name },
+        } => show(client, "clients.create", serde_json::json!({"name": name})),
         Cmd::Spawn { capture, argv } => spawn(client, argv, capture),
         Cmd::Restart { client: name } => show(client, "plugins.restart", Restart { name }),
         Cmd::ConfigureOutput {

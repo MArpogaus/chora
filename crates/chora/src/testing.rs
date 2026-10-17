@@ -55,6 +55,15 @@ impl Core {
         Client::new(ours)
     }
 
+    /// A new IPC connection of the admin socket of `choractl`.
+    pub fn admin(&mut self) -> Client {
+        let (ours, theirs) = UnixStream::pair().expect("a socket pair");
+        self.state
+            .ipc_accept_admin(theirs)
+            .expect("the core accepts");
+        Client::new(ours)
+    }
+
     /// A new IPC connection through a socket file of the core.
     pub fn connect_to(&mut self, path: &std::path::Path) -> Client {
         let ours = UnixStream::connect(path).expect("the socket listens");

@@ -1,6 +1,6 @@
 //! Client sockets (D33): `clients/NAME/ipc.sock` next to the main socket.
 //! A connection through it carries the name NAME. It cannot say `hello`
-//! with another name, and it cannot change grants or make client sockets.
+//! with another name.
 //! It names only its own assets as files. The main socket refuses a
 //! `hello` with a name that has a client socket.
 
@@ -11,7 +11,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use smithay::reexports::calloop::{Interest, Mode, PostAction, generic::Generic};
 
-use super::{RpcError, private_dir, rejected};
+use super::{RpcError, Socket, private_dir, rejected};
 use crate::state::State;
 
 /// The most client sockets.
@@ -34,13 +34,9 @@ pub struct Create {
 impl State {
     /// `clients.create`: opens the client socket of a name and returns its
     /// path.
-    pub(super) fn ipc_client_socket(
-        &mut self,
-        conn: u64,
-        create: &Create,
-    ) -> Result<Value, RpcError> {
+    pub(super) fn ipc_client_socket(&mut self, create: &Create) -> Result<Value, RpcError> {
         let name = &create.name;
-        self.check_new_socket(conn, name)?;
+        self.check_new_socket(name)?;
         let base = (self.ipc.path.as_ref())
             .and_then(|p| p.parent())
             .ok_or_else(|| rejected("the core has no socket directory"))?;
@@ -55,7 +51,7 @@ impl State {
             .insert_source(
                 Generic::new(listener, Interest::READ, Mode::Level),
                 move |_, listener, state| {
-                    if let Some(error) = state.ipc_accept_all(listener, Some(&fixed)) {
+                    if let Some(error) = state.ipc_accept_all(listener, Socket::Client(&fixed)) {
                         tracing::warn!("client socket {fixed:?}: {error}");
                     }
                     Ok(PostAction::Continue)
@@ -67,10 +63,7 @@ impl State {
     }
 
     /// Why `clients.create` of a name must fail, if it must.
-    fn check_new_socket(&self, conn: u64, name: &str) -> Result<(), RpcError> {
-        if self.ipc.fixed(conn).is_some() {
-            return Err(rejected("a client socket cannot make client sockets"));
-        }
+    fn check_new_socket(&self, name: &str) -> Result<(), RpcError> {
         if !crate::methods::valid_name(name) {
             return Err(rejected(format!(
                 "{name:?}: a client name for a socket has lowercase letters, digits, _, - and ., from a letter"

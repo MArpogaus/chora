@@ -399,7 +399,7 @@ mod tests {
         core.add_output("test-1", (64, 48));
         let mut wm = core.named("wm");
         let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
-        wm.ok(&mut core, "grants.set", grant);
+        core.admin().ok(&mut core, "grants.set", grant);
         let props = json!({"size": [20, 10], "color": [1.0, 0.0, 0.0, 1.0],
             "transform": {"translate": [8, 4]}});
         let create = json!({"id": "r", "kind": "rect", "parent": "root", "props": props});
@@ -430,7 +430,7 @@ mod tests {
         core.add_output("test-1", (64, 48));
         let mut wm = core.named("wm");
         let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
-        wm.ok(&mut core, "grants.set", grant);
+        core.admin().ok(&mut core, "grants.set", grant);
         let rect = |id: &str, x: u32, radius: u32| {
             json!({"create": {"id": id, "kind": "rect", "parent": "root", "props": {
                 "size": [20, 20], "color": [1.0, 1.0, 1.0, 0.5], "radius": radius,

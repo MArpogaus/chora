@@ -68,6 +68,8 @@ pub struct Ipc {
     /// `plugins.restart`, once per answer.
     pub late: Vec<u64>,
     listener: Option<RegistrationToken>,
+    /// The listener of the admin socket and its path.
+    admin: Option<(RegistrationToken, PathBuf)>,
     conns: HashMap<u64, Conn>,
     next: u64,
     grabs: Vec<(Binding, Trigger, u64)>,
@@ -132,6 +134,8 @@ struct Conn {
     /// The name of the client socket of the connection (D33); `None` for
     /// the main socket.
     fixed: Option<String>,
+    /// The connection came through the admin socket (D40).
+    admin: bool,
     events: Option<Vec<String>>,
     /// The edges of `output.reserve` by output name.
     reserves: HashMap<String, Edges>,
@@ -156,23 +160,45 @@ pub fn listen(state: &mut State) -> io::Result<PathBuf> {
         Err(err) if err.kind() != ErrorKind::NotFound => return Err(err),
         _ => {}
     }
-    let listener = UnixListener::bind(&path)?;
+    state.ipc.listener = Some(bind(state, &path, Socket::Main)?);
+    let admin = chora_scene::ipc::admin_socket(&path);
+    state.ipc.admin = Some((bind(state, &admin, Socket::Admin)?, admin));
+    state.ipc.path = Some(path.clone());
+    Ok(path)
+}
+
+/// Where a connection came from.
+#[derive(Clone, Copy)]
+enum Socket<'a> {
+    Main,
+    /// The admin socket of `choractl` (D40).
+    Admin,
+    /// A client socket of a name (D33).
+    Client(&'a str),
+}
+
+/// Binds the main or the admin socket, with mode 0600, and accepts its
+/// connections in the event loop.
+fn bind(state: &State, path: &Path, socket: Socket<'static>) -> io::Result<RegistrationToken> {
+    match std::fs::remove_file(path) {
+        Err(err) if err.kind() != ErrorKind::NotFound => return Err(err),
+        _ => {}
+    }
+    let listener = UnixListener::bind(path)?;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
     listener.set_nonblocking(true)?;
-    let token = state
+    state
         .loop_handle
         .insert_source(
             Generic::new(listener, Interest::READ, Mode::Level),
-            |_, listener, state| {
-                if let Some(error) = state.ipc_accept_all(listener, None) {
+            move |_, listener, state| {
+                if let Some(error) = state.ipc_accept_all(listener, socket) {
                     tracing::warn!("IPC socket: {error}");
                 }
                 Ok(PostAction::Continue)
             },
         )
-        .map_err(|err| io::Error::other(err.to_string()))?;
-    state.ipc.listener = Some(token);
-    state.ipc.path = Some(path.clone());
-    Ok(path)
+        .map_err(|err| io::Error::other(err.to_string()))
 }
 
 /// Creates a directory with mode 0700, or sets that mode on an old one,
@@ -196,7 +222,8 @@ fn private_dir(dir: &Path) -> io::Result<()> {
 impl Drop for Ipc {
     fn drop(&mut self) {
         let clients = self.clients.values().map(|(_, path)| path);
-        for path in self.path.iter().chain(clients) {
+        let admin = self.admin.iter().map(|(_, path)| path);
+        for path in self.path.iter().chain(admin).chain(clients) {
             let _ = std::fs::remove_file(path);
         }
     }
@@ -364,6 +391,11 @@ impl Ipc {
         self.has_client(name) || self.graces.contains_key(name)
     }
 
+    /// Whether a connection came through the admin socket.
+    fn admin(&self, conn: u64) -> bool {
+        self.conns.get(&conn).is_some_and(|c| c.admin)
+    }
+
     /// The name of the client socket of a connection.
     fn fixed(&self, conn: u64) -> Option<&str> {
         self.conns.get(&conn)?.fixed.as_deref()
@@ -486,20 +518,20 @@ impl State {
     /// Accepts every waiting connection. When accepting fails, for example
     /// because no file descriptors are left, the listener pauses for a
     /// second instead of stopping the compositor. Returns the error to log.
-    /// A listener of a client socket gives its name in `fixed`.
-    fn ipc_accept_all(&mut self, listener: &UnixListener, fixed: Option<&str>) -> Option<String> {
+    fn ipc_accept_all(&mut self, listener: &UnixListener, socket: Socket) -> Option<String> {
         loop {
             match listener.accept() {
                 Ok((stream, _)) => {
-                    if let Err(err) = self.ipc_accept_as(stream, fixed) {
+                    if let Err(err) = self.ipc_accept_as(stream, socket) {
                         break Some(err);
                     }
                 }
                 Err(err) if err.kind() == ErrorKind::WouldBlock => break None,
                 Err(err) => {
-                    let token = match fixed {
-                        Some(name) => self.ipc.clients.get(name).map(|(t, _)| *t),
-                        None => self.ipc.listener,
+                    let token = match socket {
+                        Socket::Client(name) => self.ipc.clients.get(name).map(|(t, _)| *t),
+                        Socket::Admin => self.ipc.admin.as_ref().map(|(t, _)| *t),
+                        Socket::Main => self.ipc.listener,
                     };
                     self.ipc_pause_listener(token);
                     break Some(format!("accepting fails, pausing for a second: {err}"));
@@ -528,15 +560,25 @@ impl State {
     /// line before the close.
     #[cfg(test)]
     pub fn ipc_accept(&mut self, stream: UnixStream) -> Result<(), String> {
-        self.ipc_accept_as(stream, None)
+        self.ipc_accept_as(stream, Socket::Main)
+    }
+
+    /// Registers a connection of the admin socket, for tests.
+    #[cfg(test)]
+    pub fn ipc_accept_admin(&mut self, stream: UnixStream) -> Result<(), String> {
+        self.ipc_accept_as(stream, Socket::Admin)
     }
 
     /// Registers a connection of the main socket, or with `fixed` of a
     /// client socket.
-    fn ipc_accept_as(&mut self, stream: UnixStream, fixed: Option<&str>) -> Result<(), String> {
+    fn ipc_accept_as(&mut self, stream: UnixStream, socket: Socket) -> Result<(), String> {
         fn failed(err: impl std::fmt::Display) -> String {
             format!("a connection failed: {err}")
         }
+        let fixed = match socket {
+            Socket::Client(name) => Some(name),
+            Socket::Main | Socket::Admin => None,
+        };
         stream.set_nonblocking(true).map_err(failed)?;
         let pid = socket_peercred(&stream).ok().map(|c| c.pid);
         if let Some(reason) = self.ipc.refusal(pid, fixed) {
@@ -569,6 +611,7 @@ impl State {
             keep_nodes: false,
             resume: false,
             fixed: fixed.map(String::from),
+            admin: matches!(socket, Socket::Admin),
             events: None,
             reserves: HashMap::new(),
             reader: Some(token),
@@ -681,13 +724,9 @@ impl State {
                 self.ipc_headless_output(conn, &request.method, params)
             }
             "clients.list" => Ok(self.clients()),
-            "grants.set" | "grants.revoke" if self.ipc.fixed(conn).is_some() => {
-                Err(rejected("a client socket cannot change grants"))
+            "grants.set" | "grants.revoke" | "grants.list" | "clients.create" => {
+                self.ipc_admin(conn, &request.method, params)
             }
-            "grants.set" | "grants.revoke" | "grants.list" => {
-                self.ipc_grants(&request.method, params)
-            }
-            "clients.create" => params_of(params).and_then(|c| self.ipc_client_socket(conn, &c)),
             "screen.capture" => self.ipc_capture(conn, params),
             "input.inject" => self.ipc_inject(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
@@ -702,6 +741,20 @@ impl State {
                 format!("no method {other:?}"),
             )),
         })
+    }
+
+    /// The methods of grants and client sockets. Only the admin socket of
+    /// `choractl` changes them (D40); any connection lists the grants.
+    fn ipc_admin(&mut self, conn: u64, method: &str, params: Value) -> Result<Value, RpcError> {
+        if method != "grants.list" && !self.ipc.admin(conn) {
+            return Err(rejected(format!(
+                "{method} works only on the admin socket of choractl"
+            )));
+        }
+        if method == "clients.create" {
+            return params_of(params).and_then(|c| self.ipc_client_socket(&c));
+        }
+        self.ipc_grants(method, params)
     }
 
     /// Names a connection. All connections of a name share one
@@ -1287,7 +1340,7 @@ mod tests {
     #[test]
     fn clients_create_refuses_a_live_name() {
         let (mut core, dir) = socket_dir("live");
-        let mut admin = core.connect();
+        let mut admin = core.admin();
         let squatter = core.named("agent");
         let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "agent"}));
         assert!(
@@ -1308,7 +1361,7 @@ mod tests {
     #[test]
     fn the_reset_removes_the_client_sockets() {
         let (mut core, dir) = socket_dir("reset");
-        let mut admin = core.connect();
+        let mut admin = core.admin();
         let (_agent, path) = fixed(&mut core, &mut admin, "agent");
         core.state.reset();
         core.dispatch();
@@ -1321,7 +1374,7 @@ mod tests {
     #[test]
     fn a_client_socket_leaves_room_for_the_main_socket() {
         let (mut core, dir) = socket_dir("flood");
-        let mut admin = core.connect();
+        let mut admin = core.admin();
         let (first, path) = fixed(&mut core, &mut admin, "agent");
         // Each connection as from a process of its own, as in a container.
         let connect = |core: &mut Core, path: &Path| {
@@ -1369,7 +1422,7 @@ mod tests {
             .uploads
             .open(dir.join("wayland-1.assets"))
             .unwrap();
-        let mut admin = core.connect();
+        let mut admin = core.admin();
         let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
         let image = |id: &str, path: &str| {
             json!({"commands": [{"create": {"id": id, "kind": "image", "parent": "root",
@@ -1409,7 +1462,7 @@ mod tests {
         let old = dir.join("clients/agent");
         std::fs::create_dir_all(&old).unwrap();
         std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o777)).unwrap();
-        let mut admin = core.connect();
+        let mut admin = core.admin();
         fixed(&mut core, &mut admin, "agent");
         let mode = std::fs::metadata(&old).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o700);
@@ -1436,7 +1489,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
-        let mut admin = core.connect();
+        let mut admin = core.admin();
         let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
         let path = PathBuf::from(created["path"].as_str().unwrap());
         assert_eq!(path, dir.join("clients/agent/ipc.sock"));
@@ -1445,9 +1498,9 @@ mod tests {
         assert!(message.contains("belongs to \"agent\""), "{message}");
         let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
         let (_, message) = agent.fails(&mut core, "grants.set", grant);
-        assert!(message.contains("cannot change grants"), "{message}");
+        assert!(message.contains("only on the admin socket"), "{message}");
         let (_, message) = agent.fails(&mut core, "clients.create", json!({"name": "x"}));
-        assert!(message.contains("cannot make"), "{message}");
+        assert!(message.contains("only on the admin socket"), "{message}");
         agent.ok(&mut core, "hello", json!({"name": "agent"}));
         agent.ok(&mut core, "scene.apply", rect("r"));
         assert_eq!(
@@ -1611,9 +1664,8 @@ mod tests {
     fn a_process_wait_gets_its_answer_after_the_end_of_the_stream() {
         let mut core = Core::new();
         core.state.ipc.path = Some("/nonexistent.sock".into());
-        let mut ctl = core.named("ctl");
         let grant = json!({"client": "agent", "capabilities": ["process.spawn"]});
-        ctl.ok(&mut core, "grants.set", grant);
+        core.admin().ok(&mut core, "grants.set", grant);
         let mut agent = core.named("agent");
         let spawn = json!({"argv": ["sleep", "0.2"], "capture": true});
         let pid = agent.ok(&mut core, "process.spawn", spawn)["pid"].clone();

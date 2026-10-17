@@ -63,7 +63,7 @@ env -u WAYLAND_DISPLAY -u DISPLAY -u WAYLAND_SOCKET XDG_RUNTIME_DIR="$runtime" \
 pid=$!
 
 for _ in $(seq 100); do
-    socket=$(compgen -G "$runtime/chora/*.sock" || true)
+    socket=$(compgen -G "$runtime/chora/wayland-*[0-9].sock" || true)
     [[ -n $socket ]] && break
     kill -0 "$pid" 2>/dev/null || {
         cat "$log" >&2

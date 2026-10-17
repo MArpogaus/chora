@@ -7,7 +7,7 @@ use std::{
     collections::VecDeque,
     io::{self, BufRead, BufReader, Write},
     os::unix::net::UnixStream,
-    path::Path,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 
@@ -18,6 +18,14 @@ use crate::{Command, Event};
 
 /// The environment variable with the path of the IPC socket.
 pub const SOCKET_ENV: &str = "CHORA_SOCKET";
+
+/// The admin socket next to an IPC socket, for example
+/// `wayland-1.admin.sock` next to `wayland-1.sock` (D40). Only `choractl`
+/// uses it, for grants and client sockets.
+#[must_use]
+pub fn admin_socket(socket: &Path) -> PathBuf {
+    socket.with_extension("admin.sock")
+}
 
 /// The version of this build: the crate version and, when it was built in
 /// a git checkout, the commit, for example `0.5.4+1ea0e89abc`. `hello`

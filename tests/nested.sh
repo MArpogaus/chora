@@ -57,8 +57,8 @@ step "1. chora -- chora-tiling starts nested"
 "$bin/chora" -- "$bin/chora-tiling" >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
-wait_for compgen -G "$XDG_RUNTIME_DIR/chora/*.sock"
-CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/*.sock")
+wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"
+CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock")
 export CHORA_SOCKET
 inner=$(basename "$CHORA_SOCKET" .sock)
 wait_for pgrep -x chora-tiling

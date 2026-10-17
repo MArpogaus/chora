@@ -63,8 +63,8 @@ CHORA_FRAME_BUDGET_US=500000 "$bin/chora" -- "$bin/chora-xp" --theme "$theme" --
     >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
-wait_for compgen -G "$XDG_RUNTIME_DIR/chora/*.sock"
-CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/*.sock")
+wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"
+CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock")
 export CHORA_SOCKET
 inner=$(basename "$CHORA_SOCKET" .sock)
 query() { "$bin/choractl" query "$@"; }

@@ -3,11 +3,11 @@
 //! `process.spawn`.
 //!
 //! `choractl grant NAME CAPABILITY` grants a capability to a client name,
-//! until `choractl revoke` or the end of the session. A grant protects
-//! against mistakes of agents, not against hostile code of the same user:
-//! every client of the user can call `grants.set`. The MCP bridge offers no
-//! tool for it, so an agent cannot grant itself by accident. The emergency
-//! reset revokes all grants.
+//! until `choractl revoke` or the end of the session, through the admin
+//! socket (D40). A client of a client socket cannot reach it, a process of
+//! the user on the host can. The MCP bridge offers no tool for grants, so
+//! an agent cannot grant itself by accident. The emergency reset revokes
+//! all grants.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -137,7 +137,7 @@ mod tests {
     #[test]
     fn grants_change_and_list_over_ipc() {
         let mut core = Core::new();
-        let mut ctl = core.named("choractl");
+        let mut ctl = core.admin();
         let both = json!({"client": "agent", "capabilities": ["screen.capture", "input.inject"]});
         ctl.ok(&mut core, "grants.set", both);
         let list = ctl.ok(&mut core, "grants.list", Value::Null);
@@ -149,6 +149,25 @@ mod tests {
         let unknown = json!({"client": "agent", "capabilities": ["disk.write"]});
         let (error_code, _) = ctl.fails(&mut core, "grants.set", unknown);
         assert_eq!(error_code, RpcError::INVALID_PARAMS);
+    }
+
+    #[test]
+    fn only_the_admin_socket_changes_grants_and_makes_client_sockets() {
+        let mut core = Core::new();
+        let mut agent = core.named("agent");
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        for (method, params) in [
+            ("grants.set", grant.clone()),
+            ("grants.revoke", grant),
+            ("clients.create", json!({"name": "agent"})),
+        ] {
+            let (_, message) = agent.fails(&mut core, method, params);
+            assert!(
+                message.contains("only on the admin socket"),
+                "{method}: {message}"
+            );
+        }
+        assert_eq!(agent.ok(&mut core, "grants.list", Value::Null), json!({}));
     }
 
     #[test]
@@ -172,7 +191,7 @@ mod tests {
     #[test]
     fn a_grant_belongs_to_a_name_and_outlives_its_connections() {
         let mut core = Core::new();
-        let mut ctl = core.named("choractl");
+        let mut ctl = core.admin();
         let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
         ctl.ok(&mut core, "grants.set", grant);
         let inject = json!({"events": []});
@@ -188,13 +207,13 @@ mod tests {
     #[test]
     fn the_emergency_reset_revokes_every_grant_and_disconnects() {
         let mut core = Core::new();
-        let mut ctl = core.named("choractl");
+        let mut ctl = core.admin();
         let all = json!({"client": "agent", "capabilities": ["input.inject", "process.spawn"]});
         ctl.ok(&mut core, "grants.set", all);
         core.state.reset();
         assert!(ctl.closed(&mut core));
         assert!(!core.state.grants.allows("agent", Capability::InputInject));
-        let mut ctl = core.named("choractl");
+        let mut ctl = core.admin();
         assert_eq!(ctl.ok(&mut core, "grants.list", Value::Null), json!({}));
     }
 }

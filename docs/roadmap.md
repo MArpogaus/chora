@@ -118,8 +118,8 @@ Scope:
 - One socket directory per client: `$XDG_RUNTIME_DIR/chora/clients/NAME/`
   with `ipc.sock` and a Wayland socket of `wp-security-context-v1` (D33,
   D40). The socket fixes the name and the capabilities of its clients.
-- An admin socket for `choractl` only. `grants.set` and the reset work
-  through it alone.
+- An admin socket for `choractl` only. `grants.set`, `grants.revoke` and
+  `clients.create` work through it alone. This is done.
 - `choractl clients up` creates the sockets from
   `~/.config/chora/clients.yaml`. The emergency reset removes the client
   sockets.
