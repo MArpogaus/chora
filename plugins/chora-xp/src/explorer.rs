@@ -9,18 +9,25 @@
 //! window manager does: nothing more, a menu, a program, the Control
 //! Panel.
 
-use std::{fmt::Write as _, path::PathBuf};
+mod view;
+
+use std::{
+    fmt::Write as _,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use chora_scene::Command;
 
 use crate::{
     context::{Act, Entry},
     dialog::{BLACK, Content, Control, GRAY, Hit, Page},
-    folder::{History, Place},
+    folder::{self, History, Kind, Place},
     icons::{self, Icons},
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };
+use view::{Group, Item, Open, SCROLL_W};
 
 /// The client size of a new window: XP's My Computer of the reference.
 pub const SIZE: [i32; 2] = [777, 525];
@@ -97,7 +104,14 @@ pub enum Outcome {
     ControlPanel,
     /// Closes the window.
     Close,
+    /// Opens a file with `xdg-open`.
+    Open(PathBuf),
 }
+
+/// Two clicks on an item within this time open it.
+const DOUBLE_CLICK: Duration = Duration::from_millis(500);
+/// An arrow of the scroll bar scrolls this far.
+const SCROLL_STEP: i32 = 40;
 
 /// Where a link of the task pane goes.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -141,6 +155,17 @@ pub struct Explorer {
     collapsed: Vec<&'static str>,
     /// Where each link of the page goes, by its name.
     links: Vec<(String, Target)>,
+    /// What the view lists.
+    groups: Vec<Group>,
+    /// The selected item, over all groups.
+    selected: Option<usize>,
+    /// How far the view is scrolled down.
+    scroll: i32,
+    /// The last click on an item, for the double click.
+    last_click: Option<(usize, Instant)>,
+    /// The thumb of the scroll bar is down: the pointer and the offset
+    /// at the press.
+    thumb: Option<(f64, i32)>,
 }
 
 impl Explorer {
@@ -153,7 +178,36 @@ impl Explorer {
             size,
             collapsed: Vec::new(),
             links: Vec::new(),
+            groups: Vec::new(),
+            selected: None,
+            scroll: 0,
+            last_click: None,
+            thumb: None,
         }
+        .loaded()
+    }
+
+    /// The same window with the items of its place.
+    fn loaded(mut self) -> Self {
+        self.arrived();
+        self
+    }
+
+    /// Lists the items of the current place, from the top, with none
+    /// selected.
+    fn arrived(&mut self) {
+        self.groups = match &self.history.current {
+            Place::Folder(path) => vec![folder_group(path)],
+            Place::Computer | Place::Trash => Vec::new(),
+        };
+        self.selected = None;
+        self.scroll = 0;
+        self.last_click = None;
+    }
+
+    /// The items over all groups.
+    fn items(&self) -> impl Iterator<Item = &Item> {
+        self.groups.iter().flat_map(|g| &g.items)
     }
 
     /// Whether a node belongs to the page of the window.
@@ -163,7 +217,7 @@ impl Explorer {
 
     /// The title of the window.
     pub fn title(&self) -> String {
-        self.history.current.title()
+        title(&self.history.current)
     }
 
     /// The icon of the place, for the title bar and the task button.
@@ -198,23 +252,57 @@ impl Explorer {
         self.content.hover(theme, node, on)
     }
 
-    /// A press on a node of the page.
-    pub fn press(&mut self, theme: &mut Theme, node: &str) -> Vec<Command> {
+    /// A press on a node of the page, at a point of the scene: the thumb
+    /// of the scroll bar starts a drag.
+    pub fn press(&mut self, theme: &mut Theme, node: &str, position: [f64; 2]) -> Vec<Command> {
+        if self.content.name_of(node).as_deref() == Some("sb-thumb") {
+            self.thumb = Some((position[1], self.scroll));
+        }
         self.content.press(theme, node).unwrap_or_default()
+    }
+
+    /// Whether the thumb of the scroll bar is down.
+    pub fn dragging(&self) -> bool {
+        self.thumb.is_some()
+    }
+
+    /// The pointer moved while the thumb is down: the view follows.
+    /// Returns whether it scrolled.
+    pub fn drag(&mut self, position: [f64; 2]) -> bool {
+        let Some((start, from)) = self.thumb else {
+            return false;
+        };
+        let geometry = self.geometry();
+        #[allow(clippy::cast_possible_truncation)]
+        let moved = (position[1] - start).round() as i32;
+        let track = geometry.view[3] - 2 * SCROLL_W;
+        let offset = view::drag_offset(
+            track,
+            geometry.view[3],
+            geometry.layout.height,
+            (from, moved),
+        );
+        let changed = offset != self.scroll;
+        self.scroll = offset;
+        changed
     }
 
     /// The release of the button at a point of the client area.
     pub fn release(&mut self, theme: &mut Theme, point: [i32; 2]) -> (Vec<Command>, Outcome) {
+        self.thumb = None;
         let (commands, hit) = self.content.release(theme, point);
         let outcome = match hit {
-            Some(Hit::Control(name, _)) => self.click(&name),
+            Some(Hit::Control(name, at)) => self.click(&name, at),
             _ => Outcome::None,
         };
         (commands, outcome)
     }
 
-    /// What a click on a control does.
-    fn click(&mut self, name: &str) -> Outcome {
+    /// What a click on a control does, at a point in it.
+    fn click(&mut self, name: &str, at: [i32; 2]) -> Outcome {
+        if let Some(outcome) = self.click_view(name, at) {
+            return outcome;
+        }
         if let Some(menu) = name.strip_prefix("menu-") {
             let Some(&(title, x)) = MENUS.iter().find(|(t, _)| *t == menu) else {
                 return Outcome::None;
@@ -250,6 +338,60 @@ impl Explorer {
         }
     }
 
+    /// A click on the view: an item is selected, and opens on a double
+    /// click; the scroll bar scrolls. `None` for other controls.
+    fn click_view(&mut self, name: &str, [_, y]: [i32; 2]) -> Option<Outcome> {
+        if let Some(i) = name.strip_prefix("item-").and_then(|i| i.parse().ok()) {
+            return Some(self.click_item(i));
+        }
+        let page = self.geometry().view[3] - 2 * SCROLL_W;
+        let step = match name {
+            "view" => {
+                self.selected = None;
+                return Some(Outcome::Redraw);
+            }
+            "sb-up" => -SCROLL_STEP,
+            "sb-down" => SCROLL_STEP,
+            // Above the thumb a page up, below it a page down.
+            "sb-track" if y < self.geometry().thumb.0 => -page,
+            "sb-track" => page,
+            _ => return None,
+        };
+        Some(self.scroll_by(step))
+    }
+
+    /// Scrolls the view, as far as it goes.
+    fn scroll_by(&mut self, step: i32) -> Outcome {
+        let geometry = self.geometry();
+        let max = view::max_scroll(geometry.layout.height, geometry.view[3]);
+        let offset = (self.scroll + step).clamp(0, max);
+        if offset == self.scroll {
+            return Outcome::None;
+        }
+        self.scroll = offset;
+        Outcome::Redraw
+    }
+
+    /// The first click on an item selects it, the second opens it.
+    fn click_item(&mut self, i: usize) -> Outcome {
+        let now = Instant::now();
+        let double = self
+            .last_click
+            .take()
+            .is_some_and(|(last, at)| last == i && now.duration_since(at) < DOUBLE_CLICK);
+        if !double {
+            self.last_click = Some((i, now));
+            self.selected = Some(i);
+            return Outcome::Redraw;
+        }
+        let open = self.items().nth(i).and_then(|item| item.open.clone());
+        match open {
+            Some(Open::Place(place)) => self.go(place),
+            Some(Open::File(path)) => Outcome::Open(path),
+            None => Outcome::None,
+        }
+    }
+
     /// Does what a row of a menu, a button or a link says.
     pub fn command(&mut self, cmd: Cmd) -> Outcome {
         let moved = match cmd {
@@ -263,6 +405,7 @@ impl Explorer {
             Cmd::Trash => return self.go(Place::Trash),
         };
         if moved {
+            self.arrived();
             Outcome::Redraw
         } else {
             Outcome::None
@@ -272,6 +415,7 @@ impl Explorer {
     /// Goes to a place in the same window, as XP does.
     pub fn go(&mut self, place: Place) -> Outcome {
         self.history.go(place);
+        self.arrived();
         Outcome::Redraw
     }
 
@@ -344,7 +488,66 @@ impl Explorer {
         page.body = Some(self.address_bar(body, icons));
         page.controls.extend(address_buttons(w, icons));
         self.task_pane(&mut page, theme, icons);
+        page.controls.extend(self.view(theme, icons));
         page
+    }
+
+    /// Where the view and its parts go at the current size.
+    fn geometry(&self) -> Geometry {
+        let [w, h] = self.size;
+        let view = [PANE_W, VIEW_Y, w - PANE_W, h - VIEW_Y];
+        let mut layout = view::layout(&self.groups, view[2]);
+        let bar = layout.height > view[3];
+        if bar {
+            layout = view::layout(&self.groups, view[2] - SCROLL_W);
+        }
+        let track = view[3] - 2 * SCROLL_W;
+        let offset = self
+            .scroll
+            .clamp(0, view::max_scroll(layout.height, view[3]));
+        let thumb = view::thumb(track, view[3], layout.height, offset);
+        Geometry {
+            view,
+            layout,
+            bar,
+            offset,
+            thumb,
+        }
+    }
+
+    /// The controls of the view: the background with the headings, the
+    /// tiles that show, and the scroll bar.
+    fn view(&mut self, theme: &Theme, icons: &mut Icons) -> Vec<Control> {
+        let g = self.geometry();
+        self.scroll = g.offset;
+        let [vx, vy, vw, vh] = g.view;
+        let width = if g.bar { vw - SCROLL_W } else { vw };
+        let mut controls = vec![Control::area(
+            "view",
+            [vx, vy, width, vh],
+            view::background([width, vh], &g.layout, g.offset),
+        )];
+        let clip = [vx, vy, width, vh];
+        for (i, (item, [x, y])) in self.items().zip(&g.layout.tiles).enumerate() {
+            let at = [vx + x, vy + y - g.offset];
+            if at[1] >= vy + vh || at[1] + view::TILE[1] <= vy {
+                continue;
+            }
+            let icon = icons.first_sized(item.icons, 48);
+            let tile = view::tile(theme, item, icon.as_deref(), self.selected == Some(i));
+            if let Some((rect, picture)) = view::clip(tile, at, clip) {
+                controls.push(Control::area(&format!("item-{i}"), rect, picture));
+            }
+        }
+        if g.bar {
+            let names = ["sb-track", "sb-thumb", "sb-up", "sb-down"];
+            for (name, ([x, y, w, h], picture)) in
+                names.iter().zip(view::scroll_bar([SCROLL_W, vh], g.thumb))
+            {
+                controls.push(Control::area(name, [vx + width + x, vy + y, w, h], picture));
+            }
+        }
+        controls
     }
 
     /// The Standard Buttons: Back and Forward as the history allows, Up
@@ -385,7 +588,10 @@ impl Explorer {
             body = body.file(&icon, [55, ADDRESS_Y + 3, 16, 16]);
         }
         body.text(Text::new(
-            &self.history.current.address(),
+            &match &self.history.current {
+                Place::Folder(path) if *path == documents() => title(&self.history.current),
+                place => place.address(),
+            },
             Font::Ui,
             BLACK,
             [72, ADDRESS_Y, w - 57 - 72 - 20, ADDRESS_H],
@@ -468,8 +674,11 @@ impl Explorer {
         boxes
     }
 
-    /// The lines of the Details box: the place, as nothing is selected.
+    /// The lines of the Details box: the selected item, else the place.
     fn details(&self) -> Vec<(String, bool)> {
+        if let Some(item) = self.selected.and_then(|i| self.items().nth(i)) {
+            return item.details.clone();
+        }
         let kind = match &self.history.current {
             Place::Folder(_) => "File Folder",
             Place::Computer | Place::Trash => "System Folder",
@@ -531,9 +740,13 @@ fn folder_boxes(path: &std::path::Path) -> (Option<TaskBox>, Vec<Link>) {
     let mut places = Vec::new();
     if let Some(parent) = path.parent() {
         let parent = Place::Folder(parent.into());
-        places.push(Link::to(&parent.title(), "folder", parent));
+        places.push(Link::to(&title(&parent), "folder", parent));
     }
-    places.extend([Link::documents(), Link::computer(), Link::network()]);
+    // The parent may be My Documents already.
+    if path.parent() != Some(documents().as_path()) {
+        places.push(Link::documents());
+    }
+    places.extend([Link::computer(), Link::network()]);
     let tasks = TaskBox {
         title: "File and Folder Tasks",
         body: Body::Links(vec![
@@ -695,6 +908,57 @@ fn view_menu(history: &History) -> Vec<Entry> {
     ]
 }
 
+/// Where the view and its parts go.
+struct Geometry {
+    /// The view in the client area, with the scroll bar.
+    view: Rect,
+    layout: view::Layout,
+    /// The scroll bar shows.
+    bar: bool,
+    /// The offset of the view, as far as it scrolls.
+    offset: i32,
+    /// The top of the thumb in the track, and its height.
+    thumb: (i32, i32),
+}
+
+/// The items of a folder: folders first, then the files with their type
+/// and size; nothing for a folder that cannot be read.
+fn folder_group(path: &std::path::Path) -> Group {
+    let entries = folder::list(path).unwrap_or_default();
+    let items = entries
+        .into_iter()
+        .map(|e| {
+            let type_name = folder::type_name(&e.name, e.kind);
+            let mut lines = vec![type_name.clone()];
+            let mut details = vec![(e.name.clone(), true), (type_name, false)];
+            if let Some(modified) = e.modified {
+                let date: chrono::DateTime<chrono::Local> = modified.into();
+                details.push(("Date Modified:".into(), false));
+                details.push((date.format("%B %-d, %Y, %-I:%M %p").to_string(), false));
+            }
+            let open = if e.kind == Kind::Folder {
+                Open::Place(Place::Folder(e.path))
+            } else {
+                let size = folder::size_text(e.size);
+                lines.push(size.clone());
+                details.push((format!("Size: {size}"), false));
+                Open::File(e.path)
+            };
+            Item {
+                title: e.name,
+                lines,
+                icons: e.kind.icons(),
+                open: Some(open),
+                details,
+            }
+        })
+        .collect();
+    Group {
+        heading: None,
+        items,
+    }
+}
+
 /// The titles of all boxes, for the list of the collapsed ones.
 const BOX_TITLES: [&str; 5] = [
     "File and Folder Tasks",
@@ -711,6 +975,14 @@ fn place_icons(place: &Place) -> &'static [&'static str] {
         Place::Folder(_) => &["folder"],
         Place::Computer => &["computer"],
         Place::Trash => &["user-trash-full", "user-trash"],
+    }
+}
+
+/// The name of a place, with My Documents by its name in XP.
+fn title(place: &Place) -> String {
+    match place {
+        Place::Folder(path) if *path == documents() => "My Documents".into(),
+        place => place.title(),
     }
 }
 
@@ -981,9 +1253,9 @@ mod tests {
         explorer.create(&mut theme, &mut icons);
         preview(&mut theme, &explorer, "explorer-computer");
         // A click on a box header collapses the box.
-        assert_eq!(explorer.click("box-System Tasks"), Outcome::Redraw);
+        assert_eq!(explorer.click("box-System Tasks", [0, 0]), Outcome::Redraw);
         assert_eq!(explorer.collapsed, ["System Tasks"]);
-        assert_eq!(explorer.click("box-System Tasks"), Outcome::Redraw);
+        assert_eq!(explorer.click("box-System Tasks", [0, 0]), Outcome::Redraw);
         assert_eq!(explorer.collapsed, Vec::<&str>::new());
         let _ = std::fs::remove_dir_all(cache);
     }
@@ -991,12 +1263,12 @@ mod tests {
     #[test]
     fn the_buttons_walk_the_history() {
         let mut explorer = Explorer::new("xpx1", Place::Folder("/usr/share".into()), SIZE);
-        assert_eq!(explorer.click("back"), Outcome::None);
-        assert_eq!(explorer.click("up"), Outcome::Redraw);
+        assert_eq!(explorer.click("back", [0, 0]), Outcome::None);
+        assert_eq!(explorer.click("up", [0, 0]), Outcome::Redraw);
         assert_eq!(explorer.history.current, Place::Folder("/usr".into()));
-        assert_eq!(explorer.click("back"), Outcome::Redraw);
+        assert_eq!(explorer.click("back", [0, 0]), Outcome::Redraw);
         assert_eq!(explorer.title(), "share");
-        assert_eq!(explorer.click("forward"), Outcome::Redraw);
+        assert_eq!(explorer.click("forward", [0, 0]), Outcome::Redraw);
         assert_eq!(explorer.title(), "usr");
     }
 
@@ -1004,9 +1276,74 @@ mod tests {
     fn the_menus_open_below_their_titles() {
         let mut explorer = Explorer::new("xpx1", Place::Computer, SIZE);
         assert!(matches!(
-            explorer.click("menu-File"),
+            explorer.click("menu-File", [0, 0]),
             Outcome::Menu(_, [4, 22])
         ));
         assert_eq!(explorer.command(Cmd::Close), Outcome::Close);
+    }
+
+    /// A folder of a test with a subfolder and many files.
+    fn folder(test: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("chora-xp-dir-{test}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("Photos")).expect("a folder");
+        for i in 0..40 {
+            std::fs::write(dir.join(format!("file{i:02}.txt")), "x".repeat(i * 300))
+                .expect("a file");
+        }
+        dir
+    }
+
+    #[test]
+    fn a_double_click_opens_a_folder_in_the_same_window() {
+        let dir = folder("open");
+        let (mut theme, cache) = theme("open");
+        let mut icons = Icons::default();
+        let mut explorer = Explorer::new("xpx1", Place::Folder(dir.clone()), SIZE);
+        explorer.create(&mut theme, &mut icons);
+        preview(&mut theme, &explorer, "explorer-folder");
+        assert_eq!(explorer.items().count(), 41);
+        // The first click selects, the second opens.
+        assert_eq!(explorer.click("item-0", [0, 0]), Outcome::Redraw);
+        assert_eq!(explorer.details()[0], ("Photos".into(), true));
+        assert_eq!(explorer.click("item-0", [0, 0]), Outcome::Redraw);
+        assert_eq!(explorer.history.current, Place::Folder(dir.join("Photos")));
+        assert_eq!(explorer.selected, None);
+        assert_eq!(explorer.click("back", [0, 0]), Outcome::Redraw);
+        explorer.click("item-2", [0, 0]);
+        assert_eq!(
+            explorer.click("item-2", [0, 0]),
+            Outcome::Open(dir.join("file01.txt"))
+        );
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_scroll_bar_scrolls_a_long_folder() {
+        let dir = folder("scroll");
+        let (mut theme, cache) = theme("scroll");
+        let mut icons = Icons::default();
+        let mut explorer = Explorer::new("xpx1", Place::Folder(dir.clone()), SIZE);
+        let page = explorer.page(&theme, &mut icons);
+        assert!(page.controls.iter().any(|c| c.name == "sb-thumb"));
+        assert_eq!(explorer.click("sb-down", [0, 0]), Outcome::Redraw);
+        assert_eq!(explorer.scroll, SCROLL_STEP);
+        assert_eq!(explorer.click("sb-up", [0, 0]), Outcome::Redraw);
+        assert_eq!(explorer.click("sb-up", [0, 0]), Outcome::None);
+        // A click on the track below the thumb pages down.
+        assert_eq!(explorer.click("sb-track", [8, 300]), Outcome::Redraw);
+        assert_eq!(explorer.scroll, SIZE[1] - VIEW_Y - 2 * SCROLL_W);
+        explorer.thumb = Some((0.0, 0));
+        assert!(explorer.drag([0.0, 10_000.0]));
+        let g = explorer.geometry();
+        assert_eq!(
+            explorer.scroll,
+            view::max_scroll(g.layout.height, g.view[3])
+        );
+        explorer.create(&mut theme, &mut icons);
+        preview(&mut theme, &explorer, "explorer-scrolled");
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(cache);
     }
 }

@@ -3,10 +3,11 @@
 
 use chora_scene::Command;
 
-use super::{MENUS, Wm, desktops::desk_id};
+use super::{MENUS, Wm, desktops::desk_id, spawn};
 use crate::{
     context,
     decoration::{self, BORDER, TITLE},
+    desktop_icons,
     explorer::{self, Cmd, Explorer, Outcome},
     folder::Place,
     taskbar::{self, Bar},
@@ -59,11 +60,16 @@ impl Wm {
 
     /// A press on the page of an Explorer window raises it, and the
     /// control under the pointer goes down.
-    pub(super) fn press_explorer(&mut self, i: usize, node: &str) -> Vec<Command> {
+    pub(super) fn press_explorer(
+        &mut self,
+        i: usize,
+        node: &str,
+        position: [f64; 2],
+    ) -> Vec<Command> {
         let id = self.explorers[i].id.clone();
         let mut commands = self.activate(&id);
         if let Some(i) = self.explorers.iter().position(|e| e.id == id) {
-            commands.extend(self.explorers[i].press(&mut self.theme, node));
+            commands.extend(self.explorers[i].press(&mut self.theme, node, position));
         }
         commands
     }
@@ -98,6 +104,10 @@ impl Wm {
             Outcome::Redraw => self.redraw_explorer(id),
             Outcome::Close => self.close_explorer(id),
             Outcome::ControlPanel => self.open_control_panel(),
+            Outcome::Open(path) => {
+                spawn(&desktop_icons::command(&desktop_icons::Open::File(path)));
+                Vec::new()
+            }
             Outcome::Menu(entries, [x, y]) => {
                 let [ox, oy] = self.client_origin(id);
                 let point = [ox + x, oy + y];
@@ -146,6 +156,16 @@ impl Wm {
             commands.extend(self.sync_tasks());
         }
         commands
+    }
+
+    /// The pointer moved while the thumb of a scroll bar is down; `None`
+    /// when no thumb is down.
+    pub(super) fn drag_explorer(&mut self, position: [f64; 2]) -> Option<Vec<Command>> {
+        let e = self.explorers.iter_mut().find(|e| e.dragging())?;
+        if !e.drag(position) {
+            return Some(Vec::new());
+        }
+        Some(e.redraw(&mut self.theme, &mut self.icons))
     }
 
     /// Lays out the Explorer windows whose size changed: maximized,

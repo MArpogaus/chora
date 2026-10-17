@@ -2,7 +2,12 @@
 //! the files of a folder in XP's order, their kinds by extension, sizes
 //! in XP's words, and the history of Back, Forward and Up.
 
-use std::path::PathBuf;
+use std::{
+    fs,
+    os::unix::fs::PermissionsExt as _,
+    path::{Path, PathBuf},
+    time::SystemTime,
+};
 
 /// What an Explorer window shows.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -117,9 +122,262 @@ impl History {
     }
 }
 
+/// The kind of a file, by its extension.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Kind {
+    Folder,
+    Text,
+    Image,
+    Audio,
+    Video,
+    Archive,
+    Executable,
+    Generic,
+}
+
+impl Kind {
+    /// The kind of a file of a name; `executable` for a file with the
+    /// mode bits to run it.
+    pub fn of(name: &str, dir: bool, executable: bool) -> Self {
+        if dir {
+            return Self::Folder;
+        }
+        let ext = extension(name);
+        match ext.as_str() {
+            "txt" | "md" | "log" | "rs" | "py" | "c" | "h" | "cpp" | "toml" | "yaml" | "yml"
+            | "json" | "xml" | "html" | "css" | "js" | "ini" | "conf" | "cfg" | "csv" | "org"
+            | "tex" => Self::Text,
+            "png" | "jpg" | "jpeg" | "gif" | "bmp" | "svg" | "webp" | "tif" | "tiff" | "ico" => {
+                Self::Image
+            }
+            "mp3" | "wav" | "ogg" | "oga" | "flac" | "opus" | "m4a" | "wma" | "mid" => Self::Audio,
+            "mp4" | "mkv" | "avi" | "webm" | "mov" | "mpg" | "mpeg" | "wmv" | "ogv" => Self::Video,
+            "zip" | "tar" | "gz" | "tgz" | "bz2" | "xz" | "zst" | "7z" | "rar" | "rpm" | "deb" => {
+                Self::Archive
+            }
+            "exe" | "sh" | "appimage" | "run" | "bin" => Self::Executable,
+            _ if executable => Self::Executable,
+            _ => Self::Generic,
+        }
+    }
+
+    /// The icon names to look for, the most fitting first.
+    pub fn icons(self) -> &'static [&'static str] {
+        match self {
+            Self::Folder => &["folder"],
+            Self::Text => &["text-x-generic"],
+            Self::Image => &["image-x-generic", "text-x-generic"],
+            Self::Audio => &["audio-x-generic", "text-x-generic"],
+            Self::Video => &["video-x-generic", "text-x-generic"],
+            Self::Archive => &[
+                "package-x-generic",
+                "application-x-archive",
+                "text-x-generic",
+            ],
+            Self::Executable => &[
+                "application-x-executable",
+                "application-x-generic",
+                "text-x-generic",
+            ],
+            Self::Generic => &["application-x-generic", "unknown", "text-x-generic"],
+        }
+    }
+}
+
+/// The lowercase extension of a file name, without the dot; empty for
+/// none and for a name that starts with its only dot.
+fn extension(name: &str) -> String {
+    match name.rsplit_once('.') {
+        Some((stem, ext)) if !stem.is_empty() => ext.to_lowercase(),
+        _ => String::new(),
+    }
+}
+
+/// XP's name of the type of a file, as the Tiles view shows it below the
+/// name.
+pub fn type_name(name: &str, kind: Kind) -> String {
+    let ext = extension(name);
+    let upper = ext.to_uppercase();
+    match (kind, ext.as_str()) {
+        (Kind::Folder, _) => "File Folder".into(),
+        (Kind::Text, "txt") => "Text Document".into(),
+        (Kind::Image, "jpg" | "jpeg") => "JPEG Image".into(),
+        (Kind::Image, "bmp") => "Bitmap Image".into(),
+        (Kind::Image, _) => format!("{upper} Image"),
+        (Kind::Audio, "wav") => "Wave Sound".into(),
+        (Kind::Audio, _) => format!("{upper} Format Sound"),
+        (Kind::Video, _) => "Video Clip".into(),
+        (Kind::Archive, "zip") => "Compressed (zipped) Folder".into(),
+        (Kind::Executable, _) => "Application".into(),
+        (_, "") => "File".into(),
+        _ => format!("{upper} File"),
+    }
+}
+
+/// A size as XP's Explorer writes it: bytes up to 1023, then three
+/// digits of KB, MB, GB or TB, cut, not rounded: `12.3 KB`.
+pub fn size_text(bytes: u64) -> String {
+    const UNITS: [&str; 4] = ["KB", "MB", "GB", "TB"];
+    if bytes < 1024 {
+        return format!("{bytes} bytes");
+    }
+    #[allow(clippy::cast_precision_loss)]
+    let mut value = bytes as f64 / 1024.0;
+    let mut unit = 0;
+    while value >= 1000.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    let decimals: usize = if value < 10.0 {
+        2
+    } else {
+        usize::from(value < 100.0)
+    };
+    let scale = [1.0, 10.0, 100.0][decimals];
+    let cut = (value * scale).floor() / scale;
+    format!("{cut:.decimals$} {}", UNITS[unit])
+}
+
+/// A file or folder of a folder.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Entry {
+    /// The file name.
+    pub name: String,
+    /// The whole path.
+    pub path: PathBuf,
+    /// What it is.
+    pub kind: Kind,
+    /// The size in bytes; 0 for a folder.
+    pub size: u64,
+    /// When it changed last.
+    pub modified: Option<SystemTime>,
+}
+
+/// The files and folders of a folder, as XP lists them: folders first,
+/// then by name without case; hidden files, whose name starts with a dot,
+/// are left out.
+pub fn list(dir: &Path) -> std::io::Result<Vec<Entry>> {
+    let mut entries: Vec<Entry> = fs::read_dir(dir)?
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if name.starts_with('.') {
+                return None;
+            }
+            let path = e.path();
+            // Links count as what they point at.
+            let meta = fs::metadata(&path).or_else(|_| e.metadata()).ok()?;
+            let executable = meta.is_file() && meta.permissions().mode() & 0o111 != 0;
+            Some(Entry {
+                kind: Kind::of(&name, meta.is_dir(), executable),
+                size: if meta.is_dir() { 0 } else { meta.len() },
+                modified: meta.modified().ok(),
+                name,
+                path,
+            })
+        })
+        .collect();
+    sort(&mut entries);
+    Ok(entries)
+}
+
+/// XP's order: folders first, then by name without case, with the
+/// numbers in names by their value: `file2` before `file10`.
+pub fn sort(entries: &mut [Entry]) {
+    entries.sort_by_cached_key(|e| (e.kind != Kind::Folder, natural(&e.name)));
+}
+
+/// A part of a name for XP's order: a number before any text.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Chunk {
+    Number(u128),
+    Text(String),
+}
+
+/// The key of a name in XP's order: its runs of digits and of other
+/// characters, without case.
+fn natural(name: &str) -> Vec<Chunk> {
+    let mut chunks = Vec::new();
+    let mut rest = name;
+    while let Some(first) = rest.chars().next() {
+        let digit = first.is_ascii_digit();
+        let end = rest
+            .find(|c: char| c.is_ascii_digit() != digit)
+            .unwrap_or(rest.len());
+        let (run, tail) = rest.split_at(end);
+        chunks.push(match run.parse() {
+            Ok(n) if digit => Chunk::Number(n),
+            _ => Chunk::Text(run.to_lowercase()),
+        });
+        rest = tail;
+    }
+    chunks
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sizes_read_as_in_xp() {
+        assert_eq!(size_text(0), "0 bytes");
+        assert_eq!(size_text(1023), "1023 bytes");
+        assert_eq!(size_text(1024), "1.00 KB");
+        assert_eq!(size_text(12_650), "12.3 KB");
+        assert_eq!(size_text(126_000), "123 KB");
+        assert_eq!(size_text(1_040_000), "0.99 MB");
+        assert_eq!(size_text(5 * 1024 * 1024 * 1024), "5.00 GB");
+    }
+
+    #[test]
+    fn kinds_come_from_the_extension() {
+        assert_eq!(Kind::of("notes.TXT", false, false), Kind::Text);
+        assert_eq!(Kind::of("photo.jpeg", false, false), Kind::Image);
+        assert_eq!(Kind::of("song.mp3", false, false), Kind::Audio);
+        assert_eq!(Kind::of("film.mkv", false, false), Kind::Video);
+        assert_eq!(Kind::of("a.tar.gz", false, false), Kind::Archive);
+        assert_eq!(Kind::of("run", false, true), Kind::Executable);
+        assert_eq!(Kind::of("data.bin2", false, false), Kind::Generic);
+        assert_eq!(Kind::of(".bashrc", false, false), Kind::Generic);
+        assert_eq!(Kind::of("x.txt", true, false), Kind::Folder);
+    }
+
+    #[test]
+    fn types_have_xp_names() {
+        assert_eq!(type_name("a.txt", Kind::Text), "Text Document");
+        assert_eq!(type_name("a.rs", Kind::Text), "RS File");
+        assert_eq!(type_name("b.png", Kind::Image), "PNG Image");
+        assert_eq!(type_name("Makefile", Kind::Generic), "File");
+        assert_eq!(type_name("src", Kind::Folder), "File Folder");
+    }
+
+    #[test]
+    fn a_folder_lists_folders_first_by_name_without_hidden_files() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-list-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        for d in ["b-dir", "A-dir", ".hidden-dir"] {
+            fs::create_dir_all(dir.join(d)).unwrap();
+        }
+        for f in ["c.txt", "a.png", ".hidden", "B.md"] {
+            fs::write(dir.join(f), "12345").unwrap();
+        }
+        let names: Vec<String> = list(&dir).unwrap().into_iter().map(|e| e.name).collect();
+        assert_eq!(names, ["A-dir", "b-dir", "a.png", "B.md", "c.txt"]);
+        assert_eq!(list(&dir).unwrap()[2].size, 5);
+        let mut entries: Vec<Entry> = ["file10", "File2", "file1", "a"]
+            .map(|name| Entry {
+                name: name.into(),
+                path: name.into(),
+                kind: Kind::Text,
+                size: 0,
+                modified: None,
+            })
+            .into();
+        sort(&mut entries);
+        let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, ["a", "file1", "File2", "file10"]);
+        fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn back_forward_and_up_walk_the_history() {

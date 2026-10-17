@@ -967,7 +967,7 @@ impl Wm {
             commands.extend(self.close_menu());
         }
         if let Some(i) = self.explorer_of(node) {
-            commands.extend(self.press_explorer(i, node));
+            commands.extend(self.press_explorer(i, node, position));
         } else if self.index(node).is_some() {
             commands.extend(self.activate(node));
         } else if let Some(part) = Part::of(node) {
@@ -1209,6 +1209,9 @@ impl Wm {
         }
         if self.desk.pressed() {
             return self.desk.drag([px, py]);
+        }
+        if let Some(commands) = self.drag_explorer([px, py]) {
+            return commands;
         }
         let Some(drag) = &mut self.drag else {
             return Vec::new();

@@ -279,6 +279,21 @@ from its edges. From the top:
   the Control Panel of the start menu. The tasks that change files,
   Shared Documents and My Network Places are gray.
 
+The view of a folder is XP's Tiles view: a 48 pixel icon for each folder
+and file, its name, and in gray its type and size as XP writes them,
+such as `Text Document` and `12.3 KB`. Folders come first, then the files
+by name without case and with numbers by their value (`file2` before
+`file10`); hidden files, whose name starts with a dot, are left out. The
+icon comes from the extension: folder, text, image, audio, video,
+archive, program (also a file that may run) or other. A click selects
+an item, and Details shows its type, date and size; a click on the empty
+view selects nothing. A double click opens a folder in the same window,
+with Back, Forward and Up, and a file with `xdg-open`. A view longer
+than the window gets XP's blue scroll bar: its arrows scroll by 40
+pixels, a click on the track by a page, and the thumb follows a drag.
+The mouse wheel does not scroll, because the core sends no wheel events
+to plugins.
+
 The window changes no file: it neither copies, moves, renames nor
 deletes, and it takes no drag and drop. The keyboard does not work it
 (D45). Its icons come from the icon theme, XP's own when `WindowsXP` of
