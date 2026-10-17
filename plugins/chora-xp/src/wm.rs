@@ -1373,9 +1373,18 @@ impl Wm {
     /// The core moved the keyboard focus to a surface: when it is no window
     /// of `chora-xp`, as one of another window manager, the window of
     /// `chora-xp` looks inactive and Alt+Space goes back to the clients.
+    /// A window of `chora-xp` that gets the focus while none of them has
+    /// it looks active again and takes Alt+Space.
     fn focus_moved(&mut self, surface: &str) -> Vec<Command> {
         if self.index(surface).is_some() {
-            return Vec::new();
+            if self.focused.is_some() {
+                return Vec::new();
+            }
+            self.focused = Some(surface.into());
+            self.grab_system_key(true);
+            let mut commands = self.restyle(surface);
+            commands.extend(self.sync_tasks());
+            return commands;
         }
         let Some(previous) = self.focused.take() else {
             return Vec::new();
@@ -2147,6 +2156,12 @@ impl Wm {
         }];
         let result = self.try_apply(remove);
         if let Ok(None) = result {
+            // The focus goes with the window to the other window manager;
+            // no window of chora-xp takes it.
+            if self.is_active(surface) {
+                self.focused = None;
+                self.grab_system_key(false);
+            }
             return self.forget(surface);
         }
         eprintln!("chora-xp: {surface} stays: {result:?}");
