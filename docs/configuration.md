@@ -136,7 +136,8 @@ and the stacking of each window, in the `meta` of its nodes. A restart
 within the grace time rebuilds them from there, for example `choractl
 restart tiling` after a rebuild.
 
-`chora-tiling` claims the box around the work areas of its outputs (D55).
+`chora-tiling` claims the box around the work areas of its outputs (D55). `--output NAME`, repeatable, limits it to some outputs, as for
+`chora-xp`, so that each window manager takes its own outputs.
 It leaves a new window that the core reserves for another client to that
 client.
 

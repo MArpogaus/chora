@@ -47,6 +47,10 @@ struct Args {
     /// The app id of windows to leave to other clients; repeatable.
     #[arg(long, value_name = "APP_ID")]
     ignore: Vec<String>,
+    /// Manages only this output, by name, and leaves the others to other
+    /// window managers; all outputs without it. Repeatable.
+    #[arg(long = "output", value_name = "NAME")]
+    outputs: Vec<String>,
 }
 
 /// Parameters of `tiling.set_layout`; a missing field keeps its value.
@@ -83,6 +87,8 @@ struct Tiling {
     arg: Option<PathBuf>,
     /// The app ids of windows to leave to other clients.
     ignore: Vec<String>,
+    /// The outputs that `--output` leaves to this plugin; all when empty.
+    outputs: Vec<String>,
     /// The grabbed bindings, as the core names them.
     grabs: Vec<(String, Action)>,
     /// What the last transaction set, so that the next one sends changes
@@ -148,6 +154,7 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         wm: Wm::new(config),
         arg: args.config,
         ignore: args.ignore,
+        outputs: args.outputs,
         grabs: Vec::new(),
         sent: HashMap::new(),
         order: Vec::new(),
@@ -170,11 +177,18 @@ fn full_area(output: &OutputInfo) -> layout::Rect {
 }
 
 impl Tiling {
+    /// Whether `--output` leaves an output to this plugin.
+    fn manages(&self, output: &str) -> bool {
+        self.outputs.is_empty() || self.outputs.iter().any(|o| o == output)
+    }
+
     fn start(&mut self) -> Result<(), ClientError> {
         let outputs: Vec<OutputInfo> = self.client.call("output.list", Value::Null)?;
         for output in &outputs {
-            self.wm
-                .set_output(&output.name, output.layout_area(), full_area(output));
+            if self.manages(&output.name) {
+                self.wm
+                    .set_output(&output.name, output.layout_area(), full_area(output));
+            }
         }
         // The nodes that the core kept over a restart with resume.
         let kept = self.query(&format!("owner:{NAME}"))?;
@@ -326,7 +340,7 @@ impl Tiling {
                     return Ok(());
                 }
             }
-            Event::OutputChanged { output } => {
+            Event::OutputChanged { output } if self.manages(&output.name) => {
                 self.wm
                     .set_output(&output.name, output.layout_area(), full_area(&output));
             }
