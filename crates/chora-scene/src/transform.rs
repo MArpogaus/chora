@@ -1,6 +1,7 @@
 //! 4x4 transforms of scene nodes.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de::Error};
+use serde_json::Value;
 
 /// A 4x4 transform matrix in column-major order.
 ///
@@ -15,14 +16,31 @@ pub struct Transform {
     m: [f64; 16],
 }
 
-#[derive(Deserialize)]
+/// The two JSON forms. The parse picks the form by the key `matrix`, so
+/// that an error names the wrong key, not just that no form matched.
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
+#[cfg_attr(feature = "schema", schemars(untagged))]
 enum TransformSpec {
     /// The full matrix.
     Matrix(MatrixSpec),
     /// The short form.
     Short(ShortSpec),
+}
+
+impl<'de> Deserialize<'de> for TransformSpec {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = Value::Object(serde_json::Map::deserialize(deserializer)?);
+        let spec = if value.get("matrix").is_some() {
+            serde_json::from_value(value).map(Self::Matrix)
+        } else {
+            serde_json::from_value(value).map(Self::Short)
+        };
+        spec.map_err(|e| {
+            D::Error::custom(format!(
+                "transform: {e}; it takes `matrix` alone, or `translate`, `scale` and `rotate`"
+            ))
+        })
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -49,7 +67,10 @@ struct ShortSpec {
 
 #[derive(Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
+#[serde(
+    untagged,
+    expecting = "a scale of a number or a list of up to 3 numbers"
+)]
 enum Scale {
     /// The same for all axes.
     Uniform(f64),
@@ -235,6 +256,30 @@ mod tests {
     fn wrong_matrix_length_is_an_error() {
         let err = serde_json::from_str::<Transform>(r#"{"matrix": [1, 2]}"#).unwrap_err();
         assert!(err.to_string().contains("16 numbers"), "{err}");
+    }
+
+    #[test]
+    fn a_wrong_key_or_shape_names_the_problem() {
+        for (json, message) in [
+            (
+                r#"{"rotate_z": 45}"#,
+                "transform: unknown field `rotate_z`, expected one of `translate`, `scale`, \
+                 `rotate`; it takes `matrix` alone, or `translate`, `scale` and `rotate`",
+            ),
+            (
+                r#"{"matrix": [], "scale": 2}"#,
+                "transform: unknown field `scale`, expected `matrix`; it takes `matrix` \
+                 alone, or `translate`, `scale` and `rotate`",
+            ),
+            (
+                r#"{"scale": "big"}"#,
+                "transform: a scale of a number or a list of up to 3 numbers; it takes \
+                 `matrix` alone, or `translate`, `scale` and `rotate`",
+            ),
+        ] {
+            let err = serde_json::from_str::<Transform>(json).unwrap_err();
+            assert_eq!(err.to_string(), message, "{json}");
+        }
     }
 
     #[test]

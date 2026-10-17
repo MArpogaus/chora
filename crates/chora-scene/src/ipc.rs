@@ -588,7 +588,7 @@ fn left_button() -> u32 {
 /// for example 28 for Return.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
+#[serde(untagged, expecting = "a key of a keysym name or a Linux key code")]
 pub enum Key {
     /// A Linux key code, as evdev numbers them.
     Code(u32),

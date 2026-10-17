@@ -127,7 +127,10 @@ pub struct ShaderEffect {
 /// The value of a uniform of a shader.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
+#[serde(
+    untagged,
+    expecting = "a uniform of a number, a list of 2 to 4 numbers, or {\"node\": ID}"
+)]
 pub enum Uniform {
     /// A `float`.
     Float(f64),
