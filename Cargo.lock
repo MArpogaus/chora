@@ -503,11 +503,9 @@ dependencies = [
  "chora-scene",
  "chrono",
  "clap",
- "libc",
  "resvg",
  "serde",
  "serde_json",
- "signal-hook-registry",
  "zbus",
  "zune-jpeg",
 ]
