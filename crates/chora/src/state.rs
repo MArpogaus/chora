@@ -35,7 +35,6 @@ use smithay::{
         dmabuf::DmabufState,
         foreign_toplevel_list::{ForeignToplevelHandle, ForeignToplevelListState},
         fractional_scale::FractionalScaleManagerState,
-        idle_inhibit::IdleInhibitManagerState,
         idle_notify::IdleNotifierState,
         input_method::InputMethodManagerState,
         output::OutputManagerState,
@@ -233,10 +232,10 @@ fn create_globals(dh: &DisplayHandle, clock: &Clock<Monotonic>) {
     XdgDecorationState::new::<State>(dh);
     OutputManagerState::new_with_xdg_output::<State>(dh);
     ViewporterState::new::<State>(dh);
-    IdleInhibitManagerState::new::<State>(dh);
+    crate::security::idle_inhibit_global(dh);
     TextInputManagerState::new::<State>(dh);
     InputMethodManagerState::new::<State, _>(dh, crate::security::may_inject);
-    SecurityContextState::new::<State, _>(dh, trusted);
+    SecurityContextState::new::<State, _>(dh, unrestricted);
     FractionalScaleManagerState::new::<State>(dh);
     CursorShapeManagerState::new::<State>(dh);
     RelativePointerManagerState::new::<State>(dh);
@@ -282,6 +281,7 @@ impl State {
         let (seat_state, seat) = new_seat(&dh);
         add_display(display, &loop_handle);
         let idle_notifier_state = IdleNotifierState::new(&dh, loop_handle.clone());
+        crate::security::idle_notifier_global(&dh, idle_notifier_state.global());
         let clock = Clock::<Monotonic>::new();
         create_globals(&dh, &clock);
         let toplevel_list = ForeignToplevelListState::new_with_filter::<Self>(&dh, unrestricted);

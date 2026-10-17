@@ -1393,7 +1393,14 @@ mod tests {
         let path = PathBuf::from(created["wayland"].as_str().unwrap());
         let agent = Wayland::connect_to(&mut core, &path);
         let offers = |part: &str| agent.interfaces().iter().any(|i| i.contains(part));
-        for part in ["session_lock", "foreign_toplevel"] {
+        let hidden = [
+            "session_lock",
+            "foreign_toplevel",
+            "security_context",
+            "idle_inhibit",
+            "idle_notifier",
+        ];
+        for part in hidden {
             assert!(!offers(part), "{part}: {:?}", agent.interfaces());
         }
         assert!(offers("zwlr_layer_shell"), "panels in containers");

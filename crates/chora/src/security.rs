@@ -17,6 +17,16 @@ use smithay::{
 };
 
 use chora_scene::ipc::Capability;
+use smithay::{
+    reexports::{
+        wayland_protocols::{
+            ext::idle_notify::v1::server::ext_idle_notifier_v1::ExtIdleNotifierV1,
+            wp::idle_inhibit::zv1::server::zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1,
+        },
+        wayland_server::{DataInit, DisplayHandle, New, backend::GlobalId},
+    },
+    wayland::{GlobalData, GlobalDispatch2},
+};
 
 use crate::state::{ClientState, State};
 
@@ -42,6 +52,57 @@ fn allowed(client: &Client, capability: Option<Capability>) -> bool {
     }
 }
 
+/// Offers idle inhibit, which Smithay offers to all clients, only to
+/// unrestricted ones.
+pub fn idle_inhibit_global(dh: &DisplayHandle) {
+    dh.create_global::<State, ZwpIdleInhibitManagerV1, _>(1, UnrestrictedGlobal);
+}
+
+/// Replaces the idle notify global of Smithay with one that only
+/// unrestricted clients see.
+pub fn idle_notifier_global(dh: &DisplayHandle, smithay: GlobalId) {
+    dh.remove_global::<State>(smithay);
+    dh.create_global::<State, ExtIdleNotifierV1, _>(2, UnrestrictedGlobal);
+}
+
+/// The data of a global that only unrestricted clients see. It binds the
+/// global as Smithay does, for globals that Smithay offers to all.
+pub struct UnrestrictedGlobal;
+
+impl GlobalDispatch2<ZwpIdleInhibitManagerV1, State> for UnrestrictedGlobal {
+    fn bind(
+        &self,
+        _: &mut State,
+        _: &DisplayHandle,
+        _: &Client,
+        manager: New<ZwpIdleInhibitManagerV1>,
+        data_init: &mut DataInit<'_, State>,
+    ) {
+        data_init.init(manager, GlobalData);
+    }
+
+    fn can_view(&self, client: &Client) -> bool {
+        unrestricted(client)
+    }
+}
+
+impl GlobalDispatch2<ExtIdleNotifierV1, State> for UnrestrictedGlobal {
+    fn bind(
+        &self,
+        _: &mut State,
+        _: &DisplayHandle,
+        _: &Client,
+        notifier: New<ExtIdleNotifierV1>,
+        data_init: &mut DataInit<'_, State>,
+    ) {
+        data_init.init(notifier, GlobalData);
+    }
+
+    fn can_view(&self, client: &Client) -> bool {
+        unrestricted(client)
+    }
+}
+
 /// Whether a client sees screencopy and image capture.
 pub fn may_capture(client: &Client) -> bool {
     allowed(client, Some(Capability::ScreenCapture))
@@ -53,8 +114,9 @@ pub fn may_inject(client: &Client) -> bool {
 }
 
 /// Whether a client sees the protocols that no grant covers: output
-/// management, the session lock and both foreign toplevel protocols. A
-/// client of a client socket never sees them.
+/// management, the session lock, both foreign toplevel protocols, the
+/// security context manager, idle inhibit and idle notify. A client of a
+/// client socket never sees them.
 pub fn unrestricted(client: &Client) -> bool {
     allowed(client, None)
 }
