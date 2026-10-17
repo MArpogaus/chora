@@ -135,6 +135,7 @@ prints the path.
 | `remove` | remove a node; a removed surface becomes detached |
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
 | `focus` | set the keyboard focus to an own surface, or clear it without a surface; a client that cleared the focus may give it back once to the surface that had it, also of another client |
+| `focus_node` | give the keyboard to an own node that is no surface, or without a node give it back (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `close` | ask a client to close a surface |
 | `camera` | set the camera of an output, or restore its default camera without a transform; with a `duration`, move it there; the first client that sets the camera owns it, and a `camera` without a transform gives it up |
 
@@ -163,6 +164,42 @@ sends `animation.done` with the output and then `output.changed`:
             "duration": 500, "easing": "ease_in_out"}}
 ```
 
+## Keyboard focus of nodes
+
+The chrome of a plugin, for example a menu or a dialog, is made of nodes
+and takes the keyboard with `focus_node`:
+
+<!-- parses: command -->
+```json
+{"focus_node": {"node": "start-menu"}}
+```
+
+While the node has the focus, no surface gets keys: the focused surface
+gets a leave, and the core sends each key as `node.key` to the
+connections of the owner of the node that subscribed to it. A press
+carries the text that it types:
+
+```json
+{"event": "node.key", "node": "start-menu", "key": "a", "code": 30,
+ "state": "pressed", "modifiers": ["Shift"], "text": "A"}
+```
+
+- `key` is the keysym name with the modifiers applied, `code` the Linux
+  key code, and `modifiers` lists `Ctrl`, `Alt`, `Shift` and `Super` as
+  they are down.
+- `text` is missing for a release, for a key without text such as
+  `Return`, and while Ctrl, Alt or Super is down. A dead key types
+  nothing; the core does no compose.
+- The core repeats no key. A plugin repeats a held key itself.
+- The safety layer and the grabs come first, also for injected keys.
+
+The focus returns to the focused surface, which gets an enter, when the
+owner sends `{"focus_node": {}}`, when the node goes, when its client
+disconnects, also with `keep_nodes`, and when the session locks. The
+focus of a surface, by a command or by the core, ends it too. A layer
+surface that takes the keyboard exclusively, for example a launcher, gets
+the keys before the node.
+
 ## Selectors
 
 A selector finds nodes: `id:work`, `kind:surface`, `owner:tiling`,
@@ -181,6 +218,7 @@ or an empty list. It always sees the current titles.
 | `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` when its key goes down, `released` when it goes up |
+| `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME` |
 | `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node and position; `pointer.released` with the button |

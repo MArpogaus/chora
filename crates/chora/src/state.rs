@@ -75,6 +75,16 @@ pub struct NodeGrab {
     pub position: [f64; 2],
 }
 
+/// Where the release of a key goes whose press did not reach a surface.
+pub enum Suppressed {
+    /// Nowhere, as after a binding of the safety layer.
+    Swallow,
+    /// To the connection of a grab, with the binding.
+    Grab(u64, String),
+    /// To the owner of the node with the keyboard focus, with the node.
+    Node(String, String),
+}
+
 /// The shortest time between two refreshes of the pointer while animations
 /// run.
 const POINTER_REFRESH: std::time::Duration = std::time::Duration::from_millis(8);
@@ -159,10 +169,9 @@ pub struct State {
     pub image_capture: ImageCapture,
     /// The screencopy frames that wait for the next tick.
     pub copies: Copies,
-    /// Keys whose press went to the safety layer or to a grab, so that their
-    /// release must not reach a client; with the connection and binding of a
-    /// grab, which gets the release.
-    pub suppressed_keys: Vec<(Keycode, Option<(u64, String)>)>,
+    /// Keys whose press went to the safety layer, a grab or a node, so that
+    /// their release must not reach a surface.
+    pub suppressed_keys: Vec<(Keycode, Suppressed)>,
 }
 
 /// Creates the globals that live as long as the display and whose state
@@ -495,13 +504,25 @@ impl State {
         }
     }
 
+    /// The node of `focus_node` that gets the keys, and its owner: not while
+    /// the session is locked or a layer surface takes the keyboard.
+    pub fn key_node(&self) -> Option<(String, String)> {
+        if self.lock.is_some() || self.exclusive_layer().is_some() {
+            return None;
+        }
+        let owner = self.scene.focused_node_owner()?;
+        Some((self.scene.focused_node()?.into(), owner.into()))
+    }
+
     /// Moves the keyboard to the surface that should have it: the lock
-    /// screen, a layer surface that takes it exclusively, a layer surface
-    /// after a click, or the focused surface node. A popup grab keeps the
-    /// keyboard, unless the session locks.
+    /// screen, a layer surface that takes it exclusively, none while a node
+    /// has the focus, a layer surface after a click, or the focused surface
+    /// node. A popup grab keeps the keyboard, unless the session locks, a
+    /// layer surface takes it or a node gets the focus.
     pub fn update_focus(&mut self) {
         let keyboard = self.seat.get_keyboard().expect("the seat has a keyboard");
         if self.lock.is_some() {
+            self.scene.unfocus_node();
             let target = self.lock_focus();
             keyboard.unset_grab(self);
             if keyboard.current_focus() != target {
@@ -511,8 +532,9 @@ impl State {
         }
         // A launcher ends a popup grab, for example of an open menu.
         let exclusive = self.exclusive_layer();
+        let node = self.key_node().is_some();
         if popup_grabbed(&keyboard) {
-            if exclusive.is_none() {
+            if exclusive.is_none() && !node {
                 return;
             }
             keyboard.unset_grab(self);
@@ -524,7 +546,11 @@ impl State {
             .and_then(Window::toplevel)
             .map(|t| t.wl_surface().clone());
         let clicked = self.layer_focus.clone().filter(Resource::is_alive);
-        let target = exclusive.or(clicked).or(window);
+        let target = if node {
+            None
+        } else {
+            exclusive.or(clicked).or(window)
+        };
         if keyboard.current_focus() != target {
             keyboard.set_focus(self, target, SERIAL_COUNTER.next_serial());
         }

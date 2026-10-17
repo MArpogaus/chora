@@ -157,6 +157,8 @@ mod tests {
             json!({"remove": {"id": "a"}}),
             json!({"configure": {"surface": "s", "size": [100, 200], "states": ["tiled"]}}),
             json!({"focus": {}}),
+            json!({"focus_node": {"node": "a"}}),
+            json!({"focus_node": {}}),
             json!({"close": {"surface": "s"}}),
             json!({"camera": {"output": "X", "transform": matrix(16)}}),
             json!({"camera": {"output": "X", "transform": {"scale": [2, 2]}}}),

@@ -192,6 +192,16 @@ impl Ipc {
 
     /// Sends an event to every connection that subscribed to it.
     pub fn broadcast(&mut self, event: &Event) {
+        self.send_subscribed(None, event);
+    }
+
+    /// Sends an event to the connections of a client name that subscribed
+    /// to it, for example the keys of a focused node to its owner.
+    pub fn send_to_client(&mut self, client: &str, event: &Event) {
+        self.send_subscribed(Some(client), event);
+    }
+
+    fn send_subscribed(&mut self, client: Option<&str>, event: &Event) {
         let message = Message::event(event);
         let name = message.params.as_ref().and_then(|p| p["event"].as_str());
         let line = line(&message);
@@ -200,7 +210,7 @@ impl Ipc {
                 .events
                 .as_ref()
                 .is_some_and(|e| e.is_empty() || e.iter().any(|n| name == Some(n.as_str())));
-            if wanted {
+            if wanted && client.is_none_or(|c| conn.name.as_deref() == Some(c)) {
                 conn.push(&line);
             }
         }
@@ -594,6 +604,10 @@ impl State {
             .any(|c| c.name.as_ref() == Some(&name))
         {
             return;
+        }
+        if self.scene.focused_node_owner() == Some(name.as_str()) {
+            self.scene.unfocus_node();
+            self.update_focus();
         }
         if !closed.keep_nodes {
             let effects = self.scene.disconnect(&name);

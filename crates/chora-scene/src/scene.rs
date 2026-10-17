@@ -143,6 +143,9 @@ pub struct Scene {
     focused: Option<String>,
     /// The surface that had the focus when a client cleared it, by client.
     focus_returns: OrdMap<String, String>,
+    /// The node of a client with the keyboard focus, above the focus of the
+    /// surface.
+    focused_node: Option<String>,
 }
 
 impl Default for Scene {
@@ -165,6 +168,7 @@ impl Default for Scene {
             default_cameras: OrdMap::new(),
             focused: None,
             focus_returns: OrdMap::new(),
+            focused_node: None,
         }
     }
 }
@@ -343,6 +347,7 @@ impl Scene {
                 effects.push(Effect::Focus(surface.clone()));
                 Ok(())
             }
+            Command::FocusNode { node } => self.focus_node_command(owner, node.as_deref()),
             Command::Close { surface } => {
                 self.owned_surface(owner, surface)?;
                 effects.push(Effect::Close(surface.clone()));
@@ -565,6 +570,7 @@ impl Scene {
         self.animations = OrdMap::new();
         self.camera_moves = OrdMap::new();
         self.focus_returns = OrdMap::new();
+        self.focused_node = None;
         let cells = grid(surfaces.len(), area);
         surfaces
             .iter()
@@ -847,6 +853,9 @@ impl Scene {
         let mut stack = vec![id.to_owned()];
         while let Some(current) = stack.pop() {
             self.animations.remove(&current);
+            if self.focused_node.as_ref() == Some(&current) {
+                self.focused_node = None;
+            }
             let Some(node) = self.nodes.get_mut(&current) else {
                 continue;
             };
@@ -932,7 +941,46 @@ impl Scene {
             self.owned_surface(owner, id)?;
         }
         self.focused = Some(id.into());
+        self.focused_node = None;
         Ok(())
+    }
+
+    /// A client gives the keyboard to one of its nodes that is no surface,
+    /// or ends the focus of its node.
+    fn focus_node_command(&mut self, owner: &str, node: Option<&str>) -> Result<(), SceneError> {
+        let Some(id) = node else {
+            if self.focused_node_owner() == Some(owner) {
+                self.focused_node = None;
+            }
+            return Ok(());
+        };
+        if self.owned_mut(owner, id)?.kind == NodeKind::Surface {
+            return Err(SceneError::WrongKind(
+                id.into(),
+                "group, rect, image or shader; a surface takes the focus with focus",
+            ));
+        }
+        self.focused_node = Some(id.into());
+        Ok(())
+    }
+
+    /// The node with the keyboard focus of `focus_node`.
+    #[must_use]
+    pub fn focused_node(&self) -> Option<&str> {
+        self.focused_node.as_deref()
+    }
+
+    /// The owner of the node with the keyboard focus.
+    #[must_use]
+    pub fn focused_node_owner(&self) -> Option<&str> {
+        let node = self.nodes.get(self.focused_node.as_deref()?)?;
+        node.owner.as_deref()
+    }
+
+    /// Ends the keyboard focus of a node, for example when the session
+    /// locks or its client disconnects.
+    pub fn unfocus_node(&mut self) {
+        self.focused_node = None;
     }
 
     /// Whether a node is `ancestor` or below it.
@@ -955,6 +1003,7 @@ impl Scene {
     pub fn set_focused(&mut self, surface: Option<&str>) {
         if surface.is_some() && self.focused.as_deref() != surface {
             self.focus_returns = OrdMap::new();
+            self.focused_node = None;
         }
         self.focused = surface.map(Into::into);
     }

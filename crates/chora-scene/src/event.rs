@@ -69,6 +69,29 @@ pub enum Event {
         #[serde(default)]
         state: crate::ipc::PressState,
     },
+    /// A key went down or up while a node of the client has the keyboard
+    /// focus of `focus_node`. Only the connections of the owner of the node
+    /// that subscribed get it.
+    #[serde(rename = "node.key")]
+    NodeKey {
+        /// The node with the focus.
+        node: String,
+        /// The keysym name with the modifiers applied, for example `Return`,
+        /// `a` or `A`.
+        key: String,
+        /// The Linux key code, for example 28 for Return.
+        code: u32,
+        /// Pressed or released.
+        #[serde(default)]
+        state: crate::ipc::PressState,
+        /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
+        #[serde(default)]
+        modifiers: Vec<String>,
+        /// The text that the press types, if any; never with Ctrl, Alt or
+        /// Super, and not for a dead key.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
+    },
     /// A button went down over a node that takes pointer input: a surface,
     /// a rect or an image. Over a rect or an image, `pointer.moved` and
     /// `pointer.released` follow until the button goes up, for example for

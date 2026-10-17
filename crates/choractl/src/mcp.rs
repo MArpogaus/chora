@@ -275,7 +275,7 @@ fn scene_tools() -> Vec<Value> {
         ),
         typed_tool::<Apply>(
             "apply_commands",
-            "Apply a transaction of scene commands: create, attach, update, animate, move, remove, configure, focus, close, camera. All commands apply, or none.",
+            "Apply a transaction of scene commands: create, attach, update, animate, move, remove, configure, focus, focus_node, close, camera. All commands apply, or none.",
         ),
         tool(
             "list_plugins",

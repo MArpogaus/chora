@@ -22,6 +22,9 @@ use wayland_client::{
         wl_surface::WlSurface,
     },
 };
+use wayland_protocols::ext::session_lock::v1::client::{
+    ext_session_lock_manager_v1::ExtSessionLockManagerV1, ext_session_lock_v1::ExtSessionLockV1,
+};
 use wayland_protocols::xdg::shell::client::{
     xdg_popup::{self, XdgPopup},
     xdg_positioner::XdgPositioner,
@@ -50,6 +53,7 @@ struct App {
     compositor: Option<WlCompositor>,
     wm_base: Option<XdgWmBase>,
     layer_shell: Option<ZwlrLayerShellV1>,
+    lock_manager: Option<ExtSessionLockManagerV1>,
     output: Option<WlOutput>,
     seat: Option<WlSeat>,
     shm: Option<WlShm>,
@@ -256,6 +260,14 @@ impl Wayland {
         self.roundtrip(core);
     }
 
+    /// Locks the session, without lock surfaces.
+    pub fn lock(&mut self, core: &mut Core) -> ExtSessionLockV1 {
+        let manager = self.app.lock_manager.as_ref().expect("a lock manager");
+        let lock = manager.lock(&self.queue.handle(), ());
+        self.roundtrip(core);
+        lock
+    }
+
     /// Destroys a layer surface.
     pub fn destroy_layer(&mut self, core: &mut Core, layer: &LayerSurface) {
         layer.layer.destroy();
@@ -285,6 +297,9 @@ impl Dispatch<WlRegistry, ()> for App {
             "wl_compositor" => app.compositor = Some(registry.bind(name, version, qh, ())),
             "xdg_wm_base" => app.wm_base = Some(registry.bind(name, version, qh, ())),
             "zwlr_layer_shell_v1" => app.layer_shell = Some(registry.bind(name, version, qh, ())),
+            "ext_session_lock_manager_v1" => {
+                app.lock_manager = Some(registry.bind(name, version, qh, ()));
+            }
             "wl_shm" => app.shm = Some(registry.bind(name, 1, qh, ())),
             "wl_seat" => app.seat = Some(registry.bind(name, version.min(7), qh, ())),
             "wl_output" if app.output.is_none() => {
@@ -473,3 +488,5 @@ fn tempfile() -> std::fs::File {
 }
 delegate_noop!(App: ignore WlSurface);
 delegate_noop!(App: ZwlrLayerShellV1);
+delegate_noop!(App: ExtSessionLockManagerV1);
+delegate_noop!(App: ignore ExtSessionLockV1);

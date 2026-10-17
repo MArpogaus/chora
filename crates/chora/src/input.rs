@@ -1,5 +1,5 @@
-//! Input routing: the safety layer first, then grabs, then the focused
-//! surface.
+//! Input routing: the safety layer first, then grabs, then a node with the
+//! keyboard focus, then the focused surface.
 //!
 //! Plugins set the focus. The core changes it in three cases only: the
 //! reset focuses the first surface, a click on a surface without an owner
@@ -17,7 +17,7 @@ use smithay::{
         PointerMotionEvent,
     },
     input::{
-        keyboard::{FilterResult, Keycode, Keysym, ModifiersState},
+        keyboard::{FilterResult, Keycode, Keysym, KeysymHandle, ModifiersState, xkb},
         pointer::{AxisFrame, ButtonEvent, MotionEvent, PointerHandle, RelativeMotionEvent},
     },
     output::Output,
@@ -29,7 +29,7 @@ use smithay::{
 use crate::{
     output::{Spot, output_area},
     render,
-    state::{ClientState, NodeGrab, State},
+    state::{ClientState, NodeGrab, State, Suppressed},
 };
 
 /// What a key press does besides reaching a client.
@@ -46,6 +46,8 @@ enum KeyAction {
     Grab(u64, String),
     /// Send the release of a grabbed key to the client of the grab.
     Ungrab(u64, String),
+    /// Send a key to the owner of the node with the keyboard focus.
+    Node(String, SceneEvent),
 }
 
 pub fn process<I: InputBackend>(state: &mut State, event: InputEvent<I>) {
@@ -92,8 +94,8 @@ pub fn release_keys(state: &mut State) {
     }
 }
 
-/// A key goes down or up: the safety layer first, then the grabs, then the
-/// focused surface. An injected key never reaches the safety layer (D23).
+/// A key goes down or up: the safety layer first, then the grabs, then a
+/// node with the keyboard focus, then the focused surface. An injected key never reaches the safety layer (D23).
 pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTime, injected: bool) {
     let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
     // A grab that a client took in this loop iteration, for example of an
@@ -110,27 +112,9 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         time,
         |state, mods, handle| {
             if key_state == KeyState::Released {
-                let Some(i) = state.suppressed_keys.iter().position(|(k, _)| *k == code) else {
-                    return FilterResult::Forward;
-                };
-                return FilterResult::Intercept(match state.suppressed_keys.remove(i).1 {
-                    Some((conn, binding)) => KeyAction::Ungrab(conn, binding),
-                    None => KeyAction::Swallow,
-                });
-            }
-            let syms = (handle.raw_syms(), handle.modified_syms());
-            match press_action(state, mods, &syms, injected) {
-                Some(action) => {
-                    let grab = match &action {
-                        KeyAction::Grab(conn, binding) => Some((*conn, binding.clone())),
-                        _ => None,
-                    };
-                    // A repeated press without a release keeps one entry.
-                    state.suppressed_keys.retain(|(k, _)| *k != code);
-                    state.suppressed_keys.push((code, grab));
-                    FilterResult::Intercept(action)
-                }
-                None => FilterResult::Forward,
+                released_key(state, code, mods, &handle)
+            } else {
+                pressed_key(state, code, mods, &handle, injected)
             }
         },
     );
@@ -146,6 +130,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         Some(KeyAction::Ungrab(conn, binding)) => {
             grabbed(state, conn, binding, PressState::Released);
         }
+        Some(KeyAction::Node(owner, event)) => state.ipc.send_to_client(&owner, &event),
         Some(KeyAction::Swallow) => {}
         None => note_input(
             state,
@@ -156,6 +141,57 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
     }
 }
 
+/// Where the release of a key goes: to the surface, unless its press went
+/// elsewhere.
+fn released_key(
+    state: &mut State,
+    code: Keycode,
+    mods: &ModifiersState,
+    handle: &KeysymHandle<'_>,
+) -> FilterResult<KeyAction> {
+    let Some(i) = state.suppressed_keys.iter().position(|(k, _)| *k == code) else {
+        return FilterResult::Forward;
+    };
+    FilterResult::Intercept(match state.suppressed_keys.remove(i).1 {
+        Suppressed::Grab(conn, binding) => KeyAction::Ungrab(conn, binding),
+        Suppressed::Node(owner, node) => {
+            KeyAction::Node(owner, node_key(node, mods, handle, PressState::Released))
+        }
+        Suppressed::Swallow => KeyAction::Swallow,
+    })
+}
+
+/// Where the press of a key goes: the safety layer, a grab, a node with the
+/// keyboard focus, or the surface. The core notes where its release goes.
+fn pressed_key(
+    state: &mut State,
+    code: Keycode,
+    mods: &ModifiersState,
+    handle: &KeysymHandle<'_>,
+    injected: bool,
+) -> FilterResult<KeyAction> {
+    let syms = (handle.raw_syms(), handle.modified_syms());
+    let (action, suppressed) = if let Some(action) = press_action(state, mods, &syms, injected) {
+        let suppressed = match &action {
+            KeyAction::Grab(conn, binding) => Suppressed::Grab(*conn, binding.clone()),
+            _ => Suppressed::Swallow,
+        };
+        (action, suppressed)
+    } else if let Some((node, owner)) = state.key_node() {
+        let event = node_key(node.clone(), mods, handle, PressState::Pressed);
+        (
+            KeyAction::Node(owner.clone(), event),
+            Suppressed::Node(owner, node),
+        )
+    } else {
+        return FilterResult::Forward;
+    };
+    // A repeated press without a release keeps one entry.
+    state.suppressed_keys.retain(|(k, _)| *k != code);
+    state.suppressed_keys.push((code, suppressed));
+    FilterResult::Intercept(action)
+}
+
 /// Tells the client of a grab that its key went down or up.
 fn grabbed(state: &mut State, conn: u64, binding: String, press: PressState) {
     let event = chora_scene::Event::InputKey {
@@ -163,6 +199,43 @@ fn grabbed(state: &mut State, conn: u64, binding: String, press: PressState) {
         state: press,
     };
     state.ipc.send_to(conn, &event);
+}
+
+/// The `node.key` event of a key for the node with the keyboard focus.
+fn node_key(
+    node: String,
+    mods: &ModifiersState,
+    handle: &KeysymHandle<'_>,
+    state: PressState,
+) -> SceneEvent {
+    let sym = handle.modified_sym();
+    let plain = !(mods.ctrl || mods.alt || mods.logo);
+    let text = sym
+        .key_char()
+        .filter(|c| plain && state == PressState::Pressed && !c.is_control())
+        .map(String::from);
+    SceneEvent::NodeKey {
+        node,
+        key: xkb::keysym_get_name(sym),
+        code: handle.raw_code().raw().saturating_sub(8),
+        state,
+        modifiers: modifier_names(mods),
+        text,
+    }
+}
+
+/// The names of the modifiers that are down, as bindings name them.
+pub fn modifier_names(mods: &ModifiersState) -> Vec<String> {
+    [
+        (mods.ctrl, "Ctrl"),
+        (mods.alt, "Alt"),
+        (mods.shift, "Shift"),
+        (mods.logo, "Super"),
+    ]
+    .into_iter()
+    .filter(|(on, _)| *on)
+    .map(|(_, name)| name.to_owned())
+    .collect()
 }
 
 /// The fixed bindings of the safety layer (D23), then the grabs. The keymap
@@ -526,4 +599,207 @@ fn axis<I: InputBackend>(state: &mut State, event: &I::PointerAxisEvent) {
     let pointer = state.seat.get_pointer().expect("the seat has a pointer");
     pointer.axis(state, frame);
     pointer.frame(state);
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{Value, json};
+    use smithay::{
+        backend::input::{InputTime, KeyState},
+        input::keyboard::Keycode,
+    };
+
+    use crate::testing::{
+        Client, Core,
+        wayland::{Toplevel, Wayland},
+    };
+
+    const A: u32 = 30;
+    const SHIFT: u32 = 42;
+    const CTRL: u32 = 29;
+    const ALT: u32 = 56;
+    const ESCAPE: u32 = 1;
+
+    fn press(core: &mut Core, linux: u32, down: bool) {
+        let state = if down {
+            KeyState::Pressed
+        } else {
+            KeyState::Released
+        };
+        super::key(
+            &mut core.state,
+            Keycode::new(linux + 8),
+            state,
+            InputTime::now(),
+            false,
+        );
+    }
+
+    fn tap(core: &mut Core, linux: u32) {
+        press(core, linux, true);
+        press(core, linux, false);
+    }
+
+    fn apply(client: &mut Client, core: &mut Core, commands: &Value) {
+        client.ok(core, "scene.apply", json!({ "commands": commands }));
+    }
+
+    /// Whether a surface has the keyboard.
+    fn surface_has_keyboard(core: &Core) -> bool {
+        let keyboard = core.state.seat.get_keyboard().expect("a keyboard");
+        keyboard.current_focus().is_some()
+    }
+
+    /// The `params` of the events of a client after a turn of the core.
+    fn events(client: &mut Client, core: &mut Core) -> Vec<Value> {
+        client
+            .events_now(core)
+            .into_iter()
+            .map(|e| e["params"].clone())
+            .collect()
+    }
+
+    fn menu(xp: &mut Client, core: &mut Core) {
+        rect(xp, core, "menu");
+    }
+
+    fn rect(client: &mut Client, core: &mut Core, id: &str) {
+        apply(
+            client,
+            core,
+            &json!([{"create": {"id": id, "kind": "rect", "parent": "root",
+                "props": {"size": [100, 100], "color": [1, 1, 1, 1]}}}]),
+        );
+    }
+
+    /// A core with an output, a window `s1` with the focus, and a plugin
+    /// `xp` with a rect `menu` at the origin that subscribed to all events.
+    fn window_and_menu() -> (Core, Wayland, Toplevel, Client, Client) {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "app");
+        let mut wm = core.named("wm");
+        let commands = json!([
+            {"attach": {"surface": "s1", "parent": "root"}},
+            {"focus": {"surface": "s1"}},
+        ]);
+        apply(&mut wm, &mut core, &commands);
+        let mut xp = core.named("xp");
+        menu(&mut xp, &mut core);
+        xp.ok(&mut core, "events.subscribe", json!({"events": []}));
+        (core, wayland, window, wm, xp)
+    }
+
+    fn focus_node(node: Option<&str>) -> Value {
+        json!([{"focus_node": {"node": node}}])
+    }
+
+    #[test]
+    fn a_focused_node_gets_the_keys_and_the_text_instead_of_the_surface() {
+        let (mut core, _wayland, _window, mut wm, mut xp) = window_and_menu();
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        assert!(surface_has_keyboard(&core));
+        apply(&mut xp, &mut core, &focus_node(Some("menu")));
+        assert!(!surface_has_keyboard(&core), "the window gets a leave");
+        tap(&mut core, A);
+        press(&mut core, SHIFT, true);
+        tap(&mut core, A);
+        press(&mut core, SHIFT, false);
+        let keys: Vec<Value> = events(&mut xp, &mut core)
+            .into_iter()
+            .filter(|e| e["event"] == "node.key")
+            .collect();
+        assert_eq!(
+            keys[0],
+            json!({"event": "node.key", "node": "menu", "key": "a", "code": A,
+                   "state": "pressed", "modifiers": [], "text": "a"})
+        );
+        assert_eq!(keys[1]["state"], "released");
+        assert_eq!(keys[1].get("text"), None);
+        assert_eq!(
+            (&keys[2]["key"], &keys[2].get("text")),
+            (&json!("Shift_L"), &None)
+        );
+        assert_eq!(
+            keys[3],
+            json!({"event": "node.key", "node": "menu", "key": "A", "code": A,
+                   "state": "pressed", "modifiers": ["Shift"], "text": "A"})
+        );
+        assert_eq!(keys.len(), 6);
+        let wm_keys = events(&mut wm, &mut core);
+        assert!(
+            wm_keys.iter().all(|e| e["event"] != "node.key"),
+            "only the owner: {wm_keys:?}"
+        );
+    }
+
+    #[test]
+    fn the_surface_gets_the_keys_again_after_the_focus_of_a_node() {
+        let (mut core, mut wayland, _window, _wm, mut xp) = window_and_menu();
+        apply(&mut xp, &mut core, &focus_node(Some("menu")));
+        tap(&mut core, A);
+        wayland.roundtrip(&mut core);
+        assert!(wayland.key_serials().is_empty(), "the window got no key");
+        apply(&mut xp, &mut core, &focus_node(None));
+        assert!(surface_has_keyboard(&core), "the window gets an enter");
+        tap(&mut core, A);
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.key_serials().len(), 2);
+    }
+
+    #[test]
+    fn the_safety_layer_works_while_a_node_has_the_focus() {
+        let (mut core, _wayland, _window, _wm, mut xp) = window_and_menu();
+        apply(&mut xp, &mut core, &focus_node(Some("menu")));
+        press(&mut core, CTRL, true);
+        press(&mut core, ALT, true);
+        tap(&mut core, ESCAPE);
+        // A forked child of another test may hold the socket for a while,
+        // so the test asks the core.
+        assert!(core.state.ipc.conn_ids().is_empty(), "the reset closes all");
+        assert_eq!(core.state.scene.focused_node(), None);
+        assert!(surface_has_keyboard(&core));
+    }
+
+    #[test]
+    fn the_focus_returns_when_the_node_or_its_client_goes() {
+        let (mut core, _wayland, _window, mut wm, mut xp) = window_and_menu();
+        apply(&mut xp, &mut core, &focus_node(Some("menu")));
+        apply(&mut xp, &mut core, &json!([{"remove": {"id": "menu"}}]));
+        assert!(surface_has_keyboard(&core), "after the removal");
+        // A client that keeps its nodes gives the focus back as it goes.
+        let mut kept = core.connect();
+        kept.ok(
+            &mut core,
+            "hello",
+            json!({"name": "panel", "keep_nodes": true}),
+        );
+        menu(&mut kept, &mut core);
+        apply(&mut kept, &mut core, &focus_node(Some("menu")));
+        assert!(!surface_has_keyboard(&core));
+        drop(kept);
+        core.dispatch();
+        assert!(core.state.scene.node("menu").is_some());
+        assert!(surface_has_keyboard(&core), "after the disconnect");
+        // The focus of a surface ends it.
+        rect(&mut xp, &mut core, "list");
+        apply(&mut xp, &mut core, &focus_node(Some("list")));
+        assert!(!surface_has_keyboard(&core));
+        apply(&mut wm, &mut core, &json!([{"focus": {"surface": "s1"}}]));
+        assert!(surface_has_keyboard(&core), "after the focus of a surface");
+    }
+
+    #[test]
+    fn the_lock_ends_the_focus_of_a_node() {
+        let (mut core, mut wayland, _window, _wm, mut xp) = window_and_menu();
+        apply(&mut xp, &mut core, &focus_node(Some("menu")));
+        let _lock = wayland.lock(&mut core);
+        assert!(core.state.lock.is_some());
+        assert_eq!(core.state.scene.focused_node(), None);
+        xp.take_events();
+        tap(&mut core, A);
+        let keys = events(&mut xp, &mut core);
+        assert!(keys.iter().all(|e| e["event"] != "node.key"), "{keys:?}");
+    }
 }

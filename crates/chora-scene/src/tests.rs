@@ -929,3 +929,35 @@ fn an_overlay_root_holds_nodes_fixed_to_its_output() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn a_client_gives_the_keyboard_to_its_own_node_until_a_surface_takes_it() {
+    let mut scene = scene_with_surface();
+    scene.apply("wm", &[attach("s1", ROOT)]).unwrap();
+    scene.apply("xp", &[group("menu", ROOT)]).unwrap();
+    let focus_node = |node: Option<&str>| Command::FocusNode {
+        node: node.map(Into::into),
+    };
+    assert!(scene.apply("wm", &[focus_node(Some("menu"))]).is_err());
+    assert!(scene.apply("wm", &[focus_node(Some("s1"))]).is_err());
+    scene.apply("xp", &[focus_node(Some("menu"))]).unwrap();
+    assert_eq!(scene.focused_node(), Some("menu"));
+    assert_eq!(scene.focused_node_owner(), Some("xp"));
+    // Only the owner gives it back.
+    scene.apply("wm", &[focus_node(None)]).unwrap();
+    assert_eq!(scene.focused_node(), Some("menu"));
+    scene.apply("xp", &[focus_node(None)]).unwrap();
+    assert_eq!(scene.focused_node(), None);
+    // The focus of a surface and the removal of the node end it.
+    scene.apply("xp", &[focus_node(Some("menu"))]).unwrap();
+    let focus = Command::Focus {
+        surface: Some("s1".into()),
+    };
+    scene.apply("wm", &[focus]).unwrap();
+    assert_eq!(scene.focused_node(), None);
+    scene.apply("xp", &[focus_node(Some("menu"))]).unwrap();
+    scene
+        .apply("xp", &[Command::Remove { id: "menu".into() }])
+        .unwrap();
+    assert_eq!(scene.focused_node(), None);
+}
