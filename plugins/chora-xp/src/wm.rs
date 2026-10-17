@@ -713,9 +713,13 @@ impl Wm {
     /// Moves the focus: the old and the new window change their look.
     fn focus(&mut self, target: Option<&str>) -> Vec<Command> {
         let previous = std::mem::replace(&mut self.focused, target.map(String::from));
-        let mut commands = self
-            .desk
-            .focus(&mut self.theme, &mut self.icons, target.is_none());
+        // A context menu closes with the focus, as on XP: the core takes
+        // its keyboard away.
+        let mut commands = self.close_context();
+        commands.extend(
+            self.desk
+                .focus(&mut self.theme, &mut self.icons, target.is_none()),
+        );
         if previous.as_deref() != target {
             for surface in [previous.as_deref(), target].into_iter().flatten() {
                 commands.extend(self.restyle(surface));
