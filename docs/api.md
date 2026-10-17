@@ -119,9 +119,9 @@ path for `image`, `shader` and effects. A file has at most 512 KiB, a
 client at most 64 files, all clients together at most 64 MiB. A client
 name with assets has at most 120 bytes. A second put
 of a name replaces the file, and the nodes that use it load it again. The
-files of a client go with its nodes: at the last disconnect without
-`keep_nodes`, after the grace time of `resume`, otherwise when chora
-exits. `choractl asset put NAME FILE`
+files of a client go with its nodes. Without `keep_nodes` or `resume`,
+they go at the last disconnect. With `resume`, they go after the grace
+time. Otherwise they go when chora exits. `choractl asset put NAME FILE`
 prints the path.
 
 ## Commands
@@ -194,13 +194,17 @@ carries the text that it types:
 - The core repeats no key. A plugin repeats a held key itself.
 - The safety layer and the grabs come first, also for injected keys.
 
-The focus returns to the focused surface, which gets an enter, when the
-owner sends `{"focus_node": {}}`, when the node goes, when its client
-disconnects, also with `keep_nodes` or `resume`, and when the session
-locks. The
-focus of a surface, by a command or by the core, ends it too. A layer
-surface that takes the keyboard exclusively, for example a launcher, gets
-the keys before the node.
+The focus returns to the focused surface, which gets an enter, in these
+cases:
+
+- The owner sends `{"focus_node": {}}`.
+- The node goes.
+- Its client disconnects, also with `keep_nodes` or `resume`.
+- The session locks.
+- A surface gets the focus, by a command or by the core.
+
+A layer surface that takes the keyboard exclusively, for example a
+launcher, gets the keys before the node.
 
 ## Selectors
 
@@ -269,7 +273,7 @@ answers every request.
 
 | Method | Purpose |
 |--------|---------|
-| `hello(name, keep_nodes, resume)` | name the client; `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` for a grace time of 10 s (see below); returns `{"version": ..., "resumed": ...}` |
+| `hello(name, keep_nodes, resume)` | name the client; `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); returns `{"version": ...}` |
 | `scene.query(selector)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name |
@@ -322,30 +326,31 @@ the protocol version and the features of both sides, follows in 0.7.
 A connection sends `hello` once, within 5 s. Connections with the same name share their
 nodes, so they must agree on `keep_nodes` and `resume`. The core refuses a
 `hello` with different values. For example, `choractl --name tiling` fails
-while the tiling plugin runs.
+while the tiling plugin runs. With `keep_nodes`, `resume` has no effect.
 
 `resume` lets a plugin restart without a loss, for example after a crash
 or a change of its configuration. When the last connection of a name
 with `resume` closes, the core keeps the nodes of the name for a grace
-time of 10 s (`GRACE`): their tree, stacking, properties and `meta`, the
-surfaces that they hold, the cameras and the assets. The grabs, the
-exported methods, the reserves and the keyboard focus of a node end as
-at any disconnect, and `client.disconnected` follows at once.
+time of 10 s. It keeps their tree, stacking, properties and `meta`. It
+also keeps the surfaces that they hold, the cameras and the assets. The
+grabs, the exported methods, the reserves and the keyboard focus of a
+node end as at any disconnect, and `client.disconnected` follows at once.
 
 ```json
-{"jsonrpc": "2.0", "id": 1, "method": "hello", "params": {"name": "tiling", "resume": true}}
-{"jsonrpc": "2.0", "id": 1, "result": {"version": "0.5.4+1ea0e89abc", "resumed": true}}
+{"jsonrpc": "2.0", "id": 1, "method": "hello", "params": {"name": "wm", "resume": true}}
 ```
 
 - A `hello` of the same name with `resume` within the grace time gets the
-  nodes back: `resumed` is true. The plugin then rebuilds its model from
-  `scene.query` with `owner:NAME` instead of creating its nodes again.
+  nodes back. The plugin finds them with `scene.query` and `owner:NAME`.
+  When the list is not empty, it rebuilds its model from them instead of
+  creating its nodes again.
 - A `hello` of the name without `resume` removes the kept nodes first, so
-  the client starts as without a grace time. `resumed` is false.
+  the client starts as without a grace time.
 - After the grace time, the core removes the nodes as at any disconnect:
-  the surfaces become detached and get `surface.detached`.
-- No other client can change the kept nodes, as they still belong to the
-  name.
+  the surfaces become detached, and the core sends `surface.detached` for
+  each.
+- No client of another name can change the kept nodes. Names are not
+  authenticated before 0.7 (D33/D40).
 - A toplevel that maps during the grace time gets `surface.created` as
   usual, and stays without an owner if no other plugin attaches it. The
   resumed plugin takes it as at any start, with a query of `kind:surface`

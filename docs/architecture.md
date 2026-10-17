@@ -112,9 +112,8 @@ name, not a connection, so several `choractl` calls share their nodes.
 - When the last connection of a name closes, the core removes the nodes of
   that name. Its surfaces become detached. A client that connects with
   `keep_nodes`, for example `choractl`, keeps its nodes. A client that
-  connects with `resume`, for example a window manager, keeps them for a
-  grace time of 10 s; a restart within it gets them back (see
-  [API](api.md#ipc-methods)).
+  connects with `resume` keeps them for a grace time. A restart within
+  the grace time gets them back (see [API](api.md#ipc-methods)).
 
 ### Cameras
 
@@ -298,9 +297,9 @@ The safety layer is the only built-in behavior (see
   [Input injection](api.md#input-injection).
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
-- **Emergency reset.** The core disconnects all plugins, ends their grace
-  times, revokes all grants, removes all effects, restores the default
-  cameras and puts all surfaces in a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
+- **Emergency reset.** The core disconnects all plugins and ends their
+  grace times. It revokes all grants, removes all effects and restores the
+  default cameras. It puts all surfaces in a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
   configuration cannot break it. The reset also changes the focus (see
   [Input flow](#input-flow)).
 - **Session lock.** The core enforces `ext-session-lock`. One client owns
