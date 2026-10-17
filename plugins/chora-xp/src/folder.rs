@@ -611,18 +611,23 @@ pub fn replace_into(path: &Path, dir: &Path) -> std::io::Result<Dropped> {
     match fs::rename(path, &target) {
         Ok(()) => Ok(Dropped::Moved),
         Err(err) if err.kind() == std::io::ErrorKind::CrossesDevices => {
-            let mut part = name.to_os_string();
-            part.push(".part");
-            let part = dir.join(part);
-            let copied = fs::copy(path, &part).and_then(|_| fs::rename(&part, &target));
-            if copied.is_err() {
-                // No half copy stays behind to fill the disk.
-                let _ = fs::remove_file(&part);
-            }
-            copied.map(|()| Dropped::Copied)
+            copy_in_place(path, &target).map(|()| Dropped::Copied)
         }
         Err(err) => Err(err),
     }
+}
+
+/// Copies a file beside a target as `NAME.part` and renames it in its
+/// place. No half copy stays behind to fill the disk.
+fn copy_in_place(path: &Path, target: &Path) -> std::io::Result<()> {
+    let mut part = target.as_os_str().to_os_string();
+    part.push(".part");
+    let part = PathBuf::from(part);
+    let copied = fs::copy(path, &part).and_then(|_| fs::rename(&part, target));
+    if copied.is_err() {
+        let _ = fs::remove_file(&part);
+    }
+    copied
 }
 
 /// Copies a file, or a folder with all it holds.
@@ -973,6 +978,10 @@ overlay /var/lib/x overlay rw 0 0
             Some("new".into())
         );
         assert!(!dir.join("a.txt").exists());
+        // A copy that cannot take the place of a folder leaves no part.
+        fs::write(dir.join("b.txt"), "b").expect("a file");
+        assert!(copy_in_place(&dir.join("b.txt"), &dir.join("into/sub")).is_err());
+        assert!(!dir.join("into/sub.part").exists());
         // A folder of the name stays.
         fs::write(dir.join("sub"), "file").expect("a file");
         assert!(replace_into(&dir.join("sub"), &dir.join("into")).is_err());
