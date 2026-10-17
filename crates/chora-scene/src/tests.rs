@@ -539,18 +539,6 @@ fn a_camera_ignores_the_z_axis() {
 }
 
 #[test]
-fn adding_a_surface_again_keeps_its_node() {
-    let mut scene = scene_with_surface();
-    scene
-        .apply("wm", &[group("g", ROOT), attach("s1", "g")])
-        .unwrap();
-    assert!(!scene.add_surface("s1", SurfaceInfo::default()));
-    assert_eq!(scene.node("s1").unwrap().parent.as_deref(), Some("g"));
-    scene.remove_surface("s1");
-    assert!(scene.draw_list().iter().all(|p| p.node.id != "s1"));
-}
-
-#[test]
 fn the_number_of_cameras_has_a_limit() {
     let mut scene = Scene::default();
     let pan = Some(Transform::translate(-10.0, 0.0, 0.0));

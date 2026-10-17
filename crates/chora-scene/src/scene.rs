@@ -220,13 +220,9 @@ impl Scene {
             .collect()
     }
 
-    /// Adds a detached surface node without an owner. Returns `false` and
-    /// changes nothing if the node exists, for example when a client maps a
-    /// surface again after it unmapped it.
-    pub fn add_surface(&mut self, id: &str, info: SurfaceInfo) -> bool {
-        if self.nodes.contains_key(id) {
-            return false;
-        }
+    /// Adds a detached surface node without an owner.
+    pub fn add_surface(&mut self, id: &str, info: SurfaceInfo) {
+        debug_assert!(!self.nodes.contains_key(id), "{id} exists");
         let node = Node {
             id: id.into(),
             kind: NodeKind::Surface,
@@ -238,7 +234,6 @@ impl Scene {
         };
         self.nodes.insert(id.into(), node);
         self.surfaces += 1;
-        true
     }
 
     /// Replaces the client data of a surface node.

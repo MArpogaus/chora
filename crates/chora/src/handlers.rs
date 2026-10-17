@@ -129,16 +129,15 @@ impl State {
             }
             toplevel.send_configure();
             let info = self.surface_info(id);
-            if self.scene.add_surface(id, info.clone()) {
-                self.list_toplevel(id);
-                self.emit(&Event::SurfaceCreated {
-                    surface: id.into(),
-                    app_id: info.app_id,
-                    title: info.title,
-                    decoration: info.decoration,
-                });
-                self.send_early_requests(id);
-            }
+            self.scene.add_surface(id, info.clone());
+            self.list_toplevel(id);
+            self.emit(&Event::SurfaceCreated {
+                surface: id.into(),
+                app_id: info.app_id,
+                title: info.title,
+                decoration: info.decoration,
+            });
+            self.send_early_requests(id);
             return;
         }
         let info = self.surface_info(id);
