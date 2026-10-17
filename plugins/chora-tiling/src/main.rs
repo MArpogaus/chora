@@ -568,24 +568,17 @@ fn changes(sent: Option<&Placement>, placement: &Placement) -> Vec<Command> {
     commands
 }
 
-/// The update from the saved meta of a node to its new meta; an empty
-/// value removes a key that went.
+/// The update from the saved meta of a node to its new meta. A key that
+/// went stays in the core; the restore skips it.
 fn meta_change(
     saved: Option<&BTreeMap<String, String>>,
     id: &str,
     meta: &BTreeMap<String, String>,
 ) -> Option<Command> {
-    if saved == Some(meta) {
-        return None;
-    }
-    let mut update = meta.clone();
-    for key in saved.into_iter().flat_map(BTreeMap::keys) {
-        update.entry(key.clone()).or_default();
-    }
-    Some(Command::Update {
+    (saved != Some(meta)).then(|| Command::Update {
         id: id.into(),
         props: PropsUpdate {
-            meta: Some(update),
+            meta: Some(meta.clone()),
             ..PropsUpdate::default()
         },
     })
