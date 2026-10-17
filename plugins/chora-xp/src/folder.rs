@@ -44,14 +44,14 @@ impl Place {
     }
 
     /// The place that Up goes to: the parent of a folder, My Computer for
-    /// `/`, nothing for My Computer and the Recycle Bin.
-    pub fn up(&self) -> Option<Self> {
+    /// `/`, and the Desktop folder for My Computer and the Recycle Bin,
+    /// which sit on the desktop, as on XP.
+    pub fn up(&self) -> Self {
         match self {
-            Self::Folder(path) => Some(
-                path.parent()
-                    .map_or(Self::Computer, |p| Self::Folder(p.into())),
-            ),
-            Self::Computer | Self::Trash => None,
+            Self::Folder(path) => path
+                .parent()
+                .map_or(Self::Computer, |p| Self::Folder(p.into())),
+            Self::Computer | Self::Trash => Self::Folder(crate::explorer::desktop()),
         }
     }
 }
@@ -115,10 +115,7 @@ impl History {
 
     /// Goes up, as a new place; false at the top.
     pub fn up(&mut self) -> bool {
-        let Some(place) = self.current.up() else {
-            return false;
-        };
-        self.go(place);
+        self.go(self.current.up());
         true
     }
 }
@@ -812,8 +809,9 @@ mod tests {
         h.back();
         h.go(Place::Computer);
         assert!(!h.can_forward());
-        assert!(!h.up());
-        assert_eq!(folder("/").up(), Some(Place::Computer));
+        assert!(h.up());
+        assert_eq!(h.current, Place::Folder(crate::explorer::desktop()));
+        assert_eq!(folder("/").up(), Place::Computer);
         assert_eq!(folder("/").title(), "/");
         assert_eq!(folder("/home/u").title(), "u");
     }

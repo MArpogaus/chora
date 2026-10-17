@@ -641,12 +641,7 @@ impl Explorer {
                 .label("Back")
                 .arrow(),
             Tool::new("forward", "go-next", [80, 48], history.can_forward()).arrow(),
-            Tool::new(
-                "up",
-                "go-parent-folder",
-                [132, 28],
-                history.current.up().is_some(),
-            ),
+            Tool::new("up", "go-parent-folder", [132, 28], true),
             Tool::new("search", "system-search", [167, 69], false).label("Search"),
             Tool::new("folders", "folder", [240, 70], false).label("Folders"),
             Tool::new("views", "view-list-icons", [320, 40], true).arrow(),
@@ -996,7 +991,7 @@ fn view_menu(history: &History) -> Vec<Entry> {
             vec![
                 cmd("Back", Cmd::Back).enabled(history.can_back()),
                 cmd("Forward", Cmd::Forward).enabled(history.can_forward()),
-                cmd("Up One Level", Cmd::Up).enabled(history.current.up().is_some()),
+                cmd("Up One Level", Cmd::Up),
                 Entry::separator(),
                 cmd("My Documents", Cmd::Documents),
                 cmd("My Computer", Cmd::Computer),
@@ -1235,7 +1230,7 @@ pub fn documents() -> PathBuf {
 }
 
 /// The Desktop folder: `XDG_DESKTOP_DIR`, else `~/Desktop`.
-fn desktop() -> PathBuf {
+pub fn desktop() -> PathBuf {
     crate::desktop_icons::user_dir("DESKTOP").unwrap_or_else(|| home().join("Desktop"))
 }
 

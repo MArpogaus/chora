@@ -355,7 +355,9 @@ take the rest. From the top:
   My Documents, My Computer, Recycle Bin) and Refresh. The other rows
   are gray;
 - the Standard Buttons: Back, Forward and Up, as the history of the
-  window allows, and Views with Tiles. Search and Folders are gray;
+  window allows, and Views with Tiles. Search and Folders are gray. Up
+  goes from My Computer and the Recycle Bin to the Desktop folder, where
+  they sit on XP;
 - the address bar with the path and the icon of the place, its list of
   places, and Go, which shows the place again;
 - the blue task pane with XP's boxes: the tasks of the place, Other
