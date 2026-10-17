@@ -4,9 +4,8 @@
 //! A [`Picture`] describes an image as layers: elements of the SVG files
 //! by id, frames by prefix, icons, fills and text. Each picture renders
 //! once per scale; the name of its file is the hash of the description
-//! and the scale. Its size is in logical pixels, and its file has the
-//! pixels of the largest scale of the outputs, so that text and icons
-//! stay sharp on a scaled output.
+//! and the scale. The size of a picture is in logical pixels (see "The XP
+//! flavor" in docs/configuration.md).
 
 use std::{
     cell::RefCell,
@@ -32,7 +31,7 @@ use chora_scene::Command;
 
 use crate::text::{Font, Fonts, Text};
 
-/// A rectangle: x, y, width and height in pixels.
+/// A rectangle: x, y, width and height in logical pixels.
 pub type Rect = [i32; 4];
 
 /// The SVG files of the theme.
@@ -132,7 +131,7 @@ pub enum Layer {
 /// An image as a stack of layers, bottom first.
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Picture {
-    /// Width and height in pixels.
+    /// Width and height in logical pixels.
     pub size: [i32; 2],
     /// The layers.
     pub layers: Vec<Layer>,
@@ -336,7 +335,7 @@ impl Theme {
         Ok(path)
     }
 
-    /// The width of a line of text in pixels.
+    /// The width of a line of text in logical pixels.
     pub fn text_width(&self, line: &str, font: Font) -> f64 {
         let key = (line.to_owned(), font);
         if let Some(width) = self.widths.borrow().get(&key) {
@@ -391,8 +390,9 @@ impl Theme {
     pub fn render(&mut self, picture: &Picture) -> String {
         let path = self.render_at(picture, self.scale, false);
         if path != self.blank && !self.pictures.contains_key(&path) {
-            // ponytail: forget all at a size, rather than track which
-            // files nodes still show; those keep their scale.
+            // ponytail: clear the map at PICTURES pictures instead of
+            // tracking which files nodes still show; those nodes keep
+            // their old scale.
             if self.pictures.len() >= PICTURES {
                 self.pictures.clear();
             }
@@ -401,9 +401,8 @@ impl Theme {
         path
     }
 
-    /// The PNG file of a picture at its own size, for an image node with
-    /// a slice: the core takes the insets of a slice in pixels of the
-    /// file, also for the corners on the screen.
+    /// The PNG file of a picture at scale 1, for an image node with a
+    /// non-zero slice.
     pub fn render_flat(&mut self, picture: &Picture) -> String {
         self.render_at(picture, 1.0, true)
     }
@@ -680,7 +679,8 @@ impl Theme {
         let size = [image.width() as f32, image.height() as f32];
         let transform = place(rect, size, fit);
         if let Fit::Tile(_) = fit {
-            // fill_rect applies its transform to the pattern too.
+            // fill_rect applies `base` to the pattern too, so the pattern
+            // takes only the place.
             let paint = Paint {
                 shader: Pattern::new(
                     image.as_ref(),
@@ -921,24 +921,12 @@ mod tests {
         let (mut theme, cache) = theme("tile");
         // A tile of 8 by 4, red on the left, blue on the right.
         let mut tile = Pixmap::new(8, 4).expect("pixels");
-        tile.fill_rect(
-            tiny_skia::Rect::from_xywh(0.0, 0.0, 4.0, 4.0).expect("a rect"),
-            &Paint {
-                shader: tiny_skia::Shader::SolidColor(tiny_skia::Color::from_rgba8(255, 0, 0, 255)),
-                ..Paint::default()
-            },
-            Transform::identity(),
-            None,
-        );
-        tile.fill_rect(
-            tiny_skia::Rect::from_xywh(4.0, 0.0, 4.0, 4.0).expect("a rect"),
-            &Paint {
-                shader: tiny_skia::Shader::SolidColor(tiny_skia::Color::from_rgba8(0, 0, 255, 255)),
-                ..Paint::default()
-            },
-            Transform::identity(),
-            None,
-        );
+        let mut paint = Paint::default();
+        for (x, [r, b]) in [(0.0, [255, 0]), (4.0, [0, 255])] {
+            paint.set_color_rgba8(r, 0, b, 255);
+            let half = tiny_skia::Rect::from_xywh(x, 0.0, 4.0, 4.0).expect("a rect");
+            tile.fill_rect(half, &paint, Transform::identity(), None);
+        }
         let file = cache.join("tile.png");
         tile.save_png(&file).expect("a PNG file");
         let picture = Picture::new(16, 4).fit(&file, [0, 0, 16, 4], Fit::Tile([8, 4]));

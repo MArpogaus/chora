@@ -1,8 +1,9 @@
 //! Wobbly windows, with the model and the default parameters of `KWin`'s
 //! wobbly windows effect: a 4x4 grid of control points over the window
-//! hangs on springs. Each free point keeps its distance to its neighbours;
-//! the point under the pointer is pulled to its place in the window, also
-//! after the release, so that the window settles where it is. The drawn
+//! hangs on springs. Each point keeps its distance to its neighbours, and
+//! a spring pulls the point under the pointer to its place in the window.
+//! The pull lasts after the release, so the window settles where it is.
+//! The drawn
 //! mesh is a finer grid through the Bézier surface of the control points.
 
 // The grids have at most 21 points a side, so `usize` to `f64` is exact.
@@ -28,7 +29,7 @@ const MAX: f64 = 1000.0;
 /// these.
 const STOP_ACCELERATION: f64 = 0.5;
 const STOP_VELOCITY: f64 = 0.5;
-/// The longest integration step, in milliseconds.
+/// The integration step, in milliseconds.
 const STEP_MS: f64 = 10.0;
 
 /// The state of the grid of one window.
@@ -44,7 +45,7 @@ pub struct Wobble {
     held: bool,
     /// Whether the last step moved anything.
     moving: bool,
-    /// The time the grid reached.
+    /// The time of the last call of `advance`.
     last: Instant,
     /// The time since the last whole step, in milliseconds.
     pending: f64,
@@ -84,7 +85,7 @@ impl Wobble {
 
     /// Advances the grid to a time, for a window at an origin: in each
     /// frame, and when the pointer moves the window, so that the drawn
-    /// mesh never lags the pointer by the rest of a frame.
+    /// mesh lags the pointer by less than one step.
     pub fn advance(&mut self, origin: [f64; 2], now: Instant) {
         let dt = now.saturating_duration_since(self.last).as_secs_f64();
         self.last = now;
@@ -311,18 +312,17 @@ mod tests {
     /// 1200 pixels a second for half a second, with a move of the pointer
     /// every `ms` milliseconds; the largest bend and the drawn point under
     /// the pointer at the end.
-    fn drag(ms: u64) -> (f64, f64) {
+    fn drag(ms: usize) -> (f64, f64) {
         let grab = [200.0, 0.0];
         let mut w = Wobble::new([400.0, 300.0], [0.0, 0.0], grab);
         let start = Instant::now();
         w.last = start;
         let mut bend: f64 = 0.0;
         let mut origin = [0.0, 0.0];
-        for t in (ms..=500).step_by(usize::try_from(ms).unwrap_or(1)) {
-            #[allow(clippy::cast_precision_loss)]
-            let x = 1.2 * t as f64;
-            origin = [x, 0.0];
-            w.advance(origin, start + std::time::Duration::from_millis(t));
+        for t in (ms..=500).step_by(ms) {
+            origin = [1.2 * t as f64, 0.0];
+            let at = std::time::Duration::from_millis(u64::try_from(t).unwrap_or(0));
+            w.advance(origin, start + at);
             bend = bend.max(w.bend(origin));
         }
         let drawn = w.bezier(0.5, 0.0);
@@ -332,12 +332,12 @@ mod tests {
     #[test]
     fn the_grid_moves_the_same_at_any_rate_of_the_pointer() {
         // Within one step of 10 ms, in which the window moves 12 pixels.
-        let (frames, lag) = drag(10);
+        let (steady, lag) = drag(10);
         for ms in [1, 2, 8] {
             let (bend, _) = drag(ms);
             assert!(
-                (bend - frames).abs() < 13.0,
-                "{bend} at {ms} ms, {frames} at 10 ms"
+                (bend - steady).abs() < 13.0,
+                "{bend} at {ms} ms, {steady} at 10 ms"
             );
         }
         // The drawn point under the pointer lags only a little.

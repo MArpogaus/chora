@@ -1578,7 +1578,7 @@ mod tests {
         let commands = explorer.redraw(&mut theme, &mut icons);
         assert!(commands.iter().any(|c| matches!(
             c,
-            Command::Update { id, .. } if id == "xpx1-view-scrolled"
+            Command::Update { id, .. } if id == "xpx1-view-scroll"
         )));
         let created = |commands: &[Command]| {
             commands

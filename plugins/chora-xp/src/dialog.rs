@@ -228,11 +228,12 @@ pub struct Page {
     pub controls: Vec<Control>,
     /// Where the scrolled controls start in the client area, as the view
     /// of an Explorer window: the top-left corner of the view, moved up
-    /// by the offset of the scroll. They lie in a group above the other
-    /// controls, which a scroll moves; only the controls that come, go
-    /// or change change. The owner leaves out or cuts the controls at the
-    /// edges of the view, without a clip, because a node with a clip is a
-    /// layer that the core draws again in every frame.
+    /// by the offset of the scroll. The scrolled controls lie in one
+    /// group above the other controls, and a scroll moves only this
+    /// group. Only the controls that come, go or change get new nodes.
+    /// The owner leaves out or cuts the controls at the edges of the
+    /// view, without a clip, because a node with a clip is a layer that
+    /// the core draws again in every frame.
     pub scroll: Option<[i32; 2]>,
 }
 
@@ -678,12 +679,12 @@ impl Content {
             commands.extend(self.create_control(theme, i));
         }
         // The scrolled controls lie above the others.
-        if let Some(origin) = self.page.scroll {
+        if let Some(scroll) = self.page.scroll {
             commands.push(Command::Create {
-                id: self.id("scrolled"),
+                id: self.id("scroll"),
                 kind: NodeKind::Group,
                 parent: self.prefix.clone(),
-                props: at(origin),
+                props: at(scroll),
             });
         }
         for i in (0..count).filter(|&i| self.page.controls[i].scrolled) {
@@ -696,7 +697,7 @@ impl Content {
     fn create_control(&self, theme: &mut Theme, i: usize) -> [Command; 2] {
         let control = &self.page.controls[i];
         let parent = if control.scrolled {
-            self.id("scrolled")
+            self.id("scroll")
         } else {
             self.prefix.clone()
         };
@@ -744,10 +745,10 @@ impl Content {
         {
             commands.push(update(self.id("body"), theme.render(body)));
         }
-        if let Some(origin) = self.page.scroll.filter(|o| old.scroll != Some(*o)) {
+        if let Some(scroll) = self.page.scroll.filter(|s| old.scroll != Some(*s)) {
             commands.push(Command::Update {
-                id: self.id("scrolled"),
-                props: at(origin),
+                id: self.id("scroll"),
+                props: at(scroll),
             });
         }
         commands.extend(self.control_changes(theme, &old.controls));

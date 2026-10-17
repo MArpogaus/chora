@@ -106,7 +106,6 @@ impl Wm {
         let Some((_, origin, size)) = self.wobble_target(key).filter(|_| on) else {
             return;
         };
-        self.effects.last = Instant::now();
         let wobble = Wobble::new(size, origin, grab);
         self.effects.wobbles.insert(key.into(), wobble);
     }

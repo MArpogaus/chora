@@ -92,9 +92,9 @@ struct Press {
 /// When [`DesktopIcons::show`] shows the icons.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Show {
-    /// Only when the icons or the work area changed; the cells stay.
+    /// Only when the icons or the work area changed.
     Changed,
-    /// Also when nothing changed; the cells stay.
+    /// Also when nothing changed.
     Again,
     /// In the columns again.
     Arranged,
@@ -166,9 +166,8 @@ impl DesktopIcons {
         self.show(theme, icons, area, Show::Changed)
     }
 
-    /// Shows the icons: with [`Show::Changed`] only when something
-    /// changed. The icons that stay keep their cells on the same work
-    /// area, unless they are arranged; new icons take free cells.
+    /// Shows the icons as `how` says. On the same work area, the icons
+    /// that stay keep their cells. New icons take free cells.
     fn show(
         &mut self,
         theme: &mut Theme,
