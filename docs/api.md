@@ -510,7 +510,9 @@ The layer shell stays, so a panel can run in a container. Such a client
 can draw above all windows in the top layer, but the core refuses the
 overlay layer. A layer surface of it takes the keyboard on demand at
 most, never exclusively. So it cannot fake a lock screen or keep the
-keyboard.
+keyboard. An `xdg-activation` token of such a client works only with the
+serial of its last key or button press, so it takes no focus without
+input of the user.
 
 The client gets the grants of the name at the time it connects. Its
 windows carry the name: a query shows it in `surface.client`.
