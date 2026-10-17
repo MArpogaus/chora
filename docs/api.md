@@ -119,10 +119,10 @@ path for `image`, `shader` and effects. A file has at most 512 KiB, a
 client at most 64 files, all clients together at most 64 MiB. A client
 name with assets has at most 120 bytes. A second put
 of a name replaces the file, and the nodes that use it load it again. The
-files of a client go with its nodes. Without `keep_nodes` or `resume`,
-they go at the last disconnect. With `resume`, they go after the grace
-time. Otherwise they go when chora exits. `choractl asset put NAME FILE`
-prints the path.
+files of a client go with its nodes. With `keep_nodes`, they go when
+chora exits. With `resume` only, they go after the grace time. Otherwise,
+they go at the last disconnect. `choractl asset put NAME FILE` prints the
+path.
 
 ## Commands
 
@@ -343,7 +343,8 @@ node end as at any disconnect, and `client.disconnected` follows at once.
 - A `hello` of the same name with `resume` within the grace time gets the
   nodes back. The plugin finds them with `scene.query` and `owner:NAME`.
   When the list is not empty, it rebuilds its model from them instead of
-  creating its nodes again.
+  creating its nodes again. A running instance of the same name also owns
+  them.
 - A `hello` of the name without `resume` removes the kept nodes first, so
   the client starts as without a grace time.
 - After the grace time, the core removes the nodes as at any disconnect:
