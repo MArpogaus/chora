@@ -238,6 +238,13 @@ enum ClientsCmd {
         /// The client name, for example `agent`.
         client: String,
     },
+    /// Create the sockets of all names in a YAML file, with their
+    /// grants: `clients.create` and `grants.set` in one step.
+    Up {
+        /// The file, `~/.config/chora/clients.yaml` by default, `-` for
+        /// stdin.
+        file: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -365,6 +372,9 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
         Cmd::Clients {
             action: ClientsCmd::Create { client: name },
         } => show(client, "clients.create", serde_json::json!({"name": name})),
+        Cmd::Clients {
+            action: ClientsCmd::Up { file },
+        } => clients_up(client, file.as_deref()),
         Cmd::Spawn { capture, argv } => spawn(client, argv, capture),
         Cmd::Restart { client: name } => show(client, "plugins.restart", Restart { name }),
         Cmd::ConfigureOutput {
@@ -509,6 +519,48 @@ fn grants(
     client.call::<_, Value>(method, change).map(drop)
 }
 
+/// One name of `clients up`: its grants; the socket itself needs no
+/// more than the name.
+#[derive(serde::Deserialize)]
+struct ClientSpec {
+    #[serde(default)]
+    grants: Vec<Capability>,
+}
+
+/// Creates the socket of every name in the file and sets its grants.
+fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError> {
+    let bad = |e: String| ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e));
+    let text = match file {
+        Some("-") => {
+            let mut text = String::new();
+            std::io::stdin().read_to_string(&mut text)?;
+            text
+        }
+        Some(f) => std::fs::read_to_string(f)?,
+        None => {
+            let path = std::env::var("HOME")
+                .map(|h| format!("{h}/.config/chora/clients.yaml"))
+                .map_err(|_| bad("HOME is unset; give the file as argument".into()))?;
+            std::fs::read_to_string(&path).map_err(|e| bad(format!("{path}: {e}")))?
+        }
+    };
+    let wanted: std::collections::BTreeMap<String, ClientSpec> =
+        view::parse_yaml(&text).map_err(bad)?;
+    for (name, spec) in wanted {
+        view::check_name(&name).map_err(bad)?;
+        client.call::<_, Value>("clients.create", serde_json::json!({"name": &name}))?;
+        if !spec.grants.is_empty() {
+            let change = GrantChange {
+                client: name.clone(),
+                capabilities: spec.grants,
+            };
+            client.call::<_, Value>("grants.set", change)?;
+        }
+        println!("{name}");
+    }
+    Ok(())
+}
+
 /// Calls a method of a plugin and prints the result.
 fn call(
     client: &mut Client,
@@ -587,7 +639,33 @@ fn print(value: &Value) {
 mod tests {
     use clap::Parser;
 
-    use super::{Args, AssetCmd, Cmd};
+    use super::{Args, AssetCmd, ClientSpec, Cmd};
+
+    /// The clients file of `clients up` maps names to their grants.
+    #[test]
+    fn a_clients_file_lists_names_and_grants() {
+        let args = Args::try_parse_from("choractl clients up -".split(' ')).unwrap();
+        assert!(matches!(
+            args.command,
+            Cmd::Clients {
+                action: super::ClientsCmd::Up {
+                    file: Some(ref f)
+                }
+            } if f == "-"
+        ));
+        let file = "agent:\n  grants: [screen.capture, input.grab-any]\nguest: {}\n";
+        let wanted: std::collections::BTreeMap<String, ClientSpec> =
+            super::view::parse_yaml(file).unwrap();
+        assert_eq!(wanted["agent"].grants.len(), 2);
+        assert_eq!(wanted["guest"].grants.len(), 0);
+        assert!(
+            super::view::parse_yaml::<std::collections::BTreeMap<String, ClientSpec>>(
+                "agent: { grants: [not-a-capability] }",
+            )
+            .is_err(),
+            "an unknown capability is an error"
+        );
+    }
 
     /// No argument of a command takes the place of `--name`.
     #[test]

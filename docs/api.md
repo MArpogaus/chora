@@ -306,7 +306,9 @@ The core opens an admin socket next to the IPC socket, for example
 `wayland-1.admin.sock` next to `wayland-1.sock` (D40). It offers all
 methods. Only there do `grants.set`, `grants.revoke` and `clients.create`
 work. `choractl grant`, `choractl revoke` and `choractl clients create`
-use it. The core
+use it; `choractl clients up [FILE]` runs `clients.create` and
+`grants.set` for every `NAME: { grants: [...] }` entry of a YAML file,
+`~/.config/chora/clients.yaml` by default, `-` for stdin. The core
 answers every request.
 
 | Method | Purpose |
