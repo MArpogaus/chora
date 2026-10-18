@@ -1,9 +1,8 @@
 # Showcase
 
-Five small applications that were built live against the API in one
-session, the way an agent uses it. They are not tested and not packaged,
-like the loader prototype; they are the shortest path from a running
-chora to something you can play with.
+Six small applications for a running chora, like the loader prototype:
+not tested, not packaged, the shortest path from a live core to
+something you can play with.
 
 All of them need the environment of a live session (`CHORA_SOCKET`, see
 `tests/headless-session.sh`) and talk through the IPC socket. `snake.py`
@@ -40,14 +39,17 @@ from a second terminal:
 echo '[{"key":{"key":"Left","state":"pressed"}}]' | $CHORACTL inject
 ```
 
-`cards.py` and `deck.py` ask for their grants through the admin socket
-of `choractl`; run them once from the repository root, where
-`target/debug/choractl` lives, or point `CHORACTL` at the binary.
+With `CHORACTL` set, the programs hand themselves the grants they need
+over the admin socket; without it, `screen.capture` answers with the
+`choractl grant` line to run by hand.
 
-## What they learned
+## Notes
 
-The apps are the record of the session that produced them: the input
-property of a node answers `accept`, paints come after the kind in the
-JSON, and one version of the core and its clients should be built
-together, because every `choractl` call of a mismatched pair prints a
-warning line.
+- An `input` node only answers key events while its property `accept`
+  is true; `snake.py` sets it with a `focus_node` command.
+- A `choractl` of another version than the core prints a warning line
+  before every answer, so JSON consumers break: run the binaries built
+  from this tree.
+- Every client owns its nodes: they leave with the connection unless
+  `hello` sets `keep_nodes`, and cameras only change hands through a
+  `camera` command. `cards.py` shows the release.
