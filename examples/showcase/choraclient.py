@@ -28,6 +28,8 @@ class Chora:
                 self.result[msg["id"]] = msg
             elif "params" in msg and "event" in msg["params"]:
                 self.events.put(msg["params"])
+        for rid in list(self.result):
+            self.result[rid] = {"error": {"message": "the core closed the socket"}}
 
     def call(self, method, params=None, timeout=30):
         self.id += 1
@@ -36,7 +38,7 @@ class Chora:
         self.file.write(json.dumps({"jsonrpc": "2.0", "id": rid, "method": method, "params": params}) + "\n")
         self.file.flush()
         end = time.monotonic() + timeout
-        while self.result[rid] is None:
+        while self.result.get(rid) is None:
             if time.monotonic() > end:
                 raise TimeoutError(method)
             time.sleep(0.001)

@@ -10,7 +10,7 @@ headless session (`CHORA_SOCKET`):
 
 The rendered slides land in `$XDG_RUNTIME_DIR/chora-showcase-shots/deck`.
 """
-import os, subprocess, sys, time
+import json, os, subprocess, sys, time
 from PIL import Image, ImageDraw, ImageFont
 
 SOCK = os.environ["CHORA_SOCKET"]
@@ -45,17 +45,20 @@ def render(i, title, lines, path, size=(1280, 800)):
     d.text((90, size[1] - 70), f"{i + 1} / {len(SLIDES)}", font=f, fill=(90, 100, 120))
     img.save(path)
 
-def ipc(method, **params):
-    return subprocess.run([CTL, "--name", "deck", "ipc", method,
-                           *(["%json%" + __import__("json").dumps(params)] if params else [])],
+def ctl(*args):
+    return subprocess.run([CTL, "--name", "deck", *args],
                           capture_output=True, text=True)
 
 def apply(*cmds):
-    inp = __import__("json").dumps(list(cmds))
+    inp = json.dumps(list(cmds))
     r = subprocess.run([CTL, "--name", "deck", "apply", "-"], input=inp,
                        capture_output=True, text=True)
     if r.returncode:
         sys.exit(f"apply failed: {r.stdout}{r.stderr}")
+
+def screen():
+    return json.loads(ctl("outputs").stdout)[0]["name"]
+
 
 def main():
     os.makedirs(DECK, exist_ok=True)
@@ -72,14 +75,15 @@ def main():
         subprocess.run([CTL, "--name", "deck", "apply", "-"],
                        input=f'[{{"remove": {{"id": "{nid}"}}}}]',
                        capture_output=True, text=True)
-    apply({"create": {"id": "deck", "kind": "group", "parent": "screen:HEADLESS-1",
+    apply({"create": {"id": "deck", "kind": "group", "parent": f"screen:{screen()}",
                       "props": {"size": [1280, 800]}}})
     apply({"create": {"id": "deck-bg", "kind": "rect", "parent": "deck",
                       "props": {"size": [1280, 800], "color": [0.03, 0.04, 0.06, 1]}}})
     apply({"create": {"id": "deck-img", "kind": "image", "parent": "deck",
                       "props": {"image": paths[0]}}})
-    ipc("grant", client="deck", capabilities=["input.inject"])
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    ctl("grant", "deck", "input.inject")
+    numbers = [a for a in sys.argv[1:] if not a.startswith("-")]
+    n = int(numbers[0]) if numbers else 1
     for s in range(n):
         for i in range(len(SLIDES)):
             apply({"update": {"id": "deck-img", "props": {"image": paths[i], "opacity": 1}}})
