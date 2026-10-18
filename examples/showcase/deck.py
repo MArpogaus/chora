@@ -81,7 +81,6 @@ def main():
                       "props": {"size": [1280, 800], "color": [0.03, 0.04, 0.06, 1]}}})
     apply({"create": {"id": "deck-img", "kind": "image", "parent": "deck",
                       "props": {"image": paths[0]}}})
-    ctl("grant", "deck", "input.inject")
     numbers = [a for a in sys.argv[1:] if not a.startswith("-")]
     n = int(numbers[0]) if numbers else 1
     for s in range(n):
