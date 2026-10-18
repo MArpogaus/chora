@@ -1432,10 +1432,17 @@ mod tests {
         };
         assert!(refused(&mut core));
         clients.pop();
-        for _ in 0..3 {
+        // The gone client frees its place when the core has finalized
+        // it, which takes more than one turn under load.
+        let mut freed = false;
+        for _ in 0..10 {
             core.dispatch();
+            if !refused(&mut core) {
+                freed = true;
+                break;
+            }
         }
-        assert!(!refused(&mut core), "a gone client frees its place");
+        assert!(freed, "a gone client frees its place");
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
     }

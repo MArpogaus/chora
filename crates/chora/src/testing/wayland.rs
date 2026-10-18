@@ -127,10 +127,16 @@ impl Wayland {
 
     /// Whether the core closed the connection, within a few turns. A sync
     /// makes the core read the connection, as any request of a live client
-    /// would; the core closes a killed client when it reads.
+    /// would; the core closes a killed client when it reads. The flush
+    /// comes before the dispatch, so that the core really reads the sync
+    /// and not an older request, which the last round would otherwise
+    /// leave unprocessed under load.
     pub fn closed(&mut self, core: &mut Core) -> bool {
         for _ in 0..5 {
             self.conn.display().sync(&self.queue.handle(), ());
+            if self.conn.flush().is_err() {
+                return true;
+            }
             core.dispatch();
             if self.conn.flush().is_err() {
                 return true;
@@ -139,7 +145,9 @@ impl Wayland {
                 match guard.read() {
                     Err(wayland_client::backend::WaylandError::Io(e))
                         if e.kind() == std::io::ErrorKind::WouldBlock => {}
-                    Err(_) => return true,
+                    // EOF means the core closed the connection, which
+                    // is what a killed client leaves behind.
+                    Err(_) | Ok(0) => return true,
                     Ok(_) => {}
                 }
             }
