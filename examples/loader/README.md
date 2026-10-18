@@ -1,8 +1,8 @@
 # Loader prototype (WIP)
 
-A quick prototype of a "loading program" in the style of The Matrix. An
-agent built it live through the API in one session. The code is a
-prototype: it is not tested, not packaged and not clean.
+A prototype of a "loading program" in the style of The Matrix, built
+through the API alone. The code is a prototype: it is not tested, not
+packaged and not clean.
 
 ## What it does
 
