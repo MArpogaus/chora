@@ -1537,6 +1537,28 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// The bound of the logical size holds for `output.configure` too.
+    #[test]
+    fn a_configure_makes_the_logical_side_not_grow() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        core.add_output("BIG", (16384, 64));
+        let (error_code, text) = wm.fails(
+            &mut core,
+            "output.configure",
+            json!({"output": "BIG", "scale": 0.1}),
+        );
+        assert_eq!(error_code, RpcError::REJECTED);
+        assert!(text.contains("logical side"), "{text}");
+        // The same size at scale 1 reaches the backend untouched.
+        let (_, text) = wm.fails(
+            &mut core,
+            "output.configure",
+            json!({"output": "BIG", "scale": 1.0}),
+        );
+        assert_eq!(text, "no backend");
+    }
+
     #[test]
     fn the_reset_removes_the_client_sockets() {
         let (mut core, dir) = socket_dir("reset");

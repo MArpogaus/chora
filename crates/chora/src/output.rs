@@ -24,6 +24,25 @@ use crate::{backend::Backend, ipc::rejected, state::State};
 /// The scales that a client can give an output.
 const SCALES: RangeInclusive<f64> = 0.1..=10.0;
 
+/// A side of the logical size has at most this many pixels: clients
+/// allocate their buffers in the logical size of an output.
+pub(crate) const MAX_LOGICAL: f64 = 16384.;
+
+/// Whether a mode and a scale keep the logical size within the bound.
+///
+/// # Errors
+///
+/// The logical size is too large.
+pub(crate) fn logical_ok(mode: (i32, i32), scale: f64) -> Result<(), String> {
+    let over = |side: i32| f64::from(side) / scale > MAX_LOGICAL;
+    if over(mode.0) || over(mode.1) {
+        return Err(format!(
+            "the scale {scale} makes a logical side more than {MAX_LOGICAL} pixels"
+        ));
+    }
+    Ok(())
+}
+
 /// The configuration of one output, as `wlr-output-management` asks for
 /// it.
 pub enum OutputConfig {
@@ -247,6 +266,14 @@ impl State {
         }
         .cloned()
         .ok_or_else(|| rejected(format!("no output {:?}", configure.output)))?;
+        let mode = output
+            .current_mode()
+            .or_else(|| output.preferred_mode())
+            .ok_or_else(|| rejected(format!("{} has no mode", output.name())))?;
+        let scale = configure
+            .scale
+            .unwrap_or_else(|| output.current_scale().fractional_scale());
+        logical_ok((mode.size.w, mode.size.h), scale).map_err(rejected)?;
         let changes = OutputChanges {
             scale: configure.scale,
             transform: configure.transform.map(smithay_transform),

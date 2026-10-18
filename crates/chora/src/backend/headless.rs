@@ -98,11 +98,7 @@ fn parse_spec(text: &str) -> Result<Spec, String> {
     if !(0.1..=10.0).contains(&scale) {
         return Err(format!("{text:?}: the scale is outside of 0.1 to 10"));
     }
-    // The frame is drawn in physical pixels: the checks together keep
-    // one output below 16384 pixels on each side, scale included.
-    if f64::from(size.0) / scale > 16384. || f64::from(size.1) / scale > 16384. {
-        return Err(format!("{text:?}: the physical side has 1 to 16384 pixels"));
-    }
+    crate::output::logical_ok(size, scale).map_err(|e| format!("{text:?}: {e}"))?;
     Ok(Spec {
         size,
         scale,
@@ -377,7 +373,7 @@ mod tests {
             parse_spec("640x480@2+-640+10").unwrap().position,
             Some((-640, 10))
         );
-        assert!(parse_spec("1638x1638@0.1").is_ok(), "16380 physical");
+        assert!(parse_spec("1638x1638@0.1").is_ok(), "16380 logical");
         for bad in [
             "",
             "1280",
