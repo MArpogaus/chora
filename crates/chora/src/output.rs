@@ -266,14 +266,6 @@ impl State {
         }
         .cloned()
         .ok_or_else(|| rejected(format!("no output {:?}", configure.output)))?;
-        let mode = output
-            .current_mode()
-            .or_else(|| output.preferred_mode())
-            .ok_or_else(|| rejected(format!("{} has no mode", output.name())))?;
-        let scale = configure
-            .scale
-            .unwrap_or_else(|| output.current_scale().fractional_scale());
-        logical_ok((mode.size.w, mode.size.h), scale).map_err(rejected)?;
         let changes = OutputChanges {
             scale: configure.scale,
             transform: configure.transform.map(smithay_transform),
@@ -428,6 +420,7 @@ fn target(output: Output, config: OutputConfig) -> Result<Target, String> {
     if !SCALES.contains(&scale) {
         return Err(format!("the scale {scale} is outside of {SCALES:?}"));
     }
+    logical_ok((mode.size.w, mode.size.h), scale)?;
     let target = Target {
         mode: Some(mode),
         position: changes
