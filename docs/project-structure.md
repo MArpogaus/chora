@@ -16,7 +16,7 @@ chora/
 │   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome
 │   └── chora-xp/      # stacking window manager in the style of Windows XP
 ├── flavors/           # systemd units of the flavors; the theme of the XP flavor
-├── dist/              # RPM build script, Fedora build requirements, session files
+├── dist/              # RPM build script, Fedora build requirements, session files, Quadlet examples
 ├── tests/             # end-to-end tests in a headless sway
 ├── deny.toml          # cargo-deny: allowed licenses, advisories
 ├── docs/              # this documentation (MkDocs)
