@@ -6,13 +6,18 @@
 # flavor instance, then:
 #
 #   systemctl --user daemon-reload
-#   choractl clients create agent     # once, as the chora user
+#   echo 'agent: {grants: [screen.capture]}' | choractl clients up -
 #   systemctl --user start chora-agent@tiling
 #
 # The socket is the identity: the container connects as `agent` with
-# the grants of that name and cannot choose another one. The same
-# directory survives a restart of chora, so a restart of this unit is
-# enough to reconnect.
+# the grants of that name and cannot choose another one. The sockets
+# and their grants live in memory: after every start of chora run
+# `choractl clients up` again, then start this unit. On an SELinux
+# host the container likely needs `SecurityLabelDisable=true`, which
+# no example should hand out lightly.
+#
+# The unit name %i picks the chora flavor, the client directory always
+# carries the single agent identity.
 
 [Unit]
 Description=chora agent %i in a container
