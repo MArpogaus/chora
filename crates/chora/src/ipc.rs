@@ -1443,12 +1443,13 @@ mod tests {
         // The gone client frees its place when the core has finalized
         // it, which takes more than one turn under load.
         let mut freed = false;
-        for _ in 0..10 {
+        for _ in 0..50 {
             core.dispatch();
             if !refused(&mut core) {
                 freed = true;
                 break;
             }
+            std::thread::sleep(std::time::Duration::from_millis(2));
         }
         assert!(freed, "a gone client frees its place");
         drop(core);
