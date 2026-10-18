@@ -3,6 +3,8 @@
 //! windows and the magic lamp, and the freedesktop files that a shell
 //! reads, such as icon themes and desktop entries.
 
+pub mod conn;
+
 pub mod desktop_entry;
 pub mod icons;
 pub mod lamp;

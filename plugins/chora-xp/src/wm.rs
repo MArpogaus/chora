@@ -16,7 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::icons::Icons;
+use chora_kit::{conn::Conn, icons::Icons};
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
     SurfaceRequest, Transform, Uniform,
@@ -29,7 +29,6 @@ use crate::{
     apps,
     balloon::{self, Balloon, Queue},
     confirm::{ConfirmDialog, Then},
-    conn::Conn,
     context::{self, Act},
     control::{self, Setting, Toggles},
     cube::DESKTOPS,
@@ -546,7 +545,7 @@ impl Wm {
 
     /// The next event, or `None` after a timeout.
     pub fn conn_event(&mut self, timeout: Duration) -> Result<Option<Event>, ClientError> {
-        self.conn.next_event(timeout)
+        self.conn.next_event_timeout(timeout)
     }
 
     /// Handles one event of the core.

@@ -14,10 +14,11 @@ use std::{
     process::ExitCode,
 };
 
+use chora_kit::conn::Conn;
 use chora_scene::{
     Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest, ToplevelState,
     Transform,
-    ipc::{Client, ClientError, Export, Grab, Hello, PressState, Query, RpcError, Subscribe},
+    ipc::{ClientError, Export, Grab, PressState, Query, RpcError, Subscribe},
 };
 use clap::Parser;
 use serde::{Deserialize, Serialize};
@@ -81,7 +82,7 @@ struct LayoutInfo {
 }
 
 struct Tiling {
-    client: Client,
+    client: Conn,
     wm: Wm,
     /// The configuration file of the command line.
     arg: Option<PathBuf>,
@@ -142,13 +143,8 @@ fn load(arg: Option<&PathBuf>) -> Result<Config, String> {
 
 fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let config = load(args.config.as_ref())?;
-    let hello = Hello {
-        name: NAME.into(),
-        keep_nodes: false,
-        resume: true,
-    };
     let mut tiling = Tiling {
-        client: Client::from_env(&hello)?,
+        client: Conn::connect(NAME)?,
         wm: Wm::new(config),
         arg: args.config,
         ignore: args.ignore,
@@ -638,7 +634,7 @@ impl Tiling {
     }
 
     fn call_apply(&mut self, commands: Vec<Command>) -> Result<(), ClientError> {
-        match self.client.apply(commands)? {
+        match self.client.try_apply(commands)? {
             None => Ok(()),
             Some(err) => Err(ClientError::Rpc(err)),
         }

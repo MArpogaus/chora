@@ -468,6 +468,8 @@ name = "chora-kit"
 version = "0.5.4"
 dependencies = [
  "chora-scene",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -496,6 +498,7 @@ dependencies = [
 name = "chora-tiling"
 version = "0.5.4"
 dependencies = [
+ "chora-kit",
  "chora-scene",
  "clap",
  "serde",

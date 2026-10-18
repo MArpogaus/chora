@@ -8,7 +8,7 @@ mod apps;
 mod balloon;
 mod cascade;
 mod confirm;
-mod conn;
+
 mod context;
 mod control;
 mod cube;
@@ -44,7 +44,9 @@ use chora_kit::icons::Icons;
 use chora_scene::{Event, ipc::ClientError};
 use clap::Parser;
 
-use crate::{conn::Conn, startmenu::Menu, theme::Theme, wm::Wm};
+use chora_kit::conn::Conn;
+
+use crate::{startmenu::Menu, theme::Theme, wm::Wm};
 
 /// How often the plugin checks the clock.
 const TICK: Duration = Duration::from_secs(1);
