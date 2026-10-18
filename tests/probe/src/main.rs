@@ -64,6 +64,10 @@ use wayland_protocols::{
         wp_presentation::{self, WpPresentation},
         wp_presentation_feedback::{self, WpPresentationFeedback},
     },
+    xdg::activation::v1::client::{
+        xdg_activation_token_v1::{self, XdgActivationTokenV1},
+        xdg_activation_v1::XdgActivationV1,
+    },
     xdg::shell::client::{
         xdg_popup::XdgPopup,
         xdg_positioner::XdgPositioner,
@@ -102,6 +106,9 @@ struct Probe {
     presentation: Option<WpPresentation>,
     pointer_manager: Option<ZwlrVirtualPointerManagerV1>,
     keyboard_manager: Option<ZwpVirtualKeyboardManagerV1>,
+    activation: Option<XdgActivationV1>,
+    /// The activation token that the compositor answered.
+    token: Option<String>,
     /// `Some(true)` after `locked`, `Some(false)` after `finished`.
     locked: Option<bool>,
     /// The xdg surfaces that got a configure, by their number.
@@ -153,6 +160,7 @@ fn main() -> ExitCode {
         "capture" => capture::capture(&mut queue, &mut probe),
         "sandbox" => sandbox::sandbox(&mut queue, &mut probe),
         "window" => window(&mut queue, &mut probe),
+        "activated" => activated(&mut queue, &mut probe),
         "held-commit" => match size_args() {
             Some(size) => held_commit(&mut queue, &mut probe, size),
             None => Err("usage: held-commit W H".into()),
@@ -169,6 +177,35 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Shows a toplevel that carries an activation token of its own, so that
+/// `surface.created` can show its pid and token.
+fn activated(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
+    let activation = probe.activation.clone().ok_or("no xdg activation")?;
+    let qh = queue.handle();
+    let token_obj = activation.get_activation_token(&qh, ());
+    token_obj.commit();
+    if !dispatch_until(queue, probe, TIMEOUT, |p| p.token.is_some()) {
+        return Err("no activation token".into());
+    }
+    let token = probe.token.take().unwrap_or_default();
+    let wm_base = probe.wm_base.clone().ok_or("no xdg shell")?;
+    let surface = create_surface(probe, &qh)?;
+    activation.activate(token.clone(), &surface);
+    let xdg_surface = wm_base.get_xdg_surface(&surface, &qh, 1);
+    let _toplevel = xdg_surface.get_toplevel(&qh, ());
+    surface.commit();
+    if !dispatch_until(queue, probe, TIMEOUT, |p| p.configured.contains(&1)) {
+        return Err("no configure of the activated toplevel".into());
+    }
+    surface.commit();
+    // Stay mapped for a moment, so that a test can watch the events.
+    let end = Instant::now() + Duration::from_millis(1500);
+    while Instant::now() < end {
+        dispatch_until(queue, probe, Duration::from_millis(100), |_| false);
+    }
+    Ok(format!("activated with {token}"))
 }
 
 /// Locks while another client holds the lock.
@@ -630,6 +667,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
                 probe.lock_manager = Some(registry.bind(name, 1, qh, ()));
             }
             "wp_presentation" => probe.presentation = Some(registry.bind(name, 1, qh, ())),
+            "xdg_activation_v1" => probe.activation = Some(registry.bind(name, 1, qh, ())),
             "zwp_virtual_keyboard_manager_v1" => {
                 probe.keyboard_manager = Some(registry.bind(name, 1, qh, ()));
             }
@@ -637,6 +675,21 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
                 probe.pointer_manager = Some(registry.bind(name, 1, qh, ()));
             }
             other => probe.capture.bind(registry, name, other, qh),
+        }
+    }
+}
+
+impl Dispatch<XdgActivationTokenV1, ()> for Probe {
+    fn event(
+        probe: &mut Probe,
+        _proxy: &XdgActivationTokenV1,
+        event: xdg_activation_token_v1::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Probe>,
+    ) {
+        if let xdg_activation_token_v1::Event::Done { token } = event {
+            probe.token = Some(token);
         }
     }
 }
@@ -769,6 +822,7 @@ delegate_noop!(Probe: ignore WlSurface);
 delegate_noop!(Probe: ignore wl_shm::WlShm);
 delegate_noop!(Probe: ignore WlShmPool);
 delegate_noop!(Probe: ignore WlBuffer);
+delegate_noop!(Probe: ignore XdgActivationV1);
 delegate_noop!(Probe: ignore wl_seat::WlSeat);
 delegate_noop!(Probe: ignore XdgPopup);
 delegate_noop!(Probe: ignore XdgPositioner);
