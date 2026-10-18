@@ -158,6 +158,12 @@ enum Cmd {
         #[command(subcommand)]
         action: ClientsCmd,
     },
+    /// Take the camera of an output away from its owner, so that the view
+    /// goes back to its default. Goes through the admin socket.
+    Camera {
+        #[command(subcommand)]
+        action: CameraCmd,
+    },
     /// Load, unload or save a view: plugins and nodes from a YAML file.
     View {
         #[command(subcommand)]
@@ -228,6 +234,15 @@ struct ReserveArgs {
     /// The space at the left.
     #[arg(long, default_value_t = 0)]
     left: u32,
+}
+
+#[derive(Subcommand)]
+enum CameraCmd {
+    /// End the ownership; the next `camera` command of any client wins.
+    Release {
+        /// The output, for example `HDMI-A-1`.
+        output: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -310,7 +325,8 @@ fn run(args: Args) -> Result<(), String> {
         | Cmd::Grant { .. }
         | Cmd::Revoke { .. }
         | Cmd::Grants
-        | Cmd::Clients { .. }) => session(&mut client, command),
+        | Cmd::Clients { .. }
+        | Cmd::Camera { .. }) => session(&mut client, command),
         Cmd::Call {
             client: callee,
             method,
@@ -343,7 +359,7 @@ fn run(args: Args) -> Result<(), String> {
 fn connect(command: &Cmd, hello: &Hello) -> Result<Client, String> {
     let admin = matches!(
         command,
-        Cmd::Grant { .. } | Cmd::Revoke { .. } | Cmd::Clients { .. }
+        Cmd::Grant { .. } | Cmd::Revoke { .. } | Cmd::Clients { .. } | Cmd::Camera { .. }
     );
     if !admin {
         return Client::from_env(hello).map_err(|e| e.to_string());
@@ -375,6 +391,13 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
         Cmd::Clients {
             action: ClientsCmd::Up { file },
         } => clients_up(client, file.as_deref()),
+        Cmd::Camera {
+            action: CameraCmd::Release { output },
+        } => show(
+            client,
+            "camera.release",
+            serde_json::json!({"output": output}),
+        ),
         Cmd::Spawn { capture, argv } => spawn(client, argv, capture),
         Cmd::Restart { client: name } => show(client, "plugins.restart", Restart { name }),
         Cmd::ConfigureOutput {

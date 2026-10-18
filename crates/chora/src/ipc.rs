@@ -728,6 +728,7 @@ impl State {
                 self.ipc_headless_output(conn, &request.method, params)
             }
             "clients.list" => Ok(self.clients()),
+            "camera.release" => self.ipc_admin(conn, &request.method, params),
             "grants.set" | "grants.revoke" | "grants.list" | "clients.create" => {
                 self.ipc_admin(conn, &request.method, params)
             }
@@ -757,6 +758,19 @@ impl State {
         }
         if method == "clients.create" {
             return params_of(params).and_then(|c| self.ipc_client_socket(&c));
+        }
+        if method == "camera.release" {
+            let output = params
+                .get("output")
+                .and_then(Value::as_str)
+                .ok_or_else(|| rejected("camera.release wants {\"output\": NAME}"))?;
+            return match self.scene.release_camera(output) {
+                Some(owner) => {
+                    tracing::warn!(output, %owner, "the admin released the camera");
+                    Ok(serde_json::json!({"output": output, "was": owner}))
+                }
+                None => Err(rejected(format!("no client owns the camera of {output:?}"))),
+            };
         }
         self.ipc_grants(method, params)
     }
@@ -1717,6 +1731,40 @@ mod tests {
         assert!(message.contains("64 client sockets"), "{message}");
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A camera owner that never comes back does not hold the view.
+    #[test]
+    fn the_admin_releases_the_camera_of_a_gone_owner() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut admin = core.admin();
+        let mut holder = core.connect();
+        holder.ok(&mut core, "hello", json!({"name": "holder"}));
+        holder.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"camera": {"output": "out", "transform": {"scale": 2}}}]}),
+        );
+        let mut other = core.connect();
+        other.ok(&mut core, "hello", json!({"name": "other"}));
+        let (_, message) = other.fails(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"camera": {"output": "out", "transform": {"scale": 1}}}]}),
+        );
+        assert!(message.contains("belongs to \"holder\""), "{message}");
+        let (_, message) = other.fails(&mut core, "camera.release", json!({"output": "out"}));
+        assert!(message.contains("only on the admin socket"), "{message}");
+        let answer = admin.ok(&mut core, "camera.release", json!({"output": "out"}));
+        assert_eq!(answer["was"], "holder");
+        other.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"camera": {"output": "out", "transform": {"scale": 1}}}]}),
+        );
+        let answer = admin.ok(&mut core, "camera.release", json!({"output": "out"}));
+        assert_eq!(answer["was"], "other");
     }
 
     #[test]

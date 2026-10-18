@@ -502,6 +502,16 @@ impl Scene {
         Ok(())
     }
 
+    /// Takes the camera of an output away from its owner, so that the
+    /// view goes back to its default. For the operator of the admin
+    /// socket, when an owner is gone and does not come back.
+    #[must_use]
+    pub fn release_camera(&mut self, output: &str) -> Option<String> {
+        let (owner, _) = self.cameras.remove(output)?;
+        self.camera_moves.remove(output);
+        Some(owner)
+    }
+
     fn create(&mut self, node: Node, parent: &str) -> Result<(), SceneError> {
         let id = node.id.clone();
         if is_surface_id(&id) {
