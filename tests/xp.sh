@@ -339,7 +339,7 @@ sleep 0.5
 kill "$events_job" 2>/dev/null
 token=${activated##* }
 test -n "$token" || fail "the probe found no token"
-jq -e --arg t "$token"
+jq -e --arg t "$token" \
     'select(.event == "surface.created" and .token == $t and .pid >= 1)' \
     "$out/created.jsonl" >/dev/null ||
     fail "no surface.created with the token and the pid: $out/created.jsonl"
