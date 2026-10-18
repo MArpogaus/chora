@@ -486,7 +486,8 @@ path:
 - It cannot change grants or make client sockets, as these need the
   admin socket.
 - Its `image`, `shader` and effect paths name only its own files of
-  `assets.put`.
+  `assets.put`. The main socket has no such rule: a client of it runs as
+  the same account as the core and could read those files anyway.
 - It holds at most 16 connections, and its Wayland socket at most 16
   clients. All client sockets together leave 32 connections to the main
   socket.
