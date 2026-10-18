@@ -13,6 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+pub(crate) use chora_scene::ipc::valid_name;
 use chora_scene::{
     Event,
     ipc::{Export, Message, MethodCall, MethodReturn, RpcError},
@@ -30,8 +31,6 @@ const TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_EXPORTS: usize = 64;
 /// How many calls of one connection can wait for their answers.
 const MAX_PENDING: usize = 64;
-/// The longest method name.
-const MAX_NAME: usize = 64;
 
 /// The exported methods and the calls that wait for their answers.
 #[derive(Default)]
@@ -60,16 +59,6 @@ impl Methods {
         let due = self.pending.iter().filter(|(_, p)| p.deadline <= now);
         due.map(|(number, _)| *number).collect()
     }
-}
-
-/// Whether a method name is valid: lowercase letters, digits, `_`, `-` and
-/// `.`, starting with a letter.
-pub(crate) fn valid_name(name: &str) -> bool {
-    name.len() <= MAX_NAME
-        && name.starts_with(|c: char| c.is_ascii_lowercase())
-        && name
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "_-.".contains(c))
 }
 
 impl State {
@@ -283,7 +272,7 @@ mod tests {
         assert!(!valid_name("2go"));
         assert!(!valid_name("a b"));
         assert!(!valid_name(""));
-        assert!(!valid_name(&"a".repeat(MAX_NAME + 1)));
+        assert!(!valid_name(&"a".repeat(chora_scene::ipc::MAX_NAME + 1)));
     }
 
     #[test]

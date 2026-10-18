@@ -127,18 +127,17 @@ fn is_path(name: &str) -> bool {
     name.contains('/') || yaml
 }
 
-/// Checks the name of a view or a plugin: letters, digits, `_`, `-` and
-/// `.`, not first, so that the name of a file stays in its directory.
+/// Checks the name of a view or a plugin by the rule of the core, the
+/// rule of client names: a view connects as `view-NAME`.
 pub fn check_name(name: &str) -> Result<(), String> {
-    let plain = name
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || "_-.".contains(c));
-    if name.is_empty() || name.starts_with('.') || !plain {
-        return Err(format!(
-            "invalid name {name:?}: use letters, digits, _, - and ., not first"
-        ));
+    if chora_scene::ipc::valid_name(name) {
+        Ok(())
+    } else {
+        Err(format!(
+            "invalid name {name:?}: lowercase letters, digits, _, - and ., from a letter, at most {} bytes",
+            chora_scene::ipc::MAX_NAME
+        ))
     }
-    Ok(())
 }
 
 /// Reads a YAML file strictly: unknown keys, duplicate keys, unknown tags
@@ -166,7 +165,8 @@ fn connect(view: &str) -> Result<Client, String> {
         keep_nodes: true,
         resume: false,
     };
-    Client::from_env(&hello).map_err(|e| e.to_string())
+    Client::from_env(&hello)
+        .map_err(|e| format!("the view {view:?} connects as {}: {e}", owner(view)))
 }
 
 /// Loads a view and returns what it did.
@@ -556,7 +556,9 @@ mod tests {
     #[test]
     fn names_stay_in_their_directory() {
         assert!(check_name("work-2.night").is_ok());
-        for bad in ["", "../x", ".hidden", "a/b", "/etc/x", "a b"] {
+        for bad in [
+            "", "../x", ".hidden", "a/b", "/etc/x", "a b", "Work", "9lives",
+        ] {
             assert!(check_name(bad).is_err(), "{bad:?}");
         }
         assert!(

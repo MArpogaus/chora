@@ -313,7 +313,7 @@ answers every request.
 
 | Method | Purpose |
 |--------|---------|
-| `hello(name, keep_nodes, resume)` | name the client; `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); returns `{"version": ...}` |
+| `hello(name, keep_nodes, resume)` | name the client (lowercase letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes); `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); returns `{"version": ...}` |
 | `scene.query(selector)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name |
@@ -501,7 +501,8 @@ path:
 - `clients.create` fails for a name with a connection or in its grace
   time, and beyond 64 client sockets.
 - The name has lowercase letters, digits, `_`, `-` and `.`, and starts
-  with a letter. Its socket path must fit a Unix socket. A second
+  with a letter, at most 64 bytes; `hello` and `clients.create` refuse
+everything else. Its socket path must fit a Unix socket. A second
   `clients.create` of a name fails.
 - The emergency reset removes the client sockets, and so does the exit of
   chora.

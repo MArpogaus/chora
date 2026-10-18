@@ -19,6 +19,22 @@ use crate::{Command, Event};
 /// The environment variable with the path of the IPC socket.
 pub const SOCKET_ENV: &str = "CHORA_SOCKET";
 
+/// The longest name: a method name or a client name.
+pub const MAX_NAME: usize = 64;
+
+/// Whether a method name or a client name is valid: lowercase letters,
+/// digits, `_`, `-` and `.`, starting with a letter, at most 64 bytes.
+/// The core refuses names like this in `hello`, `clients.create`, method
+/// exports and asset names; clients check before connecting.
+#[must_use]
+pub fn valid_name(name: &str) -> bool {
+    name.len() <= MAX_NAME
+        && name.starts_with(|c: char| c.is_ascii_lowercase())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "_-.".contains(c))
+}
+
 /// The admin socket next to an IPC socket, for example
 /// `wayland-1.admin.sock` next to `wayland-1.sock` (D40). Only `choractl`
 /// uses it, for grants and client sockets.
