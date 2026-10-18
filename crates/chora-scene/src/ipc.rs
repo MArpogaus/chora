@@ -111,9 +111,7 @@ impl RpcError {
         self.data = Some(data);
         self
     }
-}
 
-impl RpcError {
     /// Whether the core rejected a transaction because a surface node is
     /// gone. A missing node of the client itself is no such case.
     #[must_use]

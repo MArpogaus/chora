@@ -215,7 +215,7 @@ impl State {
     /// transaction go on.
     pub fn decoded(&mut self, decoded: Decoded) {
         let ticket = decoded.ticket;
-        if ticket == u64::MAX {
+        if ticket == crate::images::RELOAD_TICKET {
             // A file that a node already shows, loaded again after
             // `assets.put` replaced it. The next frame draws the new
             // bytes; a failure keeps the old image.

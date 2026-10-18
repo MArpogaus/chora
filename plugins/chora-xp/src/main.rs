@@ -40,11 +40,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::icons::Icons;
+use chora_kit::{conn::Conn, icons::Icons};
 use chora_scene::{Event, ipc::ClientError};
 use clap::Parser;
-
-use chora_kit::conn::Conn;
 
 use crate::{startmenu::Menu, theme::Theme, wm::Wm};
 

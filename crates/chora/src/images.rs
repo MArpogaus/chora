@@ -39,6 +39,9 @@ use smithay::{
 const MAX_SIDE: u32 = 8192;
 /// The largest image file.
 const MAX_FILE: u64 = 32 << 20;
+/// The ticket of a background reload: no transaction waits for it.
+pub(crate) const RELOAD_TICKET: u64 = u64::MAX;
+
 /// The most images in the cache at once.
 const MAX_IMAGES: usize = 1024;
 /// The most bytes of decoded pixels of all images.
@@ -207,7 +210,6 @@ impl Images {
         if !self.cache.contains_key(path) {
             return;
         }
-        let reloaded = u64::MAX;
         let Ok((file, meta)) = open_file(path, MAX_FILE) else {
             return;
         };
@@ -216,7 +218,7 @@ impl Images {
             return;
         }
         let job = Job {
-            ticket: reloaded,
+            ticket: RELOAD_TICKET,
             path: path.to_owned(),
             file,
             modified,
