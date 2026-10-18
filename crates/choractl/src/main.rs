@@ -538,9 +538,18 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
         }
         Some(f) => std::fs::read_to_string(f)?,
         None => {
-            let path = std::env::var("HOME")
-                .map(|h| format!("{h}/.config/chora/clients.yaml"))
-                .map_err(|_| bad("HOME is unset; give the file as argument".into()))?;
+            let mut paths = Vec::new();
+            if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
+                paths.push(format!("{xdg}/chora/clients.yaml"));
+            }
+            if let Ok(home) = std::env::var("HOME") {
+                paths.push(format!("{home}/.config/chora/clients.yaml"));
+            }
+            let path = paths
+                .iter()
+                .find(|p| std::path::Path::new(p).exists())
+                .cloned()
+                .ok_or_else(|| bad("no clients.yaml; give the file as argument".into()))?;
             std::fs::read_to_string(&path).map_err(|e| bad(format!("{path}: {e}")))?
         }
     };
@@ -548,7 +557,24 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
         view::parse_yaml(&text).map_err(bad)?;
     for (name, spec) in wanted {
         view::check_name(&name).map_err(bad)?;
-        client.call::<_, Value>("clients.create", serde_json::json!({"name": &name}))?;
+        match client.call::<_, Value>("clients.create", serde_json::json!({"name": &name})) {
+            Ok(_) => {}
+            Err(ClientError::Rpc(e)) if e.message.contains("has a client socket already") => {}
+            Err(e) => return Err(e),
+        }
+        // The file is the declared state: what is not in it goes away.
+        let grants = client.call::<_, Value>("grants.list", Value::Null)?;
+        let stale: Vec<Value> = grants
+            .get(&name)
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        if !stale.is_empty() {
+            client.call::<_, Value>(
+                "grants.revoke",
+                serde_json::json!({"client": &name, "capabilities": stale}),
+            )?;
+        }
         if !spec.grants.is_empty() {
             let change = GrantChange {
                 client: name.clone(),
