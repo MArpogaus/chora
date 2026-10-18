@@ -709,12 +709,9 @@ impl State {
                 self.submit_transaction(conn, id, owner, apply.commands);
                 return None;
             }
-            "events.subscribe" => params_of::<Subscribe>(params).map(|s| {
-                if let Some(c) = self.ipc.conns.get_mut(&conn) {
-                    c.events = Some(s.events);
-                }
-                Value::Null
-            }),
+            "events.subscribe" => {
+                params_of::<Subscribe>(params).and_then(|s| self.ipc_subscribe(conn, s))
+            }
             "input.grab" => params_of::<Grab>(params).and_then(|g| self.ipc_grab(conn, g.binding)),
             "input.ungrab" => {
                 params_of::<Grab>(params).and_then(|g| self.ipc_ungrab(conn, &g.binding))
@@ -746,6 +743,22 @@ impl State {
                 format!("no method {other:?}"),
             )),
         })
+    }
+
+    /// Streams the named events, or all of them for an empty list. An
+    /// unknown name is a mistake that answers, not silence.
+    fn ipc_subscribe(&mut self, conn: u64, subscription: Subscribe) -> Result<Value, RpcError> {
+        if let Some(unknown) = subscription
+            .events
+            .iter()
+            .find(|n| !chora_scene::EVENT_NAMES.contains(&n.as_str()))
+        {
+            return Err(rejected(format!("there is no event {unknown:?}")));
+        }
+        if let Some(c) = self.ipc.conns.get_mut(&conn) {
+            c.events = Some(subscription.events);
+        }
+        Ok(Value::Null)
     }
 
     /// The methods of grants and client sockets. Only the admin socket of
@@ -1165,6 +1178,25 @@ mod tests {
         assert_eq!(watcher.event_names(&mut core), Vec::<String>::new());
         drop(second);
         assert_eq!(watcher.event_names(&mut core), ["client.disconnected"]);
+    }
+
+    /// A typo in a name is an answer, not silence until the end of time.
+    #[test]
+    fn subscribe_wants_known_event_names() {
+        let mut core = Core::new();
+        let mut client = core.named("client");
+        client.ok(&mut core, "events.subscribe", json!({"events": []}));
+        client.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["surface.created", "output.changed"]}),
+        );
+        let (_, message) = client.fails(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["surface.created", "surfae.created"]}),
+        );
+        assert!(message.contains("no event \"surfae.created\""), "{message}");
     }
 
     #[test]

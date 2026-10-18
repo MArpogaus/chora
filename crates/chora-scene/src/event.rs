@@ -375,3 +375,51 @@ impl OutputInfo {
         }
     }
 }
+
+/// Every event name, as the `event` field of a notification and as the
+/// argument of `events.subscribe`.
+pub const NAMES: &[&str] = &[
+    "surface.created",
+    "surface.changed",
+    "surface.destroyed",
+    "surface.detached",
+    "focus.changed",
+    "surface.requested",
+    "input.key",
+    "input.button",
+    "input.moved",
+    "node.key",
+    "pointer.pressed",
+    "pointer.entered",
+    "pointer.left",
+    "pointer.moved",
+    "pointer.released",
+    "pointer.scroll",
+    "effects.dropped",
+    "layers.dropped",
+    "effect.failed",
+    "animation.done",
+    "output.changed",
+    "output.removed",
+    "client.connected",
+    "client.disconnected",
+    "method.called",
+];
+
+#[cfg(test)]
+mod tests {
+    use super::NAMES;
+
+    /// `NAMES` lists the rename of every event variant and nothing else.
+    #[test]
+    fn names_lists_every_event() {
+        let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/event.rs"))
+            .expect("the source of the events");
+        let found: Vec<&str> = source
+            .lines()
+            .filter_map(|l| l.strip_prefix("    #[serde(rename = \""))
+            .filter_map(|l| l.strip_suffix("\")]"))
+            .collect();
+        assert_eq!(found, NAMES);
+    }
+}
