@@ -74,6 +74,7 @@ impl State {
         );
         let owner = name.clone();
         let count = Arc::new(AtomicU32::new(0));
+        let wayland_count = count.clone();
         let wayland = self.loop_handle.insert_source(
             Generic::new(wayland, Interest::READ, Mode::Level),
             move |_, listener, state| {
@@ -94,6 +95,7 @@ impl State {
             ClientSocket {
                 ipc,
                 wayland,
+                wayland_count,
                 dir: dir.clone(),
                 clients: Vec::new(),
             },
@@ -236,6 +238,10 @@ const WAYLAND: &str = "wayland.sock";
 pub(super) struct ClientSocket {
     pub ipc: RegistrationToken,
     wayland: RegistrationToken,
+    /// The Wayland clients connected right now; the accept loop owns the
+    /// other half of the counter.
+    #[allow(dead_code)] // the cap test reads it through the state
+    pub wayland_count: Arc<std::sync::atomic::AtomicU32>,
     dir: PathBuf,
     /// The Wayland clients that connected through it.
     pub clients: Vec<ClientId>,

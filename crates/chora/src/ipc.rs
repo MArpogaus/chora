@@ -1440,18 +1440,27 @@ mod tests {
         };
         assert!(refused(&mut core));
         clients.pop();
-        // The gone client frees its place when the core has finalized
-        // it, which takes more than one turn under load.
+        // The core itself says when the place is free.
+        let held = |core: &Core| {
+            usize::try_from(
+                core.state.ipc.clients["agent"]
+                    .wayland_count
+                    .load(std::sync::atomic::Ordering::Relaxed),
+            )
+            .unwrap()
+        };
         let mut freed = false;
         for _ in 0..50 {
             core.dispatch();
-            if !refused(&mut core) {
+            if held(&core) == clients::MAX_PER_SOCKET - 1 {
                 freed = true;
                 break;
             }
             std::thread::sleep(std::time::Duration::from_millis(2));
         }
         assert!(freed, "a gone client frees its place");
+        let _place = Wayland::connect_to(&mut core, &path);
+        assert!(refused(&mut core), "the 16 places are full again");
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
     }
