@@ -768,6 +768,11 @@ impl State {
         if self.ipc.name(conn).is_some() {
             return Err(rejected("hello was sent already"));
         }
+        if !crate::methods::valid_name(&hello.name) {
+            return Err(rejected(
+                "a client name has lowercase letters, digits, _, - and ., from a letter",
+            ));
+        }
         // A client socket fixes the name (D33).
         match self.ipc.fixed(conn) {
             Some(fixed) if fixed != hello.name => {
@@ -1027,6 +1032,18 @@ mod tests {
             .collect();
         ids.sort();
         ids
+    }
+
+    /// The main socket takes the same names as the sockets of clients.
+    #[test]
+    fn hello_wants_a_name_of_letters_digits_and_dashes() {
+        let mut core = Core::new();
+        let mut client = core.connect();
+        for name in ["", "Bad Name", "../x", "a b", "Ünicode"] {
+            let (_, message) = client.fails(&mut core, "hello", json!({"name": name}));
+            assert!(message.contains("lowercase letters"), "{name:?}: {message}");
+        }
+        client.ok(&mut core, "hello", json!({"name": "atk"}));
     }
 
     #[test]
