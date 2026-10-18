@@ -99,14 +99,13 @@ def main():
             snake.pop()
         cmds = place()
         if grew:
-            food.remove((hx, hy))
+            # The eaten node moves to the new place instead of a new id:
+            # the ids stay f0..fN and the stress mode is an update storm.
+            idx = food.index((hx, hy))
             fx, fy = (hx + 7) % (COLS - 1) + 1, (hy + 5) % (ROWS - 1) + 1
-            food.append((fx, fy))
-            cmds.append({"create": {"id": f"f{len(food)}", "kind": "rect",
-                                    "parent": "sn-root", "props": {
-                                        "size": [CELL - 2, CELL - 2], "radius": CELL // 2,
-                                        "color": [0.95, 0.7, 0.2, 1],
-                                        "transform": {"translate": [fx * CELL, fy * CELL]}}}})
+            food[idx] = (fx, fy)
+            cmds.append({"update": {"id": f"f{idx}", "props": {
+                "transform": {"translate": [fx * CELL, fy * CELL]}}}})
         done = time.monotonic()
         c.apply(cmds)
         ticks += 1
