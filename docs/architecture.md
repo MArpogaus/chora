@@ -330,7 +330,12 @@ The safety layer is the only built-in behavior (see
 
 ## Permissions
 
-chora trusts every client of the same user. Milestone 0.7 replaces the
+chora trusts every client of the same user. One gap comes with the Rust
+Wayland backend: a message whose size is not a multiple of four leaves
+that connection deaf instead of answered with a protocol error, and the
+core has no frame of its own to reject. Correct clients send no such
+message and the caps of 16 connections per process and 128 in total
+bound the harm. Milestone 0.7 replaces the
 grants with client sockets that fix the name and the capabilities of a
 client (D33, D40). Three steps are in: a client socket fixes the name of
 its clients, and a Wayland socket next to it offers the privileged
