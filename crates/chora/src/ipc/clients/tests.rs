@@ -124,7 +124,12 @@ impl Raw {
         (w, h, stride): (u32, u32, u32),
         byte: u8,
     ) -> (WlBuffer, std::fs::File) {
-        let path = std::env::temp_dir().join(format!("chora-shm-{tag}-{}", std::process::id()));
+        static SHM_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "chora-shm-{tag}-{}-{}",
+            std::process::id(),
+            SHM_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+        ));
         let mut shm_file = std::fs::OpenOptions::new()
             .read(true)
             .write(true)
