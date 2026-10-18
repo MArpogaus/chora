@@ -964,6 +964,14 @@ impl State {
             .iter_mut()
             .filter_map(|(id, conn)| {
                 let broken = !conn.flush();
+                if broken && conn.overflow {
+                    tracing::warn!(
+                        id,
+                        name = ?conn.name,
+                        "the output passed {} MiB; the connection closes",
+                        MAX_OUTPUT >> 20,
+                    );
+                }
                 let answered = conn.reader.is_none()
                     && conn.output.is_empty()
                     && !transactions.waits_for(*id)
