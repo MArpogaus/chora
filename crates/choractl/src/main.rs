@@ -562,27 +562,46 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
             Err(ClientError::Rpc(e)) if e.message.contains("has a client socket already") => {}
             Err(e) => return Err(e),
         }
-        // The file is the declared state: what is not in it goes away.
-        let grants = client.call::<_, Value>("grants.list", Value::Null)?;
-        let stale: Vec<Value> = grants
-            .get(&name)
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        if !stale.is_empty() {
-            client.call::<_, Value>(
-                "grants.revoke",
-                serde_json::json!({"client": &name, "capabilities": stale}),
-            )?;
-        }
-        if !spec.grants.is_empty() {
-            let change = GrantChange {
-                client: name.clone(),
-                capabilities: spec.grants,
-            };
-            client.call::<_, Value>("grants.set", change)?;
-        }
+        sync_grants(client, &name, spec.grants)?;
         println!("{name}");
+    }
+    Ok(())
+}
+
+/// Makes the grants of a name equal to the listed ones, part by part:
+/// an unchanged grant stays, so no client is disconnected and no moment
+/// passes without it.
+fn sync_grants(
+    client: &mut Client,
+    name: &str,
+    listed: Vec<Capability>,
+) -> Result<(), ClientError> {
+    let grants = client.call::<_, Value>("grants.list", Value::Null)?;
+    let current: std::collections::BTreeSet<Capability> = grants
+        .get(name)
+        .cloned()
+        .map(|v| serde_json::from_value(v).map_err(ClientError::Json))
+        .transpose()?
+        .unwrap_or_default();
+    let wanted = listed
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+    let gone: Vec<Capability> = current.difference(&wanted).copied().collect();
+    if !gone.is_empty() {
+        client.call::<_, Value>(
+            "grants.revoke",
+            serde_json::json!({"client": name, "capabilities": gone}),
+        )?;
+    }
+    let added: Vec<Capability> = wanted.difference(&current).copied().collect();
+    if !added.is_empty() {
+        client.call::<_, Value>(
+            "grants.set",
+            GrantChange {
+                client: name.into(),
+                capabilities: added,
+            },
+        )?;
     }
     Ok(())
 }
