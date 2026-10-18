@@ -127,10 +127,12 @@ fn is_path(name: &str) -> bool {
     name.contains('/') || yaml
 }
 
-/// Checks the name of a view or a plugin by the rule of the core, the
-/// rule of client names: a view connects as `view-NAME`.
+/// Checks the name of a view or a plugin by the rule of the core. The
+/// check carries the `view-` prefix of a view, so a plugin name stays a
+/// few bytes below the limit of `hello`.
 pub fn check_name(name: &str) -> Result<(), String> {
-    if chora_scene::ipc::valid_name(name) {
+    let client = format!("view-{name}");
+    if chora_scene::ipc::valid_name(name) && chora_scene::ipc::valid_name(&client) {
         Ok(())
     } else {
         Err(format!(
@@ -561,6 +563,11 @@ mod tests {
         ] {
             assert!(check_name(bad).is_err(), "{bad:?}");
         }
+        assert!(check_name(&"v".repeat(59)).is_ok());
+        assert!(
+            check_name(&"v".repeat(60)).is_err(),
+            "the prefix of the view counts into the 64"
+        );
         assert!(
             find("views", "../../etc/passwd").is_ok(),
             "a path stays a path"

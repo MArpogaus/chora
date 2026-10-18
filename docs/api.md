@@ -503,7 +503,7 @@ path:
   time, and beyond 64 client sockets.
 - The name has lowercase letters, digits, `_`, `-` and `.`, and starts
   with a letter, at most 64 bytes; `hello` and `clients.create` refuse
-everything else. Its socket path must fit a Unix socket. A second
+  everything else. Its socket path must fit a Unix socket. A second
   `clients.create` of a name fails.
 - The emergency reset removes the client sockets, and so does the exit of
   chora.
