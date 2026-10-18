@@ -334,14 +334,15 @@ grim "$out/escape-no.png"
 "$bin/choractl" events surface.created >"$out/created.jsonl" 2>/dev/null &
 events_job=$!
 sleep 0.5
-activated=$(timeout 20 "$bin/chora-probe" activated)
+activated=$(WAYLAND_DISPLAY=$inner timeout 20 "$bin/chora-probe" activated)
 sleep 0.5
 kill "$events_job" 2>/dev/null
 token=${activated##* }
 test -n "$token" || fail "the probe found no token"
-grep -q "\"token\":\"$token\"" "$out/created.jsonl" ||
-    fail "the token did not reach surface.created: $out/created.jsonl"
-grep -q '"pid":[1-9]' "$out/created.jsonl" || fail "surface.created has no pid"
+jq -e --arg t "$token"
+    'select(.event == "surface.created" and .token == $t and .pid >= 1)' \
+    "$out/created.jsonl" >/dev/null ||
+    fail "no surface.created with the token and the pid: $out/created.jsonl"
 
 kill -0 "$chora_pid" || fail "chora died"
 pgrep -x chora-xp >/dev/null || fail "chora-xp died: $out/chora.log"
