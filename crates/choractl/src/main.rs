@@ -559,7 +559,12 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
         view::check_name(&name).map_err(bad)?;
         match client.call::<_, Value>("clients.create", serde_json::json!({"name": &name})) {
             Ok(_) => {}
-            Err(ClientError::Rpc(e)) if e.message.contains("has a client socket already") => {}
+            Err(ClientError::Rpc(e))
+                if e.data
+                    .as_ref()
+                    .and_then(|d| d.get("reason"))
+                    .and_then(Value::as_str)
+                    == Some("socket_exists") => {}
             Err(e) => return Err(e),
         }
         sync_grants(client, &name, spec.grants)?;
@@ -586,14 +591,13 @@ fn sync_grants(
     let wanted = listed
         .into_iter()
         .collect::<std::collections::BTreeSet<_>>();
-    let gone: Vec<Capability> = current.difference(&wanted).copied().collect();
+    let (gone, added) = grant_delta(&current, &wanted);
     if !gone.is_empty() {
         client.call::<_, Value>(
             "grants.revoke",
             serde_json::json!({"client": name, "capabilities": gone}),
         )?;
     }
-    let added: Vec<Capability> = wanted.difference(&current).copied().collect();
     if !added.is_empty() {
         client.call::<_, Value>(
             "grants.set",
@@ -604,6 +608,18 @@ fn sync_grants(
         )?;
     }
     Ok(())
+}
+
+/// The grants to revoke and the grants to set so that `current` becomes
+/// `wanted`; an unchanged grant appears in neither list.
+fn grant_delta(
+    current: &std::collections::BTreeSet<Capability>,
+    wanted: &std::collections::BTreeSet<Capability>,
+) -> (Vec<Capability>, Vec<Capability>) {
+    (
+        current.difference(wanted).copied().collect(),
+        wanted.difference(current).copied().collect(),
+    )
 }
 
 /// Calls a method of a plugin and prints the result.
@@ -684,7 +700,21 @@ fn print(value: &Value) {
 mod tests {
     use clap::Parser;
 
-    use super::{Args, AssetCmd, ClientSpec, Cmd};
+    use super::{Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta};
+
+    /// An unchanged grant is revoked by no one and set by no one.
+    #[test]
+    fn the_grant_delta_of_an_unchanged_file_is_empty() {
+        let have = [Capability::InputInject, Capability::ScreenCapture]
+            .into_iter()
+            .collect();
+        let (gone, added) = grant_delta(&have, &have);
+        assert!(gone.is_empty() && added.is_empty());
+        let wanted = [Capability::ScreenCapture].into_iter().collect();
+        let (gone, added) = grant_delta(&have, &wanted);
+        assert_eq!(gone, [Capability::InputInject]);
+        assert!(added.is_empty() && wanted.len() == 1);
+    }
 
     /// The clients file of `clients up` maps names to their grants.
     #[test]

@@ -168,7 +168,8 @@ impl State {
             )));
         }
         if self.ipc.clients.contains_key(name) {
-            return Err(rejected(format!("{name:?} has a client socket already")));
+            return Err(rejected(format!("{name:?} has a client socket already"))
+                .with_data(serde_json::json!({"reason": "socket_exists"})));
         }
         // A live connection of the name would share the nodes and grants.
         if self.ipc.live(name) {
