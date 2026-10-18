@@ -11,7 +11,9 @@
 # When the IPC socket is up, it prints lines KEY=VALUE for the clients:
 # XDG_RUNTIME_DIR, WAYLAND_DISPLAY (an absolute path) and CHORA_SOCKET.
 # Then it waits until the core ends or until a signal; either way it
-# stops the core with its children and removes the temp dir.
+# stops the core with its children and removes the temp dir. An end of
+# the core is the exit status of the script, with the last log lines on
+# stderr; a signal of the script itself answers 130 or 143.
 #
 # Environment:
 #   CHORA_BIN  the directory with chora (default: target/debug of the repo)
@@ -79,4 +81,10 @@ echo "XDG_RUNTIME_DIR=$runtime"
 echo "WAYLAND_DISPLAY=$runtime/$(basename "$socket" .sock)"
 echo "CHORA_SOCKET=$socket"
 # wait returns at once on a signal, so that the traps run.
-wait "$pid" || true
+rc=0
+wait "$pid" || rc=$?
+if ((rc != 0)); then
+    echo "the core ended with $rc; last lines of the log:" >&2
+    tail -n 20 "$log" >&2 || true
+fi
+exit "$rc"
