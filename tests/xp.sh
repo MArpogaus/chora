@@ -329,6 +329,20 @@ wait_for answered
 test -f "$HOME/Desktop/x.txt" || fail "Escape answered Yes"
 grim "$out/escape-no.png"
 
+# A token given before the first map reaches plugins through
+# surface.created.
+"$bin/choractl" events surface.created >"$out/created.jsonl" 2>/dev/null &
+events_job=$!
+sleep 0.5
+activated=$(timeout 20 "$bin/chora-probe" activated)
+sleep 0.5
+kill "$events_job" 2>/dev/null
+token=${activated##* }
+test -n "$token" || fail "the probe found no token"
+grep -q "\"token\":\"$token\"" "$out/created.jsonl" ||
+    fail "the token did not reach surface.created: $out/created.jsonl"
+grep -q '"pid":[1-9]' "$out/created.jsonl" || fail "surface.created has no pid"
+
 kill -0 "$chora_pid" || fail "chora died"
 pgrep -x chora-xp >/dev/null || fail "chora-xp died: $out/chora.log"
 

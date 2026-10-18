@@ -255,8 +255,6 @@ impl XdgActivationHandler for State {
         if !self.token_use_allowed(&token_data) {
             return;
         }
-        self.pending_activations
-            .push((surface.clone(), token.as_str().to_owned()));
         let toplevel = self
             .windows
             .values()
@@ -265,7 +263,12 @@ impl XdgActivationHandler for State {
             .cloned();
         if let Some(toplevel) = toplevel {
             self.request(&toplevel, SurfaceRequest::Activate);
+            return;
         }
+        // The token belongs to the first map of the surface.
+        self.pending_activations.retain(|(s, _)| *s != surface);
+        self.pending_activations
+            .push((surface.clone(), token.as_str().to_owned()));
     }
 }
 

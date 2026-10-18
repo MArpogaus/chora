@@ -26,7 +26,8 @@ pub enum Event {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         to: Option<String>,
         /// The process that made the surface, as the socket reports it; a
-        /// client can spoof this, so it is a hint, not a check.
+        /// pid namespace can hide it and a pid can be reused, so it is a
+        /// hint, not a check.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pid: Option<u32>,
         /// The activation token that mapped the surface, when one did.
