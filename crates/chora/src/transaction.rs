@@ -403,7 +403,7 @@ fn transaction_error(error: &TransactionError) -> RpcError {
     } else {
         RpcError::REJECTED
     };
-    RpcError::new(code, error.to_string())
+    RpcError::new(code, error.to_string()).with_data(serde_json::json!({"command": error.index}))
 }
 
 #[cfg(test)]
@@ -412,6 +412,23 @@ mod tests {
 
     use super::*;
     use crate::testing::{Client, Core, rect};
+
+    /// A rejected transaction names the failed command in `data` too.
+    #[test]
+    fn a_rejected_transaction_names_the_command_in_data() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let one = rect("a")["commands"][0].clone();
+        let error = wm
+            .call(
+                &mut core,
+                "scene.apply",
+                json!({"commands": [one.clone(), one]}),
+            )
+            .expect_err("the id exists the second time");
+        assert_eq!(error["code"], RpcError::REJECTED);
+        assert_eq!(error["data"]["command"], 1);
+    }
 
     /// A transaction of a connection that waits for the configures of
     /// surfaces.

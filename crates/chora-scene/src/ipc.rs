@@ -78,6 +78,10 @@ pub struct RpcError {
     pub code: i64,
     /// A readable description.
     pub message: String,
+    /// What failed, machine readable: for a rejected transaction, the
+    /// command as `{"command": INDEX}`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data: Option<Value>,
 }
 
 impl RpcError {
@@ -91,14 +95,25 @@ impl RpcError {
     /// window that closed in the meantime.
     pub const GONE_SURFACE: i64 = 2;
 
-    /// An error with a code and a message.
+    /// An error with a code and a message and no `data`.
+    #[must_use]
     pub fn new(code: i64, message: impl Into<String>) -> Self {
         Self {
+            data: None,
             code,
             message: message.into(),
         }
     }
 
+    /// Adds the machine readable part.
+    #[must_use]
+    pub fn with_data(mut self, data: Value) -> Self {
+        self.data = Some(data);
+        self
+    }
+}
+
+impl RpcError {
     /// Whether the core rejected a transaction because a surface node is
     /// gone. A missing node of the client itself is no such case.
     #[must_use]

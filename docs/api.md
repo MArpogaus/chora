@@ -337,10 +337,13 @@ answers every request.
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
-An error has a `code` and a `message`: the JSON-RPC codes for a method or
-parameters that do not exist, 1 for a request that breaks a rule, and 2
-for a transaction that names a surface node that is gone, for example of a
-window that closed in the meantime. A plugin can ignore code 2.
+An error has a `code`, a `message` and, where it helps, a machine
+readable `data`: the JSON-RPC codes for a method or parameters that do
+not exist, 1 for a request that breaks a rule, and 2 for a transaction
+that names a surface node that is gone, for example of a window that
+closed in the meantime. A plugin can ignore code 2. A rejected
+transaction carries `{"command": INDEX}` in `data`, the position of the
+failed command in the transaction.
 
 A request is one line of at most 1 MiB (`MAX_LINE`). The core reads a
 longer line to its end, answers it with code 1 and the id `null`, and
