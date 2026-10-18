@@ -1,5 +1,5 @@
 """Minimal JSON-RPC client for the chora IPC socket (see docs/api.md)."""
-import base64, json, os, queue, socket, threading, time
+import base64, json, os, queue, socket, subprocess, threading, time
 
 
 class Chora:
@@ -12,7 +12,14 @@ class Chora:
         self.result = {}
         self.reader = threading.Thread(target=self._read, daemon=True)
         self.reader.start()
+        self.name = name
         self.call("hello", {"name": name, **hello})
+        # `screen.capture` wants a grant for the name; with CHORACTL set
+        # to the admin binary, the demos hand themselves one.
+        ctl = os.environ.get("CHORACTL")
+        if ctl:
+            subprocess.run([ctl, "grant", name, "screen.capture"],
+                           capture_output=True)
 
     def _read(self):
         for line in self.file:
@@ -22,7 +29,7 @@ class Chora:
             elif "params" in msg and "event" in msg["params"]:
                 self.events.put(msg["params"])
 
-    def call(self, method, params, timeout=30):
+    def call(self, method, params=None, timeout=30):
         self.id += 1
         rid = self.id
         self.result[rid] = None
