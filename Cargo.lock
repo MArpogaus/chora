@@ -450,6 +450,7 @@ dependencies = [
  "base64",
  "calloop",
  "chora-scene",
+ "libc",
  "png",
  "serde",
  "serde_json",

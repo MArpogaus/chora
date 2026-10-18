@@ -90,6 +90,10 @@ impl Images {
         let worker = std::thread::Builder::new()
             .name("chora-images".into())
             .spawn(move || {
+                // This thread starts before the loop owns SIGUSR1, so it
+                // blocks the signal here: the kernel wakes one thread that
+                // does not, and the default action ends the core.
+                block_usr1();
                 for job in todo {
                     // The copy into the buffer runs here too: for a large
                     // image it takes a while.
@@ -502,6 +506,22 @@ where
     }
 }
 
+/// Blocks SIGUSR1 for the calling thread, so that the emergency reset
+/// reaches the signal source of the loop and not this thread.
+#[allow(unsafe_code)] // a pthread call, nothing else
+fn block_usr1() {
+    unsafe {
+        let mut set: libc::sigset_t = std::mem::zeroed();
+        libc::sigemptyset(std::ptr::addr_of_mut!(set));
+        libc::sigaddset(std::ptr::addr_of_mut!(set), libc::SIGUSR1);
+        libc::pthread_sigmask(
+            libc::SIG_BLOCK,
+            std::ptr::addr_of!(set),
+            std::ptr::null_mut(),
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -556,5 +576,25 @@ mod tests {
             [128, 64, 0, 128]
         );
         assert_eq!(rgba(png::ColorType::Grayscale, &[7]), [7, 7, 7, 255]);
+    }
+
+    /// A thread of the compositor blocks the emergency signal, whatever
+    /// starts it before the loop does.
+    #[test]
+    fn a_worker_thread_blocks_the_emergency_signal() {
+        std::thread::Builder::new()
+            .spawn(|| {
+                block_usr1();
+                #[allow(unsafe_code)] // a read-only syscall
+                let tid = unsafe { libc::gettid() };
+                let status =
+                    std::fs::read_to_string(format!("/proc/self/task/{tid}/status")).unwrap();
+                let line = status.lines().find(|l| l.starts_with("SigBlk")).unwrap();
+                let mask = u64::from_str_radix(line.split(':').nth(1).unwrap().trim(), 16).unwrap();
+                assert_ne!(mask & (1 << 9), 0, "SIGUSR1 stays blocked: {line}");
+            })
+            .unwrap()
+            .join()
+            .unwrap();
     }
 }
