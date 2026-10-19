@@ -350,8 +350,8 @@ the effects of the scene and serves as their test.
 ## Track: voice pipeline
 
 The voice pipeline lives in `chora-desktop/chora-voice` and starts with
-milestone 0.6 (D53). It runs as Quadlet units on the reference hardware: speech to
-text, a router model, a main model and text to speech, served by
+milestone 0.6 (D53). It runs as Quadlet units on the reference hardware:
+speech to text, a router model, a main model and text to speech, served by
 [Gufo](https://github.com/gufo-org/gufo).
 
 | Milestone | Goal | Gate | Needs from the core |

@@ -2,7 +2,7 @@
 
 The layout of this repository: one Cargo workspace with as few crates as
 possible. A module moves into its own crate only when a second consumer
-can use it. Milestone 0.6 moves the plugins into repositories of their own
+can use it. The plugins move into repositories of their own after 0.6
 (D36).
 
 ```text
