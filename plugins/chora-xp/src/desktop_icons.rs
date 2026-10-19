@@ -785,9 +785,10 @@ fn items(terminal: &str, icons: &mut Icons) -> Vec<Item> {
 }
 
 /// The files and folders of a directory as icons, without the hidden
-/// ones: folders first, then by name. A desktop file shows its name and
-/// icon, or XP's icon of a program, and runs its program. A file shows
-/// the icon of its type, as Explorer gives it, found here once.
+/// ones: folders first, then by name. A desktop file with the executable
+/// bit shows its name and icon, or XP's icon of a program, and runs its
+/// program; without the bit it is a plain file. A file shows the icon of
+/// its type, as Explorer gives it, found here once.
 fn scan(dir: &Path, terminal: &str, icons: &mut Icons) -> Vec<Item> {
     let mut paths: Vec<PathBuf> = fs::read_dir(dir)
         .into_iter()
@@ -816,7 +817,9 @@ fn scan(dir: &Path, terminal: &str, icons: &mut Icons) -> Vec<Item> {
                     open: Open::Folder(path),
                 };
             }
+            let executable = fs::metadata(&path).is_ok_and(|m| m.permissions().mode() & 0o111 != 0);
             if path.extension().is_some_and(|e| e == "desktop")
+                && executable
                 && let Some(launcher) = desktop_entry::launcher(&path, terminal)
             {
                 return Item {
@@ -826,7 +829,6 @@ fn scan(dir: &Path, terminal: &str, icons: &mut Icons) -> Vec<Item> {
                     open: Open::Run(launcher.command),
                 };
             }
-            let executable = fs::metadata(&path).is_ok_and(|m| m.permissions().mode() & 0o111 != 0);
             let kind = folder::Kind::of(&name, false, executable);
             Item {
                 key,
@@ -1043,11 +1045,18 @@ mod tests {
             "[Desktop Entry]\nType=Application\nName=Editor\nExec=edit %F\nIcon=ed\n",
         )
         .unwrap();
+        fs::set_permissions(dir.join("app.desktop"), fs::Permissions::from_mode(0o755)).unwrap();
+        fs::write(
+            dir.join("noexec.desktop"),
+            "[Desktop Entry]\nType=Application\nName=NoEditor\nExec=nope\n",
+        )
+        .unwrap();
         let items = scan(&dir, "foot", &mut Icons::new(crate::icons::THEMES));
         let titles: Vec<&str> = items.iter().map(|i| i.title.as_str()).collect();
-        assert_eq!(titles, ["zeta", "Alpha.txt", "Editor"]);
+        assert_eq!(titles, ["zeta", "Alpha.txt", "Editor", "noexec.desktop"]);
         assert_eq!(items[0].open, Open::Folder(dir.join("zeta")));
         assert_eq!(items[2].open, Open::Run("edit".into()));
+        assert_eq!(items[3].open, Open::File(dir.join("noexec.desktop")));
         assert!(!trash_full(&dir.join("zeta")));
         assert!(trash_full(&dir));
         assert!(!trash_full(&dir.join("missing")));
