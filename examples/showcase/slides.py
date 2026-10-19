@@ -6,7 +6,7 @@ them with animated moves that zoom out and back in (camera command with
 duration). The slide counter is fixed on the screen root screen:HEADLESS-1,
 so it does not move with the camera.
 
-Run:  CHORA_SOCKET=... python slides.py   (needs grant: slides screen.capture)
+Run:  CHORA_SOCKET=... python slides.py   (needs `./grant-slides.sh` for its screenshots)
 Saves one PNG per slide into the shots directory of the runtime
 directory and prints camera timings.
 """

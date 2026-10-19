@@ -6,7 +6,7 @@ node takes the keyboard), so one tick is: read events, apply moves.
 Prints achieved tick rate; with SNAKE_FOOD=<n> it grows to n food items
 and long tails — a stress mode against the per-frame element budget.
 
-Run: CHORA_SOCKET=... python snake.py   (needs no grant; `choractl grant snake screen.capture` lets it take screenshots)
+Run: CHORA_SOCKET=... python snake.py   (needs no grant; `./grant-snake.sh` lets it take screenshots)
 """
 import json, os, time
 from choraclient import Chora

@@ -7,7 +7,7 @@ a headless session (`CHORA_SOCKET`):
 
 The captures land in `$XDG_RUNTIME_DIR/chora-showcase-shots`. The output
 capture of the `choractl` calls needs one grant before the first run:
-`choractl grant cards screen.capture`.
+`./grant-cards.sh`.
 """
 import json
 import os
@@ -53,7 +53,6 @@ def ctl(*args: str, inp: str | None = None, quiet: bool = False) -> str:
 
 def main() -> None:
     os.makedirs(SHOTS, exist_ok=True)
-    ctl("grant", NAME, "screen.capture", quiet=True)
     # A second run takes the nodes of the first again; they may also be
     # gone already, which the quiet removes tolerate.
     for i in range(len(CARDS)):

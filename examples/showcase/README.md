@@ -39,9 +39,17 @@ from a second terminal:
 echo '[{"key":{"key":"Left","state":"pressed"}}]' | $CHORACTL inject
 ```
 
-With `CHORACTL` set, the programs hand themselves the grants they need
-over the admin socket; without it, `screen.capture` answers with the
-`choractl grant` line to run by hand.
+The user grants capabilities, not the programs (D40): no demo touches
+the admin socket. Before the first run of a demo that captures, run its
+grant script from this directory:
+
+```sh
+./grant-snake.sh   # also grant-pong.sh, grant-slides.sh, grant-cards.sh
+./grant-news.sh    # the key injection of the reader, for the name `agent`
+```
+
+`deck.py` and `news.py` need no grant of their own. Without a grant,
+`screen.capture` answers with the `choractl grant` line to run.
 
 ## Notes
 

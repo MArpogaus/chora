@@ -6,7 +6,7 @@ of the rects about 60 times a second; the left paddle chases the ball, the
 right one moves on a scripted sine, so rallies end and the score moves.
 Run for RUN seconds, print the achieved update rate, save a shot, clean up.
 
-Run:  CHORA_SOCKET=... python pong.py   (needs grant: pong screen.capture)
+Run:  CHORA_SOCKET=... python pong.py   (needs `./grant-pong.sh` for its screenshots)
 """
 import io, math, os, time
 from PIL import Image, ImageDraw, ImageFont

@@ -1,5 +1,5 @@
 """Minimal JSON-RPC client for the chora IPC socket (see docs/api.md)."""
-import base64, json, os, queue, socket, subprocess, threading, time
+import base64, json, os, queue, socket, threading, time
 
 
 class Chora:
@@ -14,12 +14,6 @@ class Chora:
         self.reader.start()
         self.name = name
         self.call("hello", {"name": name, **hello})
-        # `screen.capture` wants a grant for the name; with CHORACTL set
-        # to the admin binary, the demos hand themselves one.
-        ctl = os.environ.get("CHORACTL")
-        if ctl:
-            subprocess.run([ctl, "grant", name, "screen.capture"],
-                           capture_output=True)
 
     def _read(self):
         for line in self.file:
@@ -55,7 +49,11 @@ class Chora:
 
     def capture(self, path, output=None, node=None, max_side=None):
         params = {k: v for k, v in (("output", output), ("node", node), ("max_side", max_side)) if v}
-        r = self.call("screen.capture", params)
+        try:
+            r = self.call("screen.capture", params)
+        except RuntimeError as e:
+            print(f"{e}\nthe grant is missing: run ./grant-{self.name}.sh", flush=True)
+            raise
         with open(path, "wb") as f:
             f.write(base64.b64decode(r["png"]))
         return r
