@@ -55,6 +55,10 @@ use wayland_client::{
     },
 };
 use wayland_protocols::wp::security_context::v1::client::wp_security_context_manager_v1 as sandbox_manager;
+use wayland_protocols::xdg::decoration::zv1::client::{
+    zxdg_decoration_manager_v1::ZxdgDecorationManagerV1,
+    zxdg_toplevel_decoration_v1::{self, Mode, ZxdgToplevelDecorationV1},
+};
 use wayland_protocols::{
     ext::session_lock::v1::client::{
         ext_session_lock_manager_v1::ExtSessionLockManagerV1,
@@ -128,6 +132,9 @@ struct Probe {
     /// The names of all globals.
     globals: Vec<String>,
     security: Option<sandbox_manager::WpSecurityContextManagerV1>,
+    decoration_manager: Option<ZxdgDecorationManagerV1>,
+    /// Kept alive so that the compositor keeps drawing the frame.
+    decorations: Vec<ZxdgToplevelDecorationV1>,
 }
 
 /// The answer to a request for presentation feedback.
@@ -525,6 +532,13 @@ fn toplevel(queue: &mut Queue, probe: &mut Probe) -> Result<(WlSurface, XdgSurfa
     let xdg_surface = wm_base.get_xdg_surface(&surface, &qh, 1);
     let toplevel = xdg_surface.get_toplevel(&qh, ());
     toplevel.set_app_id("chora-probe".into());
+    if std::env::args().any(|a| a == "--server-deco")
+        && let Some(manager) = &probe.decoration_manager
+    {
+        let decoration = manager.get_toplevel_decoration(&toplevel, &qh, ());
+        decoration.set_mode(Mode::ServerSide);
+        probe.decorations.push(decoration);
+    }
     surface.commit();
     if !dispatch_until(queue, probe, TIMEOUT, |p| p.configured.contains(&1)) {
         return Err("no configure of the toplevel".into());
@@ -674,6 +688,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
             "zwlr_virtual_pointer_manager_v1" => {
                 probe.pointer_manager = Some(registry.bind(name, 1, qh, ()));
             }
+            "zxdg_decoration_manager_v1" => {
+                probe.decoration_manager = Some(registry.bind(name, 1, qh, ()));
+            }
             other => probe.capture.bind(registry, name, other, qh),
         }
     }
@@ -705,6 +722,23 @@ impl Dispatch<XdgWmBase, ()> for Probe {
     ) {
         if let xdg_wm_base::Event::Ping { serial } = event {
             wm_base.pong(serial);
+        }
+    }
+}
+
+delegate_noop!(Probe: ignore ZxdgDecorationManagerV1);
+
+impl Dispatch<ZxdgToplevelDecorationV1, ()> for Probe {
+    fn event(
+        _: &mut Self,
+        _: &ZxdgToplevelDecorationV1,
+        event: zxdg_toplevel_decoration_v1::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let zxdg_toplevel_decoration_v1::Event::Configure { mode } = event {
+            let _ = mode;
         }
     }
 }
