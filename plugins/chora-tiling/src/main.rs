@@ -535,7 +535,7 @@ impl Tiling {
                 .is_some_and(|app| self.ignore.iter().any(|i| i == app))
         });
         if ignored {
-            return Ok(());
+            return self.pass_on_reserved(surface);
         }
         let attach = Command::Attach {
             surface: surface.into(),
