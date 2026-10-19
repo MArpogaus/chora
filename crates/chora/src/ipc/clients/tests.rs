@@ -904,3 +904,27 @@ fn a_client_socket_sees_only_its_own_nodes_and_windows() {
     assert_eq!(events, expected);
     assert_eq!(all.len(), 8, "the main socket sees all: {all:?}");
 }
+
+/// The attack of the review: through `clients/agent/ipc.sock`, one
+/// transaction draws a spy above all windows, takes the keyboard for it
+/// and moves the view. It fails as a whole.
+#[test]
+fn the_spy_of_the_review_fails() {
+    let (mut core, dir, mut agent, _) = agent_ipc("spy");
+    let attack = apply(&json!([
+        {"create": {"id": "spy", "kind": "rect", "parent": "screen:A",
+            "props": {"size": [800, 600], "color": [0, 0, 0, 0]}}},
+        {"focus_node": {"node": "spy"}},
+        {"camera": {"output": "A", "transform": {"scale": 2}}},
+    ]));
+    let (error, message) = agent.fails(&mut core, "scene.apply", attack);
+    let scene = &core.state.scene;
+    let left = (scene.node("spy").is_some(), scene.focused_node().is_some());
+    let camera = scene.camera("A").is_some();
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert_eq!(error, 1);
+    assert!(message.contains("no screen:* parents"), "{message}");
+    assert_eq!(left, (false, false), "no spy and no keyboard");
+    assert!(!camera, "no camera");
+}
