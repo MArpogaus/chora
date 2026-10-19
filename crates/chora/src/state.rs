@@ -94,12 +94,14 @@ pub struct ButtonGrab {
     pub button: u32,
 }
 
-/// A key grab whose key went down while all its modifiers stay down: the
-/// connection of the grab and the binding. It ends with one `released`
-/// when one of the modifiers goes up.
+/// A key grab whose key went down and has not sent its `released` yet: the
+/// connection of the grab, the binding and the key code. A grab with
+/// modifiers ends when one of them goes up; a grab without modifiers ends
+/// with its own key.
 pub struct HeldGrab {
     pub conn: u64,
     pub binding: Binding,
+    pub code: Keycode,
 }
 
 /// The keys whose press did not reach a surface, and the held key grabs.

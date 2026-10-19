@@ -134,7 +134,11 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
                 .iter()
                 .any(|h| h.conn == conn && h.binding == binding)
             {
-                state.held.grabs.push(HeldGrab { conn, binding });
+                state.held.grabs.push(HeldGrab {
+                    conn,
+                    binding,
+                    code,
+                });
             }
         }
         Some(KeyAction::Node(owner, event)) => state.ipc.send_to_client(&owner, &event),
@@ -161,6 +165,14 @@ fn released_key(
 ) -> FilterResult<KeyAction> {
     if state.held.repeat.as_ref().is_some_and(|r| r.code == code) {
         state.held.repeat = None;
+    }
+    // A grab without Ctrl, Alt or Super ends with its own key.
+    let (free, held_grabs) = std::mem::take(&mut state.held.grabs)
+        .into_iter()
+        .partition(|h| h.code == code && free_binding(&h.binding));
+    state.held.grabs = held_grabs;
+    for grab in free {
+        grabbed(state, grab.conn, &grab.binding, PressState::Released);
     }
     let Some(i) = state.held.keys.iter().position(|(k, _)| *k == code) else {
         return FilterResult::Forward;
@@ -221,6 +233,12 @@ fn grabbed(state: &mut State, conn: u64, binding: &Binding, press: PressState) {
     state.ipc.send_to(conn, &event);
 }
 
+/// True for a binding without Ctrl, Alt or Super. It needs the capability
+/// `input.grab-any`, and it ends with its own key, not with a modifier.
+pub fn free_binding(binding: &Binding) -> bool {
+    !(binding.mods.ctrl || binding.mods.alt || binding.mods.logo)
+}
+
 /// Ends the held key grabs of which Ctrl, Alt or Super went up, each with
 /// one `released`, so that an Alt+Tab switcher learns when Alt went up.
 /// Shift does not end a grab: Alt+Shift+Tab steps back while Alt stays.
@@ -239,6 +257,23 @@ fn release_grabs(state: &mut State, mods: &ModifiersState) {
 }
 
 impl State {
+    /// Takes the grabs without Ctrl, Alt or Super away from a client name:
+    /// a held one ends with one `released` and the registrations go with
+    /// the capability `input.grab-any` that allowed them.
+    pub fn revoke_free_grabs(&mut self, name: &str) {
+        let conns = self.ipc.conns_of(name);
+        for conn in &conns {
+            self.ipc.drop_free_grabs(*conn);
+        }
+        let (ends, keep) = std::mem::take(&mut self.held.grabs)
+            .into_iter()
+            .partition(|h| conns.contains(&h.conn) && free_binding(&h.binding));
+        self.held.grabs = keep;
+        for grab in ends {
+            grabbed(self, grab.conn, &grab.binding, PressState::Released);
+        }
+    }
+
     /// Sends the held key of a node again when its time came, as a client
     /// repeats a held key of `wl_keyboard`. The repeat ends with the focus
     /// of the node.
@@ -1227,5 +1262,35 @@ mod tests {
         assert_eq!(key_states(&mut wm, &mut core, binding), ["pressed"]);
         press(&mut core, ALT, false);
         assert_eq!(key_states(&mut wm, &mut core, binding), ["released"]);
+    }
+
+    #[test]
+    fn a_held_grab_without_a_modifier_ends_with_its_own_key() {
+        let mut core = Core::new();
+        let grant = json!({"client": "agent", "capabilities": ["input.grab-any"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        agent.ok(&mut core, "input.grab", json!({"binding": "Tab"}));
+        tap(&mut core, TAB);
+        assert_eq!(
+            key_states(&mut agent, &mut core, "Tab"),
+            ["pressed", "released"]
+        );
+    }
+
+    #[test]
+    fn a_revoke_of_grab_any_ends_the_grabs_without_a_modifier() {
+        let mut core = Core::new();
+        let grant = json!({"client": "agent", "capabilities": ["input.grab-any"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        agent.ok(&mut core, "input.grab", json!({"binding": "Tab"}));
+        core.admin()
+            .ok(&mut core, "grants.revoke", json!({"client": "agent"}));
+        tap(&mut core, TAB);
+        assert_eq!(
+            key_states(&mut agent, &mut core, "Tab"),
+            Vec::<String>::new()
+        );
     }
 }

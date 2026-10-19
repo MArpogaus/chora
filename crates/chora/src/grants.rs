@@ -77,6 +77,10 @@ impl State {
             self.grants.revoke(&change);
             // A Wayland client got its protocols at its connection.
             self.disconnect_wayland(&change.client, &change.capabilities);
+            if change.capabilities.is_empty() || change.capabilities.contains(&Capability::GrabAny)
+            {
+                self.revoke_free_grabs(&change.client);
+            }
         }
         Ok(Value::Null)
     }

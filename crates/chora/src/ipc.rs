@@ -329,6 +329,22 @@ impl Ipc {
         c.push(&bytes);
     }
 
+    /// The live connections of a client name.
+    pub fn conns_of(&self, name: &str) -> Vec<u64> {
+        self.conns
+            .iter()
+            .filter(|(_, c)| c.name.as_deref() == Some(name))
+            .map(|(conn, _)| *conn)
+            .collect()
+    }
+
+    /// Drops the registrations of a connection for bindings without Ctrl,
+    /// Alt or Super, as happens when `input.grab-any` is revoked.
+    pub fn drop_free_grabs(&mut self, conn: u64) {
+        self.grabs
+            .retain(|(b, _, c)| !(*c == conn && crate::input::free_binding(b)));
+    }
+
     /// The connection that grabbed the pressed binding, and the binding.
     pub fn grab_for(&self, mods: &ModifiersState, syms: &[Keysym]) -> Option<(u64, Binding)> {
         self.grab_of(
