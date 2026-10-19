@@ -719,7 +719,8 @@ impl State {
                 let Some(owner) = self.ipc.name(conn).map(str::to_owned) else {
                     return Some(Err(rejected("send hello first")));
                 };
-                if let Err(e) = self.check_paths(conn, &apply.commands) {
+                let checked = self.check_paths(conn, &apply.commands);
+                if let Err(e) = checked.and_then(|()| self.confine(conn, &apply.commands)) {
                     return Some(Err(e));
                 }
                 self.submit_transaction(conn, id, owner, apply.commands);

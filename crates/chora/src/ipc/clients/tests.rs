@@ -661,3 +661,49 @@ fn a_hover_locks_no_pointer_of_a_client_socket() {
     std::fs::remove_dir_all(&dir).unwrap();
     assert!(!active, "a hover locked the pointer for a client socket");
 }
+
+/// A core with an output `A`, the client socket of `agent`, a connection
+/// through it after `hello`, and the path of its Wayland socket.
+fn agent_ipc(tag: &str) -> (Core, PathBuf, crate::testing::Client, PathBuf) {
+    let dir = std::env::temp_dir().join(format!("chora-a1-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut core = Core::new();
+    core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+    core.add_output("A", (800, 600));
+    let mut admin = core.admin();
+    let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+    let mut agent = core.connect_to(&PathBuf::from(created["path"].as_str().unwrap()));
+    agent.ok(&mut core, "hello", json!({"name": "agent"}));
+    let wayland = PathBuf::from(created["wayland"].as_str().unwrap());
+    (core, dir, agent, wayland)
+}
+
+/// The commands of a `scene.apply`.
+fn apply(commands: &serde_json::Value) -> serde_json::Value {
+    json!({ "commands": commands })
+}
+
+/// A client socket puts no node under an overlay root, directly or below
+/// a group of another client there; the main socket still does.
+#[test]
+fn a_client_socket_draws_nothing_on_the_screen_overlay() {
+    let (mut core, dir, mut agent, _) = agent_ipc("screen");
+    let mut wm = core.named("wm");
+    let group =
+        |id: &str, parent: &str| json!([{"create": {"id": id, "kind": "group", "parent": parent}}]);
+    wm.ok(&mut core, "scene.apply", apply(&group("hud", "screen:A")));
+    agent.ok(&mut core, "scene.apply", apply(&group("g", "root")));
+    for commands in [
+        group("spy", "screen:A"),
+        group("spy", "hud"),
+        json!([{"move": {"id": "g", "parent": "screen:A"}}]),
+    ] {
+        let (_, message) = agent.fails(&mut core, "scene.apply", apply(&commands));
+        assert!(message.contains("no screen:"), "{message}");
+    }
+    let screen = core.state.scene.node("screen:A").unwrap().children.clone();
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert_eq!(screen, ["hud"], "only the main socket draws on the screen");
+}

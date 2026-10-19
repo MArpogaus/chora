@@ -227,6 +227,38 @@ impl State {
             None => Ok(()),
         }
     }
+
+    /// The scene rules of a connection of a client socket. The error names
+    /// the rule and carries the index of the command, as the scene does.
+    pub(super) fn confine(&mut self, conn: u64, commands: &[Command]) -> Result<(), RpcError> {
+        if self.ipc.fixed(conn).is_none() {
+            return Ok(());
+        }
+        for (index, command) in commands.iter().enumerate() {
+            self.confine_one(command)
+                .map_err(|e| rejected(e).with_data(json!({"command": index})))?;
+        }
+        Ok(())
+    }
+
+    fn confine_one(&self, command: &Command) -> Result<(), String> {
+        match command {
+            Command::Create { parent, .. }
+            | Command::Move {
+                parent: Some(parent),
+                ..
+            } if self.on_screen(parent) => Err(format!(
+                "a client socket has no screen:* parents, and {parent:?} is on a screen"
+            )),
+            _ => Ok(()),
+        }
+    }
+
+    /// Whether a node is an overlay root of an output or below one.
+    fn on_screen(&self, id: &str) -> bool {
+        std::iter::successors(Some(id), |n| self.scene.node(n)?.parent.as_deref())
+            .any(|n| n.starts_with(chora_scene::OVERLAY))
+    }
 }
 
 /// The file names of the two sockets in the directory of a client.
