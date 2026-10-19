@@ -189,6 +189,11 @@ impl Wm {
         {
             commands.push(self.panels.remove(i).window_ref().remove());
         }
+        // My Computer and the Recycle Bin stay out of a drop: nothing to
+        // ask for, so no dialog.
+        if paths.is_empty() {
+            return commands;
+        }
         let icon = self.icons.find_sized("user-trash-full", 32);
         let confirm = ConfirmDialog::trash(&self.theme, paths, icon, self.work_area());
         let page = confirm.page();
