@@ -532,9 +532,11 @@ socket, with these exceptions:
 - The input method needs the grant `input.inject`.
 - Output management, the session lock, both foreign toplevel protocols,
   the security context manager, idle inhibit and idle notify are not
-  offered. So the client cannot lock the session, list the windows,
-  control the windows of others, open a socket of its own or keep the
-  screen awake.
+  offered. On Wayland the client cannot lock the session, list the
+  windows, control the windows of others, open a socket of its own or
+  keep the screen awake. On `ipc.sock` the methods answer by the name
+  and its grants alone: `focus_node` moves the keyboard there without a
+  click.
 
 The layer shell stays, so a panel can run in a container. Such a client
 can draw over all windows in the top layer, but the core refuses the
