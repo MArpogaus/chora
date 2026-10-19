@@ -1279,6 +1279,20 @@ mod tests {
     }
 
     #[test]
+    fn a_revoke_ends_a_free_grab_that_is_held() {
+        let mut core = Core::new();
+        let grant = json!({"client": "agent", "capabilities": ["input.grab-any"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        agent.ok(&mut core, "input.grab", json!({"binding": "Tab"}));
+        press(&mut core, TAB, true);
+        assert_eq!(key_states(&mut agent, &mut core, "Tab"), ["pressed"]);
+        core.admin()
+            .ok(&mut core, "grants.revoke", json!({"client": "agent"}));
+        assert_eq!(key_states(&mut agent, &mut core, "Tab"), ["released"]);
+    }
+
+    #[test]
     fn a_revoke_of_grab_any_ends_the_grabs_without_a_modifier() {
         let mut core = Core::new();
         let grant = json!({"client": "agent", "capabilities": ["input.grab-any"]});
