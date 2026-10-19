@@ -327,10 +327,12 @@ The safety layer is the only built-in behavior (see
   a minute. Its nodes go as on any disconnect, also those of a client with
   `keep_nodes` or `resume`, without a grace time. The watchdog never
   starts the emergency reset; only the binding and SIGUSR1 do.
-- **Shader hangs.** A shader that never returns leaves no finished frame
-  for the watchdog to measure, so the watchdog cannot end it. The way out
-  of such a session is the SIGUSR1 emergency reset, which is why SIGUSR1
-  reaches the core from outside.
+- **Shader hangs.** A shader that never returns blocks the loop, for
+  every backend renders on it. Neither the watchdog, which measures
+  between frames, nor SIGUSR1, whose source the loop dispatches, can
+  end it: on llvmpipe the core hangs, on a GPU until the driver resets
+  the context. The way out is to kill the core from another TTY or
+  over SSH.
 
 ## Permissions
 
