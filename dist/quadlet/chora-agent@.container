@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Example Quadlet: one agent container that sees one chora client
+# UNTESTED example Quadlet: it has not run on a Podman host. On an
+# SELinux host the container likely needs `SecurityLabelDisable=true`.
+# Client sockets and grants live in memory, so run `choractl clients
+# up` after every start of chora, before this unit.
+#
+# One agent container that sees one chora client
 # directory and nothing else (D33, D40). Copy to
 # ~/.config/containers/systemd/ on the Podman host, set Image and the
 # flavor instance, then:
