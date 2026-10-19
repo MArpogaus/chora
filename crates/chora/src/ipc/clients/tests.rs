@@ -831,3 +831,76 @@ fn a_client_socket_focuses_a_node_only_after_its_own_press() {
     std::fs::remove_dir_all(&dir).unwrap();
     assert_eq!(focused.as_deref(), Some("menu"));
 }
+
+/// The surfaces in the `surface.*` events of a client.
+fn surface_events(client: &mut crate::testing::Client, core: &mut Core) -> Vec<String> {
+    client
+        .events_now(core)
+        .iter()
+        .map(|e| &e["params"])
+        .filter(|e| {
+            e["event"]
+                .as_str()
+                .is_some_and(|n| n.starts_with("surface."))
+        })
+        .map(|e| {
+            format!(
+                "{} {}",
+                e["event"].as_str().unwrap(),
+                e["surface"].as_str().unwrap()
+            )
+        })
+        .collect()
+}
+
+/// `scene.query` and the `surface.*` events of a client socket show only
+/// its own nodes and the windows of its own Wayland socket.
+#[test]
+fn a_client_socket_sees_only_its_own_nodes_and_windows() {
+    let (mut core, dir, mut agent, wayland) = agent_ipc("query");
+    let mut wm = core.named("wm");
+    for client in [&mut agent, &mut wm] {
+        client.ok(&mut core, "events.subscribe", json!({"events": []}));
+    }
+    wm.ok(&mut core, "scene.apply", crate::testing::rect("theirs"));
+    agent.ok(&mut core, "scene.apply", crate::testing::rect("mine"));
+    let mut user = Wayland::connect(&mut core);
+    let foreign = user.toplevel(&mut core, "foreign");
+    let mut own = Wayland::connect_to(&mut core, &wayland);
+    let window = own.toplevel(&mut core, "own");
+    user.destroy(&mut core, &foreign);
+    own.destroy(&mut core, &window);
+    let seen = agent.ok(&mut core, "scene.query", json!({"selector": "*"}));
+    let mut ids: Vec<&str> = seen
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n["id"].as_str().unwrap())
+        .collect();
+    ids.sort_unstable();
+    assert_eq!(ids, ["mine"], "the agent queries only its own nodes");
+    let mut own = Wayland::connect_to(&mut core, &wayland);
+    own.toplevel(&mut core, "again");
+    let seen = agent.ok(
+        &mut core,
+        "scene.query",
+        json!({"selector": "kind:surface"}),
+    );
+    let events = surface_events(&mut agent, &mut core);
+    let all = surface_events(&mut wm, &mut core);
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert_eq!(seen.as_array().unwrap().len(), 1, "its own window: {seen}");
+    assert_eq!(seen[0]["id"], "s3");
+    let created = |s: &str| {
+        [
+            format!("surface.changed {s}"),
+            format!("surface.created {s}"),
+        ]
+    };
+    let mut expected = created("s2").to_vec();
+    expected.push("surface.destroyed s2".into());
+    expected.extend(created("s3"));
+    assert_eq!(events, expected);
+    assert_eq!(all.len(), 8, "the main socket sees all: {all:?}");
+}

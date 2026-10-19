@@ -108,12 +108,14 @@ impl State {
             let surface = toplevel.wl_surface();
             self.pending_activations.retain(|(s, _)| *s != *surface);
         }
+        let client = crate::ipc::window_client(&self.scene, id);
         let existed = self.scene.remove_surface(id);
         self.transactions.forget(id);
         self.complete_transactions();
         // A toplevel without a first commit never had a node or an event.
         if existed {
-            self.emit(&Event::SurfaceDestroyed { surface: id.into() });
+            let event = Event::SurfaceDestroyed { surface: id.into() };
+            self.ipc.broadcast(&event, |_| client.clone());
         }
     }
 
@@ -394,13 +396,16 @@ impl State {
         let info = self.surface_info(&id);
         self.scene.set_surface_info(&id, info.clone());
         self.relist_toplevel(&id);
-        self.emit(&Event::SurfaceChanged {
+        // Before its first commit, the window has no node to name its client.
+        let client = info.client.clone();
+        let event = Event::SurfaceChanged {
             surface: id,
             app_id: info.app_id,
             title: info.title,
             size: info.size,
             decoration: info.decoration,
-        });
+        };
+        self.ipc.broadcast(&event, |_| client.clone());
     }
 
     /// Keeps a popup inside the output that shows its toplevel or its

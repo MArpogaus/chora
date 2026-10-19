@@ -37,6 +37,8 @@ use crate::{captured::Processes, state::State, uploads::Uploads};
 
 mod clients;
 
+pub use clients::window_client;
+
 const MAX_CONNECTIONS: usize = 128;
 /// The most connections of one process, so that one client cannot take
 /// every slot.
@@ -277,26 +279,45 @@ impl Ipc {
     }
 
     /// Sends an event to every connection that subscribed to it.
-    pub fn broadcast(&mut self, event: &Event) {
-        self.send_subscribed(None, event);
+    /// `window_client` names the client socket of a surface, see
+    /// [`Ipc::send_subscribed`].
+    pub fn broadcast(&mut self, event: &Event, window_client: impl Fn(&str) -> Option<String>) {
+        self.send_subscribed(None, event, window_client);
     }
 
-    /// Sends an event to the connections of a client name that subscribed
-    /// to it, for example the keys of a focused node to its owner.
+    /// Sends an event of a node to the connections of a client name that
+    /// subscribed to it, for example the keys of a focused node to its owner.
     pub fn send_to_client(&mut self, client: &str, event: &Event) {
-        self.send_subscribed(Some(client), event);
+        self.send_subscribed(Some(client), event, |_| None);
     }
 
-    fn send_subscribed(&mut self, client: Option<&str>, event: &Event) {
+    /// Sends an event to the subscribed connections, of a client name or
+    /// all. A connection of a client socket gets a `surface.*` event only
+    /// when `window_client` gives its name for the surface.
+    pub fn send_subscribed(
+        &mut self,
+        client: Option<&str>,
+        event: &Event,
+        window_client: impl Fn(&str) -> Option<String>,
+    ) {
         let message = Message::event(event);
-        let name = message.params.as_ref().and_then(|p| p["event"].as_str());
+        let params = message.params.as_ref();
+        let name = params.and_then(|p| p["event"].as_str());
+        let window = name.filter(|n| n.starts_with("surface.")).map(|_| {
+            params
+                .and_then(|p| p["surface"].as_str())
+                .and_then(window_client)
+        });
         let line = line(&message);
         for conn in self.conns.values_mut() {
             let wanted = conn
                 .events
                 .as_ref()
                 .is_some_and(|e| e.is_empty() || e.iter().any(|n| name == Some(n.as_str())));
-            if wanted && client.is_none_or(|c| conn.name.as_deref() == Some(c)) {
+            let foreign = window
+                .as_ref()
+                .is_some_and(|w| conn.fixed().is_some_and(|f| w.as_deref() != Some(f)));
+            if wanted && !foreign && client.is_none_or(|c| conn.name.as_deref() == Some(c)) {
                 conn.push(&line);
             }
         }
@@ -715,7 +736,7 @@ impl State {
         let params = request.params;
         Some(match request.method.as_str() {
             "hello" => params_of(params).and_then(|h| self.ipc_hello(conn, h)),
-            "scene.query" => params_of::<Query>(params).and_then(|q| self.query(&q.selector)),
+            "scene.query" => params_of::<Query>(params).and_then(|q| self.query(conn, &q.selector)),
             "scene.apply" => {
                 let apply = match params_of::<Apply>(params) {
                     Ok(a) => a,
@@ -890,11 +911,15 @@ impl State {
         }
     }
 
-    fn query(&self, selector: &str) -> Result<Value, RpcError> {
+    /// The nodes of a selector; for a client socket only its own.
+    fn query(&self, conn: u64, selector: &str) -> Result<Value, RpcError> {
         let selector: Selector = selector
             .parse()
             .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, format!("{e}")))?;
-        Ok(serde_json::json!(self.scene.query(&selector)))
+        let fixed = self.ipc.fixed(conn);
+        let mut nodes = self.scene.query(&selector);
+        nodes.retain(|n| fixed.is_none_or(|f| clients::own_node(n, f)));
+        Ok(serde_json::json!(nodes))
     }
 
     /// Grabs a binding of a key or a pointer button for a named connection.

@@ -273,10 +273,7 @@ impl State {
     /// Whether a surface came through the Wayland socket of a client name
     /// or belongs to it. A missing node is for the scene to refuse.
     fn own_surface(&self, name: &str, surface: &str) -> bool {
-        self.scene.node(surface).is_none_or(|n| {
-            n.owner.as_deref() == Some(name)
-                || n.surface.as_ref().and_then(|s| s.client.as_deref()) == Some(name)
-        })
+        self.scene.node(surface).is_none_or(|n| own_node(n, name))
     }
 
     /// Whether a client name holds the focus of a node already, or the
@@ -292,6 +289,18 @@ impl State {
         std::iter::successors(Some(id), |n| self.scene.node(n)?.parent.as_deref())
             .any(|n| n.starts_with(chora_scene::OVERLAY))
     }
+}
+
+/// Whether a client name owns a node, or the node is a window of its
+/// Wayland socket.
+pub(super) fn own_node(node: &chora_scene::Node, name: &str) -> bool {
+    node.owner.as_deref() == Some(name)
+        || node.surface.as_ref().and_then(|s| s.client.as_deref()) == Some(name)
+}
+
+/// The client name of the client socket that a window came through.
+pub fn window_client(scene: &chora_scene::Scene, surface: &str) -> Option<String> {
+    scene.node(surface)?.surface.as_ref()?.client.clone()
 }
 
 /// The file names of the two sockets in the directory of a client.

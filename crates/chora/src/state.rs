@@ -66,7 +66,7 @@ use crate::{
     foreign_toplevel::ForeignToplevelManagerState,
     grants::Grants,
     image_capture::ImageCapture,
-    ipc::Ipc,
+    ipc::{Ipc, window_client},
     lock::Lock,
     methods::Methods,
     output_management::OutputManagement,
@@ -478,7 +478,8 @@ impl State {
 
     /// Sends an event to all subscribed clients.
     pub fn emit(&mut self, event: &Event) {
-        self.ipc.broadcast(event);
+        let scene = &self.scene;
+        self.ipc.broadcast(event, |s| window_client(scene, s));
     }
 
     /// Executes the effects of an applied transaction.
@@ -503,8 +504,9 @@ impl State {
                     if self.focused_surface() == Some(surface.as_str()) {
                         self.focus(None);
                     }
-                    self.ipc
-                        .send_to_client(&to, &Event::SurfaceDetached { surface });
+                    let scene = &self.scene;
+                    let event = Event::SurfaceDetached { surface };
+                    (self.ipc).send_subscribed(Some(&to), &event, |s| window_client(scene, s));
                 }
                 Effect::Camera(name) => {
                     for output in self.output_info().into_iter().filter(|o| o.name == name) {
