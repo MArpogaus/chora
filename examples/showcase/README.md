@@ -12,7 +12,7 @@ of the loader: `examples/loader/.venv/bin/python`.
 
 | program | what it shows |
 |---|---|
-| `snake.py` | a keyboard snake of rect nodes on a 32 px grid; `node.key` events drive it and `choractl --name agent inject` steers it from outside (grant: `./grant-news.sh`). With `SNAKE_FOOD=60` it grows into a stress test of the per-frame element budget. |
+| `snake.py` | a keyboard snake of rect nodes on a 32 px grid; `node.key` events drive it and `choractl --name demo-keys inject` steers it from outside (grant: `./grant-news.sh`). With `SNAKE_FOOD=60` it grows into a stress test of the per-frame element budget. |
 | `pong.py` | two paddles and a ball with an effect shader (`ball.frag`), moved by injected key presses; captures each round. |
 | `slides.py` | slides rendered by PIL: title, bullets and a chart, each one image node, plus camera pans. |
 | `news.py` | a newspaper reader: index and article pages rendered by PIL, swapped on `Page_Down`, one image node updated per page. |
@@ -34,10 +34,10 @@ examples/loader/.venv/bin/python examples/showcase/pong.py   # the PIL ones
 
 Keys reach the games through injected events, so they can be steered
 from a second terminal. `inject` needs a grant of `input.inject` for
-its client name, which `./grant-news.sh` gives to the name `agent`:
+its client name, which `./grant-news.sh` gives to the name `demo-keys`:
 
 ```sh
-echo '[{"key":{"key":"Left","state":"pressed"}}]' | $CHORACTL --name agent inject
+echo '[{"key":{"key":"Left","state":"pressed"}}]' | $CHORACTL --name demo-keys inject
 ```
 
 The user grants capabilities, not the programs (D40): no demo touches
@@ -46,7 +46,7 @@ grant script from this directory:
 
 ```sh
 ./grant-snake.sh   # also grant-pong.sh, grant-slides.sh, grant-cards.sh
-./grant-news.sh    # the key injection of the reader, for the name `agent`
+./grant-news.sh    # the key injection of the reader, for the name `demo-keys`
 ```
 
 `deck.py` and `news.py` need no grant of their own. Without a grant,

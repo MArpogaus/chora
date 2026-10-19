@@ -7,7 +7,7 @@ through the headlines.
 
 Run:  CHORA_SOCKET=... python news.py
 Keys: Page_Down/Page_Up next/prev, q quits. Inject with e.g.
-  echo '[{"key":{"key":"Page_Down","state":"pressed"}}]' | choractl --name agent inject
+  echo '[{"key":{"key":"Page_Down","state":"pressed"}}]' | choractl --name demo-keys inject
 """
 import io, os, sys
 from PIL import Image, ImageDraw, ImageFont

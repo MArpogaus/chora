@@ -113,7 +113,7 @@ their grants (see [API](api.md#client-sockets)):
 ```yaml
 # ~/.config/chora/clients.yaml
 agent:
-  grants: [input.inject, screen.capture]
+  grants: [screen.capture]
 showroom:
   grants: []
 ```
