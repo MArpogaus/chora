@@ -159,9 +159,11 @@ impl State {
             let focused = self.focused_surface().map(String::from);
             let parent = toplevel.parent().and_then(|p| self.surface_id(&p));
             let ipc = &self.ipc;
+            // A client socket manages only the windows of its own name.
+            let own = |n: &str| !ipc.has_socket(n) || info.client.as_deref() == Some(n);
             let to = (self.scene)
                 .manager_of_new(parent.as_deref(), focused.as_deref(), pointer, |n| {
-                    ipc.live(n)
+                    ipc.live(n) && own(n)
                 })
                 .map(String::from);
             self.scene.reserve(id, to.as_deref());

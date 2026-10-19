@@ -231,17 +231,17 @@ impl State {
     /// The scene rules of a connection of a client socket. The error names
     /// the rule and carries the index of the command, as the scene does.
     pub(super) fn confine(&mut self, conn: u64, commands: &[Command]) -> Result<(), RpcError> {
-        if self.ipc.fixed(conn).is_none() {
+        let Some(name) = self.ipc.fixed(conn).map(str::to_owned) else {
             return Ok(());
-        }
+        };
         for (index, command) in commands.iter().enumerate() {
-            self.confine_one(command)
+            self.confine_one(&name, command)
                 .map_err(|e| rejected(e).with_data(json!({"command": index})))?;
         }
         Ok(())
     }
 
-    fn confine_one(&self, command: &Command) -> Result<(), String> {
+    fn confine_one(&self, name: &str, command: &Command) -> Result<(), String> {
         match command {
             Command::Create { parent, .. }
             | Command::Move {
@@ -251,8 +251,29 @@ impl State {
                 "a client socket has no screen:* parents, and {parent:?} is on a screen"
             )),
             Command::Camera { .. } => Err("a client socket has no camera commands".into()),
+            Command::Attach { surface, .. }
+            | Command::Focus {
+                surface: Some(surface),
+            }
+            | Command::Close { surface }
+            | Command::Configure { surface, .. }
+                if !self.own_surface(name, surface) =>
+            {
+                Err(format!(
+                    "a client socket acts only on its own surfaces, and {surface:?} is of another client"
+                ))
+            }
             _ => Ok(()),
         }
+    }
+
+    /// Whether a surface came through the Wayland socket of a client name
+    /// or belongs to it. A missing node is for the scene to refuse.
+    fn own_surface(&self, name: &str, surface: &str) -> bool {
+        self.scene.node(surface).is_none_or(|n| {
+            n.owner.as_deref() == Some(name)
+                || n.surface.as_ref().and_then(|s| s.client.as_deref()) == Some(name)
+        })
     }
 
     /// Whether a node is an overlay root of an output or below one.

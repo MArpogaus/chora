@@ -724,3 +724,55 @@ fn a_client_socket_takes_no_camera() {
     std::fs::remove_dir_all(&dir).unwrap();
     assert!(owner, "the main socket sets the camera");
 }
+
+/// A client socket attaches, focuses, closes and configures only the
+/// windows of its own Wayland socket, and a claim gets it no others.
+#[test]
+fn a_client_socket_adopts_no_foreign_window() {
+    let (mut core, dir, mut agent, wayland) = agent_ipc("adopt");
+    let mut user = Wayland::connect(&mut core);
+    user.toplevel(&mut core, "foreign");
+    let mut own = Wayland::connect_to(&mut core, &wayland);
+    own.toplevel(&mut core, "own");
+    let group = json!({"create": {"id": "g", "kind": "group", "parent": "root",
+        "props": {"claim": [0, 0, 800, 600]}}});
+    agent.ok(&mut core, "scene.apply", apply(&json!([group])));
+    let attach = |s: &str| json!([{"attach": {"surface": s, "parent": "g"}}]);
+    let (_, message) = agent.fails(&mut core, "scene.apply", apply(&attach("s1")));
+    assert!(message.contains("only on its own surfaces"), "{message}");
+    agent.ok(&mut core, "scene.apply", apply(&attach("s2")));
+    let mut wm = core.named("wm");
+    wm.ok(
+        &mut core,
+        "scene.apply",
+        apply(&json!([
+        {"create": {"id": "w", "kind": "group", "parent": "root"}},
+        {"attach": {"surface": "s1", "parent": "w"}}])),
+    );
+    for command in [
+        json!({"focus": {"surface": "s1"}}),
+        json!({"close": {"surface": "s1"}}),
+        json!({"configure": {"surface": "s1", "size": [10, 10]}}),
+    ] {
+        let (_, message) = agent.fails(&mut core, "scene.apply", apply(&json!([command])));
+        assert!(message.contains("only on its own surfaces"), "{message}");
+    }
+    agent.ok(
+        &mut core,
+        "scene.apply",
+        apply(&json!([{"focus": {"surface": "s2"}}])),
+    );
+    // New windows under the claim of the agent: only its own go to it.
+    core.state.pointer_layout = (10.0, 10.0).into();
+    user.toplevel(&mut core, "next");
+    own.toplevel(&mut core, "own-next");
+    let to = |id: &str| core.state.scene.node(id).and_then(|n| n.to.clone());
+    let (foreign, mine) = (to("s3"), to("s4"));
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert_eq!(
+        foreign, None,
+        "a claim of a client socket took a foreign window"
+    );
+    assert_eq!(mine.as_deref(), Some("agent"));
+}

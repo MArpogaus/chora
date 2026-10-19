@@ -403,6 +403,11 @@ impl Ipc {
     }
 
     /// Whether a connection came through the admin socket.
+    /// Whether a client name has a client socket.
+    pub fn has_socket(&self, name: &str) -> bool {
+        self.clients.contains_key(name)
+    }
+
     fn admin(&self, conn: u64) -> bool {
         self.conns
             .get(&conn)
