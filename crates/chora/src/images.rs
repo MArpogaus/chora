@@ -510,7 +510,7 @@ where
 /// reaches the signal source of the loop and not this thread.
 #[allow(unsafe_code)] // a pthread call, nothing else
 fn block_usr1() {
-    unsafe {
+    let rc = unsafe {
         let mut set: libc::sigset_t = std::mem::zeroed();
         libc::sigemptyset(std::ptr::addr_of_mut!(set));
         libc::sigaddset(std::ptr::addr_of_mut!(set), libc::SIGUSR1);
@@ -518,8 +518,9 @@ fn block_usr1() {
             libc::SIG_BLOCK,
             std::ptr::addr_of!(set),
             std::ptr::null_mut(),
-        );
-    }
+        )
+    };
+    assert_eq!(rc, 0, "the thread blocks SIGUSR1");
 }
 
 #[cfg(test)]
@@ -578,23 +579,34 @@ mod tests {
         assert_eq!(rgba(png::ColorType::Grayscale, &[7]), [7, 7, 7, 255]);
     }
 
-    /// A thread of the compositor blocks the emergency signal, whatever
-    /// starts it before the loop does.
+    /// The worker of `Images` blocks the emergency signal on its own,
+    /// because it starts before the loop owns SIGUSR1.
     #[test]
-    fn a_worker_thread_blocks_the_emergency_signal() {
-        std::thread::Builder::new()
-            .spawn(|| {
-                block_usr1();
-                #[allow(unsafe_code)] // a read-only syscall
-                let tid = unsafe { libc::gettid() };
-                let status =
-                    std::fs::read_to_string(format!("/proc/self/task/{tid}/status")).unwrap();
-                let line = status.lines().find(|l| l.starts_with("SigBlk")).unwrap();
-                let mask = u64::from_str_radix(line.split(':').nth(1).unwrap().trim(), 16).unwrap();
-                assert_ne!(mask & (1 << 9), 0, "SIGUSR1 stays blocked: {line}");
-            })
-            .unwrap()
-            .join()
-            .unwrap();
+    fn the_worker_thread_blocks_the_emergency_signal() {
+        let (done, _watch) = channel::channel();
+        let mut images = Images::default();
+        images.start_worker(done);
+        let blocked = || {
+            std::fs::read_dir("/proc/self/task")
+                .unwrap()
+                .flatten()
+                .any(|task| {
+                    let dir = task.path();
+                    let comm = std::fs::read_to_string(dir.join("comm")).unwrap_or_default();
+                    if !comm.starts_with("chora-images") {
+                        return false;
+                    }
+                    let status = std::fs::read_to_string(dir.join("status")).unwrap();
+                    let line = status.lines().find(|l| l.starts_with("SigBlk")).unwrap();
+                    let mask =
+                        u64::from_str_radix(line.split(':').nth(1).unwrap().trim(), 16).unwrap();
+                    mask & (1 << 9) != 0
+                })
+        };
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while !blocked() {
+            assert!(std::time::Instant::now() < end, "the worker blocks SIGUSR1");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
     }
 }
