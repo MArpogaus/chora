@@ -17,6 +17,7 @@ import time
 
 CTL = os.environ.get("CHORACTL", "target/debug/choractl")
 NAME = "cards"
+OUT = os.environ.get("CARDS_OUTPUT", "HEADLESS-1")
 SHOTS = os.path.join(os.environ.get("XDG_RUNTIME_DIR", os.getcwd()),
                      "chora-showcase-shots")
 
@@ -72,14 +73,14 @@ def main() -> None:
                 "translate": [nx, ny + (-40 if j == i else 0)]}}}}
             for j, (nx, ny, _) in enumerate(CARDS)
         ]
-        moves.append({"camera": {"output": "HEADLESS-1", "duration": 0.4,
+        moves.append({"camera": {"output": OUT, "duration": 0.4,
                                  "transform": {"translate": [x - 530, -60]}}})
         ctl("apply", "-", inp=json.dumps(moves))
         time.sleep(0.6)
-        ctl("capture", f"{SHOTS}/cards-{i}.png", "--output", "HEADLESS-1")
+        ctl("capture", f"{SHOTS}/cards-{i}.png", "--output", OUT)
     # Without a transform the core hands the camera back, so the next
-    # program gets it even though  resumes these nodes.
-    ctl("apply", "-", inp='[{"camera": {"output": "HEADLESS-1"}}]', quiet=True)
+    # program gets it even though choractl keeps these nodes.
+    ctl("apply", "-", inp=json.dumps([{"camera": {"output": OUT}}]), quiet=True)
     print(f"cards in {SHOTS}/cards-*.png")
 
 
