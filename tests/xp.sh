@@ -287,34 +287,26 @@ wait_for has_node_count 0 id:xp-face-0
 desk_visible 0 false || fail "the first desktop still shows"
 keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
+
 step "13. Escape answers No to Confirm File Delete"
 # A file of the Desktop, dropped on the Recycle Bin, asks first; Escape
-# answers No, as on XP, and the file stays.
-desk_icons() {
-    query kind:image |
-        jq -c '[.[] | select(.id | startswith("xp-icon-")) | .id]'
-}
-old_icons=$(desk_icons)
+# answers No, as on XP, and the file stays. My Documents and My Computer
+# stay first and the Recycle Bin last, so the one file of the Desktop is
+# the third icon and the bin follows it.
 mkdir -p "$HOME/Desktop"
 echo delete-me >"$HOME/Desktop/x.txt"
-new_icon() {
+icon_count() {
     query kind:image |
-        jq -r --argjson old "$old_icons" '[.[]
-            | select(.id | startswith("xp-icon-"))
-            | select(.id as $i | $old | index($i) | not)] | .[0].id // empty'
+        jq '[.[] | select(.id | startswith("xp-icon-"))] | length'
 }
-icon_is_there() { test -n "$(new_icon)"; }
-wait_for icon_is_there
+four_icons() { test "$(icon_count)" = 4; }
+wait_for four_icons
 icon_at() {
     query "id:$1" |
         jq -r '.[0].transform.matrix | "\(.[12] + 40 | floor) \(.[13] + 40 | floor)"'
 }
-read -r fx fy <<<"$(icon_at "$(new_icon)")"
-# The Recycle Bin is the icon at the bottom right.
-bin_node=$(query kind:image |
-    jq -r '[.[] | select(.id | startswith("xp-icon-"))] |
-        max_by(.transform.matrix[13]) | .id')
-read -r bx by <<<"$(icon_at "$bin_node")"
+read -r fx fy <<<"$(icon_at xp-icon-2)"
+read -r bx by <<<"$(icon_at xp-icon-3)"
 timeout 20 "$bin/chora-probe" drag "$fx" "$fy" "$bx" "$by" >>"$out/probe.log" 2>&1 &
 job=$!
 asked() { test "$(query id:xp-dlg-confirm | jq -r '.[0].visible // false')" = "true"; }
