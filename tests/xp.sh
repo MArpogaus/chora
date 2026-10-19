@@ -310,6 +310,7 @@ icon_at() {
 # is empty and shows the same icons.
 keys 29+56+106 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 1 true
+wait_for has_node_count 0 id:xp-face-0
 icons_shown() { test "$(query id:xp-icons | jq '.[0].visible')" = "true"; }
 wait_for icons_shown
 read -r fx fy <<<"$(icon_at xp-icon-2)"
