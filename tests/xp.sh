@@ -60,6 +60,7 @@ wait_for test -S "$XDG_RUNTIME_DIR/wayland-1"
 export WAYLAND_DISPLAY=wayland-1
 # A home of its own: step 13 drops a file of the Desktop into the bin.
 export HOME=$XDG_RUNTIME_DIR
+unset XDG_CONFIG_HOME XDG_DATA_HOME
 
 step "1. chora -- chora-xp starts nested"
 CHORA_FRAME_BUDGET_US=500000 "$bin/chora" -- "$bin/chora-xp" --theme "$theme" --slow-motion 5 \
