@@ -175,9 +175,10 @@ impl State {
         }
         // A live connection of the name would share the nodes and grants.
         if self.ipc.live(name) {
-            return Err(rejected(format!(
-                "{name:?} is connected or in its grace time"
-            )));
+            return Err(
+                rejected(format!("{name:?} is connected or in its grace time"))
+                    .with_data(serde_json::json!({"reason": "connected"})),
+            );
         }
         if self.ipc.clients.len() >= MAX_SOCKETS {
             return Err(rejected(format!(

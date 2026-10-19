@@ -311,7 +311,11 @@ use it; `choractl clients up [FILE]` applies a YAML file of
 `NAME: { grants: [...] }` entries: it opens the socket of every name
 and makes its grants equal to the list, so grants that are missing from
 the file are revoked. An existing socket is kept (`clients.create`
-answers the `socket_exists` reason) and its connections stay. Without a
+answers the `socket_exists` reason) and its connections stay; while a
+name is connected or in its grace time the socket cannot open
+(`clients.create` answers the `connected` reason). `choractl clients up`
+reports both reasons and goes on with the remaining names, syncing only
+the grants of that name. Without a
 file argument the first of `$XDG_CONFIG_HOME/chora/clients.yaml` and
 `~/.config/chora/clients.yaml` is read, `-` for stdin. The core
 answers every request.

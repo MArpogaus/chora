@@ -582,15 +582,25 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
         view::parse_yaml(&text).map_err(bad)?;
     for (name, spec) in wanted {
         view::check_name(&name).map_err(bad)?;
-        match client.call::<_, Value>("clients.create", serde_json::json!({"name": &name})) {
-            Ok(_) => {}
-            Err(ClientError::Rpc(e))
-                if e.data
-                    .as_ref()
-                    .and_then(|d| d.get("reason"))
-                    .and_then(Value::as_str)
-                    == Some("socket_exists") => {}
-            Err(e) => return Err(e),
+        let kept =
+            match client.call::<_, Value>("clients.create", serde_json::json!({"name": &name})) {
+                Ok(_) => None,
+                Err(ClientError::Rpc(err)) => {
+                    let reason = err
+                        .data
+                        .as_ref()
+                        .and_then(|d| d.get("reason"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
+                    if reason != "socket_exists" && reason != "connected" {
+                        return Err(ClientError::Rpc(err));
+                    }
+                    Some(reason.to_owned())
+                }
+                Err(e) => return Err(e),
+            };
+        if let Some(reason) = kept {
+            eprintln!("{name}: {reason}: socket not opened, only grants synced");
         }
         sync_grants(client, &name, spec.grants)?;
         println!("{name}");
