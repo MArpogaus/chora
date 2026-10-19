@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# UNTESTED example Quadlet: it has not run on a Podman host. On an
+# SELinux host the container likely needs `SecurityLabelDisable=true`.
+# Client sockets and grants live in memory, so run `choractl clients
+# up` after every start of chora, before this unit.
+#
+# One agent container that sees one chora client
+# directory and nothing else (D33, D40). Copy to
+# ~/.config/containers/systemd/ on the Podman host, set Image and the
+# flavor instance, then:
+#
+#   systemctl --user daemon-reload
+#   echo 'agent: {grants: [screen.capture]}' | choractl clients up -
+#   systemctl --user start chora-agent@tiling
+#
+# The socket is the identity: the container connects as `agent` with
+# the grants of that name and cannot choose another one. Through
+# ipc.sock it sees and changes only its own nodes and the windows of
+# its wayland.sock. It sets no camera and puts no node under screen:*.
+# It takes the keyboard with focus_node only after a press of the user
+# on it. The sockets
+# and their grants live in memory: after every start of chora run
+# `choractl clients up` again, then start this unit. On an SELinux
+# host the container likely needs `SecurityLabelDisable=true`, which
+# no example should hand out lightly.
+#
+# The unit name %i picks the chora flavor, the client directory always
+# carries the single agent identity.
+
+[Unit]
+Description=chora agent %i in a container
+After=chora@%i.service
+BindsTo=chora@%i.service
+
+[Container]
+Image=localhost/chora-agent:latest
+ContainerName=chora-agent-%i
+# The client directory of the name: ipc.sock and wayland.sock, seen as
+# /run/chora inside the container.
+Volume=%t/chora/clients/agent:/run/chora
+Environment=CHORA_SOCKET=/run/chora/ipc.sock
+Environment=WAYLAND_DISPLAY=/run/chora/wayland.sock
+Network=none
+SecurityOpt=no-new-privileges:true
+
+[Service]
+Restart=on-failure

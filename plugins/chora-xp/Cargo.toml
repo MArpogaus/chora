@@ -1,10 +1,13 @@
 [dependencies]
+chora-kit.workspace = true
 chora-scene.workspace = true
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 clap = { workspace = true, features = ["env"] }
 resvg = { version = "0.48", default-features = false, features = ["memmap-fonts", "system-fonts", "text"] }
 serde.workspace = true
 serde_json.workspace = true
+zbus = "5.19"
+zune-jpeg = "0.5"
 
 [lints]
 workspace = true

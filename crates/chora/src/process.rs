@@ -255,7 +255,11 @@ impl State {
                     state.answer_late(conn, &id, result);
                     TimeoutAction::Drop
                 });
-        inserted.err().map(|e| Err(rejected(e.to_string())))
+        if let Err(e) = inserted {
+            return Some(Err(rejected(e.to_string())));
+        }
+        self.ipc.late.push(conn);
+        None
     }
 
     /// The output of a program of a client, as `process.wait` answers it.
@@ -304,6 +308,7 @@ impl State {
             });
         inserted.map_err(|e| rejected(e.to_string()))?;
         self.ipc.restarting.insert(name.to_owned());
+        self.ipc.late.push(conn);
         Ok(())
     }
 
@@ -344,8 +349,12 @@ impl State {
         TimeoutAction::Drop
     }
 
-    /// Sends a late answer.
+    /// Sends a late answer. A connection whose client closed its side can
+    /// then close.
     fn answer_late(&mut self, conn: u64, id: &Value, result: Result<Value, RpcError>) {
+        if let Some(i) = self.ipc.late.iter().position(|c| *c == conn) {
+            self.ipc.late.swap_remove(i);
+        }
         let message = match result {
             Ok(value) => chora_scene::ipc::Message::result(id.clone(), value),
             Err(error) => chora_scene::ipc::Message::error(id.clone(), error),

@@ -226,6 +226,17 @@ impl State {
                     let size = w.geometry().size;
                     [f64::from(size.w), f64::from(size.h)]
                 }),
+                // An image without a size has the size of its file, as
+                // when it draws.
+                NodeKind::Image => placed.node.props.size.or_else(|| {
+                    placed
+                        .node
+                        .props
+                        .image
+                        .as_deref()
+                        .and_then(|p| self.assets.images.get(p))
+                        .map(|i| [f64::from(i.size[0]), f64::from(i.size[1])])
+                }),
                 _ => placed.node.props.size,
             };
             let Some([w, h]) = size else { continue };
@@ -364,7 +375,21 @@ fn encode(pixels: &Pixels) -> Result<Vec<u8>, String> {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
+    use crate::testing::Core;
+
+    /// The width and the RGBA bytes of a picture of `screen.capture`.
+    fn decode(picture: &Value) -> (usize, Vec<u8>) {
+        let png = STANDARD.decode(picture["png"].as_str().unwrap()).unwrap();
+        let mut reader = png::Decoder::new(std::io::Cursor::new(png))
+            .read_info()
+            .unwrap();
+        let mut rgba = vec![0; reader.output_buffer_size().unwrap()];
+        let info = reader.next_frame(&mut rgba).unwrap();
+        (info.width as usize, rgba)
+    }
 
     #[test]
     fn a_crop_keeps_a_part() {
@@ -377,6 +402,63 @@ mod tests {
         assert_eq!(part.rgba, vec![12, 13, 14, 15]);
         assert!(pixels.crop([1, 1, 2, 1]).is_none());
         assert!(pixels.crop([0, 0, 0, 1]).is_none());
+    }
+
+    #[test]
+    fn a_capture_of_an_output_shows_a_rect_of_the_scene() {
+        let mut core = Core::with_renderer();
+        core.add_output("test-1", (64, 48));
+        let mut wm = core.named("wm");
+        let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let props = json!({"size": [20, 10], "color": [1.0, 0.0, 0.0, 1.0],
+            "transform": {"translate": [8, 4]}});
+        let create = json!({"id": "r", "kind": "rect", "parent": "root", "props": props});
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": create}]}),
+        );
+        let picture = wm.ok(&mut core, "screen.capture", json!({"output": "test-1"}));
+        assert_eq!(
+            (picture["width"].clone(), picture["height"].clone()),
+            (json!(64), json!(48))
+        );
+        let (width, rgba) = decode(&picture);
+        let pixel = |x: usize, y: usize| &rgba[(y * width + x) * 4..][..4];
+        let (red, black) = ([255, 0, 0, 255], [0, 0, 0, 255]);
+        for (x, y) in [(8, 4), (27, 4), (8, 13), (27, 13)] {
+            assert_eq!(pixel(x, y), red, "inside at {x},{y}");
+        }
+        for (x, y) in [(7, 4), (28, 4), (8, 3), (8, 14), (63, 47)] {
+            assert_eq!(pixel(x, y), black, "outside at {x},{y}");
+        }
+    }
+
+    #[test]
+    fn a_translucent_rect_has_straight_alpha() {
+        let mut core = Core::with_renderer();
+        core.add_output("test-1", (64, 48));
+        let mut wm = core.named("wm");
+        let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let rect = |id: &str, x: u32, radius: u32| {
+            json!({"create": {"id": id, "kind": "rect", "parent": "root", "props": {
+                "size": [20, 20], "color": [1.0, 1.0, 1.0, 0.5], "radius": radius,
+                "transform": {"translate": [x, 4]}}}})
+        };
+        let commands = json!({"commands": [rect("plain", 4, 0), rect("round", 32, 4)]});
+        wm.ok(&mut core, "scene.apply", commands);
+        let picture = wm.ok(&mut core, "screen.capture", json!({"output": "test-1"}));
+        let (width, rgba) = decode(&picture);
+        let pixel = |x: usize, y: usize| &rgba[(y * width + x) * 4..][..3];
+        for (x, what) in [(14, "a rect"), (42, "a rounded rect")] {
+            let gray = pixel(x, 14);
+            assert!(
+                gray.iter().all(|c| c.abs_diff(128) <= 2),
+                "{what}: {gray:?}"
+            );
+        }
     }
 
     #[test]

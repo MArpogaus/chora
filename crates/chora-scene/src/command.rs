@@ -65,6 +65,11 @@ pub enum Command {
     Remove {
         /// The node.
         id: String,
+        /// For a surface: the client name that gets it (D55). Only this
+        /// client can attach it, and only it gets `surface.detached`. It
+        /// needs a connection.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        to: Option<String>,
     },
     /// Asks a client for a new size or new toplevel states.
     Configure {
@@ -80,6 +85,17 @@ pub enum Command {
     Focus {
         /// The surface node; no focus if missing.
         surface: Option<String>,
+    },
+    /// Gives the keyboard to a group, rect, image or shader node of the
+    /// caller: the core sends its keys as `node.key` events to the client,
+    /// and no surface gets them. Without a node, the caller gives the
+    /// keyboard back to the focused surface. The focus of a surface, the
+    /// removal of the node, the disconnect of the client and the lock of the
+    /// session end it too.
+    FocusNode {
+        /// The node; the end of the focus of a node of the caller if missing.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        node: Option<String>,
     },
     /// Asks a client to close a surface.
     Close {
@@ -139,6 +155,9 @@ pub enum Effect {
     Close(String),
     /// A surface lost its parent and its owner; tell the clients.
     Detached(String),
+    /// A surface lost its parent and its owner, reserved for a client
+    /// name; tell that client.
+    Reserved(String, String),
     /// The camera of an output changed; tell the clients.
     Camera(String),
 }

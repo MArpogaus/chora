@@ -39,9 +39,15 @@ impl WlrLayerShellHandler for State {
         &mut self,
         surface: WlrLayerSurface,
         output: Option<WlOutput>,
-        _layer: Layer,
+        layer: Layer,
         namespace: String,
     ) {
+        if layer == Layer::Overlay
+            && crate::security::named(&self.display_handle, surface.wl_surface())
+        {
+            surface.send_close();
+            return;
+        }
         let output = output
             .as_ref()
             .and_then(Output::from_resource)
@@ -94,6 +100,18 @@ impl State {
                 .get::<LayerSurfaceData>()
                 .is_some_and(|d| d.lock().expect("not poisoned").initial_configure_sent)
         });
+        // A client of a client socket that moves its layer surface to the
+        // overlay layer loses it.
+        let overlay = layer_map_for_output(&output)
+            .layer_for_surface(surface, WindowSurfaceType::TOPLEVEL)
+            .filter(|l| l.layer() == Layer::Overlay)
+            .cloned();
+        if let Some(layer) =
+            overlay.filter(|_| crate::security::named(&self.display_handle, surface))
+        {
+            layer.layer_surface().send_close();
+            layer_map_for_output(&output).unmap_layer(&layer);
+        }
         // The placement comes first, so that the initial configure has a
         // size.
         self.layers_changed(&output);
@@ -141,12 +159,39 @@ impl State {
     /// The layer surface of a surface, or of the root of a popup, if it
     /// accepts the keyboard.
     pub fn keyboard_layer(&self, surface: &WlSurface) -> Option<WlSurface> {
+        self.layer_keyboard(surface)
+            .filter(|(_, k)| *k != KeyboardInteractivity::None)
+            .map(|(l, _)| l)
+    }
+
+    /// Whether a surface is a layer surface that takes the keyboard on
+    /// demand, as the search field of a panel does.
+    pub fn on_demand_layer(&self, surface: &WlSurface) -> bool {
+        self.layer_keyboard(surface)
+            .is_some_and(|(_, k)| k == KeyboardInteractivity::OnDemand)
+    }
+
+    /// The layer surface of a surface, or of the root of a popup, and how
+    /// it takes the keyboard.
+    fn layer_keyboard(&self, surface: &WlSurface) -> Option<(WlSurface, KeyboardInteractivity)> {
         self.outputs.iter().find_map(|output| {
             let map = layer_map_for_output(output);
             map.layer_for_surface(surface, WindowSurfaceType::ALL)
-                .filter(|l| l.cached_state().keyboard_interactivity != KeyboardInteractivity::None)
-                .map(|l| l.wl_surface().clone())
+                .map(|l| (l.wl_surface().clone(), self.interactivity(l)))
         })
+    }
+
+    /// How a layer surface takes the keyboard: a client of a client socket
+    /// gets it on demand at most.
+    fn interactivity(&self, layer: &LayerSurface) -> KeyboardInteractivity {
+        let wanted = layer.cached_state().keyboard_interactivity;
+        if wanted == KeyboardInteractivity::Exclusive
+            && crate::security::named(&self.display_handle, layer.wl_surface())
+        {
+            KeyboardInteractivity::OnDemand
+        } else {
+            wanted
+        }
     }
 
     /// The topmost layer surface that takes the keyboard as long as it is
@@ -157,9 +202,7 @@ impl State {
             ABOVE.iter().find_map(|layer| {
                 map.layers_on(*layer)
                     .rev()
-                    .find(|l| {
-                        l.cached_state().keyboard_interactivity == KeyboardInteractivity::Exclusive
-                    })
+                    .find(|l| self.interactivity(l) == KeyboardInteractivity::Exclusive)
                     .map(|l| l.wl_surface().clone())
             })
         })

@@ -10,8 +10,9 @@ use chora_scene::{Command, NodeKind, PropsUpdate, Transform};
 use super::{WALLPAPERS, Wm};
 use crate::{
     cube::{self, DESKTOPS, Face, Turn, View},
-    decoration,
+    decoration, desktop_icons,
     taskbar::Bar,
+    theme::Rect,
     wallpaper,
 };
 
@@ -62,8 +63,7 @@ impl Wm {
         commands
     }
 
-    /// Starts a turn of the cube by some quarter turns: the faces with the
-    /// wallpaper go below the windows of each desktop.
+    /// Starts a turn of the cube by some quarter turns.
     pub(super) fn turn(&mut self, steps: i32) -> Vec<Command> {
         if self.effects.turn.is_some() || steps == 0 {
             return Vec::new();
@@ -71,17 +71,63 @@ impl Wm {
         let Some(area) = self.bars.first().map(Bar::area) else {
             return Vec::new();
         };
-        if !self.effects_on() {
+        if !self.effects_on() || !self.effects.toggles.cube {
             return self.show_desktop(cube::offset(self.desktop, steps));
         }
-        let mut commands = self.settle_for_turn();
         let duration = self
             .slow(TURN_TIME)
             .mul_f64(f64::from(steps.unsigned_abs()));
-        self.effects.turn = Some(Turn::new(self.desktop, steps, View::of(area), duration));
+        self.begin_turn(
+            Turn::new(self.desktop, steps, View::of(area), duration),
+            area,
+        )
+    }
+
+    /// Super and the left button down: the pointer turns the cube, from
+    /// a point of the scene.
+    pub(super) fn grab_cube(&mut self, [x, _]: [f64; 2]) -> Vec<Command> {
+        let Some(area) = self.bars.first().map(Bar::area) else {
+            return Vec::new();
+        };
+        if self.effects.turn.is_some() || !self.effects_on() || !self.effects.toggles.cube {
+            return Vec::new();
+        }
+        self.cube_grab = Some(x);
+        self.begin_turn(Turn::held(self.desktop, View::of(area)), area)
+    }
+
+    /// The pointer moved with Super and the left button down.
+    pub(super) fn drag_cube(&mut self, [x, _]: [f64; 2]) -> Vec<Command> {
+        let (Some(start), Some(turn)) = (self.cube_grab, self.effects.turn.as_mut()) else {
+            return Vec::new();
+        };
+        turn.hold(x - start);
+        // The frames of the effects draw it.
+        Vec::new()
+    }
+
+    /// The left button went up: the cube turns on to the nearest face.
+    pub(super) fn release_cube(&mut self) {
+        self.cube_grab = None;
+        let quarter = self.slow(TURN_TIME);
+        if let Some(turn) = &mut self.effects.turn {
+            turn.release(quarter);
+        }
+    }
+
+    /// Shows the faces of the cube for a turn: the faces with the
+    /// wallpaper go below the windows of each desktop.
+    fn begin_turn(&mut self, turn: Turn, area: Rect) -> Vec<Command> {
+        let mut commands = self.settle_for_turn();
+        self.effects.turn = Some(turn);
         let [x, y, w, h] = area;
         let size = [f64::from(w), f64::from(h)];
-        let image = wallpaper::image(&mut self.theme, &self.config.wallpaper, [w, h]);
+        // XP has one desktop: every face shows the wallpaper with the
+        // icons, and the icons themselves hide until the turn ends.
+        let face = wallpaper::picture(&self.theme, &self.config.wallpaper, [w, h], [w, h]);
+        let face = self.desk.paint(&mut self.theme, &mut self.icons, face);
+        let image = self.theme.render(&face);
+        commands.push(visible(desktop_icons::GROUP, false));
         commands.push(Command::Create {
             id: CUBE_BACKGROUND.into(),
             kind: NodeKind::Rect,
@@ -165,7 +211,7 @@ impl Wm {
             });
             commands.extend(self.fly(face, t));
         }
-        if t >= 1.0 {
+        if turn.done(t) {
             commands.extend(self.finish_turn());
         }
         commands
@@ -187,7 +233,7 @@ impl Wm {
             .iter()
             .enumerate()
             .map(|(i, w)| {
-                let lift = Turn::lift(t, i, count);
+                let lift = Turn::lift(turn.phase(t), i, count);
                 let transform = cube::transform(&view, face.angle, push, lift).then(&w.transform());
                 Command::Update {
                     id: decoration::group_id(&w.surface),
@@ -209,8 +255,12 @@ impl Wm {
         };
         let mut commands = vec![Command::Remove {
             id: CUBE_BACKGROUND.into(),
+            to: None,
         }];
-        commands.extend((0..DESKTOPS).map(|d| Command::Remove { id: face_id(d) }));
+        commands.extend((0..DESKTOPS).map(|d| Command::Remove {
+            id: face_id(d),
+            to: None,
+        }));
         commands.extend(self.show_desktop(turn.target()));
         commands
     }
@@ -221,6 +271,7 @@ impl Wm {
         let mut commands: Vec<Command> = (0..DESKTOPS)
             .map(|d| visible(&desk_id(d), d == self.desktop))
             .collect();
+        commands.push(visible(desktop_icons::GROUP, true));
         for w in &mut self.windows {
             w.held = false;
             commands.push(w.place());

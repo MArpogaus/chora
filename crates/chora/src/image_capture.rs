@@ -33,7 +33,7 @@ use smithay::{
 use crate::{
     copies::{self, Pictures},
     render,
-    security::trusted,
+    security::may_capture,
     shm,
     state::State,
 };
@@ -50,9 +50,12 @@ impl ImageCapture {
     /// Creates the globals.
     pub fn new(display: &smithay::reexports::wayland_server::DisplayHandle) -> Self {
         Self {
-            copy: ImageCopyCaptureState::new_with_filter::<State, _>(display, trusted),
-            outputs: OutputCaptureSourceState::new_with_filter::<State, _>(display, trusted),
-            toplevels: ToplevelCaptureSourceState::new_with_filter::<State, _>(display, trusted),
+            copy: ImageCopyCaptureState::new_with_filter::<State, _>(display, may_capture),
+            outputs: OutputCaptureSourceState::new_with_filter::<State, _>(display, may_capture),
+            toplevels: ToplevelCaptureSourceState::new_with_filter::<State, _>(
+                display,
+                may_capture,
+            ),
             sessions: Vec::new(),
         }
     }
@@ -118,6 +121,10 @@ impl Waiting {
     /// frame. A source of a new size gives the session the new size first.
     pub fn serve(self, state: &mut State, pictures: &mut Pictures) {
         let Waiting { session, frame } = self;
+        // A client that went gets nothing.
+        if session.client().is_none() {
+            return;
+        }
         let target = match ready(state, &session) {
             Ok(target) => target,
             Err(reason) => {

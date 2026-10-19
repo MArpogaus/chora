@@ -96,7 +96,13 @@ fn removing_a_group_detaches_foreign_surfaces_inside() {
     scene.apply("view", &[group("work", ROOT)]).unwrap();
     scene.apply("wm", &[attach("s1", "work")]).unwrap();
     scene
-        .apply("view", &[Command::Remove { id: "work".into() }])
+        .apply(
+            "view",
+            &[Command::Remove {
+                id: "work".into(),
+                to: None,
+            }],
+        )
         .unwrap();
     assert_eq!(scene.node("s1").unwrap().parent, None);
 }
@@ -250,7 +256,13 @@ fn remove_reports_the_surfaces_it_detaches() {
     scene.apply("view", &[group("work", ROOT)]).unwrap();
     scene.apply("wm", &[attach("s1", "work")]).unwrap();
     let effects = scene
-        .apply("view", &[Command::Remove { id: "work".into() }])
+        .apply(
+            "view",
+            &[Command::Remove {
+                id: "work".into(),
+                to: None,
+            }],
+        )
         .unwrap();
     assert_eq!(effects, vec![Effect::Detached("s1".into())]);
 }
@@ -469,6 +481,7 @@ fn a_camera_move_needs_a_duration_up_to_a_minute_and_ends_with_its_owner() {
 #[test]
 fn a_camera_belongs_to_the_client_that_sets_it_first() {
     let mut scene = Scene::default();
+    scene.set_default_camera("DP-1", Transform::IDENTITY);
     let zoom = Transform::scale(2.0, 2.0, 1.0);
     let effects = scene.apply("wm", &[camera("DP-1", Some(zoom))]).unwrap();
     assert_eq!(effects, vec![Effect::Camera("DP-1".into())]);
@@ -486,6 +499,7 @@ fn a_camera_belongs_to_the_client_that_sets_it_first() {
 #[test]
 fn a_disconnect_restores_the_default_camera() {
     let mut scene = Scene::default();
+    scene.set_default_camera("DP-1", Transform::IDENTITY);
     let pan = Transform::translate(-100.0, 0.0, 0.0);
     scene.apply("wm", &[camera("DP-1", Some(pan))]).unwrap();
     assert_eq!(scene.disconnect("wm"), vec![Effect::Camera("DP-1".into())]);
@@ -498,6 +512,7 @@ fn a_disconnect_restores_the_default_camera() {
 #[test]
 fn a_camera_needs_a_positive_2d_scale() {
     let mut scene = Scene::default();
+    scene.set_default_camera("DP-1", Transform::IDENTITY);
     let mut perspective = [0.0; 16];
     for i in [0, 5, 10, 15] {
         perspective[i] = 1.0;
@@ -523,6 +538,7 @@ fn a_camera_needs_a_positive_2d_scale() {
 #[test]
 fn a_camera_ignores_the_z_axis() {
     let mut scene = Scene::default();
+    scene.set_default_camera("DP-1", Transform::IDENTITY);
     let uniform: Transform = serde_json::from_value(serde_json::json!({"scale": 1.5})).unwrap();
     scene.apply("wm", &[camera("DP-1", Some(uniform))]).unwrap();
     assert_eq!(scene.camera("DP-1"), Some(&Transform::scale(1.5, 1.5, 1.0)));
@@ -535,21 +551,13 @@ fn a_camera_ignores_the_z_axis() {
 }
 
 #[test]
-fn adding_a_surface_again_keeps_its_node() {
-    let mut scene = scene_with_surface();
-    scene
-        .apply("wm", &[group("g", ROOT), attach("s1", "g")])
-        .unwrap();
-    assert!(!scene.add_surface("s1", SurfaceInfo::default()));
-    assert_eq!(scene.node("s1").unwrap().parent.as_deref(), Some("g"));
-    scene.remove_surface("s1");
-    assert!(scene.draw_list().iter().all(|p| p.node.id != "s1"));
-}
-
-#[test]
 fn the_number_of_cameras_has_a_limit() {
     let mut scene = Scene::default();
     let pan = Some(Transform::translate(-10.0, 0.0, 0.0));
+    for i in 0..MAX_CAMERAS {
+        scene.set_default_camera(&format!("out-{i}"), Transform::IDENTITY);
+    }
+    scene.set_default_camera("one-more", Transform::IDENTITY);
     let cameras: Vec<Command> = (0..MAX_CAMERAS)
         .map(|i| camera(&format!("out-{i}"), pan))
         .collect();
@@ -560,6 +568,20 @@ fn the_number_of_cameras_has_a_limit() {
         .unwrap();
     let err = scene.apply("wm", &[camera("one-more", pan)]).unwrap_err();
     assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
+}
+
+#[test]
+fn a_camera_needs_an_output_that_the_core_knows() {
+    let mut scene = Scene::default();
+    let pan = Some(Transform::translate(-10.0, 0.0, 0.0));
+    let err = scene.apply("bad", &[camera("HDMI-1", pan)]).unwrap_err();
+    assert_eq!(
+        err.error,
+        SceneError::Invalid("there is no output \"HDMI-1\"".into())
+    );
+    scene.apply("bad", &[camera("HDMI-1", None)]).unwrap();
+    scene.set_default_camera("HDMI-1", Transform::IDENTITY);
+    scene.apply("wm", &[camera("HDMI-1", pan)]).unwrap();
 }
 
 #[test]
@@ -656,7 +678,13 @@ fn an_update_or_a_removal_ends_an_animation() {
     assert!(!scene.animating());
     scene.apply("wm", &[animate]).unwrap();
     scene
-        .apply("wm", &[Command::Remove { id: "r".into() }])
+        .apply(
+            "wm",
+            &[Command::Remove {
+                id: "r".into(),
+                to: None,
+            }],
+        )
         .unwrap();
     assert!(!scene.animating());
     assert_eq!(scene.advance(200.0), Vec::<String>::new());
@@ -701,10 +729,14 @@ fn dropped_effects_stay_gone_during_an_animation() {
         easing: Easing::Linear,
     };
     scene.apply("wm", &[rect, fade]).unwrap();
-    assert!(scene.drop_effects());
+    assert!(
+        !scene.drop_effects("panel"),
+        "only the effects of the owner"
+    );
+    assert!(scene.drop_effects("wm"));
     scene.advance(100.0);
     assert!(scene.node("r").unwrap().props.mesh.is_none());
-    assert!(!scene.drop_effects());
+    assert!(!scene.drop_effects("wm"));
 }
 
 /// A create command from JSON props.
@@ -795,11 +827,32 @@ fn a_clip_needs_no_surface_and_makes_a_layer() {
 }
 
 #[test]
+fn the_watchdog_weighs_the_visible_nodes_of_each_owner() {
+    let mut scene = Scene::default();
+    let plain = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1]});
+    let round = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1], "radius": 4});
+    let effect = serde_json::json!({"size": [10, 10], "effects": [{"shader": "/e.frag"}]});
+    let hidden = serde_json::json!({"size": [10, 10], "visible": false});
+    scene.apply("wm", &[create("a", "rect", &plain)]).unwrap();
+    scene.apply("wm", &[create("b", "rect", &hidden)]).unwrap();
+    scene
+        .apply("panel", &[create("c", "rect", &round)])
+        .unwrap();
+    scene
+        .apply("loader", &[create("d", "group", &effect)])
+        .unwrap();
+    let load = scene.load_by_owner();
+    assert_eq!(load.get("wm"), Some(&1), "a hidden node costs nothing");
+    assert_eq!(load.get("panel"), Some(&26));
+    assert_eq!(load.get("loader"), Some(&51));
+}
+
+#[test]
 fn the_watchdog_takes_the_shader_of_a_shader_node() {
     let mut scene = Scene::default();
     let props = serde_json::json!({"size": [10, 10], "shader": "/s.frag"});
     scene.apply("wm", &[create("s", "shader", &props)]).unwrap();
-    assert!(scene.drop_effects());
+    assert!(scene.drop_effects("wm"));
     assert!(scene.node("s").unwrap().props.shader.is_none());
 }
 
@@ -829,6 +882,15 @@ fn a_client_that_cleared_the_focus_gives_it_back() {
     scene.apply("walk", &[focus(None)]).unwrap();
     scene.set_focused(Some("s2"));
     assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    // So does a focus that the window manager gave elsewhere since.
+    scene.add_surface("s2", SurfaceInfo::default());
+    scene
+        .apply("wm", &[attach("s2", ROOT), focus(Some("s1"))])
+        .unwrap();
+    scene.apply("walk", &[focus(None)]).unwrap();
+    scene.apply("wm", &[focus(Some("s2"))]).unwrap();
+    let err = scene.apply("walk", &[focus(Some("s1"))]).unwrap_err();
+    assert_eq!(err.error, SceneError::NotOwner("s1".into(), "wm".into()));
     // A transaction that focuses an own surface and clears the focus gives
     // it back to that surface.
     scene.add_surface("s5", SurfaceInfo::default());
@@ -861,7 +923,10 @@ fn a_gone_surface_is_no_missing_node_of_the_client() {
         surface: Some("s7".into()),
     };
     assert!(scene.apply("wm", &[focus]).unwrap_err().is_gone_surface());
-    let remove = Command::Remove { id: "tiles".into() };
+    let remove = Command::Remove {
+        id: "tiles".into(),
+        to: None,
+    };
     assert!(!scene.apply("wm", &[remove]).unwrap_err().is_gone_surface());
 }
 
@@ -895,6 +960,7 @@ fn an_overlay_root_holds_nodes_fixed_to_its_output() {
     assert!(scene.apply("agent", &[fake]).is_err());
     let remove = Command::Remove {
         id: overlay_id("DP-1"),
+        to: None,
     };
     assert!(scene.apply("agent", &[remove]).is_err());
     // The reset empties the overlay, and keeps it.
@@ -903,4 +969,97 @@ fn an_overlay_root_holds_nodes_fixed_to_its_output() {
         scene.node(&overlay_id("DP-1")).unwrap().children,
         Vec::<String>::new()
     );
+}
+
+#[test]
+fn a_client_gives_the_keyboard_to_its_own_node_until_a_surface_takes_it() {
+    let mut scene = scene_with_surface();
+    scene.apply("wm", &[attach("s1", ROOT)]).unwrap();
+    scene.apply("xp", &[group("menu", ROOT)]).unwrap();
+    let focus_node = |node: Option<&str>| Command::FocusNode {
+        node: node.map(Into::into),
+    };
+    assert!(scene.apply("wm", &[focus_node(Some("menu"))]).is_err());
+    assert!(scene.apply("wm", &[focus_node(Some("s1"))]).is_err());
+    scene.apply("xp", &[focus_node(Some("menu"))]).unwrap();
+    assert_eq!(scene.focused_node(), Some("menu"));
+    assert_eq!(scene.focused_node_owner(), Some("xp"));
+    // Only the owner gives it back.
+    scene.apply("wm", &[focus_node(None)]).unwrap();
+    assert_eq!(scene.focused_node(), Some("menu"));
+    scene.apply("xp", &[focus_node(None)]).unwrap();
+    assert_eq!(scene.focused_node(), None);
+    // The focus of a surface and the removal of the node end it.
+    scene.apply("xp", &[focus_node(Some("menu"))]).unwrap();
+    let focus = Command::Focus {
+        surface: Some("s1".into()),
+    };
+    scene.apply("wm", &[focus]).unwrap();
+    assert_eq!(scene.focused_node(), None);
+    scene.apply("xp", &[focus_node(Some("menu"))]).unwrap();
+    scene
+        .apply(
+            "xp",
+            &[Command::Remove {
+                id: "menu".into(),
+                to: None,
+            }],
+        )
+        .unwrap();
+    assert_eq!(scene.focused_node(), None);
+}
+
+fn set_meta(id: &str, meta: &[(&str, String)]) -> Command {
+    Command::Update {
+        id: id.into(),
+        props: PropsUpdate {
+            meta: Some(meta.iter().map(|(k, v)| ((*k).into(), v.clone())).collect()),
+            ..PropsUpdate::default()
+        },
+    }
+}
+
+#[test]
+fn the_meta_data_of_a_node_has_limits() {
+    let mut scene = Scene::default();
+    scene.apply("c", &[group("g", ROOT)]).unwrap();
+    let error =
+        |scene: &mut Scene, command: Command| scene.apply("c", &[command]).unwrap_err().error;
+    let limits = SceneError::Invalid(
+        "the meta data of \"g\" takes at most 32 keys, 1024 bytes per key or value \
+         and 4096 bytes in all"
+            .into(),
+    );
+    let long = "x".repeat(1025);
+    assert_eq!(error(&mut scene, set_meta("g", &[("k", long)])), limits);
+    let value = "x".repeat(1000);
+    for i in 0..4 {
+        let key = format!("k{i}");
+        scene
+            .apply("c", &[set_meta("g", &[(&key, value.clone())])])
+            .unwrap();
+    }
+    assert_eq!(
+        error(&mut scene, set_meta("g", &[("k4", value.clone())])),
+        limits,
+        "the updates add up"
+    );
+    // An empty value removes a key and makes room.
+    scene
+        .apply(
+            "c",
+            &[set_meta("g", &[("k0", String::new()), ("k4", value)])],
+        )
+        .unwrap();
+    let many: Vec<(String, String)> = (0..33).map(|i| (format!("n{i}"), "v".into())).collect();
+    let create = Command::Create {
+        id: "h".into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            meta: Some(many.into_iter().collect()),
+            ..PropsUpdate::default()
+        },
+    };
+    assert!(matches!(error(&mut scene, create), SceneError::Invalid(_)));
 }

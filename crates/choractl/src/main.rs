@@ -19,7 +19,7 @@ use chora_scene::{
     ipc::{
         Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, Edges,
         GrantChange, Hello, Inject, MethodCall, Picture, ProcessWait, Query, Reserve, Restart,
-        Spawn, Subscribe,
+        SOCKET_ENV, Spawn, Subscribe, admin_socket,
     },
 };
 use clap::{Parser, Subcommand};
@@ -71,21 +71,24 @@ enum Cmd {
         /// The parameters as JSON; `null` if missing.
         params: Option<String>,
     },
-    /// Grant a client name `input.inject`, `screen.capture` or
-    /// `process.spawn`, until the
-    /// session ends or a revoke.
+    /// Grant a client name `input.inject`, `screen.capture`,
+    /// `process.spawn` or `input.grab-any`, until the session ends or a
+    /// revoke. Goes through the admin socket.
     Grant {
         /// The client name, for example `agent`.
         client: String,
-        /// `input.inject`, `screen.capture` or `process.spawn`.
+        /// One or more of `input.inject`, `screen.capture`,
+        /// `process.spawn` and `input.grab-any`.
         #[arg(required = true)]
         capabilities: Vec<Capability>,
     },
     /// Revoke grants of a client name; all of them without a capability.
+    /// Goes through the admin socket.
     Revoke {
         /// The client name.
         client: String,
-        /// `input.inject`, `screen.capture` or `process.spawn`.
+        /// One or more of `input.inject`, `screen.capture`,
+        /// `process.spawn` and `input.grab-any`.
         capabilities: Vec<Capability>,
     },
     /// Print the grants by client name.
@@ -123,6 +126,20 @@ enum Cmd {
         #[arg(long)]
         transform: Option<String>,
     },
+    /// Add a virtual output, as a monitor plugs in, and print it: `WxH`
+    /// with an optional `@SCALE` and `+X+Y`. Only for tests on the headless
+    /// backend.
+    AddOutput {
+        /// For example `1920x1080@1.5+1280+0`.
+        spec: String,
+    },
+    /// Remove a virtual output, as a monitor unplugs. Only for tests on the
+    /// headless backend.
+    RemoveOutput {
+        /// The output, for example `HEADLESS-2`.
+        #[arg(value_name = "NAME")]
+        output: String,
+    },
     /// Restart a plugin: stop the process of a client name, and start its
     /// command again. Needs a grant of `process.spawn`.
     Restart {
@@ -136,6 +153,18 @@ enum Cmd {
     Asset {
         #[command(subcommand)]
         action: AssetCmd,
+    },
+    /// Manage the client sockets, which fix the name of their clients.
+    /// Goes through the admin socket.
+    Clients {
+        #[command(subcommand)]
+        action: ClientsCmd,
+    },
+    /// Take the camera of an output away from its owner, so that the view
+    /// goes back to its default. Goes through the admin socket.
+    Camera {
+        #[command(subcommand)]
+        action: CameraCmd,
     },
     /// Load, unload or save a view: plugins and nodes from a YAML file.
     View {
@@ -210,6 +239,32 @@ struct ReserveArgs {
 }
 
 #[derive(Subcommand)]
+enum CameraCmd {
+    /// End the ownership; the next `camera` command of any client wins.
+    Release {
+        /// The output, for example `HDMI-A-1`.
+        output: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum ClientsCmd {
+    /// Open the client socket of a name, `clients/NAME/ipc.sock` next to
+    /// `CHORA_SOCKET`, and print its path.
+    Create {
+        /// The client name, for example `agent`.
+        client: String,
+    },
+    /// Create the sockets of all names in a YAML file, with their
+    /// grants: `clients.create` and `grants.set` in one step.
+    Up {
+        /// The file, `~/.config/chora/clients.yaml` by default, `-` for
+        /// stdin.
+        file: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
 enum AssetCmd {
     /// Store a file under a name and print its path. A second put of the
     /// name replaces the file.
@@ -253,8 +308,9 @@ fn run(args: Args) -> Result<(), String> {
     let hello = Hello {
         name: args.name.unwrap_or_else(|| "choractl".into()),
         keep_nodes: true,
+        resume: false,
     };
-    let mut client = Client::from_env(&hello).map_err(|e| e.to_string())?;
+    let mut client = connect(&args.command, &hello)?;
     let result = match args.command {
         Cmd::Query { selector } => show(&mut client, "scene.query", Query { selector }),
         Cmd::Apply { .. } => client
@@ -265,10 +321,14 @@ fn run(args: Args) -> Result<(), String> {
         command @ (Cmd::Spawn { .. }
         | Cmd::Restart { .. }
         | Cmd::ConfigureOutput { .. }
+        | Cmd::AddOutput { .. }
+        | Cmd::RemoveOutput { .. }
         | Cmd::Reserve(_)
         | Cmd::Grant { .. }
         | Cmd::Revoke { .. }
-        | Cmd::Grants) => session(&mut client, command),
+        | Cmd::Grants
+        | Cmd::Clients { .. }
+        | Cmd::Camera { .. }) => session(&mut client, command),
         Cmd::Call {
             client: callee,
             method,
@@ -285,18 +345,33 @@ fn run(args: Args) -> Result<(), String> {
             node,
             max_side,
         } => {
-            return capture_to(
-                &mut client,
-                &Capture {
-                    output,
-                    node,
-                    max_side,
-                },
-                &file,
-            );
+            let capture = Capture {
+                output,
+                node,
+                max_side,
+            };
+            return capture_to(&mut client, &capture, &file);
         }
     };
     result.map_err(|e| e.to_string())
+}
+
+/// Connects to the core: grants and client sockets through the admin
+/// socket (D40), the rest through `CHORA_SOCKET`.
+fn connect(command: &Cmd, hello: &Hello) -> Result<Client, String> {
+    let admin = matches!(
+        command,
+        Cmd::Grant { .. } | Cmd::Revoke { .. } | Cmd::Clients { .. } | Cmd::Camera { .. }
+    );
+    if !admin {
+        return Client::from_env(hello).map_err(|e| e.to_string());
+    }
+    let main = std::env::var_os(SOCKET_ENV).ok_or("CHORA_SOCKET is not set")?;
+    // A symlink to the socket names the directory of the core only once
+    // resolved.
+    let main = std::fs::canonicalize(&main).unwrap_or_else(|_| main.into());
+    let path = admin_socket(&main);
+    Client::connect(&path, hello).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// The commands for grants, programs and outputs.
@@ -312,6 +387,19 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             capabilities,
         } => grants(client, "grants.revoke", name, capabilities),
         Cmd::Grants => show(client, "grants.list", Value::Null),
+        Cmd::Clients {
+            action: ClientsCmd::Create { client: name },
+        } => show(client, "clients.create", serde_json::json!({"name": name})),
+        Cmd::Clients {
+            action: ClientsCmd::Up { file },
+        } => clients_up(client, file.as_deref()),
+        Cmd::Camera {
+            action: CameraCmd::Release { output },
+        } => show(
+            client,
+            "camera.release",
+            serde_json::json!({"output": output}),
+        ),
         Cmd::Spawn { capture, argv } => spawn(client, argv, capture),
         Cmd::Restart { client: name } => show(client, "plugins.restart", Restart { name }),
         Cmd::ConfigureOutput {
@@ -323,6 +411,10 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
                 serde_json::json!({"output": output, "scale": scale, "transform": transform});
             show(client, "output.configure", params)
         }
+        Cmd::AddOutput { spec } => show(client, "output.add", serde_json::json!({"spec": spec})),
+        Cmd::RemoveOutput { output } => client
+            .call::<_, Value>("output.remove", serde_json::json!({"output": output}))
+            .map(drop),
         _ => unreachable!("only commands for grants, programs and outputs come here"),
     }
 }
@@ -452,6 +544,109 @@ fn grants(
     client.call::<_, Value>(method, change).map(drop)
 }
 
+/// One name of `clients up`: its grants; the socket itself needs no
+/// more than the name.
+#[derive(serde::Deserialize)]
+struct ClientSpec {
+    #[serde(default)]
+    grants: Vec<Capability>,
+}
+
+/// Creates the socket of every name in the file and sets its grants.
+fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError> {
+    let bad = |e: String| ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e));
+    let text = match file {
+        Some("-") => {
+            let mut text = String::new();
+            std::io::stdin().read_to_string(&mut text)?;
+            text
+        }
+        Some(f) => std::fs::read_to_string(f)?,
+        None => {
+            let mut paths = Vec::new();
+            if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
+                paths.push(format!("{xdg}/chora/clients.yaml"));
+            }
+            if let Ok(home) = std::env::var("HOME") {
+                paths.push(format!("{home}/.config/chora/clients.yaml"));
+            }
+            let path = paths
+                .iter()
+                .find(|p| std::path::Path::new(p).exists())
+                .cloned()
+                .ok_or_else(|| bad("no clients.yaml; give the file as argument".into()))?;
+            std::fs::read_to_string(&path).map_err(|e| bad(format!("{path}: {e}")))?
+        }
+    };
+    let wanted: std::collections::BTreeMap<String, ClientSpec> =
+        view::parse_yaml(&text).map_err(bad)?;
+    for (name, spec) in wanted {
+        view::check_name(&name).map_err(bad)?;
+        match client.call::<_, Value>("clients.create", serde_json::json!({"name": &name})) {
+            Ok(_) => {}
+            Err(ClientError::Rpc(e))
+                if e.data
+                    .as_ref()
+                    .and_then(|d| d.get("reason"))
+                    .and_then(Value::as_str)
+                    == Some("socket_exists") => {}
+            Err(e) => return Err(e),
+        }
+        sync_grants(client, &name, spec.grants)?;
+        println!("{name}");
+    }
+    Ok(())
+}
+
+/// Makes the grants of a name equal to the listed ones, part by part:
+/// an unchanged grant stays, so no client is disconnected and no moment
+/// passes without it.
+fn sync_grants(
+    client: &mut Client,
+    name: &str,
+    listed: Vec<Capability>,
+) -> Result<(), ClientError> {
+    let grants = client.call::<_, Value>("grants.list", Value::Null)?;
+    let current: std::collections::BTreeSet<Capability> = grants
+        .get(name)
+        .cloned()
+        .map(|v| serde_json::from_value(v).map_err(ClientError::Json))
+        .transpose()?
+        .unwrap_or_default();
+    let wanted = listed
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+    let (gone, added) = grant_delta(&current, &wanted);
+    if !gone.is_empty() {
+        client.call::<_, Value>(
+            "grants.revoke",
+            serde_json::json!({"client": name, "capabilities": gone}),
+        )?;
+    }
+    if !added.is_empty() {
+        client.call::<_, Value>(
+            "grants.set",
+            GrantChange {
+                client: name.into(),
+                capabilities: added,
+            },
+        )?;
+    }
+    Ok(())
+}
+
+/// The grants to revoke and the grants to set so that `current` becomes
+/// `wanted`; an unchanged grant appears in neither list.
+fn grant_delta(
+    current: &std::collections::BTreeSet<Capability>,
+    wanted: &std::collections::BTreeSet<Capability>,
+) -> (Vec<Capability>, Vec<Capability>) {
+    (
+        current.difference(wanted).copied().collect(),
+        wanted.difference(current).copied().collect(),
+    )
+}
+
 /// Calls a method of a plugin and prints the result.
 fn call(
     client: &mut Client,
@@ -530,7 +725,47 @@ fn print(value: &Value) {
 mod tests {
     use clap::Parser;
 
-    use super::{Args, AssetCmd, Cmd};
+    use super::{Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta};
+
+    /// An unchanged grant is revoked by no one and set by no one.
+    #[test]
+    fn the_grant_delta_of_an_unchanged_file_is_empty() {
+        let have = [Capability::InputInject, Capability::ScreenCapture]
+            .into_iter()
+            .collect();
+        let (gone, added) = grant_delta(&have, &have);
+        assert!(gone.is_empty() && added.is_empty());
+        let wanted = [Capability::ScreenCapture].into_iter().collect();
+        let (gone, added) = grant_delta(&have, &wanted);
+        assert_eq!(gone, [Capability::InputInject]);
+        assert!(added.is_empty() && wanted.len() == 1);
+    }
+
+    /// The clients file of `clients up` maps names to their grants.
+    #[test]
+    fn a_clients_file_lists_names_and_grants() {
+        let args = Args::try_parse_from("choractl clients up -".split(' ')).unwrap();
+        assert!(matches!(
+            args.command,
+            Cmd::Clients {
+                action: super::ClientsCmd::Up {
+                    file: Some(ref f)
+                }
+            } if f == "-"
+        ));
+        let file = "agent:\n  grants: [screen.capture, input.grab-any]\nguest: {}\n";
+        let wanted: std::collections::BTreeMap<String, ClientSpec> =
+            super::view::parse_yaml(file).unwrap();
+        assert_eq!(wanted["agent"].grants.len(), 2);
+        assert_eq!(wanted["guest"].grants.len(), 0);
+        assert!(
+            super::view::parse_yaml::<std::collections::BTreeMap<String, ClientSpec>>(
+                "agent: { grants: [not-a-capability] }",
+            )
+            .is_err(),
+            "an unknown capability is an error"
+        );
+    }
 
     /// No argument of a command takes the place of `--name`.
     #[test]

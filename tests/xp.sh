@@ -5,8 +5,9 @@
 # mesh, the minimize button sends the window through the magic lamp and
 # the task button brings it back, the start menu opens and starts a
 # terminal, the buttons of the title bar maximize and close a window, and
-# the desktop buttons turn the cube to another desktop and back. Buttons
-# light up under the pointer.
+# the desktop buttons turn the cube to another desktop and back, and
+# Escape answers No to Confirm File Delete. Buttons light up under the
+# pointer.
 #
 # A virtual pointer of the host drives chora, as in tests/nested.sh. Its
 # coordinates are those of the 1280x800 output, which shows the scene
@@ -57,14 +58,17 @@ WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
 pids+=($!)
 wait_for test -S "$XDG_RUNTIME_DIR/wayland-1"
 export WAYLAND_DISPLAY=wayland-1
+# A home of its own: step 13 drops a file of the Desktop into the bin.
+export HOME=$XDG_RUNTIME_DIR
+unset XDG_CONFIG_HOME XDG_DATA_HOME
 
 step "1. chora -- chora-xp starts nested"
 CHORA_FRAME_BUDGET_US=500000 "$bin/chora" -- "$bin/chora-xp" --theme "$theme" --slow-motion 5 \
     >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
-wait_for compgen -G "$XDG_RUNTIME_DIR/chora/*.sock"
-CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/*.sock")
+wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"
+CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock")
 export CHORA_SOCKET
 inner=$(basename "$CHORA_SOCKET" .sock)
 query() { "$bin/choractl" query "$@"; }
@@ -284,6 +288,67 @@ wait_for has_node_count 0 id:xp-face-0
 desk_visible 0 false || fail "the first desktop still shows"
 keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
+
+step "13. Escape answers No to Confirm File Delete"
+# A file of the Desktop, dropped on the Recycle Bin, asks first; Escape
+# answers No, as on XP, and the file stays. My Documents and My Computer
+# stay first and the Recycle Bin last, so the one file of the Desktop is
+# the third icon and the bin follows it.
+mkdir -p "$HOME/Desktop"
+echo delete-me >"$HOME/Desktop/x.txt"
+icon_count() {
+    query kind:image |
+        jq '[.[] | select(.id | startswith("xp-icon-"))] | length'
+}
+four_icons() { test "$(icon_count)" = 4; }
+wait_for four_icons
+icon_at() {
+    query "id:$1" |
+        jq -r '.[0].transform.matrix | "\(.[12] + 40 | floor) \(.[13] + 40 | floor)"'
+}
+# The windows of the first desktop cover the icons; the second desktop
+# is empty and shows the same icons. A turn waits until the turn back of
+# step 12 ends: chora-xp runs in slow motion and ignores a second turn.
+wait_for has_node_count 0 id:xp-face-1
+keys 29+56+106 || fail "the keys failed: $out/probe.log"
+wait_for desk_visible 1 true
+wait_for has_node_count 0 id:xp-face-0
+icons_shown() { test "$(query id:xp-icons | jq '.[0].visible')" = "true"; }
+wait_for icons_shown
+read -r fx fy <<<"$(icon_at xp-icon-2)"
+read -r bx by <<<"$(icon_at xp-icon-3)"
+timeout 20 "$bin/chora-probe" drag "$fx" "$fy" "$bx" "$by" >>"$out/probe.log" 2>&1 &
+job=$!
+asked() { test "$(query id:xp-dlg-confirm | jq -r '.[0].visible // false')" = "true"; }
+wait_for asked
+grim "$out/confirm.png"
+wait "$job" || fail "the drop failed: $out/probe.log"
+keys 1 || fail "the keys failed: $out/probe.log"
+answered() {
+    test "$(query id:xp-dlg-confirm | jq -r '.[0].visible // false')" = "false"
+}
+wait_for answered
+test -f "$HOME/Desktop/x.txt" || fail "Escape answered Yes"
+grim "$out/escape-no.png"
+keys 29+56+105 || fail "the keys failed: $out/probe.log"
+wait_for desk_visible 0 true
+wait_for has_node_count 0 id:xp-face-1
+
+# A token given before the first map reaches plugins through
+# surface.created.
+"$bin/choractl" events surface.created >"$out/created.jsonl" 2>/dev/null &
+events_job=$!
+sleep 0.5
+activated=$(WAYLAND_DISPLAY=$inner timeout 20 "$bin/chora-probe" activated)
+sleep 0.5
+kill "$events_job" 2>/dev/null || true
+token=${activated##* }
+test -n "$token" || fail "the probe found no token"
+jq -e --arg t "$token" \
+    'select(.event == "surface.created" and .token == $t and .pid >= 1)' \
+    "$out/created.jsonl" >/dev/null ||
+    fail "no surface.created with the token and the pid: $out/created.jsonl"
+
 kill -0 "$chora_pid" || fail "chora died"
 pgrep -x chora-xp >/dev/null || fail "chora-xp died: $out/chora.log"
 

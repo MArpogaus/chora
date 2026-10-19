@@ -43,15 +43,17 @@ This table is the one list of node properties.
 |----------|-------|---------|
 | `id` | all | stable id; ids of the form `s1`, `s2` belong to surfaces, and the core assigns them |
 | `owner` | all | client name of the owner; read-only |
+| `to` | surface | the only client name that can attach this detached surface, after a `remove` with `to` or for a new toplevel; read-only |
+| `claim` | all | `[x, y, w, h]` in scene coordinates: the area of the owner as a window manager; a new toplevel can go to it (see [below](#window-managers)); `null` removes the claim |
 | `transform` | all | a 4x4 matrix, or the short form translate, scale, rotate |
 | `opacity`, `visible` | all | |
 | `clip` | group, rect, image, shader | `{"radius": r}`: the node and its descendants show only inside its size, with corners rounded by `r` logical pixels, and take pointer input only there; the node becomes a layer; `null` removes the clip |
 | `effects` | group, rect, image | up to 8 effects `{"shader": path, "uniforms": {name: number or 2 to 4 numbers}}`; the node becomes a layer, and the core applies the shaders in order; `[]` removes them |
 | `input` | all | `accept`, `pass` or `block`; `pass` and `block` apply to all descendants |
-| `meta` | all | free key/value pairs to tag and find nodes |
+| `meta` | all | free key/value pairs to tag and find nodes; an empty value removes a key; at most 32 keys, 1 KiB per key or value and 4 KiB in all per node |
 | `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
 | `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; optional `depth`: the z of each point, which the transform of the node projects; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
-| `color` | rect | RGBA, each from 0 to 1 |
+| `color` | rect | RGBA, each from 0 to 1, with straight alpha: `[1, 1, 1, 0.5]` is white at half opacity |
 | `radius` | rect | the radius of the corners in logical pixels; the rect becomes a layer |
 | `border` | rect | `{"width": w, "color": [r, g, b, a]}`: a line of `w` logical pixels along the inner edge; the rect becomes a layer; `null` removes it |
 | `image` | image | absolute path of a PNG file; the core loads it again after a change |
@@ -92,9 +94,11 @@ An effect is a GLSL ES fragment shader with absolute path. It reads the
 layer in `uniform sampler2D tex` at `varying vec2 v_uv`, and may use
 `uniform float alpha`, `uniform vec2 size` (the texture size in pixels),
 `uniform float time` (seconds) and its own `float` and `vec2` to `vec4`
-uniforms. A transaction that names a shader that does not compile fails
-with the log of the compiler. The core compiles a shader again when its
-file changes. The package installs examples in `/usr/share/chora/shaders/`:
+uniforms. The texture holds premultiplied colors, and the shader writes
+premultiplied colors; the core passes the uniforms as they are, so a
+color uniform is whatever the shader takes it to be. A transaction that
+names a shader that does not compile fails with the log of the compiler.
+The core compiles a shader again when its file changes. The package installs examples in `/usr/share/chora/shaders/`:
 `grayscale.frag`, `rounded.frag` and `blur.frag` (with `radius`).
 
 Two hints for shaders. With `precision mediump float`, the common hash
@@ -103,9 +107,11 @@ noise and hashes need `precision highp float`. `fwidth`, `dFdx` and `dFdy`
 need `GL_OES_standard_derivatives`, which the core enables for a shader
 that uses them.
 
-The core loads the file of an image when a transaction names it. A file
-that does not load, that is larger than 32 MiB or larger than 8192 pixels
-on a side rejects the transaction. A plugin in a container shares its
+The core loads the file of an image when a transaction names it, on a
+worker thread: the transaction answers when the file is decoded, while
+other clients go on, and the later transactions of the same connection
+wait for it. A file that does not load, that is larger than 32 MiB or
+larger than 8192 pixels on a side rejects the transaction. A plugin in a container shares its
 asset directory with the core, as it shares the socket directory.
 
 A client that shares no directory with the core, for example an agent in
@@ -115,9 +121,10 @@ path for `image`, `shader` and effects. A file has at most 512 KiB, a
 client at most 64 files, all clients together at most 64 MiB. A client
 name with assets has at most 120 bytes. A second put
 of a name replaces the file, and the nodes that use it load it again. The
-files of a client go with its nodes: at the last disconnect without
-`keep_nodes`, otherwise when chora exits. `choractl asset put NAME FILE`
-prints the path.
+files of a client go with its nodes. With `keep_nodes`, they go when
+chora exits. With `resume` only, they go after the grace time. Otherwise,
+they go at the last disconnect. `choractl asset put NAME FILE` prints the
+path.
 
 ## Commands
 
@@ -128,11 +135,12 @@ prints the path.
 | `update` | change node properties |
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
-| `remove` | remove a node; a removed surface becomes detached |
+| `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection (D55). |
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
-| `focus` | set the keyboard focus to an own surface, or clear it without a surface; a client that cleared the focus may give it back once to the surface that had it, also of another client |
+| `focus` | set the keyboard focus to an own surface, or clear it without a surface. A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return. |
+| `focus_node` | give the keyboard to an own node that is no surface, or without a node give it back (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `close` | ask a client to close a surface |
-| `camera` | set the camera of an output, or restore its default camera without a transform; with a `duration`, move it there; the first client that sets the camera owns it, and a `camera` without a transform gives it up |
+| `camera` | set the camera of an output that is or was plugged in, or restore its default camera without a transform; with a `duration`, move it there; the first client that sets the camera owns it, and a `camera` without a transform gives it up |
 
 `animate` lets plugins and agents animate without code in every frame:
 
@@ -159,6 +167,72 @@ sends `animation.done` with the output and then `output.changed`:
             "duration": 500, "easing": "ease_in_out"}}
 ```
 
+## Keyboard focus of nodes
+
+The chrome of a plugin, for example a menu or a dialog, is made of nodes
+and takes the keyboard with `focus_node`:
+
+<!-- parses: command -->
+```json
+{"focus_node": {"node": "start-menu"}}
+```
+
+While the node has the focus, no surface gets keys: the focused surface
+gets a leave, and the core sends each key as `node.key` to the
+connections of the owner of the node that subscribed to it. A press
+carries the text that it types:
+
+```json
+{"event": "node.key", "node": "start-menu", "key": "a", "code": 30,
+ "state": "pressed", "modifiers": ["Shift"], "text": "A"}
+```
+
+- `key` is the keysym name with the modifiers applied, `code` the Linux
+  key code, and `modifiers` lists `Ctrl`, `Alt`, `Shift` and `Super` as
+  they are down.
+- `text` is missing for a release, for a key without text such as
+  `Return`, and while Ctrl, Alt or Super is down. A dead key types
+  nothing; the core does no compose.
+- The core repeats a held key as a Wayland client does: after 200 ms,
+  25 times a second, with the same `pressed` event. Modifiers do not
+  repeat. The repeat ends when the key goes up, when another key goes
+  down, or when the node loses the focus.
+- The safety layer and the grabs come first, also for injected keys.
+
+The focus returns to the focused surface, which gets an enter, in these
+cases:
+
+- The owner sends `{"focus_node": {}}`.
+- The node goes.
+- Its client disconnects, also with `keep_nodes` or `resume`.
+- The session locks.
+- A surface gets the focus, by a command or by the core.
+
+A layer surface that takes the keyboard exclusively, for example a
+launcher, gets the keys before the node. Some layer surfaces take the
+keyboard on demand, for example the search field of a panel. A click on
+such a surface ends the focus of the node and gives it the keyboard.
+
+## Window managers
+
+Several window managers share the scene (D55). A window manager sets
+`claim` on a node, for example on its root group. At the first commit of
+a toplevel, the core reserves it for one window manager:
+
+1. the owner of its parent toplevel, for a dialog;
+2. else the owner of the node or surface with the keyboard focus, if it
+   holds a claim;
+3. else the owner of the smallest claim that contains the pointer.
+
+Only clients with a connection or in their grace time count. Only the
+chosen client can attach the surface, and `surface.created` names it in
+`to`. Without a match, any client attaches the surface. When the last
+connection of the client closes, the reservation ends with
+`surface.detached`. With `resume`, it ends at the end of the grace time.
+When a window manager removes its last claim, its reservations end too. A
+`remove` with `to` hands a surface to another window manager in the same
+way.
+
 ## Selectors
 
 A selector finds nodes: `id:work`, `kind:surface`, `owner:tiling`,
@@ -172,18 +246,22 @@ or an empty list. It always sees the current titles.
 
 | Event | Data |
 |-------|------|
-| `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own |
+| `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own. `to` names the window manager that the core reserved it for (see [Window managers](#window-managers)). `pid` is the process of the client as the socket reports it, a hint that a pid namespace can hide; `token` is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before the first map. |
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
-| `surface.destroyed`, `surface.detached` | surface id; `surface.destroyed` follows only a `surface.created` |
+| `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`. When `to` disconnects, the surface is free again, and all clients get `surface.detached`. With `resume`, this occurs at the end of the grace time. |
+| `focus.changed` | the focused surface changed, by a `focus` of a client or by the core: `surface`, or `null`. Window managers draw their frames from it (D55). |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
-| `input.key` | the grabbed `binding` and its `state`: `pressed` when its key goes down, `released` when it goes up |
+| `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up (see [IPC methods](#ipc-methods)) |
+| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; only to the connection of the grab |
+| `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
-| `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME` |
-| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node and position; `pointer.released` with the button |
+| `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, and the `modifiers` that are down |
+| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position and modifiers; `pointer.released` with the button |
+| `pointer.scroll` | the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, `dx` and `dy` in logical pixels, `discrete` wheel steps, `source` (`wheel`, `finger`, `continuous` or `wheel_tilt`) and modifiers; only to the owner of the node |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
-| `effect.failed` | the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version |
+| `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
 | `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again |
-| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of all nodes, because frames were slow for two seconds |
+| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow, the core disconnects that client and removes its nodes, also with `keep_nodes` or `resume` |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
@@ -191,33 +269,70 @@ or an empty list. It always sees the current titles.
 
 The response of `scene.apply` reports the result of a transaction: `null`
 when it applied, an error with the index of the failed command when not.
+`choractl apply FILE` reads one list of commands as JSON, from standard
+input when the file is `-`; it prints nothing when it applied and the
+reason when not, so the exit code is the answer. Only the `view`
+subcommand reads YAML.
 A request that a client makes before its first commit follows its
 `surface.created`. A taskbar asks through `wlr-foreign-toplevel-management`.
 The core does not act on a request, also not on `close`. A plugin answers
 with commands, for example `close`. A press over a surface reaches its
 client as well; a press over a rect or an image goes to plugins only, with
 the moves and the release that follow, so that a plugin can drag a window
-by its title bar. Later milestones add events for size limits.
+by its title bar. `modifiers` lists `Ctrl`, `Alt`, `Shift` and `Super` as
+they are down, for example for a Ctrl+click.
+
+Scrolling over a surface reaches its client through Wayland. Over a rect,
+an image or a shader node, the core sends `pointer.scroll` to the
+connections of the owner of the node that subscribed to it, so that a
+list of a plugin scrolls:
+
+```json
+{"event": "pointer.scroll", "node": "start-menu", "position": [40, 700],
+ "dx": 0, "dy": 15, "discrete": [0, 1], "source": "wheel", "modifiers": []}
+```
+
+Later milestones add events for size limits.
 
 ## IPC methods
 
-JSON-RPC 2.0, one message per line, on the socket in `CHORA_SOCKET`. Every
-client sends `hello` first. The core answers every request.
+JSON-RPC 2.0, one message per line, on the socket in `CHORA_SOCKET`. A
+client sends `hello` first. A method that changes the session or needs a
+grant fails before `hello`. `scene.query`, `events.subscribe`,
+`output.list`, `clients.list`, `clients.create`, `camera.release`,
+`grants.set`, `grants.revoke` and `grants.list` also work before it,
+for tools.
+
+The core opens an admin socket next to the IPC socket, for example
+`wayland-1.admin.sock` next to `wayland-1.sock` (D40). It offers all
+methods. Only there do `grants.set`, `grants.revoke` and `clients.create`
+work. `choractl grant`, `choractl revoke` and `choractl clients create`
+use it; `choractl clients up [FILE]` applies a YAML file of
+`NAME: { grants: [...] }` entries: it opens the socket of every name
+and makes its grants equal to the list, so grants that are missing from
+the file are revoked. An existing socket is kept (`clients.create`
+answers the `socket_exists` reason) and its connections stay. Without a
+file argument the first of `$XDG_CONFIG_HOME/chora/clients.yaml` and
+`~/.config/chora/clients.yaml` is read, `-` for stdin. The core
+answers every request.
 
 | Method | Purpose |
 |--------|---------|
-| `hello(name, keep_nodes)` | name the client; `keep_nodes` keeps its nodes and cameras after the disconnect |
+| `hello(name, keep_nodes, resume)` | name the client (lowercase letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes); `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); returns `{"version": ...}` |
 | `scene.query(selector)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
-| `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name |
-| `input.grab(binding)` | get the events of a key, a button or a gesture; returns the binding as `input.key` names it |
+| `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused |
+| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; `Ctrl+Alt` with a key of the safety layer stays refused either way; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `process.spawn` for a client name; `choractl grant` and `choractl revoke` call them |
+| `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture`, `process.spawn` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket |
+| `clients.create(name)` | open the client socket of a name and return its `path` (see [Client sockets](#client-sockets)); only on the admin socket; `choractl clients create NAME` calls it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
-| `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; returns the output |
+| `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; scale and mode must keep the logical size within 16384 pixels a side; returns the output |
+| `output.add(spec)`, `output.remove(output)` | for tests on the headless backend only: add a virtual output `WxH[@SCALE][+X+Y]`, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and `WxH` divided by `SCALE` must stay within 16384 a side; other backends refuse, and the last output stays; `choractl add-output` and `choractl remove-output` call them |
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
@@ -228,15 +343,74 @@ client sends `hello` first. The core answers every request.
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
-An error has a `code` and a `message`: the JSON-RPC codes for a method or
-parameters that do not exist, 1 for a request that breaks a rule, and 2
-for a transaction that names a surface node that is gone, for example of a
-window that closed in the meantime. A plugin can ignore code 2.
+An error has a `code`, a `message` and, where it helps, a machine
+readable `data`: the JSON-RPC codes for a method or parameters that do
+not exist, 1 for a request that breaks a rule, and 2 for a transaction
+that names a surface node that is gone, for example of a window that
+closed in the meantime. A plugin can ignore code 2. A rejected
+transaction carries `{"command": INDEX}` in `data`, the position of the
+failed command in the transaction.
+
+A request is one line of at most 1 MiB (`MAX_LINE`). The core reads a
+longer line to its end, answers it with code 1 and the id `null`, and
+closes the connection. The core holds at most 8 MiB (`MAX_OUTPUT`) of
+answers and events that a connection did not read yet; a connection that
+passes this limit closes, so a client reads its socket while it waits. An
+answer that does not fit, for example of a query of all nodes, fails with
+code 1 instead, and the connection stays.
+
+The core takes at most 128 connections, at most 16 of one process. The
+last 8 go only to a process without a connection, so `choractl` and a
+window manager that starts again still connect while one client holds many.
+A refused connection gets an error line with code 1 and the reason, `too
+many connections: ...`, before the core closes it.
+
+`hello` answers with the version of the core: the crate version and,
+for a build in a git checkout, the commit, for example
+`{"version": "0.5.4+1ea0e89abc"}`. `chora --version` prints the same.
+The client library of `chora-scene` warns once on stderr when the core is
+another build, so `choractl` and the plugins tell why a request fails
+after an update. This is a first step: the versioned `hello` of D29, with
+the protocol version and the features of both sides, follows in 0.7.
 
 A connection sends `hello` once, within 5 s. Connections with the same name share their
-nodes, so they must agree on `keep_nodes`. The core refuses a `hello` with a
-different value. For example, `choractl --name tiling` fails while the tiling
-plugin runs.
+nodes, so they must agree on `keep_nodes` and `resume`. The core refuses a
+`hello` with different values. For example, `choractl --name tiling` fails
+while the tiling plugin runs. With `keep_nodes`, `resume` has no effect.
+A `hello` with `resume` also fails while another connection of the name
+is live. So a second instance of a plugin cannot take the nodes of the
+first. The error says that the name is connected.
+
+`resume` lets a plugin restart without a loss, for example after a crash
+or a change of its configuration. When the last connection of a name
+with `resume` closes, the core keeps the nodes of the name for a grace
+time of 10 s. It keeps their tree, stacking, properties and `meta`. It
+also keeps the surfaces that they hold, the cameras and the assets. The
+grabs, the exported methods, the reserves and the keyboard focus of a
+node end as at any disconnect, and `client.disconnected` follows at once.
+
+```json
+{"jsonrpc": "2.0", "id": 1, "method": "hello", "params": {"name": "wm", "resume": true}}
+```
+
+- A `hello` of the same name with `resume` within the grace time gets the
+  nodes back. The plugin finds them with `scene.query` and `owner:NAME`.
+  When the list is not empty, it rebuilds its model from them instead of
+  creating its nodes again.
+- A `hello` of the name without `resume` removes the kept nodes first, so
+  the client starts as without a grace time.
+- After the grace time, the core removes the nodes as at any disconnect:
+  the surfaces become detached, and the core sends `surface.detached` for
+  each.
+- No client of another name can change the kept nodes. Only a name with
+  a client socket is safe from other clients that take it (see
+  [Client sockets](#client-sockets)).
+- A toplevel that maps during the grace time gets `surface.created` as
+  usual, and stays without an owner if no other plugin attaches it. The
+  resumed plugin takes it as at any start, with a query of `kind:surface`
+  for surfaces without an owner.
+- The emergency reset and a disconnect of the watchdog end the grace time
+  at once.
 
 A reserve of `output.reserve` belongs to a connection and ends with it,
 also when its client crashes. The reserves of all connections on an
@@ -244,9 +418,38 @@ output add up, and count from the edges of the area that the exclusive
 zones of layer surfaces leave free. At least one pixel of the work area
 stays. `choractl reserve --top 30` holds a reserve until it ends.
 
-A key binding needs Ctrl, Alt or Super, so that typing still works. The
+A key binding needs Ctrl, Alt or Super, so that typing still works, unless
+the client holds `input.grab-any` (D45). The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
-belong to no client. A binding has one owner at a time.
+belong to no client. A binding has one owner at a time. Revoking
+`input.grab-any` drops the registrations of grabs that need no modifier
+and ends a held one.
+
+A key grab is held from the press of its key until one of its modifiers
+Ctrl, Alt or Super goes up; a grab without any of them ends with the
+release of its own key. Shift does not end a key grab. Each press of
+the key in that time sends `pressed`; the release of the key sends nothing
+and reaches no surface. When the grab ends, the client gets one
+`released`. So an Alt+Tab switcher sees Alt
+down, Tab, Tab, Alt up as `pressed`, `pressed`, `released`, and knows when
+to switch.
+
+A button binding names a pointer button in place of the key: `BTN_LEFT`,
+`BTN_RIGHT`, `BTN_MIDDLE`, `BTN_SIDE`, `BTN_EXTRA`, `BTN_FORWARD` or
+`BTN_BACK`. It needs Ctrl, Alt or Super too, or `input.grab-any`, so that
+a plain click still works. While its button is down, the client of the grab gets the press,
+each move and the release, also when the modifiers went up first, and no
+surface gets them:
+
+```json
+{"event": "input.button", "binding": "Super+BTN_LEFT", "state": "pressed",
+ "position": [812, 140], "output": "DP-1", "local": [812, 140]}
+{"event": "input.moved", "binding": "Super+BTN_LEFT",
+ "position": [830, 152], "output": "DP-1", "local": [830, 152]}
+```
+
+A window manager moves a window with `Super+BTN_LEFT` so, wherever the
+pointer grabs it.
 
 The core implements `wlr-output-management`, so kanshi and wlr-randr
 configure the outputs (see
@@ -258,9 +461,10 @@ the core sends `output.changed`. For an output that turns off, it sends
 
 ## Grants
 
-`input.inject` and `screen.capture` see or drive the whole session, and
-`process.spawn` runs any program as the user, so they need a grant of the
-user for the client name. Milestone 0.7 replaces the grants with the
+`input.inject` and `screen.capture` see or drive the whole session,
+`process.spawn` runs any program as the user, and `input.grab-any` lets a
+client catch keys and buttons without a modifier, so they need a grant of
+the user for the client name. Milestone 0.7 replaces the grants with the
 capabilities of client sockets (D33, D40):
 
 ```console
@@ -271,9 +475,110 @@ $ choractl revoke agent
 ```
 
 A grant lasts until `choractl revoke` or the end of the session. The
-emergency reset revokes all grants. A grant protects against mistakes of
-agents, not against hostile code of the same user, which can call
-`grants.set` itself. `choractl mcp` offers no tool for grants.
+emergency reset revokes all grants. A Wayland client of a client socket
+gets the grants of its name when it connects. A revoke of one of them,
+and the reset, disconnect it and drop its waiting frames. Only the admin socket changes grants.
+A process of the user on the host reaches the admin socket too. So a
+grant protects against hostile code only when that code sees its client
+socket alone, with the gaps that [Client sockets](#client-sockets) lists.
+`choractl mcp` offers no tool for grants.
+
+## Client sockets
+
+A client socket fixes the name of its clients (D33). `clients.create`
+on the admin socket opens `clients/NAME/ipc.sock` below the directory of
+the main socket, which has mode 0700. `choractl clients create agent` prints its
+path:
+
+```json
+{"jsonrpc": "2.0", "id": 1, "method": "clients.create", "params": {"name": "agent"}}
+```
+
+- `clients.create` also opens `clients/NAME/wayland.sock`, a Wayland
+  socket for the windows of the client. Its answer has the `path` of the
+  IPC socket and the `wayland` path.
+- A connection through it says `hello` with that name only.
+- It cannot change grants or make client sockets, as these need the
+  admin socket.
+- It fixes the name, confines the files and narrows the scene. On it,
+  `scene.apply` follows these rules. A refusal has code 1, names its
+  rule and carries the index of the command in `data`:
+  - `focus_node` with a node needs the last press of the user on a node
+    or a window of the name. The press counts once, and a key press
+    ends it.
+  - A name that holds the focus of a node moves it to its other nodes
+    without a press.
+  - No `create` or `move` puts a node under `screen:*` or below it.
+  - No `camera` command works.
+  - `attach`, `focus`, `close` and `configure` take only a window of its
+    own `wayland.sock` or a surface that the name owns.
+- `scene.query` on it returns only the nodes of the name and the windows
+  of its `wayland.sock`. The `surface.*` events come only for these
+  windows.
+- A claim of the name gets only the new windows of its `wayland.sock`.
+- The other methods answer by the name and its grants: a process that
+  may use the socket drives the session as far as that name may.
+- Its `image`, `shader` and effect paths name only its own files of
+  `assets.put`. The main socket has no such rule: a client of it runs as
+  the same account as the core and could read those files anyway.
+- It holds at most 16 connections, and its Wayland socket at most 16
+  clients. All client sockets together leave 32 connections to the main
+  socket.
+- The main socket refuses a `hello` with a name that has a client
+  socket, so no client of the main socket takes that name.
+- `clients.create` fails for a name with a connection or in its grace
+  time, and beyond 64 client sockets.
+- The name has lowercase letters, digits, `_`, `-` and `.`, and starts
+  with a letter, at most 64 bytes; `hello` and `clients.create` refuse
+  everything else. Its socket path must fit a Unix socket. A second
+  `clients.create` of a name fails.
+- The emergency reset removes the client sockets, and so does the exit of
+  chora.
+
+The callers of `methods.call` are certain only for names with a client
+socket.
+
+A Wayland client of `wayland.sock` gets the protocols of the main Wayland
+socket, with these exceptions:
+
+- Screencopy and image capture need the grant `screen.capture` of the
+  name.
+- The input method needs the grant `input.inject`.
+- Output management, the session lock, both foreign toplevel protocols,
+  the security context manager, idle inhibit and idle notify are not
+  offered. On Wayland the client cannot lock the session, list the
+  windows, control the windows of others, open a socket of its own or
+  keep the screen awake. On `ipc.sock`, `focus_node` takes the keyboard
+  only after a press of the user on the client, as a token below does.
+
+The layer shell stays, so a panel can run in a container. Such a client
+can draw over all windows in the top layer, but the core refuses the
+overlay layer. A layer surface of it takes the keyboard on demand at
+most, never exclusively. After a click on it, it gets the keys until a
+click goes elsewhere. So a full-screen panel can look like a lock screen
+and read what the user types into it.
+
+An `xdg-activation` token or a popup grab of such a client needs the
+serial of its last key or button press, and never 0. A token also needs
+the keyboard focus on the client, and uses the press up. So the client
+takes the focus only after input, once per press. Synthetic input from
+`input.inject` sets that serial too, so a client with that grant can
+create the press itself. When the token is used, it must still be at
+most 10 s old and the client must still have the keyboard focus.
+
+The client gets the grants of the name at the time it connects. A
+revoke of a capability that it got disconnects it, and so does the
+emergency reset. Its frames of screencopy and image capture that wait
+then get nothing. Its socket closes at its next request. Its windows carry the name: a query shows it in
+`surface.client`. It reads the clipboard only while it has the keyboard
+focus, as every Wayland client does.
+
+A container that mounts only its client directory cannot take another
+name or give itself capabilities. One gap stays until a later step of
+0.7: a program of `process.spawn` gets `CHORA_SOCKET` and
+`WAYLAND_DISPLAY` of the core. So a grant of `process.spawn` gives a
+container the main IPC socket and the main Wayland socket with all
+protocols. D42 moves the start of programs out of the core.
 
 ## Programs
 
@@ -298,7 +603,7 @@ program, up to 64 KiB each, for the client that started it.
 `process.wait(pid, timeout_ms)` waits until the program ends or the time
 is up, and answers with `pid`, `running`, `stdout`, `stderr`, `truncated`
 for output that went beyond 64 KiB, and, once the program ended, `status`:
-its exit code, or 128 and the signal. 100 ms after the end of the
+its exit code, or 128 plus the signal number. 100 ms after the end of the
 program, the core closes its pipes, also when a child in the background
 still holds them. The first answer after the end is the last one; then
 the core forgets the program. At most 32 programs of a client wait for
@@ -414,12 +719,13 @@ caller. The `Client` of `chora-scene` answers with `Client::answer`.
   exporter disconnects. A connection has at most 64 calls in flight, and it
   cannot call its own methods.
 
-`chora-tiling` exports two methods:
+`chora-tiling` exports three methods:
 
 | Method | Parameters | Result |
 |--------|------------|--------|
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
+| `give` | `to`: a client name | hands the focused window to `to` with a `remove` with `to`, and answers with its surface id |
 
 ## Plugins
 
@@ -463,7 +769,7 @@ example in the `.mcp.json` of Claude Code:
 | `reserve_space` | space at the edges of an output, as `output.reserve`, while the server runs |
 | `configure_output` | the scale or the transform of an output, as `output.configure` |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
-| `subscribe_events` | start to collect events, and grab keys; `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the current subscription |
+| `subscribe_events` | start to collect events, and grab keys and buttons; `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the current subscription |
 | `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500) |
 
 The input schemas of `apply_commands` and `inject_input` come from the

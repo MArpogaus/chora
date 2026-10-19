@@ -57,8 +57,8 @@ step "1. chora -- chora-tiling starts nested"
 "$bin/chora" -- "$bin/chora-tiling" >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
-wait_for compgen -G "$XDG_RUNTIME_DIR/chora/*.sock"
-CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/*.sock")
+wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"
+CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock")
 export CHORA_SOCKET
 inner=$(basename "$CHORA_SOCKET" .sock)
 wait_for pgrep -x chora-tiling
@@ -100,6 +100,9 @@ test "$(colors "$out/tiled.png")" -gt 3 || fail "the screenshot is empty"
 
 step "3. a crash of chora-tiling leaves chora running and detaches the surfaces"
 pkill -KILL -x chora-tiling
+# chora-tiling connects with resume: the core keeps its nodes for the
+# grace time of 10 s, then detaches the surfaces.
+sleep 10
 wait_for count_is 3 '.parent == null and .owner == null'
 kill -0 "$chora_pid" || fail "chora died"
 
@@ -601,7 +604,7 @@ grim "$out/shapes.png"
 rpc '[{"remove": {"id": "button"}}, {"remove": {"id": "window"}}, {"remove": {"id": "sky"}},
       {"remove": {"id": "source"}}, {"remove": {"id": "mirror"}}]' >/dev/null
 
-step "26. the watchdog removes the effects of slow frames, and then resets"
+step "26. the watchdog blames a client for slow frames and removes its effects"
 # A second chora with a budget that every frame misses; it shares the
 # output of the host, so this step comes last.
 CHORA_FRAME_BUDGET_US=1 "$bin/chora" -- sleep 60 >"$out/chora-watchdog.log" 2>&1 &
@@ -620,9 +623,8 @@ echo '[{"create": {"id": "wobbly", "kind": "rect", "parent": "root",
 wait_for grep -q '"event":"effects.dropped"' "$out/watchdog.jsonl"
 CHORA_SOCKET=$socket2 "$bin/choractl" query id:wobbly | jq -e '.[0].mesh == null' >/dev/null ||
     fail "the mesh stayed"
-wait_for grep -q "the watchdog resets" "$out/chora-watchdog.log"
+grep -q "the watchdog blames a client" "$out/chora-watchdog.log" || fail "the watchdog blamed no client"
 kill "$watchdog_pid"
-# The reset closed the connection of the listener.
 kill "$events_pid" 2>/dev/null || true
 
 echo "PASS (logs and screenshots in $out)"

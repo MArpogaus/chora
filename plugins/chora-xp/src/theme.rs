@@ -3,9 +3,12 @@
 //!
 //! A [`Picture`] describes an image as layers: elements of the SVG files
 //! by id, frames by prefix, icons, fills and text. Each picture renders
-//! once; the name of its file is the hash of the description.
+//! once per scale; the name of its file is the hash of the description
+//! and the scale. The size of a picture is in logical pixels (see "The XP
+//! flavor" in docs/configuration.md).
 
 use std::{
+    cell::RefCell,
     collections::HashMap,
     fs,
     hash::{DefaultHasher, Hash, Hasher},
@@ -13,13 +16,22 @@ use std::{
 };
 
 use resvg::{
-    tiny_skia::{FilterQuality, Pixmap, PixmapMut, PixmapPaint, Transform},
+    tiny_skia::{
+        self, FilterQuality, IntSize, Paint, Pattern, Pixmap, PixmapMut, PixmapPaint,
+        PremultipliedColorU8, SpreadMode, Transform,
+    },
     usvg,
 };
+use zune_jpeg::{
+    JpegDecoder,
+    zune_core::{colorspace::ColorSpace, options::DecoderOptions},
+};
 
-use crate::text::{Fonts, Text};
+use chora_scene::Command;
 
-/// A rectangle: x, y, width and height in pixels.
+use crate::text::{Font, Fonts, Text};
+
+/// A rectangle: x, y, width and height in logical pixels.
 pub type Rect = [i32; 4];
 
 /// The SVG files of the theme.
@@ -35,8 +47,6 @@ pub enum Sheet {
     Minimize,
     /// The restore button of a maximized window.
     Restore,
-    /// The panel of Exposé, the background of the taskbar.
-    Panel,
     /// The XP artwork: start button, start menu, notification area.
     Winxp,
     /// The task buttons.
@@ -44,13 +54,12 @@ pub enum Sheet {
 }
 
 impl Sheet {
-    const ALL: [Self; 8] = [
+    const ALL: [Self; 7] = [
         Self::Decoration,
         Self::Close,
         Self::Maximize,
         Self::Minimize,
         Self::Restore,
-        Self::Panel,
         Self::Winxp,
         Self::Tasks,
     ];
@@ -63,7 +72,6 @@ impl Sheet {
             Self::Maximize => "expose/maximize.svg",
             Self::Minimize => "expose/minimize.svg",
             Self::Restore => "expose/restore.svg",
-            Self::Panel => "expose/panel-background.svg",
             Self::Winxp => "winxp/winxp.svg",
             Self::Tasks => "winxp/tasks.svg",
         }
@@ -92,24 +100,34 @@ pub enum Layer {
         /// The rectangle.
         rect: Rect,
     },
-    /// An SVG or PNG file, scaled to a rectangle.
+    /// An SVG, PNG or JPEG file, scaled to a rectangle.
     File {
         /// The file.
         path: PathBuf,
         /// The rectangle.
         rect: Rect,
-        /// Scale to cover the rectangle and cut the overflow, keeping the
-        /// aspect ratio.
-        cover: bool,
+        /// How the file fills the rectangle.
+        fit: Fit,
+    },
+    /// A file as [`Layer::File`], in light gray, as XP shows the icon of
+    /// a disabled button.
+    Gray {
+        /// The file.
+        path: PathBuf,
+        /// The rectangle.
+        rect: Rect,
     },
     /// A line of text.
     Text(Text),
+    /// SVG elements in the coordinates of the picture, such as the
+    /// rectangles and gradients of a control.
+    Svg(String),
 }
 
 /// An image as a stack of layers, bottom first.
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Picture {
-    /// Width and height in pixels.
+    /// Width and height in logical pixels.
     pub size: [i32; 2],
     /// The layers.
     pub layers: Vec<Layer>,
@@ -149,17 +167,26 @@ impl Picture {
         self.layers.push(Layer::File {
             path: path.into(),
             rect,
-            cover: false,
+            fit: Fit::Inside,
         });
         self
     }
 
-    /// Adds an SVG or PNG file that covers the whole picture.
-    pub fn cover(mut self, path: &Path) -> Self {
+    /// Adds a file that fills a rectangle in a way of [`Fit`].
+    pub fn fit(mut self, path: &Path, rect: Rect, fit: Fit) -> Self {
         self.layers.push(Layer::File {
             path: path.into(),
-            rect: [0, 0, self.size[0], self.size[1]],
-            cover: true,
+            rect,
+            fit,
+        });
+        self
+    }
+
+    /// Adds an SVG or PNG file in light gray.
+    pub fn gray(mut self, path: &Path, rect: Rect) -> Self {
+        self.layers.push(Layer::Gray {
+            path: path.into(),
+            rect,
         });
         self
     }
@@ -167,6 +194,52 @@ impl Picture {
     /// Adds a line of text.
     pub fn text(mut self, text: Text) -> Self {
         self.layers.push(Layer::Text(text));
+        self
+    }
+
+    /// Adds the layers of another picture, moved by an offset.
+    pub fn layers_of(mut self, other: Self, [dx, dy]: [i32; 2]) -> Self {
+        let shift = |[x, y, w, h]: Rect| [x + dx, y + dy, w, h];
+        for layer in other.layers {
+            self.layers.push(match layer {
+                Layer::Element { sheet, id, rect } => Layer::Element {
+                    sheet,
+                    id,
+                    rect: shift(rect),
+                },
+                Layer::Frame {
+                    sheet,
+                    prefix,
+                    rect,
+                } => Layer::Frame {
+                    sheet,
+                    prefix,
+                    rect: shift(rect),
+                },
+                Layer::File { path, rect, fit } => Layer::File {
+                    path,
+                    rect: shift(rect),
+                    fit,
+                },
+                Layer::Gray { path, rect } => Layer::Gray {
+                    path,
+                    rect: shift(rect),
+                },
+                Layer::Text(mut text) => {
+                    text.rect = shift(text.rect);
+                    Layer::Text(text)
+                }
+                Layer::Svg(body) => {
+                    Layer::Svg(format!(r#"<g transform="translate({dx} {dy})">{body}</g>"#))
+                }
+            });
+        }
+        self
+    }
+
+    /// Adds SVG elements, drawn in the coordinates of the picture.
+    pub fn svg(mut self, body: impl Into<String>) -> Self {
+        self.layers.push(Layer::Svg(body.into()));
         self
     }
 }
@@ -196,10 +269,22 @@ pub struct Theme {
     clock: u64,
     /// A transparent pixel, for pictures that fail to render.
     blank: String,
+    /// The widths of lines of text, as their layout is slow.
+    widths: RefCell<HashMap<(String, Font), f64>>,
+    /// Pixels per logical pixel of the rendered files.
+    scale: f64,
+    /// The pictures of the rendered files at the scale, by path, to give
+    /// image nodes their logical size and to render them again at
+    /// another scale.
+    pictures: HashMap<String, Picture>,
 }
 
 /// How many rendered files the cache keeps.
 const CACHE_SIZE: usize = 512;
+/// How many pictures of rendered files the theme remembers.
+const PICTURES: usize = 8192;
+/// The largest scale of the pictures.
+const MAX_SCALE: f64 = 4.0;
 
 impl Theme {
     /// Loads the theme from a directory. Rendered files go to `cache`,
@@ -223,6 +308,9 @@ impl Theme {
             rendered: HashMap::new(),
             clock: 0,
             blank: String::new(),
+            widths: RefCell::default(),
+            scale: 1.0,
+            pictures: HashMap::new(),
         };
         theme.blank = theme
             .write(0, &Pixmap::new(1, 1).expect("one pixel"))
@@ -233,6 +321,30 @@ impl Theme {
     /// A file of the theme directory.
     pub fn path(&self, file: &str) -> PathBuf {
         self.dir.join(file)
+    }
+
+    /// Writes a file into the cache, for example a shader for the core,
+    /// and returns its path.
+    pub fn cache_file(&self, name: &str, data: &str) -> std::io::Result<PathBuf> {
+        let path = self.cache.join(name);
+        fs::write(&path, data)?;
+        Ok(path)
+    }
+
+    /// The width of a line of text in logical pixels.
+    pub fn text_width(&self, line: &str, font: Font) -> f64 {
+        let key = (line.to_owned(), font);
+        if let Some(width) = self.widths.borrow().get(&key) {
+            return *width;
+        }
+        let width = self.fonts.width(line, font).unwrap_or(0.0);
+        let mut widths = self.widths.borrow_mut();
+        // ponytail: forget all at a size, rather than track their use.
+        if widths.len() >= 4096 {
+            widths.clear();
+        }
+        widths.insert(key, width);
+        width
     }
 
     /// The size of an element, rounded to pixels.
@@ -252,7 +364,7 @@ impl Theme {
         let size = [l + center[0] + r, t + center[1] + b];
         let picture = Picture::new(size[0], size[1]).frame(sheet, prefix, [0, 0, size[0], size[1]]);
         Frame {
-            image: self.render(&picture),
+            image: self.render_flat(&picture),
             slice: [l, t, r, b].map(f64::from),
         }
     }
@@ -269,18 +381,42 @@ impl Theme {
         ]
     }
 
-    /// The PNG file of a picture, rendered on first use. A picture that
-    /// fails to render logs and gets a transparent pixel.
+    /// The PNG file of a picture at the scale, rendered on first use. A
+    /// picture that fails to render logs and gets a transparent pixel.
     pub fn render(&mut self, picture: &Picture) -> String {
+        let path = self.render_at(picture, self.scale, false);
+        if path != self.blank && !self.pictures.contains_key(&path) {
+            // ponytail: clear the map at PICTURES pictures instead of
+            // tracking which files nodes still show; those nodes keep
+            // their old scale.
+            if self.pictures.len() >= PICTURES {
+                self.pictures.clear();
+            }
+            self.pictures.insert(path.clone(), picture.clone());
+        }
+        path
+    }
+
+    /// The PNG file of a picture at scale 1, for an image node with a
+    /// non-zero slice.
+    pub fn render_flat(&mut self, picture: &Picture) -> String {
+        self.render_at(picture, 1.0, true)
+    }
+
+    /// The file of a picture at a scale; a flat file never shares the
+    /// path of a sharp one, so that a rescale never touches it.
+    fn render_at(&mut self, picture: &Picture, scale: f64, flat: bool) -> String {
         let mut hasher = DefaultHasher::new();
         picture.hash(&mut hasher);
+        scale.to_bits().hash(&mut hasher);
+        flat.hash(&mut hasher);
         let key = hasher.finish() | 1;
         self.clock += 1;
         if let Some(entry) = self.rendered.get_mut(&key) {
             entry.used = self.clock;
             return entry.path.clone();
         }
-        let written = self.draw(picture).and_then(|p| self.write(key, &p));
+        let written = self.draw(picture, scale).and_then(|p| self.write(key, &p));
         match written {
             Ok(path) => {
                 self.evict();
@@ -296,6 +432,40 @@ impl Theme {
             Err(err) => {
                 eprintln!("chora-xp: rendering failed: {err}");
                 self.blank.clone()
+            }
+        }
+    }
+
+    /// Takes the largest scale of the outputs, at least 1, but at most 4.
+    /// Returns whether it changed.
+    pub fn set_scale(&mut self, scale: f64) -> bool {
+        let scale = scale.min(MAX_SCALE);
+        if (scale - self.scale).abs() < 1e-9 {
+            return false;
+        }
+        self.scale = scale;
+        true
+    }
+
+    /// A rendered file at the current scale with its logical size, for a
+    /// file of an earlier scale; `None` for a file of no picture.
+    pub fn rerender(&mut self, path: &str) -> Option<(String, [f64; 2])> {
+        let picture = self.pictures.get(path)?.clone();
+        Some((self.render(&picture), picture.size.map(f64::from)))
+    }
+
+    /// Gives the image nodes of rendered pictures their logical size,
+    /// unless a command sets a size or a slice itself.
+    pub fn size_images(&self, commands: &mut [Command]) {
+        for command in commands {
+            let (Command::Create { props, .. } | Command::Update { props, .. }) = command else {
+                continue;
+            };
+            if props.size.is_some() || props.slice.is_some() {
+                continue;
+            }
+            if let Some(picture) = props.image.as_ref().and_then(|p| self.pictures.get(p)) {
+                props.size = Some(picture.size.map(f64::from));
             }
         }
     }
@@ -330,31 +500,56 @@ impl Theme {
             .map_err(|p| format!("not UTF-8: {}", p.display()))
     }
 
-    fn draw(&self, picture: &Picture) -> Result<Pixmap, String> {
-        let [w, h] = picture.size.map(|n| u32::try_from(n).unwrap_or(1));
+    fn draw(&self, picture: &Picture, scale: f64) -> Result<Pixmap, String> {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let [w, h] = picture
+            .size
+            .map(|n| (f64::from(n) * scale).ceil().max(1.0) as u32);
         let mut pixmap = Pixmap::new(w, h).ok_or("an empty picture")?;
+        #[allow(clippy::cast_possible_truncation)]
+        let base = Transform::from_scale(scale as f32, scale as f32);
         for layer in &picture.layers {
             // A missing icon or element leaves the rest of the picture.
-            if let Err(err) = self.draw_layer(layer, &mut pixmap.as_mut()) {
+            if let Err(err) = self.draw_layer(layer, (base, &mut pixmap.as_mut())) {
                 eprintln!("chora-xp: {err}");
             }
         }
         Ok(pixmap)
     }
 
-    fn draw_layer(&self, layer: &Layer, pixmap: &mut PixmapMut<'_>) -> Result<(), String> {
+    /// Draws a layer in the coordinates of the picture, which `base`
+    /// scales to pixels.
+    fn draw_layer(
+        &self,
+        layer: &Layer,
+        (base, pixmap): (Transform, &mut PixmapMut<'_>),
+    ) -> Result<(), String> {
         match layer {
-            Layer::Element { sheet, id, rect } => self.draw_element(*sheet, id, *rect, pixmap),
+            Layer::Element { sheet, id, rect } => {
+                self.draw_element(*sheet, id, *rect, (base, pixmap))
+            }
             Layer::Frame {
                 sheet,
                 prefix,
                 rect,
             } => {
-                self.draw_frame(*sheet, prefix, *rect, pixmap);
+                self.draw_frame(*sheet, prefix, *rect, (base, pixmap));
                 Ok(())
             }
-            Layer::File { path, rect, cover } => self.draw_file(path, *rect, *cover, pixmap),
-            Layer::Text(text) => self.fonts.draw(text, pixmap),
+            Layer::File { path, rect, fit } => self.draw_file(path, *rect, *fit, (base, pixmap)),
+            Layer::Gray { path, rect } => self.draw_gray(path, *rect, (base, pixmap)),
+            Layer::Text(text) => self.fonts.draw(text, base, pixmap),
+            Layer::Svg(body) => {
+                let svg = format!(
+                    r#"<svg xmlns="http://www.w3.org/2000/svg" width="{}" height="{}">{body}</svg>"#,
+                    pixmap.width(),
+                    pixmap.height()
+                );
+                let tree = usvg::Tree::from_str(&svg, self.fonts.options())
+                    .map_err(|e| format!("svg layer: {e}"))?;
+                resvg::render(&tree, base, pixmap);
+                Ok(())
+            }
         }
     }
 
@@ -364,7 +559,7 @@ impl Theme {
         sheet: Sheet,
         id: &str,
         rect: Rect,
-        pixmap: &mut PixmapMut<'_>,
+        (base, pixmap): (Transform, &mut PixmapMut<'_>),
     ) -> Result<(), String> {
         let missing = || format!("{} has no element {id:?}", sheet.file());
         let node = self.sheets[&sheet].node_by_id(id).ok_or_else(missing)?;
@@ -377,7 +572,8 @@ impl Theme {
         };
         let [x, y, w, h] = rect.map(f64::from);
         #[allow(clippy::cast_possible_truncation)]
-        let transform = Transform::from_translate(x as f32, y as f32)
+        let transform = base
+            .pre_translate(x as f32, y as f32)
             .pre_scale(w as f32 / bbox.width(), h as f32 / bbox.height())
             .pre_translate(-bbox.x(), -bbox.y())
             .pre_concat(parent_transform(node))
@@ -388,7 +584,13 @@ impl Theme {
 
     /// Draws the nine parts of a frame over a rectangle; missing parts
     /// stay empty.
-    fn draw_frame(&self, sheet: Sheet, prefix: &str, rect: Rect, pixmap: &mut PixmapMut<'_>) {
+    fn draw_frame(
+        &self,
+        sheet: Sheet,
+        prefix: &str,
+        rect: Rect,
+        (base, pixmap): (Transform, &mut PixmapMut<'_>),
+    ) {
         let [left, top, right, bottom] = self.borders(sheet, prefix);
         let [x, y, width, height] = rect;
         let middle = (width - left - right).max(0);
@@ -409,53 +611,188 @@ impl Theme {
         for (name, cell) in cells {
             if cell[2] > 0 && cell[3] > 0 {
                 // A frame without some of its parts is fine.
-                let _ = self.draw_element(sheet, &part(prefix, name), cell, pixmap);
+                let _ = self.draw_element(sheet, &part(prefix, name), cell, (base, pixmap));
             }
         }
     }
 
-    /// Draws an SVG or a PNG file scaled to a rectangle.
+    /// Draws an SVG, PNG or JPEG file scaled to a rectangle.
+    /// A file in light gray: drawn alone, then each pixel turns to its
+    /// luma, halfway to white.
+    fn draw_gray(
+        &self,
+        path: &Path,
+        rect: Rect,
+        (base, pixmap): (Transform, &mut PixmapMut<'_>),
+    ) -> Result<(), String> {
+        let mut temp = Pixmap::new(pixmap.width(), pixmap.height()).ok_or("no pixels")?;
+        self.draw_file(path, rect, Fit::Inside, (base, &mut temp.as_mut()))?;
+        for pixel in temp.pixels_mut() {
+            let [red, green, blue] = [pixel.red(), pixel.green(), pixel.blue()].map(u32::from);
+            let alpha = pixel.alpha();
+            // Premultiplied, white is the alpha.
+            let luma = (red * 30 + green * 59 + blue * 11) / 100;
+            let light = u8::try_from(u32::midpoint(luma, u32::from(alpha))).unwrap_or(u8::MAX);
+            if let Some(gray) = PremultipliedColorU8::from_rgba(light, light, light, alpha) {
+                *pixel = gray;
+            }
+        }
+        let paint = PixmapPaint::default();
+        pixmap.draw_pixmap(0, 0, temp.as_ref(), &paint, Transform::identity(), None);
+        Ok(())
+    }
+
     fn draw_file(
         &self,
         path: &Path,
         rect: Rect,
-        cover: bool,
-        pixmap: &mut PixmapMut<'_>,
+        fit: Fit,
+        (base, pixmap): (Transform, &mut PixmapMut<'_>),
     ) -> Result<(), String> {
         let error = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
-        if path
-            .extension()
-            .is_some_and(|e| e.eq_ignore_ascii_case("svg"))
-        {
+        let image = if is_svg(path) {
             let data = fs::read(path).map_err(|e| error(&e))?;
             let tree = usvg::Tree::from_data(&data, self.fonts.options()).map_err(|e| error(&e))?;
             let size = tree.size();
-            let transform = fit(rect, [size.width(), size.height()], cover);
-            resvg::render(&tree, transform, pixmap);
-            return Ok(());
-        }
-        let image = Pixmap::load_png(path).map_err(|e| error(&e))?;
+            if !matches!(fit, Fit::Tile(_)) {
+                resvg::render(
+                    &tree,
+                    base.pre_concat(place(rect, [size.width(), size.height()], fit)),
+                    pixmap,
+                );
+                return Ok(());
+            }
+            // A tile of an SVG file: its pixels at its own size.
+            let [w, h] = [size.width(), size.height()].map(f32::ceil);
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let mut tile = Pixmap::new(w as u32, h as u32).ok_or_else(|| error(&"empty"))?;
+            resvg::render(&tree, Transform::identity(), &mut tile.as_mut());
+            tile
+        } else {
+            load_raster(path).map_err(|e| error(&e))?
+        };
         #[allow(clippy::cast_precision_loss)]
         let size = [image.width() as f32, image.height() as f32];
+        let transform = place(rect, size, fit);
+        if let Fit::Tile(_) = fit {
+            // fill_rect applies `base` to the pattern too, so the pattern
+            // takes only the place.
+            let paint = Paint {
+                shader: Pattern::new(
+                    image.as_ref(),
+                    SpreadMode::Repeat,
+                    FilterQuality::Bicubic,
+                    1.0,
+                    transform,
+                ),
+                ..Paint::default()
+            };
+            #[allow(clippy::cast_precision_loss)]
+            let [x, y, w, h] = rect.map(|n| n as f32);
+            if let Some(area) = tiny_skia::Rect::from_xywh(x, y, w, h) {
+                pixmap.fill_rect(area, &paint, base, None);
+            }
+            return Ok(());
+        }
         let paint = PixmapPaint {
             quality: FilterQuality::Bicubic,
             ..PixmapPaint::default()
         };
-        pixmap.draw_pixmap(0, 0, image.as_ref(), &paint, fit(rect, size, cover), None);
+        pixmap.draw_pixmap(
+            0,
+            0,
+            image.as_ref(),
+            &paint,
+            base.pre_concat(transform),
+            None,
+        );
         Ok(())
+    }
+
+    /// The width and height of an SVG, PNG or JPEG file in pixels, from
+    /// its header.
+    pub fn image_size(&self, path: &Path) -> Option<[i32; 2]> {
+        #[allow(clippy::cast_possible_truncation)]
+        let size = if is_svg(path) {
+            let tree = usvg::Tree::from_data(&fs::read(path).ok()?, self.fonts.options()).ok()?;
+            [tree.size().width(), tree.size().height()].map(|n| n.round() as i32)
+        } else if is_jpeg(path) {
+            let file = std::io::BufReader::new(fs::File::open(path).ok()?);
+            let mut decoder = JpegDecoder::new(file);
+            decoder.decode_headers().ok()?;
+            let (w, h) = decoder.dimensions()?;
+            [i32::try_from(w).ok()?, i32::try_from(h).ok()?]
+        } else {
+            // The IHDR chunk of a PNG file: width and height at 16 and 20.
+            let mut head = [0; 24];
+            std::io::Read::read_exact(&mut fs::File::open(path).ok()?, &mut head).ok()?;
+            let word = |at: usize| {
+                u32::from_be_bytes([head[at], head[at + 1], head[at + 2], head[at + 3]])
+            };
+            [i32::try_from(word(16)).ok()?, i32::try_from(word(20)).ok()?]
+        };
+        (size[0] > 0 && size[1] > 0).then_some(size)
     }
 }
 
-/// The transform that scales a size into a rectangle: to fit inside and
-/// centered, or to cover it.
-fn fit(rect: Rect, [width, height]: [f32; 2], cover: bool) -> Transform {
+/// Whether a file is an SVG file, by its extension.
+fn is_svg(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("svg"))
+}
+
+/// A PNG or JPEG file as a pixmap.
+fn load_raster(path: &Path) -> Result<Pixmap, String> {
+    if !is_jpeg(path) {
+        return Pixmap::load_png(path).map_err(|e| e.to_string());
+    }
+    let file = std::io::BufReader::new(fs::File::open(path).map_err(|e| e.to_string())?);
+    let options = DecoderOptions::default().jpeg_set_out_colorspace(ColorSpace::RGBA);
+    let mut decoder = JpegDecoder::new_with_options(file, options);
+    // Opaque pixels are premultiplied already.
+    let pixels = decoder.decode().map_err(|e| e.to_string())?;
+    let info = decoder.info().ok_or("no JPEG header")?;
+    IntSize::from_wh(info.width.into(), info.height.into())
+        .and_then(|size| Pixmap::from_vec(pixels, size))
+        .ok_or_else(|| "a broken JPEG file".into())
+}
+
+/// Whether a file is a JPEG file, by its extension.
+pub fn is_jpeg(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("jpg") || e.eq_ignore_ascii_case("jpeg"))
+}
+
+/// How a file fills a rectangle.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub enum Fit {
+    /// Inside the rectangle and centered, keeping the aspect ratio.
+    Inside,
+    /// Over the whole rectangle, keeping the aspect ratio: the overflow
+    /// is cut.
+    Cover,
+    /// Over the whole rectangle, out of its aspect ratio.
+    Stretch,
+    /// Tiles of a width and height from the top-left corner of the
+    /// rectangle, repeated over it.
+    Tile([i32; 2]),
+}
+
+/// The transform that puts an image of a size into a rectangle; for a
+/// tile, the transform of the first tile.
+fn place(rect: Rect, [width, height]: [f32; 2], fit: Fit) -> Transform {
     #[allow(clippy::cast_precision_loss)]
     let [x, y, room_x, room_y] = rect.map(|n| n as f32);
     let (across, down) = (room_x / width, room_y / height);
-    let scale = if cover {
-        across.max(down)
-    } else {
-        across.min(down)
+    let scale = match fit {
+        Fit::Inside => across.min(down),
+        Fit::Cover => across.max(down),
+        Fit::Stretch => return Transform::from_translate(x, y).pre_scale(across, down),
+        Fit::Tile([w, h]) => {
+            #[allow(clippy::cast_precision_loss)]
+            let [w, h] = [w as f32, h as f32];
+            return Transform::from_translate(x, y).pre_scale(w / width, h / height);
+        }
     };
     Transform::from_translate(
         x + (room_x - width * scale) / 2.0,
@@ -524,6 +861,15 @@ mod tests {
     }
 
     #[test]
+    fn jpeg_files_decode() {
+        let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/red.jpg");
+        let image = load_raster(&file).expect("a JPEG file");
+        assert_eq!([image.width(), image.height()], [8, 8]);
+        let pixel = image.pixel(4, 4).expect("inside");
+        assert!(pixel.red() > 150 && pixel.green() < 80 && pixel.alpha() == 255);
+    }
+
+    #[test]
     fn the_start_button_is_green() {
         let (mut theme, cache) = theme("start");
         let picture =
@@ -531,6 +877,59 @@ mod tests {
         let image = Pixmap::load_png(theme.render(&picture)).expect("a PNG file");
         let pixel = image.pixel(50, 15).expect("inside");
         assert!(pixel.green() > pixel.red() && pixel.green() > pixel.blue());
+        let _ = fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn pictures_render_at_the_scale_with_their_logical_size() {
+        let (mut theme, cache) = theme("scale");
+        let picture =
+            Picture::new(100, 30).element(Sheet::Winxp, "startbutton-normal", [0, 0, 100, 30]);
+        let flat = theme.render(&picture);
+        assert!(theme.set_scale(1.5));
+        assert!(!theme.set_scale(1.5));
+        let (sharp, size) = theme.rerender(&flat).expect("a picture");
+        let image = Pixmap::load_png(&sharp).expect("a PNG file");
+        assert_eq!([image.width(), image.height()], [150, 45]);
+        assert_eq!(size, [100.0, 30.0]);
+        // The node of the picture gets its logical size, one with a
+        // slice keeps the pixels of its file.
+        let image = |slice: Option<[f64; 4]>| Command::Update {
+            id: "n".into(),
+            props: chora_scene::PropsUpdate {
+                image: Some(sharp.clone()),
+                slice,
+                ..chora_scene::PropsUpdate::default()
+            },
+        };
+        let mut commands = [image(None), image(Some([1.0; 4]))];
+        theme.size_images(&mut commands);
+        let sizes = commands.map(|c| match c {
+            Command::Update { props, .. } => props.size,
+            _ => None,
+        });
+        assert_eq!(sizes, [Some([100.0, 30.0]), None]);
+        let _ = fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn tiles_keep_their_size_at_a_scale() {
+        let (mut theme, cache) = theme("tile");
+        // A tile of 8 by 4, red on the left, blue on the right.
+        let mut tile = Pixmap::new(8, 4).expect("pixels");
+        let mut paint = Paint::default();
+        for (x, [r, b]) in [(0.0, [255, 0]), (4.0, [0, 255])] {
+            paint.set_color_rgba8(r, 0, b, 255);
+            let half = tiny_skia::Rect::from_xywh(x, 0.0, 4.0, 4.0).expect("a rect");
+            tile.fill_rect(half, &paint, Transform::identity(), None);
+        }
+        let file = cache.join("tile.png");
+        tile.save_png(&file).expect("a PNG file");
+        let picture = Picture::new(16, 4).fit(&file, [0, 0, 16, 4], Fit::Tile([8, 4]));
+        let image = Pixmap::load_png(theme.render_at(&picture, 2.0, false)).expect("a PNG file");
+        // Logical x 6 is in the blue half of the first tile.
+        let pixel = image.pixel(12, 4).expect("inside");
+        assert!(pixel.blue() > 200 && pixel.red() < 50, "{pixel:?}");
         let _ = fs::remove_dir_all(cache);
     }
 }

@@ -24,6 +24,25 @@ use crate::{backend::Backend, ipc::rejected, state::State};
 /// The scales that a client can give an output.
 const SCALES: RangeInclusive<f64> = 0.1..=10.0;
 
+/// A side of the logical size has at most this many pixels: clients
+/// allocate their buffers in the logical size of an output.
+pub(crate) const MAX_LOGICAL: f64 = 16384.;
+
+/// Whether a mode and a scale keep the logical size within the bound.
+///
+/// # Errors
+///
+/// The logical size is too large.
+pub(crate) fn logical_ok(mode: (i32, i32), scale: f64) -> Result<(), String> {
+    let over = |side: i32| f64::from(side) / scale > MAX_LOGICAL;
+    if over(mode.0) || over(mode.1) {
+        return Err(format!(
+            "the scale {scale} makes a logical side more than {MAX_LOGICAL} pixels"
+        ));
+    }
+    Ok(())
+}
+
 /// The configuration of one output, as `wlr-output-management` asks for
 /// it.
 pub enum OutputConfig {
@@ -97,7 +116,6 @@ impl State {
         }
         self.output_management.remove_head(output);
         self.output_management.update(&self.outputs);
-        self.resize_lock_surfaces();
     }
 
     /// Takes an output out of the layout and announces it. A client can
@@ -137,6 +155,7 @@ impl State {
             self.emit(&Event::OutputChanged { output });
         }
         self.output_management.update(&self.outputs);
+        self.resize_lock_surfaces();
     }
 
     /// Tests a configuration of the outputs, and applies it if `apply`.
@@ -401,6 +420,7 @@ fn target(output: Output, config: OutputConfig) -> Result<Target, String> {
     if !SCALES.contains(&scale) {
         return Err(format!("the scale {scale} is outside of {SCALES:?}"));
     }
+    logical_ok((mode.size.w, mode.size.h), scale)?;
     let target = Target {
         mode: Some(mode),
         position: changes

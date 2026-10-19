@@ -286,7 +286,7 @@ impl State {
         .filter(|(state, _)| configured.contains(state))
         .map(|(_, wlr)| wlr)
         .collect();
-        if self.focused_surface().as_deref() == Some(surface) {
+        if self.focused_surface() == Some(surface) {
             states.push(handle::State::Activated);
         }
         states
@@ -329,7 +329,7 @@ impl GlobalDispatch2<ZwlrForeignToplevelManagerV1, State> for ManagerGlobal {
     }
 
     fn can_view(&self, client: &Client) -> bool {
-        crate::security::trusted(client)
+        crate::security::unrestricted(client)
     }
 }
 

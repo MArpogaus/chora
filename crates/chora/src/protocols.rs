@@ -28,7 +28,7 @@ use smithay::{
     },
 };
 
-use crate::state::State;
+use crate::state::{ClientState, State};
 
 impl State {
     /// Tells plugins what a client asks for. A request before the first
@@ -206,14 +206,55 @@ impl XdgActivationHandler for State {
         &mut self.activation_state
     }
 
-    /// Passes the request to plugins; a token works once.
+    /// Keeps a token of a client of a client socket only with the serial of
+    /// its last key or button press, so that a container cannot take the
+    /// focus without input of the user. Other clients keep every token.
+    fn token_created(&mut self, _token: XdgActivationToken, data: XdgActivationTokenData) -> bool {
+        let id = data.client_id.clone();
+        let client = id.clone().and_then(|id| {
+            self.display_handle
+                .backend_handle()
+                .get_client_data(id)
+                .ok()
+        });
+        let Some(client) = client
+            .as_ref()
+            .and_then(|c| c.downcast_ref::<ClientState>())
+        else {
+            return true;
+        };
+        let focused = self
+            .seat
+            .get_keyboard()
+            .and_then(|k| k.current_focus())
+            .and_then(|s| self.display_handle.get_client(Resource::id(&s)).ok())
+            .map(|c| c.id());
+        let allowed = token_allowed(
+            client,
+            data.serial.map(|(s, _)| u32::from(s)),
+            focused == id,
+        );
+        if allowed && client.name.is_some() {
+            // One press gives one token.
+            client
+                .last_press
+                .store(0, std::sync::atomic::Ordering::Relaxed);
+        }
+        allowed
+    }
+
+    /// Passes the request to plugins; a token works once, within 10 s and
+    /// only while its client still has the keyboard focus.
     fn request_activation(
         &mut self,
         token: XdgActivationToken,
-        _token_data: XdgActivationTokenData,
+        token_data: XdgActivationTokenData,
         surface: WlSurface,
     ) {
         self.activation_state.remove_token(&token);
+        if !self.token_use_allowed(&token_data) {
+            return;
+        }
         let toplevel = self
             .windows
             .values()
@@ -222,6 +263,97 @@ impl XdgActivationHandler for State {
             .cloned();
         if let Some(toplevel) = toplevel {
             self.request(&toplevel, SurfaceRequest::Activate);
+            return;
         }
+        // The token belongs to the first map of the surface.
+        self.pending_activations.retain(|(s, _)| *s != surface);
+        self.pending_activations
+            .push((surface.clone(), token.as_str().to_owned()));
+    }
+}
+
+/// Whether a client may keep an activation token with a serial: a client
+/// of a client socket needs the serial of its last press.
+fn token_allowed(client: &ClientState, serial: Option<u32>, focused: bool) -> bool {
+    client.name.is_none()
+        || (focused && serial.is_some_and(|s| crate::security::last_press(client, s)))
+}
+
+/// How long a token of a client of a client socket may wait between
+/// creation and use.
+const MAX_TOKEN_AGE: std::time::Duration = std::time::Duration::from_secs(10);
+
+impl State {
+    /// Whether a kept token may still activate: a token of a client of a
+    /// client socket works for 10 s and only while that client still has
+    /// the keyboard focus.
+    fn token_use_allowed(&self, data: &XdgActivationTokenData) -> bool {
+        let Some(id) = data.client_id.clone() else {
+            return true;
+        };
+        let client = self
+            .display_handle
+            .backend_handle()
+            .get_client_data(id.clone())
+            .ok();
+        let named = client
+            .as_ref()
+            .and_then(|c| c.downcast_ref::<ClientState>())
+            .is_some_and(|c| c.name.is_some());
+        if !named {
+            return true;
+        }
+        let focused = self
+            .seat
+            .get_keyboard()
+            .and_then(|k| k.current_focus())
+            .and_then(|s| self.display_handle.get_client(Resource::id(&s)).ok())
+            .is_some_and(|c| c.id() == id);
+        token_focused_and_fresh(focused, data.timestamp.elapsed())
+    }
+}
+
+/// A token of a client socket client needs the focus right now and an age
+/// of at most 10 s.
+fn token_focused_and_fresh(focused: bool, age: std::time::Duration) -> bool {
+    focused && age <= MAX_TOKEN_AGE
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_client_socket_keeps_a_token_only_with_its_last_press_and_the_focus() {
+        let named = ClientState {
+            name: Some("agent".into()),
+            ..ClientState::default()
+        };
+        named
+            .last_press
+            .store(7, std::sync::atomic::Ordering::Relaxed);
+        assert!(!token_allowed(&named, None, true));
+        assert!(!token_allowed(&named, Some(6), true));
+        assert!(!token_allowed(&named, Some(7), false), "without the focus");
+        assert!(token_allowed(&named, Some(7), true));
+        named
+            .last_press
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+        assert!(!token_allowed(&named, Some(0), true), "no press at all");
+        assert!(
+            token_allowed(&ClientState::default(), None, false),
+            "other clients"
+        );
+    }
+
+    #[test]
+    fn a_token_used_late_or_without_the_focus_does_not_activate() {
+        let fresh = std::time::Duration::from_secs(9);
+        assert!(token_focused_and_fresh(true, fresh));
+        assert!(!token_focused_and_fresh(false, fresh), "without the focus");
+        assert!(
+            !token_focused_and_fresh(true, std::time::Duration::from_secs(11)),
+            "too old"
+        );
     }
 }

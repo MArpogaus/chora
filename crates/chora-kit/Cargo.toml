@@ -1,0 +1,17 @@
+[dependencies]
+chora-scene.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true
+
+[package]
+description = "Building blocks for chora plugins: window effects, desktop entries, icons"
+edition.workspace = true
+license.workspace = true
+name = "chora-kit"
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true

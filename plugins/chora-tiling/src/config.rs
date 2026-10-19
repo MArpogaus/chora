@@ -154,8 +154,17 @@ impl Config {
         if self.columns == 0 {
             return Err("columns: at least 1".into());
         }
+        let mut keys = BTreeMap::new();
         for (binding, action) in &self.bindings {
-            self.binding(binding)?;
+            // Two spellings of one key would lose one grab at runtime.
+            if let Some(other) = keys.insert(self.binding(binding)?.to_string(), binding) {
+                return Err(format!("{binding}: the same key as {other}"));
+            }
+            if let Action::IncMasterWidth(step) = action
+                && !step.is_finite()
+            {
+                return Err(format!("{binding}: inc_master_width takes a number"));
+            }
             if let Action::ViewTag(n)
             | Action::ToggleTagView(n)
             | Action::MoveToTag(n)
@@ -184,6 +193,22 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_key_twice_and_a_step_without_a_number_fail() {
+        let twice = format!("{DEFAULT}\n  Super+j: close\n");
+        assert!(
+            Config::parse(&twice)
+                .unwrap_err()
+                .contains("the same key as MOD+j")
+        );
+        let nan = DEFAULT.replace(
+            "MOD+l: {inc_master_width: 0.05}",
+            "MOD+l: {inc_master_width: .nan}",
+        );
+        assert_ne!(nan, DEFAULT);
+        assert!(Config::parse(&nan).unwrap_err().contains("takes a number"));
+    }
 
     #[test]
     fn the_default_is_valid() {

@@ -10,18 +10,15 @@
 
 use std::{
     collections::{BTreeSet, HashMap},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
+pub(crate) use chora_scene::ipc::valid_name;
 use chora_scene::{
     Event,
     ipc::{Export, Message, MethodCall, MethodReturn, RpcError},
 };
 use serde_json::Value;
-use smithay::reexports::calloop::{
-    RegistrationToken,
-    timer::{TimeoutAction, Timer},
-};
 
 use crate::{
     ipc::{params_of, rejected},
@@ -34,8 +31,6 @@ const TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_EXPORTS: usize = 64;
 /// How many calls of one connection can wait for their answers.
 const MAX_PENDING: usize = 64;
-/// The longest method name.
-const MAX_NAME: usize = 64;
 
 /// The exported methods and the calls that wait for their answers.
 #[derive(Default)]
@@ -50,7 +45,7 @@ struct Pending {
     /// The id of the `methods.call` request.
     id: Value,
     callee: u64,
-    timer: Option<RegistrationToken>,
+    deadline: Instant,
 }
 
 impl Methods {
@@ -58,16 +53,12 @@ impl Methods {
     pub fn waits_for(&self, conn: u64) -> bool {
         self.pending.values().any(|p| p.caller == conn)
     }
-}
 
-/// Whether a method name is valid: lowercase letters, digits, `_`, `-` and
-/// `.`, starting with a letter.
-fn valid_name(name: &str) -> bool {
-    name.len() <= MAX_NAME
-        && name.starts_with(|c: char| c.is_ascii_lowercase())
-        && name
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "_-.".contains(c))
+    /// The calls whose deadline passed.
+    pub fn due(&self, now: Instant) -> Vec<u64> {
+        let due = self.pending.iter().filter(|(_, p)| p.deadline <= now);
+        due.map(|(number, _)| *number).collect()
+    }
 }
 
 impl State {
@@ -156,16 +147,8 @@ impl State {
         }
         let number = self.methods.next;
         self.methods.next += 1;
-        let timer = self
-            .loop_handle
-            .insert_source(Timer::from_duration(TIMEOUT), move |_, (), state| {
-                if let Some(pending) = state.methods.pending.get_mut(&number) {
-                    pending.timer = None;
-                }
-                state.end_call(number, Err(rejected("the method gave no answer in time")));
-                TimeoutAction::Drop
-            })
-            .ok();
+        let deadline = self.time.now() + TIMEOUT;
+        self.expire_at(deadline).map_err(rejected)?;
         let from = self.ipc.name(conn).unwrap_or_default().to_owned();
         self.methods.pending.insert(
             number,
@@ -173,7 +156,7 @@ impl State {
                 caller: conn,
                 id,
                 callee,
-                timer,
+                deadline,
             },
         );
         let event = Event::MethodCalled {
@@ -204,13 +187,10 @@ impl State {
     }
 
     /// Answers the caller of a call and forgets the call.
-    fn end_call(&mut self, number: u64, result: Result<Value, RpcError>) {
+    pub fn end_call(&mut self, number: u64, result: Result<Value, RpcError>) {
         let Some(pending) = self.methods.pending.remove(&number) else {
             return;
         };
-        if let Some(timer) = pending.timer {
-            self.loop_handle.remove(timer);
-        }
         let message = match result {
             Ok(value) => Message::result(pending.id, value),
             Err(error) => Message::error(pending.id, error),
@@ -261,7 +241,28 @@ impl State {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
+    use crate::testing::{Client, Core};
+
+    /// A core with an exporter `wm` of `set_layout` and a caller.
+    fn exported() -> (Core, Client, Client) {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        wm.ok(
+            &mut core,
+            "methods.export",
+            json!({"names": ["set_layout"]}),
+        );
+        let caller = core.named("agent");
+        (core, wm, caller)
+    }
+
+    fn call(caller: &mut Client, method: &str) -> u64 {
+        let call = json!({"client": "wm", "method": method, "params": {"name": "max"}});
+        caller.send("methods.call", call)
+    }
 
     #[test]
     fn method_names_are_plain() {
@@ -271,6 +272,137 @@ mod tests {
         assert!(!valid_name("2go"));
         assert!(!valid_name("a b"));
         assert!(!valid_name(""));
-        assert!(!valid_name(&"a".repeat(MAX_NAME + 1)));
+        assert!(!valid_name(&"a".repeat(chora_scene::ipc::MAX_NAME + 1)));
+    }
+
+    #[test]
+    fn a_call_reaches_the_exporter_and_its_answer_the_caller() {
+        let (mut core, mut wm, mut caller) = exported();
+        let id = call(&mut caller, "set_layout");
+        assert_eq!(caller.answer(&mut core, id), None, "the answer waits");
+        let event = wm.events_now(&mut core);
+        assert_eq!(event.len(), 1);
+        let params = &event[0]["params"];
+        assert_eq!(params["event"], "method.called");
+        assert_eq!(params["caller"], "agent");
+        assert_eq!(params["method"], "set_layout");
+        assert_eq!(params["params"], json!({"name": "max"}));
+        let answer = json!({"call": params["call"], "result": "done"});
+        wm.ok(&mut core, "methods.return", answer);
+        assert_eq!(caller.answer(&mut core, id), Some(Ok(json!("done"))));
+    }
+
+    #[test]
+    fn an_error_of_the_exporter_reaches_the_caller() {
+        let (mut core, mut wm, mut caller) = exported();
+        let id = call(&mut caller, "set_layout");
+        let number = wm.events_now(&mut core)[0]["params"]["call"].clone();
+        let error = json!({"code": 7, "message": "no such layout"});
+        wm.ok(
+            &mut core,
+            "methods.return",
+            json!({"call": number, "error": error}),
+        );
+        let answer = caller.answer(&mut core, id).expect("an answer");
+        assert_eq!(answer, Err(error));
+    }
+
+    #[test]
+    fn a_call_without_an_answer_fails_at_its_deadline() {
+        let (mut core, mut wm, mut caller) = exported();
+        let id = call(&mut caller, "set_layout");
+        let number = wm.events_now(&mut core)[0]["params"]["call"].clone();
+        core.advance(TIMEOUT.saturating_sub(Duration::from_millis(1)));
+        assert_eq!(caller.answer(&mut core, id), None);
+        core.advance(Duration::from_millis(1));
+        let answer = caller.answer(&mut core, id).expect("an answer");
+        assert_eq!(
+            answer.unwrap_err()["message"],
+            "the method gave no answer in time"
+        );
+        let late = json!({"call": number, "result": "late"});
+        let (_, message) = wm.fails(&mut core, "methods.return", late);
+        assert_eq!(message, "no call 0 waits for this connection");
+    }
+
+    #[test]
+    fn the_callers_get_an_error_when_the_exporter_closes() {
+        let (mut core, wm, mut caller) = exported();
+        let id = call(&mut caller, "set_layout");
+        core.dispatch();
+        drop(wm);
+        let answer = caller.answer(&mut core, id).expect("an answer");
+        assert_eq!(
+            answer.unwrap_err()["message"],
+            "the client of the method disconnected"
+        );
+        let (_, message) = caller.fails(
+            &mut core,
+            "methods.call",
+            json!({"client": "wm", "method": "set_layout"}),
+        );
+        assert_eq!(message, "wm.set_layout is no exported method");
+    }
+
+    #[test]
+    fn only_the_exporter_returns_a_call_and_nobody_calls_itself() {
+        let (mut core, mut wm, mut caller) = exported();
+        let id = call(&mut caller, "set_layout");
+        let number = wm.events_now(&mut core)[0]["params"]["call"].clone();
+        let answer = json!({"call": number, "result": "forged"});
+        let (_, message) = caller.fails(&mut core, "methods.return", answer);
+        assert_eq!(message, "no call 0 waits for this connection");
+        assert_eq!(caller.answer(&mut core, id), None);
+        let own = json!({"client": "wm", "method": "set_layout"});
+        let (_, message) = wm.fails(&mut core, "methods.call", own);
+        assert_eq!(message, "a connection cannot call its own methods");
+    }
+
+    #[test]
+    fn a_method_of_a_name_has_one_exporter() {
+        let (mut core, mut wm, _caller) = exported();
+        let mut second = core.named("wm");
+        let names = json!({"names": ["set_layout"]});
+        let (_, message) = second.fails(&mut core, "methods.export", names.clone());
+        assert_eq!(message, "wm.set_layout is exported by another connection");
+        wm.ok(&mut core, "methods.export", names);
+        let mut other = core.named("panel");
+        other.ok(
+            &mut core,
+            "methods.export",
+            json!({"names": ["set_layout"]}),
+        );
+        let clients = other.ok(&mut core, "clients.list", Value::Null);
+        assert_eq!(
+            clients,
+            json!([
+                {"name": "agent", "methods": []},
+                {"name": "panel", "methods": ["set_layout"]},
+                {"name": "wm", "methods": ["set_layout"]},
+            ])
+        );
+    }
+
+    #[test]
+    fn exports_and_waiting_calls_have_limits() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let names: Vec<String> = (0..MAX_EXPORTS).map(|i| format!("m{i}")).collect();
+        wm.ok(&mut core, "methods.export", json!({"names": names}));
+        let (_, message) = wm.fails(&mut core, "methods.export", json!({"names": ["one_more"]}));
+        assert_eq!(message, "a connection exports at most 64 methods");
+        let (_, message) = wm.fails(&mut core, "methods.export", json!({"names": ["Bad"]}));
+        assert!(message.starts_with("invalid method name"));
+        let mut caller = core.named("agent");
+        for _ in 0..MAX_PENDING {
+            call(&mut caller, "m0");
+        }
+        core.dispatch();
+        let (_, message) = caller.fails(
+            &mut core,
+            "methods.call",
+            json!({"client": "wm", "method": "m0"}),
+        );
+        assert_eq!(message, "too many waiting calls");
     }
 }

@@ -127,7 +127,10 @@ pub struct ShaderEffect {
 /// The value of a uniform of a shader.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
+#[serde(
+    untagged,
+    expecting = "a uniform of a number, a list of 2 to 4 numbers, or {\"node\": ID}"
+)]
 pub enum Uniform {
     /// A `float`.
     Float(f64),
@@ -205,6 +208,10 @@ pub struct SurfaceInfo {
     /// Who draws the frame of the window.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub decoration: Option<Decoration>,
+    /// The client name of the client socket that the window came through
+    /// (D33).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client: Option<String>,
 }
 
 /// One element of the scene.
@@ -227,6 +234,9 @@ pub struct Node {
     /// The client data of a surface node.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub surface: Option<SurfaceInfo>,
+    /// The only client name that can attach this detached surface (D55).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to: Option<String>,
 }
 
 impl Node {
@@ -293,6 +303,10 @@ pub struct Props {
     /// The uniforms of the shader of a shader node.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub uniforms: BTreeMap<String, Uniform>,
+    /// The scene area of the owner as a window manager: x, y, width and
+    /// height in scene coordinates (D55).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim: Option<[f64; 4]>,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde passes a reference
@@ -330,6 +344,7 @@ impl Default for Props {
             clip: None,
             shader: None,
             uniforms: BTreeMap::new(),
+            claim: None,
         }
     }
 }
@@ -405,6 +420,27 @@ pub struct PropsUpdate {
     /// The uniforms of the shader of a shader node. Replaces all uniforms.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uniforms: Option<BTreeMap<String, Uniform>>,
+    /// The scene area of the owner as a window manager: x, y, width and
+    /// height in scene coordinates. A new toplevel can go to the owner
+    /// (D55). `null` removes the claim.
+    #[allow(clippy::option_option)] // three states: keep, remove, set
+    #[serde(
+        default,
+        deserialize_with = "nullable",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub claim: Option<Option<[f64; 4]>>,
+}
+
+/// Sets the keys of an update of `meta`; an empty value removes its key.
+pub(crate) fn apply_meta(meta: &mut BTreeMap<String, String>, update: &BTreeMap<String, String>) {
+    for (k, v) in update {
+        if v.is_empty() {
+            meta.remove(k);
+        } else {
+            meta.insert(k.clone(), v.clone());
+        }
+    }
 }
 
 impl Props {
@@ -422,12 +458,11 @@ impl Props {
         if let Some(i) = update.input {
             self.input = i;
         }
-        for (k, v) in update.meta.iter().flatten() {
-            if v.is_empty() {
-                self.meta.remove(k);
-            } else {
-                self.meta.insert(k.clone(), v.clone());
-            }
+        if let Some(meta) = &update.meta {
+            apply_meta(&mut self.meta, meta);
+        }
+        if let Some(claim) = update.claim {
+            self.claim = claim;
         }
         self.apply_drawing(update);
     }

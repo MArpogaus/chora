@@ -2,7 +2,10 @@
 //! tags and states, and the focus history. It knows nothing of IPC; the
 //! plugin turns its placements into commands.
 
+use std::collections::BTreeMap;
+
 use chora_scene::SurfaceRequest;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     config::{Action, Config, Focus, NewWindow, SHARE},
@@ -22,9 +25,11 @@ const FULLSCREEN_TOP: u8 = 5;
 const ON_TOP: u8 = 6;
 
 /// A tiled or floating window.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[allow(clippy::struct_excessive_bools)] // independent states, as in awesome
 pub struct Window {
+    /// The meta of the node holds the rest, so it needs no id.
+    #[serde(skip)]
     pub id: String,
     pub output: String,
     /// One bit per tag.
@@ -90,6 +95,20 @@ pub enum Effect {
     Close(String),
     Reload,
 }
+
+/// The meta key of a window node with its state, see [`Wm::window_meta`].
+pub const WINDOW_KEY: &str = "window";
+/// The meta key of the group with the current output.
+const CURRENT_KEY: &str = "current";
+/// The prefix of a meta key of the group with the tags of an output.
+const TAGS_KEY: &str = "tags:";
+
+/// A tag in meta: the layout, the master width, the masters and the
+/// columns. Short, so that 16 tags fit into the 1 KiB of a meta value.
+type KeptTag = (Layout, f64, usize, usize);
+/// A window in meta: its states, its place among the windows, and its
+/// places in the focus history and in the raise order.
+type KeptWindow = (Window, usize, Option<usize>, Option<usize>);
 
 pub struct Wm {
     pub config: Config,
@@ -238,8 +257,9 @@ impl Wm {
     }
 
     /// Focuses a window under the pointer, as the configuration says. A
-    /// pointer that stood still focuses nothing.
-    pub fn pointer_focus(&mut self, id: &str, clicked: bool, moved: bool) -> bool {
+    /// pointer that stood still focuses nothing. `lost`: another window
+    /// manager has the focus, so the focused window takes it again.
+    pub fn pointer_focus(&mut self, id: &str, clicked: bool, moved: bool, lost: bool) -> bool {
         let follow = self.config.focus == Focus::FollowMouse
             && moved
             && self
@@ -247,11 +267,12 @@ impl Wm {
                 .is_some_and(|t| t.layout != Layout::Magnifier);
         let shown = self.window(id).is_some_and(|w| self.shows(w));
         let index = self.current;
-        let done = if clicked {
-            self.last_on(index, &self.raised) == Some(id) && self.focused() == Some(id)
-        } else {
-            self.focused() == Some(id)
-        };
+        let done = !lost
+            && if clicked {
+                self.last_on(index, &self.raised) == Some(id) && self.focused() == Some(id)
+            } else {
+                self.focused() == Some(id)
+            };
         if !shown || !(clicked || follow) || done {
             return false;
         }
@@ -632,11 +653,12 @@ impl Wm {
     }
 
     /// Shows other tags on the current output, from the shown tags and their
-    /// count.
+    /// count. At least one tag stays shown, or new windows would get no tag
+    /// that shows.
     fn view(&mut self, select: impl FnOnce(u16, usize) -> u16) {
         if let Some(output) = self.outputs.get_mut(self.current) {
             let selected = select(output.selected, output.tags.len());
-            if selected != output.selected {
+            if selected != 0 && selected != output.selected {
                 output.previous = output.selected;
                 output.selected = selected;
             }
@@ -665,6 +687,112 @@ impl Wm {
         }
     }
 
+    /// The claim of the plugin (D55): the box around the work areas of
+    /// its outputs. ponytail: one box, so the gaps between outputs of
+    /// another shape count too; a claim per output if that ever matters.
+    pub fn claim(&self) -> Option<[f64; 4]> {
+        let areas = self.outputs.iter().map(|o| o.area);
+        let [x0, y0] = [
+            areas.clone().map(|a| a[0]).min()?,
+            areas.clone().map(|a| a[1]).min()?,
+        ];
+        let x1 = areas.clone().map(|a| a[0] + a[2]).max()?;
+        let y1 = areas.map(|a| a[1] + a[3]).max()?;
+        Some([x0, y0, x1 - x0, y1 - y0].map(f64::from))
+    }
+
+    /// What a restart needs of the outputs, as meta of the group: the
+    /// current output, and the shown tags and the tags of each output.
+    pub fn group_meta(&self) -> BTreeMap<String, String> {
+        let mut meta = BTreeMap::new();
+        if let Some(output) = self.outputs.get(self.current) {
+            meta.insert(CURRENT_KEY.into(), output.name.clone());
+        }
+        for o in &self.outputs {
+            let tags: Vec<KeptTag> = o
+                .tags
+                .iter()
+                .map(|t| {
+                    (
+                        t.layout,
+                        t.params.master_width,
+                        t.params.masters,
+                        t.params.columns,
+                    )
+                })
+                .collect();
+            meta.insert(
+                format!("{TAGS_KEY}{}", o.name),
+                json(&(o.selected, o.previous, tags)),
+            );
+        }
+        meta
+    }
+
+    /// What a restart needs of each window, as the meta value of
+    /// [`WINDOW_KEY`] by window id.
+    pub fn window_meta(&self) -> Vec<(String, String)> {
+        let rank = |list: &[String], id: &str| list.iter().position(|h| h == id);
+        self.windows
+            .iter()
+            .enumerate()
+            .map(|(i, w)| {
+                let kept = (w, i, rank(&self.history, &w.id), rank(&self.raised, &w.id));
+                (w.id.clone(), json(&kept))
+            })
+            .collect()
+    }
+
+    /// Rebuilds the model after a restart from the meta of the group and
+    /// of the windows by id, once the outputs are known. Meta that does not
+    /// parse is skipped; the configuration may have other tags now.
+    pub fn restore(&mut self, group: &BTreeMap<String, String>, windows: &[(String, String)]) {
+        for output in &mut self.outputs {
+            let kept = group
+                .get(&format!("{TAGS_KEY}{}", output.name))
+                .and_then(|t| serde_json::from_str::<(u16, u16, Vec<KeptTag>)>(t).ok());
+            if let Some((selected, previous, tags)) = kept {
+                (output.selected, output.previous) = (selected, previous);
+                output.tags = tags
+                    .into_iter()
+                    .map(|(layout, master_width, masters, columns)| Tag {
+                        layout,
+                        params: Params {
+                            master_width,
+                            masters,
+                            columns,
+                        },
+                    })
+                    .collect();
+            }
+        }
+        let mut kept: Vec<KeptWindow> = windows
+            .iter()
+            .filter_map(|(id, text)| {
+                let mut window: KeptWindow = serde_json::from_str(text).ok()?;
+                window.0.id.clone_from(id);
+                Some(window)
+            })
+            .collect();
+        kept.sort_by_key(|k| k.1);
+        let by_rank = |rank: fn(&KeptWindow) -> Option<usize>| {
+            let mut ranked: Vec<(usize, String)> = kept
+                .iter()
+                .filter_map(|k| Some((rank(k)?, k.0.id.clone())))
+                .collect();
+            ranked.sort();
+            ranked.into_iter().map(|(_, id)| id).collect()
+        };
+        self.history = by_rank(|k| k.2);
+        self.raised = by_rank(|k| k.3);
+        self.windows = kept.into_iter().map(|k| k.0).collect();
+        self.current = group
+            .get(CURRENT_KEY)
+            .and_then(|name| self.outputs.iter().position(|o| &o.name == name))
+            .unwrap_or(0);
+        self.reconfigure(self.config.clone());
+    }
+
     fn window(&self, id: &str) -> Option<&Window> {
         self.windows.iter().find(|w| w.id == id)
     }
@@ -672,6 +800,10 @@ impl Wm {
     fn window_mut(&mut self, id: &str) -> Option<&mut Window> {
         self.windows.iter_mut().find(|w| w.id == id)
     }
+}
+
+fn json(value: &impl Serialize) -> String {
+    serde_json::to_string(value).expect("the model always serializes")
 }
 
 /// The placement and the rank of a window that does not tile.
@@ -812,6 +944,11 @@ mod tests {
         assert_eq!(wm.focused(), None);
         wm.act(&Action::ToggleTagView(2));
         assert_eq!(wm.focused(), Some("a"));
+        // The last shown tag stays shown.
+        wm.act(&Action::ToggleTagView(1));
+        wm.act(&Action::ToggleTagView(2));
+        assert_eq!(wm.shown_windows(), ["a"]);
+        wm.act(&Action::ToggleTagView(1));
         wm.act(&Action::ViewTag(3));
         wm.act(&Action::ViewBack);
         assert_eq!(wm.shown_windows(), ["a"]);
@@ -980,10 +1117,10 @@ mod tests {
     fn the_focus_that_follows_the_pointer_raises_nothing() {
         let mut wm = wm(&["a", "f"]);
         wm.act(&Action::ToggleFloating);
-        wm.pointer_focus("a", false, true);
+        wm.pointer_focus("a", false, true, false);
         assert_eq!(wm.focused(), Some("a"));
         assert_eq!(wm.arrange().pop().unwrap().id, "f");
-        wm.pointer_focus("a", true, true);
+        wm.pointer_focus("a", true, true, false);
         assert_eq!(wm.arrange().pop().unwrap().id, "a", "a click raises");
     }
 
@@ -1018,13 +1155,39 @@ mod tests {
         wm.act(&Action::ToggleOnTop);
         wm.act(&Action::FocusNext);
         wm.act(&Action::ToggleFullscreen);
-        wm.pointer_focus("o", false, true);
+        wm.pointer_focus("o", false, true, false);
         let ids: Vec<String> = wm.arrange().into_iter().map(|p| p.id).collect();
         assert_eq!(ids, ["a", "b", "o"], "the fullscreen b stays over a");
-        wm.pointer_focus("a", true, true);
-        wm.pointer_focus("b", false, true);
+        wm.pointer_focus("a", true, true, false);
+        wm.pointer_focus("b", false, true, false);
         assert_eq!(wm.arrange()[1].id, "a", "the pointer does not raise b");
-        wm.pointer_focus("b", true, true);
+        wm.pointer_focus("b", true, true, false);
         assert_eq!(wm.arrange()[1].id, "b", "a click does");
+    }
+
+    #[test]
+    fn a_restart_rebuilds_the_model_from_meta() {
+        let mut old = wm(&["a", "b", "c"]);
+        old.act(&Action::MoveToTag(2));
+        old.act(&Action::ViewTag(2));
+        old.act(&Action::NextLayout);
+        old.act(&Action::ToggleFloating);
+        old.act(&Action::ViewTag(1));
+        let mut new = wm(&[]);
+        new.restore(&old.group_meta(), &old.window_meta());
+        assert_eq!(new.arrange(), old.arrange());
+        assert_eq!(new.focused(), old.focused());
+        new.act(&Action::ViewTag(2));
+        old.act(&Action::ViewTag(2));
+        assert_eq!(new.current(), old.current());
+        assert_eq!(new.arrange(), old.arrange());
+    }
+
+    #[test]
+    fn the_claim_holds_the_work_areas_of_all_outputs() {
+        let mut wm = wm(&[]);
+        assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 60.0]));
+        wm.set_output("B", [100, 10, 50, 40], [100, 0, 50, 50]);
+        assert_eq!(wm.claim(), Some([0.0, 0.0, 150.0, 60.0]));
     }
 }

@@ -1,6 +1,10 @@
 [tool.commitizen]
 annotated_tag = true
 major_version_zero = true
+# The first release candidate is rc.1.
+prerelease_offset = 1
 tag_format = "v$version"
 update_changelog_on_bump = true
 version_provider = "cargo"
+# Release candidates in the form of Cargo: 0.6.0-rc.1.
+version_scheme = "semver2"

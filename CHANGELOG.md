@@ -1,3 +1,291 @@
+## v0.6.0 (2026-10-19)
+
+### BREAKING CHANGE
+
+- choractl rejects view and plugin names outside
+lowercase letters, digits, _, - and ., from a letter.
+- hello refuses names outside lowercase letters,
+digits, _, - and ., starting with a letter, at most 64 bytes.
+
+### Feat
+
+- let the admin socket release a camera
+- name the failed command of a transaction in the error
+- add choractl clients up for sockets and grants from YAML
+- carry the pid and the token in surface.created
+- **ipc**: let input.grab-any lift the modifier rule of grabs (D45)
+- open a Wayland socket per client name (D33)
+- change grants and make client sockets on an admin socket (D40)
+- **xp**: ask Confirm File Replace before a drop replaces
+- tell window managers when the keyboard focus moves
+- **tiling**: manage only the outputs of --output
+- **xp**: open desktop menus with Shift+F10 and the Menu key
+- **xp**: drop desktop icons into a folder of Explorer
+- **xp**: hand a window dragged out of XP's outputs to tiling
+- fix the name of a client by a client socket (D33)
+- **xp**: underline and take XP's access keys in context menus
+- **xp**: move in Explorer's menu bar with Left and Right
+- **xp**: open the system menu with Alt+Space
+- **xp**: add Home and End to menus, start lists on their value
+- **tiling**: claim the work areas of the outputs
+- route a new toplevel to the window manager of a claim (D55)
+- **xp**: open the start menu with Ctrl+Escape
+- hand a surface over with remove and to, in place of give
+- **xp**: work the start menu with the keyboard
+- **tiling**: give the focused window away, and take given ones
+- hand a surface to another client with give (D55)
+- **xp**: work the context menus with the keyboard
+- **tiling**: keep tags and layouts over a restart with resume
+- **xp**: turn the cube with Super and a drag of the pointer
+- **xp**: switch windows with XP's Alt+Tab
+- **core**: give a restarted plugin its nodes back with resume
+- **xp**: scroll Explorer with the mouse wheel
+- **core**: end a key grab when one of its modifiers goes up
+- **core**: grab pointer buttons with modifiers
+- **core**: send modifiers with pointer events and scrolls
+- **core**: give the keyboard focus to nodes of plugins
+- **core**: run sessions headless on virtual outputs
+- **xp**: let the settings dialogs wobble when they move
+- **xp**: select desktop icons with XP's selection rectangle
+- **xp**: open XP's menus of desktop icons and start menu entries
+- **xp**: add XP's Display Properties with its five tabs
+- **xp**: open XP's system menu from the title bar and task button
+- **xp**: resize windows from the edges and corners of their frame
+- **xp**: wobble with KWin's model on a finer grid
+- **xp**: link Shared Documents in Explorer when it exists
+- **xp**: underline the letters of Explorer's menu bar
+- **xp**: open the places of the start menu in Explorer
+- **xp**: show the Recycle Bin in Explorer and empty it
+- **xp**: show My Computer with its drives in Explorer
+- **xp**: list a folder in XP's Tiles view
+- **xp**: draw XP's Explorer window for folders
+- **xp**: add XP's Date and Time Properties
+- **xp**: add XP's Taskbar and Start Menu Properties
+- **xp**: open XP's context menus with the right button
+- **xp**: draw XP's dialog windows with their Luna controls
+- **xp**: show XP's icons on the desktop
+- **xp**: play XP's sounds at logon, log off and for balloons
+- **xp**: put XP's own flag on the start button when installed
+- **xp**: show XP's Bliss as the wallpaper when it is installed
+- **xp**: take XP's own fonts before the system fonts
+- **xp**: show the icon of a balloon in the notification area
+- **xp**: show notifications as XP balloon tips
+- **xp**: open the Control Panel as a menu of the start menu
+- **xp**: show XP's Log Off and Turn Off dialogs
+- **xp**: open All Programs as cascading menus of the desktop files
+- **loader**: put a nested GNOME on the void screen (wip)
+- **tiling**: leave windows of given app ids to other clients
+- add the loader prototype with walk and donut (wip)
+- **voice**: add a prototype of the voice agent of M6 (WIP)
+
+### Fix
+
+- **showcase**: name the new direction of snake.py turn
+- **showcase**: mark deck.py and cards.py executable
+- **ipc**: show a client socket only its own nodes and windows
+- **ipc**: give focus_node of a client socket only after a press
+- **ipc**: keep a client socket to its own windows
+- **ipc**: refuse camera commands on a client socket
+- **ipc**: refuse screen:* parents on a client socket
+- **showcase**: read the output of cards.py from CARDS_OUTPUT
+- **showcase**: give the injected keys a name of their own
+- **tests**: keep the login settings out of xp.sh
+- **xp**: open no dialog for an empty trash drop
+- **xp**: keep symbolic links in a copy and end the loop
+- **xp**: treat only an executable desktop file as a launcher
+- **xp**: do nothing for a surface of another window manager
+- **tiling**: pass an ignored window on, do not reserve it
+- **input**: end grabs without a modifier at their key up and revoke
+- **showcase**: let the user grant, not the demos
+- count the view- prefix in the view name check
+- let events.subscribe know its event names
+- block the emergency signal in the images worker
+- keep one name rule in chora-scene, checked by choractl
+- answer with the status of the core in the headless session
+- require a name in hello, like every other name
+- read the cap from the core and name the right socket
+- wait for a freed socket place with turns, not hopes
+- give shm files of the socket tests a per-call number
+- find an existing socket in clients up by error data
+- make the jq call in the activation step one command
+- name the connection closed for an overflowed output
+- drop the input injection of the deck
+- change only the grants that differ in clients up
+- talk to chora, not to sway, in the activation step
+- guard every output change with the logical bound
+- make the showcase grants and arguments work
+- keep one activation token per surface, before the first map
+- make clients up a declaration of state
+- bound the logical size of an output on every path
+- move the eaten food in the snake stress mode
+- check the physical side of an output spec too
+- size an image without a size by its file in a node capture
+- reload the nodes of a file on a second assets.put
+- **tiling**: focus the next window after the focused one exits
+- use a kept activation token only within 10 s and with the focus
+- let a client socket grab popups, hold pointer on focus
+- **xp**: send desktop icons back after a drop on a program window
+- forget the Wayland clients of a client socket that went
+- grab a popup of a client socket only with its last press
+- give a client socket one token per press, with focus
+- drop the queued frames of a Wayland client that a revoke kills
+- **tiling**: send no focus while another window manager holds it
+- keep idle inhibit and idle notify for sandboxed clients
+- **xp**: draw titles with one stroke when the font has no bold face
+- **xp**: paint the taskbar in XP's blue for the buttons
+- take activation tokens of client sockets only after input
+- **kit**: show a launcher with OnlyShowIn for the current desktop
+- refuse overlay layer and exclusive keyboard to sockets
+- **kit**: ignore empty and relative XDG data directories
+- **xp**: remove the part file of a failed replace
+- **tiling**: pass on a window when tiling has no output
+- disconnect the Wayland clients on revoke and reset
+- **tiling**: take the focus back when the pointer returns
+- keep State::new within the line limit of clippy
+- hide security context and idle protocols from sockets
+- **xp**: draw window titles crisp and heavy, as XP does
+- **xp**: let Escape answer No to Confirm File Delete and Replace
+- **xp**: ask Confirm File Replace for each clash of a drop in turn
+- cap the Wayland clients of a client socket at 16
+- offer no session lock or window list on a client Wayland socket
+- **xp**: replace a file with one rename, not a delete and a move
+- **xp**: drop nothing on a file item of an Explorer window
+- **tiling**: send the focus again on a click on the focused window
+- **xp**: leave the focus to tiling after a hand-over
+- **xp**: ask before a drop on the Recycle Bin trashes the files
+- **choractl**: resolve a symlinked socket before the admin socket
+- **tiling**: give the windows away when the last output goes
+- **xp**: keep the claim of chora-xp through a restart with resume
+- end the focus of a node only on a click on an on-demand layer
+- **xp**: let go of the focus when another window manager takes it
+- **xp**: give the keyboard from the desktop to a window
+- **xp**: drop desktop icons on folder items and on the Recycle Bin
+- **xp**: reserve the windows of chora-xp across a Restart
+- let a click on a layer surface end the focus of a node
+- check for a lost last claim once per transaction
+- close the gaps of client sockets from the security review
+- **xp**: show a selected desktop label above the icons below it
+- **xp**: keep a start menu entry lit while its context menu is open
+- **xp**: go Up from My Computer and the Recycle Bin to the desktop
+- **xp**: clear the leftovers of review round 16 in the menus
+- **xp**: take Alt+Space only while a window of XP has the focus
+- **xp**: close open menus for Ctrl+Escape and Alt+Space
+- let null remove a claim
+- route new toplevels only to live window managers
+- end the repeat of a node key when another key goes down
+- end a reservation when a keep_nodes receiver goes
+- refuse a resume while the name is connected
+- **xp**: keep Log Off and Turn Off out of the start menu keys
+- **xp**: take Alt+Escape only while the switcher shows
+- repeat a held key for a node as for a surface
+- **xp**: close a context menu when the focus moves
+- **xp**: remove the scene on SIGTERM and SIGINT
+- **xp**: order, cancel and close XP's Alt+Tab as XP does
+- **xp**: keep minimized windows and the taskbar order over a restart
+- **xp**: keep the cube still on a Super click without a drag
+- let Shift not end a held key grab
+- **xp**: start fresh after a crash, rebuild more simply
+- **xp**: draw the wobble from whole steps moved on to the present
+- **xp**: keep the windows over a restart with resume
+- **xp**: keep Recycle Bin Tasks in an empty Recycle Bin
+- **xp**: handle the queued moves of the pointer as the last one
+- **xp**: wobble in steps of any length with a drag of their length
+- **xp**: show the icons of file types on the desktop
+- **xp**: give programs without an icon XP's icon of a program
+- **plugins**: set the new resume field of hello
+- **xp**: keep nine-slice images at scale 1 after a scale change
+- **xp**: draw tiles at their size on a scaled output
+- **xp**: wobble in whole steps of 10 ms at any rate of the pointer
+- **xp**: give the focus to the top window when a dialog closes
+- **xp**: keep the selection on a right click on one of its icons
+- **xp**: keep the cells of desktop icons when another one goes
+- **xp**: keep the windows and Explorer windows over a restart
+- **xp**: draw a control again only when its look changed
+- **xp**: advance the wobble when the pointer moves the window
+- **xp**: move windows back into the work area after a scale change
+- **xp**: render pictures at the scale of the outputs
+- **core**: map an unmapped toplevel again without its old configure
+- **core**: keep a clicked layer surface focused when a toplevel goes
+- **xp**: keep the grabbed point of a wobbly window under the pointer
+- **xp**: scroll Explorer without new nodes for the whole page
+- **core**: resize lock surfaces on each output change
+- **core**: treat an unmapped toplevel as a destroyed one
+- **core**: take the keyboard from a stuck layer surface
+- **ipc**: shut a closed connection down at once
+- **core**: end focus returns when a transaction moves the focus
+- **ipc**: keep a connection until its process answers are out
+- **api**: tell the version of the core in the answer to hello
+- **ipc**: limit the connections of one process, say why
+- **api**: accept cameras only for outputs that the core knows
+- **api**: limit the meta data of a node and keep too large answers
+- **api**: name the wrong key of a transform in its error
+- **ipc**: answer a request line that is too long before the close
+- **xp**: drop the effects only when the watchdog names chora-xp
+- **core**: copy decoded pixels into their buffer on the worker
+- **core**: let the watchdog blame the client that slows the frames
+- **core**: decode PNG files on a worker thread
+- **core**: give the pointer in surface units on a scaled node
+- **core**: let a popup grab with the serial of a key release
+- **render**: draw the color of a rect with straight alpha
+- **xp**: find the XP icon themes by the start of their name
+- **xp**: keep a maximize that comes before the first commit
+- **xp**: move the windows of a removed output to another one
+- **tiling**: say where the old command line options went
+- **tiling**: reject a key bound twice and a step that is no number
+- **plugins**: keep the rest of a transaction when a window closed
+- **core**: answer a gone surface with its own code at the check too
+- **core**: let the focus move while an input method has it
+- **core**: open only regular files that a client names
+- **tiling**: keep one tag shown when its view is toggled off
+- **loader**: show the donut whenever a part of it is in view (wip)
+- **loader**: keep an opaque backdrop under the walk (wip)
+- **release**: main check without SIGPIPE, and RPM names without tilde
+- **core**: the emergency reset ends transactions without effect
+- **ipc**: start the next transaction when a connection closes
+
+### Refactor
+
+- join RpcError, group kit imports, name the reload ticket
+- move the plugin connection skeleton into chora-kit
+- **xp**: drop the unused panel sheet of Exposé
+- name the socket path in the warning, one lookup
+- **kit**: keep genie and parse private, name launcher fields
+- **kit**: let Icons::new take any list of theme names
+- **tiling**: forget a window that leaves tiling in one place
+- **kit**: move the desktop entry parser into chora-kit
+- give each connection one socket kind, one layer filter
+- **kit**: move the icon theme lookup and XDG dirs to chora-kit
+- **kit**: move the magic lamp into chora-kit
+- **kit**: move the wobbly model into a new crate chora-kit
+- **xp**: use one key type and one wrap for both kinds of menus
+- **xp**: give each menu one helper and one branch at the end
+- **xp**: reopen a kept Explorer window without clones
+- **tiling**: send the whole meta of a node when it changes
+- **xp**: clear the small leftovers of review round 10
+- **xp**: find the icons of desktop files once in the scan
+- **xp**: clear the small leftovers of review round 8
+- **core**: drop the resumed answer of hello
+- **xp**: tidy the comments and tests of the review
+- **xp**: scroll Explorer by wheel and thumb as by clicks
+- **xp**: find the top window for a closed dialog as elsewhere
+- **xp**: drop the check of insets in the rescale
+- **xp**: keep flat files apart from sharp ones in the theme
+- **xp**: simplify the changes of the outputs and the scale
+- **xp**: mark the restart file as a stopgap
+- **xp**: say when the desktop icons keep their cells
+- **core**: borrow the focused surface instead of copying it
+- **xp**: tidy the pages after the scroll of Explorer
+- **xp**: let the empty view take clicks without a white picture
+- **xp**: scroll the view of a page in one group
+- **core**: keep the layer focus unless a surface gets the focus
+- **scene**: end focus returns of a focus command in set_focused
+- **scene**: add a surface node without a check for an old one
+- **core**: resize no lock surfaces when an output goes
+- **core**: check a clicked layer surface in one line
+- **xp**: turn the cube with the easing of chora-scene
+- **core**: end all deadlines in one place on a time of the state
+- **core**: split the core into a library and a binary
+
 ## v0.5.4 (2026-10-14)
 
 ### Feat

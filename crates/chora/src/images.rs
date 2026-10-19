@@ -2,7 +2,9 @@
 //! example the parts of a window border.
 //!
 //! The core loads a file when a transaction names it, and again when the
-//! file changed since. A file that fails to load rejects the transaction.
+//! file changed since. A worker thread decodes the files, so that a large
+//! image does not stop the event loop; the transaction waits for them. A
+//! file that fails to load rejects the transaction.
 //! An image with a slice draws as up to nine cells: the corners keep their
 //! size, the edges stretch in one direction and the center in both.
 
@@ -10,8 +12,12 @@ use std::{
     collections::{HashMap, HashSet},
     fs::File,
     io::BufReader,
+    os::unix::fs::OpenOptionsExt,
+    sync::mpsc,
     time::SystemTime,
 };
+
+use smithay::reexports::calloop::channel;
 
 use chora_scene::{Command, NodeKind, Scene};
 use smithay::{
@@ -21,7 +27,7 @@ use smithay::{
             ImportMem, Renderer,
             element::{
                 Element, Id, Kind, RenderElement, UnderlyingStorage,
-                memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
+                memory::{MemoryBuffer, MemoryRenderBuffer, MemoryRenderBufferRenderElement},
             },
             utils::{CommitCounter, DamageSet, OpaqueRegions},
         },
@@ -33,6 +39,9 @@ use smithay::{
 const MAX_SIDE: u32 = 8192;
 /// The largest image file.
 const MAX_FILE: u64 = 32 << 20;
+/// The ticket of a background reload: no transaction waits for it.
+pub(crate) const RELOAD_TICKET: u64 = u64::MAX;
+
 /// The most images in the cache at once.
 const MAX_IMAGES: usize = 1024;
 /// The most bytes of decoded pixels of all images.
@@ -49,16 +58,74 @@ pub struct Image {
     pub version: Id,
 }
 
-/// The loaded images by path.
+/// The loaded images by path, and the worker that decodes the files.
 #[derive(Default)]
 pub struct Images {
     cache: HashMap<String, Image>,
+    worker: Option<mpsc::Sender<Job>>,
+}
+
+/// A file for the worker to decode, for the transaction of a ticket.
+struct Job {
+    ticket: u64,
+    path: String,
+    file: File,
+    modified: Option<SystemTime>,
+    budget: u64,
+}
+
+/// A file that the worker decoded, or why it failed.
+pub struct Decoded {
+    pub ticket: u64,
+    path: String,
+    modified: Option<SystemTime>,
+    result: Result<(MemoryBuffer, [u32; 2]), String>,
 }
 
 impl Images {
-    /// Loads the images that the commands name, unless the cache holds them
-    /// unchanged.
-    pub fn load_for(&mut self, commands: &[Command]) -> Result<(), String> {
+    /// Starts the worker thread, which sends each file it decoded to the
+    /// event loop. It ends when `Images` goes.
+    pub fn start_worker(&mut self, done: channel::Sender<Decoded>) {
+        let (jobs, todo) = mpsc::channel::<Job>();
+        let worker = std::thread::Builder::new()
+            .name("chora-images".into())
+            .spawn(move || {
+                // This thread starts before the loop owns SIGUSR1, so it
+                // blocks the signal here: the kernel wakes one thread that
+                // does not, and the default action ends the core.
+                block_usr1();
+                for job in todo {
+                    // The copy into the buffer runs here too: for a large
+                    // image it takes a while.
+                    let result = decode(job.file, job.budget).map(|(pixels, size)| {
+                        #[allow(clippy::cast_possible_wrap)] // at most MAX_SIDE
+                        let buffer_size = (size[0] as i32, size[1] as i32);
+                        let memory =
+                            MemoryBuffer::from_slice(&pixels, Fourcc::Abgr8888, buffer_size);
+                        (memory, size)
+                    });
+                    let decoded = Decoded {
+                        ticket: job.ticket,
+                        path: job.path,
+                        modified: job.modified,
+                        result,
+                    };
+                    if done.send(decoded).is_err() {
+                        break;
+                    }
+                }
+            });
+        match worker {
+            Ok(_) => self.worker = Some(jobs),
+            Err(err) => tracing::error!(?err, "no thread to decode images"),
+        }
+    }
+
+    /// Sends the files that the commands name to the worker, unless the
+    /// cache holds them unchanged. Returns how many it sent; each comes
+    /// back as a `Decoded` with the ticket.
+    pub fn decode_for(&mut self, ticket: u64, commands: &[Command]) -> Result<usize, String> {
+        let mut sent = HashSet::new();
         for command in commands {
             let (Command::Create { props, .. }
             | Command::Update { props, .. }
@@ -66,60 +133,116 @@ impl Images {
             else {
                 continue;
             };
-            if let Some(path) = &props.image {
-                self.load(path)?;
+            let Some(path) = &props.image else {
+                continue;
+            };
+            if sent.contains(path.as_str()) {
+                continue;
             }
+            let (file, meta) = open_file(path, MAX_FILE)?;
+            let modified = meta.modified().ok();
+            if modified.is_some() && self.cache.get(path).is_some_and(|i| i.modified == modified) {
+                continue;
+            }
+            self.room_for(path)?;
+            let worker = self.worker.as_ref().ok_or("no thread decodes images")?;
+            let job = Job {
+                ticket,
+                path: path.clone(),
+                file,
+                modified,
+                budget: self.budget(path),
+            };
+            worker
+                .send(job)
+                .map_err(|_| "the thread that decodes images is gone")?;
+            sent.insert(path.as_str());
+        }
+        Ok(sent.len())
+    }
+
+    /// Puts a decoded file into the cache, if it still fits: other files
+    /// may have come in since the worker started.
+    pub fn insert(&mut self, decoded: Decoded) -> Result<(), String> {
+        let path = decoded.path;
+        let (memory, size) = decoded.result.map_err(|e| format!("{path}: {e}"))?;
+        self.room_for(&path)?;
+        let bytes = u64::from(size[0]) * u64::from(size[1]) * 4;
+        if bytes > self.budget(&path) {
+            return Err(format!(
+                "{path}: {}x{} pixels exceed the {MAX_DECODED} bytes of all images",
+                size[0], size[1]
+            ));
+        }
+        let buffer = MemoryRenderBuffer::from_memory(memory, 1, Transform::Normal, None);
+        let image = Image {
+            buffer,
+            size,
+            modified: decoded.modified,
+            version: Id::new(),
+        };
+        self.cache.insert(path, image);
+        Ok(())
+    }
+
+    /// Fails if the cache is full and does not hold the path.
+    fn room_for(&self, path: &str) -> Result<(), String> {
+        if !self.cache.contains_key(path) && self.cache.len() >= MAX_IMAGES {
+            return Err(format!("{path}: the core holds {MAX_IMAGES} images"));
         }
         Ok(())
     }
 
-    fn load(&mut self, path: &str) -> Result<(), String> {
-        let meta = std::fs::metadata(path).map_err(|e| format!("{path}: {e}"))?;
-        let modified = meta.modified().ok();
-        if modified.is_some() && self.cache.get(path).is_some_and(|i| i.modified == modified) {
-            return Ok(());
-        }
-        if meta.len() > MAX_FILE {
-            return Err(format!("{path}: larger than {MAX_FILE} bytes"));
-        }
-        if !self.cache.contains_key(path) && self.cache.len() >= MAX_IMAGES {
-            return Err(format!("{path}: the core holds {MAX_IMAGES} images"));
-        }
+    /// The bytes of decoded pixels that a file may take besides the other
+    /// files.
+    fn budget(&self, path: &str) -> u64 {
         let others: u64 = self
             .cache
             .iter()
             .filter(|(p, _)| p.as_str() != path)
             .map(|(_, i)| u64::from(i.size[0]) * u64::from(i.size[1]) * 4)
             .sum();
-        let budget = MAX_DECODED.saturating_sub(others);
-        let (pixels, size) = decode(path, budget).map_err(|e| format!("{path}: {e}"))?;
-        #[allow(clippy::cast_possible_wrap)] // at most MAX_SIDE
-        let buffer = MemoryRenderBuffer::from_slice(
-            &pixels,
-            Fourcc::Abgr8888,
-            (size[0] as i32, size[1] as i32),
-            1,
-            Transform::Normal,
-            None,
-        );
-        let image = Image {
-            buffer,
-            size,
-            modified,
-            version: Id::new(),
-        };
-        self.cache.insert(path.into(), image);
-        Ok(())
+        MAX_DECODED.saturating_sub(others)
     }
 
-    /// Drops the images that no node shows.
-    pub fn prune(&mut self, scene: &Scene) {
+    /// Loads a file again in the background, so that the nodes that use
+    /// it draw the new bytes from the next frame on. Only paths that the
+    /// cache already holds are reloaded; a file that no node shows loads
+    /// when a transaction names it. A file that fails to load keeps the
+    /// old image.
+    pub fn reload(&mut self, path: &str) {
+        if !self.cache.contains_key(path) {
+            return;
+        }
+        let Ok((file, meta)) = open_file(path, MAX_FILE) else {
+            return;
+        };
+        let modified = meta.modified().ok();
+        if modified.is_some() && self.cache.get(path).is_some_and(|i| i.modified == modified) {
+            return;
+        }
+        let job = Job {
+            ticket: RELOAD_TICKET,
+            path: path.to_owned(),
+            file,
+            modified,
+            budget: self.budget(path),
+        };
+        if let Some(worker) = &self.worker {
+            let _ = worker.send(job);
+        }
+    }
+
+    /// Drops the images that no node shows and that no waiting
+    /// transaction names.
+    pub fn prune(&mut self, scene: &Scene, named: &HashSet<&str>) {
         let used: HashSet<&str> = scene
             .nodes()
             .filter(|n| n.kind == NodeKind::Image)
             .filter_map(|n| n.props.image.as_deref())
             .collect();
-        self.cache.retain(|path, _| used.contains(path.as_str()));
+        self.cache
+            .retain(|path, _| used.contains(path.as_str()) || named.contains(path.as_str()));
     }
 
     /// The image of a path, if it is loaded.
@@ -128,10 +251,33 @@ impl Images {
     }
 }
 
+/// Opens a regular file of at most `max` bytes that a client named. A FIFO
+/// or a device would block the event loop, or never end: the open does not
+/// wait for a writer, and the check runs on the open file, so a swap of
+/// the path in between changes nothing.
+pub fn open_file(path: &str, max: u64) -> Result<(File, std::fs::Metadata), String> {
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(
+            smithay::reexports::rustix::fs::OFlags::NONBLOCK
+                .bits()
+                .cast_signed(),
+        )
+        .open(path)
+        .map_err(|e| format!("{path}: {e}"))?;
+    let meta = file.metadata().map_err(|e| format!("{path}: {e}"))?;
+    if !meta.is_file() {
+        return Err(format!("{path}: not a regular file"));
+    }
+    if meta.len() > max {
+        return Err(format!("{path}: larger than {max} bytes"));
+    }
+    Ok((file, meta))
+}
+
 /// Decodes a PNG file into premultiplied RGBA pixels, if they fit into a
 /// budget of bytes.
-fn decode(path: &str, budget: u64) -> Result<(Vec<u8>, [u32; 2]), String> {
-    let file = File::open(path).map_err(|e| e.to_string())?;
+fn decode(file: File, budget: u64) -> Result<(Vec<u8>, [u32; 2]), String> {
     let mut decoder = png::Decoder::new(BufReader::new(file));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
     let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
@@ -360,9 +506,43 @@ where
     }
 }
 
+/// Blocks SIGUSR1 for the calling thread, so that the emergency reset
+/// reaches the signal source of the loop and not this thread.
+#[allow(unsafe_code)] // a pthread call, nothing else
+fn block_usr1() {
+    let rc = unsafe {
+        let mut set: libc::sigset_t = std::mem::zeroed();
+        libc::sigemptyset(std::ptr::addr_of_mut!(set));
+        libc::sigaddset(std::ptr::addr_of_mut!(set), libc::SIGUSR1);
+        libc::pthread_sigmask(
+            libc::SIG_BLOCK,
+            std::ptr::addr_of!(set),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(rc, 0, "the thread blocks SIGUSR1");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_a_regular_file_opens() {
+        let dir = std::env::temp_dir().join(format!("chora-open-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let fifo = dir.join("fifo");
+        let made = std::process::Command::new("mkfifo").arg(&fifo).status();
+        assert!(made.unwrap().success());
+        let err = open_file(fifo.to_str().unwrap(), 1).unwrap_err();
+        assert!(err.ends_with("not a regular file"), "{err}");
+        assert!(open_file("/dev/zero", 1).is_err());
+        let file = dir.join("big");
+        std::fs::write(&file, b"ab").unwrap();
+        assert!(open_file(file.to_str().unwrap(), 1).is_err());
+        assert!(open_file(file.to_str().unwrap(), 2).is_ok());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn an_image_without_a_slice_is_one_cell() {
@@ -391,11 +571,42 @@ mod tests {
     }
 
     #[test]
-    fn premultiplied_alpha() {
+    fn decoded_pixels_are_premultiplied_rgba() {
         assert_eq!(
             rgba(png::ColorType::Rgba, &[255, 128, 0, 128]),
             [128, 64, 0, 128]
         );
         assert_eq!(rgba(png::ColorType::Grayscale, &[7]), [7, 7, 7, 255]);
+    }
+
+    /// The worker of `Images` blocks the emergency signal on its own,
+    /// because it starts before the loop owns SIGUSR1.
+    #[test]
+    fn the_worker_thread_blocks_the_emergency_signal() {
+        let (done, _watch) = channel::channel();
+        let mut images = Images::default();
+        images.start_worker(done);
+        let blocked = || {
+            std::fs::read_dir("/proc/self/task")
+                .unwrap()
+                .flatten()
+                .any(|task| {
+                    let dir = task.path();
+                    let comm = std::fs::read_to_string(dir.join("comm")).unwrap_or_default();
+                    if !comm.starts_with("chora-images") {
+                        return false;
+                    }
+                    let status = std::fs::read_to_string(dir.join("status")).unwrap();
+                    let line = status.lines().find(|l| l.starts_with("SigBlk")).unwrap();
+                    let mask =
+                        u64::from_str_radix(line.split(':').nth(1).unwrap().trim(), 16).unwrap();
+                    mask & (1 << 9) != 0
+                })
+        };
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while !blocked() {
+            assert!(std::time::Instant::now() < end, "the worker blocks SIGUSR1");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
     }
 }

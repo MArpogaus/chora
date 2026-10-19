@@ -9,6 +9,7 @@ use crate::{
     MAX_NODE_TEXTURES, MAX_UNIFORMS, Node, NodeKind, Props, PropsUpdate, ROOT, Selector,
     ShaderEffect, SurfaceInfo, ToplevelState, Transform, Uniform,
     animation::{Animation, CameraMove},
+    node::apply_meta,
 };
 
 /// Why a command failed.
@@ -143,6 +144,9 @@ pub struct Scene {
     focused: Option<String>,
     /// The surface that had the focus when a client cleared it, by client.
     focus_returns: OrdMap<String, String>,
+    /// The node of a client with the keyboard focus, above the focus of the
+    /// surface.
+    focused_node: Option<String>,
 }
 
 impl Default for Scene {
@@ -155,6 +159,7 @@ impl Default for Scene {
             children: Vec::new(),
             props: Props::default(),
             surface: None,
+            to: None,
         };
         Self {
             nodes: OrdMap::unit(ROOT.into(), root),
@@ -165,6 +170,7 @@ impl Default for Scene {
             default_cameras: OrdMap::new(),
             focused: None,
             focus_returns: OrdMap::new(),
+            focused_node: None,
         }
     }
 }
@@ -215,13 +221,9 @@ impl Scene {
             .collect()
     }
 
-    /// Adds a detached surface node without an owner. Returns `false` and
-    /// changes nothing if the node exists, for example when a client maps a
-    /// surface again after it unmapped it.
-    pub fn add_surface(&mut self, id: &str, info: SurfaceInfo) -> bool {
-        if self.nodes.contains_key(id) {
-            return false;
-        }
+    /// Adds a detached surface node without an owner.
+    pub fn add_surface(&mut self, id: &str, info: SurfaceInfo) {
+        debug_assert!(!self.nodes.contains_key(id), "{id} exists");
         let node = Node {
             id: id.into(),
             kind: NodeKind::Surface,
@@ -230,10 +232,10 @@ impl Scene {
             children: Vec::new(),
             props: Props::default(),
             surface: Some(info),
+            to: None,
         };
         self.nodes.insert(id.into(), node);
         self.surfaces += 1;
-        true
     }
 
     /// Replaces the client data of a surface node.
@@ -286,11 +288,69 @@ impl Scene {
     /// Runs the commands in place; a failure leaves a partial change.
     fn run(&mut self, owner: &str, commands: &[Command]) -> Result<Vec<Effect>, TransactionError> {
         let mut effects = Vec::new();
+        let had = self.holds_claim(owner);
         for (index, command) in commands.iter().enumerate() {
             self.apply_one(owner, command, &mut effects)
                 .map_err(|error| TransactionError { index, error })?;
         }
+        // A window manager that gave up its last claim frees the surfaces
+        // reserved for it.
+        if had && !self.holds_claim(owner) {
+            effects.extend(self.unreserve(owner));
+        }
         Ok(effects)
+    }
+
+    /// The window manager of a new toplevel (D55): the owner of its
+    /// parent toplevel; else the owner of the focused node, else of the
+    /// focused surface, if it holds a claim; else the owner of the smallest
+    /// claim that contains the pointer. Only owners that `live` accepts
+    /// count, so a claim of a client that is gone reserves nothing.
+    #[must_use]
+    pub fn manager_of_new(
+        &self,
+        parent: Option<&str>,
+        focused: Option<&str>,
+        [px, py]: [f64; 2],
+        live: impl Fn(&str) -> bool,
+    ) -> Option<&str> {
+        let owner = |id: Option<&str>| self.nodes.get(id?)?.owner.as_deref();
+        let claims = || {
+            self.nodes
+                .values()
+                .filter_map(|n| Some((n.owner.as_deref()?, n.props.claim?)))
+                .filter(|(owner, _)| live(owner))
+        };
+        let focus = || {
+            self.focused_node_owner()
+                .or_else(|| owner(focused))
+                .filter(|o| claims().any(|(c, _)| c == *o))
+        };
+        let pointer = || {
+            claims()
+                .filter(|(_, [x, y, w, h])| (*x..x + w).contains(&px) && (*y..y + h).contains(&py))
+                .min_by(|(_, a), (_, b)| (a[2] * a[3]).total_cmp(&(b[2] * b[3])))
+                .map(|(owner, _)| owner)
+        };
+        owner(parent)
+            .filter(|o| live(o))
+            .or_else(focus)
+            .or_else(pointer)
+    }
+
+    /// Whether a client name holds a claim.
+    fn holds_claim(&self, name: &str) -> bool {
+        self.nodes
+            .values()
+            .any(|n| n.owner.as_deref() == Some(name) && n.props.claim.is_some())
+    }
+
+    /// Reserves a detached surface for a client name: only that client can
+    /// attach it.
+    pub fn reserve(&mut self, surface: &str, to: Option<&str>) {
+        if let Some(node) = self.nodes.get_mut(surface) {
+            node.to = to.map(String::from);
+        }
     }
 
     fn apply_one(
@@ -307,6 +367,7 @@ impl Scene {
                 props,
             } => {
                 check_props(id, *kind, props)?;
+                check_meta(id, &BTreeMap::new(), props)?;
                 if *kind == NodeKind::Shader && props.shader.is_none() {
                     return Err(SceneError::Invalid(format!(
                         "the shader node {id:?} needs a shader"
@@ -319,9 +380,16 @@ impl Scene {
             Command::Move { id, parent, index } => {
                 self.move_node(owner, id, parent.as_deref(), *index)
             }
-            Command::Remove { id } => {
+            Command::Remove { id, to: None } => {
                 self.owned_mut(owner, id)?;
                 effects.extend(self.remove_subtree(id).into_iter().map(Effect::Detached));
+                Ok(())
+            }
+            Command::Remove { id, to: Some(to) } => {
+                self.owned_surface(owner, id)?;
+                self.remove_subtree(id);
+                self.reserve(id, Some(to));
+                effects.push(Effect::Reserved(id.clone(), to.clone()));
                 Ok(())
             }
             Command::Configure {
@@ -343,6 +411,7 @@ impl Scene {
                 effects.push(Effect::Focus(surface.clone()));
                 Ok(())
             }
+            Command::FocusNode { node } => self.focus_node_command(owner, node.as_deref()),
             Command::Close { surface } => {
                 self.owned_surface(owner, surface)?;
                 effects.push(Effect::Close(surface.clone()));
@@ -382,6 +451,13 @@ impl Scene {
     ) -> Result<(), SceneError> {
         if let Some((other, _)) = self.cameras.get(output).filter(|(o, _)| o != owner) {
             return Err(SceneError::CameraOwner(output.into(), other.clone()));
+        }
+        // Only outputs that the core knows, so that no client claims an
+        // output before it plugs in or uses up the cameras with names.
+        if transform.is_some() && !self.default_cameras.contains_key(output) {
+            return Err(SceneError::Invalid(format!(
+                "there is no output {output:?}"
+            )));
         }
         if timing.is_some_and(|(d, _)| !(0.0..=MAX_DURATION).contains(&d)) {
             return Err(SceneError::Invalid(format!(
@@ -426,6 +502,16 @@ impl Scene {
         Ok(())
     }
 
+    /// Takes the camera of an output away from its owner, so that the
+    /// view goes back to its default. For the operator of the admin
+    /// socket, when an owner is gone and does not come back.
+    #[must_use]
+    pub fn release_camera(&mut self, output: &str) -> Option<String> {
+        let (owner, _) = self.cameras.remove(output)?;
+        self.camera_moves.remove(output);
+        Some(owner)
+    }
+
     fn create(&mut self, node: Node, parent: &str) -> Result<(), SceneError> {
         let id = node.id.clone();
         if is_surface_id(&id) {
@@ -457,7 +543,13 @@ impl Scene {
     }
 
     fn attach(&mut self, owner: &str, surface: &str, parent: &str) -> Result<(), SceneError> {
-        match self.surface(surface)?.owner.as_deref() {
+        let node = self.surface(surface)?;
+        if let Some(to) = node.to.as_ref().filter(|to| *to != owner) {
+            return Err(SceneError::Invalid(format!(
+                "surface {surface:?} is reserved for {to:?}"
+            )));
+        }
+        match node.owner.as_deref() {
             None => {}
             Some(o) if o == owner => return Err(SceneError::Attached(surface.into())),
             Some(other) => return Err(SceneError::NotOwner(surface.into(), other.into())),
@@ -465,7 +557,9 @@ impl Scene {
         self.group(parent)?;
         self.unlink(surface);
         self.link(surface, parent, None);
-        self.node_mut(surface)?.owner = Some(owner.into());
+        let node = self.node_mut(surface)?;
+        node.owner = Some(owner.into());
+        node.to = None;
         Ok(())
     }
 
@@ -523,8 +617,24 @@ impl Scene {
         self.focus_returns.remove(owner);
         let detached = detached.into_iter().map(Effect::Detached);
         detached
+            .chain(self.unreserve(owner))
             .chain(cameras.into_iter().map(Effect::Camera))
             .collect()
+    }
+
+    /// Ends the reservations for a client name: the surfaces are free to
+    /// take again. Returns a `Detached` effect for each.
+    pub fn unreserve(&mut self, name: &str) -> Vec<Effect> {
+        let reserved: Vec<String> = self
+            .nodes
+            .values()
+            .filter(|n| n.to.as_deref() == Some(name))
+            .map(|n| n.id.clone())
+            .collect();
+        for id in &reserved {
+            self.reserve(id, None);
+        }
+        reserved.into_iter().map(Effect::Detached).collect()
     }
 
     /// The emergency reset: removes every node except the root and the
@@ -565,6 +675,7 @@ impl Scene {
         self.animations = OrdMap::new();
         self.camera_moves = OrdMap::new();
         self.focus_returns = OrdMap::new();
+        self.focused_node = None;
         let cells = grid(surfaces.len(), area);
         surfaces
             .iter()
@@ -572,6 +683,7 @@ impl Scene {
             .map(|(id, [x, y, w, h])| {
                 let node = self.nodes.get_mut(id).expect("collected above");
                 node.owner = None;
+                node.to = None;
                 node.parent = Some(ROOT.into());
                 node.props = Props::default();
                 node.props.transform = Transform::translate(x, y, 0.0);
@@ -616,6 +728,7 @@ impl Scene {
             children: Vec::new(),
             props: Props::default(),
             surface: None,
+            to: None,
         };
         self.nodes.insert(id, node);
     }
@@ -725,6 +838,7 @@ impl Scene {
         }
         let node = self.owned_mut(owner, id)?;
         check_props(id, node.kind, props)?;
+        check_meta(id, &node.props.meta, props)?;
         self.animations.remove(id);
         let node = self.nodes.get_mut(id).expect("owned above");
         let Some((duration, easing)) = timing else {
@@ -764,25 +878,55 @@ impl Scene {
         done
     }
 
-    /// Removes the effects of all nodes, for the watchdog: the meshes and
-    /// the shaders, also at the start and the end of animations. Returns
-    /// whether there were some.
-    pub fn drop_effects(&mut self) -> bool {
+    /// Removes the effects of the nodes of an owner, for the watchdog: the
+    /// meshes and the shaders, also at the start and the end of
+    /// animations. Returns whether there were some.
+    pub fn drop_effects(&mut self, owner: &str) -> bool {
+        let of_owner =
+            |node: Option<&Node>| node.is_some_and(|n| n.owner.as_deref() == Some(owner));
         let mut found = false;
         let ids: Vec<String> = self.nodes.keys().cloned().collect();
         for id in ids {
-            if let Some(node) = self.nodes.get_mut(&id) {
+            if let Some(node) = self.nodes.get_mut(&id).filter(|n| of_owner(Some(n))) {
                 found |= strip(&mut node.props);
             }
         }
         let ids: Vec<String> = self.animations.keys().cloned().collect();
         for id in ids {
+            if !of_owner(self.nodes.get(&id)) {
+                continue;
+            }
             if let Some(animation) = self.animations.get_mut(&id) {
                 found |= strip(&mut animation.from);
                 found |= animation.to.mesh.take().is_some() | animation.to.effects.take().is_some();
             }
         }
         found
+    }
+
+    /// The load that the visible nodes of each owner put on a frame, for
+    /// the watchdog: a node counts 1, a layer 25 more, and each effect 25
+    /// more.
+    #[must_use]
+    pub fn load_by_owner(&self) -> BTreeMap<String, u64> {
+        // ponytail: fixed weights from the thresholds of #59, where 200
+        // rounded rects slow a frame as much as 5000 plain ones; measure
+        // the passes of each owner if the blame misses.
+        const LAYER: u64 = 25;
+        let mut load = BTreeMap::new();
+        let overlays = self.nodes.keys().filter(|id| is_overlay(id));
+        for start in std::iter::once(ROOT).chain(overlays.map(String::as_str)) {
+            for placed in self.walk(start, false) {
+                let node = placed.node;
+                let Some(owner) = &node.owner else {
+                    continue;
+                };
+                let effects = node.props.effects.len() as u64;
+                let cost = 1 + LAYER * (u64::from(node.is_layer()) + effects);
+                *load.entry(owner.clone()).or_default() += cost;
+            }
+        }
+        load
     }
 
     /// Moves the cameras forward by a time in milliseconds. Returns the
@@ -817,6 +961,9 @@ impl Scene {
         let mut stack = vec![id.to_owned()];
         while let Some(current) = stack.pop() {
             self.animations.remove(&current);
+            if self.focused_node.as_ref() == Some(&current) {
+                self.focused_node = None;
+            }
             let Some(node) = self.nodes.get_mut(&current) else {
                 continue;
             };
@@ -884,7 +1031,7 @@ impl Scene {
 
     /// A client focuses its own surfaces. After it cleared the focus, it may
     /// give the focus back to the surface that had it, also of another
-    /// client.
+    /// client. A new focus ends every return, as in [`Scene::set_focused`].
     fn focus_command(&mut self, owner: &str, surface: Option<&str>) -> Result<(), SceneError> {
         // The focus follows the commands, so that a later command of the
         // same transaction sees it.
@@ -901,8 +1048,47 @@ impl Scene {
         } else {
             self.owned_surface(owner, id)?;
         }
-        self.focused = Some(id.into());
+        self.set_focused(Some(id));
+        self.focused_node = None;
         Ok(())
+    }
+
+    /// A client gives the keyboard to one of its nodes that is no surface,
+    /// or ends the focus of its node.
+    fn focus_node_command(&mut self, owner: &str, node: Option<&str>) -> Result<(), SceneError> {
+        let Some(id) = node else {
+            if self.focused_node_owner() == Some(owner) {
+                self.focused_node = None;
+            }
+            return Ok(());
+        };
+        if self.owned_mut(owner, id)?.kind == NodeKind::Surface {
+            return Err(SceneError::WrongKind(
+                id.into(),
+                "group, rect, image or shader; a surface takes the focus with focus",
+            ));
+        }
+        self.focused_node = Some(id.into());
+        Ok(())
+    }
+
+    /// The node with the keyboard focus of `focus_node`.
+    #[must_use]
+    pub fn focused_node(&self) -> Option<&str> {
+        self.focused_node.as_deref()
+    }
+
+    /// The owner of the node with the keyboard focus.
+    #[must_use]
+    pub fn focused_node_owner(&self) -> Option<&str> {
+        let node = self.nodes.get(self.focused_node.as_deref()?)?;
+        node.owner.as_deref()
+    }
+
+    /// Ends the keyboard focus of a node, for example when the session
+    /// locks or its client disconnects.
+    pub fn unfocus_node(&mut self) {
+        self.focused_node = None;
     }
 
     /// Whether a node is `ancestor` or below it.
@@ -925,6 +1111,7 @@ impl Scene {
     pub fn set_focused(&mut self, surface: Option<&str>) {
         if surface.is_some() && self.focused.as_deref() != surface {
             self.focus_returns = OrdMap::new();
+            self.focused_node = None;
         }
         self.focused = surface.map(Into::into);
     }
@@ -977,6 +1164,37 @@ fn is_surface_id(id: &str) -> bool {
 
 /// The longest path of an image file.
 const MAX_PATH: usize = 4096;
+/// The most keys in the meta data of a node.
+const MAX_META_KEYS: usize = 32;
+/// The longest key or value of the meta data, in bytes.
+const MAX_META_VALUE: usize = 1024;
+/// The most bytes of all keys and values of the meta data of a node.
+const MAX_META_BYTES: usize = 4096;
+
+/// The meta data of a node after an update stays within its limits, so
+/// that no client fills the memory of the core or the answers of queries.
+fn check_meta(
+    id: &str,
+    meta: &BTreeMap<String, String>,
+    props: &PropsUpdate,
+) -> Result<(), SceneError> {
+    let Some(update) = &props.meta else {
+        return Ok(());
+    };
+    let mut after = meta.clone();
+    apply_meta(&mut after, update);
+    let long = after
+        .iter()
+        .any(|(k, v)| k.len() > MAX_META_VALUE || v.len() > MAX_META_VALUE);
+    let bytes: usize = after.iter().map(|(k, v)| k.len() + v.len()).sum();
+    if after.len() > MAX_META_KEYS || long || bytes > MAX_META_BYTES {
+        return Err(SceneError::Invalid(format!(
+            "the meta data of {id:?} takes at most {MAX_META_KEYS} keys, \
+             {MAX_META_VALUE} bytes per key or value and {MAX_META_BYTES} bytes in all"
+        )));
+    }
+    Ok(())
+}
 
 /// Only rects and images have a size, only rects a color, only images a
 /// file and a slice. Image paths are absolute, sizes and slices are not
@@ -984,6 +1202,15 @@ const MAX_PATH: usize = 4096;
 fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
     check_kinds(id, kind, props)?;
     check_numbers(id, props)?;
+    if props
+        .claim
+        .flatten()
+        .is_some_and(|c| !c.iter().all(|v| v.is_finite()) || c[2] < 0.0 || c[3] < 0.0)
+    {
+        return Err(SceneError::Invalid(format!(
+            "the claim of {id:?} needs finite numbers and no negative size"
+        )));
+    }
     check_shapes(id, props)?;
     if props
         .mesh
@@ -1180,6 +1407,7 @@ fn owned_node(owner: &str, id: &str, kind: NodeKind, update: &PropsUpdate) -> No
         children: Vec::new(),
         props,
         surface: None,
+        to: None,
     }
 }
 

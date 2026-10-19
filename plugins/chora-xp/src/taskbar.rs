@@ -2,7 +2,7 @@
 //! image nodes: XP's blue bar, the green start button, one button per
 //! window and the notification area with the clock.
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fmt::Write as _, path::PathBuf};
 
 use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, Transform};
 
@@ -18,10 +18,27 @@ const START_WIDTH: i32 = 100;
 /// The left edge of the first task button.
 const TASKS_LEFT: i32 = 106;
 const TASK_TOP: i32 = 3;
+/// The rows of XP's taskbar, top first, as Luna draws it: a light edge,
+/// then the blue that the task buttons stand out from.
+const ROWS: [&str; HEIGHT as usize] = [
+    "3168d5", "3888e9", "4993e6", "307be5", "286add", "245dd7", "2359d6", "2257d5", "2257d5",
+    "2257d6", "2157d7", "2259d7", "225ad9", "235bd9", "235cdb", "245ddb", "245edc", "245ddb",
+    "245edc", "255fdc", "2660dd", "2661dd", "2662df", "2662df", "2663e0", "2663e0", "2561de",
+    "235bd9", "1e50c4", "1941a5",
+];
 const TASK_HEIGHT: i32 = 25;
 const TASK_GAP: i32 = 3;
 const TASK_WIDTH: i32 = 160;
 const TRAY_WIDTH: i32 = 82;
+/// The notification area without the clock.
+const TRAY_EMPTY: i32 = 14;
+/// What shows of a taskbar that hides itself, as on XP.
+pub const HIDDEN_STRIP: i32 = 2;
+/// How long the taskbar takes to slide away or back.
+const SLIDE_TIME: f64 = 0.15;
+/// The room of an icon in the notification area, and its left edge.
+const TRAY_ICON: i32 = 22;
+const TRAY_ICON_LEFT: i32 = 10;
 /// The buttons of the desktops, left of the tray, as in the virtual
 /// desktop manager of the power toys for XP.
 const PAGER_BUTTON: i32 = 22;
@@ -29,6 +46,32 @@ const PAGER_GAP: i32 = 2;
 #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)] // four
 const PAGER_WIDTH: i32 = DESKTOPS as i32 * PAGER_BUTTON + (DESKTOPS as i32 - 1) * PAGER_GAP + 6;
 const WHITE: [u8; 4] = [255, 255, 255, 255];
+
+/// The settings of Taskbar and Start Menu Properties, for the session.
+#[allow(clippy::struct_excessive_bools)] // independent check boxes
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Settings {
+    /// Lock the taskbar: only a check mark, since chora-xp neither moves
+    /// nor sizes the taskbar.
+    pub locked: bool,
+    /// The taskbar slides away until the pointer touches the bottom edge.
+    pub auto_hide: bool,
+    /// Windows cannot cover the taskbar.
+    pub on_top: bool,
+    /// The clock in the notification area.
+    pub clock: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            locked: true,
+            auto_hide: false,
+            on_top: true,
+            clock: true,
+        }
+    }
+}
 
 /// A window as its task button shows it.
 pub struct Task<'a> {
@@ -79,10 +122,21 @@ pub struct Bar {
     pub output: String,
     /// The work area of the output.
     area: Rect,
+    /// The position of the output in the layout.
+    position: [i32; 2],
+    /// The icon in the notification area, left of the clock.
+    pub icon: Option<PathBuf>,
     /// The surfaces with a button, from the left.
     tasks: Vec<String>,
     /// The last update of each task button, to skip repeats.
     shown: HashMap<String, Command>,
+    /// The taskbar hides itself when the pointer leaves it.
+    auto_hide: bool,
+    /// The clock shows.
+    clock: bool,
+    /// How far the taskbar slid down, and how far it goes.
+    offset: f64,
+    target: f64,
 }
 
 impl Bar {
@@ -91,13 +145,70 @@ impl Bar {
         Self {
             output: output.name.clone(),
             area: output.layout_area(),
+            position: output.position,
+            icon: None,
             tasks: Vec::new(),
             shown: HashMap::new(),
+            auto_hide: false,
+            clock: true,
+            offset: 0.0,
+            target: 0.0,
         }
+    }
+
+    /// Takes the settings: a taskbar that hides itself leaves the work
+    /// area to the windows but for its strip, and slides away.
+    pub fn configure(&mut self, settings: Settings) {
+        self.clock = settings.clock;
+        self.auto_hide = settings.auto_hide;
+        self.hide(settings.auto_hide);
+    }
+
+    /// Slides the taskbar away or back; only one that hides itself goes.
+    pub fn hide(&mut self, hidden: bool) {
+        self.target = if hidden && self.auto_hide {
+            f64::from(HEIGHT - HIDDEN_STRIP)
+        } else {
+            0.0
+        };
+    }
+
+    /// Whether the taskbar slides.
+    pub fn sliding(&self) -> bool {
+        (self.offset - self.target).abs() > f64::EPSILON
+    }
+
+    /// The next step of the slide after `dt` seconds.
+    pub fn slide(&mut self, dt: f64) -> Option<Command> {
+        if !self.sliding() {
+            return None;
+        }
+        let step = f64::from(HEIGHT) * dt / SLIDE_TIME;
+        self.offset = if self.offset < self.target {
+            (self.offset + step).min(self.target)
+        } else {
+            (self.offset - step).max(self.target)
+        };
+        let [x, y] = self.origin().map(f64::from);
+        Some(update(&self.group(), at(x, y + self.offset)))
     }
 
     fn group(&self) -> String {
         format!("xp-bar-{}", self.output)
+    }
+
+    /// Whether a node belongs to the taskbar.
+    pub fn owns(&self, node: &str) -> bool {
+        [
+            "xp-panel-",
+            "xp-start-",
+            "xp-tray-",
+            "xp-task-",
+            "xp-pager-",
+        ]
+        .iter()
+        .any(|p| node.starts_with(p))
+            && node.ends_with(&format!("-{}", self.output))
     }
 
     fn task_id(&self, surface: &str) -> String {
@@ -109,10 +220,12 @@ impl Bar {
         self.area
     }
 
-    /// The part of the work area above the taskbar.
+    /// The part of the work area above the taskbar, or above its strip
+    /// when it hides itself.
     pub fn usable(&self) -> Rect {
         let [x, y, w, h] = self.area;
-        [x, y, w, (h - HEIGHT).max(1)]
+        let bar = if self.auto_hide { HIDDEN_STRIP } else { HEIGHT };
+        [x, y, w, (h - bar).max(1)]
     }
 
     /// Whether a point lies in the work area of the output.
@@ -161,30 +274,28 @@ impl Bar {
         commands
     }
 
-    /// Moves the taskbar to a new work area.
-    pub fn resize(&mut self, theme: &mut Theme, area: Rect, clock: &str) -> Vec<Command> {
-        self.area = area;
+    /// Moves the taskbar to the new work area of its output.
+    pub fn resize(&mut self, theme: &mut Theme, output: &OutputInfo, clock: &str) -> Vec<Command> {
+        self.area = output.layout_area();
+        self.position = output.position;
         let mut commands = self.layout(theme);
         commands.push(self.tray(theme, clock));
         commands
     }
 
     /// The group at the bottom of the work area and the background over
-    /// its width: the top edge and the center of the panel of Exposé.
+    /// its width, XP's rows of blue.
     fn layout(&self, theme: &mut Theme) -> Vec<Command> {
         let [x, y] = self.origin().map(f64::from);
-        let top = theme.size(Sheet::Panel, "top").map_or(6, |s| s[1]);
-        let picture = Picture::new(32, top + 32)
-            .element(Sheet::Panel, "top", [0, 0, 32, top])
-            .element(Sheet::Panel, "center", [0, top, 32, 32]);
+        let picture = Picture::new(32, HEIGHT).svg(rows(32, 0));
         vec![
-            update(&self.group(), at(x, y)),
+            update(&self.group(), at(x, y + self.offset)),
             update(
                 &format!("xp-panel-{}", self.output),
                 PropsUpdate {
-                    image: Some(theme.render(&picture)),
+                    image: Some(theme.render_flat(&picture)),
                     size: Some([f64::from(self.area[2]), f64::from(HEIGHT)]),
-                    slice: Some([0.0, f64::from(top), 0.0, 0.0]),
+                    slice: Some([0.0; 4]),
                     ..PropsUpdate::default()
                 },
             ),
@@ -193,18 +304,7 @@ impl Bar {
 
     /// The start button in a look: `normal`, `hover` or `pressed`.
     pub fn start(&self, theme: &mut Theme, look: &str) -> Command {
-        let shift = i32::from(look == "pressed");
-        let picture = Picture::new(START_WIDTH, HEIGHT)
-            .element(
-                Sheet::Winxp,
-                &format!("startbutton-{look}"),
-                [0, 0, START_WIDTH, HEIGHT],
-            )
-            .file(&theme.path("winxp/start-flag.svg"), [10, 5 + shift, 20, 20])
-            .text(
-                Text::new("start", Font::Start, WHITE, [35, 1 + shift, 62, HEIGHT])
-                    .shadow([0, 20, 0, 180]),
-            );
+        let picture = start_button(theme, look);
         update(
             &format!("xp-start-{}", self.output),
             PropsUpdate {
@@ -221,7 +321,7 @@ impl Bar {
     /// The buttons of the desktops, the current one down, and one maybe
     /// under the pointer.
     pub fn pager(&self, theme: &mut Theme, current: usize, hovered: Option<usize>) -> Vec<Command> {
-        let left = self.area[2] - TRAY_WIDTH - PAGER_WIDTH;
+        let left = self.area[2] - self.tray_width() - PAGER_WIDTH;
         (0..DESKTOPS)
             .zip(0..)
             .map(|(desktop, i)| {
@@ -255,19 +355,42 @@ impl Bar {
             .collect()
     }
 
-    /// The notification area with the clock, at the right edge.
+    /// The width of the notification area: it grows for an icon.
+    fn tray_width(&self) -> i32 {
+        tray_width(self.clock, self.icon.is_some())
+    }
+
+    /// The clock in scene coordinates, while it shows: a double click
+    /// there opens Date and Time.
+    pub fn clock_rect(&self) -> Option<Rect> {
+        let [x, y, w, h] = self.area;
+        self.clock
+            .then(|| [x + w - TRAY_WIDTH, y + h - HEIGHT, TRAY_WIDTH, HEIGHT])
+    }
+
+    /// The notification area with the icon and the clock, at the right
+    /// edge.
     pub fn tray(&self, theme: &mut Theme, clock: &str) -> Command {
-        let picture = Picture::new(TRAY_WIDTH, HEIGHT)
-            .element(Sheet::Winxp, "tray-left", [0, 0, 2, HEIGHT])
-            .element(Sheet::Winxp, "tray-center", [2, 0, TRAY_WIDTH - 2, HEIGHT])
-            .text(Text::new(clock, Font::Ui, WHITE, [2, 0, TRAY_WIDTH - 4, HEIGHT]).centered());
+        let width = self.tray_width();
+        let clock = self.clock.then_some(clock);
+        let picture = tray(width, clock, self.icon.as_deref());
         update(
             &format!("xp-tray-{}", self.output),
             PropsUpdate {
                 image: Some(theme.render(&picture)),
-                ..at(f64::from(self.area[2] - TRAY_WIDTH), 0.0)
+                ..at(f64::from(self.area[2] - width), 0.0)
             },
         )
+    }
+
+    /// Where the tail of a balloon points, in the coordinates of the
+    /// output: the top of the icon of the notification area; and the
+    /// right edge of the work area.
+    pub fn tray_tip(&self) -> ([i32; 2], i32) {
+        let [x, y, w, h] = self.area;
+        let [x, y] = [x - self.position[0], y - self.position[1]];
+        let icon = x + w - self.tray_width() + TRAY_ICON_LEFT + 8;
+        ([icon, y + h - HEIGHT + 8], x + w)
     }
 
     /// The task buttons: new ones for new windows, none for closed ones,
@@ -279,6 +402,7 @@ impl Bar {
             .filter(|s| !tasks.iter().any(|t| t.surface == s.as_str()))
             .map(|s| Command::Remove {
                 id: self.task_id(s),
+                to: None,
             })
             .collect();
         for task in tasks {
@@ -340,7 +464,7 @@ impl Bar {
     fn task_rect(&self, index: usize) -> Rect {
         let n = i32::try_from(self.tasks.len().max(1)).unwrap_or(i32::MAX);
         let i = i32::try_from(index).unwrap_or(0);
-        let room = self.area[2] - TRAY_WIDTH - PAGER_WIDTH - 6 - TASKS_LEFT;
+        let room = self.area[2] - self.tray_width() - PAGER_WIDTH - 6 - TASKS_LEFT;
         let width = ((room - (n - 1) * TASK_GAP) / n).clamp(24, TASK_WIDTH);
         [
             TASKS_LEFT + i * (width + TASK_GAP),
@@ -360,8 +484,127 @@ impl Bar {
 
     /// Removes the taskbar.
     pub fn remove(&self) -> Command {
-        Command::Remove { id: self.group() }
+        Command::Remove {
+            id: self.group(),
+            to: None,
+        }
     }
+}
+
+/// The width of a notification area with or without the clock and an
+/// icon.
+fn tray_width(clock: bool, icon: bool) -> i32 {
+    let base = if clock { TRAY_WIDTH } else { TRAY_EMPTY };
+    base + if icon { TRAY_ICON } else { 0 }
+}
+
+/// The notification area of a width: an icon at the left, the clock at
+/// the right.
+fn tray(width: i32, clock: Option<&str>, icon: Option<&std::path::Path>) -> Picture {
+    let mut picture = Picture::new(width, HEIGHT)
+        .element(Sheet::Winxp, "tray-left", [0, 0, 2, HEIGHT])
+        .element(Sheet::Winxp, "tray-center", [2, 0, width - 2, HEIGHT]);
+    if let Some(icon) = icon {
+        picture = picture.file(icon, [TRAY_ICON_LEFT, 7, 16, 16]);
+    }
+    if let Some(clock) = clock {
+        let left = width - TRAY_WIDTH;
+        picture = picture.text(
+            Text::new(
+                clock,
+                Font::Ui,
+                WHITE,
+                [left + 2, 0, TRAY_WIDTH - 4, HEIGHT],
+            )
+            .centered(),
+        );
+    }
+    picture
+}
+
+/// The start button in a look: `normal`, `hover` or `pressed`.
+fn start_button(theme: &Theme, look: &str) -> Picture {
+    let shift = i32::from(look == "pressed");
+    Picture::new(START_WIDTH, HEIGHT)
+        .element(
+            Sheet::Winxp,
+            &format!("startbutton-{look}"),
+            [0, 0, START_WIDTH, HEIGHT],
+        )
+        .file(&start_flag(theme), [10, 5 + shift, 20, 20])
+        .text(
+            Text::new("start", Font::Start, WHITE, [35, 1 + shift, 62, HEIGHT])
+                .shadow([0, 20, 0, 180]),
+        )
+}
+
+/// The previews of Taskbar and Start Menu Properties, as on XP: a piece
+/// of the desktop with the taskbar below it, drawn from the same parts.
+/// `windows` lists the titles of task buttons, the first one active; the
+/// taskbar shows only its strip when `hidden`, and a window covers part
+/// of it when it is not `on_top`.
+pub fn preview(
+    theme: &Theme,
+    [w, h]: [i32; 2],
+    windows: &[&str],
+    [hidden, on_top]: [bool; 2],
+    clock: Option<&str>,
+) -> Picture {
+    let bar_y = if hidden { h - HIDDEN_STRIP } else { h - HEIGHT };
+    let mut picture = Picture::new(w, h)
+        .svg(format!(
+            r##"<rect width="{w}" height="{h}" fill="#5A7EDC"/>"##
+        ))
+        .svg(rows(w, bar_y));
+    if hidden {
+        return picture;
+    }
+    match clock {
+        None => {
+            picture = picture.layers_of(start_button(theme, "normal"), [0, bar_y]);
+            let mut x = TASKS_LEFT;
+            for (i, title) in windows.iter().enumerate() {
+                let look = if i == 0 { "focus" } else { "normal" };
+                let label = Text::new(
+                    title,
+                    Font::Ui,
+                    WHITE,
+                    [x + 8, bar_y + TASK_TOP, TASK_WIDTH - 14, TASK_HEIGHT],
+                );
+                picture = picture
+                    .frame(
+                        Sheet::Tasks,
+                        look,
+                        [x, bar_y + TASK_TOP, TASK_WIDTH, TASK_HEIGHT],
+                    )
+                    .text(label);
+                x += TASK_WIDTH + TASK_GAP;
+            }
+        }
+        Some(clock) => {
+            let width = tray_width(!clock.is_empty(), false);
+            let clock = (!clock.is_empty()).then_some(clock);
+            picture = picture.layers_of(tray(width, clock, None), [w - width, bar_y]);
+        }
+    }
+    if !on_top {
+        // A window with XP's blue frame over the taskbar.
+        let x = w * 2 / 5;
+        picture = picture.svg(format!(
+            r##"<rect x="{x}.5" y="2.5" width="{}" height="{}" fill="#fff" stroke="#0831D9" stroke-width="5"/>"##,
+            w / 2,
+            h - 4
+        ));
+    }
+    picture
+}
+
+/// The flag of the start button: XP's own `start_flag.png` of the
+/// Windows XP pack, 20 pixels as on XP, when it is installed, else the
+/// flag of the theme.
+fn start_flag(theme: &Theme) -> PathBuf {
+    chora_kit::xdg::data_file("winxp-kde/start_flag.png")
+        .unwrap_or_else(|| theme.path("winxp/start-flag.svg"))
 }
 
 fn update(id: &str, props: PropsUpdate) -> Command {
@@ -378,6 +621,19 @@ fn at(x: f64, y: f64) -> PropsUpdate {
     }
 }
 
+/// XP's rows of the taskbar as SVG, `width` wide from `top` down.
+fn rows(width: i32, top: i32) -> String {
+    ROWS.iter()
+        .zip(top..)
+        .fold(String::new(), |mut out, (color, y)| {
+            let _ = write!(
+                out,
+                r##"<rect y="{y}" width="{width}" height="1" fill="#{color}"/>"##
+            );
+            out
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -386,8 +642,14 @@ mod tests {
         Bar {
             output: "DP-1".into(),
             area: [0, 0, 1280, 800],
+            position: [0, 0],
+            icon: None,
             tasks: (0..tasks).map(|i| format!("s{i}")).collect(),
             shown: HashMap::new(),
+            auto_hide: false,
+            clock: true,
+            offset: 0.0,
+            target: 0.0,
         }
     }
 
@@ -409,5 +671,48 @@ mod tests {
             "{x} {w}"
         );
         assert_eq!(bar(1).task_target("s0"), Some([106.0, 773.0, 160.0, 25.0]));
+    }
+
+    #[test]
+    fn a_taskbar_that_hides_itself_leaves_the_work_area_to_the_windows() {
+        let mut bar = bar(0);
+        assert_eq!(bar.usable(), [0, 0, 1280, 770]);
+        bar.configure(Settings {
+            auto_hide: true,
+            ..Settings::default()
+        });
+        assert_eq!(bar.usable(), [0, 0, 1280, 798]);
+        // It slides down until its strip of 2 pixels shows, in 0.15 s.
+        assert!(bar.sliding());
+        bar.slide(0.1);
+        assert!(bar.sliding());
+        bar.slide(0.1);
+        assert!(!bar.sliding());
+        assert!((bar.offset - 28.0).abs() < 1e-9);
+        // The pointer at the bottom edge brings it back.
+        bar.hide(false);
+        bar.slide(0.2);
+        assert!(bar.offset.abs() < 1e-9);
+    }
+
+    #[test]
+    fn without_the_clock_the_tray_shrinks() {
+        let mut bar = bar(0);
+        assert!(bar.clock_rect().is_some());
+        bar.configure(Settings {
+            clock: false,
+            ..Settings::default()
+        });
+        assert_eq!(bar.tray_width(), TRAY_EMPTY);
+        assert_eq!(bar.clock_rect(), None);
+    }
+
+    #[test]
+    fn the_tray_grows_for_an_icon() {
+        let mut bar = bar(0);
+        assert_eq!(bar.tray_tip(), ([1280 - 82 + 18, 778], 1280));
+        bar.icon = Some("info.svg".into());
+        assert_eq!(bar.tray_width(), 104);
+        assert_eq!(bar.tray_tip().0[0], 1280 - 104 + 18);
     }
 }

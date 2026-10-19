@@ -111,6 +111,17 @@ impl Uploads {
         Ok(())
     }
 
+    /// Whether a path names a file that a client stored.
+    pub fn owns(&self, client: &str, path: &Path) -> bool {
+        let (Some(root), Some(name)) = (&self.dir, path.file_name()) else {
+            return false;
+        };
+        path.parent() == Some(&root.join(hex(client)))
+            && name
+                .to_str()
+                .is_some_and(|n| self.files.get(client).is_some_and(|f| f.contains_key(n)))
+    }
+
     /// Removes all files of a client.
     pub fn drop_client(&mut self, client: &str) {
         if self.files.remove(client).is_some()
@@ -196,6 +207,9 @@ impl State {
         let path = path
             .to_str()
             .ok_or_else(|| rejected("the asset directory is no UTF-8 path"))?;
+        // A replace must reach the nodes that show the file: the docs
+        // promise that they load it again.
+        self.assets.images.reload(path);
         Ok(serde_json::json!(Asset { path: path.into() }))
     }
 }
@@ -247,7 +261,7 @@ mod tests {
     }
 
     #[test]
-    fn the_limits_hold() {
+    fn an_upload_beyond_the_size_or_file_limit_fails() {
         let (mut uploads, _dir) = uploads("limits");
         assert!(uploads.put("agent", "big", &vec![0; MAX_FILE + 1]).is_err());
         for i in 0..MAX_FILES {

@@ -10,7 +10,7 @@
 flowchart TB
     subgraph core["chora (Rust, Smithay)"]
         protocols["Wayland protocols"]
-        backends["Backends: DRM/KMS and libinput, winit for development"]
+        backends["Backends: DRM/KMS and libinput, winit for development, headless for tests"]
         scene["Scene: group, surface, rect, image, shader"]
         render["Renderer: GLES and GLSL shaders"]
         input["Input router"]
@@ -44,6 +44,10 @@ The compositor binary `chora`. Its tasks, and nothing more:
   window for development inside another compositor. chora uses winit when
   `WAYLAND_DISPLAY` or `DISPLAY` is set, and the hardware otherwise. On
   hardware it draws the cursor of the xcursor theme in `XCURSOR_THEME`.
+  `chora --headless 1280x800` runs on virtual outputs for tests and agents:
+  the software renderer of Mesa draws each output into a texture at 60 Hz,
+  with damage, and input comes only from `input.inject`. It needs no host
+  display, GPU or seat.
 - The scene. The core renders it for each output.
 - Input routing (see below).
 - The IPC socket.
@@ -107,7 +111,9 @@ name, not a connection, so several `choractl` calls share their nodes.
   detached.
 - When the last connection of a name closes, the core removes the nodes of
   that name. Its surfaces become detached. A client that connects with
-  `keep_nodes`, for example `choractl`, keeps its nodes.
+  `keep_nodes`, for example `choractl`, keeps its nodes. A client that
+  connects with `resume` keeps them for a grace time. A restart within
+  the grace time gets them back (see [API](api.md#ipc-methods)).
 
 ### Cameras
 
@@ -121,9 +127,12 @@ The output scale then gives the pixels.
 - The `camera` command replaces the default, for example to pan or zoom. A
   camera is a 2D translation of at most 10^7 and a scale from 1/64 to 64.
   It ignores the z axis, so a uniform scale such as `{"scale": 1.5}` works.
-  The first client that sets the camera of an output owns it. When the owner
+  A camera needs an output that is plugged in or was, so no client
+  claims an output before it appears. The first client that sets the
+  camera of an output owns it. When the owner
   disconnects, the output gets its default camera back, unless the owner
-  keeps its nodes with `keep_nodes`. The reset restores all default cameras.
+  keeps its nodes with `keep_nodes`, or with `resume` until the end of its
+  grace time. The reset restores all default cameras.
 - Two outputs side by side get two adjacent default cameras. A window across
   two outputs then needs no special case.
 
@@ -137,7 +146,9 @@ whole before it applies it. If one part fails, the core changes nothing and
 answers `failed`. One output must stay on. After a change, the core places
 the layer surfaces again and announces the outputs to plugins (see
 [API](api.md#ipc-methods)). On winit, the window decides the mode, and the
-output cannot turn off. No backend has adaptive sync.
+output cannot turn off. Headless outputs accept every change; tests add and
+remove them with `output.add` and `output.remove`, as monitors that plug in
+and out. No backend has adaptive sync.
 
 ### Renderer
 
@@ -167,6 +178,12 @@ changed in every frame, so a scene with a layer renders in every frame.
 There is no direct scanout. Milestone 0.9 replaces this with a renderer
 of chora that renders only on damage (D17, D24).
 
+The cost of a frame grows with the number of visible nodes: a node is a
+draw call with its own texture, and software GL spends roughly 60 to
+140 µs on one. A headless session at 1280x800 on llvmpipe holds about
+250 animated nodes at 60 fps; the 0.9 renderer is what moves the
+ceiling.
+
 ### IPC socket
 
 JSON-RPC 2.0, one message per line, on a Unix socket in
@@ -177,20 +194,21 @@ handoff is necessary. Events are JSON-RPC notifications on the same
 connection.
 
 When a client closes its side of the connection, the core still answers the
-requests that arrived, also those of waiting transactions. Then it closes
-the connection.
+requests that arrived, also those of waiting transactions, `methods.call`,
+`process.wait` and `plugins.restart`. Then it closes the connection.
 
 Limits keep a buggy client from exhausting the core:
 
 | Limit | Value | Effect |
 |-------|-------|--------------------|
-| connections | 128 | the core refuses new connections |
+| connections | 128, 16 per process, the last 8 for processes without one | the core sends an error line and closes the new connection |
 | time until `hello` | 5 s | the core closes the connection |
-| line length | 1 MiB | the core closes the connection |
-| output buffer of a connection | 8 MiB | the core closes the connection |
+| line length | 1 MiB | the core answers with an error and closes the connection |
+| output buffer of a connection | 8 MiB | the core closes the connection; an answer that does not fit becomes an error |
 | waiting transactions of a connection | 16 | the core rejects the transaction |
-| groups and rects in the scene | 16,384 | the core rejects the `create` |
+| nodes other than surfaces | 16,384 | the core rejects the `create` |
 | cameras | 64 | the core rejects the `camera` |
+| `meta` of a node | 32 keys, 1 KiB per key or value, 4 KiB in all | the core rejects the command |
 
 A plugin can export **methods**, for example `tiling.set_layout`. The core
 forwards a method call to the plugin as an event and returns the answer to
@@ -221,6 +239,12 @@ A surface that misses the deadline is late. No transaction waits for it
 until it commits a buffer for its newest configure. A hung client
 thus delays the queue once, not once per transaction.
 
+A transaction that names an image file waits until a worker thread has
+decoded the file, so a large PNG does not stop the event loop. It waits
+outside the queue: the transactions of other connections, input and
+frames go on, and only the later transactions of the same connection wait
+behind it. A file that fails to decode rejects the transaction.
+
 ## Frame flow
 
 ```mermaid
@@ -249,7 +273,7 @@ Plugins set the focus. The core changes it in three cases only:
 
 - The emergency reset focuses the first surface.
 - A click on a surface without an owner focuses it.
-- A surface that becomes detached loses the focus.
+- A surface that becomes detached, unmaps or goes away loses the focus.
 
 The core still implements the protocol mechanisms around focus: popup
 grabs, the keyboard interactivity of `wlr-layer-shell` and
@@ -258,9 +282,18 @@ and `text-input` with `input-method`. Activation requests of
 `xdg-activation` and of taskbars go to plugins as `surface.requested`. A
 layer surface that takes the keyboard exclusively, for example a launcher,
 has it from its first commit until it goes away, and it ends a popup grab.
+
 A click gives the keyboard to a layer surface that accepts it on demand,
-until the next click elsewhere. A popup grabs the input only with the serial
-of the press that opened it.
+and ends the keyboard focus of a node.
+The layer surface keeps it until one of these occurs:
+
+- A click goes elsewhere, or a surface gets the focus.
+- Its role goes, or it no longer accepts the keyboard.
+- Its output goes.
+
+A popup grabs the input only with the serial of the last press, or of the
+last key or button event that its client got. A release counts, so a menu
+opens on F10 when the key goes up.
 
 ## Safety layer
 
@@ -271,9 +304,9 @@ The safety layer is the only built-in behavior (see
   [Input injection](api.md#input-injection).
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
-- **Emergency reset.** The core disconnects all plugins, revokes all grants,
-  removes all effects, restores the default cameras and puts all surfaces in
-  a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
+- **Emergency reset.** The core disconnects all plugins and ends their
+  grace times. It revokes all grants, removes all effects and restores the
+  default cameras. It puts all surfaces in a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
   configuration cannot break it. The reset also changes the focus (see
   [Input flow](#input-flow)).
 - **Session lock.** The core enforces `ext-session-lock`. One client owns
@@ -285,15 +318,36 @@ The safety layer is the only built-in behavior (see
   that it rendered under this lock. When the lock client crashes, the
   session stays locked, and only then can a new lock client take over.
 - **Watchdog.** When frames take longer to render than a refresh of their
-  output for two seconds, the core removes the effects, the meshes and the
-  shaders of shader nodes, and sends `effects.dropped`. When they stay slow for two more seconds, it
-  starts the emergency reset, which disconnects the plugins.
+  output for two seconds, the core blames the client whose visible nodes
+  cost the most: a node counts 1, a layer and each effect 25 more. It
+  removes the effects, the meshes and the shaders of shader nodes of that
+  client and sends `effects.dropped` with its name; the nodes of other
+  clients keep theirs. When frames stay slow for two more seconds and the
+  client had a load of at least 500, the core disconnects it, at most once
+  a minute. Its nodes go as on any disconnect, also those of a client with
+  `keep_nodes` or `resume`, without a grace time. The watchdog never
+  starts the emergency reset; only the binding and SIGUSR1 do.
+- **Shader hangs.** A shader that never returns blocks the loop, for
+  every backend renders on it. Neither the watchdog, which measures
+  between frames, nor SIGUSR1, whose source the loop dispatches, can
+  end it: on llvmpipe the core hangs, on a GPU until the driver resets
+  the context. The way out is to kill the core from another TTY or
+  over SSH.
 
 ## Permissions
 
-chora trusts every client of the same user. Milestone 0.7 replaces the
+chora trusts every client of the same user. One gap comes with the Rust
+Wayland backend: a message whose size is not a multiple of four leaves
+that connection deaf instead of answered with a protocol error, and the
+core has no frame of its own to reject. Correct clients send no such
+message. The caps of the IPC socket (16 connections per process, 128
+in total) and of the client sockets (16) bound the harm; the main
+Wayland socket has no cap. Milestone 0.7 replaces the
 grants with client sockets that fix the name and the capabilities of a
-client (D33, D40):
+client (D33, D40). In: a client socket fixes the name of
+its clients, and a Wayland socket next to it offers the privileged
+protocols only with grants. Only the admin socket of `choractl` changes
+grants and makes client sockets (see [API](api.md#client-sockets)).
 
 - Unsandboxed Wayland clients get all protocols, as in sway. So any client
   can, for example, take the keyboard as an input method, or configure the
@@ -310,6 +364,10 @@ client (D33, D40):
   revokes all grants.
 - `screen.capture`, `input.inject`, `process.spawn` and `plugins.restart`
   fail while the session is locked.
+- A connection of a client socket acts only on its own nodes and on the
+  windows of its `wayland.sock`. It sets no camera and puts no node
+  under `screen:*`. It takes the keyboard with `focus_node` only after a
+  press of the user on it (see [API](api.md#client-sockets)).
 
 ## Sessions and flavors
 

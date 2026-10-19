@@ -1,6 +1,8 @@
 //! The backends. winit runs chora as a window inside another session; the
-//! tty backend runs it on real hardware.
+//! tty backend runs it on real hardware. The headless backend runs it with
+//! virtual outputs, for tests, and renders in the unit tests.
 
+pub mod headless;
 mod host_keymap;
 pub mod tty;
 pub mod winit;
@@ -19,6 +21,8 @@ pub enum Backend {
     Winit(Box<winit::Winit>),
     /// Real hardware.
     Tty(Box<tty::Tty>),
+    /// Virtual outputs without a screen, for tests.
+    Headless(Box<headless::Headless>),
 }
 
 impl Backend {
@@ -27,6 +31,7 @@ impl Backend {
         match self {
             Self::Winit(winit) => winit.import_dmabuf(dmabuf),
             Self::Tty(tty) => tty.import_dmabuf(dmabuf),
+            Self::Headless(headless) => headless.import_dmabuf(dmabuf),
         }
     }
 
@@ -35,6 +40,7 @@ impl Backend {
         match self {
             Backend::Winit(winit) => winit.check_effect(path),
             Backend::Tty(tty) => tty.check_effect(path),
+            Backend::Headless(headless) => crate::gl::check_effect(headless.gles(), path),
         }
     }
 
@@ -47,6 +53,7 @@ impl Backend {
         match self {
             Self::Winit(winit) => Ok(f(winit.gles())),
             Self::Tty(tty) => tty.with_gles(f),
+            Self::Headless(headless) => Ok(f(headless.gles())),
         }
     }
 
@@ -63,6 +70,7 @@ impl Backend {
         match self {
             Self::Winit(winit) => winit.test_output(mode),
             Self::Tty(tty) => tty.test_output(output, mode),
+            Self::Headless(_) => Ok(()),
         }
     }
 
@@ -71,6 +79,7 @@ impl Backend {
         match self {
             Self::Winit(_) => Err(winit::FIXED_MODE.into()),
             Self::Tty(tty) => tty.set_mode(output, mode),
+            Self::Headless(_) => Ok(()),
         }
     }
 
@@ -79,6 +88,7 @@ impl Backend {
         match self {
             Self::Winit(_) => Err(winit::ALWAYS_ON.into()),
             Self::Tty(tty) => tty.enable_output(output, mode),
+            Self::Headless(_) => Ok(()),
         }
     }
 
@@ -88,13 +98,21 @@ impl Backend {
         match self {
             Self::Winit(_) => Err(winit::ALWAYS_ON.into()),
             Self::Tty(tty) => tty.disable_output(output),
+            Self::Headless(_) => Ok(()),
         }
     }
 }
 
-/// Starts the backend that fits: winit inside another session, else the
-/// tty backend.
-pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
+/// Starts the backend that fits: headless with virtual outputs if the
+/// command line asks for it, winit inside another session, else the tty
+/// backend.
+pub fn init(
+    state: &mut State,
+    headless: Option<&[headless::Spec]>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(specs) = headless {
+        return headless::init(state, specs);
+    }
     let nested = ["WAYLAND_DISPLAY", "DISPLAY"]
         .iter()
         .any(|v| std::env::var_os(v).is_some());

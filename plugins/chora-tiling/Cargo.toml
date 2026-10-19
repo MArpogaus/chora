@@ -1,4 +1,5 @@
 [dependencies]
+chora-kit.workspace = true
 chora-scene.workspace = true
 clap.workspace = true
 serde.workspace = true

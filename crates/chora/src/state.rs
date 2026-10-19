@@ -7,19 +7,25 @@ use std::{
     time::Instant,
 };
 
-use chora_scene::{Decoration, Effect, Event, Scene, SurfaceInfo, SurfaceRequest, ToplevelState};
+use chora_scene::{
+    Binding, Decoration, Effect, Event, Scene, SurfaceInfo, SurfaceRequest, ToplevelState,
+};
 use smithay::{
     desktop::{PopupManager, Window},
-    input::{Seat, SeatState, keyboard::Keycode, pointer::CursorImageStatus},
+    input::{
+        Seat, SeatState,
+        keyboard::{KeyboardHandle, Keycode},
+        pointer::CursorImageStatus,
+    },
     output::Output,
     reexports::{
-        calloop::{Interest, LoopHandle, LoopSignal, Mode, PostAction, generic::Generic},
+        calloop::{Interest, LoopHandle, LoopSignal, Mode, PostAction, channel, generic::Generic},
         wayland_protocols::xdg::{
             decoration::zv1::server::zxdg_toplevel_decoration_v1 as xdg_toplevel_decoration,
             shell::server::xdg_toplevel,
         },
         wayland_server::{
-            Display, DisplayHandle, Resource, backend::ClientData, protocol::wl_surface::WlSurface,
+            Display, DisplayHandle, backend::ClientData, protocol::wl_surface::WlSurface,
         },
     },
     utils::{Clock, Logical, Monotonic, Point, SERIAL_COUNTER, Serial},
@@ -29,7 +35,6 @@ use smithay::{
         dmabuf::DmabufState,
         foreign_toplevel_list::{ForeignToplevelHandle, ForeignToplevelListState},
         fractional_scale::FractionalScaleManagerState,
-        idle_inhibit::IdleInhibitManagerState,
         idle_notify::IdleNotifierState,
         input_method::InputMethodManagerState,
         output::OutputManagerState,
@@ -56,9 +61,19 @@ use smithay::{
 use smithay::wayland::security_context::{SecurityContext, SecurityContextState};
 
 use crate::{
-    backend::Backend, copies::Copies, foreign_toplevel::ForeignToplevelManagerState,
-    grants::Grants, image_capture::ImageCapture, ipc::Ipc, lock::Lock, methods::Methods,
-    output_management::OutputManagement, render::Assets, safety::Watchdog, security::trusted,
+    backend::Backend,
+    copies::Copies,
+    foreign_toplevel::ForeignToplevelManagerState,
+    grants::Grants,
+    image_capture::ImageCapture,
+    ipc::{Ipc, window_client},
+    lock::Lock,
+    methods::Methods,
+    output_management::OutputManagement,
+    render::Assets,
+    safety::Watchdog,
+    security::{trusted, unrestricted},
+    time::Time,
     transaction::Transactions,
 };
 
@@ -69,6 +84,58 @@ pub struct NodeGrab {
     pub node: String,
     pub button: u32,
     pub position: [f64; 2],
+}
+
+/// A grab of a button that is down: the connection of the grab, the
+/// binding, and the button.
+pub struct ButtonGrab {
+    pub conn: u64,
+    pub binding: String,
+    pub button: u32,
+}
+
+/// A key grab whose key went down and has not sent its `released` yet: the
+/// connection of the grab, the binding and the key code. A grab with
+/// modifiers ends when one of them goes up; a grab without modifiers ends
+/// with its own key.
+pub struct HeldGrab {
+    pub conn: u64,
+    pub binding: Binding,
+    pub code: Keycode,
+}
+
+/// The keys whose press did not reach a surface, and the held key grabs.
+#[derive(Default)]
+pub struct Held {
+    /// Keys whose press went to the safety layer, a grab or a node, so that
+    /// their release must not reach a surface.
+    pub keys: Vec<(Keycode, Suppressed)>,
+    /// The key grabs that are held.
+    pub grabs: Vec<HeldGrab>,
+    /// The last key that went to a node, while it is down: it repeats.
+    pub repeat: Option<Repeat>,
+}
+
+/// A held key that went to a node: its code, the owner of the node, the
+/// `node.key` event, and when it repeats next.
+pub struct Repeat {
+    pub code: Keycode,
+    pub owner: String,
+    pub event: chora_scene::Event,
+    pub next: Instant,
+}
+
+/// The delay before a held key repeats, in milliseconds, and its repeats
+/// per second; the same for surfaces and for nodes.
+pub const REPEAT_DELAY: u64 = 200;
+pub const REPEAT_RATE: u64 = 25;
+
+/// Where the release of a key goes whose press did not reach a surface.
+pub enum Suppressed {
+    /// Nowhere, as after a binding of the safety layer.
+    Swallow,
+    /// To the owner of the node with the keyboard focus, with the node.
+    Node(String, String),
 }
 
 /// The shortest time between two refreshes of the pointer while animations
@@ -85,6 +152,8 @@ pub struct State {
     pointer_refreshed: Instant,
     /// The clock of presentation times.
     pub clock: Clock<Monotonic>,
+    /// The time of the deadlines.
+    pub time: Time,
     pub display_handle: DisplayHandle,
     pub loop_handle: LoopHandle<'static, State>,
     pub loop_signal: LoopSignal,
@@ -121,8 +190,14 @@ pub struct State {
     /// The rect or image node of a press and its button, until the button
     /// goes up.
     pub node_grab: Option<NodeGrab>,
+    /// The grab of a button with modifiers, until the button goes up.
+    pub button_grab: Option<ButtonGrab>,
     /// The node of the last `pointer.entered`.
     pub hovered: Option<String>,
+    /// The client name of the node or window that the last button press
+    /// hit; a key press ends it. A client socket uses it once for
+    /// `focus_node`.
+    pub pressed: Option<String>,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
     /// The last configure of each surface node: size and states.
@@ -141,6 +216,9 @@ pub struct State {
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
     pub windows: HashMap<String, Window>,
+    /// Activations of surfaces that have not committed yet: the token
+    /// travels with the first `surface.created` of that surface.
+    pub pending_activations: Vec<(WlSurface, String)>,
     pub assets: Assets,
     next_surface: u64,
     pub ipc: Ipc,
@@ -153,10 +231,8 @@ pub struct State {
     pub image_capture: ImageCapture,
     /// The screencopy frames that wait for the next tick.
     pub copies: Copies,
-    /// Keys whose press went to the safety layer or to a grab, so that their
-    /// release must not reach a client; with the connection and binding of a
-    /// grab, which gets the release.
-    pub suppressed_keys: Vec<(Keycode, Option<(u64, String)>)>,
+    /// The keys and the key grabs that are down.
+    pub held: Held,
 }
 
 /// Creates the globals that live as long as the display and whose state
@@ -165,10 +241,10 @@ fn create_globals(dh: &DisplayHandle, clock: &Clock<Monotonic>) {
     XdgDecorationState::new::<State>(dh);
     OutputManagerState::new_with_xdg_output::<State>(dh);
     ViewporterState::new::<State>(dh);
-    IdleInhibitManagerState::new::<State>(dh);
+    crate::security::idle_inhibit_global(dh);
     TextInputManagerState::new::<State>(dh);
-    InputMethodManagerState::new::<State, _>(dh, trusted);
-    SecurityContextState::new::<State, _>(dh, trusted);
+    InputMethodManagerState::new::<State, _>(dh, crate::security::may_inject);
+    SecurityContextState::new::<State, _>(dh, unrestricted);
     FractionalScaleManagerState::new::<State>(dh);
     CursorShapeManagerState::new::<State>(dh);
     RelativePointerManagerState::new::<State>(dh);
@@ -177,36 +253,56 @@ fn create_globals(dh: &DisplayHandle, clock: &Clock<Monotonic>) {
     crate::screencopy::create_global(dh);
 }
 
+/// The assets, with the worker that decodes images for the event loop.
+fn new_assets(loop_handle: &LoopHandle<'static, State>) -> Assets {
+    let mut assets = Assets::default();
+    let (done, decoded) = channel::channel();
+    loop_handle
+        .insert_source(decoded, |event, (), state| {
+            if let channel::Event::Msg(decoded) = event {
+                state.decoded(decoded);
+            }
+        })
+        .expect("the event loop takes the channel of the images");
+    assets.images.start_worker(done);
+    assets
+}
+
 /// The one seat, with a keyboard of the default keymap and a pointer.
-fn new_seat(seat_state: &mut SeatState<State>, dh: &DisplayHandle) -> Seat<State> {
+fn new_seat(dh: &DisplayHandle) -> (SeatState<State>, Seat<State>) {
+    let mut seat_state = SeatState::new();
     let mut seat = seat_state.new_wl_seat(dh, "seat0");
-    seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), 200, 25)
+    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)] // small
+    let (delay, rate) = (REPEAT_DELAY as i32, REPEAT_RATE as i32);
+    seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), delay, rate)
         .expect("the default keymap compiles");
     seat.add_pointer();
-    seat
+    (seat_state, seat)
 }
 
 impl State {
+    #[allow(clippy::too_many_lines)] // one field after the other
     pub fn new(
         display: Display<State>,
         loop_handle: LoopHandle<'static, State>,
         loop_signal: LoopSignal,
     ) -> Self {
         let dh = display.handle();
-        let mut seat_state = SeatState::new();
-        let seat = new_seat(&mut seat_state, &dh);
-        let socket_name = listen(display, &loop_handle);
-        let idle_notifier_state = IdleNotifierState::new(&dh, loop_handle.clone());
+        let (seat_state, seat) = new_seat(&dh);
+        add_display(display, &loop_handle);
+        let idle_notifier_state = crate::security::idle_notifier(&dh, &loop_handle);
         let clock = Clock::<Monotonic>::new();
         create_globals(&dh, &clock);
+        let toplevel_list = ForeignToplevelListState::new_with_filter::<Self>(&dh, unrestricted);
         Self {
             start_time: Instant::now(),
             animated_at: Instant::now(),
             pointer_refreshed: Instant::now(),
             clock,
+            time: Time::default(),
             compositor_state: CompositorState::new::<Self>(&dh),
             layer_shell_state: WlrLayerShellState::new_with_filter::<Self, _>(&dh, trusted),
-            lock_state: SessionLockManagerState::new::<Self, _>(&dh, trusted),
+            lock_state: SessionLockManagerState::new::<Self, _>(&dh, unrestricted),
             lock: None,
             xdg_shell_state: XdgShellState::new::<Self>(&dh),
             shm_state: ShmState::new::<Self>(&dh, vec![]),
@@ -216,9 +312,10 @@ impl State {
             seat_state,
             seat,
             display_handle: dh.clone(),
+            assets: new_assets(&loop_handle),
             loop_handle,
             loop_signal,
-            socket_name,
+            socket_name: OsString::new(),
             backend: None,
             dmabuf_state: DmabufState::new(),
             outputs: Vec::new(),
@@ -227,22 +324,22 @@ impl State {
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
             node_grab: None,
+            button_grab: None,
             hovered: None,
+            pressed: None,
             watchdog: Watchdog::from_env(),
             layer_focus: None,
             configured: HashMap::new(),
             idle_notifier_state,
             idle_inhibitors: Vec::new(),
-            foreign_toplevel_list_state: ForeignToplevelListState::new_with_filter::<Self>(
-                &dh, trusted,
-            ),
+            foreign_toplevel_list_state: toplevel_list,
             foreign_toplevels: HashMap::new(),
             foreign_toplevel_manager_state: ForeignToplevelManagerState::new(&dh),
             activation_state: XdgActivationState::new::<Self>(&dh),
             early_requests: HashMap::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
-            assets: Assets::default(),
+            pending_activations: Vec::new(),
             next_surface: 1,
             ipc: Ipc::default(),
             transactions: Transactions::default(),
@@ -250,7 +347,22 @@ impl State {
             methods: Methods::default(),
             image_capture: ImageCapture::new(&dh),
             copies: Copies::default(),
-            suppressed_keys: Vec::new(),
+            held: Held::default(),
+        }
+    }
+
+    /// The work after each turn of the event loop: animations, errors of
+    /// effects, popups, the focus, and the output to all clients.
+    pub fn after_events(&mut self) {
+        self.advance_animations();
+        self.report_effect_errors();
+        self.popups.cleanup();
+        // The focus follows the protocols, for example after a popup grab
+        // ended.
+        self.update_focus();
+        self.ipc_flush();
+        if let Err(err) = self.display_handle.flush_clients() {
+            tracing::warn!(?err, "flushing the wayland clients failed");
         }
     }
 
@@ -292,6 +404,23 @@ impl State {
         }
     }
 
+    /// Opens the Wayland socket with a free name.
+    pub fn listen(&mut self) -> std::io::Result<()> {
+        let socket = ListeningSocketSource::new_auto().map_err(std::io::Error::other)?;
+        self.socket_name = socket.socket_name().to_os_string();
+        self.loop_handle
+            .insert_source(socket, |stream, (), state| {
+                if let Err(err) = state
+                    .display_handle
+                    .insert_client(stream, Arc::new(ClientState::default()))
+                {
+                    tracing::warn!(?err, "a wayland client failed to connect");
+                }
+            })
+            .map_err(|err| std::io::Error::other(err.to_string()))?;
+        Ok(())
+    }
+
     /// Registers a new toplevel. Its surface node follows with the first
     /// commit, so that no client configures it before the initial
     /// configure. Clients cannot create ids of the form `s1`, so the id
@@ -324,6 +453,12 @@ impl State {
         } else {
             Decoration::Client
         });
+        let client = (self.display_handle)
+            .get_client(smithay::reexports::wayland_server::Resource::id(
+                toplevel.wl_surface(),
+            ))
+            .ok()
+            .and_then(|c| c.get_data::<ClientState>()?.name.clone());
         with_states(toplevel.wl_surface(), |states| {
             let data = states
                 .data_map
@@ -336,13 +471,15 @@ impl State {
                 title: data.title.clone(),
                 size: Some([size.w, size.h]),
                 decoration,
+                client: client.clone(),
             }
         })
     }
 
     /// Sends an event to all subscribed clients.
     pub fn emit(&mut self, event: &Event) {
-        self.ipc.broadcast(event);
+        let scene = &self.scene;
+        self.ipc.broadcast(event, |s| window_client(scene, s));
     }
 
     /// Executes the effects of an applied transaction.
@@ -358,10 +495,18 @@ impl State {
                     }
                 }
                 Effect::Detached(surface) => {
-                    if self.focused_surface().as_deref() == Some(surface.as_str()) {
+                    if self.focused_surface() == Some(surface.as_str()) {
                         self.focus(None);
                     }
                     self.emit(&Event::SurfaceDetached { surface });
+                }
+                Effect::Reserved(surface, to) => {
+                    if self.focused_surface() == Some(surface.as_str()) {
+                        self.focus(None);
+                    }
+                    let scene = &self.scene;
+                    let event = Event::SurfaceDetached { surface };
+                    (self.ipc).send_subscribed(Some(&to), &event, |s| window_client(scene, s));
                 }
                 Effect::Camera(name) => {
                     for output in self.output_info().into_iter().filter(|o| o.name == name) {
@@ -373,7 +518,6 @@ impl State {
     }
 
     /// Sends a configure event and returns its serial, if the state changed.
-    /// The configure stays known, for a client that maps the surface again.
     pub fn configure(
         &mut self,
         surface: &str,
@@ -395,28 +539,20 @@ impl State {
             .map_or(&[], |(_, states)| states.as_slice())
     }
 
-    /// Forgets the configure of a destroyed surface.
+    /// Forgets the configure of a surface that goes.
     pub fn configured_forget(&mut self, surface: &str) {
         self.configured.remove(surface);
     }
 
-    /// Prepares the initial configure of a surface that a client maps again:
-    /// the last configure of its plugin.
-    pub fn reconfigure(&self, surface: &str) {
-        let toplevel = self.windows.get(surface).and_then(Window::toplevel);
-        if let (Some(toplevel), Some((size, states))) = (toplevel, self.configured.get(surface)) {
-            set_pending(toplevel, *size, states);
-        }
-    }
-
     /// The surface node that has the focus, as plugins set it.
-    pub fn focused_surface(&self) -> Option<String> {
-        self.focus_wanted.clone()
+    pub fn focused_surface(&self) -> Option<&str> {
+        self.focus_wanted.as_deref()
     }
 
-    /// Focuses a surface node, or nothing. A layer surface that a click
-    /// focused gives the keyboard back. Taskbars learn first which surface
-    /// lost the focus, because some expect one active toplevel at a time.
+    /// Focuses a surface node, or nothing. A new focused surface takes the
+    /// keyboard from a layer surface that a click focused. Taskbars learn
+    /// first which surface lost the focus, because some expect one active
+    /// toplevel at a time.
     pub fn focus(&mut self, surface: Option<&str>) {
         self.scene.set_focused(surface);
         self.focus_of_scene(surface);
@@ -425,40 +561,72 @@ impl State {
     /// Moves the focus that a transaction set; the scene knows it already.
     fn focus_of_scene(&mut self, surface: Option<&str>) {
         let previous = std::mem::replace(&mut self.focus_wanted, surface.map(Into::into));
-        self.layer_focus = None;
+        if surface.is_some() {
+            self.layer_focus = None;
+        }
         self.update_focus();
+        if previous.as_deref() != surface {
+            self.emit(&Event::FocusChanged {
+                surface: surface.map(Into::into),
+            });
+        }
         for id in [previous, self.focus_wanted.clone()].into_iter().flatten() {
             self.restate_toplevel(&id);
         }
     }
 
     /// Gives the keyboard to a layer surface after a click, or takes it
-    /// back.
+    /// back. A click on a layer surface that takes the keyboard on demand
+    /// ends the focus of a node, as a click on a toplevel does.
     pub fn set_layer_focus(&mut self, layer: Option<WlSurface>) {
-        if self.layer_focus != layer {
+        let node = layer.as_ref().is_some_and(|l| self.on_demand_layer(l))
+            && self.scene.focused_node().is_some();
+        if node {
+            self.scene.unfocus_node();
+        }
+        if node || self.layer_focus != layer {
             self.layer_focus = layer;
             self.update_focus();
         }
     }
 
+    /// The node of `focus_node` that gets the keys, and its owner: not while
+    /// the session is locked or a layer surface takes the keyboard.
+    pub fn key_node(&self) -> Option<(String, String)> {
+        if self.lock.is_some() || self.exclusive_layer().is_some() {
+            return None;
+        }
+        let owner = self.scene.focused_node_owner()?;
+        Some((self.scene.focused_node()?.into(), owner.into()))
+    }
+
     /// Moves the keyboard to the surface that should have it: the lock
-    /// screen, a layer surface that takes it exclusively, a layer surface
-    /// after a click, or the focused surface node. A popup grab keeps the
-    /// keyboard, unless the session locks.
+    /// screen, a layer surface that takes it exclusively, none while a node
+    /// has the focus, a layer surface after a click, or the focused surface
+    /// node. A popup grab keeps the keyboard, unless the session locks, a
+    /// layer surface takes it or a node gets the focus.
     pub fn update_focus(&mut self) {
         let keyboard = self.seat.get_keyboard().expect("the seat has a keyboard");
+        // A clicked layer surface keeps the keyboard only while it accepts it.
+        self.layer_focus = self
+            .layer_focus
+            .take()
+            .and_then(|l| self.keyboard_layer(&l));
         if self.lock.is_some() {
+            self.scene.unfocus_node();
             let target = self.lock_focus();
             keyboard.unset_grab(self);
             if keyboard.current_focus() != target {
                 keyboard.set_focus(self, target, SERIAL_COUNTER.next_serial());
             }
+            self.release_pointer_constraint();
             return;
         }
         // A launcher ends a popup grab, for example of an open menu.
         let exclusive = self.exclusive_layer();
-        if keyboard.is_grabbed() {
-            if exclusive.is_none() {
+        let node = self.key_node().is_some();
+        if popup_grabbed(&keyboard) {
+            if exclusive.is_none() && !node {
                 return;
             }
             keyboard.unset_grab(self);
@@ -469,12 +637,26 @@ impl State {
             .and_then(|s| self.windows.get(s))
             .and_then(Window::toplevel)
             .map(|t| t.wl_surface().clone());
-        let clicked = self.layer_focus.clone().filter(Resource::is_alive);
-        let target = exclusive.or(clicked).or(window);
+        let clicked = self.layer_focus.clone();
+        let target = if node {
+            None
+        } else {
+            exclusive.or(clicked).or(window)
+        };
         if keyboard.current_focus() != target {
             keyboard.set_focus(self, target, SERIAL_COUNTER.next_serial());
         }
+        self.release_pointer_constraint();
     }
+}
+
+/// Whether a popup grab holds the keyboard. The grab of an input method
+/// starts without a focus and lets focus changes through, so it does not
+/// count: it lasts as long as the input method runs.
+pub fn popup_grabbed(keyboard: &KeyboardHandle<State>) -> bool {
+    keyboard
+        .grab_start_data()
+        .is_some_and(|d| d.focus.is_some())
 }
 
 fn set_pending(toplevel: &ToplevelSurface, size: Option<[i32; 2]>, states: &[ToplevelState]) {
@@ -514,20 +696,9 @@ fn xdg_states() -> [(ToplevelState, &'static [xdg_toplevel::State]); 4] {
     ]
 }
 
-/// Opens the Wayland socket and adds the display to the event loop.
-fn listen(display: Display<State>, loop_handle: &LoopHandle<'static, State>) -> OsString {
-    let socket = ListeningSocketSource::new_auto().expect("a free wayland socket name");
-    let name = socket.socket_name().to_os_string();
-    loop_handle
-        .insert_source(socket, |stream, (), state| {
-            if let Err(err) = state
-                .display_handle
-                .insert_client(stream, Arc::new(ClientState::default()))
-            {
-                tracing::warn!(?err, "a wayland client failed to connect");
-            }
-        })
-        .expect("the event loop accepts the socket");
+/// Adds the display to the event loop, so that it dispatches the requests
+/// of the clients.
+fn add_display(display: Display<State>, loop_handle: &LoopHandle<'static, State>) {
     loop_handle
         .insert_source(
             Generic::new(display, Interest::READ, Mode::Level),
@@ -542,7 +713,6 @@ fn listen(display: Display<State>, loop_handle: &LoopHandle<'static, State>) -> 
             },
         )
         .expect("the event loop accepts the display");
-    name
 }
 
 /// Data of a Wayland client.
@@ -551,9 +721,375 @@ pub struct ClientState {
     pub compositor_state: CompositorClientState,
     /// The serial of the last key or button press that the client got.
     pub last_press: AtomicU32,
+    /// The serial of the last key or button event, press or release, that
+    /// the client got.
+    pub last_input: AtomicU32,
     /// The sandbox of a client that connected through
     /// `wp-security-context-v1`.
     pub security_context: Option<SecurityContext>,
+    /// The client name of the client socket that the client connected
+    /// through (D33).
+    pub name: Option<String>,
+    /// The grants of that name when the client connected.
+    pub granted: Vec<chora_scene::ipc::Capability>,
+    /// The place of the client among the clients of its socket; held for
+    /// its drop.
+    pub _slot: Option<Slot>,
+}
+
+/// A place among the Wayland clients of a client socket; it frees itself
+/// when the client goes.
+#[derive(Debug)]
+pub struct Slot(pub std::sync::Arc<AtomicU32>);
+
+impl Drop for Slot {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    }
 }
 
 impl ClientData for ClientState {}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{Value, json};
+    use smithay::{
+        backend::input::{InputTime, KeyState},
+        output::Output,
+    };
+    use wayland_client::Proxy;
+    use wayland_protocols::xdg::shell::client::xdg_toplevel::State as Xdg;
+    use wayland_protocols_wlr::layer_shell::v1::client::{
+        zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::KeyboardInteractivity,
+    };
+
+    use crate::testing::{
+        Client, Core,
+        wayland::{LayerSurface, Toplevel, Wayland},
+    };
+
+    /// The protocol id of the surface with the keyboard focus.
+    fn keyboard(core: &Core) -> Option<u32> {
+        let keyboard = core.state.seat.get_keyboard().expect("a keyboard");
+        keyboard
+            .current_focus()
+            .map(|s| smithay::reexports::wayland_server::Resource::id(&s).protocol_id())
+    }
+
+    fn id(toplevel: &Toplevel) -> u32 {
+        toplevel.surface.id().protocol_id()
+    }
+
+    fn apply(commands: &Value) -> Value {
+        json!({ "commands": commands })
+    }
+
+    fn focus(surface: Option<&str>) -> Value {
+        apply(&json!([{"focus": {"surface": surface}}]))
+    }
+
+    /// A layer surface on the output that accepts the keyboard on demand,
+    /// with the keyboard as after a click.
+    fn click_layer(core: &mut Core, wayland: &mut Wayland, output: &Output) -> LayerSurface {
+        let panel = wayland.layer(core, Layer::Top, KeyboardInteractivity::OnDemand);
+        let layer = smithay::desktop::layer_map_for_output(output)
+            .layers()
+            .next()
+            .map(|l| l.wl_surface().clone());
+        core.state.set_layer_focus(layer);
+        panel
+    }
+
+    /// A core with a window manager that attached two toplevels `s1` and
+    /// `s2` of one client.
+    fn two_windows() -> (Core, Wayland, Client, Toplevel, Toplevel) {
+        let mut core = Core::new();
+        let mut wayland = Wayland::connect(&mut core);
+        let first = wayland.toplevel(&mut core, "first");
+        let second = wayland.toplevel(&mut core, "second");
+        let mut wm = core.named("wm");
+        let attach = apply(&json!([
+            {"attach": {"surface": "s1", "parent": "root"}},
+            {"attach": {"surface": "s2", "parent": "root"}},
+        ]));
+        wm.ok(&mut core, "scene.apply", attach);
+        (core, wayland, wm, first, second)
+    }
+
+    #[test]
+    fn the_focused_surface_gets_the_keyboard() {
+        let (mut core, _wayland, mut wm, first, second) = two_windows();
+        assert_eq!(keyboard(&core), None);
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        assert_eq!(keyboard(&core), Some(id(&first)));
+        assert_eq!(core.state.focused_surface(), Some("s1"));
+        wm.ok(&mut core, "scene.apply", focus(Some("s2")));
+        assert_eq!(keyboard(&core), Some(id(&second)));
+        wm.ok(&mut core, "scene.apply", focus(None));
+        assert_eq!(keyboard(&core), None);
+    }
+
+    #[test]
+    fn a_client_focuses_only_its_own_surfaces() {
+        let (mut core, _wayland, mut wm, first, _second) = two_windows();
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        let mut agent = core.named("agent");
+        let (_, message) = agent.fails(&mut core, "scene.apply", focus(Some("s2")));
+        assert!(message.contains("wm"), "{message}");
+        assert_eq!(keyboard(&core), Some(id(&first)));
+    }
+
+    #[test]
+    fn a_client_that_cleared_the_focus_can_give_it_back() {
+        let (mut core, _wayland, mut wm, first, _second) = two_windows();
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        let mut launcher = core.named("launcher");
+        launcher.ok(&mut core, "scene.apply", focus(None));
+        assert_eq!(keyboard(&core), None);
+        launcher.ok(&mut core, "scene.apply", focus(Some("s1")));
+        assert_eq!(keyboard(&core), Some(id(&first)));
+        let (_, message) = launcher.fails(&mut core, "scene.apply", focus(Some("s2")));
+        assert!(
+            message.contains("wm"),
+            "only the surface that had it: {message}"
+        );
+    }
+
+    #[test]
+    fn the_keyboard_leaves_a_destroyed_window() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        let events = json!({"events": ["surface.destroyed"]});
+        wm.ok(&mut core, "events.subscribe", events);
+        wayland.destroy(&mut core, &first);
+        assert_eq!(keyboard(&core), None);
+        assert_eq!(wm.event_names(&mut core), ["surface.destroyed"]);
+        let (_, message) = wm.fails(&mut core, "scene.apply", focus(Some("s1")));
+        assert!(message.contains("s1"), "{message}");
+    }
+
+    #[test]
+    fn an_exclusive_layer_surface_takes_the_keyboard_and_gives_it_back() {
+        let (mut core, mut wayland, mut wm, first, second) = two_windows();
+        core.add_output("HDMI-1", (800, 600));
+        wayland.roundtrip(&mut core);
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        let bar = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::None);
+        assert_eq!(keyboard(&core), Some(id(&first)), "a bar takes no keyboard");
+        let launcher = wayland.layer(&mut core, Layer::Overlay, KeyboardInteractivity::Exclusive);
+        assert_eq!(keyboard(&core), Some(launcher.surface.id().protocol_id()));
+        wm.ok(&mut core, "scene.apply", focus(Some("s2")));
+        assert_eq!(
+            keyboard(&core),
+            Some(launcher.surface.id().protocol_id()),
+            "the launcher keeps the keyboard"
+        );
+        wayland.destroy_layer(&mut core, &launcher);
+        assert_eq!(keyboard(&core), Some(id(&second)));
+        wayland.destroy_layer(&mut core, &bar);
+        assert_eq!(keyboard(&core), Some(id(&second)));
+    }
+
+    #[test]
+    fn a_clicked_layer_surface_takes_the_keyboard_from_a_focused_node() {
+        let (mut core, mut wayland, mut wm, _first, _second) = two_windows();
+        let output = core.add_output("HDMI-1", (800, 600));
+        wayland.roundtrip(&mut core);
+        let desk = apply(&json!([
+            {"create": {"id": "desk", "kind": "rect", "parent": "root", "props": {"size": [1, 1]}}},
+            {"focus_node": {"node": "desk"}},
+        ]));
+        wm.ok(&mut core, "scene.apply", desk);
+        assert!(core.state.key_node().is_some());
+        let panel = click_layer(&mut core, &mut wayland, &output);
+        assert_eq!(keyboard(&core), Some(panel.surface.id().protocol_id()));
+        assert_eq!(core.state.key_node(), None);
+    }
+
+    #[test]
+    fn a_click_on_an_exclusive_launcher_keeps_the_node_focus() {
+        let (mut core, mut wayland, mut wm, _first, _second) = two_windows();
+        let output = core.add_output("HDMI-1", (800, 600));
+        wayland.roundtrip(&mut core);
+        let desk = apply(&json!([
+            {"create": {"id": "desk", "kind": "rect", "parent": "root", "props": {"size": [1, 1]}}},
+            {"focus_node": {"node": "desk"}},
+        ]));
+        wm.ok(&mut core, "scene.apply", desk);
+        wayland.layer(&mut core, Layer::Overlay, KeyboardInteractivity::Exclusive);
+        let launcher = smithay::desktop::layer_map_for_output(&output)
+            .layers()
+            .next()
+            .map(|l| l.wl_surface().clone());
+        core.state.set_layer_focus(launcher);
+        assert!(core.state.scene.focused_node().is_some());
+    }
+
+    #[test]
+    fn a_clicked_layer_surface_gives_the_keyboard_back_when_it_cannot_keep_it() {
+        for case in ["role", "interactivity", "output"] {
+            let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+            let output = core.add_output("HDMI-1", (800, 600));
+            wayland.roundtrip(&mut core);
+            wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+            let panel = click_layer(&mut core, &mut wayland, &output);
+            assert_eq!(keyboard(&core), Some(panel.surface.id().protocol_id()));
+            match case {
+                "role" => wayland.destroy_layer_role(&mut core, &panel),
+                "interactivity" => {
+                    wayland.set_layer_keyboard(&mut core, &panel, KeyboardInteractivity::None);
+                }
+                _ => {
+                    core.state.remove_output(&output);
+                    core.dispatch();
+                }
+            }
+            assert_eq!(keyboard(&core), Some(id(&first)), "{case}");
+            assert_eq!(core.state.layer_focus, None, "{case}");
+        }
+    }
+
+    #[test]
+    fn an_unmapped_toplevel_goes_with_the_keyboard_until_it_maps_again() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        let events = json!({"events": ["surface.created", "surface.destroyed"]});
+        wm.ok(&mut core, "events.subscribe", events);
+        wayland.attach(&mut core, &first, (100, 100));
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        assert_eq!(keyboard(&core), Some(id(&first)));
+        wayland.unmap(&mut core, &first);
+        assert_eq!(keyboard(&core), None);
+        assert_eq!(core.state.focused_surface(), None);
+        assert!(core.state.scene.node("s1").is_none());
+        assert_eq!(wm.event_names(&mut core), ["surface.destroyed"]);
+        let configures = wayland.configures(&first).count;
+        wayland.commit(&mut core, &first);
+        assert_eq!(wayland.configures(&first).count, configures + 1);
+        assert_eq!(wm.event_names(&mut core), ["surface.created"]);
+        wayland.attach(&mut core, &first, (100, 100));
+        assert!(core.state.scene.node("s1").is_some());
+    }
+
+    #[test]
+    fn an_unmapped_toplevel_maps_again_without_its_old_configure() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        let configure = apply(&json!([
+            {"configure": {"surface": "s1", "size": [400, 300], "states": ["activated"]}},
+        ]));
+        let id = wm.send("scene.apply", configure);
+        wayland.roundtrip(&mut core);
+        wayland.answer(&mut core, &first);
+        core.dispatch();
+        assert_eq!(wm.answer(&mut core, id), Some(Ok(Value::Null)));
+        wayland.attach(&mut core, &first, (400, 300));
+        wayland.unmap(&mut core, &first);
+        wayland.commit(&mut core, &first);
+        let configures = wayland.configures(&first);
+        assert_eq!(configures.size, (0, 0));
+        assert_eq!(configures.states, []);
+    }
+
+    #[test]
+    fn a_clicked_layer_surface_keeps_the_keyboard_when_the_focused_toplevel_goes() {
+        for unmap in [false, true] {
+            let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+            let output = core.add_output("HDMI-1", (800, 600));
+            wayland.roundtrip(&mut core);
+            wayland.attach(&mut core, &first, (100, 100));
+            wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+            let panel = click_layer(&mut core, &mut wayland, &output);
+            if unmap {
+                wayland.unmap(&mut core, &first);
+            } else {
+                wayland.destroy(&mut core, &first);
+            }
+            let panel = Some(panel.surface.id().protocol_id());
+            assert_eq!(keyboard(&core), panel, "unmap={unmap}");
+            assert_eq!(core.state.focused_surface(), None, "unmap={unmap}");
+        }
+    }
+
+    #[test]
+    fn the_emergency_reset_focuses_the_first_surface() {
+        let (mut core, _wayland, mut wm, first, _second) = two_windows();
+        core.add_output("HDMI-1", (800, 600));
+        wm.ok(&mut core, "scene.apply", focus(Some("s2")));
+        core.state.reset();
+        core.dispatch();
+        assert_eq!(core.state.focused_surface(), Some("s1"));
+        assert_eq!(keyboard(&core), Some(id(&first)));
+    }
+
+    #[test]
+    fn a_configure_waits_for_the_commit_that_answers_it() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        let configure = apply(&json!([
+            {"configure": {"surface": "s1", "size": [400, 300], "states": ["activated"]}},
+        ]));
+        let id = wm.send("scene.apply", configure);
+        wayland.roundtrip(&mut core);
+        assert_eq!(wm.answer(&mut core, id), None, "the client did not commit");
+        let configures = wayland.configures(&first);
+        assert_eq!(configures.size, (400, 300));
+        assert_eq!(configures.states, [Xdg::Activated]);
+        wayland.answer(&mut core, &first);
+        core.dispatch();
+        assert_eq!(wm.answer(&mut core, id), Some(Ok(Value::Null)));
+    }
+
+    #[test]
+    fn a_client_that_misses_the_deadline_delays_one_transaction_only() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        let size = |w: i32| apply(&json!([{"configure": {"surface": "s1", "size": [w, 300]}}]));
+        let id = wm.send("scene.apply", size(400));
+        assert_eq!(wm.answer(&mut core, id), None);
+        core.advance(crate::transaction::DEADLINE);
+        assert_eq!(wm.answer(&mut core, id), Some(Ok(Value::Null)));
+        let id = wm.send("scene.apply", size(500));
+        assert_eq!(
+            wm.answer(&mut core, id),
+            Some(Ok(Value::Null)),
+            "a late surface"
+        );
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.configures(&first).size, (500, 300));
+        wayland.answer(&mut core, &first);
+        let id = wm.send("scene.apply", size(600));
+        assert_eq!(wm.answer(&mut core, id), None, "the surface caught up");
+    }
+
+    #[test]
+    fn a_popup_grabs_with_the_serial_of_a_key_release() {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        core.add_output("HDMI-1", (800, 600));
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        let f10 = smithay::input::keyboard::Keycode::new(76);
+        for key_state in [KeyState::Pressed, KeyState::Released] {
+            crate::input::key(&mut core.state, f10, key_state, InputTime::now(), false);
+        }
+        wayland.roundtrip(&mut core);
+        let [press, release] = wayland.key_serials()[..] else {
+            panic!("a press and a release: {:?}", wayland.key_serials());
+        };
+        let menu = wayland.popup(&mut core, &first, release);
+        assert!(!wayland.popup_done(&menu), "the release opens the grab");
+        let stale = wayland.popup(&mut core, &first, press.wrapping_sub(1));
+        assert!(wayland.popup_done(&stale), "only an event of the client");
+    }
+
+    #[test]
+    fn the_focus_moves_while_an_input_method_grabs_the_keyboard() {
+        let (mut core, _wayland, mut wm, first, second) = two_windows();
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        assert_eq!(keyboard(&core), Some(id(&first)));
+        let keyboard_handle = core.state.seat.get_keyboard().unwrap();
+        keyboard_handle.set_grab(
+            &mut core.state,
+            smithay::wayland::input_method::InputMethodKeyboardGrab::default(),
+            smithay::utils::SERIAL_COUNTER.next_serial(),
+        );
+        wm.ok(&mut core, "scene.apply", focus(Some("s2")));
+        assert_eq!(keyboard(&core), Some(id(&second)));
+        assert!(keyboard_handle.is_grabbed());
+    }
+}

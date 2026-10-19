@@ -127,18 +127,19 @@ fn is_path(name: &str) -> bool {
     name.contains('/') || yaml
 }
 
-/// Checks the name of a view or a plugin: letters, digits, `_`, `-` and
-/// `.`, not first, so that the name of a file stays in its directory.
+/// Checks the name of a view or a plugin by the rule of the core. The
+/// check carries the `view-` prefix of a view, so a plugin name stays a
+/// few bytes below the limit of `hello`.
 pub fn check_name(name: &str) -> Result<(), String> {
-    let plain = name
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || "_-.".contains(c));
-    if name.is_empty() || name.starts_with('.') || !plain {
-        return Err(format!(
-            "invalid name {name:?}: use letters, digits, _, - and ., not first"
-        ));
+    let client = format!("view-{name}");
+    if chora_scene::ipc::valid_name(name) && chora_scene::ipc::valid_name(&client) {
+        Ok(())
+    } else {
+        Err(format!(
+            "invalid name {name:?}: lowercase letters, digits, _, - and ., from a letter, at most {} bytes",
+            chora_scene::ipc::MAX_NAME
+        ))
     }
-    Ok(())
 }
 
 /// Reads a YAML file strictly: unknown keys, duplicate keys, unknown tags
@@ -164,8 +165,10 @@ fn connect(view: &str) -> Result<Client, String> {
     let hello = Hello {
         name: owner(view),
         keep_nodes: true,
+        resume: false,
     };
-    Client::from_env(&hello).map_err(|e| e.to_string())
+    Client::from_env(&hello)
+        .map_err(|e| format!("the view {view:?} connects as {}: {e}", owner(view)))
 }
 
 /// Loads a view and returns what it did.
@@ -371,7 +374,7 @@ fn removals(client: &mut Client, view: &str) -> Result<Vec<Command>, String> {
         .map_err(|e| e.to_string())?;
     Ok(top_owned(&all, &owner(view))
         .into_iter()
-        .map(|id| Command::Remove { id })
+        .map(|id| Command::Remove { id, to: None })
         .collect())
 }
 
@@ -555,9 +558,16 @@ mod tests {
     #[test]
     fn names_stay_in_their_directory() {
         assert!(check_name("work-2.night").is_ok());
-        for bad in ["", "../x", ".hidden", "a/b", "/etc/x", "a b"] {
+        for bad in [
+            "", "../x", ".hidden", "a/b", "/etc/x", "a b", "Work", "9lives",
+        ] {
             assert!(check_name(bad).is_err(), "{bad:?}");
         }
+        assert!(check_name(&"v".repeat(59)).is_ok());
+        assert!(
+            check_name(&"v".repeat(60)).is_err(),
+            "the prefix of the view counts into the 64"
+        );
         assert!(
             find("views", "../../etc/passwd").is_ok(),
             "a path stays a path"
@@ -575,6 +585,7 @@ mod tests {
             children: Vec::new(),
             props: Props::default(),
             surface: None,
+            to: None,
         };
         let all = vec![
             node("a", "view-x", "root"),

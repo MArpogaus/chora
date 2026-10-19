@@ -2,7 +2,7 @@
 
 The layout of this repository: one Cargo workspace with as few crates as
 possible. A module moves into its own crate only when a second consumer
-needs it. Milestone 0.6 moves the plugins into repositories of their own
+can use it. The plugins move into repositories of their own after 0.6
 (D36).
 
 ```text
@@ -10,13 +10,15 @@ chora/
 ├── crates/
 │   ├── chora-scene/   # scene model, commands, events, selectors, IPC types and client; no Smithay
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
+│   ├── chora-kit/     # building blocks for plugins: wobbly windows, magic lamp, XDG dirs, icons, desktop entries
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
 │   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome
 │   └── chora-xp/      # stacking window manager in the style of Windows XP
 ├── flavors/           # systemd units of the flavors; the theme of the XP flavor
-├── dist/              # RPM build script, Fedora build requirements, session files
-├── tests/             # end-to-end tests in a headless sway
+├── examples/          # loader prototype and showcase apps over the API
+├── dist/              # RPM build script, Fedora build requirements, session files, Quadlet examples
+├── tests/             # end-to-end scripts, headless sessions, input probe
 ├── deny.toml          # cargo-deny: allowed licenses, advisories
 ├── docs/              # this documentation (MkDocs)
 ├── mkdocs.yml
@@ -28,6 +30,10 @@ chora/
 - **`chora-scene` has no Smithay dependency.** Tests of the data model and
   the transaction logic need no GPU and no compositor. The core, `choractl`
   and plugins share this one definition of the API.
+- **`chora-kit` holds the building blocks that plugins share** and that
+  are not part of the API of the core: the IPC and event connection, the
+  self-computed effects and the freedesktop files. Today `conn` is the
+  part with more than one user; code of one plugin stays in that plugin.
 - **Reference plugins are workspace members.** They keep the API honest.
 - **`choractl` builds the JSON schemas** from the Rust types at run time, in
   `crates/choractl/src/schema.rs`. The repository does not contain them.

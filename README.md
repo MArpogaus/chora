@@ -92,6 +92,13 @@ Programs inside chora find its IPC socket in `CHORA_SOCKET`. For example, a
 terminal in chora shows the scene with `choractl query`, and
 `choractl events` prints the events.
 
+Under [`examples/`](https://github.com/MArpogaus/chora/tree/main/examples)
+live programs that drive the scene through that socket: the loader
+prototype (`examples/loader`) flies a construct of views, HUDs and
+shaders through the camera, and `examples/showcase` collects six small
+apps: snake, pong, two text renderers, a shader card UI and a slide
+deck.
+
 ## Documentation
 
 The documentation lives in

@@ -474,7 +474,7 @@ where
     #[allow(clippy::cast_possible_truncation)]
     let (size, color) = (
         (width.round() as i32, height.round() as i32),
-        props.color?.map(|c| c as f32),
+        premultiplied(props.color?).map(|c| c as f32),
     );
     let buffer = rects.entry(placed.node.id.clone()).or_default();
     buffer.update(size, color);
@@ -485,6 +485,12 @@ where
         alpha,
         Kind::Unspecified,
     )))
+}
+
+/// A color of the scene, which has straight alpha, as the renderer takes
+/// it: with the red, green and blue multiplied by the alpha.
+pub fn premultiplied([r, g, b, a]: [f64; 4]) -> [f64; 4] {
+    [r * a, g * a, b * a, a]
 }
 
 /// The render elements of an image node, if its file is loaded.
@@ -632,7 +638,10 @@ fn scene_under(state: &State, draw_list: &[Placed<'_>], pos: Point<f64, Logical>
 pub struct Under {
     /// The surface, possibly a subsurface or a popup.
     pub surface: WlSurface,
-    /// The position of the surface in the scene.
+    /// The point of the scene minus the point on the surface in its own
+    /// units, so that the point minus `location` is the position on the
+    /// surface that its client gets. It is the origin of the surface in the
+    /// scene only on a node without scale.
     pub location: Point<f64, Logical>,
     /// The surface node; `None` for a layer surface.
     pub node: Option<String>,
@@ -640,7 +649,8 @@ pub struct Under {
 
 /// What a point hits.
 enum Hit {
-    /// A surface, and its position in the scene.
+    /// A surface, and the point minus the point on the surface, as in
+    /// [`Under::location`].
     Surface(WlSurface, Point<f64, Logical>),
     /// A rect: an area without a client.
     Area,
@@ -663,11 +673,10 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
             let window = state.windows.get(&placed.node.id)?;
             let geo = window.geometry().loc.to_f64();
             let (surface, loc) = window.surface_under(local + geo, WindowSurfaceType::ALL)?;
-            let loc = loc.to_f64() - geo;
-            Some(Hit::Surface(
-                surface,
-                offset + Point::from((loc.x * sx, loc.y * sy)),
-            ))
+            // The point on the surface in its own units: Smithay gives the
+            // client `pos - location`, which a scaled node must not scale.
+            let on_surface = local - (loc.to_f64() - geo);
+            Some(Hit::Surface(surface, pos - on_surface))
         }
         NodeKind::Rect | NodeKind::Image | NodeKind::Shader => {
             let [w, h] = node_size(state, placed);
@@ -818,7 +827,36 @@ fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f64, Logical
 mod tests {
     use chora_scene::Transform;
 
-    use super::location_and_scale;
+    use serde_json::json;
+
+    use super::{location_and_scale, premultiplied, surface_under};
+    use crate::testing::{Core, wayland::Wayland};
+
+    #[test]
+    fn a_client_gets_the_pointer_in_its_own_units_on_a_scaled_node() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "window");
+        wayland.attach(&mut core, &window, (200, 200));
+        let mut wm = core.named("wm");
+        let commands = json!({"commands": [
+            {"create": {"id": "thumb", "kind": "group", "parent": "root",
+                        "props": {"transform": {"translate": [100, 100], "scale": 0.5}}}},
+            {"attach": {"surface": "s1", "parent": "thumb"}},
+        ]});
+        wm.ok(&mut core, "scene.apply", commands);
+        let spot = core.state.spot((150.0, 150.0).into()).expect("a spot");
+        let under = surface_under(&core.state, &spot).expect("the window");
+        assert_eq!(spot.scene - under.location, (100.0, 100.0).into());
+    }
+
+    #[test]
+    fn a_color_with_alpha_is_premultiplied_for_the_renderer() {
+        assert_eq!(premultiplied([1.0, 1.0, 1.0, 0.5]), [0.5, 0.5, 0.5, 0.5]);
+        assert_eq!(premultiplied([1.0, 0.0, 0.5, 0.0]), [0.0; 4]);
+        assert_eq!(premultiplied([0.2, 0.4, 0.8, 1.0]), [0.2, 0.4, 0.8, 1.0]);
+    }
 
     #[test]
     fn mirrored_and_collapsed_nodes_are_not_drawn() {

@@ -26,7 +26,7 @@ that the code does not implement yet.
 | D11 | The reference hardware is the HP ZBook Ultra G1a (AMD Radeon 8060S); CI adds a VM with `vkms`; Intel works through Mesa without a gate; NVIDIA comes later | Gates need one machine that the author uses every day. The VM covers the tty backend in CI. |
 | D12 | Services run as Quadlet units with Podman or in distrobox | Isolation. systemd handles start, restart and order. |
 | D13 | The coordinator is the user first, later an agent with special permissions | A gradual path to control by agents. |
-| D14 | Releases build an RPM and an Arch package, attached with SHA256 sums to a GitHub release; versions below 1.0 are pre-releases | One build for the release assets and the package repositories of D49. |
+| D14 | Releases build an RPM and an Arch package, attached with SHA256 sums to a GitHub release; versions below 1.0 and release candidates are pre-releases | One build for the release assets and the package repositories of D49. |
 
 ## Core
 
@@ -40,7 +40,7 @@ that the code does not implement yet.
 | D20 | One logical scene; each output shows it through a camera | Pan, zoom and the infinite canvas need no extra mechanism. |
 | D21 | The core places popups, subsurfaces and layer surfaces; toplevels wait for a plugin | The protocols define these positions. Smithay implements them. |
 | D22 | A transaction completes when all affected clients commit, or after a deadline; transactions on disjoint surfaces do not wait for each other | A resize needs a client round trip. One slow client must not stop the others. |
-| D23 | A hardcoded safety layer: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT, SIGUSR1 resets; a watchdog in its own thread; a binding that revokes the capabilities of all agents | A recovery path must not depend on a file that an agent can break, or on a main loop that hangs. |
+| D23 | A hardcoded safety layer: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT, SIGUSR1 resets while the main loop runs; a watchdog that blames the client whose visible nodes cost the most for slow frames, removes its effects and then disconnects it, and never resets the session (target: the watchdog in its own thread; it runs on the main loop, so a hung shader stops it too); a binding that revokes the capabilities of all agents | A recovery path must not depend on a file that an agent can break, or on a main loop that hangs. One client without grants must not take the window manager, the grants and the effects of the others down with it. |
 | D24 | The core renders an output only when it has damage; a layer keeps its texture until its subtree changes; a fullscreen surface without effects uses direct scanout | Battery life and GPU load. |
 | D25 | No undo history and no plugin state store in the core | A destroyed client cannot come back. The reset and the views in git cover recovery. The scene holds all state. |
 | D26 | Xwayland through `xwayland-satellite` | Keeps the core small. |
@@ -55,10 +55,10 @@ that the code does not implement yet.
 | D30 | The core starts one startup command with `WAYLAND_DISPLAY` and `CHORA_SOCKET` set | The startup command starts the plugins, or a systemd target. |
 | D31 | The owner of a node is a client name; only the owner changes a node; another client requests a change, and the core sends the request to the owner; plugins export methods with a description and a JSON schema | An agent asks the window manager instead of fighting it. |
 | D32 | Queries use JSON filters; a query returns all current matches; subscriptions start with a snapshot, and events have sequence numbers | A schema describes the filters. Agents get predictable results and miss no event. |
-| D33 | Each client has a socket directory with an IPC socket and a Wayland socket of `wp-security-context-v1`; the socket fixes its name and its capabilities; `input.inject`, `screen.capture` and `input.grab-any` are capabilities | A client cannot take another name or give itself capabilities. A container mounts one directory and needs no configuration. |
+| D33 | Each client has a socket directory with an IPC socket and a Wayland socket of its own that hides the privileged protocols; the socket fixes its name and its capabilities; `input.inject`, `screen.capture` and `input.grab-any` are capabilities | A client cannot take another name or give itself capabilities. A container mounts one directory and needs no configuration. |
 | D34 | MCP outside the core: `choractl mcp` over stdio on rmcp, with tools for whole tasks and one tool per exported plugin method | The core stays free of MCP. The official SDK carries the protocol. |
 | D35 | The core reads no configuration; `choractl` loads YAML views and `~/.config/chora/clients.yaml`; a flavor is a directory with a systemd target; the configuration holds no secrets | Policy and service management do not belong in the core. |
-| D36 | The GitHub organization `chora` holds the repositories `chora` (the core, `chora-scene`, `choractl`, the reference documentation), one repository per plugin, `chora-website`, `chora-packaging`, `chora-voice` and `.github` | Plugins and services get their own owners and releases. The core keeps the definition of the API. |
+| D36 | The GitHub organization is `chora-desktop` (`chora` is taken). It holds `chora` (the core, `chora-scene`, `choractl`, the plugins, the reference documentation) and later `chora-website`, `chora-packaging`, `chora-voice` and `.github`. The split of the plugins into repositories of their own is postponed past 0.6; until then they live in the core repository and build with it | Plugins and services get their own owners and releases once the API of `chora-scene` has settled. The core keeps the definition of the API. |
 
 ## Tools around the core
 
@@ -72,21 +72,83 @@ that the code does not implement yet.
 | D42 | The core starts no program except the startup command; `choractl run` starts programs through `systemd-run --user` with an activation token; `systemctl --user restart` restarts a plugin; journald keeps the output | systemd already supervises processes. The activation token links a program to its window. |
 | D43 | Nodes fixed to the screen live under one overlay root per output, `screen:NAME`: in the logical coordinates of the output, without its camera, above the scene and below the top and overlay layers of layer shell | A HUD stays in place while a camera moves. A root per output answers on which output a node shows. Its nodes work as all others: input, effects, ownership. |
 | D44 | `output.configure` sets scale and transform of an output through the API, on the same path as `wlr-output-management` | One path keeps both ways in step. |
-| D45 | Grabs need Ctrl, Alt or Super, except for a client with the capability `input.grab-any`; `input.ungrab` ends a grab; a grab tells the release of its key; there is no exclusive keyboard grab | Typing works unless the user gives a capability, for example for push-to-talk. Games and 3D clients get every key through Wayland. |
+| D45 | Grabs need Ctrl, Alt or Super, except for a client with the capability `input.grab-any`; `input.ungrab` ends a grab; a key grab tells when the first of its modifiers goes up, except Shift; there is no exclusive keyboard grab | Typing works unless the user gives a capability, for example for push-to-talk. Games and 3D clients get every key through Wayland. |
 
 ## Process
 
 | # | Decision | Reason |
 |---|----------|--------|
 | D46 | Each milestone has a gate: CI jobs and checks on the reference hardware with a log as evidence, tracked in a gate issue; the next milestone of the core starts when the gate holds | Breadth without real use hides faults. A gate makes "done" checkable. |
-| D47 | The git flow of the project conventions: `main` holds `chore: init` and merge commits; work happens on `dev`, and each contributor of a shared repository has `dev-NAME`; a release is a merge into `main` and an annotated tag; the release needs green CI; commitizen writes the changelog; a review loop runs until a round finds nothing that matters | One flow in every repository. A release never ships a red commit. |
-| D48 | The core is a library and a binary; IPC, transactions, focus and grants have unit tests with a fake clock; a pixman backend runs pixel tests in process; each bug fix comes with a test that fails without the fix | Pixel tests in a headless sway cannot reach the internals. Review finds faults that tests should catch. |
+| D47 | The git flow of the project conventions: `main` holds `chore: init` and merge commits; work happens on `dev`, and each contributor of a shared repository has `dev-NAME`; a release is a merge into `main` and an annotated tag on the merge commit; the tag starts the release, which needs green CI of the same commit; commitizen writes the changelog; a review loop runs until a round finds nothing that matters | One flow in every repository. A release never ships a red commit. |
+| D48 | The core is a library and a binary; IPC, transactions, focus and grants have unit tests with a fake clock; a headless GLES backend on the software driver of Mesa runs pixel tests in process; each bug fix comes with a test that fails without the fix | Pixel tests in a headless sway cannot reach the internals. Review finds faults that tests should catch. |
 | D49 | Packages through COPR with Packit, with a subpackage per plugin, and PKGBUILDs in the AUR | The image build and updates need a package repository. |
 | D50 | The session starts through uwsm; a flavor is a systemd target | uwsm handles the environment and the graphical session target. |
 | D51 | The daily driver of 1.0 is `chora-tiling` with waybar, fuzzel, mako, swaylock, swayidle and kanshi; panel and launcher plugins of chora grow in parallel in their own repositories | Existing tools cover the shell. Own plugins are no condition for 1.0. |
 | D52 | The milestones run 0.6 to 1.0 as in the [Roadmap](roadmap.md) | A stable API needs real use and a testable core first. |
 | D53 | The voice pipeline lives in `chora-voice` and runs in parallel to the core; the core supplies push-to-talk grabs, text injection, the read model and an agent indicator | The pipeline is a product of its own. It needs only the API of the core. |
 | D54 | Plugins use the JSON-RPC API with frame events and fd passing; a private Wayland protocol for plugins comes only if a measurement at 120 Hz in milestone 0.9 shows the need | One API to maintain. The measurement decides. |
+| D55 | Window managers share the scene through claims. A claim is a scene area of one window manager. A window manager hands a surface to another with `remove` and `to`. The core gives a new toplevel to a window manager (see [below](#d55-window-managers-per-claim)). | The user chose one window manager per claim over a single window manager role. Ownership, `attach` and `surface.detached` stay the mechanism, and a camera switches between claims. |
+| D56 | The UI is hybrid. Plugins draw shell chrome and effects as scene nodes. Real applications, such as a file manager or a control panel, run as Wayland clients. Scene nodes take the keyboard through `focus_node`. The Explorer of `chora-xp`, drawn from scene nodes, is a stopgap | Chrome and effects need the scene: transforms, shaders, wobble. Applications need text input, accessibility and toolkits, which clients bring. |
+
+## Designs
+
+### D55: window managers per claim
+
+Issue #73 calls the area of a window manager a view. The glossary uses
+"view" for a YAML arrangement (D5), so this design says **claim**. The
+design has two steps. Step 1 is the handover. Step 2 adds claims and the
+routing of new toplevels.
+
+#### Step 1: handover
+
+Window manager A hands surface `s1` to window manager B:
+
+1. A owns `s1`, for example at the end of a drag out of its area. A knows
+   B by a fixed name or by a `meta` tag on the root group of B.
+2. A sends `remove: {id: s1, to: B}`. `to` must name a connected client.
+   As at every `remove`, the surface becomes detached and loses the
+   keyboard focus.
+3. The core reserves `s1` for B and sends `surface.detached`, which
+   carries the surface alone. An `attach` of another client fails.
+4. B attaches `s1`, places it by its own rules, and can give it the
+   focus. A plugin that adopts every detached surface needs no change.
+5. When the last connection of B closes, the reservation ends. With
+   `resume`, it ends after the grace time. The core then sends
+   `surface.detached` to all, and any client can attach the surface.
+
+**Focus and grabs.** The keyboard focus does not move with the surface.
+The receiving window manager sets it with `focus` after the `attach`.
+Grabs belong to connections and do not move. A ends its drag at the
+release of the button, and then hands the surface over. The client of the
+surface keeps its pointer and keyboard input as before.
+
+#### Step 2: claims
+
+A claim is a rectangle in scene coordinates: the property
+`claim: [x, y, w, h]` of a node. The owner of the node holds the claim. A
+window manager sets it on its root group, and the claim ends with its
+node. Window managers claim the whole work area of their outputs. An
+output shows a claim through its camera. So two window managers sit on two
+outputs, or at two places in the scene, and a camera move switches one
+output between them. With claims, A finds B in the claims of
+`scene.query`.
+
+At the first commit of a toplevel, the core picks its window manager.
+The first choice is the owner of its parent toplevel, so that a dialog
+stays with the manager of its window. The next choice is the owner of the
+focused node, or of the focused surface, if it holds a claim. The last
+choice is the owner of the smallest claim that contains the pointer. A
+client that asked for an activation token (D42) does not win by the token
+itself. The core
+reserves the surface for that client, as at a handover. Outside of all
+claims, any window manager can take the new surface.
+
+**Out of scope for now.**
+
+- The drop position: B places the surface by its own rules.
+- A drag that continues in B after the handover.
+- An embedded GNOME session in a claim.
+- Claims under `screen:NAME`.
 
 ## Rejected proposals
 
@@ -94,6 +156,7 @@ that the code does not implement yet.
 |----------|--------|
 | Versioned docs with mike are too much | The project conventions use mike. |
 | Hooks without matching files | The project conventions use this hook set in every repository. |
+| Cairo and Pango, or another 2D engine, in the core | The core composites and draws no vector graphics. Text comes from the text node on cosmic-text (D18), shapes from rects and shader nodes. Plugins draw rich chrome themselves, for example with tiny-skia and resvg. |
 | An exclusive keyboard grab | Typing must work. Clients that need every key get it through Wayland (D45). |
 | A 3D node with depth buffer in the core | It makes the core an engine. 3D scenes belong in clients (D19). |
 | A rewrite from scratch | The scene model, the API and the safety layer hold. The milestones change the rest step by step (D52). |

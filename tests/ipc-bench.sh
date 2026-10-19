@@ -18,7 +18,7 @@ export WAYLAND_DISPLAY=wayland-1
 "$bin/chora" -- sleep 120 >"$out/chora.log" 2>&1 &
 pids+=($!)
 sleep 1.5
-CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/*.sock"); export CHORA_SOCKET
+CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"); export CHORA_SOCKET
 python3 -I - "$CHORA_SOCKET" <<'EOF'
 import json, socket, sys, time, math, statistics
 s = socket.socket(socket.AF_UNIX); s.connect(sys.argv[1]); f = s.makefile()

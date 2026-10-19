@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_scene::Transform;
+use chora_scene::{Easing, Transform};
 
 use crate::theme::Rect;
 
@@ -59,6 +59,12 @@ pub struct Turn {
     pub view: View,
     start: Instant,
     duration: Duration,
+    /// The angle at the start, after a turn by the pointer.
+    begin: f64,
+    /// The angle while the pointer turns the cube.
+    held: Option<f64>,
+    /// The pointer turned the cube: its phase follows the angle.
+    by_pointer: bool,
 }
 
 /// A face that shows: its desktop, its turn in radians and its depth.
@@ -81,6 +87,64 @@ impl Turn {
             view,
             start: Instant::now(),
             duration,
+            begin: 0.0,
+            held: None,
+            by_pointer: false,
+        }
+    }
+
+    /// A turn that the pointer holds, from a desktop.
+    pub fn held(from: usize, view: View) -> Self {
+        Self {
+            held: Some(0.0),
+            by_pointer: true,
+            ..Self::new(from, 0, view, Duration::ZERO)
+        }
+    }
+
+    /// The pointer turned the cube by some pixels to the right: a drag
+    /// over the width of the output is a quarter turn.
+    pub fn hold(&mut self, dx: f64) {
+        self.held = Some(-dx / (2.0 * self.view.half) * FRAC_PI_2);
+    }
+
+    /// The pointer lets go: the cube turns on to the nearest face, in the
+    /// time of a quarter turn for each quarter.
+    pub fn release(&mut self, quarter: Duration) {
+        let Some(angle) = self.held.take() else {
+            return;
+        };
+        #[allow(clippy::cast_possible_truncation)] // a few turns
+        let steps = (angle / FRAC_PI_2).round() as i32;
+        let rest = (f64::from(steps) * FRAC_PI_2 - angle).abs() / FRAC_PI_2;
+        self.steps = steps;
+        self.begin = angle;
+        self.start = Instant::now();
+        // At least a fifth of a quarter turn, so that a turn just short
+        // of a face still shows.
+        self.duration = quarter.mul_f64(rest.max(0.2));
+    }
+
+    /// Whether the turn reached its end at a time.
+    pub fn done(&self, t: f64) -> bool {
+        self.held.is_none() && t >= 1.0
+    }
+
+    /// The angle of the cube at a time.
+    fn angle(&self, t: f64) -> f64 {
+        self.held.unwrap_or_else(|| {
+            let end = f64::from(self.steps) * FRAC_PI_2;
+            self.begin + (end - self.begin) * Easing::EaseInOut.at(t)
+        })
+    }
+
+    /// How far the cube is between its faces at a time, from 0 to 1: it
+    /// moves back and its windows fly off by this share.
+    pub fn phase(&self, t: f64) -> f64 {
+        if self.by_pointer {
+            (2.0 * self.angle(t)).sin().abs()
+        } else {
+            (PI * t).sin()
         }
     }
 
@@ -97,20 +161,20 @@ impl Turn {
 
     /// How far the cube moved back at a time.
     pub fn push(&self, t: f64) -> f64 {
-        self.view.half * PUSH * (PI * t).sin()
+        self.view.half * PUSH * self.phase(t)
     }
 
-    /// How far a window flew off its face at a time; higher windows of
+    /// How far a window flew off its face at a phase; higher windows of
     /// the stack fly farther.
-    pub fn lift(t: f64, index: usize, count: usize) -> f64 {
+    pub fn lift(phase: f64, index: usize, count: usize) -> f64 {
         #[allow(clippy::cast_precision_loss)] // a few windows
         let share = index as f64 / count.saturating_sub(1).max(1) as f64;
-        LIFT * (0.6 + 0.4 * share) * (PI * t).sin()
+        LIFT * (0.6 + 0.4 * share) * phase
     }
 
     /// The faces that turn toward the viewer at a time, the farthest first.
     pub fn faces(&self, t: f64) -> Vec<Face> {
-        let turned = f64::from(self.steps) * FRAC_PI_2 * ease(t);
+        let turned = self.angle(t);
         let mut faces: Vec<Face> = (0..DESKTOPS)
             .map(|desktop| {
                 #[allow(clippy::cast_precision_loss)] // below 4
@@ -172,15 +236,6 @@ pub fn perspective(focal: f64) -> Transform {
     Transform::from_matrix(m)
 }
 
-/// Slow at the start and at the end.
-fn ease(t: f64) -> f64 {
-    if t < 0.5 {
-        4.0 * t * t * t
-    } else {
-        1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -240,5 +295,33 @@ mod tests {
         assert_eq!(end[0].desktop, 0);
         assert!(end[0].angle.abs() < 1e-9);
         assert_eq!(offset(0, -1), 3);
+    }
+
+    #[test]
+    fn a_turn_by_the_pointer_ends_at_the_nearest_face() {
+        let mut turn = Turn::held(0, view());
+        // Two thirds of the width to the left: the right face comes.
+        turn.hold(-0.66 * 1280.0);
+        let faces = turn.faces(0.0);
+        assert!(faces.iter().any(|f| f.desktop == 1), "{faces:?}");
+        assert!(!turn.done(1.0));
+        turn.release(Duration::from_millis(800));
+        assert_eq!(turn.target(), 1);
+        let end = turn.faces(1.0);
+        assert_eq!(end.len(), 1);
+        assert_eq!(end[0].desktop, 1);
+        // A short drag goes back.
+        let mut back = Turn::held(2, view());
+        back.hold(100.0);
+        back.release(Duration::from_millis(800));
+        assert_eq!(back.target(), 2);
+    }
+
+    #[test]
+    fn a_click_without_a_drag_keeps_the_cube_still() {
+        let mut turn = Turn::held(1, view());
+        turn.release(Duration::from_millis(800));
+        assert_eq!(turn.target(), 1);
+        assert!(turn.phase(0.5).abs() < 1e-9, "{}", turn.phase(0.5));
     }
 }

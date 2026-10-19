@@ -95,6 +95,47 @@ impl CompositorHandler for State {
 }
 
 impl State {
+    /// Removes the node of a toplevel that the client destroyed or
+    /// unmapped, and tells the plugins with `surface.destroyed`.
+    fn surface_gone(&mut self, id: &str) {
+        if self.focused_surface() == Some(id) {
+            self.focus(None);
+        }
+        self.configured_forget(id);
+        self.unlist_toplevel(id);
+        self.early_requests.remove(id);
+        if let Some(toplevel) = self.windows.get(id).and_then(Window::toplevel) {
+            let surface = toplevel.wl_surface();
+            self.pending_activations.retain(|(s, _)| *s != *surface);
+        }
+        let client = crate::ipc::window_client(&self.scene, id);
+        let existed = self.scene.remove_surface(id);
+        self.transactions.forget(id);
+        self.complete_transactions();
+        // A toplevel without a first commit never had a node or an event.
+        if existed {
+            let event = Event::SurfaceDestroyed { surface: id.into() };
+            self.ipc.broadcast(&event, |_| client.clone());
+        }
+    }
+
+    /// The process of the surface's client and the activation token that
+    /// mapped it, for `surface.created`.
+    fn created_origin(&mut self, surface: &WlSurface) -> (Option<u32>, Option<String>) {
+        let pid = self
+            .display_handle
+            .get_client(surface.id())
+            .ok()
+            .and_then(|c| c.get_credentials(&self.display_handle).ok())
+            .map(|c| c.pid.cast_unsigned());
+        let token = self
+            .pending_activations
+            .iter()
+            .position(|(s, _)| s == surface)
+            .map(|i| self.pending_activations.remove(i).1);
+        (pid, token)
+    }
+
     /// Handles a commit of a toplevel: the initial configure and the
     /// `surface.created` event.
     fn toplevel_committed(&mut self, id: &str) {
@@ -103,21 +144,43 @@ impl State {
             .expect("windows are toplevels")
             .clone();
         if !toplevel.is_initial_configure_sent() {
-            // A client that maps a surface again after it unmapped it, with
-            // a commit without a buffer, keeps its node and its configure.
-            self.reconfigure(id);
+            // A commit without a buffer unmapped this toplevel, and Smithay
+            // reset its role state. Its next commit is an initial commit, so
+            // the toplevel goes as a destroyed one does.
+            if self.scene.node(id).is_some() {
+                self.surface_gone(id);
+                return;
+            }
             toplevel.send_configure();
             let info = self.surface_info(id);
-            if self.scene.add_surface(id, info.clone()) {
-                self.list_toplevel(id);
-                self.emit(&Event::SurfaceCreated {
-                    surface: id.into(),
-                    app_id: info.app_id,
-                    title: info.title,
-                    decoration: info.decoration,
-                });
-                self.send_early_requests(id);
-            }
+            self.scene.add_surface(id, info.clone());
+            // Without an output, the pointer is in no claim.
+            let pointer = self
+                .spot(self.pointer_layout)
+                .map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
+            let focused = self.focused_surface().map(String::from);
+            let parent = toplevel.parent().and_then(|p| self.surface_id(&p));
+            let ipc = &self.ipc;
+            // A client socket manages only the windows of its own name.
+            let own = |n: &str| !ipc.has_socket(n) || info.client.as_deref() == Some(n);
+            let to = (self.scene)
+                .manager_of_new(parent.as_deref(), focused.as_deref(), pointer, |n| {
+                    ipc.live(n) && own(n)
+                })
+                .map(String::from);
+            self.scene.reserve(id, to.as_deref());
+            self.list_toplevel(id);
+            let (pid, token) = self.created_origin(toplevel.wl_surface());
+            self.emit(&Event::SurfaceCreated {
+                surface: id.into(),
+                app_id: info.app_id,
+                title: info.title,
+                decoration: info.decoration,
+                to,
+                pid,
+                token,
+            });
+            self.send_early_requests(id);
             return;
         }
         let info = self.surface_info(id);
@@ -214,16 +277,7 @@ impl XdgShellHandler for State {
             return;
         };
         self.windows.remove(&id);
-        self.configured_forget(&id);
-        self.unlist_toplevel(&id);
-        self.early_requests.remove(&id);
-        let existed = self.scene.remove_surface(&id);
-        self.transactions.forget(&id);
-        self.complete_transactions();
-        // A toplevel without a first commit never had a node or an event.
-        if existed {
-            self.emit(&Event::SurfaceDestroyed { surface: id });
-        }
+        self.surface_gone(&id);
     }
 
     fn title_changed(&mut self, surface: ToplevelSurface) {
@@ -282,8 +336,8 @@ impl XdgShellHandler for State {
     /// A popup grab, for example of a menu: input goes to the popup until a
     /// click outside closes it.
     fn grab(&mut self, surface: PopupSurface, seat: WlSeat, serial: Serial) {
-        // A popup grabs the input only for the press that opened it, and
-        // never while the session is locked.
+        // A popup grabs the input only for the input event of its client
+        // that opened it, and never while the session is locked.
         if self.lock.is_some() || !self.pressed(surface.wl_surface(), serial) {
             surface.send_popup_done();
             return;
@@ -299,7 +353,7 @@ impl XdgShellHandler for State {
             let previous = grab.previous_serial().unwrap_or(serial);
             let keyboard = seat.get_keyboard().expect("the seat has a keyboard");
             let pointer = seat.get_pointer().expect("the seat has a pointer");
-            let keyboard_busy = keyboard.is_grabbed()
+            let keyboard_busy = crate::state::popup_grabbed(&keyboard)
                 && !(keyboard.has_grab(serial) || keyboard.has_grab(previous));
             let pointer_busy =
                 pointer.is_grabbed() && !(pointer.has_grab(serial) || pointer.has_grab(previous));
@@ -315,14 +369,24 @@ impl XdgShellHandler for State {
 }
 
 impl State {
-    /// Whether a serial is the one of the last press that the client of a
-    /// surface got.
+    /// Whether a serial is the one of the last press or of the last key or
+    /// button event that the client of a surface got. A client of a client
+    /// socket needs its last press, as for a token.
     fn pressed(&self, surface: &WlSurface, serial: Serial) -> bool {
         let client = self.display_handle.get_client(surface.id()).ok();
+        let serial = u32::from(serial);
         client
             .as_ref()
             .and_then(|c| c.get_data::<ClientState>())
-            .is_some_and(|d| d.last_press.load(Ordering::Relaxed) == u32::from(serial))
+            .is_some_and(|d| {
+                if d.name.is_some() {
+                    return crate::security::last_press(d, serial)
+                        && self.focused_or_unnamed(surface);
+                }
+                [&d.last_press, &d.last_input]
+                    .iter()
+                    .any(|s| s.load(Ordering::Relaxed) == serial)
+            })
     }
 
     fn surface_changed(&mut self, surface: &ToplevelSurface) {
@@ -332,13 +396,16 @@ impl State {
         let info = self.surface_info(&id);
         self.scene.set_surface_info(&id, info.clone());
         self.relist_toplevel(&id);
-        self.emit(&Event::SurfaceChanged {
+        // Before its first commit, the window has no node to name its client.
+        let client = info.client.clone();
+        let event = Event::SurfaceChanged {
             surface: id,
             app_id: info.app_id,
             title: info.title,
             size: info.size,
             decoration: info.decoration,
-        });
+        };
+        self.ipc.broadcast(&event, |_| client.clone());
     }
 
     /// Keeps a popup inside the output that shows its toplevel or its
@@ -407,7 +474,7 @@ impl XdgDecorationHandler for State {
 impl PointerConstraintsHandler for State {
     /// Activates a new constraint at once if the pointer is on its surface.
     fn new_constraint(&mut self, surface: &WlSurface, pointer: &PointerHandle<Self>) {
-        if pointer.current_focus().as_ref() == Some(surface) {
+        if pointer.current_focus().as_ref() == Some(surface) && self.focused_or_unnamed(surface) {
             with_pointer_constraint(surface, pointer, |constraint| {
                 if let Some(constraint) = constraint {
                     constraint.activate();

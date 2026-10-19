@@ -7,7 +7,7 @@ use std::{
     collections::VecDeque,
     io::{self, BufRead, BufReader, Write},
     os::unix::net::UnixStream,
-    path::Path,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 
@@ -18,6 +18,37 @@ use crate::{Command, Event};
 
 /// The environment variable with the path of the IPC socket.
 pub const SOCKET_ENV: &str = "CHORA_SOCKET";
+
+/// The longest name: a method name or a client name.
+pub const MAX_NAME: usize = 64;
+
+/// Whether a method name or a client name is valid: lowercase letters,
+/// digits, `_`, `-` and `.`, starting with a letter, at most 64 bytes.
+/// The core refuses names like this in `hello`, `clients.create` and
+/// method exports; asset names follow the rule of the core's uploads
+/// module; clients check before connecting.
+#[must_use]
+pub fn valid_name(name: &str) -> bool {
+    name.len() <= MAX_NAME
+        && name.starts_with(|c: char| c.is_ascii_lowercase())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "_-.".contains(c))
+}
+
+/// The admin socket next to an IPC socket, for example
+/// `wayland-1.admin.sock` next to `wayland-1.sock` (D40). Only `choractl`
+/// uses it, for grants, client sockets and `camera.release`.
+#[must_use]
+pub fn admin_socket(socket: &Path) -> PathBuf {
+    socket.with_extension("admin.sock")
+}
+
+/// The version of this build: the crate version and, when it was built in
+/// a git checkout, the commit, for example `0.5.4+1ea0e89abc`. `hello`
+/// answers with the version of the core, so that a client of another build
+/// can tell. The versioned `hello` of D29 replaces this.
+pub const VERSION: &str = env!("CHORA_VERSION");
 
 /// A request or a notification from the client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,6 +95,10 @@ pub struct RpcError {
     pub code: i64,
     /// A readable description.
     pub message: String,
+    /// What failed, machine readable: for a rejected transaction, the
+    /// command as `{"command": INDEX}`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data: Option<Value>,
 }
 
 impl RpcError {
@@ -77,12 +112,21 @@ impl RpcError {
     /// window that closed in the meantime.
     pub const GONE_SURFACE: i64 = 2;
 
-    /// An error with a code and a message.
+    /// An error with a code and a message and no `data`.
+    #[must_use]
     pub fn new(code: i64, message: impl Into<String>) -> Self {
         Self {
+            data: None,
             code,
             message: message.into(),
         }
+    }
+
+    /// Adds the machine readable part.
+    #[must_use]
+    pub fn with_data(mut self, data: Value) -> Self {
+        self.data = Some(data);
+        self
     }
 
     /// Whether the core rejected a transaction because a surface node is
@@ -90,6 +134,14 @@ impl RpcError {
     #[must_use]
     pub fn is_gone_surface(&self) -> bool {
         self.code == Self::GONE_SURFACE
+    }
+
+    /// The index of the command that failed a transaction, from the
+    /// message `command N: ...`.
+    #[must_use]
+    pub fn command_index(&self) -> Option<usize> {
+        let rest = self.message.strip_prefix("command ")?;
+        rest[..rest.find(':')?].parse().ok()
     }
 }
 
@@ -147,6 +199,11 @@ pub struct Hello {
     /// Keep the nodes after the last connection of the name closes.
     #[serde(default)]
     pub keep_nodes: bool,
+    /// Keep the nodes for a grace time after the last connection of the
+    /// name closes, and get them back with a `hello` within it. With
+    /// `keep_nodes`, `resume` has no effect.
+    #[serde(default)]
+    pub resume: bool,
 }
 
 /// Parameters of `scene.query`.
@@ -381,11 +438,20 @@ pub enum Capability {
     /// `process.spawn`: start programs, and restart plugins.
     #[serde(rename = "process.spawn")]
     ProcessSpawn,
+    /// `input.grab-any`: grab keys and buttons without Ctrl, Alt or Super
+    /// (D45).
+    #[serde(rename = "input.grab-any")]
+    GrabAny,
 }
 
 impl Capability {
     /// Every capability.
-    pub const ALL: [Self; 3] = [Self::InputInject, Self::ScreenCapture, Self::ProcessSpawn];
+    pub const ALL: [Self; 4] = [
+        Self::InputInject,
+        Self::ScreenCapture,
+        Self::ProcessSpawn,
+        Self::GrabAny,
+    ];
 
     /// The name, which is also the name of the method.
     #[must_use]
@@ -394,6 +460,7 @@ impl Capability {
             Self::InputInject => "input.inject",
             Self::ScreenCapture => "screen.capture",
             Self::ProcessSpawn => "process.spawn",
+            Self::GrabAny => "input.grab-any",
         }
     }
 }
@@ -412,9 +479,8 @@ impl std::str::FromStr for Capability {
             .into_iter()
             .find(|c| c.name() == s)
             .ok_or_else(|| {
-                format!(
-                    "unknown capability {s:?}; known: input.inject, screen.capture, process.spawn"
-                )
+                let known = Self::ALL.map(Self::name).join(", ");
+                format!("unknown capability {s:?}; known: {known}")
             })
     }
 }
@@ -580,7 +646,7 @@ fn left_button() -> u32 {
 /// for example 28 for Return.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
+#[serde(untagged, expecting = "a key of a keysym name or a Linux key code")]
 pub enum Key {
     /// A Linux key code, as evdev numbers them.
     Code(u32),
@@ -629,6 +695,8 @@ pub struct Client {
     /// The start of a line that a timeout interrupted, as bytes, since a
     /// timeout can split a character.
     partial: Vec<u8>,
+    /// The version of the core from its answer to `hello`.
+    core_version: Option<String>,
 }
 
 impl Client {
@@ -664,9 +732,60 @@ impl Client {
             next_id: 1,
             events: VecDeque::new(),
             partial: Vec::new(),
+            core_version: None,
         };
-        client.call::<_, Value>("hello", hello)?;
+        let answer: Value = client.call("hello", hello)?;
+        client.core_version = answer["version"].as_str().map(str::to_owned);
+        if client.core_version.as_deref() != Some(VERSION) {
+            static WARNED: std::sync::Once = std::sync::Once::new();
+            WARNED.call_once(|| {
+                let core = client
+                    .core_version
+                    .as_deref()
+                    .unwrap_or("of an older build");
+                eprintln!(
+                    "warning: chora {core} and this client {VERSION} are different builds; \
+                     requests may fail"
+                );
+            });
+        }
         Ok(client)
+    }
+
+    /// The version of the core, from its answer to `hello`; `None` for a
+    /// core that does not tell it.
+    #[must_use]
+    pub fn core_version(&self) -> Option<&str> {
+        self.core_version.as_deref()
+    }
+
+    /// Applies a transaction, and returns the error of the core if it
+    /// rejected it. A command on a surface that is gone, for example of a
+    /// window that closed in the meantime, drops out, and the rest goes
+    /// again: a plugin that cleans up after one closed window must not lose
+    /// that work to a second one.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn apply(&mut self, mut commands: Vec<Command>) -> Result<Option<RpcError>, ClientError> {
+        while !commands.is_empty() {
+            let apply = Apply {
+                commands: commands.clone(),
+            };
+            match self.call::<_, Value>("scene.apply", apply) {
+                Ok(_) => return Ok(None),
+                Err(ClientError::Rpc(err)) if err.is_gone_surface() => {
+                    match err.command_index().filter(|i| *i < commands.len()) {
+                        Some(i) => drop(commands.remove(i)),
+                        None => return Ok(Some(err)),
+                    }
+                }
+                Err(ClientError::Rpc(err)) => return Ok(Some(err)),
+                Err(err) => return Err(err),
+            }
+        }
+        Ok(None)
     }
 
     /// Sends a request and waits for its response. Events that arrive in
@@ -690,7 +809,15 @@ impl Client {
         };
         let mut line = serde_json::to_string(&request)?;
         line.push('\n');
-        self.writer.write_all(line.as_bytes())?;
+        if let Err(err) = self.writer.write_all(line.as_bytes()) {
+            // A core that refuses a connection sends the reason first.
+            return Err(match self.read() {
+                Ok(Message {
+                    error: Some(error), ..
+                }) => error.into(),
+                _ => err.into(),
+            });
+        }
         loop {
             let message = self.read()?;
             // An error without id answers a request that the core could not
@@ -817,6 +944,41 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn apply_drops_the_command_of_a_gone_surface() {
+        let (client, server) = UnixStream::pair().unwrap();
+        let core = thread::spawn(move || {
+            let mut reader = BufReader::new(server.try_clone().unwrap());
+            let mut writer = server;
+            let mut requests = Vec::new();
+            for answer in [
+                r#"{"jsonrpc":"2.0","id":1,"result":null}"#,
+                r#"{"jsonrpc":"2.0","id":2,"error":{"code":2,"message":"command 1: node \"s9\" does not exist"}}"#,
+                r#"{"jsonrpc":"2.0","id":3,"result":null}"#,
+            ] {
+                let mut line = String::new();
+                reader.read_line(&mut line).unwrap();
+                requests.push(line);
+                writeln!(writer, "{answer}").unwrap();
+            }
+            requests
+        });
+        let hello = Hello {
+            name: "wm".into(),
+            keep_nodes: false,
+            resume: false,
+        };
+        let mut client = Client::from_stream(client, &hello).unwrap();
+        let commands: Vec<Command> = serde_json::from_str(
+            r#"[{"remove": {"id": "frame-s8"}}, {"focus": {"surface": "s9"}}]"#,
+        )
+        .unwrap();
+        assert_eq!(client.apply(commands).unwrap(), None);
+        let requests = core.join().unwrap();
+        assert!(requests[1].contains("s9"));
+        assert!(requests[2].contains("frame-s8") && !requests[2].contains("s9"));
+    }
+
     /// A fake core that answers `hello`, then writes `lines` after the next
     /// request.
     fn fake_core(lines: &'static [&'static str]) -> UnixStream {
@@ -840,6 +1002,7 @@ mod tests {
         Hello {
             name: "test".into(),
             keep_nodes: false,
+            resume: false,
         }
     }
 
@@ -867,6 +1030,36 @@ mod tests {
             matches!(err, ClientError::Rpc(RpcError { code: -32700, .. })),
             "{err}"
         );
+    }
+
+    #[test]
+    fn the_client_keeps_the_version_of_the_core() {
+        let (client, server) = UnixStream::pair().unwrap();
+        writeln!(
+            &server,
+            r#"{{"jsonrpc":"2.0","id":1,"result":{{"version":"0.0.1+abc"}}}}"#
+        )
+        .unwrap();
+        let client = Client::from_stream(client, &hello()).unwrap();
+        assert_eq!(client.core_version(), Some("0.0.1+abc"));
+        let old = Client::from_stream(fake_core(&[]), &hello()).unwrap();
+        assert_eq!(old.core_version(), None);
+        assert!(VERSION.starts_with(env!("CARGO_PKG_VERSION")));
+    }
+
+    #[test]
+    fn a_refused_connection_gives_its_reason() {
+        let (client, server) = UnixStream::pair().unwrap();
+        writeln!(
+            &server,
+            r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":1,"message":"too many connections"}}}}"#
+        )
+        .unwrap();
+        drop(server);
+        let Err(err) = Client::from_stream(client, &hello()) else {
+            panic!("the hello fails");
+        };
+        assert_eq!(err.to_string(), "too many connections (code 1)");
     }
 
     #[test]
