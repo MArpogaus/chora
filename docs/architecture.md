@@ -206,7 +206,7 @@ Limits keep a buggy client from exhausting the core:
 | line length | 1 MiB | the core answers with an error and closes the connection |
 | output buffer of a connection | 8 MiB | the core closes the connection; an answer that does not fit becomes an error |
 | waiting transactions of a connection | 16 | the core rejects the transaction |
-| groups and rects in the scene | 16,384 | the core rejects the `create` |
+| nodes other than surfaces | 16,384 | the core rejects the `create` |
 | cameras | 64 | the core rejects the `camera` |
 | `meta` of a node | 32 keys, 1 KiB per key or value, 4 KiB in all | the core rejects the command |
 
@@ -344,7 +344,7 @@ message. The caps of the IPC socket (16 connections per process, 128
 in total) and of the client sockets (16) bound the harm; the main
 Wayland socket has no cap. Milestone 0.7 replaces the
 grants with client sockets that fix the name and the capabilities of a
-client (D33, D40). Three steps are in: a client socket fixes the name of
+client (D33, D40). In: a client socket fixes the name of
 its clients, and a Wayland socket next to it offers the privileged
 protocols only with grants. Only the admin socket of `choractl` changes
 grants and makes client sockets (see [API](api.md#client-sockets)).

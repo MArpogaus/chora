@@ -18,7 +18,7 @@ chora/
 ├── flavors/           # systemd units of the flavors; the theme of the XP flavor
 ├── examples/          # loader prototype and showcase apps over the API
 ├── dist/              # RPM build script, Fedora build requirements, session files, Quadlet examples
-├── tests/             # end-to-end tests in a headless sway
+├── tests/             # end-to-end scripts, headless sessions, input probe
 ├── deny.toml          # cargo-deny: allowed licenses, advisories
 ├── docs/              # this documentation (MkDocs)
 ├── mkdocs.yml
@@ -30,9 +30,10 @@ chora/
 - **`chora-scene` has no Smithay dependency.** Tests of the data model and
   the transaction logic need no GPU and no compositor. The core, `choractl`
   and plugins share this one definition of the API.
-- **`chora-kit` holds what more than one window manager can use** and
-  what is not part of the API of the core. Code of one plugin stays in
-  that plugin.
+- **`chora-kit` holds the building blocks that plugins share** and that
+  are not part of the API of the core: the IPC and event connection, the
+  self-computed effects and the freedesktop files. Today `conn` is the
+  part with more than one user; code of one plugin stays in that plugin.
 - **Reference plugins are workspace members.** They keep the API honest.
 - **`choractl` builds the JSON schemas** from the Rust types at run time, in
   `crates/choractl/src/schema.rs`. The repository does not contain them.
