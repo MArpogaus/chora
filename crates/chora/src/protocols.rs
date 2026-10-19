@@ -30,6 +30,11 @@ use smithay::{
 
 use crate::state::{ClientState, State};
 
+/// The most requests of one surface that wait for its `surface.created`;
+/// beyond it a request is dropped, so a client that never commits cannot
+/// fill the memory of the core.
+const MAX_EARLY_REQUESTS: usize = 64;
+
 impl State {
     /// Tells plugins what a client asks for. A request before the first
     /// commit waits for `surface.created`.
@@ -40,10 +45,10 @@ impl State {
         if self.scene.node(&surface).is_some() {
             self.emit(&Event::SurfaceRequested { surface, request });
         } else {
-            self.early_requests
-                .entry(surface)
-                .or_default()
-                .push(request);
+            let queued = self.early_requests.entry(surface).or_default();
+            if queued.len() < MAX_EARLY_REQUESTS {
+                queued.push(request);
+            }
         }
     }
 
