@@ -100,6 +100,9 @@ test "$(colors "$out/tiled.png")" -gt 3 || fail "the screenshot is empty"
 
 step "3. a crash of chora-tiling leaves chora running and detaches the surfaces"
 pkill -KILL -x chora-tiling
+# chora-tiling connects with resume: the core keeps its nodes for the
+# grace time of 10 s, then detaches the surfaces.
+sleep 10
 wait_for count_is 3 '.parent == null and .owner == null'
 kill -0 "$chora_pid" || fail "chora died"
 
