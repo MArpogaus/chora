@@ -303,17 +303,27 @@ impl State {
         Ok(())
     }
 
-    /// Compiles the shaders of the effects and of the shader nodes that the
-    /// commands name, unless they compiled before in their current version.
-    /// Without a backend, for example before the first output, the check
-    /// waits for the first frame. The `to` of a `remove` needs a connection.
-    fn check_effects(&mut self, commands: &[Command]) -> Result<(), String> {
+    /// The `to` name of each `remove` needs a connection. Checked at the
+    /// start and again at the end: a target that ends while the
+    /// transaction waits would keep the surface reserved for nobody.
+    fn check_targets(&self, commands: &[Command]) -> Result<(), String> {
         for command in commands {
             if let Command::Remove { to: Some(to), .. } = command
                 && !self.ipc.has_client(to)
             {
                 return Err(format!("{to:?} has no connection"));
             }
+        }
+        Ok(())
+    }
+
+    /// Compiles the shaders of the effects and of the shader nodes that the
+    /// commands name, unless they compiled before in their current version.
+    /// Without a backend, for example before the first output, the check
+    /// waits for the first frame. The `to` of a `remove` needs a connection.
+    fn check_effects(&mut self, commands: &[Command]) -> Result<(), String> {
+        self.check_targets(commands)?;
+        for command in commands {
             let (Command::Create { props, .. }
             | Command::Update { props, .. }
             | Command::Animate { props, .. }) = command
@@ -377,7 +387,16 @@ impl State {
     /// applies the commits that the transaction held.
     fn finish(&mut self, mut head: Pending) {
         self.sync_default_cameras();
-        let applied = self.scene.apply(&head.owner, &head.commands);
+        // A `to:` target that ended during the wait must not get its
+        // reservation: the whole transaction fails instead.
+        let applied = self
+            .check_targets(&head.commands)
+            .map_err(rejected)
+            .and_then(|()| {
+                self.scene
+                    .apply(&head.owner, &head.commands)
+                    .map_err(|error| transaction_error(&error))
+            });
         self.prune_images();
         let message = match applied {
             Ok(effects) => {
@@ -385,7 +404,7 @@ impl State {
                 self.refresh_pointer();
                 Message::result(head.id, Value::Null)
             }
-            Err(error) => Message::error(head.id, transaction_error(&error)),
+            Err(error) => Message::error(head.id, error),
         };
         self.ipc.respond(head.conn, &message);
         head.barrier.signal();
@@ -411,7 +430,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::testing::{Client, Core, rect};
+    use crate::testing::{Client, Core, rect, wayland::Wayland};
 
     /// A rejected transaction names the failed command in `data` too.
     #[test]
@@ -531,6 +550,52 @@ mod tests {
         let nodes = loader.ok(&mut core, "scene.query", json!({"selector": "id:picture"}));
         assert_eq!(nodes, json!([]));
         std::fs::remove_file(path).unwrap();
+    }
+
+    /// The `to:` target of a `remove` may end while the transaction
+    /// waits: the transaction must not reserve the surface for it.
+    #[test]
+    fn a_remove_to_a_client_that_ends_while_waiting_is_rejected() {
+        let mut core = Core::new();
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "foot");
+        let mut wm = core.named("wm");
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"attach": {"surface": "s1", "parent": "root"}}
+            ]}),
+        );
+        let mut agent = core.connect();
+        agent.ok(
+            &mut core,
+            "hello",
+            json!({"name": "agent", "keep_nodes": true}),
+        );
+        // The transaction of `wm` waits with a configure out and a
+        // `remove s1 to agent` in it.
+        let deadline = core.state.time.now() + DEADLINE;
+        let mut head = waiting(0, 5, &[("s1", 1)], deadline);
+        head.commands =
+            serde_json::from_value(json!([{"remove": {"id": "s1", "to": "agent"}}])).unwrap();
+        core.state.transactions.queue.push_back(head);
+        drop(agent);
+        core.dispatch();
+        core.advance(DEADLINE);
+        let error = wm
+            .answer(&mut core, 5)
+            .expect("the deadline passed")
+            .expect_err("agent is gone");
+        assert!(
+            error["message"].as_str().unwrap().contains("no connection"),
+            "{error}"
+        );
+        let node = core.state.scene.node("s1").unwrap();
+        assert_eq!(
+            (node.to.as_deref(), node.owner.as_deref()),
+            (None, Some("wm"))
+        );
     }
 
     #[test]
