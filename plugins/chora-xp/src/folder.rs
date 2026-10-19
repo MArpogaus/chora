@@ -630,15 +630,23 @@ fn copy_in_place(path: &Path, target: &Path) -> std::io::Result<()> {
     copied
 }
 
-/// Copies a file, or a folder with all it holds.
+/// Copies a file, or a folder with all it holds. A symbolic link is
+/// copied as a link, so a link into the tree does not loop.
 fn copy_all(from: &Path, to: &Path) -> std::io::Result<()> {
-    if !from.is_dir() {
+    let meta = fs::symlink_metadata(from)?;
+    if meta.file_type().is_symlink() {
+        return std::os::unix::fs::symlink(fs::read_link(from)?, to);
+    }
+    if !meta.is_dir() {
         return fs::copy(from, to).map(|_| ());
     }
     fs::create_dir(to)?;
     for entry in fs::read_dir(from)? {
         let entry = entry?;
-        copy_all(&entry.path(), &to.join(entry.file_name()))?;
+        if let Err(err) = copy_all(&entry.path(), &to.join(entry.file_name())) {
+            let _ = fs::remove_dir_all(to);
+            return Err(err);
+        }
     }
     Ok(())
 }
@@ -902,6 +910,25 @@ overlay /var/lib/x overlay rw 0 0
         // Another section does not count, and a broken escape stays.
         let text = "[Other]\nPath=/x\n[Trash Info]\nPath=/a%2\n";
         assert_eq!(trash_info(text), (Some("/a%2".into()), None));
+    }
+
+    #[test]
+    fn a_copy_takes_links_as_links_and_never_loops() {
+        let root = std::env::temp_dir().join(format!("chora-xp-copy-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src/inner")).unwrap();
+        fs::write(root.join("src/a.txt"), "a").unwrap();
+        // A link to a parent of its own tree: the copy must not follow it.
+        std::os::unix::fs::symlink("..", root.join("src/inner/back")).unwrap();
+        copy_all(&root.join("src"), &root.join("dst")).unwrap();
+        assert_eq!(fs::read(root.join("dst/a.txt")).unwrap(), b"a");
+        let back = fs::symlink_metadata(root.join("dst/inner/back")).unwrap();
+        assert!(back.file_type().is_symlink());
+        assert_eq!(
+            fs::read_link(root.join("dst/inner/back")).unwrap(),
+            Path::new("..")
+        );
+        fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
