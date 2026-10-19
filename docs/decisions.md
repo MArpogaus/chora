@@ -40,7 +40,7 @@ that the code does not implement yet.
 | D20 | One logical scene; each output shows it through a camera | Pan, zoom and the infinite canvas need no extra mechanism. |
 | D21 | The core places popups, subsurfaces and layer surfaces; toplevels wait for a plugin | The protocols define these positions. Smithay implements them. |
 | D22 | A transaction completes when all affected clients commit, or after a deadline; transactions on disjoint surfaces do not wait for each other | A resize needs a client round trip. One slow client must not stop the others. |
-| D23 | A hardcoded safety layer: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT, SIGUSR1 resets; a watchdog in its own thread that blames the client whose visible nodes cost the most for slow frames, removes its effects and then disconnects it, and never resets the session; a binding that revokes the capabilities of all agents | A recovery path must not depend on a file that an agent can break, or on a main loop that hangs. One client without grants must not take the window manager, the grants and the effects of the others down with it. |
+| D23 | A hardcoded safety layer: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT, SIGUSR1 resets while the main loop runs; a watchdog that blames the client whose visible nodes cost the most for slow frames, removes its effects and then disconnects it, and never resets the session (target: the watchdog in its own thread; it runs on the main loop, so a hung shader stops it too); a binding that revokes the capabilities of all agents | A recovery path must not depend on a file that an agent can break, or on a main loop that hangs. One client without grants must not take the window manager, the grants and the effects of the others down with it. |
 | D24 | The core renders an output only when it has damage; a layer keeps its texture until its subtree changes; a fullscreen surface without effects uses direct scanout | Battery life and GPU load. |
 | D25 | No undo history and no plugin state store in the core | A destroyed client cannot come back. The reset and the views in git cover recovery. The scene holds all state. |
 | D26 | Xwayland through `xwayland-satellite` | Keeps the core small. |
@@ -87,7 +87,7 @@ that the code does not implement yet.
 | D52 | The milestones run 0.6 to 1.0 as in the [Roadmap](roadmap.md) | A stable API needs real use and a testable core first. |
 | D53 | The voice pipeline lives in `chora-voice` and runs in parallel to the core; the core supplies push-to-talk grabs, text injection, the read model and an agent indicator | The pipeline is a product of its own. It needs only the API of the core. |
 | D54 | Plugins use the JSON-RPC API with frame events and fd passing; a private Wayland protocol for plugins comes only if a measurement at 120 Hz in milestone 0.9 shows the need | One API to maintain. The measurement decides. |
-| D55 | Window managers share the scene through claims. A claim is a scene area of one window manager. A window manager hands a surface to another with `remove` and `to`. The core gives a new toplevel to a window manager (see [below](#d55-window-managers-per-claim)). | The user chose one window manager per claim over a single window manager role (issue #73). Ownership, `attach` and `surface.detached` stay the mechanism, and a camera switches between claims. |
+| D55 | Window managers share the scene through claims. A claim is a scene area of one window manager. A window manager hands a surface to another with `remove` and `to`. The core gives a new toplevel to a window manager (see [below](#d55-window-managers-per-claim)). | The user chose one window manager per claim over a single window manager role. Ownership, `attach` and `surface.detached` stay the mechanism, and a camera switches between claims. |
 
 ## Designs
 
@@ -107,8 +107,8 @@ Window manager A hands surface `s1` to window manager B:
 2. A sends `remove: {id: s1, to: B}`. `to` must name a connected client.
    As at every `remove`, the surface becomes detached and loses the
    keyboard focus.
-3. The core reserves `s1` for B and sends `surface.detached` with `to: B`
-   to B only. An `attach` of another client fails.
+3. The core reserves `s1` for B and sends `surface.detached`, which
+   carries the surface alone. An `attach` of another client fails.
 4. B attaches `s1`, places it by its own rules, and can give it the
    focus. A plugin that adopts every detached surface needs no change.
 5. When the last connection of B closes, the reservation ends. With
@@ -133,13 +133,14 @@ output between them. With claims, A finds B in the claims of
 `scene.query`.
 
 At the first commit of a toplevel, the core picks its window manager.
-The first choice is the client that asked for its activation token (D42).
-Until clients can ask for tokens, the core skips this choice. The second
-choice is the owner of the focused node or surface, if it holds a claim.
-The last choice is the owner of the claim under the pointer. When claims
-overlap, the smallest claim that contains the point wins. The core
+The first choice is the owner of its parent toplevel, so that a dialog
+stays with the manager of its window. The next choice is the owner of the
+focused node, or of the focused surface, if it holds a claim. The last
+choice is the owner of the smallest claim that contains the pointer. A
+client that asked for an activation token (D42) does not win by the token
+itself. The core
 reserves the surface for that client, as at a handover. Outside of all
-claims, the race of #73 stays.
+claims, any window manager can take the new surface.
 
 **Out of scope for now.**
 
