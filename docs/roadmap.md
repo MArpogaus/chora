@@ -76,6 +76,16 @@ Scope:
   0.6; the plugins build with the core.
 - `camera.release` on the admin socket: the administrator takes the
   camera of an output from its owner, live or gone.
+- One socket directory per client: `$XDG_RUNTIME_DIR/chora/clients/NAME/`
+  with `ipc.sock` and a Wayland socket `wayland.sock` (D33, D40). The
+  socket fixes the name of its clients. `choractl clients up` applies a
+  `clients.yaml`. The emergency reset removes the client sockets. An
+  example Quadlet unit in `dist/` shows an agent container that mounts
+  its client directory.
+- The capability `input.grab-any` allows grabs without Ctrl, Alt or Super
+  (D45).
+- `surface.created` carries the pid and the activation token.
+- An unknown event name in `events.subscribe` is an error.
 - The git flow of D47 in every repository: a protected `main`, releases
   from a merge commit and an annotated tag.
 - The release workflow starts from a tag and needs a green CI run of the
@@ -114,28 +124,19 @@ and the core starts no programs.
 
 Scope:
 
-- One socket directory per client: `$XDG_RUNTIME_DIR/chora/clients/NAME/`
-  with `ipc.sock` and a Wayland socket of its own, `wayland.sock` (D33,
-  D40). The socket fixes the name and the capabilities of its clients.
+- The client socket also fixes the capabilities of its clients: the
+  socket decides which methods a connection may use (D33).
 - An admin socket for `choractl` only. `grants.set`, `grants.revoke` and
-  `clients.create` work through it alone. This is done.
-- `choractl clients up` creates the sockets from
-  `~/.config/chora/clients.yaml`. The emergency reset removes the client
-  sockets.
-- An example Quadlet unit in `dist/` for an agent container that mounts its
-  client directory.
+  `clients.create` work through it alone.
 - A versioned `hello` with the protocol version and the features of both
   sides (D29). Until then `hello` answers with the version of the build,
   and the client library warns on a mismatch.
 - Structured errors: a stable code for each kind of failure, and `data`
   with the index of the failed command.
-- The capability `input.grab-any` allows grabs without Ctrl, Alt or Super
-  (D45).
 - `process.spawn`, `process.wait` and `plugins.restart` leave the core
   (D42). `choractl run` starts a program through `systemd-run --user` with
   an activation token. `systemctl --user restart` restarts a plugin.
   journald keeps the output.
-- `surface.created` carries the pid and the activation token.
 
 Gate:
 
@@ -163,8 +164,8 @@ Scope:
 - JSON filters replace the selector strings (D32). They can match focus
   and visibility.
 - `events.subscribe` starts with a snapshot of the state, and every event
-  has a sequence number. An unknown event name is an error.
-- Focus in queries. The `focus.changed` event exists already.
+  has a sequence number.
+- Focus in queries.
 - Queries return the screen rectangle of a node on each output.
   `input.inject` takes a node and a point inside it.
 - A client that does not own a node can request a change: focus, move,
