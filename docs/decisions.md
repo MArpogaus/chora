@@ -88,6 +88,7 @@ that the code does not implement yet.
 | D53 | The voice pipeline lives in `chora-voice` and runs in parallel to the core; the core supplies push-to-talk grabs, text injection, the read model and an agent indicator | The pipeline is a product of its own. It needs only the API of the core. |
 | D54 | Plugins use the JSON-RPC API with frame events and fd passing; a private Wayland protocol for plugins comes only if a measurement at 120 Hz in milestone 0.9 shows the need | One API to maintain. The measurement decides. |
 | D55 | Window managers share the scene through claims. A claim is a scene area of one window manager. A window manager hands a surface to another with `remove` and `to`. The core gives a new toplevel to a window manager (see [below](#d55-window-managers-per-claim)). | The user chose one window manager per claim over a single window manager role. Ownership, `attach` and `surface.detached` stay the mechanism, and a camera switches between claims. |
+| D56 | The UI is hybrid. Plugins draw shell chrome and effects as scene nodes. Real applications, such as a file manager or a control panel, run as Wayland clients. Scene nodes take the keyboard through `focus_node`. The Explorer of `chora-xp`, drawn from scene nodes, is a stopgap | Chrome and effects need the scene: transforms, shaders, wobble. Applications need text input, accessibility and toolkits, which clients bring. |
 
 ## Designs
 
