@@ -259,7 +259,7 @@ or an empty list. It always sees the current titles.
 | `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position and modifiers; `pointer.released` with the button |
 | `pointer.scroll` | the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, `dx` and `dy` in logical pixels, `discrete` wheel steps, `source` (`wheel`, `finger`, `continuous` or `wheel_tilt`) and modifiers; only to the owner of the node |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
-| `effect.failed` | the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version |
+| `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
 | `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again |
 | `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow, the core disconnects that client and removes its nodes, also with `keep_nodes` or `resume` |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
@@ -299,16 +299,21 @@ Later milestones add events for size limits.
 JSON-RPC 2.0, one message per line, on the socket in `CHORA_SOCKET`. A
 client sends `hello` first. A method that changes the session or needs a
 grant fails before `hello`. `scene.query`, `events.subscribe`,
-`output.list`, `clients.list`, `clients.create`, `grants.set`,
-`grants.revoke` and `grants.list` also work before it, for tools.
+`output.list`, `clients.list`, `clients.create`, `camera.release`,
+`grants.set`, `grants.revoke` and `grants.list` also work before it,
+for tools.
 
 The core opens an admin socket next to the IPC socket, for example
 `wayland-1.admin.sock` next to `wayland-1.sock` (D40). It offers all
 methods. Only there do `grants.set`, `grants.revoke` and `clients.create`
 work. `choractl grant`, `choractl revoke` and `choractl clients create`
-use it; `choractl clients up [FILE]` runs `clients.create` and
-`grants.set` for every `NAME: { grants: [...] }` entry of a YAML file,
-`~/.config/chora/clients.yaml` by default, `-` for stdin. The core
+use it; `choractl clients up [FILE]` applies a YAML file of
+`NAME: { grants: [...] }` entries: it opens the socket of every name
+and makes its grants equal to the list, so grants that are missing from
+the file are revoked. An existing socket is kept (`clients.create`
+answers the `socket_exists` reason) and its connections stay. Without a
+file argument the first of `$XDG_CONFIG_HOME/chora/clients.yaml` and
+`~/.config/chora/clients.yaml` is read, `-` for stdin. The core
 answers every request.
 
 | Method | Purpose |
@@ -413,12 +418,16 @@ output add up, and count from the edges of the area that the exclusive
 zones of layer surfaces leave free. At least one pixel of the work area
 stays. `choractl reserve --top 30` holds a reserve until it ends.
 
-A key binding needs Ctrl, Alt or Super, so that typing still works. The
+A key binding needs Ctrl, Alt or Super, so that typing still works, unless
+the client holds `input.grab-any` (D45). The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
-belong to no client. A binding has one owner at a time.
+belong to no client. A binding has one owner at a time. Revoking
+`input.grab-any` drops the registrations of grabs that need no modifier
+and ends a held one.
 
 A key grab is held from the press of its key until one of its modifiers
-Ctrl, Alt or Super goes up. Shift does not end a key grab. Each press of
+Ctrl, Alt or Super goes up; a grab without any of them ends with the
+release of its own key. Shift does not end a key grab. Each press of
 the key in that time sends `pressed`; the release of the key sends nothing
 and reaches no surface. When the grab ends, the client gets one
 `released`. So an Alt+Tab switcher sees Alt
@@ -427,8 +436,8 @@ to switch.
 
 A button binding names a pointer button in place of the key: `BTN_LEFT`,
 `BTN_RIGHT`, `BTN_MIDDLE`, `BTN_SIDE`, `BTN_EXTRA`, `BTN_FORWARD` or
-`BTN_BACK`. It needs Ctrl, Alt or Super too, so that a plain click still
-works. While its button is down, the client of the grab gets the press,
+`BTN_BACK`. It needs Ctrl, Alt or Super too, or `input.grab-any`, so that
+a plain click still works. While its button is down, the client of the grab gets the press,
 each move and the release, also when the modifiers went up first, and no
 surface gets them:
 
@@ -477,8 +486,8 @@ socket alone, with the gaps that [Client sockets](#client-sockets) lists.
 ## Client sockets
 
 A client socket fixes the name of its clients (D33). `clients.create`
-on the admin socket opens `clients/NAME/ipc.sock` in the directory of the
-main socket, with mode 0700. `choractl clients create agent` prints its
+on the admin socket opens `clients/NAME/ipc.sock` below the directory of
+the main socket, which has mode 0700. `choractl clients create agent` prints its
 path:
 
 ```json
@@ -491,6 +500,10 @@ path:
 - A connection through it says `hello` with that name only.
 - It cannot change grants or make client sockets, as these need the
   admin socket.
+- It fixes the name and confines the files; it does not narrow the
+  scene. `scene.query` on it sees every node, and the methods answer by
+  the name and its grants, not by the socket: a process that may use
+  the socket drives the session as far as that name may.
 - Its `image`, `shader` and effect paths name only its own files of
   `assets.put`. The main socket has no such rule: a client of it runs as
   the same account as the core and could read those files anyway.
@@ -575,7 +588,7 @@ program, up to 64 KiB each, for the client that started it.
 `process.wait(pid, timeout_ms)` waits until the program ends or the time
 is up, and answers with `pid`, `running`, `stdout`, `stderr`, `truncated`
 for output that went beyond 64 KiB, and, once the program ended, `status`:
-its exit code, or 128 and the signal. 100 ms after the end of the
+its exit code, or 128 plus the signal number. 100 ms after the end of the
 program, the core closes its pipes, also when a child in the background
 still holds them. The first answer after the end is the last one; then
 the core forgets the program. At most 32 programs of a client wait for
