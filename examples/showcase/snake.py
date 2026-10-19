@@ -86,9 +86,9 @@ def main():
         while not c.events.empty():
             e = c.events.get_nowait()
             if e["event"] == "node.key" and e.get("state") != "released" and e["key"] in DIRS:
-                nd = DIRS[e["key"]]
-                if (nd[0] + d[0], nd[1] + d[1]) != (0, 0):
-                    want.append(nd)
+                turn = DIRS[e["key"]]
+                if (turn[0] + d[0], turn[1] + d[1]) != (0, 0):
+                    want.append(turn)
         if want:
             d = want.pop()
         hx, hy = snake[0]
