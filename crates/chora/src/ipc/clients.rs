@@ -250,6 +250,7 @@ impl State {
             } if self.on_screen(parent) => Err(format!(
                 "a client socket has no screen:* parents, and {parent:?} is on a screen"
             )),
+            Command::Camera { .. } => Err("a client socket has no camera commands".into()),
             _ => Ok(()),
         }
     }

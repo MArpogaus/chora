@@ -707,3 +707,20 @@ fn a_client_socket_draws_nothing_on_the_screen_overlay() {
     std::fs::remove_dir_all(&dir).unwrap();
     assert_eq!(screen, ["hud"], "only the main socket draws on the screen");
 }
+
+/// A client socket sets no camera; the main socket still does.
+#[test]
+fn a_client_socket_takes_no_camera() {
+    let (mut core, dir, mut agent, _) = agent_ipc("camera");
+    let camera = apply(&json!([{"camera": {"output": "A", "transform": {"scale": 2}}}]));
+    let (_, message) = agent.fails(&mut core, "scene.apply", camera.clone());
+    assert!(message.contains("no camera"), "{message}");
+    let release = apply(&json!([{"camera": {"output": "A"}}]));
+    let (_, message) = agent.fails(&mut core, "scene.apply", release);
+    assert!(message.contains("no camera"), "{message}");
+    core.named("wm").ok(&mut core, "scene.apply", camera);
+    let owner = core.state.scene.camera("A").is_some();
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert!(owner, "the main socket sets the camera");
+}
