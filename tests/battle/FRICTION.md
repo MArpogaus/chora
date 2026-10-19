@@ -1,0 +1,165 @@
+# Friction and unexpected behaviour — battle test W1–W7
+
+Living document. Every point: what blocked, whether it needs an API/design change.
+
+## Environment (sandbox) — no code change needed, but the workflows assume more
+
+- **No `foot`.** The spec's window client is missing. Substitute:
+  `target/debug/chora-probe window R G B` (app_id `chora-probe`). All W1–W7
+  use probe windows. Queries must use `app_id:chora-probe`, not `app_id:foot`.
+- **No `crontab`, no cron daemon, no systemd.** The heartbeat from the TODO
+  runs as a detached `sleep 1200` loop instead.
+- **`pgrep -f "chora-review-loop"` never matches here**: pi's cmdline is bare
+  `pi`, the session name (`-n`) is not in it. The heartbeat uses `pgrep -x pi`.
+  *Possible harness change:* put the session name into the process title or
+  expose a way to list live sessions.
+- **No cargo on PATH**; used the `chora` mamba env
+  (`/home/agent/.local/share/mamba/envs/chora/bin`). Debug build of the
+  workspace filled the disk to 60 GB once (Marcel deleted `target/`, which
+  also deleted `target/review-loop/`). *Design point:* the loop's state and
+  reports live inside `target/` by spec — `cargo clean` or a disk cleanup
+  destroys the audit trail. Suggest `review-loop/` or `docs/` next to it.
+- **`PI_OFFLINE=1`, no network**: no package installs, dnf metadata fails.
+
+## Review process (phase 1) — process/API friction
+
+- **`pi --no-session` leaves no audit trail.** Round "reviews" that finished
+  in seconds said `CLEAN` with zero evidence; trust was lost. Fix used here:
+  runs with session + `target/review-loop/audit.py` checks the transcript
+  (tool calls, git-diff invocations, mutating actions). *Candidate design
+  change:* a reviewer sub-agent should have a cheap "report what you read"
+  or the harness should log tool calls even with `--no-session`.
+- The spec's CLEAN-detection ("file says CLEAN") is fragile: a report can
+  contain the word CLEAN anywhere. The runner now demands a line exactly
+  `CLEAN` (`grep -qx`).
+- **Round-2 target degenerates:** "commits since hash in round-<n-1>" is an
+  empty diff when round n-1 found nothing — the second CLEAN would be free.
+  The runner re-reviews the full v0.5.4..v0.6.0 diff as a fresh reviewer.
+  Worth encoding in the TODO text.
+
+## choractl / API — candidates for change
+
+- **No machine-readable exit or wait primitive.** Health check must be
+  `timeout 5 choractl query >/dev/null` in a loop; there is no
+  `choractl wait <selector>` and `query` has no `--watch`. All W scripts wrap
+  every call in `timeout`.
+- **Tiling exports only `set_layout`, `get_layout`, `give`.** Tags (view/move
+  window to tag), masters/columns/share are binding-only. Automating "move
+  windows between tags" (W1) needs injected `Super+<n>` / `Super+Shift+<n>`
+  shortcuts and depends on which surface has focus at that moment — racy in a
+  headless loop. *API candidate:* export these tiling methods (awesome does:
+  `awesome.client.tags`).
+- **chora-xp exports no methods at all** (only the scrollbar thing in
+  explorer.rs). Start menu, minimize/restore, Alt+Tab and "XP Restart" must
+  be driven by pixel clicks derived from `query` — brittle across theme and
+  title-bar changes. *API candidate:* export `xp.<action>` methods like tiling
+  does, at least for testing.
+- `choractl restart <name>` needs the plugin to have been started through the
+  core (view/startup command), fine via `headless-session.sh -- <plugin>`,
+  but the error when not is only in the log, not in a code. Minor.
+- **`input.inject` shortcut names must exist on the keymap**; a wrong keysym
+  rejects the whole batch (documented, good), but there is no dry-run flag to
+  validate a batch without applying it.
+
+## Test helpers
+
+- **`tests/ipc-bench.sh` hardcodes sway** (`WLR_BACKENDS=headless sway`) even
+  though the repo has `tests/headless-session.sh` with the headless core
+  backend — the bench cannot run in a sway-free sandbox, and "use a release
+  build" conflicts with the battle spec (`cargo build --workspace` = debug).
+  *Change candidate:* rebase ipc-bench on headless-session.sh.
+- `examples/showcase/snake.py` needs `PYTHONPATH=examples/showcase`
+  (`choraclient`), undocumented in the battle TODO.
+- `headless-session.sh` prints KEY=VALUES only once the socket is up; a
+  failed start prints only to its log — a caller waiting on `hl.env` waits
+  blind. Minor: a timeout with `tail` of CHORA_LOG is the workaround
+  (done in `lib.sh`).
+
+## Unexpected behaviour (battle, appended during runs)
+
+(none yet — appended below by the runs)
+
+## Findings of the W smoke runs (facts, not yet design proposals)
+
+- `choractl query` node JSON has **no `pos`/`size` for surfaces**: geometry
+  lives in `transform.matrix`, **column-major** (translation at [12..14]),
+  relative to `parent`. Nothing in `docs/api.md` states the order. The
+  harness composes matrices up the parent chain (`geom.py`).
+  *Docs candidate:* say "column-major" next to "a 4x4 matrix".
+- `chora-probe window` never answers `xdg_toplevel.close_request` — it is a
+  test client that only exits with its process. So "close all windows" in
+  W1 tests process death, not the close path. *Tooling candidate:* a probe
+  flag `--exit-on-close`, or W1 loses its meaning.
+- SIGUSR1 emergency reset **revokes all grants** (documented in
+  `docs/api.md:478`) — the harness has to grant again after W7's reset;
+  the TODO's W7 text does not mention it.
+- `choractl spawn` answers pretty-printed JSON; scripting wants one line
+  (harness parses with sed). *Candidate:* `--porcelain` or compact output.
+- Tiling survives its own death and re-tiles after SIGUSR1 within ~1 s —
+  W7's "windows in a grid" holds.
+
+## Findings of the W2 smoke runs
+
+- `chora-probe` never sends `xdg_toplevel.set_window_mode` (server-side
+  decoration), and chora-xp draws its frame (title bar, min/max/close) only
+  on decorated surfaces. So W2 cannot test the XP title bar at all with the
+  current probe. *Tooling candidate:* `chora-probe window --server-deco`.
+- Node queries right after session start answer with an empty scene for a
+  moment (2 nodes vs 37 two seconds later). Nothing tells the caller the
+  plugin is "ready". *API candidate:* a `ready` flag or a `choractl wait`
+  (same gap as the missing `wait` above).
+- `query` has no field that says which surface holds keyboard focus, so
+  "Alt+Tab switches" cannot be verified — only that the core survives it.
+  *API candidate:* a `focused: true` marker on the surface node.
+- The injected click (`pointer_move` + `click`) works: start menu opens and
+  taskbar minimize/restore toggle `xp-win-<s>.visible`.
+- Taskbar button of the **active** window: the first click does nothing, the
+  second minimizes. Real XP behaves the same, but nothing documents the
+  choice; the W2 harness now clicks up to three times. *Docs candidate:*
+  state the click semantics in `docs/plugins.md`.
+
+## Findings of the W3 smoke runs
+
+- `input.inject` lifts buttons that a request leaves down **at the end of
+  that request** (documented). A drag spread over several inject requests
+  therefore never grabs: press, all moves and release must be one request,
+  which also means no sleeps between the steps. *API candidate:* a
+  `pointer.grab`-style method or a `hold: true` flag on `button`.
+- The WM handoff by dragging over the output edge works (3/3 to tiling),
+  but a dragged-away window keeps answering under its old `owner` for a
+  moment; selecting the next victim needs `owner:xp` at query time.
+- `choractl restart <name>` takes the short client name (`xp`, `tiling`),
+  `plugins.md` names the binaries `chora-xp`/`chora-tiling`. *Docs
+  candidate:* state the client names in one table.
+
+## Findings of the W5 smoke runs
+
+- There is no **node budget**: 14.6k rects under `root` where fine, then the
+  watchdog disconnected the offender ("frames are slow … blames a client",
+  core stays healthy). So the limit of 0.6 is a performance limit, not a
+  count. Fine as behaviour, *docs candidate:* say so in `docs/api.md`.
+- A name with a client socket is refused on the main socket ("has a client
+  socket and connects only through it") — probing both sockets needs two
+  names. Documented, but it bit the harness twice.
+- After a refusal line the core closes the connection; writing again gives
+  `BrokenPipeError`. Harness must stop sending.
+- `clients create` on an already taken name answers with an error and
+  `choractl` exits 1 — parsing an empty path silently loses the reason.
+- snake stress: `screen.capture` needs `choractl grant snake screen.capture`
+  (its `grant-snake.sh`); the 16.4 tick/s run itself is stable.
+
+## Limits of this sandbox (not product defects)
+
+- The cgroup holds ~3 GB and the host sits near 100 % RAM: with software
+  rendering, 100 mapped windows make the probes die in the swap storm.
+  The battle tests now wait for >= 2 GB `MemAvailable` before every
+  session and W8 runs 40 windows.
+- PID 1 is `pi`, so every killed child stays a zombie forever. Hundreds
+  of them are cosmetic; `kill-session.sh` uses exact names, since
+  `pkill -f` also matches the calling command line.
+
+## Pass 1 storm (environment, not product)
+
+- Pass 1 at 20:55 ran into the memory storm again: every workflow reported
+  0 windows / missing grants because the probes died on shm allocation.
+  Those 21 findings were dropped; workflows pass standalone at 21:2x.

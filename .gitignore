@@ -8,3 +8,8 @@
 .#*
 *~
 __pycache__/
+/tests/battle/*.log
+/tests/battle/run-*.md
+/tests/battle/*.png
+/tests/battle/__pycache__/
+/tests/battle/findings.md
