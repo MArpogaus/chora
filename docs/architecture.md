@@ -327,6 +327,10 @@ The safety layer is the only built-in behavior (see
   a minute. Its nodes go as on any disconnect, also those of a client with
   `keep_nodes` or `resume`, without a grace time. The watchdog never
   starts the emergency reset; only the binding and SIGUSR1 do.
+- **Shader hangs.** A shader that never returns leaves no finished frame
+  for the watchdog to measure, so the watchdog cannot end it. The way out
+  of such a session is the SIGUSR1 emergency reset, which is why SIGUSR1
+  reaches the core from outside.
 
 ## Permissions
 
