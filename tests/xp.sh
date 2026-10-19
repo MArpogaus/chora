@@ -328,7 +328,7 @@ events_job=$!
 sleep 0.5
 activated=$(WAYLAND_DISPLAY=$inner timeout 20 "$bin/chora-probe" activated)
 sleep 0.5
-kill "$events_job" 2>/dev/null
+kill "$events_job" 2>/dev/null || true
 token=${activated##* }
 test -n "$token" || fail "the probe found no token"
 jq -e --arg t "$token" \
