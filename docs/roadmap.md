@@ -82,6 +82,9 @@ Scope:
   `clients.yaml`. The emergency reset removes the client sockets. An
   example Quadlet unit in `dist/` shows an agent container that mounts
   its client directory.
+- The `ipc.sock` of a client socket narrows the scene: its connections see
+  and change only their own nodes and windows. They set no camera, use
+  no `screen:*` parent, and use `focus_node` only after a press.
 - The capability `input.grab-any` allows grabs without Ctrl, Alt or Super
   (D45).
 - `surface.created` carries the pid and the activation token.

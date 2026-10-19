@@ -634,4 +634,7 @@ create NAME` makes (in Quadlet: `%t/chora/clients/NAME`). It sets
 `CHORA_SOCKET` to the `ipc.sock` and `WAYLAND_DISPLAY` to the
 `wayland.sock` in that directory. The directory of the core holds the
 admin socket, so a container never mounts it (see
-[API](api.md#client-sockets)).
+[API](api.md#client-sockets)). Through its `ipc.sock`, the container sees
+and changes only its own nodes and the windows of its `wayland.sock`. It
+sets no camera and puts no node under `screen:*`. It takes the keyboard
+with `focus_node` only after a press of the user on it.

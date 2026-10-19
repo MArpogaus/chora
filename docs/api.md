@@ -500,10 +500,24 @@ path:
 - A connection through it says `hello` with that name only.
 - It cannot change grants or make client sockets, as these need the
   admin socket.
-- It fixes the name and confines the files; it does not narrow the
-  scene. `scene.query` on it sees every node, and the methods answer by
-  the name and its grants, not by the socket: a process that may use
-  the socket drives the session as far as that name may.
+- It fixes the name, confines the files and narrows the scene. On it,
+  `scene.apply` follows these rules. A refusal has code 1, names its
+  rule and carries the index of the command in `data`:
+  - `focus_node` with a node needs the last press of the user on a node
+    or a window of the name. The press counts once, and a key press
+    ends it.
+  - A name that holds the focus of a node moves it to its other nodes
+    without a press.
+  - No `create` or `move` puts a node under `screen:*` or below it.
+  - No `camera` command works.
+  - `attach`, `focus`, `close` and `configure` take only a window of its
+    own `wayland.sock` or a surface that the name owns.
+- `scene.query` on it returns only the nodes of the name and the windows
+  of its `wayland.sock`. The `surface.*` events come only for these
+  windows.
+- A claim of the name gets only the new windows of its `wayland.sock`.
+- The other methods answer by the name and its grants: a process that
+  may use the socket drives the session as far as that name may.
 - Its `image`, `shader` and effect paths name only its own files of
   `assets.put`. The main socket has no such rule: a client of it runs as
   the same account as the core and could read those files anyway.
@@ -534,9 +548,8 @@ socket, with these exceptions:
   the security context manager, idle inhibit and idle notify are not
   offered. On Wayland the client cannot lock the session, list the
   windows, control the windows of others, open a socket of its own or
-  keep the screen awake. On `ipc.sock` the methods answer by the name
-  and its grants alone: `focus_node` moves the keyboard there without a
-  click.
+  keep the screen awake. On `ipc.sock`, `focus_node` takes the keyboard
+  only after a press of the user on the client, as a token below does.
 
 The layer shell stays, so a panel can run in a container. Such a client
 can draw over all windows in the top layer, but the core refuses the
