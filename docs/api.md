@@ -321,7 +321,7 @@ answers every request.
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
-| `camera.release(output)` | take the camera of an output away from its owner, so that the view goes back to its default and any client can own the camera again; for an owner that is gone for good; works only on the admin socket, `choractl camera release OUTPUT` calls it |
+| `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
 | `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture`, `process.spawn` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket |
 | `clients.create(name)` | open the client socket of a name and return its `path` (see [Client sockets](#client-sockets)); only on the admin socket; `choractl clients create NAME` calls it |
 | `output.list` | list the outputs and their cameras |

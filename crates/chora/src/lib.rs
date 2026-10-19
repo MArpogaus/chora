@@ -84,11 +84,12 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let mut state = State::new(display, event_loop.handle(), event_loop.get_signal());
     state.listen()?;
     let socket = ipc::listen(&mut state)?;
-    // The order matters. No thread exists yet, so the startup command gets
-    // an empty signal mask; std does not reset the mask everywhere. Then
-    // the signal source blocks SIGUSR1 in this thread, and all later
-    // threads inherit the block, Mesa's included. A thread without it would
-    // receive SIGUSR1, and its default action ends the process.
+    // The order matters. Only the images worker exists, and it blocks
+    // SIGUSR1 itself, so the startup command gets an empty signal mask;
+    // std does not reset the mask everywhere. Then the signal source
+    // blocks SIGUSR1 in this thread, and all later threads inherit the
+    // block, Mesa's included. A thread without it would receive SIGUSR1,
+    // and its default action ends the process.
     let child = (!command.is_empty())
         .then(|| {
             process::spawn(
