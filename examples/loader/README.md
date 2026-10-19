@@ -1,4 +1,4 @@
-# Loader prototype (WIP)
+# Loader prototype
 
 A prototype of a "loading program" in the style of The Matrix, built
 through the API alone. The code is a prototype: it is not tested, not
@@ -55,35 +55,22 @@ What worked well:
   build a 3D scene with frosted glass, without a change of the core.
 - `screen.capture` and `input.inject` let the agent test every step.
 
-Frictions and bugs found (issues #11 to #23):
+Limitations found with this prototype:
 
-- The layer budget of 64 Mi pixels is easy to exceed at scale 3, and
-  then layers stay out silently (#17). It caused missing worlds, black
-  and stale panes and "jumping" frames. Captures did not show it,
-  because a capture renders outside of the frame loop.
-- Grabs report presses only, need a modifier, and end only with their
-  connection (#18). WASD, held keys and mouse look without a click are
-  not possible.
-- No screen-fixed nodes (#19): the HUD follows the inverse camera.
+- The layer budget of 64 Mi pixels is easy to exceed at scale 3; the
+  `layers.dropped` event names the nodes that stay out of a frame.
+  Captures do not show it, because a capture renders outside the frame
+  loop.
 - Every connection of a client gets each event (#20).
-- A camera belongs to one client (#21).
+- A camera belongs to one client; only `camera.release` on the admin
+  socket takes it (D40).
 - Only the owner of a window may focus it. The walk cannot take the
   keyboard focus from the terminal and give it back.
 - Shaders: no `fwidth` without the extension, and `mediump` breaks
   hashes (#16).
-- Nested: stuck keys (#11, fixed), the keymap of the host (#12), the
-  camera moves the windows of the tiling plugin (#13, fixed).
-
-Later in the session:
-
-- Captures hid the worst bugs: they render outside the frame loop, so a
-  layer that stays out of the budget on screen still shows in them. The
-  user saw the terminal through the walk, black panes and jumps; the
-  agent saw clean pictures (#24).
-- A mesh hides as a whole when one point is behind the eye (#25), so the
-  donut shows only the arc that lies fully in front.
-- Meshes map textures affinely: coarse grids ripple (#26). Without
-  mipmaps, small text shimmers at a distance.
+- Nested sessions use the keymap of the host (#12).
+- Captures render outside the frame loop, so a layer that stays out of
+  the budget on screen still shows in them.
 - GNOME Shell 51 runs nested in chora with `gnome-shell --devkit` in an
   Arch distrobox. It needs `mutter-devkit`, a full `pacman -Syu` (partial
   upgrades break the schemas and libraries), and
@@ -91,7 +78,7 @@ Later in the session:
   With the system bus of the host, it tries to mount the volumes of the
   host.
 
-Open for the next session:
+Open:
 
 - Keyboard focus in the walk (#27).
 - The GNOME window on the `VOID` panel instead of in the tiling.

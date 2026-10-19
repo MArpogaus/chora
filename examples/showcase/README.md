@@ -12,9 +12,9 @@ of the loader: `examples/loader/.venv/bin/python`.
 
 | program | what it shows |
 |---|---|
-| `snake.py` | a keyboard snake of rect nodes on a 32 px grid; `node.key` events drive it and `choractl inject` steers it from outside. With `SNAKE_FOOD=60` it grows into a stress test of the per-frame element budget. |
+| `snake.py` | a keyboard snake of rect nodes on a 32 px grid; `node.key` events drive it and `choractl --name agent inject` steers it from outside (grant: `./grant-news.sh`). With `SNAKE_FOOD=60` it grows into a stress test of the per-frame element budget. |
 | `pong.py` | two paddles and a ball with an effect shader (`ball.frag`), moved by injected key presses; captures each round. |
-| `slides.py` | text slides as nodes: font, color and size changes of one node, plus camera pans. |
+| `slides.py` | slides rendered by PIL: title, bullets and a chart, each one image node, plus camera pans. |
 | `news.py` | a newspaper reader: index and article pages rendered by PIL, swapped on `Page_Down`, one image node updated per page. |
 | `cards.py` | four shader cards that glow and lift, the camera panning to each: a `vec4` uniform and `time` in a fragment shader read from stdin. |
 | `deck.py` | a text-only presentation: PIL renders the slides, an image node under `screen:NAME` shows them. |
@@ -33,10 +33,11 @@ examples/loader/.venv/bin/python examples/showcase/pong.py   # the PIL ones
 ```
 
 Keys reach the games through injected events, so they can be steered
-from a second terminal:
+from a second terminal. `inject` needs a grant of `input.inject` for
+its client name, which `./grant-news.sh` gives to the name `agent`:
 
 ```sh
-echo '[{"key":{"key":"Left","state":"pressed"}}]' | $CHORACTL inject
+echo '[{"key":{"key":"Left","state":"pressed"}}]' | $CHORACTL --name agent inject
 ```
 
 The user grants capabilities, not the programs (D40): no demo touches
@@ -53,11 +54,11 @@ grant script from this directory:
 
 ## Notes
 
-- An `input` node only answers key events while its property `accept`
-  is true; `snake.py` sets it with a `focus_node` command.
-- A `choractl` of another version than the core prints a warning line
-  before every answer, so JSON consumers break: run the binaries built
-  from this tree.
+- `snake.py` takes the keyboard with a `focus_node` command: the focused
+  node answers the keyboard as `node.key` events.
+- A `choractl` of another version than the core prints one warning line
+  on stderr, so stdout stays JSON: still run the binaries built from
+  this tree.
 - Every client owns its nodes: they leave with the connection unless
   `hello` sets `keep_nodes`, and cameras only change hands through a
   `camera` command. `cards.py` shows the release.
