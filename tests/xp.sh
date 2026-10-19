@@ -306,6 +306,12 @@ icon_at() {
     query "id:$1" |
         jq -r '.[0].transform.matrix | "\(.[12] + 40 | floor) \(.[13] + 40 | floor)"'
 }
+# The windows of the first desktop cover the icons; the second desktop
+# is empty and shows the same icons.
+keys 29+56+106 || fail "the keys failed: $out/probe.log"
+wait_for desk_visible 1 true
+icons_shown() { test "$(query id:xp-icons | jq '.[0].visible')" = "true"; }
+wait_for icons_shown
 read -r fx fy <<<"$(icon_at xp-icon-2)"
 read -r bx by <<<"$(icon_at xp-icon-3)"
 timeout 20 "$bin/chora-probe" drag "$fx" "$fy" "$bx" "$by" >>"$out/probe.log" 2>&1 &
@@ -321,6 +327,8 @@ answered() {
 wait_for answered
 test -f "$HOME/Desktop/x.txt" || fail "Escape answered Yes"
 grim "$out/escape-no.png"
+keys 29+56+105 || fail "the keys failed: $out/probe.log"
+wait_for desk_visible 0 true
 
 # A token given before the first map reaches plugins through
 # surface.created.
