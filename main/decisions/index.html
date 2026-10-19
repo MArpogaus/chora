@@ -841,6 +841,62 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#designs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Designs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Designs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d55-window-managers-per-claim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D55: window managers per claim
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D55: window managers per claim">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-handover" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: handover
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-claims" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: claims
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#rejected-proposals" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1016,6 +1072,62 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#designs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Designs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Designs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d55-window-managers-per-claim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D55: window managers per claim
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D55: window managers per claim">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-handover" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: handover
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-claims" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: claims
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#rejected-proposals" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1139,7 +1251,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D14</td>
-<td>Releases build an RPM and an Arch package, attached with SHA256 sums to a GitHub release; versions below 1.0 are pre-releases</td>
+<td>Releases build an RPM and an Arch package, attached with SHA256 sums to a GitHub release; versions below 1.0 and release candidates are pre-releases</td>
 <td>One build for the release assets and the package repositories of D49.</td>
 </tr>
 </tbody>
@@ -1196,8 +1308,8 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D23</td>
-<td>A hardcoded safety layer: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT, SIGUSR1 resets; a watchdog in its own thread; a binding that revokes the capabilities of all agents</td>
-<td>A recovery path must not depend on a file that an agent can break, or on a main loop that hangs.</td>
+<td>A hardcoded safety layer: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT, SIGUSR1 resets while the main loop runs; a watchdog that blames the client whose visible nodes cost the most for slow frames, removes its effects and then disconnects it, and never resets the session (target: the watchdog in its own thread; it runs on the main loop, so a hung shader stops it too); a binding that revokes the capabilities of all agents</td>
+<td>A recovery path must not depend on a file that an agent can break, or on a main loop that hangs. One client without grants must not take the window manager, the grants and the effects of the others down with it.</td>
 </tr>
 <tr>
 <td>D24</td>
@@ -1258,7 +1370,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D33</td>
-<td>Each client has a socket directory with an IPC socket and a Wayland socket of <code>wp-security-context-v1</code>; the socket fixes its name and its capabilities; <code>input.inject</code>, <code>screen.capture</code> and <code>input.grab-any</code> are capabilities</td>
+<td>Each client has a socket directory with an IPC socket and a Wayland socket of its own that hides the privileged protocols; the socket fixes its name and its capabilities; <code>input.inject</code>, <code>screen.capture</code> and <code>input.grab-any</code> are capabilities</td>
 <td>A client cannot take another name or give itself capabilities. A container mounts one directory and needs no configuration.</td>
 </tr>
 <tr>
@@ -1273,8 +1385,8 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D36</td>
-<td>The GitHub organization <code>chora</code> holds the repositories <code>chora</code> (the core, <code>chora-scene</code>, <code>choractl</code>, the reference documentation), one repository per plugin, <code>chora-website</code>, <code>chora-packaging</code>, <code>chora-voice</code> and <code>.github</code></td>
-<td>Plugins and services get their own owners and releases. The core keeps the definition of the API.</td>
+<td>The GitHub organization is <code>chora-desktop</code> (<code>chora</code> is taken). It holds <code>chora</code> (the core, <code>chora-scene</code>, <code>choractl</code>, the plugins, the reference documentation) and later <code>chora-website</code>, <code>chora-packaging</code>, <code>chora-voice</code> and <code>.github</code>. The split of the plugins into repositories of their own is postponed past 0.6; until then they live in the core repository and build with it</td>
+<td>Plugins and services get their own owners and releases once the API of <code>chora-scene</code> has settled. The core keeps the definition of the API.</td>
 </tr>
 </tbody>
 </table>
@@ -1330,7 +1442,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D45</td>
-<td>Grabs need Ctrl, Alt or Super, except for a client with the capability <code>input.grab-any</code>; <code>input.ungrab</code> ends a grab; a grab tells the release of its key; there is no exclusive keyboard grab</td>
+<td>Grabs need Ctrl, Alt or Super, except for a client with the capability <code>input.grab-any</code>; <code>input.ungrab</code> ends a grab; a key grab tells when the first of its modifiers goes up, except Shift; there is no exclusive keyboard grab</td>
 <td>Typing works unless the user gives a capability, for example for push-to-talk. Games and 3D clients get every key through Wayland.</td>
 </tr>
 </tbody>
@@ -1352,12 +1464,12 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D47</td>
-<td>The git flow of the project conventions: <code>main</code> holds <code>chore: init</code> and merge commits; work happens on <code>dev</code>, and each contributor of a shared repository has <code>dev-NAME</code>; a release is a merge into <code>main</code> and an annotated tag; the release needs green CI; commitizen writes the changelog; a review loop runs until a round finds nothing that matters</td>
+<td>The git flow of the project conventions: <code>main</code> holds <code>chore: init</code> and merge commits; work happens on <code>dev</code>, and each contributor of a shared repository has <code>dev-NAME</code>; a release is a merge into <code>main</code> and an annotated tag on the merge commit; the tag starts the release, which needs green CI of the same commit; commitizen writes the changelog; a review loop runs until a round finds nothing that matters</td>
 <td>One flow in every repository. A release never ships a red commit.</td>
 </tr>
 <tr>
 <td>D48</td>
-<td>The core is a library and a binary; IPC, transactions, focus and grants have unit tests with a fake clock; a pixman backend runs pixel tests in process; each bug fix comes with a test that fails without the fix</td>
+<td>The core is a library and a binary; IPC, transactions, focus and grants have unit tests with a fake clock; a headless GLES backend on the software driver of Mesa runs pixel tests in process; each bug fix comes with a test that fails without the fix</td>
 <td>Pixel tests in a headless sway cannot reach the internals. Review finds faults that tests should catch.</td>
 </tr>
 <tr>
@@ -1390,8 +1502,70 @@ that the code does not implement yet.</p>
 <td>Plugins use the JSON-RPC API with frame events and fd passing; a private Wayland protocol for plugins comes only if a measurement at 120 Hz in milestone 0.9 shows the need</td>
 <td>One API to maintain. The measurement decides.</td>
 </tr>
+<tr>
+<td>D55</td>
+<td>Window managers share the scene through claims. A claim is a scene area of one window manager. A window manager hands a surface to another with <code>remove</code> and <code>to</code>. The core gives a new toplevel to a window manager (see <a href="#d55-window-managers-per-claim">below</a>).</td>
+<td>The user chose one window manager per claim over a single window manager role. Ownership, <code>attach</code> and <code>surface.detached</code> stay the mechanism, and a camera switches between claims.</td>
+</tr>
+<tr>
+<td>D56</td>
+<td>The UI is hybrid. Plugins draw shell chrome and effects as scene nodes. Real applications, such as a file manager or a control panel, run as Wayland clients. Scene nodes take the keyboard through <code>focus_node</code>. The Explorer of <code>chora-xp</code>, drawn from scene nodes, is a stopgap</td>
+<td>Chrome and effects need the scene: transforms, shaders, wobble. Applications need text input, accessibility and toolkits, which clients bring.</td>
+</tr>
 </tbody>
 </table>
+<h2 id="designs">Designs<a class="headerlink" href="#designs" title="Permanent link">&para;</a></h2>
+<h3 id="d55-window-managers-per-claim">D55: window managers per claim<a class="headerlink" href="#d55-window-managers-per-claim" title="Permanent link">&para;</a></h3>
+<p>Issue #73 calls the area of a window manager a view. The glossary uses
+"view" for a YAML arrangement (D5), so this design says <strong>claim</strong>. The
+design has two steps. Step 1 is the handover. Step 2 adds claims and the
+routing of new toplevels.</p>
+<h4 id="step-1-handover">Step 1: handover<a class="headerlink" href="#step-1-handover" title="Permanent link">&para;</a></h4>
+<p>Window manager A hands surface <code>s1</code> to window manager B:</p>
+<ol>
+<li>A owns <code>s1</code>, for example at the end of a drag out of its area. A knows
+   B by a fixed name or by a <code>meta</code> tag on the root group of B.</li>
+<li>A sends <code>remove: {id: s1, to: B}</code>. <code>to</code> must name a connected client.
+   As at every <code>remove</code>, the surface becomes detached and loses the
+   keyboard focus.</li>
+<li>The core reserves <code>s1</code> for B and sends <code>surface.detached</code>, which
+   carries the surface alone. An <code>attach</code> of another client fails.</li>
+<li>B attaches <code>s1</code>, places it by its own rules, and can give it the
+   focus. A plugin that adopts every detached surface needs no change.</li>
+<li>When the last connection of B closes, the reservation ends. With
+   <code>resume</code>, it ends after the grace time. The core then sends
+   <code>surface.detached</code> to all, and any client can attach the surface.</li>
+</ol>
+<p><strong>Focus and grabs.</strong> The keyboard focus does not move with the surface.
+The receiving window manager sets it with <code>focus</code> after the <code>attach</code>.
+Grabs belong to connections and do not move. A ends its drag at the
+release of the button, and then hands the surface over. The client of the
+surface keeps its pointer and keyboard input as before.</p>
+<h4 id="step-2-claims">Step 2: claims<a class="headerlink" href="#step-2-claims" title="Permanent link">&para;</a></h4>
+<p>A claim is a rectangle in scene coordinates: the property
+<code>claim: [x, y, w, h]</code> of a node. The owner of the node holds the claim. A
+window manager sets it on its root group, and the claim ends with its
+node. Window managers claim the whole work area of their outputs. An
+output shows a claim through its camera. So two window managers sit on two
+outputs, or at two places in the scene, and a camera move switches one
+output between them. With claims, A finds B in the claims of
+<code>scene.query</code>.</p>
+<p>At the first commit of a toplevel, the core picks its window manager.
+The first choice is the owner of its parent toplevel, so that a dialog
+stays with the manager of its window. The next choice is the owner of the
+focused node, or of the focused surface, if it holds a claim. The last
+choice is the owner of the smallest claim that contains the pointer. A
+client that asked for an activation token (D42) does not win by the token
+itself. The core
+reserves the surface for that client, as at a handover. Outside of all
+claims, any window manager can take the new surface.</p>
+<p><strong>Out of scope for now.</strong></p>
+<ul>
+<li>The drop position: B places the surface by its own rules.</li>
+<li>A drag that continues in B after the handover.</li>
+<li>An embedded GNOME session in a claim.</li>
+<li>Claims under <code>screen:NAME</code>.</li>
+</ul>
 <h2 id="rejected-proposals">Rejected proposals<a class="headerlink" href="#rejected-proposals" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1408,6 +1582,10 @@ that the code does not implement yet.</p>
 <tr>
 <td>Hooks without matching files</td>
 <td>The project conventions use this hook set in every repository.</td>
+</tr>
+<tr>
+<td>Cairo and Pango, or another 2D engine, in the core</td>
+<td>The core composites and draws no vector graphics. Text comes from the text node on cosmic-text (D18), shapes from rects and shader nodes. Plugins draw rich chrome themselves, for example with tiny-skia and resvg.</td>
 </tr>
 <tr>
 <td>An exclusive keyboard grab</td>

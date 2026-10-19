@@ -1266,7 +1266,7 @@ the planned changes, and the <a href="../decisions/">Decisions</a> give the reas
 <pre class="mermaid"><code>flowchart TB
     subgraph core["chora (Rust, Smithay)"]
         protocols["Wayland protocols"]
-        backends["Backends: DRM/KMS and libinput, winit for development"]
+        backends["Backends: DRM/KMS and libinput, winit for development, headless for tests"]
         scene["Scene: group, surface, rect, image, shader"]
         render["Renderer: GLES and GLSL shaders"]
         input["Input router"]
@@ -1293,7 +1293,11 @@ for example to draw window decorations as its own surfaces.</p>
 <li>Backends: DRM/KMS and libinput on real hardware, through libseat. A winit
   window for development inside another compositor. chora uses winit when
   <code>WAYLAND_DISPLAY</code> or <code>DISPLAY</code> is set, and the hardware otherwise. On
-  hardware it draws the cursor of the xcursor theme in <code>XCURSOR_THEME</code>.</li>
+  hardware it draws the cursor of the xcursor theme in <code>XCURSOR_THEME</code>.
+  <code>chora --headless 1280x800</code> runs on virtual outputs for tests and agents:
+  the software renderer of Mesa draws each output into a texture at 60 Hz,
+  with damage, and input comes only from <code>input.inject</code>. It needs no host
+  display, GPU or seat.</li>
 <li>The scene. The core renders it for each output.</li>
 <li>Input routing (see below).</li>
 <li>The IPC socket.</li>
@@ -1351,7 +1355,9 @@ name, not a connection, so several <code>choractl</code> calls share their nodes
   detached.</li>
 <li>When the last connection of a name closes, the core removes the nodes of
   that name. Its surfaces become detached. A client that connects with
-  <code>keep_nodes</code>, for example <code>choractl</code>, keeps its nodes.</li>
+  <code>keep_nodes</code>, for example <code>choractl</code>, keeps its nodes. A client that
+  connects with <code>resume</code> keeps them for a grace time. A restart within
+  the grace time gets them back (see <a href="../api/#ipc-methods">API</a>).</li>
 </ul>
 <h3 id="cameras">Cameras<a class="headerlink" href="#cameras" title="Permanent link">&para;</a></h3>
 <p>All outputs show one logical scene. Each output has a <strong>camera</strong>: a
@@ -1364,9 +1370,12 @@ The output scale then gives the pixels.</p>
 <li>The <code>camera</code> command replaces the default, for example to pan or zoom. A
   camera is a 2D translation of at most 10^7 and a scale from 1/64 to 64.
   It ignores the z axis, so a uniform scale such as <code>{"scale": 1.5}</code> works.
-  The first client that sets the camera of an output owns it. When the owner
+  A camera needs an output that is plugged in or was, so no client
+  claims an output before it appears. The first client that sets the
+  camera of an output owns it. When the owner
   disconnects, the output gets its default camera back, unless the owner
-  keeps its nodes with <code>keep_nodes</code>. The reset restores all default cameras.</li>
+  keeps its nodes with <code>keep_nodes</code>, or with <code>resume</code> until the end of its
+  grace time. The reset restores all default cameras.</li>
 <li>Two outputs side by side get two adjacent default cameras. A window across
   two outputs then needs no special case.</li>
 </ul>
@@ -1379,7 +1388,9 @@ whole before it applies it. If one part fails, the core changes nothing and
 answers <code>failed</code>. One output must stay on. After a change, the core places
 the layer surfaces again and announces the outputs to plugins (see
 <a href="../api/#ipc-methods">API</a>). On winit, the window decides the mode, and the
-output cannot turn off. No backend has adaptive sync.</p>
+output cannot turn off. Headless outputs accept every change; tests add and
+remove them with <code>output.add</code> and <code>output.remove</code>, as monitors that plug in
+and out. No backend has adaptive sync.</p>
 <h3 id="renderer">Renderer<a class="headerlink" href="#renderer" title="Permanent link">&para;</a></h3>
 <p>The core uses Smithay's GLES renderer through Smithay's own renderer traits.
 Custom shaders give blur, rounded corners, shadows, color effects and
@@ -1404,6 +1415,11 @@ when the damage tracker of Smithay reports damage. A layer counts as
 changed in every frame, so a scene with a layer renders in every frame.
 There is no direct scanout. Milestone 0.9 replaces this with a renderer
 of chora that renders only on damage (D17, D24).</p>
+<p>The cost of a frame grows with the number of visible nodes: a node is a
+draw call with its own texture, and software GL spends roughly 60 to
+140 µs on one. A headless session at 1280x800 on llvmpipe holds about
+250 animated nodes at 60 fps; the 0.9 renderer is what moves the
+ceiling.</p>
 <h3 id="ipc-socket">IPC socket<a class="headerlink" href="#ipc-socket" title="Permanent link">&para;</a></h3>
 <p>JSON-RPC 2.0, one message per line, on a Unix socket in
 <code>$XDG_RUNTIME_DIR/chora/</code>. The socket has the name of the Wayland display,
@@ -1412,8 +1428,8 @@ calloop serves the socket in the event loop of the core, so no thread
 handoff is necessary. Events are JSON-RPC notifications on the same
 connection.</p>
 <p>When a client closes its side of the connection, the core still answers the
-requests that arrived, also those of waiting transactions. Then it closes
-the connection.</p>
+requests that arrived, also those of waiting transactions, <code>methods.call</code>,
+<code>process.wait</code> and <code>plugins.restart</code>. Then it closes the connection.</p>
 <p>Limits keep a buggy client from exhausting the core:</p>
 <table>
 <thead>
@@ -1426,8 +1442,8 @@ the connection.</p>
 <tbody>
 <tr>
 <td>connections</td>
-<td>128</td>
-<td>the core refuses new connections</td>
+<td>128, 16 per process, the last 8 for processes without one</td>
+<td>the core sends an error line and closes the new connection</td>
 </tr>
 <tr>
 <td>time until <code>hello</code></td>
@@ -1437,12 +1453,12 @@ the connection.</p>
 <tr>
 <td>line length</td>
 <td>1 MiB</td>
-<td>the core closes the connection</td>
+<td>the core answers with an error and closes the connection</td>
 </tr>
 <tr>
 <td>output buffer of a connection</td>
 <td>8 MiB</td>
-<td>the core closes the connection</td>
+<td>the core closes the connection; an answer that does not fit becomes an error</td>
 </tr>
 <tr>
 <td>waiting transactions of a connection</td>
@@ -1450,7 +1466,7 @@ the connection.</p>
 <td>the core rejects the transaction</td>
 </tr>
 <tr>
-<td>groups and rects in the scene</td>
+<td>nodes other than surfaces</td>
 <td>16,384</td>
 <td>the core rejects the <code>create</code></td>
 </tr>
@@ -1458,6 +1474,11 @@ the connection.</p>
 <td>cameras</td>
 <td>64</td>
 <td>the core rejects the <code>camera</code></td>
+</tr>
+<tr>
+<td><code>meta</code> of a node</td>
+<td>32 keys, 1 KiB per key or value, 4 KiB in all</td>
+<td>the core rejects the command</td>
 </tr>
 </tbody>
 </table>
@@ -1483,6 +1504,11 @@ the old place.</p>
 <p>A surface that misses the deadline is late. No transaction waits for it
 until it commits a buffer for its newest configure. A hung client
 thus delays the queue once, not once per transaction.</p>
+<p>A transaction that names an image file waits until a worker thread has
+decoded the file, so a large PNG does not stop the event loop. It waits
+outside the queue: the transactions of other connections, input and
+frames go on, and only the later transactions of the same connection wait
+behind it. A file that fails to decode rejects the transaction.</p>
 <h2 id="frame-flow">Frame flow<a class="headerlink" href="#frame-flow" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>sequenceDiagram
     participant B as Backend
@@ -1507,7 +1533,7 @@ thus delays the queue once, not once per transaction.</p>
 <ul>
 <li>The emergency reset focuses the first surface.</li>
 <li>A click on a surface without an owner focuses it.</li>
-<li>A surface that becomes detached loses the focus.</li>
+<li>A surface that becomes detached, unmaps or goes away loses the focus.</li>
 </ul>
 <p>The core still implements the protocol mechanisms around focus: popup
 grabs, the keyboard interactivity of <code>wlr-layer-shell</code> and
@@ -1515,10 +1541,18 @@ grabs, the keyboard interactivity of <code>wlr-layer-shell</code> and
 and <code>text-input</code> with <code>input-method</code>. Activation requests of
 <code>xdg-activation</code> and of taskbars go to plugins as <code>surface.requested</code>. A
 layer surface that takes the keyboard exclusively, for example a launcher,
-has it from its first commit until it goes away, and it ends a popup grab.
-A click gives the keyboard to a layer surface that accepts it on demand,
-until the next click elsewhere. A popup grabs the input only with the serial
-of the press that opened it.</p>
+has it from its first commit until it goes away, and it ends a popup grab.</p>
+<p>A click gives the keyboard to a layer surface that accepts it on demand,
+and ends the keyboard focus of a node.
+The layer surface keeps it until one of these occurs:</p>
+<ul>
+<li>A click goes elsewhere, or a surface gets the focus.</li>
+<li>Its role goes, or it no longer accepts the keyboard.</li>
+<li>Its output goes.</li>
+</ul>
+<p>A popup grabs the input only with the serial of the last press, or of the
+last key or button event that its client got. A release counts, so a menu
+opens on F10 when the key goes up.</p>
 <h2 id="safety-layer">Safety layer<a class="headerlink" href="#safety-layer" title="Permanent link">&para;</a></h2>
 <p>The safety layer is the only built-in behavior (see
 <a href="../vision/#principles">Vision</a>). No plugin and no IPC client can change it.</p>
@@ -1527,9 +1561,9 @@ of the press that opened it.</p>
   <a href="../api/#input-injection">Input injection</a>.</li>
 <li><strong>SIGUSR1</strong> starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.</li>
-<li><strong>Emergency reset.</strong> The core disconnects all plugins, revokes all grants,
-  removes all effects, restores the default cameras and puts all surfaces in
-  a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
+<li><strong>Emergency reset.</strong> The core disconnects all plugins and ends their
+  grace times. It revokes all grants, removes all effects and restores the
+  default cameras. It puts all surfaces in a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
   configuration cannot break it. The reset also changes the focus (see
   <a href="#input-flow">Input flow</a>).</li>
 <li><strong>Session lock.</strong> The core enforces <code>ext-session-lock</code>. One client owns
@@ -1541,14 +1575,35 @@ of the press that opened it.</p>
   that it rendered under this lock. When the lock client crashes, the
   session stays locked, and only then can a new lock client take over.</li>
 <li><strong>Watchdog.</strong> When frames take longer to render than a refresh of their
-  output for two seconds, the core removes the effects, the meshes and the
-  shaders of shader nodes, and sends <code>effects.dropped</code>. When they stay slow for two more seconds, it
-  starts the emergency reset, which disconnects the plugins.</li>
+  output for two seconds, the core blames the client whose visible nodes
+  cost the most: a node counts 1, a layer and each effect 25 more. It
+  removes the effects, the meshes and the shaders of shader nodes of that
+  client and sends <code>effects.dropped</code> with its name; the nodes of other
+  clients keep theirs. When frames stay slow for two more seconds and the
+  client had a load of at least 500, the core disconnects it, at most once
+  a minute. Its nodes go as on any disconnect, also those of a client with
+  <code>keep_nodes</code> or <code>resume</code>, without a grace time. The watchdog never
+  starts the emergency reset; only the binding and SIGUSR1 do.</li>
+<li><strong>Shader hangs.</strong> A shader that never returns blocks the loop, for
+  every backend renders on it. Neither the watchdog, which measures
+  between frames, nor SIGUSR1, whose source the loop dispatches, can
+  end it: on llvmpipe the core hangs, on a GPU until the driver resets
+  the context. The way out is to kill the core from another TTY or
+  over SSH.</li>
 </ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
-<p>chora trusts every client of the same user. Milestone 0.7 replaces the
+<p>chora trusts every client of the same user. One gap comes with the Rust
+Wayland backend: a message whose size is not a multiple of four leaves
+that connection deaf instead of answered with a protocol error, and the
+core has no frame of its own to reject. Correct clients send no such
+message. The caps of the IPC socket (16 connections per process, 128
+in total) and of the client sockets (16) bound the harm; the main
+Wayland socket has no cap. Milestone 0.7 replaces the
 grants with client sockets that fix the name and the capabilities of a
-client (D33, D40):</p>
+client (D33, D40). In: a client socket fixes the name of
+its clients, and a Wayland socket next to it offers the privileged
+protocols only with grants. Only the admin socket of <code>choractl</code> changes
+grants and makes client sockets (see <a href="../api/#client-sockets">API</a>).</p>
 <ul>
 <li>Unsandboxed Wayland clients get all protocols, as in sway. So any client
   can, for example, take the keyboard as an input method, or configure the
@@ -1565,6 +1620,10 @@ client (D33, D40):</p>
   revokes all grants.</li>
 <li><code>screen.capture</code>, <code>input.inject</code>, <code>process.spawn</code> and <code>plugins.restart</code>
   fail while the session is locked.</li>
+<li>A connection of a client socket acts only on its own nodes and on the
+  windows of its <code>wayland.sock</code>. It sets no camera and puts no node
+  under <code>screen:*</code>. It takes the keyboard with <code>focus_node</code> only after a
+  press of the user on it (see <a href="../api/#client-sockets">API</a>).</li>
 </ul>
 <h2 id="sessions-and-flavors">Sessions and flavors<a class="headerlink" href="#sessions-and-flavors" title="Permanent link">&para;</a></h2>
 <ul>

@@ -1187,8 +1187,10 @@ with a stable, versioned API (D3).</p>
   input injection, grants, programs, assets and output configuration.</li>
 <li><code>choractl</code> loads views and serves MCP.</li>
 <li><code>chora-tiling</code> and the XP showroom are plugins in this repository.</li>
-<li>The core crate has 37 unit tests. IPC dispatch, transactions and the tty
-  backend have none. Pixel tests in a headless sway check the behavior.</li>
+<li>The core is a library and a binary. Unit tests run IPC dispatch,
+  transactions, focus and grants in process, without a backend. The tty
+  backend has no tests. One pixel test renders in process on the headless
+  backend. Pixel tests in a headless sway check the behavior.</li>
 </ul>
 <h2 id="estimates">Estimates<a class="headerlink" href="#estimates" title="Permanent link">&para;</a></h2>
 <p>The estimates count the lines of Rust that a milestone adds or changes.
@@ -1266,13 +1268,28 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
 <p>The renderer has the largest risk. A fault on real hardware in 0.10 can
 add one to two weeks.</p>
 <h2 id="06-foundation">0.6: Foundation<a class="headerlink" href="#06-foundation" title="Permanent link">&para;</a></h2>
-<p><strong>Goal:</strong> the project works with gates in the GitHub organization <code>chora</code>.
-Unit tests check the core in process.</p>
+<p><strong>Goal:</strong> the project works with gates in the GitHub organization
+<code>chora-desktop</code>. Unit tests check the core in process.</p>
 <p>Scope:</p>
 <ul>
-<li>The organization <code>chora</code> with the repositories of D36. The plugins move
-  to repositories of their own. They depend on <code>chora-scene</code> through a git
-  tag of the core.</li>
+<li>The organization <code>chora-desktop</code> with the core repository (D36). The
+  split of the plugins into repositories of their own is postponed past
+  0.6; the plugins build with the core.</li>
+<li><code>camera.release</code> on the admin socket: the administrator takes the
+  camera of an output from its owner, live or gone.</li>
+<li>One socket directory per client: <code>$XDG_RUNTIME_DIR/chora/clients/NAME/</code>
+  with <code>ipc.sock</code> and a Wayland socket <code>wayland.sock</code> (D33, D40). The
+  socket fixes the name of its clients. <code>choractl clients up</code> applies a
+  <code>clients.yaml</code>. The emergency reset removes the client sockets. An
+  example Quadlet unit in <code>dist/</code> shows an agent container that mounts
+  its client directory.</li>
+<li>The <code>ipc.sock</code> of a client socket narrows the scene: its connections see
+  and change only their own nodes and windows. They set no camera, use
+  no <code>screen:*</code> parent, and use <code>focus_node</code> only after a press.</li>
+<li>The capability <code>input.grab-any</code> allows grabs without Ctrl, Alt or Super
+  (D45).</li>
+<li><code>surface.created</code> carries the pid and the activation token.</li>
+<li>An unknown event name in <code>events.subscribe</code> is an error.</li>
 <li>The git flow of D47 in every repository: a protected <code>main</code>, releases
   from a merge commit and an annotated tag.</li>
 <li>The release workflow starts from a tag and needs a green CI run of the
@@ -1281,57 +1298,47 @@ Unit tests check the core in process.</p>
   Rust version, and container images pinned by digest.</li>
 <li>The core as a library and a binary (D48). IPC dispatch, the transaction
   queue, focus and grants run in unit tests with a fake clock.</li>
-<li>A headless test backend that renders with pixman in process, for pixel
-  tests in Rust.</li>
+<li>A headless test backend that renders with GLES on the software driver
+  of Mesa in process, for pixel tests in Rust. GLES checks the same render
+  path as the screen.</li>
 <li>A smoke test in a VM with <code>vkms</code> in CI (D11). chora starts on the tty
   backend and shows a foot window. A capture shows its pixels.</li>
-<li>The website repository builds the user documentation. The reference
-  documentation stays with the code of the core.</li>
+<li>The reference documentation stays with the code of the core; the
+  website repository follows with the split (D36).</li>
 </ul>
 <p>Gate:</p>
 <ol>
-<li>Every repository of D36 exists, and <code>main</code> accepts pull requests only.</li>
+<li>The organization <code>chora-desktop</code> and the core repository exist, and
+   <code>main</code> accepts pull requests only.</li>
 <li>A test release <code>v0.6.0-rc.1</code> comes from a tag on a merge commit. A
    tag on a commit with red CI starts no release.</li>
 <li><code>cargo test</code> runs at least 40 unit tests of the core crate for IPC,
    transactions, focus and grants, without a compositor.</li>
-<li>One pixel test runs in process on the pixman backend.</li>
+<li>One pixel test runs in process on the headless backend.</li>
 <li>The <code>vkms</code> job is green in 10 runs in a row.</li>
-<li><code>chora-tiling</code> and <code>chora-xp</code> build and pass their tests in their own
-   repositories against the tag of the core.</li>
 <li><code>tests/nested.sh</code>, <code>tests/agent.sh</code> and <code>tests/xp.sh</code> are green in CI.</li>
 <li><code>rust-toolchain.toml</code> pins the toolchain, and the job for the minimum
    Rust version is green.</li>
 <li>Every container image in the workflows has a digest.</li>
-<li>The website builds from its repository.</li>
-<li>The showroom CI is green against the release candidate.</li>
 </ol>
 <h2 id="07-identity-and-processes">0.7: Identity and processes<a class="headerlink" href="#07-identity-and-processes" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> a client cannot take another name or give itself capabilities,
 and the core starts no programs.</p>
 <p>Scope:</p>
 <ul>
-<li>One socket directory per client: <code>$XDG_RUNTIME_DIR/chora/clients/NAME/</code>
-  with <code>ipc.sock</code> and a Wayland socket of <code>wp-security-context-v1</code> (D33,
-  D40). The socket fixes the name and the capabilities of its clients.</li>
-<li>An admin socket for <code>choractl</code> only. <code>grants.set</code> and the reset work
-  through it alone.</li>
-<li><code>choractl clients up</code> creates the sockets from
-  <code>~/.config/chora/clients.yaml</code>. The emergency reset removes the client
-  sockets.</li>
-<li>An example Quadlet unit in <code>dist/</code> for an agent container that mounts its
-  client directory.</li>
+<li>The client socket also fixes the capabilities of its clients: the
+  socket decides which methods a connection may use (D33).</li>
+<li>An admin socket for <code>choractl</code> only. <code>grants.set</code>, <code>grants.revoke</code> and
+  <code>clients.create</code> work through it alone.</li>
 <li>A versioned <code>hello</code> with the protocol version and the features of both
-  sides (D29).</li>
+  sides (D29). Until then <code>hello</code> answers with the version of the build,
+  and the client library warns on a mismatch.</li>
 <li>Structured errors: a stable code for each kind of failure, and <code>data</code>
   with the index of the failed command.</li>
-<li>The capability <code>input.grab-any</code> allows grabs without Ctrl, Alt or Super
-  (D45).</li>
 <li><code>process.spawn</code>, <code>process.wait</code> and <code>plugins.restart</code> leave the core
   (D42). <code>choractl run</code> starts a program through <code>systemd-run --user</code> with
   an activation token. <code>systemctl --user restart</code> restarts a plugin.
   journald keeps the output.</li>
-<li><code>surface.created</code> carries the pid and the activation token.</li>
 </ul>
 <p>Gate:</p>
 <ol>
@@ -1357,8 +1364,8 @@ for changes, and it can label what it shows.</p>
 <li>JSON filters replace the selector strings (D32). They can match focus
   and visibility.</li>
 <li><code>events.subscribe</code> starts with a snapshot of the state, and every event
-  has a sequence number. An unknown event name is an error.</li>
-<li>Focus in queries, and a <code>focus.changed</code> event.</li>
+  has a sequence number.</li>
+<li>Focus in queries.</li>
 <li>Queries return the screen rectangle of a node on each output.
   <code>input.inject</code> takes a node and a point inside it.</li>
 <li>A client that does not own a node can request a change: focus, move,
@@ -1424,7 +1431,8 @@ and drives plugins with the frame clock (D17, D24).</p>
   translation, rotation and scale apart, run per property, and support
   springs.</li>
 <li>Transactions on disjoint surfaces do not wait for each other (D22).</li>
-<li>Image decode, shader compile and capture encode run on worker threads.</li>
+<li>Shader compile and capture encode run on worker threads, as the image
+  decode does.</li>
 <li>The watchdog runs in its own thread with a heartbeat of the main loop
   (D23).</li>
 <li>Debug counters for rendered frames and texture allocations, readable
@@ -1522,8 +1530,9 @@ and installs it from a package repository.</p>
    is green against the release candidate.</li>
 </ol>
 <h2 id="track-xp-showroom">Track: XP showroom<a class="headerlink" href="#track-xp-showroom" title="Permanent link">&para;</a></h2>
-<p>The showroom moves to <code>chora/chora-xp</code> in milestone 0.6 and grows in
-parallel (D39). It shows the effects of the scene and serves as their test.</p>
+<p>The showroom grows in the core repository through 0.6 and moves to
+<code>chora-desktop/chora-xp</code> with the postponed split (D36, D39). It shows
+the effects of the scene and serves as their test.</p>
 <ul>
 <li>Each core milestone ends with a showroom release that uses its API. The
   core gate checks that the showroom CI is green against the release
@@ -1532,9 +1541,9 @@ parallel (D39). It shows the effects of the scene and serves as their test.</p>
   effect gets a pixel test in <code>tests/xp.sh</code>.</li>
 </ul>
 <h2 id="track-voice-pipeline">Track: voice pipeline<a class="headerlink" href="#track-voice-pipeline" title="Permanent link">&para;</a></h2>
-<p>The voice pipeline lives in <code>chora/chora-voice</code> and starts with milestone
-0.6 (D53). It runs as Quadlet units on the reference hardware: speech to
-text, a router model, a main model and text to speech, served by
+<p>The voice pipeline lives in <code>chora-desktop/chora-voice</code> and starts with
+milestone 0.6 (D53). It runs as Quadlet units on the reference hardware:
+speech to text, a router model, a main model and text to speech, served by
 <a href="https://github.com/gufo-org/gufo">Gufo</a>.</p>
 <table>
 <thead>

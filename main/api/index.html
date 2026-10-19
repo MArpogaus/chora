@@ -609,6 +609,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#keyboard-focus-of-nodes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keyboard focus of nodes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#window-managers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Window managers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#selectors" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -646,6 +668,17 @@
     <span class="md-ellipsis">
       
         Grants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-sockets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client sockets
       
     </span>
   </a>
@@ -1049,6 +1082,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#keyboard-focus-of-nodes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keyboard focus of nodes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#window-managers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Window managers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#selectors" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1086,6 +1141,17 @@
     <span class="md-ellipsis">
       
         Grants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-sockets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client sockets
       
     </span>
   </a>
@@ -1231,6 +1297,16 @@ empties it.</p>
 <td>client name of the owner; read-only</td>
 </tr>
 <tr>
+<td><code>to</code></td>
+<td>surface</td>
+<td>the only client name that can attach this detached surface, after a <code>remove</code> with <code>to</code> or for a new toplevel; read-only</td>
+</tr>
+<tr>
+<td><code>claim</code></td>
+<td>all</td>
+<td><code>[x, y, w, h]</code> in scene coordinates: the area of the owner as a window manager; a new toplevel can go to it (see <a href="#window-managers">below</a>); <code>null</code> removes the claim</td>
+</tr>
+<tr>
 <td><code>transform</code></td>
 <td>all</td>
 <td>a 4x4 matrix, or the short form translate, scale, rotate</td>
@@ -1258,7 +1334,7 @@ empties it.</p>
 <tr>
 <td><code>meta</code></td>
 <td>all</td>
-<td>free key/value pairs to tag and find nodes</td>
+<td>free key/value pairs to tag and find nodes; an empty value removes a key; at most 32 keys, 1 KiB per key or value and 4 KiB in all per node</td>
 </tr>
 <tr>
 <td><code>size</code></td>
@@ -1273,7 +1349,7 @@ empties it.</p>
 <tr>
 <td><code>color</code></td>
 <td>rect</td>
-<td>RGBA, each from 0 to 1</td>
+<td>RGBA, each from 0 to 1, with straight alpha: <code>[1, 1, 1, 0.5]</code> is white at half opacity</td>
 </tr>
 <tr>
 <td><code>radius</code></td>
@@ -1330,18 +1406,22 @@ not show; the rest of the mesh does.</p>
 layer in <code>uniform sampler2D tex</code> at <code>varying vec2 v_uv</code>, and may use
 <code>uniform float alpha</code>, <code>uniform vec2 size</code> (the texture size in pixels),
 <code>uniform float time</code> (seconds) and its own <code>float</code> and <code>vec2</code> to <code>vec4</code>
-uniforms. A transaction that names a shader that does not compile fails
-with the log of the compiler. The core compiles a shader again when its
-file changes. The package installs examples in <code>/usr/share/chora/shaders/</code>:
+uniforms. The texture holds premultiplied colors, and the shader writes
+premultiplied colors; the core passes the uniforms as they are, so a
+color uniform is whatever the shader takes it to be. A transaction that
+names a shader that does not compile fails with the log of the compiler.
+The core compiles a shader again when its file changes. The package installs examples in <code>/usr/share/chora/shaders/</code>:
 <code>grayscale.frag</code>, <code>rounded.frag</code> and <code>blur.frag</code> (with <code>radius</code>).</p>
 <p>Two hints for shaders. With <code>precision mediump float</code>, the common hash
 <code>fract(sin(dot(p, …)) * 43758.5)</code> loses its digits and gives garbage;
 noise and hashes need <code>precision highp float</code>. <code>fwidth</code>, <code>dFdx</code> and <code>dFdy</code>
 need <code>GL_OES_standard_derivatives</code>, which the core enables for a shader
 that uses them.</p>
-<p>The core loads the file of an image when a transaction names it. A file
-that does not load, that is larger than 32 MiB or larger than 8192 pixels
-on a side rejects the transaction. A plugin in a container shares its
+<p>The core loads the file of an image when a transaction names it, on a
+worker thread: the transaction answers when the file is decoded, while
+other clients go on, and the later transactions of the same connection
+wait for it. A file that does not load, that is larger than 32 MiB or
+larger than 8192 pixels on a side rejects the transaction. A plugin in a container shares its
 asset directory with the core, as it shares the socket directory.</p>
 <p>A client that shares no directory with the core, for example an agent in
 another container, hands its files to the core with <code>assets.put</code>. The
@@ -1350,9 +1430,10 @@ path for <code>image</code>, <code>shader</code> and effects. A file has at most
 client at most 64 files, all clients together at most 64 MiB. A client
 name with assets has at most 120 bytes. A second put
 of a name replaces the file, and the nodes that use it load it again. The
-files of a client go with its nodes: at the last disconnect without
-<code>keep_nodes</code>, otherwise when chora exits. <code>choractl asset put NAME FILE</code>
-prints the path.</p>
+files of a client go with its nodes. With <code>keep_nodes</code>, they go when
+chora exits. With <code>resume</code> only, they go after the grace time. Otherwise,
+they go at the last disconnect. <code>choractl asset put NAME FILE</code> prints the
+path.</p>
 <h2 id="commands">Commands<a class="headerlink" href="#commands" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1384,7 +1465,7 @@ prints the path.</p>
 </tr>
 <tr>
 <td><code>remove</code></td>
-<td>remove a node; a removed surface becomes detached</td>
+<td>Remove a node. A removed surface becomes detached. With <code>to</code>, only the client <code>to</code> can attach the surface and gets <code>surface.detached</code>. <code>to</code> must have a connection (D55).</td>
 </tr>
 <tr>
 <td><code>configure</code></td>
@@ -1392,7 +1473,11 @@ prints the path.</p>
 </tr>
 <tr>
 <td><code>focus</code></td>
-<td>set the keyboard focus to an own surface, or clear it without a surface; a client that cleared the focus may give it back once to the surface that had it, also of another client</td>
+<td>set the keyboard focus to an own surface, or clear it without a surface. A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return.</td>
+</tr>
+<tr>
+<td><code>focus_node</code></td>
+<td>give the keyboard to an own node that is no surface, or without a node give it back (see <a href="#keyboard-focus-of-nodes">Keyboard focus of nodes</a>)</td>
 </tr>
 <tr>
 <td><code>close</code></td>
@@ -1400,7 +1485,7 @@ prints the path.</p>
 </tr>
 <tr>
 <td><code>camera</code></td>
-<td>set the camera of an output, or restore its default camera without a transform; with a <code>duration</code>, move it there; the first client that sets the camera owns it, and a <code>camera</code> without a transform gives it up</td>
+<td>set the camera of an output that is or was plugged in, or restore its default camera without a transform; with a <code>duration</code>, move it there; the first client that sets the camera owns it, and a <code>camera</code> without a transform gives it up</td>
 </tr>
 </tbody>
 </table>
@@ -1422,6 +1507,63 @@ sends <code>animation.done</code> with the output and then <code>output.changed<
 <div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"camera"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DP-1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"transform"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"scale"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"translate"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">-640</span><span class="p">,</span><span class="w"> </span><span class="mi">-400</span><span class="p">]},</span>
 <span class="w">            </span><span class="nt">"duration"</span><span class="p">:</span><span class="w"> </span><span class="mi">500</span><span class="p">,</span><span class="w"> </span><span class="nt">"easing"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ease_in_out"</span><span class="p">}}</span>
 </code></pre></div>
+<h2 id="keyboard-focus-of-nodes">Keyboard focus of nodes<a class="headerlink" href="#keyboard-focus-of-nodes" title="Permanent link">&para;</a></h2>
+<p>The chrome of a plugin, for example a menu or a dialog, is made of nodes
+and takes the keyboard with <code>focus_node</code>:</p>
+<!-- parses: command -->
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"focus_node"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"node"</span><span class="p">:</span><span class="w"> </span><span class="s2">"start-menu"</span><span class="p">}}</span>
+</code></pre></div>
+<p>While the node has the focus, no surface gets keys: the focused surface
+gets a leave, and the core sends each key as <code>node.key</code> to the
+connections of the owner of the node that subscribed to it. A press
+carries the text that it types:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"node.key"</span><span class="p">,</span><span class="w"> </span><span class="nt">"node"</span><span class="p">:</span><span class="w"> </span><span class="s2">"start-menu"</span><span class="p">,</span><span class="w"> </span><span class="nt">"key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"a"</span><span class="p">,</span><span class="w"> </span><span class="nt">"code"</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"pressed"</span><span class="p">,</span><span class="w"> </span><span class="nt">"modifiers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"Shift"</span><span class="p">],</span><span class="w"> </span><span class="nt">"text"</span><span class="p">:</span><span class="w"> </span><span class="s2">"A"</span><span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><code>key</code> is the keysym name with the modifiers applied, <code>code</code> the Linux
+  key code, and <code>modifiers</code> lists <code>Ctrl</code>, <code>Alt</code>, <code>Shift</code> and <code>Super</code> as
+  they are down.</li>
+<li><code>text</code> is missing for a release, for a key without text such as
+  <code>Return</code>, and while Ctrl, Alt or Super is down. A dead key types
+  nothing; the core does no compose.</li>
+<li>The core repeats a held key as a Wayland client does: after 200 ms,
+  25 times a second, with the same <code>pressed</code> event. Modifiers do not
+  repeat. The repeat ends when the key goes up, when another key goes
+  down, or when the node loses the focus.</li>
+<li>The safety layer and the grabs come first, also for injected keys.</li>
+</ul>
+<p>The focus returns to the focused surface, which gets an enter, in these
+cases:</p>
+<ul>
+<li>The owner sends <code>{"focus_node": {}}</code>.</li>
+<li>The node goes.</li>
+<li>Its client disconnects, also with <code>keep_nodes</code> or <code>resume</code>.</li>
+<li>The session locks.</li>
+<li>A surface gets the focus, by a command or by the core.</li>
+</ul>
+<p>A layer surface that takes the keyboard exclusively, for example a
+launcher, gets the keys before the node. Some layer surfaces take the
+keyboard on demand, for example the search field of a panel. A click on
+such a surface ends the focus of the node and gives it the keyboard.</p>
+<h2 id="window-managers">Window managers<a class="headerlink" href="#window-managers" title="Permanent link">&para;</a></h2>
+<p>Several window managers share the scene (D55). A window manager sets
+<code>claim</code> on a node, for example on its root group. At the first commit of
+a toplevel, the core reserves it for one window manager:</p>
+<ol>
+<li>the owner of its parent toplevel, for a dialog;</li>
+<li>else the owner of the node or surface with the keyboard focus, if it
+   holds a claim;</li>
+<li>else the owner of the smallest claim that contains the pointer.</li>
+</ol>
+<p>Only clients with a connection or in their grace time count. Only the
+chosen client can attach the surface, and <code>surface.created</code> names it in
+<code>to</code>. Without a match, any client attaches the surface. When the last
+connection of the client closes, the reservation ends with
+<code>surface.detached</code>. With <code>resume</code>, it ends at the end of the grace time.
+When a window manager removes its last claim, its reservations end too. A
+<code>remove</code> with <code>to</code> hands a surface to another window manager in the same
+way.</p>
 <h2 id="selectors">Selectors<a class="headerlink" href="#selectors" title="Permanent link">&para;</a></h2>
 <p>A selector finds nodes: <code>id:work</code>, <code>kind:surface</code>, <code>owner:tiling</code>,
 <code>app_id:firefox</code>, <code>title:"make test"</code> (exact), <code>title~:Inbox</code> (contains),
@@ -1440,7 +1582,7 @@ or an empty list. It always sees the current titles.</p>
 <tbody>
 <tr>
 <td><code>surface.created</code></td>
-<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title, and <code>decoration</code>: <code>server</code> when the client asked for a frame of the plugins through <code>xdg-decoration</code>, <code>client</code> when it draws its own</td>
+<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title, and <code>decoration</code>: <code>server</code> when the client asked for a frame of the plugins through <code>xdg-decoration</code>, <code>client</code> when it draws its own. <code>to</code> names the window manager that the core reserved it for (see <a href="#window-managers">Window managers</a>). <code>pid</code> is the process of the client as the socket reports it, a hint that a pid namespace can hide; <code>token</code> is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before the first map.</td>
 </tr>
 <tr>
 <td><code>surface.changed</code></td>
@@ -1448,7 +1590,11 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>surface.destroyed</code>, <code>surface.detached</code></td>
-<td>surface id; <code>surface.destroyed</code> follows only a <code>surface.created</code></td>
+<td>surface id. <code>surface.destroyed</code> follows only a <code>surface.created</code>. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends <code>surface.created</code> with the same id. After a <code>remove</code> with <code>to</code>, only <code>to</code> gets <code>surface.detached</code>. When <code>to</code> disconnects, the surface is free again, and all clients get <code>surface.detached</code>. With <code>resume</code>, this occurs at the end of the grace time.</td>
+</tr>
+<tr>
+<td><code>focus.changed</code></td>
+<td>the focused surface changed, by a <code>focus</code> of a client or by the core: <code>surface</code>, or <code>null</code>. Window managers draw their frames from it (D55).</td>
 </tr>
 <tr>
 <td><code>surface.requested</code></td>
@@ -1456,7 +1602,15 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>input.key</code></td>
-<td>the grabbed <code>binding</code> and its <code>state</code>: <code>pressed</code> when its key goes down, <code>released</code> when it goes up</td>
+<td>the grabbed <code>binding</code> and its <code>state</code>: <code>pressed</code> each time its key goes down with its modifiers, <code>released</code> once when Ctrl, Alt or Super of the binding goes up (see <a href="#ipc-methods">IPC methods</a>)</td>
+</tr>
+<tr>
+<td><code>input.button</code>, <code>input.moved</code></td>
+<td>the button of a grabbed button binding went down or up, or the pointer moved while it is down: <code>binding</code>, <code>state</code> (not for <code>input.moved</code>), <code>position</code> in scene coordinates, <code>output</code> and <code>local</code>, the position in the output; only to the connection of the grab</td>
+</tr>
+<tr>
+<td><code>node.key</code></td>
+<td>a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see <a href="#keyboard-focus-of-nodes">Keyboard focus of nodes</a>)</td>
 </tr>
 <tr>
 <td><code>pointer.entered</code>, <code>pointer.left</code></td>
@@ -1464,11 +1618,15 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>pointer.pressed</code></td>
-<td>a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under <code>screen:NAME</code></td>
+<td>a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under <code>screen:NAME</code>, and the <code>modifiers</code> that are down</td>
 </tr>
 <tr>
 <td><code>pointer.moved</code>, <code>pointer.released</code></td>
-<td>after a press over a rect or an image, until the button goes up: node and position; <code>pointer.released</code> with the button</td>
+<td>after a press over a rect or an image, until the button goes up: node, position and modifiers; <code>pointer.released</code> with the button</td>
+</tr>
+<tr>
+<td><code>pointer.scroll</code></td>
+<td>the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, <code>dx</code> and <code>dy</code> in logical pixels, <code>discrete</code> wheel steps, <code>source</code> (<code>wheel</code>, <code>finger</code>, <code>continuous</code> or <code>wheel_tilt</code>) and modifiers; only to the owner of the node</td>
 </tr>
 <tr>
 <td><code>animation.done</code></td>
@@ -1476,7 +1634,7 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>effect.failed</code></td>
-<td>the shader of an effect failed after a change of its file: path and log; the effect keeps its last working version</td>
+<td>the shader of an effect failed after a change of its file; the single field <code>error</code> holds the path and the log, and the effect keeps its last working version</td>
 </tr>
 <tr>
 <td><code>layers.dropped</code></td>
@@ -1484,7 +1642,7 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>effects.dropped</code></td>
-<td>the watchdog removed the effects, the meshes and the shaders of shader nodes of all nodes, because frames were slow for two seconds</td>
+<td>the watchdog removed the effects, the meshes and the shaders of shader nodes of the nodes of <code>client</code>, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow, the core disconnects that client and removes its nodes, also with <code>keep_nodes</code> or <code>resume</code></td>
 </tr>
 <tr>
 <td><code>output.changed</code></td>
@@ -1506,16 +1664,45 @@ or an empty list. It always sees the current titles.</p>
 </table>
 <p>The response of <code>scene.apply</code> reports the result of a transaction: <code>null</code>
 when it applied, an error with the index of the failed command when not.
+<code>choractl apply FILE</code> reads one list of commands as JSON, from standard
+input when the file is <code>-</code>; it prints nothing when it applied and the
+reason when not, so the exit code is the answer. Only the <code>view</code>
+subcommand reads YAML.
 A request that a client makes before its first commit follows its
 <code>surface.created</code>. A taskbar asks through <code>wlr-foreign-toplevel-management</code>.
 The core does not act on a request, also not on <code>close</code>. A plugin answers
 with commands, for example <code>close</code>. A press over a surface reaches its
 client as well; a press over a rect or an image goes to plugins only, with
 the moves and the release that follow, so that a plugin can drag a window
-by its title bar. Later milestones add events for size limits.</p>
+by its title bar. <code>modifiers</code> lists <code>Ctrl</code>, <code>Alt</code>, <code>Shift</code> and <code>Super</code> as
+they are down, for example for a Ctrl+click.</p>
+<p>Scrolling over a surface reaches its client through Wayland. Over a rect,
+an image or a shader node, the core sends <code>pointer.scroll</code> to the
+connections of the owner of the node that subscribed to it, so that a
+list of a plugin scrolls:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"pointer.scroll"</span><span class="p">,</span><span class="w"> </span><span class="nt">"node"</span><span class="p">:</span><span class="w"> </span><span class="s2">"start-menu"</span><span class="p">,</span><span class="w"> </span><span class="nt">"position"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="mi">700</span><span class="p">],</span>
+<span class="w"> </span><span class="nt">"dx"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">"dy"</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span><span class="w"> </span><span class="nt">"discrete"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="nt">"source"</span><span class="p">:</span><span class="w"> </span><span class="s2">"wheel"</span><span class="p">,</span><span class="w"> </span><span class="nt">"modifiers"</span><span class="p">:</span><span class="w"> </span><span class="p">[]}</span>
+</code></pre></div>
+<p>Later milestones add events for size limits.</p>
 <h2 id="ipc-methods">IPC methods<a class="headerlink" href="#ipc-methods" title="Permanent link">&para;</a></h2>
-<p>JSON-RPC 2.0, one message per line, on the socket in <code>CHORA_SOCKET</code>. Every
-client sends <code>hello</code> first. The core answers every request.</p>
+<p>JSON-RPC 2.0, one message per line, on the socket in <code>CHORA_SOCKET</code>. A
+client sends <code>hello</code> first. A method that changes the session or needs a
+grant fails before <code>hello</code>. <code>scene.query</code>, <code>events.subscribe</code>,
+<code>output.list</code>, <code>clients.list</code>, <code>clients.create</code>, <code>camera.release</code>,
+<code>grants.set</code>, <code>grants.revoke</code> and <code>grants.list</code> also work before it,
+for tools.</p>
+<p>The core opens an admin socket next to the IPC socket, for example
+<code>wayland-1.admin.sock</code> next to <code>wayland-1.sock</code> (D40). It offers all
+methods. Only there do <code>grants.set</code>, <code>grants.revoke</code> and <code>clients.create</code>
+work. <code>choractl grant</code>, <code>choractl revoke</code> and <code>choractl clients create</code>
+use it; <code>choractl clients up [FILE]</code> applies a YAML file of
+<code>NAME: { grants: [...] }</code> entries: it opens the socket of every name
+and makes its grants equal to the list, so grants that are missing from
+the file are revoked. An existing socket is kept (<code>clients.create</code>
+answers the <code>socket_exists</code> reason) and its connections stay. Without a
+file argument the first of <code>$XDG_CONFIG_HOME/chora/clients.yaml</code> and
+<code>~/.config/chora/clients.yaml</code> is read, <code>-</code> for stdin. The core
+answers every request.</p>
 <table>
 <thead>
 <tr>
@@ -1525,8 +1712,8 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>hello(name, keep_nodes)</code></td>
-<td>name the client; <code>keep_nodes</code> keeps its nodes and cameras after the disconnect</td>
+<td><code>hello(name, keep_nodes, resume)</code></td>
+<td>name the client (lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, from a letter, at most 64 bytes); <code>keep_nodes</code> keeps its nodes and cameras after the disconnect, <code>resume</code> keeps them for a grace time (see below); returns <code>{"version": ...}</code></td>
 </tr>
 <tr>
 <td><code>scene.query(selector)</code></td>
@@ -1538,11 +1725,11 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </tr>
 <tr>
 <td><code>events.subscribe(events)</code></td>
-<td>stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name</td>
+<td>stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused</td>
 </tr>
 <tr>
 <td><code>input.grab(binding)</code></td>
-<td>get the events of a key, a button or a gesture; returns the binding as <code>input.key</code> names it</td>
+<td>get the events of a key or a pointer button with modifiers, for example <code>Super+Return</code> or <code>Super+BTN_LEFT</code>; a binding needs Ctrl, Alt or Super unless the client has the capability <code>input.grab-any</code>; <code>Ctrl+Alt</code> with a key of the safety layer stays refused either way; returns the binding as <code>input.key</code> and <code>input.button</code> name it</td>
 </tr>
 <tr>
 <td><code>input.ungrab(binding)</code></td>
@@ -1557,8 +1744,16 @@ client sends <code>hello</code> first. The core answers every request.</p>
 <td>capture an output or a node as a PNG file; needs a grant</td>
 </tr>
 <tr>
+<td><code>camera.release(output)</code></td>
+<td>take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, <code>choractl camera release OUTPUT</code> calls it</td>
+</tr>
+<tr>
 <td><code>grants.set(client, capabilities)</code>, <code>grants.revoke(client, capabilities)</code>, <code>grants.list</code></td>
-<td>grant or revoke <code>input.inject</code>, <code>screen.capture</code> and <code>process.spawn</code> for a client name; <code>choractl grant</code> and <code>choractl revoke</code> call them</td>
+<td>grant or revoke <code>input.inject</code>, <code>screen.capture</code>, <code>process.spawn</code> and <code>input.grab-any</code> for a client name; <code>choractl grant</code> and <code>choractl revoke</code> call them; <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket</td>
+</tr>
+<tr>
+<td><code>clients.create(name)</code></td>
+<td>open the client socket of a name and return its <code>path</code> (see <a href="#client-sockets">Client sockets</a>); only on the admin socket; <code>choractl clients create NAME</code> calls it</td>
 </tr>
 <tr>
 <td><code>output.list</code></td>
@@ -1570,7 +1765,11 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </tr>
 <tr>
 <td><code>output.configure(output, scale, transform)</code></td>
-<td>set the scale or the transform of an output, the first one without <code>output</code>; <code>transform</code> is <code>normal</code>, <code>90</code>, <code>180</code>, <code>270</code>, <code>flipped</code>, <code>flipped-90</code>, <code>flipped-180</code> or <code>flipped-270</code>; returns the output</td>
+<td>set the scale or the transform of an output, the first one without <code>output</code>; <code>transform</code> is <code>normal</code>, <code>90</code>, <code>180</code>, <code>270</code>, <code>flipped</code>, <code>flipped-90</code>, <code>flipped-180</code> or <code>flipped-270</code>; scale and mode must keep the logical size within 16384 pixels a side; returns the output</td>
+</tr>
+<tr>
+<td><code>output.add(spec)</code>, <code>output.remove(output)</code></td>
+<td>for tests on the headless backend only: add a virtual output <code>WxH[@SCALE][+X+Y]</code>, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and <code>WxH</code> divided by <code>SCALE</code> must stay within 16384 a side; other backends refuse, and the last output stays; <code>choractl add-output</code> and <code>choractl remove-output</code> call them</td>
 </tr>
 <tr>
 <td><code>clients.list</code></td>
@@ -1610,22 +1809,100 @@ client sends <code>hello</code> first. The core answers every request.</p>
 </tr>
 </tbody>
 </table>
-<p>An error has a <code>code</code> and a <code>message</code>: the JSON-RPC codes for a method or
-parameters that do not exist, 1 for a request that breaks a rule, and 2
-for a transaction that names a surface node that is gone, for example of a
-window that closed in the meantime. A plugin can ignore code 2.</p>
+<p>An error has a <code>code</code>, a <code>message</code> and, where it helps, a machine
+readable <code>data</code>: the JSON-RPC codes for a method or parameters that do
+not exist, 1 for a request that breaks a rule, and 2 for a transaction
+that names a surface node that is gone, for example of a window that
+closed in the meantime. A plugin can ignore code 2. A rejected
+transaction carries <code>{"command": INDEX}</code> in <code>data</code>, the position of the
+failed command in the transaction.</p>
+<p>A request is one line of at most 1 MiB (<code>MAX_LINE</code>). The core reads a
+longer line to its end, answers it with code 1 and the id <code>null</code>, and
+closes the connection. The core holds at most 8 MiB (<code>MAX_OUTPUT</code>) of
+answers and events that a connection did not read yet; a connection that
+passes this limit closes, so a client reads its socket while it waits. An
+answer that does not fit, for example of a query of all nodes, fails with
+code 1 instead, and the connection stays.</p>
+<p>The core takes at most 128 connections, at most 16 of one process. The
+last 8 go only to a process without a connection, so <code>choractl</code> and a
+window manager that starts again still connect while one client holds many.
+A refused connection gets an error line with code 1 and the reason, <code>too
+many connections: ...</code>, before the core closes it.</p>
+<p><code>hello</code> answers with the version of the core: the crate version and,
+for a build in a git checkout, the commit, for example
+<code>{"version": "0.5.4+1ea0e89abc"}</code>. <code>chora --version</code> prints the same.
+The client library of <code>chora-scene</code> warns once on stderr when the core is
+another build, so <code>choractl</code> and the plugins tell why a request fails
+after an update. This is a first step: the versioned <code>hello</code> of D29, with
+the protocol version and the features of both sides, follows in 0.7.</p>
 <p>A connection sends <code>hello</code> once, within 5 s. Connections with the same name share their
-nodes, so they must agree on <code>keep_nodes</code>. The core refuses a <code>hello</code> with a
-different value. For example, <code>choractl --name tiling</code> fails while the tiling
-plugin runs.</p>
+nodes, so they must agree on <code>keep_nodes</code> and <code>resume</code>. The core refuses a
+<code>hello</code> with different values. For example, <code>choractl --name tiling</code> fails
+while the tiling plugin runs. With <code>keep_nodes</code>, <code>resume</code> has no effect.
+A <code>hello</code> with <code>resume</code> also fails while another connection of the name
+is live. So a second instance of a plugin cannot take the nodes of the
+first. The error says that the name is connected.</p>
+<p><code>resume</code> lets a plugin restart without a loss, for example after a crash
+or a change of its configuration. When the last connection of a name
+with <code>resume</code> closes, the core keeps the nodes of the name for a grace
+time of 10 s. It keeps their tree, stacking, properties and <code>meta</code>. It
+also keeps the surfaces that they hold, the cameras and the assets. The
+grabs, the exported methods, the reserves and the keyboard focus of a
+node end as at any disconnect, and <code>client.disconnected</code> follows at once.</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"method"</span><span class="p">:</span><span class="w"> </span><span class="s2">"hello"</span><span class="p">,</span><span class="w"> </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"wm"</span><span class="p">,</span><span class="w"> </span><span class="nt">"resume"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">}}</span>
+</code></pre></div>
+<ul>
+<li>A <code>hello</code> of the same name with <code>resume</code> within the grace time gets the
+  nodes back. The plugin finds them with <code>scene.query</code> and <code>owner:NAME</code>.
+  When the list is not empty, it rebuilds its model from them instead of
+  creating its nodes again.</li>
+<li>A <code>hello</code> of the name without <code>resume</code> removes the kept nodes first, so
+  the client starts as without a grace time.</li>
+<li>After the grace time, the core removes the nodes as at any disconnect:
+  the surfaces become detached, and the core sends <code>surface.detached</code> for
+  each.</li>
+<li>No client of another name can change the kept nodes. Only a name with
+  a client socket is safe from other clients that take it (see
+  <a href="#client-sockets">Client sockets</a>).</li>
+<li>A toplevel that maps during the grace time gets <code>surface.created</code> as
+  usual, and stays without an owner if no other plugin attaches it. The
+  resumed plugin takes it as at any start, with a query of <code>kind:surface</code>
+  for surfaces without an owner.</li>
+<li>The emergency reset and a disconnect of the watchdog end the grace time
+  at once.</li>
+</ul>
 <p>A reserve of <code>output.reserve</code> belongs to a connection and ends with it,
 also when its client crashes. The reserves of all connections on an
 output add up, and count from the edges of the area that the exclusive
 zones of layer surfaces leave free. At least one pixel of the work area
 stays. <code>choractl reserve --top 30</code> holds a reserve until it ends.</p>
-<p>A key binding needs Ctrl, Alt or Super, so that typing still works. The
+<p>A key binding needs Ctrl, Alt or Super, so that typing still works, unless
+the client holds <code>input.grab-any</code> (D45). The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
-belong to no client. A binding has one owner at a time.</p>
+belong to no client. A binding has one owner at a time. Revoking
+<code>input.grab-any</code> drops the registrations of grabs that need no modifier
+and ends a held one.</p>
+<p>A key grab is held from the press of its key until one of its modifiers
+Ctrl, Alt or Super goes up; a grab without any of them ends with the
+release of its own key. Shift does not end a key grab. Each press of
+the key in that time sends <code>pressed</code>; the release of the key sends nothing
+and reaches no surface. When the grab ends, the client gets one
+<code>released</code>. So an Alt+Tab switcher sees Alt
+down, Tab, Tab, Alt up as <code>pressed</code>, <code>pressed</code>, <code>released</code>, and knows when
+to switch.</p>
+<p>A button binding names a pointer button in place of the key: <code>BTN_LEFT</code>,
+<code>BTN_RIGHT</code>, <code>BTN_MIDDLE</code>, <code>BTN_SIDE</code>, <code>BTN_EXTRA</code>, <code>BTN_FORWARD</code> or
+<code>BTN_BACK</code>. It needs Ctrl, Alt or Super too, or <code>input.grab-any</code>, so that
+a plain click still works. While its button is down, the client of the grab gets the press,
+each move and the release, also when the modifiers went up first, and no
+surface gets them:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"input.button"</span><span class="p">,</span><span class="w"> </span><span class="nt">"binding"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Super+BTN_LEFT"</span><span class="p">,</span><span class="w"> </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"pressed"</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">"position"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">812</span><span class="p">,</span><span class="w"> </span><span class="mi">140</span><span class="p">],</span><span class="w"> </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DP-1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"local"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">812</span><span class="p">,</span><span class="w"> </span><span class="mi">140</span><span class="p">]}</span>
+<span class="p">{</span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"input.moved"</span><span class="p">,</span><span class="w"> </span><span class="nt">"binding"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Super+BTN_LEFT"</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">"position"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">830</span><span class="p">,</span><span class="w"> </span><span class="mi">152</span><span class="p">],</span><span class="w"> </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DP-1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"local"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">830</span><span class="p">,</span><span class="w"> </span><span class="mi">152</span><span class="p">]}</span>
+</code></pre></div>
+<p>A window manager moves a window with <code>Super+BTN_LEFT</code> so, wherever the
+pointer grabs it.</p>
 <p>The core implements <code>wlr-output-management</code>, so kanshi and wlr-randr
 configure the outputs (see
 <a href="../architecture/#output-configuration">Architecture</a>). <code>output.configure</code>
@@ -1634,9 +1911,10 @@ without wlr-randr. After a new mode, position, transform or scale,
 the core sends <code>output.changed</code>. For an output that turns off, it sends
 <code>output.removed</code>, and <code>output.list</code> no longer lists the output.</p>
 <h2 id="grants">Grants<a class="headerlink" href="#grants" title="Permanent link">&para;</a></h2>
-<p><code>input.inject</code> and <code>screen.capture</code> see or drive the whole session, and
-<code>process.spawn</code> runs any program as the user, so they need a grant of the
-user for the client name. Milestone 0.7 replaces the grants with the
+<p><code>input.inject</code> and <code>screen.capture</code> see or drive the whole session,
+<code>process.spawn</code> runs any program as the user, and <code>input.grab-any</code> lets a
+client catch keys and buttons without a modifier, so they need a grant of
+the user for the client name. Milestone 0.7 replaces the grants with the
 capabilities of client sockets (D33, D40):</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>screen.capture<span class="w"> </span>input.inject
 <span class="gp">$ </span>choractl<span class="w"> </span>grants
@@ -1644,9 +1922,102 @@ capabilities of client sockets (D33, D40):</p>
 <span class="gp">$ </span>choractl<span class="w"> </span>revoke<span class="w"> </span>agent
 </code></pre></div>
 <p>A grant lasts until <code>choractl revoke</code> or the end of the session. The
-emergency reset revokes all grants. A grant protects against mistakes of
-agents, not against hostile code of the same user, which can call
-<code>grants.set</code> itself. <code>choractl mcp</code> offers no tool for grants.</p>
+emergency reset revokes all grants. A Wayland client of a client socket
+gets the grants of its name when it connects. A revoke of one of them,
+and the reset, disconnect it and drop its waiting frames. Only the admin socket changes grants.
+A process of the user on the host reaches the admin socket too. So a
+grant protects against hostile code only when that code sees its client
+socket alone, with the gaps that <a href="#client-sockets">Client sockets</a> lists.
+<code>choractl mcp</code> offers no tool for grants.</p>
+<h2 id="client-sockets">Client sockets<a class="headerlink" href="#client-sockets" title="Permanent link">&para;</a></h2>
+<p>A client socket fixes the name of its clients (D33). <code>clients.create</code>
+on the admin socket opens <code>clients/NAME/ipc.sock</code> below the directory of
+the main socket, which has mode 0700. <code>choractl clients create agent</code> prints its
+path:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"method"</span><span class="p">:</span><span class="w"> </span><span class="s2">"clients.create"</span><span class="p">,</span><span class="w"> </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"agent"</span><span class="p">}}</span>
+</code></pre></div>
+<ul>
+<li><code>clients.create</code> also opens <code>clients/NAME/wayland.sock</code>, a Wayland
+  socket for the windows of the client. Its answer has the <code>path</code> of the
+  IPC socket and the <code>wayland</code> path.</li>
+<li>A connection through it says <code>hello</code> with that name only.</li>
+<li>It cannot change grants or make client sockets, as these need the
+  admin socket.</li>
+<li>It fixes the name, confines the files and narrows the scene. On it,
+  <code>scene.apply</code> follows these rules. A refusal has code 1, names its
+  rule and carries the index of the command in <code>data</code>:</li>
+<li><code>focus_node</code> with a node needs the last press of the user on a node
+    or a window of the name. The press counts once, and a key press
+    ends it.</li>
+<li>A name that holds the focus of a node moves it to its other nodes
+    without a press.</li>
+<li>No <code>create</code> or <code>move</code> puts a node under <code>screen:*</code> or below it.</li>
+<li>No <code>camera</code> command works.</li>
+<li><code>attach</code>, <code>focus</code>, <code>close</code> and <code>configure</code> take only a window of its
+    own <code>wayland.sock</code> or a surface that the name owns.</li>
+<li><code>scene.query</code> on it returns only the nodes of the name and the windows
+  of its <code>wayland.sock</code>. The <code>surface.*</code> events come only for these
+  windows.</li>
+<li>A claim of the name gets only the new windows of its <code>wayland.sock</code>.</li>
+<li>The other methods answer by the name and its grants: a process that
+  may use the socket drives the session as far as that name may.</li>
+<li>Its <code>image</code>, <code>shader</code> and effect paths name only its own files of
+  <code>assets.put</code>. The main socket has no such rule: a client of it runs as
+  the same account as the core and could read those files anyway.</li>
+<li>It holds at most 16 connections, and its Wayland socket at most 16
+  clients. All client sockets together leave 32 connections to the main
+  socket.</li>
+<li>The main socket refuses a <code>hello</code> with a name that has a client
+  socket, so no client of the main socket takes that name.</li>
+<li><code>clients.create</code> fails for a name with a connection or in its grace
+  time, and beyond 64 client sockets.</li>
+<li>The name has lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, and starts
+  with a letter, at most 64 bytes; <code>hello</code> and <code>clients.create</code> refuse
+  everything else. Its socket path must fit a Unix socket. A second
+  <code>clients.create</code> of a name fails.</li>
+<li>The emergency reset removes the client sockets, and so does the exit of
+  chora.</li>
+</ul>
+<p>The callers of <code>methods.call</code> are certain only for names with a client
+socket.</p>
+<p>A Wayland client of <code>wayland.sock</code> gets the protocols of the main Wayland
+socket, with these exceptions:</p>
+<ul>
+<li>Screencopy and image capture need the grant <code>screen.capture</code> of the
+  name.</li>
+<li>The input method needs the grant <code>input.inject</code>.</li>
+<li>Output management, the session lock, both foreign toplevel protocols,
+  the security context manager, idle inhibit and idle notify are not
+  offered. On Wayland the client cannot lock the session, list the
+  windows, control the windows of others, open a socket of its own or
+  keep the screen awake. On <code>ipc.sock</code>, <code>focus_node</code> takes the keyboard
+  only after a press of the user on the client, as a token below does.</li>
+</ul>
+<p>The layer shell stays, so a panel can run in a container. Such a client
+can draw over all windows in the top layer, but the core refuses the
+overlay layer. A layer surface of it takes the keyboard on demand at
+most, never exclusively. After a click on it, it gets the keys until a
+click goes elsewhere. So a full-screen panel can look like a lock screen
+and read what the user types into it.</p>
+<p>An <code>xdg-activation</code> token or a popup grab of such a client needs the
+serial of its last key or button press, and never 0. A token also needs
+the keyboard focus on the client, and uses the press up. So the client
+takes the focus only after input, once per press. Synthetic input from
+<code>input.inject</code> sets that serial too, so a client with that grant can
+create the press itself. When the token is used, it must still be at
+most 10 s old and the client must still have the keyboard focus.</p>
+<p>The client gets the grants of the name at the time it connects. A
+revoke of a capability that it got disconnects it, and so does the
+emergency reset. Its frames of screencopy and image capture that wait
+then get nothing. Its socket closes at its next request. Its windows carry the name: a query shows it in
+<code>surface.client</code>. It reads the clipboard only while it has the keyboard
+focus, as every Wayland client does.</p>
+<p>A container that mounts only its client directory cannot take another
+name or give itself capabilities. One gap stays until a later step of
+0.7: a program of <code>process.spawn</code> gets <code>CHORA_SOCKET</code> and
+<code>WAYLAND_DISPLAY</code> of the core. So a grant of <code>process.spawn</code> gives a
+container the main IPC socket and the main Wayland socket with all
+protocols. D42 moves the start of programs out of the core.</p>
 <h2 id="programs">Programs<a class="headerlink" href="#programs" title="Permanent link">&para;</a></h2>
 <p><code>process.spawn(argv)</code> starts a program with the environment of the core,
 as the startup command (D30): <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> of this
@@ -1667,7 +2038,7 @@ program, up to 64 KiB each, for the client that started it.
 <code>process.wait(pid, timeout_ms)</code> waits until the program ends or the time
 is up, and answers with <code>pid</code>, <code>running</code>, <code>stdout</code>, <code>stderr</code>, <code>truncated</code>
 for output that went beyond 64 KiB, and, once the program ended, <code>status</code>:
-its exit code, or 128 and the signal. 100 ms after the end of the
+its exit code, or 128 plus the signal number. 100 ms after the end of the
 program, the core closes its pipes, also when a child in the background
 still holds them. The first answer after the end is the last one; then
 the core forgets the program. At most 32 programs of a client wait for
@@ -1811,7 +2182,7 @@ caller. The <code>Client</code> of <code>chora-scene</code> answers with <code>C
   exporter disconnects. A connection has at most 64 calls in flight, and it
   cannot call its own methods.</li>
 </ul>
-<p><code>chora-tiling</code> exports two methods:</p>
+<p><code>chora-tiling</code> exports three methods:</p>
 <table>
 <thead>
 <tr>
@@ -1830,6 +2201,11 @@ caller. The <code>Client</code> of <code>chora-scene</code> answers with <code>C
 <td><code>get_layout</code></td>
 <td>none</td>
 <td>the same</td>
+</tr>
+<tr>
+<td><code>give</code></td>
+<td><code>to</code>: a client name</td>
+<td>hands the focused window to <code>to</code> with a <code>remove</code> with <code>to</code>, and answers with its surface id</td>
 </tr>
 </tbody>
 </table>
@@ -1913,7 +2289,7 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tr>
 <tr>
 <td><code>subscribe_events</code></td>
-<td>start to collect events, and grab keys; <code>events</code> and <code>keys</code> as in <code>events.subscribe</code> and <code>input.grab</code>; replaces the current subscription</td>
+<td>start to collect events, and grab keys and buttons; <code>events</code> and <code>keys</code> as in <code>events.subscribe</code> and <code>input.grab</code>; replaces the current subscription</td>
 </tr>
 <tr>
 <td><code>wait_events</code></td>

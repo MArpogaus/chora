@@ -1142,9 +1142,19 @@ the official Rust MCP SDK (D34).</p>
 <td>fontdb and harfrust MIT; skrifa and read-fonts MIT OR Apache-2.0</td>
 </tr>
 <tr>
+<td>zune-jpeg</td>
+<td><code>chora-xp</code> decodes JPEG wallpapers, such as XP's Bliss, into its PNG cache</td>
+<td>MIT OR Apache-2.0 OR Zlib; Rust 1.75; with zune-core; resvg has it only behind <code>raster-images</code>, which also brings GIF and WebP</td>
+</tr>
+<tr>
 <td>chrono</td>
 <td>the clock of the taskbar of <code>chora-xp</code>, in local time</td>
 <td>MIT OR Apache-2.0; with iana-time-zone (MIT OR Apache-2.0)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/z-galaxy/zbus">zbus</a></td>
+<td>the notification server of <code>chora-xp</code> on the session bus, through its blocking API</td>
+<td>MIT; 5.19, because 6.0 has no blocking API; brings zvariant (MIT) and the smol crates (Apache-2.0 OR MIT)</td>
 </tr>
 </tbody>
 </table>
