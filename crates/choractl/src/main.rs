@@ -71,13 +71,14 @@ enum Cmd {
         /// The parameters as JSON; `null` if missing.
         params: Option<String>,
     },
-    /// Grant a client name `input.inject`, `screen.capture` or
-    /// `process.spawn`, until the session ends or a revoke. Goes through
-    /// the admin socket.
+    /// Grant a client name `input.inject`, `screen.capture`,
+    /// `process.spawn` or `input.grab-any`, until the session ends or a
+    /// revoke. Goes through the admin socket.
     Grant {
         /// The client name, for example `agent`.
         client: String,
-        /// `input.inject`, `screen.capture` or `process.spawn`.
+        /// One or more of `input.inject`, `screen.capture`,
+        /// `process.spawn` and `input.grab-any`.
         #[arg(required = true)]
         capabilities: Vec<Capability>,
     },
@@ -86,7 +87,8 @@ enum Cmd {
     Revoke {
         /// The client name.
         client: String,
-        /// `input.inject`, `screen.capture` or `process.spawn`.
+        /// One or more of `input.inject`, `screen.capture`,
+        /// `process.spawn` and `input.grab-any`.
         capabilities: Vec<Capability>,
     },
     /// Print the grants by client name.

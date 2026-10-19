@@ -64,6 +64,9 @@ fn check(kind: &str, code: &str) -> Result<(), String> {
         "inject" => parse_yaml::<Inject>(code).map(drop),
         "view" => parse_yaml::<View>(code).map(drop),
         "manifest" => parse_yaml::<Manifest>(code).map(drop),
+        "clients" => {
+            parse_yaml::<std::collections::BTreeMap<String, crate::ClientSpec>>(code).map(drop)
+        }
         other => Err(format!("unknown kind {other}")),
     }
 }

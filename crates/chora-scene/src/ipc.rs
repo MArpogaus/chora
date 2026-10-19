@@ -24,8 +24,9 @@ pub const MAX_NAME: usize = 64;
 
 /// Whether a method name or a client name is valid: lowercase letters,
 /// digits, `_`, `-` and `.`, starting with a letter, at most 64 bytes.
-/// The core refuses names like this in `hello`, `clients.create`, method
-/// exports and asset names; clients check before connecting.
+/// The core refuses names like this in `hello`, `clients.create` and
+/// method exports; asset names follow the rule of the core's uploads
+/// module; clients check before connecting.
 #[must_use]
 pub fn valid_name(name: &str) -> bool {
     name.len() <= MAX_NAME
@@ -37,7 +38,7 @@ pub fn valid_name(name: &str) -> bool {
 
 /// The admin socket next to an IPC socket, for example
 /// `wayland-1.admin.sock` next to `wayland-1.sock` (D40). Only `choractl`
-/// uses it, for grants and client sockets.
+/// uses it, for grants, client sockets and `camera.release`.
 #[must_use]
 pub fn admin_socket(socket: &Path) -> PathBuf {
     socket.with_extension("admin.sock")
@@ -478,9 +479,8 @@ impl std::str::FromStr for Capability {
             .into_iter()
             .find(|c| c.name() == s)
             .ok_or_else(|| {
-                format!(
-                    "unknown capability {s:?}; known: input.inject, screen.capture, process.spawn"
-                )
+                let known = Self::ALL.map(Self::name).join(", ");
+                format!("unknown capability {s:?}; known: {known}")
             })
     }
 }
