@@ -307,7 +307,9 @@ icon_at() {
         jq -r '.[0].transform.matrix | "\(.[12] + 40 | floor) \(.[13] + 40 | floor)"'
 }
 # The windows of the first desktop cover the icons; the second desktop
-# is empty and shows the same icons.
+# is empty and shows the same icons. A turn waits until the turn back of
+# step 12 ends: chora-xp runs in slow motion and ignores a second turn.
+wait_for has_node_count 0 id:xp-face-1
 keys 29+56+106 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 1 true
 wait_for has_node_count 0 id:xp-face-0
@@ -330,6 +332,7 @@ test -f "$HOME/Desktop/x.txt" || fail "Escape answered Yes"
 grim "$out/escape-no.png"
 keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
+wait_for has_node_count 0 id:xp-face-1
 
 # A token given before the first map reaches plugins through
 # surface.created.
