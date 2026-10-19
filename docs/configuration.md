@@ -19,6 +19,7 @@ chora -- chora-flavor tiling
 ├── flavors/            # bundles of views, plugins and services
 ├── plugins/            # plugin manifests
 ├── shaders/            # GLSL ES shaders
+├── clients.yaml        # the names and grants of `clients up`
 └── chora-tiling.yaml   # the options and bindings of chora-tiling
 ```
 
@@ -102,6 +103,24 @@ description: Tiles the windows with the tags and layouts of awesome.
 | `description` | what the plugin does |
 
 The package installs the manifest of `chora-tiling`.
+
+### Clients file
+
+`choractl clients up [FILE]` applies a file that maps client names to
+their grants (see [API](api.md#client-sockets)):
+
+<!-- parses: clients -->
+```yaml
+# ~/.config/chora/clients.yaml
+agent:
+  grants: [input.inject, screen.capture]
+showroom:
+  grants: []
+```
+
+The names follow the rules of `hello`. `clients up` opens the socket of
+every name and makes its grants equal to the list, so a grant missing
+from the file is revoked. Existing sockets and their connections stay.
 
 ## chora-tiling
 
@@ -248,9 +267,9 @@ right click on a task button open XP's system menu, in the look of the
 context menus below: Restore, Move, Size, Minimize, Maximize and Close in
 bold with `Alt+F4`, with XP's glyphs. Restore is gray unless the window is
 maximized or minimized, Minimize is gray for a minimized window and
-Maximize for a maximized one. Move and Size are always gray, as XP works
-them with the arrow keys, and the keyboard does not reach `chora-xp`
-(D45). The click on the icon opens the menu below the icon, the others at
+Maximize for a maximized one. Move and Size are always gray: `chora-xp`
+moves and sizes windows with the mouse, and does not have XP's keyboard
+commands for them. The click on the icon opens the menu below the icon, the others at
 the pointer. A double click on the icon closes the window, as on XP. A maximized window fills the work
 area above the taskbar. When an output changes, for example its mode or
 its scale, its shown windows move back into its work area. A window that
