@@ -194,6 +194,10 @@ pub struct State {
     pub button_grab: Option<ButtonGrab>,
     /// The node of the last `pointer.entered`.
     pub hovered: Option<String>,
+    /// The client name of the node or window that the last button press
+    /// hit; a key press ends it. A client socket uses it once for
+    /// `focus_node`.
+    pub pressed: Option<String>,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
     /// The last configure of each surface node: size and states.
@@ -322,6 +326,7 @@ impl State {
             node_grab: None,
             button_grab: None,
             hovered: None,
+            pressed: None,
             watchdog: Watchdog::from_env(),
             layer_focus: None,
             configured: HashMap::new(),

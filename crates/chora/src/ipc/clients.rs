@@ -241,7 +241,7 @@ impl State {
         Ok(())
     }
 
-    fn confine_one(&self, name: &str, command: &Command) -> Result<(), String> {
+    fn confine_one(&mut self, name: &str, command: &Command) -> Result<(), String> {
         match command {
             Command::Create { parent, .. }
             | Command::Move {
@@ -251,6 +251,9 @@ impl State {
                 "a client socket has no screen:* parents, and {parent:?} is on a screen"
             )),
             Command::Camera { .. } => Err("a client socket has no camera commands".into()),
+            Command::FocusNode { node: Some(_) } if !self.pressed_by(name) => Err(
+                "a client socket takes the keyboard with focus_node only right after a press on its own node or window".into(),
+            ),
             Command::Attach { surface, .. }
             | Command::Focus {
                 surface: Some(surface),
@@ -274,6 +277,14 @@ impl State {
             n.owner.as_deref() == Some(name)
                 || n.surface.as_ref().and_then(|s| s.client.as_deref()) == Some(name)
         })
+    }
+
+    /// Whether a client name holds the focus of a node already, or the
+    /// last press of the user hit it and is not used yet. As with an
+    /// activation token, the press counts once.
+    fn pressed_by(&mut self, name: &str) -> bool {
+        self.scene.focused_node_owner() == Some(name)
+            || self.pressed.take_if(|p| p == name).is_some()
     }
 
     /// Whether a node is an overlay root of an output or below one.

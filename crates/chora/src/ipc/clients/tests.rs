@@ -776,3 +776,58 @@ fn a_client_socket_adopts_no_foreign_window() {
     );
     assert_eq!(mine.as_deref(), Some("agent"));
 }
+
+/// A click at a point of the scene, down and up.
+fn click(core: &mut Core, at: (f64, f64)) {
+    crate::input::move_pointer(&mut core.state, at.into(), InputTime::now());
+    for state in [ButtonState::Pressed, ButtonState::Released] {
+        crate::input::press_button(&mut core.state, 272, state, InputTime::now());
+    }
+}
+
+/// A client socket takes the keyboard with `focus_node` only right after
+/// a click on its own node, once per click; a key press in between ends
+/// the chance.
+#[test]
+fn a_client_socket_focuses_a_node_only_after_its_own_press() {
+    let (mut core, dir, mut agent, _) = agent_ipc("focus-node");
+    let field = json!({"create": {"id": "field", "kind": "rect", "parent": "root",
+        "props": {"size": [100, 100], "color": [1, 1, 1, 1]}}});
+    agent.ok(&mut core, "scene.apply", apply(&json!([field])));
+    let focus = apply(&json!([{"focus_node": {"node": "field"}}]));
+    let unfocus = apply(&json!([{"focus_node": {}}]));
+    let refused = |agent: &mut crate::testing::Client, core: &mut Core| {
+        let (_, message) = agent.fails(core, "scene.apply", focus.clone());
+        assert!(message.contains("right after a press"), "{message}");
+    };
+    refused(&mut agent, &mut core);
+    click(&mut core, (10.0, 10.0));
+    agent.ok(&mut core, "scene.apply", focus.clone());
+    assert_eq!(core.state.scene.focused_node(), Some("field"));
+    // Holding the keyboard, it moves it among its nodes.
+    agent.ok(&mut core, "scene.apply", focus.clone());
+    agent.ok(&mut core, "scene.apply", unfocus);
+    refused(&mut agent, &mut core);
+    click(&mut core, (10.0, 10.0));
+    let a = smithay::input::keyboard::Keycode::new(38);
+    crate::input::key(
+        &mut core.state,
+        a,
+        KeyState::Pressed,
+        InputTime::now(),
+        false,
+    );
+    refused(&mut agent, &mut core);
+    // The main socket keeps focus_node without a press.
+    let mut wm = core.named("wm");
+    let menu = json!({"create": {"id": "menu", "kind": "group", "parent": "root"}});
+    wm.ok(
+        &mut core,
+        "scene.apply",
+        apply(&json!([menu, {"focus_node": {"node": "menu"}}])),
+    );
+    let focused = core.state.scene.focused_node().map(String::from);
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert_eq!(focused.as_deref(), Some("menu"));
+}

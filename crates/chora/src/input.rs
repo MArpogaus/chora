@@ -103,6 +103,9 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
     if state.lock.is_some() && keyboard.is_grabbed() {
         keyboard.unset_grab(state);
     }
+    if key_state == KeyState::Pressed {
+        state.pressed = None;
+    }
     let serial = SERIAL_COUNTER.next_serial();
     let action = keyboard.input(
         state,
@@ -550,6 +553,9 @@ fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
 
 /// A pointer button goes down or up.
 pub fn press_button(state: &mut State, code: u32, button_state: ButtonState, time: InputTime) {
+    if button_state == ButtonState::Pressed {
+        state.pressed = None;
+    }
     if grab_button(state, code, button_state, time) {
         return;
     }
@@ -660,10 +666,14 @@ fn press_node(state: &mut State, button: u32) {
     let Some(node) = render::node_under(state, &spot) else {
         return;
     };
-    let area = state
-        .scene
-        .node(&node)
-        .is_some_and(|n| n.kind != NodeKind::Surface);
+    let hit = state.scene.node(&node);
+    let area = hit.is_some_and(|n| n.kind != NodeKind::Surface);
+    // A window counts for the client that it came from.
+    state.pressed = hit.and_then(|n| {
+        n.surface
+            .as_ref()
+            .map_or(n.owner.clone(), |s| s.client.clone())
+    });
     let position = position_for(&state.scene, &state.outputs, &node, &spot);
     state.emit(&SceneEvent::PointerPressed {
         node: node.clone(),
