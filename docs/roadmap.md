@@ -66,14 +66,16 @@ add one to two weeks.
 
 ## 0.6: Foundation
 
-**Goal:** the project works with gates in the GitHub organization `chora`.
-Unit tests check the core in process.
+**Goal:** the project works with gates in the GitHub organization
+`chora-desktop`. Unit tests check the core in process.
 
 Scope:
 
-- The organization `chora` with the repositories of D36. The plugins move
-  to repositories of their own. They depend on `chora-scene` through a git
-  tag of the core.
+- The organization `chora-desktop` with the core repository (D36). The
+  split of the plugins into repositories of their own is postponed past
+  0.6; the plugins build with the core.
+- `camera.release` on the admin socket: the administrator takes the
+  camera of an output from its owner, live or gone.
 - The git flow of D47 in every repository: a protected `main`, releases
   from a merge commit and an annotated tag.
 - The release workflow starts from a tag and needs a green CI run of the
@@ -87,26 +89,23 @@ Scope:
   path as the screen.
 - A smoke test in a VM with `vkms` in CI (D11). chora starts on the tty
   backend and shows a foot window. A capture shows its pixels.
-- The website repository builds the user documentation. The reference
-  documentation stays with the code of the core.
+- The reference documentation stays with the code of the core; the
+  website repository follows with the split (D36).
 
 Gate:
 
-1. Every repository of D36 exists, and `main` accepts pull requests only.
+1. The organization `chora-desktop` and the core repository exist, and
+   `main` accepts pull requests only.
 2. A test release `v0.6.0-rc.1` comes from a tag on a merge commit. A
    tag on a commit with red CI starts no release.
 3. `cargo test` runs at least 40 unit tests of the core crate for IPC,
    transactions, focus and grants, without a compositor.
 4. One pixel test runs in process on the headless backend.
 5. The `vkms` job is green in 10 runs in a row.
-6. `chora-tiling` and `chora-xp` build and pass their tests in their own
-   repositories against the tag of the core.
-7. `tests/nested.sh`, `tests/agent.sh` and `tests/xp.sh` are green in CI.
-8. `rust-toolchain.toml` pins the toolchain, and the job for the minimum
+6. `tests/nested.sh`, `tests/agent.sh` and `tests/xp.sh` are green in CI.
+7. `rust-toolchain.toml` pins the toolchain, and the job for the minimum
    Rust version is green.
-9. Every container image in the workflows has a digest.
-10. The website builds from its repository.
-11. The showroom CI is green against the release candidate.
+8. Every container image in the workflows has a digest.
 
 ## 0.7: Identity and processes
 
@@ -337,8 +336,9 @@ Gate:
 
 ## Track: XP showroom
 
-The showroom moves to `chora/chora-xp` in milestone 0.6 and grows in
-parallel (D39). It shows the effects of the scene and serves as their test.
+The showroom grows in the core repository through 0.6 and moves to
+`chora-desktop/chora-xp` with the postponed split (D36, D39). It shows
+the effects of the scene and serves as their test.
 
 - Each core milestone ends with a showroom release that uses its API. The
   core gate checks that the showroom CI is green against the release
@@ -348,8 +348,8 @@ parallel (D39). It shows the effects of the scene and serves as their test.
 
 ## Track: voice pipeline
 
-The voice pipeline lives in `chora/chora-voice` and starts with milestone
-0.6 (D53). It runs as Quadlet units on the reference hardware: speech to
+The voice pipeline lives in `chora-desktop/chora-voice` and starts with
+milestone 0.6 (D53). It runs as Quadlet units on the reference hardware: speech to
 text, a router model, a main model and text to speech, served by
 [Gufo](https://github.com/gufo-org/gufo).
 
