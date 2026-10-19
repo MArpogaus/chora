@@ -389,7 +389,7 @@ impl Wm {
                         opened.push((k.opened, node.id.clone()));
                     }
                     let info = node.surface.unwrap_or_default();
-                    self.adopt(&node.id, info.app_id, info.title.as_deref())?;
+                    self.adopt(&node.id, info.app_id, info.title.as_deref(), None)?;
                 }
                 Next::Explorer(k) => {
                     let place = k.opened;
@@ -555,13 +555,14 @@ impl Wm {
                 surface,
                 app_id,
                 title,
+                to,
                 ..
-            } => return self.adopt(&surface, app_id, title.as_deref()),
+            } => return self.adopt(&surface, app_id, title.as_deref(), to.as_deref()),
             Event::SurfaceDetached { surface } => {
                 let commands = self.forget(&surface);
                 self.apply(commands)?;
                 // Free again, so it is free to take, as at the start.
-                return self.adopt(&surface, None, None);
+                return self.adopt(&surface, None, None, None);
             }
             Event::SurfaceDestroyed { surface } => self.forget(&surface),
             Event::SurfaceChanged {
@@ -673,8 +674,9 @@ impl Wm {
         surface: &str,
         app_id: Option<String>,
         title: Option<&str>,
+        to: Option<&str>,
     ) -> Result<(), ClientError> {
-        if self.index(surface).is_some() {
+        if !takes(to) || self.index(surface).is_some() {
             return Ok(());
         }
         let previous = self.focused.clone();
@@ -3105,6 +3107,12 @@ fn is_own(client: &str) -> bool {
     client == NAME
 }
 
+/// Whether chora-xp takes a created surface: a free one, or one the core
+/// reserved for it. A surface of another window manager does nothing.
+fn takes(to: Option<&str>) -> bool {
+    to.is_none_or(is_own)
+}
+
 fn close(surface: &str) -> Vec<Command> {
     vec![Command::Close {
         surface: surface.into(),
@@ -3188,6 +3196,13 @@ mod tests {
         assert!(is_own("xp"));
         assert!(!is_own("tiling"));
         assert!(!is_own(""));
+    }
+
+    #[test]
+    fn a_surface_of_another_window_manager_is_nothing_to_do() {
+        assert!(takes(None));
+        assert!(takes(Some("xp")));
+        assert!(!takes(Some("tiling")));
     }
 
     #[test]
