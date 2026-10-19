@@ -156,6 +156,7 @@ claims, any window manager can take the new surface.
 |----------|--------|
 | Versioned docs with mike are too much | The project conventions use mike. |
 | Hooks without matching files | The project conventions use this hook set in every repository. |
+| Cairo and Pango, or another 2D engine, in the core | The core composites and draws no vector graphics. Text comes from the text node on cosmic-text (D18), shapes from rects and shader nodes. Plugins draw rich chrome themselves, for example with tiny-skia and resvg. |
 | An exclusive keyboard grab | Typing must work. Clients that need every key get it through Wayland (D45). |
 | A 3D node with depth buffer in the core | It makes the core an engine. 3D scenes belong in clients (D19). |
 | A rewrite from scratch | The scene model, the API and the safety layer hold. The milestones change the rest step by step (D52). |
