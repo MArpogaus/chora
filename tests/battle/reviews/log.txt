@@ -1,0 +1,24 @@
+2026-10-19T16:05:56+00:00 | Marcel loescht target/ (60 GB): alle Review-Artefakte und Binaries weg; Neustart der Runden; Build laeuft mit cargo aus mamba-env chora
+2026-10-19T16:38:26+00:00 | round 1 (nach target-Loeschung, 32 min): CLEAN (CLEAN=1)
+2026-10-19T17:08:14+00:00 | round 1 | pi exit=0 session=2026-10-19T16-48-59-791Z_01a15510-ff8e-7504-9759-b84598eae5dd.jsonl
+2026-10-19T17:08:14+00:00 | round 1 | findings, STOP fuer Fix-Schritt
+2026-10-19T17:45:57+00:00 | fix round 1 | pi exit=0 session=2026-10-19T17-11-02-015Z_01a15525-2c7d-7439-9351-ad00d12a6950.jsonl
+2026-10-19T18:23:33+00:00 | round 1 | pi exit=0 session=2026-10-19T18-05-45-478Z_01a15557-4685-73b7-b050-cf85f858d30f.jsonl diffcalls=20 mutating=1
+2026-10-19T18:23:33+00:00 | round 1 | findings oder Audit unguenstig, Fix-Schritt
+2026-10-19T18:27:13+00:00 | fix round 1 | pi exit=0
+2026-10-19T18:58:59+00:00 | round 2 | pi exit=0 session=2026-10-19T18-27-13-622Z_01a1556a-ee56-76b1-9e92-5e2fabe79605.jsonl diffcalls=10 mutating=1
+2026-10-19T18:58:59+00:00 | round 2 | findings oder Audit unguenstig, Fix-Schritt
+2026-10-19T19:02:17+00:00 | fix round 2 | pi exit=0
+2026-10-19T19:07:09+00:00 | runde 2 nach Praeferenz-Korrektur als CLEAN gewertet (No findings, Audit mut=0, diffcalls=10); Treiber neu gestartet
+2026-10-19T19:31:37+00:00 | round 3 | pi exit=0 session=2026-10-19T19-07-09-538Z_01a1558f-7d5d-760a-bffa-20dde87e1df1.jsonl diffcalls=3 mutating=0
+2026-10-19T19:31:37+00:00 | round 3 | findings oder Audit unguenstig, Fix-Schritt
+2026-10-19T19:32:35+00:00 | fix round 3 | pi exit=0
+2026-10-19T19:55:54+00:00 | round 4 | pi exit=0 session=2026-10-19T19-32-36-130Z_01a155a6-c8a0-74d8-9789-51e0773e5e57.jsonl diffcalls=25 mutating=1
+2026-10-19T19:55:54+00:00 | round 4 | findings oder Audit unguenstig, Fix-Schritt
+2026-10-19T20:01:13+00:00 | fix round 4 | pi exit=0
+2026-10-19T20:25:43+00:00 | round 6 | pi exit=0 session=2026-10-19T20-02-48-950Z_01a155c2-71f5-7421-a252-85caeee1e4d8.jsonl diffcalls=5 mutating=0
+2026-10-19T20:25:43+00:00 | round 6 | findings oder Audit unguenstig, Fix-Schritt
+2026-10-19T20:27:44+00:00 | fix round 6 | pi exit=0
+2026-10-19T20:54:42+00:00 | round 7 | pi exit=0 session=2026-10-19T20-34-40-236Z_01a155df-9beb-749f-9fdb-5b5dbbcf2209.jsonl diffcalls=15 mutating=0
+2026-10-19T20:54:42+00:00 | round 7 | CLEAN (2)
+2026-10-19T20:54:42+00:00 | zwei CLEAN -> PHASE=battle
