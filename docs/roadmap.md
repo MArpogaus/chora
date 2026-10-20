@@ -54,7 +54,7 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.
 | Milestone | Rust lines | Agent hours | User hours | Calendar |
 |-----------|-----------:|------------:|-----------:|---------:|
 | 0.6 Foundation | 2,500 | 14 to 18 | 3 | 1 week |
-| 0.7 Identity and processes | 3,000 | 16 to 20 | 3 | 1 to 2 weeks |
+| 0.7 Identity, processes and read model basics | 3,000 | 16 to 20 | 3 | 1 to 2 weeks |
 | 0.8 Agent read model | 4,600 | 23 to 30 | 3 | 2 weeks |
 | 0.9 Renderer | 7,000 | 40 to 50 | 6 | 3 weeks |
 | 0.10 Daily driver | 2,500 | 20 to 30 | 8 plus daily use | 3 weeks |
@@ -65,6 +65,9 @@ The renderer has the largest risk. A fault on real hardware in 0.10 can
 add one to two weeks.
 
 ## 0.6: Foundation
+
+Released as `v0.6.0` on 2026-10-19 without the gate checks 1, 2 and 5.
+These checks moved to the gate of 0.7.
 
 **Goal:** the project works with gates in the GitHub organization
 `chora-desktop`. Unit tests check the core in process.
@@ -120,42 +123,64 @@ Gate:
    Rust version is green.
 8. Every container image in the workflows has a digest.
 
-## 0.7: Identity and processes
+## 0.7: Identity, processes and the basics of the read model
 
 **Goal:** a client cannot take another name or give itself capabilities,
-and the core starts no programs.
+the core starts no programs, and an agent can see focus and geometry
+without guessing.
 
 Scope:
 
 - The client socket also fixes the capabilities of its clients: the
   socket decides which methods a connection may use (D33).
-- An admin socket for `choractl` only. `grants.set`, `grants.revoke` and
-  `clients.create` work through it alone.
 - A versioned `hello` with the protocol version and the features of both
   sides (D29). Until then `hello` answers with the version of the build,
   and the client library warns on a mismatch.
-- Structured errors: a stable code for each kind of failure, and `data`
-  with the index of the failed command.
+- Stable error codes: one code for each kind of failure. The error data
+  already names the failed command.
 - `process.spawn`, `process.wait` and `plugins.restart` leave the core
   (D42). `choractl run` starts a program through `systemd-run --user` with
-  an activation token. `systemctl --user restart` restarts a plugin.
-  journald keeps the output.
+  an activation token. Without a reachable user systemd, `choractl` starts
+  and restarts the program itself. `choractl supervise` restarts a plugin
+  that ends.
+- Focus in queries: the surface and the node that have the keyboard.
+- Queries return the screen rectangle of a node on each output.
+- `choractl wait SELECTOR` returns when a node matches, or fails after a
+  timeout.
+- `input.inject` keeps a button down across requests with `hold`, so that
+  a drag can span several requests. A dry run checks a batch without
+  applying it.
+- `chora-tiling` exports methods for tags, focus and moves. `chora-xp`
+  exports methods for the start menu, minimize, restore and Restart.
+- Small fixes from the battle test: compact JSON from `choractl spawn`,
+  a clear error from `clients create` for a taken name,
+  `chora-probe --exit-on-close`, and `tests/ipc-bench.sh` on the headless
+  session.
 
 Gate:
 
-1. A Podman container that mounts only `clients/agent/` queries the scene
+1. The organization `chora-desktop` and the core repository exist, and
+   `main` accepts pull requests only (from 0.6).
+2. A test release `v0.7.0-rc.1` comes from a tag on a merge commit. A
+   tag on a commit with red CI starts no release (from 0.6).
+3. The `vkms` job is green in 10 runs in a row (from 0.6).
+4. A Podman container that mounts only `clients/agent/` queries the scene
    and draws a node. Its `grants.set` and its `hello` with another name
    fail. A CI job checks this.
-2. A Quadlet unit from `dist/` connects through its client directory
+5. A Quadlet unit from `dist/` connects through its client directory
    after a restart of chora, without a change to the unit.
-3. A client with `input.grab-any` grabs F13 and a letter key. A client
+6. A client with `input.grab-any` grabs F13 and a letter key. A client
    without it gets the error code for a missing capability.
-4. The core has no code that forks a process except the startup command.
-5. `choractl run foot` starts foot in its own systemd scope, and the
+7. The core has no code that forks a process except the startup command.
+8. `choractl run foot` starts foot in its own systemd scope, and the
    `surface.created` event of its window carries the activation token.
-6. Each error code of the API has a test that provokes it.
-7. The gate checks of the earlier milestones still hold, and the showroom CI
-   is green against the release candidate.
+   Without a user systemd, the same command starts foot directly.
+9. Each error code of the API has a test that provokes it.
+10. The battle workflows in `tests/battle/` pass with `choractl wait`, the
+    focus and the rectangles of queries and the plugin methods, without
+    pixel clicks.
+11. The gate checks of the earlier milestones still hold, and the showroom
+    CI is green against the release candidate.
 
 ## 0.8: Agent read model
 
@@ -168,9 +193,7 @@ Scope:
   and visibility.
 - `events.subscribe` starts with a snapshot of the state, and every event
   has a sequence number.
-- Focus in queries.
-- Queries return the screen rectangle of a node on each output.
-  `input.inject` takes a node and a point inside it.
+- `input.inject` takes a node and a point inside it.
 - A client that does not own a node can request a change: focus, move,
   resize or close. The core sends the request to the owner as an event,
   and the owner decides (D31). `chora-tiling` handles the requests.
@@ -365,5 +388,7 @@ speech to text, a router model, a main model and text to speech, served by
 
 ## After 1.0
 
+- Small plugins that window managers share: a panel with a task list and
+  the notifications. Until then, shared code lives in `chora-kit`.
 - Conformance tests with wlcs.
 - Items from the [Idea backlog](ideas.md).
