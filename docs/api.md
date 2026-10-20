@@ -45,7 +45,7 @@ This table is the one list of node properties.
 | `owner` | all | client name of the owner; read-only |
 | `to` | surface | the only client name that can attach this detached surface, after a `remove` with `to` or for a new toplevel; read-only |
 | `claim` | all | `[x, y, w, h]` in scene coordinates: the area of the owner as a window manager; a new toplevel can go to it (see [below](#window-managers)); `null` removes the claim |
-| `transform` | all | a 4x4 matrix, or the short form translate, scale, rotate |
+| `transform` | all | a 4x4 matrix in column-major order, with the translation at the indices 12 to 14, or the short form translate, scale, rotate |
 | `opacity`, `visible` | all | |
 | `clip` | group, rect, image, shader | `{"radius": r}`: the node and its descendants show only inside its size, with corners rounded by `r` logical pixels, and take pointer input only there; the node becomes a layer; `null` removes the clip |
 | `effects` | group, rect, image | up to 8 effects `{"shader": path, "uniforms": {name: number or 2 to 4 numbers}}`; the node becomes a layer, and the core applies the shaders in order; `[]` removes them |
@@ -292,7 +292,9 @@ list of a plugin scrolls:
  "dx": 0, "dy": 15, "discrete": [0, 1], "source": "wheel", "modifiers": []}
 ```
 
-Later milestones add events for size limits.
+The number of nodes has no limit. The watchdog limits their cost: when
+frames stay slow, it blames the client whose nodes cost the most (see
+`effects.dropped`). Later milestones add events for size limits.
 
 ## IPC methods
 
