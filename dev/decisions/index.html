@@ -1427,8 +1427,8 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D42</td>
-<td>The core starts no program except the startup command; <code>choractl run</code> starts programs through <code>systemd-run --user</code> with an activation token; <code>systemctl --user restart</code> restarts a plugin; journald keeps the output</td>
-<td>systemd already supervises processes. The activation token links a program to its window.</td>
+<td>The core starts no program except the startup command; <code>choractl run</code> starts programs through <code>systemd-run --user</code> with an activation token; <code>systemctl --user restart</code> restarts a plugin; journald keeps the output; without a reachable user systemd, <code>choractl</code> starts and restarts programs itself, decided at run time</td>
+<td>systemd already supervises processes. Test sessions and sandboxes have no user systemd; the fallback lives in <code>choractl</code>, so the core stays free of forks and one binary serves both. The activation token links a program to its window.</td>
 </tr>
 <tr>
 <td>D43</td>
