@@ -73,7 +73,7 @@ open() { ctl spawn "$bin/chora-probe" window "$@" | sed -n 's/.*"pid": \([0-9]*\
 # count_windows -> number of chora-probe toplevels
 count_windows() { ctl query "app_id:chora-probe kind:surface" | grep -c '"id"'; }
 
-# inject <json> 
+# inject <json>
 inject() { echo "$1" | timeout 10 "$bin/choractl" --name agent inject; }
 
 # stopfile: Marcel stops everything with PHASE=done

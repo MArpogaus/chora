@@ -4,12 +4,12 @@ tools:   {'bash': 79, 'read': 26}
 git diff calls: 15
   cd /home/marcel/Projekte/chora && git log --oneline v0.5.4..HEAD | head -50 && echo ---- && git diff --stat v0.5.4..HEAD | tail -20
   cd /home/marcel/Projekte/chora && git diff --stat v0.5.4..HEAD | head -180
-  cd /home/marcel/Projekte/chora && mkdir -p /tmp/rev && git diff v0.5.4..HEAD -- crates/chora/src/ipc.rs crates/chora/src/security.rs crates/chora/src/grants.rs 
+  cd /home/marcel/Projekte/chora && mkdir -p /tmp/rev && git diff v0.5.4..HEAD -- crates/chora/src/ipc.rs crates/chora/src/security.rs crates/chora/src/grants.rs
 files read: 26 distinct 19
 commands (79), first 5 and last 15:
   cd /home/marcel/Projekte/chora && git log --oneline v0.5.4..HEAD | head -50 && echo ---- && git diff --stat v0.5.4..HEAD | tail -20
   cd /home/marcel/Projekte/chora && git diff --stat v0.5.4..HEAD | head -180
-  cd /home/marcel/Projekte/chora && mkdir -p /tmp/rev && git diff v0.5.4..HEAD -- crates/chora/src/ipc.rs crates/chora/src/security.rs crates/chora/src/grants.rs 
+  cd /home/marcel/Projekte/chora && mkdir -p /tmp/rev && git diff v0.5.4..HEAD -- crates/chora/src/ipc.rs crates/chora/src/security.rs crates/chora/src/grants.rs
   cd /home/marcel/Projekte/chora && git diff v0.5.4..HEAD -- crates/chora/src/input.rs crates/chora/src/transaction.rs crates/chora/src/protocols.rs crates/chora/
   rm -rf /tmp/rev && mkdir -p /tmp/rev && cd /home/marcel/Projekte/chora && git diff v0.5.4..HEAD -- . ':(exclude)target' ':(exclude)services/voice' ':(exclude)Ca
   ...
