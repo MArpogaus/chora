@@ -686,7 +686,7 @@ whose origin is (0, 0), or in the coordinates of the node.
 | Event | Fields |
 |-------|--------|
 | `pointer_move` | `position` in the logical coordinates of the output, as in a capture; `output`, the first one by default |
-| `button` | `button`, a Linux code, 272 (left) by default; `state`: `pressed` or `released` |
+| `button` | `button`, a Linux code, 272 (left) by default; `state`: `pressed` or `released`; `hold`: a press stays down when the request ends |
 | `click` | `button`; presses and releases it |
 | `scroll` | `dx` and `dy` in logical pixels; a positive `dy` scrolls down |
 | `key` | `key`: a keysym name such as `Return`, or a Linux key code such as 28; `state` |
@@ -699,6 +699,8 @@ whose origin is (0, 0), or in the coordinates of the node.
   a key with Shift or `AltGr` at most.
 - Keys and buttons that the events leave down go up at the end of the
   request, so that no key sticks.
+- A button press with `hold` stays down. A later button event releases
+  it, in the same request or in a later one.
 - Injected keys never reach the safety layer: Ctrl+Alt+BackSpace,
   Ctrl+Alt+Escape and the VT switch do nothing. The grabs of plugins see
   them, and the focused surface gets the rest.

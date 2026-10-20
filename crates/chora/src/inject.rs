@@ -2,7 +2,8 @@
 //! user and fails while the session is locked, so that no client types into
 //! the lock screen. Injected keys never reach the safety layer (D23); the
 //! grabs of plugins see them. Keys and buttons that a request leaves down
-//! go up at its end, so that no key sticks.
+//! go up at its end, so that no key sticks. A button press with `hold`
+//! stays down until a later event releases it.
 //!
 //! Key names and text resolve through the first layout of the keymap: a
 //! character needs a key of that layout, with Shift or `AltGr` at most.
@@ -41,7 +42,8 @@ const XKB_OFFSET: u32 = 8;
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Step {
     Move(Point<f64, Logical>),
-    Button(u32, ButtonState),
+    /// The button, its state, and whether a press stays down at the end.
+    Button(u32, ButtonState, bool),
     Scroll(f64, f64),
     Key(Keycode, KeyState),
 }
@@ -105,12 +107,14 @@ impl State {
             InjectEvent::PointerMove { position, output } => {
                 vec![Step::Move(self.inject_point(*position, output.as_deref())?)]
             }
-            InjectEvent::Button { button, state } => {
-                vec![Step::Button(*button, button_state(*state))]
-            }
+            InjectEvent::Button {
+                button,
+                state,
+                hold,
+            } => vec![Step::Button(*button, button_state(*state), *hold)],
             InjectEvent::Click { button } => vec![
-                Step::Button(*button, ButtonState::Pressed),
-                Step::Button(*button, ButtonState::Released),
+                Step::Button(*button, ButtonState::Pressed, false),
+                Step::Button(*button, ButtonState::Released, false),
             ],
             InjectEvent::Scroll { dx, dy } => vec![Step::Scroll(*dx, *dy)],
             InjectEvent::Key { key, state } => {
@@ -152,8 +156,9 @@ impl State {
             let now = InputTime::now();
             match *step {
                 Step::Move(point) => input::move_pointer(self, point, now),
-                Step::Button(button, state) => {
-                    note(&mut buttons_down, button, state == ButtonState::Pressed);
+                Step::Button(button, state, hold) => {
+                    let pressed = state == ButtonState::Pressed && !hold;
+                    note(&mut buttons_down, button, pressed);
                     input::press_button(self, button, state, now);
                 }
                 Step::Scroll(dx, dy) => input::scroll(self, dx, dy, now),
@@ -377,6 +382,66 @@ fn press(mods: &[Keycode], code: Keycode) -> Vec<Step> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::Core;
+    use serde_json::json;
+
+    /// The button events of a watcher, as names.
+    fn button_press(hold: bool) -> Value {
+        let mut button = json!({"state": "pressed"});
+        if hold {
+            button["hold"] = json!(true);
+        }
+        json!({"events": [{"button": button}]})
+    }
+
+    #[test]
+    fn a_held_button_stays_down_until_a_later_request_releases_it() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut ctl = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        ctl.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        // The watcher reports the button events of its rect at the origin.
+        let mut watcher = core.named("watcher");
+        watcher.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "menu", "kind": "rect",
+                "parent": "root", "props": {"size": [100, 100],
+                "color": [1, 1, 1, 1]}}}]}),
+        );
+        watcher.ok(&mut core, "events.subscribe", json!({"events": []}));
+        agent.ok(
+            &mut core,
+            "input.inject",
+            json!({"events": [{"pointer_move": {"position": [50.0, 50.0]}}]}),
+        );
+        watcher.event_names(&mut core);
+        agent.ok(&mut core, "input.inject", button_press(true));
+        let names = watcher.event_names(&mut core);
+        assert!(names.iter().any(|e| e == "pointer.pressed"), "{names:?}");
+        assert!(
+            !names.iter().any(|e| e == "pointer.released"),
+            "the held button stays down: {names:?}"
+        );
+        // A second request releases it.
+        agent.ok(
+            &mut core,
+            "input.inject",
+            json!({"events": [{"button": {"state": "released"}}]}),
+        );
+        let names = watcher.event_names(&mut core);
+        assert!(names.iter().any(|e| e == "pointer.released"), "{names:?}");
+        // Without hold the core releases the button at the end.
+        agent.ok(&mut core, "input.inject", button_press(false));
+        let names = watcher.event_names(&mut core);
+        assert!(names.iter().any(|e| e == "pointer.pressed"), "{names:?}");
+        assert!(
+            names.iter().any(|e| e == "pointer.released"),
+            "the request ends its buttons: {names:?}"
+        );
+    }
 
     fn us() -> Keys {
         let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);

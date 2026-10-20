@@ -577,7 +577,7 @@ pub struct Picture {
 #[serde(deny_unknown_fields)]
 pub struct Inject {
     /// The events, in order. Keys and buttons that they leave down go up
-    /// at the end.
+    /// at the end, unless a button press holds.
     pub events: Vec<InjectEvent>,
 }
 
@@ -602,6 +602,10 @@ pub enum InjectEvent {
         button: u32,
         /// Pressed or released.
         state: PressState,
+        /// A press that stays down after the request ends; a later event
+        /// releases it.
+        #[serde(default)]
+        hold: bool,
     },
     /// Presses and releases a pointer button.
     Click {
