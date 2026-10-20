@@ -922,7 +922,7 @@ impl State {
         let fixed = self.ipc.fixed(conn);
         let mut nodes = self.scene.query(&selector);
         nodes.retain(|n| fixed.is_none_or(|f| clients::own_node(n, f)));
-        // Rule 5: only the nodes that survived the filter can show a focus.
+        // (D33): only the nodes that survived the filter can show a focus.
         let focus = [self.scene.focused_surface(), self.scene.focused_node()];
         let rects = self.screen_rects();
         let nodes: Vec<Value> = nodes
