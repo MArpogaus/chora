@@ -385,7 +385,7 @@ mod tests {
     use crate::testing::Core;
     use serde_json::json;
 
-    /// The button events of a watcher, as names.
+    /// An `input.inject` request that presses the left button, with `hold`.
     fn button_press(hold: bool) -> Value {
         let mut button = json!({"state": "pressed"});
         if hold {
