@@ -1309,7 +1309,7 @@ empties it.</p>
 <tr>
 <td><code>transform</code></td>
 <td>all</td>
-<td>a 4x4 matrix, or the short form translate, scale, rotate</td>
+<td>a 4x4 matrix in column-major order, with the translation at the indices 12 to 14, or the short form translate, scale, rotate</td>
 </tr>
 <tr>
 <td><code>opacity</code>, <code>visible</code></td>
@@ -1683,7 +1683,9 @@ list of a plugin scrolls:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"pointer.scroll"</span><span class="p">,</span><span class="w"> </span><span class="nt">"node"</span><span class="p">:</span><span class="w"> </span><span class="s2">"start-menu"</span><span class="p">,</span><span class="w"> </span><span class="nt">"position"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="mi">700</span><span class="p">],</span>
 <span class="w"> </span><span class="nt">"dx"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">"dy"</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span><span class="w"> </span><span class="nt">"discrete"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="nt">"source"</span><span class="p">:</span><span class="w"> </span><span class="s2">"wheel"</span><span class="p">,</span><span class="w"> </span><span class="nt">"modifiers"</span><span class="p">:</span><span class="w"> </span><span class="p">[]}</span>
 </code></pre></div>
-<p>Later milestones add events for size limits.</p>
+<p>The number of nodes has no limit. The watchdog limits their cost: when
+frames stay slow, it blames the client whose nodes cost the most (see
+<code>effects.dropped</code>). Later milestones add events for size limits.</p>
 <h2 id="ipc-methods">IPC methods<a class="headerlink" href="#ipc-methods" title="Permanent link">&para;</a></h2>
 <p>JSON-RPC 2.0, one message per line, on the socket in <code>CHORA_SOCKET</code>. A
 client sends <code>hello</code> first. A method that changes the session or needs a

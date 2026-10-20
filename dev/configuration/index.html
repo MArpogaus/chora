@@ -1233,6 +1233,8 @@ their grants (see <a href="../api/#client-sockets">API</a>):</p>
 every name and makes its grants equal to the list, so a grant missing
 from the file is revoked. Existing sockets and their connections stay.</p>
 <h2 id="chora-tiling">chora-tiling<a class="headerlink" href="#chora-tiling" title="Permanent link">&para;</a></h2>
+<p><code>chora-tiling</code> connects with the client name <code>tiling</code>. Grants and
+<code>choractl restart</code> use this name.</p>
 <p><code>chora-tiling</code> reads <code>chora/chora-tiling.yaml</code> in <code>$XDG_CONFIG_HOME</code>, by
 default <code>~/.config</code>, or the file of <code>--config</code>. Without a file, it uses its
 default, which <code>chora-tiling --print-config</code> prints. The file lists every
@@ -1321,7 +1323,8 @@ start, restart and order, so chora needs no service manager.</p>
 A copy of the directory in <code>~/.config/chora/flavors/tiling/</code> replaces it.</p>
 <h3 id="the-xp-flavor">The XP flavor<a class="headerlink" href="#the-xp-flavor" title="Permanent link">&para;</a></h3>
 <p>The XP flavor is the showroom (D39): a stacking desktop in
-the style of Windows XP. It is a demo, not a daily driver.</p>
+the style of Windows XP. It is a demo, not a daily driver. <code>chora-xp</code>
+connects with the client name <code>xp</code>.</p>
 <div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/xp/
 ├── chora-xp.target              # wants the two units below
 ├── chora-xp-wm.service          # chora-xp
