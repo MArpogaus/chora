@@ -1699,7 +1699,11 @@ use it; <code>choractl clients up [FILE]</code> applies a YAML file of
 <code>NAME: { grants: [...] }</code> entries: it opens the socket of every name
 and makes its grants equal to the list, so grants that are missing from
 the file are revoked. An existing socket is kept (<code>clients.create</code>
-answers the <code>socket_exists</code> reason) and its connections stay. Without a
+answers the <code>socket_exists</code> reason) and its connections stay; while a
+name is connected or in its grace time the socket cannot open
+(<code>clients.create</code> answers the <code>connected</code> reason). <code>choractl clients up</code>
+reports both reasons and goes on with the remaining names, syncing only
+the grants of that name. Without a
 file argument the first of <code>$XDG_CONFIG_HOME/chora/clients.yaml</code> and
 <code>~/.config/chora/clients.yaml</code> is read, <code>-</code> for stdin. The core
 answers every request.</p>
@@ -1769,7 +1773,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>output.add(spec)</code>, <code>output.remove(output)</code></td>
-<td>for tests on the headless backend only: add a virtual output <code>WxH[@SCALE][+X+Y]</code>, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and <code>WxH</code> divided by <code>SCALE</code> must stay within 16384 a side; other backends refuse, and the last output stays; <code>choractl add-output</code> and <code>choractl remove-output</code> call them</td>
+<td>for tests on the headless backend only: add a virtual output <code>WxH[@SCALE][+X+Y]</code>, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and <code>WxH</code> divided by <code>SCALE</code> must stay within 16384 a side and at most 16 outputs are live; other backends refuse, and the last output stays; <code>choractl add-output</code> and <code>choractl remove-output</code> call them</td>
 </tr>
 <tr>
 <td><code>clients.list</code></td>
