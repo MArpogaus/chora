@@ -18,7 +18,7 @@ use std::{
 };
 
 use chora_scene::{
-    Binding, Event, NodeKind, Placed, Selector, Transform,
+    Binding, Event, Node, NodeKind, Placed, Selector, Transform,
     ipc::{Apply, Capability, Edges, Grab, Hello, Message, Query, Request, RpcError, Subscribe},
 };
 use serde::de::DeserializeOwned;
@@ -960,7 +960,10 @@ impl State {
             let shown = views.iter().flat_map(|(camera, list)| {
                 list.iter().filter_map(move |placed| {
                     let transform = camera.then(&placed.transform);
-                    Some((placed.node, self.screen_rect(placed, &transform, screen)?))
+                    Some((
+                        placed.node,
+                        self.screen_rect(placed, camera, &transform, screen)?,
+                    ))
                 })
             });
             for (node, rect) in shown {
@@ -979,31 +982,40 @@ impl State {
 
     /// The rectangle of one placed node with its absolute transform on an
     /// output, if it shows there. Under a rotation or a mesh this is the
-    /// bounding box; the renderer draws those through a node texture and
-    /// reads no exact shape here.
+    /// bounding box of the drawn shape, and a node inside a clip is cut
+    /// to the area of the clip.
     fn screen_rect(
         &self,
         placed: &Placed<'_>,
+        camera: &Transform,
         transform: &Transform,
         screen: Rectangle<f64, Logical>,
     ) -> Option<Rectangle<f64, Logical>> {
-        let rect = match placed.node.kind {
+        let mut rect = match placed.node.kind {
             // A surface is sized by its buffer, subsurfaces and decorations.
             NodeKind::Surface => window_rect(self.windows.get(placed.node.id.as_str())?, transform),
-            NodeKind::Rect => bounding_box(transform, placed.node.props.size?),
+            NodeKind::Rect => node_box(placed.node, transform, placed.node.props.size?)?,
             NodeKind::Image => {
-                let [w, h] = placed.node.props.size.or_else(|| {
-                    let image = self
-                        .assets
-                        .images
-                        .get(placed.node.props.image.as_deref()?)?;
-                    Some([f64::from(image.size[0]), f64::from(image.size[1])])
-                })?;
-                bounding_box(transform, [w, h])
+                // Without the file the renderer draws nothing.
+                let image = self
+                    .assets
+                    .images
+                    .get(placed.node.props.image.as_deref()?)?;
+                let [w, h] = placed
+                    .node
+                    .props
+                    .size
+                    .unwrap_or([f64::from(image.size[0]), f64::from(image.size[1])]);
+                node_box(placed.node, transform, [w, h])?
             }
             // A group draws nothing, and a shader only draws inside a layer.
             NodeKind::Group | NodeKind::Shader => return None,
         };
+        // The renderer shows a node and its descendants only inside every
+        // clip of its ancestors.
+        for (clip, size) in &placed.clips {
+            rect = intersect(rect, bounding_box(&camera.then(clip), *size))?;
+        }
         rect.overlaps(screen).then_some(rect)
     }
 
@@ -1161,6 +1173,43 @@ pub fn rejected(message: impl Into<String>) -> RpcError {
     RpcError::new(RpcError::REJECTED, message)
 }
 
+/// The box of a node size on the screen. A node with a mesh, or under a
+/// matrix with perspective, shows through the projection of the renderer;
+/// its box is then the box of the projected points.
+fn node_box(node: &Node, transform: &Transform, size: [f64; 2]) -> Option<Rectangle<f64, Logical>> {
+    if node.props.size.is_some() && (node.props.mesh.is_some() || has_perspective(transform)) {
+        let at = crate::mesh::Placing {
+            transform,
+            scale: 1.0,
+        };
+        let shape = crate::mesh::shape(node, &at)?;
+        return Some(shape.bounds.to_f64().to_logical(1.0));
+    }
+    Some(bounding_box(transform, size))
+}
+
+/// Whether a matrix divides by w, so that projected points land elsewhere
+/// than under an affine transform.
+#[allow(clippy::float_cmp)] // the entries are exact or the client sent them
+fn has_perspective(transform: &Transform) -> bool {
+    let m = transform.matrix();
+    m[3] != 0.0 || m[7] != 0.0 || m[11] != 0.0 || m[15] != 1.0
+}
+
+/// The largest rectangle inside both, or `None` when they miss each other.
+fn intersect(
+    a: Rectangle<f64, Logical>,
+    b: Rectangle<f64, Logical>,
+) -> Option<Rectangle<f64, Logical>> {
+    let loc = (a.loc.x.max(b.loc.x), a.loc.y.max(b.loc.y));
+    let end = (
+        (a.loc.x + a.size.w).min(b.loc.x + b.size.w),
+        (a.loc.y + a.size.h).min(b.loc.y + b.size.h),
+    );
+    (loc.0 < end.0 && loc.1 < end.1)
+        .then(|| Rectangle::new(loc.into(), (end.0 - loc.0, end.1 - loc.1).into()))
+}
+
 /// The smallest axis-aligned rectangle that holds the box from `(0, 0)` to
 /// `(w, h)` after the transform.
 fn bounding_box(transform: &Transform, [w, h]: [f64; 2]) -> Rectangle<f64, Logical> {
@@ -1244,6 +1293,125 @@ mod tests {
             json!({}),
             "an output without the node is left out"
         );
+    }
+
+    #[test]
+    fn query_cuts_the_rect_of_a_node_inside_a_clip() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        let setup = json!({"commands": [
+            {"create": {"id": "frame", "kind": "group", "parent": "root",
+                "props": {"size": [100, 100], "clip": {},
+                          "transform": {"translate": [20, 30]}}}},
+            {"create": {"id": "inside", "kind": "rect", "parent": "frame",
+                "props": {"size": [10, 10], "color": [0, 1, 0, 1],
+                          "transform": {"translate": [10, 10]}}}},
+            {"create": {"id": "half", "kind": "rect", "parent": "frame",
+                "props": {"size": [20, 10], "color": [0, 0, 1, 1],
+                          "transform": {"translate": [90, 10]}}}},
+            {"create": {"id": "gone", "kind": "rect", "parent": "frame",
+                "props": {"size": [10, 10], "color": [1, 1, 0, 1],
+                          "transform": {"translate": [200, 0]}}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "inside")["rects"],
+            json!({"out": [30.0, 40.0, 10.0, 10.0]}),
+            "a node inside the clip keeps its box"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "half")["rects"],
+            json!({"out": [110.0, 40.0, 10.0, 10.0]}),
+            "a node over the clip edge is cut to it"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "gone")["rects"],
+            json!({}),
+            "a node clipped away shows on no output"
+        );
+    }
+
+    #[test]
+    fn query_gives_the_box_of_the_projected_shape_for_a_mesh_or_perspective() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        let mut matrix = [0.0; 16];
+        for i in [0, 5, 10, 15] {
+            matrix[i] = 1.0;
+        }
+        // The w row divides x by 1 + 0.01 * x, so x = 100 lands at 50.
+        matrix[3] = 0.01;
+        let setup = json!({"commands": [
+            {"create": {"id": "wobbly", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10], "color": [1, 0, 0, 1],
+                          "transform": {"translate": [5, 5]},
+                          "mesh": {"cols": 1, "rows": 1,
+                                   "points": [[0, 0], [30, 0], [0, 10], [30, 10]]}}}},
+            {"create": {"id": "deep", "kind": "rect", "parent": "root",
+                "props": {"size": [100, 50], "color": [0, 1, 0, 1],
+                          "transform": {"matrix": matrix}}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "wobbly")["rects"],
+            json!({"out": [5.0, 5.0, 30.0, 10.0]}),
+            "the mesh stretches the drawn shape to x 30"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "deep")["rects"],
+            json!({"out": [0.0, 0.0, 50.0, 50.0]}),
+            "the perspective moves the right edge in"
+        );
+    }
+
+    #[test]
+    fn query_leaves_out_an_image_without_its_asset() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        let path = png("asset", 4);
+        let sent = wm.send(
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "pic", "kind": "image", "parent": "root",
+                    "props": {"size": [10, 10], "image": &path}}},
+            ]}),
+        );
+        // The answer waits for the worker that decodes the file.
+        for _ in 0..1000 {
+            if wm.answer(&mut core, sent).is_some() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert_eq!(
+            query_node(&mut wm, &mut core, "pic")["rects"],
+            json!({"out": [0.0, 0.0, 10.0, 10.0]}),
+            "an image with its asset shows"
+        );
+        core.state.assets.images.forget(&path);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "pic")["rects"],
+            json!({}),
+            "without the asset the renderer draws nothing"
+        );
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    /// Writes a gray PNG file of a size and returns its path.
+    fn png(name: &str, side: u32) -> String {
+        let path =
+            std::env::temp_dir().join(format!("chora-ipc-{name}-{}.png", std::process::id()));
+        let file = std::io::BufWriter::new(std::fs::File::create(&path).unwrap());
+        let mut encoder = png::Encoder::new(file, side, side);
+        encoder.set_color(png::ColorType::Grayscale);
+        let mut writer = encoder.write_header().unwrap();
+        writer
+            .write_image_data(&vec![128; (side * side) as usize])
+            .unwrap();
+        path.to_str().unwrap().to_owned()
     }
 
     #[test]
