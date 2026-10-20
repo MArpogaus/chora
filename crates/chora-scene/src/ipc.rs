@@ -579,6 +579,9 @@ pub struct Inject {
     /// The events, in order. Keys and buttons that they leave down go up
     /// at the end, unless a button press holds.
     pub events: Vec<InjectEvent>,
+    /// Check every event and answer ok or the error, without sending input.
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 /// One synthetic input event of `input.inject`.

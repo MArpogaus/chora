@@ -96,6 +96,9 @@ impl State {
         if steps.len() > MAX_STEPS {
             return Err(rejected(format!("a request has at most {MAX_STEPS} steps")));
         }
+        if inject.dry_run {
+            return Ok(Value::Null);
+        }
         self.run_steps(&steps);
         Ok(Value::Null)
     }
@@ -392,6 +395,48 @@ mod tests {
             button["hold"] = json!(true);
         }
         json!({"events": [{"button": button}]})
+    }
+
+    #[test]
+    fn a_dry_run_checks_the_events_and_sends_nothing() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut ctl = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        ctl.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        // The watcher reports the pointer events of its rect at the origin.
+        let mut watcher = core.named("watcher");
+        watcher.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "menu", "kind": "rect",
+                "parent": "root", "props": {"size": [100, 100],
+                "color": [1, 1, 1, 1]}}}]}),
+        );
+        watcher.ok(&mut core, "events.subscribe", json!({"events": []}));
+        // A wrong key symbol fails the check.
+        let bad = json!({"dry_run": true,
+            "events": [{"key": {"key": "NoSuchKey", "state": "pressed"}}]});
+        let (_, message) = agent.fails(&mut core, "input.inject", bad);
+        assert!(message.contains("NoSuchKey"), "{message}");
+        // A good batch passes and sends nothing.
+        let batch = json!({"events": [
+            {"pointer_move": {"position": [50.0, 50.0]}},
+            {"button": {"state": "pressed"}}
+        ]});
+        let mut dry = batch.clone();
+        dry["dry_run"] = json!(true);
+        agent.ok(&mut core, "input.inject", dry);
+        let names = watcher.event_names(&mut core);
+        assert!(
+            !names.iter().any(|e| e.starts_with("pointer.")),
+            "the dry run sends nothing: {names:?}"
+        );
+        // The same batch without the dry run does send.
+        agent.ok(&mut core, "input.inject", batch);
+        let names = watcher.event_names(&mut core);
+        assert!(names.iter().any(|e| e == "pointer.pressed"), "{names:?}");
     }
 
     #[test]

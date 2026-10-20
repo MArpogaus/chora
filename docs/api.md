@@ -707,9 +707,12 @@ whose origin is (0, 0), or in the coordinates of the node.
 - A request has at most 256 events, 4096 characters of text in all and
   32,768 steps, a key press and a release being two. It fails while the
   session is locked.
+- With `"dry_run": true` next to `events`, the core checks every event and
+  answers ok or the error, without sending input.
 
 `choractl inject` reads the list of events as JSON, for example
 `echo '[{"text": {"text": "ls\n"}}]' | choractl --name agent inject`.
+`choractl inject --dry-run` checks the events without sending input.
 
 ## Plugin methods
 

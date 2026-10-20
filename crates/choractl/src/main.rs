@@ -18,8 +18,8 @@ use chora_scene::{
     Event,
     ipc::{
         Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, Edges,
-        GrantChange, Hello, Inject, MethodCall, Picture, ProcessWait, Query, Reserve, Restart,
-        SOCKET_ENV, Spawn, Subscribe, admin_socket,
+        GrantChange, Hello, Inject, InjectEvent, MethodCall, Picture, ProcessWait, Query, Reserve,
+        Restart, SOCKET_ENV, Spawn, Subscribe, admin_socket,
     },
 };
 use clap::{Parser, Subcommand};
@@ -112,6 +112,10 @@ enum Cmd {
     Inject {
         /// The file with the events; stdin if missing or `-`.
         file: Option<String>,
+        /// Check the events and answer ok or the error, without sending
+        /// input.
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Serve the API as MCP tools over stdio, for an agent.
     Mcp,
@@ -315,7 +319,7 @@ fn run(args: Args) -> Result<(), String> {
     }
     let (commands, input) = match &args.command {
         Cmd::Apply { file } => (read_json(file.as_deref())?, Vec::new()),
-        Cmd::Inject { file } => (Vec::new(), read_json(file.as_deref())?),
+        Cmd::Inject { file, .. } => (Vec::new(), read_json(file.as_deref())?),
         _ => (Vec::new(), Vec::new()),
     };
     let hello = Hello {
@@ -350,9 +354,7 @@ fn run(args: Args) -> Result<(), String> {
         } => return call(&mut client, callee, method, params.as_deref()),
         Cmd::Asset { action } => return asset(&mut client, action),
         Cmd::View { .. } | Cmd::Mcp => unreachable!("handled before the connection"),
-        Cmd::Inject { .. } => client
-            .call::<_, Value>("input.inject", Inject { events: input })
-            .map(drop),
+        Cmd::Inject { dry_run, .. } => inject(&mut client, input, dry_run),
         Cmd::Capture {
             file,
             output,
@@ -389,6 +391,13 @@ fn connect(command: &Cmd, hello: &Hello) -> Result<Client, String> {
 }
 
 /// The commands for grants, programs and outputs.
+/// Runs `input.inject`. A dry run checks the events and sends nothing.
+fn inject(client: &mut Client, events: Vec<InjectEvent>, dry_run: bool) -> Result<(), ClientError> {
+    client
+        .call::<_, Value>("input.inject", Inject { events, dry_run })
+        .map(drop)
+}
+
 fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
     match command {
         Cmd::Reserve(args) => reserve(client, args),
