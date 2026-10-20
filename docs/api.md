@@ -244,6 +244,11 @@ with spaces goes in double quotes. An empty selector or `*` matches every
 node. Selectors work in queries only. A query returns all current matches,
 or an empty list. It always sees the current titles.
 
+`choractl wait SELECTOR` polls the query every 100 ms until something
+matches, then prints the matches as one JSON line and exits 0. `--gone`
+waits until nothing matches. `--timeout SECS` limits the wait, 10 seconds
+by default; a timeout exits 1 with the reason on stderr.
+
 ## Events
 
 | Event | Data |

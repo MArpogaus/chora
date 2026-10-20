@@ -45,6 +45,19 @@ enum Cmd {
         #[arg(default_value = "*")]
         selector: String,
     },
+    /// Wait for a selector: poll `scene.query` every 100 ms, print the
+    /// matching nodes as one JSON line and exit 0. With `--gone`, wait
+    /// until nothing matches. After the timeout, exit 1.
+    Wait {
+        /// The selector.
+        selector: String,
+        /// The seconds to wait; 10 by default.
+        #[arg(long, default_value_t = 10)]
+        timeout: u64,
+        /// Wait until nothing matches the selector.
+        #[arg(long)]
+        gone: bool,
+    },
     /// Apply a transaction: a JSON list of commands from a file or stdin.
     Apply {
         /// The file with the commands; stdin if missing or `-`.
@@ -313,6 +326,7 @@ fn run(args: Args) -> Result<(), String> {
     let mut client = connect(&args.command, &hello)?;
     let result = match args.command {
         Cmd::Query { selector } => show(&mut client, "scene.query", Query { selector }),
+        command @ Cmd::Wait { .. } => return wait(&mut client, &command),
         Cmd::Apply { .. } => client
             .call::<_, Value>("scene.apply", Apply { commands })
             .map(drop),
@@ -438,6 +452,66 @@ fn spawn(client: &mut Client, argv: Vec<String>, capture: bool) -> Result<(), Cl
             print(&output);
             return Ok(());
         }
+    }
+}
+
+/// Polls `scene.query` until the selector matches, or with `gone` until
+/// nothing matches, and prints the matches as one JSON line. A timeout is
+/// an error, so the command exits 1 with the reason on stderr.
+fn wait(client: &mut Client, command: &Cmd) -> Result<(), String> {
+    let Cmd::Wait {
+        selector,
+        timeout,
+        gone,
+    } = &command
+    else {
+        unreachable!("wait runs for the wait command only")
+    };
+    let nodes = wait_loop(
+        || {
+            client
+                .call::<_, Vec<Value>>(
+                    "scene.query",
+                    Query {
+                        selector: selector.clone(),
+                    },
+                )
+                .map_err(|e| e.to_string())
+        },
+        selector,
+        *gone,
+        std::time::Duration::from_secs(*timeout),
+        std::time::Duration::from_millis(100),
+    )?;
+    let line = serde_json::to_string(&nodes).map_err(|e| e.to_string())?;
+    // A closed stdout, for example after `| head`, is no error.
+    let _ = writeln!(std::io::stdout(), "{line}");
+    Ok(())
+}
+
+/// The poll loop of `wait`, split out so that a test can fake the query.
+fn wait_loop(
+    mut query: impl FnMut() -> Result<Vec<Value>, String>,
+    selector: &str,
+    gone: bool,
+    timeout: std::time::Duration,
+    every: std::time::Duration,
+) -> Result<Vec<Value>, String> {
+    let start = std::time::Instant::now();
+    loop {
+        let nodes = query()?;
+        if nodes.is_empty() == gone {
+            return Ok(nodes);
+        }
+        if start.elapsed() > timeout {
+            let reason = if gone {
+                format!("nodes still match {selector}")
+            } else {
+                format!("no node matches {selector}")
+            };
+            return Err(format!("timeout after {} s: {reason}", timeout.as_secs()));
+        }
+        std::thread::sleep(every);
     }
 }
 
@@ -734,8 +808,61 @@ fn print(value: &Value) {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+    use serde_json::{Value, json};
+    use std::time::Duration;
 
-    use super::{Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta};
+    use super::{Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta, wait_loop};
+
+    /// The poll loop stops at the first satisfying answer; a timeout is an
+    /// error with the selector.
+    #[test]
+    fn wait_polls_until_the_answer_satisfies_the_selector() {
+        let every = Duration::from_millis(1);
+        let mut answers = vec![Vec::new(), Vec::new(), vec![json!({ "id": "n1" })]];
+        let got = wait_loop(
+            || Ok::<Vec<Value>, String>(answers.remove(0)),
+            "kind:surface",
+            false,
+            Duration::from_secs(5),
+            every,
+        )
+        .unwrap();
+        assert_eq!(got, vec![json!({ "id": "n1" })]);
+
+        let gone = wait_loop(
+            || Ok::<Vec<Value>, String>(Vec::new()),
+            "kind:surface",
+            true,
+            Duration::from_secs(5),
+            every,
+        )
+        .unwrap();
+        assert!(gone.is_empty(), "--gone ends on the first empty answer");
+
+        let err = wait_loop(
+            || Ok::<Vec<Value>, String>(Vec::new()),
+            "kind:surface",
+            false,
+            Duration::from_millis(5),
+            every,
+        )
+        .unwrap_err();
+        assert!(err.contains("timeout"), "{err}");
+        let still = wait_loop(
+            || Ok::<Vec<Value>, String>(vec![json!({ "id": "n1" })]),
+            "kind:surface",
+            true,
+            Duration::from_millis(5),
+            every,
+        );
+        assert!(still.is_err(), "--gone times out while nodes match");
+
+        let args = Args::try_parse_from("choractl wait kind:surface --timeout 3 --gone".split(' '))
+            .unwrap();
+        assert!(
+            matches!(args.command, Cmd::Wait { ref selector, timeout, gone } if selector == "kind:surface" && timeout == 3 && gone)
+        );
+    }
 
     /// An unchanged grant is revoked by no one and set by no one.
     #[test]
