@@ -16,7 +16,8 @@ per new finding, ends after two clean passes; it waits until
     nohup bash tests/battle/battle.sh &
 
 Needs the debug binaries (`cargo build --workspace`), `chora-probe` with
-`--server-deco`, and ~2 GB free memory. Helper scripts kill leftovers by
-exact process name (`kill-session.sh`) or stop the drivers
-(`kill-loop.py loop.sh`); `pkill -f` matches the caller's own command
-line and is a trap here.
+`--server-deco`, and ~2 GB free memory. Helper scripts kill leftovers
+(`kill-session.sh`) and stop the drivers (`kill-loop.py`). Review and
+fix sub-agents must exclude `services/voice/` — the owner's prototype.
+Session mechanics (driver, heartbeat, sub-agent audit): skill
+`local-pi-session`.

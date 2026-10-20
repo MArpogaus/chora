@@ -7,35 +7,17 @@ Living document. Every point: what blocked, whether it needs an API/design chang
 - **No `foot`.** The spec's window client is missing. Substitute:
   `target/debug/chora-probe window R G B` (app_id `chora-probe`). All W1–W7
   use probe windows. Queries must use `app_id:chora-probe`, not `app_id:foot`.
-- **No `crontab`, no cron daemon, no systemd.** The heartbeat from the TODO
-  runs as a detached `sleep 1200` loop instead.
-- **`pgrep -f "chora-review-loop"` never matches here**: pi's cmdline is bare
-  `pi`, the session name (`-n`) is not in it. The heartbeat uses `pgrep -x pi`.
-  *Possible harness change:* put the session name into the process title or
-  expose a way to list live sessions.
 - **No cargo on PATH**; used the `chora` mamba env
   (`/home/agent/.local/share/mamba/envs/chora/bin`). Debug build of the
-  workspace filled the disk to 60 GB once (Marcel deleted `target/`, which
-  also deleted `target/review-loop/`). *Design point:* the loop's state and
-  reports live inside `target/` by spec — `cargo clean` or a disk cleanup
-  destroys the audit trail. Suggest `review-loop/` or `docs/` next to it.
-- **`PI_OFFLINE=1`, no network**: no package installs, dnf metadata fails.
+  workspace filled the disk to 60 GB once.
+- Session mechanics (heartbeat without cron, driver traps, sub-agent
+  audit) are documented in the `local-pi-session` skill, not here.
 
-## Review process (phase 1) — process/API friction
+## Review process (phase 1)
 
-- **`pi --no-session` leaves no audit trail.** Round "reviews" that finished
-  in seconds said `CLEAN` with zero evidence; trust was lost. Fix used here:
-  runs with session + `target/review-loop/audit.py` checks the transcript
-  (tool calls, git-diff invocations, mutating actions). *Candidate design
-  change:* a reviewer sub-agent should have a cheap "report what you read"
-  or the harness should log tool calls even with `--no-session`.
-- The spec's CLEAN-detection ("file says CLEAN") is fragile: a report can
-  contain the word CLEAN anywhere. The runner now demands a line exactly
-  `CLEAN` (`grep -qx`).
-- **Round-2 target degenerates:** "commits since hash in round-<n-1>" is an
-  empty diff when round n-1 found nothing — the second CLEAN would be free.
-  The runner re-reviews the full v0.5.4..v0.6.0 diff as a fresh reviewer.
-  Worth encoding in the TODO text.
+Harness-side only (`--no-session` gives no evidence, CLEAN detection,
+empty-diff rounds). All of it moved to the `local-pi-session` skill;
+the concrete runs are in `tests/battle/reviews/`.
 
 ## choractl / API — candidates for change
 
@@ -154,9 +136,8 @@ Living document. Every point: what blocked, whether it needs an API/design chang
   rendering, 100 mapped windows make the probes die in the swap storm.
   The battle tests now wait for >= 2 GB `MemAvailable` before every
   session and W8 runs 40 windows.
-- PID 1 is `pi`, so every killed child stays a zombie forever. Hundreds
-  of them are cosmetic; `kill-session.sh` uses exact names, since
-  `pkill -f` also matches the calling command line.
+- PID 1 does not reap here (zombies are cosmetic); process killing by
+  exact name and the `pkill -f` trap live in the `local-pi-session` skill.
 
 ## Pass 1 storm (environment, not product)
 
