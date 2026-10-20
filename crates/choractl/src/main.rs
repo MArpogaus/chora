@@ -390,7 +390,6 @@ fn connect(command: &Cmd, hello: &Hello) -> Result<Client, String> {
     Client::connect(&path, hello).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// The commands for grants, programs and outputs.
 /// Runs `input.inject`. A dry run checks the events and sends nothing.
 fn inject(client: &mut Client, events: Vec<InjectEvent>, dry_run: bool) -> Result<(), ClientError> {
     client
@@ -398,6 +397,7 @@ fn inject(client: &mut Client, events: Vec<InjectEvent>, dry_run: bool) -> Resul
         .map(drop)
 }
 
+/// The commands for grants, programs and outputs.
 fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
     match command {
         Cmd::Reserve(args) => reserve(client, args),
