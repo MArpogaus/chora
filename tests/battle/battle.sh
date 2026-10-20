@@ -61,14 +61,14 @@ say "driver ending (pass $pass, clean passes $clean_passes)"
 pkill -f chora-review-heartbeat 2>/dev/null
 pkill -f 'sleep 1200' 2>/dev/null
 {
-  echo "# Review-Schleife und Battle-Test — Abschluss"
+  echo "# Review loop and battle test: summary"
   echo
-  echo "- Review-Runden: $(ls $repo/target/review-loop/round-*.md 2>/dev/null | grep -vc bad) (Berichte: target/review-loop/)"
-  echo "- Battle-Pässe: $pass, saubere Pässe zuletzt: $clean_passes"
-  echo "- Findings gesamt: $(nfind); offen:"
+  echo "- Review rounds: $(ls $repo/target/review-loop/round-*.md 2>/dev/null | grep -vc bad) (reports: target/review-loop/)"
+  echo "- Battle passes: $pass, clean passes at the end: $clean_passes"
+  echo "- Findings: $(nfind); open:"
   grep -B6 'status: open' "$bt/findings.md" 2>/dev/null | grep '^## ' | sed 's/^## /  - /'
-  echo "- Log: tests/battle/log.txt, Run-Berichte: tests/battle/run-*.md"
-  echo "- Reibungen und API-Punkte: tests/battle/FRICTION.md"
+  echo "- Log: tests/battle/log.txt, run reports: tests/battle/run-*.md"
+  echo "- Friction and API points: tests/battle/FRICTION.md"
 } > "$bt/done.md"
 echo "PHASE=done ROUND=$pass CLEAN=$clean_passes" > "$state"
 say "done.md written, PHASE=done"
