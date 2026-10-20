@@ -1072,6 +1072,12 @@ impl Scene {
         Ok(())
     }
 
+    /// The surface node with the keyboard focus.
+    #[must_use]
+    pub fn focused_surface(&self) -> Option<&str> {
+        self.focused.as_deref()
+    }
+
     /// The node with the keyboard focus of `focus_node`.
     #[must_use]
     pub fn focused_node(&self) -> Option<&str> {

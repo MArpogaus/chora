@@ -919,7 +919,19 @@ impl State {
         let fixed = self.ipc.fixed(conn);
         let mut nodes = self.scene.query(&selector);
         nodes.retain(|n| fixed.is_none_or(|f| clients::own_node(n, f)));
-        Ok(serde_json::json!(nodes))
+        // Rule 5: only the nodes that survived the filter can show a focus.
+        let focus = [self.scene.focused_surface(), self.scene.focused_node()];
+        let nodes: Vec<Value> = nodes
+            .into_iter()
+            .map(|n| {
+                let mut node = serde_json::json!(n);
+                if focus.contains(&Some(n.id.as_str())) {
+                    node["focused"] = Value::Bool(true);
+                }
+                node
+            })
+            .collect();
+        Ok(Value::Array(nodes))
     }
 
     /// Grabs a binding of a key or a pointer button for a named connection.
@@ -1106,6 +1118,99 @@ mod tests {
             .collect();
         ids.sort();
         ids
+    }
+
+    /// One node of a query by id, or null.
+    fn query_node(client: &mut Client, core: &mut Core, id: &str) -> Value {
+        let nodes = client.ok(core, "scene.query", json!({"selector": format!("id:{id}")}));
+        nodes
+            .as_array()
+            .expect("a list")
+            .first()
+            .cloned()
+            .unwrap_or(Value::Null)
+    }
+
+    #[test]
+    fn query_marks_the_focused_surface_and_the_focused_node() {
+        let mut core = Core::new();
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "foot");
+        let mut wm = core.named("wm");
+        let setup = json!({"commands": [
+            {"create": {"id": "menu", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10]}}},
+            {"attach": {"surface": "s1", "parent": "root"}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        assert!(
+            query_node(&mut wm, &mut core, "s1")
+                .get("focused")
+                .is_none(),
+            "nothing focused yet"
+        );
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"focus": {"surface": "s1"}}]}),
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "s1")["focused"],
+            json!(true),
+            "the focused surface"
+        );
+        let focus_node = json!({"commands": [{"focus_node": {"node": "menu"}}]});
+        wm.ok(&mut core, "scene.apply", focus_node);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "menu")["focused"],
+            json!(true),
+            "the focused node"
+        );
+        wayland.toplevel(&mut core, "edit");
+        let take = json!({"commands": [
+            {"attach": {"surface": "s2", "parent": "root"}},
+            {"focus": {"surface": "s2"}},
+        ]});
+        wm.ok(&mut core, "scene.apply", take);
+        assert!(
+            query_node(&mut wm, &mut core, "menu")
+                .get("focused")
+                .is_none(),
+            "a new surface focus ends the node focus"
+        );
+        assert_eq!(query_node(&mut wm, &mut core, "s2")["focused"], json!(true));
+    }
+
+    #[test]
+    fn a_client_socket_sees_focused_only_on_its_own_nodes() {
+        let (mut core, dir) = socket_dir("focused");
+        let mut admin = core.admin();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let ipc = PathBuf::from(created["path"].as_str().unwrap());
+        let wayland = PathBuf::from(created["wayland"].as_str().unwrap());
+        let mut agent = core.connect_to(&ipc);
+        agent.ok(&mut core, "hello", json!({"name": "agent"}));
+        let mut windows = Wayland::connect_to(&mut core, &wayland);
+        windows.toplevel(&mut core, "app");
+        let own = json!({"commands": [
+            {"attach": {"surface": "s1", "parent": "root"}},
+            {"focus": {"surface": "s1"}},
+        ]});
+        agent.ok(&mut core, "scene.apply", own);
+        let mut wm = core.named("wm");
+        let foreign = json!({"commands": [
+            {"create": {"id": "hidden", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10]}}},
+            {"focus_node": {"node": "hidden"}},
+        ]});
+        wm.ok(&mut core, "scene.apply", foreign);
+        let nodes = agent.ok(&mut core, "scene.query", json!({"selector": "*"}));
+        let list = nodes.as_array().expect("a list");
+        assert_eq!(list.len(), 1, "{list:?}");
+        assert_eq!(list[0]["id"], json!("s1"), "only its own window");
+        assert_eq!(list[0]["focused"], json!(true));
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// The main socket takes the same names as the sockets of clients.

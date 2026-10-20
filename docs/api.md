@@ -43,6 +43,7 @@ This table is the one list of node properties.
 |----------|-------|---------|
 | `id` | all | stable id; ids of the form `s1`, `s2` belong to surfaces, and the core assigns them |
 | `owner` | all | client name of the owner; read-only |
+| `focused` | all | `true` in `scene.query` on the surface with the keyboard focus and on the node of `focus_node`; read-only, left out on all other nodes |
 | `to` | surface | the only client name that can attach this detached surface, after a `remove` with `to` or for a new toplevel; read-only |
 | `claim` | all | `[x, y, w, h]` in scene coordinates: the area of the owner as a window manager; a new toplevel can go to it (see [below](#window-managers)); `null` removes the claim |
 | `transform` | all | a 4x4 matrix in column-major order, with the translation at the indices 12 to 14, or the short form translate, scale, rotate |
