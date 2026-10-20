@@ -18,11 +18,12 @@ use std::{
 };
 
 use chora_scene::{
-    Binding, Event, Selector,
+    Binding, Event, NodeKind, Placed, Selector, Transform,
     ipc::{Apply, Capability, Edges, Grab, Hello, Message, Query, Request, RpcError, Subscribe},
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use smithay::utils::{Logical, Rectangle};
 use smithay::{
     input::keyboard::{Keysym, ModifiersState, xkb},
     reexports::calloop::{
@@ -33,7 +34,9 @@ use smithay::{
     reexports::rustix::{net::sockopt::socket_peercred, process::Pid},
 };
 
-use crate::{captured::Processes, state::State, uploads::Uploads};
+use crate::{
+    captured::Processes, output::output_area, render::window_rect, state::State, uploads::Uploads,
+};
 
 mod clients;
 
@@ -921,6 +924,7 @@ impl State {
         nodes.retain(|n| fixed.is_none_or(|f| clients::own_node(n, f)));
         // Rule 5: only the nodes that survived the filter can show a focus.
         let focus = [self.scene.focused_surface(), self.scene.focused_node()];
+        let rects = self.screen_rects();
         let nodes: Vec<Value> = nodes
             .into_iter()
             .map(|n| {
@@ -928,10 +932,79 @@ impl State {
                 if focus.contains(&Some(n.id.as_str())) {
                     node["focused"] = Value::Bool(true);
                 }
+                node["rects"] = rects
+                    .get(n.id.as_str())
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!({}));
                 node
             })
             .collect();
         Ok(Value::Array(nodes))
+    }
+
+    /// The screen rectangles by node: the output name maps to
+    /// `[x, y, w, h]` in the logical pixels of that output, after the
+    /// parent transforms and the camera of the output. Outputs where the
+    /// node does not show are left out.
+    fn screen_rects(&self) -> HashMap<&str, Value> {
+        let mut found: HashMap<&str, serde_json::Map<String, Value>> = HashMap::new();
+        for output in &self.outputs {
+            let name = output.name();
+            let screen = Rectangle::from_size(output_area(output).size).to_f64();
+            // The overlay sits in the coordinates of its output, without
+            // its camera (D43).
+            let views = [
+                (Transform::IDENTITY, self.scene.overlay_draw_list(&name)),
+                (self.camera(output), self.scene.draw_list()),
+            ];
+            let shown = views.iter().flat_map(|(camera, list)| {
+                list.iter().filter_map(move |placed| {
+                    let transform = camera.then(&placed.transform);
+                    Some((placed.node, self.screen_rect(placed, &transform, screen)?))
+                })
+            });
+            for (node, rect) in shown {
+                let rect = [rect.loc.x, rect.loc.y, rect.size.w, rect.size.h];
+                found
+                    .entry(node.id.as_str())
+                    .or_default()
+                    .insert(name.clone(), serde_json::json!(rect));
+            }
+        }
+        found
+            .into_iter()
+            .map(|(id, rects)| (id, Value::Object(rects)))
+            .collect()
+    }
+
+    /// The rectangle of one placed node with its absolute transform on an
+    /// output, if it shows there. Under a rotation or a mesh this is the
+    /// bounding box; the renderer draws those through a node texture and
+    /// reads no exact shape here.
+    fn screen_rect(
+        &self,
+        placed: &Placed<'_>,
+        transform: &Transform,
+        screen: Rectangle<f64, Logical>,
+    ) -> Option<Rectangle<f64, Logical>> {
+        let rect = match placed.node.kind {
+            // A surface is sized by its buffer, subsurfaces and decorations.
+            NodeKind::Surface => window_rect(self.windows.get(placed.node.id.as_str())?, transform),
+            NodeKind::Rect => bounding_box(transform, placed.node.props.size?),
+            NodeKind::Image => {
+                let [w, h] = placed.node.props.size.or_else(|| {
+                    let image = self
+                        .assets
+                        .images
+                        .get(placed.node.props.image.as_deref()?)?;
+                    Some([f64::from(image.size[0]), f64::from(image.size[1])])
+                })?;
+                bounding_box(transform, [w, h])
+            }
+            // A group draws nothing, and a shader only draws inside a layer.
+            NodeKind::Group | NodeKind::Shader => return None,
+        };
+        rect.overlaps(screen).then_some(rect)
     }
 
     /// Grabs a binding of a key or a pointer button for a named connection.
@@ -1088,6 +1161,20 @@ pub fn rejected(message: impl Into<String>) -> RpcError {
     RpcError::new(RpcError::REJECTED, message)
 }
 
+/// The smallest axis-aligned rectangle that holds the box from `(0, 0)` to
+/// `(w, h)` after the transform.
+fn bounding_box(transform: &Transform, [w, h]: [f64; 2]) -> Rectangle<f64, Logical> {
+    let points = [(0.0, 0.0), (w, 0.0), (0.0, h), (w, h)].map(|(x, y)| transform.apply(x, y));
+    let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+    for (x, y) in points {
+        x0 = x0.min(x);
+        y0 = y0.min(y);
+        x1 = x1.max(x);
+        y1 = y1.max(y);
+    }
+    Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into())
+}
+
 /// Whether Ctrl+Alt with a key is a binding of the safety layer (D23):
 /// `BackSpace` quits, `Escape` resets, `F1` to `F12` switch the VT.
 fn is_safety_key(sym: xkb::Keysym) -> bool {
@@ -1129,6 +1216,34 @@ mod tests {
             .first()
             .cloned()
             .unwrap_or(Value::Null)
+    }
+
+    #[test]
+    fn query_reports_the_screen_rect_of_a_node() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        let setup = json!({"commands": [
+            {"create": {"id": "here", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10], "color": [1, 0, 0, 1],
+                          "transform": {"translate": [100, 50], "scale": 2}}}},
+            {"create": {"id": "far", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10], "color": [0, 1, 0, 1],
+                          "transform": {"translate": [5000, 0]}}}},
+            {"camera": {"output": "out", "transform": {"translate": [-30, -20]}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        // The 10x10 rect scales to 20x20 at (100, 50) and the pan moves it.
+        assert_eq!(
+            query_node(&mut wm, &mut core, "here")["rects"],
+            json!({"out": [70.0, 30.0, 20.0, 20.0]}),
+            "the rect after its transform and the camera"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "far")["rects"],
+            json!({}),
+            "an output without the node is left out"
+        );
     }
 
     #[test]

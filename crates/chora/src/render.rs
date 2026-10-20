@@ -812,7 +812,7 @@ pub fn take_feedback(state: &State, output: &Output) -> OutputPresentationFeedba
 
 /// The scene rectangle of a window with its subsurfaces and popups. The
 /// transform places its geometry origin and scales it.
-fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f64, Logical> {
+pub(crate) fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f64, Logical> {
     let (x, y) = transform.translation_2d();
     let (sx, sy) = transform.scale_2d().unwrap_or((1.0, 1.0));
     let bbox = window.bbox().to_f64();
