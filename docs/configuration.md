@@ -124,6 +124,9 @@ from the file is revoked. Existing sockets and their connections stay.
 
 ## chora-tiling
 
+`chora-tiling` connects with the client name `tiling`. Grants and
+`choractl restart` use this name.
+
 `chora-tiling` reads `chora/chora-tiling.yaml` in `$XDG_CONFIG_HOME`, by
 default `~/.config`, or the file of `--config`. Without a file, it uses its
 default, which `chora-tiling --print-config` prints. The file lists every
@@ -192,7 +195,8 @@ A copy of the directory in `~/.config/chora/flavors/tiling/` replaces it.
 ### The XP flavor
 
 The XP flavor is the showroom (D39): a stacking desktop in
-the style of Windows XP. It is a demo, not a daily driver.
+the style of Windows XP. It is a demo, not a daily driver. `chora-xp`
+connects with the client name `xp`.
 
 ```text
 /usr/share/chora/flavors/xp/
