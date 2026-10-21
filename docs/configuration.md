@@ -163,7 +163,7 @@ like `set_layout`.
 | `give` | `to`: a client name | handing the focused window to another client |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
 | `move_to_tag` | `surface`, `tag` | `MOD+Shift+1` to `MOD+Shift+9`, for this window |
-| `focus` | `surface` | a click: focuses and raises the window, and its output |
+| `focus` | `surface` | a click: focuses and raises the window, and its output; a window that shows nowhere only gets the urgent mark |
 | `focus_next`, `focus_prev` | none | `MOD+j` and `MOD+k` |
 | `swap_master` | `surface` | `MOD+Ctrl+Return`, for this window |
 

@@ -233,8 +233,16 @@ impl Wm {
         self.last_on(self.current, &self.history)
     }
 
-    /// Focuses and raises a window, and focuses its output.
+    /// Focuses and raises a window, and focuses its output. A window that
+    /// shows nowhere only gets the urgent mark, as when it asks for
+    /// attention.
     pub fn focus(&mut self, id: &str) {
+        if !self.window(id).is_some_and(|w| self.shows(w)) {
+            if let Some(window) = self.window_mut(id) {
+                window.urgent = true;
+            }
+            return;
+        }
         if self.has(id) {
             self.raised.retain(|h| h != id);
             self.raised.push(id.into());
@@ -287,7 +295,7 @@ impl Wm {
     /// A request of a client, for example from its title bar.
     pub fn request(&mut self, id: &str, request: SurfaceRequest) {
         if request == SurfaceRequest::Activate {
-            self.activate(id);
+            self.focus(id);
             return;
         }
         let Some(window) = self.window_mut(id) else {
@@ -300,16 +308,6 @@ impl Wm {
             SurfaceRequest::Unmaximize => window.maximized = (false, false),
             SurfaceRequest::Minimize => window.minimized = true,
             SurfaceRequest::Activate | SurfaceRequest::Close => {}
-        }
-    }
-
-    /// A window asked for attention: it gets the focus when it shows.
-    fn activate(&mut self, id: &str) {
-        let shows = self.window(id).is_some_and(|w| self.shows(w));
-        if shows {
-            self.focus(id);
-        } else if let Some(window) = self.window_mut(id) {
-            window.urgent = true;
         }
     }
 
@@ -1048,6 +1046,17 @@ mod tests {
     }
 
     #[test]
+    fn focusing_a_window_that_shows_nowhere_marks_it_urgent() {
+        let mut wm = wm(&["a", "b"]);
+        wm.act(&Action::Minimize); // b, the focused window, goes away
+        assert_eq!(wm.focused(), Some("a"));
+        wm.focus("b");
+        assert_eq!(wm.focused(), Some("a"), "a hidden window gains no focus");
+        assert_eq!(wm.arrange().last().unwrap().id, "a", "and no raise");
+        assert!(wm.windows.iter().any(|w| w.id == "b" && w.urgent));
+    }
+
+    #[test]
     fn focus_next_and_prev_step_through_the_shown_windows() {
         let mut wm = wm(&["a", "b", "c"]);
         wm.focus_next();
@@ -1106,7 +1115,7 @@ mod tests {
     fn urgent_windows_and_other_outputs() {
         let mut wm = wm(&["a", "b"]);
         wm.act(&Action::MoveToTag(2));
-        wm.activate("b");
+        wm.focus("b");
         assert_eq!(wm.focused(), Some("a"));
         wm.act(&Action::FocusUrgent);
         assert_eq!(wm.focused(), Some("b"));

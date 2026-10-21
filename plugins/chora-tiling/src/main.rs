@@ -508,8 +508,9 @@ impl Tiling {
                 only(self.wm.has(&surface), || {
                     format!("tiling has no window {surface}")
                 })?;
+                // A window that shows nowhere only gets the urgent mark.
                 self.wm.focus(&surface);
-                true
+                self.wm.focused() == Some(surface.as_str())
             }
             "focus_next" => {
                 self.wm.focus_next();
