@@ -1,5 +1,5 @@
 #!/bin/bash
-# W5 load: snake stress, ipc-bench (if sway), 16 connections, node budget.
+# W5 load: snake stress, ipc-bench, 16 connections, node budget.
 WF=w5; . "$(dirname "$0")/lib.sh"
 session_start "1280x800" || exit 1
 
@@ -12,11 +12,7 @@ else
 fi
 health "after snake"
 
-if command -v sway >/dev/null; then
-  bash tests/ipc-bench.sh "$bin" "$repo/tests/battle/bench" >> "$RUN" 2>&1 || finding "W5: ipc-bench failed" slow "tests/ipc-bench.sh"
-else
-  step "ipc-bench skipped: needs sway, not installed (see FRICTION.md)"
-fi
+bash tests/ipc-bench.sh "$bin" "$repo/tests/battle/bench" >> "$RUN" 2>&1 || finding "W5: ipc-bench failed" slow "tests/ipc-bench.sh"
 
 step "connection limit and node budget in one python pass"
 boxpath=$(admin clients create budget | sed -n 's/.*"path": "\([^"]*\).*/\1/p')
