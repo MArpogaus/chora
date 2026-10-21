@@ -73,6 +73,26 @@ open() { ctl spawn "$bin/chora-probe" window "$@" | sed -n 's/.*"pid":[[:space:]
 # count_windows -> number of chora-probe toplevels
 count_windows() { ctl query "app_id:chora-probe kind:surface" | grep -c '"id"'; }
 
+# wait_count <selector> <n>  -> wait until at least n nodes match
+wait_count() {
+  for _ in $(seq 100); do
+    [ "$(ctl query "$1" | grep -c '"id"')" -ge "$2" ] && return 0
+    sleep 0.2
+  done
+  return 1
+}
+
+# ready <client> <method> [params]  -> wait until the plugin answers calls
+# to one of its methods again; the core rejects them while a restart runs
+ready() {
+  local client=$1; shift
+  for _ in $(seq 75); do
+    ctl call "$client" "$@" >/dev/null 2>&1 && return 0
+    sleep 0.2
+  done
+  return 1
+}
+
 # inject <json>
 inject() { echo "$1" | timeout 10 "$bin/choractl" --name agent inject; }
 

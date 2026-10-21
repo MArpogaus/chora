@@ -68,6 +68,9 @@ the concrete runs are in `tests/battle/reviews/`.
   relative to `parent`. Nothing in `docs/api.md` states the order. The
   harness composes matrices up the parent chain (`geom.py`).
   *Docs candidate:* say "column-major" next to "a 4x4 matrix".
+  *Superseded:* `scene.query` answers with `rects` per output, so the
+  harness reads places and grab points from the core; `geom.py`, `pick.py`
+  and `positions.py` are deleted.
 - `chora-probe window` ignored `xdg_toplevel.close_request`: it was a test
   client that only exited with its process. So "close all windows" in W1
   tested process death, not the close path. *Fixed:* probe flag
@@ -77,8 +80,10 @@ the concrete runs are in `tests/battle/reviews/`.
   the TODO's W7 text does not mention it.
 - `choractl spawn` answered pretty-printed JSON; scripting wants one line
   (harness parses with sed). *Fixed:* compact one-line output in 498e4ea.
-- Tiling survives its own death and re-tiles after SIGUSR1 within ~1 s —
-  W7's "windows in a grid" holds.
+- The grid after SIGUSR1 is the work of the core, not of tiling: the
+  emergency reset disconnects every client, and tiling ends with "the core
+  closed the connection" (verified 2026-10-21). W7's "windows in a grid"
+  holds without any window manager.
 
 ## Findings of the W2 smoke runs
 

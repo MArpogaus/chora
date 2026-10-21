@@ -11,11 +11,11 @@ step "opening 40 windows"
 N=40
 for i in $(seq $N); do
   ctl spawn "$bin/chora-probe" window $((i*2 % 255)) $((i*3 % 255)) $((i*5 % 255)) > /dev/null
-  [ $((i % 10)) = 0 ] && sleep 1
 done
-sleep 2
+wait_count "app_id:chora-probe kind:surface" $((N-2)) \
+  || finding "W8: only $(count_windows) of $N windows mapped" wrong "$N spawns"
 c=$(count_windows)
-[ $c -ge $((N-2)) ] || finding "W8: only $c of $N windows mapped" wrong "$N spawns"
+step "$c windows mapped"
 health "$N windows"
 
 layouts="tile tile_left tile_bottom tile_top fair fair_horizontal spiral dwindle max fullscreen magnifier floating"
@@ -35,7 +35,7 @@ done
 step "20 plugin restarts"
 for i in $(seq 20); do
   ctl restart tiling > /dev/null 2>&1 || { finding "W8: restart $i failed" wrong "choractl restart tiling"; break; }
-  sleep 2
+  ready tiling get_layout '{}' || { finding "W8: tiling silent after restart $i" wrong "choractl restart tiling"; break; }
   health "restart $i"
 done
 c=$(count_windows)
