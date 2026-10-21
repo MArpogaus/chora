@@ -68,7 +68,7 @@ session_stop() {
 }
 
 # open <r g b>  -> one probe window owned by agent, prints its pid
-open() { ctl spawn "$bin/chora-probe" window "$@" | sed -n 's/.*"pid": \([0-9]*\).*/\1/p'; sleep 0.4; }
+open() { ctl spawn "$bin/chora-probe" window "$@" | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p'; sleep 0.4; }
 
 # count_windows -> number of chora-probe toplevels
 count_windows() { ctl query "app_id:chora-probe kind:surface" | grep -c '"id"'; }

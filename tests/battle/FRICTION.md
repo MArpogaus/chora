@@ -75,8 +75,8 @@ the concrete runs are in `tests/battle/reviews/`.
 - SIGUSR1 emergency reset **revokes all grants** (documented in
   `docs/api.md:478`) — the harness has to grant again after W7's reset;
   the TODO's W7 text does not mention it.
-- `choractl spawn` answers pretty-printed JSON; scripting wants one line
-  (harness parses with sed). *Candidate:* `--porcelain` or compact output.
+- `choractl spawn` answered pretty-printed JSON; scripting wants one line
+  (harness parses with sed). *Fixed:* compact one-line output in 498e4ea.
 - Tiling survives its own death and re-tiles after SIGUSR1 within ~1 s —
   W7's "windows in a grid" holds.
 
