@@ -448,7 +448,7 @@ fn spawn(client: &mut Client, argv: Vec<String>, capture: bool) -> Result<(), Cl
     let started: Value = client.call("process.spawn", Spawn { argv, capture })?;
     let pid = started["pid"].as_u64().and_then(|p| u32::try_from(p).ok());
     let Some(pid) = pid.filter(|_| capture) else {
-        print(&started);
+        print_line(std::io::stdout(), &started);
         return Ok(());
     };
     loop {
@@ -458,7 +458,7 @@ fn spawn(client: &mut Client, argv: Vec<String>, capture: bool) -> Result<(), Cl
         };
         let output: Value = client.call("process.wait", wait)?;
         if output["running"] != Value::Bool(true) {
-            print(&output);
+            print_line(std::io::stdout(), &output);
             return Ok(());
         }
     }
@@ -492,9 +492,7 @@ fn wait(client: &mut Client, command: &Cmd) -> Result<(), String> {
         std::time::Duration::from_secs(*timeout),
         std::time::Duration::from_millis(100),
     )?;
-    let line = serde_json::to_string(&nodes).map_err(|e| e.to_string())?;
-    // A closed stdout, for example after `| head`, is no error.
-    let _ = writeln!(std::io::stdout(), "{line}");
+    print_line(std::io::stdout(), &Value::Array(nodes));
     Ok(())
 }
 
@@ -814,13 +812,33 @@ fn print(value: &Value) {
     let _ = writeln!(std::io::stdout(), "{text}");
 }
 
+/// Prints a value as one JSON line, for the answers scripts read. Takes the
+/// writer so that a test can read the line.
+fn print_line<W: Write>(mut out: W, value: &Value) {
+    let line = serde_json::to_string(value).expect("values always serialize");
+    // A closed stdout, for example after `| head`, is no error.
+    let _ = writeln!(out, "{line}");
+}
+
 #[cfg(test)]
 mod tests {
     use clap::Parser;
     use serde_json::{Value, json};
     use std::time::Duration;
 
-    use super::{Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta, wait_loop};
+    use super::{Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta, print_line, wait_loop};
+
+    /// The answer of `spawn` and `wait` is one JSON line, so that a script
+    /// can read it. A newline inside a string stays escaped.
+    #[test]
+    fn the_answer_of_spawn_is_one_json_line() {
+        let mut line = Vec::new();
+        print_line(&mut line, &json!({ "pid": 7, "stdout": "a\nb" }));
+        assert_eq!(
+            String::from_utf8(line).unwrap(),
+            "{\"pid\":7,\"stdout\":\"a\\nb\"}\n",
+        );
+    }
 
     /// The poll loop stops at the first satisfying answer; a timeout is an
     /// error with the selector.

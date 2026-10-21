@@ -600,6 +600,8 @@ as the startup command (D30): `WAYLAND_DISPLAY` and `CHORA_SOCKET` of this
 compositor, without the variables of a host session, and with no stdin.
 The core looks the program up in its own `PATH`, so it works for an agent
 in another namespace too. The answer has the `pid` and the `argv`.
+`choractl spawn` prints its answer as one JSON line, so that a script can
+read it.
 
 `plugins.restart(name)` restarts a plugin, for example after a rebuild.
 The core finds the process of the connections of the client name,
