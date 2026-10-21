@@ -1,8 +1,8 @@
 //! chora-tiling: a tiling plugin with the user experience of awesome. Each
 //! output has tags, each tag a layout, and the bindings come from a YAML
 //! file (see `tiling.yaml`). Other clients, for example an agent, switch
-//! the layout through the exported methods `tiling.set_layout` and
-//! `tiling.get_layout`.
+//! the layout and drive the windows through the exported `tiling.*`
+//! methods (see `docs/configuration.md`).
 
 mod config;
 mod layout;
@@ -21,7 +21,7 @@ use chora_scene::{
     ipc::{ClientError, Export, Grab, PressState, Query, RpcError, Subscribe},
 };
 use clap::Parser;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 
 use crate::{
@@ -67,6 +67,28 @@ struct SetLayout {
 #[serde(deny_unknown_fields)]
 struct Give {
     to: String,
+}
+
+/// Parameters of `tiling.view_tag`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ViewTag {
+    tag: usize,
+}
+
+/// Parameters of `tiling.move_to_tag`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MoveToTag {
+    surface: String,
+    tag: usize,
+}
+
+/// Parameters of `tiling.focus` and `tiling.swap_master`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ForSurface {
+    surface: String,
 }
 
 /// The answer of `tiling.set_layout` and `tiling.get_layout`.
@@ -222,9 +244,19 @@ impl Tiling {
             self.call_apply(vec![group])?;
         }
         self.grab_all()?;
-        let names = ["set_layout", "get_layout", "give"]
-            .map(String::from)
-            .to_vec();
+        let names = [
+            "set_layout",
+            "get_layout",
+            "give",
+            "view_tag",
+            "move_to_tag",
+            "focus",
+            "focus_next",
+            "focus_prev",
+            "swap_master",
+        ]
+        .map(String::from)
+        .to_vec();
         self.client
             .call::<_, Value>("methods.export", Export { names })?;
         let events = [
@@ -411,18 +443,22 @@ impl Tiling {
         }
     }
 
-    /// Runs an exported method. A failed relayout fails the method.
+    /// Runs an exported method. Everything but `get_layout` changes
+    /// something, relayouts like the matching binding, and answers with
+    /// the layout info of the current tag. A failed relayout fails the
+    /// method.
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         if method == "give" {
             return self.give(params);
         }
-        if method == "set_layout" {
-            let change: SetLayout = serde_json::from_value(params)
-                .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))?;
-            if let Some(layout) = change.layout {
-                self.wm.set_layout(layout);
+        if method != "get_layout" {
+            let before = self.wm.focused().map(String::from);
+            let focuses = self.tune(method, params)?;
+            // A method that moves the focus of tiling takes it back, as a
+            // binding does.
+            if focuses || self.wm.focused() != before.as_deref() {
+                self.focus.take();
             }
-            self.wm.config.gap = change.gap.unwrap_or(self.wm.config.gap);
             self.relayout()
                 .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
@@ -439,6 +475,75 @@ impl Tiling {
             windows: self.wm.shown_windows(),
         };
         Ok(serde_json::to_value(info).expect("layouts always serialize"))
+    }
+
+    /// Changes what a method other than `give` and `get_layout` names.
+    /// True when the method focuses a window on its own.
+    fn tune(&mut self, method: &str, params: Value) -> Result<bool, RpcError> {
+        Ok(match method {
+            "set_layout" => {
+                let change: SetLayout = parse(params)?;
+                if let Some(layout) = change.layout {
+                    self.wm.set_layout(layout);
+                }
+                self.wm.config.gap = change.gap.unwrap_or(self.wm.config.gap);
+                false
+            }
+            "view_tag" => {
+                let ViewTag { tag } = parse(params)?;
+                self.check_tag(tag)?;
+                self.wm.view_tag(tag);
+                false
+            }
+            "move_to_tag" => {
+                let MoveToTag { surface, tag } = parse(params)?;
+                self.check_tag(tag)?;
+                only(self.wm.move_to_tag(&surface, tag), || {
+                    format!("tiling has no window {surface}")
+                })?;
+                false
+            }
+            "focus" => {
+                let ForSurface { surface } = parse(params)?;
+                only(self.wm.has(&surface), || {
+                    format!("tiling has no window {surface}")
+                })?;
+                self.wm.focus(&surface);
+                true
+            }
+            "focus_next" => {
+                self.wm.focus_next();
+                false
+            }
+            "focus_prev" => {
+                self.wm.focus_prev();
+                false
+            }
+            "swap_master" => {
+                let ForSurface { surface } = parse(params)?;
+                only(self.wm.swap_master(&surface), || {
+                    format!("{surface} shows nowhere")
+                })?;
+                false
+            }
+            other => {
+                return Err(RpcError::new(
+                    RpcError::METHOD_NOT_FOUND,
+                    format!("tiling has no method {other}"),
+                ));
+            }
+        })
+    }
+
+    /// A tag number of the configuration.
+    fn check_tag(&self, tag: usize) -> Result<(), RpcError> {
+        if (1..=self.wm.config.tags).contains(&tag) {
+            return Ok(());
+        }
+        Err(RpcError::new(
+            RpcError::INVALID_PARAMS,
+            format!("no tag {tag}"),
+        ))
     }
 
     /// Hands the focused window to another client with a remove with `to`,
@@ -736,6 +841,18 @@ fn configure(id: &str, size: Option<[i32; 2]>, states: States) -> Command {
             .map(|(_, s)| s)
             .collect(),
     }
+}
+
+/// Parses the parameters of an exported method.
+fn parse<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
+    serde_json::from_value(params)
+        .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))
+}
+
+/// Fails the method unless the model accepted it.
+fn only(ok: bool, err: impl FnOnce() -> String) -> Result<(), RpcError> {
+    ok.then_some(())
+        .ok_or_else(|| RpcError::new(RpcError::REJECTED, err()))
 }
 
 /// Runs a shell command. `&` lets the shell exit at once, so the command

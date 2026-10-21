@@ -743,7 +743,8 @@ caller. The `Client` of `chora-scene` answers with `Client::answer`.
   exporter disconnects. A connection has at most 64 calls in flight, and it
   cannot call its own methods.
 
-`chora-tiling` exports three methods:
+`chora-tiling` exports these three; [chora-tiling](configuration.md#chora-tiling)
+lists all of its methods:
 
 | Method | Parameters | Result |
 |--------|------------|--------|
