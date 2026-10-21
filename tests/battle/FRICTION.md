@@ -98,16 +98,16 @@ the concrete runs are in `tests/battle/reviews/`.
 - Taskbar button of the **active** window: the first click does nothing, the
   second minimizes. *Checked in 0.7 (T12):* not a bug, and `is_active` stays
   in sync. A click on the button of the active window minimizes on the first
-  click; a click on an inactive window only activates it, which looks like
-  "nothing" for a visible window. The smoke harness guessed the active window
-  from query order and usually missed, so its first click was an activation.
-  It could not know: focus was not in the query back then (see the `focused`
-  finding above). Verified headless with the `focused` marker of 16a7f90:
-  the first click on the active window's button minimizes after focus came
-  from spawn, from an injected Alt+Tab (3/3) and after `choractl restart xp`;
-  the click on an inactive window activates, the next one minimizes. Real XP
-  behaves the same. *Docs candidate:* state the click semantics in
-  `docs/plugins.md`.
+  click. A click on an inactive window only activates it. For a visible
+  window this looks like "nothing". The smoke harness guessed the active
+  window from query order and usually missed, so its first click was an
+  activation. It could not know: focus was not in the query back then (see
+  the `focused` finding above). Verified headless with the `focused` marker
+  of 16a7f90. The first click on the active window's button minimizes after
+  focus came from spawn, from an injected Alt+Tab (3/3) and after `choractl
+  restart xp`. The click on an inactive window activates, the next one
+  minimizes. Real XP behaves the same. *Docs candidate:* state the click
+  semantics in `docs/configuration.md`.
 
 ## Findings of the W3 smoke runs
 
