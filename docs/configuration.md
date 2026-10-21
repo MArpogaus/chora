@@ -626,6 +626,17 @@ The safety layer keeps only Ctrl+Alt with BackSpace, Escape and F1 to F12,
 so the cube takes Ctrl+Alt with the arrows. When another client holds
 these bindings, Super+Ctrl with the arrows stands in.
 
+`chora-xp` exports methods for other clients (see
+[Plugin methods](api.md#plugin-methods)). Each one answers with nothing.
+
+| Method | Parameters | Does the same as |
+|--------|------------|------------------|
+| `start_menu` | `open`: whether the menu should be open afterwards | a click on the start button of the first output |
+| `minimize` | `surface` | a click on the task button of the active window |
+| `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
+| `restart` | none | Restart in the Turn Off dialog |
+| `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button |
+
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `--theme DIR` | `/usr/share/chora/flavors/xp/theme`, or `CHORA_XP_THEME` | the theme directory |
