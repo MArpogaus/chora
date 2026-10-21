@@ -581,7 +581,9 @@ fn window(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
             paint(probe, &qh, &surface, size, [blue, green, red, 0xff])?;
             shown = size;
         }
-        dispatch_until(queue, probe, TIMEOUT, |p| p.sizes.len() > configures);
+        dispatch_until(queue, probe, TIMEOUT, |p| {
+            p.sizes.len() > configures || (exit_on_close && p.closed)
+        });
     }
 }
 
