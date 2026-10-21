@@ -96,9 +96,18 @@ the concrete runs are in `tests/battle/reviews/`.
 - The injected click (`pointer_move` + `click`) works: start menu opens and
   taskbar minimize/restore toggle `xp-win-<s>.visible`.
 - Taskbar button of the **active** window: the first click does nothing, the
-  second minimizes. Real XP behaves the same, but nothing documents the
-  choice; the W2 harness now clicks up to three times. *Docs candidate:*
-  state the click semantics in `docs/plugins.md`.
+  second minimizes. *Checked in 0.7 (T12):* not a bug, and `is_active` stays
+  in sync. A click on the button of the active window minimizes on the first
+  click; a click on an inactive window only activates it, which looks like
+  "nothing" for a visible window. The smoke harness guessed the active window
+  from query order and usually missed, so its first click was an activation.
+  It could not know: focus was not in the query back then (see the `focused`
+  finding above). Verified headless with the `focused` marker of 16a7f90:
+  the first click on the active window's button minimizes after focus came
+  from spawn, from an injected Alt+Tab (3/3) and after `choractl restart xp`;
+  the click on an inactive window activates, the next one minimizes. Real XP
+  behaves the same. *Docs candidate:* state the click semantics in
+  `docs/plugins.md`.
 
 ## Findings of the W3 smoke runs
 
