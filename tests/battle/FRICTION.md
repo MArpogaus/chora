@@ -45,11 +45,11 @@ the concrete runs are in `tests/battle/reviews/`.
 
 ## Test helpers
 
-- **`tests/ipc-bench.sh` hardcodes sway** (`WLR_BACKENDS=headless sway`) even
+- **`tests/ipc-bench.sh` hardcoded sway** (`WLR_BACKENDS=headless sway`) even
   though the repo has `tests/headless-session.sh` with the headless core
-  backend — the bench cannot run in a sway-free sandbox, and "use a release
-  build" conflicts with the battle spec (`cargo build --workspace` = debug).
-  *Change candidate:* rebase ipc-bench on headless-session.sh.
+  backend — the bench could not run in a sway-free sandbox, and "use a
+  release build" conflicts with the battle spec (`cargo build --workspace`
+  = debug). *Fixed:* the bench runs on `headless-session.sh` in 8142636.
 - `examples/showcase/snake.py` needs `PYTHONPATH=examples/showcase`
   (`choraclient`), undocumented in the battle TODO.
 - `headless-session.sh` prints KEY=VALUES only once the socket is up; a
