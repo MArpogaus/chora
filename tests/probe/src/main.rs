@@ -29,7 +29,8 @@
 //! - `sandbox`: connects through a new `wp-security-context-v1` socket and
 //!   checks that the sandboxed client sees no privileged global.
 //! - `window R G B`: shows a toplevel `chora-probe` in one color, in the
-//!   size of each configure, until it is killed.
+//!   size of each configure, until it is killed. With `--exit-on-close`,
+//!   it exits with 0 when the compositor asks it to close.
 
 mod capture;
 mod sandbox;
@@ -123,6 +124,8 @@ struct Probe {
     sizes: Vec<[i32; 2]>,
     /// Whether one of the surfaces of the probe got the keyboard.
     keyboard: bool,
+    /// Whether the compositor asked the toplevel to close.
+    closed: bool,
     /// The clock of presentation times.
     clock: Option<u32>,
     /// The answer to the request for presentation feedback.
@@ -561,10 +564,14 @@ fn window(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     let [red, green, blue] = color[..] else {
         return Err("usage: window R G B".into());
     };
+    let exit_on_close = std::env::args().any(|a| a == "--exit-on-close");
     let (surface, _xdg_surface) = toplevel(queue, probe)?;
     let qh = queue.handle();
     let mut shown = [0, 0];
     loop {
+        if exit_on_close && probe.closed {
+            return Ok("closed".into());
+        }
         let configures = probe.sizes.len();
         let size = match probe.sizes.last() {
             Some(&size) if size[0] > 0 && size[1] > 0 => size,
@@ -771,8 +778,12 @@ impl Dispatch<XdgToplevel, ()> for Probe {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        if let xdg_toplevel::Event::Configure { width, height, .. } = event {
-            probe.pending_size = [width, height];
+        match event {
+            xdg_toplevel::Event::Configure { width, height, .. } => {
+                probe.pending_size = [width, height];
+            }
+            xdg_toplevel::Event::Close => probe.closed = true,
+            _ => {}
         }
     }
 }
