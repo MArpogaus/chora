@@ -68,10 +68,10 @@ the concrete runs are in `tests/battle/reviews/`.
   relative to `parent`. Nothing in `docs/api.md` states the order. The
   harness composes matrices up the parent chain (`geom.py`).
   *Docs candidate:* say "column-major" next to "a 4x4 matrix".
-- `chora-probe window` never answers `xdg_toplevel.close_request` — it is a
-  test client that only exits with its process. So "close all windows" in
-  W1 tests process death, not the close path. *Tooling candidate:* a probe
-  flag `--exit-on-close`, or W1 loses its meaning.
+- `chora-probe window` ignored `xdg_toplevel.close_request`: it was a test
+  client that only exited with its process. So "close all windows" in W1
+  tested process death, not the close path. *Fixed:* probe flag
+  `--exit-on-close` in 0a1b8b5, loop wake-up in b78d7d1.
 - SIGUSR1 emergency reset **revokes all grants** (documented in
   `docs/api.md:478`) — the harness has to grant again after W7's reset;
   the TODO's W7 text does not mention it.
