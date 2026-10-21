@@ -73,7 +73,9 @@ before=$(places)
 
 # the Restart method of T11 five times, then choractl restart xp five times
 for i in $(seq 5); do
-  ctl call xp restart > /dev/null 2>&1  # ends xp, the core starts it again
+  # ends xp, the core starts it again; Ok comes back before xp dies,
+  # so only a refused or unknown method fails here
+  ctl call xp restart > /dev/null 2>&1 || finding "W2: xp restart refused in round $i" wrong "call xp restart"
   ready xp turn_to '{"desktop": 0}' || finding "W2: xp did not answer after Restart $i" wrong "call xp restart"
   health "XP Restart $i"
 done

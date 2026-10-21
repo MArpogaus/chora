@@ -21,7 +21,7 @@ for _ in $(seq 10); do timeout 2 "$bin/choractl" --name agent query >/dev/null 2
 # windows must sit in a grid: no two share a place, checked on the rects
 ok=0
 for _ in $(seq 25); do
-  grid=$(python3 tests/battle/check_grid.py) && { ok=1; break; }
+  grid=$(python3 tests/battle/check_grid.py 6) && { ok=1; break; }
   sleep 0.2
 done
 step "grid check: ${grid:-FINDING}"
