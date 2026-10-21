@@ -19,7 +19,7 @@ use chora_scene::{
     ipc::{
         Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, Edges,
         GrantChange, Hello, Inject, InjectEvent, MethodCall, Picture, ProcessWait, Query, Reserve,
-        Restart, SOCKET_ENV, Spawn, Subscribe, admin_socket,
+        Restart, RpcError, SOCKET_ENV, Spawn, Subscribe, admin_socket,
     },
 };
 use clap::{Parser, Subcommand};
@@ -345,8 +345,8 @@ fn run(args: Args) -> Result<(), String> {
         | Cmd::Grant { .. }
         | Cmd::Revoke { .. }
         | Cmd::Grants
-        | Cmd::Clients { .. }
         | Cmd::Camera { .. }) => session(&mut client, command),
+        Cmd::Clients { action } => return clients_command(&mut client, action),
         Cmd::Call {
             client: callee,
             method,
@@ -410,12 +410,6 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             capabilities,
         } => grants(client, "grants.revoke", name, capabilities),
         Cmd::Grants => show(client, "grants.list", Value::Null),
-        Cmd::Clients {
-            action: ClientsCmd::Create { client: name },
-        } => show(client, "clients.create", serde_json::json!({"name": name})),
-        Cmd::Clients {
-            action: ClientsCmd::Up { file },
-        } => clients_up(client, file.as_deref()),
         Cmd::Camera {
             action: CameraCmd::Release { output },
         } => show(
@@ -440,6 +434,41 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             .map(drop),
         _ => unreachable!("only commands for grants, programs and outputs come here"),
     }
+}
+
+/// `choractl clients ...`, which all go through the admin socket.
+fn clients_command(client: &mut Client, action: ClientsCmd) -> Result<(), String> {
+    match action {
+        ClientsCmd::Create { client: name } => client_create(client, &name),
+        ClientsCmd::Up { file } => clients_up(client, file.as_deref()).map_err(|e| e.to_string()),
+    }
+}
+
+/// Opens the client socket of a name and prints its path. A name that has a
+/// socket already gets that socket on stderr.
+fn client_create(client: &mut Client, name: &str) -> Result<(), String> {
+    let answer = client.call::<_, Value>("clients.create", serde_json::json!({"name": name}));
+    match answer {
+        Ok(path) => {
+            print(&path);
+            Ok(())
+        }
+        Err(ClientError::Rpc(err)) => {
+            Err(taken_socket(name, &err).unwrap_or_else(|| err.to_string()))
+        }
+        Err(err) => Err(err.to_string()),
+    }
+}
+
+/// The message for a name whose client socket exists already, from the
+/// `path` in the error data of the core. `None` for every other error.
+fn taken_socket(name: &str, err: &RpcError) -> Option<String> {
+    let data = err.data.as_ref()?;
+    if data.get("reason").and_then(Value::as_str) != Some("socket_exists") {
+        return None;
+    }
+    let path = data.get("path").and_then(Value::as_str)?;
+    Some(format!("{name} has a client socket already: {path}"))
 }
 
 /// Starts a program. With `capture`, waits for its end on the same
@@ -826,7 +855,12 @@ mod tests {
     use serde_json::{Value, json};
     use std::time::Duration;
 
-    use super::{Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta, print_line, wait_loop};
+    use chora_scene::ipc::RpcError;
+
+    use super::{
+        Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta, print_line, taken_socket,
+        wait_loop,
+    };
 
     /// The answer of `spawn` and `wait` is one JSON line, so that a script
     /// can read it. A newline inside a string stays escaped.
@@ -929,6 +963,26 @@ mod tests {
             .is_err(),
             "an unknown capability is an error"
         );
+    }
+
+    /// A name whose client socket exists already gets that socket by name;
+    /// every other error keeps the message of the core.
+    #[test]
+    fn a_taken_client_name_names_its_socket() {
+        let taken = RpcError::new(RpcError::REJECTED, "\"agent\" has a client socket already")
+            .with_data(json!({
+                "reason": "socket_exists",
+                "path": "/run/chora/clients/agent/ipc.sock",
+            }));
+        assert_eq!(
+            taken_socket("agent", &taken).as_deref(),
+            Some("agent has a client socket already: /run/chora/clients/agent/ipc.sock"),
+        );
+        let connected = RpcError::new(RpcError::REJECTED, "\"agent\" is connected")
+            .with_data(json!({"reason": "connected"}));
+        assert!(taken_socket("agent", &connected).is_none());
+        let no_data = RpcError::new(RpcError::REJECTED, "no socket directory");
+        assert!(taken_socket("agent", &no_data).is_none());
     }
 
     /// No argument of a command takes the place of `--name`.

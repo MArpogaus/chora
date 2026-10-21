@@ -539,6 +539,10 @@ path:
   socket.
 - The main socket refuses a `hello` with a name that has a client
   socket, so no client of the main socket takes that name.
+- A name that has a socket already keeps it. `clients.create` answers the
+  `socket_exists` reason with the `path` of that socket. `choractl clients
+  create NAME` prints `NAME has a client socket already: PATH` on stderr
+  and exits 1.
 - `clients.create` fails for a name with a connection or in its grace
   time, and beyond 64 client sockets.
 - The name has lowercase letters, digits, `_`, `-` and `.`, and starts

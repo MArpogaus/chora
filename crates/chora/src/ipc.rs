@@ -2032,6 +2032,26 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// A name that already has a socket gets its path in the error data, so
+    /// that `choractl clients create` can name the socket it must reuse.
+    #[test]
+    fn a_taken_name_reports_its_socket_path() {
+        let (mut core, dir) = socket_dir("taken-name");
+        let mut admin = core.admin();
+        admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let error = admin
+            .call(&mut core, "clients.create", json!({"name": "agent"}))
+            .expect_err("the name has a socket already");
+        assert_eq!(error["code"], REJECTED);
+        assert_eq!(error["data"]["reason"], "socket_exists");
+        assert_eq!(
+            error["data"]["path"],
+            dir.join("clients/agent/ipc.sock").to_str().unwrap(),
+        );
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn clients_create_refuses_a_live_name() {
         let (mut core, dir) = socket_dir("live");
