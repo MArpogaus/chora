@@ -6,19 +6,25 @@ set -eu
 bin=$(realpath "$1")
 out=$(realpath "${2:-$(mktemp -d)}")
 mkdir -p "$out"
-XDG_RUNTIME_DIR=$(mktemp -d /tmp/bench.XXXXXX); export XDG_RUNTIME_DIR
-pids=()
-trap 'kill "${pids[@]}" 2>/dev/null; rm -rf "$XDG_RUNTIME_DIR"' EXIT
-printf 'output HEADLESS-1 resolution 1280x800\ndefault_border none\n' >"$out/sway.conf"
-WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
-    sway -c "$out/sway.conf" >"$out/sway.log" 2>&1 &
-pids+=($!)
-sleep 1
-export WAYLAND_DISPLAY=wayland-1
-"$bin/chora" -- sleep 120 >"$out/chora.log" 2>&1 &
-pids+=($!)
-sleep 1.5
-CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"); export CHORA_SOCKET
+# The headless session starts the core on its own headless backend and
+# prints KEY=VALUE lines, one being CHORA_SOCKET, once the IPC socket is up.
+CHORA_BIN="$bin" "$(dirname "$0")/headless-session.sh" -- sleep 300 \
+    >"$out/session.out" 2>"$out/session.log" &
+session=$!
+trap 'kill "$session" 2>/dev/null || true' EXIT
+CHORA_SOCKET=
+for _ in $(seq 300); do
+    CHORA_SOCKET=$(sed -n 's/^CHORA_SOCKET=//p' "$out/session.out" 2>/dev/null)
+    [[ -n $CHORA_SOCKET ]] && break
+    kill -0 "$session" 2>/dev/null || break
+    sleep 0.1
+done
+[[ -n $CHORA_SOCKET ]] || {
+    echo "no CHORA_SOCKET line; last lines of the session log:" >&2
+    tail -n 20 "$out/session.log" >&2 || true
+    exit 1
+}
+export CHORA_SOCKET
 python3 -I - "$CHORA_SOCKET" <<'EOF'
 import json, socket, sys, time, math, statistics
 s = socket.socket(socket.AF_UNIX); s.connect(sys.argv[1]); f = s.makefile()
