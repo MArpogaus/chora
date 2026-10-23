@@ -158,3 +158,21 @@ the concrete runs are in `tests/battle/reviews/`.
 - Pass 1 at 20:55 ran into the memory storm again: every workflow reported
   0 windows / missing grants because the probes died on shm allocation.
   Those 21 findings were dropped; workflows pass standalone at 21:2x.
+
+## 0.7 backlog (judged "open (not small)", carried to 0.8)
+
+- Silent core death after the budgets probe (W5, load-only). The core
+  vanishes right after `frames are slow; the watchdog blames a client
+  client=budget load~5000`: no panic in the log, no OOM record, no
+  exit or abort path in `safety.rs`. `safety.rs` is unchanged since
+  v0.6.0. Reproduced under host memory pressure (12 GB free of 125);
+  clean on a quiet machine. Next step if it returns: run the core
+  under `wait` in the foreground harness and record the exit signal.
+- SIGUSR1 emergency reset revokes all grants (documented), but the
+  WM plugin then stays silent instead of re-requesting them: after a
+  reset the desktop has no WM until the plugin is restarted. Design
+  question for 0.8: should the reset notify plugins so they re-grant?
+- Watchdog tolerance while the budget probe churns nodes: stress
+  clients (snake) get blamed and disconnected though the churn is the
+  probe's doing. The watchdog is the de-facto node limit; its
+  per-client attribution under combined load deserves a design pass.

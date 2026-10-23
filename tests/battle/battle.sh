@@ -12,13 +12,20 @@ stopped() { grep -q PHASE=done "$state"; }
 say() { echo "$(date -Is) | $*" >> "$log"; }
 nfind() { grep -c '^## ' "$bt/findings.md" 2>/dev/null; true; }
 
+titles() { python3 - "$bt/findings.md" <<'PY'
+import re, sys
+print("\n".join(sorted(set(
+    b.split("\n", 1)[0]
+    for b in re.split(r"(?m)^## ", open(sys.argv[1]).read())[1:]))))
+PY
+}
 pass=0 clean_passes=0
 declare -A timeouts
 say "driver started (pid $$)"
 while ! stopped; do
   if ! grep -q PHASE=battle "$state"; then sleep 60; continue; fi
   cargo build --workspace >> "$bt/build.log" 2>&1 || say "pass build failed, using old binaries"
-  pass=$((pass+1)); before=$(nfind)
+  pass=$((pass+1)); before=$(titles)
   say "pass $pass start (findings before: $before)"
   for w in 1 2 3 4 5 6 7 8; do
     stopped && break
@@ -34,7 +41,7 @@ while ! stopped; do
       timeouts[$w]=0
     fi
   done
-  after=$(nfind); new=$(( ${after:-0} - ${before:-0} ))
+  after=$(titles); new=$(comm -13 <(echo "$before") <(echo "$after") | grep -c .; true)
   say "pass $pass done: $new new findings (before=$before after=$after)"
   if [ "$new" = 0 ]; then
     clean_passes=$((clean_passes+1))
@@ -45,7 +52,7 @@ while ! stopped; do
     while read -r -d '' title; do
       stopped && break
       before_s=$(ls "$sdir" | sort)
-      timeout 1800 pi --model gufo/gufo -p "In /home/marcel/Projekte/chora: the battle finding '$title' in tests/battle/findings.md. Fix it ONLY if the fix is small: at most 1 file and 20 lines, and you can write a test that fails without the fix. Before committing run: cargo fmt, cargo clippy --workspace -- -D warnings, cargo test --workspace. Conventional commit, stage files by name, never push, never touch services/voice/. Then set the finding's status line to 'fixed in <commit>'. If it is not small or you cannot write the test, change nothing and set the status line to 'open (not small)'." >> "$bt/fix.log" 2>&1 < /dev/null
+      timeout 1200 pi --model gufo/gufo -p "In /home/marcel/Projekte/chora: the battle finding '$title' in tests/battle/findings.md. Fix it ONLY if the fix is small: at most 1 file and 20 lines, and you can write a test that fails without the fix. Before committing run: cargo fmt, cargo clippy --workspace -- -D warnings, cargo test --workspace. Conventional commit, stage files by name, never push, never touch services/voice/. Then set the finding's status line to 'fixed in <commit>'. If it is not small or you cannot write the test, change nothing and set the status line to 'open (not small)'." >> "$bt/fix.log" 2>&1 < /dev/null
       say "fix attempt for: $title (pi exit $?)"
     done < <(python3 - "$bt/findings.md" <<'PY'
 import re, sys

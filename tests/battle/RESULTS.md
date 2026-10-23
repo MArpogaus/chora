@@ -21,3 +21,21 @@ Everything else green, including 40 windows through 108 layout changes,
 ~14.6k nodes, and every sandbox escape attempt refused.
 
 Design friction with API/doc consequences: see [FRICTION.md](FRICTION.md).
+
+# 0.7 battle re-run (2026-10-21 .. 2026-10-23)
+
+Same W1-W8 suite, rebuilt on the 0.7 primitives (`choractl wait`,
+`input.inject` dry run and `hold`, compact `spawn`). Driver
+`tests/battle/battle.sh` under the `local-pi-session` heartbeat.
+
+Two consecutive passes with no new distinct finding closed the phase.
+W5 reproduced its stress finding in the first of those passes; the
+finding title was already known and judged, so the pass still counted
+clean under the distinct-title judge (see FRICTION backlog).
+
+- harness: `b6f00af` (wait the WM handoff after drags, first-block
+  parse), `79f74b6` (fix agents got starved by stdin hijack)
+- product: `a55a764` fix(ipc) - a refused client reads its error line
+- open, by judgement not by time: silent core death after the budgets
+  probe under load, W7 tiling silent after SIGUSR1, watchdog
+  tolerance against stress clients -> FRICTION.md
