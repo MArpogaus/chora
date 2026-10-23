@@ -38,7 +38,7 @@ const SLOW_FOR: Duration = Duration::from_secs(2);
 /// How long frames stay fast before removed effects may come back without
 /// a reset.
 const CALM_FOR: Duration = Duration::from_secs(10);
-/// The shortest time between two disconnects of the watchdog.
+/// The shortest time between two disconnects of the same client.
 const DISCONNECT_PAUSE: Duration = Duration::from_secs(60);
 /// The least load of a client that the watchdog disconnects, as
 /// `Scene::load_by_owner` counts it: on a slow GPU, a window manager with
@@ -52,7 +52,8 @@ pub struct Watchdog {
     outputs: HashMap<String, Run>,
     /// The client that the watchdog blamed; if frames stay slow, it goes.
     suspect: Option<String>,
-    last_disconnect: Option<Instant>,
+    /// When each client went last.
+    last_disconnect: HashMap<String, Instant>,
     /// A fixed budget from `CHORA_FRAME_BUDGET_US`.
     budget: Option<Duration>,
 }
@@ -105,15 +106,17 @@ impl Watchdog {
             return Some(Action::Blame);
         };
         // A disconnect helps once, but not again and again, for example on
-        // a slow GPU.
+        // a slow GPU. Another client must not wait for the pause: while the
+        // watchdog holds back, its nodes starve the core.
         if self
             .last_disconnect
-            .is_some_and(|t| now - t < DISCONNECT_PAUSE)
+            .get(&client)
+            .is_some_and(|t| now - *t < DISCONNECT_PAUSE)
         {
             self.suspect = Some(client);
             return None;
         }
-        self.last_disconnect = Some(now);
+        self.last_disconnect.insert(client.clone(), now);
         Some(Action::Disconnect(client))
     }
 }
@@ -289,6 +292,42 @@ mod tests {
         let later = start + Duration::from_millis(4200);
         let actions = slow_for(&mut watchdog, later, 4100, Some("heavy"));
         assert_eq!(actions, [Action::Blame]);
+    }
+
+    #[test]
+    fn the_pause_covers_only_the_client_that_went() {
+        let mut watchdog = Watchdog::default();
+        let start = Instant::now();
+        assert_eq!(
+            slow_for(&mut watchdog, start, 4100, Some("a")),
+            [Action::Blame, Action::Disconnect("a".into())]
+        );
+        // Right after: the same client stays, but a new suspect goes at once.
+        let later = start + Duration::from_millis(4200);
+        assert_eq!(
+            slow_for(&mut watchdog, later, 4100, Some("a")),
+            [Action::Blame]
+        );
+        // Frames get fast again, so the suspect is forgotten; the pause of
+        // "a" stays in place.
+        let calm = later + Duration::from_secs(15);
+        for i in 0..1000 {
+            watchdog.note(
+                "out",
+                REFRESH,
+                Duration::from_millis(1),
+                calm + Duration::from_millis(i),
+            );
+        }
+        assert_eq!(
+            slow_for(
+                &mut watchdog,
+                calm + Duration::from_millis(1000),
+                4100,
+                Some("b")
+            ),
+            [Action::Blame, Action::Disconnect("b".into())]
+        );
     }
 
     #[test]
