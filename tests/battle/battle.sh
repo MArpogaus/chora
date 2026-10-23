@@ -45,12 +45,12 @@ while ! stopped; do
     while read -r -d '' title; do
       stopped && break
       before_s=$(ls "$sdir" | sort)
-      timeout 1800 pi --model gufo/gufo -p "In /home/marcel/Projekte/chora: the battle finding '$title' in tests/battle/findings.md. Fix it ONLY if the fix is small: at most 1 file and 20 lines, and you can write a test that fails without the fix. Before committing run: cargo fmt, cargo clippy --workspace -- -D warnings, cargo test --workspace. Conventional commit, stage files by name, never push, never touch services/voice/. Then set the finding's status line to 'fixed in <commit>'. If it is not small or you cannot write the test, change nothing and set the status line to 'open (not small)'." >> "$bt/fix.log" 2>&1
+      timeout 1800 pi --model gufo/gufo -p "In /home/marcel/Projekte/chora: the battle finding '$title' in tests/battle/findings.md. Fix it ONLY if the fix is small: at most 1 file and 20 lines, and you can write a test that fails without the fix. Before committing run: cargo fmt, cargo clippy --workspace -- -D warnings, cargo test --workspace. Conventional commit, stage files by name, never push, never touch services/voice/. Then set the finding's status line to 'fixed in <commit>'. If it is not small or you cannot write the test, change nothing and set the status line to 'open (not small)'." >> "$bt/fix.log" 2>&1 < /dev/null
       say "fix attempt for: $title (pi exit $?)"
     done < <(python3 - "$bt/findings.md" <<'PY'
 import re, sys
 blocks = re.split(r"(?m)^## ", open(sys.argv[1]).read())[1:]
-open_titles = [b.split("\n", 1)[0] for b in blocks if re.search(r"^status: open", b, re.M)]
+open_titles = list(dict.fromkeys(b.split("\n", 1)[0] for b in blocks if re.search(r"^status: open", b, re.M)))
 sys.stdout.write("\0".join(open_titles[:4]) + "\0")
 PY
 )
