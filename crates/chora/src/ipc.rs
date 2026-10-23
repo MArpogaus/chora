@@ -634,6 +634,10 @@ impl State {
         if let Some(reason) = self.ipc.refusal(pid, socket.name()) {
             let error = rejected(reason.clone());
             let _ = (&stream).write_all(&line(&Message::error(Value::Null, error)));
+            // A close with unread bytes in the receive queue sends an RST
+            // and eats the error line, so read what arrived before closing.
+            let mut drain = [0; 4096];
+            while matches!((&stream).read(&mut drain), Ok(n) if n > 0) {}
             return Err(format!("refusing a connection: {reason}"));
         }
         // The event loop watches a copy; reads go through `Conn::stream`.
@@ -2600,6 +2604,24 @@ mod tests {
         core.dispatch();
         let (_, theirs) = UnixStream::pair().unwrap();
         assert!(core.state.ipc_accept(theirs).is_ok());
+    }
+
+    /// A refused client has often already sent its `hello`. Closing with
+    /// unread bytes sends an RST and eats the error line, so the core
+    /// reads before it closes.
+    #[test]
+    fn a_refused_connection_reads_its_error_line_after_its_hello() {
+        let mut core = Core::new();
+        let _full: Vec<Client> = (0..MAX_PER_PROCESS).map(|_| core.connect()).collect();
+        let (mut ours, theirs) = UnixStream::pair().unwrap();
+        ours.write_all(b"hello\n").unwrap();
+        assert!(core.state.ipc_accept(theirs).is_err());
+        let mut answer = String::new();
+        ours.read_to_string(&mut answer).unwrap();
+        assert_eq!(
+            serde_json::from_str::<Value>(&answer).unwrap()["error"]["code"],
+            REJECTED
+        );
     }
 
     #[test]
