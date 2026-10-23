@@ -73,6 +73,13 @@ open() { ctl spawn "$bin/chora-probe" window "$@" | sed -n 's/.*"pid":[[:space:]
 # count_windows -> number of chora-probe toplevels
 count_windows() { ctl query "app_id:chora-probe kind:surface" | grep -c '"id"'; }
 
+# wait_sel <selector> [secs] -> wait until the selector matches (choractl wait)
+wait_sel() {
+  local sel=$1 secs=${2:-10}
+  timeout "$((secs + 5))" "$bin/choractl" --name agent wait "$sel" \
+    --timeout "$secs" >/dev/null 2>&1
+}
+
 # wait_count <selector> <n>  -> wait until at least n nodes match
 wait_count() {
   for _ in $(seq 100); do

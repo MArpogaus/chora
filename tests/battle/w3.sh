@@ -35,6 +35,10 @@ print(f"X={int(r[0]+r[2]/2)} Y={int(r[1]+r[3]/2)}" if r else "")')"
   done
   events="$events, {\"button\": {\"state\": \"released\"}}]"
   inject "$events" >/dev/null
+  # the drag is fire-and-forget: wait until tiling owns the window
+  # before the next query, or the title node can be gone mid-handoff
+  wait_sel "owner:tiling id:$s kind:surface" \
+    || finding "W3: $s stayed with xp after the drag" wrong "wait owner:tiling id:$s"
   health "drag $n ($s)"
 done
 step "owners after drags: $(owners)"

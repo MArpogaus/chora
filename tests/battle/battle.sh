@@ -49,7 +49,7 @@ while ! stopped; do
       say "fix attempt for: $title (pi exit $?)"
     done < <(python3 - "$bt/findings.md" <<'PY'
 import re, sys
-blocks = open(sys.argv[1]).read().split("\n## ")[1:]
+blocks = re.split(r"(?m)^## ", open(sys.argv[1]).read())[1:]
 open_titles = [b.split("\n", 1)[0] for b in blocks if re.search(r"^status: open", b, re.M)]
 sys.stdout.write("\0".join(open_titles[:4]) + "\0")
 PY
