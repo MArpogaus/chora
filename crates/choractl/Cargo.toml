@@ -2,6 +2,7 @@
 base64.workspace = true
 chora-scene = { workspace = true, features = ["schema"] }
 clap.workspace = true
+libc = "0.2"
 rmcp.workspace = true
 schemars.workspace = true
 serde.workspace = true

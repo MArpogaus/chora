@@ -807,6 +807,7 @@ impl State {
             "process.spawn" | "process.wait" | "plugins.restart" => {
                 return self.ipc_process(conn, id, &request.method, params);
             }
+            "activation.token" => Ok(self.ipc_activation_token()),
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
             }
@@ -815,6 +816,15 @@ impl State {
                 format!("no method {other:?}"),
             )),
         })
+    }
+
+    /// A token for `choractl run` (D42): an xdg activation token of no
+    /// client, so that the started program can activate with it. A use
+    /// ends the token; the core keeps unused ones until they are gone.
+    fn ipc_activation_token(&mut self) -> Value {
+        let (token, _) = self.activation_state.create_external_token(None);
+        let token = token.as_str().to_owned();
+        serde_json::json!({"token": token})
     }
 
     /// Streams the named events, or all of them for an empty list. An
@@ -2928,6 +2938,52 @@ mod tests {
         assert_eq!(answer["result"]["running"], false, "{answer}");
         assert_eq!(answer["result"]["status"], 0, "{answer}");
         assert!(agent.closed(&mut core));
+    }
+
+    /// `choractl run` asks the core for a token (D42). A toplevel that
+    /// activates with it before its first commit shows it in
+    /// `surface.created`, and its use ends the token.
+    #[test]
+    fn the_issued_token_reaches_the_surface_created_of_its_window() {
+        let mut core = Core::new();
+        core.add_output("A", (64, 48));
+        let mut ctl = core.named("choractl");
+        let answer = ctl.ok(&mut core, "activation.token", Value::Null);
+        let token = answer["token"]
+            .as_str()
+            .expect("an activation token")
+            .to_owned();
+        assert!(
+            core.state
+                .activation_state
+                .tokens()
+                .any(|(t, _)| t.as_str() == token),
+            "the core knows the token it answered",
+        );
+        let mut wm = core.named("wm");
+        wm.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["surface.created"]}),
+        );
+        let mut client = Wayland::connect(&mut core);
+        let _top = client.activated_toplevel(&mut core, "run", &token);
+        let created: Vec<Value> = wm
+            .events_now(&mut core)
+            .into_iter()
+            .filter(|e| e["params"]["event"] == "surface.created")
+            .collect();
+        assert_eq!(created.len(), 1, "one toplevel was created");
+        assert_eq!(created[0]["params"]["token"], token);
+        assert!(created[0]["params"]["pid"].as_u64().is_some());
+        assert!(
+            !core
+                .state
+                .activation_state
+                .tokens()
+                .any(|(t, _)| t.as_str() == token),
+            "one use ends the token",
+        );
     }
 
     #[test]

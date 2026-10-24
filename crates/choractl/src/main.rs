@@ -9,6 +9,7 @@ mod view;
 
 use std::{
     io::{Read, Write},
+    os::unix::process::CommandExt,
     process::ExitCode,
 };
 
@@ -119,6 +120,15 @@ enum Cmd {
     },
     /// Serve the API as MCP tools over stdio, for an agent.
     Mcp,
+    /// Start a program outside the core (D42), with an activation token
+    /// of the core in `XDG_ACTIVATION_TOKEN`: in its own systemd scope
+    /// when the user manager answers, detached otherwise. Prints the pid
+    /// as one JSON line.
+    Run {
+        /// The program and its arguments.
+        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
+        argv: Vec<String>,
+    },
     /// Start a program with the environment of the compositor, and print
     /// its pid. Needs a grant of `process.spawn` for the client name.
     Spawn {
@@ -336,7 +346,8 @@ fn run(args: Args) -> Result<(), String> {
             .map(drop),
         Cmd::Events { names } => events(&mut client, names),
         Cmd::Outputs => show(&mut client, "output.list", Value::Null),
-        command @ (Cmd::Spawn { .. }
+        command @ (Cmd::Run { .. }
+        | Cmd::Spawn { .. }
         | Cmd::Restart { .. }
         | Cmd::ConfigureOutput { .. }
         | Cmd::AddOutput { .. }
@@ -417,6 +428,7 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             "camera.release",
             serde_json::json!({"output": output}),
         ),
+        Cmd::Run { argv } => run_program(client, &argv),
         Cmd::Spawn { capture, argv } => spawn(client, argv, capture),
         Cmd::Restart { client: name } => show(client, "plugins.restart", Restart { name }),
         Cmd::ConfigureOutput {
@@ -469,6 +481,95 @@ fn taken_socket(name: &str, err: &RpcError) -> Option<String> {
     }
     let path = data.get("path").and_then(Value::as_str)?;
     Some(format!("{name} has a client socket already: {path}"))
+}
+
+/// `choractl run` (D42): asks the core for an activation token, starts
+/// the program with it in the environment, and prints the pid as one
+/// JSON line.
+fn run_program(client: &mut Client, argv: &[String]) -> Result<(), ClientError> {
+    let answer: Value = client.call("activation.token", Value::Null)?;
+    let Some(token) = answer["token"].as_str().map(str::to_owned) else {
+        return Err(ClientError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "the core answered no activation token",
+        )));
+    };
+    let pid = match systemd_scope(argv, &token) {
+        Some(pid) => pid,
+        None => start_detached(argv, &token).map_err(|e| {
+            ClientError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", argv[0])))
+        })?,
+    };
+    print_line(std::io::stdout(), &serde_json::json!({ "pid": pid }));
+    Ok(())
+}
+
+/// The pid of the program in a scope of its own, or `None` when the user
+/// manager or `systemd-run` does not answer. `systemd-run` runs the
+/// program as its own child and exits once the scope holds it; the pid
+/// then comes from the manager. 0 means a scope whose pid the manager
+/// did not name yet.
+fn systemd_scope(argv: &[String], token: &str) -> Option<u32> {
+    let answered = std::process::Command::new("systemctl")
+        .args(["--user", "is-system-running"])
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    if answered.stdout.is_empty() {
+        return None;
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .unwrap_or_default();
+    let unit = format!("chora-run-{}-{}.scope", std::process::id(), now.as_nanos());
+    let started = std::process::Command::new("systemd-run")
+        .args(["--user", "--scope", "--unit", &unit])
+        .args(argv)
+        .env("XDG_ACTIVATION_TOKEN", token)
+        .status()
+        .ok()?;
+    if !started.success() {
+        return None;
+    }
+    let shown = std::process::Command::new("systemctl")
+        .args([
+            "--user",
+            "show",
+            "--property=MainPID",
+            "--value",
+            "--unit",
+            &unit,
+        ])
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    let pid = String::from_utf8_lossy(&shown.stdout)
+        .trim()
+        .parse()
+        .unwrap_or(0);
+    Some(pid)
+}
+
+/// The program forked by `choractl` itself, detached in a session of its
+/// own and with the token in its environment; the pid of the child.
+#[allow(unsafe_code)] // one `setsid` in the fork hook, nothing else
+fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
+    let mut command = std::process::Command::new(&argv[0]);
+    command
+        .args(&argv[1..])
+        .env("XDG_ACTIVATION_TOKEN", token)
+        .stdin(std::process::Stdio::null());
+    // SAFETY: the hook only calls `setsid`, an async-signal-safe function.
+    unsafe {
+        command.pre_exec(|| {
+            if libc::setsid() == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    command.spawn().map(|child| child.id())
 }
 
 /// Starts a program. With `capture`, waits for its end on the same
@@ -978,6 +1079,37 @@ mod tests {
         assert!(taken_socket("agent", &connected).is_none());
         let no_data = RpcError::new(RpcError::REJECTED, "no socket directory");
         assert!(taken_socket("agent", &no_data).is_none());
+    }
+
+    /// The fallback starts the program detached, with the activation
+    /// token in its environment, and answers a pid. `true` runs the
+    /// same way a real program would.
+    #[test]
+    #[allow(unsafe_code)] // one `waitpid`, to reap the children
+    fn the_fallback_starts_the_program_with_the_token() {
+        let token = format!("tok-{}", std::process::id());
+        let out = std::env::temp_dir().join(format!("chora-run-{}.txt", std::process::id()));
+        let _ = std::fs::remove_file(&out);
+        let script = format!("printf %s \"$XDG_ACTIVATION_TOKEN\" > {}", out.display());
+        for argv in [
+            vec!["true".to_owned()],
+            vec!["sh".into(), "-c".into(), script],
+        ] {
+            let pid = super::start_detached(&argv, &token).expect("the program starts");
+            assert!(pid > 0);
+            let mut status = 0;
+            // SAFETY: `status` is a live `i32` until `waitpid` returns.
+            let waited = unsafe { libc::waitpid(pid.cast_signed(), &raw mut status, 0) };
+            assert_eq!(waited, pid.cast_signed(), "{argv:?} is our child");
+            assert_eq!(status, 0, "{argv:?} exited clean");
+        }
+        assert_eq!(std::fs::read_to_string(&out).unwrap(), token);
+        let _ = std::fs::remove_file(&out);
+        let args = Args::try_parse_from("choractl run -- /bin/echo -n".split(' ')).unwrap();
+        assert!(
+            matches!(args.command, Cmd::Run { ref argv } if *argv == ["/bin/echo", "-n"]),
+            "everything after `run` is the program",
+        );
     }
 
     /// No argument of a command takes the place of `--name`.

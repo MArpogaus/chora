@@ -530,6 +530,7 @@ dependencies = [
  "base64",
  "chora-scene",
  "clap",
+ "libc",
  "rmcp",
  "schemars",
  "serde",
