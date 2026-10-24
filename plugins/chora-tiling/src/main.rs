@@ -21,7 +21,10 @@ use chora_kit::conn::Conn;
 use chora_scene::{
     Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest, ToplevelState,
     Transform,
-    ipc::{ClientError, Export, ExportMethod, Grab, PressState, Query, RpcError, Subscribe},
+    ipc::{
+        ClientError, DescribedMethod, Export, ExportMethod, Grab, PressState, Query, RpcError,
+        Subscribe,
+    },
 };
 use clap::Parser;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -1042,8 +1045,8 @@ fn method_specs() -> Vec<Spec> {
 fn exported_methods() -> Vec<ExportMethod> {
     method_specs()
         .into_iter()
-        .map(
-            |(name, description, properties, required)| ExportMethod::Described {
+        .map(|(name, description, properties, required)| {
+            ExportMethod::Described(DescribedMethod {
                 name: name.into(),
                 description: Some(description.into()),
                 input_schema: Some(json!({
@@ -1051,8 +1054,8 @@ fn exported_methods() -> Vec<ExportMethod> {
                     "properties": properties,
                     "required": required,
                 })),
-            },
-        )
+            })
+        })
         .collect()
 }
 

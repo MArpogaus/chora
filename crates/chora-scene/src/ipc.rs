@@ -574,17 +574,23 @@ pub struct Export {
 pub enum ExportMethod {
     /// The method name alone, without description and schema.
     Plain(String),
-    /// The name with what a caller needs to know about it.
-    Described {
-        /// The method name, for example `set_layout`.
-        name: String,
-        /// What the method does, in words for the caller.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-        /// A JSON schema of the parameters.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        input_schema: Option<Value>,
-    },
+    /// The name with what a caller needs to know about it. Unknown keys in
+    /// the object are refused, so a typo in `description` does not vanish.
+    Described(DescribedMethod),
+}
+
+/// The described form of an [`ExportMethod`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DescribedMethod {
+    /// The method name, for example `set_layout`.
+    pub name: String,
+    /// What the method does, in words for the caller.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// A JSON schema of the parameters.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_schema: Option<Value>,
 }
 
 impl ExportMethod {
@@ -592,7 +598,7 @@ impl ExportMethod {
     #[must_use]
     pub fn name(&self) -> &str {
         match self {
-            Self::Plain(name) | Self::Described { name, .. } => name,
+            Self::Plain(name) | Self::Described(DescribedMethod { name, .. }) => name,
         }
     }
 
@@ -601,7 +607,7 @@ impl ExportMethod {
     pub fn description(&self) -> Option<&str> {
         match self {
             Self::Plain(_) => None,
-            Self::Described { description, .. } => description.as_deref(),
+            Self::Described(d) => d.description.as_deref(),
         }
     }
 
@@ -610,7 +616,7 @@ impl ExportMethod {
     pub fn input_schema(&self) -> Option<&Value> {
         match self {
             Self::Plain(_) => None,
-            Self::Described { input_schema, .. } => input_schema.as_ref(),
+            Self::Described(d) => d.input_schema.as_ref(),
         }
     }
 }

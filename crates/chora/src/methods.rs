@@ -473,6 +473,12 @@ mod tests {
             json!({"names": [{"description": "no name"}]}),
         );
         assert!(message.contains("variant"), "{message}");
+        let (_, message) = wm.fails(
+            &mut core,
+            "methods.export",
+            json!({"names": [{"name": "x", "desc": "typo for description"}]}),
+        );
+        assert!(message.contains("variant"), "{message}");
     }
 
     #[test]

@@ -330,7 +330,7 @@ frames stay slow, it blames the client whose nodes cost the most (see
 JSON-RPC 2.0, one message per line, on the socket in `CHORA_SOCKET`. A
 client sends `hello` first. A method that changes the session or needs a
 grant fails before `hello`. `scene.query`, `events.subscribe`,
-`output.list`, `clients.list`, `clients.create`, `camera.release`,
+`output.list`, `clients.list`, `clients.create`, `methods.list`, `camera.release`,
 `grants.set`, `grants.revoke` and `grants.list` also work before it,
 for tools.
 
@@ -370,6 +370,7 @@ answers every request.
 | `output.add(spec)`, `output.remove(output)` | for tests on the headless backend only: add a virtual output `WxH[@SCALE][+X+Y]`, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and `WxH` divided by `SCALE` must stay within 16384 a side and at most 16 outputs are live; other backends refuse, and the last output stays; `choractl add-output` and `choractl remove-output` call them |
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
+| `methods.list` | list the methods that clients exported, each with its description and input schema |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
 | `methods.return(call, result, error)` | answer a `method.called` event |
 | `process.spawn(argv, capture)` | start a program with the environment of the core; with `capture`, the core keeps its output for `process.wait`; needs the grant `process.spawn` |
