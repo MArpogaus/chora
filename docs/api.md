@@ -139,7 +139,7 @@ path.
 | `move` | change the parent or the position among the siblings |
 | `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection (D55). |
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
-| `focus` | set the keyboard focus to an own surface, or clear it without a surface. A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return. |
+| `focus` | set the keyboard focus to an own surface, or clear it without a surface. A surface of another client answers with `node.requested` to its owner (D31). A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return. |
 | `focus_node` | give the keyboard to an own node that is no surface, or without a node give it back (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `close` | ask a client to close a surface |
 | `camera` | set the camera of an output that is or was plugged in, or restore its default camera without a transform; with a `duration`, move it there; the first client that sets the camera owns it, and a `camera` without a transform gives it up |

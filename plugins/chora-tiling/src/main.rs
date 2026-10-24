@@ -500,15 +500,10 @@ impl Tiling {
             return self.apply(commands);
         }
         if !commands.is_empty() {
-            self.apply(commands)?;
-        }
-        if action == "move"
-            && args
-                .get("parent")
-                .and_then(Value::as_str)
-                .is_some_and(|parent| parent != NAME)
-        {
-            self.forget_window(node);
+            let applied = self.apply_report(commands)?;
+            if leaves_tiling(applied, action, args) {
+                self.forget_window(node);
+            }
         }
         self.relayout()
     }
@@ -834,17 +829,35 @@ impl Tiling {
     /// one sends everything again: a surface can disappear between an event
     /// and the answer to it, and the event that follows corrects the layout.
     fn apply(&mut self, commands: Vec<Command>) -> Result<(), ClientError> {
+        self.apply_report(commands).map(|_| ())
+    }
+
+    /// Like `apply`, but `Ok(false)` when the core rejected the transaction.
+    fn apply_report(&mut self, commands: Vec<Command>) -> Result<bool, ClientError> {
         match self.call_apply(commands) {
             Err(ClientError::Rpc(err)) => {
                 if !err.is_gone_surface() {
                     eprintln!("chora-tiling: {err}");
                 }
                 self.forget();
-                Ok(())
+                Ok(false)
             }
-            other => other,
+            Ok(()) => Ok(true),
+            Err(err) => Err(err),
         }
     }
+}
+
+/// Whether an answered request takes the window out of tiling: the core
+/// accepted a `move` to a parent that is not the tiling group. A rejected
+/// transaction leaves the window managed (D31).
+fn leaves_tiling(applied: bool, action: &str, args: &Value) -> bool {
+    applied
+        && action == "move"
+        && args
+            .get("parent")
+            .and_then(Value::as_str)
+            .is_some_and(|parent| parent != NAME)
 }
 
 /// The answer to a request of another client for one of the windows
@@ -1141,6 +1154,21 @@ mod tests {
             matches!(&closed[..], [Command::Close { surface }] if surface == "s1"),
             "{closed:?}"
         );
+    }
+
+    #[test]
+    fn a_window_leaves_tiling_only_after_an_applied_move() {
+        let to = |parent| serde_json::json!({"parent": parent});
+        assert!(leaves_tiling(true, "move", &to("other")));
+        assert!(
+            !leaves_tiling(true, "move", &to(NAME)),
+            "a move inside tiling keeps the window"
+        );
+        assert!(
+            !leaves_tiling(false, "move", &to("other")),
+            "a rejected move keeps the window managed"
+        );
+        assert!(!leaves_tiling(true, "focus", &to("other")));
     }
 
     #[test]
