@@ -222,8 +222,10 @@ impl State {
     }
 
     /// Whether a point of the node's own coordinates lies in the box the
-    /// node draws, as `hit` in the renderer does. The box of a surface is
-    /// its bounds, which include subsurfaces and decorations.
+    /// node draws. The box of a surface is its bounds, which include
+    /// subsurfaces and decorations. The bounds are the box of the bounds:
+    /// `hit` in the renderer is stricter, it also takes the clips and the
+    /// surface tree into account.
     fn shows_point(&self, node: &Node, x: f64, y: f64) -> bool {
         let (at_x, at_y, w, h) = match node.kind {
             NodeKind::Rect | NodeKind::Image => {
@@ -493,7 +495,7 @@ fn press(mods: &[Keycode], code: Keycode) -> Vec<Step> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::Core;
+    use crate::testing::{Core, wayland::Wayland};
     use serde_json::json;
 
     /// An `input.inject` request that presses the left button, with `hold`.
@@ -720,6 +722,59 @@ mod tests {
             .map(|v| v.as_f64().expect("a number"))
             .collect();
         assert_eq!(at, vec![rect[0] + 10.0, rect[1] + 10.0]);
+    }
+
+    #[test]
+    fn a_node_point_of_a_surface_lands_where_the_query_shows_its_rect() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut ctl = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        ctl.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        // A toplevel attached to a parent that doubles it: node
+        // coordinates and screen coordinates differ.
+        let mut windows = Wayland::connect(&mut core);
+        let window = windows.toplevel(&mut core, "app");
+        windows.attach(&mut core, &window, (100, 80));
+        let mut watcher = core.named("watcher");
+        watcher.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "big", "kind": "group", "parent": "root",
+                    "props": {"transform": {"scale": [2.0, 2.0]}}}},
+                {"attach": {"surface": "s1", "parent": "big"}},
+            ]}),
+        );
+        watcher.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let found = watcher.ok(&mut core, "scene.query", json!({"selector": "id:s1"}));
+        let rect: Vec<f64> = found[0]["rects"]["HDMI-1"]
+            .as_array()
+            .expect("a rect")
+            .iter()
+            .map(|v| v.as_f64().expect("a number"))
+            .collect();
+        agent.ok(
+            &mut core,
+            "input.inject",
+            json!({"events": [
+                {"pointer_move": {"node": "s1", "point": [30.0, 25.0]}},
+                {"button": {"state": "pressed"}}
+            ]}),
+        );
+        let events = watcher.events_now(&mut core);
+        let pressed = events
+            .iter()
+            .find(|e| e["params"]["event"] == json!("pointer.pressed"))
+            .expect("the click lands on the surface");
+        let at: Vec<f64> = pressed["params"]["position"]
+            .as_array()
+            .expect("a position")
+            .iter()
+            .map(|v| v.as_f64().expect("a number"))
+            .collect();
+        assert_eq!(at, vec![rect[0] + 60.0, rect[1] + 50.0]);
     }
 
     fn us() -> Keys {
