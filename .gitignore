@@ -23,3 +23,6 @@ tests/battle/log.txt
 tests/battle/bench/
 tests/battle/done.md
 plans/heartbeat.out
+
+# run folders of the local pi driver (alive, state, heartbeat logs)
+plans/run-*/

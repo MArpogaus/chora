@@ -13,7 +13,9 @@ audit=/home/agent/.agents/skills/local-pi-session/tools/audit.py
 kills=/home/agent/.agents/skills/local-pi-session/tools/kill-loop.py
 export PATH=/home/agent/.local/bin:$PATH
 
-say() { echo "$(date -Is) | $*" >> "$log"; }
+run=$d/run-0.8b   # for heartbeat.sh of local-pi-session: alive and state.txt
+mkdir -p "$run"
+say() { echo "$(date -Is) | $*" >> "$log"; touch "$run/alive"; }
 status() { awk -v t="$1" '$1==t":"{print $2}' "$state"; }
 set_status() { # $1=Tn $2=status
   awk -v t="$1:" -v s="$2" '$1==t{$2=s}1' "$state" > "$state.tmp" && mv "$state.tmp" "$state"
@@ -34,10 +36,13 @@ healthy() { # block until the provider answers a ping
 }
 pi_task() { # $1=timeout $2=prompt $3=logsuffix
   healthy
+  # the log is append-only: remember where this call starts
+  call_start=$(stat -c %s "plans/0.8b-agent-$3.log" 2>/dev/null || echo 0)
   timeout "$1" pi --model gufo/gufo -p "$2" >> "plans/0.8b-agent-$3.log" 2>&1
   echo $? >> plans/0.8b-agent-$3.log
 }
-crashed() { tail -c 300 "plans/0.8b-agent-$1.log" 2>/dev/null | grep -q "Connection error"; }
+# a crash of this call only, not of an earlier call in the same log
+crashed() { tail -c +"$((call_start + 1))" "plans/0.8b-agent-$1.log" 2>/dev/null | tail -c 300 | grep -q "Connection error"; }
 
 [ -f "$state" ] || { for i in $(seq 6); do echo "T$i: todo" >> "$state"; done; }
 say "driver started (pid $$)"
@@ -49,7 +54,7 @@ for n in $(seq 6); do
   set_status "T$n" doing
 
   revbase=$(awk -v t="T$n:" '$1==t{print $3}' "$state")
-  round=1; tries=0
+  round=1; tries=0; nothing=0
   while [ "$round" -le 3 ]; do
     tries=$((tries+1))
     if [ "$tries" -gt 8 ]; then
@@ -85,8 +90,14 @@ A read-only review of your work on task T$n found the items listed in plans/0.8b
       fi
       head_now=$(git rev-parse HEAD)
       if [ "$head_now" = "$base" ] && [ "$round" = 1 ]; then
-        say "T$n round $round: implementer committed nothing"
-        round=$((round+1))
+        # nothing to review and no question: retry once, then give up
+        if [ "${nothing:-0}" = 1 ]; then
+          set_status "T$n" "open (nothing committed)"
+          git add "$state" && git commit -q -m "docs(plans): T$n open, nothing committed"
+          break
+        fi
+        nothing=1
+        say "T$n round $round: implementer committed nothing, one retry"
         continue
       fi
     fi
@@ -137,5 +148,17 @@ if ! grep -qE ": (todo|doing)" "$state"; then
     echo "Reviews: plans/0.8b-review-*.md, audits: plans/0.8b-audit-*.txt"
   } > "$d/0.8b-done.md"
   say "ALL TASKS settled, done.md written"
+  # the gate of 0.8, one line per check, on fresh binaries
+  micromamba run -n chora cargo build --workspace --locked >> "$log" 2>&1 || say "build for the gate failed"
+  {
+    echo "# Gate 0.8 after plan 0.8b ($(git rev-parse --short HEAD))"
+    echo
+    for g in $(seq 11); do
+      out=$(CHORA_FONT_DIRS=/home/agent/.local/share/fonts/chora-test timeout 900 bash "tests/gate-0.8-$g.sh" 2>&1 | tail -1)
+      echo "- check $g: $out"
+    done
+  } > "$d/0.8b-gate.md"
+  say "gate written to plans/0.8b-gate.md"
+  echo "PHASE=done" > "$run/state.txt"
 fi
 say "driver ending"
