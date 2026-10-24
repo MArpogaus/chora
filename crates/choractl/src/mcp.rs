@@ -456,7 +456,7 @@ fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Fa
         }
         "query_scene" => {
             let selector = args["selector"].as_str().unwrap_or_default().to_string();
-            let nodes: Value = chora.call("scene.query", Query { selector })?;
+            let nodes: Value = chora.call("scene.query", Query::new(selector))?;
             Ok(vec![json_text(&nodes)])
         }
         "apply_commands" => {
@@ -649,12 +649,7 @@ fn describe(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
 fn describe_scene(chora: &mut Core) -> Result<Value, Failure> {
     let outputs: Vec<OutputInfo> = chora.call("output.list", Value::Null)?;
     let clients: Value = chora.call("clients.list", Value::Null)?;
-    let nodes: Vec<Node> = chora.call(
-        "scene.query",
-        Query {
-            selector: "*".into(),
-        },
-    )?;
+    let nodes: Vec<Node> = chora.call("scene.query", Query::new("*"))?;
     let by_id: HashMap<&str, &Node> = nodes.iter().map(|n| (n.id.as_str(), n)).collect();
     let windows: Vec<Value> = nodes
         .iter()

@@ -207,12 +207,74 @@ pub struct Hello {
 }
 
 /// Parameters of `scene.query`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Query {
     /// See [`crate::Selector`]; every node if missing.
     #[serde(default)]
     pub selector: String,
+    /// A JSON filter the nodes must also match (D32).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filter: Option<Filter>,
+}
+
+impl Query {
+    /// A query for a selector, without a filter.
+    #[must_use]
+    pub fn new(selector: impl Into<String>) -> Self {
+        Self {
+            selector: selector.into(),
+            filter: None,
+        }
+    }
+}
+
+/// A JSON filter for `scene.query`, next to the selector string (D32).
+/// All fields must match; an empty filter matches everything. `focused`
+/// and `visible` only filter when they are true.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Filter {
+    /// Nodes of this client name.
+    #[serde(default)]
+    pub owner: Option<String>,
+    /// Nodes of this kind.
+    #[serde(default)]
+    pub kind: Option<crate::NodeKind>,
+    /// Surfaces with this application id.
+    #[serde(default)]
+    pub app_id: Option<String>,
+    /// Only the focused surface or node.
+    #[serde(default)]
+    pub focused: bool,
+    /// Only nodes that show on some output.
+    #[serde(default)]
+    pub visible: bool,
+    /// Only nodes that show on this output.
+    #[serde(default)]
+    pub output: Option<String>,
+}
+
+impl Filter {
+    /// Whether a node matches every field. `focused` tells whether the
+    /// core marks the node as focused; `rects` maps the name of every
+    /// output where the node shows to its rectangle there.
+    #[must_use]
+    pub fn matches(&self, node: &crate::Node, focused: bool, rects: &Value) -> bool {
+        self.owner
+            .as_deref()
+            .is_none_or(|owner| node.owner.as_deref() == Some(owner))
+            && self.kind.is_none_or(|kind| node.kind == kind)
+            && self.app_id.as_deref().is_none_or(|app_id| {
+                node.surface.as_ref().and_then(|s| s.app_id.as_deref()) == Some(app_id)
+            })
+            && (!self.focused || focused)
+            && (!self.visible || rects.as_object().is_some_and(|r| !r.is_empty()))
+            && self
+                .output
+                .as_deref()
+                .is_none_or(|output| rects.get(output).is_some())
+    }
 }
 
 /// Parameters of `scene.apply`.

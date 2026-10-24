@@ -329,7 +329,7 @@ fn run(args: Args) -> Result<(), String> {
     };
     let mut client = connect(&args.command, &hello)?;
     let result = match args.command {
-        Cmd::Query { selector } => show(&mut client, "scene.query", Query { selector }),
+        Cmd::Query { selector } => show(&mut client, "scene.query", Query::new(selector)),
         command @ Cmd::Wait { .. } => return wait(&mut client, &command),
         Cmd::Apply { .. } => client
             .call::<_, Value>("scene.apply", Apply { commands })
@@ -508,12 +508,7 @@ fn wait(client: &mut Client, command: &Cmd) -> Result<(), String> {
     let nodes = wait_loop(
         || {
             client
-                .call::<_, Vec<Value>>(
-                    "scene.query",
-                    Query {
-                        selector: selector.clone(),
-                    },
-                )
+                .call::<_, Vec<Value>>("scene.query", Query::new(selector.clone()))
                 .map_err(|e| e.to_string())
         },
         selector,

@@ -743,7 +743,7 @@ impl State {
         let params = request.params;
         Some(match request.method.as_str() {
             "hello" => params_of(params).and_then(|h| self.ipc_hello(conn, h)),
-            "scene.query" => params_of::<Query>(params).and_then(|q| self.query(conn, &q.selector)),
+            "scene.query" => params_of::<Query>(params).and_then(|q| self.query(conn, &q)),
             "scene.apply" => {
                 let apply = match params_of::<Apply>(params) {
                     Ok(a) => a,
@@ -918,9 +918,11 @@ impl State {
         }
     }
 
-    /// The nodes of a selector; for a client socket only its own.
-    fn query(&self, conn: u64, selector: &str) -> Result<Value, RpcError> {
-        let selector: Selector = selector
+    /// The nodes of a selector and a JSON filter (D32); for a client
+    /// socket only its own.
+    fn query(&self, conn: u64, query: &Query) -> Result<Value, RpcError> {
+        let selector: Selector = query
+            .selector
             .parse()
             .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, format!("{e}")))?;
         let fixed = self.ipc.fixed(conn);
@@ -929,6 +931,15 @@ impl State {
         // (D33): only the nodes that survived the filter can show a focus.
         let focus = [self.scene.focused_surface(), self.scene.focused_node()];
         let rects = self.screen_rects();
+        if let Some(filter) = &query.filter {
+            nodes.retain(|n| {
+                filter.matches(
+                    n,
+                    focus.contains(&Some(n.id.as_str())),
+                    rects.get(n.id.as_str()).unwrap_or(&Value::Null),
+                )
+            });
+        }
         let nodes: Vec<Value> = nodes
             .into_iter()
             .map(|n| {
@@ -1466,6 +1477,151 @@ mod tests {
             "a new surface focus ends the node focus"
         );
         assert_eq!(query_node(&mut wm, &mut core, "s2")["focused"], json!(true));
+    }
+
+    /// The sorted ids of a `scene.query` with the given parameters.
+    fn query_ids(client: &mut Client, core: &mut Core, params: Value) -> Vec<String> {
+        let mut ids: Vec<String> = client
+            .ok(core, "scene.query", params)
+            .as_array()
+            .expect("a list")
+            .iter()
+            .map(|n| n["id"].as_str().expect("an id").to_owned())
+            .collect();
+        ids.sort();
+        ids
+    }
+
+    /// Two outputs, a foot surface and a rect owned by "wm", a rect owned
+    /// by "other" that only shows on "hdmi", and an invisible rect.
+    struct Fixture {
+        core: Core,
+        _wayland: Wayland,
+        _other: Client,
+        wm: Client,
+    }
+
+    fn fixture() -> Fixture {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        core.add_output("hdmi", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "foot");
+        let mut wm = core.named("wm");
+        let mut other = core.named("other");
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "here", "kind": "rect", "parent": "root",
+                    "props": {"size": [10, 10]}}},
+                {"create": {"id": "hidden", "kind": "rect", "parent": "root",
+                    "props": {"size": [10, 10], "visible": false}}},
+                {"attach": {"surface": "s1", "parent": "root"}},
+                {"focus": {"surface": "s1"}},
+            ]}),
+        );
+        other.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "theirs", "kind": "group", "parent": "root"}},
+                {"create": {"id": "far", "kind": "rect", "parent": "root",
+                    "props": {"size": [10, 10], "transform": {"translate": [900, 0]}}}},
+            ]}),
+        );
+        Fixture {
+            core,
+            _wayland: wayland,
+            _other: other,
+            wm,
+        }
+    }
+
+    /// The ids a filter of the query on the fixture.
+    fn filtered(f: &mut Fixture, filter: &Value) -> Vec<String> {
+        query_ids(&mut f.wm, &mut f.core, json!({"filter": filter}))
+    }
+
+    #[test]
+    fn query_filters_by_owner_kind_app_id_and_focus() {
+        let mut f = fixture();
+        assert_eq!(
+            filtered(&mut f, &json!({"owner": "wm"})),
+            ["here", "hidden", "s1"],
+            "only the nodes of the owner, root has no owner"
+        );
+        assert_eq!(
+            filtered(&mut f, &json!({"owner": "nobody"})),
+            Vec::<String>::new(),
+            "no node has the other owner"
+        );
+        assert_eq!(
+            filtered(&mut f, &json!({"kind": "rect"})),
+            ["far", "here", "hidden"],
+            "only rects"
+        );
+        assert_eq!(
+            filtered(&mut f, &json!({"app_id": "foot"})),
+            ["s1"],
+            "only the surface of that application"
+        );
+        assert_eq!(
+            filtered(&mut f, &json!({"focused": true})),
+            ["s1"],
+            "only the focused surface"
+        );
+        assert_eq!(
+            filtered(
+                &mut f,
+                &json!({"owner": "wm", "app_id": "foot", "focused": true})
+            ),
+            ["s1"],
+            "all fields of a combined filter must match"
+        );
+    }
+
+    #[test]
+    fn query_filters_by_visibility_and_output() {
+        let mut f = fixture();
+        assert_eq!(
+            query_ids(
+                &mut f.wm,
+                &mut f.core,
+                json!({"selector": "*", "filter": {}})
+            ),
+            query_ids(&mut f.wm, &mut f.core, json!({"selector": "*"})),
+            "an empty filter matches everything"
+        );
+        let visible = filtered(&mut f, &json!({"visible": true}));
+        assert!(
+            visible.contains(&"here".to_owned()) && visible.contains(&"far".to_owned()),
+            "shown nodes are visible"
+        );
+        assert!(
+            !visible.contains(&"hidden".to_owned()),
+            "an invisible node shows on no output"
+        );
+        assert_eq!(
+            filtered(&mut f, &json!({"output": "hdmi"})),
+            ["far"],
+            "only the node that shows on the second output"
+        );
+        assert_eq!(
+            query_ids(
+                &mut f.wm,
+                &mut f.core,
+                json!({"selector": "kind:rect", "filter": {"output": "out"}})
+            ),
+            ["here"],
+            "selector and filter must both match"
+        );
+        let (error_code, _) = f.wm.fails(&mut f.core, "scene.query", json!({"filter": 3}));
+        assert_eq!(
+            error_code,
+            RpcError::INVALID_PARAMS,
+            "a filter that is no object fails"
+        );
     }
 
     #[test]

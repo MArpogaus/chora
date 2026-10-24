@@ -390,12 +390,7 @@ impl Tiling {
     }
 
     fn query(&mut self, selector: &str) -> Result<Vec<Value>, ClientError> {
-        self.client.call(
-            "scene.query",
-            Query {
-                selector: selector.into(),
-            },
-        )
+        self.client.call("scene.query", Query::new(selector))
     }
 
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
