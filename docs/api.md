@@ -520,8 +520,8 @@ message.
 
 Code 1 stays for every refusal the table has no own code for, for
 example a scene rule. The message always names the rule. A plugin can
-ignore code 2. A rejected transaction, so codes 1, 2 and 5, carries the
-index of the failed command in `data`.
+ignore code 2. A rejected transaction, so codes 1, 2, 5 and 6, carries
+the index of the failed command in `data`.
 
 ## Protocol versions
 
@@ -586,7 +586,7 @@ path:
 - It cannot change grants or make client sockets, as these need the
   admin socket.
 - It fixes the name, confines the files and narrows the scene. On it,
-  `scene.apply` follows these rules. A refusal has code 1, 2 or 5,
+  `scene.apply` follows these rules. A refusal has code 1, 2, 5 or 6,
   names its rule and carries the index of the command in `data`:
   - `focus_node` with a node needs the last press of the user on a node
     or a window of the name. The press counts once, and a key press

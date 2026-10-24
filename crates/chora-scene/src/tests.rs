@@ -568,7 +568,7 @@ fn the_number_of_cameras_has_a_limit() {
         .apply("wm", &[camera("out-0", None), camera("out-0", pan)])
         .unwrap();
     let err = scene.apply("wm", &[camera("one-more", pan)]).unwrap_err();
-    assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
+    assert!(matches!(err.error, SceneError::Limit(_)), "{err}");
 }
 
 #[test]

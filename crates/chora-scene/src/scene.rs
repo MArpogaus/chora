@@ -545,7 +545,7 @@ impl Scene {
             )));
         }
         if !self.cameras.contains_key(output) && self.cameras.len() >= MAX_CAMERAS {
-            return Err(SceneError::Invalid(format!(
+            return Err(SceneError::Limit(format!(
                 "{output:?}: the scene holds {MAX_CAMERAS} cameras, its limit"
             )));
         }

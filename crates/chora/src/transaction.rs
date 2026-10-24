@@ -37,7 +37,11 @@ use smithay::{
     },
 };
 
-use crate::{images::Decoded, ipc::rejected, state::State};
+use crate::{
+    images::{self, Decoded},
+    ipc::rejected,
+    state::State,
+};
 
 /// How long a transaction waits for its clients.
 pub const DEADLINE: Duration = Duration::from_millis(150);
@@ -66,7 +70,7 @@ struct Pending {
     /// How many images the worker still decodes for it.
     decoding: usize,
     /// The first image that failed to load.
-    failed: Option<String>,
+    failed: Option<images::Error>,
     /// The configure serial that each surface still has to commit.
     waiting: HashMap<String, Serial>,
     /// Set when the configure events are out.
@@ -220,7 +224,7 @@ impl State {
             // `assets.put` replaced it. The next frame draws the new
             // bytes; a failure keeps the old image.
             if let Err(error) = self.assets.images.insert(decoded) {
-                tracing::warn!(error, "a replaced asset does not load");
+                tracing::warn!(error = %error, "a replaced asset does not load");
             }
             return;
         }
@@ -279,7 +283,11 @@ impl State {
             .check(&head.owner, &head.commands)
             .map_err(|e| transaction_error(&e))?;
         if let Some(error) = head.failed.take() {
-            return Err(rejected(error));
+            return Err(if error.limit {
+                RpcError::new(RpcError::LIMIT_REACHED, error.message)
+            } else {
+                rejected(error.message)
+            });
         }
         self.check_effects(&head.commands).map_err(rejected)?;
         for effect in &effects {
