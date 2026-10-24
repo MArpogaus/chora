@@ -2,18 +2,21 @@
 //!
 //! Besides the bindings, the reset and the injection mark (D23), a
 //! watchdog watches the frames of each output. After two seconds of
-//! slow frames it blames the client whose visible nodes cost the most
-//! and removes its effects; when frames stay slow for two more
-//! seconds, it disconnects that client, at most once a minute. The
-//! emergency reset is for the binding and SIGUSR1 only.
-//! `CHORA_FRAME_BUDGET_US` sets a fixed budget in microseconds, for tests.
+//! slow frames it removes the effects of the client whose visible nodes
+//! cost the most. It disconnects that client, at most once a minute,
+//! only when its own load reaches the owner budget (D57); below it the
+//! slowdown is shared and the watchdog removes the effects of all
+//! clients and disconnects none. The emergency reset is for the
+//! binding and SIGUSR1 only. `CHORA_FRAME_BUDGET_US` sets a fixed
+//! budget in microseconds, for tests, `CHORA_OWNER_LOAD_BUDGET` the
+//! owner budget.
 
 use calloop::{
     LoopHandle,
     signals::{Signal, Signals},
 };
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     time::{Duration, Instant},
 };
 
@@ -41,13 +44,14 @@ const SLOW_FOR: Duration = Duration::from_secs(2);
 const CALM_FOR: Duration = Duration::from_secs(10);
 /// The shortest time between two disconnects of the same client.
 const DISCONNECT_PAUSE: Duration = Duration::from_secs(60);
-/// The least load of a client that the watchdog disconnects, as
-/// `Scene::load_by_owner` counts it: on a slow GPU, a window manager with
-/// a few nodes must not go.
-const MIN_LOAD: u64 = 500;
+/// The load one owner may put on a frame before the watchdog may
+/// disconnect it, as `Scene::load_by_owner` counts it (D57): on a slow
+/// GPU, a window manager with a few nodes must not go, and two clients
+/// that are each half the fault both keep their connection.
+/// `CHORA_OWNER_LOAD_BUDGET` tunes it.
+const OWNER_BUDGET: u64 = 4000;
 
 /// The watchdog of the render times.
-#[derive(Default)]
 pub struct Watchdog {
     /// The slow frames of each output.
     outputs: HashMap<String, Run>,
@@ -57,6 +61,20 @@ pub struct Watchdog {
     last_disconnect: HashMap<String, Instant>,
     /// A fixed budget from `CHORA_FRAME_BUDGET_US`.
     budget: Option<Duration>,
+    /// What one owner may cost before it may be disconnected.
+    owner_budget: u64,
+}
+
+impl Default for Watchdog {
+    fn default() -> Self {
+        Self {
+            outputs: HashMap::new(),
+            suspect: None,
+            last_disconnect: HashMap::new(),
+            budget: None,
+            owner_budget: OWNER_BUDGET,
+        }
+    }
 }
 
 /// The slow frames of one output.
@@ -69,14 +87,19 @@ struct Run {
 }
 
 impl Watchdog {
-    /// A watchdog with the budget of the environment, if any.
+    /// A watchdog with the budgets of the environment, if any.
     pub fn from_env() -> Self {
         let budget = std::env::var("CHORA_FRAME_BUDGET_US")
             .ok()
             .and_then(|v| v.parse().ok())
             .map(Duration::from_micros);
+        let owner_budget = std::env::var("CHORA_OWNER_LOAD_BUDGET")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(OWNER_BUDGET);
         Self {
             budget,
+            owner_budget,
             ..Self::default()
         }
     }
@@ -173,22 +196,41 @@ impl State {
         });
     }
 
-    /// Blames the client whose visible nodes cost the most: removes its
-    /// effects and tells the plugins. If it has enough load, it goes when
-    /// frames stay slow.
+    /// Removes the effects of the client whose visible nodes cost the
+    /// most, and makes it the suspect, so that it goes when frames stay
+    /// slow. Below the owner budget no client alone causes the slowdown:
+    /// then the effects of all clients go and no suspect is made (D57).
     fn blame(&mut self) {
         let load = self.scene.load_by_owner();
-        let Some((client, load)) = load.into_iter().max_by_key(|(_, load)| *load) else {
+        let Some((top, max)) = load.iter().max_by_key(|(_, load)| *load) else {
             return;
         };
-        tracing::warn!(%client, load, "frames are slow; the watchdog blames a client");
-        if self.scene.drop_effects(&client) {
+        if *max < self.watchdog.owner_budget {
+            self.drop_all_effects(*max, &load);
+            return;
+        }
+        tracing::warn!(client = %top, load = *max, "frames are slow; the watchdog blames a client");
+        if self.scene.drop_effects(top) {
             self.emit(&Event::EffectsDropped {
-                client: client.clone(),
+                client: top.clone(),
             });
         }
-        if load >= MIN_LOAD {
-            self.watchdog.suspect = Some(client);
+        self.watchdog.suspect = Some(top.clone());
+    }
+
+    /// No client alone reaches the owner budget: the slowdown is shared,
+    /// so the effects of all clients go and no suspect is made (D57).
+    fn drop_all_effects(&mut self, top_load: u64, load: &BTreeMap<String, u64>) {
+        tracing::warn!(
+            load = top_load,
+            "frames are slow; no client alone reaches the owner budget; the watchdog drops all effects"
+        );
+        for client in load.keys() {
+            if self.scene.drop_effects(client) {
+                self.emit(&Event::EffectsDropped {
+                    client: client.clone(),
+                });
+            }
         }
     }
 
@@ -442,7 +484,8 @@ mod tests {
     }
 
     /// A core with a window manager that listens, a loader with one effect,
-    /// and a client with `keep_nodes` and 20 effects.
+    /// and a client with `keep_nodes` and 80 effects (load 4080, over the
+    /// default owner budget).
     fn three_clients() -> (Core, Client, Client, Client) {
         three_clients_with(&json!({"name": "heavy", "keep_nodes": true}))
     }
@@ -461,10 +504,55 @@ mod tests {
         loader.ok(&mut core, "scene.apply", glass);
         let mut heavy = core.connect();
         heavy.ok(&mut core, "hello", hello.clone());
-        let commands: Vec<Value> = (0..20).map(|i| effect(&format!("h{i}"))).collect();
+        let commands: Vec<Value> = (0..80).map(|i| effect(&format!("h{i}"))).collect();
         heavy.ok(&mut core, "scene.apply", json!({"commands": commands}));
         wm.take_events();
         (core, wm, loader, heavy)
+    }
+
+    /// A named client with `effects` effect nodes and `plain` plain ones:
+    /// a load of 51 * effects + plain, as `Scene::load_by_owner` counts.
+    fn stress_client(core: &mut Core, name: &str, effects: u32, plain: u32) -> Client {
+        let mut client = core.named(name);
+        let mut commands: Vec<Value> = (0..effects)
+            .map(|i| effect(&format!("{name}e{i}")))
+            .collect();
+        commands.extend((0..plain).map(|i| {
+            json!({"create": {"id": format!("{name}p{i}"), "kind": "group",
+                "parent": "root", "props": {"size": [10, 10]}}})
+        }));
+        client.ok(core, "scene.apply", json!({"commands": commands}));
+        client
+    }
+
+    /// The battle finding: two stress clients make the frames slow
+    /// together. Neither alone reaches the owner budget (4000), so the
+    /// watchdog drops effects and disconnects neither (D57).
+    #[test]
+    fn a_shared_slowdown_disconnects_neither_owner() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        wm.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["effects.dropped"]}),
+        );
+        let mut snake = stress_client(&mut core, "snake", 50, 450); // load 3000
+        let mut budget = stress_client(&mut core, "budget", 40, 460); // load 2500
+        let loads: Vec<u64> = core.state.scene.load_by_owner().values().copied().collect();
+        assert_eq!(loads, [2500, 3000], "alphabetical owners");
+        wm.take_events();
+        slow_frames(&mut core, 8000);
+        assert!(!snake.closed(&mut core), "3000 is under the budget");
+        assert!(!budget.closed(&mut core), "2500 is under the budget");
+        assert_eq!(effects(&core, "snakee0"), 0);
+        assert_eq!(effects(&core, "budgete0"), 0);
+        let events = wm.events_now(&mut core);
+        let clients: Vec<&str> = events
+            .iter()
+            .map(|e| e["params"]["client"].as_str().unwrap())
+            .collect();
+        assert_eq!(clients, ["budget", "snake"], "{events:?}");
     }
 
     #[test]

@@ -280,7 +280,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
 | `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again |
-| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow, the core disconnects that client and removes its nodes, also with `keep_nodes` or `resume` |
+| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
@@ -322,8 +322,12 @@ list of a plugin scrolls:
 ```
 
 The number of nodes has no limit. The watchdog limits their cost: when
-frames stay slow, it blames the client whose nodes cost the most (see
-`effects.dropped`). Later milestones add events for size limits.
+frames stay slow, the effects of the client whose nodes cost the most go
+(see `effects.dropped`). The core disconnects that client only when its
+own load reaches the owner budget (D57). `CHORA_OWNER_LOAD_BUDGET` sets
+that budget, 4000 by default, as `Scene::load_by_owner` counts. When no
+client alone reaches it, the slowdown is shared: all effects go and no
+client goes. Later milestones add events for size limits.
 
 ## IPC methods
 
