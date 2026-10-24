@@ -325,7 +325,7 @@ fn run(args: Args) -> Result<(), String> {
     let hello = Hello {
         name: args.name.unwrap_or_else(|| "choractl".into()),
         keep_nodes: true,
-        resume: false,
+        ..Hello::default()
     };
     let mut client = connect(&args.command, &hello)?;
     let result = match args.command {

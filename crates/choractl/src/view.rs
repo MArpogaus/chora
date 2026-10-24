@@ -165,7 +165,7 @@ fn connect(view: &str) -> Result<Client, String> {
     let hello = Hello {
         name: owner(view),
         keep_nodes: true,
-        resume: false,
+        ..Hello::default()
     };
     Client::from_env(&hello)
         .map_err(|e| format!("the view {view:?} connects as {}: {e}", owner(view)))

@@ -82,7 +82,7 @@ impl Core {
             let hello = Hello {
                 name: self.name.clone(),
                 keep_nodes: true,
-                resume: false,
+                ..Hello::default()
             };
             let mut client = Client::from_env(&hello)?;
             // A reserve that the core refuses now, for example of an output
@@ -108,7 +108,7 @@ pub fn serve(name: String) -> Result<(), String> {
     let hello = Hello {
         name: name.clone(),
         keep_nodes: true,
-        resume: false,
+        ..Hello::default()
     };
     let client = Client::from_env(&hello).map_err(|e| e.to_string())?;
     let mut chora = Core {

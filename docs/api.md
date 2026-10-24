@@ -357,7 +357,7 @@ answers every request.
 
 | Method | Purpose |
 |--------|---------|
-| `hello(name, keep_nodes, resume)` | name the client (lowercase letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes); `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); returns `{"version": ...}` |
+| `hello(name, keep_nodes, resume, protocol, features)` | name the client (lowercase letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes); `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); `protocol` and `features` say what the client speaks (see [Protocol versions](#protocol-versions)); returns `{"version": ..., "protocol": ..., "features": [...]}` |
 | `scene.query(selector, filter)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused |
@@ -385,9 +385,10 @@ answers every request.
 
 An error has a `code`, a `message` and, where it helps, a machine
 readable `data`: the JSON-RPC codes for a method or parameters that do
-not exist, 1 for a request that breaks a rule, and 2 for a transaction
+not exist, 1 for a request that breaks a rule, 2 for a transaction
 that names a surface node that is gone, for example of a window that
-closed in the meantime. A plugin can ignore code 2. A rejected
+closed in the meantime, and 3 for a protocol the core does not speak.
+A plugin can ignore code 2. A rejected
 transaction carries `{"command": INDEX}` in `data`, the position of the
 failed command in the transaction.
 
@@ -410,8 +411,7 @@ for a build in a git checkout, the commit, for example
 `{"version": "0.5.4+1ea0e89abc"}`. `chora --version` prints the same.
 The client library of `chora-scene` warns once on stderr when the core is
 another build, so `choractl` and the plugins tell why a request fails
-after an update. This is a first step: the versioned `hello` of D29, with
-the protocol version and the features of both sides, follows in 0.7.
+after an update.
 
 A connection sends `hello` once, within 5 s. Connections with the same name share their
 nodes, so they must agree on `keep_nodes` and `resume`. The core refuses a
@@ -498,6 +498,27 @@ sets the scale and the transform on the same path (D44), for an agent
 without wlr-randr. After a new mode, position, transform or scale,
 the core sends `output.changed`. For an output that turns off, it sends
 `output.removed`, and `output.list` no longer lists the output.
+
+## Protocol versions
+
+Both sides of the IPC say which protocol they speak (D29). `hello` takes
+an optional `protocol`, an integer, and a list `features`. It answers
+with the `protocol`, the `features` and the `version` of the core:
+
+```json
+{"jsonrpc": "2.0", "id": 1, "method": "hello", "params": {"name": "wm", "protocol": 1, "features": []}}
+{"jsonrpc": "2.0", "id": 1, "result": {"version": "0.7.0+1ea0e89", "protocol": 1, "features": []}}
+```
+
+The core speaks protocol 1. It refuses a client with a higher protocol
+with code 3, and the client must upgrade its core. A lower protocol
+works, so an older client keeps running. A missing `protocol` means a
+client from before the versioning, and works. Compatible additions
+arrive as named features while the protocol stays 1; a breaking change
+raises the number. The core answers with its own list, never with a mix.
+The client library of `chora-scene` sends its own `protocol` and
+`features`. It warns once on stderr when the core answers with another
+protocol.
 
 ## Grants
 

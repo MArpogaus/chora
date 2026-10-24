@@ -46,9 +46,19 @@ pub fn admin_socket(socket: &Path) -> PathBuf {
 
 /// The version of this build: the crate version and, when it was built in
 /// a git checkout, the commit, for example `0.5.4+1ea0e89abc`. `hello`
-/// answers with the version of the core, so that a client of another build
-/// can tell. The versioned `hello` of D29 replaces this.
+/// answers with the version of the core, next to the protocol version of
+/// [`PROTOCOL`], so that a client of another build can tell.
 pub const VERSION: &str = env!("CHORA_VERSION");
+
+/// The protocol version this build speaks (D29). It is the major version:
+/// compatible additions arrive as features, a breaking change raises the
+/// number. `hello` negotiates it; the core refuses a client with a higher
+/// one and serves a lower one.
+pub const PROTOCOL: u32 = 1;
+
+/// The protocol features this build knows. Protocol 1 starts without any;
+/// named additions appear here while the protocol stays 1.
+pub const FEATURES: &[&str] = &[];
 
 /// A request or a notification from the client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +121,8 @@ impl RpcError {
     /// A transaction names a surface node that is gone, for example of a
     /// window that closed in the meantime.
     pub const GONE_SURFACE: i64 = 2;
+    /// The client speaks a newer protocol than the core (D29).
+    pub const UNSUPPORTED_PROTOCOL: i64 = 3;
 
     /// An error with a code and a message and no `data`.
     #[must_use]
@@ -191,7 +203,7 @@ impl Message {
 }
 
 /// Parameters of `hello`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Hello {
     /// The client name, the owner of the nodes of this client.
@@ -204,6 +216,14 @@ pub struct Hello {
     /// `keep_nodes`, `resume` has no effect.
     #[serde(default)]
     pub resume: bool,
+    /// The protocol version of the client (D29). Missing from a client
+    /// that predates the versioning. [`Client`] fills in [`PROTOCOL`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protocol: Option<u32>,
+    /// The features the client wants to use. The core answers with its
+    /// own list.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<String>,
 }
 
 /// Parameters of `scene.query`.
@@ -871,8 +891,22 @@ impl Client {
             partial: Vec::new(),
             core_version: None,
         };
-        let answer: Value = client.call("hello", hello)?;
+        let mut hello = hello.clone();
+        hello.protocol.get_or_insert(PROTOCOL);
+        let answer: Value = client.call("hello", &hello)?;
         client.core_version = answer["version"].as_str().map(str::to_owned);
+        if let Some(core) = answer["protocol"]
+            .as_u64()
+            .filter(|p| *p != u64::from(PROTOCOL))
+        {
+            static WARNED_PROTOCOL: std::sync::Once = std::sync::Once::new();
+            WARNED_PROTOCOL.call_once(|| {
+                eprintln!(
+                    "warning: the core speaks protocol {core}, this client speaks protocol \
+                     {PROTOCOL}"
+                );
+            });
+        }
         if client.core_version.as_deref() != Some(VERSION) {
             static WARNED: std::sync::Once = std::sync::Once::new();
             WARNED.call_once(|| {
@@ -1102,8 +1136,7 @@ mod tests {
         });
         let hello = Hello {
             name: "wm".into(),
-            keep_nodes: false,
-            resume: false,
+            ..Hello::default()
         };
         let mut client = Client::from_stream(client, &hello).unwrap();
         let commands: Vec<Command> = serde_json::from_str(
@@ -1138,9 +1171,28 @@ mod tests {
     fn hello() -> Hello {
         Hello {
             name: "test".into(),
-            keep_nodes: false,
-            resume: false,
+            ..Hello::default()
         }
+    }
+
+    #[test]
+    fn the_client_sends_its_protocol_and_keeps_the_answer() {
+        let (client, server) = UnixStream::pair().unwrap();
+        let core = thread::spawn(move || {
+            let mut reader = BufReader::new(server);
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            writeln!(
+                reader.get_mut(),
+                r#"{{"jsonrpc":"2.0","id":1,"result":{{"version":"test","protocol":1,"features":[]}}}}"#
+            )
+            .unwrap();
+            line
+        });
+        let client = Client::from_stream(client, &hello()).unwrap();
+        assert_eq!(client.core_version(), Some("test"));
+        let request: Value = serde_json::from_str(&core.join().unwrap()).unwrap();
+        assert_eq!(request["params"]["protocol"], serde_json::json!(PROTOCOL));
     }
 
     #[test]

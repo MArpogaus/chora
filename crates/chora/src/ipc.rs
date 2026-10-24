@@ -860,6 +860,7 @@ impl State {
     /// `keep_nodes` and one `resume` setting. With `resume`, a name in its
     /// grace time gets its nodes back; without, they go first.
     fn ipc_hello(&mut self, conn: u64, hello: Hello) -> Result<Value, RpcError> {
+        check_protocol(hello.protocol)?;
         if self.ipc.name(conn).is_some() {
             return Err(rejected("hello was sent already"));
         }
@@ -916,7 +917,11 @@ impl State {
         if !known {
             self.emit(&Event::ClientConnected { name: hello.name });
         }
-        Ok(serde_json::json!({"version": chora_scene::ipc::VERSION}))
+        Ok(serde_json::json!({
+            "version": chora_scene::ipc::VERSION,
+            "protocol": chora_scene::ipc::PROTOCOL,
+            "features": chora_scene::ipc::FEATURES,
+        }))
     }
 
     /// Removes the nodes, the cameras and the assets of a client name, and
@@ -1200,6 +1205,21 @@ pub fn params_of<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
     };
     serde_json::from_value(params)
         .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))
+}
+
+/// Refuses a client whose protocol is newer than the core's (D29); a
+/// lower or missing protocol works.
+pub fn check_protocol(protocol: Option<u32>) -> Result<(), RpcError> {
+    if let Some(protocol) = protocol.filter(|p| *p > chora_scene::ipc::PROTOCOL) {
+        return Err(RpcError::new(
+            RpcError::UNSUPPORTED_PROTOCOL,
+            format!(
+                "client protocol {protocol} is newer than the core protocol {}",
+                chora_scene::ipc::PROTOCOL
+            ),
+        ));
+    }
+    Ok(())
 }
 
 pub fn rejected(message: impl Into<String>) -> RpcError {
@@ -1694,13 +1714,45 @@ mod tests {
         let mut core = Core::new();
         let mut client = core.connect();
         let answer = client.ok(&mut core, "hello", json!({"name": "wm"}));
-        assert_eq!(answer, json!({"version": chora_scene::ipc::VERSION}));
+        assert_eq!(
+            answer,
+            json!({
+                "version": chora_scene::ipc::VERSION,
+                "protocol": chora_scene::ipc::PROTOCOL,
+                "features": [],
+            })
+        );
         assert_eq!(core.state.ipc.name(1), None);
         assert_eq!(core.state.ipc.name(0), Some("wm"));
         let (error_code, message) = client.fails(&mut core, "hello", json!({"name": "other"}));
         assert_eq!(
             (error_code, message.as_str()),
             (REJECTED, "hello was sent already")
+        );
+    }
+
+    /// The four cases of the versioned `hello` (D29): no protocol, equal,
+    /// lower and higher.
+    #[test]
+    fn hello_answers_only_for_a_protocol_the_core_speaks() {
+        let mut core = Core::new();
+        let mut equal = core.connect();
+        let answer = equal.ok(
+            &mut core,
+            "hello",
+            json!({"name": "equal", "protocol": 1, "features": ["drag"]}),
+        );
+        assert_eq!(answer["protocol"], json!(chora_scene::ipc::PROTOCOL));
+        assert_eq!(answer["features"], json!([]), "the core tells its own");
+        let mut lower = core.connect();
+        lower.ok(&mut core, "hello", json!({"name": "lower", "protocol": 0}));
+        let mut higher = core.connect();
+        let (error_code, message) =
+            higher.fails(&mut core, "hello", json!({"name": "higher", "protocol": 2}));
+        assert_eq!(error_code, RpcError::UNSUPPORTED_PROTOCOL);
+        assert!(
+            message.contains("client protocol 2") && message.contains("core protocol 1"),
+            "{message}"
         );
     }
 
