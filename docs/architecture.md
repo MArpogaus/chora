@@ -304,6 +304,9 @@ The safety layer is the only built-in behavior (see
   [Input injection](api.md#input-injection).
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
+- **Last words.** A faulting signal (SIGSEGV, SIGBUS, SIGILL, SIGABRT)
+  writes the fault address and a backtrace to stderr before the default
+  action ends chora. `tests/last-words.sh` checks it.
 - **Emergency reset.** The core disconnects all plugins and ends their
   grace times. It revokes all grants, removes all effects and restores the
   default cameras. It puts all surfaces in a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken

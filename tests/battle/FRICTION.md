@@ -166,12 +166,16 @@ the concrete runs are in `tests/battle/reviews/`.
   client=budget load~5000`: no panic in the log, no OOM record, no
   exit or abort path in `safety.rs`. `safety.rs` is unchanged since
   v0.6.0. Reproduced under host memory pressure (12 GB free of 125);
-  clean on a quiet machine. Next step if it returns: run the core
-  under `wait` in the foreground harness and record the exit signal.
-- SIGUSR1 emergency reset revokes all grants (documented), but the
-  WM plugin then stays silent instead of re-requesting them: after a
-  reset the desktop has no WM until the plugin is restarted. Design
-  question for 0.8: should the reset notify plugins so they re-grant?
+  clean on a quiet machine. Forensics 2026-10-24: five full W5
+  iterations on an otherwise idle machine, core sampled every half
+  second: no bite, no state change, steady ~143 MB. Environmental host
+  memory pressure stays the leading hypothesis; a core dump needs gdb
+  and a reproducing machine.
+- SIGUSR1 emergency reset revokes all grants (documented), and the WM
+  plugins died with the connection: no window manager until a human
+  restarted one. Fixed on `prep-0.8` in `b3a6d84`: both plugins
+  reconnect (half second tries, 30 second episode) and re-adopt via
+  the existing grace-time machinery.
 - Watchdog tolerance while the budget probe churns nodes: stress
   clients (snake) get blamed and disconnected though the churn is the
   probe's doing. The watchdog is the de-facto node limit; its

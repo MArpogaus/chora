@@ -55,6 +55,52 @@ fn headless_outputs(
     }
 }
 
+/// The core's last words: a faulting signal writes the fault address and
+/// a backtrace to stderr before the default action ends the process. A
+/// crash without a panic then leaves something in the log. Best effort:
+/// `Backtrace::force_capture` is not async signal safe, so a second fault
+/// inside it stays unlogged.
+#[allow(unsafe_code)] // a signal handler: libc calls, nothing else
+fn install_last_words() {
+    extern "C" fn words(sig: libc::c_int, info: *mut libc::siginfo_t, _ctx: *mut libc::c_void) {
+        let name = match sig {
+            libc::SIGSEGV => "SIGSEGV",
+            libc::SIGBUS => "SIGBUS",
+            libc::SIGILL => "SIGILL",
+            libc::SIGABRT => "SIGABRT",
+            _ => "signal",
+        };
+        // SAFETY: the kernel passes a valid siginfo for a faulting signal.
+        let address = if info.is_null() {
+            0
+        } else {
+            unsafe { (*info).si_addr() as usize }
+        };
+        let text = format!(
+            "chora: {name} at address {address:#x}, backtrace follows\n{}\n",
+            std::backtrace::Backtrace::force_capture()
+        );
+        // SAFETY: write to a fixed fd, then the default action of the
+        // signal, as the handler contract allows.
+        unsafe {
+            libc::write(2, text.as_ptr().cast(), text.len());
+            libc::signal(sig, libc::SIG_DFL);
+            libc::raise(sig);
+        }
+    }
+    for sig in [libc::SIGSEGV, libc::SIGBUS, libc::SIGILL, libc::SIGABRT] {
+        // SAFETY: an all-zero sigaction with a plain handler is valid.
+        unsafe {
+            let mut act: libc::sigaction = std::mem::zeroed();
+            act.sa_flags = libc::SA_SIGINFO;
+            let handler: extern "C" fn(libc::c_int, *mut libc::siginfo_t, *mut libc::c_void) =
+                words;
+            act.sa_sigaction = handler as usize;
+            libc::sigaction(sig, &raw const act, std::ptr::null_mut());
+        }
+    }
+}
+
 /// Runs the compositor with the arguments of the command line, without the
 /// program name.
 ///
@@ -63,6 +109,7 @@ fn headless_outputs(
 /// Wrong arguments, and a failed start of the event loop, the display, the
 /// IPC socket or the backend.
 pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    install_last_words();
     let (headless, args) = headless_outputs(args)?;
     let command = match args.split_first() {
         None => &[][..],
