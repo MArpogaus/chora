@@ -20,3 +20,6 @@ plans/0.*-driver.out
 plans/0.*-log.txt
 plans/then-battle.out
 tests/battle/log.txt
+tests/battle/bench/
+tests/battle/done.md
+plans/heartbeat.out

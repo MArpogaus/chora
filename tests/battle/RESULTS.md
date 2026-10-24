@@ -46,3 +46,12 @@ Branch `prep-0.8` = `dev` + `b3a6d84` (WM plugins reconnect after the
 emergency reset). Full battle suite: two clean passes, THE END at
 02:56 UTC. W7 (SIGUSR1) passes without a finding for the first time;
 the W5 stress finding did not appear at all on this branch.
+
+# 0.8 agent read model (2026-10-24)
+
+Plan `plans/0.8.md` on `dev`, nine tasks done, three open (see
+`plans/0.8-report.md`). Battle suite after the last task: two clean
+passes with zero new finding titles, THE END at 14:53 UTC. The open
+0.7 findings (silent core death, snake stress) appeared nowhere; the
+owner budget of D57 (`2e4934a`) is the likely reason. Ten more W5
+iterations ran inside plan task T11, also clean.

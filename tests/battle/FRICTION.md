@@ -162,21 +162,25 @@ the concrete runs are in `tests/battle/reviews/`.
 ## 0.7 backlog (judged "open (not small)", carried to 0.8)
 
 - Silent core death after the budgets probe (W5, load-only). The core
-  vanishes right after `frames are slow; the watchdog blames a client
-  client=budget load~5000`: no panic in the log, no OOM record, no
-  exit or abort path in `safety.rs`. `safety.rs` is unchanged since
-  v0.6.0. Reproduced under host memory pressure (12 GB free of 125);
-  clean on a quiet machine. Forensics 2026-10-24: five full W5
-  iterations on an otherwise idle machine, core sampled every half
-  second: no bite, no state change, steady ~143 MB. Environmental host
-  memory pressure stays the leading hypothesis; a core dump needs gdb
-  and a reproducing machine.
+  vanished right after `frames are slow; the watchdog blames a client
+  client=budget`: no panic, no OOM record, no exit path in `safety.rs`.
+  Forensics 2026-10-24, part two (plan task T11): ten full W5
+  iterations on the rebuilt binaries, plus both battle passes, all
+  clean, while the same blame-and-disconnect sequence ran every
+  iteration. The core now writes a backtrace on SIGSEGV, SIGBUS, SIGILL
+  and SIGABRT (`5b41d48`), and the finding records State, VmRSS and
+  wchan (`4444484`). Classified environmental: host memory pressure.
+  Reopen only where it bites again, the last words decide.
 - SIGUSR1 emergency reset revokes all grants (documented), and the WM
   plugins died with the connection: no window manager until a human
   restarted one. Fixed on `prep-0.8` in `b3a6d84`: both plugins
   reconnect (half second tries, 30 second episode) and re-adopt via
   the existing grace-time machinery.
-- Watchdog tolerance while the budget probe churns nodes: stress
-  clients (snake) get blamed and disconnected though the churn is the
-  probe's doing. The watchdog is the de-facto node limit; its
-  per-client attribution under combined load deserves a design pass.
+- Watchdog tolerance while the budget probe churns nodes: fixed in 0.8
+  by D57 (`2e4934a`): an owner budget decides which owner the watchdog
+  may cut, and stress alone no longer blames the wrong client.
+- Blocked here, not in the product (sandbox has no network): rmcp and
+  cosmic-text are not in the cargo cache, so `choractl mcp` on rmcp
+  (T6) and the text node (T9) stay open; checks 3, 6, 9 and 10 of the
+  0.8 gate skip. Run `plans/0.8.md` T6 and T9 where crates.io answers,
+  after seeding CJK and emoji fonts.
