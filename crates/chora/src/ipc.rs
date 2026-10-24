@@ -1710,7 +1710,23 @@ mod tests {
     }
 
     #[test]
-    fn hello_names_a_connection_once_and_tells_the_version() {
+    fn hello_names_a_connection_once() {
+        let mut core = Core::new();
+        let mut client = core.connect();
+        client.ok(&mut core, "hello", json!({"name": "wm"}));
+        assert_eq!(core.state.ipc.name(1), None);
+        assert_eq!(core.state.ipc.name(0), Some("wm"));
+        let (error_code, message) = client.fails(&mut core, "hello", json!({"name": "other"}));
+        assert_eq!(
+            (error_code, message.as_str()),
+            (REJECTED, "hello was sent already")
+        );
+    }
+
+    /// The full answer of the core, and a missing `protocol` means a
+    /// client from before the versioning (D29).
+    #[test]
+    fn hello_without_a_protocol_gets_the_full_answer() {
         let mut core = Core::new();
         let mut client = core.connect();
         let answer = client.ok(&mut core, "hello", json!({"name": "wm"}));
@@ -1722,33 +1738,34 @@ mod tests {
                 "features": [],
             })
         );
-        assert_eq!(core.state.ipc.name(1), None);
-        assert_eq!(core.state.ipc.name(0), Some("wm"));
-        let (error_code, message) = client.fails(&mut core, "hello", json!({"name": "other"}));
-        assert_eq!(
-            (error_code, message.as_str()),
-            (REJECTED, "hello was sent already")
-        );
     }
 
-    /// The four cases of the versioned `hello` (D29): no protocol, equal,
-    /// lower and higher.
     #[test]
-    fn hello_answers_only_for_a_protocol_the_core_speaks() {
+    fn hello_with_an_equal_protocol_answers_with_the_core_own_values() {
         let mut core = Core::new();
-        let mut equal = core.connect();
-        let answer = equal.ok(
+        let mut client = core.connect();
+        let answer = client.ok(
             &mut core,
             "hello",
-            json!({"name": "equal", "protocol": 1, "features": ["drag"]}),
+            json!({"name": "wm", "protocol": 1, "features": ["drag"]}),
         );
         assert_eq!(answer["protocol"], json!(chora_scene::ipc::PROTOCOL));
         assert_eq!(answer["features"], json!([]), "the core tells its own");
-        let mut lower = core.connect();
-        lower.ok(&mut core, "hello", json!({"name": "lower", "protocol": 0}));
-        let mut higher = core.connect();
+    }
+
+    #[test]
+    fn hello_with_a_lower_protocol_works() {
+        let mut core = Core::new();
+        let mut client = core.connect();
+        client.ok(&mut core, "hello", json!({"name": "wm", "protocol": 0}));
+    }
+
+    #[test]
+    fn hello_with_a_higher_protocol_fails_with_the_protocol_code() {
+        let mut core = Core::new();
+        let mut client = core.connect();
         let (error_code, message) =
-            higher.fails(&mut core, "hello", json!({"name": "higher", "protocol": 2}));
+            client.fails(&mut core, "hello", json!({"name": "wm", "protocol": 2}));
         assert_eq!(error_code, RpcError::UNSUPPORTED_PROTOCOL);
         assert!(
             message.contains("client protocol 2") && message.contains("core protocol 1"),

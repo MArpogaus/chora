@@ -226,6 +226,28 @@ pub struct Hello {
     pub features: Vec<String>,
 }
 
+/// The `hello` the client library sends: `protocol` and `features` filled
+/// in from this build where the caller left them out.
+fn hello_request(hello: &Hello) -> Hello {
+    let mut hello = hello.clone();
+    hello.protocol.get_or_insert(PROTOCOL);
+    if hello.features.is_empty() {
+        hello.features = FEATURES.iter().map(ToString::to_string).collect();
+    }
+    hello
+}
+
+/// The warning for a core that answers `hello` with a protocol other than
+/// [`PROTOCOL`]; `None` when both speak the same one.
+fn protocol_warning(core_protocol: u64) -> Option<String> {
+    (core_protocol != u64::from(PROTOCOL)).then(|| {
+        format!(
+            "warning: the core speaks protocol {core_protocol}, this client speaks protocol \
+             {PROTOCOL}"
+        )
+    })
+}
+
 /// Parameters of `scene.query`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -891,21 +913,11 @@ impl Client {
             partial: Vec::new(),
             core_version: None,
         };
-        let mut hello = hello.clone();
-        hello.protocol.get_or_insert(PROTOCOL);
-        let answer: Value = client.call("hello", &hello)?;
+        let answer: Value = client.call("hello", hello_request(hello))?;
         client.core_version = answer["version"].as_str().map(str::to_owned);
-        if let Some(core) = answer["protocol"]
-            .as_u64()
-            .filter(|p| *p != u64::from(PROTOCOL))
-        {
+        if let Some(warning) = answer["protocol"].as_u64().and_then(protocol_warning) {
             static WARNED_PROTOCOL: std::sync::Once = std::sync::Once::new();
-            WARNED_PROTOCOL.call_once(|| {
-                eprintln!(
-                    "warning: the core speaks protocol {core}, this client speaks protocol \
-                     {PROTOCOL}"
-                );
-            });
+            WARNED_PROTOCOL.call_once(|| eprintln!("{warning}"));
         }
         if client.core_version.as_deref() != Some(VERSION) {
             static WARNED: std::sync::Once = std::sync::Once::new();
@@ -1193,6 +1205,37 @@ mod tests {
         assert_eq!(client.core_version(), Some("test"));
         let request: Value = serde_json::from_str(&core.join().unwrap()).unwrap();
         assert_eq!(request["params"]["protocol"], serde_json::json!(PROTOCOL));
+    }
+
+    #[test]
+    fn the_hello_request_fills_protocol_and_features_of_this_build() {
+        let filled = hello_request(&hello());
+        assert_eq!(filled.protocol, Some(PROTOCOL));
+        assert_eq!(
+            filled.features,
+            FEATURES
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<String>>()
+        );
+        let wanted = Hello {
+            features: vec!["drag".into()],
+            ..hello()
+        };
+        assert_eq!(hello_request(&wanted).features, vec!["drag".to_owned()]);
+    }
+
+    #[test]
+    fn the_client_warns_when_the_core_protocol_differs() {
+        assert!(protocol_warning(u64::from(PROTOCOL)).is_none());
+        for other in [u64::from(PROTOCOL) + 1, u64::from(PROTOCOL) - 1] {
+            let warning = protocol_warning(other).expect("a warning for a differing protocol");
+            assert!(
+                warning.contains(&format!("core speaks protocol {other}"))
+                    && warning.contains(&format!("client speaks protocol {PROTOCOL}")),
+                "{warning}"
+            );
+        }
     }
 
     #[test]
