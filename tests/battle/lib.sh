@@ -19,7 +19,17 @@ admin() { timeout 10 "$bin/choractl" "$@"; }
 # does not answer within 5 s.
 health() {
   if ! timeout 5 "$bin/choractl" --name agent query >/dev/null 2>&1; then
-    finding "core dead after: $*" crash "health check during $WF"
+    # Dead or only hung? The process facts go into the finding, not into
+    # its title, so repeats of this finding stay one title.
+    local core state=
+    core=$(pgrep -x chora | tail -1)
+    if [ -n "$core" ]; then
+      state=$(awk '/^(State|VmRSS|VmSwap):/ {printf "%s=%s ", $1, $2 $3}' /proc/$core/status 2>/dev/null)
+      state="$state wchan=$(head -c 100 /proc/$core/wchan 2>/dev/null)"
+    else
+      state=no-process
+    fi
+    finding "core dead after: $*" crash "health check during $WF" "process: $state"
     return 1
   fi
 }
