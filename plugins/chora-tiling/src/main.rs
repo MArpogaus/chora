@@ -12,6 +12,9 @@ use std::{
     collections::{BTreeMap, HashMap},
     path::PathBuf,
     process::ExitCode,
+    thread::sleep,
+    time::Duration,
+    time::Instant,
 };
 
 use chora_kit::conn::Conn;
@@ -139,12 +142,40 @@ fn main() -> ExitCode {
         print!("{}", config::DEFAULT);
         return ExitCode::SUCCESS;
     }
-    match run(args) {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(err) => {
-            eprintln!("chora-tiling: {err}");
-            ExitCode::FAILURE
+    // The core may close the connection and stay: the emergency reset
+    // revokes grants and disconnects, and the scene survives it. Come back
+    // in that case; give up when only failures follow within the episode.
+    let mut failing = Duration::ZERO;
+    loop {
+        let start = Instant::now();
+        match play(&args) {
+            Ok(()) => return ExitCode::SUCCESS,
+            Err(err) => {
+                failing = next_failing(start.elapsed(), failing);
+                if failing >= COME_BACK {
+                    eprintln!("chora-tiling: {err}");
+                    return ExitCode::FAILURE;
+                }
+                eprintln!("chora-tiling: {err}; I come back");
+                sleep(TRY_AGAIN);
+            }
         }
+    }
+}
+
+/// How long a served session must last to start a new episode of errors.
+const SERVED: Duration = Duration::from_millis(500);
+/// How long one episode of failures may last before the plugin gives up.
+const COME_BACK: Duration = Duration::from_secs(30);
+/// The wait between two attempts.
+const TRY_AGAIN: Duration = Duration::from_millis(500);
+
+/// The failures of the current episode after a session of `served`.
+fn next_failing(served: Duration, failing: Duration) -> Duration {
+    if served >= SERVED {
+        TRY_AGAIN
+    } else {
+        failing + served + TRY_AGAIN
     }
 }
 
@@ -163,14 +194,15 @@ fn load(arg: Option<&PathBuf>) -> Result<Config, String> {
     config_path(arg).map_or_else(|| Config::parse(config::DEFAULT), |p| Config::read(&p))
 }
 
-fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
+/// One connection to the core: window management until it goes away.
+fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let config = load(args.config.as_ref())?;
     let mut tiling = Tiling {
         client: Conn::connect(NAME)?,
         wm: Wm::new(config),
-        arg: args.config,
-        ignore: args.ignore,
-        outputs: args.outputs,
+        arg: args.config.clone(),
+        ignore: args.ignore.clone(),
+        outputs: args.outputs.clone(),
         grabs: Vec::new(),
         sent: HashMap::new(),
         order: Vec::new(),
@@ -931,6 +963,27 @@ impl ShownFocus {
 
 #[cfg(test)]
 mod tests {
+    use super::next_failing;
+    use super::{COME_BACK, SERVED, TRY_AGAIN};
+    use std::time::Duration;
+
+    #[test]
+    fn a_served_session_starts_a_new_episode_of_failures() {
+        assert_eq!(next_failing(SERVED * 2, COME_BACK / 2), TRY_AGAIN);
+    }
+
+    #[test]
+    fn an_episode_of_pure_failures_gives_up_after_come_back() {
+        let mut failing = Duration::ZERO;
+        for _ in 0..1000 {
+            failing = next_failing(Duration::ZERO, failing);
+            if failing >= COME_BACK {
+                return;
+            }
+        }
+        panic!("the plugin never gave up");
+    }
+
     use super::*;
 
     #[test]
