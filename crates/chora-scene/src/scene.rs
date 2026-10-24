@@ -572,6 +572,11 @@ impl Scene {
                 "{id:?}: ids that start with {OVERLAY:?} belong to the outputs"
             )));
         }
+        if id == INJECTION {
+            return Err(SceneError::Invalid(format!(
+                "{id:?}: this id belongs to the injection mark of the core"
+            )));
+        }
         if self.nodes.contains_key(&id) {
             return Err(SceneError::Exists(id));
         }
@@ -783,12 +788,9 @@ impl Scene {
 
     /// Shows the injection mark of the core: a small yellow rect without
     /// owner under the overlay root of `output`, at its logical
-    /// coordinates (D23). It passes pointer input. A node of a client
-    /// that took the id stays; then the mark is skipped.
+    /// coordinates (D23). It passes pointer input. No client can own
+    /// the id, `create` reserves it.
     pub fn show_injection(&mut self, output: &str, at: [f64; 2]) {
-        if self.nodes.get(INJECTION).is_some_and(|n| n.owner.is_some()) {
-            return;
-        }
         self.remove_injection();
         let parent = overlay_id(output);
         let Some(overlay) = self.nodes.get_mut(&parent) else {
@@ -817,12 +819,8 @@ impl Scene {
         );
     }
 
-    /// Removes the injection mark. A node of a client that took the id
-    /// stays.
+    /// Removes the injection mark.
     pub fn remove_injection(&mut self) -> bool {
-        if self.nodes.get(INJECTION).is_some_and(|n| n.owner.is_some()) {
-            return false;
-        }
         self.unlink(INJECTION);
         self.nodes.remove(INJECTION).is_some()
     }

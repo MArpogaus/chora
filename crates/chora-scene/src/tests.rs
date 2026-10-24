@@ -982,7 +982,7 @@ fn an_overlay_root_holds_nodes_fixed_to_its_output() {
 }
 
 #[test]
-fn the_injection_mark_leaves_a_client_node_with_the_id_alone() {
+fn the_id_of_the_injection_mark_is_reserved_for_the_core() {
     let mut scene = Scene::default();
     scene.add_overlay("DP-1");
     let take = Command::Create {
@@ -991,19 +991,15 @@ fn the_injection_mark_leaves_a_client_node_with_the_id_alone() {
         parent: overlay_id("DP-1"),
         props: PropsUpdate::default(),
     };
-    scene.apply("agent", &[take]).unwrap();
+    assert!(scene.apply("agent", &[take]).is_err());
     scene.show_injection("DP-1", [1.0, 2.0]);
-    assert_eq!(
-        scene.node(INJECTION).unwrap().owner.as_deref(),
-        Some("agent")
-    );
-    // The id stays under exactly one parent, listed once.
+    assert_eq!(scene.node(INJECTION).unwrap().owner, None);
     assert_eq!(
         scene.node(&overlay_id("DP-1")).unwrap().children,
         vec![INJECTION.to_string()]
     );
-    assert!(!scene.remove_injection());
-    assert!(scene.node(INJECTION).is_some());
+    assert!(scene.remove_injection());
+    assert!(scene.node(INJECTION).is_none());
 }
 
 #[test]

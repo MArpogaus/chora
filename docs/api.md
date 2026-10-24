@@ -41,7 +41,7 @@ This table is the one list of node properties.
 
 | Property | Nodes | Meaning |
 |----------|-------|---------|
-| `id` | all | stable id; ids of the form `s1`, `s2` belong to surfaces, and the core assigns them |
+| `id` | all | stable id; ids of the form `s1`, `s2` belong to surfaces, and the core assigns them; `chora:inject` belongs to the injection mark of the core |
 | `owner` | all | client name of the owner; read-only |
 | `focused` | all | `true` in `scene.query` on the surface with the keyboard focus and on the node of `focus_node`; read-only, left out on all other nodes |
 | `rects` | all | in `scene.query`: the output name maps to `[x, y, w, h]` in logical pixels of that output, after all parent transforms and the camera of that output; outputs where the node does not show are left out; the bounding box when rotation or a mesh makes the shape no rectangle; inside a clip, cut to the clip area; read-only |
