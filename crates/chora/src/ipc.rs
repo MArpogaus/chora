@@ -820,12 +820,13 @@ impl State {
 
     /// A token for `choractl run` (D42): an xdg activation token of no
     /// client, so that the started program can activate with it. A use
-    /// ends the token; each new token forgets the unused ones of no
-    /// client that are older than `MAX_TOKEN_AGE`.
+    /// ends the token; an unused token of no client is forgotten after
+    /// `MAX_TOKEN_AGE`, by its own deadline and by every new token.
     fn ipc_activation_token(&mut self) -> Value {
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
         let (token, _) = self.activation_state.create_external_token(None);
         let token = token.as_str().to_owned();
+        let _ = self.expire_at(self.time.now() + crate::protocols::MAX_TOKEN_AGE);
         serde_json::json!({"token": token})
     }
 
