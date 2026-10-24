@@ -14,7 +14,7 @@ wayland-client = "0.31"
 xcursor.workspace = true
 
 [dev-dependencies]
-wayland-protocols = { version = "0.32", features = ["client"] }
+wayland-protocols = { version = "0.32", features = ["client", "unstable"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 
 [lints]

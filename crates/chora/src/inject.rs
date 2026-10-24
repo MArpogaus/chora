@@ -7,6 +7,8 @@
 //!
 //! Key names and text resolve through the first layout of the keymap: a
 //! character needs a key of that layout, with Shift or `AltGr` at most.
+//! A text goes whole as one commit to the focus with an enabled text
+//! input, so it also carries characters the keymap cannot reach.
 
 use std::collections::HashMap;
 
@@ -19,6 +21,7 @@ use smithay::{
     backend::input::{ButtonState, InputTime, KeyState},
     input::keyboard::{Keycode, Keysym, xkb},
     utils::{Logical, Point},
+    wayland::text_input::TextInputSeat,
 };
 
 use crate::{
@@ -40,13 +43,15 @@ const MAX_STEPS: usize = 32_768;
 const XKB_OFFSET: u32 = 8;
 
 /// One step of an injection, with its keys and points resolved.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 enum Step {
     Move(Point<f64, Logical>),
     /// The button, its state, and whether a press stays down at the end.
     Button(u32, ButtonState, bool),
     Scroll(f64, f64),
     Key(Keycode, KeyState),
+    /// A text that goes as one commit to the text input of the focus.
+    Commit(String),
 }
 
 impl State {
@@ -143,8 +148,24 @@ impl State {
                 vec![Step::Key(code, key_state(*state))]
             }
             InjectEvent::Shortcut { keys: binding } => keys()?.shortcut(binding)?,
-            InjectEvent::Text { text } => keys()?.text(text)?,
+            InjectEvent::Text { text } => {
+                if self.commits_text() {
+                    vec![Step::Commit(text.clone())]
+                } else {
+                    keys()?.text(text)?
+                }
+            }
         })
+    }
+
+    /// Whether the focus has an enabled text input: the core then commits
+    /// its texts to it instead of typing keys.
+    fn commits_text(&self) -> bool {
+        let mut enabled = false;
+        self.seat
+            .text_input()
+            .with_active_text_input(|_, _| enabled = true);
+        enabled
     }
 
     /// A point in the logical coordinates of an output, in the layout.
@@ -267,17 +288,23 @@ impl State {
         let mut buttons_down = Vec::new();
         for step in steps {
             let now = InputTime::now();
-            match *step {
-                Step::Move(point) => input::move_pointer(self, point, now),
+            match step {
+                Step::Move(point) => input::move_pointer(self, *point, now),
                 Step::Button(button, state, hold) => {
-                    let pressed = state == ButtonState::Pressed && !hold;
-                    note(&mut buttons_down, button, pressed);
-                    input::press_button(self, button, state, now);
+                    let pressed = *state == ButtonState::Pressed && !hold;
+                    note(&mut buttons_down, *button, pressed);
+                    input::press_button(self, *button, *state, now);
                 }
-                Step::Scroll(dx, dy) => input::scroll(self, dx, dy, now),
+                Step::Scroll(dx, dy) => input::scroll(self, *dx, *dy, now),
                 Step::Key(code, state) => {
-                    note(&mut keys_down, code, state == KeyState::Pressed);
-                    input::key(self, code, state, now, true);
+                    note(&mut keys_down, *code, *state == KeyState::Pressed);
+                    input::key(self, *code, *state, now, true);
+                }
+                Step::Commit(text) => {
+                    let text_input = self.seat.text_input();
+                    text_input
+                        .with_active_text_input(|input, _| input.commit_string(Some(text.clone())));
+                    text_input.done(false);
                 }
             }
         }
@@ -794,6 +821,46 @@ mod tests {
 
     fn key(code: u32, state: KeyState) -> Step {
         Step::Key(Keycode::new(code + XKB_OFFSET), state)
+    }
+
+    #[test]
+    fn a_text_goes_as_one_commit_to_the_text_input_of_the_focus() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        // A client with a US keymap and an enabled text input.
+        let mut wayland = Wayland::connect(&mut core);
+        let _window = wayland.toplevel(&mut core, "app");
+        let mut wm = core.named("wm");
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"attach": {"surface": "s1", "parent": "root"}},
+                {"focus": {"surface": "s1"}},
+            ]}),
+        );
+        wayland.enable_text_input(&mut core);
+        let mut ctl = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        ctl.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        // Umlauts that the US keymap cannot reach.
+        agent.ok(
+            &mut core,
+            "input.inject",
+            json!({"events": [{"text": {"text": "Grüße äöüß"}}]}),
+        );
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.commits(), ["Grüße äöüß"]);
+        // Without a text input the same text still needs the keymap.
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"focus": {"surface": null}}]}),
+        );
+        let node = json!({"events": [{"text": {"text": "ü"}}]});
+        let (_, message) = agent.fails(&mut core, "input.inject", node);
+        assert!(message.contains("the keymap cannot type 'ü'"), "{message}");
     }
 
     #[test]

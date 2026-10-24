@@ -52,7 +52,7 @@ use smithay::{
         },
         shm::ShmState,
         socket::ListeningSocketSource,
-        text_input::TextInputManagerState,
+        text_input::{TextInputManagerState, TextInputSeat},
         viewporter::ViewporterState,
         xdg_activation::XdgActivationState,
     },
@@ -277,6 +277,9 @@ fn new_seat(dh: &DisplayHandle) -> (SeatState<State>, Seat<State>) {
     seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), delay, rate)
         .expect("the default keymap compiles");
     seat.add_pointer();
+    // The core itself acts as the input method, so that `input.inject`
+    // can commit texts into the focused text inputs (D33).
+    seat.text_input().set_compositor_input_method(true);
     (seat_state, seat)
 }
 
