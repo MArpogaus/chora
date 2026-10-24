@@ -18,8 +18,8 @@ use chora_scene::{
     Event,
     ipc::{
         Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, Edges,
-        GrantChange, Hello, Inject, MethodCall, Picture, ProcessWait, Query, Reserve, Restart,
-        SOCKET_ENV, Spawn, Subscribe, admin_socket,
+        GrantChange, Hello, Inject, InjectEvent, MethodCall, Picture, ProcessWait, Query, Reserve,
+        Restart, RpcError, SOCKET_ENV, Spawn, Subscribe, admin_socket,
     },
 };
 use clap::{Parser, Subcommand};
@@ -44,6 +44,19 @@ enum Cmd {
         /// The selector.
         #[arg(default_value = "*")]
         selector: String,
+    },
+    /// Wait for a selector: poll `scene.query` every 100 ms, print the
+    /// matching nodes as one JSON line and exit 0. With `--gone`, wait
+    /// until nothing matches. After the timeout, exit 1.
+    Wait {
+        /// The selector.
+        selector: String,
+        /// The seconds to wait; 10 by default.
+        #[arg(long, default_value_t = 10)]
+        timeout: u64,
+        /// Wait until nothing matches the selector.
+        #[arg(long)]
+        gone: bool,
     },
     /// Apply a transaction: a JSON list of commands from a file or stdin.
     Apply {
@@ -99,6 +112,10 @@ enum Cmd {
     Inject {
         /// The file with the events; stdin if missing or `-`.
         file: Option<String>,
+        /// Check the events and answer ok or the error, without sending
+        /// input.
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Serve the API as MCP tools over stdio, for an agent.
     Mcp,
@@ -302,7 +319,7 @@ fn run(args: Args) -> Result<(), String> {
     }
     let (commands, input) = match &args.command {
         Cmd::Apply { file } => (read_json(file.as_deref())?, Vec::new()),
-        Cmd::Inject { file } => (Vec::new(), read_json(file.as_deref())?),
+        Cmd::Inject { file, .. } => (Vec::new(), read_json(file.as_deref())?),
         _ => (Vec::new(), Vec::new()),
     };
     let hello = Hello {
@@ -312,7 +329,8 @@ fn run(args: Args) -> Result<(), String> {
     };
     let mut client = connect(&args.command, &hello)?;
     let result = match args.command {
-        Cmd::Query { selector } => show(&mut client, "scene.query", Query { selector }),
+        Cmd::Query { selector } => show(&mut client, "scene.query", Query::new(selector)),
+        command @ Cmd::Wait { .. } => return wait(&mut client, &command),
         Cmd::Apply { .. } => client
             .call::<_, Value>("scene.apply", Apply { commands })
             .map(drop),
@@ -327,8 +345,8 @@ fn run(args: Args) -> Result<(), String> {
         | Cmd::Grant { .. }
         | Cmd::Revoke { .. }
         | Cmd::Grants
-        | Cmd::Clients { .. }
         | Cmd::Camera { .. }) => session(&mut client, command),
+        Cmd::Clients { action } => return clients_command(&mut client, action),
         Cmd::Call {
             client: callee,
             method,
@@ -336,9 +354,7 @@ fn run(args: Args) -> Result<(), String> {
         } => return call(&mut client, callee, method, params.as_deref()),
         Cmd::Asset { action } => return asset(&mut client, action),
         Cmd::View { .. } | Cmd::Mcp => unreachable!("handled before the connection"),
-        Cmd::Inject { .. } => client
-            .call::<_, Value>("input.inject", Inject { events: input })
-            .map(drop),
+        Cmd::Inject { dry_run, .. } => inject(&mut client, input, dry_run),
         Cmd::Capture {
             file,
             output,
@@ -374,6 +390,13 @@ fn connect(command: &Cmd, hello: &Hello) -> Result<Client, String> {
     Client::connect(&path, hello).map_err(|e| format!("{}: {e}", path.display()))
 }
 
+/// Runs `input.inject`. A dry run checks the events and sends nothing.
+fn inject(client: &mut Client, events: Vec<InjectEvent>, dry_run: bool) -> Result<(), ClientError> {
+    client
+        .call::<_, Value>("input.inject", Inject { events, dry_run })
+        .map(drop)
+}
+
 /// The commands for grants, programs and outputs.
 fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
     match command {
@@ -387,12 +410,6 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             capabilities,
         } => grants(client, "grants.revoke", name, capabilities),
         Cmd::Grants => show(client, "grants.list", Value::Null),
-        Cmd::Clients {
-            action: ClientsCmd::Create { client: name },
-        } => show(client, "clients.create", serde_json::json!({"name": name})),
-        Cmd::Clients {
-            action: ClientsCmd::Up { file },
-        } => clients_up(client, file.as_deref()),
         Cmd::Camera {
             action: CameraCmd::Release { output },
         } => show(
@@ -419,13 +436,48 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
     }
 }
 
+/// `choractl clients ...`, which all go through the admin socket.
+fn clients_command(client: &mut Client, action: ClientsCmd) -> Result<(), String> {
+    match action {
+        ClientsCmd::Create { client: name } => client_create(client, &name),
+        ClientsCmd::Up { file } => clients_up(client, file.as_deref()).map_err(|e| e.to_string()),
+    }
+}
+
+/// Opens the client socket of a name and prints its path. A name that has a
+/// socket already gets that socket on stderr.
+fn client_create(client: &mut Client, name: &str) -> Result<(), String> {
+    let answer = client.call::<_, Value>("clients.create", serde_json::json!({"name": name}));
+    match answer {
+        Ok(path) => {
+            print(&path);
+            Ok(())
+        }
+        Err(ClientError::Rpc(err)) => {
+            Err(taken_socket(name, &err).unwrap_or_else(|| err.to_string()))
+        }
+        Err(err) => Err(err.to_string()),
+    }
+}
+
+/// The message for a name whose client socket exists already, from the
+/// `path` in the error data of the core. `None` for every other error.
+fn taken_socket(name: &str, err: &RpcError) -> Option<String> {
+    let data = err.data.as_ref()?;
+    if data.get("reason").and_then(Value::as_str) != Some("socket_exists") {
+        return None;
+    }
+    let path = data.get("path").and_then(Value::as_str)?;
+    Some(format!("{name} has a client socket already: {path}"))
+}
+
 /// Starts a program. With `capture`, waits for its end on the same
 /// connection, since the output goes with the last connection of the name.
 fn spawn(client: &mut Client, argv: Vec<String>, capture: bool) -> Result<(), ClientError> {
     let started: Value = client.call("process.spawn", Spawn { argv, capture })?;
     let pid = started["pid"].as_u64().and_then(|p| u32::try_from(p).ok());
     let Some(pid) = pid.filter(|_| capture) else {
-        print(&started);
+        print_line(std::io::stdout(), &started);
         return Ok(());
     };
     loop {
@@ -435,9 +487,62 @@ fn spawn(client: &mut Client, argv: Vec<String>, capture: bool) -> Result<(), Cl
         };
         let output: Value = client.call("process.wait", wait)?;
         if output["running"] != Value::Bool(true) {
-            print(&output);
+            print_line(std::io::stdout(), &output);
             return Ok(());
         }
+    }
+}
+
+/// Polls `scene.query` until the selector matches, or with `gone` until
+/// nothing matches, and prints the matches as one JSON line. A timeout is
+/// an error, so the command exits 1 with the reason on stderr.
+fn wait(client: &mut Client, command: &Cmd) -> Result<(), String> {
+    let Cmd::Wait {
+        selector,
+        timeout,
+        gone,
+    } = &command
+    else {
+        unreachable!("wait runs for the wait command only")
+    };
+    let nodes = wait_loop(
+        || {
+            client
+                .call::<_, Vec<Value>>("scene.query", Query::new(selector.clone()))
+                .map_err(|e| e.to_string())
+        },
+        selector,
+        *gone,
+        std::time::Duration::from_secs(*timeout),
+        std::time::Duration::from_millis(100),
+    )?;
+    print_line(std::io::stdout(), &Value::Array(nodes));
+    Ok(())
+}
+
+/// The poll loop of `wait`, split out so that a test can fake the query.
+fn wait_loop(
+    mut query: impl FnMut() -> Result<Vec<Value>, String>,
+    selector: &str,
+    gone: bool,
+    timeout: std::time::Duration,
+    every: std::time::Duration,
+) -> Result<Vec<Value>, String> {
+    let start = std::time::Instant::now();
+    loop {
+        let nodes = query()?;
+        if nodes.is_empty() == gone {
+            return Ok(nodes);
+        }
+        if start.elapsed() > timeout {
+            let reason = if gone {
+                format!("nodes still match {selector}")
+            } else {
+                format!("no node matches {selector}")
+            };
+            return Err(format!("timeout after {} s: {reason}", timeout.as_secs()));
+        }
+        std::thread::sleep(every);
     }
 }
 
@@ -582,15 +687,25 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
         view::parse_yaml(&text).map_err(bad)?;
     for (name, spec) in wanted {
         view::check_name(&name).map_err(bad)?;
-        match client.call::<_, Value>("clients.create", serde_json::json!({"name": &name})) {
-            Ok(_) => {}
-            Err(ClientError::Rpc(e))
-                if e.data
-                    .as_ref()
-                    .and_then(|d| d.get("reason"))
-                    .and_then(Value::as_str)
-                    == Some("socket_exists") => {}
-            Err(e) => return Err(e),
+        let kept =
+            match client.call::<_, Value>("clients.create", serde_json::json!({"name": &name})) {
+                Ok(_) => None,
+                Err(ClientError::Rpc(err)) => {
+                    let reason = err
+                        .data
+                        .as_ref()
+                        .and_then(|d| d.get("reason"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
+                    if reason != "socket_exists" && reason != "connected" {
+                        return Err(ClientError::Rpc(err));
+                    }
+                    Some(reason.to_owned())
+                }
+                Err(e) => return Err(e),
+            };
+        if let Some(reason) = kept {
+            eprintln!("{name}: {reason}: socket not opened, only grants synced");
         }
         sync_grants(client, &name, spec.grants)?;
         println!("{name}");
@@ -721,11 +836,89 @@ fn print(value: &Value) {
     let _ = writeln!(std::io::stdout(), "{text}");
 }
 
+/// Prints a value as one JSON line, for the answers scripts read. Takes the
+/// writer so that a test can read the line.
+fn print_line<W: Write>(mut out: W, value: &Value) {
+    let line = serde_json::to_string(value).expect("values always serialize");
+    // A closed stdout, for example after `| head`, is no error.
+    let _ = writeln!(out, "{line}");
+}
+
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+    use serde_json::{Value, json};
+    use std::time::Duration;
 
-    use super::{Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta};
+    use chora_scene::ipc::RpcError;
+
+    use super::{
+        Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta, print_line, taken_socket,
+        wait_loop,
+    };
+
+    /// The answer of `spawn` and `wait` is one JSON line, so that a script
+    /// can read it. A newline inside a string stays escaped.
+    #[test]
+    fn the_answer_of_spawn_is_one_json_line() {
+        let mut line = Vec::new();
+        print_line(&mut line, &json!({ "pid": 7, "stdout": "a\nb" }));
+        assert_eq!(
+            String::from_utf8(line).unwrap(),
+            "{\"pid\":7,\"stdout\":\"a\\nb\"}\n",
+        );
+    }
+
+    /// The poll loop stops at the first satisfying answer; a timeout is an
+    /// error with the selector.
+    #[test]
+    fn wait_polls_until_the_answer_satisfies_the_selector() {
+        let every = Duration::from_millis(1);
+        let mut answers = vec![Vec::new(), Vec::new(), vec![json!({ "id": "n1" })]];
+        let got = wait_loop(
+            || Ok::<Vec<Value>, String>(answers.remove(0)),
+            "kind:surface",
+            false,
+            Duration::from_secs(5),
+            every,
+        )
+        .unwrap();
+        assert_eq!(got, vec![json!({ "id": "n1" })]);
+
+        let gone = wait_loop(
+            || Ok::<Vec<Value>, String>(Vec::new()),
+            "kind:surface",
+            true,
+            Duration::from_secs(5),
+            every,
+        )
+        .unwrap();
+        assert!(gone.is_empty(), "--gone ends on the first empty answer");
+
+        let err = wait_loop(
+            || Ok::<Vec<Value>, String>(Vec::new()),
+            "kind:surface",
+            false,
+            Duration::from_millis(5),
+            every,
+        )
+        .unwrap_err();
+        assert!(err.contains("timeout"), "{err}");
+        let still = wait_loop(
+            || Ok::<Vec<Value>, String>(vec![json!({ "id": "n1" })]),
+            "kind:surface",
+            true,
+            Duration::from_millis(5),
+            every,
+        );
+        assert!(still.is_err(), "--gone times out while nodes match");
+
+        let args = Args::try_parse_from("choractl wait kind:surface --timeout 3 --gone".split(' '))
+            .unwrap();
+        assert!(
+            matches!(args.command, Cmd::Wait { ref selector, timeout, gone } if selector == "kind:surface" && timeout == 3 && gone)
+        );
+    }
 
     /// An unchanged grant is revoked by no one and set by no one.
     #[test]
@@ -765,6 +958,26 @@ mod tests {
             .is_err(),
             "an unknown capability is an error"
         );
+    }
+
+    /// A name whose client socket exists already gets that socket by name;
+    /// every other error keeps the message of the core.
+    #[test]
+    fn a_taken_client_name_names_its_socket() {
+        let taken = RpcError::new(RpcError::REJECTED, "\"agent\" has a client socket already")
+            .with_data(json!({
+                "reason": "socket_exists",
+                "path": "/run/chora/clients/agent/ipc.sock",
+            }));
+        assert_eq!(
+            taken_socket("agent", &taken).as_deref(),
+            Some("agent has a client socket already: /run/chora/clients/agent/ipc.sock"),
+        );
+        let connected = RpcError::new(RpcError::REJECTED, "\"agent\" is connected")
+            .with_data(json!({"reason": "connected"}));
+        assert!(taken_socket("agent", &connected).is_none());
+        let no_data = RpcError::new(RpcError::REJECTED, "no socket directory");
+        assert!(taken_socket("agent", &no_data).is_none());
     }
 
     /// No argument of a command takes the place of `--name`.

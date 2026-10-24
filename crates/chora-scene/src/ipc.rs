@@ -207,12 +207,74 @@ pub struct Hello {
 }
 
 /// Parameters of `scene.query`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Query {
     /// See [`crate::Selector`]; every node if missing.
     #[serde(default)]
     pub selector: String,
+    /// A JSON filter the nodes must also match (D32).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filter: Option<Filter>,
+}
+
+impl Query {
+    /// A query for a selector, without a filter.
+    #[must_use]
+    pub fn new(selector: impl Into<String>) -> Self {
+        Self {
+            selector: selector.into(),
+            filter: None,
+        }
+    }
+}
+
+/// A JSON filter for `scene.query`, next to the selector string (D32).
+/// All fields must match; an empty filter matches everything. `focused`
+/// and `visible` only filter when they are true.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Filter {
+    /// Nodes of this client name.
+    #[serde(default)]
+    pub owner: Option<String>,
+    /// Nodes of this kind.
+    #[serde(default)]
+    pub kind: Option<crate::NodeKind>,
+    /// Surfaces with this application id.
+    #[serde(default)]
+    pub app_id: Option<String>,
+    /// Only the focused surface or node.
+    #[serde(default)]
+    pub focused: bool,
+    /// Only nodes that show on some output.
+    #[serde(default)]
+    pub visible: bool,
+    /// Only nodes that show on this output.
+    #[serde(default)]
+    pub output: Option<String>,
+}
+
+impl Filter {
+    /// Whether a node matches every field. `focused` tells whether the
+    /// core marks the node as focused; `rects` maps the name of every
+    /// output where the node shows to its rectangle there.
+    #[must_use]
+    pub fn matches(&self, node: &crate::Node, focused: bool, rects: &Value) -> bool {
+        self.owner
+            .as_deref()
+            .is_none_or(|owner| node.owner.as_deref() == Some(owner))
+            && self.kind.is_none_or(|kind| node.kind == kind)
+            && self.app_id.as_deref().is_none_or(|app_id| {
+                node.surface.as_ref().and_then(|s| s.app_id.as_deref()) == Some(app_id)
+            })
+            && (!self.focused || focused)
+            && (!self.visible || rects.as_object().is_some_and(|r| !r.is_empty()))
+            && self
+                .output
+                .as_deref()
+                .is_none_or(|output| rects.get(output).is_some())
+    }
 }
 
 /// Parameters of `scene.apply`.
@@ -500,9 +562,69 @@ pub struct GrantChange {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Export {
-    /// The method names, for example `set_layout`. Other clients call them
-    /// with the client name, as `tiling.set_layout`.
-    pub names: Vec<String>,
+    /// The methods, for example `set_layout`. Each entry is a plain name,
+    /// or an object with `name`, `description` and `input_schema`. Other
+    /// clients call them with the client name, as `tiling.set_layout`.
+    pub names: Vec<ExportMethod>,
+}
+
+/// One method of a `methods.export`, plain or described.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ExportMethod {
+    /// The method name alone, without description and schema.
+    Plain(String),
+    /// The name with what a caller needs to know about it. Unknown keys in
+    /// the object are refused, so a typo in `description` does not vanish.
+    Described(DescribedMethod),
+}
+
+/// The described form of an [`ExportMethod`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DescribedMethod {
+    /// The method name, for example `set_layout`.
+    pub name: String,
+    /// What the method does, in words for the caller.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// A JSON schema of the parameters.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_schema: Option<Value>,
+}
+
+impl ExportMethod {
+    /// The method name.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Plain(name) | Self::Described(DescribedMethod { name, .. }) => name,
+        }
+    }
+
+    /// The description, unless the exporter left it out.
+    #[must_use]
+    pub fn description(&self) -> Option<&str> {
+        match self {
+            Self::Plain(_) => None,
+            Self::Described(d) => d.description.as_deref(),
+        }
+    }
+
+    /// The JSON schema of the parameters, unless the exporter left it out.
+    #[must_use]
+    pub fn input_schema(&self) -> Option<&Value> {
+        match self {
+            Self::Plain(_) => None,
+            Self::Described(d) => d.input_schema.as_ref(),
+        }
+    }
+}
+
+impl From<&str> for ExportMethod {
+    fn from(name: &str) -> Self {
+        Self::Plain(name.to_owned())
+    }
 }
 
 /// Parameters of `methods.call`.
@@ -577,8 +699,11 @@ pub struct Picture {
 #[serde(deny_unknown_fields)]
 pub struct Inject {
     /// The events, in order. Keys and buttons that they leave down go up
-    /// at the end.
+    /// at the end, unless a button press holds.
     pub events: Vec<InjectEvent>,
+    /// Check every event and answer ok or the error, without sending input.
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 /// One synthetic input event of `input.inject`.
@@ -586,14 +711,22 @@ pub struct Inject {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum InjectEvent {
-    /// Moves the pointer to a point in the logical coordinates of an
-    /// output, the first one by default.
+    /// Moves the pointer, either to `position` in the logical coordinates
+    /// of an output, the first one by default, or to `point` inside the
+    /// node `node`.
     PointerMove {
-        /// The point.
-        position: [f64; 2],
+        /// The point in the logical coordinates of an output.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        position: Option<[f64; 2]>,
         /// The output name.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         output: Option<String>,
+        /// The node, found by its id.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        node: Option<String>,
+        /// The point inside the node, in the coordinates of the node.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        point: Option<[f64; 2]>,
     },
     /// Presses or releases a pointer button.
     Button {
@@ -602,6 +735,10 @@ pub enum InjectEvent {
         button: u32,
         /// Pressed or released.
         state: PressState,
+        /// A press that stays down after the request ends; a later event
+        /// releases it.
+        #[serde(default)]
+        hold: bool,
     },
     /// Presses and releases a pointer button.
     Click {

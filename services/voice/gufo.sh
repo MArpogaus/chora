@@ -82,5 +82,5 @@ podman run --rm -it \
     --port "$PORT" \
     "$KIND" \
     --model "$MODEL" \
-    --served-model-name "gufo-$KIND" \
+    --served-model-name "gufo" \
     "$@"

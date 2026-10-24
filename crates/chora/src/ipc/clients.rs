@@ -52,11 +52,11 @@ impl State {
     /// a name, and returns their paths.
     pub(super) fn ipc_client_socket(&mut self, create: &Create) -> Result<Value, RpcError> {
         let name = &create.name;
-        self.check_new_socket(name)?;
         let base = (self.ipc.path.as_ref())
             .and_then(|p| p.parent())
             .ok_or_else(|| rejected("the core has no socket directory"))?;
         let dir = base.join("clients").join(name);
+        self.check_new_socket(name, &dir)?;
         if dir.join(WAYLAND).as_os_str().len() > MAX_SOCKET_PATH {
             return Err(rejected(format!("{name:?}: the socket path is too long")));
         }
@@ -162,22 +162,25 @@ impl State {
         self.copies.ext.retain(|w| !gone(w.client()));
     }
 
-    /// Why `clients.create` of a name must fail, if it must.
-    fn check_new_socket(&self, name: &str) -> Result<(), RpcError> {
+    /// Why `clients.create` of a name must fail, if it must. `dir` is the
+    /// directory its sockets would live in.
+    fn check_new_socket(&self, name: &str, dir: &Path) -> Result<(), RpcError> {
         if !crate::methods::valid_name(name) {
             return Err(rejected(format!(
                 "{name:?}: a client name for a socket has lowercase letters, digits, _, - and ., from a letter"
             )));
         }
         if self.ipc.clients.contains_key(name) {
+            // The path lets `choractl clients create` name the socket.
             return Err(rejected(format!("{name:?} has a client socket already"))
-                .with_data(serde_json::json!({"reason": "socket_exists"})));
+                .with_data(serde_json::json!({"reason": "socket_exists", "path": dir.join(IPC)})));
         }
         // A live connection of the name would share the nodes and grants.
         if self.ipc.live(name) {
-            return Err(rejected(format!(
-                "{name:?} is connected or in its grace time"
-            )));
+            return Err(
+                rejected(format!("{name:?} is connected or in its grace time"))
+                    .with_data(serde_json::json!({"reason": "connected"})),
+            );
         }
         if self.ipc.clients.len() >= MAX_SOCKETS {
             return Err(rejected(format!(

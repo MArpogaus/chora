@@ -18,11 +18,12 @@ use std::{
 };
 
 use chora_scene::{
-    Binding, Event, Selector,
+    Binding, Event, Node, NodeKind, Placed, Selector, Transform,
     ipc::{Apply, Capability, Edges, Grab, Hello, Message, Query, Request, RpcError, Subscribe},
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use smithay::utils::{Logical, Rectangle};
 use smithay::{
     input::keyboard::{Keysym, ModifiersState, xkb},
     reexports::calloop::{
@@ -33,7 +34,9 @@ use smithay::{
     reexports::rustix::{net::sockopt::socket_peercred, process::Pid},
 };
 
-use crate::{captured::Processes, state::State, uploads::Uploads};
+use crate::{
+    captured::Processes, output::output_area, render::window_rect, state::State, uploads::Uploads,
+};
 
 mod clients;
 
@@ -136,6 +139,9 @@ struct Conn {
     /// The socket that the connection came through.
     socket: Socket,
     events: Option<Vec<String>>,
+    /// The number of events sent to this connection; each event carries
+    /// it as `seq` (D32).
+    seq: u64,
     /// The edges of `output.reserve` by output name.
     reserves: HashMap<String, Edges>,
     /// The source that reads the connection. `None` after the end of the
@@ -308,7 +314,6 @@ impl Ipc {
                 .and_then(|p| p["surface"].as_str())
                 .and_then(window_client)
         });
-        let line = line(&message);
         for conn in self.conns.values_mut() {
             let wanted = conn
                 .events
@@ -318,7 +323,8 @@ impl Ipc {
                 .as_ref()
                 .is_some_and(|w| conn.fixed().is_some_and(|f| w.as_deref() != Some(f)));
             if wanted && !foreign && client.is_none_or(|c| conn.name.as_deref() == Some(c)) {
-                conn.push(&line);
+                conn.seq += 1;
+                conn.push(&stamped(&message, conn.seq));
             }
         }
     }
@@ -326,7 +332,8 @@ impl Ipc {
     /// Sends an event to one connection, subscribed or not.
     pub fn send_to(&mut self, conn: u64, event: &Event) {
         if let Some(c) = self.conns.get_mut(&conn) {
-            c.push(&line(&Message::event(event)));
+            c.seq += 1;
+            c.push(&stamped(&Message::event(event), c.seq));
         }
     }
 
@@ -565,6 +572,16 @@ fn line(message: &Message) -> Vec<u8> {
     bytes
 }
 
+/// The line of an event notification with the sequence number of the
+/// connection (D32): every connection numbers its events from 1.
+fn stamped(message: &Message, seq: u64) -> Vec<u8> {
+    let mut message = message.clone();
+    if let Some(Value::Object(params)) = message.params.as_mut() {
+        params.insert("seq".into(), Value::from(seq));
+    }
+    line(&message)
+}
+
 impl State {
     /// Accepts every waiting connection. When accepting fails, for example
     /// because no file descriptors are left, the listener pauses for a
@@ -631,6 +648,10 @@ impl State {
         if let Some(reason) = self.ipc.refusal(pid, socket.name()) {
             let error = rejected(reason.clone());
             let _ = (&stream).write_all(&line(&Message::error(Value::Null, error)));
+            // A close with unread bytes in the receive queue sends an RST
+            // and eats the error line, so read what arrived before closing.
+            let mut drain = [0; 4096];
+            while matches!((&stream).read(&mut drain), Ok(n) if n > 0) {}
             return Err(format!("refusing a connection: {reason}"));
         }
         // The event loop watches a copy; reads go through `Conn::stream`.
@@ -659,6 +680,7 @@ impl State {
             resume: false,
             socket,
             events: None,
+            seq: 0,
             reserves: HashMap::new(),
             reader: Some(token),
         };
@@ -736,7 +758,7 @@ impl State {
         let params = request.params;
         Some(match request.method.as_str() {
             "hello" => params_of(params).and_then(|h| self.ipc_hello(conn, h)),
-            "scene.query" => params_of::<Query>(params).and_then(|q| self.query(conn, &q.selector)),
+            "scene.query" => params_of::<Query>(params).and_then(|q| self.query(conn, &q)),
             "scene.apply" => {
                 let apply = match params_of::<Apply>(params) {
                     Ok(a) => a,
@@ -768,6 +790,7 @@ impl State {
                 self.ipc_headless_output(conn, &request.method, params)
             }
             "clients.list" => Ok(self.clients()),
+            "methods.list" => Ok(self.list_methods()),
             "camera.release" => self.ipc_admin(conn, &request.method, params),
             "grants.set" | "grants.revoke" | "grants.list" | "clients.create" => {
                 self.ipc_admin(conn, &request.method, params)
@@ -789,7 +812,9 @@ impl State {
     }
 
     /// Streams the named events, or all of them for an empty list. An
-    /// unknown name is a mistake that answers, not silence.
+    /// unknown name is a mistake that answers, not silence. The answer is
+    /// a snapshot of the scene as `scene.query` gives it (D32), so that no
+    /// change between the snapshot and the first event is lost.
     fn ipc_subscribe(&mut self, conn: u64, subscription: Subscribe) -> Result<Value, RpcError> {
         if let Some(unknown) = subscription
             .events
@@ -801,7 +826,7 @@ impl State {
         if let Some(c) = self.ipc.conns.get_mut(&conn) {
             c.events = Some(subscription.events);
         }
-        Ok(Value::Null)
+        self.query(conn, &Query::new(""))
     }
 
     /// The methods of grants and client sockets. Only the admin socket of
@@ -911,15 +936,120 @@ impl State {
         }
     }
 
-    /// The nodes of a selector; for a client socket only its own.
-    fn query(&self, conn: u64, selector: &str) -> Result<Value, RpcError> {
-        let selector: Selector = selector
+    /// The nodes of a selector and a JSON filter (D32); for a client
+    /// socket only its own.
+    fn query(&self, conn: u64, query: &Query) -> Result<Value, RpcError> {
+        let selector: Selector = query
+            .selector
             .parse()
             .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, format!("{e}")))?;
         let fixed = self.ipc.fixed(conn);
         let mut nodes = self.scene.query(&selector);
         nodes.retain(|n| fixed.is_none_or(|f| clients::own_node(n, f)));
-        Ok(serde_json::json!(nodes))
+        // (D33): only the nodes that survived the filter can show a focus.
+        let focus = [self.scene.focused_surface(), self.scene.focused_node()];
+        let rects = self.screen_rects();
+        if let Some(filter) = &query.filter {
+            nodes.retain(|n| {
+                filter.matches(
+                    n,
+                    focus.contains(&Some(n.id.as_str())),
+                    rects.get(n.id.as_str()).unwrap_or(&Value::Null),
+                )
+            });
+        }
+        let nodes: Vec<Value> = nodes
+            .into_iter()
+            .map(|n| {
+                let mut node = serde_json::json!(n);
+                if focus.contains(&Some(n.id.as_str())) {
+                    node["focused"] = Value::Bool(true);
+                }
+                node["rects"] = rects
+                    .get(n.id.as_str())
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!({}));
+                node
+            })
+            .collect();
+        Ok(Value::Array(nodes))
+    }
+
+    /// The screen rectangles by node: the output name maps to
+    /// `[x, y, w, h]` in the logical pixels of that output, after the
+    /// parent transforms and the camera of the output. Outputs where the
+    /// node does not show are left out.
+    fn screen_rects(&self) -> HashMap<&str, Value> {
+        let mut found: HashMap<&str, serde_json::Map<String, Value>> = HashMap::new();
+        for output in &self.outputs {
+            let name = output.name();
+            let screen = Rectangle::from_size(output_area(output).size).to_f64();
+            // The overlay sits in the coordinates of its output, without
+            // its camera (D43).
+            let views = [
+                (Transform::IDENTITY, self.scene.overlay_draw_list(&name)),
+                (self.camera(output), self.scene.draw_list()),
+            ];
+            let shown = views.iter().flat_map(|(camera, list)| {
+                list.iter().filter_map(move |placed| {
+                    let transform = camera.then(&placed.transform);
+                    Some((
+                        placed.node,
+                        self.screen_rect(placed, camera, &transform, screen)?,
+                    ))
+                })
+            });
+            for (node, rect) in shown {
+                let rect = [rect.loc.x, rect.loc.y, rect.size.w, rect.size.h];
+                found
+                    .entry(node.id.as_str())
+                    .or_default()
+                    .insert(name.clone(), serde_json::json!(rect));
+            }
+        }
+        found
+            .into_iter()
+            .map(|(id, rects)| (id, Value::Object(rects)))
+            .collect()
+    }
+
+    /// The rectangle of one placed node with its absolute transform on an
+    /// output, if it shows there. Under a rotation or a mesh this is the
+    /// bounding box of the drawn shape, and a node inside a clip is cut
+    /// to the area of the clip.
+    fn screen_rect(
+        &self,
+        placed: &Placed<'_>,
+        camera: &Transform,
+        transform: &Transform,
+        screen: Rectangle<f64, Logical>,
+    ) -> Option<Rectangle<f64, Logical>> {
+        let mut rect = match placed.node.kind {
+            // A surface is sized by its buffer, subsurfaces and decorations.
+            NodeKind::Surface => window_rect(self.windows.get(placed.node.id.as_str())?, transform),
+            NodeKind::Rect => node_box(placed.node, transform, placed.node.props.size?)?,
+            NodeKind::Image => {
+                // Without the file the renderer draws nothing.
+                let image = self
+                    .assets
+                    .images
+                    .get(placed.node.props.image.as_deref()?)?;
+                let [w, h] = placed
+                    .node
+                    .props
+                    .size
+                    .unwrap_or([f64::from(image.size[0]), f64::from(image.size[1])]);
+                node_box(placed.node, transform, [w, h])?
+            }
+            // A group draws nothing, and a shader only draws inside a layer.
+            NodeKind::Group | NodeKind::Shader => return None,
+        };
+        // The renderer shows a node and its descendants only inside every
+        // clip of its ancestors.
+        for (clip, size) in &placed.clips {
+            rect = intersect(rect, bounding_box(&camera.then(clip), *size))?;
+        }
+        rect.overlaps(screen).then_some(rect)
     }
 
     /// Grabs a binding of a key or a pointer button for a named connection.
@@ -1076,12 +1206,66 @@ pub fn rejected(message: impl Into<String>) -> RpcError {
     RpcError::new(RpcError::REJECTED, message)
 }
 
+/// The box of a node size on the screen. A node with a mesh, or under a
+/// matrix with perspective, shows through the projection of the renderer;
+/// its box is then the box of the projected points.
+fn node_box(node: &Node, transform: &Transform, size: [f64; 2]) -> Option<Rectangle<f64, Logical>> {
+    if node.props.size.is_some() && (node.props.mesh.is_some() || has_perspective(transform)) {
+        let at = crate::mesh::Placing {
+            transform,
+            scale: 1.0,
+        };
+        let shape = crate::mesh::shape(node, &at)?;
+        return Some(shape.bounds.to_f64().to_logical(1.0));
+    }
+    Some(bounding_box(transform, size))
+}
+
+/// Whether a matrix divides by w, so that projected points land elsewhere
+/// than under an affine transform.
+#[allow(clippy::float_cmp)] // the entries are exact or the client sent them
+fn has_perspective(transform: &Transform) -> bool {
+    let m = transform.matrix();
+    m[3] != 0.0 || m[7] != 0.0 || m[11] != 0.0 || m[15] != 1.0
+}
+
+/// The largest rectangle inside both, or `None` when they miss each other.
+fn intersect(
+    a: Rectangle<f64, Logical>,
+    b: Rectangle<f64, Logical>,
+) -> Option<Rectangle<f64, Logical>> {
+    let loc = (a.loc.x.max(b.loc.x), a.loc.y.max(b.loc.y));
+    let end = (
+        (a.loc.x + a.size.w).min(b.loc.x + b.size.w),
+        (a.loc.y + a.size.h).min(b.loc.y + b.size.h),
+    );
+    (loc.0 < end.0 && loc.1 < end.1)
+        .then(|| Rectangle::new(loc.into(), (end.0 - loc.0, end.1 - loc.1).into()))
+}
+
+/// The smallest axis-aligned rectangle that holds the box from `(0, 0)` to
+/// `(w, h)` after the transform.
+fn bounding_box(transform: &Transform, [w, h]: [f64; 2]) -> Rectangle<f64, Logical> {
+    let points = [(0.0, 0.0), (w, 0.0), (0.0, h), (w, h)].map(|(x, y)| transform.apply(x, y));
+    let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+    for (x, y) in points {
+        x0 = x0.min(x);
+        y0 = y0.min(y);
+        x1 = x1.max(x);
+        y1 = y1.max(y);
+    }
+    Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into())
+}
+
 /// Whether Ctrl+Alt with a key is a binding of the safety layer (D23):
-/// `BackSpace` quits, `Escape` resets, `F1` to `F12` switch the VT.
+/// `BackSpace` quits, `Escape` resets, `i` revokes the agents, `F1` to
+/// `F12` switch the VT.
 fn is_safety_key(sym: xkb::Keysym) -> bool {
     use xkb::Keysym;
     sym == Keysym::BackSpace
         || sym == Keysym::Escape
+        || sym == Keysym::i
+        || sym == Keysym::I
         || (Keysym::F1.raw()..=Keysym::F12.raw()).contains(&sym.raw())
 }
 
@@ -1106,6 +1290,391 @@ mod tests {
             .collect();
         ids.sort();
         ids
+    }
+
+    /// One node of a query by id, or null.
+    fn query_node(client: &mut Client, core: &mut Core, id: &str) -> Value {
+        let nodes = client.ok(core, "scene.query", json!({"selector": format!("id:{id}")}));
+        nodes
+            .as_array()
+            .expect("a list")
+            .first()
+            .cloned()
+            .unwrap_or(Value::Null)
+    }
+
+    #[test]
+    fn query_reports_the_screen_rect_of_a_node() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        let setup = json!({"commands": [
+            {"create": {"id": "here", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10], "color": [1, 0, 0, 1],
+                          "transform": {"translate": [100, 50], "scale": 2}}}},
+            {"create": {"id": "far", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10], "color": [0, 1, 0, 1],
+                          "transform": {"translate": [5000, 0]}}}},
+            {"camera": {"output": "out", "transform": {"translate": [-30, -20]}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        // The 10x10 rect scales to 20x20 at (100, 50) and the pan moves it.
+        assert_eq!(
+            query_node(&mut wm, &mut core, "here")["rects"],
+            json!({"out": [70.0, 30.0, 20.0, 20.0]}),
+            "the rect after its transform and the camera"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "far")["rects"],
+            json!({}),
+            "an output without the node is left out"
+        );
+    }
+
+    #[test]
+    fn query_cuts_the_rect_of_a_node_inside_a_clip() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        let setup = json!({"commands": [
+            {"create": {"id": "frame", "kind": "group", "parent": "root",
+                "props": {"size": [100, 100], "clip": {},
+                          "transform": {"translate": [20, 30]}}}},
+            {"create": {"id": "inside", "kind": "rect", "parent": "frame",
+                "props": {"size": [10, 10], "color": [0, 1, 0, 1],
+                          "transform": {"translate": [10, 10]}}}},
+            {"create": {"id": "half", "kind": "rect", "parent": "frame",
+                "props": {"size": [20, 10], "color": [0, 0, 1, 1],
+                          "transform": {"translate": [90, 10]}}}},
+            {"create": {"id": "gone", "kind": "rect", "parent": "frame",
+                "props": {"size": [10, 10], "color": [1, 1, 0, 1],
+                          "transform": {"translate": [200, 0]}}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "inside")["rects"],
+            json!({"out": [30.0, 40.0, 10.0, 10.0]}),
+            "a node inside the clip keeps its box"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "half")["rects"],
+            json!({"out": [110.0, 40.0, 10.0, 10.0]}),
+            "a node over the clip edge is cut to it"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "gone")["rects"],
+            json!({}),
+            "a node clipped away shows on no output"
+        );
+    }
+
+    #[test]
+    fn query_gives_the_box_of_the_projected_shape_for_a_mesh_or_perspective() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        let mut matrix = [0.0; 16];
+        for i in [0, 5, 10, 15] {
+            matrix[i] = 1.0;
+        }
+        // The w row divides x by 1 + 0.01 * x, so x = 100 lands at 50.
+        matrix[3] = 0.01;
+        let setup = json!({"commands": [
+            {"create": {"id": "wobbly", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10], "color": [1, 0, 0, 1],
+                          "transform": {"translate": [5, 5]},
+                          "mesh": {"cols": 1, "rows": 1,
+                                   "points": [[0, 0], [30, 0], [0, 10], [30, 10]]}}}},
+            {"create": {"id": "deep", "kind": "rect", "parent": "root",
+                "props": {"size": [100, 50], "color": [0, 1, 0, 1],
+                          "transform": {"matrix": matrix}}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "wobbly")["rects"],
+            json!({"out": [5.0, 5.0, 30.0, 10.0]}),
+            "the mesh stretches the drawn shape to x 30"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "deep")["rects"],
+            json!({"out": [0.0, 0.0, 50.0, 50.0]}),
+            "the perspective moves the right edge in"
+        );
+    }
+
+    #[test]
+    fn query_leaves_out_an_image_without_its_asset() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        let path = png("asset", 4);
+        let sent = wm.send(
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "pic", "kind": "image", "parent": "root",
+                    "props": {"size": [10, 10], "image": &path}}},
+            ]}),
+        );
+        // The answer waits for the worker that decodes the file.
+        for _ in 0..1000 {
+            if wm.answer(&mut core, sent).is_some() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert_eq!(
+            query_node(&mut wm, &mut core, "pic")["rects"],
+            json!({"out": [0.0, 0.0, 10.0, 10.0]}),
+            "an image with its asset shows"
+        );
+        core.state.assets.images.forget(&path);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "pic")["rects"],
+            json!({}),
+            "without the asset the renderer draws nothing"
+        );
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    /// Writes a gray PNG file of a size and returns its path.
+    fn png(name: &str, side: u32) -> String {
+        let path =
+            std::env::temp_dir().join(format!("chora-ipc-{name}-{}.png", std::process::id()));
+        let file = std::io::BufWriter::new(std::fs::File::create(&path).unwrap());
+        let mut encoder = png::Encoder::new(file, side, side);
+        encoder.set_color(png::ColorType::Grayscale);
+        let mut writer = encoder.write_header().unwrap();
+        writer
+            .write_image_data(&vec![128; (side * side) as usize])
+            .unwrap();
+        path.to_str().unwrap().to_owned()
+    }
+
+    #[test]
+    fn query_marks_the_focused_surface_and_the_focused_node() {
+        let mut core = Core::new();
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "foot");
+        let mut wm = core.named("wm");
+        let setup = json!({"commands": [
+            {"create": {"id": "menu", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10]}}},
+            {"attach": {"surface": "s1", "parent": "root"}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        assert!(
+            query_node(&mut wm, &mut core, "s1")
+                .get("focused")
+                .is_none(),
+            "nothing focused yet"
+        );
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"focus": {"surface": "s1"}}]}),
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "s1")["focused"],
+            json!(true),
+            "the focused surface"
+        );
+        let focus_node = json!({"commands": [{"focus_node": {"node": "menu"}}]});
+        wm.ok(&mut core, "scene.apply", focus_node);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "menu")["focused"],
+            json!(true),
+            "the focused node"
+        );
+        wayland.toplevel(&mut core, "edit");
+        let take = json!({"commands": [
+            {"attach": {"surface": "s2", "parent": "root"}},
+            {"focus": {"surface": "s2"}},
+        ]});
+        wm.ok(&mut core, "scene.apply", take);
+        assert!(
+            query_node(&mut wm, &mut core, "menu")
+                .get("focused")
+                .is_none(),
+            "a new surface focus ends the node focus"
+        );
+        assert_eq!(query_node(&mut wm, &mut core, "s2")["focused"], json!(true));
+    }
+
+    /// The sorted ids of a `scene.query` with the given parameters.
+    fn query_ids(client: &mut Client, core: &mut Core, params: Value) -> Vec<String> {
+        let mut ids: Vec<String> = client
+            .ok(core, "scene.query", params)
+            .as_array()
+            .expect("a list")
+            .iter()
+            .map(|n| n["id"].as_str().expect("an id").to_owned())
+            .collect();
+        ids.sort();
+        ids
+    }
+
+    /// Two outputs, a foot surface and a rect owned by "wm", a rect owned
+    /// by "other" that only shows on "hdmi", and an invisible rect.
+    struct Fixture {
+        core: Core,
+        _wayland: Wayland,
+        _other: Client,
+        wm: Client,
+    }
+
+    fn fixture() -> Fixture {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        core.add_output("hdmi", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "foot");
+        let mut wm = core.named("wm");
+        let mut other = core.named("other");
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "here", "kind": "rect", "parent": "root",
+                    "props": {"size": [10, 10]}}},
+                {"create": {"id": "hidden", "kind": "rect", "parent": "root",
+                    "props": {"size": [10, 10], "visible": false}}},
+                {"attach": {"surface": "s1", "parent": "root"}},
+                {"focus": {"surface": "s1"}},
+            ]}),
+        );
+        other.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "theirs", "kind": "group", "parent": "root"}},
+                {"create": {"id": "far", "kind": "rect", "parent": "root",
+                    "props": {"size": [10, 10], "transform": {"translate": [900, 0]}}}},
+            ]}),
+        );
+        Fixture {
+            core,
+            _wayland: wayland,
+            _other: other,
+            wm,
+        }
+    }
+
+    /// The ids a filter of the query on the fixture.
+    fn filtered(f: &mut Fixture, filter: &Value) -> Vec<String> {
+        query_ids(&mut f.wm, &mut f.core, json!({"filter": filter}))
+    }
+
+    #[test]
+    fn query_filters_by_owner_kind_app_id_and_focus() {
+        let mut f = fixture();
+        assert_eq!(
+            filtered(&mut f, &json!({"owner": "wm"})),
+            ["here", "hidden", "s1"],
+            "only the nodes of the owner, root has no owner"
+        );
+        assert_eq!(
+            filtered(&mut f, &json!({"owner": "nobody"})),
+            Vec::<String>::new(),
+            "no node has the other owner"
+        );
+        assert_eq!(
+            filtered(&mut f, &json!({"kind": "rect"})),
+            ["far", "here", "hidden"],
+            "only rects"
+        );
+        assert_eq!(
+            filtered(&mut f, &json!({"app_id": "foot"})),
+            ["s1"],
+            "only the surface of that application"
+        );
+        assert_eq!(
+            filtered(&mut f, &json!({"focused": true})),
+            ["s1"],
+            "only the focused surface"
+        );
+        assert_eq!(
+            filtered(
+                &mut f,
+                &json!({"owner": "wm", "app_id": "foot", "focused": true})
+            ),
+            ["s1"],
+            "all fields of a combined filter must match"
+        );
+    }
+
+    #[test]
+    fn query_filters_by_visibility_and_output() {
+        let mut f = fixture();
+        assert_eq!(
+            query_ids(
+                &mut f.wm,
+                &mut f.core,
+                json!({"selector": "*", "filter": {}})
+            ),
+            query_ids(&mut f.wm, &mut f.core, json!({"selector": "*"})),
+            "an empty filter matches everything"
+        );
+        let visible = filtered(&mut f, &json!({"visible": true}));
+        assert!(
+            visible.contains(&"here".to_owned()) && visible.contains(&"far".to_owned()),
+            "shown nodes are visible"
+        );
+        assert!(
+            !visible.contains(&"hidden".to_owned()),
+            "an invisible node shows on no output"
+        );
+        assert_eq!(
+            filtered(&mut f, &json!({"output": "hdmi"})),
+            ["far"],
+            "only the node that shows on the second output"
+        );
+        assert_eq!(
+            query_ids(
+                &mut f.wm,
+                &mut f.core,
+                json!({"selector": "kind:rect", "filter": {"output": "out"}})
+            ),
+            ["here"],
+            "selector and filter must both match"
+        );
+        let (error_code, _) = f.wm.fails(&mut f.core, "scene.query", json!({"filter": 3}));
+        assert_eq!(
+            error_code,
+            RpcError::INVALID_PARAMS,
+            "a filter that is no object fails"
+        );
+    }
+
+    #[test]
+    fn a_client_socket_sees_focused_only_on_its_own_nodes() {
+        let (mut core, dir) = socket_dir("focused");
+        let mut admin = core.admin();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let ipc = PathBuf::from(created["path"].as_str().unwrap());
+        let wayland = PathBuf::from(created["wayland"].as_str().unwrap());
+        let mut agent = core.connect_to(&ipc);
+        agent.ok(&mut core, "hello", json!({"name": "agent"}));
+        let mut windows = Wayland::connect_to(&mut core, &wayland);
+        windows.toplevel(&mut core, "app");
+        let own = json!({"commands": [
+            {"attach": {"surface": "s1", "parent": "root"}},
+            {"focus": {"surface": "s1"}},
+        ]});
+        agent.ok(&mut core, "scene.apply", own);
+        let mut wm = core.named("wm");
+        let foreign = json!({"commands": [
+            {"create": {"id": "hidden", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10]}}},
+            {"focus_node": {"node": "hidden"}},
+        ]});
+        wm.ok(&mut core, "scene.apply", foreign);
+        let nodes = agent.ok(&mut core, "scene.query", json!({"selector": "*"}));
+        let list = nodes.as_array().expect("a list");
+        assert_eq!(list.len(), 1, "{list:?}");
+        assert_eq!(list[0]["id"], json!("s1"), "only its own window");
+        assert_eq!(list[0]["focused"], json!(true));
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// The main socket takes the same names as the sockets of clients.
@@ -1244,6 +1813,57 @@ mod tests {
             json!({"events": ["surface.created", "surfae.created"]}),
         );
         assert!(message.contains("no event \"surfae.created\""), "{message}");
+    }
+
+    /// Gate check 5 of 0.8: a subscription that starts while transactions
+    /// run misses no event and sees no event twice.
+    #[test]
+    fn a_subscription_answers_with_a_snapshot_and_numbers_its_events() {
+        const TOTAL: usize = 1000;
+        const BEFORE: usize = 512;
+        let mut core = Core::new();
+        core.add_output("DP-1", (800, 600));
+        let mut watcher = core.named("watcher");
+        watcher.ok(&mut core, "scene.apply", rect("kept"));
+        // Every camera transaction sends one `output.changed`.
+        let camera = json!({"commands": [{"camera": {"output": "DP-1"}}]});
+        // The subscription lands between two transactions of a waiting
+        // list of `TOTAL`. Batches keep the socket buffers free.
+        let mut sub = 0;
+        let mut messages: Vec<Value> = Vec::new();
+        for sent in 0..TOTAL {
+            watcher.send("scene.apply", camera.clone());
+            if sent + 1 == BEFORE {
+                sub = watcher.send("events.subscribe", json!({"events": ["output.changed"]}));
+            }
+            if (sent + 1) % 64 == 0 {
+                core.dispatch();
+                messages.extend(watcher.read().unwrap_or_default());
+            }
+        }
+        loop {
+            core.dispatch();
+            let more = watcher.read().unwrap_or_default();
+            if more.is_empty() {
+                break;
+            }
+            messages.extend(more);
+        }
+        let events = TOTAL - BEFORE;
+        assert_eq!(messages.len(), TOTAL + 1 + events, "all answers and events");
+        let at = messages
+            .iter()
+            .position(|m| m["id"] == sub)
+            .expect("the subscribe answer");
+        assert!(messages[..at].iter().all(|m| m["method"] != "event"));
+        let snapshot = messages[at]["result"].as_array().expect("a snapshot");
+        assert!(snapshot.iter().any(|n| n["id"] == "kept"));
+        let seqs: Vec<u64> = messages[at..]
+            .iter()
+            .filter(|m| m["method"] == "event")
+            .map(|m| m["params"]["seq"].as_u64().expect("a sequence number"))
+            .collect();
+        assert_eq!(seqs, (1..=events as u64).collect::<Vec<u64>>());
     }
 
     #[test]
@@ -1393,8 +2013,11 @@ mod tests {
         let (_, message) = wm.fails(&mut core, "scene.apply", remove_s1_to("nobody"));
         assert!(message.contains("no connection"), "{message}");
         wm.ok(&mut core, "scene.apply", remove_s1_to("b"));
-        let detached = json!({"event": "surface.detached", "surface": "s1"});
-        let heard = |events: Vec<Value>| events.iter().any(|e| e["params"] == detached);
+        let heard = |events: Vec<Value>| {
+            events.iter().any(|e| {
+                e["params"]["event"] == "surface.detached" && e["params"]["surface"] == "s1"
+            })
+        };
         assert!(heard(b.events_now(&mut core)));
         assert!(!heard(other.events_now(&mut core)), "only b hears of it");
         assert_eq!(core.state.focused_surface(), None, "the focus stays behind");
@@ -1415,6 +2038,82 @@ mod tests {
                 .contains(&"surface.detached".to_owned())
         );
         b.ok(&mut core, "scene.apply", attach_s1("bg"));
+    }
+
+    /// A client changes a node of another client only by request (D31).
+    #[test]
+    fn a_change_of_a_foreign_node_reaches_its_owner_as_a_request() {
+        let mut core = Core::new();
+        let (mut wm, _wayland) = resumable(&mut core);
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut b = core.named("b");
+        b.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut watcher = core.named("watcher");
+        watcher.ok(&mut core, "events.subscribe", json!({"events": []}));
+        // The owner gets every action with the arguments of the command.
+        for (command, action, args) in [
+            (json!({"close": {"surface": "s1"}}), "close", json!({})),
+            (json!({"focus": {"surface": "s1"}}), "focus", json!({})),
+            (
+                json!({"move": {"id": "s1", "parent": "root"}}),
+                "move",
+                json!({"parent": "root", "index": null}),
+            ),
+            (
+                json!({"configure": {"surface": "s1", "size": [7, 9]}}),
+                "resize",
+                json!({"size": [7, 9], "states": []}),
+            ),
+        ] {
+            b.ok(&mut core, "scene.apply", json!({"commands": [command]}));
+            let events = wm.events_now(&mut core);
+            assert!(
+                node_requested(&events, "b", action, &args),
+                "{action}: {events:?}"
+            );
+            assert!(!node_requested(
+                &b.events_now(&mut core),
+                "b",
+                action,
+                &args
+            ));
+            assert!(
+                !node_requested(&watcher.events_now(&mut core), "b", action, &args),
+                "only the owner"
+            );
+        }
+        // Nothing happened to the window: the owner decides by doing it
+        // or not.
+        assert!(core.state.windows.contains_key("s1"));
+        assert_eq!(
+            core.state.scene.node("s1").unwrap().parent.as_deref(),
+            Some("g")
+        );
+        assert_eq!(core.state.focused_surface(), None);
+        // Changes beyond the four actions stay refused.
+        let update = json!({"commands": [{"update": {"id": "s1", "props": {"visible": false}}}]});
+        let (_, message) = b.fails(&mut core, "scene.apply", update);
+        assert!(message.contains("belongs to"), "{message}");
+        // The owner still changes its own node without a request.
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"close": {"surface": "s1"}}
+            ]}),
+        );
+    }
+
+    /// Whether one of the events is a `node.requested` of `s1` by `by`.
+    fn node_requested(events: &[Value], by: &str, action: &str, args: &Value) -> bool {
+        events.iter().any(|e| {
+            let p = &e["params"];
+            p["event"] == "node.requested"
+                && p["node"] == "s1"
+                && p["client"] == by
+                && p["action"] == action
+                && p["args"] == *args
+        })
     }
 
     #[test]
@@ -1640,6 +2339,26 @@ mod tests {
         }
         let _live = Wayland::connect_to(&mut core, &path);
         assert_eq!(core.state.ipc.clients["agent"].clients.len(), 1);
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A name that already has a socket gets its path in the error data, so
+    /// that `choractl clients create` can name the socket it must reuse.
+    #[test]
+    fn a_taken_name_reports_its_socket_path() {
+        let (mut core, dir) = socket_dir("taken-name");
+        let mut admin = core.admin();
+        admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let error = admin
+            .call(&mut core, "clients.create", json!({"name": "agent"}))
+            .expect_err("the name has a socket already");
+        assert_eq!(error["code"], REJECTED);
+        assert_eq!(error["data"]["reason"], "socket_exists");
+        assert_eq!(
+            error["data"]["path"],
+            dir.join("clients/agent/ipc.sock").to_str().unwrap(),
+        );
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -2194,6 +2913,24 @@ mod tests {
         assert!(core.state.ipc_accept(theirs).is_ok());
     }
 
+    /// A refused client has often already sent its `hello`. Closing with
+    /// unread bytes sends an RST and eats the error line, so the core
+    /// reads before it closes.
+    #[test]
+    fn a_refused_connection_reads_its_error_line_after_its_hello() {
+        let mut core = Core::new();
+        let _full: Vec<Client> = (0..MAX_PER_PROCESS).map(|_| core.connect()).collect();
+        let (mut ours, theirs) = UnixStream::pair().unwrap();
+        ours.write_all(b"hello\n").unwrap();
+        assert!(core.state.ipc_accept(theirs).is_err());
+        let mut answer = String::new();
+        ours.read_to_string(&mut answer).unwrap();
+        assert_eq!(
+            serde_json::from_str::<Value>(&answer).unwrap()["error"]["code"],
+            REJECTED
+        );
+    }
+
     #[test]
     fn reserves_of_a_connection_add_up_and_go_with_it() {
         let mut core = Core::new();
@@ -2304,7 +3041,13 @@ mod tests {
         let heard = |b: &mut Client, core: &mut Core| -> Vec<Value> {
             b.events_now(core)
                 .into_iter()
-                .map(|e| e["params"].clone())
+                .map(|e| {
+                    let mut params = e["params"].clone();
+                    if let Some(params) = params.as_object_mut() {
+                        params.remove("seq");
+                    }
+                    params
+                })
                 .collect()
         };
         assert_eq!(

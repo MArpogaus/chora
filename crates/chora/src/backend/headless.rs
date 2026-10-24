@@ -45,6 +45,9 @@ use crate::{
 const REFRESH: i32 = 60_000;
 /// The answer of other backends to `output.add` and `output.remove`.
 const ONLY_HEADLESS: &str = "only the headless backend adds and removes outputs";
+/// The most virtual outputs at once; every one renders into a buffer of
+/// its side squared times four bytes, so a client must not raise this.
+const MAX_OUTPUTS: usize = 16;
 
 /// The renderer and the virtual outputs of the headless backend.
 pub struct Headless {
@@ -223,6 +226,12 @@ impl State {
         }
         if method == "output.add" {
             let OutputAdd { spec } = params_of(params)?;
+            if matches!(&self.backend, Some(Backend::Headless(h)) if h.outputs.len() >= MAX_OUTPUTS)
+            {
+                return Err(rejected(format!(
+                    "at most {MAX_OUTPUTS} virtual outputs live"
+                )));
+            }
             let [spec] = <[Spec; 1]>::try_from(parse_specs(&spec).map_err(rejected)?)
                 .map_err(|_| rejected("output.add takes one output"))?;
             let output = add(self, &spec).map_err(rejected)?;

@@ -37,6 +37,7 @@ mod wm;
 use std::{
     path::PathBuf,
     process::ExitCode,
+    thread::sleep,
     time::{Duration, Instant},
 };
 
@@ -94,12 +95,41 @@ struct Args {
 }
 
 fn main() -> ExitCode {
-    match run(&Args::parse()) {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(err) => {
-            eprintln!("chora-xp: {err}");
-            ExitCode::FAILURE
+    let args = Args::parse();
+    // The core may close the connection and stay: the emergency reset
+    // revokes grants and disconnects, and the scene survives it. Come back
+    // in that case; give up when only failures follow within the episode.
+    let mut failing = Duration::ZERO;
+    loop {
+        let start = Instant::now();
+        match run(&args) {
+            Ok(()) => return ExitCode::SUCCESS,
+            Err(err) => {
+                failing = next_failing(start.elapsed(), failing);
+                if failing >= COME_BACK {
+                    eprintln!("chora-xp: {err}");
+                    return ExitCode::FAILURE;
+                }
+                eprintln!("chora-xp: {err}; I come back");
+                sleep(TRY_AGAIN);
+            }
         }
+    }
+}
+
+/// How long a served session must last to start a new episode of errors.
+const SERVED: Duration = Duration::from_millis(500);
+/// How long one episode of failures may last before the plugin gives up.
+const COME_BACK: Duration = Duration::from_secs(30);
+/// The wait between two attempts.
+const TRY_AGAIN: Duration = Duration::from_millis(500);
+
+/// The failures of the current episode after a session of `served`.
+fn next_failing(served: Duration, failing: Duration) -> Duration {
+    if served >= SERVED {
+        TRY_AGAIN
+    } else {
+        failing + served + TRY_AGAIN
     }
 }
 
@@ -230,4 +260,27 @@ fn cache_dir() -> PathBuf {
         .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().into_owned()))
         .unwrap_or_else(|| "default".into());
     runtime.join("chora-xp").join(instance)
+}
+
+#[cfg(test)]
+mod supervision_tests {
+    use super::{COME_BACK, SERVED, TRY_AGAIN, next_failing};
+    use std::time::Duration;
+
+    #[test]
+    fn a_served_session_starts_a_new_episode_of_failures() {
+        assert_eq!(next_failing(SERVED * 2, COME_BACK / 2), TRY_AGAIN);
+    }
+
+    #[test]
+    fn an_episode_of_pure_failures_gives_up_after_come_back() {
+        let mut failing = Duration::ZERO;
+        for _ in 0..1000 {
+            failing = next_failing(Duration::ZERO, failing);
+            if failing >= COME_BACK {
+                return;
+            }
+        }
+        panic!("the plugin never gave up");
+    }
 }

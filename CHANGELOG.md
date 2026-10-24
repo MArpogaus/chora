@@ -1,3 +1,53 @@
+## v0.7.0-rc.1 (2026-10-24)
+
+### Feat
+
+- **safety**: the owner budget decides who the watchdog may cut
+- **safety**: injection mark and a fixed revoke binding for agents
+- **inject**: commit texts into the focused text input
+- **ipc**: described method exports and methods.list
+- **tiling**: answer node requests for focus, move, close
+- **scene**: requests for nodes of other owners (D31)
+- **inject**: pointer_move takes a node and a point inside it
+- **events**: snapshot answer of subscribe and per-connection seq (D32)
+- **query**: JSON filters next to the selector string (D32)
+- **core**: last words on a faulting signal
+- **plugins**: come back when the core closed the connection
+- **voice**: keep the agent in a conversation loop, ship the Gufo quadlets
+- **xp**: export methods that do what the clicks do
+- **tiling**: export window methods next to the layout methods
+- **inject**: add a dry run that checks events and sends nothing
+- **inject**: keep a held button down past the request
+- **choractl**: wait for a selector to match or to be gone
+- **ipc**: add the screen rects of each node to queries
+- **ipc**: mark the focused surface and node in queries
+
+### Fix
+
+- **plans**: mark 0.7-then-battle.sh executable
+- **plans**: reset crash checks per call and stop on empty tasks in 0.8b
+- **scene**: reserve the injection mark id instead of skipping it
+- **scene**: keep a client node that holds the injection mark id
+- **ipc**: reject unknown keys in exports and document methods.list
+- **tiling**: forget a moved window only when the core applied it
+- **inject**: node point needs the node box and stays on its output
+- **safety**: the disconnect pause covers only its own client
+- **ipc**: let a refused client read its error line
+- **battle**: feed every open finding to a fix agent
+- **battle**: wait for the WM handoff after xp drags and parse the first finding
+- **tiling**: mark urgent instead of focusing a hidden window
+- **probe**: wake the window loop on close with --exit-on-close
+- **choractl**: name the taken socket in a clients create error
+- **battle**: read the compact pid of spawn and mark the friction item
+- **choractl**: print the answer of spawn as one JSON line
+- **ipc**: cut query rects to clips, meshes and missing assets
+- **battle**: write the summary of battle.sh in English
+- **battle**: mark the battle scripts with a shebang executable
+- **choractl**: let clients up go on past a name in its grace time
+- **protocols**: drop early surface requests beyond 64
+- **headless**: cap the live virtual outputs at 16
+- **transaction**: re-check the remove target at the end of a wait
+
 ## v0.6.0 (2026-10-19)
 
 ### BREAKING CHANGE

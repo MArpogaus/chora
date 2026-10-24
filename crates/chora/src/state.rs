@@ -52,7 +52,7 @@ use smithay::{
         },
         shm::ShmState,
         socket::ListeningSocketSource,
-        text_input::TextInputManagerState,
+        text_input::{TextInputManagerState, TextInputSeat},
         viewporter::ViewporterState,
         xdg_activation::XdgActivationState,
     },
@@ -177,6 +177,8 @@ pub struct State {
     /// The pointer in layout coordinates. Smithay keeps it in scene
     /// coordinates; the two differ under a camera that is not the default.
     pub pointer_layout: Point<f64, Logical>,
+    /// When the injection mark goes away; `None` while none shows (D23).
+    pub inject_mark: Option<Instant>,
     /// The cursor that the client under the pointer asks for.
     pub cursor_status: CursorImageStatus,
     pub layer_shell_state: WlrLayerShellState,
@@ -277,6 +279,9 @@ fn new_seat(dh: &DisplayHandle) -> (SeatState<State>, Seat<State>) {
     seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), delay, rate)
         .expect("the default keymap compiles");
     seat.add_pointer();
+    // The core itself acts as the input method, so that `input.inject`
+    // can commit texts into the focused text inputs (D33).
+    seat.text_input().set_compositor_input_method(true);
     (seat_state, seat)
 }
 
@@ -321,6 +326,7 @@ impl State {
             outputs: Vec::new(),
             output_management: OutputManagement::new(&dh),
             pointer_layout: Point::default(),
+            inject_mark: None,
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
             node_grab: None,
@@ -512,6 +518,21 @@ impl State {
                     for output in self.output_info().into_iter().filter(|o| o.name == name) {
                         self.emit(&Event::OutputChanged { output });
                     }
+                }
+                Effect::Requested {
+                    node,
+                    owner,
+                    by,
+                    action,
+                    args,
+                } => {
+                    let event = Event::NodeRequested {
+                        node,
+                        client: by,
+                        action: action.to_owned(),
+                        args,
+                    };
+                    self.ipc.send_to_client(&owner, &event);
                 }
             }
         }
@@ -834,8 +855,8 @@ mod tests {
         let (mut core, _wayland, mut wm, first, _second) = two_windows();
         wm.ok(&mut core, "scene.apply", focus(Some("s1")));
         let mut agent = core.named("agent");
-        let (_, message) = agent.fails(&mut core, "scene.apply", focus(Some("s2")));
-        assert!(message.contains("wm"), "{message}");
+        // The focus of a window of another client is only a request (D31).
+        agent.ok(&mut core, "scene.apply", focus(Some("s2")));
         assert_eq!(keyboard(&core), Some(id(&first)));
     }
 
@@ -848,10 +869,11 @@ mod tests {
         assert_eq!(keyboard(&core), None);
         launcher.ok(&mut core, "scene.apply", focus(Some("s1")));
         assert_eq!(keyboard(&core), Some(id(&first)));
-        let (_, message) = launcher.fails(&mut core, "scene.apply", focus(Some("s2")));
-        assert!(
-            message.contains("wm"),
-            "only the surface that had it: {message}"
+        launcher.ok(&mut core, "scene.apply", focus(Some("s2")));
+        assert_eq!(
+            keyboard(&core),
+            Some(id(&first)),
+            "only the surface that had it, the rest is a request"
         );
     }
 

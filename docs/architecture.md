@@ -301,9 +301,22 @@ The safety layer is the only built-in behavior (see
 [Vision](vision.md#principles)). No plugin and no IPC client can change it.
 
 - **Fixed bindings** (D23). Injected input never triggers them; see
-  [Input injection](api.md#input-injection).
+  [Input injection](api.md#input-injection). They are Ctrl+Alt+BackSpace
+  (quit), Ctrl+Alt+Escape (emergency reset), Ctrl+Alt+i (revoke) and
+  Ctrl+Alt+F1 to F12 (VT switch).
+- **Revoke binding.** Ctrl+Alt+i takes every capability away from each
+  client that holds only agent capabilities: `input.inject`,
+  `screen.capture`, `process.spawn` and `input.grab-any`. It also ends
+  the grabs that need no modifier and disconnects Wayland clients that
+  held a grant. The IPC connections stay.
+- **Injection mark.** While a client injects input, the core shows a
+  small yellow rect of its own next to the pointer. It goes 500 ms after
+  the last injected event. No client owns the mark or can remove it.
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
+- **Last words.** A faulting signal (SIGSEGV, SIGBUS, SIGILL, SIGABRT)
+  writes the fault address and a backtrace to stderr before the default
+  action ends chora. `tests/last-words.sh` checks it.
 - **Emergency reset.** The core disconnects all plugins and ends their
   grace times. It revokes all grants, removes all effects and restores the
   default cameras. It puts all surfaces in a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
@@ -321,12 +334,15 @@ The safety layer is the only built-in behavior (see
   output for two seconds, the core blames the client whose visible nodes
   cost the most: a node counts 1, a layer and each effect 25 more. It
   removes the effects, the meshes and the shaders of shader nodes of that
-  client and sends `effects.dropped` with its name; the nodes of other
-  clients keep theirs. When frames stay slow for two more seconds and the
-  client had a load of at least 500, the core disconnects it, at most once
-  a minute. Its nodes go as on any disconnect, also those of a client with
-  `keep_nodes` or `resume`, without a grace time. The watchdog never
-  starts the emergency reset; only the binding and SIGUSR1 do.
+  client and sends `effects.dropped` with its name. When frames stay slow
+  for two more seconds, the core disconnects that client, at most once a
+  minute. It does so only when that client's own load reaches the owner
+  budget (D57). `CHORA_OWNER_LOAD_BUDGET` sets that budget, 4000 by
+  default. The nodes of a disconnected client go as on any disconnect,
+  also those of a client with `keep_nodes` or `resume`, without a grace
+  time. When no client alone reaches the budget, the watchdog drops the
+  effects of all clients and disconnects none. The watchdog never starts
+  the emergency reset; only the binding and SIGUSR1 do.
 - **Shader hangs.** A shader that never returns blocks the loop, for
   every backend renders on it. Neither the watchdog, which measures
   between frames, nor SIGUSR1, whose source the loop dispatches, can

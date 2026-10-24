@@ -111,12 +111,7 @@ impl Conn {
     ///
     /// The socket fails, or a node cannot be read.
     pub fn query(&mut self, selector: &str) -> Result<Vec<Node>, ClientError> {
-        let nodes: Vec<Value> = self.call(
-            "scene.query",
-            Query {
-                selector: selector.into(),
-            },
-        )?;
+        let nodes: Vec<Value> = self.call("scene.query", Query::new(selector))?;
         nodes.into_iter().map(node).collect()
     }
 }

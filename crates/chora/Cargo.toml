@@ -2,6 +2,7 @@
 base64.workspace = true
 calloop.workspace = true
 chora-scene.workspace = true
+cosmic-text.workspace = true
 libc = "0.2"
 png = "0.18"
 serde.workspace = true
@@ -14,7 +15,7 @@ wayland-client = "0.31"
 xcursor.workspace = true
 
 [dev-dependencies]
-wayland-protocols = { version = "0.32", features = ["client"] }
+wayland-protocols = { version = "0.32", features = ["client", "unstable"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 
 [lints]

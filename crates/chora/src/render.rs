@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use chora_scene::{InputMode, NodeKind, Placed, Scene, Transform};
+use chora_scene::{InputMode, Node, NodeKind, Placed, Scene, Transform};
 use smithay::{
     backend::renderer::{
         element::{
@@ -679,7 +679,7 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
             Some(Hit::Surface(surface, pos - on_surface))
         }
         NodeKind::Rect | NodeKind::Image | NodeKind::Shader => {
-            let [w, h] = node_size(state, placed);
+            let [w, h] = node_size(state, placed.node);
             ((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)).then_some(Hit::Area)
         }
         NodeKind::Group => None,
@@ -715,8 +715,8 @@ fn layer_hit(placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<Hit> {
 
 /// The size of a rect or an image node; an image without a size has the
 /// size of its file.
-fn node_size(state: &State, placed: &Placed<'_>) -> [f64; 2] {
-    let props = &placed.node.props;
+pub(crate) fn node_size(state: &State, node: &Node) -> [f64; 2] {
+    let props = &node.props;
     props.size.unwrap_or_else(|| {
         props
             .image
@@ -812,7 +812,7 @@ pub fn take_feedback(state: &State, output: &Output) -> OutputPresentationFeedba
 
 /// The scene rectangle of a window with its subsurfaces and popups. The
 /// transform places its geometry origin and scales it.
-fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f64, Logical> {
+pub(crate) fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f64, Logical> {
     let (x, y) = transform.translation_2d();
     let (sx, sy) = transform.scale_2d().unwrap_or((1.0, 1.0));
     let bbox = window.bbox().to_f64();

@@ -1,0 +1,24 @@
+# Gufo asr server on the AMD GPU, the systemd twin of gufo.sh asr.
+# Point MODEL at your checkpoint (dir for asr without GGUF note): systemctl
+# --user edit gufo-asr  ->  Environment=MODEL=/var/models/...
+
+[Unit]
+Description=Gufo asr server (port 8881)
+After=podman-user-wait-network-online.service
+
+[Container]
+Image=ghcr.io/gufo-org/toolboxes/gufo-runtime:latest
+ContainerName=gufo-asr
+Network=ai-net-intern.network
+Network=ai-net-offline.network
+Volume=/var/models:/var/models:ro
+Device=/dev/kfd
+Device=/dev/dri
+PodmanArgs=--userns=keep-id --user=%U:%G --group-add keep-groups
+Environment=MODEL=/var/models/Qwen/Qwen3-ASR-1.7B
+Environment=EXTRA_ARGS=
+Exec=gufo serve --host 0.0.0.0 --port 8881 asr --model $MODEL --served-model-name gufo $EXTRA_ARGS
+PublishPort=127.0.0.1:8881:8881
+
+[Service]
+Restart=on-failure

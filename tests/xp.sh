@@ -5,8 +5,9 @@
 # mesh, the minimize button sends the window through the magic lamp and
 # the task button brings it back, the start menu opens and starts a
 # terminal, the buttons of the title bar maximize and close a window, and
-# the desktop buttons turn the cube to another desktop and back, and
-# Escape answers No to Confirm File Delete. Buttons light up under the
+# the desktop buttons turn the cube to another desktop and back, Escape
+# answers No to Confirm File Delete, and the exported methods do what the
+# clicks do. Buttons light up under the
 # pointer.
 #
 # A virtual pointer of the host drives chora, as in tests/nested.sh. Its
@@ -333,6 +334,45 @@ grim "$out/escape-no.png"
 keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
 wait_for has_node_count 0 id:xp-face-1
+
+step "14. the exported methods do what the clicks do"
+xp() { "$bin/choractl" call xp "$1" "${2:-null}"; }
+# The start menu opens and closes without a click.
+xp start_menu '{"open": true}' >/dev/null
+wait_for menu_visible true
+xp start_menu '{"open": false}' >/dev/null
+wait_for menu_visible false
+# Minimize pours a window into its task button, restore and activate
+# pour it back.
+win=$(query "kind:surface owner:xp" | jq -r '.[0].id')
+poured() { test "$(query "id:xp-win-$win" | jq '.[0].visible')" = "$1"; }
+xp minimize "{\"surface\": \"$win\"}" >/dev/null
+wait_for poured false
+xp restore "{\"surface\": \"$win\"}" >/dev/null
+wait_for poured true
+xp minimize "{\"surface\": \"$win\"}" >/dev/null
+wait_for poured false
+xp activate "{\"surface\": \"$win\"}" >/dev/null
+wait_for poured true
+# The cube turns to a desktop and back.
+xp turn_to '{"desktop": 1}' >/dev/null
+wait_for desk_visible 1 true
+xp turn_to '{"desktop": 0}' >/dev/null
+wait_for desk_visible 0 true
+# Restart runs the plugin again in the same process: the name xp says
+# hello again, and its windows come back.
+"$bin/choractl" events client.disconnected client.connected \
+    >"$out/restart-events.jsonl" 2>/dev/null &
+restart_job=$!
+sleep 0.5
+xp restart >/dev/null
+wait_for jq -e 'select(.event == "client.disconnected" and .name == "xp")' \
+    "$out/restart-events.jsonl"
+wait_for jq -e 'select(.event == "client.connected" and .name == "xp")' \
+    "$out/restart-events.jsonl"
+kill "$restart_job" 2>/dev/null || true
+wait_for count_is 2
+grim "$out/after-restart.png"
 
 # A token given before the first map reaches plugins through
 # surface.created.

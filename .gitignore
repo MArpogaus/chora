@@ -8,3 +8,21 @@
 .#*
 *~
 __pycache__/
+/tests/battle/*.log
+/tests/battle/run-*.md
+/tests/battle/*.png
+/tests/battle/__pycache__/
+/tests/battle/findings.md
+plans/0.*-agent-*.log
+plans/0.*-audit-*.txt
+plans/0.*-review-*.md
+plans/0.*-driver.out
+plans/0.*-log.txt
+plans/then-battle.out
+tests/battle/log.txt
+tests/battle/bench/
+tests/battle/done.md
+plans/heartbeat.out
+
+# run folders of the local pi driver (alive, state, heartbeat logs)
+plans/run-*/

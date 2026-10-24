@@ -355,9 +355,7 @@ fn spawn(command: &str) -> Result<(), String> {
 
 /// The nodes that a view owns.
 fn owned(client: &mut Client, view: &str) -> Result<Vec<Node>, String> {
-    let query = Query {
-        selector: format!("owner:{}", owner(view)),
-    };
+    let query = Query::new(format!("owner:{}", owner(view)));
     client.call("scene.query", query).map_err(|e| e.to_string())
 }
 
@@ -365,12 +363,7 @@ fn owned(client: &mut Client, view: &str) -> Result<Vec<Node>, String> {
 /// does not own; their descendants go with them.
 fn removals(client: &mut Client, view: &str) -> Result<Vec<Command>, String> {
     let all: Vec<Node> = client
-        .call(
-            "scene.query",
-            Query {
-                selector: "*".into(),
-            },
-        )
+        .call("scene.query", Query::new("*"))
         .map_err(|e| e.to_string())?;
     Ok(top_owned(&all, &owner(view))
         .into_iter()

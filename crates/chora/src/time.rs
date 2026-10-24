@@ -47,6 +47,9 @@ impl crate::state::State {
             self.drop_nodes(&name);
         }
         self.repeat_key();
+        if self.inject_mark.is_some_and(|until| now >= until) {
+            self.unmark_injection();
+        }
         for call in self.methods.due(now) {
             self.end_call(call, Err(rejected("the method gave no answer in time")));
         }

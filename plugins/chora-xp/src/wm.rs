@@ -20,8 +20,11 @@ use chora_kit::{conn::Conn, icons::Icons};
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
     SurfaceRequest, Transform, Uniform,
-    ipc::{ClientError, Grab, OutputConfigure, PressState, RpcError, Subscribe},
+    ipc::{
+        ClientError, Export, ExportMethod, Grab, OutputConfigure, PressState, RpcError, Subscribe,
+    },
 };
+use serde::Deserialize;
 use serde_json::Value;
 
 use self::{desktops::desk_id, effects::Effects};
@@ -130,6 +133,17 @@ const EVENTS: [&str; 19] = [
     "input.button",
     "input.moved",
     "effects.dropped",
+];
+
+/// The methods that other clients call with the client name, as
+/// `xp.turn_to`.
+const METHODS: [&str; 6] = [
+    "start_menu",
+    "minimize",
+    "restore",
+    "activate",
+    "restart",
+    "turn_to",
 ];
 
 /// What a key binding does.
@@ -348,14 +362,28 @@ impl Wm {
         let (kept, old_root) = wm.take_kept()?;
         wm.create_scene(old_root)?;
         wm.grab()?;
-        wm.conn.call::<_, Value>(
+        wm.announce()?;
+        wm.adopt_all(kept)?;
+        Ok(wm)
+    }
+
+    /// Subscribes to the events of the core and exports the methods of
+    /// the plugin.
+    fn announce(&mut self) -> Result<(), ClientError> {
+        self.conn.call::<_, Value>(
             "events.subscribe",
             Subscribe {
                 events: EVENTS.map(String::from).to_vec(),
             },
         )?;
-        wm.adopt_all(kept)?;
-        Ok(wm)
+        self.conn
+            .call::<_, Value>(
+                "methods.export",
+                Export {
+                    names: METHODS.map(ExportMethod::from).to_vec(),
+                },
+            )
+            .map(drop)
     }
 
     /// Adopts the surfaces without an owner, as at a start, and opens the
@@ -549,6 +577,7 @@ impl Wm {
     }
 
     /// Handles one event of the core.
+    #[allow(clippy::too_many_lines)] // one arm per event
     pub fn handle(&mut self, event: Event) -> Result<(), ClientError> {
         let commands = match event {
             Event::SurfaceCreated {
@@ -605,12 +634,70 @@ impl Wm {
             Event::FocusChanged {
                 surface: Some(surface),
             } => self.focus_moved(&surface),
+            Event::MethodCalled {
+                call,
+                method,
+                params,
+                ..
+            } => return self.answer_call(call, &method, params),
             _ => Vec::new(),
         };
         let mut commands = commands;
         commands.extend(self.relayout_explorers());
         commands.extend(self.sync_question_keys());
         self.apply(commands)
+    }
+
+    /// Answers a call of an exported method. The call may have ended
+    /// before the answer, for example when its caller left; that is no
+    /// reason to exit.
+    fn answer_call(&mut self, call: u64, method: &str, params: Value) -> Result<(), ClientError> {
+        let result = parse_call(method, params).and_then(|call| self.method(call));
+        match self.conn.answer(call, result) {
+            Err(ClientError::Rpc(err)) => {
+                eprintln!("chora-xp: {err}");
+                Ok(())
+            }
+            other => other,
+        }
+    }
+
+    /// Runs an exported method, as the matching click does, and answers
+    /// with nothing.
+    fn method(&mut self, call: Call) -> Result<Value, RpcError> {
+        let commands = match call {
+            Call::StartMenu { open } => {
+                let bar = self.bars.first().map(|bar| bar.output.clone());
+                if open == self.menu.is_open() {
+                    Vec::new()
+                } else if open {
+                    let output =
+                        bar.ok_or_else(|| RpcError::new(RpcError::REJECTED, "no output"))?;
+                    self.press_taskbar(taskbar::Part::Start(output))
+                } else {
+                    self.close_menu()
+                }
+            }
+            Call::Minimize { surface } => {
+                known(self.index(&surface).is_some(), &surface)?;
+                self.minimize(&surface)
+            }
+            Call::Restore { surface } | Call::Activate { surface } => {
+                known(self.index(&surface).is_some(), &surface)?;
+                self.activate(&surface)
+            }
+            Call::Restart => {
+                self.apply(self.keep_for_restart())
+                    .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+                self.done = true;
+                self.restart = true;
+                return Ok(Value::Null);
+            }
+            Call::TurnTo { desktop } => self.turn_to(desktop),
+        };
+        self.apply(commands)
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        Ok(Value::Null)
     }
 
     /// When the pointer has rested on the start menu long enough to open
@@ -3113,6 +3200,107 @@ fn takes(to: Option<&str>) -> bool {
     to.is_none_or(is_own)
 }
 
+/// A call of a method that `chora-xp` exports.
+enum Call {
+    /// Opens or closes the start menu, like its button.
+    StartMenu {
+        /// Whether the menu should be open afterwards.
+        open: bool,
+    },
+    /// Pours a window into its task button, like the click on it.
+    Minimize {
+        /// The surface.
+        surface: String,
+    },
+    /// Pours a window back and focuses it, like the click on its task
+    /// button.
+    Restore {
+        /// The surface.
+        surface: String,
+    },
+    /// Raises a window and focuses it, like a click on its task button.
+    Activate {
+        /// The surface.
+        surface: String,
+    },
+    /// Restarts the plugin, like Restart in the Turn Off dialog.
+    Restart,
+    /// Turns the cube to a desktop, like its button in the pager.
+    TurnTo {
+        /// The desktop, from 0 to 3.
+        desktop: usize,
+    },
+}
+
+/// Parameters of `xp.start_menu`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StartMenu {
+    open: bool,
+}
+
+/// Parameters of `xp.minimize`, `xp.restore` and `xp.activate`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ForSurface {
+    surface: String,
+}
+
+/// Parameters of `xp.turn_to`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TurnTo {
+    desktop: usize,
+}
+
+/// Parses the method and the parameters of a `method.called` event.
+fn parse_call(method: &str, params: Value) -> Result<Call, RpcError> {
+    Ok(match method {
+        "start_menu" => Call::StartMenu {
+            open: parse::<StartMenu>(params)?.open,
+        },
+        "minimize" => Call::Minimize {
+            surface: parse::<ForSurface>(params)?.surface,
+        },
+        "restore" => Call::Restore {
+            surface: parse::<ForSurface>(params)?.surface,
+        },
+        "activate" => Call::Activate {
+            surface: parse::<ForSurface>(params)?.surface,
+        },
+        "restart" => Call::Restart,
+        "turn_to" => {
+            let TurnTo { desktop } = parse(params)?;
+            if desktop >= DESKTOPS {
+                return Err(RpcError::new(
+                    RpcError::INVALID_PARAMS,
+                    format!("no desktop {desktop}"),
+                ));
+            }
+            Call::TurnTo { desktop }
+        }
+        other => {
+            return Err(RpcError::new(
+                RpcError::METHOD_NOT_FOUND,
+                format!("xp has no method {other}"),
+            ));
+        }
+    })
+}
+
+/// Parses the parameters of an exported method.
+fn parse<T: serde::de::DeserializeOwned>(params: Value) -> Result<T, RpcError> {
+    serde_json::from_value(params)
+        .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))
+}
+
+/// Fails the method unless `chora-xp` manages the window.
+fn known(found: bool, surface: &str) -> Result<(), RpcError> {
+    found
+        .then_some(())
+        .ok_or_else(|| RpcError::new(RpcError::REJECTED, format!("xp has no window {surface}")))
+}
+
 fn close(surface: &str) -> Vec<Command> {
     vec![Command::Close {
         surface: surface.into(),
@@ -3190,6 +3378,51 @@ fn drop_files(paths: Vec<PathBuf>, dir: &Path) -> Vec<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_exported_method_parses_its_parameters() {
+        assert!(matches!(
+            parse_call("start_menu", serde_json::json!({"open": true})),
+            Ok(Call::StartMenu { open: true })
+        ));
+        for method in ["minimize", "restore", "activate"] {
+            let call = parse_call(method, serde_json::json!({"surface": "s1"})).expect(method);
+            match call {
+                Call::Minimize { surface }
+                | Call::Restore { surface }
+                | Call::Activate { surface } => assert_eq!(surface, "s1"),
+                _ => panic!("{method} parsed as another call"),
+            }
+        }
+        assert!(matches!(
+            parse_call("restart", Value::Null),
+            Ok(Call::Restart)
+        ));
+        assert!(matches!(
+            parse_call("turn_to", serde_json::json!({"desktop": 2})),
+            Ok(Call::TurnTo { desktop: 2 })
+        ));
+    }
+
+    #[test]
+    fn a_bad_call_fails_with_the_right_rpc_error() {
+        // The cube has four faces.
+        for (method, params, code) in [
+            ("turn_to", Value::Null, RpcError::INVALID_PARAMS),
+            ("start_menu", Value::Null, RpcError::INVALID_PARAMS),
+            (
+                "turn_to",
+                serde_json::json!({"desktop": 4}),
+                RpcError::INVALID_PARAMS,
+            ),
+            ("log_off", Value::Null, RpcError::METHOD_NOT_FOUND),
+        ] {
+            let err = parse_call(method, params)
+                .err()
+                .unwrap_or_else(|| panic!("{method} passed"));
+            assert_eq!(err.code, code, "{method}: {err}");
+        }
+    }
 
     #[test]
     fn only_a_drop_of_its_own_effects_calms_the_plugin() {

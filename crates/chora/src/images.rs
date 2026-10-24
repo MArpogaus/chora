@@ -245,6 +245,13 @@ impl Images {
             .retain(|path, _| used.contains(path.as_str()) || named.contains(path.as_str()));
     }
 
+    /// Takes a loaded file out of the cache; for tests of nodes whose
+    /// asset is gone.
+    #[cfg(test)]
+    pub(crate) fn forget(&mut self, path: &str) {
+        self.cache.remove(path);
+    }
+
     /// The image of a path, if it is loaded.
     pub fn get(&self, path: &str) -> Option<&Image> {
         self.cache.get(path)

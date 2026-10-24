@@ -124,6 +124,9 @@ from the file is revoked. Existing sockets and their connections stay.
 
 ## chora-tiling
 
+`chora-tiling` connects with the client name `tiling`. Grants and
+`choractl restart` use this name.
+
 `chora-tiling` reads `chora/chora-tiling.yaml` in `$XDG_CONFIG_HOME`, by
 default `~/.config`, or the file of `--config`. Without a file, it uses its
 default, which `chora-tiling --print-config` prints. The file lists every
@@ -148,6 +151,21 @@ binding raises the window that it focuses; the focus that follows the
 pointer raises nothing. The binding
 `MOD+Ctrl+r` reads the file again. Mouse moves and resizes of floating
 windows do not exist.
+
+`chora-tiling` exports methods for other clients (see
+[Plugin methods](api.md#plugin-methods)). Every method but `get_layout`
+changes something and answers with the layout info of the current tag,
+like `set_layout`.
+
+| Method | Parameters | Does the same as |
+|--------|------------|------------------|
+| `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
+| `give` | `to`: a client name | handing the focused window to another client |
+| `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
+| `move_to_tag` | `surface`, `tag` | `MOD+Shift+1` to `MOD+Shift+9`, for this window |
+| `focus` | `surface` | a click: focuses and raises the window, and its output; a window that shows nowhere only gets the urgent mark |
+| `focus_next`, `focus_prev` | none | `MOD+j` and `MOD+k` |
+| `swap_master` | `surface` | `MOD+Ctrl+Return`, for this window |
 
 `chora-tiling` connects with `resume` (see [API](api.md#ipc-methods)). It
 keeps the tags and the layouts of each output, and the tags, the states
@@ -192,7 +210,8 @@ A copy of the directory in `~/.config/chora/flavors/tiling/` replaces it.
 ### The XP flavor
 
 The XP flavor is the showroom (D39): a stacking desktop in
-the style of Windows XP. It is a demo, not a daily driver.
+the style of Windows XP. It is a demo, not a daily driver. `chora-xp`
+connects with the client name `xp`.
 
 ```text
 /usr/share/chora/flavors/xp/
@@ -603,9 +622,21 @@ of another client changes nothing.
 | Super and a drag with the left button | turn the cube with the pointer. A drag over the width of the output is a quarter turn. At the release, the cube turns to the nearest desktop. |
 | a desktop button 1 to 4 | turn the cube to that desktop |
 
-The safety layer keeps only Ctrl+Alt with BackSpace, Escape and F1 to F12,
-so the cube takes Ctrl+Alt with the arrows. When another client holds
+The safety layer keeps only Ctrl+Alt with BackSpace, Escape, i and F1 to
+F12, so the cube takes Ctrl+Alt with the arrows. Ctrl+Alt+i is the revoke
+binding of [Safety layer](architecture.md#safety-layer). When another client holds
 these bindings, Super+Ctrl with the arrows stands in.
+
+`chora-xp` exports methods for other clients (see
+[Plugin methods](api.md#plugin-methods)). Each one answers with nothing.
+
+| Method | Parameters | Does the same as |
+|--------|------------|------------------|
+| `start_menu` | `open`: whether the menu should be open afterwards | a click on the start button of the first output |
+| `minimize` | `surface` | a click on the task button of the active window |
+| `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
+| `restart` | none | Restart in the Turn Off dialog |
+| `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button |
 
 | Option | Default | Meaning |
 |--------|---------|---------|

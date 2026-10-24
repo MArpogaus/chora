@@ -27,6 +27,10 @@ use wayland_protocols::ext::session_lock::v1::client::{
     ext_session_lock_surface_v1::{self, ExtSessionLockSurfaceV1},
     ext_session_lock_v1::ExtSessionLockV1,
 };
+use wayland_protocols::wp::text_input::zv3::client::{
+    zwp_text_input_manager_v3::ZwpTextInputManagerV3,
+    zwp_text_input_v3::{self, ZwpTextInputV3},
+};
 use wayland_protocols::xdg::shell::client::{
     xdg_popup::{self, XdgPopup},
     xdg_positioner::XdgPositioner,
@@ -56,11 +60,14 @@ struct App {
     wm_base: Option<XdgWmBase>,
     layer_shell: Option<ZwlrLayerShellV1>,
     lock_manager: Option<ExtSessionLockManagerV1>,
+    text_manager: Option<ZwpTextInputManagerV3>,
     output: Option<WlOutput>,
     seat: Option<WlSeat>,
     shm: Option<WlShm>,
     /// The serials of the key events, press and release, in order.
     key_serials: Vec<u32>,
+    /// The commit strings that the core sent to the text input.
+    commits: Vec<String>,
     /// The interfaces of all globals that the core offered.
     interfaces: Vec<String>,
     synced: bool,
@@ -268,6 +275,27 @@ impl Wayland {
         &self.app.key_serials
     }
 
+    /// Enables a text input of the seat, as a text field does; the core
+    /// then commits its injected texts to the focused surface.
+    pub fn enable_text_input(&mut self, core: &mut Core) {
+        let qh = self.queue.handle();
+        let manager = self
+            .app
+            .text_manager
+            .as_ref()
+            .expect("zwp_text_input_manager_v3");
+        let seat = self.app.seat.as_ref().expect("wl_seat");
+        let text_input: ZwpTextInputV3 = manager.get_text_input(seat, &qh, ());
+        text_input.enable();
+        text_input.commit();
+        self.roundtrip(core);
+    }
+
+    /// The commit strings that the core sent to the text input, in order.
+    pub fn commits(&self) -> &[String] {
+        &self.app.commits
+    }
+
     /// A layer surface on the output, after its first configure.
     pub fn layer(
         &mut self,
@@ -425,6 +453,9 @@ impl Dispatch<WlRegistry, ()> for App {
             "zwlr_layer_shell_v1" => app.layer_shell = Some(registry.bind(name, version, qh, ())),
             "ext_session_lock_manager_v1" => {
                 app.lock_manager = Some(registry.bind(name, version, qh, ()));
+            }
+            "zwp_text_input_manager_v3" => {
+                app.text_manager = Some(registry.bind(name, version, qh, ()));
             }
             "wl_shm" => app.shm = Some(registry.bind(name, 1, qh, ())),
             "wl_seat" => app.seat = Some(registry.bind(name, version.min(7), qh, ())),
@@ -603,6 +634,21 @@ impl Dispatch<WlKeyboard, ()> for App {
     }
 }
 
+impl Dispatch<ZwpTextInputV3, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &ZwpTextInputV3,
+        event: zwp_text_input_v3::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let zwp_text_input_v3::Event::CommitString { text: Some(text) } = event {
+            app.commits.push(text);
+        }
+    }
+}
+
 impl Dispatch<XdgPopup, usize> for App {
     fn event(
         app: &mut Self,
@@ -639,6 +685,7 @@ fn tempfile() -> std::fs::File {
     file
 }
 delegate_noop!(App: ignore WlSurface);
+delegate_noop!(App: ZwpTextInputManagerV3);
 delegate_noop!(App: ZwlrLayerShellV1);
 delegate_noop!(App: ExtSessionLockManagerV1);
 delegate_noop!(App: ignore ExtSessionLockV1);

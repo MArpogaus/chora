@@ -233,8 +233,16 @@ impl Wm {
         self.last_on(self.current, &self.history)
     }
 
-    /// Focuses and raises a window, and focuses its output.
+    /// Focuses and raises a window, and focuses its output. A window that
+    /// shows nowhere only gets the urgent mark, as when it asks for
+    /// attention.
     pub fn focus(&mut self, id: &str) {
+        if !self.window(id).is_some_and(|w| self.shows(w)) {
+            if let Some(window) = self.window_mut(id) {
+                window.urgent = true;
+            }
+            return;
+        }
         if self.has(id) {
             self.raised.retain(|h| h != id);
             self.raised.push(id.into());
@@ -287,7 +295,7 @@ impl Wm {
     /// A request of a client, for example from its title bar.
     pub fn request(&mut self, id: &str, request: SurfaceRequest) {
         if request == SurfaceRequest::Activate {
-            self.activate(id);
+            self.focus(id);
             return;
         }
         let Some(window) = self.window_mut(id) else {
@@ -303,29 +311,23 @@ impl Wm {
         }
     }
 
-    /// A window asked for attention: it gets the focus when it shows.
-    fn activate(&mut self, id: &str) {
-        let shows = self.window(id).is_some_and(|w| self.shows(w));
-        if shows {
-            self.focus(id);
-        } else if let Some(window) = self.window_mut(id) {
-            window.urgent = true;
-        }
-    }
-
     /// Runs an action of a binding.
     pub fn act(&mut self, action: &Action) -> Option<Effect> {
         match action {
             Action::Spawn(command) => return Some(Effect::Spawn(command.clone())),
             Action::Close => return self.focused().map(|id| Effect::Close(id.into())),
             Action::Reload => return Some(Effect::Reload),
-            Action::FocusNext => self.focus_step(1),
-            Action::FocusPrevious => self.focus_step(-1),
+            Action::FocusNext => self.focus_next(),
+            Action::FocusPrevious => self.focus_prev(),
             Action::FocusBack => self.focus_back(),
             Action::FocusUrgent => self.focus_urgent(),
             Action::SwapNext => self.swap(1),
             Action::SwapPrevious => self.swap(-1),
-            Action::MoveToMaster => self.swap_with_master(),
+            Action::MoveToMaster => {
+                if let Some(id) = self.focused().map(String::from) {
+                    self.swap_master(&id);
+                }
+            }
             Action::ToggleFloating => self.toggle(|w| &mut w.floating),
             Action::ToggleFullscreen => self.toggle(|w| &mut w.fullscreen),
             Action::ToggleMaximized => self.with_focused(toggle_maximized),
@@ -334,7 +336,11 @@ impl Wm {
             Action::ToggleOnTop => self.toggle(|w| &mut w.on_top),
             Action::Minimize => self.with_focused(|w| w.minimized = true),
             Action::RestoreMinimized => self.restore_minimized(),
-            Action::MoveToTag(n) => self.with_focused(|w| w.tags = bit(*n)),
+            Action::MoveToTag(n) => {
+                if let Some(id) = self.focused().map(String::from) {
+                    self.move_to_tag(&id, *n);
+                }
+            }
             Action::ToggleWindowTag(n) => self.with_focused(|w| toggle_tag(w, *n)),
             Action::IncMasterWidth(d) => self.with_tag(|t, _| t.params.master_width = share(t, *d)),
             Action::IncMasters(d) => {
@@ -348,7 +354,7 @@ impl Wm {
             Action::FocusNextOutput => self.focus_output(1),
             Action::FocusPreviousOutput => self.focus_output(-1),
             Action::MoveToNextOutput => self.move_to_next_output(),
-            Action::ViewTag(n) => self.view(|_, _| bit(*n)),
+            Action::ViewTag(n) => self.view_tag(*n),
             Action::ToggleTagView(n) => self.view(|tags, _| tags ^ bit(*n)),
             Action::ViewNext => self.view(|tags, count| 1 << wrap(first_tag(tags), 1, count)),
             Action::ViewPrevious => self.view(|tags, count| 1 << wrap(first_tag(tags), -1, count)),
@@ -360,6 +366,48 @@ impl Wm {
     /// Changes the layout of the current tag, from the exported method.
     pub fn set_layout(&mut self, layout: Layout) {
         self.with_tag(|t, _| t.layout = layout);
+    }
+
+    /// Shows only this tag on the current output, from `tiling.view_tag`.
+    pub fn view_tag(&mut self, tag: usize) {
+        self.view(|_, _| bit(tag));
+    }
+
+    /// Puts a window on this tag only, as `move_to_tag` does for the
+    /// focused window. False when tiling has no such window.
+    pub fn move_to_tag(&mut self, id: &str, tag: usize) -> bool {
+        let Some(window) = self.window_mut(id) else {
+            return false;
+        };
+        window.tags = bit(tag);
+        true
+    }
+
+    /// Focuses the next window that shows on the current output.
+    pub fn focus_next(&mut self) {
+        self.focus_step(1);
+    }
+
+    /// Focuses the previous window that shows on the current output.
+    pub fn focus_prev(&mut self) {
+        self.focus_step(-1);
+    }
+
+    /// Swaps a window with the master of its output, as `move_to_master`
+    /// does for the focused window. False when the window shows nowhere.
+    pub fn swap_master(&mut self, id: &str) -> bool {
+        let Some(output) = self.window(id).map(|w| w.output.clone()) else {
+            return false;
+        };
+        let Some(index) = self.outputs.iter().position(|o| o.name == output) else {
+            return false;
+        };
+        let shown = self.shown_on(index);
+        let Some(at) = shown.iter().position(|&i| self.windows[i].id == id) else {
+            return false;
+        };
+        self.windows.swap(shown[at], shown[0]);
+        true
     }
 
     /// The layout and the parameters of the current tag.
@@ -572,13 +620,6 @@ impl Wm {
         if let Some(at) = self.focused_position(&shown) {
             self.windows
                 .swap(shown[at], shown[wrap(at, step, shown.len())]);
-        }
-    }
-
-    fn swap_with_master(&mut self) {
-        let shown = self.shown_on(self.current);
-        if let Some(at) = self.focused_position(&shown) {
-            self.windows.swap(shown[at], shown[0]);
         }
     }
 
@@ -975,6 +1016,68 @@ mod tests {
     }
 
     #[test]
+    fn view_tag_shows_only_that_tag_on_the_current_output() {
+        let mut wm = wm(&["a"]);
+        wm.act(&Action::MoveToTag(2));
+        assert_eq!(wm.shown_windows(), Vec::<String>::new());
+        wm.view_tag(2);
+        assert_eq!(wm.shown_windows(), ["a"]);
+        wm.view_tag(3);
+        assert_eq!(wm.shown_windows(), Vec::<String>::new());
+    }
+
+    #[test]
+    fn move_to_tag_puts_a_window_on_one_tag_only() {
+        let mut wm = wm(&["a", "b"]);
+        assert!(wm.move_to_tag("a", 2));
+        assert!(!wm.move_to_tag("x", 2));
+        assert_eq!(wm.shown_windows(), ["b"], "a leaves the shown tag");
+        wm.view_tag(2);
+        assert_eq!(wm.shown_windows(), ["a"]);
+    }
+
+    #[test]
+    fn focus_focuses_and_raises_a_window() {
+        let mut wm = wm(&["a", "f"]);
+        wm.act(&Action::ToggleFloating);
+        wm.focus("a");
+        assert_eq!(wm.focused(), Some("a"));
+        assert_eq!(wm.arrange().pop().unwrap().id, "a", "focus raises");
+    }
+
+    #[test]
+    fn focusing_a_window_that_shows_nowhere_marks_it_urgent() {
+        let mut wm = wm(&["a", "b"]);
+        wm.act(&Action::Minimize); // b, the focused window, goes away
+        assert_eq!(wm.focused(), Some("a"));
+        wm.focus("b");
+        assert_eq!(wm.focused(), Some("a"), "a hidden window gains no focus");
+        assert_eq!(wm.arrange().last().unwrap().id, "a", "and no raise");
+        assert!(wm.windows.iter().any(|w| w.id == "b" && w.urgent));
+    }
+
+    #[test]
+    fn focus_next_and_prev_step_through_the_shown_windows() {
+        let mut wm = wm(&["a", "b", "c"]);
+        wm.focus_next();
+        assert_eq!(wm.focused(), Some("b"));
+        wm.focus_prev();
+        assert_eq!(wm.focused(), Some("c"));
+        wm.focus_prev();
+        assert_eq!(wm.focused(), Some("a"), "stepping wraps around");
+    }
+
+    #[test]
+    fn swap_master_swaps_a_window_with_the_master_of_its_output() {
+        let mut wm = wm(&["a", "b", "c"]);
+        assert!(!wm.swap_master("x"));
+        assert!(wm.swap_master("b"));
+        assert_eq!(wm.shown_windows(), ["b", "c", "a"]);
+        wm.act(&Action::MoveToTag(2));
+        assert!(!wm.swap_master("c"), "c shows nowhere");
+    }
+
+    #[test]
     fn states_take_a_window_out_of_the_tiles() {
         let mut wm = wm(&["a", "b"]);
         wm.act(&Action::ToggleFullscreen);
@@ -1012,7 +1115,7 @@ mod tests {
     fn urgent_windows_and_other_outputs() {
         let mut wm = wm(&["a", "b"]);
         wm.act(&Action::MoveToTag(2));
-        wm.activate("b");
+        wm.focus("b");
         assert_eq!(wm.focused(), Some("a"));
         wm.act(&Action::FocusUrgent);
         assert_eq!(wm.focused(), Some("b"));
