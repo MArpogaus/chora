@@ -607,7 +607,8 @@ rpc '[{"remove": {"id": "button"}}, {"remove": {"id": "window"}}, {"remove": {"i
 step "26. the watchdog blames a client for slow frames and removes its effects"
 # A second chora with a budget that every frame misses; it shares the
 # output of the host, so this step comes last.
-CHORA_FRAME_BUDGET_US=1 "$bin/chora" -- sleep 60 >"$out/chora-watchdog.log" 2>&1 &
+# A budget of 1 makes the one client of this step the one to blame (D57).
+CHORA_FRAME_BUDGET_US=1 CHORA_OWNER_LOAD_BUDGET=1 "$bin/chora" -- sleep 60 >"$out/chora-watchdog.log" 2>&1 &
 watchdog_pid=$!
 pids+=("$watchdog_pid")
 wait_for grep -q "chora runs" "$out/chora-watchdog.log"
