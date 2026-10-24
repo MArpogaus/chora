@@ -731,7 +731,7 @@ scale the scene shows:
 | `scroll` | `dx` and `dy` in logical pixels; a positive `dy` scrolls down |
 | `key` | `key`: a keysym name such as `Return`, or a Linux key code such as 28; `state` |
 | `shortcut` | `keys`, a binding such as `Ctrl+Shift+t`: the modifiers go down, the key goes down and up, the modifiers go up |
-| `text` | `text`; a newline presses Return, a tab presses Tab |
+| `text` | `text`; with an enabled text input at the focus the whole string is committed, else a newline presses Return, a tab presses Tab |
 
 - `node` and `point` replace `position`. The core maps the point through
   the same transforms that give the `rects` of a query for the node. The
@@ -742,6 +742,9 @@ scale the scene shows:
   not resolve, for example a character without a key, rejects the request.
 - Key names and text use the first layout of the keymap. A character needs
   a key with Shift or `AltGr` at most.
+- A focused surface with an enabled text input receives each text whole as
+  one commit. The commit carries characters the keymap cannot reach, for
+  example German umlauts on a US layout.
 - Keys and buttons that the events leave down go up at the end of the
   request, so that no key sticks.
 - A button press with `hold` stays down. A later button event releases
