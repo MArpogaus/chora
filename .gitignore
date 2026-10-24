@@ -13,3 +13,5 @@ __pycache__/
 /tests/battle/*.png
 /tests/battle/__pycache__/
 /tests/battle/findings.md
+plans/0.*-agent-*.log
+plans/0.*-audit-*.txt
