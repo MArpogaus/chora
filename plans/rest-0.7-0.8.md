@@ -56,7 +56,7 @@ issue of 0.7 is #91.
   separated). Gate scripts set `CHORA_FONT_DIRS` to the folder above. A
   test whose fonts are missing answers `SKIP`, never `FAIL`.
 - **Earlier questions:** the split of T4 of 0.8 (`8bfb8ce`, `4e1a1d1`)
-  stays, `1d4d82b` stays, and the T11 proposal of 0.8 is approved (T14).
+  stays, `1d4d82b` stays, and the T11 proposal of 0.8 is approved (T13).
 
 ## Tasks of 0.7
 
@@ -145,21 +145,7 @@ issue of 0.7 is #91.
   and paste the result lines into the commit message.
 - The 300-line rule is waived for T6.
 
-### T7: remove program start from the core (D42, part 4)
-
-- Goal: remove `process.spawn`, `process.wait` and `plugins.restart` and
-  their code from the core. The core keeps only its startup command. The
-  grant `process.spawn` goes away. `choractl spawn` becomes an alias of
-  `choractl run` that prints one deprecation line on stderr.
-- Test: gate check 7 of 0.7 as a test: a test that finds no `fork`,
-  `Command::new` or `spawn` of a process in `crates/chora/src` except the
-  startup command.
-- Docs: remove the rows, update the known gaps of client sockets (the
-  `process.spawn` gap is gone), D42 in the roadmap says done.
-- Only start T7 when T4 to T6 are `done`. If one of them is open, write
-  your question and stop.
-
-### T8: the gate scripts of 0.7
+### T7: the gate scripts of 0.7
 
 - Goal: `tests/gate-0.7-<n>.sh` for the checks 4 to 10 of the 0.7 gate in
   `docs/roadmap.md`, on the pattern of `tests/gate-0.8-*.sh`: `ok:`,
@@ -171,11 +157,13 @@ issue of 0.7 is #91.
   - Check 5 (Quadlet) needs a user systemd: SKIP here.
   - Check 6 (`input.grab-any` with F13 and a letter, and the error code
     without the grant) must run here.
+  - Check 7 (no fork in the core) answers `FAIL` until T14 removes
+    program start; that is expected.
 - Write `plans/gate-0.7.md` with one row per check and its result here.
 
 ## Tasks of 0.8
 
-### T9: `choractl mcp` on rmcp
+### T8: `choractl mcp` on rmcp
 
 Task T6 of `plans/0.8.md`. The 300-line rule is waived.
 
@@ -186,7 +174,7 @@ Task T6 of `plans/0.8.md`. The 300-line rule is waived.
 - Turn `tests/gate-0.8-3.sh` and `tests/gate-0.8-6.sh` from `SKIP` into
   real checks, and run all three before the commit.
 
-### T10: the text node, part a: scene only
+### T9: the text node, part a: scene only
 
 - `NodeKind::Text` with the props `text`, `family`, `font_size`,
   `max_width` and `color`;
@@ -197,7 +185,7 @@ Task T6 of `plans/0.8.md`. The 300-line rule is waived.
 No drawing yet; if the core refuses to draw `kind: text`, the docs row
 says so.
 
-### T11: the text node, part b: core with cosmic-text
+### T10: the text node, part b: core with cosmic-text
 
 The 300-line rule is waived.
 
@@ -214,7 +202,7 @@ The 300-line rule is waived.
 Test: a text node `Hi` renders non-transparent pixels inside its rect,
 and none outside of it.
 
-### T12: the text node, part c: gate checks 9 and 10 of 0.8
+### T11: the text node, part c: gate checks 9 and 10 of 0.8
 
 - `tests/gate-0.8-9.sh`: a text node shows `Grüße 你好 🙂` with
   `CHORA_FONT_DIRS` set. The check captures it, and each of the three
@@ -224,7 +212,7 @@ and none outside of it.
   `screen:NAME`, and a capture shows it.
 - Update rows 9 and 10 in `plans/0.8-gate.md`.
 
-### T13: the open review findings of the rects of queries
+### T12: the open review findings of the rects of queries
 
 `plans/0.7-review-T2-r3.md` lists five findings:
 - mirrored and rotated surfaces;
@@ -237,9 +225,29 @@ Fix each one as it says, with a test per code finding. If one needs more
 than 100 lines, document the limit in `docs/api.md` instead and say so in
 the commit message.
 
-### T14: close T11 of 0.8 as approved
+### T13: close T11 of 0.8 as approved
 
 - Append the no-repro entry from `plans/0.8-questions.md`, section T11, to
   `tests/battle/FRICTION.md` (about 15 lines, no code).
 - Set the status of the eight `## core dead` findings to
   `deferred: next battle pass`.
+
+## A prototype for the end
+
+### T14: remove program start from the core (D42, part 4), a prototype
+
+- Goal: remove `process.spawn`, `process.wait` and `plugins.restart` and
+  their code from the core. The core keeps only its startup command. The
+  grant `process.spawn` goes away. `choractl spawn` becomes an alias of
+  `choractl run` that prints one deprecation line on stderr.
+- Test: gate check 7 of 0.7 as a test: a test that finds no `fork`,
+  `Command::new` or `spawn` of a process in `crates/chora/src` except the
+  startup command.
+- Docs: remove the rows, update the known gaps of client sockets (the
+  `process.spawn` gap is gone), D42 in the roadmap says done.
+- Only start this task when T4 to T6 are `done`. If one of them is open,
+  write your question and stop.
+- This is a prototype. Marcel and Claude finalize it. Commit it as one
+  commit with the subject `feat!: remove program start from the core`.
+  Do not change other tasks for it.
+- The 300-line rule is waived for this task.
