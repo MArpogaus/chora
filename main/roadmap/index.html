@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -847,10 +847,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#07-identity-and-processes" class="md-nav__link">
+  <a href="#07-identity-processes-and-the-basics-of-the-read-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        0.7: Identity and processes
+        0.7: Identity, processes and the basics of the read model
       
     </span>
   </a>
@@ -1049,10 +1049,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#07-identity-and-processes" class="md-nav__link">
+  <a href="#07-identity-processes-and-the-basics-of-the-read-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        0.7: Identity and processes
+        0.7: Identity, processes and the basics of the read model
       
     </span>
   </a>
@@ -1222,7 +1222,7 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
 <td style="text-align: right;">1 week</td>
 </tr>
 <tr>
-<td>0.7 Identity and processes</td>
+<td>0.7 Identity, processes and read model basics</td>
 <td style="text-align: right;">3,000</td>
 <td style="text-align: right;">16 to 20</td>
 <td style="text-align: right;">3</td>
@@ -1268,6 +1268,8 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
 <p>The renderer has the largest risk. A fault on real hardware in 0.10 can
 add one to two weeks.</p>
 <h2 id="06-foundation">0.6: Foundation<a class="headerlink" href="#06-foundation" title="Permanent link">&para;</a></h2>
+<p>Released as <code>v0.6.0</code> on 2026-10-19 without the gate checks 1, 2 and 5.
+These checks moved to the gate of 0.7.</p>
 <p><strong>Goal:</strong> the project works with gates in the GitHub organization
 <code>chora-desktop</code>. Unit tests check the core in process.</p>
 <p>Scope:</p>
@@ -1321,27 +1323,45 @@ add one to two weeks.</p>
    Rust version is green.</li>
 <li>Every container image in the workflows has a digest.</li>
 </ol>
-<h2 id="07-identity-and-processes">0.7: Identity and processes<a class="headerlink" href="#07-identity-and-processes" title="Permanent link">&para;</a></h2>
+<h2 id="07-identity-processes-and-the-basics-of-the-read-model">0.7: Identity, processes and the basics of the read model<a class="headerlink" href="#07-identity-processes-and-the-basics-of-the-read-model" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> a client cannot take another name or give itself capabilities,
-and the core starts no programs.</p>
+the core starts no programs, and an agent can see focus and geometry
+without guessing.</p>
 <p>Scope:</p>
 <ul>
 <li>The client socket also fixes the capabilities of its clients: the
   socket decides which methods a connection may use (D33).</li>
-<li>An admin socket for <code>choractl</code> only. <code>grants.set</code>, <code>grants.revoke</code> and
-  <code>clients.create</code> work through it alone.</li>
 <li>A versioned <code>hello</code> with the protocol version and the features of both
   sides (D29). Until then <code>hello</code> answers with the version of the build,
   and the client library warns on a mismatch.</li>
-<li>Structured errors: a stable code for each kind of failure, and <code>data</code>
-  with the index of the failed command.</li>
+<li>Stable error codes: one code for each kind of failure. The error data
+  already names the failed command.</li>
 <li><code>process.spawn</code>, <code>process.wait</code> and <code>plugins.restart</code> leave the core
   (D42). <code>choractl run</code> starts a program through <code>systemd-run --user</code> with
-  an activation token. <code>systemctl --user restart</code> restarts a plugin.
-  journald keeps the output.</li>
+  an activation token. Without a reachable user systemd, <code>choractl</code> starts
+  and restarts the program itself. <code>choractl supervise</code> restarts a plugin
+  that ends.</li>
+<li>Focus in queries: the surface and the node that have the keyboard.</li>
+<li>Queries return the screen rectangle of a node on each output.</li>
+<li><code>choractl wait SELECTOR</code> returns when a node matches, or fails after a
+  timeout.</li>
+<li><code>input.inject</code> keeps a button down across requests with <code>hold</code>, so that
+  a drag can span several requests. A dry run checks a batch without
+  applying it.</li>
+<li><code>chora-tiling</code> exports methods for tags, focus and moves. <code>chora-xp</code>
+  exports methods for the start menu, minimize, restore and Restart.</li>
+<li>Small fixes from the battle test: compact JSON from <code>choractl spawn</code>,
+  a clear error from <code>clients create</code> for a taken name,
+  <code>chora-probe --exit-on-close</code>, and <code>tests/ipc-bench.sh</code> on the headless
+  session.</li>
 </ul>
 <p>Gate:</p>
 <ol>
+<li>The organization <code>chora-desktop</code> and the core repository exist, and
+   <code>main</code> accepts pull requests only (from 0.6).</li>
+<li>A test release <code>v0.7.0-rc.1</code> comes from a tag on a merge commit. A
+   tag on a commit with red CI starts no release (from 0.6).</li>
+<li>The <code>vkms</code> job is green in 10 runs in a row (from 0.6).</li>
 <li>A Podman container that mounts only <code>clients/agent/</code> queries the scene
    and draws a node. Its <code>grants.set</code> and its <code>hello</code> with another name
    fail. A CI job checks this.</li>
@@ -1351,10 +1371,14 @@ and the core starts no programs.</p>
    without it gets the error code for a missing capability.</li>
 <li>The core has no code that forks a process except the startup command.</li>
 <li><code>choractl run foot</code> starts foot in its own systemd scope, and the
-   <code>surface.created</code> event of its window carries the activation token.</li>
+   <code>surface.created</code> event of its window carries the activation token.
+   Without a user systemd, the same command starts foot directly.</li>
 <li>Each error code of the API has a test that provokes it.</li>
-<li>The gate checks of the earlier milestones still hold, and the showroom CI
-   is green against the release candidate.</li>
+<li>The battle workflows in <code>tests/battle/</code> pass with <code>choractl wait</code>, the
+    focus and the rectangles of queries and the plugin methods, without
+    pixel clicks.</li>
+<li>The gate checks of the earlier milestones still hold, and the showroom
+    CI is green against the release candidate.</li>
 </ol>
 <h2 id="08-agent-read-model">0.8: Agent read model<a class="headerlink" href="#08-agent-read-model" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> an agent sees what the user sees, it can ask the window manager
@@ -1365,9 +1389,7 @@ for changes, and it can label what it shows.</p>
   and visibility.</li>
 <li><code>events.subscribe</code> starts with a snapshot of the state, and every event
   has a sequence number.</li>
-<li>Focus in queries.</li>
-<li>Queries return the screen rectangle of a node on each output.
-  <code>input.inject</code> takes a node and a point inside it.</li>
+<li><code>input.inject</code> takes a node and a point inside it.</li>
 <li>A client that does not own a node can request a change: focus, move,
   resize or close. The core sends the request to the owner as an event,
   and the owner decides (D31). <code>chora-tiling</code> handles the requests.</li>
@@ -1577,6 +1599,8 @@ speech to text, a router model, a main model and text to speech, served by
 </table>
 <h2 id="after-10">After 1.0<a class="headerlink" href="#after-10" title="Permanent link">&para;</a></h2>
 <ul>
+<li>Small plugins that window managers share: a panel with a task list and
+  the notifications. Until then, shared code lives in <code>chora-kit</code>.</li>
 <li>Conformance tests with wlcs.</li>
 <li>Items from the <a href="../ideas/">Idea backlog</a>.</li>
 </ul>
@@ -1635,10 +1659,10 @@ speech to text, a router model, a main model and text to speech, served by
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

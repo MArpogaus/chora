@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -1233,6 +1233,8 @@ their grants (see <a href="../api/#client-sockets">API</a>):</p>
 every name and makes its grants equal to the list, so a grant missing
 from the file is revoked. Existing sockets and their connections stay.</p>
 <h2 id="chora-tiling">chora-tiling<a class="headerlink" href="#chora-tiling" title="Permanent link">&para;</a></h2>
+<p><code>chora-tiling</code> connects with the client name <code>tiling</code>. Grants and
+<code>choractl restart</code> use this name.</p>
 <p><code>chora-tiling</code> reads <code>chora/chora-tiling.yaml</code> in <code>$XDG_CONFIG_HOME</code>, by
 default <code>~/.config</code>, or the file of <code>--config</code>. Without a file, it uses its
 default, which <code>chora-tiling --print-config</code> prints. The file lists every
@@ -1287,6 +1289,56 @@ binding raises the window that it focuses; the focus that follows the
 pointer raises nothing. The binding
 <code>MOD+Ctrl+r</code> reads the file again. Mouse moves and resizes of floating
 windows do not exist.</p>
+<p><code>chora-tiling</code> exports methods for other clients (see
+<a href="../api/#plugin-methods">Plugin methods</a>). Every method but <code>get_layout</code>
+changes something and answers with the layout info of the current tag,
+like <code>set_layout</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Parameters</th>
+<th>Does the same as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>set_layout</code>, <code>get_layout</code></td>
+<td>see <a href="../api/#plugin-methods">API</a></td>
+<td>the layout of the current tag</td>
+</tr>
+<tr>
+<td><code>give</code></td>
+<td><code>to</code>: a client name</td>
+<td>handing the focused window to another client</td>
+</tr>
+<tr>
+<td><code>view_tag</code></td>
+<td><code>tag</code>: a tag number</td>
+<td><code>MOD+1</code> to <code>MOD+9</code></td>
+</tr>
+<tr>
+<td><code>move_to_tag</code></td>
+<td><code>surface</code>, <code>tag</code></td>
+<td><code>MOD+Shift+1</code> to <code>MOD+Shift+9</code>, for this window</td>
+</tr>
+<tr>
+<td><code>focus</code></td>
+<td><code>surface</code></td>
+<td>a click: focuses and raises the window, and its output; a window that shows nowhere only gets the urgent mark</td>
+</tr>
+<tr>
+<td><code>focus_next</code>, <code>focus_prev</code></td>
+<td>none</td>
+<td><code>MOD+j</code> and <code>MOD+k</code></td>
+</tr>
+<tr>
+<td><code>swap_master</code></td>
+<td><code>surface</code></td>
+<td><code>MOD+Ctrl+Return</code>, for this window</td>
+</tr>
+</tbody>
+</table>
 <p><code>chora-tiling</code> connects with <code>resume</code> (see <a href="../api/#ipc-methods">API</a>). It
 keeps the tags and the layouts of each output, and the tags, the states
 and the stacking of each window, in the <code>meta</code> of its nodes. A restart
@@ -1321,7 +1373,8 @@ start, restart and order, so chora needs no service manager.</p>
 A copy of the directory in <code>~/.config/chora/flavors/tiling/</code> replaces it.</p>
 <h3 id="the-xp-flavor">The XP flavor<a class="headerlink" href="#the-xp-flavor" title="Permanent link">&para;</a></h3>
 <p>The XP flavor is the showroom (D39): a stacking desktop in
-the style of Windows XP. It is a demo, not a daily driver.</p>
+the style of Windows XP. It is a demo, not a daily driver. <code>chora-xp</code>
+connects with the client name <code>xp</code>.</p>
 <div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/xp/
 ├── chora-xp.target              # wants the two units below
 ├── chora-xp-wm.service          # chora-xp
@@ -1749,9 +1802,48 @@ of another client changes nothing.</p>
 </tr>
 </tbody>
 </table>
-<p>The safety layer keeps only Ctrl+Alt with BackSpace, Escape and F1 to F12,
-so the cube takes Ctrl+Alt with the arrows. When another client holds
+<p>The safety layer keeps only Ctrl+Alt with BackSpace, Escape, i and F1 to
+F12, so the cube takes Ctrl+Alt with the arrows. Ctrl+Alt+i is the revoke
+binding of <a href="../architecture/#safety-layer">Safety layer</a>. When another client holds
 these bindings, Super+Ctrl with the arrows stands in.</p>
+<p><code>chora-xp</code> exports methods for other clients (see
+<a href="../api/#plugin-methods">Plugin methods</a>). Each one answers with nothing.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Parameters</th>
+<th>Does the same as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>start_menu</code></td>
+<td><code>open</code>: whether the menu should be open afterwards</td>
+<td>a click on the start button of the first output</td>
+</tr>
+<tr>
+<td><code>minimize</code></td>
+<td><code>surface</code></td>
+<td>a click on the task button of the active window</td>
+</tr>
+<tr>
+<td><code>restore</code>, <code>activate</code></td>
+<td><code>surface</code></td>
+<td>a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop</td>
+</tr>
+<tr>
+<td><code>restart</code></td>
+<td>none</td>
+<td>Restart in the Turn Off dialog</td>
+</tr>
+<tr>
+<td><code>turn_to</code></td>
+<td><code>desktop</code>: a number from 0 to 3</td>
+<td>a click on the desktop button</td>
+</tr>
+</tbody>
+</table>
 <table>
 <thead>
 <tr>
@@ -1874,10 +1966,10 @@ with <code>focus_node</code> only after a press of the user on it.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -1558,9 +1558,22 @@ opens on F10 when the key goes up.</p>
 <a href="../vision/#principles">Vision</a>). No plugin and no IPC client can change it.</p>
 <ul>
 <li><strong>Fixed bindings</strong> (D23). Injected input never triggers them; see
-  <a href="../api/#input-injection">Input injection</a>.</li>
+  <a href="../api/#input-injection">Input injection</a>. They are Ctrl+Alt+BackSpace
+  (quit), Ctrl+Alt+Escape (emergency reset), Ctrl+Alt+i (revoke) and
+  Ctrl+Alt+F1 to F12 (VT switch).</li>
+<li><strong>Revoke binding.</strong> Ctrl+Alt+i takes every capability away from each
+  client that holds only agent capabilities: <code>input.inject</code>,
+  <code>screen.capture</code>, <code>process.spawn</code> and <code>input.grab-any</code>. It also ends
+  the grabs that need no modifier and disconnects Wayland clients that
+  held a grant. The IPC connections stay.</li>
+<li><strong>Injection mark.</strong> While a client injects input, the core shows a
+  small yellow rect of its own next to the pointer. It goes 500 ms after
+  the last injected event. No client owns the mark or can remove it.</li>
 <li><strong>SIGUSR1</strong> starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.</li>
+<li><strong>Last words.</strong> A faulting signal (SIGSEGV, SIGBUS, SIGILL, SIGABRT)
+  writes the fault address and a backtrace to stderr before the default
+  action ends chora. <code>tests/last-words.sh</code> checks it.</li>
 <li><strong>Emergency reset.</strong> The core disconnects all plugins and ends their
   grace times. It revokes all grants, removes all effects and restores the
   default cameras. It puts all surfaces in a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
@@ -1578,12 +1591,15 @@ opens on F10 when the key goes up.</p>
   output for two seconds, the core blames the client whose visible nodes
   cost the most: a node counts 1, a layer and each effect 25 more. It
   removes the effects, the meshes and the shaders of shader nodes of that
-  client and sends <code>effects.dropped</code> with its name; the nodes of other
-  clients keep theirs. When frames stay slow for two more seconds and the
-  client had a load of at least 500, the core disconnects it, at most once
-  a minute. Its nodes go as on any disconnect, also those of a client with
-  <code>keep_nodes</code> or <code>resume</code>, without a grace time. The watchdog never
-  starts the emergency reset; only the binding and SIGUSR1 do.</li>
+  client and sends <code>effects.dropped</code> with its name. When frames stay slow
+  for two more seconds, the core disconnects that client, at most once a
+  minute. It does so only when that client's own load reaches the owner
+  budget (D57). <code>CHORA_OWNER_LOAD_BUDGET</code> sets that budget, 4000 by
+  default. The nodes of a disconnected client go as on any disconnect,
+  also those of a client with <code>keep_nodes</code> or <code>resume</code>, without a grace
+  time. When no client alone reaches the budget, the watchdog drops the
+  effects of all clients and disconnects none. The watchdog never starts
+  the emergency reset; only the binding and SIGUSR1 do.</li>
 <li><strong>Shader hangs.</strong> A shader that never returns blocks the loop, for
   every backend renders on it. Neither the watchdog, which measures
   between frames, nor SIGUSR1, whose source the loop dispatches, can
@@ -1703,10 +1719,10 @@ grants and makes client sockets (see <a href="../api/#client-sockets">API</a>).<
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

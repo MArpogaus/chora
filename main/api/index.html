@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -1289,12 +1289,22 @@ empties it.</p>
 <tr>
 <td><code>id</code></td>
 <td>all</td>
-<td>stable id; ids of the form <code>s1</code>, <code>s2</code> belong to surfaces, and the core assigns them</td>
+<td>stable id; ids of the form <code>s1</code>, <code>s2</code> belong to surfaces, and the core assigns them; <code>chora:inject</code> belongs to the injection mark of the core</td>
 </tr>
 <tr>
 <td><code>owner</code></td>
 <td>all</td>
 <td>client name of the owner; read-only</td>
+</tr>
+<tr>
+<td><code>focused</code></td>
+<td>all</td>
+<td><code>true</code> in <code>scene.query</code> on the surface with the keyboard focus and on the node of <code>focus_node</code>; read-only, left out on all other nodes</td>
+</tr>
+<tr>
+<td><code>rects</code></td>
+<td>all</td>
+<td>in <code>scene.query</code>: the output name maps to <code>[x, y, w, h]</code> in logical pixels of that output, after all parent transforms and the camera of that output; outputs where the node does not show are left out; the bounding box when rotation or a mesh makes the shape no rectangle; inside a clip, cut to the clip area; read-only</td>
 </tr>
 <tr>
 <td><code>to</code></td>
@@ -1309,7 +1319,7 @@ empties it.</p>
 <tr>
 <td><code>transform</code></td>
 <td>all</td>
-<td>a 4x4 matrix, or the short form translate, scale, rotate</td>
+<td>a 4x4 matrix in column-major order, with the translation at the indices 12 to 14, or the short form translate, scale, rotate</td>
 </tr>
 <tr>
 <td><code>opacity</code>, <code>visible</code></td>
@@ -1473,7 +1483,7 @@ path.</p>
 </tr>
 <tr>
 <td><code>focus</code></td>
-<td>set the keyboard focus to an own surface, or clear it without a surface. A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return.</td>
+<td>set the keyboard focus to an own surface, or clear it without a surface. A surface of another client answers with <code>node.requested</code> to its owner (D31). A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return.</td>
 </tr>
 <tr>
 <td><code>focus_node</code></td>
@@ -1571,6 +1581,20 @@ way.</p>
 with spaces goes in double quotes. An empty selector or <code>*</code> matches every
 node. Selectors work in queries only. A query returns all current matches,
 or an empty list. It always sees the current titles.</p>
+<p><code>scene.query</code> also takes a JSON filter next to the selector: <code>{"selector":
+"kind:surface", "filter": {"owner": "tiling", "focused": true}}</code>. The
+fields are <code>owner</code>, <code>kind</code>, <code>app_id</code>, <code>focused: true</code>, <code>visible: true</code> and
+<code>output: "NAME"</code>. All of them must match, and so must the selector.
+<code>focused</code> keeps the surface with the keyboard focus and the node of
+<code>focus_node</code>. <code>visible</code> keeps nodes that show on some output,
+<code>output</code> nodes that show on that one. Both read the <code>rects</code> of the
+result, so an invisible node matches neither. An empty filter matches
+everything;
+<code>focused</code> and <code>visible</code> filter only when true. Unknown fields fail.</p>
+<p><code>choractl wait SELECTOR</code> polls the query every 100 ms until something
+matches, then prints the matches as one JSON line and exits 0. <code>--gone</code>
+waits until nothing matches. <code>--timeout SECS</code> limits the wait, 10 seconds
+by default; a timeout exits 1 with the reason on stderr.</p>
 <h2 id="events">Events<a class="headerlink" href="#events" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1599,6 +1623,10 @@ or an empty list. It always sees the current titles.</p>
 <tr>
 <td><code>surface.requested</code></td>
 <td>surface id and <code>request</code>: <code>activate</code>, <code>close</code>, <code>fullscreen</code>, <code>unfullscreen</code>, <code>maximize</code>, <code>unmaximize</code> or <code>minimize</code>; a client or a taskbar asks, and plugins decide</td>
+</tr>
+<tr>
+<td><code>node.requested</code></td>
+<td>a client asks to change a node of another client: <code>node</code>, the asking <code>client</code>, <code>action</code> and <code>args</code>. The actions are <code>focus</code>, <code>move</code>, <code>resize</code> and <code>close</code>, with the arguments of the command. Only the owner of the node gets it, and decides by doing the change or not (D31). Other changes of a foreign node stay refused.</td>
 </tr>
 <tr>
 <td><code>input.key</code></td>
@@ -1642,7 +1670,7 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 <tr>
 <td><code>effects.dropped</code></td>
-<td>the watchdog removed the effects, the meshes and the shaders of shader nodes of the nodes of <code>client</code>, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow, the core disconnects that client and removes its nodes, also with <code>keep_nodes</code> or <code>resume</code></td>
+<td>the watchdog removed the effects, the meshes and the shaders of shader nodes of the nodes of <code>client</code>, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with <code>keep_nodes</code> or <code>resume</code>; below the budget the slowdown is shared, the effects of all clients go and none is disconnected</td>
 </tr>
 <tr>
 <td><code>output.changed</code></td>
@@ -1662,6 +1690,15 @@ or an empty list. It always sees the current titles.</p>
 </tr>
 </tbody>
 </table>
+<p>Every event carries <code>seq</code>, the count of its connection (D32). Every event
+that the core pushes to a connection carries the next number of that
+connection, also before <code>events.subscribe</code>. The answer of
+<code>events.subscribe</code> is a snapshot of the current scene, the same list that
+<code>scene.query</code> gives for all nodes. The snapshot covers the state before
+it, the events that follow cover every change after it. A number that
+skips tells the client that it missed an event, so it queries again. After
+a reconnect a client works from the new snapshot and forgets the old
+numbers.</p>
 <p>The response of <code>scene.apply</code> reports the result of a transaction: <code>null</code>
 when it applied, an error with the index of the failed command when not.
 <code>choractl apply FILE</code> reads one list of commands as JSON, from standard
@@ -1683,12 +1720,18 @@ list of a plugin scrolls:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"pointer.scroll"</span><span class="p">,</span><span class="w"> </span><span class="nt">"node"</span><span class="p">:</span><span class="w"> </span><span class="s2">"start-menu"</span><span class="p">,</span><span class="w"> </span><span class="nt">"position"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="mi">700</span><span class="p">],</span>
 <span class="w"> </span><span class="nt">"dx"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">"dy"</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span><span class="w"> </span><span class="nt">"discrete"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="nt">"source"</span><span class="p">:</span><span class="w"> </span><span class="s2">"wheel"</span><span class="p">,</span><span class="w"> </span><span class="nt">"modifiers"</span><span class="p">:</span><span class="w"> </span><span class="p">[]}</span>
 </code></pre></div>
-<p>Later milestones add events for size limits.</p>
+<p>The number of nodes has no limit. The watchdog limits their cost: when
+frames stay slow, the effects of the client whose nodes cost the most go
+(see <code>effects.dropped</code>). The core disconnects that client only when its
+own load reaches the owner budget (D57). <code>CHORA_OWNER_LOAD_BUDGET</code> sets
+that budget, 4000 by default, as <code>Scene::load_by_owner</code> counts. When no
+client alone reaches it, the slowdown is shared: all effects go and no
+client goes. Later milestones add events for size limits.</p>
 <h2 id="ipc-methods">IPC methods<a class="headerlink" href="#ipc-methods" title="Permanent link">&para;</a></h2>
 <p>JSON-RPC 2.0, one message per line, on the socket in <code>CHORA_SOCKET</code>. A
 client sends <code>hello</code> first. A method that changes the session or needs a
 grant fails before <code>hello</code>. <code>scene.query</code>, <code>events.subscribe</code>,
-<code>output.list</code>, <code>clients.list</code>, <code>clients.create</code>, <code>camera.release</code>,
+<code>output.list</code>, <code>clients.list</code>, <code>clients.create</code>, <code>methods.list</code>, <code>camera.release</code>,
 <code>grants.set</code>, <code>grants.revoke</code> and <code>grants.list</code> also work before it,
 for tools.</p>
 <p>The core opens an admin socket next to the IPC socket, for example
@@ -1699,7 +1742,11 @@ use it; <code>choractl clients up [FILE]</code> applies a YAML file of
 <code>NAME: { grants: [...] }</code> entries: it opens the socket of every name
 and makes its grants equal to the list, so grants that are missing from
 the file are revoked. An existing socket is kept (<code>clients.create</code>
-answers the <code>socket_exists</code> reason) and its connections stay. Without a
+answers the <code>socket_exists</code> reason) and its connections stay; while a
+name is connected or in its grace time the socket cannot open
+(<code>clients.create</code> answers the <code>connected</code> reason). <code>choractl clients up</code>
+reports both reasons and goes on with the remaining names, syncing only
+the grants of that name. Without a
 file argument the first of <code>$XDG_CONFIG_HOME/chora/clients.yaml</code> and
 <code>~/.config/chora/clients.yaml</code> is read, <code>-</code> for stdin. The core
 answers every request.</p>
@@ -1716,7 +1763,7 @@ answers every request.</p>
 <td>name the client (lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, from a letter, at most 64 bytes); <code>keep_nodes</code> keeps its nodes and cameras after the disconnect, <code>resume</code> keeps them for a grace time (see below); returns <code>{"version": ...}</code></td>
 </tr>
 <tr>
-<td><code>scene.query(selector)</code></td>
+<td><code>scene.query(selector, filter)</code></td>
 <td>read nodes</td>
 </tr>
 <tr>
@@ -1725,7 +1772,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>events.subscribe(events)</code></td>
-<td>stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused</td>
+<td>stream the named events, or all events for an empty list, as notifications; answers with a snapshot of the scene first (see <a href="#events">Events</a>); each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused</td>
 </tr>
 <tr>
 <td><code>input.grab(binding)</code></td>
@@ -1769,7 +1816,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>output.add(spec)</code>, <code>output.remove(output)</code></td>
-<td>for tests on the headless backend only: add a virtual output <code>WxH[@SCALE][+X+Y]</code>, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and <code>WxH</code> divided by <code>SCALE</code> must stay within 16384 a side; other backends refuse, and the last output stays; <code>choractl add-output</code> and <code>choractl remove-output</code> call them</td>
+<td>for tests on the headless backend only: add a virtual output <code>WxH[@SCALE][+X+Y]</code>, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and <code>WxH</code> divided by <code>SCALE</code> must stay within 16384 a side and at most 16 outputs are live; other backends refuse, and the last output stays; <code>choractl add-output</code> and <code>choractl remove-output</code> call them</td>
 </tr>
 <tr>
 <td><code>clients.list</code></td>
@@ -1778,6 +1825,10 @@ answers every request.</p>
 <tr>
 <td><code>methods.export(names)</code></td>
 <td>offer methods of this client to other clients</td>
+</tr>
+<tr>
+<td><code>methods.list</code></td>
+<td>list the methods that clients exported, each with its description and input schema</td>
 </tr>
 <tr>
 <td><code>methods.call(client, method, params)</code></td>
@@ -1878,8 +1929,8 @@ zones of layer surfaces leave free. At least one pixel of the work area
 stays. <code>choractl reserve --top 30</code> holds a reserve until it ends.</p>
 <p>A key binding needs Ctrl, Alt or Super, so that typing still works, unless
 the client holds <code>input.grab-any</code> (D45). The
-bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
-belong to no client. A binding has one owner at a time. Revoking
+bindings of the safety layer, Ctrl+Alt with BackSpace, Escape, i or F1 to
+F12, belong to no client. A binding has one owner at a time. Revoking
 <code>input.grab-any</code> drops the registrations of grabs that need no modifier
 and ends a held one.</p>
 <p>A key grab is held from the press of its key until one of its modifiers
@@ -1969,6 +2020,10 @@ path:</p>
   socket.</li>
 <li>The main socket refuses a <code>hello</code> with a name that has a client
   socket, so no client of the main socket takes that name.</li>
+<li>A name that has a socket already keeps it. <code>clients.create</code> answers the
+  <code>socket_exists</code> reason with the <code>path</code> of that socket. <code>choractl clients
+  create NAME</code> prints <code>NAME has a client socket already: PATH</code> on stderr
+  and exits 1.</li>
 <li><code>clients.create</code> fails for a name with a connection or in its grace
   time, and beyond 64 client sockets.</li>
 <li>The name has lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, and starts
@@ -2023,7 +2078,9 @@ protocols. D42 moves the start of programs out of the core.</p>
 as the startup command (D30): <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> of this
 compositor, without the variables of a host session, and with no stdin.
 The core looks the program up in its own <code>PATH</code>, so it works for an agent
-in another namespace too. The answer has the <code>pid</code> and the <code>argv</code>.</p>
+in another namespace too. The answer has the <code>pid</code> and the <code>argv</code>.
+<code>choractl spawn</code> prints its answer as one JSON line, so that a script can
+read it.</p>
 <p><code>plugins.restart(name)</code> restarts a plugin, for example after a rebuild.
 The core finds the process of the connections of the client name,
 reads its command line and working directory from <code>/proc</code>, and sends it
@@ -2109,6 +2166,14 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
 <span class="w">  </span><span class="p">{</span><span class="nt">"shortcut"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"keys"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Super+Return"</span><span class="p">}}</span>
 <span class="p">]}</span>
 </code></pre></div>
+<p>A click on a node needs no client math, whatever pan, zoom or parent
+scale the scene shows:</p>
+<!-- parses: inject -->
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"events"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">"pointer_move"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"node"</span><span class="p">:</span><span class="w"> </span><span class="s2">"menu"</span><span class="p">,</span><span class="w"> </span><span class="nt">"point"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">]}},</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">"click"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"button"</span><span class="p">:</span><span class="w"> </span><span class="mi">272</span><span class="p">}}</span>
+<span class="p">]}</span>
+</code></pre></div>
 <table>
 <thead>
 <tr>
@@ -2119,11 +2184,11 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
 <tbody>
 <tr>
 <td><code>pointer_move</code></td>
-<td><code>position</code> in the logical coordinates of the output, as in a capture; <code>output</code>, the first one by default</td>
+<td><code>position</code> in the logical coordinates of the output, as in a capture; <code>output</code>, the first one by default; or <code>node</code> with <code>point</code> inside it</td>
 </tr>
 <tr>
 <td><code>button</code></td>
-<td><code>button</code>, a Linux code, 272 (left) by default; <code>state</code>: <code>pressed</code> or <code>released</code></td>
+<td><code>button</code>, a Linux code, 272 (left) by default; <code>state</code>: <code>pressed</code> or <code>released</code>; <code>hold</code>: a press stays down when the request ends</td>
 </tr>
 <tr>
 <td><code>click</code></td>
@@ -2143,26 +2208,43 @@ whose origin is (0, 0), or in the coordinates of the node.</p>
 </tr>
 <tr>
 <td><code>text</code></td>
-<td><code>text</code>; a newline presses Return, a tab presses Tab</td>
+<td><code>text</code>; with an enabled text input at the focus the core commits the whole string, else a newline presses Return, a tab presses Tab</td>
 </tr>
 </tbody>
 </table>
 <ul>
+<li><code>node</code> and <code>point</code> replace <code>position</code>. The core maps the point through
+  the same transforms that give the <code>rects</code> of a query for the node. The
+  point must lie in the box the node draws. An <code>output</code> limits the search
+  to that output, and a node that shows no such point rejects the
+  request.</li>
 <li>The core checks all events before the first one runs. An event that does
   not resolve, for example a character without a key, rejects the request.</li>
-<li>Key names and text use the first layout of the keymap. A character needs
-  a key with Shift or <code>AltGr</code> at most.</li>
+<li>Without an enabled text input at the focus, key names and text use the
+  first layout of the keymap. A character then needs a key with Shift or
+  <code>AltGr</code> at most.</li>
+<li>A focused surface with an enabled text input receives each text whole as
+  one commit. The commit carries characters the keymap cannot reach, for
+  example German umlauts on a US layout.</li>
 <li>Keys and buttons that the events leave down go up at the end of the
   request, so that no key sticks.</li>
+<li>A button press with <code>hold</code> stays down. A later button event releases
+  it, in the same request or in a later one.</li>
 <li>Injected keys never reach the safety layer: Ctrl+Alt+BackSpace,
-  Ctrl+Alt+Escape and the VT switch do nothing. The grabs of plugins see
-  them, and the focused surface gets the rest.</li>
+  Ctrl+Alt+Escape, Ctrl+Alt+i and the VT switch do nothing. The grabs of
+  plugins see them, and the focused surface gets the rest.</li>
+<li>Every executed request shows the injection mark: a small yellow rect of
+  the core next to the pointer, gone 500 ms after the last injected event
+  (see <a href="../architecture/#safety-layer">Safety layer</a>).</li>
 <li>A request has at most 256 events, 4096 characters of text in all and
   32,768 steps, a key press and a release being two. It fails while the
   session is locked.</li>
+<li>With <code>"dry_run": true</code> next to <code>events</code>, the core checks every event and
+  answers ok or the error, without sending input.</li>
 </ul>
 <p><code>choractl inject</code> reads the list of events as JSON, for example
-<code>echo '[{"text": {"text": "ls\n"}}]' | choractl --name agent inject</code>.</p>
+<code>echo '[{"text": {"text": "ls\n"}}]' | choractl --name agent inject</code>.
+<code>choractl inject --dry-run</code> checks the events without sending input.</p>
 <h2 id="plugin-methods">Plugin methods<a class="headerlink" href="#plugin-methods" title="Permanent link">&para;</a></h2>
 <p>A plugin exports methods, and other clients call them by the client name
 and the method name, for example <code>tiling.set_layout</code>:</p>
@@ -2173,6 +2255,11 @@ and the method name, for example <code>tiling.set_layout</code>:</p>
 plugin answers with <code>methods.return</code>: the same <code>call</code> and a <code>result</code>, or an
 <code>error</code> with a <code>code</code> and a <code>message</code>. The core passes the answer to the
 caller. The <code>Client</code> of <code>chora-scene</code> answers with <code>Client::answer</code>.</p>
+<p>Each entry of <code>methods.export</code> is a plain name, or an object with <code>name</code>,
+<code>description</code> and <code>input_schema</code>. <code>methods.list</code> answers every exported
+method as <code>{"client", "name", "description", "input_schema"}</code>, with <code>null</code>
+for a plain export. The core passes description and schema through
+unchanged, and <code>chora-tiling</code> gives one to each of its methods.</p>
 <ul>
 <li>A method name has at most 64 characters: lowercase letters, digits, <code>_</code>,
   <code>-</code> and <code>.</code>, starting with a letter.</li>
@@ -2182,7 +2269,8 @@ caller. The <code>Client</code> of <code>chora-scene</code> answers with <code>C
   exporter disconnects. A connection has at most 64 calls in flight, and it
   cannot call its own methods.</li>
 </ul>
-<p><code>chora-tiling</code> exports three methods:</p>
+<p><code>chora-tiling</code> exports these three; <a href="../configuration/#chora-tiling">chora-tiling</a>
+lists all of its methods:</p>
 <table>
 <thead>
 <tr>
@@ -2369,10 +2457,10 @@ JSON-RPC error.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>
