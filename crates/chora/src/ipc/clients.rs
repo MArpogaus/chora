@@ -58,7 +58,10 @@ impl State {
         let dir = base.join("clients").join(name);
         self.check_new_socket(name, &dir)?;
         if dir.join(WAYLAND).as_os_str().len() > MAX_SOCKET_PATH {
-            return Err(rejected(format!("{name:?}: the socket path is too long")));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("{name:?}: the socket path is too long"),
+            ));
         }
         let (ipc, wayland) = open(&dir).map_err(|e| rejected(format!("{name:?}: {e}")))?;
         let fixed = Socket::Client(name.clone());
@@ -172,20 +175,25 @@ impl State {
         }
         if self.ipc.clients.contains_key(name) {
             // The path lets `choractl clients create` name the socket.
-            return Err(rejected(format!("{name:?} has a client socket already"))
-                .with_data(serde_json::json!({"reason": "socket_exists", "path": dir.join(IPC)})));
+            return Err(RpcError::new(
+                RpcError::NAME_TAKEN,
+                format!("{name:?} has a client socket already"),
+            )
+            .with_data(serde_json::json!({"reason": "socket_exists", "path": dir.join(IPC)})));
         }
         // A live connection of the name would share the nodes and grants.
         if self.ipc.live(name) {
-            return Err(
-                rejected(format!("{name:?} is connected or in its grace time"))
-                    .with_data(serde_json::json!({"reason": "connected"})),
-            );
+            return Err(RpcError::new(
+                RpcError::NAME_TAKEN,
+                format!("{name:?} is connected or in its grace time"),
+            )
+            .with_data(serde_json::json!({"reason": "connected"})));
         }
         if self.ipc.clients.len() >= MAX_SOCKETS {
-            return Err(rejected(format!(
-                "the core holds {MAX_SOCKETS} client sockets"
-            )));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("the core holds {MAX_SOCKETS} client sockets"),
+            ));
         }
         Ok(())
     }

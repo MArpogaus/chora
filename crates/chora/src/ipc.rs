@@ -346,11 +346,14 @@ impl Ipc {
         };
         let mut bytes = line(message);
         if message.result.is_some() && c.output.len() + bytes.len() > MAX_OUTPUT {
-            let error = rejected(format!(
-                "the answer has {} bytes and does not fit in the output of the connection, \
-                 {MAX_OUTPUT} bytes; ask for less, for example with a narrower selector",
-                bytes.len()
-            ));
+            let error = RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!(
+                    "the answer has {} bytes and does not fit in the output of the connection, \
+                     {MAX_OUTPUT} bytes; ask for less, for example with a narrower selector",
+                    bytes.len()
+                ),
+            );
             let id = message.id.clone().unwrap_or(Value::Null);
             bytes = line(&Message::error(id, error));
         }
@@ -646,7 +649,7 @@ impl State {
         stream.set_nonblocking(true).map_err(failed)?;
         let pid = socket_peercred(&stream).ok().map(|c| c.pid);
         if let Some(reason) = self.ipc.refusal(pid, socket.name()) {
-            let error = rejected(reason.clone());
+            let error = RpcError::new(RpcError::LIMIT_REACHED, reason.clone());
             let _ = (&stream).write_all(&line(&Message::error(Value::Null, error)));
             // A close with unread bytes in the receive queue sends an RST
             // and eats the error line, so read what arrived before closing.
@@ -720,10 +723,13 @@ impl State {
         conn.input = Vec::new();
         conn.reader = None;
         if conn.too_long {
-            let error = rejected(format!(
-                "the request is longer than {MAX_LINE} bytes, the limit of a line; \
-                 the core closes the connection"
-            ));
+            let error = RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!(
+                    "the request is longer than {MAX_LINE} bytes, the limit of a line; \
+                     the core closes the connection"
+                ),
+            );
             self.ipc.respond(id, &Message::error(Value::Null, error));
         }
         PostAction::Remove
@@ -833,9 +839,10 @@ impl State {
     /// `choractl` changes them (D40); any connection lists the grants.
     fn ipc_admin(&mut self, conn: u64, method: &str, params: Value) -> Result<Value, RpcError> {
         if method != "grants.list" && !self.ipc.admin(conn) {
-            return Err(rejected(format!(
-                "{method} works only on the admin socket of choractl"
-            )));
+            return Err(RpcError::new(
+                RpcError::ADMIN_SOCKET_ONLY,
+                format!("{method} works only on the admin socket of choractl"),
+            ));
         }
         if method == "clients.create" {
             return params_of(params).and_then(|c| self.ipc_client_socket(&c));
@@ -875,7 +882,7 @@ impl State {
                 return Err(rejected(format!("this socket belongs to {fixed:?}")));
             }
             None if self.ipc.clients.contains_key(&hello.name) => {
-                return Err(rejected(format!(
+                return Err(name_taken(format!(
                     "{:?} has a client socket and connects only through it",
                     hello.name
                 )));
@@ -890,7 +897,7 @@ impl State {
         if let Some(peer) =
             peer.filter(|p| (p.keep_nodes, p.resume) != (hello.keep_nodes, hello.resume))
         {
-            return Err(rejected(format!(
+            return Err(name_taken(format!(
                 "{:?} is in use with keep_nodes {} and resume {}",
                 hello.name, peer.keep_nodes, peer.resume
             )));
@@ -898,7 +905,7 @@ impl State {
         // Resume is for a name without a live connection: a second instance
         // must not take the nodes of a running one.
         if hello.resume && peer.is_some() {
-            return Err(rejected(format!(
+            return Err(name_taken(format!(
                 "{:?} is connected; resume needs a name without a live connection",
                 hello.name
             )));
@@ -1068,9 +1075,10 @@ impl State {
         };
         let m = binding.mods;
         if !(m.ctrl || m.alt || m.logo || self.grants.allows(&name, Capability::GrabAny)) {
-            return Err(rejected(format!(
-                "{binding} needs Ctrl, Alt or Super or the capability input.grab-any"
-            )));
+            return Err(RpcError::new(
+                RpcError::MISSING_CAPABILITY,
+                format!("{binding} needs Ctrl, Alt or Super or the capability input.grab-any"),
+            ));
         }
         let trigger = trigger(&binding)?;
         if m.ctrl && m.alt && matches!(trigger, Trigger::Key(sym) if is_safety_key(sym)) {
@@ -1224,6 +1232,10 @@ pub fn check_protocol(protocol: Option<u32>) -> Result<(), RpcError> {
 
 pub fn rejected(message: impl Into<String>) -> RpcError {
     RpcError::new(RpcError::REJECTED, message)
+}
+
+fn name_taken(message: impl Into<String>) -> RpcError {
+    RpcError::new(RpcError::NAME_TAKEN, message)
 }
 
 /// The box of a node size on the screen. A node with a mesh, or under a
@@ -1838,7 +1850,7 @@ mod tests {
         );
         let mut second = core.connect();
         let (error_code, message) = second.fails(&mut core, "hello", json!({"name": "wm"}));
-        assert_eq!(error_code, REJECTED);
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
         assert_eq!(
             message,
             "\"wm\" is in use with keep_nodes true and resume false"
@@ -1848,6 +1860,53 @@ mod tests {
             "hello",
             json!({"name": "wm", "keep_nodes": true}),
         );
+    }
+
+    /// Gate check 9 of 0.7: each error code has a test that provokes it.
+    /// Code 2 has `a_gone_surface_has_its_own_code` in `transaction.rs`,
+    /// code 3 `hello_with_a_higher_protocol_fails_with_the_protocol_code`
+    /// above.
+    #[test]
+    fn a_method_without_its_grant_answers_missing_capability() {
+        let mut core = Core::new();
+        let mut agent = core.named("agent");
+        let (error_code, _) = agent.fails(&mut core, "screen.capture", json!({}));
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+    }
+
+    #[test]
+    fn a_command_for_a_missing_node_answers_unknown_node() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let error = wm
+            .call(
+                &mut core,
+                "scene.apply",
+                json!({"commands": [{"update": {"id": "n9", "props": {"visible": false}}}]}),
+            )
+            .expect_err("the node does not exist");
+        assert_eq!(error["code"], RpcError::UNKNOWN_NODE);
+        assert_eq!(error["data"]["command"], 0, "data names the command");
+    }
+
+    #[test]
+    fn a_second_hello_of_a_live_name_answers_name_taken() {
+        let mut core = Core::new();
+        let _wm = core.named("wm");
+        let mut second = core.connect();
+        let (error_code, _) =
+            second.fails(&mut core, "hello", json!({"name": "wm", "resume": true}));
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
+    }
+
+    #[test]
+    fn an_admin_method_on_a_client_socket_answers_its_code() {
+        let mut core = Core::new();
+        let mut agent = core.named("agent");
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        let (error_code, message) = agent.fails(&mut core, "grants.set", grant);
+        assert_eq!(error_code, RpcError::ADMIN_SOCKET_ONLY);
+        assert!(message.contains("only on the admin socket"), "{message}");
     }
 
     #[test]
@@ -2422,7 +2481,7 @@ mod tests {
         let error = admin
             .call(&mut core, "clients.create", json!({"name": "agent"}))
             .expect_err("the name has a socket already");
-        assert_eq!(error["code"], REJECTED);
+        assert_eq!(error["code"], RpcError::NAME_TAKEN);
         assert_eq!(error["data"]["reason"], "socket_exists");
         assert_eq!(
             error["data"]["path"],
@@ -2437,7 +2496,9 @@ mod tests {
         let (mut core, dir) = socket_dir("live");
         let mut admin = core.admin();
         let squatter = core.named("agent");
-        let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "agent"}));
+        let (error_code, message) =
+            admin.fails(&mut core, "clients.create", json!({"name": "agent"}));
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
         assert!(
             message.contains("connected or in its grace time"),
             "{message}"
@@ -2733,20 +2794,26 @@ mod tests {
         let grab = |binding: &str| json!({"binding": binding});
         let normal = wm.ok(&mut core, "input.grab", grab("Super+Shift+Return"));
         assert_eq!(normal, "Shift+Super+Return");
-        for (binding, message) in [
+        for (binding, code, message) in [
             (
                 "Shift+a",
+                RpcError::MISSING_CAPABILITY,
                 "Shift+a needs Ctrl, Alt or Super or the capability input.grab-any",
             ),
             (
                 "Ctrl+Alt+BackSpace",
+                REJECTED,
                 "Ctrl+Alt+BackSpace belongs to the safety layer",
             ),
-            ("Ctrl+Alt+F3", "Ctrl+Alt+F3 belongs to the safety layer"),
-            ("Super+NoSuchKey", "unknown key \"NoSuchKey\""),
+            (
+                "Ctrl+Alt+F3",
+                REJECTED,
+                "Ctrl+Alt+F3 belongs to the safety layer",
+            ),
+            ("Super+NoSuchKey", REJECTED, "unknown key \"NoSuchKey\""),
         ] {
             let (error_code, got) = wm.fails(&mut core, "input.grab", grab(binding));
-            assert_eq!((error_code, got.as_str()), (REJECTED, message));
+            assert_eq!((error_code, got.as_str()), (code, message));
         }
     }
 
@@ -2885,7 +2952,7 @@ mod tests {
             responses.extend(client.responses());
         }
         assert_eq!(responses.len(), 1);
-        assert_eq!(responses[0]["error"]["code"], REJECTED);
+        assert_eq!(responses[0]["error"]["code"], RpcError::LIMIT_REACHED);
         assert_eq!(
             responses[0]["error"]["message"],
             "the request is longer than 1048576 bytes, the limit of a line; \
@@ -2912,7 +2979,7 @@ mod tests {
         }
         let mut asker = core.named("asker");
         let (error_code, message) = asker.fails(&mut core, "scene.query", json!({}));
-        assert_eq!(error_code, REJECTED);
+        assert_eq!(error_code, RpcError::LIMIT_REACHED);
         assert!(message.contains("does not fit in the output"), "{message}");
         assert!(!asker.closed(&mut core));
         assert_eq!(ids(&mut asker, &mut core, "id:g7"), ["g7"]);
@@ -2937,7 +3004,7 @@ mod tests {
         let mut answer = String::new();
         ours.read_to_string(&mut answer).unwrap();
         let answer: Value = serde_json::from_str(&answer).unwrap();
-        assert_eq!(answer["error"]["code"], REJECTED);
+        assert_eq!(answer["error"]["code"], RpcError::LIMIT_REACHED);
         answer["error"]["message"].as_str().unwrap().to_owned()
     }
 
@@ -2996,7 +3063,7 @@ mod tests {
         ours.read_to_string(&mut answer).unwrap();
         assert_eq!(
             serde_json::from_str::<Value>(&answer).unwrap()["error"]["code"],
-            REJECTED
+            RpcError::LIMIT_REACHED
         );
     }
 

@@ -123,6 +123,20 @@ impl RpcError {
     pub const GONE_SURFACE: i64 = 2;
     /// The client speaks a newer protocol than the core (D29).
     pub const UNSUPPORTED_PROTOCOL: i64 = 3;
+    /// The client lacks a capability that the method needs, for example
+    /// `screen.capture` without a grant.
+    pub const MISSING_CAPABILITY: i64 = 4;
+    /// A command names a node that does not exist; a surface node that
+    /// went away during a wait keeps code 2.
+    pub const UNKNOWN_NODE: i64 = 5;
+    /// A limit of the core is reached: too many connections, transactions
+    /// or calls, or a line and an answer that are too long.
+    pub const LIMIT_REACHED: i64 = 6;
+    /// The client name belongs to a live connection or to a client socket.
+    pub const NAME_TAKEN: i64 = 7;
+    /// The method works only on the admin socket of `choractl`, not on a
+    /// client socket.
+    pub const ADMIN_SOCKET_ONLY: i64 = 8;
 
     /// An error with a code and a message and no `data`.
     #[must_use]

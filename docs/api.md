@@ -384,26 +384,22 @@ answers every request.
 | `assets.remove(name)` | remove a file of `assets.put` |
 
 An error has a `code`, a `message` and, where it helps, a machine
-readable `data`: the JSON-RPC codes for a method or parameters that do
-not exist, 1 for a request that breaks a rule, 2 for a transaction
-that names a surface node that is gone, for example of a window that
-closed in the meantime, and 3 for a protocol the core does not speak.
-A plugin can ignore code 2. A rejected
-transaction carries `{"command": INDEX}` in `data`, the position of the
-failed command in the transaction.
+readable `data`. [Error codes](#error-codes) lists the stable codes. A
+rejected transaction carries `{"command": INDEX}` in `data`, the
+position of the failed command in the transaction.
 
 A request is one line of at most 1 MiB (`MAX_LINE`). The core reads a
-longer line to its end, answers it with code 1 and the id `null`, and
+longer line to its end, answers it with code 6 and the id `null`, and
 closes the connection. The core holds at most 8 MiB (`MAX_OUTPUT`) of
 answers and events that a connection did not read yet; a connection that
 passes this limit closes, so a client reads its socket while it waits. An
 answer that does not fit, for example of a query of all nodes, fails with
-code 1 instead, and the connection stays.
+code 6 instead, and the connection stays.
 
 The core takes at most 128 connections, at most 16 of one process. The
 last 8 go only to a process without a connection, so `choractl` and a
 window manager that starts again still connect while one client holds many.
-A refused connection gets an error line with code 1 and the reason, `too
+A refused connection gets an error line with code 6 and the reason, `too
 many connections: ...`, before the core closes it.
 
 `hello` answers with the version of the core: the crate version and,
@@ -500,6 +496,32 @@ sets the scale and the transform on the same path (D44), for an agent
 without wlr-randr. After a new mode, position, transform or scale,
 the core sends `output.changed`. For an output that turns off, it sends
 `output.removed`, and `output.list` no longer lists the output.
+
+## Error codes
+
+Each failure has a stable code (T2). The negative codes are the JSON-RPC
+codes for requests the core cannot route. The positive codes name the
+kind of refusal, and a client can act on them without reading the
+message.
+
+| code | kind | example |
+| --- | --- | --- |
+| -32700 | the line is no JSON request | a line without a JSON object |
+| -32601 | no method of this name | `scene.drop` |
+| -32602 | parameters are missing or invalid | `scene.query` with `"selector": 3` |
+| 1 | the request breaks a rule of the scene or of the core | updating a node of another client |
+| 2 | a surface node of a transaction is gone | a window closed during the wait |
+| 3 | a protocol the core does not speak | a `hello` with `protocol` 2 (D29) |
+| 4 | a capability the method needs | `screen.capture` without a grant |
+| 5 | an unknown node | `update` of a node id that never existed |
+| 6 | a limit of the core is reached | a request longer than 1 MiB |
+| 7 | a client name that is taken | a `hello` with a name that has a client socket |
+| 8 | a method of the admin socket | `grants.set` on the main socket |
+
+Code 1 stays for every refusal the table has no own code for, for
+example a scene rule. The message always names the rule. A plugin can
+ignore code 2. A rejected transaction, so codes 1, 2 and 5, carries the
+index of the failed command in `data`.
 
 ## Protocol versions
 

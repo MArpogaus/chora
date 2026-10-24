@@ -111,9 +111,10 @@ impl State {
         if self.grants.allows(name, capability) {
             Ok(())
         } else {
-            Err(rejected(format!(
-                "{capability} needs a grant: choractl grant {name} {capability}"
-            )))
+            Err(RpcError::new(
+                RpcError::MISSING_CAPABILITY,
+                format!("{capability} needs a grant: choractl grant {name} {capability}"),
+            ))
         }
     }
 }
@@ -184,7 +185,8 @@ mod tests {
             ("grants.revoke", grant),
             ("clients.create", json!({"name": "agent"})),
         ] {
-            let (_, message) = agent.fails(&mut core, method, params);
+            let (error_code, message) = agent.fails(&mut core, method, params);
+            assert_eq!(error_code, RpcError::ADMIN_SOCKET_ONLY, "{method}");
             assert!(
                 message.contains("only on the admin socket"),
                 "{method}: {message}"
@@ -205,7 +207,7 @@ mod tests {
             ("plugins.restart", "process.spawn"),
         ] {
             let (error_code, message) = agent.fails(&mut core, method, json!({}));
-            assert_eq!(error_code, RpcError::REJECTED, "{method}");
+            assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{method}");
             let wanted = format!("{capability} needs a grant: choractl grant agent {capability}");
             assert_eq!(message, wanted, "{method}");
         }
@@ -224,7 +226,7 @@ mod tests {
         }
         let mut other = core.named("other");
         let (error_code, _) = other.fails(&mut core, "input.inject", inject);
-        assert_eq!(error_code, RpcError::REJECTED);
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
     }
 
     #[test]

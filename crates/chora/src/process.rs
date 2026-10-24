@@ -94,10 +94,13 @@ fn check_argv(argv: &[String]) -> Result<(), RpcError> {
         return Err(rejected("argv needs a program"));
     }
     if argv.len() > MAX_ARGS || bytes > MAX_ARG_BYTES {
-        return Err(rejected(format!(
-            "argv has at most {MAX_ARGS} arguments and {} KiB",
-            MAX_ARG_BYTES >> 10
-        )));
+        return Err(RpcError::new(
+            RpcError::LIMIT_REACHED,
+            format!(
+                "argv has at most {MAX_ARGS} arguments and {} KiB",
+                MAX_ARG_BYTES >> 10
+            ),
+        ));
     }
     Ok(())
 }

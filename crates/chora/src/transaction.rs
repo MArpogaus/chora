@@ -24,7 +24,7 @@ use std::{
 };
 
 use chora_scene::{
-    Command, Effect, TransactionError,
+    Command, Effect, SceneError, TransactionError,
     ipc::{Message, RpcError},
 };
 use serde_json::Value;
@@ -180,7 +180,7 @@ impl State {
     ) {
         let waiting = self.transactions.all().filter(|p| p.conn == conn).count();
         if waiting >= MAX_PENDING {
-            let error = rejected("too many waiting transactions");
+            let error = RpcError::new(RpcError::LIMIT_REACHED, "too many waiting transactions");
             self.ipc.respond(conn, &Message::error(id, error));
             return;
         }
@@ -419,6 +419,8 @@ impl State {
 fn transaction_error(error: &TransactionError) -> RpcError {
     let code = if error.is_gone_surface() {
         RpcError::GONE_SURFACE
+    } else if matches!(error.error, SceneError::Missing(_)) {
+        RpcError::UNKNOWN_NODE
     } else {
         RpcError::REJECTED
     };
@@ -705,7 +707,8 @@ mod tests {
         }
         core.dispatch();
         assert_eq!(wm.responses(), Vec::<Value>::new());
-        let (_, message) = wm.fails(&mut core, "scene.apply", rect("over"));
+        let (error_code, message) = wm.fails(&mut core, "scene.apply", rect("over"));
+        assert_eq!(error_code, RpcError::LIMIT_REACHED);
         assert_eq!(message, "too many waiting transactions");
         let mut panel = core.named("panel");
         let id = panel.send("scene.apply", rect("p"));

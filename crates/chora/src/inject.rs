@@ -70,9 +70,10 @@ impl State {
         }
         let inject: Inject = params_of(params)?;
         if inject.events.len() > MAX_EVENTS {
-            return Err(rejected(format!(
-                "a request has at most {MAX_EVENTS} events"
-            )));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("a request has at most {MAX_EVENTS} events"),
+            ));
         }
         let needs_keys = inject.events.iter().any(|e| {
             matches!(
@@ -98,16 +99,20 @@ impl State {
             })
             .sum();
         if text > MAX_TEXT {
-            return Err(rejected(format!(
-                "a request types at most {MAX_TEXT} characters"
-            )));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("a request types at most {MAX_TEXT} characters"),
+            ));
         }
         let mut steps = Vec::new();
         for event in &inject.events {
             steps.extend(self.steps(event, keys.as_ref()).map_err(rejected)?);
         }
         if steps.len() > MAX_STEPS {
-            return Err(rejected(format!("a request has at most {MAX_STEPS} steps")));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("a request has at most {MAX_STEPS} steps"),
+            ));
         }
         if inject.dry_run {
             return Ok(Value::Null);
@@ -560,6 +565,25 @@ mod tests {
             button["hold"] = json!(true);
         }
         json!({"events": [{"button": button}]})
+    }
+
+    /// Gate check 9 of 0.7: the limit of a request has its own code.
+    #[test]
+    fn more_events_than_the_limit_answer_limit_reached() {
+        let mut core = Core::new();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let events: Vec<Value> = (0..=MAX_EVENTS)
+            .map(|_| json!({"click": {"button": 272}}))
+            .collect();
+        let (error_code, message) = agent.fails(
+            &mut core,
+            "input.inject",
+            json!({"events": events, "dry_run": true}),
+        );
+        assert_eq!(error_code, RpcError::LIMIT_REACHED);
+        assert!(message.contains("at most"), "{message}");
     }
 
     #[test]

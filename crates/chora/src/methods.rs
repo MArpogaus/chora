@@ -115,9 +115,10 @@ impl State {
             .filter(|m| !known.contains_key(m.name()))
             .count();
         if known.len() + new > MAX_EXPORTS {
-            return Err(rejected(format!(
-                "a connection exports at most {MAX_EXPORTS} methods"
-            )));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("a connection exports at most {MAX_EXPORTS} methods"),
+            ));
         }
         known.extend(export.names.into_iter().map(|m| (m.name().to_owned(), m)));
         Ok(Value::Null)
@@ -152,7 +153,10 @@ impl State {
             .filter(|p| p.caller == conn)
             .count();
         if waiting >= MAX_PENDING {
-            return Err(rejected("too many waiting calls"));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                "too many waiting calls",
+            ));
         }
         let number = self.methods.next;
         self.methods.next += 1;
@@ -487,7 +491,9 @@ mod tests {
         let mut wm = core.named("wm");
         let names: Vec<String> = (0..MAX_EXPORTS).map(|i| format!("m{i}")).collect();
         wm.ok(&mut core, "methods.export", json!({"names": names}));
-        let (_, message) = wm.fails(&mut core, "methods.export", json!({"names": ["one_more"]}));
+        let (error_code, message) =
+            wm.fails(&mut core, "methods.export", json!({"names": ["one_more"]}));
+        assert_eq!(error_code, RpcError::LIMIT_REACHED);
         assert_eq!(message, "a connection exports at most 64 methods");
         let (_, message) = wm.fails(&mut core, "methods.export", json!({"names": ["Bad"]}));
         assert!(message.starts_with("invalid method name"));
@@ -496,11 +502,12 @@ mod tests {
             call(&mut caller, "m0");
         }
         core.dispatch();
-        let (_, message) = caller.fails(
+        let (error_code, message) = caller.fails(
             &mut core,
             "methods.call",
             json!({"client": "wm", "method": "m0"}),
         );
+        assert_eq!(error_code, RpcError::LIMIT_REACHED);
         assert_eq!(message, "too many waiting calls");
     }
 }
