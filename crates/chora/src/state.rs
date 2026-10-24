@@ -513,6 +513,21 @@ impl State {
                         self.emit(&Event::OutputChanged { output });
                     }
                 }
+                Effect::Requested {
+                    node,
+                    owner,
+                    by,
+                    action,
+                    args,
+                } => {
+                    let event = Event::NodeRequested {
+                        node,
+                        client: by,
+                        action: action.to_owned(),
+                        args,
+                    };
+                    self.ipc.send_to_client(&owner, &event);
+                }
             }
         }
     }
@@ -834,8 +849,8 @@ mod tests {
         let (mut core, _wayland, mut wm, first, _second) = two_windows();
         wm.ok(&mut core, "scene.apply", focus(Some("s1")));
         let mut agent = core.named("agent");
-        let (_, message) = agent.fails(&mut core, "scene.apply", focus(Some("s2")));
-        assert!(message.contains("wm"), "{message}");
+        // The focus of a window of another client is only a request (D31).
+        agent.ok(&mut core, "scene.apply", focus(Some("s2")));
         assert_eq!(keyboard(&core), Some(id(&first)));
     }
 
@@ -848,10 +863,11 @@ mod tests {
         assert_eq!(keyboard(&core), None);
         launcher.ok(&mut core, "scene.apply", focus(Some("s1")));
         assert_eq!(keyboard(&core), Some(id(&first)));
-        let (_, message) = launcher.fails(&mut core, "scene.apply", focus(Some("s2")));
-        assert!(
-            message.contains("wm"),
-            "only the surface that had it: {message}"
+        launcher.ok(&mut core, "scene.apply", focus(Some("s2")));
+        assert_eq!(
+            keyboard(&core),
+            Some(id(&first)),
+            "only the surface that had it, the rest is a request"
         );
     }
 

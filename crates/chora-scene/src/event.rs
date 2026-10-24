@@ -79,6 +79,20 @@ pub enum Event {
         /// The change.
         request: SurfaceRequest,
     },
+    /// A client asks to change a node that another client owns (D31).
+    /// Only the owner of the node gets it; it decides by doing the
+    /// change or not.
+    #[serde(rename = "node.requested")]
+    NodeRequested {
+        /// The node.
+        node: String,
+        /// The client that asked.
+        client: String,
+        /// `focus`, `move`, `resize` or `close`.
+        action: String,
+        /// The arguments of the command, for example `{"parent": "g"}`.
+        args: serde_json::Value,
+    },
     /// The key of a grabbed binding went down, or up again.
     #[serde(rename = "input.key")]
     InputKey {
@@ -385,6 +399,7 @@ pub const NAMES: &[&str] = &[
     "surface.detached",
     "focus.changed",
     "surface.requested",
+    "node.requested",
     "input.key",
     "input.button",
     "input.moved",

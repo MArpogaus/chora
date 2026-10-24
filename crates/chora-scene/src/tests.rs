@@ -872,16 +872,23 @@ fn a_client_that_cleared_the_focus_gives_it_back() {
     let focus = |surface: Option<&str>| Command::Focus {
         surface: surface.map(Into::into),
     };
-    // Another client cannot take the focus of a surface of the wm ...
-    assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    // Another client only asks the window manager for the focus (D31) ...
+    scene.apply("walk", &[focus(Some("s1"))]).unwrap();
+    assert_eq!(scene.focused_surface(), Some("s1"), "a request");
     // ... but after it cleared the focus, it gives it back, once.
     scene.apply("walk", &[focus(None)]).unwrap();
     scene.apply("walk", &[focus(Some("s1"))]).unwrap();
-    assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    scene.apply("walk", &[focus(Some("s1"))]).unwrap();
+    assert_eq!(
+        scene.focused_surface(),
+        Some("s1"),
+        "the focus after the return is a request"
+    );
     // A focus that the user gave elsewhere since ends the return.
     scene.apply("walk", &[focus(None)]).unwrap();
     scene.set_focused(Some("s2"));
-    assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    scene.apply("walk", &[focus(Some("s1"))]).unwrap();
+    assert_eq!(scene.focused_surface(), Some("s2"), "a request");
     // So does a focus that the window manager gave elsewhere since.
     scene.add_surface("s2", SurfaceInfo::default());
     scene
@@ -889,8 +896,8 @@ fn a_client_that_cleared_the_focus_gives_it_back() {
         .unwrap();
     scene.apply("walk", &[focus(None)]).unwrap();
     scene.apply("wm", &[focus(Some("s2"))]).unwrap();
-    let err = scene.apply("walk", &[focus(Some("s1"))]).unwrap_err();
-    assert_eq!(err.error, SceneError::NotOwner("s1".into(), "wm".into()));
+    scene.apply("walk", &[focus(Some("s1"))]).unwrap();
+    assert_eq!(scene.focused_surface(), Some("s2"), "a request");
     // A transaction that focuses an own surface and clears the focus gives
     // it back to that surface.
     scene.add_surface("s5", SurfaceInfo::default());
@@ -907,13 +914,15 @@ fn a_client_that_cleared_the_focus_gives_it_back() {
     scene
         .apply("walk", &[focus(Some("s5")), focus(None)])
         .unwrap();
-    assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    scene.apply("walk", &[focus(Some("s1"))]).unwrap();
+    assert_eq!(scene.focused_surface(), None, "a request");
     scene.apply("walk", &[focus(Some("s5"))]).unwrap();
     // So does the end of the client.
     scene.set_focused(Some("s1"));
     scene.apply("walk", &[focus(None)]).unwrap();
     scene.disconnect("walk");
-    assert!(scene.apply("walk", &[focus(Some("s1"))]).is_err());
+    scene.apply("walk", &[focus(Some("s1"))]).unwrap();
+    assert_eq!(scene.focused_surface(), None, "a request");
 }
 
 #[test]

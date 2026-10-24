@@ -377,9 +377,7 @@ impl Scene {
             }
             Command::Attach { surface, parent } => self.attach(owner, surface, parent),
             Command::Update { .. } | Command::Animate { .. } => self.change_props(owner, command),
-            Command::Move { id, parent, index } => {
-                self.move_node(owner, id, parent.as_deref(), *index)
-            }
+            Command::Move { .. } => self.move_command(owner, command, effects),
             Command::Remove { id, to: None } => {
                 self.owned_mut(owner, id)?;
                 effects.extend(self.remove_subtree(id).into_iter().map(Effect::Detached));
@@ -392,33 +390,83 @@ impl Scene {
                 effects.push(Effect::Reserved(id.clone(), to.clone()));
                 Ok(())
             }
-            Command::Configure {
-                surface,
-                size,
-                states,
-            } => {
-                self.owned_surface(owner, surface)?;
-                if size.is_some_and(|[w, h]| w < 0 || h < 0) {
-                    return Err(SceneError::Invalid(format!(
-                        "negative size for {surface:?}"
-                    )));
-                }
-                effects.push(configure(surface, *size, states.clone()));
-                Ok(())
-            }
-            Command::Focus { surface } => {
-                self.focus_command(owner, surface.as_deref())?;
-                effects.push(Effect::Focus(surface.clone()));
-                Ok(())
-            }
+            Command::Configure { .. } => self.configure_command(owner, command, effects),
+            Command::Focus { surface } => self.focus_command(owner, surface.as_deref(), effects),
             Command::FocusNode { node } => self.focus_node_command(owner, node.as_deref()),
-            Command::Close { surface } => {
-                self.owned_surface(owner, surface)?;
-                effects.push(Effect::Close(surface.clone()));
-                Ok(())
-            }
+            Command::Close { .. } => self.close_command(owner, command, effects),
             camera @ Command::Camera { .. } => self.camera_command(owner, camera, effects),
         }
+    }
+
+    /// `move`: a node of another client answers with a request (D31).
+    fn move_command(
+        &mut self,
+        owner: &str,
+        command: &Command,
+        effects: &mut Vec<Effect>,
+    ) -> Result<(), SceneError> {
+        let Command::Move { id, parent, index } = command else {
+            unreachable!("only move commands come here");
+        };
+        if let Some(other) = self.other_owner(owner, id) {
+            let args = serde_json::json!({"parent": parent, "index": index});
+            effects.push(request(owner, id, other, "move", args));
+            return Ok(());
+        }
+        self.move_node(owner, id, parent.as_deref(), *index)
+    }
+
+    /// `configure`: a surface of another client answers with a request
+    /// for a resize (D31).
+    fn configure_command(
+        &mut self,
+        owner: &str,
+        command: &Command,
+        effects: &mut Vec<Effect>,
+    ) -> Result<(), SceneError> {
+        let Command::Configure {
+            surface,
+            size,
+            states,
+        } = command
+        else {
+            unreachable!("only configure commands come here");
+        };
+        self.surface(surface)?;
+        if size.is_some_and(|[w, h]| w < 0 || h < 0) {
+            return Err(SceneError::Invalid(format!(
+                "negative size for {surface:?}"
+            )));
+        }
+        if let Some(other) = self.other_owner(owner, surface) {
+            let args = serde_json::json!({"size": size, "states": states});
+            effects.push(request(owner, surface, other, "resize", args));
+            return Ok(());
+        }
+        self.owned_surface(owner, surface)?;
+        effects.push(configure(surface, *size, states.clone()));
+        Ok(())
+    }
+
+    /// `close`: a surface of another client answers with a request (D31).
+    fn close_command(
+        &mut self,
+        owner: &str,
+        command: &Command,
+        effects: &mut Vec<Effect>,
+    ) -> Result<(), SceneError> {
+        let Command::Close { surface } = command else {
+            unreachable!("only close commands come here");
+        };
+        self.surface(surface)?;
+        if let Some(other) = self.other_owner(owner, surface) {
+            let empty = serde_json::json!({});
+            effects.push(request(owner, surface, other, "close", empty));
+            return Ok(());
+        }
+        self.owned_surface(owner, surface)?;
+        effects.push(Effect::Close(surface.clone()));
+        Ok(())
     }
 
     fn camera_command(
@@ -1032,24 +1080,38 @@ impl Scene {
     /// A client focuses its own surfaces. After it cleared the focus, it may
     /// give the focus back to the surface that had it, also of another
     /// client. A new focus ends every return, as in [`Scene::set_focused`].
-    fn focus_command(&mut self, owner: &str, surface: Option<&str>) -> Result<(), SceneError> {
+    /// The focus of a surface of another client answers with a request
+    /// (D31).
+    fn focus_command(
+        &mut self,
+        owner: &str,
+        surface: Option<&str>,
+        effects: &mut Vec<Effect>,
+    ) -> Result<(), SceneError> {
         // The focus follows the commands, so that a later command of the
         // same transaction sees it.
         let Some(id) = surface else {
             if let Some(had) = self.focused.take() {
                 self.focus_returns.insert(owner.into(), had);
             }
+            effects.push(Effect::Focus(None));
             return Ok(());
         };
+        self.surface(id)?;
         let returns = self.focus_returns.get(owner).is_some_and(|had| had == id);
+        if !returns && let Some(other) = self.other_owner(owner, id) {
+            let empty = serde_json::json!({});
+            effects.push(request(owner, id, other, "focus", empty));
+            return Ok(());
+        }
         if returns {
-            self.surface(id)?;
             self.focus_returns.remove(owner);
         } else {
             self.owned_surface(owner, id)?;
         }
         self.set_focused(Some(id));
         self.focused_node = None;
+        effects.push(Effect::Focus(Some(id.to_owned())));
         Ok(())
     }
 
@@ -1120,6 +1182,14 @@ impl Scene {
             self.focused_node = None;
         }
         self.focused = surface.map(Into::into);
+    }
+
+    /// The owner of an existing node, when a different client has it:
+    /// that owner gets the request (D31). A node without an owner and a
+    /// missing node answer `None`, so the command fails as before.
+    fn other_owner(&self, owner: &str, id: &str) -> Option<String> {
+        let node = self.nodes.get(id)?;
+        node.owner.clone().filter(|other| other != owner)
     }
 
     fn owned_surface(&mut self, owner: &str, id: &str) -> Result<(), SceneError> {
@@ -1422,6 +1492,23 @@ fn configure(surface: &str, size: Option<[i32; 2]>, states: Vec<ToplevelState>) 
         surface: surface.into(),
         size,
         states,
+    }
+}
+
+/// The effect of a command that another client's node would need (D31).
+fn request(
+    by: &str,
+    node: &str,
+    owner: String,
+    action: &'static str,
+    args: serde_json::Value,
+) -> Effect {
+    Effect::Requested {
+        node: node.into(),
+        owner,
+        by: by.into(),
+        action,
+        args,
     }
 }
 

@@ -160,4 +160,18 @@ pub enum Effect {
     Reserved(String, String),
     /// The camera of an output changed; tell the clients.
     Camera(String),
+    /// A client asked to change a node of another client (D31); tell the
+    /// owner, who decides by doing it or not.
+    Requested {
+        /// The node.
+        node: String,
+        /// The owner of the node, who decides.
+        owner: String,
+        /// The client that asked.
+        by: String,
+        /// `focus`, `move`, `resize` or `close`.
+        action: &'static str,
+        /// The arguments of the command, for example `{"parent": "g"}`.
+        args: serde_json::Value,
+    },
 }

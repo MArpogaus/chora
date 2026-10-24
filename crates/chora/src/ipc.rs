@@ -2036,6 +2036,82 @@ mod tests {
         b.ok(&mut core, "scene.apply", attach_s1("bg"));
     }
 
+    /// A client changes a node of another client only by request (D31).
+    #[test]
+    fn a_change_of_a_foreign_node_reaches_its_owner_as_a_request() {
+        let mut core = Core::new();
+        let (mut wm, _wayland) = resumable(&mut core);
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut b = core.named("b");
+        b.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut watcher = core.named("watcher");
+        watcher.ok(&mut core, "events.subscribe", json!({"events": []}));
+        // The owner gets every action with the arguments of the command.
+        for (command, action, args) in [
+            (json!({"close": {"surface": "s1"}}), "close", json!({})),
+            (json!({"focus": {"surface": "s1"}}), "focus", json!({})),
+            (
+                json!({"move": {"id": "s1", "parent": "root"}}),
+                "move",
+                json!({"parent": "root", "index": null}),
+            ),
+            (
+                json!({"configure": {"surface": "s1", "size": [7, 9]}}),
+                "resize",
+                json!({"size": [7, 9], "states": []}),
+            ),
+        ] {
+            b.ok(&mut core, "scene.apply", json!({"commands": [command]}));
+            let events = wm.events_now(&mut core);
+            assert!(
+                node_requested(&events, "b", action, &args),
+                "{action}: {events:?}"
+            );
+            assert!(!node_requested(
+                &b.events_now(&mut core),
+                "b",
+                action,
+                &args
+            ));
+            assert!(
+                !node_requested(&watcher.events_now(&mut core), "b", action, &args),
+                "only the owner"
+            );
+        }
+        // Nothing happened to the window: the owner decides by doing it
+        // or not.
+        assert!(core.state.windows.contains_key("s1"));
+        assert_eq!(
+            core.state.scene.node("s1").unwrap().parent.as_deref(),
+            Some("g")
+        );
+        assert_eq!(core.state.focused_surface(), None);
+        // Changes beyond the four actions stay refused.
+        let update = json!({"commands": [{"update": {"id": "s1", "props": {"visible": false}}}]});
+        let (_, message) = b.fails(&mut core, "scene.apply", update);
+        assert!(message.contains("belongs to"), "{message}");
+        // The owner still changes its own node without a request.
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"close": {"surface": "s1"}}
+            ]}),
+        );
+    }
+
+    /// Whether one of the events is a `node.requested` of `s1` by `by`.
+    fn node_requested(events: &[Value], by: &str, action: &str, args: &Value) -> bool {
+        events.iter().any(|e| {
+            let p = &e["params"];
+            p["event"] == "node.requested"
+                && p["node"] == "s1"
+                && p["client"] == by
+                && p["action"] == action
+                && p["args"] == *args
+        })
+    }
+
     #[test]
     fn a_client_with_resume_gets_its_nodes_back_within_the_grace_time() {
         let mut core = Core::new();
