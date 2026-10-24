@@ -456,8 +456,8 @@ stays. `choractl reserve --top 30` holds a reserve until it ends.
 
 A key binding needs Ctrl, Alt or Super, so that typing still works, unless
 the client holds `input.grab-any` (D45). The
-bindings of the safety layer, Ctrl+Alt with BackSpace, Escape or F1 to F12,
-belong to no client. A binding has one owner at a time. Revoking
+bindings of the safety layer, Ctrl+Alt with BackSpace, Escape, i or F1 to
+F12, belong to no client. A binding has one owner at a time. Revoking
 `input.grab-any` drops the registrations of grabs that need no modifier
 and ends a held one.
 
@@ -751,8 +751,11 @@ scale the scene shows:
 - A button press with `hold` stays down. A later button event releases
   it, in the same request or in a later one.
 - Injected keys never reach the safety layer: Ctrl+Alt+BackSpace,
-  Ctrl+Alt+Escape and the VT switch do nothing. The grabs of plugins see
-  them, and the focused surface gets the rest.
+  Ctrl+Alt+Escape, Ctrl+Alt+i and the VT switch do nothing. The grabs of
+  plugins see them, and the focused surface gets the rest.
+- Every executed request shows the injection mark: a small yellow rect of
+  the core next to the pointer, gone 500 ms after the last injected event
+  (see [Safety layer](architecture.md#safety-layer)).
 - A request has at most 256 events, 4096 characters of text in all and
   32,768 steps, a key press and a release being two. It fails while the
   session is locked.

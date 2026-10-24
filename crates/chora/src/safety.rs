@@ -1,7 +1,7 @@
 //! The safety layer: the only built-in behavior (D23).
 //!
-//! Besides the bindings and the reset, a watchdog watches the frames of
-//! each output. After two seconds of slow frames it blames the client whose
+//! Besides the bindings, the reset and the injection mark (D23), a
+//! watchdog watches the frames of each output. After two seconds of slow frames it blames the client whose
 //! visible nodes cost the most and removes its effects; when frames stay
 //! slow for two more seconds, it disconnects that client, at most once a
 //! minute. The emergency reset is for the binding and SIGUSR1 only.
@@ -208,6 +208,22 @@ impl State {
         self.drop_nodes(client);
     }
 
+    /// The revoke binding (D23): takes the capabilities away from every
+    /// client that holds only agent capabilities, as a full
+    /// `grants.revoke` does. The connections stay; only what the grants
+    /// gave them goes.
+    pub fn revoke_agents(&mut self) {
+        let names = self.grants.revoke_agents();
+        if names.is_empty() {
+            return;
+        }
+        tracing::warn!(clients = ?names, "the revoke binding took the capabilities of the agents");
+        for name in names {
+            self.disconnect_wayland(&name, &[]);
+            self.revoke_free_grabs(&name);
+        }
+    }
+
     /// The emergency reset: disconnects all clients of the IPC socket,
     /// revokes all grants, puts all surfaces in a grid that fills the output
     /// and focuses the first one.
@@ -224,6 +240,7 @@ impl State {
         self.end_graces();
         self.remove_client_sockets();
         self.grants.clear();
+        self.inject_mark = None;
         self.node_grab = None;
         self.button_grab = None;
         self.held.grabs.clear();
@@ -257,6 +274,61 @@ mod tests {
 
     use super::*;
     use crate::testing::{Client, Core};
+
+    /// The Linux key codes of Ctrl, Alt and i.
+    const CTRL: u32 = 29;
+    const ALT: u32 = 56;
+    const I: u32 = 23;
+
+    /// Presses or releases a key on the real keyboard path.
+    fn press(core: &mut Core, linux: u32, down: bool) {
+        use smithay::{
+            backend::input::{InputTime, KeyState},
+            input::keyboard::Keycode,
+        };
+        crate::input::key(
+            &mut core.state,
+            Keycode::new(linux + 8),
+            if down {
+                KeyState::Pressed
+            } else {
+                KeyState::Released
+            },
+            InputTime::now(),
+            false,
+        );
+    }
+
+    #[test]
+    fn the_revoke_binding_takes_the_capabilities_of_all_agents() {
+        let mut core = Core::new();
+        let mut ctl = core.admin();
+        let agent = json!({"client": "agent", "capabilities": ["input.inject", "process.spawn"]});
+        ctl.ok(&mut core, "grants.set", agent);
+        let eye = json!({"client": "eye", "capabilities": ["screen.capture"]});
+        ctl.ok(&mut core, "grants.set", eye);
+        let mut agent = core.named("agent");
+        agent.ok(&mut core, "input.inject", json!({"events": []}));
+        // An injected shortcut never reaches the safety layer (D23).
+        let shortcut = json!({"events": [{"shortcut": {"keys": "Ctrl+Alt+i"}}]});
+        agent.ok(&mut core, "input.inject", shortcut);
+        let list = ctl.ok(&mut core, "grants.list", Value::Null);
+        assert_eq!(
+            list["agent"],
+            json!(["input.inject", "process.spawn"]),
+            "{list}"
+        );
+        // The fixed binding: Ctrl+Alt+i.
+        press(&mut core, CTRL, true);
+        press(&mut core, ALT, true);
+        press(&mut core, I, true);
+        press(&mut core, I, false);
+        assert_eq!(ctl.ok(&mut core, "grants.list", Value::Null), json!({}));
+        let (_, message) = agent.fails(&mut core, "input.inject", json!({"events": []}));
+        assert!(message.contains("needs a grant"), "{message}");
+        assert!(!ctl.closed(&mut core), "the connections stay");
+        assert!(!agent.closed(&mut core), "the connections stay");
+    }
 
     const REFRESH: Duration = Duration::from_millis(16);
     const SLOW: Duration = Duration::from_millis(20);

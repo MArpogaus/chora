@@ -42,6 +42,8 @@ enum KeyAction {
     Quit,
     /// The emergency reset.
     Reset,
+    /// Revokes the capabilities of all agents (D23).
+    RevokeAgents,
     /// Switch to another virtual terminal.
     SwitchVt(i32),
     /// Send `input.key` to the client that grabbed the binding.
@@ -124,6 +126,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
     match action {
         Some(KeyAction::Quit) => state.loop_signal.stop(),
         Some(KeyAction::Reset) => state.reset(),
+        Some(KeyAction::RevokeAgents) => state.revoke_agents(),
         Some(KeyAction::SwitchVt(vt)) => {
             if let Some(backend) = state.backend.as_mut() {
                 backend.change_vt(vt);
@@ -369,6 +372,9 @@ fn press_action(
         }
         if syms.contains(&Keysym::Escape) {
             return Some(KeyAction::Reset);
+        }
+        if syms.contains(&Keysym::i) || syms.contains(&Keysym::I) {
+            return Some(KeyAction::RevokeAgents);
         }
     }
     grab_action(state, mods, syms)

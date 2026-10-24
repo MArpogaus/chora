@@ -781,6 +781,48 @@ impl Scene {
         self.nodes.insert(id, node);
     }
 
+    /// Shows the injection mark of the core: a small yellow rect without
+    /// owner under the overlay root of `output`, at its logical
+    /// coordinates (D23). It passes pointer input.
+    pub fn show_injection(&mut self, output: &str, at: [f64; 2]) {
+        self.remove_injection();
+        let parent = overlay_id(output);
+        let Some(overlay) = self.nodes.get_mut(&parent) else {
+            return;
+        };
+        overlay.children.push(INJECTION.into());
+        let props = Props {
+            size: Some([MARK_SIDE, MARK_SIDE]),
+            color: Some([1.0, 1.0, 0.0, 1.0]),
+            input: InputMode::Pass,
+            transform: Transform::translate(at[0], at[1], 0.0),
+            ..Props::default()
+        };
+        self.nodes.insert(
+            INJECTION.into(),
+            Node {
+                id: INJECTION.into(),
+                kind: NodeKind::Rect,
+                owner: None,
+                parent: Some(parent),
+                children: Vec::new(),
+                props,
+                surface: None,
+                to: None,
+            },
+        );
+    }
+
+    /// Removes the injection mark. A node of a client that took the id
+    /// stays.
+    pub fn remove_injection(&mut self) -> bool {
+        if self.nodes.get(INJECTION).is_some_and(|n| n.owner.is_some()) {
+            return false;
+        }
+        self.unlink(INJECTION);
+        self.nodes.remove(INJECTION).is_some()
+    }
+
     /// The visible nodes that a layer shows, bottom first, in the
     /// coordinates of the layer: for the root, the nodes outside of
     /// layers; for a layer node, the node itself at the identity and its
@@ -1222,6 +1264,12 @@ impl Scene {
 /// gives these ids to surfaces before their nodes exist.
 /// The start of the ids of the overlay roots of the outputs (D43).
 pub const OVERLAY: &str = "screen:";
+
+/// The id of the injection mark of the core (D23).
+pub const INJECTION: &str = "chora:inject";
+
+/// The side of the injection mark, in logical pixels.
+const MARK_SIDE: f64 = 12.0;
 
 /// The id of the overlay root of an output.
 #[must_use]

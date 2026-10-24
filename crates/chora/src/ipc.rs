@@ -1258,11 +1258,14 @@ fn bounding_box(transform: &Transform, [w, h]: [f64; 2]) -> Rectangle<f64, Logic
 }
 
 /// Whether Ctrl+Alt with a key is a binding of the safety layer (D23):
-/// `BackSpace` quits, `Escape` resets, `F1` to `F12` switch the VT.
+/// `BackSpace` quits, `Escape` resets, `i` revokes the agents, `F1` to
+/// `F12` switch the VT.
 fn is_safety_key(sym: xkb::Keysym) -> bool {
     use xkb::Keysym;
     sym == Keysym::BackSpace
         || sym == Keysym::Escape
+        || sym == Keysym::i
+        || sym == Keysym::I
         || (Keysym::F1.raw()..=Keysym::F12.raw()).contains(&sym.raw())
 }
 

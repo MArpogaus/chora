@@ -58,6 +58,23 @@ impl Grants {
         self.0.clear();
     }
 
+    /// Revokes the grants of every client that holds only capabilities
+    /// agents work with (D23): all capabilities are agent capabilities
+    /// today. Returns the names, so the caller can end what the grants
+    /// gave these clients.
+    pub fn revoke_agents(&mut self) -> Vec<String> {
+        let names: Vec<String> = self
+            .0
+            .iter()
+            .filter(|(_, held)| held.iter().all(|c| Capability::ALL.contains(c)))
+            .map(|(name, _)| name.clone())
+            .collect();
+        for name in &names {
+            self.0.remove(name);
+        }
+        names
+    }
+
     fn list(&self) -> Value {
         serde_json::json!(self.0)
     }

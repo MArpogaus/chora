@@ -301,7 +301,17 @@ The safety layer is the only built-in behavior (see
 [Vision](vision.md#principles)). No plugin and no IPC client can change it.
 
 - **Fixed bindings** (D23). Injected input never triggers them; see
-  [Input injection](api.md#input-injection).
+  [Input injection](api.md#input-injection). They are Ctrl+Alt+BackSpace
+  (quit), Ctrl+Alt+Escape (emergency reset), Ctrl+Alt+i (revoke) and
+  Ctrl+Alt+F1 to F12 (VT switch).
+- **Revoke binding.** Ctrl+Alt+i takes every capability away from each
+  client that holds only agent capabilities: `input.inject`,
+  `screen.capture`, `process.spawn` and `input.grab-any`. It also ends
+  the grabs that need no modifier and disconnects Wayland clients that
+  held a grant. The IPC connections stay.
+- **Injection mark.** While a client injects input, the core shows a
+  small yellow rect of its own next to the pointer. It goes 500 ms after
+  the last injected event. No client owns the mark or can remove it.
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
 - **Last words.** A faulting signal (SIGSEGV, SIGBUS, SIGILL, SIGABRT)

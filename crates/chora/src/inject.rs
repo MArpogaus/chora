@@ -5,12 +5,15 @@
 //! go up at its end, so that no key sticks. A button press with `hold`
 //! stays down until a later event releases it.
 //!
+//! Every executed request shows a small yellow mark of the core next to
+//! the pointer, gone 500 ms after the last injected event (D23).
+//!
 //! Key names and text resolve through the first layout of the keymap: a
 //! character needs a key of that layout, with Shift or `AltGr` at most.
 //! A text goes whole as one commit to the focus with an enabled text
 //! input, so it also carries characters the keymap cannot reach.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use chora_scene::{
     Binding, Node, NodeKind, Transform,
@@ -41,6 +44,10 @@ const MAX_TEXT: usize = 4096;
 const MAX_STEPS: usize = 32_768;
 /// The offset of XKB key codes from Linux key codes.
 const XKB_OFFSET: u32 = 8;
+/// How long the injection mark stays after the last injected event (D23).
+const MARK_FOR: Duration = Duration::from_millis(500);
+/// The distance of the mark from the pointer, in logical pixels.
+const MARK_GAP: f64 = 8.0;
 
 /// One step of an injection, with its keys and points resolved.
 #[derive(Debug, Clone, PartialEq)]
@@ -106,7 +113,27 @@ impl State {
             return Ok(Value::Null);
         }
         self.run_steps(&steps);
+        self.mark_injection();
         Ok(Value::Null)
+    }
+
+    /// Shows the injection mark (D23): a small yellow rect of the core
+    /// next to the pointer, gone `MARK_FOR` after the last injected
+    /// event. The mark belongs to the core, so no client can remove it.
+    fn mark_injection(&mut self) {
+        let until = self.time.now() + MARK_FOR;
+        self.inject_mark = Some(until);
+        let _ = self.expire_at(until);
+        if let Some(spot) = self.spot(self.pointer_layout) {
+            let at = [spot.local.x + MARK_GAP, spot.local.y + MARK_GAP];
+            self.scene.show_injection(&spot.output.name(), at);
+        }
+    }
+
+    /// Removes the injection mark.
+    pub(crate) fn unmark_injection(&mut self) {
+        self.inject_mark = None;
+        self.scene.remove_injection();
     }
 
     /// The steps of one event.
@@ -523,6 +550,7 @@ fn press(mods: &[Keycode], code: Keycode) -> Vec<Step> {
 mod tests {
     use super::*;
     use crate::testing::{Core, wayland::Wayland};
+    use chora_scene::INJECTION;
     use serde_json::json;
 
     /// An `input.inject` request that presses the left button, with `hold`.
@@ -909,6 +937,52 @@ mod tests {
         assert!(keys.named("NoSuchKey").is_err());
         assert_eq!(linux_key(28).unwrap(), Keycode::new(36));
         assert!(linux_key(0).is_err());
+    }
+
+    #[test]
+    fn a_mark_shows_injection_and_goes_after_half_a_second() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut ctl = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        ctl.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        // A rejected request shows nothing.
+        let bad = json!({"events": [{"key": {"key": "NoSuchKey", "state": "pressed"}}]});
+        agent.fails(&mut core, "input.inject", bad);
+        assert!(core.state.scene.node(INJECTION).is_none());
+        agent.ok(
+            &mut core,
+            "input.inject",
+            json!({"events": [{"pointer_move": {"position": [100.0, 80.0]}}]}),
+        );
+        let mark = core.state.scene.node(INJECTION).expect("the mark shows");
+        assert_eq!(mark.parent.as_deref(), Some("screen:HDMI-1"));
+        assert!(mark.owner.is_none(), "the mark belongs to the core");
+        assert_eq!(
+            mark.props.transform.apply(0.0, 0.0),
+            (108.0, 88.0),
+            "the mark sits next to the pointer"
+        );
+        // A new injection moves the mark and starts the time again.
+        core.advance(Duration::from_millis(400));
+        agent.ok(
+            &mut core,
+            "input.inject",
+            json!({"events": [{"pointer_move": {"position": [300.0, 200.0]}}]}),
+        );
+        core.advance(Duration::from_millis(400));
+        let mark = core
+            .state
+            .scene
+            .node(INJECTION)
+            .expect("the mark stays with the last event");
+        assert_eq!(mark.props.transform.apply(0.0, 0.0).0, 308.0);
+        core.advance(Duration::from_millis(200));
+        assert!(
+            core.state.scene.node(INJECTION).is_none(),
+            "the mark goes 500 ms after the last event"
+        );
     }
 
     #[test]
