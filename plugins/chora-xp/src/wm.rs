@@ -20,7 +20,9 @@ use chora_kit::{conn::Conn, icons::Icons};
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
     SurfaceRequest, Transform, Uniform,
-    ipc::{ClientError, Export, Grab, OutputConfigure, PressState, RpcError, Subscribe},
+    ipc::{
+        ClientError, Export, ExportMethod, Grab, OutputConfigure, PressState, RpcError, Subscribe,
+    },
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -378,7 +380,7 @@ impl Wm {
             .call::<_, Value>(
                 "methods.export",
                 Export {
-                    names: METHODS.map(String::from).to_vec(),
+                    names: METHODS.map(ExportMethod::from).to_vec(),
                 },
             )
             .map(drop)

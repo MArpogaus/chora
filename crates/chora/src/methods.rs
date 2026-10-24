@@ -9,14 +9,14 @@
 //! `TIMEOUT` fails, and so does a call whose exporter disconnects.
 
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     time::{Duration, Instant},
 };
 
 pub(crate) use chora_scene::ipc::valid_name;
 use chora_scene::{
     Event,
-    ipc::{Export, Message, MethodCall, MethodReturn, RpcError},
+    ipc::{Export, ExportMethod, Message, MethodCall, MethodReturn, RpcError},
 };
 use serde_json::Value;
 
@@ -35,7 +35,7 @@ const MAX_PENDING: usize = 64;
 /// The exported methods and the calls that wait for their answers.
 #[derive(Default)]
 pub struct Methods {
-    exports: HashMap<u64, BTreeSet<String>>,
+    exports: HashMap<u64, BTreeMap<String, ExportMethod>>,
     pending: HashMap<u64, Pending>,
     next: u64,
 }
@@ -88,31 +88,38 @@ impl State {
     }
 
     fn export(&mut self, conn: u64, export: Export) -> Result<Value, RpcError> {
-        if let Some(bad) = export.names.iter().find(|n| !valid_name(n)) {
+        if let Some(bad) = export.names.iter().find(|m| !valid_name(m.name())) {
             return Err(rejected(format!(
-                "invalid method name {bad:?}: use a-z, 0-9, _, - and ."
+                "invalid method name {:?}: use a-z, 0-9, _, - and .",
+                bad.name()
             )));
         }
         let name = self.ipc.name(conn).unwrap_or_default().to_owned();
-        let methods = &self.methods;
         let taken = export.names.iter().find(|m| {
-            methods.exports.iter().any(|(other, names)| {
-                *other != conn && self.ipc.name(*other) == Some(&name) && names.contains(*m)
+            self.methods.exports.iter().any(|(other, known)| {
+                *other != conn
+                    && self.ipc.name(*other) == Some(&name)
+                    && known.contains_key(m.name())
             })
         });
         if let Some(taken) = taken {
             return Err(rejected(format!(
-                "{name}.{taken} is exported by another connection"
+                "{name}.{} is exported by another connection",
+                taken.name()
             )));
         }
-        let names = self.methods.exports.entry(conn).or_default();
-        let new = export.names.iter().filter(|n| !names.contains(*n)).count();
-        if names.len() + new > MAX_EXPORTS {
+        let known = self.methods.exports.entry(conn).or_default();
+        let new = export
+            .names
+            .iter()
+            .filter(|m| !known.contains_key(m.name()))
+            .count();
+        if known.len() + new > MAX_EXPORTS {
             return Err(rejected(format!(
                 "a connection exports at most {MAX_EXPORTS} methods"
             )));
         }
-        names.extend(export.names);
+        known.extend(export.names.into_iter().map(|m| (m.name().to_owned(), m)));
         Ok(Value::Null)
     }
 
@@ -121,7 +128,9 @@ impl State {
         self.methods
             .exports
             .iter()
-            .find(|(conn, names)| self.ipc.name(**conn) == Some(client) && names.contains(method))
+            .find(|(conn, names)| {
+                self.ipc.name(**conn) == Some(client) && names.contains_key(method)
+            })
             .map(|(conn, _)| *conn)
     }
 
@@ -209,13 +218,37 @@ impl State {
             };
             let methods = clients.entry(name).or_default();
             if let Some(names) = self.methods.exports.get(&conn) {
-                methods.extend(names.iter().map(String::as_str));
+                methods.extend(names.keys().map(String::as_str));
             }
         }
         let list: Vec<Value> = clients
             .into_iter()
             .map(|(name, methods)| serde_json::json!({"name": name, "methods": methods}))
             .collect();
+        Value::Array(list)
+    }
+
+    /// `methods.list`: every exported method with its description and
+    /// input schema, by connection and sorted by name. Plain exports
+    /// answer with `null` for both.
+    pub fn list_methods(&self) -> Value {
+        let mut list: Vec<Value> = Vec::new();
+        for conn in self.ipc.conn_ids() {
+            let Some(client) = self.ipc.name(conn) else {
+                continue;
+            };
+            let Some(methods) = self.methods.exports.get(&conn) else {
+                continue;
+            };
+            for method in methods.values() {
+                list.push(serde_json::json!({
+                    "client": client,
+                    "name": method.name(),
+                    "description": method.description(),
+                    "input_schema": method.input_schema(),
+                }));
+            }
+        }
         Value::Array(list)
     }
 
@@ -393,6 +426,53 @@ mod tests {
                 {"name": "wm", "methods": ["set_layout"]},
             ])
         );
+    }
+
+    /// `methods.list` answers the exports with description and schema
+    /// (T5), and a plain export without a schema still works.
+    #[test]
+    fn listed_methods_carry_description_and_schema() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let schema = json!({"type": "object", "properties": {"gap": {"type": "integer"}}});
+        let export = json!({"names": [
+            "restart",
+            {"name": "set_layout", "description": "Sets the layout.", "input_schema": schema},
+        ]});
+        wm.ok(&mut core, "methods.export", export);
+        let mut other = core.named("agent");
+        let listed = other.ok(&mut core, "methods.list", Value::Null);
+        assert_eq!(
+            listed,
+            json!([
+                {"client": "wm", "name": "restart", "description": null, "input_schema": null},
+                {
+                    "client": "wm",
+                    "name": "set_layout",
+                    "description": "Sets the layout.",
+                    "input_schema": schema,
+                },
+            ])
+        );
+        let id = other.send("methods.call", json!({"client": "wm", "method": "restart"}));
+        core.dispatch();
+        assert_eq!(wm.events_now(&mut core)[0]["params"]["method"], "restart");
+        assert_eq!(other.answer(&mut core, id), None, "the answer waits");
+        let (_, message) = wm.fails(
+            &mut core,
+            "methods.export",
+            json!({"names": [{"name": "Bad", "description": "d"}]}),
+        );
+        assert!(
+            message.starts_with("invalid method name \"Bad\""),
+            "{message}"
+        );
+        let (_, message) = wm.fails(
+            &mut core,
+            "methods.export",
+            json!({"names": [{"description": "no name"}]}),
+        );
+        assert!(message.contains("variant"), "{message}");
     }
 
     #[test]

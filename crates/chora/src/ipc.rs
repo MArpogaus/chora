@@ -790,6 +790,7 @@ impl State {
                 self.ipc_headless_output(conn, &request.method, params)
             }
             "clients.list" => Ok(self.clients()),
+            "methods.list" => Ok(self.list_methods()),
             "camera.release" => self.ipc_admin(conn, &request.method, params),
             "grants.set" | "grants.revoke" | "grants.list" | "clients.create" => {
                 self.ipc_admin(conn, &request.method, params)

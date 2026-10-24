@@ -562,9 +562,63 @@ pub struct GrantChange {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Export {
-    /// The method names, for example `set_layout`. Other clients call them
-    /// with the client name, as `tiling.set_layout`.
-    pub names: Vec<String>,
+    /// The methods, for example `set_layout`. Each entry is a plain name,
+    /// or an object with `name`, `description` and `input_schema`. Other
+    /// clients call them with the client name, as `tiling.set_layout`.
+    pub names: Vec<ExportMethod>,
+}
+
+/// One method of a `methods.export`, plain or described.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ExportMethod {
+    /// The method name alone, without description and schema.
+    Plain(String),
+    /// The name with what a caller needs to know about it.
+    Described {
+        /// The method name, for example `set_layout`.
+        name: String,
+        /// What the method does, in words for the caller.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        description: Option<String>,
+        /// A JSON schema of the parameters.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        input_schema: Option<Value>,
+    },
+}
+
+impl ExportMethod {
+    /// The method name.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Plain(name) | Self::Described { name, .. } => name,
+        }
+    }
+
+    /// The description, unless the exporter left it out.
+    #[must_use]
+    pub fn description(&self) -> Option<&str> {
+        match self {
+            Self::Plain(_) => None,
+            Self::Described { description, .. } => description.as_deref(),
+        }
+    }
+
+    /// The JSON schema of the parameters, unless the exporter left it out.
+    #[must_use]
+    pub fn input_schema(&self) -> Option<&Value> {
+        match self {
+            Self::Plain(_) => None,
+            Self::Described { input_schema, .. } => input_schema.as_ref(),
+        }
+    }
+}
+
+impl From<&str> for ExportMethod {
+    fn from(name: &str) -> Self {
+        Self::Plain(name.to_owned())
+    }
 }
 
 /// Parameters of `methods.call`.

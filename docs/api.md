@@ -773,6 +773,12 @@ plugin answers with `methods.return`: the same `call` and a `result`, or an
 `error` with a `code` and a `message`. The core passes the answer to the
 caller. The `Client` of `chora-scene` answers with `Client::answer`.
 
+Each entry of `methods.export` is a plain name, or an object with `name`,
+`description` and `input_schema`. `methods.list` answers every exported
+method as `{"client", "name", "description", "input_schema"}`, with `null`
+for a plain export. The core passes description and schema through
+unchanged, and `chora-tiling` gives one to each of its methods.
+
 - A method name has at most 64 characters: lowercase letters, digits, `_`,
   `-` and `.`, starting with a letter.
 - A connection exports at most 64 methods. Another connection of the same

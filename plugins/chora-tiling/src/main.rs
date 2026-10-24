@@ -21,11 +21,11 @@ use chora_kit::conn::Conn;
 use chora_scene::{
     Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest, ToplevelState,
     Transform,
-    ipc::{ClientError, Export, Grab, PressState, Query, RpcError, Subscribe},
+    ipc::{ClientError, Export, ExportMethod, Grab, PressState, Query, RpcError, Subscribe},
 };
 use clap::Parser;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::{
     config::{Action, Config},
@@ -277,21 +277,12 @@ impl Tiling {
             self.call_apply(vec![group])?;
         }
         self.grab_all()?;
-        let names = [
-            "set_layout",
-            "get_layout",
-            "give",
-            "view_tag",
-            "move_to_tag",
-            "focus",
-            "focus_next",
-            "focus_prev",
-            "swap_master",
-        ]
-        .map(String::from)
-        .to_vec();
-        self.client
-            .call::<_, Value>("methods.export", Export { names })?;
+        self.client.call::<_, Value>(
+            "methods.export",
+            Export {
+                names: exported_methods(),
+            },
+        )?;
         let events = [
             "surface.created",
             "surface.destroyed",
@@ -967,6 +958,102 @@ fn configure(id: &str, size: Option<[i32; 2]>, states: States) -> Command {
             .map(|(_, s)| s)
             .collect(),
     }
+}
+
+/// The layout values that `set_layout` accepts.
+fn layout_schema() -> Value {
+    json!({
+        "enum": [
+            "tile", "tile_left", "tile_bottom", "tile_top", "fair",
+            "fair_horizontal", "spiral", "dwindle", "max", "fullscreen",
+            "magnifier", "floating",
+        ],
+        "description": "The layout of the current tag.",
+    })
+}
+
+/// One exported method: name, description, schema properties, required.
+type Spec = (&'static str, &'static str, Value, Vec<&'static str>);
+
+/// The methods that other clients call, with description and schema of
+/// their parameters, as `methods.list` answers them.
+fn method_specs() -> Vec<Spec> {
+    let field = |ty: &str, description: &str| json!({"type": ty, "description": description});
+    let window = || field("string", "The surface id of the window.");
+    let tag = || field("integer", "The tag number, from 1.");
+    let on_surface = json!({"surface": window()});
+    vec![
+        (
+            "set_layout",
+            "Sets the layout and the gap of the current tag.",
+            json!({
+                "layout": layout_schema(),
+                "gap": field("integer", "The gap in logical pixels."),
+            }),
+            vec![],
+        ),
+        (
+            "get_layout",
+            "Answers the layout of the current tag.",
+            json!({}),
+            vec![],
+        ),
+        (
+            "give",
+            "Hands the focused window to another client.",
+            json!({"to": field("string", "The client name.")}),
+            vec!["to"],
+        ),
+        (
+            "view_tag",
+            "Shows a tag on the current output.",
+            json!({"tag": tag()}),
+            vec!["tag"],
+        ),
+        (
+            "move_to_tag",
+            "Moves a window to a tag.",
+            json!({"surface": window(), "tag": tag()}),
+            vec!["surface", "tag"],
+        ),
+        (
+            "focus",
+            "Focuses a window.",
+            on_surface.clone(),
+            vec!["surface"],
+        ),
+        ("focus_next", "Focuses the next window.", json!({}), vec![]),
+        (
+            "focus_prev",
+            "Focuses the previous window.",
+            json!({}),
+            vec![],
+        ),
+        (
+            "swap_master",
+            "Swaps a window into the master slot.",
+            on_surface,
+            vec!["surface"],
+        ),
+    ]
+}
+
+/// Turns the specs into the entries of `methods.export`.
+fn exported_methods() -> Vec<ExportMethod> {
+    method_specs()
+        .into_iter()
+        .map(
+            |(name, description, properties, required)| ExportMethod::Described {
+                name: name.into(),
+                description: Some(description.into()),
+                input_schema: Some(json!({
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                })),
+            },
+        )
+        .collect()
 }
 
 /// Parses the parameters of an exported method.
