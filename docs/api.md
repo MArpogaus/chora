@@ -408,7 +408,9 @@ many connections: ...`, before the core closes it.
 
 `hello` answers with the version of the core: the crate version and,
 for a build in a git checkout, the commit, for example
-`{"version": "0.5.4+1ea0e89abc"}`. `chora --version` prints the same.
+`{"version": "0.5.4+1ea0e89abc", "protocol": 1, "features": []}`.
+See "Protocol versions" for the other two fields. `chora --version`
+prints the same version.
 The client library of `chora-scene` warns once on stderr when the core is
 another build, so `choractl` and the plugins tell why a request fails
 after an update.
