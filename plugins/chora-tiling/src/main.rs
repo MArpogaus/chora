@@ -254,6 +254,7 @@ impl Tiling {
         Ok(())
     }
 
+    #[allow(clippy::too_many_lines)] // one step of the start after the other
     fn start(&mut self) -> Result<(), ClientError> {
         let outputs: Vec<OutputInfo> = self.client.call("output.list", Value::Null)?;
         for output in &outputs {
@@ -297,6 +298,7 @@ impl Tiling {
             "surface.detached",
             "surface.changed",
             "surface.requested",
+            "node.requested",
             "output.changed",
             "output.removed",
             "pointer.entered",
@@ -439,11 +441,13 @@ impl Tiling {
                     return Ok(());
                 }
             }
-            Event::SurfaceRequested { surface, request } if self.wm.has(&surface) => {
-                if request == SurfaceRequest::Close {
-                    return self.apply(vec![Command::Close { surface }]);
-                }
-                self.wm.request(&surface, request);
+            Event::SurfaceRequested { surface, request } => {
+                return self.answer_surface(&surface, request);
+            }
+            Event::NodeRequested {
+                node, action, args, ..
+            } => {
+                return self.answer_request(&node, &action, &args);
             }
             Event::MethodCalled {
                 call,
@@ -452,6 +456,59 @@ impl Tiling {
                 ..
             } => return self.answer(call, &method, params),
             _ => return Ok(()),
+        }
+        self.relayout()
+    }
+
+    /// Answers a `surface.requested` of one of the windows.
+    fn answer_surface(
+        &mut self,
+        surface: &str,
+        request: SurfaceRequest,
+    ) -> Result<(), ClientError> {
+        if !self.wm.has(surface) {
+            return Ok(());
+        }
+        if request == SurfaceRequest::Close {
+            return self.apply(vec![Command::Close {
+                surface: surface.into(),
+            }]);
+        }
+        self.wm.request(surface, request);
+        self.relayout()
+    }
+
+    /// Does what a request of another client asks of one of the windows
+    /// (D31). Actions that `answers` does not know stay unanswered.
+    fn answer_request(
+        &mut self,
+        node: &str,
+        action: &str,
+        args: &Value,
+    ) -> Result<(), ClientError> {
+        if !self.wm.has(node) {
+            return Ok(());
+        }
+        let before = self.wm.focused().map(String::from);
+        let Some(commands) = answers(&mut self.wm, node, action, args) else {
+            return Ok(());
+        };
+        if self.wm.focused() != before.as_deref() {
+            self.focus.take();
+        }
+        if action == "close" {
+            return self.apply(commands);
+        }
+        if !commands.is_empty() {
+            self.apply(commands)?;
+        }
+        if action == "move"
+            && args
+                .get("parent")
+                .and_then(Value::as_str)
+                .is_some_and(|parent| parent != NAME)
+        {
+            self.forget_window(node);
         }
         self.relayout()
     }
@@ -790,6 +847,34 @@ impl Tiling {
     }
 }
 
+/// The answer to a request of another client for one of the windows
+/// (D31): the commands that do it. `focus` goes through the model and
+/// answers without commands. `None`: the action, for example `resize`,
+/// stays unanswered.
+fn answers(wm: &mut Wm, node: &str, action: &str, args: &Value) -> Option<Vec<Command>> {
+    match action {
+        "focus" => {
+            wm.focus(node);
+            Some(Vec::new())
+        }
+        "close" => Some(vec![Command::Close {
+            surface: node.into(),
+        }]),
+        "move" => Some(vec![Command::Move {
+            id: node.into(),
+            parent: args
+                .get("parent")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+            index: args
+                .get("index")
+                .and_then(Value::as_u64)
+                .and_then(|i| usize::try_from(i).ok()),
+        }]),
+        _ => None,
+    }
+}
+
 /// The commands that bring a window from what was sent to its placement.
 fn changes(sent: Option<&Placement>, placement: &Placement) -> Vec<Command> {
     let id = &placement.id;
@@ -1023,6 +1108,45 @@ mod tests {
         // Another window manager still takes it with its own window.
         shown.moved(Some("s9"));
         assert!(shown.lost && !shown.sends(Some("s4")));
+    }
+
+    fn tiler(windows: &[&str]) -> Wm {
+        let mut wm = Wm::new(Config::parse(crate::config::DEFAULT).unwrap());
+        wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
+        for id in windows {
+            wm.add_window(id);
+        }
+        wm
+    }
+
+    #[test]
+    fn tiling_answers_a_requested_focus_with_the_model() {
+        let mut tiler = tiler(&["s1", "s2"]);
+        let commands = answers(&mut tiler, "s1", "focus", &Value::Null).expect("focus answers");
+        assert_eq!(commands, Vec::<Command>::new());
+        assert_eq!(tiler.focused(), Some("s1"));
+    }
+
+    #[test]
+    fn tiling_answers_a_requested_move_and_close() {
+        let mut tiler = tiler(&["s1"]);
+        let args = serde_json::json!({"parent": "other", "index": 2});
+        let commands = answers(&mut tiler, "s1", "move", &args).expect("move answers");
+        assert!(
+            matches!(&commands[..], [Command::Move { id, parent, index }]
+                if id == "s1" && parent.as_deref() == Some("other") && *index == Some(2))
+        );
+        let closed = answers(&mut tiler, "s1", "close", &Value::Null).expect("close answers");
+        assert!(
+            matches!(&closed[..], [Command::Close { surface }] if surface == "s1"),
+            "{closed:?}"
+        );
+    }
+
+    #[test]
+    fn a_requested_resize_stays_unanswered() {
+        let mut tiler = tiler(&["s1"]);
+        assert!(answers(&mut tiler, "s1", "resize", &Value::Null).is_none());
     }
 
     #[test]
