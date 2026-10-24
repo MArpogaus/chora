@@ -377,7 +377,7 @@ answers every request.
 | `methods.list` | list the methods that clients exported, each with its description and input schema |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
 | `methods.return(call, result, error)` | answer a `method.called` event |
-| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it |
+| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s |
 | `process.spawn(argv, capture)` | start a program with the environment of the core; with `capture`, the core keeps its output for `process.wait`; needs the grant `process.spawn` |
 | `process.wait(pid, timeout_ms)` | wait up to `timeout_ms` (at most 30000) for a program of `process.spawn` with `capture`, and return its output so far; needs the grant `process.spawn` |
 | `plugins.restart(name)` | stop the process of a client name and start its command again; needs the grant `process.spawn` |
@@ -716,14 +716,17 @@ $ choractl --name agent restart tiling
 `choractl run [--] CMD ARGS...` starts a program outside the core (D42).
 It first asks the core for an activation token with `activation.token`
 and passes it to the program in `XDG_ACTIVATION_TOKEN`. When `systemctl
---user is-system-running` answers, `systemd-run --user --scope` starts
-the program in a scope of its own. Otherwise `choractl` forks the
-program itself, detached in a session of its own. The command prints
-the pid as one JSON line. The program keeps the environment of the
-caller; export `WAYLAND_DISPLAY` and `CHORA_SOCKET` for it as for any
-client. A window that activates with the token before its first map
-shows it in `surface.created`. Milestone 0.7 moves the start of
-programs from the core to `choractl run` and systemd (D42).
+--user is-system-running` answers, `systemd-run --user` starts the
+program in a transient unit of its own and returns at once. The unit
+also gets `WAYLAND_DISPLAY` and `CHORA_SOCKET` of the caller; the
+output of the program goes to the journal. Otherwise `choractl` forks
+the program itself, detached in a session of its own, with the
+environment of the caller and with no terminal. The command prints the
+pid as one JSON line while the program runs. Export the two variables
+for the fallback as for any client. A window that activates with the
+token before its first map shows it in `surface.created`. Milestone 0.7
+moves the start of programs from the core to `choractl run` and systemd
+(D42).
 
 ```console
 $ choractl run -- foot

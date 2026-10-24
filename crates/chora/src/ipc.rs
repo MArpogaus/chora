@@ -820,8 +820,10 @@ impl State {
 
     /// A token for `choractl run` (D42): an xdg activation token of no
     /// client, so that the started program can activate with it. A use
-    /// ends the token; the core keeps unused ones until they are gone.
+    /// ends the token; each new token forgets the unused ones of no
+    /// client that are older than `MAX_TOKEN_AGE`.
     fn ipc_activation_token(&mut self) -> Value {
+        self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
         let (token, _) = self.activation_state.create_external_token(None);
         let token = token.as_str().to_owned();
         serde_json::json!({"token": token})
@@ -2983,6 +2985,33 @@ mod tests {
                 .tokens()
                 .any(|(t, _)| t.as_str() == token),
             "one use ends the token",
+        );
+    }
+
+    /// A program that never activates leaves its token behind. The core
+    /// forgets such unused tokens of no client once they grow old; a
+    /// fresh token and the tokens of clients stay.
+    #[test]
+    fn an_unused_activation_token_is_forgotten() {
+        let mut core = Core::new();
+        let mut ctl = core.named("choractl");
+        let answer = ctl.ok(&mut core, "activation.token", Value::Null);
+        let token = answer["token"]
+            .as_str()
+            .expect("an activation token")
+            .to_owned();
+        core.state.forget_unused_tokens(Duration::from_secs(30));
+        assert_eq!(
+            core.state.activation_state.tokens().count(),
+            1,
+            "a fresh token survives the sweep",
+        );
+        std::thread::sleep(Duration::from_millis(5));
+        core.state.forget_unused_tokens(Duration::ZERO);
+        assert_eq!(
+            core.state.activation_state.tokens().count(),
+            0,
+            "{token} of a program that never activated stayed",
         );
     }
 

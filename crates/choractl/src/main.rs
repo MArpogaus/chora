@@ -494,7 +494,7 @@ fn run_program(client: &mut Client, argv: &[String]) -> Result<(), ClientError> 
             "the core answered no activation token",
         )));
     };
-    let pid = match systemd_scope(argv, &token) {
+    let pid = match systemd_unit(argv, &token) {
         Some(pid) => pid,
         None => start_detached(argv, &token).map_err(|e| {
             ClientError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", argv[0])))
@@ -504,12 +504,15 @@ fn run_program(client: &mut Client, argv: &[String]) -> Result<(), ClientError> 
     Ok(())
 }
 
-/// The pid of the program in a scope of its own, or `None` when the user
-/// manager or `systemd-run` does not answer. `systemd-run` runs the
-/// program as its own child and exits once the scope holds it; the pid
-/// then comes from the manager. 0 means a scope whose pid the manager
-/// did not name yet.
-fn systemd_scope(argv: &[String], token: &str) -> Option<u32> {
+/// The pid of the program in a transient unit of its own, or `None` when
+/// the user manager or `systemd-run` does not answer. `systemd-run`
+/// without `--scope` returns once the start job of the unit is done, so
+/// the line with the pid comes out while the program runs; the pid is
+/// the program's own (`MainPID`). A unit starts with the environment of
+/// the user manager, so the variables of this session travel in the
+/// `Environment=` property. Output goes to the journal, never into the
+/// line on stdout.
+fn systemd_unit(argv: &[String], token: &str) -> Option<u32> {
     let answered = std::process::Command::new("systemctl")
         .args(["--user", "is-system-running"])
         .stderr(std::process::Stdio::null())
@@ -522,13 +525,22 @@ fn systemd_scope(argv: &[String], token: &str) -> Option<u32> {
         .duration_since(std::time::UNIX_EPOCH)
         .ok()
         .unwrap_or_default();
-    let unit = format!("chora-run-{}-{}.scope", std::process::id(), now.as_nanos());
-    let started = std::process::Command::new("systemd-run")
-        .args(["--user", "--scope", "--unit", &unit])
-        .args(argv)
-        .env("XDG_ACTIVATION_TOKEN", token)
-        .status()
-        .ok()?;
+    let unit = format!(
+        "chora-run-{}-{}.service",
+        std::process::id(),
+        now.as_nanos()
+    );
+    let mut started = std::process::Command::new("systemd-run");
+    started.args(["--user", "--collect", "--unit", &unit]);
+    started.arg(env_prop("XDG_ACTIVATION_TOKEN", token));
+    for key in ["WAYLAND_DISPLAY", "CHORA_SOCKET"] {
+        if let Ok(value) = std::env::var(key) {
+            started.arg(env_prop(key, &value));
+        }
+    }
+    // ponytail: the token is visible in argv of the short-lived
+    // `systemd-run`; it dies with `--collect` and within 10 s anyway.
+    let started = started.args(argv).status().ok()?;
     if !started.success() {
         return None;
     }
@@ -553,13 +565,17 @@ fn systemd_scope(argv: &[String], token: &str) -> Option<u32> {
 
 /// The program forked by `choractl` itself, detached in a session of its
 /// own and with the token in its environment; the pid of the child.
+/// Stdout and stderr go to the null device, so that the output of the
+/// program never mixes with the JSON line on stdout.
 #[allow(unsafe_code)] // one `setsid` in the fork hook, nothing else
 fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
     let mut command = std::process::Command::new(&argv[0]);
     command
         .args(&argv[1..])
         .env("XDG_ACTIVATION_TOKEN", token)
-        .stdin(std::process::Stdio::null());
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
     // SAFETY: the hook only calls `setsid`, an async-signal-safe function.
     unsafe {
         command.pre_exec(|| {
@@ -592,6 +608,14 @@ fn spawn(client: &mut Client, argv: Vec<String>, capture: bool) -> Result<(), Cl
             return Ok(());
         }
     }
+}
+
+/// The `Environment=` property of `systemd-run` for one variable. systemd
+/// parses the value like a shell, so quotes and backslashes need an
+/// escape and the value stays one assignment when it holds a space.
+fn env_prop(key: &str, value: &str) -> String {
+    let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("-pEnvironment={key}=\"{escaped}\"")
 }
 
 /// Polls `scene.query` until the selector matches, or with `gone` until
@@ -954,9 +978,17 @@ mod tests {
     use chora_scene::ipc::RpcError;
 
     use super::{
-        Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta, print_line, taken_socket,
-        wait_loop,
+        Args, AssetCmd, Capability, ClientSpec, Cmd, env_prop, grant_delta, print_line,
+        taken_socket, wait_loop,
     };
+
+    /// The `Environment=` property of `systemd-run` is one shell-parsed
+    /// list: a value with a space stays one assignment.
+    #[test]
+    fn an_environment_property_quotes_its_value() {
+        assert_eq!(env_prop("A", "x y"), r#"-pEnvironment=A="x y""#);
+        assert_eq!(env_prop("A", "a\"b\\c"), r#"-pEnvironment=A="a\"b\\c""#);
+    }
 
     /// The answer of `spawn` and `wait` is one JSON line, so that a script
     /// can read it. A newline inside a string stays escaped.
