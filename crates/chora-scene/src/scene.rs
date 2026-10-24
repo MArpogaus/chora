@@ -783,8 +783,12 @@ impl Scene {
 
     /// Shows the injection mark of the core: a small yellow rect without
     /// owner under the overlay root of `output`, at its logical
-    /// coordinates (D23). It passes pointer input.
+    /// coordinates (D23). It passes pointer input. A node of a client
+    /// that took the id stays; then the mark is skipped.
     pub fn show_injection(&mut self, output: &str, at: [f64; 2]) {
+        if self.nodes.get(INJECTION).is_some_and(|n| n.owner.is_some()) {
+            return;
+        }
         self.remove_injection();
         let parent = overlay_id(output);
         let Some(overlay) = self.nodes.get_mut(&parent) else {

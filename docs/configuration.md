@@ -622,8 +622,9 @@ of another client changes nothing.
 | Super and a drag with the left button | turn the cube with the pointer. A drag over the width of the output is a quarter turn. At the release, the cube turns to the nearest desktop. |
 | a desktop button 1 to 4 | turn the cube to that desktop |
 
-The safety layer keeps only Ctrl+Alt with BackSpace, Escape and F1 to F12,
-so the cube takes Ctrl+Alt with the arrows. When another client holds
+The safety layer keeps only Ctrl+Alt with BackSpace, Escape, i and F1 to
+F12, so the cube takes Ctrl+Alt with the arrows. Ctrl+Alt+i is the revoke
+binding of [Safety layer](architecture.md#safety-layer). When another client holds
 these bindings, Super+Ctrl with the arrows stands in.
 
 `chora-xp` exports methods for other clients (see

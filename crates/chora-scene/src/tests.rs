@@ -1,8 +1,9 @@
 //! Tests of the scene rules.
 
 use crate::{
-    Command, Easing, Effect, Event, MAX_CAMERAS, MAX_DURATION, MAX_NODES, NodeKind, PropsUpdate,
-    ROOT, Scene, SceneError, Selector, SurfaceInfo, SurfaceRequest, Transform, overlay_id,
+    Command, Easing, Effect, Event, INJECTION, MAX_CAMERAS, MAX_DURATION, MAX_NODES, NodeKind,
+    PropsUpdate, ROOT, Scene, SceneError, Selector, SurfaceInfo, SurfaceRequest, Transform,
+    overlay_id,
 };
 
 fn group(id: &str, parent: &str) -> Command {
@@ -978,6 +979,31 @@ fn an_overlay_root_holds_nodes_fixed_to_its_output() {
         scene.node(&overlay_id("DP-1")).unwrap().children,
         Vec::<String>::new()
     );
+}
+
+#[test]
+fn the_injection_mark_leaves_a_client_node_with_the_id_alone() {
+    let mut scene = Scene::default();
+    scene.add_overlay("DP-1");
+    let take = Command::Create {
+        id: INJECTION.into(),
+        kind: NodeKind::Rect,
+        parent: overlay_id("DP-1"),
+        props: PropsUpdate::default(),
+    };
+    scene.apply("agent", &[take]).unwrap();
+    scene.show_injection("DP-1", [1.0, 2.0]);
+    assert_eq!(
+        scene.node(INJECTION).unwrap().owner.as_deref(),
+        Some("agent")
+    );
+    // The id stays under exactly one parent, listed once.
+    assert_eq!(
+        scene.node(&overlay_id("DP-1")).unwrap().children,
+        vec![INJECTION.to_string()]
+    );
+    assert!(!scene.remove_injection());
+    assert!(scene.node(INJECTION).is_some());
 }
 
 #[test]

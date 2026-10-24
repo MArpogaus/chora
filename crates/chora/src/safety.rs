@@ -1,10 +1,11 @@
 //! The safety layer: the only built-in behavior (D23).
 //!
 //! Besides the bindings, the reset and the injection mark (D23), a
-//! watchdog watches the frames of each output. After two seconds of slow frames it blames the client whose
-//! visible nodes cost the most and removes its effects; when frames stay
-//! slow for two more seconds, it disconnects that client, at most once a
-//! minute. The emergency reset is for the binding and SIGUSR1 only.
+//! watchdog watches the frames of each output. After two seconds of
+//! slow frames it blames the client whose visible nodes cost the most
+//! and removes its effects; when frames stay slow for two more
+//! seconds, it disconnects that client, at most once a minute. The
+//! emergency reset is for the binding and SIGUSR1 only.
 //! `CHORA_FRAME_BUDGET_US` sets a fixed budget in microseconds, for tests.
 
 use calloop::{
