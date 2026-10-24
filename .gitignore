@@ -19,3 +19,4 @@ plans/0.*-review-*.md
 plans/0.*-driver.out
 plans/0.*-log.txt
 plans/then-battle.out
+tests/battle/log.txt
