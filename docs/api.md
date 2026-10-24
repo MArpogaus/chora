@@ -710,9 +710,20 @@ whose origin is (0, 0), or in the coordinates of the node.
 ]}
 ```
 
+A click on a node needs no client math, whatever pan, zoom or parent
+scale the scene shows:
+
+<!-- parses: inject -->
+```json
+{"events": [
+  {"pointer_move": {"node": "menu", "point": [10, 20]}},
+  {"click": {"button": 272}}
+]}
+```
+
 | Event | Fields |
 |-------|--------|
-| `pointer_move` | `position` in the logical coordinates of the output, as in a capture; `output`, the first one by default |
+| `pointer_move` | `position` in the logical coordinates of the output, as in a capture; `output`, the first one by default; or `node` with `point` inside it |
 | `button` | `button`, a Linux code, 272 (left) by default; `state`: `pressed` or `released`; `hold`: a press stays down when the request ends |
 | `click` | `button`; presses and releases it |
 | `scroll` | `dx` and `dy` in logical pixels; a positive `dy` scrolls down |
@@ -720,6 +731,9 @@ whose origin is (0, 0), or in the coordinates of the node.
 | `shortcut` | `keys`, a binding such as `Ctrl+Shift+t`: the modifiers go down, the key goes down and up, the modifiers go up |
 | `text` | `text`; a newline presses Return, a tab presses Tab |
 
+- `node` and `point` replace `position`. The core maps the point through
+  the same transforms that give the `rects` of a query for the node. A
+  node that shows no such point rejects the request.
 - The core checks all events before the first one runs. An event that does
   not resolve, for example a character without a key, rejects the request.
 - Key names and text use the first layout of the keymap. A character needs

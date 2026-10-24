@@ -651,14 +651,22 @@ pub struct Inject {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum InjectEvent {
-    /// Moves the pointer to a point in the logical coordinates of an
-    /// output, the first one by default.
+    /// Moves the pointer, either to `position` in the logical coordinates
+    /// of an output, the first one by default, or to `point` inside the
+    /// node `node`.
     PointerMove {
-        /// The point.
-        position: [f64; 2],
+        /// The point in the logical coordinates of an output.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        position: Option<[f64; 2]>,
         /// The output name.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         output: Option<String>,
+        /// The node, found by its id.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        node: Option<String>,
+        /// The point inside the node, in the coordinates of the node.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        point: Option<[f64; 2]>,
     },
     /// Presses or releases a pointer button.
     Button {

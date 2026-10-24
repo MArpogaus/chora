@@ -11,7 +11,7 @@
 use std::collections::HashMap;
 
 use chora_scene::{
-    Binding,
+    Binding, Node, NodeKind, Transform,
     ipc::{Capability, Inject, InjectEvent, Key, PressState, RpcError},
 };
 use serde_json::Value;
@@ -107,8 +107,20 @@ impl State {
     fn steps(&self, event: &InjectEvent, keys: Option<&Keys>) -> Result<Vec<Step>, String> {
         let keys = || keys.ok_or_else(|| String::from("no keymap"));
         Ok(match event {
-            InjectEvent::PointerMove { position, output } => {
-                vec![Step::Move(self.inject_point(*position, output.as_deref())?)]
+            InjectEvent::PointerMove {
+                position,
+                output,
+                node,
+                point,
+            } => {
+                let at = match (position, node, point) {
+                    (Some(position), None, None) => {
+                        self.inject_point(*position, output.as_deref())?
+                    }
+                    (None, Some(node), Some(point)) => self.node_point(node, *point)?,
+                    _ => return Err("pointer_move needs position or node and point".into()),
+                };
+                vec![Step::Move(at)]
             }
             InjectEvent::Button {
                 button,
@@ -148,6 +160,53 @@ impl State {
         .ok_or("no such output")?;
         let point = output_area(output).loc.to_f64() + Point::from((x, y));
         Ok(self.clamp_to_outputs(point))
+    }
+
+    /// A point inside a node, in the coordinates of the node, as a point
+    /// of the layout. Maps it through the same transforms as the `rects`
+    /// of a query, so pan, zoom and scaled parents need no client math.
+    /// A mesh, a perspective or a clip may draw the point elsewhere.
+    fn node_point(&self, node: &str, [x, y]: [f64; 2]) -> Result<Point<f64, Logical>, String> {
+        if !(x.is_finite() && y.is_finite()) {
+            return Err("the point is not finite".into());
+        }
+        for output in &self.outputs {
+            let name = output.name();
+            let area = output_area(output);
+            // The overlay sits in the coordinates of its output, without
+            // its camera (D43).
+            let views = [
+                (Transform::IDENTITY, self.scene.overlay_draw_list(&name)),
+                (self.camera(output), self.scene.draw_list()),
+            ];
+            for (camera, list) in views {
+                let Some(placed) = list
+                    .iter()
+                    .find(|p| p.node.id == node && self.draws_something(p.node))
+                else {
+                    continue;
+                };
+                let (at_x, at_y) = camera.then(&placed.transform).apply(x, y);
+                if at_x >= 0.0
+                    && at_y >= 0.0
+                    && at_x < f64::from(area.size.w)
+                    && at_y < f64::from(area.size.h)
+                {
+                    return Ok(area.loc.to_f64() + Point::from((at_x, at_y)));
+                }
+            }
+        }
+        Err(format!("the node {node:?} shows no point [{x}, {y}]"))
+    }
+
+    /// Whether a node draws at a place of its own: groups and shaders
+    /// draw nothing, and a surface without a window draws nothing.
+    fn draws_something(&self, node: &Node) -> bool {
+        match node.kind {
+            NodeKind::Surface => self.windows.contains_key(node.id.as_str()),
+            NodeKind::Rect | NodeKind::Image => true,
+            NodeKind::Group | NodeKind::Shader => false,
+        }
     }
 
     fn run_steps(&mut self, steps: &[Step]) {
@@ -486,6 +545,74 @@ mod tests {
             names.iter().any(|e| e == "pointer.released"),
             "the request ends its buttons: {names:?}"
         );
+    }
+
+    #[test]
+    fn a_node_point_lands_where_the_query_shows_the_rect() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut ctl = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        ctl.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        // The watcher owns a child under a parent that doubles it and
+        // moves it, so node coordinates and screen coordinates differ.
+        let mut watcher = core.named("watcher");
+        watcher.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "big", "kind": "group", "parent": "root",
+                    "props": {"transform": {"scale": [2.0, 2.0],
+                                            "translate": [40.0, 20.0]}}}},
+                {"create": {"id": "child", "kind": "rect", "parent": "big",
+                    "props": {"size": [100.0, 100.0], "color": [1, 1, 1, 1],
+                              "transform": {"translate": [10.0, 20.0]}}}},
+            ]}),
+        );
+        watcher.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let found = watcher.ok(&mut core, "scene.query", json!({"selector": "id:child"}));
+        let rect: Vec<f64> = found[0]["rects"]["HDMI-1"]
+            .as_array()
+            .expect("a rect")
+            .iter()
+            .map(|v| v.as_f64().expect("a number"))
+            .collect();
+        agent.ok(
+            &mut core,
+            "input.inject",
+            json!({"events": [
+                {"pointer_move": {"node": "child", "point": [50.0, 50.0]}},
+                {"button": {"state": "pressed"}}
+            ]}),
+        );
+        let events = watcher.events_now(&mut core);
+        let pressed = events
+            .iter()
+            .find(|e| e["params"]["event"] == json!("pointer.pressed"))
+            .expect("the click lands on the child");
+        let at: Vec<f64> = pressed["params"]["position"]
+            .as_array()
+            .expect("a position")
+            .iter()
+            .map(|v| v.as_f64().expect("a number"))
+            .collect();
+        // The middle of the node, read through the rects of the query.
+        assert_eq!(at, vec![rect[0] + rect[2] / 2.0, rect[1] + rect[3] / 2.0]);
+        // A move with neither position nor node and point fails.
+        let (_, message) = agent.fails(
+            &mut core,
+            "input.inject",
+            json!({"events": [{"pointer_move": {}}]}),
+        );
+        assert!(message.contains("position or node"), "{message}");
+        // A move to a node that shows nowhere fails.
+        let (_, message) = agent.fails(
+            &mut core,
+            "input.inject",
+            json!({"events": [{"pointer_move": {"node": "gone", "point": [1.0, 1.0]}}]}),
+        );
+        assert!(message.contains("gone"), "{message}");
     }
 
     fn us() -> Keys {
