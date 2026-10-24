@@ -410,7 +410,7 @@ fn the_scene_has_a_node_limit() {
     let err = scene
         .apply("wm", &groups(MAX_NODES..MAX_NODES + 1))
         .unwrap_err();
-    assert!(matches!(err.error, SceneError::Invalid(_)), "{err}");
+    assert!(matches!(err.error, SceneError::Limit(_)), "{err}");
 }
 
 fn camera(output: &str, transform: Option<Transform>) -> Command {

@@ -421,6 +421,8 @@ fn transaction_error(error: &TransactionError) -> RpcError {
         RpcError::GONE_SURFACE
     } else if matches!(error.error, SceneError::Missing(_)) {
         RpcError::UNKNOWN_NODE
+    } else if matches!(error.error, SceneError::Limit(_)) {
+        RpcError::LIMIT_REACHED
     } else {
         RpcError::REJECTED
     };
@@ -449,6 +451,17 @@ mod tests {
             .expect_err("the id exists the second time");
         assert_eq!(error["code"], RpcError::REJECTED);
         assert_eq!(error["data"]["command"], 1);
+    }
+
+    /// A scene limit answers code 6, not code 1.
+    #[test]
+    fn a_scene_limit_answers_the_limit_code() {
+        let error = transaction_error(&TransactionError {
+            index: 3,
+            error: SceneError::Limit("the scene holds 16384 nodes, its limit".into()),
+        });
+        assert_eq!(error.code, RpcError::LIMIT_REACHED);
+        assert_eq!(error.data.expect("the failed command")["command"], 3);
     }
 
     /// A transaction of a connection that waits for the configures of

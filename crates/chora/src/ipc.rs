@@ -1900,7 +1900,7 @@ mod tests {
     }
 
     #[test]
-    fn an_admin_method_on_a_client_socket_answers_its_code() {
+    fn an_admin_method_off_the_admin_socket_answers_its_code() {
         let mut core = Core::new();
         let mut agent = core.named("agent");
         let grant = json!({"client": "agent", "capabilities": ["input.inject"]});

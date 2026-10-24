@@ -586,8 +586,8 @@ path:
 - It cannot change grants or make client sockets, as these need the
   admin socket.
 - It fixes the name, confines the files and narrows the scene. On it,
-  `scene.apply` follows these rules. A refusal has code 1, names its
-  rule and carries the index of the command in `data`:
+  `scene.apply` follows these rules. A refusal has code 1, 2 or 5,
+  names its rule and carries the index of the command in `data`:
   - `focus_node` with a node needs the last press of the user on a node
     or a window of the name. The press counts once, and a key press
     ends it.

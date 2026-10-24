@@ -93,10 +93,13 @@ impl State {
         let pixels = self.render_shot(&shot).map_err(rejected)?;
         let png = encode(&pixels).map_err(rejected)?;
         if png.len() > MAX_PNG {
-            return Err(rejected(format!(
-                "the picture has {} KiB; ask for a smaller max_side",
-                png.len() >> 10
-            )));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!(
+                    "the picture has {} KiB; ask for a smaller max_side",
+                    png.len() >> 10
+                ),
+            ));
         }
         let picture = Picture {
             width: pixels.width,

@@ -36,6 +36,9 @@ pub enum SceneError {
     /// A value is out of range, for example a negative size.
     #[error("{0}")]
     Invalid(String),
+    /// A limit of the scene is reached, for example the number of nodes.
+    #[error("{0}")]
+    Limit(String),
     /// The root cannot change.
     #[error("the root cannot change")]
     Root,
@@ -582,7 +585,7 @@ impl Scene {
         }
         // The root and the surfaces do not count.
         if self.nodes.len() - self.surfaces > MAX_NODES {
-            return Err(SceneError::Invalid(format!(
+            return Err(SceneError::Limit(format!(
                 "{id:?}: the scene holds {MAX_NODES} nodes, its limit"
             )));
         }
