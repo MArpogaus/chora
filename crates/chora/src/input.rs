@@ -879,11 +879,19 @@ mod tests {
     }
 
     /// The `params` of the events of a client after a turn of the core.
+    /// The params of the events, without `seq`: these tests check
+    /// payloads, the sequence numbers have a test of their own.
     fn events(client: &mut Client, core: &mut Core) -> Vec<Value> {
         client
             .events_now(core)
             .into_iter()
-            .map(|e| e["params"].clone())
+            .map(|e| {
+                let mut params = e["params"].clone();
+                if let Some(params) = params.as_object_mut() {
+                    params.remove("seq");
+                }
+                params
+            })
             .collect()
     }
 

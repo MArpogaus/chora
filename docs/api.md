@@ -285,6 +285,13 @@ by default; a timeout exits 1 with the reason on stderr.
 | `client.connected`, `client.disconnected` | client name |
 | `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`; only the exporting connection gets it, subscribed or not |
 
+Every event carries `seq`, the count of its connection (D32). The count
+starts at 1 with `events.subscribe`. The answer of `events.subscribe` is a
+snapshot of the current scene, the same list that `scene.query` gives for
+all nodes. The core numbers only the events that follow that snapshot, so
+the client sees every change once. After a reconnect a client works from
+the new snapshot and forgets the old numbers.
+
 The response of `scene.apply` reports the result of a transaction: `null`
 when it applied, an error with the index of the failed command when not.
 `choractl apply FILE` reads one list of commands as JSON, from standard
@@ -345,7 +352,7 @@ answers every request.
 | `hello(name, keep_nodes, resume)` | name the client (lowercase letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes); `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); returns `{"version": ...}` |
 | `scene.query(selector, filter)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
-| `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused |
+| `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused |
 | `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; `Ctrl+Alt` with a key of the safety layer stays refused either way; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |

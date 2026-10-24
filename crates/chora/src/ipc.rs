@@ -139,6 +139,9 @@ struct Conn {
     /// The socket that the connection came through.
     socket: Socket,
     events: Option<Vec<String>>,
+    /// The number of events sent to this connection; each event carries
+    /// it as `seq` (D32).
+    seq: u64,
     /// The edges of `output.reserve` by output name.
     reserves: HashMap<String, Edges>,
     /// The source that reads the connection. `None` after the end of the
@@ -311,7 +314,6 @@ impl Ipc {
                 .and_then(|p| p["surface"].as_str())
                 .and_then(window_client)
         });
-        let line = line(&message);
         for conn in self.conns.values_mut() {
             let wanted = conn
                 .events
@@ -321,7 +323,8 @@ impl Ipc {
                 .as_ref()
                 .is_some_and(|w| conn.fixed().is_some_and(|f| w.as_deref() != Some(f)));
             if wanted && !foreign && client.is_none_or(|c| conn.name.as_deref() == Some(c)) {
-                conn.push(&line);
+                conn.seq += 1;
+                conn.push(&stamped(&message, conn.seq));
             }
         }
     }
@@ -329,7 +332,8 @@ impl Ipc {
     /// Sends an event to one connection, subscribed or not.
     pub fn send_to(&mut self, conn: u64, event: &Event) {
         if let Some(c) = self.conns.get_mut(&conn) {
-            c.push(&line(&Message::event(event)));
+            c.seq += 1;
+            c.push(&stamped(&Message::event(event), c.seq));
         }
     }
 
@@ -568,6 +572,16 @@ fn line(message: &Message) -> Vec<u8> {
     bytes
 }
 
+/// The line of an event notification with the sequence number of the
+/// connection (D32): every connection numbers its events from 1.
+fn stamped(message: &Message, seq: u64) -> Vec<u8> {
+    let mut message = message.clone();
+    if let Some(Value::Object(params)) = message.params.as_mut() {
+        params.insert("seq".into(), Value::from(seq));
+    }
+    line(&message)
+}
+
 impl State {
     /// Accepts every waiting connection. When accepting fails, for example
     /// because no file descriptors are left, the listener pauses for a
@@ -666,6 +680,7 @@ impl State {
             resume: false,
             socket,
             events: None,
+            seq: 0,
             reserves: HashMap::new(),
             reader: Some(token),
         };
@@ -796,7 +811,9 @@ impl State {
     }
 
     /// Streams the named events, or all of them for an empty list. An
-    /// unknown name is a mistake that answers, not silence.
+    /// unknown name is a mistake that answers, not silence. The answer is
+    /// a snapshot of the scene as `scene.query` gives it (D32), so that no
+    /// change between the snapshot and the first event is lost.
     fn ipc_subscribe(&mut self, conn: u64, subscription: Subscribe) -> Result<Value, RpcError> {
         if let Some(unknown) = subscription
             .events
@@ -808,7 +825,7 @@ impl State {
         if let Some(c) = self.ipc.conns.get_mut(&conn) {
             c.events = Some(subscription.events);
         }
-        Ok(Value::Null)
+        self.query(conn, &Query::new(""))
     }
 
     /// The methods of grants and client sockets. Only the admin socket of
@@ -1794,6 +1811,57 @@ mod tests {
         assert!(message.contains("no event \"surfae.created\""), "{message}");
     }
 
+    /// Gate check 5 of 0.8: a subscription that starts while transactions
+    /// run misses no event and sees no event twice.
+    #[test]
+    fn a_subscription_answers_with_a_snapshot_and_numbers_its_events() {
+        const TOTAL: usize = 1000;
+        const BEFORE: usize = 512;
+        let mut core = Core::new();
+        core.add_output("DP-1", (800, 600));
+        let mut watcher = core.named("watcher");
+        watcher.ok(&mut core, "scene.apply", rect("kept"));
+        // Every camera transaction sends one `output.changed`.
+        let camera = json!({"commands": [{"camera": {"output": "DP-1"}}]});
+        // The subscription lands between two transactions of a waiting
+        // list of `TOTAL`. Batches keep the socket buffers free.
+        let mut sub = 0;
+        let mut messages: Vec<Value> = Vec::new();
+        for sent in 0..TOTAL {
+            watcher.send("scene.apply", camera.clone());
+            if sent + 1 == BEFORE {
+                sub = watcher.send("events.subscribe", json!({"events": ["output.changed"]}));
+            }
+            if (sent + 1) % 64 == 0 {
+                core.dispatch();
+                messages.extend(watcher.read().unwrap_or_default());
+            }
+        }
+        loop {
+            core.dispatch();
+            let more = watcher.read().unwrap_or_default();
+            if more.is_empty() {
+                break;
+            }
+            messages.extend(more);
+        }
+        let events = TOTAL - BEFORE;
+        assert_eq!(messages.len(), TOTAL + 1 + events, "all answers and events");
+        let at = messages
+            .iter()
+            .position(|m| m["id"] == sub)
+            .expect("the subscribe answer");
+        assert!(messages[..at].iter().all(|m| m["method"] != "event"));
+        let snapshot = messages[at]["result"].as_array().expect("a snapshot");
+        assert!(snapshot.iter().any(|n| n["id"] == "kept"));
+        let seqs: Vec<u64> = messages[at..]
+            .iter()
+            .filter(|m| m["method"] == "event")
+            .map(|m| m["params"]["seq"].as_u64().expect("a sequence number"))
+            .collect();
+        assert_eq!(seqs, (1..=events as u64).collect::<Vec<u64>>());
+    }
+
     #[test]
     fn a_subscription_names_its_events_or_takes_all() {
         let mut core = Core::new();
@@ -1941,8 +2009,11 @@ mod tests {
         let (_, message) = wm.fails(&mut core, "scene.apply", remove_s1_to("nobody"));
         assert!(message.contains("no connection"), "{message}");
         wm.ok(&mut core, "scene.apply", remove_s1_to("b"));
-        let detached = json!({"event": "surface.detached", "surface": "s1"});
-        let heard = |events: Vec<Value>| events.iter().any(|e| e["params"] == detached);
+        let heard = |events: Vec<Value>| {
+            events.iter().any(|e| {
+                e["params"]["event"] == "surface.detached" && e["params"]["surface"] == "s1"
+            })
+        };
         assert!(heard(b.events_now(&mut core)));
         assert!(!heard(other.events_now(&mut core)), "only b hears of it");
         assert_eq!(core.state.focused_surface(), None, "the focus stays behind");
@@ -2890,7 +2961,13 @@ mod tests {
         let heard = |b: &mut Client, core: &mut Core| -> Vec<Value> {
             b.events_now(core)
                 .into_iter()
-                .map(|e| e["params"].clone())
+                .map(|e| {
+                    let mut params = e["params"].clone();
+                    if let Some(params) = params.as_object_mut() {
+                        params.remove("seq");
+                    }
+                    params
+                })
                 .collect()
         };
         assert_eq!(
