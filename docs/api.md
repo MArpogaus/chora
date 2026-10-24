@@ -285,12 +285,15 @@ by default; a timeout exits 1 with the reason on stderr.
 | `client.connected`, `client.disconnected` | client name |
 | `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`; only the exporting connection gets it, subscribed or not |
 
-Every event carries `seq`, the count of its connection (D32). The count
-starts at 1 with `events.subscribe`. The answer of `events.subscribe` is a
-snapshot of the current scene, the same list that `scene.query` gives for
-all nodes. The core numbers only the events that follow that snapshot, so
-the client sees every change once. After a reconnect a client works from
-the new snapshot and forgets the old numbers.
+Every event carries `seq`, the count of its connection (D32). Every event
+that the core pushes to a connection carries the next number of that
+connection, also before `events.subscribe`. The answer of
+`events.subscribe` is a snapshot of the current scene, the same list that
+`scene.query` gives for all nodes. The snapshot covers the state before
+it, the events that follow cover every change after it. A number that
+skips tells the client that it missed an event, so it queries again. After
+a reconnect a client works from the new snapshot and forgets the old
+numbers.
 
 The response of `scene.apply` reports the result of a transaction: `null`
 when it applied, an error with the index of the failed command when not.

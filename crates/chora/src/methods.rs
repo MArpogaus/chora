@@ -292,6 +292,18 @@ mod tests {
         assert_eq!(caller.answer(&mut core, id), Some(Ok(json!("done"))));
     }
 
+    /// The sequence numbers count every event of a connection, also the
+    /// events that arrive before it subscribes (D32).
+    #[test]
+    fn the_sequence_numbers_every_event_of_a_connection() {
+        let (mut core, mut wm, mut caller) = exported();
+        call(&mut caller, "set_layout");
+        assert_eq!(wm.events_now(&mut core)[0]["params"]["seq"], 1);
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        call(&mut caller, "set_layout");
+        assert_eq!(wm.events_now(&mut core)[0]["params"]["seq"], 2);
+    }
+
     #[test]
     fn an_error_of_the_exporter_reaches_the_caller() {
         let (mut core, mut wm, mut caller) = exported();
