@@ -39,3 +39,10 @@ clean under the distinct-title judge (see FRICTION backlog).
 - open, by judgement not by time: silent core death after the budgets
   probe under load, W7 tiling silent after SIGUSR1, watchdog
   tolerance against stress clients -> FRICTION.md
+
+# prep-0.8 validation (2026-10-24)
+
+Branch `prep-0.8` = `dev` + `b3a6d84` (WM plugins reconnect after the
+emergency reset). Full battle suite: two clean passes, THE END at
+02:56 UTC. W7 (SIGUSR1) passes without a finding for the first time;
+the W5 stress finding did not appear at all on this branch.
