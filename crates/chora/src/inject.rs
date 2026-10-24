@@ -25,6 +25,7 @@ use crate::{
     input,
     ipc::{params_of, rejected},
     output::output_area,
+    render::node_size,
     state::State,
 };
 
@@ -117,7 +118,9 @@ impl State {
                     (Some(position), None, None) => {
                         self.inject_point(*position, output.as_deref())?
                     }
-                    (None, Some(node), Some(point)) => self.node_point(node, *point)?,
+                    (None, Some(node), Some(point)) => {
+                        self.node_point(node, *point, output.as_deref())?
+                    }
                     _ => return Err("pointer_move needs position or node and point".into()),
                 };
                 vec![Step::Move(at)]
@@ -165,12 +168,28 @@ impl State {
     /// A point inside a node, in the coordinates of the node, as a point
     /// of the layout. Maps it through the same transforms as the `rects`
     /// of a query, so pan, zoom and scaled parents need no client math.
-    /// A mesh, a perspective or a clip may draw the point elsewhere.
-    fn node_point(&self, node: &str, [x, y]: [f64; 2]) -> Result<Point<f64, Logical>, String> {
+    /// The point must lie in the box the node draws; `output`, if given,
+    /// limits the search to that output. A mesh, a perspective or a clip
+    /// may draw the point elsewhere.
+    fn node_point(
+        &self,
+        node: &str,
+        [x, y]: [f64; 2],
+        output: Option<&str>,
+    ) -> Result<Point<f64, Logical>, String> {
         if !(x.is_finite() && y.is_finite()) {
             return Err("the point is not finite".into());
         }
-        for output in &self.outputs {
+        let outputs: &[_] = match output {
+            Some(name) => std::slice::from_ref(
+                self.outputs
+                    .iter()
+                    .find(|o| o.name() == name)
+                    .ok_or("no such output")?,
+            ),
+            None => &self.outputs,
+        };
+        for output in outputs {
             let name = output.name();
             let area = output_area(output);
             // The overlay sits in the coordinates of its output, without
@@ -186,6 +205,9 @@ impl State {
                 else {
                     continue;
                 };
+                if !self.shows_point(placed.node, x, y) {
+                    continue;
+                }
                 let (at_x, at_y) = camera.then(&placed.transform).apply(x, y);
                 if at_x >= 0.0
                     && at_y >= 0.0
@@ -197,6 +219,33 @@ impl State {
             }
         }
         Err(format!("the node {node:?} shows no point [{x}, {y}]"))
+    }
+
+    /// Whether a point of the node's own coordinates lies in the box the
+    /// node draws, as `hit` in the renderer does. The box of a surface is
+    /// its bounds, which include subsurfaces and decorations.
+    fn shows_point(&self, node: &Node, x: f64, y: f64) -> bool {
+        let (at_x, at_y, w, h) = match node.kind {
+            NodeKind::Rect | NodeKind::Image => {
+                let [w, h] = node_size(self, node);
+                (0.0, 0.0, w, h)
+            }
+            NodeKind::Surface => {
+                let Some(window) = self.windows.get(node.id.as_str()) else {
+                    return false;
+                };
+                let bbox = window.bbox().to_f64();
+                let geo = window.geometry().loc.to_f64();
+                (
+                    bbox.loc.x - geo.x,
+                    bbox.loc.y - geo.y,
+                    bbox.size.w,
+                    bbox.size.h,
+                )
+            }
+            NodeKind::Group | NodeKind::Shader => return false,
+        };
+        (at_x..at_x + w).contains(&x) && (at_y..at_y + h).contains(&y)
     }
 
     /// Whether a node draws at a place of its own: groups and shaders
@@ -613,6 +662,64 @@ mod tests {
             json!({"events": [{"pointer_move": {"node": "gone", "point": [1.0, 1.0]}}]}),
         );
         assert!(message.contains("gone"), "{message}");
+    }
+
+    #[test]
+    fn a_node_point_is_sought_on_the_named_output_only() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        core.add_output("DP-1", (800, 600));
+        let mut ctl = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        ctl.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        // A node fixed to the overlay of DP-1 shows on that output only.
+        let mut watcher = core.named("watcher");
+        watcher.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "badge", "kind": "rect",
+                "parent": "screen:DP-1", "props": {"size": [100.0, 100.0],
+                "color": [1, 1, 1, 1]}}}]}),
+        );
+        watcher.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let found = watcher.ok(&mut core, "scene.query", json!({"selector": "id:badge"}));
+        let rect: Vec<f64> = found[0]["rects"]["DP-1"]
+            .as_array()
+            .expect("a rect on DP-1")
+            .iter()
+            .map(|v| v.as_f64().expect("a number"))
+            .collect();
+        // The output that shows the node nowhere rejects the request.
+        let bad = json!({"pointer_move": {"node": "badge", "point": [10.0, 10.0],
+                                          "output": "HDMI-1"}});
+        let (_, message) = agent.fails(&mut core, "input.inject", json!({"events": [bad]}));
+        assert!(message.contains("badge"), "{message}");
+        // A point outside the box the node draws fails on its own output.
+        let bad = json!({"pointer_move": {"node": "badge", "point": [150.0, 50.0],
+                                          "output": "DP-1"}});
+        let (_, message) = agent.fails(&mut core, "input.inject", json!({"events": [bad]}));
+        assert!(message.contains("badge"), "{message}");
+        // The named output takes the pointer to the node there.
+        let tap = json!({"pointer_move": {"node": "badge", "point": [10.0, 10.0],
+                                          "output": "DP-1"}});
+        agent.ok(
+            &mut core,
+            "input.inject",
+            json!({"events": [tap, {"button": {"state": "pressed"}}]}),
+        );
+        let events = watcher.events_now(&mut core);
+        let pressed = events
+            .iter()
+            .find(|e| e["params"]["event"] == json!("pointer.pressed"))
+            .expect("the click lands on DP-1");
+        let at: Vec<f64> = pressed["params"]["position"]
+            .as_array()
+            .expect("a position")
+            .iter()
+            .map(|v| v.as_f64().expect("a number"))
+            .collect();
+        assert_eq!(at, vec![rect[0] + 10.0, rect[1] + 10.0]);
     }
 
     fn us() -> Keys {

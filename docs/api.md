@@ -732,8 +732,10 @@ scale the scene shows:
 | `text` | `text`; a newline presses Return, a tab presses Tab |
 
 - `node` and `point` replace `position`. The core maps the point through
-  the same transforms that give the `rects` of a query for the node. A
-  node that shows no such point rejects the request.
+  the same transforms that give the `rects` of a query for the node. The
+  point must lie in the box the node draws. An `output` limits the search
+  to that output, and a node that shows no such point rejects the
+  request.
 - The core checks all events before the first one runs. An event that does
   not resolve, for example a character without a key, rejects the request.
 - Key names and text use the first layout of the keymap. A character needs
