@@ -133,6 +133,8 @@ issue of 0.7 is #91.
 - Do not remove anything from the core in this task.
 - Test: supervise `sleep 60`, restart it, check that a new pid runs.
 - Docs: next to `choractl run`.
+- The 300-line rule is waived for T5, retro-actively: the review fixes
+  of the first round pushed `7df5de2` past it and history stays.
 
 ### T6: move every caller to `choractl run` (D42, part 3)
 
@@ -161,6 +163,8 @@ issue of 0.7 is #91.
   - Check 7 (no fork in the core) answers `FAIL` until T14 removes
     program start; that is expected.
 - Write `plans/gate-0.7.md` with one row per check and its result here.
+- The 300-line rule is waived for T7: gate scripts are one file per
+  check and `f492b25` stays as it is.
 
 ## Tasks of 0.8
 

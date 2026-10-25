@@ -23,8 +23,10 @@ run_pid "$pid"
 "$bin/choractl" --name agent wait "app_id:foot kind:surface" --timeout 20 >/dev/null ||
     fail "no foot window appeared"
 if systemctl --user is-system-running >/dev/null 2>&1; then
-    grep -q '\.scope' "/proc/$pid/cgroup" ||
-        fail "foot runs in no systemd scope of its own"
+    # run starts a transient chora-run-<pid>-<nanos>.service, not a
+    # scope; accept either shape of a transient unit of its own.
+    grep -qE '\.scope|chora-run.*\.(service|scope)' "/proc/$pid/cgroup" ||
+        fail "foot runs in no systemd unit of its own"
     ok_kind=its own systemd scope
 else
     ok_kind=the direct fallback without a user systemd
