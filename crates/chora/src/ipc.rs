@@ -1239,7 +1239,7 @@ pub fn params_of<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
 
 /// Refuses a client whose protocol is newer than the core's (D29); a
 /// lower or missing protocol works.
-pub fn check_protocol(protocol: Option<u32>) -> Result<(), RpcError> {
+pub fn check_protocol(protocol: Option<u64>) -> Result<(), RpcError> {
     if let Some(protocol) = protocol.filter(|p| *p > chora_scene::ipc::PROTOCOL) {
         return Err(RpcError::new(
             RpcError::UNSUPPORTED_PROTOCOL,
@@ -1954,6 +1954,13 @@ mod tests {
             message.contains("client protocol 2") && message.contains("core protocol 1"),
             "{message}"
         );
+        // Beyond u32 the answer is still the protocol code.
+        let (error_code, _) = client.fails(
+            &mut core,
+            "hello",
+            json!({"name": "wm", "protocol": 1u64 << 40}),
+        );
+        assert_eq!(error_code, RpcError::UNSUPPORTED_PROTOCOL);
     }
 
     #[test]

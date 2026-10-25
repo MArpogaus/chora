@@ -54,7 +54,7 @@ pub const VERSION: &str = env!("CHORA_VERSION");
 /// compatible additions arrive as features, a breaking change raises the
 /// number. `hello` negotiates it; the core refuses a client with a higher
 /// one and serves a lower one.
-pub const PROTOCOL: u32 = 1;
+pub const PROTOCOL: u64 = 1;
 
 /// The protocol features this build knows. Protocol 1 starts without any;
 /// named additions appear here while the protocol stays 1.
@@ -237,7 +237,7 @@ pub struct Hello {
     /// The protocol version of the client (D29). Missing from a client
     /// that predates the versioning. [`Client`] fills in [`PROTOCOL`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub protocol: Option<u32>,
+    pub protocol: Option<u64>,
     /// The features the client wants to use. The core answers with its
     /// own list.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -258,7 +258,7 @@ fn hello_request(hello: &Hello) -> Hello {
 /// The warning for a core that answers `hello` with a protocol other than
 /// [`PROTOCOL`]; `None` when both speak the same one.
 fn protocol_warning(core_protocol: u64) -> Option<String> {
-    (core_protocol != u64::from(PROTOCOL)).then(|| {
+    (core_protocol != PROTOCOL).then(|| {
         format!(
             "warning: the core speaks protocol {core_protocol}, this client speaks protocol \
              {PROTOCOL}"
@@ -1175,8 +1175,8 @@ mod tests {
 
     #[test]
     fn the_client_warns_when_the_core_protocol_differs() {
-        assert!(protocol_warning(u64::from(PROTOCOL)).is_none());
-        for other in [u64::from(PROTOCOL) + 1, u64::from(PROTOCOL) - 1] {
+        assert!(protocol_warning(PROTOCOL).is_none());
+        for other in [PROTOCOL + 1, PROTOCOL - 1] {
             let warning = protocol_warning(other).expect("a warning for a differing protocol");
             assert!(
                 warning.contains(&format!("core speaks protocol {other}"))
