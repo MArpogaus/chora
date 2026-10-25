@@ -27,3 +27,9 @@ since then it answers `ok`.
 What would turn the SKIP rows green here: podman (checks 4 and 5), a
 running user systemd plus the installed units and the agent image
 (check 5), and foot (check 8).
+
+## Style note of the final review
+
+The subject of d660de2 is 75 characters, over the 68 of the plan.
+History on dev stays unrewritten, so the overrun is accepted here and
+noted for the release text: it is the only one in 88cd086..HEAD.
