@@ -44,7 +44,7 @@ This table is the one list of node properties.
 | `id` | all | stable id; ids of the form `s1`, `s2` belong to surfaces, and the core assigns them; `chora:inject` belongs to the injection mark of the core |
 | `owner` | all | client name of the owner; read-only |
 | `focused` | all | `true` in `scene.query` on the surface with the keyboard focus and on the node of `focus_node`; read-only, left out on all other nodes |
-| `rects` | all | in `scene.query`: the output name maps to `[x, y, w, h]` in logical pixels of that output, after all parent transforms and the camera of that output; outputs where the node does not show are left out; the bounding box when rotation or a mesh makes the shape no rectangle; inside a clip, cut to the clip area; read-only |
+| `rects` | all | in `scene.query`: the output name maps to `[x, y, w, h]` in logical pixels of that output. The core applies all parent transforms and the camera, and projects like the renderer. The query leaves out outputs where the node does not show. The box holds the drawn shape under rotation, perspective or a mesh. A clip or an ancestor layer cuts the box to its own box. The mesh of a layer does not move the boxes of its descendants. Read-only. |
 | `to` | surface | the only client name that can attach this detached surface, after a `remove` with `to` or for a new toplevel; read-only |
 | `claim` | all | `[x, y, w, h]` in scene coordinates: the area of the owner as a window manager; a new toplevel can go to it (see [below](#window-managers)); `null` removes the claim |
 | `transform` | all | a 4x4 matrix in column-major order, with the translation at the indices 12 to 14, or the short form translate, scale, rotate |
