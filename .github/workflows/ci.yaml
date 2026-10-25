@@ -92,6 +92,9 @@ jobs:
         sudo apt-get install -y libdisplay-info-dev libdrm-dev libinput-dev \
             libseat-dev libsystemd-dev libudev-dev libwayland-dev \
             libxkbcommon-dev libegl1-mesa-dev libgbm-dev
+        # The software EGL device of the headless core, as mesa-dri-drivers
+        # in the Fedora jobs.
+        sudo apt-get install -y libegl-mesa0 libgl1-mesa-dri
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
     - run: cargo build --locked -p chora -p choractl
     - run: tests/gate-0.7-4.sh
