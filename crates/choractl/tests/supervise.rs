@@ -75,13 +75,63 @@ fn restart_starts_the_supervised_program_again() {
         .expect("a new pid runs after the restart");
     assert!(running(second, "sleep"), "the new program runs");
 
-    // SIGTERM to `supervise` ends its program too, so nothing sleeps on.
+    // SIGTERM to `supervise` ends its program too, removes the pid
+    // file, and exits with 128 plus the signal.
     signal(supervised.id(), libc::SIGTERM);
-    supervised.wait().expect("supervise is our child");
+    let stopped = supervised.wait().expect("supervise is our child");
+    assert_eq!(
+        stopped.code(),
+        Some(128 + libc::SIGTERM),
+        "the stop shows as 128 plus the signal",
+    );
+    assert!(
+        supervised_pid(&runtime, "sleepy").is_none(),
+        "the pid file is gone with the supervisor",
+    );
     assert!(
         until(|| (!running(second, "sleep")).then_some(1)).is_some(),
         "the program ends with the supervisor",
     );
+    let restarted_late = Command::new(bin)
+        .args(["restart", "sleepy"])
+        .env("XDG_RUNTIME_DIR", &runtime)
+        .output()
+        .expect("restart runs");
+    assert!(
+        !restarted_late.status.success(),
+        "restart after a stopped supervisor finds nothing",
+    );
+    let _ = std::fs::remove_dir_all(&runtime);
+}
+
+/// A pid file of a program that no longer runs is an error, not a
+/// SIGTERM to a pid the kernel may have recycled. The file is removed.
+#[test]
+fn restart_refuses_a_stale_pid_file() {
+    let runtime = runtime_dir("stale");
+    let bin = env!("CARGO_BIN_EXE_choractl");
+    let mut ended = Command::new("sleep")
+        .arg("0.1")
+        .spawn()
+        .expect("sleep starts");
+    let dead = ended.id();
+    ended.wait().expect("sleep is our child");
+    let dir = runtime.join("chora").join("supervise");
+    std::fs::create_dir_all(&dir).expect("the directory exists");
+    let file = dir.join("sleepy.pid");
+    std::fs::write(&file, format!("{dead}\n")).expect("the pid file exists");
+
+    let restarted = Command::new(bin)
+        .args(["restart", "sleepy"])
+        .env("XDG_RUNTIME_DIR", &runtime)
+        .output()
+        .expect("restart runs");
+    assert!(
+        !restarted.status.success(),
+        "a dead pid is an error: {}",
+        String::from_utf8_lossy(&restarted.stderr),
+    );
+    assert!(!file.exists(), "the stale pid file is removed");
     let _ = std::fs::remove_dir_all(&runtime);
 }
 

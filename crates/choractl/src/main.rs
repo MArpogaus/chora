@@ -9,9 +9,9 @@ mod view;
 
 use std::{
     io::{Read, Write},
-    os::unix::process::CommandExt,
+    os::unix::{ffi::OsStrExt, process::CommandExt},
     process::ExitCode,
-    sync::atomic::{AtomicU32, Ordering},
+    sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize, Ordering},
     time::{Duration, Instant},
 };
 
@@ -181,8 +181,8 @@ enum Cmd {
     /// Run a plugin and start it again when it ends (D42), at most five
     /// restarts per minute. Writes the pid of the running program to
     /// `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`, for `choractl
-    /// restart NAME`. SIGTERM ends the program and the supervision.
-    /// Does not call the core.
+    /// restart NAME`. SIGTERM ends the program, removes the pid file
+    /// and exits with 128 plus the signal. Does not call the core.
     Supervise {
         /// The plugin name, for example `tiling`.
         #[arg(value_name = "NAME")]
@@ -616,6 +616,19 @@ fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
 /// signal handler that ends it together with `supervise`.
 static SUPERVISED_PID: AtomicU32 = AtomicU32::new(0);
 
+/// The pid file as a C string, so that the signal handler can remove
+/// it; `unlink` is async-signal-safe. Stored once by `supervise`, so
+/// the leaked allocation lives as long as the process.
+static PID_FILE_C: AtomicUsize = AtomicUsize::new(0);
+
+/// Whether a stop signal arrived while `SUPERVISED_PID` was still 0:
+/// in the window between the start of the child and the store of its
+/// pid, or between two starts. A lock-free store is safe in a handler.
+static STOP_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+/// The signal number behind `STOP_REQUESTED`, for the exit code.
+static STOP_SIGNAL: AtomicI32 = AtomicI32::new(libc::SIGTERM);
+
 /// Starts a program and starts it again when it ends (D42), at most
 /// five restarts per minute. Writes the pid of the running program to
 /// `pid_file`, so that `choractl restart` can end it; that ends the
@@ -625,9 +638,20 @@ fn supervise(name: &str, argv: &[String]) -> Result<(), String> {
     let file = pid_file(name)?;
     let dir = file.parent().expect("the pid file has a name");
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let c_file = std::ffi::CString::new(file.as_os_str().as_bytes())
+        .map_err(|_| format!("{}: not a valid path", file.display()))?;
+    PID_FILE_C.store(
+        std::mem::ManuallyDrop::new(c_file).as_ptr() as usize,
+        Ordering::Relaxed,
+    );
     install_stop_handler();
     let mut starts = Vec::new();
     loop {
+        if STOP_REQUESTED.load(Ordering::Relaxed) {
+            // The signal arrived while no program ran, between two
+            // starts; stopping here avoids one more start.
+            stop_now(0);
+        }
         if !may_start(&mut starts, Instant::now()) {
             let _ = std::fs::remove_file(&file);
             return Err(format!(
@@ -666,6 +690,11 @@ fn supervise_once(
     SUPERVISED_PID.store(child.id(), Ordering::Relaxed);
     std::fs::write(file, format!("{}\n", child.id()))
         .map_err(|e| format!("{}: {e}", file.display()))?;
+    if STOP_REQUESTED.load(Ordering::Relaxed) {
+        // A stop signal arrived before the store and only set the
+        // flag; stop now, so the child cannot be orphaned.
+        stop_now(child.id());
+    }
     let status = child.wait().map_err(|e| e.to_string());
     SUPERVISED_PID.store(0, Ordering::Relaxed);
     let _ = std::fs::remove_file(file);
@@ -689,24 +718,45 @@ fn pid_file(name: &str) -> Result<std::path::PathBuf, String> {
 #[allow(unsafe_code)] // `signal` for a handler that only stops our child
 fn install_stop_handler() {
     for signal in [libc::SIGTERM, libc::SIGINT] {
-        // SAFETY: the handler is async-signal-safe; it only calls `kill`
-        // for our own child and `_exit`.
+        // SAFETY: the handler is async-signal-safe; it only stores
+        // atomics, or calls `kill`, `unlink` and `_exit`.
         unsafe {
             libc::signal(signal, stop_supervised as *const () as libc::sighandler_t);
         }
     }
 }
 
-#[allow(unsafe_code)] // `kill` and `_exit`, both async-signal-safe
-extern "C" fn stop_supervised(_signal: libc::c_int) -> ! {
+extern "C" fn stop_supervised(signal: libc::c_int) {
+    STOP_SIGNAL.store(signal, Ordering::Relaxed);
     let pid = SUPERVISED_PID.load(Ordering::Relaxed);
-    // SAFETY: `kill` and `_exit` are async-signal-safe, and the pid is
-    // the child of this process or zero.
+    if pid == 0 {
+        // No pid to end yet: the signal came in the window between
+        // the start of the child and the store of its pid. Leave the
+        // stop to `supervise_once`, which re-checks the flag after
+        // the store; ending here would orphan the child.
+        STOP_REQUESTED.store(true, Ordering::Relaxed);
+        return;
+    }
+    stop_now(pid);
+}
+
+/// Ends the supervised program of `pid`, removes the pid file, and
+/// exits with 128 plus the stop signal, the code of a signal stop,
+/// so that process managers notice it.
+#[allow(unsafe_code)] // `kill`, `unlink` and `_exit`, all async-signal-safe
+fn stop_now(pid: u32) -> ! {
+    let file = PID_FILE_C.load(Ordering::Relaxed);
+    // SAFETY: `kill`, `unlink` and `_exit` are async-signal-safe, the
+    // pid is the child of this process or zero, and the path was
+    // stored as a C string by `supervise`.
     unsafe {
         if pid > 0 {
             libc::kill(pid.cast_signed(), libc::SIGTERM);
         }
-        libc::_exit(0);
+        if file != 0 {
+            libc::unlink(file as *const libc::c_char);
+        }
+        libc::_exit(STOP_SIGNAL.load(Ordering::Relaxed) + 128);
     }
 }
 
@@ -737,6 +787,13 @@ fn restart_program(name: &str) -> Result<(), String> {
         .trim()
         .parse()
         .map_err(|_| format!("{}: not a pid", file.display()))?;
+    if !pid_alive(pid) {
+        let _ = std::fs::remove_file(&file);
+        return Err(format!(
+            "{name}: pid {pid} no longer runs, removed {}",
+            file.display()
+        ));
+    }
     // SAFETY: `kill` of a pid we read from our own pid file.
     if unsafe { libc::kill(pid.cast_signed(), libc::SIGTERM) } != 0 {
         let err = std::io::Error::last_os_error();
@@ -745,6 +802,20 @@ fn restart_program(name: &str) -> Result<(), String> {
     let answer = serde_json::json!({ "restarted": "supervise", "pid": pid });
     print_line(std::io::stdout(), &answer);
     Ok(())
+}
+
+/// Whether `pid` names a process that runs and is not a zombie. A
+/// pid recycled for another program cannot be told apart here; the
+/// handler of `supervise` removes the file, so a stale file needs a
+/// SIGKILL of `supervise` and a pid reuse at once.
+fn pid_alive(pid: u32) -> bool {
+    let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
+        return false;
+    };
+    // The state follows the command, which sits in parentheses and may
+    // hold spaces; the state is the first word after the last `)`.
+    stat.rsplit_once(')')
+        .is_some_and(|(_, rest)| !rest.trim_start().starts_with('Z'))
 }
 
 /// Whether the systemd user unit `NAME.service` is active. `false`

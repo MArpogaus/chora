@@ -738,15 +738,17 @@ $ choractl run -- foot
 again when it ends (D42). It allows at most five restarts per minute
 and exits with an error after them. It writes the pid of the running
 program to `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`, so that
-`choractl restart` finds it. SIGTERM to `supervise` ends the program
-and the supervision. The command calls no core.
+`choractl restart` finds it. SIGTERM or SIGINT to `supervise` ends the
+program, removes the pid file, and exits with 128 plus the signal, as
+process managers expect. The command calls no core.
 
 `choractl restart NAME` restarts a plugin. While the systemd user unit
 `NAME.service` is active, it runs `systemctl --user restart
 NAME.service`. Otherwise it sends SIGTERM to the running program of
 `choractl supervise NAME`, which starts it again. A name that runs in
-neither way is an error. The command prints what it restarted as one
-JSON line.
+neither way is an error. A pid file whose program no longer runs is an
+error too, and the command removes the file. It prints what it
+restarted as one JSON line.
 
 ```console
 $ choractl supervise tiling -- chora-tiling &
