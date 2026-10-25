@@ -695,13 +695,16 @@ and passes it to the program in `XDG_ACTIVATION_TOKEN`. When `systemctl
 program in a transient unit of its own and returns at once. The unit
 also gets `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and `CHORA_SOCKET` of
 the caller, so a plain `WAYLAND_DISPLAY` name resolves in the caller's
-runtime directory; the output of the program goes to the journal.
+runtime directory. It gets `DISPLAY` and the other host session
+variables only from the caller, never from the user manager. It starts
+in the caller's directory, and its output goes to the journal.
 Otherwise `choractl` forks the program itself, detached in a session of
 its own, with the environment of the caller and with no terminal. The
 command prints the pid and the token as one JSON line while the
 program runs. When
-the unit starts but its `MainPID` stays unknown after a short wait, the
-command exits with an error; it never starts the program twice. Export
+the unit starts but its `MainPID` stays unknown after a short wait, for
+example because the program already ended, `pid` is `null`. The command
+never starts the program twice. Export
 the two variables for the fallback as for any client. A window that
 activates with the token before
 its first map shows it in `surface.created`. Since 0.7 the
@@ -721,8 +724,8 @@ program, removes the pid file, and exits with 128 plus the signal, as
 process managers expect. The command calls no core.
 
 `choractl restart NAME` restarts a plugin. While the systemd user unit
-`NAME.service` is active, it runs `systemctl --user restart
-NAME.service`. Otherwise it sends SIGTERM to the running program of
+`NAME.service` or `chora-NAME-wm.service` of a flavor is active, it
+runs `systemctl --user restart` on that unit. Otherwise it sends SIGTERM to the running program of
 `choractl supervise NAME`, which starts it again. A name that runs in
 neither way is an error. A pid file whose program no longer runs is an
 error too, and the command removes the file. It prints what it

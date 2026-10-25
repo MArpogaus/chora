@@ -530,16 +530,13 @@ fn run_program(client: &mut Client, argv: &[String]) -> Result<(), ClientError> 
         )));
     };
     let pid = match systemd_unit(argv, &token) {
-        RunStart::Unit(pid) => pid,
-        RunStart::Fallback => start_detached(argv, &token).map_err(|e| {
+        RunStart::Unit(pid) => Some(pid),
+        RunStart::Fallback => Some(start_detached(argv, &token).map_err(|e| {
             ClientError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", argv[0])))
-        })?,
-        RunStart::Unknown => {
-            return Err(ClientError::Io(std::io::Error::other(format!(
-                "{} runs in a started unit, but its MainPID is unknown",
-                argv[0]
-            ))));
-        }
+        })?),
+        // The unit started; a short program ended and was collected
+        // before its pid was read.
+        RunStart::Unknown => None,
     };
     print_line(
         std::io::stdout(),
@@ -556,8 +553,9 @@ enum RunStart {
     Fallback,
     /// The unit runs the program under this pid.
     Unit(u32),
-    /// The unit started, but its `MainPID` stayed unknown: `run` reports
-    /// an error, it never starts the program a second time.
+    /// The unit started, but its `MainPID` stayed unknown, for example
+    /// of a program that ended at once: `run` prints `pid` null and never
+    /// starts the program a second time.
     Unknown,
 }
 
@@ -602,13 +600,15 @@ fn systemd_unit(argv: &[String], token: &str) -> RunStart {
         now.as_nanos()
     );
     let mut started = std::process::Command::new("systemd-run");
-    started.args(["--user", "--collect", "--unit", &unit]);
-    started.arg(env_prop("XDG_ACTIVATION_TOKEN", token));
-    for key in ["XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"] {
-        if let Ok(value) = std::env::var(key) {
-            started.arg(env_prop(key, &value));
-        }
-    }
+    started.args([
+        "--user",
+        "--collect",
+        "--quiet",
+        "--same-dir",
+        "--unit",
+        &unit,
+    ]);
+    started.args(unit_env(token));
     // ponytail: the token is visible in argv of the short-lived
     // `systemd-run`; it dies with `--collect` and within 10 s anyway.
     let Ok(started) = started.args(argv).status() else {
@@ -645,6 +645,17 @@ fn systemd_unit(argv: &[String], token: &str) -> RunStart {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
 }
+
+/// Variables of a display session that a unit must not take from the
+/// user manager; the startup command of the core drops the same ones.
+const HOST_VARIABLES: [&str; 6] = [
+    "WAYLAND_SOCKET",
+    "DISPLAY",
+    "SWAYSOCK",
+    "I3SOCK",
+    "NIRI_SOCKET",
+    "HYPRLAND_INSTANCE_SIGNATURE",
+];
 
 /// The program forked by `choractl` itself, detached in a session of its
 /// own and with the token in its environment; the pid of the child.
@@ -820,16 +831,21 @@ fn stop_now(pid: u32) -> ! {
 }
 
 /// `choractl restart` (D42): restarts a plugin that runs as the
-/// systemd user unit `NAME.service` with `systemctl --user restart`,
+/// systemd user unit `NAME.service` or `chora-NAME-wm.service` with
+/// `systemctl --user restart`,
 /// and a program of `choractl supervise NAME` by sending it SIGTERM,
 /// which starts it again. Prints what it restarted as one JSON line.
 #[allow(unsafe_code)] // one `kill` of the program in the pid file
 fn restart_program(name: &str) -> Result<(), String> {
     view::check_name(name)?;
-    let unit = format!("{name}.service");
-    if unit_active(name) {
+    // A flavor runs the window manager of a plugin as chora-NAME-wm.
+    let units = [
+        format!("{name}.service"),
+        format!("chora-{name}-wm.service"),
+    ];
+    if let Some(unit) = units.iter().find(|unit| unit_active(unit)) {
         let restarted = std::process::Command::new("systemctl")
-            .args(["--user", "restart", &unit])
+            .args(["--user", "restart", unit])
             .status()
             .map_err(|e| format!("systemctl: {e}"))?;
         if !restarted.success() {
@@ -840,8 +856,10 @@ fn restart_program(name: &str) -> Result<(), String> {
         return Ok(());
     }
     let file = pid_file(name)?;
-    let text = std::fs::read_to_string(&file)
-        .map_err(|_| format!("{name}: no active unit {unit} and no {}", file.display()))?;
+    let text = std::fs::read_to_string(&file).map_err(|_| {
+        let units = units.join(" or ");
+        format!("{name}: no active unit {units} and no {}", file.display())
+    })?;
     let pid: u32 = text
         .trim()
         .parse()
@@ -877,16 +895,36 @@ fn pid_alive(pid: u32) -> bool {
         .is_some_and(|(_, rest)| !rest.trim_start().starts_with('Z'))
 }
 
-/// Whether the systemd user unit `NAME.service` is active. `false`
-/// when there is no systemctl, no user manager, or no such unit.
-fn unit_active(name: &str) -> bool {
+/// Whether a systemd user unit is active. `false` when there is no
+/// systemctl, no user manager, or no such unit.
+fn unit_active(unit: &str) -> bool {
     std::process::Command::new("systemctl")
-        .args(["--user", "is-active", "--quiet", &format!("{name}.service")])
+        .args(["--user", "is-active", "--quiet", unit])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
         .is_ok_and(|s| s.success())
+}
+
+/// The environment properties of a unit of `run`: the token and the
+/// variables of this session. The user manager may hold the variables of
+/// another session, for example the host of a nested chora, so each host
+/// variable gets this session's value or none.
+fn unit_env(token: &str) -> Vec<String> {
+    let mut props = vec![env_prop("XDG_ACTIVATION_TOKEN", token)];
+    for key in ["XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"] {
+        if let Ok(value) = std::env::var(key) {
+            props.push(env_prop(key, &value));
+        }
+    }
+    for key in HOST_VARIABLES {
+        props.push(match std::env::var(key) {
+            Ok(value) => env_prop(key, &value),
+            Err(_) => format!("-pUnsetEnvironment={key}"),
+        });
+    }
+    props
 }
 
 /// The `Environment=` property of `systemd-run` for one variable. systemd
@@ -1403,8 +1441,23 @@ mod tests {
 
     /// The fallback decision of `run` is pure. Only a unit that did not
     /// start may start the program a second time. A started unit with an
-    /// unknown `MainPID` is an error: never a second start, never pid 0
-    /// printed as success.
+    /// unknown `MainPID` is never a second start and never pid 0.
+    /// A unit of `run` takes no host session variable from the user
+    /// manager: each one is set from this session or unset.
+    #[test]
+    fn a_unit_sets_or_unsets_every_host_variable() {
+        let props = super::unit_env("t");
+        for key in super::HOST_VARIABLES {
+            let set = format!("-pEnvironment={key}=");
+            let unset = format!("-pUnsetEnvironment={key}");
+            let hits = props
+                .iter()
+                .filter(|p| p.starts_with(&set) || **p == unset)
+                .count();
+            assert_eq!(hits, 1, "{key} in {props:?}");
+        }
+    }
+
     #[test]
     fn only_a_unit_that_did_not_start_may_fall_back() {
         assert_eq!(super::classify_start(false, ""), super::RunStart::Fallback);
