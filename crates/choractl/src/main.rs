@@ -521,31 +521,64 @@ fn run_program(client: &mut Client, argv: &[String]) -> Result<(), ClientError> 
         )));
     };
     let pid = match systemd_unit(argv, &token) {
-        Some(pid) => pid,
-        None => start_detached(argv, &token).map_err(|e| {
+        RunStart::Unit(pid) => pid,
+        RunStart::Fallback => start_detached(argv, &token).map_err(|e| {
             ClientError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", argv[0])))
         })?,
+        RunStart::Unknown => {
+            return Err(ClientError::Io(std::io::Error::other(format!(
+                "{} runs in a started unit, but its MainPID is unknown",
+                argv[0]
+            ))));
+        }
     };
     print_line(std::io::stdout(), &serde_json::json!({ "pid": pid }));
     Ok(())
 }
 
-/// The pid of the program in a transient unit of its own, or `None` when
-/// the user manager or `systemd-run` does not answer. `systemd-run`
+/// The outcome of one start attempt through `systemd-run`.
+#[derive(Debug, PartialEq, Eq)]
+enum RunStart {
+    /// No user manager, or `systemd-run` failed: the detached fallback
+    /// of `run` may start the program.
+    Fallback,
+    /// The unit runs the program under this pid.
+    Unit(u32),
+    /// The unit started, but its `MainPID` stayed unknown: `run` reports
+    /// an error, it never starts the program a second time.
+    Unknown,
+}
+
+/// The pure fallback decision of `run`: only a unit that did not start
+/// allows the detached start. On a successful start, a `MainPID` that is
+/// empty, `0` or no number is `Unknown`, never pid 0 as success.
+fn classify_start(started: bool, main_pid: &str) -> RunStart {
+    if !started {
+        return RunStart::Fallback;
+    }
+    match main_pid.trim().parse::<u32>() {
+        Ok(pid) if pid > 0 => RunStart::Unit(pid),
+        _ => RunStart::Unknown,
+    }
+}
+
+/// How starting the program in a transient unit went. `systemd-run`
 /// without `--scope` returns once the start job of the unit is done, so
 /// the line with the pid comes out while the program runs; the pid is
-/// the program's own (`MainPID`). A unit starts with the environment of
-/// the user manager, so the variables of this session travel in the
-/// `Environment=` property. Output goes to the journal, never into the
-/// line on stdout.
-fn systemd_unit(argv: &[String], token: &str) -> Option<u32> {
-    let answered = std::process::Command::new("systemctl")
+/// the program's own (`MainPID`), waited for up to 2 s. A unit starts
+/// with the environment of the user manager, so the variables of this
+/// session travel in the `Environment=` property. Output goes to the
+/// journal, never into the line on stdout.
+fn systemd_unit(argv: &[String], token: &str) -> RunStart {
+    let Ok(answered) = std::process::Command::new("systemctl")
         .args(["--user", "is-system-running"])
         .stderr(std::process::Stdio::null())
         .output()
-        .ok()?;
+    else {
+        return RunStart::Fallback;
+    };
     if answered.stdout.is_empty() {
-        return None;
+        return RunStart::Fallback;
     }
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -559,34 +592,46 @@ fn systemd_unit(argv: &[String], token: &str) -> Option<u32> {
     let mut started = std::process::Command::new("systemd-run");
     started.args(["--user", "--collect", "--unit", &unit]);
     started.arg(env_prop("XDG_ACTIVATION_TOKEN", token));
-    for key in ["WAYLAND_DISPLAY", "CHORA_SOCKET"] {
+    for key in ["XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"] {
         if let Ok(value) = std::env::var(key) {
             started.arg(env_prop(key, &value));
         }
     }
     // ponytail: the token is visible in argv of the short-lived
     // `systemd-run`; it dies with `--collect` and within 10 s anyway.
-    let started = started.args(argv).status().ok()?;
+    let Ok(started) = started.args(argv).status() else {
+        return RunStart::Fallback;
+    };
     if !started.success() {
-        return None;
+        return RunStart::Fallback;
     }
-    let shown = std::process::Command::new("systemctl")
-        .args([
-            "--user",
-            "show",
-            "--property=MainPID",
-            "--value",
-            "--unit",
-            &unit,
-        ])
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()?;
-    let pid = String::from_utf8_lossy(&shown.stdout)
-        .trim()
-        .parse()
-        .unwrap_or(0);
-    Some(pid)
+    // A unit fills in `MainPID` a moment after the start job. Wait for
+    // it, then report what is known: a pid, or the error of the unknown
+    // pid. A unit that ended and was collected before the first query
+    // counts as unknown too; the program ran, but `run` cannot say so.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        let shown = std::process::Command::new("systemctl")
+            .args([
+                "--user",
+                "show",
+                "--property=MainPID",
+                "--value",
+                "--unit",
+                &unit,
+            ])
+            .stderr(std::process::Stdio::null())
+            .output();
+        let text = match &shown {
+            Ok(out) => String::from_utf8_lossy(&out.stdout).into_owned(),
+            Err(_) => String::new(),
+        };
+        let decision = classify_start(true, &text);
+        if decision != RunStart::Unknown || std::time::Instant::now() >= deadline {
+            return decision;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
 }
 
 /// The program forked by `choractl` itself, detached in a session of its
@@ -1364,6 +1409,30 @@ mod tests {
         assert!(taken_socket("agent", &connected).is_none());
         let no_data = RpcError::new(RpcError::REJECTED, "no socket directory");
         assert!(taken_socket("agent", &no_data).is_none());
+    }
+
+    /// The fallback decision of `run` is pure. Only a unit that did not
+    /// start may start the program a second time. A started unit with an
+    /// unknown `MainPID` is an error: never a second start, never pid 0
+    /// printed as success.
+    #[test]
+    fn only_a_unit_that_did_not_start_may_fall_back() {
+        assert_eq!(super::classify_start(false, ""), super::RunStart::Fallback);
+        assert_eq!(
+            super::classify_start(false, "0"),
+            super::RunStart::Fallback,
+            "a failed systemd-run may fall back even with a pid in hand",
+        );
+        assert_eq!(
+            super::classify_start(true, "4343\n"),
+            super::RunStart::Unit(4343),
+        );
+        assert_eq!(super::classify_start(true, "0"), super::RunStart::Unknown);
+        assert_eq!(super::classify_start(true, ""), super::RunStart::Unknown);
+        assert_eq!(
+            super::classify_start(true, "not a pid"),
+            super::RunStart::Unknown,
+        );
     }
 
     /// The fallback starts the program detached, with the activation

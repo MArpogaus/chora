@@ -719,11 +719,14 @@ It first asks the core for an activation token with `activation.token`
 and passes it to the program in `XDG_ACTIVATION_TOKEN`. When `systemctl
 --user is-system-running` answers, `systemd-run --user` starts the
 program in a transient unit of its own and returns at once. The unit
-also gets `WAYLAND_DISPLAY` and `CHORA_SOCKET` of the caller; the
-output of the program goes to the journal. Otherwise `choractl` forks
-the program itself, detached in a session of its own, with the
-environment of the caller and with no terminal. The command prints the
-pid as one JSON line while the program runs. Export the two variables
+also gets `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and `CHORA_SOCKET` of
+the caller, so a plain `WAYLAND_DISPLAY` name resolves in the caller's
+runtime directory; the output of the program goes to the journal.
+Otherwise `choractl` forks the program itself, detached in a session of
+its own, with the environment of the caller and with no terminal. The
+command prints the pid as one JSON line while the program runs. When
+the unit starts but its `MainPID` stays unknown after a short wait, the
+command exits with an error; it never starts the program twice. Export the two variables
 for the fallback as for any client. A window that activates with the
 token before its first map shows it in `surface.created`. Milestone 0.7
 moves the start of programs from the core to `choractl run` and systemd
