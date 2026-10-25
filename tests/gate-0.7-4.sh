@@ -15,13 +15,12 @@ need podman
 out=$(mktemp -d /tmp/gate4.XXXXXX)
 trap 'kill "${pids[@]}" 2>/dev/null; rm -rf "$out"' EXIT
 session_start 1280x800
-# The client socket fixes the name agent. The capture later proves that
-# the node came into being.
-"$bin/choractl" clients create agent |
-    sed -n 's/.*"path":"\(.*\)\/ipc.sock".*/\1/p' >"$out/dir"
-dir=$(cat "$out/dir")
+# The client socket fixes the name agent and its capabilities (T3).
+# The capture later proves that the node came into being.
+echo 'agent: {grants: [screen.capture]}' |
+    "$bin/choractl" clients up - >/dev/null || fail "the client socket of agent"
+dir=$(dirname "$CHORA_SOCKET")/clients/agent
 test -S "$dir/ipc.sock" || fail "no ipc.sock in the client directory"
-"$bin/choractl" grant agent screen.capture || fail "the grant for agent"
 # One container, two mounts: the client directory and the binaries. The
 # base image only carries glibc; choractl needs nothing else.
 in_agent() {
@@ -34,8 +33,10 @@ echo '[{"create": {"id": "pod", "kind": "rect", "parent": "root",
     "props": {"size": [120, 80], "color": [0, 1, 0, 1],
               "transform": {"translate": [300, 300]}}}}]' |
     in_agent apply - >/dev/null || fail "the container cannot draw a node"
-"$bin/choractl" --name agent capture "$out/shot.png" >/dev/null ||
-    fail "the capture of the host"
+# agent captures through its own socket: the main socket refuses the
+# hello of a name that has a client socket (T3).
+CHORA_SOCKET="$dir/ipc.sock" "$bin/choractl" --name agent capture "$out/shot.png" >/dev/null ||
+    fail "the capture through the client socket"
 test "$(pixel "$out/shot.png" 360 340)" = "0 255 0 255" ||
     fail "the node of the container shows $(pixel "$out/shot.png" 360 340)"
 # The two refusals: grants are for the admin socket, and the socket of

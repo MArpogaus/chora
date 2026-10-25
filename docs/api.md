@@ -351,8 +351,9 @@ reason) with its connections; changed capabilities recreate the socket
 and disconnect its Wayland clients. While a name is connected or in its
 grace time the socket cannot open (`clients.create` answers the
 `connected` reason); `choractl clients up` then syncs the grants of
-that name. It reports both reasons and goes on with the remaining names. Without a
-file argument the first of `$XDG_CONFIG_HOME/chora/clients.yaml` and
+that name. It reports both reasons and goes on with the remaining
+names. Without a file argument the first of
+`$XDG_CONFIG_HOME/chora/clients.yaml` and
 `~/.config/chora/clients.yaml` is read, `-` for stdin. The core
 answers every request.
 
@@ -547,8 +548,9 @@ protocol.
 
 `input.inject` and `screen.capture` see or drive the whole session, and
 `input.grab-any` lets a client catch keys and buttons without a
-modifier, so they need a grant of the user for the client name. A name with a client socket needs no
-grant: `clients.create` and `clients.yaml` give it the capabilities
+modifier, so they need a grant of the user for the client name. A name
+with a client socket needs no grant: `clients.create` and
+`clients.yaml` give it the capabilities
 (D33, D40):
 
 ```console
@@ -562,8 +564,9 @@ A grant lasts until `choractl revoke` or the end of the session. The
 emergency reset revokes all grants. A connection through a client socket
 instead has exactly the capabilities the socket was opened with. A
 recreate with changed capabilities ends the Wayland clients that
-connected before it, and so does the reset. Only the admin socket changes grants.
-A process of the user on the host reaches the admin socket too. So a
+connected before it, and so does the reset. Only the admin socket
+changes grants. A process of the user on the host reaches the admin
+socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that [Client sockets](#client-sockets) lists.
 `choractl mcp` offers no tool for grants.
@@ -692,8 +695,9 @@ Otherwise `choractl` forks the program itself, detached in a session of
 its own, with the environment of the caller and with no terminal. The
 command prints the pid as one JSON line while the program runs. When
 the unit starts but its `MainPID` stays unknown after a short wait, the
-command exits with an error; it never starts the program twice. Export the two variables
-for the fallback as for any client. A window that activates with the
+command exits with an error; it never starts the program twice. Export
+the two variables for the fallback as for any client. A window that
+activates with the
 token before its first map shows it in `surface.created`. Since 0.7 the
 core itself starts nothing; `choractl run` and systemd do (D42).
 
