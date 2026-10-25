@@ -697,13 +697,13 @@ command prints the pid as one JSON line while the program runs. When
 the unit starts but its `MainPID` stays unknown after a short wait, the
 command exits with an error; it never starts the program twice. Export
 the two variables for the fallback as for any client. A window that
-activates with the
-token before its first map shows it in `surface.created`. Since 0.7 the
+activates with the token
+before its first map shows it in `surface.created`. Since 0.7 the
 core itself starts nothing; `choractl run` and systemd do (D42).
 
 ```console
 $ choractl run -- foot
-{"pid": 4343}
+{"pid": 4343, "token": "a1b2c3d4e5f60718"}
 ```
 
 `choractl supervise NAME -- CMD ARGS...` runs a plugin and starts it

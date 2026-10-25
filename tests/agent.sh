@@ -449,6 +449,15 @@ WAYLAND_DISPLAY=$inner "$bin/choractl" --name agent run "$bin/chora-probe" windo
     fail "the run failed"
 pids+=("$(jq -r .pid "$out/run.json")")
 wait_for count_is 3 '.owner == "tiling"'
+# The token travels the whole trip to the window (T4): run exports it,
+# the probe activates with it, surface.created carries it.
+ctl events surface.created >"$out/token.jsonl" &
+pids+=($!)
+sleep 0.3
+WAYLAND_DISPLAY=$inner "$bin/choractl" --name agent run "$bin/chora-probe" activated >"$out/run-token.json" ||
+    fail "the run of the activated probe"
+token=$(jq -r .token "$out/run-token.json")
+wait_for grep -q "\"token\":\"$token\"" "$out/token.jsonl"
 # A program under `choractl supervise` answers `choractl restart`: the
 # pid file names the running program, and a new one takes over.
 "$bin/choractl" supervise slow -- sleep 60 &
