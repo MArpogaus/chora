@@ -81,16 +81,15 @@ done
 
 # the Restart method of T11 five times, then choractl restart xp five times
 for i in $(seq 5); do
-  # ends xp, supervise starts it again; Ok comes back before xp dies,
-  # so only a refused or unknown method fails here
+  # xp runs itself again in the same process, so supervise sees no end
+  # and counts no restart; Ok comes back before the exec, so only a
+  # refused or unknown method fails here
   ctl call xp restart > /dev/null 2>&1 || finding "W2: xp restart refused in round $i" wrong "call xp restart"
   ready xp turn_to '{"desktop": 0}' || finding "W2: xp did not answer after Restart $i" wrong "call xp restart"
   health "XP Restart $i"
 done
 
-# supervise allows at most five restarts per minute (D42): wait out the
-# budget of the block above before restarting from the outside
-sleep 65
+# five restarts from the outside: the most supervise allows in a minute
 for i in $(seq 5); do
   ctl restart xp > /dev/null 2>&1 || finding "W2: choractl restart xp failed" ugly "restart xp"
   ready xp turn_to '{"desktop": 0}' || finding "W2: xp did not answer after restart $i" wrong "choractl restart xp"
