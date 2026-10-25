@@ -442,8 +442,9 @@ fn node_elements<R: MeshRenderer>(
             let Assets { images, cells, .. } = &mut *parts.assets;
             image(placed, images, cells, renderer, &at)
         }
-        // A shader node draws as a layer; outside of one it shows nothing.
-        NodeKind::Group | NodeKind::Shader => Vec::new(),
+        // A shader node draws as a layer; outside of one it shows
+        // nothing. A text node does not draw yet.
+        NodeKind::Group | NodeKind::Shader | NodeKind::Text => Vec::new(),
     }
 }
 
@@ -682,7 +683,7 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
             let [w, h] = node_size(state, placed.node);
             ((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)).then_some(Hit::Area)
         }
-        NodeKind::Group => None,
+        NodeKind::Group | NodeKind::Text => None,
     }
 }
 

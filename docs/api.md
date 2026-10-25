@@ -55,12 +55,13 @@ This table is the one list of node properties.
 | `meta` | all | free key/value pairs to tag and find nodes; an empty value removes a key; at most 32 keys, 1 KiB per key or value and 4 KiB in all per node |
 | `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
 | `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; optional `depth`: the z of each point, which the transform of the node projects; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
-| `color` | rect | RGBA, each from 0 to 1, with straight alpha: `[1, 1, 1, 0.5]` is white at half opacity |
+| `color` | rect, text | RGBA, each from 0 to 1, with straight alpha: `[1, 1, 1, 0.5]` is white at half opacity |
 | `radius` | rect | the radius of the corners in logical pixels; the rect becomes a layer |
 | `border` | rect | `{"width": w, "color": [r, g, b, a]}`: a line of `w` logical pixels along the inner edge; the rect becomes a layer; `null` removes it |
 | `image` | image | absolute path of a PNG file; the core loads it again after a change |
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch |
 | `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, at most 4 |
+| `text`, `family`, `font_size`, `max_width` | text | `text`: UTF-8, needed at `create`, at most 4 KiB; `family`: a font family, a system font without it; `font_size`: logical pixels; `max_width`: the width at which lines wrap, and nothing else; a text node has no `size`, it sizes itself by its layout; the core does not draw text nodes yet |
 
 A surface node gets its size from its client. The `configure` command asks
 the client for a new size.
@@ -132,7 +133,7 @@ path.
 
 | Command | Purpose |
 |---------|---------|
-| `create` | create a group, rect, image or shader node under a parent |
+| `create` | create a group, rect, image, shader or text node under a parent |
 | `attach` | put a surface without an owner under a parent; the caller becomes its owner |
 | `update` | change node properties |
 | `animate` | change properties over a duration with an easing curve |

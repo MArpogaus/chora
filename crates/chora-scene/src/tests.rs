@@ -308,7 +308,7 @@ fn color_belongs_to_rects() {
         props: sized.clone(),
     };
     let err = scene.apply("wm", &[create(NodeKind::Group)]).unwrap_err();
-    assert_eq!(err.error, SceneError::WrongKind("n".into(), "rect"));
+    assert_eq!(err.error, SceneError::WrongKind("n".into(), "rect or text"));
     scene.apply("wm", &[create(NodeKind::Rect)]).unwrap();
 }
 
@@ -340,6 +340,171 @@ fn only_images_have_a_file_and_it_has_an_absolute_path() {
         scene.node("i").unwrap().props.image.as_deref(),
         Some("/a.png")
     );
+}
+
+fn create_text(id: &str, text: &str) -> Command {
+    Command::Create {
+        id: id.into(),
+        kind: NodeKind::Text,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            text: Some(text.into()),
+            ..PropsUpdate::default()
+        },
+    }
+}
+
+#[test]
+fn a_text_node_holds_text_family_size_and_color() {
+    let mut scene = Scene::default();
+    scene
+        .apply(
+            "wm",
+            &[Command::Create {
+                id: "t".into(),
+                kind: NodeKind::Text,
+                parent: ROOT.into(),
+                props: PropsUpdate {
+                    text: Some("Grüße".into()),
+                    family: Some("Noto Sans".into()),
+                    font_size: Some(18.0),
+                    max_width: Some(400.0),
+                    color: Some([1.0, 1.0, 1.0, 1.0]),
+                    ..PropsUpdate::default()
+                },
+            }],
+        )
+        .unwrap();
+    let props = &scene.node("t").unwrap().props;
+    assert_eq!(props.text.as_deref(), Some("Grüße"));
+    assert_eq!(props.family.as_deref(), Some("Noto Sans"));
+    assert_eq!(props.font_size, Some(18.0));
+    assert_eq!(props.max_width, Some(400.0));
+    assert_eq!(props.color, Some([1.0, 1.0, 1.0, 1.0]));
+}
+
+#[test]
+fn a_text_node_needs_text_at_create() {
+    let mut scene = Scene::default();
+    let err = scene
+        .apply(
+            "wm",
+            &[Command::Create {
+                id: "t".into(),
+                kind: NodeKind::Text,
+                parent: ROOT.into(),
+                props: PropsUpdate::default(),
+            }],
+        )
+        .unwrap_err();
+    assert!(matches!(err.error, SceneError::Invalid(_)));
+    scene.apply("wm", &[create_text("t", "hi")]).unwrap();
+}
+
+#[test]
+fn text_properties_only_belong_to_text_nodes() {
+    let mut scene = Scene::default();
+    let with_text = |id: &str, kind| Command::Create {
+        id: id.into(),
+        kind,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            text: Some("hi".into()),
+            font_size: Some(12.0),
+            ..PropsUpdate::default()
+        },
+    };
+    let err = scene
+        .apply("wm", &[with_text("r", NodeKind::Rect)])
+        .unwrap_err();
+    assert_eq!(err.error, SceneError::WrongKind("r".into(), "text"));
+    let err = scene
+        .apply("wm", &[with_text("g", NodeKind::Group)])
+        .unwrap_err();
+    assert_eq!(err.error, SceneError::WrongKind("g".into(), "text"));
+    scene.apply("wm", &[create_text("t", "hi")]).unwrap();
+    let err = scene
+        .apply(
+            "wm",
+            &[Command::Update {
+                id: "t".into(),
+                props: PropsUpdate {
+                    size: Some([10.0, 10.0]),
+                    ..PropsUpdate::default()
+                },
+            }],
+        )
+        .unwrap_err();
+    assert_eq!(
+        err.error,
+        SceneError::WrongKind("t".into(), "group, rect, image or shader")
+    );
+    let err = scene
+        .apply(
+            "wm",
+            &[
+                create_text("t2", "hi"),
+                Command::Update {
+                    id: "t2".into(),
+                    props: PropsUpdate {
+                        font_size: Some(-1.0),
+                        ..PropsUpdate::default()
+                    },
+                },
+            ],
+        )
+        .unwrap_err();
+    assert_eq!(err.index, 1);
+    assert!(matches!(err.error, SceneError::Invalid(_)));
+}
+
+#[test]
+fn an_update_replaces_the_text_and_the_font() {
+    let mut scene = Scene::default();
+    scene.apply("wm", &[create_text("t", "hi")]).unwrap();
+    scene
+        .apply(
+            "wm",
+            &[Command::Update {
+                id: "t".into(),
+                props: PropsUpdate {
+                    text: Some("bye".into()),
+                    family: Some("Mono".into()),
+                    font_size: Some(24.0),
+                    max_width: Some(100.0),
+                    ..PropsUpdate::default()
+                },
+            }],
+        )
+        .unwrap();
+    let props = &scene.node("t").unwrap().props;
+    assert_eq!(props.text.as_deref(), Some("bye"));
+    assert_eq!(props.family.as_deref(), Some("Mono"));
+    assert_eq!(
+        (props.font_size, props.max_width),
+        (Some(24.0), Some(100.0))
+    );
+}
+
+#[test]
+fn the_text_of_a_text_node_stays_within_its_limit() {
+    let mut scene = Scene::default();
+    let long = "a".repeat(4097);
+    let err = scene
+        .apply(
+            "wm",
+            &[Command::Create {
+                id: "t".into(),
+                kind: NodeKind::Text,
+                parent: ROOT.into(),
+                props: PropsUpdate {
+                    text: Some(long),
+                    ..PropsUpdate::default()
+                },
+            }],
+        )
+        .unwrap_err();
+    assert!(matches!(err.error, SceneError::Invalid(_)));
 }
 
 #[test]

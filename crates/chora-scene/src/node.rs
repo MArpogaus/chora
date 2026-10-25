@@ -25,6 +25,9 @@ pub enum NodeKind {
     /// A GLSL ES fragment shader drawn over the size of the node. Its
     /// children render into the texture `tex` that the shader reads.
     Shader,
+    /// Text the core lays out from a font, for example a HUD label. Its
+    /// size is the size of its layout.
+    Text,
 }
 
 /// How a node takes part in pointer input.
@@ -307,6 +310,18 @@ pub struct Props {
     /// height in scene coordinates (D55).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claim: Option<[f64; 4]>,
+    /// The UTF-8 text of a text node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// The font family of a text node; without it the core picks a font.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub family: Option<String>,
+    /// The font size of a text node in logical pixels.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_size: Option<f64>,
+    /// The width at which a text node wraps lines; it only wraps.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_width: Option<f64>,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde passes a reference
@@ -345,6 +360,10 @@ impl Default for Props {
             shader: None,
             uniforms: BTreeMap::new(),
             claim: None,
+            text: None,
+            family: None,
+            font_size: None,
+            max_width: None,
         }
     }
 }
@@ -430,6 +449,18 @@ pub struct PropsUpdate {
         skip_serializing_if = "Option::is_none"
     )]
     pub claim: Option<Option<[f64; 4]>>,
+    /// The UTF-8 text of a text node.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// The font family of a text node; without it the core picks a font.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub family: Option<String>,
+    /// The font size of a text node in logical pixels.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_size: Option<f64>,
+    /// The width at which a text node wraps lines; it only wraps.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_width: Option<f64>,
 }
 
 /// Sets the keys of an update of `meta`; an empty value removes its key.
@@ -465,6 +496,23 @@ impl Props {
             self.claim = claim;
         }
         self.apply_drawing(update);
+        self.apply_text(update);
+    }
+
+    /// Applies the properties of a text node.
+    fn apply_text(&mut self, update: &PropsUpdate) {
+        if update.text.is_some() {
+            self.text.clone_from(&update.text);
+        }
+        if update.family.is_some() {
+            self.family.clone_from(&update.family);
+        }
+        if update.font_size.is_some() {
+            self.font_size = update.font_size;
+        }
+        if update.max_width.is_some() {
+            self.max_width = update.max_width;
+        }
     }
 
     /// Applies the properties of rects and images.

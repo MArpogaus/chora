@@ -298,18 +298,18 @@ impl State {
                     bbox.size.h,
                 )
             }
-            NodeKind::Group | NodeKind::Shader => return false,
+            NodeKind::Group | NodeKind::Shader | NodeKind::Text => return false,
         };
         (at_x..at_x + w).contains(&x) && (at_y..at_y + h).contains(&y)
     }
 
-    /// Whether a node draws at a place of its own: groups and shaders
-    /// draw nothing, and a surface without a window draws nothing.
+    /// Whether a node draws at a place of its own: groups, shaders and
+    /// text draw nothing, and a surface without a window draws nothing.
     fn draws_something(&self, node: &Node) -> bool {
         match node.kind {
             NodeKind::Surface => self.windows.contains_key(node.id.as_str()),
             NodeKind::Rect | NodeKind::Image => true,
-            NodeKind::Group | NodeKind::Shader => false,
+            NodeKind::Group | NodeKind::Shader | NodeKind::Text => false,
         }
     }
 
