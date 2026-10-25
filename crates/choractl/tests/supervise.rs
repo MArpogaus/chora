@@ -60,6 +60,18 @@ fn restart_starts_the_supervised_program_again() {
         .expect("supervise starts");
     let first = until(|| supervised_pid(&runtime, "sleepy")).expect("a first pid appears");
 
+    // A second supervise of the name would take over the pid file.
+    let second_supervisor = Command::new(bin)
+        .args(["supervise", "sleepy", "--", "sleep", "60"])
+        .env("XDG_RUNTIME_DIR", &runtime)
+        .output()
+        .expect("the second supervise runs");
+    assert!(
+        String::from_utf8_lossy(&second_supervisor.stderr).contains("another"),
+        "a second supervise of one name fails: {second_supervisor:?}",
+    );
+    assert_eq!(supervised_pid(&runtime, "sleepy"), Some(first));
+
     let restarted = Command::new(bin)
         .args(["restart", "sleepy"])
         .env("XDG_RUNTIME_DIR", &runtime)

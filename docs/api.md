@@ -721,7 +721,9 @@ and exits with an error after them. It writes the pid of the running
 program to `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`, so that
 `choractl restart` finds it. SIGTERM or SIGINT to `supervise` ends the
 program, removes the pid file, and exits with 128 plus the signal, as
-process managers expect. The command calls no core.
+process managers expect. Only one `supervise` runs per name; a second
+one exits with an error. A restart through `choractl restart` counts
+toward the five restarts too. The command calls no core.
 
 `choractl restart NAME` restarts a plugin. While the systemd user unit
 `NAME.service` or `chora-NAME-wm.service` of a flavor is active, it

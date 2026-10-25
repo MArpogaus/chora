@@ -708,6 +708,14 @@ fn supervise(name: &str, argv: &[String]) -> Result<(), String> {
     let file = pid_file(name)?;
     let dir = file.parent().expect("the pid file has a name");
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    // One supervise per name: a second one would take over the pid file,
+    // and the first to stop would remove it. The lock ends with the
+    // process, also on SIGKILL.
+    let lock_path = file.with_extension("lock");
+    let lock =
+        std::fs::File::create(&lock_path).map_err(|e| format!("{}: {e}", lock_path.display()))?;
+    lock.try_lock()
+        .map_err(|_| format!("{name}: another choractl supervise runs it"))?;
     let c_file = std::ffi::CString::new(file.as_os_str().as_bytes())
         .map_err(|_| format!("{}: not a valid path", file.display()))?;
     PID_FILE_C.store(
@@ -758,8 +766,17 @@ fn supervise_once(
         .spawn()
         .map_err(|e| format!("{}: {e}", argv[0]))?;
     SUPERVISED_PID.store(child.id(), Ordering::Relaxed);
-    std::fs::write(file, format!("{}\n", child.id()))
-        .map_err(|e| format!("{}: {e}", file.display()))?;
+    // Written whole and renamed, so that restart never reads half a pid.
+    let partial = file.with_extension("pid.new");
+    let written = std::fs::write(&partial, format!("{}\n", child.id()))
+        .and_then(|()| std::fs::rename(&partial, file));
+    if let Err(e) = written {
+        // No pid file means no restart and no stop: end the program.
+        let _ = child.kill();
+        let _ = child.wait();
+        SUPERVISED_PID.store(0, Ordering::Relaxed);
+        return Err(format!("{}: {e}", file.display()));
+    }
     if STOP_REQUESTED.load(Ordering::Relaxed) {
         // A stop signal arrived before the store and only set the
         // flag; stop now, so the child cannot be orphaned.
