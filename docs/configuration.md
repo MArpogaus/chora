@@ -125,12 +125,13 @@ showroom:
 
 The names follow the rules of `hello`. `clients up` opens the socket of
 every name with exactly the capabilities of its list. A socket that
-already has the equal capabilities stays with its connections; changed
-capabilities recreate the socket and disconnect its Wayland clients. A
-name with a client socket takes no `choractl grant` and no `choractl
-revoke`; the file decides. While a name is connected, its socket cannot
-open; `clients up` then syncs the grants of the name and asks for a
-report that the socket stays closed.
+already has the equal capabilities stays with its connections and gets
+them back after the revoke binding. Changed capabilities recreate the
+socket and disconnect its Wayland clients. A name with a client socket
+takes no `choractl grant` and no `choractl revoke`; the file decides.
+While a name is connected, its socket cannot open. `clients up` then
+only syncs the grants of the name and says on stderr that the socket
+stays closed.
 
 ## chora-tiling
 

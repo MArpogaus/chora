@@ -1016,3 +1016,70 @@ fn the_grants_of_a_client_socket_name_point_at_the_file() {
     drop(core);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// A core with a socket directory, for the `clients.create` tests below.
+fn caps_core(tag: &str) -> (Core, PathBuf) {
+    let dir = std::env::temp_dir().join(format!("chora-caps-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut core = Core::new();
+    core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+    (core, dir)
+}
+
+/// `choractl clients create NAME` sends no capabilities: an existing
+/// socket keeps its own instead of losing them all.
+#[test]
+fn a_create_without_capabilities_keeps_the_socket() {
+    let (mut core, dir) = caps_core("keep");
+    let mut admin = core.admin();
+    open_agent(&mut core, &mut admin, &["screen.capture"]);
+    let (error_code, _) = admin.fails(&mut core, "clients.create", json!({"name": "agent"}));
+    assert_eq!(error_code, RpcError::NAME_TAKEN, "socket_exists");
+    assert_eq!(
+        admin.ok(&mut core, "grants.list", json!({})),
+        json!({"agent": ["screen.capture"]}),
+    );
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A recreate without `input.grab-any` ends the free grabs of the old
+/// connections, which outlive the socket.
+#[test]
+fn a_recreate_without_grab_any_ends_free_grabs() {
+    let (mut core, dir) = caps_core("grabs");
+    let mut admin = core.admin();
+    let created = open_agent(&mut core, &mut admin, &["input.grab-any"]);
+    let mut agent = core.connect_to(&PathBuf::from(created["path"].as_str().unwrap()));
+    agent.ok(&mut core, "hello", json!({"name": "agent"}));
+    agent.ok(&mut core, "input.grab", json!({"binding": "F13"}));
+    assert_eq!(core.state.ipc.grabs.len(), 1);
+    open_agent(&mut core, &mut admin, &["screen.capture"]);
+    assert!(core.state.ipc.grabs.is_empty(), "the F13 grab ended");
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// After the revoke binding, `clients up` with the same file gives the
+/// capabilities back.
+#[test]
+fn the_same_create_gives_back_revoked_capabilities() {
+    let (mut core, dir) = caps_core("restore");
+    let mut admin = core.admin();
+    open_agent(&mut core, &mut admin, &["screen.capture"]);
+    core.state.revoke_agents();
+    assert_eq!(admin.ok(&mut core, "grants.list", json!({})), json!({}));
+    let (error_code, _) = admin.fails(
+        &mut core,
+        "clients.create",
+        json!({"name": "agent", "capabilities": ["screen.capture"]}),
+    );
+    assert_eq!(error_code, RpcError::NAME_TAKEN, "socket_exists");
+    assert_eq!(
+        admin.ok(&mut core, "grants.list", json!({})),
+        json!({"agent": ["screen.capture"]}),
+    );
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+}

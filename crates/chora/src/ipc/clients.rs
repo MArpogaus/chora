@@ -47,9 +47,10 @@ const MAX_SOCKET_PATH: usize = 107;
 pub struct Create {
     name: String,
     /// What a connection through the socket may do (D33, D40); the list
-    /// of `clients.yaml`, empty by default.
+    /// of `clients.yaml`. Without it, a new socket gets none and an
+    /// existing socket keeps its own.
     #[serde(default)]
-    capabilities: Vec<Capability>,
+    capabilities: Option<Vec<Capability>>,
 }
 
 impl State {
@@ -63,10 +64,9 @@ impl State {
             .and_then(|p| p.parent())
             .ok_or_else(|| rejected("the core has no socket directory"))?;
         let dir = base.join("clients").join(name);
-        let wanted: BTreeSet<Capability> = create.capabilities.iter().copied().collect();
-        if self.socket_change(name, &dir, &wanted)? {
-            self.close_socket(name);
-        }
+        let wanted: Option<BTreeSet<Capability>> =
+            (create.capabilities.as_ref()).map(|caps| caps.iter().copied().collect());
+        let wanted = self.settle_socket(name, &dir, wanted)?;
         if dir.join(WAYLAND).as_os_str().len() > MAX_SOCKET_PATH {
             return Err(RpcError::new(
                 RpcError::LIMIT_REACHED,
@@ -178,20 +178,37 @@ impl State {
         self.copies.ext.retain(|w| !gone(w.client()));
     }
 
-    /// Whether the name has a socket with other capabilities, so the
-    /// socket is recreated. Equal capabilities answer `socket_exists`;
-    /// a name without a socket goes the new-name checks first.
-    fn socket_change(
-        &self,
+    /// The capabilities for a new socket of a name. An existing socket
+    /// with the same capabilities, or with none asked for, stays and
+    /// answers `socket_exists`; other capabilities close it first (D40).
+    fn settle_socket(
+        &mut self,
         name: &str,
         dir: &Path,
-        wanted: &BTreeSet<Capability>,
-    ) -> Result<bool, RpcError> {
-        match self.ipc.clients.get(name) {
-            Some(socket) if socket.capabilities == *wanted => Err(socket_exists(name, dir)),
-            Some(_) => Ok(true),
-            None => self.check_new_socket(name).map(|()| false),
+        wanted: Option<BTreeSet<Capability>>,
+    ) -> Result<BTreeSet<Capability>, RpcError> {
+        if let Some(socket) = self.ipc.clients.get(name) {
+            if wanted.as_ref().is_none_or(|w| *w == socket.capabilities) {
+                // The same file gives back what the revoke binding took.
+                if let Some(wanted) = wanted {
+                    self.grants.set_exact(name.to_owned(), wanted);
+                }
+                return Err(socket_exists(name, dir));
+            }
+        } else {
+            self.check_new_socket(name)?;
         }
+        let wanted = wanted.unwrap_or_default();
+        if self.ipc.clients.contains_key(name) {
+            // The old connections keep running; they get the new
+            // capabilities first, also when the new socket fails to open.
+            self.grants.set_exact(name.to_owned(), wanted.clone());
+            if !wanted.contains(&Capability::GrabAny) {
+                self.revoke_free_grabs(name);
+            }
+            self.close_socket(name);
+        }
+        Ok(wanted)
     }
 
     /// Why `clients.create` of a name without a socket must fail, if it
