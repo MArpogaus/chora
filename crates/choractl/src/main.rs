@@ -21,11 +21,11 @@ use chora_scene::{
     Event,
     ipc::{
         Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, Edges,
-        GrantChange, Hello, Inject, InjectEvent, MethodCall, Picture, ProcessWait, Query, Reserve,
-        RpcError, SOCKET_ENV, Spawn, Subscribe, admin_socket,
+        GrantChange, Hello, Inject, InjectEvent, MethodCall, Picture, Query, Reserve, RpcError,
+        SOCKET_ENV, Subscribe, admin_socket,
     },
 };
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use serde_json::Value;
 
 /// Talk to the chora compositor in `CHORA_SOCKET`.
@@ -87,14 +87,14 @@ enum Cmd {
         /// The parameters as JSON; `null` if missing.
         params: Option<String>,
     },
-    /// Grant a client name `input.inject`, `screen.capture`,
-    /// `process.spawn` or `input.grab-any`, until the session ends or a
-    /// revoke. Goes through the admin socket.
+    /// Grant a client name `input.inject`, `screen.capture` or
+    /// `input.grab-any`, until the session ends or a revoke. Goes
+    /// through the admin socket.
     Grant {
         /// The client name, for example `agent`.
         client: String,
-        /// One or more of `input.inject`, `screen.capture`,
-        /// `process.spawn` and `input.grab-any`.
+        /// One or more of `input.inject`, `screen.capture` and
+        /// `input.grab-any`.
         #[arg(required = true)]
         capabilities: Vec<Capability>,
     },
@@ -103,8 +103,8 @@ enum Cmd {
     Revoke {
         /// The client name.
         client: String,
-        /// One or more of `input.inject`, `screen.capture`,
-        /// `process.spawn` and `input.grab-any`.
+        /// One or more of `input.inject`, `screen.capture` and
+        /// `input.grab-any`.
         capabilities: Vec<Capability>,
     },
     /// Print the grants by client name.
@@ -125,19 +125,10 @@ enum Cmd {
     /// Start a program outside the core (D42), with an activation token
     /// of the core in `XDG_ACTIVATION_TOKEN`: in its own systemd scope
     /// when the user manager answers, detached otherwise. Prints the pid
-    /// as one JSON line.
+    /// as one JSON line. The old name `spawn` is a hidden alias that
+    /// warns on stderr.
+    #[command(alias = "spawn")]
     Run {
-        /// The program and its arguments.
-        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
-        argv: Vec<String>,
-    },
-    /// Start a program with the environment of the compositor, and print
-    /// its pid. Needs a grant of `process.spawn` for the client name.
-    Spawn {
-        /// Wait for the end of the program, and print its output and its
-        /// exit status.
-        #[arg(long)]
-        capture: bool,
         /// The program and its arguments.
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
         argv: Vec<String>,
@@ -330,7 +321,11 @@ enum AssetCmd {
 }
 
 fn main() -> ExitCode {
-    let args = Args::parse();
+    let matches = Args::command().get_matches();
+    if matches.subcommand_name() == Some("spawn") {
+        eprintln!("choractl: spawn is deprecated (D42), use choractl run");
+    }
+    let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
     match run(args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
@@ -363,7 +358,6 @@ fn run(args: Args) -> Result<(), String> {
         Cmd::Events { names } => events(&mut client, names),
         Cmd::Outputs => show(&mut client, "output.list", Value::Null),
         command @ (Cmd::Run { .. }
-        | Cmd::Spawn { .. }
         | Cmd::ConfigureOutput { .. }
         | Cmd::AddOutput { .. }
         | Cmd::RemoveOutput { .. }
@@ -456,7 +450,6 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             serde_json::json!({"output": output}),
         ),
         Cmd::Run { argv } => run_program(client, &argv),
-        Cmd::Spawn { capture, argv } => spawn(client, argv, capture),
         Cmd::ConfigureOutput {
             output,
             scale,
@@ -877,28 +870,6 @@ fn unit_active(name: &str) -> bool {
         .is_ok_and(|s| s.success())
 }
 
-/// Starts a program. With `capture`, waits for its end on the same
-/// connection, since the output goes with the last connection of the name.
-fn spawn(client: &mut Client, argv: Vec<String>, capture: bool) -> Result<(), ClientError> {
-    let started: Value = client.call("process.spawn", Spawn { argv, capture })?;
-    let pid = started["pid"].as_u64().and_then(|p| u32::try_from(p).ok());
-    let Some(pid) = pid.filter(|_| capture) else {
-        print_line(std::io::stdout(), &started);
-        return Ok(());
-    };
-    loop {
-        let wait = ProcessWait {
-            pid,
-            timeout_ms: 30_000,
-        };
-        let output: Value = client.call("process.wait", wait)?;
-        if output["running"] != Value::Bool(true) {
-            print_line(std::io::stdout(), &output);
-            return Ok(());
-        }
-    }
-}
-
 /// The `Environment=` property of `systemd-run` for one variable. systemd
 /// parses the value like a shell, so quotes and backslashes need an
 /// escape and the value stays one assignment when it holds a space.
@@ -1288,10 +1259,10 @@ mod tests {
         assert_eq!(env_prop("A", "a\"b\\c"), r#"-pEnvironment=A="a\"b\\c""#);
     }
 
-    /// The answer of `spawn` and `wait` is one JSON line, so that a script
-    /// can read it. A newline inside a string stays escaped.
+    /// The answer of `run` is one JSON line, so that a script can read
+    /// it. A newline inside a string stays escaped.
     #[test]
-    fn the_answer_of_spawn_is_one_json_line() {
+    fn the_answer_of_run_is_one_json_line() {
         let mut line = Vec::new();
         print_line(&mut line, &json!({ "pid": 7, "stdout": "a\nb" }));
         assert_eq!(
@@ -1463,6 +1434,17 @@ mod tests {
         assert!(
             matches!(args.command, Cmd::Run { ref argv } if *argv == ["/bin/echo", "-n"]),
             "everything after `run` is the program",
+        );
+    }
+
+    /// The old name `spawn` is a hidden alias of `run` (D42); `main`
+    /// warns on stderr when it is used.
+    #[test]
+    fn spawn_is_an_alias_of_run() {
+        let args = Args::try_parse_from(["choractl", "spawn", "foot"]).unwrap();
+        assert!(
+            matches!(args.command, Cmd::Run { ref argv } if *argv == ["foot"]),
+            "spawn starts the program like run",
         );
     }
 

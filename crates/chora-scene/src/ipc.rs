@@ -455,67 +455,6 @@ pub enum OutputTransform {
     Flipped270,
 }
 
-/// Parameters of `process.spawn`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Spawn {
-    /// The program and its arguments, for example `["foot"]`. The core
-    /// looks the program up in its `PATH`.
-    pub argv: Vec<String>,
-    /// Keep stdout, stderr and the exit status for `process.wait`, at most
-    /// 64 KiB of each stream.
-    #[serde(default)]
-    pub capture: bool,
-}
-
-/// Parameters of `process.wait`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ProcessWait {
-    /// The pid of a program that `process.spawn` started with `capture`.
-    pub pid: u32,
-    /// How long to wait for its end, in milliseconds, at most 30000; 0
-    /// answers at once.
-    #[serde(default)]
-    pub timeout_ms: u64,
-}
-
-/// The answer of `process.wait`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ProcessOutput {
-    /// The pid.
-    pub pid: u32,
-    /// The program still runs; the output is the one so far.
-    pub running: bool,
-    /// The exit code after the end, or 128 and the signal that ended it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub status: Option<i32>,
-    /// What it wrote to stdout, as UTF-8 with replacements.
-    pub stdout: String,
-    /// What it wrote to stderr.
-    pub stderr: String,
-    /// A stream had more than 64 KiB, and the rest went.
-    #[serde(default)]
-    pub truncated: bool,
-}
-
-/// Parameters of `plugins.restart`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Restart {
-    /// The client name of the plugin, for example `tiling`.
-    pub name: String,
-}
-
-/// The answer of `process.spawn` and `plugins.restart`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Spawned {
-    /// The process id of the new program.
-    pub pid: u32,
-    /// The program and its arguments.
-    pub argv: Vec<String>,
-}
-
 /// Parameters of `assets.put`: a file for image nodes, shader nodes and
 /// effects, from a client that shares no directory with the core.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -553,9 +492,6 @@ pub enum Capability {
     /// `screen.capture`: capture an output, a group or a surface.
     #[serde(rename = "screen.capture")]
     ScreenCapture,
-    /// `process.spawn`: start programs, and restart plugins.
-    #[serde(rename = "process.spawn")]
-    ProcessSpawn,
     /// `input.grab-any`: grab keys and buttons without Ctrl, Alt or Super
     /// (D45).
     #[serde(rename = "input.grab-any")]
@@ -564,12 +500,7 @@ pub enum Capability {
 
 impl Capability {
     /// Every capability.
-    pub const ALL: [Self; 4] = [
-        Self::InputInject,
-        Self::ScreenCapture,
-        Self::ProcessSpawn,
-        Self::GrabAny,
-    ];
+    pub const ALL: [Self; 3] = [Self::InputInject, Self::ScreenCapture, Self::GrabAny];
 
     /// The name, which is also the name of the method.
     #[must_use]
@@ -577,7 +508,6 @@ impl Capability {
         match self {
             Self::InputInject => "input.inject",
             Self::ScreenCapture => "screen.capture",
-            Self::ProcessSpawn => "process.spawn",
             Self::GrabAny => "input.grab-any",
         }
     }

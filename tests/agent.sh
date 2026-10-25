@@ -9,9 +9,8 @@
 # sees none of the privileged protocols. An MCP client waits for events
 # and draws a shader that it hands to the core as an asset. Connections
 # reserve space at the edges of the output. An agent starts a program with
-# choractl run, keeps one under supervise and restarts it, and the
-# deprecated spawn path stays checked until T14. An MCP client scales
-# the output and keeps a HUD in place during a camera move.
+# choractl run, keeps one under supervise and restarts it. An MCP client
+# scales the output and keeps a HUD in place during a camera move.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
@@ -468,9 +467,6 @@ pid_is_new() {
 wait_for pid_is_new
 pids+=("$(cat "$sup_file")")
 if "$bin/choractl" restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
-
-step "21b. the deprecated core program start still works until T14"
-. "$tests/deprecated-start.sh"
 
 step "22. an MCP client draws a panel and moves the camera on a click"
 rm -f "$out/panel-ready.txt"

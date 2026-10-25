@@ -3,7 +3,6 @@
 
 mod backend;
 mod capture;
-mod captured;
 mod copies;
 mod cursor;
 mod foreign_toplevel;
@@ -139,14 +138,7 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     // block, Mesa's included. A thread without it would receive SIGUSR1,
     // and its default action ends the process.
     let child = (!command.is_empty())
-        .then(|| {
-            process::spawn(
-                command,
-                (None, std::process::Stdio::inherit(), false),
-                &state.socket_name,
-                &socket,
-            )
-        })
+        .then(|| process::spawn(command, &state.socket_name, &socket))
         .and_then(|started| {
             started
                 .inspect_err(|err| tracing::error!(%err, ?command, "the startup command failed"))

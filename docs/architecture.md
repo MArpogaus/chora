@@ -201,8 +201,8 @@ handoff is necessary. Events are JSON-RPC notifications on the same
 connection.
 
 When a client closes its side of the connection, the core still answers the
-requests that arrived, also those of waiting transactions, `methods.call`,
-`process.wait` and `plugins.restart`. Then it closes the connection.
+requests that arrived, also those of waiting transactions and
+`methods.call`. Then it closes the connection.
 
 Limits keep a buggy client from exhausting the core:
 
@@ -313,7 +313,7 @@ The safety layer is the only built-in behavior (see
   Ctrl+Alt+F1 to F12 (VT switch).
 - **Revoke binding.** Ctrl+Alt+i takes every capability away from each
   client that holds only agent capabilities: `input.inject`,
-  `screen.capture`, `process.spawn` and `input.grab-any`. It also ends
+  `screen.capture` and `input.grab-any`. It also ends
   the grabs that need no modifier and disconnects Wayland clients that
   held a grant. The IPC connections stay.
 - **Injection mark.** While a client injects input, the core shows a
@@ -380,13 +380,13 @@ grants and makes client sockets (see [API](api.md#client-sockets)).
   protocols: the layer shell, the session lock, the input method, both
   foreign toplevel protocols, output management, both screencopy protocols
   with their sources, and the security context manager itself.
-- The IPC methods `input.inject`, `screen.capture` and `process.spawn` need
-  a **grant** of the user for the client name: `choractl grant NAME
-  CAPABILITY`. A grant protects against mistakes of agents. It is
-  no barrier against hostile code of the same user. The emergency reset
-  revokes all grants.
-- `screen.capture`, `input.inject`, `process.spawn` and `plugins.restart`
-  fail while the session is locked.
+- The IPC methods `input.inject` and `screen.capture` need a **grant**
+  of the user for the client name: `choractl grant NAME CAPABILITY`.
+  A grant protects against mistakes of agents. It is no barrier against
+  hostile code of the same user. The emergency reset revokes all grants.
+- `screen.capture` and `input.inject` fail while the session is locked.
+- The core starts no program except its own startup command (D42).
+  `choractl run`, `supervise` and `restart` start programs outside it.
 - A connection of a client socket acts only on its own nodes and on the
   windows of its `wayland.sock`. It sets no camera and puts no node
   under `screen:*`. It takes the keyboard with `focus_node` only after a

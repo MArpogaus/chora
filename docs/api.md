@@ -367,7 +367,7 @@ answers every request.
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture`, `process.spawn` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket; a name with a client socket answers code 7 instead, because its capabilities live in `clients.yaml` |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket; a name with a client socket answers code 7 instead, because its capabilities live in `clients.yaml` |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket, changed ones recreate it; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
@@ -379,9 +379,6 @@ answers every request.
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
 | `methods.return(call, result, error)` | answer a `method.called` event |
 | `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s |
-| `process.spawn(argv, capture)` | deprecated (D42), use `choractl run`: start a program with the environment of the core; with `capture`, the core keeps its output for `process.wait`; needs the grant `process.spawn` |
-| `process.wait(pid, timeout_ms)` | deprecated (D42), part of `process.spawn`: wait up to `timeout_ms` (at most 30000) for a program of `process.spawn` with `capture`, and return its output so far; needs the grant `process.spawn` |
-| `plugins.restart(name)` | deprecated (D42), use `choractl restart`: stop the process of a client name and start its command again; needs the grant `process.spawn` |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
@@ -548,10 +545,9 @@ protocol.
 
 ## Grants
 
-`input.inject` and `screen.capture` see or drive the whole session,
-`process.spawn` runs any program as the user, and `input.grab-any` lets a
-client catch keys and buttons without a modifier, so they need a grant of
-the user for the client name. A name with a client socket needs no
+`input.inject` and `screen.capture` see or drive the whole session, and
+`input.grab-any` lets a client catch keys and buttons without a
+modifier, so they need a grant of the user for the client name. A name with a client socket needs no
 grant: `clients.create` and `clients.yaml` give it the capabilities
 (D33, D40):
 
@@ -672,49 +668,19 @@ then get nothing. Its socket closes at its next request. Its windows carry the n
 focus, as every Wayland client does.
 
 A container that mounts only its client directory cannot take another
-name or give itself capabilities. One gap stays until a later step of
-0.7: a program of `process.spawn` gets `CHORA_SOCKET` and
-`WAYLAND_DISPLAY` of the core. So a grant of `process.spawn` gives a
-container the main IPC socket and the main Wayland socket with all
-protocols. D42 moves the start of programs out of the core.
+name or give itself capabilities. The last known gap is gone: the core
+starts no program, so no program carries its `CHORA_SOCKET` and
+`WAYLAND_DISPLAY` into a container (D42).
 
 ## Programs
 
-Deprecated (D42): `choractl run` below is the way for callers.
-`process.spawn(argv)` starts a program with the environment of the core,
-as the startup command (D30): `WAYLAND_DISPLAY` and `CHORA_SOCKET` of this
-compositor, without the variables of a host session, and with no stdin.
-The core looks the program up in its own `PATH`, so it works for an agent
-in another namespace too. The answer has the `pid` and the `argv`.
-
-`plugins.restart(name)` restarts a plugin, for example after a rebuild.
-The core finds the process of the connections of the client name,
-reads its command line and working directory from `/proc`, and sends it
-SIGTERM, and a SIGKILL 5 s later. Once it exited, the core closes its
-connections that only wait for answers, as these reach nobody. Once no
-connection of the name is left, the core starts the same command again
-and answers with the new `pid`. When that takes more than 6 s, the restart
-fails. A name with several
-processes, or a process in a namespace that the core cannot see, fails.
-As of 0.7, `choractl restart` does not call this method (D42); see
-`choractl restart` below.
-
-With `capture: true`, `process.spawn` keeps stdout and stderr of the
-program, up to 64 KiB each, for the client that started it.
-`process.wait(pid, timeout_ms)` waits until the program ends or the time
-is up, and answers with `pid`, `running`, `stdout`, `stderr`, `truncated`
-for output that went beyond 64 KiB, and, once the program ended, `status`:
-its exit code, or 128 plus the signal number. 100 ms after the end of the
-program, the core closes its pipes, also when a child in the background
-still holds them. The first answer after the end is the last one; then
-the core forgets the program. At most 32 programs of a client wait for
-`process.wait`. Their output goes when the last connection of the client
-name closes, so a caller with `capture` waits on its own connection.
-
-Both methods need the grant `process.spawn`, and fail while the session is
-locked.
+The core starts no program except its own startup command (D30, D42).
+`choractl run`, `choractl supervise` and `choractl restart` start and
+keep programs outside the core.
 
 `choractl run [--] CMD ARGS...` starts a program outside the core (D42).
+The old name `choractl spawn` is a hidden alias of it that prints one
+deprecation line on stderr.
 It first asks the core for an activation token with `activation.token`
 and passes it to the program in `XDG_ACTIVATION_TOKEN`. When `systemctl
 --user is-system-running` answers, `systemd-run --user` starts the
@@ -728,9 +694,8 @@ command prints the pid as one JSON line while the program runs. When
 the unit starts but its `MainPID` stays unknown after a short wait, the
 command exits with an error; it never starts the program twice. Export the two variables
 for the fallback as for any client. A window that activates with the
-token before its first map shows it in `surface.created`. Milestone 0.7
-moves the start of programs from the core to `choractl run` and systemd
-(D42).
+token before its first map shows it in `surface.created`. Since 0.7 the
+core itself starts nothing; `choractl run` and systemd do (D42).
 
 ```console
 $ choractl run -- foot
@@ -934,8 +899,6 @@ example in the `.mcp.json` of Claude Code:
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
 | `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views), by name only |
-| `spawn_process`, `restart_plugin` | deprecated (D42), use `choractl run` and `choractl restart`: start a program, or restart a plugin, as `process.spawn` and `plugins.restart`; `spawn_process` with `capture` keeps the output |
-| `wait_process` | deprecated (D42), part of `spawn_process`: the output of a program of `spawn_process` with `capture`, as `process.wait` |
 | `reserve_space` | space at the edges of an output, as `output.reserve`, while the server runs |
 | `configure_output` | the scale or the transform of an output, as `output.configure` |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
@@ -948,10 +911,11 @@ every field, with its description, so the model sees the shape of a call
 before the first try. A test checks that the schemas, the types and the
 examples of this page agree.
 
-The screenshot of `describe_screen`, `capture`, `inject_input`,
-`spawn_process` and `restart_plugin` need the grants of the client name,
-for example `choractl grant agent screen.capture`. Without a grant, `describe_screen`
-still describes the scene. No tool grants anything (D40).
+The screenshot of `describe_screen`, `capture` and `inject_input` need
+the grants of the client name, for example
+`choractl grant agent screen.capture`. Without a grant, `describe_screen`
+still describes the scene. No tool grants anything (D40). Programs are
+outside the MCP server: start them with `choractl run` (D42).
 
 A subscription has a connection of its own under the same client name. A
 thread reads its events into a buffer of 1000 events, so the core never

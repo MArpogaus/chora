@@ -31,7 +31,7 @@ terms and no synonyms.
 | **Event** | A message from the core about a change, for example `surface.created`. |
 | **Selector** | An expression that finds nodes by id, attribute or meta data, for example `app_id:firefox`. |
 | **Transaction** | A batch of commands that the core applies as one unit. If one command fails, the core applies none of them. |
-| **Capability** | A right of a client beyond the scene API: `input.inject`, `screen.capture` or `process.spawn`. The user grants it per client name with `choractl grant`. Client sockets fix it from milestone 0.7 (D33). |
+| **Capability** | A right of a client beyond the scene API: `input.inject`, `screen.capture` or `input.grab-any`. The user grants it per client name with `choractl grant`. Client sockets fix it from milestone 0.7 (D33). |
 | **Grant** | The current form of a capability: a permission of the user for one client name. Client sockets replace it in milestone 0.7. |
 | **Milestone** | A minor release on the way to 1.0, with a goal, a scope and a gate. See [Roadmap](roadmap.md). |
 | **Gate** | The checks that end a milestone; see [Roadmap](roadmap.md). |

@@ -1,6 +1,5 @@
 //! Grants of the user for the IPC methods that see or drive the whole
-//! session, or start programs: `input.inject`, `screen.capture` and
-//! `process.spawn`.
+//! session: `input.inject`, `screen.capture` and `input.grab-any`.
 //!
 //! `choractl grant NAME CAPABILITY` grants a capability to a client name,
 //! until `choractl revoke` or the end of the session, through the admin
@@ -222,9 +221,6 @@ mod tests {
         for (method, capability) in [
             ("input.inject", "input.inject"),
             ("screen.capture", "screen.capture"),
-            ("process.spawn", "process.spawn"),
-            ("process.wait", "process.spawn"),
-            ("plugins.restart", "process.spawn"),
         ] {
             let (error_code, message) = agent.fails(&mut core, method, json!({}));
             assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{method}");
@@ -253,7 +249,7 @@ mod tests {
     fn the_emergency_reset_revokes_every_grant_and_disconnects() {
         let mut core = Core::new();
         let mut ctl = core.admin();
-        let all = json!({"client": "agent", "capabilities": ["input.inject", "process.spawn"]});
+        let all = json!({"client": "agent", "capabilities": ["input.inject", "input.grab-any"]});
         ctl.ok(&mut core, "grants.set", all);
         core.state.reset();
         assert!(ctl.closed(&mut core));

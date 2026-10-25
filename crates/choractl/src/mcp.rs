@@ -18,7 +18,7 @@ use chora_scene::{
     Node, NodeKind, OutputInfo, Transform,
     ipc::{
         Apply, AssetPut, Capture, Client, ClientError, Hello, Inject, MethodCall, OutputConfigure,
-        Picture, ProcessWait, Query, Reserve, Restart, RpcError, Spawn,
+        Picture, Query, Reserve, RpcError,
     },
 };
 use rmcp::{
@@ -488,27 +488,10 @@ fn scene_tools() -> Vec<Tool> {
     ]
 }
 
-/// The tools of the session: programs, the work area and assets.
+/// The tools of the session: the work area and assets. Programs come
+/// from `choractl run` outside the core (D42).
 fn session_tools() -> Vec<Tool> {
     vec![
-        tool(
-            "spawn_process",
-            "Deprecated (D42): use choractl run. Start a program in the session with the environment of chora. With capture, chora keeps stdout, stderr and the exit status for wait_process. Needs a grant of process.spawn. Returns the pid.",
-            &json!({
-                "argv": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "the program and its arguments, for example [\"foot\"]"},
-                "capture": {"type": "boolean", "description": "keep the output, at most 64 KiB of each stream"},
-            }),
-            &["argv"],
-        ),
-        tool(
-            "wait_process",
-            "Deprecated (D42), part of spawn_process: the output and the exit status of a program of spawn_process with capture: at once with timeout_ms 0, or once it ended, at the latest after timeout_ms (at most 30000). running is true while it runs.",
-            &json!({
-                "pid": {"type": "integer", "minimum": 0},
-                "timeout_ms": {"type": "integer", "minimum": 0, "maximum": 30000},
-            }),
-            &["pid"],
-        ),
         tool(
             "configure_output",
             "Set the scale or the transform of an output, as wlr-randr does. Returns the output.",
@@ -518,12 +501,6 @@ fn session_tools() -> Vec<Tool> {
                 "transform": {"enum": ["normal", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"]},
             }),
             &[],
-        ),
-        tool(
-            "restart_plugin",
-            "Deprecated (D42): use choractl restart. Restart a plugin, for example after a rebuild: stop the process of a client name and start its command again. Needs a grant of process.spawn. Returns the new pid.",
-            &json!({"name": {"type": "string", "description": "the client name, for example tiling"}}),
-            &["name"],
         ),
         tool(
             "reserve_space",
@@ -663,10 +640,7 @@ fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBloc
         "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
         "put_asset" => put_asset(core, args),
         "reserve_space" => reserve_space(core, args),
-        "spawn_process" => pass::<Spawn>(core, "process.spawn", args),
-        "wait_process" => pass::<ProcessWait>(core, "process.wait", args),
         "configure_output" => pass::<OutputConfigure>(core, "output.configure", args),
-        "restart_plugin" => pass::<Restart>(core, "plugins.restart", args),
         other => Err(Failure::UnknownTool(format!("no tool {other:?}"))),
     }
 }
@@ -849,7 +823,7 @@ mod tests {
     fn the_builtins_keep_their_names_and_take_no_grant() {
         let builtins = tools();
         let names = names(&builtins);
-        assert_eq!(names.len(), 18, "{names:?}");
+        assert_eq!(names.len(), 15, "{names:?}");
         assert!(names.contains(&"describe_screen"));
         assert!(names.iter().all(|n| !n.contains("grant")), "{names:?}");
     }

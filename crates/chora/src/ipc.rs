@@ -7,7 +7,7 @@
 //! stall the event loop.
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     io::{self, ErrorKind, Read, Write},
     os::unix::{
         fs::{DirBuilderExt, MetadataExt, PermissionsExt},
@@ -35,7 +35,6 @@ use smithay::{
 };
 
 use crate::{
-    captured::Processes,
     output::output_area,
     render::{location_and_scale, window_rect},
     state::State,
@@ -69,13 +68,6 @@ pub struct Ipc {
     path: Option<PathBuf>,
     /// The files of `assets.put`.
     pub uploads: Uploads,
-    /// The client names whose `plugins.restart` waits for the old process.
-    pub restarting: HashSet<String>,
-    /// The output of the programs of `process.spawn` with `capture`.
-    pub processes: Processes,
-    /// The connections that wait for a late answer of `process.wait` or
-    /// `plugins.restart`, once per answer.
-    pub late: Vec<u64>,
     listener: Option<RegistrationToken>,
     /// The listener of the admin socket and its path.
     admin: Option<(RegistrationToken, PathBuf)>,
@@ -237,38 +229,6 @@ impl Drop for Ipc {
 }
 
 impl Ipc {
-    /// The path of the socket, once it listens.
-    pub fn path(&self) -> Option<&Path> {
-        self.path.as_deref()
-    }
-
-    /// The connections of a client name and a process that reached the end
-    /// of their streams and only wait for answers.
-    pub fn ended(&self, name: &str, pid: Pid) -> Vec<u64> {
-        self.conns
-            .iter()
-            .filter(|(_, c)| c.name.as_deref() == Some(name) && c.reader.is_none())
-            .filter(|(_, c)| socket_peercred(&c.stream).is_ok_and(|p| p.pid == pid))
-            .map(|(id, _)| *id)
-            .collect()
-    }
-
-    /// The processes of the connections of a client name, each once; `None`
-    /// for a process that the core cannot see.
-    pub fn peer_pids(&self, name: &str) -> Vec<Option<Pid>> {
-        let mut pids = Vec::new();
-        for conn in self.conns.values() {
-            if conn.name.as_deref() != Some(name) {
-                continue;
-            }
-            let pid = socket_peercred(&conn.stream).ok().map(|c| c.pid);
-            if !pids.contains(&pid) {
-                pids.push(pid);
-            }
-        }
-        pids
-    }
-
     /// The reserves of all connections on an output, added up.
     pub fn reserved(&self, output: &str) -> Edges {
         self.conns
@@ -808,9 +768,6 @@ impl State {
             "screen.capture" => self.ipc_capture(conn, params),
             "input.inject" => self.ipc_inject(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
-            "process.spawn" | "process.wait" | "plugins.restart" => {
-                return self.ipc_process(conn, id, &request.method, params);
-            }
             "activation.token" => Ok(self.ipc_activation_token()),
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
@@ -1217,7 +1174,6 @@ impl State {
             let effects = self.scene.unreserve(&name);
             self.execute(effects);
         }
-        self.ipc.processes.drop_client(&name);
         self.emit(&Event::ClientDisconnected { name });
     }
 
@@ -1241,7 +1197,6 @@ impl State {
     fn ipc_write(&mut self) -> Vec<u64> {
         let transactions = &self.transactions;
         let methods = &self.methods;
-        let late = &self.ipc.late;
         self.ipc
             .conns
             .iter_mut()
@@ -1258,8 +1213,7 @@ impl State {
                 let answered = conn.reader.is_none()
                     && conn.output.is_empty()
                     && !transactions.waits_for(*id)
-                    && !methods.waits_for(*id)
-                    && !late.contains(id);
+                    && !methods.waits_for(*id);
                 (broken || answered).then_some(*id)
             })
             .collect()
@@ -3113,32 +3067,6 @@ mod tests {
         let _copy = core.state.ipc.conns[&conn].stream.try_clone().unwrap();
         client.shut_down_writes();
         assert!(client.closed(&mut core));
-    }
-
-    #[test]
-    fn a_process_wait_gets_its_answer_after_the_end_of_the_stream() {
-        let mut core = Core::new();
-        core.state.ipc.path = Some("/nonexistent.sock".into());
-        let grant = json!({"client": "agent", "capabilities": ["process.spawn"]});
-        core.admin().ok(&mut core, "grants.set", grant);
-        let mut agent = core.named("agent");
-        let spawn = json!({"argv": ["sleep", "0.2"], "capture": true});
-        let pid = agent.ok(&mut core, "process.spawn", spawn)["pid"].clone();
-        let id = agent.send("process.wait", json!({"pid": pid, "timeout_ms": 5000}));
-        agent.shut_down_writes();
-        let started = Instant::now();
-        let answer = loop {
-            assert!(started.elapsed() < Duration::from_secs(5), "no answer");
-            std::thread::sleep(Duration::from_millis(20));
-            core.dispatch();
-            let messages = agent.read().expect("the connection waits for the answer");
-            if let Some(answer) = messages.into_iter().find(|m| m["id"] == id) {
-                break answer;
-            }
-        };
-        assert_eq!(answer["result"]["running"], false, "{answer}");
-        assert_eq!(answer["result"]["status"], 0, "{answer}");
-        assert!(agent.closed(&mut core));
     }
 
     /// `choractl run` asks the core for a token (D42). A toplevel that
