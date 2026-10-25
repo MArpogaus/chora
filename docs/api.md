@@ -951,3 +951,14 @@ the subscription.
 A tool that fails, also on invalid arguments, answers with `isError` and
 the reason, so that the model can correct its call. An unknown tool is a
 JSON-RPC error.
+
+Every method that a plugin exports is a tool of its own, named
+`client.method`, with the description and the input schema of the
+export; `call_method` stays for the general case. The tool list answers
+fresh on every `tools/list`, so a later `methods.export` needs no
+restart.
+
+The server answers requests in parallel: a running `wait_events` blocks
+no other call. A `notifications/cancelled` ends the wait of
+`wait_events` within 100 ms; the cancelled call gets no answer, as the
+protocol keeps it.

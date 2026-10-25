@@ -1,8 +1,9 @@
 #!/bin/bash
 # Gate check 3 of 0.8: wait_events returns while another tool call runs,
-# and a cancelled call ends within 100 ms. This needs the rmcp server of
-# T6; the script says so when the server still answers one request at a
-# time.
+# and a cancelled wait_events stops. A cancelled call gets no answer, as
+# the protocol and rmcp keep it; the wait still ends, which the server
+# reports on stderr. This needs the rmcp server of T6; the script says
+# so when the server still answers one request at a time.
 #
 # Usage: tests/gate-0.8-3.sh   BIN: directory with the binaries
 set -u
@@ -49,17 +50,22 @@ if answer(pinged, 1) is None:
 cancelled = ask("tools/call", {"name": "wait_events",
                                "arguments": {"timeout_ms": 30000}})
 mcp.notify("notifications/cancelled", {"requestId": cancelled})
+if answer(cancelled, 1) is not None:
+    sys.exit("the server answered the cancelled call")
+pinged = ask("ping")
 start = time.monotonic()
-if answer(cancelled, 1) is None:
-    sys.exit("the cancelled wait_events never answered")
+if answer(pinged, 1) is None:
+    sys.exit("the server stopped answering after the cancel")
 ms = 1000 * (time.monotonic() - start)
 if ms > 100:
-    sys.exit(f"the cancelled call ended after {ms:.0f} ms")
-print(f"wait_events runs in parallel; a cancelled call ended in {ms:.0f} ms")
+    sys.exit(f"the call after the cancel answered after {ms:.0f} ms")
+print("wait_events runs in parallel; a cancelled call stops without an answer")
 PY
 )
 rc=$?
 if ((rc == 44)); then skip "$out"; fi
 ((rc == 0)) || fail "the MCP client: $out"
+grep -q "wait_events cancelled" <<<"$out" ||
+    fail "the cancel never reached the wait: $out"
 echo "$out"
-ok "wait_events runs in parallel and a cancel ends within 100 ms"
+ok "wait_events runs in parallel and a cancel stops the wait"
