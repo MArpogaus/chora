@@ -1267,7 +1267,7 @@ the planned changes, and the <a href="../decisions/">Decisions</a> give the reas
     subgraph core["chora (Rust, Smithay)"]
         protocols["Wayland protocols"]
         backends["Backends: DRM/KMS and libinput, winit for development, headless for tests"]
-        scene["Scene: group, surface, rect, image, shader"]
+        scene["Scene: group, surface, rect, image, shader, text"]
         render["Renderer: GLES and GLSL shaders"]
         input["Input router"]
         ipc["IPC socket: JSON-RPC"]
@@ -1415,6 +1415,12 @@ when the damage tracker of Smithay reports damage. A layer counts as
 changed in every frame, so a scene with a layer renders in every frame.
 There is no direct scanout. Milestone 0.9 replaces this with a renderer
 of chora that renders only on damage (D17, D24).</p>
+<p>A text node lays out and draws inside the core. cosmic-text shapes the
+text with the system fonts and the fonts of every directory in
+<code>CHORA_FONT_DIRS</code>. It falls back per character, so CJK and emoji show
+without a font choice. A changed prop lays out the node again; a new
+output scale rasterizes it again. One cache entry per node holds the
+layout size and the raster of each physical scale.</p>
 <p>The cost of a frame grows with the number of visible nodes: a node is a
 draw call with its own texture, and software GL spends roughly 60 to
 140 µs on one. A headless session at 1280x800 on llvmpipe holds about
@@ -1428,8 +1434,8 @@ calloop serves the socket in the event loop of the core, so no thread
 handoff is necessary. Events are JSON-RPC notifications on the same
 connection.</p>
 <p>When a client closes its side of the connection, the core still answers the
-requests that arrived, also those of waiting transactions, <code>methods.call</code>,
-<code>process.wait</code> and <code>plugins.restart</code>. Then it closes the connection.</p>
+requests that arrived, also those of waiting transactions and
+<code>methods.call</code>. Then it closes the connection.</p>
 <p>Limits keep a buggy client from exhausting the core:</p>
 <table>
 <thead>
@@ -1563,7 +1569,7 @@ opens on F10 when the key goes up.</p>
   Ctrl+Alt+F1 to F12 (VT switch).</li>
 <li><strong>Revoke binding.</strong> Ctrl+Alt+i takes every capability away from each
   client that holds only agent capabilities: <code>input.inject</code>,
-  <code>screen.capture</code>, <code>process.spawn</code> and <code>input.grab-any</code>. It also ends
+  <code>screen.capture</code> and <code>input.grab-any</code>. It also ends
   the grabs that need no modifier and disconnects Wayland clients that
   held a grant. The IPC connections stay.</li>
 <li><strong>Injection mark.</strong> While a client injects input, the core shows a
@@ -1629,13 +1635,13 @@ grants and makes client sockets (see <a href="../api/#client-sockets">API</a>).<
   protocols: the layer shell, the session lock, the input method, both
   foreign toplevel protocols, output management, both screencopy protocols
   with their sources, and the security context manager itself.</li>
-<li>The IPC methods <code>input.inject</code>, <code>screen.capture</code> and <code>process.spawn</code> need
-  a <strong>grant</strong> of the user for the client name: <code>choractl grant NAME
-  CAPABILITY</code>. A grant protects against mistakes of agents. It is
-  no barrier against hostile code of the same user. The emergency reset
-  revokes all grants.</li>
-<li><code>screen.capture</code>, <code>input.inject</code>, <code>process.spawn</code> and <code>plugins.restart</code>
-  fail while the session is locked.</li>
+<li>The IPC methods <code>input.inject</code> and <code>screen.capture</code> need a <strong>grant</strong>
+  of the user for the client name: <code>choractl grant NAME CAPABILITY</code>.
+  A grant protects against mistakes of agents. It is no barrier against
+  hostile code of the same user. The emergency reset revokes all grants.</li>
+<li><code>screen.capture</code> and <code>input.inject</code> fail while the session is locked.</li>
+<li>The core starts no program except its own startup command (D42).
+  <code>choractl run</code>, <code>supervise</code> and <code>restart</code> start programs outside it.</li>
 <li>A connection of a client socket acts only on its own nodes and on the
   windows of its <code>wayland.sock</code>. It sets no camera and puts no node
   under <code>screen:*</code>. It takes the keyboard with <code>focus_node</code> only after a

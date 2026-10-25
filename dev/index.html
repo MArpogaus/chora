@@ -1122,8 +1122,8 @@ Ctrl+Alt+BackSpace quits chora, and Ctrl+Alt+F1 to F12 switch the VT.</p>
 </code></pre></div>
 <p>The agent can then put its own shaders and images, reserve a panel at the
 edge of the output, wait for clicks and keys, and move the camera. With
-<code>choractl grant agent process.spawn</code>, it can also start programs and
-restart plugins.</p>
+<code>choractl run</code> it starts programs outside the core, and <code>choractl
+supervise</code> with <code>choractl restart</code> keeps a plugin running (D42).</p>
 <p>To try the XP flavor, a stacking desktop in the style of Windows XP, start
 <code>chora -- chora-xp</code>. From a source tree, point it at the theme:
 <code>target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme</code>.

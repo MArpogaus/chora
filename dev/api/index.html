@@ -664,6 +664,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#error-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#protocol-versions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protocol versions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#grants" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1137,6 +1159,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#error-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#protocol-versions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protocol versions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#grants" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1304,7 +1348,7 @@ empties it.</p>
 <tr>
 <td><code>rects</code></td>
 <td>all</td>
-<td>in <code>scene.query</code>: the output name maps to <code>[x, y, w, h]</code> in logical pixels of that output, after all parent transforms and the camera of that output; outputs where the node does not show are left out; the bounding box when rotation or a mesh makes the shape no rectangle; inside a clip, cut to the clip area; read-only</td>
+<td>in <code>scene.query</code>: the output name maps to <code>[x, y, w, h]</code> in logical pixels of that output. The core applies all parent transforms and the camera, and projects like the renderer. The query leaves out outputs where the node does not show. The box holds the drawn shape under rotation, perspective or a mesh. A clip or an ancestor layer cuts the box to its own box. The mesh of a layer does not move the boxes of its descendants. Read-only.</td>
 </tr>
 <tr>
 <td><code>to</code></td>
@@ -1358,7 +1402,7 @@ empties it.</p>
 </tr>
 <tr>
 <td><code>color</code></td>
-<td>rect</td>
+<td>rect, text</td>
 <td>RGBA, each from 0 to 1, with straight alpha: <code>[1, 1, 1, 0.5]</code> is white at half opacity</td>
 </tr>
 <tr>
@@ -1385,6 +1429,11 @@ empties it.</p>
 <td><code>shader</code>, <code>uniforms</code></td>
 <td>shader</td>
 <td>the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform <code>{"node": id}</code> is a <code>sampler2D</code> with that node as it shows on its own, at most 4</td>
+</tr>
+<tr>
+<td><code>text</code>, <code>family</code>, <code>font_size</code>, <code>max_width</code></td>
+<td>text</td>
+<td><code>text</code>: UTF-8, needed at <code>create</code>, at most 4 KiB; <code>family</code>: a font family, at most 4 KiB, a system font without it; <code>font_size</code>: logical pixels, from 1 to 1024; <code>max_width</code>: the width at which lines wrap, and nothing else; a text node has no <code>size</code>, it sizes itself by its layout, so it is never a layer: rotated, mirrored or projected outside a layer, it draws nothing, so put it in a group with a <code>size</code> and a <code>clip</code>; the core draws it in <code>color</code>, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale, and 256 MiB for all text nodes together; a raster beyond the second limit draws nothing until its node changes; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale</td>
 </tr>
 </tbody>
 </table>
@@ -1455,7 +1504,7 @@ path.</p>
 <tbody>
 <tr>
 <td><code>create</code></td>
-<td>create a group, rect, image or shader node under a parent</td>
+<td>create a group, rect, image, shader or text node under a parent</td>
 </tr>
 <tr>
 <td><code>attach</code></td>
@@ -1740,14 +1789,15 @@ methods. Only there do <code>grants.set</code>, <code>grants.revoke</code> and <
 work. <code>choractl grant</code>, <code>choractl revoke</code> and <code>choractl clients create</code>
 use it; <code>choractl clients up [FILE]</code> applies a YAML file of
 <code>NAME: { grants: [...] }</code> entries: it opens the socket of every name
-and makes its grants equal to the list, so grants that are missing from
-the file are revoked. An existing socket is kept (<code>clients.create</code>
-answers the <code>socket_exists</code> reason) and its connections stay; while a
-name is connected or in its grace time the socket cannot open
-(<code>clients.create</code> answers the <code>connected</code> reason). <code>choractl clients up</code>
-reports both reasons and goes on with the remaining names, syncing only
-the grants of that name. Without a
-file argument the first of <code>$XDG_CONFIG_HOME/chora/clients.yaml</code> and
+with exactly the capabilities of the list (D33, D40). A socket with the
+equal capabilities stays (<code>clients.create</code> answers the <code>socket_exists</code>
+reason) with its connections; changed capabilities recreate the socket
+and disconnect its Wayland clients. While a name is connected or in its
+grace time the socket cannot open (<code>clients.create</code> answers the
+<code>connected</code> reason); <code>choractl clients up</code> then syncs the grants of
+that name. It reports both reasons and goes on with the remaining
+names. Without a file argument the first of
+<code>$XDG_CONFIG_HOME/chora/clients.yaml</code> and
 <code>~/.config/chora/clients.yaml</code> is read, <code>-</code> for stdin. The core
 answers every request.</p>
 <table>
@@ -1759,8 +1809,8 @@ answers every request.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>hello(name, keep_nodes, resume)</code></td>
-<td>name the client (lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, from a letter, at most 64 bytes); <code>keep_nodes</code> keeps its nodes and cameras after the disconnect, <code>resume</code> keeps them for a grace time (see below); returns <code>{"version": ...}</code></td>
+<td><code>hello(name, keep_nodes, resume, protocol, features)</code></td>
+<td>name the client (lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, from a letter, at most 64 bytes); <code>keep_nodes</code> keeps its nodes and cameras after the disconnect, <code>resume</code> keeps them for a grace time (see below); <code>protocol</code> and <code>features</code> say what the client speaks (see <a href="#protocol-versions">Protocol versions</a>); returns <code>{"version": ..., "protocol": ..., "features": [...]}</code></td>
 </tr>
 <tr>
 <td><code>scene.query(selector, filter)</code></td>
@@ -1796,11 +1846,11 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>grants.set(client, capabilities)</code>, <code>grants.revoke(client, capabilities)</code>, <code>grants.list</code></td>
-<td>grant or revoke <code>input.inject</code>, <code>screen.capture</code>, <code>process.spawn</code> and <code>input.grab-any</code> for a client name; <code>choractl grant</code> and <code>choractl revoke</code> call them; <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket</td>
+<td>grant or revoke <code>input.inject</code>, <code>screen.capture</code> and <code>input.grab-any</code> for a client name; <code>choractl grant</code> and <code>choractl revoke</code> call them; <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket; a name with a client socket answers code 9 instead, because its capabilities live in <code>clients.yaml</code></td>
 </tr>
 <tr>
-<td><code>clients.create(name)</code></td>
-<td>open the client socket of a name and return its <code>path</code> (see <a href="#client-sockets">Client sockets</a>); only on the admin socket; <code>choractl clients create NAME</code> calls it</td>
+<td><code>clients.create(name, capabilities)</code></td>
+<td>open the client socket of a name with exactly those capabilities and return its <code>path</code> (see <a href="#client-sockets">Client sockets</a>); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without <code>capabilities</code>, an existing socket keeps its own; only on the admin socket; <code>choractl clients create NAME</code> and <code>choractl clients up</code> call it</td>
 </tr>
 <tr>
 <td><code>output.list</code></td>
@@ -1839,16 +1889,8 @@ answers every request.</p>
 <td>answer a <code>method.called</code> event</td>
 </tr>
 <tr>
-<td><code>process.spawn(argv, capture)</code></td>
-<td>start a program with the environment of the core; with <code>capture</code>, the core keeps its output for <code>process.wait</code>; needs the grant <code>process.spawn</code></td>
-</tr>
-<tr>
-<td><code>process.wait(pid, timeout_ms)</code></td>
-<td>wait up to <code>timeout_ms</code> (at most 30000) for a program of <code>process.spawn</code> with <code>capture</code>, and return its output so far; needs the grant <code>process.spawn</code></td>
-</tr>
-<tr>
-<td><code>plugins.restart(name)</code></td>
-<td>stop the process of a client name and start its command again; needs the grant <code>process.spawn</code></td>
+<td><code>activation.token</code></td>
+<td>answer an xdg activation token of no client, for <code>choractl run</code> (D42, see <a href="#programs">Programs</a>); the next toplevel that activates with it shows the token in <code>surface.created</code>; one use ends it; an unused token of no client is forgotten after 10 s; a client socket gets code 9</td>
 </tr>
 <tr>
 <td><code>assets.put(name, data)</code></td>
@@ -1861,31 +1903,29 @@ answers every request.</p>
 </tbody>
 </table>
 <p>An error has a <code>code</code>, a <code>message</code> and, where it helps, a machine
-readable <code>data</code>: the JSON-RPC codes for a method or parameters that do
-not exist, 1 for a request that breaks a rule, and 2 for a transaction
-that names a surface node that is gone, for example of a window that
-closed in the meantime. A plugin can ignore code 2. A rejected
-transaction carries <code>{"command": INDEX}</code> in <code>data</code>, the position of the
-failed command in the transaction.</p>
+readable <code>data</code>. <a href="#error-codes">Error codes</a> lists the stable codes. A
+rejected transaction carries <code>{"command": INDEX}</code> in <code>data</code>, the
+position of the failed command in the transaction.</p>
 <p>A request is one line of at most 1 MiB (<code>MAX_LINE</code>). The core reads a
-longer line to its end, answers it with code 1 and the id <code>null</code>, and
+longer line to its end, answers it with code 6 and the id <code>null</code>, and
 closes the connection. The core holds at most 8 MiB (<code>MAX_OUTPUT</code>) of
 answers and events that a connection did not read yet; a connection that
 passes this limit closes, so a client reads its socket while it waits. An
 answer that does not fit, for example of a query of all nodes, fails with
-code 1 instead, and the connection stays.</p>
+code 6 instead, and the connection stays.</p>
 <p>The core takes at most 128 connections, at most 16 of one process. The
 last 8 go only to a process without a connection, so <code>choractl</code> and a
 window manager that starts again still connect while one client holds many.
-A refused connection gets an error line with code 1 and the reason, <code>too
+A refused connection gets an error line with code 6 and the reason, <code>too
 many connections: ...</code>, before the core closes it.</p>
 <p><code>hello</code> answers with the version of the core: the crate version and,
 for a build in a git checkout, the commit, for example
-<code>{"version": "0.5.4+1ea0e89abc"}</code>. <code>chora --version</code> prints the same.
+<code>{"version": "0.5.4+1ea0e89abc", "protocol": 1, "features": []}</code>.
+See "Protocol versions" for the other two fields. <code>chora --version</code>
+prints the same version.
 The client library of <code>chora-scene</code> warns once on stderr when the core is
 another build, so <code>choractl</code> and the plugins tell why a request fails
-after an update. This is a first step: the versioned <code>hello</code> of D29, with
-the protocol version and the features of both sides, follows in 0.7.</p>
+after an update.</p>
 <p>A connection sends <code>hello</code> once, within 5 s. Connections with the same name share their
 nodes, so they must agree on <code>keep_nodes</code> and <code>resume</code>. The core refuses a
 <code>hello</code> with different values. For example, <code>choractl --name tiling</code> fails
@@ -1961,31 +2001,131 @@ sets the scale and the transform on the same path (D44), for an agent
 without wlr-randr. After a new mode, position, transform or scale,
 the core sends <code>output.changed</code>. For an output that turns off, it sends
 <code>output.removed</code>, and <code>output.list</code> no longer lists the output.</p>
+<h2 id="error-codes">Error codes<a class="headerlink" href="#error-codes" title="Permanent link">&para;</a></h2>
+<p>Each failure has a stable code (T2). The negative codes are the JSON-RPC
+codes for requests the core cannot route. The positive codes name the
+kind of refusal, and a client can act on them without reading the
+message.</p>
+<table>
+<thead>
+<tr>
+<th>code</th>
+<th>kind</th>
+<th>example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>-32700</td>
+<td>the line is no JSON request</td>
+<td>a line without a JSON object</td>
+</tr>
+<tr>
+<td>-32601</td>
+<td>no method of this name</td>
+<td><code>scene.drop</code></td>
+</tr>
+<tr>
+<td>-32602</td>
+<td>parameters are missing or invalid</td>
+<td><code>scene.query</code> with <code>"selector": 3</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td>the request breaks a rule of the scene or of the core</td>
+<td>updating a node of another client</td>
+</tr>
+<tr>
+<td>2</td>
+<td>a surface node of a transaction is gone</td>
+<td>a window closed during the wait</td>
+</tr>
+<tr>
+<td>3</td>
+<td>a protocol the core does not speak</td>
+<td>a <code>hello</code> with <code>protocol</code> 2 (D29)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>a capability the method needs</td>
+<td><code>screen.capture</code> without a grant</td>
+</tr>
+<tr>
+<td>5</td>
+<td>an unknown node</td>
+<td><code>update</code> of a node id that never existed</td>
+</tr>
+<tr>
+<td>6</td>
+<td>a limit of the core is reached</td>
+<td>a request longer than 1 MiB</td>
+</tr>
+<tr>
+<td>7</td>
+<td>a client name that is taken</td>
+<td>a <code>hello</code> with a name that has a client socket</td>
+</tr>
+<tr>
+<td>8</td>
+<td>a method of the admin socket</td>
+<td><code>grants.set</code> on the main socket</td>
+</tr>
+<tr>
+<td>9</td>
+<td>a rule of client sockets</td>
+<td>a <code>hello</code> with another name on <code>clients/agent/ipc.sock</code></td>
+</tr>
+</tbody>
+</table>
+<p>Code 1 stays for every refusal the table has no own code for, for
+example a scene rule. The message always names the rule. A plugin can
+ignore code 2. A rejected transaction, so codes 1, 2, 5 and 6, carries
+the index of the failed command in <code>data</code>.</p>
+<h2 id="protocol-versions">Protocol versions<a class="headerlink" href="#protocol-versions" title="Permanent link">&para;</a></h2>
+<p>Both sides of the IPC say which protocol they speak (D29). <code>hello</code> takes
+an optional <code>protocol</code>, an integer, and a list <code>features</code>. It answers
+with the <code>protocol</code>, the <code>features</code> and the <code>version</code> of the core:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"method"</span><span class="p">:</span><span class="w"> </span><span class="s2">"hello"</span><span class="p">,</span><span class="w"> </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"wm"</span><span class="p">,</span><span class="w"> </span><span class="nt">"protocol"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"features"</span><span class="p">:</span><span class="w"> </span><span class="p">[]}}</span>
+<span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"result"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0.7.0+1ea0e89"</span><span class="p">,</span><span class="w"> </span><span class="nt">"protocol"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"features"</span><span class="p">:</span><span class="w"> </span><span class="p">[]}}</span>
+</code></pre></div>
+<p>The core speaks protocol 1. It refuses a client with a higher protocol
+with code 3, and the client must upgrade its core. A lower protocol
+works, so an older client keeps running. A missing <code>protocol</code> means a
+client from before the versioning, and works. Compatible additions
+arrive as named features while the protocol stays 1; a breaking change
+raises the number. The core answers with its own list, never with a mix.
+The client library of <code>chora-scene</code> sends its own <code>protocol</code> and
+<code>features</code>. It warns once on stderr when the core answers with another
+protocol.</p>
 <h2 id="grants">Grants<a class="headerlink" href="#grants" title="Permanent link">&para;</a></h2>
-<p><code>input.inject</code> and <code>screen.capture</code> see or drive the whole session,
-<code>process.spawn</code> runs any program as the user, and <code>input.grab-any</code> lets a
-client catch keys and buttons without a modifier, so they need a grant of
-the user for the client name. Milestone 0.7 replaces the grants with the
-capabilities of client sockets (D33, D40):</p>
+<p><code>input.inject</code> and <code>screen.capture</code> see or drive the whole session, and
+<code>input.grab-any</code> lets a client catch keys and buttons without a
+modifier, so they need a grant of the user for the client name. A name
+with a client socket needs no grant: <code>clients.create</code> and
+<code>clients.yaml</code> give it the capabilities
+(D33, D40):</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>screen.capture<span class="w"> </span>input.inject
 <span class="gp">$ </span>choractl<span class="w"> </span>grants
 <span class="go">{"agent": ["input.inject", "screen.capture"]}</span>
 <span class="gp">$ </span>choractl<span class="w"> </span>revoke<span class="w"> </span>agent
 </code></pre></div>
 <p>A grant lasts until <code>choractl revoke</code> or the end of the session. The
-emergency reset revokes all grants. A Wayland client of a client socket
-gets the grants of its name when it connects. A revoke of one of them,
-and the reset, disconnect it and drop its waiting frames. Only the admin socket changes grants.
-A process of the user on the host reaches the admin socket too. So a
+emergency reset revokes all grants. A connection through a client socket
+instead has exactly the capabilities the socket was opened with. A
+recreate with changed capabilities ends the Wayland clients that
+connected before it, and so does the reset. Only the admin socket
+changes grants. A process of the user on the host reaches the admin
+socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that <a href="#client-sockets">Client sockets</a> lists.
 <code>choractl mcp</code> offers no tool for grants.</p>
 <h2 id="client-sockets">Client sockets<a class="headerlink" href="#client-sockets" title="Permanent link">&para;</a></h2>
 <p>A client socket fixes the name of its clients (D33). <code>clients.create</code>
 on the admin socket opens <code>clients/NAME/ipc.sock</code> below the directory of
-the main socket, which has mode 0700. <code>choractl clients create agent</code> prints its
-path:</p>
-<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"method"</span><span class="p">:</span><span class="w"> </span><span class="s2">"clients.create"</span><span class="p">,</span><span class="w"> </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"agent"</span><span class="p">}}</span>
+the main socket, which has mode 0700. <code>capabilities</code> says what a
+connection through it may do; <code>clients.yaml</code> and <code>clients up</code> fill it
+in. <code>choractl clients create agent</code> prints its path:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"method"</span><span class="p">:</span><span class="w"> </span><span class="s2">"clients.create"</span><span class="p">,</span><span class="w"> </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"agent"</span><span class="p">,</span><span class="w"> </span><span class="nt">"capabilities"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"screen.capture"</span><span class="p">]}}</span>
 </code></pre></div>
 <ul>
 <li><code>clients.create</code> also opens <code>clients/NAME/wayland.sock</code>, a Wayland
@@ -1995,8 +2135,9 @@ path:</p>
 <li>It cannot change grants or make client sockets, as these need the
   admin socket.</li>
 <li>It fixes the name, confines the files and narrows the scene. On it,
-  <code>scene.apply</code> follows these rules. A refusal has code 1, names its
-  rule and carries the index of the command in <code>data</code>:</li>
+  <code>scene.apply</code> follows these rules. A refusal by one of them has code 9,
+  names its rule and carries the index of the command in <code>data</code>. The
+  rules of the scene keep codes 1, 2, 5 and 6:</li>
 <li><code>focus_node</code> with a node needs the last press of the user on a node
     or a window of the name. The press counts once, and a key press
     ends it.</li>
@@ -2010,8 +2151,14 @@ path:</p>
   of its <code>wayland.sock</code>. The <code>surface.*</code> events come only for these
   windows.</li>
 <li>A claim of the name gets only the new windows of its <code>wayland.sock</code>.</li>
-<li>The other methods answer by the name and its grants: a process that
-  may use the socket drives the session as far as that name may.</li>
+<li>The socket has exactly the capabilities of its <code>clients.create</code>; the
+  other methods answer by them. A process that may use the socket
+  drives the session as far as they reach.</li>
+<li><code>grants.set</code> and <code>grants.revoke</code> answer code 9 for the name: change
+  <code>clients.yaml</code> and run <code>choractl clients up</code>.</li>
+<li><code>activation.token</code> answers code 9. A window of its <code>wayland.sock</code>
+  asks for tokens through <code>xdg-activation</code>, under the focus rules
+  above.</li>
 <li>Its <code>image</code>, <code>shader</code> and effect paths name only its own files of
   <code>assets.put</code>. The main socket has no such rule: a client of it runs as
   the same account as the core and could read those files anyway.</li>
@@ -2020,16 +2167,17 @@ path:</p>
   socket.</li>
 <li>The main socket refuses a <code>hello</code> with a name that has a client
   socket, so no client of the main socket takes that name.</li>
-<li>A name that has a socket already keeps it. <code>clients.create</code> answers the
-  <code>socket_exists</code> reason with the <code>path</code> of that socket. <code>choractl clients
-  create NAME</code> prints <code>NAME has a client socket already: PATH</code> on stderr
-  and exits 1.</li>
+<li>Equal capabilities keep an existing socket. <code>clients.create</code> answers
+  the <code>socket_exists</code> reason with the <code>path</code> of that socket. <code>choractl
+  clients create NAME</code> prints <code>NAME has a client socket already: PATH</code>
+  on stderr and exits 1. Changed capabilities recreate the socket at
+  the same path and disconnect its Wayland clients.</li>
 <li><code>clients.create</code> fails for a name with a connection or in its grace
   time, and beyond 64 client sockets.</li>
 <li>The name has lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, and starts
   with a letter, at most 64 bytes; <code>hello</code> and <code>clients.create</code> refuse
   everything else. Its socket path must fit a Unix socket. A second
-  <code>clients.create</code> of a name fails.</li>
+  <code>clients.create</code> of a name takes only other capabilities.</li>
 <li>The emergency reset removes the client sockets, and so does the exit of
   chora.</li>
 </ul>
@@ -2061,56 +2209,66 @@ takes the focus only after input, once per press. Synthetic input from
 <code>input.inject</code> sets that serial too, so a client with that grant can
 create the press itself. When the token is used, it must still be at
 most 10 s old and the client must still have the keyboard focus.</p>
-<p>The client gets the grants of the name at the time it connects. A
-revoke of a capability that it got disconnects it, and so does the
+<p>The client gets the capabilities of the socket at the time it connects.
+A recreate with changed capabilities disconnects it, and so does the
 emergency reset. Its frames of screencopy and image capture that wait
 then get nothing. Its socket closes at its next request. Its windows carry the name: a query shows it in
 <code>surface.client</code>. It reads the clipboard only while it has the keyboard
 focus, as every Wayland client does.</p>
 <p>A container that mounts only its client directory cannot take another
-name or give itself capabilities. One gap stays until a later step of
-0.7: a program of <code>process.spawn</code> gets <code>CHORA_SOCKET</code> and
-<code>WAYLAND_DISPLAY</code> of the core. So a grant of <code>process.spawn</code> gives a
-container the main IPC socket and the main Wayland socket with all
-protocols. D42 moves the start of programs out of the core.</p>
+name or give itself capabilities. The last known gap is gone: the core
+starts no program, so no program carries its <code>CHORA_SOCKET</code> and
+<code>WAYLAND_DISPLAY</code> into a container (D42).</p>
 <h2 id="programs">Programs<a class="headerlink" href="#programs" title="Permanent link">&para;</a></h2>
-<p><code>process.spawn(argv)</code> starts a program with the environment of the core,
-as the startup command (D30): <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> of this
-compositor, without the variables of a host session, and with no stdin.
-The core looks the program up in its own <code>PATH</code>, so it works for an agent
-in another namespace too. The answer has the <code>pid</code> and the <code>argv</code>.
-<code>choractl spawn</code> prints its answer as one JSON line, so that a script can
-read it.</p>
-<p><code>plugins.restart(name)</code> restarts a plugin, for example after a rebuild.
-The core finds the process of the connections of the client name,
-reads its command line and working directory from <code>/proc</code>, and sends it
-SIGTERM, and a SIGKILL 5 s later. Once it exited, the core closes its
-connections that only wait for answers, as these reach nobody. Once no
-connection of the name is left, the core starts the same command again
-and answers with the new <code>pid</code>. When that takes more than 6 s, the restart
-fails. A name with several
-processes, or a process in a namespace that the core cannot see, fails.</p>
-<p>With <code>capture: true</code>, <code>process.spawn</code> keeps stdout and stderr of the
-program, up to 64 KiB each, for the client that started it.
-<code>process.wait(pid, timeout_ms)</code> waits until the program ends or the time
-is up, and answers with <code>pid</code>, <code>running</code>, <code>stdout</code>, <code>stderr</code>, <code>truncated</code>
-for output that went beyond 64 KiB, and, once the program ended, <code>status</code>:
-its exit code, or 128 plus the signal number. 100 ms after the end of the
-program, the core closes its pipes, also when a child in the background
-still holds them. The first answer after the end is the last one; then
-the core forgets the program. At most 32 programs of a client wait for
-<code>process.wait</code>. Their output goes when the last connection of the client
-name closes, so <code>choractl spawn --capture</code> waits on its own connection.</p>
-<p>Both methods need the grant <code>process.spawn</code>, and fail while the session is
-locked:</p>
-<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>grant<span class="w"> </span>agent<span class="w"> </span>process.spawn
-<span class="gp">$ </span>choractl<span class="w"> </span>--name<span class="w"> </span>agent<span class="w"> </span>spawn<span class="w"> </span>foot
-<span class="gp">$ </span>choractl<span class="w"> </span>--name<span class="w"> </span>agent<span class="w"> </span>spawn<span class="w"> </span>--capture<span class="w"> </span>--<span class="w"> </span>uname<span class="w"> </span>-s
-<span class="go">{"pid": 4242, "running": false, "status": 0, "stdout": "Linux\n", "stderr": "", "truncated": false}</span>
-<span class="gp">$ </span>choractl<span class="w"> </span>--name<span class="w"> </span>agent<span class="w"> </span>restart<span class="w"> </span>tiling
+<p>The core starts no program except its own startup command (D30, D42).
+<code>choractl run</code>, <code>choractl supervise</code> and <code>choractl restart</code> start and
+keep programs outside the core.</p>
+<p><code>choractl run [--] CMD ARGS...</code> starts a program outside the core (D42).
+The old name <code>choractl spawn</code> is a hidden alias of it that prints one
+deprecation line on stderr.
+It first asks the core for an activation token with <code>activation.token</code>
+and passes it to the program in <code>XDG_ACTIVATION_TOKEN</code>. When <code>systemctl
+--user is-system-running</code> answers, <code>systemd-run --user</code> starts the
+program in a transient unit of its own and returns at once. The unit
+also gets <code>XDG_RUNTIME_DIR</code>, <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> of
+the caller, so a plain <code>WAYLAND_DISPLAY</code> name resolves in the caller's
+runtime directory. It gets <code>DISPLAY</code> and the other host session
+variables only from the caller, never from the user manager. It starts
+in the caller's directory, and its output goes to the journal.
+Otherwise <code>choractl</code> forks the program itself, detached in a session of
+its own, with the environment of the caller and with no terminal. The
+command prints the pid and the token as one JSON line while the
+program runs. When
+the unit starts but its <code>MainPID</code> stays unknown after a short wait, for
+example because the program already ended, <code>pid</code> is <code>null</code>. The command
+never starts the program twice. Export
+the two variables for the fallback as for any client. A window that
+activates with the token before
+its first map shows it in <code>surface.created</code>. Since 0.7 the
+core itself starts nothing; <code>choractl run</code> and systemd do (D42).</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>run<span class="w"> </span>--<span class="w"> </span>foot
+<span class="go">{"pid":4343,"token":"a1b2c3d4e5f60718"}</span>
 </code></pre></div>
-<p>Milestone 0.7 moves the start of programs from the core to <code>choractl run</code>
-and systemd (D42).</p>
+<p><code>choractl supervise NAME -- CMD ARGS...</code> runs a plugin and starts it
+again when it ends (D42). It allows at most five restarts per minute
+and exits with an error after them. It writes the pid of the running
+program to <code>$XDG_RUNTIME_DIR/chora/supervise/NAME.pid</code>, so that
+<code>choractl restart</code> finds it. SIGTERM or SIGINT to <code>supervise</code> ends the
+program, removes the pid file, and exits with 128 plus the signal, as
+process managers expect. Only one <code>supervise</code> runs per name; a second
+one exits with an error. A restart through <code>choractl restart</code> counts
+toward the five restarts too. The command calls no core.</p>
+<p><code>choractl restart NAME</code> restarts a plugin. While the systemd user unit
+<code>NAME.service</code> or <code>chora-NAME-wm.service</code> of a flavor is active, it
+runs <code>systemctl --user restart</code> on that unit. Otherwise it sends SIGTERM to the running program of
+<code>choractl supervise NAME</code>, which starts it again. A name that runs in
+neither way is an error. A pid file whose program no longer runs is an
+error too, and the command removes the file. It prints what it
+restarted as one JSON line.</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>supervise<span class="w"> </span>tiling<span class="w"> </span>--<span class="w"> </span>chora-tiling<span class="w"> </span><span class="p">&amp;</span>
+<span class="gp">$ </span>choractl<span class="w"> </span>restart<span class="w"> </span>tiling
+<span class="go">{"restarted":"supervise","pid":4444}</span>
+</code></pre></div>
 <h2 id="screen-capture">Screen capture<a class="headerlink" href="#screen-capture" title="Permanent link">&para;</a></h2>
 <p><code>screen.capture</code> renders an output, or a node with its descendants, and
 answers with a PNG file in base64:</p>
@@ -2356,14 +2514,6 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 <td>the views of <a href="../configuration/#views">Configuration</a>, by name only</td>
 </tr>
 <tr>
-<td><code>spawn_process</code>, <code>restart_plugin</code></td>
-<td>start a program, or restart a plugin, as <code>process.spawn</code> and <code>plugins.restart</code>; <code>spawn_process</code> with <code>capture</code> keeps the output</td>
-</tr>
-<tr>
-<td><code>wait_process</code></td>
-<td>the output of a program of <code>spawn_process</code> with <code>capture</code>, as <code>process.wait</code></td>
-</tr>
-<tr>
 <td><code>reserve_space</code></td>
 <td>space at the edges of an output, as <code>output.reserve</code>, while the server runs</td>
 </tr>
@@ -2381,7 +2531,7 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tr>
 <tr>
 <td><code>wait_events</code></td>
-<td>the collected events: waits up to <code>timeout_ms</code> (5000 by default, at most 30000) for the first one, and returns at most <code>max</code> (50 by default, at most 500)</td>
+<td>the collected events: waits up to <code>timeout_ms</code> (5000 by default, at most 30000) for the first one, and returns at most <code>max</code> (50 by default, at most 500, 0 takes nothing)</td>
 </tr>
 </tbody>
 </table>
@@ -2390,10 +2540,13 @@ types of <code>chora-scene</code>. They list every command, every input event an
 every field, with its description, so the model sees the shape of a call
 before the first try. A test checks that the schemas, the types and the
 examples of this page agree.</p>
-<p>The screenshot of <code>describe_screen</code>, <code>capture</code>, <code>inject_input</code>,
-<code>spawn_process</code> and <code>restart_plugin</code> need the grants of the client name,
-for example <code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
-still describes the scene. No tool grants anything (D40).</p>
+<p>The screenshot of <code>describe_screen</code>, <code>capture</code> and <code>inject_input</code> need
+the grants of the client name, for example
+<code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
+still describes the scene. No tool grants anything (D40). Programs are
+outside the MCP server: start them with <code>choractl run</code> (D42). Since 0.7
+the tools <code>spawn_process</code>, <code>wait_process</code> and <code>restart_plugin</code> are gone,
+because a tool that starts programs would pass every grant.</p>
 <p>A subscription has a connection of its own under the same client name. A
 thread reads its events into a buffer of 1000 events, so the core never
 waits for the agent. When the buffer is full, the oldest events go, and
@@ -2402,6 +2555,19 @@ the subscription.</p>
 <p>A tool that fails, also on invalid arguments, answers with <code>isError</code> and
 the reason, so that the model can correct its call. An unknown tool is a
 JSON-RPC error.</p>
+<p>Every method that a plugin exports is a tool of its own, named
+<code>client.method</code>, with the description and the input schema of the
+export. <code>call_method</code> stays for the general case. The tool list answers
+fresh on every <code>tools/list</code>, so a later <code>methods.export</code> needs no
+restart. A call of such a tool passes its whole arguments object as the
+params of the method.</p>
+<p>While the core is not reachable, <code>tools/list</code> answers with the built-in
+tools alone and logs the reason on stderr. The plugin tools come back with
+the next call.</p>
+<p>The server answers requests in parallel: a running <code>wait_events</code> blocks
+no other call. A <code>notifications/cancelled</code> ends the wait of
+<code>wait_events</code> within 100 ms; the cancelled call gets no answer, as the
+protocol keeps it.</p>
 
 
 

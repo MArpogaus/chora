@@ -1336,11 +1336,11 @@ without guessing.</p>
   and the client library warns on a mismatch.</li>
 <li>Stable error codes: one code for each kind of failure. The error data
   already names the failed command.</li>
-<li><code>process.spawn</code>, <code>process.wait</code> and <code>plugins.restart</code> leave the core
-  (D42). <code>choractl run</code> starts a program through <code>systemd-run --user</code> with
-  an activation token. Without a reachable user systemd, <code>choractl</code> starts
-  and restarts the program itself. <code>choractl supervise</code> restarts a plugin
-  that ends.</li>
+<li>Done (D42): <code>process.spawn</code>, <code>process.wait</code> and <code>plugins.restart</code> have
+  left the core. <code>choractl run</code> starts a program through
+  <code>systemd-run --user</code> with an activation token. Without a reachable user
+  systemd, <code>choractl</code> starts and restarts the program itself.
+  <code>choractl supervise</code> restarts a plugin that ends.</li>
 <li>Focus in queries: the surface and the node that have the keyboard.</li>
 <li>Queries return the screen rectangle of a node on each output.</li>
 <li><code>choractl wait SELECTOR</code> returns when a node matches, or fails after a
@@ -1350,7 +1350,7 @@ without guessing.</p>
   applying it.</li>
 <li><code>chora-tiling</code> exports methods for tags, focus and moves. <code>chora-xp</code>
   exports methods for the start menu, minimize, restore and Restart.</li>
-<li>Small fixes from the battle test: compact JSON from <code>choractl spawn</code>,
+<li>Small fixes from the battle test: compact JSON from <code>choractl run</code>,
   a clear error from <code>clients create</code> for a taken name,
   <code>chora-probe --exit-on-close</code>, and <code>tests/ipc-bench.sh</code> on the headless
   session.</li>
