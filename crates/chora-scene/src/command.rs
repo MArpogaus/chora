@@ -9,12 +9,12 @@ use crate::{Easing, NodeKind, PropsUpdate, Transform};
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
-    /// Creates a group, rect, image or shader node under a parent.
+    /// Creates a group, rect, image, shader or text node under a parent.
     Create {
         /// The id of the new node.
         id: String,
-        /// Group, rect, image or shader; the core creates surface nodes
-        /// itself.
+        /// Group, rect, image, shader or text; the core creates surface
+        /// nodes itself.
         kind: NodeKind,
         /// The parent group.
         parent: String,
