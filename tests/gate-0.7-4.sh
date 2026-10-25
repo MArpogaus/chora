@@ -28,11 +28,11 @@ in_agent() {
         -v "$dir:/run/chora" -v "$bin:/work:ro,z" \
         docker.io/library/ubuntu:24.04 /work/choractl "$@"
 }
-in_agent query kind:surface >/dev/null || fail "the container cannot query the scene"
+in_agent --name agent query kind:surface >/dev/null || fail "the container cannot query the scene"
 echo '[{"create": {"id": "pod", "kind": "rect", "parent": "root",
     "props": {"size": [120, 80], "color": [0, 1, 0, 1],
               "transform": {"translate": [300, 300]}}}}]' |
-    in_agent apply - >/dev/null || fail "the container cannot draw a node"
+    in_agent --name agent apply - >/dev/null || fail "the container cannot draw a node"
 # agent captures through its own socket: the main socket refuses the
 # hello of a name that has a client socket (T3).
 CHORA_SOCKET="$dir/ipc.sock" "$bin/choractl" --name agent capture "$out/shot.png" >/dev/null ||
@@ -41,7 +41,7 @@ test "$(pixel "$out/shot.png" 360 340)" = "0 255 0 255" ||
     fail "the node of the container shows $(pixel "$out/shot.png" 360 340)"
 # The two refusals: grants are for the admin socket, and the socket of
 # agent answers only as agent.
-in_agent grant agent screen.capture >/dev/null 2>&1 &&
+in_agent --name agent grant agent screen.capture >/dev/null 2>&1 &&
     fail "grants.set worked on a client socket"
 in_agent --name other query kind:surface >/dev/null 2>&1 &&
     fail "hello answered as another name on the client socket"
