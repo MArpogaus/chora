@@ -61,7 +61,8 @@ scene:
   `~/.config/chora/views/work.yaml`, or to `--file PATH`. A plugin or an
   agent changes the nodes as `view-work`, for example
   `choractl --name view-work apply`.
-- A node has an `id`, a `kind` (`group`, `rect` or `image`), a `parent`
+- A node has an `id`, a `kind` (`group`, `rect`, `image`, `shader` or
+  `text`), a `parent`
   (the root by default) and its `props` as in a `create` command.
 - A name has letters, digits, `_`, `-` and `.`, but no `.` first, so that
   its file stays in its directory. The file `NAME.yaml` must name the same

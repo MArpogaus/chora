@@ -53,7 +53,7 @@ pub struct PluginUse {
 pub struct ViewNode {
     /// The id.
     pub id: String,
-    /// `group`, `rect` or `image`.
+    /// `group`, `rect`, `image`, `shader` or `text`.
     pub kind: NodeKind,
     /// The parent; the root if missing.
     #[serde(default = "root", skip_serializing_if = "is_root")]
@@ -257,7 +257,7 @@ fn check(view: &View) -> Result<(), String> {
         }
         if node.kind == NodeKind::Surface {
             return Err(format!(
-                "{} is a surface; views create groups, rects and images",
+                "{} is a surface; views do not create surfaces",
                 node.id
             ));
         }
