@@ -4,7 +4,8 @@
 //!
 //! `choractl grant NAME CAPABILITY` grants a capability to a client name,
 //! until `choractl revoke` or the end of the session, through the admin
-//! socket (D40). A client of a client socket cannot reach it, a process of
+//! socket (D40). A name with a client socket is excluded: its
+//! capabilities live in `clients.yaml` and `clients.create` (D33). A client of a client socket cannot reach it, a process of
 //! the user on the host can. The MCP bridge offers no tool for grants, so
 //! an agent cannot grant itself by accident. The emergency reset revokes
 //! all grants.
@@ -24,6 +25,16 @@ impl Grants {
     /// Whether a client name holds a capability.
     pub fn allows(&self, client: &str, capability: Capability) -> bool {
         self.0.get(client).is_some_and(|c| c.contains(&capability))
+    }
+
+    /// The exact capabilities of a name with a client socket (D33); the
+    /// answer of `clients.create` and of `clients.yaml`, nothing more.
+    pub fn set_exact(&mut self, client: String, capabilities: BTreeSet<Capability>) {
+        if capabilities.is_empty() {
+            self.0.remove(&client);
+        } else {
+            self.0.insert(client, capabilities);
+        }
     }
 
     fn set(&mut self, change: GrantChange) -> Result<(), RpcError> {
@@ -87,6 +98,15 @@ impl State {
             return Ok(self.grants.list());
         }
         let change: GrantChange = crate::ipc::params_of(params)?;
+        if self.ipc.has_socket(&change.client) {
+            return Err(RpcError::new(
+                RpcError::NAME_TAKEN,
+                format!(
+                    "{:?} has a client socket: change clients.yaml and run choractl clients up",
+                    change.client
+                ),
+            ));
+        }
         tracing::info!(method, client = change.client, capabilities = ?change.capabilities);
         if method == "grants.set" {
             self.grants.set(change)?;

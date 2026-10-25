@@ -345,13 +345,13 @@ methods. Only there do `grants.set`, `grants.revoke` and `clients.create`
 work. `choractl grant`, `choractl revoke` and `choractl clients create`
 use it; `choractl clients up [FILE]` applies a YAML file of
 `NAME: { grants: [...] }` entries: it opens the socket of every name
-and makes its grants equal to the list, so grants that are missing from
-the file are revoked. An existing socket is kept (`clients.create`
-answers the `socket_exists` reason) and its connections stay; while a
-name is connected or in its grace time the socket cannot open
-(`clients.create` answers the `connected` reason). `choractl clients up`
-reports both reasons and goes on with the remaining names, syncing only
-the grants of that name. Without a
+with exactly the capabilities of the list (D33, D40). A socket with the
+equal capabilities stays (`clients.create` answers the `socket_exists`
+reason) with its connections; changed capabilities recreate the socket
+and disconnect its Wayland clients. While a name is connected or in its
+grace time the socket cannot open (`clients.create` answers the
+`connected` reason); `choractl clients up` then syncs the grants of
+that name. It reports both reasons and goes on with the remaining names. Without a
 file argument the first of `$XDG_CONFIG_HOME/chora/clients.yaml` and
 `~/.config/chora/clients.yaml` is read, `-` for stdin. The core
 answers every request.
@@ -367,8 +367,8 @@ answers every request.
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture`, `process.spawn` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket |
-| `clients.create(name)` | open the client socket of a name and return its `path` (see [Client sockets](#client-sockets)); only on the admin socket; `choractl clients create NAME` calls it |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture`, `process.spawn` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket; a name with a client socket answers code 7 instead, because its capabilities live in `clients.yaml` |
+| `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket, changed ones recreate it; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
 | `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; scale and mode must keep the logical size within 16384 pixels a side; returns the output |
@@ -551,8 +551,9 @@ protocol.
 `input.inject` and `screen.capture` see or drive the whole session,
 `process.spawn` runs any program as the user, and `input.grab-any` lets a
 client catch keys and buttons without a modifier, so they need a grant of
-the user for the client name. Milestone 0.7 replaces the grants with the
-capabilities of client sockets (D33, D40):
+the user for the client name. A name with a client socket needs no
+grant: `clients.create` and `clients.yaml` give it the capabilities
+(D33, D40):
 
 ```console
 $ choractl grant agent screen.capture input.inject
@@ -562,9 +563,10 @@ $ choractl revoke agent
 ```
 
 A grant lasts until `choractl revoke` or the end of the session. The
-emergency reset revokes all grants. A Wayland client of a client socket
-gets the grants of its name when it connects. A revoke of one of them,
-and the reset, disconnect it and drop its waiting frames. Only the admin socket changes grants.
+emergency reset revokes all grants. A connection through a client socket
+instead has exactly the capabilities the socket was opened with. A
+recreate with changed capabilities ends the Wayland clients that
+connected before it, and so does the reset. Only the admin socket changes grants.
 A process of the user on the host reaches the admin socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that [Client sockets](#client-sockets) lists.
@@ -574,11 +576,12 @@ socket alone, with the gaps that [Client sockets](#client-sockets) lists.
 
 A client socket fixes the name of its clients (D33). `clients.create`
 on the admin socket opens `clients/NAME/ipc.sock` below the directory of
-the main socket, which has mode 0700. `choractl clients create agent` prints its
-path:
+the main socket, which has mode 0700. `capabilities` says what a
+connection through it may do; `clients.yaml` and `clients up` fill it
+in. `choractl clients create agent` prints its path:
 
 ```json
-{"jsonrpc": "2.0", "id": 1, "method": "clients.create", "params": {"name": "agent"}}
+{"jsonrpc": "2.0", "id": 1, "method": "clients.create", "params": {"name": "agent", "capabilities": ["screen.capture"]}}
 ```
 
 - `clients.create` also opens `clients/NAME/wayland.sock`, a Wayland
@@ -603,8 +606,11 @@ path:
   of its `wayland.sock`. The `surface.*` events come only for these
   windows.
 - A claim of the name gets only the new windows of its `wayland.sock`.
-- The other methods answer by the name and its grants: a process that
-  may use the socket drives the session as far as that name may.
+- The socket has exactly the capabilities of its `clients.create`; the
+  other methods answer by them. A process that may use the socket
+  drives the session as far as they reach.
+- `grants.set` and `grants.revoke` answer code 7 for the name: change
+  `clients.yaml` and run `choractl clients up`.
 - Its `image`, `shader` and effect paths name only its own files of
   `assets.put`. The main socket has no such rule: a client of it runs as
   the same account as the core and could read those files anyway.
@@ -613,16 +619,17 @@ path:
   socket.
 - The main socket refuses a `hello` with a name that has a client
   socket, so no client of the main socket takes that name.
-- A name that has a socket already keeps it. `clients.create` answers the
-  `socket_exists` reason with the `path` of that socket. `choractl clients
-  create NAME` prints `NAME has a client socket already: PATH` on stderr
-  and exits 1.
+- Equal capabilities keep an existing socket. `clients.create` answers
+  the `socket_exists` reason with the `path` of that socket. `choractl
+  clients create NAME` prints `NAME has a client socket already: PATH`
+  on stderr and exits 1. Changed capabilities recreate the socket at
+  the same path and disconnect its Wayland clients.
 - `clients.create` fails for a name with a connection or in its grace
   time, and beyond 64 client sockets.
 - The name has lowercase letters, digits, `_`, `-` and `.`, and starts
   with a letter, at most 64 bytes; `hello` and `clients.create` refuse
   everything else. Its socket path must fit a Unix socket. A second
-  `clients.create` of a name fails.
+  `clients.create` of a name takes only other capabilities.
 - The emergency reset removes the client sockets, and so does the exit of
   chora.
 
@@ -657,8 +664,8 @@ takes the focus only after input, once per press. Synthetic input from
 create the press itself. When the token is used, it must still be at
 most 10 s old and the client must still have the keyboard focus.
 
-The client gets the grants of the name at the time it connects. A
-revoke of a capability that it got disconnects it, and so does the
+The client gets the capabilities of the socket at the time it connects.
+A recreate with changed capabilities disconnects it, and so does the
 emergency reset. Its frames of screencopy and image capture that wait
 then get nothing. Its socket closes at its next request. Its windows carry the name: a query shows it in
 `surface.client`. It reads the clipboard only while it has the keyboard

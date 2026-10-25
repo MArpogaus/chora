@@ -433,12 +433,12 @@ impl Ipc {
         self.has_client(name) || self.graces.contains_key(name)
     }
 
-    /// Whether a connection came through the admin socket.
     /// Whether a client name has a client socket.
     pub fn has_socket(&self, name: &str) -> bool {
         self.clients.contains_key(name)
     }
 
+    /// Whether a connection came through the admin socket.
     fn admin(&self, conn: u64) -> bool {
         self.conns
             .get(&conn)
@@ -2345,8 +2345,11 @@ mod tests {
             .clone()
             .unwrap();
         assert_eq!(surface.client.as_deref(), Some("agent"));
-        let grant = json!({"client": "agent", "capabilities": ["screen.capture"]});
-        admin.ok(&mut core, "grants.set", grant);
+        admin.ok(
+            &mut core,
+            "clients.create",
+            json!({"name": "agent", "capabilities": ["screen.capture"]}),
+        );
         let granted = Wayland::connect_to(&mut core, &path);
         assert!(offers(&granted, "zwlr_screencopy") && offers(&granted, "ext_image_copy_capture"));
         assert!(!offers(&granted, "input_method") && !offers(&granted, "zwlr_output_manager"));
@@ -2422,20 +2425,23 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// A create with other capabilities recreates the socket (D33) and
+    /// ends its Wayland clients, so none keeps a capability that the
+    /// clients file took away. The reset ends all of them.
     #[test]
-    fn a_revoke_and_the_reset_disconnect_the_wayland_clients_that_had_the_grant() {
-        let (mut core, dir) = socket_dir("wayland-revoke");
+    fn changed_capabilities_and_the_reset_disconnect_the_wayland_clients() {
+        let (mut core, dir) = socket_dir("wayland-recreate");
         let mut admin = core.admin();
-        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let caps = json!({"name": "agent", "capabilities": ["screen.capture"]});
+        let created = admin.ok(&mut core, "clients.create", caps);
         let path = PathBuf::from(created["wayland"].as_str().unwrap());
-        let grant = json!({"client": "agent", "capabilities": ["screen.capture"]});
-        admin.ok(&mut core, "grants.set", grant.clone());
         let mut capturer = Wayland::connect_to(&mut core, &path);
-        let inject = json!({"client": "agent", "capabilities": ["input.inject"]});
-        admin.ok(&mut core, "grants.revoke", inject);
-        assert!(!capturer.closed(&mut core), "it had no input.inject");
-        admin.ok(&mut core, "grants.revoke", grant);
-        assert!(capturer.closed(&mut core), "the revoke ends screen.capture");
+        let inject = json!({"name": "agent", "capabilities": ["input.inject"]});
+        admin.ok(&mut core, "clients.create", inject);
+        assert!(
+            capturer.closed(&mut core),
+            "the recreate ends the client that had screen.capture"
+        );
         let mut plain = Wayland::connect_to(&mut core, &path);
         assert!(!plain.closed(&mut core));
         core.state.reset();

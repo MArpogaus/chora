@@ -104,6 +104,7 @@ issue of 0.7 is #91.
 - Docs: "Client sockets" in `docs/api.md`, "Clients file" in
   `docs/configuration.md`.
 - If this conflicts with how `clients up` works today, ask.
+- This touches many places; the 300-line rule is waived for T3.
 
 ### T4: `choractl run` (D42, part 1)
 

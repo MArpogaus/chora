@@ -293,14 +293,16 @@ enum CameraCmd {
 
 #[derive(Subcommand)]
 enum ClientsCmd {
-    /// Open the client socket of a name, `clients/NAME/ipc.sock` next to
-    /// `CHORA_SOCKET`, and print its path.
+    /// Open the client socket without capabilities, `clients/NAME/ipc.sock`
+    /// next to `CHORA_SOCKET`, and print its path; `clients up` gives a
+    /// name its capabilities.
     Create {
         /// The client name, for example `agent`.
         client: String,
     },
-    /// Create the sockets of all names in a YAML file, with their
-    /// grants: `clients.create` and `grants.set` in one step.
+    /// Create the sockets of all names in a YAML file with their
+    /// capabilities: `clients.create` with the list of the file. Changed
+    /// capabilities recreate the socket.
     Up {
         /// The file, `~/.config/chora/clients.yaml` by default, `-` for
         /// stdin.
@@ -1016,7 +1018,7 @@ fn grants(
     client.call::<_, Value>(method, change).map(drop)
 }
 
-/// One name of `clients up`: its grants; the socket itself needs no
+/// One name of `clients up`: its capabilities; the socket itself needs no
 /// more than the name.
 #[derive(serde::Deserialize)]
 struct ClientSpec {
@@ -1024,7 +1026,11 @@ struct ClientSpec {
     grants: Vec<Capability>,
 }
 
-/// Creates the socket of every name in the file and sets its grants.
+/// Opens the socket of every name in the file with exactly its
+/// capabilities (D33, D40). Equal capabilities keep the socket; changed
+/// capabilities make the core recreate it. Only a name that is connected
+/// gets no socket yet; `sync_grants` then carries its capabilities until
+/// the create works.
 fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError> {
     let bad = |e: String| ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e));
     let text = match file {
@@ -1054,35 +1060,39 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
         view::parse_yaml(&text).map_err(bad)?;
     for (name, spec) in wanted {
         view::check_name(&name).map_err(bad)?;
-        let kept =
-            match client.call::<_, Value>("clients.create", serde_json::json!({"name": &name})) {
-                Ok(_) => None,
-                Err(ClientError::Rpc(err)) => {
-                    let reason = err
-                        .data
-                        .as_ref()
-                        .and_then(|d| d.get("reason"))
-                        .and_then(Value::as_str)
-                        .unwrap_or("");
-                    if reason != "socket_exists" && reason != "connected" {
-                        return Err(ClientError::Rpc(err));
-                    }
-                    Some(reason.to_owned())
-                }
-                Err(e) => return Err(e),
-            };
-        if let Some(reason) = kept {
-            eprintln!("{name}: {reason}: socket not opened, only grants synced");
+        let params = serde_json::json!({"name": &name, "capabilities": spec.grants});
+        let err = match client.call::<_, Value>("clients.create", params) {
+            Ok(_) => {
+                println!("{name}");
+                continue;
+            }
+            Err(ClientError::Rpc(err)) => err,
+            Err(e) => return Err(e),
+        };
+        match err
+            .data
+            .as_ref()
+            .and_then(|d| d.get("reason"))
+            .and_then(Value::as_str)
+        {
+            // Equal capabilities: the socket and its connections stay.
+            Some("socket_exists") => println!("{name}"),
+            // No socket yet: until the name disconnects, its capabilities
+            // live in the grants, which still work for it.
+            Some("connected") => {
+                eprintln!("{name}: connected: socket not opened, only grants synced");
+                sync_grants(client, &name, spec.grants)?;
+                println!("{name}");
+            }
+            _ => return Err(ClientError::Rpc(err)),
         }
-        sync_grants(client, &name, spec.grants)?;
-        println!("{name}");
     }
     Ok(())
 }
 
-/// Makes the grants of a name equal to the listed ones, part by part:
-/// an unchanged grant stays, so no client is disconnected and no moment
-/// passes without it.
+/// Makes the grants of a not yet opened name equal to the listed ones,
+/// part by part: an unchanged grant stays, so no moment passes without
+/// it. A name with a client socket gets its capabilities from the core.
 fn sync_grants(
     client: &mut Client,
     name: &str,

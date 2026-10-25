@@ -19,7 +19,7 @@ chora -- chora-flavor tiling
 ├── flavors/            # bundles of views, plugins and services
 ├── plugins/            # plugin manifests
 ├── shaders/            # GLSL ES shaders
-├── clients.yaml        # the names and grants of `clients up`
+├── clients.yaml        # the names and capabilities of `clients up`
 └── chora-tiling.yaml   # the options and bindings of chora-tiling
 ```
 
@@ -124,8 +124,13 @@ showroom:
 ```
 
 The names follow the rules of `hello`. `clients up` opens the socket of
-every name and makes its grants equal to the list, so a grant missing
-from the file is revoked. Existing sockets and their connections stay.
+every name with exactly the capabilities of its list. A socket that
+already has the equal capabilities stays with its connections; changed
+capabilities recreate the socket and disconnect its Wayland clients. A
+name with a client socket takes no `choractl grant` and no `choractl
+revoke`; the file decides. While a name is connected, its socket cannot
+open; `clients up` then syncs the grants of the name and asks for a
+report that the socket stays closed.
 
 ## chora-tiling
 
