@@ -520,7 +520,7 @@ fn taken_socket(name: &str, err: &RpcError) -> Option<String> {
 
 /// `choractl run` (D42): asks the core for an activation token, starts
 /// the program with it in the environment, and prints pid and token as
-/// one JSON line — the token lets a test follow the trip to the window.
+/// one JSON line; the token lets a test follow the trip to the window.
 fn run_program(client: &mut Client, argv: &[String]) -> Result<(), ClientError> {
     let answer: Value = client.call("activation.token", Value::Null)?;
     let Some(token) = answer["token"].as_str().map(str::to_owned) else {
