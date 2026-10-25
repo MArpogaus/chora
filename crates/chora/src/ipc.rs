@@ -35,7 +35,11 @@ use smithay::{
 };
 
 use crate::{
-    captured::Processes, output::output_area, render::window_rect, state::State, uploads::Uploads,
+    captured::Processes,
+    output::output_area,
+    render::{location_and_scale, window_rect},
+    state::State,
+    uploads::Uploads,
 };
 
 mod clients;
@@ -1015,21 +1019,26 @@ impl State {
                 (Transform::IDENTITY, self.scene.overlay_draw_list(&name)),
                 (self.camera(output), self.scene.draw_list()),
             ];
-            let shown = views.iter().flat_map(|(camera, list)| {
-                list.iter().filter_map(move |placed| {
-                    let transform = camera.then(&placed.transform);
+            for (camera, list) in &views {
+                // The absolute transform by node, for the boxes of the
+                // layers in this list.
+                let at: HashMap<&str, Transform> = list
+                    .iter()
+                    .map(|placed| (placed.node.id.as_str(), camera.then(&placed.transform)))
+                    .collect();
+                let shown = list.iter().filter_map(|placed| {
                     Some((
-                        placed.node,
-                        self.screen_rect(placed, camera, &transform, screen)?,
+                        placed.node.id.as_str(),
+                        self.screen_rect(placed, &at, screen)?,
                     ))
-                })
-            });
-            for (node, rect) in shown {
-                let rect = [rect.loc.x, rect.loc.y, rect.size.w, rect.size.h];
-                found
-                    .entry(node.id.as_str())
-                    .or_default()
-                    .insert(name.clone(), serde_json::json!(rect));
+                });
+                for (id, rect) in shown {
+                    let rect = [rect.loc.x, rect.loc.y, rect.size.w, rect.size.h];
+                    found
+                        .entry(id)
+                        .or_default()
+                        .insert(name.clone(), serde_json::json!(rect));
+                }
             }
         }
         found
@@ -1038,50 +1047,82 @@ impl State {
             .collect()
     }
 
-    /// The rectangle of one placed node with its absolute transform on an
-    /// output, if it shows there. Under a rotation or a mesh this is the
-    /// bounding box of the drawn shape, and a node inside a clip is cut
-    /// to the area of the clip.
+    /// The rectangle of one placed node on an output, as the renderer
+    /// draws it there. A layer, and with a size also a shader, shows
+    /// through its mesh, so its box is the box of the projected shape.
+    /// Any other node needs a plain positive scale below its innermost
+    /// ancestor layer, and every ancestor layer cuts its box like a clip
+    /// does. The mesh of a layer does not move the boxes of descendants.
     fn screen_rect(
         &self,
         placed: &Placed<'_>,
-        camera: &Transform,
-        transform: &Transform,
+        at: &HashMap<&str, Transform>,
         screen: Rectangle<f64, Logical>,
     ) -> Option<Rectangle<f64, Logical>> {
-        let mut rect = match placed.node.kind {
+        let node = placed.node;
+        let transform = at.get(node.id.as_str())?;
+        let (below, layers) = self.lineage(node)?;
+        let mut rect = if node.is_layer() {
+            layer_box(node, transform)?
+        } else {
+            // A mirrored, rotated, collapsed or projected node draws
+            // nothing outside a layer.
+            location_and_scale(&below)?;
+            self.content_box(node, transform)?
+        };
+        // Every ancestor layer cuts the box like a clip does.
+        for ancestor in layers {
+            rect = intersect(rect, layer_box(ancestor, at.get(ancestor.id.as_str())?)?)?;
+        }
+        rect.overlaps(screen).then_some(rect)
+    }
+
+    /// The node's transform below the innermost ancestor layer, and every
+    /// ancestor layer. The renderer draws the node with that transform,
+    /// also inside the texture of a layer, and the node shows only inside
+    /// every layer: a layer composes into a texture of its size. A clip
+    /// makes a layer and cuts through the same box.
+    fn lineage(&self, node: &Node) -> Option<(Transform, Vec<&Node>)> {
+        let mut below = node.props.transform;
+        let mut layers = Vec::new();
+        let mut parent = node.parent.as_deref();
+        while let Some(id) = parent {
+            let ancestor = self.scene.node(id)?;
+            if ancestor.is_layer() {
+                layers.push(ancestor);
+            } else if layers.is_empty() {
+                below = ancestor.props.transform.then(&below);
+            }
+            parent = ancestor.parent.as_deref();
+        }
+        Some((below, layers))
+    }
+
+    /// The box of a node that is not a layer itself.
+    fn content_box(&self, node: &Node, transform: &Transform) -> Option<Rectangle<f64, Logical>> {
+        match node.kind {
             // A surface is sized by its buffer, subsurfaces and decorations.
-            NodeKind::Surface => window_rect(self.windows.get(placed.node.id.as_str())?, transform),
-            NodeKind::Rect => node_box(placed.node, transform, placed.node.props.size?)?,
+            NodeKind::Surface => Some(window_rect(self.windows.get(node.id.as_str())?, transform)),
+            NodeKind::Rect => Some(bounding_box(transform, node.props.size?)),
             NodeKind::Image => {
                 // Without the file the renderer draws nothing.
-                let image = self
-                    .assets
-                    .images
-                    .get(placed.node.props.image.as_deref()?)?;
-                let [w, h] = placed
-                    .node
+                let image = self.assets.images.get(node.props.image.as_deref()?)?;
+                let [w, h] = node
                     .props
                     .size
                     .unwrap_or([f64::from(image.size[0]), f64::from(image.size[1])]);
-                node_box(placed.node, transform, [w, h])?
+                Some(bounding_box(transform, [w, h]))
             }
             NodeKind::Text => {
                 // A text node reports its layout size, like an image
                 // without a size.
-                let size = self.assets.texts.size(placed.node)?;
-                node_box(placed.node, transform, size)?
+                let size = self.assets.texts.size(node)?;
+                Some(bounding_box(transform, size))
             }
-            // A group draws nothing and a shader only draws inside a
-            // layer.
-            NodeKind::Group | NodeKind::Shader => return None,
-        };
-        // The renderer shows a node and its descendants only inside every
-        // clip of its ancestors.
-        for (clip, size) in &placed.clips {
-            rect = intersect(rect, bounding_box(&camera.then(clip), *size))?;
+            // A group without a layer of its own draws nothing, and
+            // so does a shader without a size.
+            NodeKind::Group | NodeKind::Shader => None,
         }
-        rect.overlaps(screen).then_some(rect)
     }
 
     /// Grabs a binding of a key or a pointer button for a named connection.
@@ -1258,27 +1299,14 @@ fn name_taken(message: impl Into<String>) -> RpcError {
     RpcError::new(RpcError::NAME_TAKEN, message)
 }
 
-/// The box of a node size on the screen. A node with a mesh, or under a
-/// matrix with perspective, shows through the projection of the renderer;
-/// its box is then the box of the projected points.
-fn node_box(node: &Node, transform: &Transform, size: [f64; 2]) -> Option<Rectangle<f64, Logical>> {
-    if node.props.size.is_some() && (node.props.mesh.is_some() || has_perspective(transform)) {
-        let at = crate::mesh::Placing {
-            transform,
-            scale: 1.0,
-        };
-        let shape = crate::mesh::shape(node, &at)?;
-        return Some(shape.bounds.to_f64().to_logical(1.0));
-    }
-    Some(bounding_box(transform, size))
-}
-
-/// Whether a matrix divides by w, so that projected points land elsewhere
-/// than under an affine transform.
-#[allow(clippy::float_cmp)] // the entries are exact or the client sent them
-fn has_perspective(transform: &Transform) -> bool {
-    let m = transform.matrix();
-    m[3] != 0.0 || m[7] != 0.0 || m[11] != 0.0 || m[15] != 1.0
+/// The box of a layer node on the screen: the points of its mesh, or the
+/// corners of its size, through the full transform of the renderer.
+fn layer_box(node: &Node, transform: &Transform) -> Option<Rectangle<f64, Logical>> {
+    let size = node.props.size?;
+    let Some(mesh) = &node.props.mesh else {
+        return Some(bounding_box(transform, size));
+    };
+    Some(projected_box(transform, mesh.points.iter().copied()))
 }
 
 /// The largest rectangle inside both, or `None` when they miss each other.
@@ -1298,9 +1326,34 @@ fn intersect(
 /// The smallest axis-aligned rectangle that holds the box from `(0, 0)` to
 /// `(w, h)` after the transform.
 fn bounding_box(transform: &Transform, [w, h]: [f64; 2]) -> Rectangle<f64, Logical> {
-    let points = [(0.0, 0.0), (w, 0.0), (0.0, h), (w, h)].map(|(x, y)| transform.apply(x, y));
+    projected_box(
+        transform,
+        [[0.0, 0.0], [w, 0.0], [0.0, h], [w, h]].into_iter(),
+    )
+}
+
+/// The smallest axis-aligned rectangle that holds the points after the
+/// transform. The points go through the projection of the renderer, so
+/// that a matrix which divides by w moves them as the frame does; the
+/// depth of mesh points stays out, as in `Transform::apply`. A point at
+/// or behind the eye is left out, and a box of no point in front overlaps
+/// nothing.
+fn projected_box(
+    transform: &Transform,
+    points: impl Iterator<Item = [f64; 2]>,
+) -> Rectangle<f64, Logical> {
+    let m = transform.matrix();
     let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
-    for (x, y) in points {
+    for [px, py] in points {
+        // The least w of a point that shows, as in the renderer.
+        let hw = m[3] * px + m[7] * py + m[15];
+        if hw <= 1e-6 {
+            continue;
+        }
+        let (x, y) = (
+            (m[0] * px + m[4] * py + m[12]) / hw,
+            (m[1] * px + m[5] * py + m[13]) / hw,
+        );
         x0 = x0.min(x);
         y0 = y0.min(y);
         x1 = x1.max(x);
@@ -1451,6 +1504,138 @@ mod tests {
             query_node(&mut wm, &mut core, "deep")["rects"],
             json!({"out": [0.0, 0.0, 50.0, 50.0]}),
             "the perspective moves the right edge in"
+        );
+    }
+
+    #[test]
+    fn query_leaves_out_mirrored_rotated_and_collapsed_nodes() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "win");
+        let mut wm = core.named("wm");
+        let path = png("mirror", 8);
+        let sent = wm.send(
+            "scene.apply",
+            json!({"commands": [
+                {"attach": {"surface": "s1", "parent": "root"}},
+                {"update": {"id": "s1", "props": {
+                    "transform": {"translate": [400, 0], "scale": [-1, 1]}}}},
+                // An image without a size, so no layer: the renderer
+                // draws it only under a plain positive scale.
+                {"create": {"id": "turn", "kind": "image", "parent": "root",
+                    "props": {"image": &path,
+                              "transform": {"translate": [10, 10], "rotate": 30}}}},
+                {"create": {"id": "flat", "kind": "rect", "parent": "root",
+                    "props": {"size": [50, 50], "transform": {"scale": [1, 0]}}}},
+            ]}),
+        );
+        // The answer waits for the worker that decodes the file.
+        for _ in 0..1000 {
+            if wm.answer(&mut core, sent).is_some() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        for id in ["s1", "turn", "flat"] {
+            assert_eq!(
+                query_node(&mut wm, &mut core, id)["rects"],
+                json!({}),
+                "{id} draws nothing, so it shows on no output"
+            );
+        }
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn query_reports_the_box_of_a_shader_node_with_a_size() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        // A shader with a size is a layer and draws wherever it stands,
+        // also outside of any other layer.
+        let setup = json!({"commands": [
+            {"create": {"id": "glow", "kind": "shader", "parent": "root",
+                "props": {"size": [40, 20], "shader": "/glow.glsl",
+                          "transform": {"translate": [60, 70]}}}},
+            {"create": {"id": "bare", "kind": "shader", "parent": "root",
+                "props": {"shader": "/bare.glsl"}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "glow")["rects"],
+            json!({"out": [60.0, 70.0, 40.0, 20.0]}),
+            "the shader draws as a layer and gets its box"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "bare")["rects"],
+            json!({}),
+            "a shader without a size draws nothing"
+        );
+    }
+
+    #[test]
+    fn query_cuts_nodes_to_their_ancestor_layer() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        // The layer composes into a texture of its size: the mesh stretches
+        // it to x 120, and nodes outside the size are drawn nowhere. The
+        // mesh does not move the box of the node inside.
+        let setup = json!({"commands": [
+            {"create": {"id": "mat", "kind": "group", "parent": "root",
+                "props": {"size": [100, 100], "mesh": {"cols": 1, "rows": 1,
+                         "points": [[0, 0], [120, 0], [0, 100], [120, 100]]}}}},
+            {"create": {"id": "on", "kind": "rect", "parent": "mat",
+                "props": {"size": [10, 10], "transform": {"translate": [10, 10]}}}},
+            {"create": {"id": "away", "kind": "rect", "parent": "mat",
+                "props": {"size": [10, 10], "transform": {"translate": [200, 0]}}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "on")["rects"],
+            json!({"out": [10.0, 10.0, 10.0, 10.0]}),
+            "a node inside the layer keeps its box"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "away")["rects"],
+            json!({}),
+            "a node outside the size of the layer is drawn nowhere"
+        );
+    }
+
+    #[test]
+    fn query_cuts_a_clip_under_a_perspective_matrix_like_the_renderer() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        let mut matrix = [0.0; 16];
+        for i in [0, 5, 10, 15] {
+            matrix[i] = 1.0;
+        }
+        // The w row divides x by 1 + 0.1 * x, so x 50 lands at 8.33.
+        matrix[3] = 0.1;
+        let setup = json!({"commands": [
+            {"create": {"id": "win", "kind": "group", "parent": "root",
+                "props": {"size": [50, 50], "clip": {},
+                          "transform": {"matrix": matrix}}}},
+            {"create": {"id": "bit", "kind": "rect", "parent": "win",
+                "props": {"size": [10, 10], "transform": {"translate": [40, 0]}}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        let got = query_node(&mut wm, &mut core, "bit")["rects"]["out"]
+            .as_array()
+            .expect("a rect")
+            .iter()
+            .map(Value::as_f64)
+            .collect::<Option<Vec<f64>>>()
+            .expect("six numbers");
+        // The renderer draws x 40 to 50 at 8.0 to 8.33; the affine box
+        // would say 40.0 to 50.0.
+        let near = |got: f64, want: f64| (got - want).abs() < 1e-9;
+        assert!(
+            near(got[0], 8.0) && near(got[1], 0.0) && near(got[2], 1.0 / 3.0) && near(got[3], 2.0),
+            "the clip cuts at the projected edge, not the affine one: {got:?}"
         );
     }
 

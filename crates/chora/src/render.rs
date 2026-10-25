@@ -544,7 +544,7 @@ where
 
 /// The translation and the scale of a 2D transform with a positive scale.
 /// Other transforms come with the effects milestone.
-fn location_and_scale(t: &Transform) -> Option<(Point<f64, Logical>, (f64, f64))> {
+pub(crate) fn location_and_scale(t: &Transform) -> Option<(Point<f64, Logical>, (f64, f64))> {
     let (sx, sy) = t.scale_2d().filter(|(sx, sy)| *sx > 0.0 && *sy > 0.0)?;
     Some((t.translation_2d().into(), (sx, sy)))
 }
