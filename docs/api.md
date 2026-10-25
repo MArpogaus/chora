@@ -923,8 +923,8 @@ example in the `.mcp.json` of Claude Code:
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
 | `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views), by name only |
-| `spawn_process`, `restart_plugin` | start a program, or restart a plugin, as `process.spawn` and `plugins.restart`; `spawn_process` with `capture` keeps the output |
-| `wait_process` | the output of a program of `spawn_process` with `capture`, as `process.wait` |
+| `spawn_process`, `restart_plugin` | deprecated (D42), use `choractl run` and `choractl restart`: start a program, or restart a plugin, as `process.spawn` and `plugins.restart`; `spawn_process` with `capture` keeps the output |
+| `wait_process` | deprecated (D42), part of `spawn_process`: the output of a program of `spawn_process` with `capture`, as `process.wait` |
 | `reserve_space` | space at the edges of an output, as `output.reserve`, while the server runs |
 | `configure_output` | the scale or the transform of an output, as `output.configure` |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
