@@ -13,11 +13,17 @@ need python3
 out=$(mktemp -d /tmp/gate1.XXXXXX)
 trap 'rm -rf "$out"' EXIT
 session_start 1280x800 -- "$bin/chora-tiling"
-grant process.spawn screen.capture input.inject
-ctl spawn "$bin/chora-probe" window 255 0 0 >/dev/null ||
-    fail "the spawn of the red window"
-ctl spawn "$bin/chora-probe" window 0 0 255 >/dev/null ||
-    fail "the spawn of the blue window"
+grant screen.capture input.inject
+# run needs no grant (D42); it prints the pid as one JSON line
+run_window() {  # run_window <r> <g> <b> <name>
+    local pid
+    pid=$(ctl run "$bin/chora-probe" window "$1" "$2" "$3" |
+        sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+    [ -n "$pid" ] || fail "the run of the $4 window"
+    run_pid "$pid"
+}
+run_window 255 0 0 red
+run_window 0 0 255 blue
 for _ in $(seq 50); do
     test "$(ctl query 'app_id:chora-probe kind:surface' | grep -c '"id"')" = 2 && break
     sleep 0.2

@@ -6,7 +6,7 @@ session_start "1280x800,1280x800+1280+0" "$bin/chora-tiling" || exit 1
 pids=
 for i in $(seq 10); do pids="$pids $(open $((i*20)) $((255-i*20)) 60)"; done
 wait_count "app_id:chora-probe kind:surface" 10 \
-  || finding "W1: 10 spawn gave $(count_windows) surfaces" wrong "spawn 10 chora-probe window"
+  || finding "W1: 10 runs gave $(count_windows) surfaces" wrong "run 10 chora-probe window"
 step "opened 10 probe windows, count=$(count_windows)"
 
 layouts="tile tile_left tile_bottom tile_top fair fair_horizontal spiral dwindle max fullscreen magnifier floating"
@@ -80,7 +80,7 @@ health "after closing"
 
 for i in $(seq 30); do open $((i*8)) 40 $((255-i*8)); done
 wait_count "app_id:chora-probe kind:surface" 28 \
-  || finding "W1: only $(count_windows) of 30 windows" wrong "spawn 30 windows"
+  || finding "W1: only $(count_windows) of 30 windows" wrong "run 30 windows"
 c=$(count_windows); step "30 windows opened, count=$c"
 health "after 30 windows"
 ctl capture "$repo/tests/battle/w1-final.png" --output HEADLESS-1 >> "$RUN" 2>&1

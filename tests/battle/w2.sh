@@ -2,11 +2,12 @@
 # W2 xp: 5 windows, start menu, 20 Alt+Tab, minimize/restore/activate,
 # XP Restart x5, choractl restart xp x5; windows must keep their place.
 WF=w2; . "$(dirname "$0")/lib.sh"
-session_start "1280x800" "$bin/chora-xp" --theme flavors/xp/theme --no-sounds || exit 1
+# supervise keeps xp alive and answers `choractl restart` (D42)
+session_start "1280x800" "$bin/choractl" supervise xp -- "$bin/chora-xp" --theme flavors/xp/theme --no-sounds || exit 1
 
 for i in $(seq 5); do open $((i*40)) $((200-i*30)) 90 --server-deco; done
 wait_count "app_id:chora-probe kind:surface" 5 \
-  || finding "W2: $(count_windows) windows instead of 5" wrong "spawn 5 probe windows on xp"
+  || finding "W2: $(count_windows) windows instead of 5" wrong "run 5 probe windows on xp"
 
 # the start menu of T11, in place of the clicks on the start button
 menu() {  # menu <True|False>  -> wait for that visible state of xp-menu
@@ -73,13 +74,16 @@ before=$(places)
 
 # the Restart method of T11 five times, then choractl restart xp five times
 for i in $(seq 5); do
-  # ends xp, the core starts it again; Ok comes back before xp dies,
+  # ends xp, supervise starts it again; Ok comes back before xp dies,
   # so only a refused or unknown method fails here
   ctl call xp restart > /dev/null 2>&1 || finding "W2: xp restart refused in round $i" wrong "call xp restart"
   ready xp turn_to '{"desktop": 0}' || finding "W2: xp did not answer after Restart $i" wrong "call xp restart"
   health "XP Restart $i"
 done
 
+# supervise allows at most five restarts per minute (D42): wait out the
+# budget of the block above before restarting from the outside
+sleep 65
 for i in $(seq 5); do
   ctl restart xp > /dev/null 2>&1 || finding "W2: choractl restart xp failed" ugly "restart xp"
   ready xp turn_to '{"desktop": 0}' || finding "W2: xp did not answer after restart $i" wrong "choractl restart xp"

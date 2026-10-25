@@ -378,9 +378,9 @@ answers every request.
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
 | `methods.return(call, result, error)` | answer a `method.called` event |
 | `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s |
-| `process.spawn(argv, capture)` | start a program with the environment of the core; with `capture`, the core keeps its output for `process.wait`; needs the grant `process.spawn` |
-| `process.wait(pid, timeout_ms)` | wait up to `timeout_ms` (at most 30000) for a program of `process.spawn` with `capture`, and return its output so far; needs the grant `process.spawn` |
-| `plugins.restart(name)` | stop the process of a client name and start its command again; needs the grant `process.spawn` |
+| `process.spawn(argv, capture)` | deprecated (D42), use `choractl run`: start a program with the environment of the core; with `capture`, the core keeps its output for `process.wait`; needs the grant `process.spawn` |
+| `process.wait(pid, timeout_ms)` | deprecated (D42), part of `process.spawn`: wait up to `timeout_ms` (at most 30000) for a program of `process.spawn` with `capture`, and return its output so far; needs the grant `process.spawn` |
+| `plugins.restart(name)` | deprecated (D42), use `choractl restart`: stop the process of a client name and start its command again; needs the grant `process.spawn` |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
@@ -672,13 +672,12 @@ protocols. D42 moves the start of programs out of the core.
 
 ## Programs
 
+Deprecated (D42): `choractl run` below is the way for callers.
 `process.spawn(argv)` starts a program with the environment of the core,
 as the startup command (D30): `WAYLAND_DISPLAY` and `CHORA_SOCKET` of this
 compositor, without the variables of a host session, and with no stdin.
 The core looks the program up in its own `PATH`, so it works for an agent
 in another namespace too. The answer has the `pid` and the `argv`.
-`choractl spawn` prints its answer as one JSON line, so that a script can
-read it.
 
 `plugins.restart(name)` restarts a plugin, for example after a rebuild.
 The core finds the process of the connections of the client name,
@@ -702,17 +701,10 @@ program, the core closes its pipes, also when a child in the background
 still holds them. The first answer after the end is the last one; then
 the core forgets the program. At most 32 programs of a client wait for
 `process.wait`. Their output goes when the last connection of the client
-name closes, so `choractl spawn --capture` waits on its own connection.
+name closes, so a caller with `capture` waits on its own connection.
 
 Both methods need the grant `process.spawn`, and fail while the session is
-locked:
-
-```console
-$ choractl grant agent process.spawn
-$ choractl --name agent spawn foot
-$ choractl --name agent spawn --capture -- uname -s
-{"pid": 4242, "running": false, "status": 0, "stdout": "Linux\n", "stderr": "", "truncated": false}
-```
+locked.
 
 `choractl run [--] CMD ARGS...` starts a program outside the core (D42).
 It first asks the core for an activation token with `activation.token`

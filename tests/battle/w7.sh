@@ -3,14 +3,14 @@
 WF=w7; . "$(dirname "$0")/lib.sh"
 session_start "1280x800" "$bin/chora-tiling" || exit 1
 for i in $(seq 6); do open 30 $((i*40)) 120; done
-wait_count "app_id:chora-probe kind:surface" 6 || finding "W7: $(count_windows) windows instead of 6" wrong "spawn 6 windows"
+wait_count "app_id:chora-probe kind:surface" 6 || finding "W7: $(count_windows) windows instead of 6" wrong "run 6 windows"
 health "6 windows tiled"
 
 core=$(pgrep -x chora | head -1)
 [ -n "$core" ] || { finding "W7: no chora process to signal" wrong "pgrep -x chora"; session_stop; exit 1; }
 kill -USR1 "$core"
 # the emergency reset revokes all grants: grant again to continue testing
-sleep 1; admin grant agent process.spawn screen.capture input.inject >> "$RUN" 2>&1
+sleep 1; admin grant agent screen.capture input.inject >> "$RUN" 2>&1
 # the core must answer within 5 s again
 ok=0
 for _ in $(seq 10); do timeout 2 "$bin/choractl" --name agent query >/dev/null 2>&1 && { ok=1; break; }; sleep 0.5; done

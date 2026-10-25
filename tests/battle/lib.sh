@@ -67,7 +67,7 @@ session_start() {
   grep -q CHORA_SOCKET "$hlenv" || { finding "session did not start" crash "setup" "headless-session.sh $outputs -- $*"; return 1; }
   set -a; . "$hlenv"; set +a
   sleep 2  # the plugin needs a moment before its nodes answer queries
-  admin grant agent process.spawn screen.capture input.inject >> "$RUN" 2>&1
+  admin grant agent screen.capture input.inject >> "$RUN" 2>&1
   health "session started"
 }
 
@@ -75,10 +75,23 @@ session_stop() {
   [ -n "$HLPID" ] && kill "$HLPID" 2>/dev/null
   wait "$HLPID" 2>/dev/null
   HLPID=
+  # `choractl run` detaches its programs (D42): they live outside the
+  # process group of the core, so this script ends them.
+  kill $open_pids 2>/dev/null
+  open_pids=
 }
 
+# pids of the programs that `open` started, ended by session_stop
+open_pids=
+
 # open <r g b>  -> one probe window owned by agent, prints its pid
-open() { ctl spawn "$bin/chora-probe" window "$@" | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p'; sleep 0.4; }
+open() {
+  local pid
+  pid=$(ctl run "$bin/chora-probe" window "$@" | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+  open_pids="$open_pids $pid"
+  echo "$pid"
+  sleep 0.4
+}
 
 # count_windows -> number of chora-probe toplevels
 count_windows() { ctl query "app_id:chora-probe kind:surface" | grep -c '"id"'; }

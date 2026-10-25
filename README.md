@@ -71,8 +71,8 @@ choractl grant agent screen.capture input.inject
 
 The agent can then put its own shaders and images, reserve a panel at the
 edge of the output, wait for clicks and keys, and move the camera. With
-`choractl grant agent process.spawn`, it can also start programs and
-restart plugins.
+`choractl run` it starts programs outside the core, and `choractl
+supervise` with `choractl restart` keeps a plugin running (D42).
 
 To try the XP flavor, a stacking desktop in the style of Windows XP, start
 `chora -- chora-xp`. From a source tree, point it at the theme:
