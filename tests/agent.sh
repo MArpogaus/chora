@@ -8,9 +8,10 @@
 # capture through both screencopy protocols, and a client of a sandbox
 # sees none of the privileged protocols. An MCP client waits for events
 # and draws a shader that it hands to the core as an asset. Connections
-# reserve space at the edges of the output. An agent starts a program,
-# reads the output of another one, and restarts the tiling plugin. An MCP
-# client scales the output and keeps a HUD in place during a camera move.
+# reserve space at the edges of the output. An agent starts a program with
+# choractl run, keeps one under supervise and restarts it, and the
+# deprecated spawn path stays checked until T14. An MCP client scales
+# the output and keeps a HUD in place during a camera move.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
@@ -468,6 +469,9 @@ wait_for pid_is_new
 pids+=("$(cat "$sup_file")")
 if "$bin/choractl" restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
 
+step "21b. the deprecated core program start still works until T14"
+. "$tests/deprecated-start.sh"
+
 step "22. an MCP client draws a panel and moves the camera on a click"
 rm -f "$out/panel-ready.txt"
 timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" panel >"$out/panel.log" 2>&1 &
@@ -493,7 +497,7 @@ wait_for work_area_is "[0,0,1280,800]"
 wait_for min_y_is 0
 
 step "23. an MCP client reads a probe, scales the output, and keeps a HUD in place"
-"$bin/choractl" grant agent process.spawn screen.capture || fail "the grant failed"
+"$bin/choractl" grant agent screen.capture || fail "the grant failed"
 timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" hud >"$out/hud.log" 2>&1 ||
     fail "the MCP client: $(cat "$out/hud.log")"
 grep -q "kept its HUD" "$out/hud.log" || fail "hud: $(cat "$out/hud.log")"
