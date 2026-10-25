@@ -31,7 +31,7 @@ use rmcp::{
     transport::io::stdio_pipes,
 };
 use serde_json::{Value, json};
-use tokio::task::spawn_blocking;
+use tokio::task::{block_in_place, spawn_blocking};
 
 use crate::{
     events::{self, Subscription},
@@ -43,7 +43,9 @@ const CANCELLED: ErrorCode = ErrorCode(-32800);
 /// The longest single wait of `wait_events` between two looks at the
 /// cancellation: a blocked `take` cannot be interrupted, so the wait runs
 /// in slices, and the process ends within one slice after the last answer.
-const SLICE: Duration = Duration::from_millis(100);
+/// The slice stays well under the 100 ms of gate check 3 of 0.8, since the
+/// wake, the log line and the pipe add to its end.
+const SLICE: Duration = Duration::from_millis(20);
 /// The longer side of the screenshot of `describe_screen` by default.
 const DESCRIBE_SIDE: u32 = 1280;
 /// The longer side of a picture of `capture` by default.
@@ -228,8 +230,13 @@ impl Mcp {
         loop {
             let left = deadline.saturating_duration_since(tokio::time::Instant::now());
             let want = max - collected.len();
+            // A `take` drains the buffer, so a `max` of 0 ends the wait
+            // before it reaches one: it looks at nothing and keeps nothing.
+            if want == 0 {
+                break;
+            }
             let filled = Arc::clone(&subscription);
-            let pending = spawn_blocking(move || filled.take(want.max(1), left.min(SLICE)));
+            let pending = spawn_blocking(move || filled.take(want, left.min(SLICE)));
             let taken = tokio::select! {
                 // First the finished `take`: it drains the buffer, so its
                 // events must not go to a cancel that arrives at the same
@@ -276,15 +283,16 @@ impl rmcp::ServerHandler for Mcp {
     ) -> impl std::future::Future<Output = Result<ListToolsResult, ErrorData>>
     + rmcp::service::MaybeSendFuture
     + '_ {
-        let answer = match self.exported() {
-            Ok(methods) => {
-                let mut all = tools();
-                all.extend(plugin_tools(&methods));
-                Ok(ListToolsResult::with_all_items(all))
-            }
-            Err(e) => Err(ErrorData::internal_error(e, None)),
-        };
-        std::future::ready(answer)
+        // Off the worker, as in `call_tool`: the core socket blocks.
+        let exported = block_in_place(|| self.exported());
+        if let Err(e) = &exported {
+            // The built-ins stay, since a client that cached the list would
+            // else show a dead server until it restarts.
+            eprintln!("tools/list without the plugin tools: {e}");
+        }
+        let mut all = tools();
+        all.extend(plugin_tools(&exported.unwrap_or_default()));
+        std::future::ready(Ok(ListToolsResult::with_all_items(all)))
     }
 
     async fn call_tool(
@@ -296,7 +304,10 @@ impl rmcp::ServerHandler for Mcp {
         if request.name == "wait_events" {
             return self.wait(&args, &context).await;
         }
-        Ok(match self.dispatch(&request.name, &args) {
+        // Off the worker: the core socket blocks, and a plugin method may
+        // wait for seconds. The transport must still read the cancel.
+        let answer = block_in_place(|| self.dispatch(&request.name, &args));
+        Ok(match answer {
             Ok(blocks) => CallToolResult::success(blocks).into(),
             Err(Failure::UnknownTool(message)) => {
                 return Err(ErrorData::invalid_params(message, None));
@@ -416,7 +427,7 @@ fn event_tools() -> Vec<Tool> {
             "The events that arrived since the last call, or the first one that arrives within the timeout. dropped counts events that a full buffer lost. A notifications/cancelled ends the wait without an answer.",
             &json!({
                 "timeout_ms": {"type": "integer", "description": "how long to wait for the first event; 5000 by default, at most 30000"},
-                "max": {"type": "integer", "description": "the most events to return; 50 by default, at most 500"},
+                "max": {"type": "integer", "description": "the most events to return; 50 by default, at most 500, 0 takes nothing"},
             }),
             &[],
         ),
@@ -869,6 +880,13 @@ mod tests {
     #[test]
     fn the_tool_list_of_the_core_goes_again_when_lost() {
         assert!(READ_ONLY.contains(&"methods.list"), "{READ_ONLY:?}");
+    }
+
+    #[test]
+    fn the_wait_slice_stays_under_the_cancelled_second() {
+        // Gate check 3 of 0.8 measures the end of a cancelled wait against
+        // 100 ms, which one slice plus the wake must beat.
+        assert!(SLICE * 2 <= Duration::from_millis(100), "{SLICE:?}");
     }
 
     #[test]

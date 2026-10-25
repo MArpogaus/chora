@@ -3,8 +3,9 @@
 # and a cancelled wait_events ends within 100 ms. A cancelled call gets no
 # answer, as the protocol and rmcp keep it. The server reports the end of
 # the wait on stderr, which this check reads through a pipe and times
-# against the cancel. This needs the rmcp server of T6; the script says
-# so when the server still answers one request at a time.
+# against the cancel. The last part checks that a max of 0 takes no event
+# out of the buffer. This needs the rmcp server of T6; the script says so
+# when the server still answers one request at a time.
 #
 # Usage: tests/gate-0.8-3.sh   BIN: directory with the binaries
 set -u
@@ -75,7 +76,41 @@ if ms >= 100:
 pinged = ask("ping")
 if answer(pinged, 1) is None:
     sys.exit("the server stopped answering after the cancel")
-print(f"wait_events runs in parallel; a cancel ends the wait after {ms:.0f} ms")
+if answer(waiting, 8) is None:
+    sys.exit("the first wait never ended with its timeout")
+
+
+def call(name, arguments, seconds=8):
+    """A tools/call that waits for its own id, so that the late answer of
+    the first wait cannot be mistaken for it."""
+    wanted = ask("tools/call", {"name": name, "arguments": arguments})
+    while True:
+        message = answer(wanted, seconds)
+        if message is None:
+            sys.exit(f"no answer to {name}")
+        if "error" in message or message["result"].get("isError"):
+            sys.exit(f"{name}: {message}")
+        if message["result"]["content"][0]["type"] == "text":
+            return json.loads(message["result"]["content"][0]["text"])
+
+
+# A `max` of 0 looks at nothing: it answers at once and leaves the event.
+# The 1.5 follows a 1.0, so it is a change that the core announces, also
+# when an earlier run left this core at 1.5.
+call("configure_output", {"scale": 1.0})
+call("configure_output", {"scale": 1.5})
+time.sleep(0.5)
+start = time.monotonic()
+empty = call("wait_events", {"timeout_ms": 3000, "max": 0})
+if empty["events"]:
+    sys.exit(f"max 0 took {len(empty['events'])} events")
+if time.monotonic() - start > 0.1:
+    sys.exit(f"max 0 waited {time.monotonic() - start:.1f} s")
+kept = call("wait_events", {"timeout_ms": 3000, "max": 5})
+if not kept["events"]:
+    sys.exit(f"no output.changed arrived to check: {kept}")
+print(f"wait_events runs in parallel; a cancel ends the wait after {ms:.0f} ms; "
+      f"max 0 leaves the {len(kept['events'])} events")
 PY
 )
 rc=$?

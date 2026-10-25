@@ -929,7 +929,7 @@ example in the `.mcp.json` of Claude Code:
 | `configure_output` | the scale or the transform of an output, as `output.configure` |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
 | `subscribe_events` | start to collect events, and grab keys and buttons; `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the current subscription |
-| `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500) |
+| `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500, 0 takes nothing) |
 
 The input schemas of `apply_commands` and `inject_input` come from the
 types of `chora-scene`. They list every command, every input event and
@@ -956,7 +956,12 @@ Every method that a plugin exports is a tool of its own, named
 `client.method`, with the description and the input schema of the
 export. `call_method` stays for the general case. The tool list answers
 fresh on every `tools/list`, so a later `methods.export` needs no
-restart.
+restart. A call of such a tool passes its whole arguments object as the
+params of the method.
+
+While the core is not reachable, `tools/list` answers with the built-in
+tools alone and logs the reason on stderr. The plugin tools come back with
+the next call.
 
 The server answers requests in parallel: a running `wait_events` blocks
 no other call. A `notifications/cancelled` ends the wait of
