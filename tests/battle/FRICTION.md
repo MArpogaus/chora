@@ -184,3 +184,18 @@ the concrete runs are in `tests/battle/reviews/`.
   (T6) and the text node (T9) stay open; checks 3, 6, 9 and 10 of the
   0.8 gate skip. Run `plans/0.8.md` T6 and T9 where crates.io answers,
   after seeding CJK and emoji fonts.
+
+## Core dead: ten clean W5 iterations after the rebuild (T13 of the rest-plan)
+
+Rebuilt at dd941b0, so the binaries carry the last words handler
+(5b41d48), the process facts in findings (4444484) and the owner budget
+(2e4934a). Ran tests/battle/w5.sh ten times in a row on 2026-10-24,
+14:09 to 14:16 UTC: ten clean iterations, zero findings. Each iteration
+churned to 13600 nodes until the watchdog fired, hit the 16 connection
+limit, and ended with a capture; the core logged the exact blame-then-
+disconnect sequence every earlier core dead finding names as its last
+lines. Memory stood at 13 GB MemAvailable of 128 GB. No core died
+outside the harness; the kernel side stays blind here (no dmesg,
+core_pattern pipes to /bin/false). The eight core dead findings in
+findings.md are set to "deferred: next battle pass": if one bites
+again, the last words and the process facts decide.
