@@ -60,6 +60,7 @@ session_start() {
   done
   hlenv=/tmp/bt-$WF.env
   : > "$hlenv"
+  : > "/tmp/bt-$WF.pids"
   export CHORA_LOG=$repo/tests/battle/chora-$WF.log
   tests/headless-session.sh "$outputs" ${1:+-- "$@"} > "$hlenv" 2> "$hlenv.err" &
   HLPID=$!
@@ -76,19 +77,18 @@ session_stop() {
   wait "$HLPID" 2>/dev/null
   HLPID=
   # `choractl run` detaches its programs (D42): they live outside the
-  # process group of the core, so this script ends them.
-  kill $open_pids 2>/dev/null
-  open_pids=
+  # process group of the core, so this script ends them. Their pids are
+  # in a file because `$(open ...)` runs `open` in a subshell.
+  kill $(cat "/tmp/bt-$WF.pids" 2>/dev/null) 2>/dev/null
+  : > "/tmp/bt-$WF.pids"
 }
 
-# pids of the programs that `open` started, ended by session_stop
-open_pids=
-
-# open <r g b>  -> one probe window owned by agent, prints its pid
+# open <r g b>  -> one probe window owned by agent, prints its pid.
+# Safe in `$(open ...)`: the pid reaches session_stop through the file.
 open() {
   local pid
   pid=$(ctl run "$bin/chora-probe" window "$@" | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
-  open_pids="$open_pids $pid"
+  echo "$pid" >> "/tmp/bt-$WF.pids"
   echo "$pid"
   sleep 0.4
 }

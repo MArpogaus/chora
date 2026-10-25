@@ -11,8 +11,8 @@ session_start "1280x800,1280x800+1280+0" "$bin/choractl" supervise tiling -- "$b
 step "opening 40 windows"
 N=40
 for i in $(seq $N); do
-  # remember the pid: `choractl run` detaches, session_stop ends them
-  open_pids="$open_pids $(ctl run "$bin/chora-probe" window $((i*2 % 255)) $((i*3 % 255)) $((i*5 % 255)) | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')"
+  # `choractl run` detaches; open records the pid for session_stop
+  open $((i*2 % 255)) $((i*3 % 255)) $((i*5 % 255)) > /dev/null
 done
 wait_count "app_id:chora-probe kind:surface" $((N-2)) \
   || finding "W8: only $(count_windows) of $N windows mapped" wrong "$N runs"
