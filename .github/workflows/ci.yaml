@@ -94,14 +94,10 @@ jobs:
             libxkbcommon-dev libegl1-mesa-dev libgbm-dev
         # The software EGL device of the headless core, as mesa-dri-drivers
         # in the Fedora jobs.
-        sudo apt-get install -y libegl-mesa0 libgl1-mesa-dri mesa-utils
-    - run: |
-        ls /usr/share/glvnd/egl_vendor.d/ || true
-        eglinfo 2>&1 | grep -A6 "client extensions" || true
-        ls /usr/lib/x86_64-linux-gnu/dri /usr/lib/x86_64-linux-gnu/libgallium* 2>&1 | head || true
+        sudo apt-get install -y libegl-mesa0 libgl1-mesa-dri
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
     - run: cargo build --locked -p chora -p choractl
-    - run: EGL_LOG_LEVEL=debug tests/gate-0.7-4.sh || { tail -n 40 /tmp/gate-env.*; exit 1; }
+    - run: tests/gate-0.7-4.sh
 
   deny:
     runs-on: ubuntu-latest
