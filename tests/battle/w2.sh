@@ -70,7 +70,14 @@ places() { ctl query "app_id:chora-probe kind:surface" | python3 -c 'import json
 for n in sorted(json.load(sys.stdin), key=lambda n: n["id"]):
     r = n["rects"].get("HEADLESS-1")
     print(n["id"], f"{int(r[0])},{int(r[1])}" if r else "-")'; }
-before=$(places)
+# the xp lamp animates the mesh of a window for about a second; while
+# it flies, the clipped query of 77550e5 legitimately has no resting
+# rect, so take the baseline only once every window has a place again
+for _ in $(seq 30); do
+    before=$(places)
+    grep -q ' -$' <<<"$before" || break
+    sleep 0.2
+done
 
 # the Restart method of T11 five times, then choractl restart xp five times
 for i in $(seq 5); do
