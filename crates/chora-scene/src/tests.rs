@@ -508,6 +508,29 @@ fn the_text_of_a_text_node_stays_within_its_limit() {
 }
 
 #[test]
+fn a_font_size_stays_between_1_and_1024() {
+    for font_size in [0.0, 1e-30, 1025.0] {
+        let mut scene = Scene::default();
+        let err = scene
+            .apply(
+                "wm",
+                &[Command::Create {
+                    id: "t".into(),
+                    kind: NodeKind::Text,
+                    parent: ROOT.into(),
+                    props: PropsUpdate {
+                        text: Some("Hi".into()),
+                        font_size: Some(font_size),
+                        ..PropsUpdate::default()
+                    },
+                }],
+            )
+            .unwrap_err();
+        assert!(matches!(err.error, SceneError::Invalid(_)), "{font_size}");
+    }
+}
+
+#[test]
 fn selector_values_can_hold_spaces_in_quotes() {
     let mut scene = Scene::default();
     scene.add_surface(

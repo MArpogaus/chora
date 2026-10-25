@@ -99,6 +99,9 @@ const MAX_PAN: f64 = 1e7;
 const MAX_LENGTH: f64 = 10_000.0;
 /// The largest zoom of a camera, and the inverse of the smallest.
 const MAX_ZOOM: f64 = 64.0;
+/// The range of `font_size`, in logical pixels. A size of 0 gives a line
+/// height of 0, on which the layout of the core panics.
+const FONT_SIZES: std::ops::RangeInclusive<f64> = 1.0..=1024.0;
 
 /// A transform without its z axis: a camera works in 2D, so the z of a
 /// uniform scale such as `{"scale": 1.5}`, or of a translation, does not
@@ -1502,6 +1505,11 @@ fn check_numbers(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
         .chain(props.max_width.iter());
     if negative.copied().any(|n| n < 0.0) {
         return Err(SceneError::Invalid(format!("negative size for {id:?}")));
+    }
+    if props.font_size.is_some_and(|f| !FONT_SIZES.contains(&f)) {
+        return Err(SceneError::Invalid(format!(
+            "the font_size of {id:?} is not between 1 and 1024"
+        )));
     }
     Ok(())
 }
