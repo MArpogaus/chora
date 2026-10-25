@@ -84,8 +84,9 @@ kill $session
 
 `CHORA_BIN` sets the directory of `chora` (default `target/debug`), and
 `CHORA_LOG` the log file of the core. Programs of `choractl run` get the
-environment of the caller (D42), which the sourced lines provide. Without system Mesa, the software EGL driver and
-the clients can come from Fedora RPMs unpacked into the home directory:
+environment of the caller (D42), which the sourced lines provide. Without
+system Mesa, the software EGL driver and the clients can come from Fedora
+RPMs unpacked into the home directory:
 
 ```bash
 export __EGL_VENDOR_LIBRARY_DIRS=$HOME/.local/opt/mesa-egl/usr/share/glvnd/egl_vendor.d
