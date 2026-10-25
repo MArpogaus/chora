@@ -29,8 +29,8 @@ use crate::{images::Placement, mesh::MeshRenderer, render::SceneElement};
 const FONT_SIZE: f64 = 16.0;
 /// The line height as a multiple of the font size.
 const LINE_HEIGHT: f32 = 1.2;
-/// The largest raster of a text node, in bytes; a node whose raster
-/// would be larger gets no rect and no draw.
+/// The largest raster of a text node, in bytes, per physical scale;
+/// a raster beyond it yields no size and no draw at that scale.
 const MAX_RASTER_BYTES: usize = 16 * 1024 * 1024;
 
 /// The props a layout depends on.
@@ -279,12 +279,16 @@ fn blit(
             let bpp = image.data.len() / (gw as usize * gh as usize).max(1);
             let off = (row as usize * gw as usize + col as usize) * bpp;
             let value = match image.content {
-                SwashContent::Color => [
-                    mul(image.data[off], color[3]),
-                    mul(image.data[off + 1], color[3]),
-                    mul(image.data[off + 2], color[3]),
-                    mul(image.data[off + 3], color[3]),
-                ],
+                // color data is straight alpha; the buffer is premultiplied.
+                SwashContent::Color => {
+                    let alpha = mul(image.data[off + 3], color[3]);
+                    [
+                        mul(image.data[off], alpha),
+                        mul(image.data[off + 1], alpha),
+                        mul(image.data[off + 2], alpha),
+                        alpha,
+                    ]
+                }
                 // subpixel masks land as plain coverage.
                 SwashContent::Mask | SwashContent::SubpixelMask => {
                     let cov = mul(image.data[off], color[3]);
@@ -319,7 +323,7 @@ fn mul(c: u8, a: u8) -> u8 {
 
 /// The render element of a text node: the raster at the output scale,
 /// drawn at the layout size times the node scale. `None` for a node
-/// without text, without color or beyond the raster limits.
+/// without text or beyond the raster limits.
 pub fn element<R>(
     texts: &Texts,
     renderer: &mut R,
@@ -329,7 +333,6 @@ pub fn element<R>(
 where
     R: MeshRenderer,
 {
-    node.props.color?;
     let (buffer, size, pixels) = texts.laid_out(node, placement.output_scale)?;
     let src = Rectangle::from_size(Size::from((f64::from(pixels[0]), f64::from(pixels[1]))));
     #[allow(clippy::cast_possible_truncation)]
@@ -394,8 +397,9 @@ fn has_fonts(dir: &std::path::Path, depth: u8) -> bool {
 #[cfg(test)]
 mod tests {
     use chora_scene::{NodeKind, Props};
+    use cosmic_text::{Placement, SwashContent, SwashImage};
 
-    use super::{Texts, blend, fonts_present};
+    use super::{Texts, blend, blit, fonts_present};
 
     fn text_node(props: Props) -> chora_scene::Node {
         chora_scene::Node {
@@ -468,6 +472,23 @@ mod tests {
         let mut rgba = [255, 0, 0, 255];
         blend(&mut rgba, 0, [0, 255, 0, 128]);
         assert_eq!(rgba, [255, 255, 0, 255]);
+    }
+
+    #[test]
+    fn a_color_glyph_lands_premultiplied() {
+        let mut rgba = [0; 4];
+        let image = SwashImage {
+            content: SwashContent::Color,
+            placement: Placement {
+                width: 1,
+                height: 1,
+                ..Placement::default()
+            },
+            data: vec![255, 0, 0, 128],
+            ..SwashImage::default()
+        };
+        blit(&mut rgba, (1, 1), (0, 0), &image, [255, 255, 255, 255]);
+        assert_eq!(rgba, [128, 0, 0, 128], "straight alpha at half coverage");
     }
 
     #[test]

@@ -521,6 +521,41 @@ mod tests {
     }
 
     #[test]
+    fn a_text_node_without_color_draws_white() {
+        let mut core = Core::with_renderer();
+        core.add_output("test-1", (64, 48));
+        let mut wm = core.named("wm");
+        let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let props = json!({"text": "Hi", "font_size": 16.0,
+            "transform": {"translate": [8, 8]}});
+        let create = json!({"id": "hi", "kind": "text", "parent": "root", "props": props});
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": create}]}),
+        );
+        let found = wm.ok(&mut core, "scene.query", json!({"selector": "id:hi"}));
+        if found[0]["rects"]["test-1"].as_array().is_none() {
+            assert!(!crate::text::fonts_present(), "the text node shows no rect");
+            println!("SKIP: no fonts for the layout");
+            return;
+        }
+        let picture = wm.ok(&mut core, "screen.capture", json!({"output": "test-1"}));
+        let (width, rgba) = decode(&picture);
+        let black = [0, 0, 0, 255];
+        let mut ink = 0;
+        for py in 0..48usize {
+            for px in 0..width {
+                let pixel = &rgba[(py * width + px) * 4..][..4];
+                let white = pixel[0] > 200 && pixel[1] > 200 && pixel[2] > 200;
+                ink += usize::from(pixel != black && white);
+            }
+        }
+        assert!(ink >= 8, "{ink} white ink pixels for the default color");
+    }
+
+    #[test]
     fn flipping_swaps_the_rows() {
         let mut rows = vec![1, 1, 2, 2, 3, 3];
         flip_rows(&mut rows, 2);

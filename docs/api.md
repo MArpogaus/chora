@@ -61,7 +61,7 @@ This table is the one list of node properties.
 | `image` | image | absolute path of a PNG file; the core loads it again after a change |
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch |
 | `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, at most 4 |
-| `text`, `family`, `font_size`, `max_width` | text | `text`: UTF-8, needed at `create`, at most 4 KiB; `family`: a font family, at most 4 KiB, a system font without it; `font_size`: logical pixels; `max_width`: the width at which lines wrap, and nothing else; a text node has no `size`, it sizes itself by its layout; the core draws it in `color` at 16 logical pixels by default; a text whose raster would need more than 16 MiB gets no rect and no draw |
+| `text`, `family`, `font_size`, `max_width` | text | `text`: UTF-8, needed at `create`, at most 4 KiB; `family`: a font family, at most 4 KiB, a system font without it; `font_size`: logical pixels; `max_width`: the width at which lines wrap, and nothing else; a text node has no `size`, it sizes itself by its layout; the core draws it in `color`, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale |
 
 A surface node gets its size from its client. The `configure` command asks
 the client for a new size.
