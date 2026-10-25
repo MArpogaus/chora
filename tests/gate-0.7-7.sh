@@ -16,8 +16,11 @@ methods=$(git grep -nE '"(process\.(spawn|wait)|plugins\.restart)"' -- crates/ch
 forks=$(git ls-files 'crates/chora/src/*.rs' |
     grep -v 'src/process.rs' |
     xargs awk '
-    /\#\[cfg\(test\)\]/ { nextfile }
-    /Command::new|posix_spawn|execve?\(/ { print FILENAME ":" FNR }')
+    /\#\[cfg\(test\)\][[:space:]]*(pub[[:space:]]+)?mod[[:space:]]+(tests|testing)/ { nextfile }
+    /\#\[cfg\(test\)\]/ { pending=1; next }
+    pending && /^(pub[[:space:]]+)?mod[[:space:]]+(tests|testing)/ { nextfile }
+    { pending=0 }
+    /Command::new|posix_spawn|execve?\(|fork\(/ { print FILENAME ":" FNR }')
 # process.rs is exempt: it holds exactly the startup command of the core.
 test -z "$methods" ||
     fail "the core still starts programs: $(tr '\n' ' ' <<<"$methods")"

@@ -27,7 +27,7 @@ if systemctl --user is-system-running >/dev/null 2>&1; then
     # scope; accept either shape of a transient unit of its own.
     grep -qE '\.scope|chora-run.*\.(service|scope)' "/proc/$pid/cgroup" ||
         fail "foot runs in no systemd unit of its own"
-    ok_kind=its own systemd scope
+    ok_kind=its own transient unit
 else
     ok_kind=the direct fallback without a user systemd
 fi

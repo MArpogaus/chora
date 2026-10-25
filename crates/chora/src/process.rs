@@ -49,7 +49,7 @@ mod tests {
     use std::{fs, path::Path};
 
     /// Fork and exec sites of production code.
-    const FORK_NEEDLES: [&str; 4] = ["Command::new", "posix_spawn", "execv(", "execve("];
+    const FORK_NEEDLES: [&str; 5] = ["Command::new", "posix_spawn", "execv(", "execve(", "fork("];
 
     /// The methods that left the core (D42), in two pieces, so that this
     /// file itself stays free of the literals the gate script greps for.
@@ -86,7 +86,7 @@ mod tests {
                 continue; // the startup command of the core lives here
             }
             let text = fs::read_to_string(&path).unwrap();
-            let production = text.split("#[cfg(test)]").next().unwrap();
+            let production = production_code(&text);
             sites.extend(
                 FORK_NEEDLES
                     .iter()
@@ -104,5 +104,43 @@ mod tests {
             }
         }
         assert!(sites.is_empty(), "sites: {sites:#?}");
+    }
+
+    /// The lines of production code: a file ends where a test module
+    /// opens, not at a lone `#[cfg(test)]` that decorates one item.
+    fn production_code(text: &str) -> String {
+        let opens = |l: &str| {
+            let t = l.trim_start();
+            (t.starts_with("mod ") || t.starts_with("pub mod "))
+                && (t.contains("tests") || t.contains("testing"))
+        };
+        let lines: Vec<&str> = text.lines().collect();
+        for i in 0..lines.len() {
+            if !lines[i].contains("#[cfg(test)]") {
+                continue;
+            }
+            if opens(lines[i]) {
+                return lines[..i].join("\n");
+            }
+            let mut j = i + 1;
+            while j < lines.len() && lines[j].trim().is_empty() {
+                j += 1;
+            }
+            if j < lines.len() && opens(lines[j]) {
+                return lines[..i].join("\n");
+            }
+        }
+        text.to_string()
+    }
+
+    #[test]
+    fn production_code_cuts_at_test_modules_only() {
+        let text =
+            "fn a() {}\n#[cfg(test)]\nfn gated() {}\n#[cfg(test)]\nmod tests {}\nCommand::new\n";
+        assert_eq!(
+            production_code(text),
+            "fn a() {}\n#[cfg(test)]\nfn gated() {}",
+            "the scan keeps decorated items and stops at the module"
+        );
     }
 }

@@ -123,7 +123,7 @@ enum Cmd {
     /// Serve the API as MCP tools over stdio, for an agent.
     Mcp,
     /// Start a program outside the core (D42), with an activation token
-    /// of the core in `XDG_ACTIVATION_TOKEN`: in its own systemd scope
+    /// of the core in `XDG_ACTIVATION_TOKEN`: in its own transient unit
     /// when the user manager answers, detached otherwise. Prints the pid
     /// as one JSON line. The old name `spawn` is a hidden alias that
     /// warns on stderr.
@@ -320,9 +320,25 @@ enum AssetCmd {
     },
 }
 
+/// The subcommand name that the user typed, hidden aliases included:
+/// clap reports the target of an alias, never the alias itself.
+fn used_name(argv: &[String]) -> Option<&str> {
+    let mut it = argv.iter().skip(1);
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--name" => {
+                it.next();
+            }
+            s if s.starts_with('-') && s != "-" => {}
+            s => return Some(s),
+        }
+    }
+    None
+}
+
 fn main() -> ExitCode {
     let matches = Args::command().get_matches();
-    if matches.subcommand_name() == Some("spawn") {
+    if used_name(&std::env::args().collect::<Vec<_>>()) == Some("spawn") {
         eprintln!("choractl: spawn is deprecated (D42), use choractl run");
     }
     let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
@@ -1248,7 +1264,7 @@ mod tests {
 
     use super::{
         Args, AssetCmd, Capability, ClientSpec, Cmd, env_prop, grant_delta, may_start, print_line,
-        taken_socket, wait_loop,
+        taken_socket, used_name, wait_loop,
     };
 
     /// The `Environment=` property of `systemd-run` is one shell-parsed
@@ -1446,6 +1462,26 @@ mod tests {
             matches!(args.command, Cmd::Run { ref argv } if *argv == ["foot"]),
             "spawn starts the program like run",
         );
+        assert_eq!(
+            used_name(&s(["choractl", "spawn", "foot"])),
+            Some("spawn"),
+            "the deprecation warning must see the typed alias",
+        );
+        assert_eq!(
+            used_name(&s(["choractl", "--name", "a", "spawn"])),
+            Some("spawn"),
+            "a global option does not hide the alias",
+        );
+        assert_eq!(
+            used_name(&s(["choractl", "run", "spawn"])),
+            Some("run"),
+            "running a program called spawn is not the alias",
+        );
+    }
+
+    /// argv of a call, for the `used_name` assertions.
+    fn s<const N: usize>(v: [&str; N]) -> Vec<String> {
+        v.map(String::from).to_vec()
     }
 
     /// `supervise` takes a name and the program after `--`; `restart`

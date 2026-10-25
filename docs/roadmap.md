@@ -152,7 +152,7 @@ Scope:
   applying it.
 - `chora-tiling` exports methods for tags, focus and moves. `chora-xp`
   exports methods for the start menu, minimize, restore and Restart.
-- Small fixes from the battle test: compact JSON from `choractl spawn`,
+- Small fixes from the battle test: compact JSON from `choractl run`,
   a clear error from `clients create` for a taken name,
   `chora-probe --exit-on-close`, and `tests/ipc-bench.sh` on the headless
   session.
