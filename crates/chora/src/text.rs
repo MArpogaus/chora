@@ -2,8 +2,8 @@
 //!
 //! cosmic-text shapes the text with the system fonts and with the fonts
 //! of every directory of `CHORA_FONT_DIRS`. One entry per node caches
-//! the layout size and the raster of one physical scale. A changed prop
-//! or a new scale lays out and rasterizes again.
+//! the layout size and, per physical scale, the raster. A changed prop
+//! lays out again; a new scale rasterizes again.
 
 use std::{collections::HashMap, sync::Mutex};
 
@@ -29,18 +29,12 @@ use crate::{images::Placement, mesh::MeshRenderer, render::SceneElement};
 const FONT_SIZE: f64 = 16.0;
 /// The line height as a multiple of the font size.
 const LINE_HEIGHT: f32 = 1.2;
-/// The longest side of a text raster, in physical pixels.
-const MAX_SIDE: f32 = 8192.0;
+/// The largest raster of a text node, in bytes; a node whose raster
+/// would be larger gets no rect and no draw.
+const MAX_RASTER_BYTES: usize = 16 * 1024 * 1024;
 
-/// The props a layout depends on and the physical scale of its raster.
-type Key = (
-    String,
-    Option<String>,
-    f64,
-    Option<f64>,
-    Option<[f64; 4]>,
-    f64,
-);
+/// The props a layout depends on.
+type Key = (String, Option<String>, f64, Option<f64>, Option<[f64; 4]>);
 
 /// The layouts and rasters of the text nodes, by node id.
 #[derive(Default)]
@@ -60,14 +54,16 @@ struct Fonts {
     swash: SwashCache,
 }
 
-/// One laid out node with its raster.
+/// The layout and the rasters of one node.
 struct Entry {
+    /// The props the layout below was made from.
     key: Key,
-    /// The layout size in logical pixels.
-    size: [f64; 2],
-    /// The raster size in physical pixels.
-    pixels: [f32; 2],
-    buffer: MemoryRenderBuffer,
+    /// The layout size in logical pixels; `None` when the raster at
+    /// scale 1 would be beyond [`MAX_RASTER_BYTES`].
+    size: Option<[f64; 2]>,
+    /// The raster per physical scale (its bits): size in physical
+    /// pixels and buffer.
+    rasters: HashMap<u64, ([f32; 2], MemoryRenderBuffer)>,
 }
 
 impl Texts {
@@ -75,7 +71,24 @@ impl Texts {
     /// text or beyond the raster limits. A text node reports it in `rects`
     /// like an image without a size.
     pub fn size(&self, node: &Node) -> Option<[f64; 2]> {
-        self.laid_out(node, 1.0).map(|entry| entry.1)
+        let key = props_key(node)?;
+        let mut cache = self.cache.lock().expect("the text cache lock");
+        if let Some(entry) = cache.nodes.get(&node.id)
+            && entry.key == key
+        {
+            return entry.size;
+        }
+        let fonts = cache.fonts.get_or_insert_with(Fonts::new);
+        let size = layout(fonts, &key, 1.0).map(|(_, size, _)| size);
+        cache.nodes.insert(
+            node.id.clone(),
+            Entry {
+                key,
+                size,
+                rasters: HashMap::new(),
+            },
+        );
+        size
     }
 
     /// Drops the entries of gone nodes and of other kinds.
@@ -94,34 +107,51 @@ impl Texts {
         node: &Node,
         scale: f64,
     ) -> Option<(MemoryRenderBuffer, [f64; 2], [f32; 2])> {
-        let props = &node.props;
-        let key = (
-            props.text.clone()?,
-            props.family.clone(),
-            props.font_size.unwrap_or(FONT_SIZE),
-            props.max_width,
-            props.color,
-            scale,
-        );
+        let key = props_key(node)?;
+        let scale_key = scale.to_bits();
         let mut cache = self.cache.lock().expect("the text cache lock");
         if let Some(entry) = cache.nodes.get(&node.id)
             && entry.key == key
+            && let Some((pixels, buffer)) = entry.rasters.get(&scale_key)
+            && let Some(size) = entry.size
         {
-            return Some((entry.buffer.clone(), entry.size, entry.pixels));
+            return Some((buffer.clone(), size, *pixels));
         }
         let fonts = cache.fonts.get_or_insert_with(Fonts::new);
-        let (size, pixels, buffer) = rasterize(fonts, &key)?;
-        cache.nodes.insert(
-            node.id.clone(),
-            Entry {
-                key,
-                size,
-                pixels,
-                buffer: buffer.clone(),
-            },
-        );
-        Some((buffer, size, pixels))
+        let (size, pixels, buffer) = rasterize(fonts, &key, scale)?;
+        match cache.nodes.get_mut(&node.id) {
+            Some(entry) if entry.key == key => {
+                let drawn = entry.size.unwrap_or(size);
+                entry.rasters.insert(scale_key, (pixels, buffer.clone()));
+                Some((buffer, drawn, pixels))
+            }
+            _ => {
+                let mut rasters = HashMap::new();
+                rasters.insert(scale_key, (pixels, buffer.clone()));
+                cache.nodes.insert(
+                    node.id.clone(),
+                    Entry {
+                        key,
+                        size: Some(size),
+                        rasters,
+                    },
+                );
+                Some((buffer, size, pixels))
+            }
+        }
     }
+}
+
+/// The props a layout depends on; `None` for a node without text.
+fn props_key(node: &Node) -> Option<Key> {
+    let props = &node.props;
+    Some((
+        props.text.clone()?,
+        props.family.clone(),
+        props.font_size.unwrap_or(FONT_SIZE),
+        props.max_width,
+        props.color,
+    ))
 }
 
 impl Fonts {
@@ -143,12 +173,18 @@ impl Fonts {
     }
 }
 
-/// Lays out and rasterizes one key into premultiplied RGBA, and returns
-/// the layout size in logical pixels next to the raster size.
+/// Whether a raster of `w` by `h` RGBA pixels stays within the limit.
+fn within_limit(w: usize, h: usize) -> bool {
+    w.checked_mul(h)
+        .is_some_and(|px| px <= MAX_RASTER_BYTES / 4)
+}
+
+/// Lays out one key at a physical scale and measures it; `None` for
+/// empty text or a raster beyond [`MAX_RASTER_BYTES`]. Returns the
+/// buffer, the layout size in logical pixels and the raster size.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-fn rasterize(fonts: &mut Fonts, key: &Key) -> Option<([f64; 2], [f32; 2], MemoryRenderBuffer)> {
-    let (text, family, font_size, max_width, color, scale) = key;
-    let scale = *scale as f32;
+fn layout(fonts: &mut Fonts, key: &Key, scale: f32) -> Option<(Buffer, [f64; 2], [f32; 2])> {
+    let (text, family, font_size, max_width, _) = key;
     let size = *font_size as f32 * scale;
     let attrs = Attrs::new().family(family.as_deref().map_or(Family::SansSerif, Family::Name));
     let mut buffer = Buffer::new(&mut fonts.system, Metrics::relative(size, LINE_HEIGHT));
@@ -161,9 +197,27 @@ fn rasterize(fonts: &mut Fonts, key: &Key) -> Option<([f64; 2], [f32; 2], Memory
         width = width.max(run.line_w);
         height = height.max(run.line_top + run.line_height);
     }
-    if width <= 0.0 || height <= 0.0 || width > MAX_SIDE || height > MAX_SIDE {
+    if width <= 0.0 || height <= 0.0 || !within_limit(width.ceil() as usize, height.ceil() as usize)
+    {
         return None;
     }
+    Some((
+        buffer,
+        [f64::from(width / scale), f64::from(height / scale)],
+        [width, height],
+    ))
+}
+
+/// Rasterizes one key at a physical scale into premultiplied RGBA,
+/// next to the layout size in logical pixels and the raster size.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn rasterize(
+    fonts: &mut Fonts,
+    key: &Key,
+    scale: f64,
+) -> Option<([f64; 2], [f32; 2], MemoryRenderBuffer)> {
+    let color = straight(key.4.as_ref());
+    let (buffer, size, [width, height]) = layout(fonts, key, scale as f32)?;
     let (w, h) = (width.ceil() as usize, height.ceil() as usize);
     let mut rgba = vec![0; w * h * 4];
     for run in buffer.layout_runs() {
@@ -172,16 +226,10 @@ fn rasterize(fonts: &mut Fonts, key: &Key) -> Option<([f64; 2], [f32; 2], Memory
             let Some(image) = fonts.swash.get_image(&mut fonts.system, at.cache_key) else {
                 continue;
             };
-            blit(
-                &mut rgba,
-                (w, h),
-                (at.x, at.y),
-                image,
-                straight(color.as_ref()),
-            );
+            blit(&mut rgba, (w, h), (at.x, at.y), image, color);
         }
     }
-    #[allow(clippy::cast_possible_wrap)] // at most MAX_SIDE
+    #[allow(clippy::cast_possible_wrap)] // at most the raster limit
     let raster = MemoryRenderBuffer::from_slice(
         &rgba,
         Fourcc::Abgr8888,
@@ -190,11 +238,7 @@ fn rasterize(fonts: &mut Fonts, key: &Key) -> Option<([f64; 2], [f32; 2], Memory
         Transform::Normal,
         None,
     );
-    Some((
-        [f64::from(width / scale), f64::from(height / scale)],
-        [width, height],
-        raster,
-    ))
+    Some((size, [width, height], raster))
 }
 
 /// The node color as straight-alpha RGBA bytes, white by default.
@@ -206,12 +250,13 @@ fn straight(color: Option<&[f64; 4]>) -> [u8; 4] {
 }
 
 /// Draws one glyph image into the premultiplied RGBA buffer at `x`, `y`.
-/// Glyphs land on distinct pixels, so they overwrite instead of blending.
+/// Overlapping pixels keep the larger value per channel, so a combining
+/// mark keeps the pixels of the glyph below it.
 #[allow(
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,
     clippy::cast_sign_loss
-)] // glyph boxes are small, see MAX_SIDE
+)] // glyph boxes are small, see MAX_RASTER_BYTES
 fn blit(
     rgba: &mut [u8],
     (width, height): (usize, usize),
@@ -251,8 +296,19 @@ fn blit(
                     ]
                 }
             };
-            rgba[(row_y as usize * width + col_x as usize) * 4..][..4].copy_from_slice(&value);
+            blend(
+                &mut *rgba,
+                (row_y as usize * width + col_x as usize) * 4,
+                value,
+            );
         }
+    }
+}
+
+/// Composites one RGBA pixel onto the pixel of `rgba` at `at`.
+fn blend(rgba: &mut [u8], at: usize, over: [u8; 4]) {
+    for (here, new) in rgba[at..at + 4].iter_mut().zip(over) {
+        *here = (*here).max(new);
     }
 }
 
@@ -311,6 +367,9 @@ pub(crate) fn fonts_present() -> bool {
         .filter(|dir| !dir.is_empty())
         .map(std::path::PathBuf::from)
         .collect();
+    if let Some(home) = std::env::var_os("HOME") {
+        dirs.push(std::path::PathBuf::from(home).join(".local/share/fonts"));
+    }
     dirs.extend(["/usr/share/fonts".into(), "/usr/local/share/fonts".into()]);
     dirs.iter().any(|dir| has_fonts(dir, 3))
 }
@@ -336,7 +395,7 @@ fn has_fonts(dir: &std::path::Path, depth: u8) -> bool {
 mod tests {
     use chora_scene::{NodeKind, Props};
 
-    use super::{Texts, fonts_present};
+    use super::{Texts, blend, fonts_present};
 
     fn text_node(props: Props) -> chora_scene::Node {
         chora_scene::Node {
@@ -402,5 +461,58 @@ mod tests {
 
     fn layout_of(node: &chora_scene::Node) -> [f64; 2] {
         Texts::default().size(node).expect("a layout")
+    }
+
+    #[test]
+    fn an_overlapping_glyph_keeps_the_pixel_below() {
+        let mut rgba = [255, 0, 0, 255];
+        blend(&mut rgba, 0, [0, 255, 0, 128]);
+        assert_eq!(rgba, [255, 255, 0, 255]);
+    }
+
+    #[test]
+    fn reading_the_size_keeps_the_raster_of_a_scale() {
+        if !fonts_present() {
+            println!("SKIP: no fonts for the layout");
+            return;
+        }
+        let texts = Texts::default();
+        let node = text_node(Props {
+            text: Some("Hi".into()),
+            ..Props::default()
+        });
+        texts.laid_out(&node, 2.0).expect("a raster at scale 2");
+        texts.size(&node).expect("a size");
+        let cache = texts.cache.lock().expect("the text cache lock");
+        let entry = cache.nodes.get("t").expect("an entry for the node");
+        assert!(
+            entry.rasters.contains_key(&2.0f64.to_bits()),
+            "reading the size evicted the raster of scale 2"
+        );
+    }
+
+    #[test]
+    fn a_raster_beyond_the_byte_limit_has_no_size() {
+        if !fonts_present() {
+            println!("SKIP: no fonts for the layout");
+            return;
+        }
+        let fits = text_node(Props {
+            text: Some("M".into()),
+            font_size: Some(1200.0),
+            ..Props::default()
+        });
+        assert!(
+            Texts::default().size(&fits).is_some(),
+            "1200 px still rasterizes"
+        );
+        let huge = text_node(Props {
+            font_size: Some(3000.0),
+            ..fits.props.clone()
+        });
+        assert!(
+            Texts::default().size(&huge).is_none(),
+            "3000 px passes 16 MiB"
+        );
     }
 }
