@@ -97,11 +97,11 @@ jobs:
         sudo apt-get install -y libegl-mesa0 libgl1-mesa-dri mesa-utils
     - run: |
         ls /usr/share/glvnd/egl_vendor.d/ || true
-        EGL_LOG_LEVEL=debug eglinfo 2>&1 | grep -vE "^ +[A-Za-z_]+, " | head -80 || true
+        eglinfo 2>&1 | grep -A6 "client extensions" || true
         ls /usr/lib/x86_64-linux-gnu/dri /usr/lib/x86_64-linux-gnu/libgallium* 2>&1 | head || true
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
     - run: cargo build --locked -p chora -p choractl
-    - run: tests/gate-0.7-4.sh
+    - run: EGL_LOG_LEVEL=debug tests/gate-0.7-4.sh || { tail -n 40 /tmp/gate-env.*; exit 1; }
 
   deny:
     runs-on: ubuntu-latest
