@@ -36,9 +36,10 @@ out = sys.argv[1]
 mcp = Mcp()
 first, second = sorted(n["id"] for n in mcp.json(
     "query_scene", {"selector": "app_id:chora-probe kind:surface"}))
+# The tool of the export itself, not call_method: `client.method` is a
+# tool of its own, and its arguments are the params of the method.
 for window in (first, second):
-    mcp.tool("call_method", {"client": "tiling", "method": "focus",
-                             "params": {"surface": window}})
+    mcp.tool("tiling.focus", {"surface": window})
 focused = lambda: next(n for n in mcp.json(
     "query_scene", {"selector": "app_id:chora-probe kind:surface"})
     if n["id"] == second).get("focused")
