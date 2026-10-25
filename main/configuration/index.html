@@ -1128,11 +1128,14 @@ example <code>chora-flavor</code>, which starts the systemd target of a flavor:<
 ├── flavors/            # bundles of views, plugins and services
 ├── plugins/            # plugin manifests
 ├── shaders/            # GLSL ES shaders
-├── clients.yaml        # the names and grants of `clients up`
+├── clients.yaml        # the names and capabilities of `clients up`
 └── chora-tiling.yaml   # the options and bindings of chora-tiling
 </code></pre></div>
 <p>The directory is a git repository. It contains no secrets. The package
 installs the reference flavors to <code>/usr/share/chora/</code>.</p>
+<p>Fonts are not there: the core draws text with the system fonts and with
+every directory listed in <code>CHORA_FONT_DIRS</code>, separated by <code>:</code>. A user
+font in <code>~/.local/share/fonts</code> needs no setting at all.</p>
 <h2 id="views">Views<a class="headerlink" href="#views" title="Permanent link">&para;</a></h2>
 <p>A view is a part of the scene and the plugins that drive it (D35):</p>
 <!-- parses: view -->
@@ -1165,7 +1168,8 @@ installs the reference flavors to <code>/usr/share/chora/</code>.</p>
   <code>~/.config/chora/views/work.yaml</code>, or to <code>--file PATH</code>. A plugin or an
   agent changes the nodes as <code>view-work</code>, for example
   <code>choractl --name view-work apply</code>.</li>
-<li>A node has an <code>id</code>, a <code>kind</code> (<code>group</code>, <code>rect</code> or <code>image</code>), a <code>parent</code>
+<li>A node has an <code>id</code>, a <code>kind</code> (<code>group</code>, <code>rect</code>, <code>image</code>, <code>shader</code> or
+  <code>text</code>), a <code>parent</code>
   (the root by default) and its <code>props</code> as in a <code>create</code> command.</li>
 <li>A name has letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, but no <code>.</code> first, so that
   its file stays in its directory. The file <code>NAME.yaml</code> must name the same
@@ -1230,8 +1234,14 @@ their grants (see <a href="../api/#client-sockets">API</a>):</p>
 <span class="w">  </span><span class="nt">grants</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
 </code></pre></div>
 <p>The names follow the rules of <code>hello</code>. <code>clients up</code> opens the socket of
-every name and makes its grants equal to the list, so a grant missing
-from the file is revoked. Existing sockets and their connections stay.</p>
+every name with exactly the capabilities of its list. A socket that
+already has the equal capabilities stays with its connections and gets
+them back after the revoke binding. Changed capabilities recreate the
+socket and disconnect its Wayland clients. A name with a client socket
+takes no <code>choractl grant</code> and no <code>choractl revoke</code>; the file decides.
+While a name is connected, its socket cannot open. <code>clients up</code> then
+only syncs the grants of the name and says on stderr that the socket
+stays closed.</p>
 <h2 id="chora-tiling">chora-tiling<a class="headerlink" href="#chora-tiling" title="Permanent link">&para;</a></h2>
 <p><code>chora-tiling</code> connects with the client name <code>tiling</code>. Grants and
 <code>choractl restart</code> use this name.</p>

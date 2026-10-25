@@ -1080,6 +1080,11 @@ check of each choice. <a href="../decisions/">Decisions</a> records the result.<
 <td>a persistent map, so each transaction copies the scene in O(1)</td>
 </tr>
 <tr>
+<td><a href="https://github.com/pop-os/cosmic-text">cosmic-text</a></td>
+<td>the text node: font fallback, layout and raster through swash</td>
+<td>0.19; reads the font dirs from <code>CHORA_FONT_DIRS</code>; MIT OR Apache-2.0</td>
+</tr>
+<tr>
 <td>serde, serde_json, thiserror</td>
 <td>API types, JSON-RPC, error types</td>
 <td></td>
@@ -1116,11 +1121,18 @@ check of each choice. <a href="../decisions/">Decisions</a> records the result.<
 <td>the JSON schemas of the MCP tools, from the types of <code>chora-scene</code></td>
 <td></td>
 </tr>
+<tr>
+<td><a href="https://github.com/modelcontextprotocol/rust-sdk">rmcp</a></td>
+<td>the MCP server of <code>choractl mcp</code></td>
+<td>the official Rust MCP SDK (D34), with the features <code>server</code> and <code>transport-io</code>; MIT</td>
+</tr>
+<tr>
+<td>tokio</td>
+<td>the async runtime under that server</td>
+<td>answers the requests in parallel; the blocking core socket runs with <code>block_in_place</code>, the event wait with <code>spawn_blocking</code>; MIT</td>
+</tr>
 </tbody>
 </table>
-<p><code>choractl mcp</code> implements the stdio transport of MCP itself. Milestone 0.8
-replaces it with <a href="https://github.com/modelcontextprotocol/rust-sdk">rmcp</a>,
-the official Rust MCP SDK (D34).</p>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
