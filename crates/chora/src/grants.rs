@@ -4,7 +4,8 @@
 //! `choractl grant NAME CAPABILITY` grants a capability to a client name,
 //! until `choractl revoke` or the end of the session, through the admin
 //! socket (D40). A name with a client socket is excluded: its
-//! capabilities live in `clients.yaml` and `clients.create` (D33). A client of a client socket cannot reach it, a process of
+//! capabilities live in `clients.yaml` and `clients.create` (D33). A
+//! client of a client socket cannot reach the admin socket, a process of
 //! the user on the host can. The MCP bridge offers no tool for grants, so
 //! an agent cannot grant itself by accident. The emergency reset revokes
 //! all grants.
