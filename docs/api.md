@@ -689,6 +689,8 @@ connection of the name is left, the core starts the same command again
 and answers with the new `pid`. When that takes more than 6 s, the restart
 fails. A name with several
 processes, or a process in a namespace that the core cannot see, fails.
+As of 0.7, `choractl restart` does not call this method (D42); see
+`choractl restart` below.
 
 With `capture: true`, `process.spawn` keeps stdout and stderr of the
 program, up to 64 KiB each, for the client that started it.
@@ -710,7 +712,6 @@ $ choractl grant agent process.spawn
 $ choractl --name agent spawn foot
 $ choractl --name agent spawn --capture -- uname -s
 {"pid": 4242, "running": false, "status": 0, "stdout": "Linux\n", "stderr": "", "truncated": false}
-$ choractl --name agent restart tiling
 ```
 
 `choractl run [--] CMD ARGS...` starts a program outside the core (D42).
@@ -731,6 +732,26 @@ moves the start of programs from the core to `choractl run` and systemd
 ```console
 $ choractl run -- foot
 {"pid": 4343}
+```
+
+`choractl supervise NAME -- CMD ARGS...` runs a plugin and starts it
+again when it ends (D42). It allows at most five restarts per minute
+and exits with an error after them. It writes the pid of the running
+program to `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`, so that
+`choractl restart` finds it. SIGTERM to `supervise` ends the program
+and the supervision. The command calls no core.
+
+`choractl restart NAME` restarts a plugin. While the systemd user unit
+`NAME.service` is active, it runs `systemctl --user restart
+NAME.service`. Otherwise it sends SIGTERM to the running program of
+`choractl supervise NAME`, which starts it again. A name that runs in
+neither way is an error. The command prints what it restarted as one
+JSON line.
+
+```console
+$ choractl supervise tiling -- chora-tiling &
+$ choractl restart tiling
+{"restarted": "supervise", "pid": 4444}
 ```
 
 ## Screen capture

@@ -11,6 +11,8 @@ use std::{
     io::{Read, Write},
     os::unix::process::CommandExt,
     process::ExitCode,
+    sync::atomic::{AtomicU32, Ordering},
+    time::{Duration, Instant},
 };
 
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -20,7 +22,7 @@ use chora_scene::{
     ipc::{
         Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, Edges,
         GrantChange, Hello, Inject, InjectEvent, MethodCall, Picture, ProcessWait, Query, Reserve,
-        Restart, RpcError, SOCKET_ENV, Spawn, Subscribe, admin_socket,
+        RpcError, SOCKET_ENV, Spawn, Subscribe, admin_socket,
     },
 };
 use clap::{Parser, Subcommand};
@@ -167,12 +169,27 @@ enum Cmd {
         #[arg(value_name = "NAME")]
         output: String,
     },
-    /// Restart a plugin: stop the process of a client name, and start its
-    /// command again. Needs a grant of `process.spawn`.
+    /// Restart a plugin (D42): `systemctl --user restart NAME.service`
+    /// while that unit is active, else end the program of
+    /// `choractl supervise NAME`, which starts it again. Prints what it
+    /// restarted as one JSON line. Does not call the core.
     Restart {
         /// The client name, for example `tiling`.
         #[arg(value_name = "NAME")]
         client: String,
+    },
+    /// Run a plugin and start it again when it ends (D42), at most five
+    /// restarts per minute. Writes the pid of the running program to
+    /// `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`, for `choractl
+    /// restart NAME`. SIGTERM ends the program and the supervision.
+    /// Does not call the core.
+    Supervise {
+        /// The plugin name, for example `tiling`.
+        #[arg(value_name = "NAME")]
+        name: String,
+        /// The program and its arguments.
+        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
+        argv: Vec<String>,
     },
     /// Store a file for image nodes, shader nodes and effects in a
     /// directory of the core, or remove it; for a client that shares no
@@ -325,6 +342,8 @@ fn run(args: Args) -> Result<(), String> {
     match &args.command {
         Cmd::View { action } => return view_command(action),
         Cmd::Mcp => return mcp::serve(args.name.unwrap_or_else(|| "agent".into())),
+        Cmd::Restart { client } => return restart_program(client),
+        Cmd::Supervise { name, argv } => return supervise(name, argv),
         _ => {}
     }
     let (commands, input) = match &args.command {
@@ -332,12 +351,7 @@ fn run(args: Args) -> Result<(), String> {
         Cmd::Inject { file, .. } => (Vec::new(), read_json(file.as_deref())?),
         _ => (Vec::new(), Vec::new()),
     };
-    let hello = Hello {
-        name: args.name.unwrap_or_else(|| "choractl".into()),
-        keep_nodes: true,
-        ..Hello::default()
-    };
-    let mut client = connect(&args.command, &hello)?;
+    let mut client = connect(&args.command, &hello(args.name))?;
     let result = match args.command {
         Cmd::Query { selector } => show(&mut client, "scene.query", Query::new(selector)),
         command @ Cmd::Wait { .. } => return wait(&mut client, &command),
@@ -348,7 +362,6 @@ fn run(args: Args) -> Result<(), String> {
         Cmd::Outputs => show(&mut client, "output.list", Value::Null),
         command @ (Cmd::Run { .. }
         | Cmd::Spawn { .. }
-        | Cmd::Restart { .. }
         | Cmd::ConfigureOutput { .. }
         | Cmd::AddOutput { .. }
         | Cmd::RemoveOutput { .. }
@@ -364,7 +377,9 @@ fn run(args: Args) -> Result<(), String> {
             params,
         } => return call(&mut client, callee, method, params.as_deref()),
         Cmd::Asset { action } => return asset(&mut client, action),
-        Cmd::View { .. } | Cmd::Mcp => unreachable!("handled before the connection"),
+        Cmd::View { .. } | Cmd::Mcp | Cmd::Restart { .. } | Cmd::Supervise { .. } => {
+            unreachable!("handled before the connection")
+        }
         Cmd::Inject { dry_run, .. } => inject(&mut client, input, dry_run),
         Cmd::Capture {
             file,
@@ -381,6 +396,16 @@ fn run(args: Args) -> Result<(), String> {
         }
     };
     result.map_err(|e| e.to_string())
+}
+
+/// The `hello` of every `choractl` call: the name of `--name`, with
+/// `keep_nodes`.
+fn hello(name: Option<String>) -> Hello {
+    Hello {
+        name: name.unwrap_or_else(|| "choractl".into()),
+        keep_nodes: true,
+        ..Hello::default()
+    }
 }
 
 /// Connects to the core: grants and client sockets through the admin
@@ -430,7 +455,6 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
         ),
         Cmd::Run { argv } => run_program(client, &argv),
         Cmd::Spawn { capture, argv } => spawn(client, argv, capture),
-        Cmd::Restart { client: name } => show(client, "plugins.restart", Restart { name }),
         Cmd::ConfigureOutput {
             output,
             scale,
@@ -586,6 +610,153 @@ fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
         });
     }
     command.spawn().map(|child| child.id())
+}
+
+/// The pid of the program the running `supervise` watches, for the
+/// signal handler that ends it together with `supervise`.
+static SUPERVISED_PID: AtomicU32 = AtomicU32::new(0);
+
+/// Starts a program and starts it again when it ends (D42), at most
+/// five restarts per minute. Writes the pid of the running program to
+/// `pid_file`, so that `choractl restart` can end it; that ends the
+/// wait here and starts the program again.
+fn supervise(name: &str, argv: &[String]) -> Result<(), String> {
+    view::check_name(name)?;
+    let file = pid_file(name)?;
+    let dir = file.parent().expect("the pid file has a name");
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    install_stop_handler();
+    let mut starts = Vec::new();
+    loop {
+        if !may_start(&mut starts, Instant::now()) {
+            let _ = std::fs::remove_file(&file);
+            return Err(format!(
+                "{name}: gave up after {} restarts in one minute",
+                MAX_STARTS_PER_MINUTE - 1,
+            ));
+        }
+        starts.push(Instant::now());
+        let status = supervise_once(argv, &file)?;
+        eprintln!("{name}: the program ended with {status}, starting it again");
+    }
+}
+
+/// The largest number of starts of one program in one minute: the
+/// first start and five restarts.
+const MAX_STARTS_PER_MINUTE: usize = 6;
+
+/// Whether another start fits into the last minute; keeps the starts
+/// of the minute in `starts`.
+fn may_start(starts: &mut Vec<Instant>, now: Instant) -> bool {
+    starts.retain(|t| now.duration_since(*t) < Duration::from_secs(60));
+    starts.len() < MAX_STARTS_PER_MINUTE
+}
+
+/// Starts the program, writes its pid to the file, and waits for its
+/// end. Stdio stays with the program, so its output goes to the
+/// terminal or the journal of whoever runs `supervise`.
+fn supervise_once(
+    argv: &[String],
+    file: &std::path::Path,
+) -> Result<std::process::ExitStatus, String> {
+    let mut child = std::process::Command::new(&argv[0])
+        .args(&argv[1..])
+        .spawn()
+        .map_err(|e| format!("{}: {e}", argv[0]))?;
+    SUPERVISED_PID.store(child.id(), Ordering::Relaxed);
+    std::fs::write(file, format!("{}\n", child.id()))
+        .map_err(|e| format!("{}: {e}", file.display()))?;
+    let status = child.wait().map_err(|e| e.to_string());
+    SUPERVISED_PID.store(0, Ordering::Relaxed);
+    let _ = std::fs::remove_file(file);
+    status
+}
+
+/// The file `supervise NAME` writes the pid of its running program
+/// into: `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`.
+fn pid_file(name: &str) -> Result<std::path::PathBuf, String> {
+    let dir = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(std::path::PathBuf::from)
+        .filter(|d| d.is_absolute())
+        .ok_or_else(|| "XDG_RUNTIME_DIR is not set".to_owned())?;
+    Ok(dir
+        .join("chora")
+        .join("supervise")
+        .join(format!("{name}.pid")))
+}
+
+/// SIGTERM and SIGINT to `supervise` end the supervised program too.
+#[allow(unsafe_code)] // `signal` for a handler that only stops our child
+fn install_stop_handler() {
+    for signal in [libc::SIGTERM, libc::SIGINT] {
+        // SAFETY: the handler is async-signal-safe; it only calls `kill`
+        // for our own child and `_exit`.
+        unsafe {
+            libc::signal(signal, stop_supervised as *const () as libc::sighandler_t);
+        }
+    }
+}
+
+#[allow(unsafe_code)] // `kill` and `_exit`, both async-signal-safe
+extern "C" fn stop_supervised(_signal: libc::c_int) -> ! {
+    let pid = SUPERVISED_PID.load(Ordering::Relaxed);
+    // SAFETY: `kill` and `_exit` are async-signal-safe, and the pid is
+    // the child of this process or zero.
+    unsafe {
+        if pid > 0 {
+            libc::kill(pid.cast_signed(), libc::SIGTERM);
+        }
+        libc::_exit(0);
+    }
+}
+
+/// `choractl restart` (D42): restarts a plugin that runs as the
+/// systemd user unit `NAME.service` with `systemctl --user restart`,
+/// and a program of `choractl supervise NAME` by sending it SIGTERM,
+/// which starts it again. Prints what it restarted as one JSON line.
+#[allow(unsafe_code)] // one `kill` of the program in the pid file
+fn restart_program(name: &str) -> Result<(), String> {
+    view::check_name(name)?;
+    let unit = format!("{name}.service");
+    if unit_active(name) {
+        let restarted = std::process::Command::new("systemctl")
+            .args(["--user", "restart", &unit])
+            .status()
+            .map_err(|e| format!("systemctl: {e}"))?;
+        if !restarted.success() {
+            return Err(format!("systemctl --user restart {unit} failed"));
+        }
+        let answer = serde_json::json!({ "restarted": "unit", "unit": unit });
+        print_line(std::io::stdout(), &answer);
+        return Ok(());
+    }
+    let file = pid_file(name)?;
+    let text = std::fs::read_to_string(&file)
+        .map_err(|_| format!("{name}: no active unit {unit} and no {}", file.display()))?;
+    let pid: u32 = text
+        .trim()
+        .parse()
+        .map_err(|_| format!("{}: not a pid", file.display()))?;
+    // SAFETY: `kill` of a pid we read from our own pid file.
+    if unsafe { libc::kill(pid.cast_signed(), libc::SIGTERM) } != 0 {
+        let err = std::io::Error::last_os_error();
+        return Err(format!("the program of {name} (pid {pid}): {err}"));
+    }
+    let answer = serde_json::json!({ "restarted": "supervise", "pid": pid });
+    print_line(std::io::stdout(), &answer);
+    Ok(())
+}
+
+/// Whether the systemd user unit `NAME.service` is active. `false`
+/// when there is no systemctl, no user manager, or no such unit.
+fn unit_active(name: &str) -> bool {
+    std::process::Command::new("systemctl")
+        .args(["--user", "is-active", "--quiet", &format!("{name}.service")])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|s| s.success())
 }
 
 /// Starts a program. With `capture`, waits for its end on the same
@@ -976,9 +1147,10 @@ mod tests {
     use std::time::Duration;
 
     use chora_scene::ipc::RpcError;
+    use std::time::Instant;
 
     use super::{
-        Args, AssetCmd, Capability, ClientSpec, Cmd, env_prop, grant_delta, print_line,
+        Args, AssetCmd, Capability, ClientSpec, Cmd, env_prop, grant_delta, may_start, print_line,
         taken_socket, wait_loop,
     };
 
@@ -1141,6 +1313,45 @@ mod tests {
         assert!(
             matches!(args.command, Cmd::Run { ref argv } if *argv == ["/bin/echo", "-n"]),
             "everything after `run` is the program",
+        );
+    }
+
+    /// `supervise` takes a name and the program after `--`; `restart`
+    /// takes the name alone.
+    #[test]
+    fn supervise_and_restart_take_the_plugin_name() {
+        let args =
+            Args::try_parse_from("choractl supervise tiling -- sleep 60".split(' ')).unwrap();
+        assert!(
+            matches!(args.command, Cmd::Supervise { ref name, ref argv }
+                if name == "tiling" && *argv == ["sleep", "60"]),
+            "everything after the name and `--` is the program",
+        );
+        let args = Args::try_parse_from("choractl restart tiling".split(' ')).unwrap();
+        assert!(matches!(args.command, Cmd::Restart { ref client } if client == "tiling"));
+    }
+
+    /// One minute fits the first start and five restarts; the next start
+    /// is an error, and an old start leaves the window again.
+    #[test]
+    fn supervise_allows_five_restarts_per_minute() {
+        let now = Instant::now();
+        let mut starts = Vec::new();
+        for _ in 0..6 {
+            assert!(
+                may_start(&mut starts, now),
+                "{} starts fit",
+                starts.len() + 1
+            );
+            starts.push(now);
+        }
+        assert!(
+            !may_start(&mut starts, now + Duration::from_secs(1)),
+            "the seventh start in one minute is an error",
+        );
+        assert!(
+            may_start(&mut starts, now + Duration::from_secs(61)),
+            "starts older than a minute do not count",
         );
     }
 
