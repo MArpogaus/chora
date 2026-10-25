@@ -7,7 +7,7 @@ terms and no synonyms.
 |------|---------|
 | **Core** | The compositor process `chora`. It handles the Wayland protocols, the backends (DRM/KMS, libinput), the scene, the renderer, the input routing, the IPC socket and the safety layer. It contains no policy. |
 | **Scene** | The tree of nodes that the core renders. It is the single source of truth for the screen content. |
-| **Node** | One element of the scene. The kinds are **group**, **surface**, **rect**, **image**, **shader** and **text**. The core does not draw text yet. Every node has an id, an owner, a transform, an opacity and optional effects. |
+| **Node** | One element of the scene. The kinds are **group**, **surface**, **rect**, **image**, **shader** and **text**. Every node has an id, an owner, a transform, an opacity and optional effects. |
 | **Group** | A node that contains other nodes. It applies a transform, a clip, an opacity and optional effects to its children. |
 | **Canvas** | A group that serves as a working area: a workspace, a desktop or an infinite zoomable plane. |
 | **Surface** | A node that shows a Wayland client: an application window, a layer-shell widget or a browser window. For the core, a surface is a texture source and an input target. |

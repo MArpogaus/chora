@@ -178,6 +178,13 @@ changed in every frame, so a scene with a layer renders in every frame.
 There is no direct scanout. Milestone 0.9 replaces this with a renderer
 of chora that renders only on damage (D17, D24).
 
+A text node lays out and draws inside the core: cosmic-text shapes the
+text with the system fonts and the fonts of every directory in
+`CHORA_FONT_DIRS`, and falls back per character, so CJK and emoji show
+without a font choice. A changed prop or a new output scale
+lays out and rasterizes the node again; one cache entry per node holds
+the current raster.
+
 The cost of a frame grows with the number of visible nodes: a node is a
 draw call with its own texture, and software GL spends roughly 60 to
 140 µs on one. A headless session at 1280x800 on llvmpipe holds about

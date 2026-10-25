@@ -31,6 +31,7 @@ mod shm;
 mod state;
 #[cfg(test)]
 mod testing;
+mod text;
 mod time;
 mod transaction;
 mod uploads;

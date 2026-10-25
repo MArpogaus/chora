@@ -1066,9 +1066,15 @@ impl State {
                     .unwrap_or([f64::from(image.size[0]), f64::from(image.size[1])]);
                 node_box(placed.node, transform, [w, h])?
             }
-            // A group draws nothing, a shader only draws inside a layer,
-            // and a text node does not draw yet.
-            NodeKind::Group | NodeKind::Shader | NodeKind::Text => return None,
+            NodeKind::Text => {
+                // A text node reports its layout size, like an image
+                // without a size.
+                let size = self.assets.texts.size(placed.node)?;
+                node_box(placed.node, transform, size)?
+            }
+            // A group draws nothing and a shader only draws inside a
+            // layer.
+            NodeKind::Group | NodeKind::Shader => return None,
         };
         // The renderer shows a node and its descendants only inside every
         // clip of its ancestors.

@@ -26,6 +26,10 @@ chora -- chora-flavor tiling
 The directory is a git repository. It contains no secrets. The package
 installs the reference flavors to `/usr/share/chora/`.
 
+Fonts are not there: the core draws text with the system fonts and with
+every directory listed in `CHORA_FONT_DIRS`, separated by `:`. A user
+font in `~/.local/share/fonts` needs no setting at all.
+
 ## Views
 
 A view is a part of the scene and the plugins that drive it (D35):

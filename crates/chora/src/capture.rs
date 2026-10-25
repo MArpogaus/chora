@@ -240,6 +240,9 @@ impl State {
                         .and_then(|p| self.assets.images.get(p))
                         .map(|i| [f64::from(i.size[0]), f64::from(i.size[1])])
                 }),
+                // A text node is sized by its layout, like an image
+                // without a size.
+                NodeKind::Text => self.assets.texts.size(placed.node),
                 _ => placed.node.props.size,
             };
             let Some([w, h]) = size else { continue };
@@ -462,6 +465,59 @@ mod tests {
                 "{what}: {gray:?}"
             );
         }
+    }
+
+    #[test]
+    #[allow(clippy::cast_precision_loss)] // screen coordinates
+    fn a_text_node_shows_its_text_inside_its_rect() {
+        let mut core = Core::with_renderer();
+        core.add_output("test-1", (64, 48));
+        let mut wm = core.named("wm");
+        let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let props = json!({"text": "Hi", "font_size": 16.0,
+            "color": [1.0, 1.0, 1.0, 1.0], "transform": {"translate": [8, 8]}});
+        let create = json!({"id": "hi", "kind": "text", "parent": "root", "props": props});
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": create}]}),
+        );
+        let found = wm.ok(&mut core, "scene.query", json!({"selector": "id:hi"}));
+        let rect = found[0]["rects"]["test-1"].as_array().cloned();
+        let Some(rect) = rect else {
+            assert!(!crate::text::fonts_present(), "the text node shows no rect");
+            println!("SKIP: no fonts for the layout");
+            return;
+        };
+        let [x, y, w, h] = [
+            rect[0].as_f64().unwrap(),
+            rect[1].as_f64().unwrap(),
+            rect[2].as_f64().unwrap(),
+            rect[3].as_f64().unwrap(),
+        ];
+        assert_eq!((x, y), (8.0, 8.0));
+        assert!(w > 4.0 && h > 8.0, "the layout of Hi is {w}x{h}");
+        let picture = wm.ok(&mut core, "screen.capture", json!({"output": "test-1"}));
+        let (width, rgba) = decode(&picture);
+        let black = [0, 0, 0, 255];
+        let mut ink = 0;
+        for py in 0..48usize {
+            for px in 0..width {
+                let pixel = &rgba[(py * width + px) * 4..][..4];
+                let (fx, fy) = (px as f64, py as f64);
+                if (x..x + w).contains(&fx) && (y..y + h).contains(&fy) {
+                    ink += usize::from(pixel != black);
+                }
+                // One pixel of slack absorbs the rounding of the box.
+                let outside = fx < x - 1.0 || fx > x + w + 1.0 || fy < y - 1.0 || fy > y + h + 1.0;
+                assert!(
+                    !(outside && pixel != black),
+                    "ink outside the rect at {px},{py}"
+                );
+            }
+        }
+        assert!(ink >= 8, "{ink} ink pixels inside {w}x{h}");
     }
 
     #[test]

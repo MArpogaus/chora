@@ -298,18 +298,25 @@ impl State {
                     bbox.size.h,
                 )
             }
-            NodeKind::Group | NodeKind::Shader | NodeKind::Text => return false,
+            // A text node draws inside the box of its layout.
+            NodeKind::Text => match self.assets.texts.size(node) {
+                Some([w, h]) => (0.0, 0.0, w, h),
+                None => return false,
+            },
+            NodeKind::Group | NodeKind::Shader => return false,
         };
         (at_x..at_x + w).contains(&x) && (at_y..at_y + h).contains(&y)
     }
 
-    /// Whether a node draws at a place of its own: groups, shaders and
-    /// text draw nothing, and a surface without a window draws nothing.
+    /// Whether a node draws at a place of its own: groups and shaders
+    /// draw nothing, a surface without a window draws nothing, and a
+    /// text node draws when its layout exists.
     fn draws_something(&self, node: &Node) -> bool {
         match node.kind {
             NodeKind::Surface => self.windows.contains_key(node.id.as_str()),
             NodeKind::Rect | NodeKind::Image => true,
-            NodeKind::Group | NodeKind::Shader | NodeKind::Text => false,
+            NodeKind::Text => node.props.text.is_some(),
+            NodeKind::Group | NodeKind::Shader => false,
         }
     }
 
