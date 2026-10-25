@@ -3,7 +3,7 @@
 WF=w4; . "$(dirname "$0")/lib.sh"
 session_start "1280x800,1280x800+1280+0" "$bin/chora-tiling" || exit 1
 for i in $(seq 6); do open $((i*35)) $((i*35)) 200; done
-wait_count "app_id:chora-probe kind:surface" 6 || finding "W4: $(count_windows) windows instead of 6" wrong "spawn 6 windows"
+wait_count "app_id:chora-probe kind:surface" 6 || finding "W4: $(count_windows) windows instead of 6" wrong "run 6 windows"
 health "6 windows up"
 
 for i in $(seq 20); do
