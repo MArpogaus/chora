@@ -226,6 +226,10 @@ fn within_limit(w: usize, h: usize) -> bool {
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn layout(fonts: &mut Fonts, key: &Key, scale: f32) -> Option<(Buffer, [f64; 2], [f32; 2])> {
     let (text, family, font_size, max_width, _) = key;
+    // Without any font, cosmic-text panics in the shaping.
+    if fonts.system.db().is_empty() {
+        return None;
+    }
     let size = *font_size as f32 * scale;
     let attrs = Attrs::new().family(family.as_deref().map_or(Family::SansSerif, Family::Name));
     let mut buffer = Buffer::new(&mut fonts.system, Metrics::relative(size, LINE_HEIGHT));
@@ -572,6 +576,24 @@ mod tests {
             surface: None,
             to: None,
         }
+    }
+
+    /// A machine without fonts draws no text and does not crash.
+    #[test]
+    fn no_font_gives_no_layout() {
+        let mut fonts = super::Fonts {
+            system: cosmic_text::FontSystem::new_with_locale_and_db(
+                "en-US".into(),
+                cosmic_text::fontdb::Database::new(),
+            ),
+            swash: cosmic_text::SwashCache::new(),
+        };
+        let node = text_node(Props {
+            text: Some("Hi".into()),
+            ..Props::default()
+        });
+        let key = super::props_key(&node).expect("the props of a text node");
+        assert!(super::layout(&mut fonts, &key, 1.0).is_none());
     }
 
     #[test]

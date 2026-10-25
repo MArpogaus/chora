@@ -470,6 +470,10 @@ mod tests {
     #[test]
     #[allow(clippy::cast_precision_loss)] // screen coordinates
     fn a_text_node_shows_its_text_inside_its_rect() {
+        if !crate::text::fonts_present() {
+            println!("SKIP: no fonts for the text node");
+            return;
+        }
         let mut core = Core::with_renderer();
         core.add_output("test-1", (64, 48));
         let mut wm = core.named("wm");
@@ -522,6 +526,10 @@ mod tests {
 
     #[test]
     fn a_text_node_without_color_draws_white() {
+        if !crate::text::fonts_present() {
+            println!("SKIP: no fonts for the text node");
+            return;
+        }
         let mut core = Core::with_renderer();
         core.add_output("test-1", (64, 48));
         let mut wm = core.named("wm");
