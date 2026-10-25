@@ -44,6 +44,7 @@ use crate::{
     mesh::{self, Layers, MeshElement, MeshRenderer, Placing},
     output::{Spot, output_area, scene_rect},
     state::State,
+    text::{self, Texts},
 };
 
 render_elements! {
@@ -54,6 +55,7 @@ render_elements! {
     Cursor = MemoryRenderBufferRenderElement<R>,
     Image = CellElement<R>,
     Mesh = MeshElement,
+    Text = RescaleRenderElement<MemoryRenderBufferRenderElement<R>>,
 }
 
 /// What the scene draws besides surfaces: a color buffer per rect node,
@@ -63,6 +65,8 @@ render_elements! {
 pub struct Assets {
     pub rects: HashMap<String, SolidColorBuffer>,
     pub images: Images,
+    /// The layouts and rasters of the text nodes.
+    pub texts: Texts,
     /// The version of the image and the ids of the cells by node.
     pub cells: HashMap<String, (Option<Id>, Vec<Id>)>,
     pub layers: Layers,
@@ -442,8 +446,22 @@ fn node_elements<R: MeshRenderer>(
             let Assets { images, cells, .. } = &mut *parts.assets;
             image(placed, images, cells, renderer, &at)
         }
-        // A shader node draws as a layer; outside of one it shows nothing.
+        // A shader node draws as a layer; outside of one it shows
+        // nothing.
         NodeKind::Group | NodeKind::Shader => Vec::new(),
+        NodeKind::Text => text::element(
+            &parts.assets.texts,
+            renderer,
+            placed.node,
+            &Placement {
+                origin: offset,
+                scale: (sx, sy),
+                output_scale: view.scale,
+                alpha,
+            },
+        )
+        .into_iter()
+        .collect(),
     }
 }
 
@@ -454,6 +472,7 @@ fn prune_assets(parts: &mut Parts<'_>) {
     let assets = &mut *parts.assets;
     assets.rects.retain(|id, _| kind_is(id, NodeKind::Rect));
     assets.cells.retain(|id, _| kind_is(id, NodeKind::Image));
+    assets.texts.retain(|id| kind_is(id, NodeKind::Text));
     assets
         .layers
         .retain(|id| scene.node(id).is_some_and(chora_scene::Node::is_layer));
@@ -525,7 +544,7 @@ where
 
 /// The translation and the scale of a 2D transform with a positive scale.
 /// Other transforms come with the effects milestone.
-fn location_and_scale(t: &Transform) -> Option<(Point<f64, Logical>, (f64, f64))> {
+pub(crate) fn location_and_scale(t: &Transform) -> Option<(Point<f64, Logical>, (f64, f64))> {
     let (sx, sy) = t.scale_2d().filter(|(sx, sy)| *sx > 0.0 && *sy > 0.0)?;
     Some((t.translation_2d().into(), (sx, sy)))
 }
@@ -682,7 +701,8 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
             let [w, h] = node_size(state, placed.node);
             ((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)).then_some(Hit::Area)
         }
-        NodeKind::Group => None,
+        // A group is empty and text takes no pointer input.
+        NodeKind::Group | NodeKind::Text => None,
     }
 }
 

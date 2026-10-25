@@ -19,12 +19,16 @@ chora -- chora-flavor tiling
 ├── flavors/            # bundles of views, plugins and services
 ├── plugins/            # plugin manifests
 ├── shaders/            # GLSL ES shaders
-├── clients.yaml        # the names and grants of `clients up`
+├── clients.yaml        # the names and capabilities of `clients up`
 └── chora-tiling.yaml   # the options and bindings of chora-tiling
 ```
 
 The directory is a git repository. It contains no secrets. The package
 installs the reference flavors to `/usr/share/chora/`.
+
+Fonts are not there: the core draws text with the system fonts and with
+every directory listed in `CHORA_FONT_DIRS`, separated by `:`. A user
+font in `~/.local/share/fonts` needs no setting at all.
 
 ## Views
 
@@ -61,7 +65,8 @@ scene:
   `~/.config/chora/views/work.yaml`, or to `--file PATH`. A plugin or an
   agent changes the nodes as `view-work`, for example
   `choractl --name view-work apply`.
-- A node has an `id`, a `kind` (`group`, `rect` or `image`), a `parent`
+- A node has an `id`, a `kind` (`group`, `rect`, `image`, `shader` or
+  `text`), a `parent`
   (the root by default) and its `props` as in a `create` command.
 - A name has letters, digits, `_`, `-` and `.`, but no `.` first, so that
   its file stays in its directory. The file `NAME.yaml` must name the same
@@ -119,8 +124,14 @@ showroom:
 ```
 
 The names follow the rules of `hello`. `clients up` opens the socket of
-every name and makes its grants equal to the list, so a grant missing
-from the file is revoked. Existing sockets and their connections stay.
+every name with exactly the capabilities of its list. A socket that
+already has the equal capabilities stays with its connections and gets
+them back after the revoke binding. Changed capabilities recreate the
+socket and disconnect its Wayland clients. A name with a client socket
+takes no `choractl grant` and no `choractl revoke`; the file decides.
+While a name is connected, its socket cannot open. `clients up` then
+only syncs the grants of the name and says on stderr that the socket
+stays closed.
 
 ## chora-tiling
 

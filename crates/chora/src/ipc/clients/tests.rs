@@ -9,6 +9,7 @@ use std::{
     time::Duration,
 };
 
+use chora_scene::ipc::RpcError;
 use serde_json::json;
 use smithay::backend::input::{ButtonState, InputTime, KeyState};
 use wayland_client::{
@@ -299,25 +300,22 @@ fn socket_dir(tag: &str) -> (Core, PathBuf) {
     (core, dir)
 }
 
-fn named(core: &mut Core, admin: &mut crate::testing::Client, grant: Option<&str>) -> Raw {
-    let created = admin.ok(core, "clients.create", json!({"name": "agent"}));
-    if let Some(cap) = grant {
-        admin.ok(
-            core,
-            "grants.set",
-            json!({"client": "agent", "capabilities": [cap]}),
-        );
-    }
+fn named(core: &mut Core, admin: &mut crate::testing::Client, cap: Option<&str>) -> Raw {
+    let created = admin.ok(
+        core,
+        "clients.create",
+        json!({"name": "agent", "capabilities": cap.into_iter().collect::<Vec<_>>()}),
+    );
     let path = PathBuf::from(created["wayland"].as_str().unwrap());
     let stream = UnixStream::connect(&path).unwrap();
     core.dispatch();
     Raw::new(core, stream)
 }
 
-/// A frame queued before a revoke gets nothing of the screen into the shm
-/// of the killed client.
+/// A frame queued before a lost capability gets nothing of the screen
+/// into the shm of the killed client.
 #[test]
-fn a_revoke_drops_the_queued_frames_of_a_capturer() {
+fn a_lost_capability_drops_the_queued_frames_of_a_capturer() {
     let (mut core, dir) = socket_dir("cap");
     core.add_output("A", (64, 48));
     let mut admin = core.admin();
@@ -333,8 +331,8 @@ fn a_revoke_drops_the_queued_frames_of_a_capturer() {
     assert!(!agent.app.ready, "the frame waits for the tick");
     admin.ok(
         &mut core,
-        "grants.revoke",
-        json!({"client": "agent", "capabilities": ["screen.capture"]}),
+        "clients.create",
+        json!({"name": "agent", "capabilities": []}),
     );
     // The client sends nothing more; the tick comes one refresh later.
     std::thread::sleep(Duration::from_millis(60));
@@ -923,8 +921,165 @@ fn the_spy_of_the_review_fails() {
     let camera = scene.camera("A").is_some();
     drop(core);
     std::fs::remove_dir_all(&dir).unwrap();
-    assert_eq!(error, 1);
+    assert_eq!(error, RpcError::CLIENT_SOCKET_RULE);
     assert!(message.contains("no screen:* parents"), "{message}");
     assert_eq!(left, (false, false), "no spy and no keyboard");
     assert!(!camera, "no camera");
+}
+
+/// `clients.create` of `agent` with some capabilities.
+fn open_agent(
+    core: &mut Core,
+    admin: &mut crate::testing::Client,
+    caps: &[&str],
+) -> serde_json::Value {
+    admin.ok(
+        core,
+        "clients.create",
+        json!({"name": "agent", "capabilities": caps}),
+    )
+}
+
+/// A connection through a client socket has exactly the capabilities of
+/// `clients.create` (D33, D40): the granted one passes the gate, one
+/// without it gets the capability code, and an equal create answers that
+/// the socket exists.
+#[test]
+fn a_client_socket_has_the_capabilities_of_its_file() {
+    // No renderer here either: the granted capture then fails with "no
+    // renderer yet" instead, which the test reads as "past the gate".
+    let dir = std::env::temp_dir().join(format!("chora-caps-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut core = Core::new();
+    core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+    let mut admin = core.admin();
+    let created = open_agent(&mut core, &mut admin, &["screen.capture"]);
+    let path = PathBuf::from(created["path"].as_str().unwrap());
+    let mut agent = core.connect_to(&path);
+    agent.ok(&mut core, "hello", json!({"name": "agent"}));
+    let (error_code, message) = agent.fails(&mut core, "screen.capture", json!({"output": "A"}));
+    assert_ne!(error_code, RpcError::MISSING_CAPABILITY, "{message}");
+    // A socket without the capability gets the capability code.
+    let guest = admin.ok(&mut core, "clients.create", json!({"name": "guest"}));
+    let mut visitor = core.connect_to(&PathBuf::from(guest["path"].as_str().unwrap()));
+    visitor.ok(&mut core, "hello", json!({"name": "guest"}));
+    let (error_code, _) = visitor.fails(&mut core, "screen.capture", json!({"output": "A"}));
+    assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+    // Equal capabilities keep the socket.
+    let (error_code, _) = admin.fails(
+        &mut core,
+        "clients.create",
+        json!({"name": "agent", "capabilities": ["screen.capture"]}),
+    );
+    assert_eq!(error_code, RpcError::NAME_TAKEN);
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The capabilities of a name with a client socket are the file's job:
+/// `grants.set` and `grants.revoke` answer the client-socket code with the
+/// hint to change `clients.yaml`, the list of `grants.list` stays what
+/// the create gave, and a create with other capabilities recreates the
+/// socket at the same path.
+#[test]
+fn the_grants_of_a_client_socket_name_point_at_the_file() {
+    let dir = std::env::temp_dir().join(format!("chora-caps-file-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut core = Core::new();
+    core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+    let mut admin = core.admin();
+    let created = open_agent(&mut core, &mut admin, &["screen.capture"]);
+    let path = PathBuf::from(created["path"].as_str().unwrap());
+    let caps = json!({"client": "agent", "capabilities": ["input.inject"]});
+    let (error_code, message) = admin.fails(&mut core, "grants.set", caps.clone());
+    assert_eq!(error_code, RpcError::CLIENT_SOCKET_RULE);
+    assert!(
+        message.contains("change clients.yaml and run choractl clients up"),
+        "{message}",
+    );
+    let (error_code, _) = admin.fails(&mut core, "grants.revoke", caps);
+    assert_eq!(error_code, RpcError::CLIENT_SOCKET_RULE);
+    assert_eq!(
+        admin.ok(&mut core, "grants.list", json!({})),
+        json!({"agent": ["screen.capture"]}),
+    );
+    // Other capabilities recreate the socket: the capture is gone.
+    let again = open_agent(&mut core, &mut admin, &[]);
+    assert_eq!(again["path"], created["path"]);
+    assert!(path.exists(), "the recreated socket keeps its path");
+    let mut agent = core.connect_to(&path);
+    agent.ok(&mut core, "hello", json!({"name": "agent"}));
+    let (error_code, _) = agent.fails(&mut core, "screen.capture", json!({"output": "A"}));
+    assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A core with a socket directory, for the `clients.create` tests below.
+fn caps_core(tag: &str) -> (Core, PathBuf) {
+    let dir = std::env::temp_dir().join(format!("chora-caps-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut core = Core::new();
+    core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+    (core, dir)
+}
+
+/// `choractl clients create NAME` sends no capabilities: an existing
+/// socket keeps its own instead of losing them all.
+#[test]
+fn a_create_without_capabilities_keeps_the_socket() {
+    let (mut core, dir) = caps_core("keep");
+    let mut admin = core.admin();
+    open_agent(&mut core, &mut admin, &["screen.capture"]);
+    let (error_code, _) = admin.fails(&mut core, "clients.create", json!({"name": "agent"}));
+    assert_eq!(error_code, RpcError::NAME_TAKEN, "socket_exists");
+    assert_eq!(
+        admin.ok(&mut core, "grants.list", json!({})),
+        json!({"agent": ["screen.capture"]}),
+    );
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A recreate without `input.grab-any` ends the free grabs of the old
+/// connections, which outlive the socket.
+#[test]
+fn a_recreate_without_grab_any_ends_free_grabs() {
+    let (mut core, dir) = caps_core("grabs");
+    let mut admin = core.admin();
+    let created = open_agent(&mut core, &mut admin, &["input.grab-any"]);
+    let mut agent = core.connect_to(&PathBuf::from(created["path"].as_str().unwrap()));
+    agent.ok(&mut core, "hello", json!({"name": "agent"}));
+    agent.ok(&mut core, "input.grab", json!({"binding": "F13"}));
+    assert_eq!(core.state.ipc.grabs.len(), 1);
+    open_agent(&mut core, &mut admin, &["screen.capture"]);
+    assert!(core.state.ipc.grabs.is_empty(), "the F13 grab ended");
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// After the revoke binding, `clients up` with the same file gives the
+/// capabilities back.
+#[test]
+fn the_same_create_gives_back_revoked_capabilities() {
+    let (mut core, dir) = caps_core("restore");
+    let mut admin = core.admin();
+    open_agent(&mut core, &mut admin, &["screen.capture"]);
+    core.state.revoke_agents();
+    assert_eq!(admin.ok(&mut core, "grants.list", json!({})), json!({}));
+    let (error_code, _) = admin.fails(
+        &mut core,
+        "clients.create",
+        json!({"name": "agent", "capabilities": ["screen.capture"]}),
+    );
+    assert_eq!(error_code, RpcError::NAME_TAKEN, "socket_exists");
+    assert_eq!(
+        admin.ok(&mut core, "grants.list", json!({})),
+        json!({"agent": ["screen.capture"]}),
+    );
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
 }

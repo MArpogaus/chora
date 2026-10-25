@@ -9,7 +9,10 @@ mod view;
 
 use std::{
     io::{Read, Write},
+    os::unix::{ffi::OsStrExt, process::CommandExt},
     process::ExitCode,
+    sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize, Ordering},
+    time::{Duration, Instant},
 };
 
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -18,11 +21,11 @@ use chora_scene::{
     Event,
     ipc::{
         Apply, Asset, AssetPut, AssetRemove, Capability, Capture, Client, ClientError, Edges,
-        GrantChange, Hello, Inject, InjectEvent, MethodCall, Picture, ProcessWait, Query, Reserve,
-        Restart, RpcError, SOCKET_ENV, Spawn, Subscribe, admin_socket,
+        GrantChange, Hello, Inject, InjectEvent, MethodCall, Picture, Query, Reserve, RpcError,
+        SOCKET_ENV, Subscribe, admin_socket,
     },
 };
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use serde_json::Value;
 
 /// Talk to the chora compositor in `CHORA_SOCKET`.
@@ -84,14 +87,14 @@ enum Cmd {
         /// The parameters as JSON; `null` if missing.
         params: Option<String>,
     },
-    /// Grant a client name `input.inject`, `screen.capture`,
-    /// `process.spawn` or `input.grab-any`, until the session ends or a
-    /// revoke. Goes through the admin socket.
+    /// Grant a client name `input.inject`, `screen.capture` or
+    /// `input.grab-any`, until the session ends or a revoke. Goes
+    /// through the admin socket.
     Grant {
         /// The client name, for example `agent`.
         client: String,
-        /// One or more of `input.inject`, `screen.capture`,
-        /// `process.spawn` and `input.grab-any`.
+        /// One or more of `input.inject`, `screen.capture` and
+        /// `input.grab-any`.
         #[arg(required = true)]
         capabilities: Vec<Capability>,
     },
@@ -100,8 +103,8 @@ enum Cmd {
     Revoke {
         /// The client name.
         client: String,
-        /// One or more of `input.inject`, `screen.capture`,
-        /// `process.spawn` and `input.grab-any`.
+        /// One or more of `input.inject`, `screen.capture` and
+        /// `input.grab-any`.
         capabilities: Vec<Capability>,
     },
     /// Print the grants by client name.
@@ -119,13 +122,13 @@ enum Cmd {
     },
     /// Serve the API as MCP tools over stdio, for an agent.
     Mcp,
-    /// Start a program with the environment of the compositor, and print
-    /// its pid. Needs a grant of `process.spawn` for the client name.
-    Spawn {
-        /// Wait for the end of the program, and print its output and its
-        /// exit status.
-        #[arg(long)]
-        capture: bool,
+    /// Start a program outside the core (D42), with an activation token
+    /// of the core in `XDG_ACTIVATION_TOKEN`: in its own transient unit
+    /// when the user manager answers, detached otherwise. Prints the pid
+    /// as one JSON line. The old name `spawn` is a hidden alias that
+    /// warns on stderr.
+    #[command(alias = "spawn")]
+    Run {
         /// The program and its arguments.
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
         argv: Vec<String>,
@@ -157,12 +160,27 @@ enum Cmd {
         #[arg(value_name = "NAME")]
         output: String,
     },
-    /// Restart a plugin: stop the process of a client name, and start its
-    /// command again. Needs a grant of `process.spawn`.
+    /// Restart a plugin (D42): `systemctl --user restart NAME.service`
+    /// while that unit is active, else end the program of
+    /// `choractl supervise NAME`, which starts it again. Prints what it
+    /// restarted as one JSON line. Does not call the core.
     Restart {
         /// The client name, for example `tiling`.
         #[arg(value_name = "NAME")]
         client: String,
+    },
+    /// Run a plugin and start it again when it ends (D42), at most five
+    /// restarts per minute. Writes the pid of the running program to
+    /// `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`, for `choractl
+    /// restart NAME`. SIGTERM ends the program, removes the pid file
+    /// and exits with 128 plus the signal. Does not call the core.
+    Supervise {
+        /// The plugin name, for example `tiling`.
+        #[arg(value_name = "NAME")]
+        name: String,
+        /// The program and its arguments.
+        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
+        argv: Vec<String>,
     },
     /// Store a file for image nodes, shader nodes and effects in a
     /// directory of the core, or remove it; for a client that shares no
@@ -266,14 +284,16 @@ enum CameraCmd {
 
 #[derive(Subcommand)]
 enum ClientsCmd {
-    /// Open the client socket of a name, `clients/NAME/ipc.sock` next to
-    /// `CHORA_SOCKET`, and print its path.
+    /// Open the client socket without capabilities, `clients/NAME/ipc.sock`
+    /// next to `CHORA_SOCKET`, and print its path; `clients up` gives a
+    /// name its capabilities.
     Create {
         /// The client name, for example `agent`.
         client: String,
     },
-    /// Create the sockets of all names in a YAML file, with their
-    /// grants: `clients.create` and `grants.set` in one step.
+    /// Create the sockets of all names in a YAML file with their
+    /// capabilities: `clients.create` with the list of the file. Changed
+    /// capabilities recreate the socket.
     Up {
         /// The file, `~/.config/chora/clients.yaml` by default, `-` for
         /// stdin.
@@ -300,8 +320,28 @@ enum AssetCmd {
     },
 }
 
+/// The subcommand name that the user typed, hidden aliases included:
+/// clap reports the target of an alias, never the alias itself.
+fn used_name(argv: &[String]) -> Option<&str> {
+    let mut it = argv.iter().skip(1);
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--name" => {
+                it.next();
+            }
+            s if s.starts_with('-') && s != "-" => {}
+            s => return Some(s),
+        }
+    }
+    None
+}
+
 fn main() -> ExitCode {
-    let args = Args::parse();
+    let matches = Args::command().get_matches();
+    if used_name(&std::env::args().collect::<Vec<_>>()) == Some("spawn") {
+        eprintln!("choractl: spawn is deprecated (D42), use choractl run");
+    }
+    let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
     match run(args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
@@ -315,6 +355,8 @@ fn run(args: Args) -> Result<(), String> {
     match &args.command {
         Cmd::View { action } => return view_command(action),
         Cmd::Mcp => return mcp::serve(args.name.unwrap_or_else(|| "agent".into())),
+        Cmd::Restart { client } => return restart_program(client),
+        Cmd::Supervise { name, argv } => return supervise(name, argv),
         _ => {}
     }
     let (commands, input) = match &args.command {
@@ -322,12 +364,7 @@ fn run(args: Args) -> Result<(), String> {
         Cmd::Inject { file, .. } => (Vec::new(), read_json(file.as_deref())?),
         _ => (Vec::new(), Vec::new()),
     };
-    let hello = Hello {
-        name: args.name.unwrap_or_else(|| "choractl".into()),
-        keep_nodes: true,
-        resume: false,
-    };
-    let mut client = connect(&args.command, &hello)?;
+    let mut client = connect(&args.command, &hello(args.name))?;
     let result = match args.command {
         Cmd::Query { selector } => show(&mut client, "scene.query", Query::new(selector)),
         command @ Cmd::Wait { .. } => return wait(&mut client, &command),
@@ -336,8 +373,7 @@ fn run(args: Args) -> Result<(), String> {
             .map(drop),
         Cmd::Events { names } => events(&mut client, names),
         Cmd::Outputs => show(&mut client, "output.list", Value::Null),
-        command @ (Cmd::Spawn { .. }
-        | Cmd::Restart { .. }
+        command @ (Cmd::Run { .. }
         | Cmd::ConfigureOutput { .. }
         | Cmd::AddOutput { .. }
         | Cmd::RemoveOutput { .. }
@@ -353,7 +389,9 @@ fn run(args: Args) -> Result<(), String> {
             params,
         } => return call(&mut client, callee, method, params.as_deref()),
         Cmd::Asset { action } => return asset(&mut client, action),
-        Cmd::View { .. } | Cmd::Mcp => unreachable!("handled before the connection"),
+        Cmd::View { .. } | Cmd::Mcp | Cmd::Restart { .. } | Cmd::Supervise { .. } => {
+            unreachable!("handled before the connection")
+        }
         Cmd::Inject { dry_run, .. } => inject(&mut client, input, dry_run),
         Cmd::Capture {
             file,
@@ -370,6 +408,16 @@ fn run(args: Args) -> Result<(), String> {
         }
     };
     result.map_err(|e| e.to_string())
+}
+
+/// The `hello` of every `choractl` call: the name of `--name`, with
+/// `keep_nodes`.
+fn hello(name: Option<String>) -> Hello {
+    Hello {
+        name: name.unwrap_or_else(|| "choractl".into()),
+        keep_nodes: true,
+        ..Hello::default()
+    }
 }
 
 /// Connects to the core: grants and client sockets through the admin
@@ -417,8 +465,7 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             "camera.release",
             serde_json::json!({"output": output}),
         ),
-        Cmd::Spawn { capture, argv } => spawn(client, argv, capture),
-        Cmd::Restart { client: name } => show(client, "plugins.restart", Restart { name }),
+        Cmd::Run { argv } => run_program(client, &argv),
         Cmd::ConfigureOutput {
             output,
             scale,
@@ -471,26 +518,438 @@ fn taken_socket(name: &str, err: &RpcError) -> Option<String> {
     Some(format!("{name} has a client socket already: {path}"))
 }
 
-/// Starts a program. With `capture`, waits for its end on the same
-/// connection, since the output goes with the last connection of the name.
-fn spawn(client: &mut Client, argv: Vec<String>, capture: bool) -> Result<(), ClientError> {
-    let started: Value = client.call("process.spawn", Spawn { argv, capture })?;
-    let pid = started["pid"].as_u64().and_then(|p| u32::try_from(p).ok());
-    let Some(pid) = pid.filter(|_| capture) else {
-        print_line(std::io::stdout(), &started);
-        return Ok(());
+/// `choractl run` (D42): asks the core for an activation token, starts
+/// the program with it in the environment, and prints pid and token as
+/// one JSON line; the token lets a test follow the trip to the window.
+fn run_program(client: &mut Client, argv: &[String]) -> Result<(), ClientError> {
+    let answer: Value = client.call("activation.token", Value::Null)?;
+    let Some(token) = answer["token"].as_str().map(str::to_owned) else {
+        return Err(ClientError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "the core answered no activation token",
+        )));
     };
+    let pid = match systemd_unit(argv, &token) {
+        RunStart::Unit(pid) => Some(pid),
+        RunStart::Fallback => Some(start_detached(argv, &token).map_err(|e| {
+            ClientError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", argv[0])))
+        })?),
+        // The unit started; a short program ended and was collected
+        // before its pid was read.
+        RunStart::Unknown => None,
+    };
+    print_line(
+        std::io::stdout(),
+        &serde_json::json!({ "pid": pid, "token": token }),
+    );
+    Ok(())
+}
+
+/// The outcome of one start attempt through `systemd-run`.
+#[derive(Debug, PartialEq, Eq)]
+enum RunStart {
+    /// No user manager, or `systemd-run` failed: the detached fallback
+    /// of `run` may start the program.
+    Fallback,
+    /// The unit runs the program under this pid.
+    Unit(u32),
+    /// The unit started, but its `MainPID` stayed unknown, for example
+    /// of a program that ended at once: `run` prints `pid` null and never
+    /// starts the program a second time.
+    Unknown,
+}
+
+/// The pure fallback decision of `run`: only a unit that did not start
+/// allows the detached start. On a successful start, a `MainPID` that is
+/// empty, `0` or no number is `Unknown`, never pid 0 as success.
+fn classify_start(started: bool, main_pid: &str) -> RunStart {
+    if !started {
+        return RunStart::Fallback;
+    }
+    match main_pid.trim().parse::<u32>() {
+        Ok(pid) if pid > 0 => RunStart::Unit(pid),
+        _ => RunStart::Unknown,
+    }
+}
+
+/// How starting the program in a transient unit went. `systemd-run`
+/// without `--scope` returns once the start job of the unit is done, so
+/// the line with the pid comes out while the program runs; the pid is
+/// the program's own (`MainPID`), waited for up to 2 s. A unit starts
+/// with the environment of the user manager, so the variables of this
+/// session travel in the `Environment=` property. Output goes to the
+/// journal, never into the line on stdout.
+fn systemd_unit(argv: &[String], token: &str) -> RunStart {
+    let Ok(answered) = std::process::Command::new("systemctl")
+        .args(["--user", "is-system-running"])
+        .stderr(std::process::Stdio::null())
+        .output()
+    else {
+        return RunStart::Fallback;
+    };
+    if answered.stdout.is_empty() {
+        return RunStart::Fallback;
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .unwrap_or_default();
+    let unit = format!(
+        "chora-run-{}-{}.service",
+        std::process::id(),
+        now.as_nanos()
+    );
+    let mut started = std::process::Command::new("systemd-run");
+    started.args([
+        "--user",
+        "--collect",
+        "--quiet",
+        "--same-dir",
+        "--unit",
+        &unit,
+    ]);
+    started.args(unit_env(token));
+    // ponytail: the token is visible in argv of the short-lived
+    // `systemd-run`; it dies with `--collect` and within 10 s anyway.
+    let Ok(started) = started.args(argv).status() else {
+        return RunStart::Fallback;
+    };
+    if !started.success() {
+        return RunStart::Fallback;
+    }
+    // A unit fills in `MainPID` a moment after the start job. Wait for
+    // it, then report what is known: a pid, or the error of the unknown
+    // pid. A unit that ended and was collected before the first query
+    // counts as unknown too; the program ran, but `run` cannot say so.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
     loop {
-        let wait = ProcessWait {
-            pid,
-            timeout_ms: 30_000,
+        let shown = std::process::Command::new("systemctl")
+            .args([
+                "--user",
+                "show",
+                "--property=MainPID",
+                "--value",
+                "--unit",
+                &unit,
+            ])
+            .stderr(std::process::Stdio::null())
+            .output();
+        let text = match &shown {
+            Ok(out) => String::from_utf8_lossy(&out.stdout).into_owned(),
+            Err(_) => String::new(),
         };
-        let output: Value = client.call("process.wait", wait)?;
-        if output["running"] != Value::Bool(true) {
-            print_line(std::io::stdout(), &output);
-            return Ok(());
+        let decision = classify_start(true, &text);
+        if decision != RunStart::Unknown || std::time::Instant::now() >= deadline {
+            return decision;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
+/// Variables of a display session that a unit must not take from the
+/// user manager; the startup command of the core drops the same ones.
+const HOST_VARIABLES: [&str; 6] = [
+    "WAYLAND_SOCKET",
+    "DISPLAY",
+    "SWAYSOCK",
+    "I3SOCK",
+    "NIRI_SOCKET",
+    "HYPRLAND_INSTANCE_SIGNATURE",
+];
+
+/// The program forked by `choractl` itself, detached in a session of its
+/// own and with the token in its environment; the pid of the child.
+/// Stdout and stderr go to the null device, so that the output of the
+/// program never mixes with the JSON line on stdout.
+#[allow(unsafe_code)] // one `setsid` in the fork hook, nothing else
+fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
+    let mut command = std::process::Command::new(&argv[0]);
+    command
+        .args(&argv[1..])
+        .env("XDG_ACTIVATION_TOKEN", token)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    // SAFETY: the hook only calls `setsid`, an async-signal-safe function.
+    unsafe {
+        command.pre_exec(|| {
+            if libc::setsid() == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    command.spawn().map(|child| child.id())
+}
+
+/// The pid of the program the running `supervise` watches, for the
+/// signal handler that ends it together with `supervise`.
+static SUPERVISED_PID: AtomicU32 = AtomicU32::new(0);
+
+/// The pid file as a C string, so that the signal handler can remove
+/// it; `unlink` is async-signal-safe. Stored once by `supervise`, so
+/// the leaked allocation lives as long as the process.
+static PID_FILE_C: AtomicUsize = AtomicUsize::new(0);
+
+/// Whether a stop signal arrived while `SUPERVISED_PID` was still 0:
+/// in the window between the start of the child and the store of its
+/// pid, or between two starts. A lock-free store is safe in a handler.
+static STOP_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+/// The signal number behind `STOP_REQUESTED`, for the exit code.
+static STOP_SIGNAL: AtomicI32 = AtomicI32::new(libc::SIGTERM);
+
+/// Starts a program and starts it again when it ends (D42), at most
+/// five restarts per minute. Writes the pid of the running program to
+/// `pid_file`, so that `choractl restart` can end it; that ends the
+/// wait here and starts the program again.
+fn supervise(name: &str, argv: &[String]) -> Result<(), String> {
+    view::check_name(name)?;
+    let file = pid_file(name)?;
+    let dir = file.parent().expect("the pid file has a name");
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    // One supervise per name: a second one would take over the pid file,
+    // and the first to stop would remove it. The lock ends with the
+    // process, also on SIGKILL.
+    let lock_path = file.with_extension("lock");
+    let lock =
+        std::fs::File::create(&lock_path).map_err(|e| format!("{}: {e}", lock_path.display()))?;
+    lock.try_lock()
+        .map_err(|_| format!("{name}: another choractl supervise runs it"))?;
+    let c_file = std::ffi::CString::new(file.as_os_str().as_bytes())
+        .map_err(|_| format!("{}: not a valid path", file.display()))?;
+    PID_FILE_C.store(
+        std::mem::ManuallyDrop::new(c_file).as_ptr() as usize,
+        Ordering::Relaxed,
+    );
+    install_stop_handler();
+    let mut starts = Vec::new();
+    loop {
+        if STOP_REQUESTED.load(Ordering::Relaxed) {
+            // The signal arrived while no program ran, between two
+            // starts; stopping here avoids one more start.
+            stop_now(0);
+        }
+        if !may_start(&mut starts, Instant::now()) {
+            let _ = std::fs::remove_file(&file);
+            return Err(format!(
+                "{name}: gave up after {} restarts in one minute",
+                MAX_STARTS_PER_MINUTE - 1,
+            ));
+        }
+        starts.push(Instant::now());
+        let status = supervise_once(argv, &file)?;
+        eprintln!("{name}: the program ended with {status}, starting it again");
+    }
+}
+
+/// The largest number of starts of one program in one minute: the
+/// first start and five restarts.
+const MAX_STARTS_PER_MINUTE: usize = 6;
+
+/// Whether another start fits into the last minute; keeps the starts
+/// of the minute in `starts`.
+fn may_start(starts: &mut Vec<Instant>, now: Instant) -> bool {
+    starts.retain(|t| now.duration_since(*t) < Duration::from_secs(60));
+    starts.len() < MAX_STARTS_PER_MINUTE
+}
+
+/// Starts the program, writes its pid to the file, and waits for its
+/// end. Stdio stays with the program, so its output goes to the
+/// terminal or the journal of whoever runs `supervise`.
+fn supervise_once(
+    argv: &[String],
+    file: &std::path::Path,
+) -> Result<std::process::ExitStatus, String> {
+    let mut child = std::process::Command::new(&argv[0])
+        .args(&argv[1..])
+        .spawn()
+        .map_err(|e| format!("{}: {e}", argv[0]))?;
+    SUPERVISED_PID.store(child.id(), Ordering::Relaxed);
+    // Written whole and renamed, so that restart never reads half a pid.
+    let partial = file.with_extension("pid.new");
+    let written = std::fs::write(&partial, format!("{}\n", child.id()))
+        .and_then(|()| std::fs::rename(&partial, file));
+    if let Err(e) = written {
+        // No pid file means no restart and no stop: end the program.
+        let _ = child.kill();
+        let _ = child.wait();
+        SUPERVISED_PID.store(0, Ordering::Relaxed);
+        return Err(format!("{}: {e}", file.display()));
+    }
+    if STOP_REQUESTED.load(Ordering::Relaxed) {
+        // A stop signal arrived before the store and only set the
+        // flag; stop now, so the child cannot be orphaned.
+        stop_now(child.id());
+    }
+    let status = child.wait().map_err(|e| e.to_string());
+    SUPERVISED_PID.store(0, Ordering::Relaxed);
+    let _ = std::fs::remove_file(file);
+    status
+}
+
+/// The file `supervise NAME` writes the pid of its running program
+/// into: `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`.
+fn pid_file(name: &str) -> Result<std::path::PathBuf, String> {
+    let dir = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(std::path::PathBuf::from)
+        .filter(|d| d.is_absolute())
+        .ok_or_else(|| "XDG_RUNTIME_DIR is not set".to_owned())?;
+    Ok(dir
+        .join("chora")
+        .join("supervise")
+        .join(format!("{name}.pid")))
+}
+
+/// SIGTERM and SIGINT to `supervise` end the supervised program too.
+#[allow(unsafe_code)] // `signal` for a handler that only stops our child
+fn install_stop_handler() {
+    for signal in [libc::SIGTERM, libc::SIGINT] {
+        // SAFETY: the handler is async-signal-safe; it only stores
+        // atomics, or calls `kill`, `unlink` and `_exit`.
+        unsafe {
+            libc::signal(signal, stop_supervised as *const () as libc::sighandler_t);
         }
     }
+}
+
+extern "C" fn stop_supervised(signal: libc::c_int) {
+    STOP_SIGNAL.store(signal, Ordering::Relaxed);
+    let pid = SUPERVISED_PID.load(Ordering::Relaxed);
+    if pid == 0 {
+        // No pid to end yet: the signal came in the window between
+        // the start of the child and the store of its pid. Leave the
+        // stop to `supervise_once`, which re-checks the flag after
+        // the store; ending here would orphan the child.
+        STOP_REQUESTED.store(true, Ordering::Relaxed);
+        return;
+    }
+    stop_now(pid);
+}
+
+/// Ends the supervised program of `pid`, removes the pid file, and
+/// exits with 128 plus the stop signal, the code of a signal stop,
+/// so that process managers notice it.
+#[allow(unsafe_code)] // `kill`, `unlink` and `_exit`, all async-signal-safe
+fn stop_now(pid: u32) -> ! {
+    let file = PID_FILE_C.load(Ordering::Relaxed);
+    // SAFETY: `kill`, `unlink` and `_exit` are async-signal-safe, the
+    // pid is the child of this process or zero, and the path was
+    // stored as a C string by `supervise`.
+    unsafe {
+        if pid > 0 {
+            libc::kill(pid.cast_signed(), libc::SIGTERM);
+        }
+        if file != 0 {
+            libc::unlink(file as *const libc::c_char);
+        }
+        libc::_exit(STOP_SIGNAL.load(Ordering::Relaxed) + 128);
+    }
+}
+
+/// `choractl restart` (D42): restarts a plugin that runs as the
+/// systemd user unit `NAME.service` or `chora-NAME-wm.service` with
+/// `systemctl --user restart`,
+/// and a program of `choractl supervise NAME` by sending it SIGTERM,
+/// which starts it again. Prints what it restarted as one JSON line.
+#[allow(unsafe_code)] // one `kill` of the program in the pid file
+fn restart_program(name: &str) -> Result<(), String> {
+    view::check_name(name)?;
+    // A flavor runs the window manager of a plugin as chora-NAME-wm.
+    let units = [
+        format!("{name}.service"),
+        format!("chora-{name}-wm.service"),
+    ];
+    if let Some(unit) = units.iter().find(|unit| unit_active(unit)) {
+        let restarted = std::process::Command::new("systemctl")
+            .args(["--user", "restart", unit])
+            .status()
+            .map_err(|e| format!("systemctl: {e}"))?;
+        if !restarted.success() {
+            return Err(format!("systemctl --user restart {unit} failed"));
+        }
+        let answer = serde_json::json!({ "restarted": "unit", "unit": unit });
+        print_line(std::io::stdout(), &answer);
+        return Ok(());
+    }
+    let file = pid_file(name)?;
+    let text = std::fs::read_to_string(&file).map_err(|_| {
+        let units = units.join(" or ");
+        format!("{name}: no active unit {units} and no {}", file.display())
+    })?;
+    let pid: u32 = text
+        .trim()
+        .parse()
+        .map_err(|_| format!("{}: not a pid", file.display()))?;
+    if !pid_alive(pid) {
+        let _ = std::fs::remove_file(&file);
+        return Err(format!(
+            "{name}: pid {pid} no longer runs, removed {}",
+            file.display()
+        ));
+    }
+    // SAFETY: `kill` of a pid we read from our own pid file.
+    if unsafe { libc::kill(pid.cast_signed(), libc::SIGTERM) } != 0 {
+        let err = std::io::Error::last_os_error();
+        return Err(format!("the program of {name} (pid {pid}): {err}"));
+    }
+    let answer = serde_json::json!({ "restarted": "supervise", "pid": pid });
+    print_line(std::io::stdout(), &answer);
+    Ok(())
+}
+
+/// Whether `pid` names a process that runs and is not a zombie. A
+/// pid recycled for another program cannot be told apart here; the
+/// handler of `supervise` removes the file, so a stale file needs a
+/// SIGKILL of `supervise` and a pid reuse at once.
+fn pid_alive(pid: u32) -> bool {
+    let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
+        return false;
+    };
+    // The state follows the command, which sits in parentheses and may
+    // hold spaces; the state is the first word after the last `)`.
+    stat.rsplit_once(')')
+        .is_some_and(|(_, rest)| !rest.trim_start().starts_with('Z'))
+}
+
+/// Whether a systemd user unit is active. `false` when there is no
+/// systemctl, no user manager, or no such unit.
+fn unit_active(unit: &str) -> bool {
+    std::process::Command::new("systemctl")
+        .args(["--user", "is-active", "--quiet", unit])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|s| s.success())
+}
+
+/// The environment properties of a unit of `run`: the token and the
+/// variables of this session. The user manager may hold the variables of
+/// another session, for example the host of a nested chora, so each host
+/// variable gets this session's value or none.
+fn unit_env(token: &str) -> Vec<String> {
+    let mut props = vec![env_prop("XDG_ACTIVATION_TOKEN", token)];
+    for key in ["XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"] {
+        if let Ok(value) = std::env::var(key) {
+            props.push(env_prop(key, &value));
+        }
+    }
+    for key in HOST_VARIABLES {
+        props.push(match std::env::var(key) {
+            Ok(value) => env_prop(key, &value),
+            Err(_) => format!("-pUnsetEnvironment={key}"),
+        });
+    }
+    props
+}
+
+/// The `Environment=` property of `systemd-run` for one variable. systemd
+/// parses the value like a shell, so quotes and backslashes need an
+/// escape and the value stays one assignment when it holds a space.
+fn env_prop(key: &str, value: &str) -> String {
+    let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("-pEnvironment={key}=\"{escaped}\"")
 }
 
 /// Polls `scene.query` until the selector matches, or with `gone` until
@@ -649,7 +1108,7 @@ fn grants(
     client.call::<_, Value>(method, change).map(drop)
 }
 
-/// One name of `clients up`: its grants; the socket itself needs no
+/// One name of `clients up`: its capabilities; the socket itself needs no
 /// more than the name.
 #[derive(serde::Deserialize)]
 struct ClientSpec {
@@ -657,7 +1116,11 @@ struct ClientSpec {
     grants: Vec<Capability>,
 }
 
-/// Creates the socket of every name in the file and sets its grants.
+/// Opens the socket of every name in the file with exactly its
+/// capabilities (D33, D40). Equal capabilities keep the socket; changed
+/// capabilities make the core recreate it. Only a name that is connected
+/// gets no socket yet; `sync_grants` then carries its capabilities until
+/// the create works.
 fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError> {
     let bad = |e: String| ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e));
     let text = match file {
@@ -687,35 +1150,39 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
         view::parse_yaml(&text).map_err(bad)?;
     for (name, spec) in wanted {
         view::check_name(&name).map_err(bad)?;
-        let kept =
-            match client.call::<_, Value>("clients.create", serde_json::json!({"name": &name})) {
-                Ok(_) => None,
-                Err(ClientError::Rpc(err)) => {
-                    let reason = err
-                        .data
-                        .as_ref()
-                        .and_then(|d| d.get("reason"))
-                        .and_then(Value::as_str)
-                        .unwrap_or("");
-                    if reason != "socket_exists" && reason != "connected" {
-                        return Err(ClientError::Rpc(err));
-                    }
-                    Some(reason.to_owned())
-                }
-                Err(e) => return Err(e),
-            };
-        if let Some(reason) = kept {
-            eprintln!("{name}: {reason}: socket not opened, only grants synced");
+        let params = serde_json::json!({"name": &name, "capabilities": spec.grants});
+        let err = match client.call::<_, Value>("clients.create", params) {
+            Ok(_) => {
+                println!("{name}");
+                continue;
+            }
+            Err(ClientError::Rpc(err)) => err,
+            Err(e) => return Err(e),
+        };
+        match err
+            .data
+            .as_ref()
+            .and_then(|d| d.get("reason"))
+            .and_then(Value::as_str)
+        {
+            // Equal capabilities: the socket and its connections stay.
+            Some("socket_exists") => println!("{name}"),
+            // No socket yet: until the name disconnects, its capabilities
+            // live in the grants, which still work for it.
+            Some("connected") => {
+                eprintln!("{name}: connected: socket not opened, only grants synced");
+                sync_grants(client, &name, spec.grants)?;
+                println!("{name}");
+            }
+            _ => return Err(ClientError::Rpc(err)),
         }
-        sync_grants(client, &name, spec.grants)?;
-        println!("{name}");
     }
     Ok(())
 }
 
-/// Makes the grants of a name equal to the listed ones, part by part:
-/// an unchanged grant stays, so no client is disconnected and no moment
-/// passes without it.
+/// Makes the grants of a not yet opened name equal to the listed ones,
+/// part by part: an unchanged grant stays, so no moment passes without
+/// it. A name with a client socket gets its capabilities from the core.
 fn sync_grants(
     client: &mut Client,
     name: &str,
@@ -851,16 +1318,25 @@ mod tests {
     use std::time::Duration;
 
     use chora_scene::ipc::RpcError;
+    use std::time::Instant;
 
     use super::{
-        Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta, print_line, taken_socket,
-        wait_loop,
+        Args, AssetCmd, Capability, ClientSpec, Cmd, env_prop, grant_delta, may_start, print_line,
+        taken_socket, used_name, wait_loop,
     };
 
-    /// The answer of `spawn` and `wait` is one JSON line, so that a script
-    /// can read it. A newline inside a string stays escaped.
+    /// The `Environment=` property of `systemd-run` is one shell-parsed
+    /// list: a value with a space stays one assignment.
     #[test]
-    fn the_answer_of_spawn_is_one_json_line() {
+    fn an_environment_property_quotes_its_value() {
+        assert_eq!(env_prop("A", "x y"), r#"-pEnvironment=A="x y""#);
+        assert_eq!(env_prop("A", "a\"b\\c"), r#"-pEnvironment=A="a\"b\\c""#);
+    }
+
+    /// The answer of `run` is one JSON line, so that a script can read
+    /// it. A newline inside a string stays escaped.
+    #[test]
+    fn the_answer_of_run_is_one_json_line() {
         let mut line = Vec::new();
         print_line(&mut line, &json!({ "pid": 7, "stdout": "a\nb" }));
         assert_eq!(
@@ -978,6 +1454,146 @@ mod tests {
         assert!(taken_socket("agent", &connected).is_none());
         let no_data = RpcError::new(RpcError::REJECTED, "no socket directory");
         assert!(taken_socket("agent", &no_data).is_none());
+    }
+
+    /// The fallback decision of `run` is pure. Only a unit that did not
+    /// start may start the program a second time. A started unit with an
+    /// unknown `MainPID` is never a second start and never pid 0.
+    /// A unit of `run` takes no host session variable from the user
+    /// manager: each one is set from this session or unset.
+    #[test]
+    fn a_unit_sets_or_unsets_every_host_variable() {
+        let props = super::unit_env("t");
+        for key in super::HOST_VARIABLES {
+            let set = format!("-pEnvironment={key}=");
+            let unset = format!("-pUnsetEnvironment={key}");
+            let hits = props
+                .iter()
+                .filter(|p| p.starts_with(&set) || **p == unset)
+                .count();
+            assert_eq!(hits, 1, "{key} in {props:?}");
+        }
+    }
+
+    #[test]
+    fn only_a_unit_that_did_not_start_may_fall_back() {
+        assert_eq!(super::classify_start(false, ""), super::RunStart::Fallback);
+        assert_eq!(
+            super::classify_start(false, "0"),
+            super::RunStart::Fallback,
+            "a failed systemd-run may fall back even with a pid in hand",
+        );
+        assert_eq!(
+            super::classify_start(true, "4343\n"),
+            super::RunStart::Unit(4343),
+        );
+        assert_eq!(super::classify_start(true, "0"), super::RunStart::Unknown);
+        assert_eq!(super::classify_start(true, ""), super::RunStart::Unknown);
+        assert_eq!(
+            super::classify_start(true, "not a pid"),
+            super::RunStart::Unknown,
+        );
+    }
+
+    /// The fallback starts the program detached, with the activation
+    /// token in its environment, and answers a pid. `true` runs the
+    /// same way a real program would.
+    #[test]
+    #[allow(unsafe_code)] // one `waitpid`, to reap the children
+    fn the_fallback_starts_the_program_with_the_token() {
+        let token = format!("tok-{}", std::process::id());
+        let out = std::env::temp_dir().join(format!("chora-run-{}.txt", std::process::id()));
+        let _ = std::fs::remove_file(&out);
+        let script = format!("printf %s \"$XDG_ACTIVATION_TOKEN\" > {}", out.display());
+        for argv in [
+            vec!["true".to_owned()],
+            vec!["sh".into(), "-c".into(), script],
+        ] {
+            let pid = super::start_detached(&argv, &token).expect("the program starts");
+            assert!(pid > 0);
+            let mut status = 0;
+            // SAFETY: `status` is a live `i32` until `waitpid` returns.
+            let waited = unsafe { libc::waitpid(pid.cast_signed(), &raw mut status, 0) };
+            assert_eq!(waited, pid.cast_signed(), "{argv:?} is our child");
+            assert_eq!(status, 0, "{argv:?} exited clean");
+        }
+        assert_eq!(std::fs::read_to_string(&out).unwrap(), token);
+        let _ = std::fs::remove_file(&out);
+        let args = Args::try_parse_from("choractl run -- /bin/echo -n".split(' ')).unwrap();
+        assert!(
+            matches!(args.command, Cmd::Run { ref argv } if *argv == ["/bin/echo", "-n"]),
+            "everything after `run` is the program",
+        );
+    }
+
+    /// The old name `spawn` is a hidden alias of `run` (D42); `main`
+    /// warns on stderr when it is used.
+    #[test]
+    fn spawn_is_an_alias_of_run() {
+        let args = Args::try_parse_from(["choractl", "spawn", "foot"]).unwrap();
+        assert!(
+            matches!(args.command, Cmd::Run { ref argv } if *argv == ["foot"]),
+            "spawn starts the program like run",
+        );
+        assert_eq!(
+            used_name(&s(["choractl", "spawn", "foot"])),
+            Some("spawn"),
+            "the deprecation warning must see the typed alias",
+        );
+        assert_eq!(
+            used_name(&s(["choractl", "--name", "a", "spawn"])),
+            Some("spawn"),
+            "a global option does not hide the alias",
+        );
+        assert_eq!(
+            used_name(&s(["choractl", "run", "spawn"])),
+            Some("run"),
+            "running a program called spawn is not the alias",
+        );
+    }
+
+    /// argv of a call, for the `used_name` assertions.
+    fn s<const N: usize>(v: [&str; N]) -> Vec<String> {
+        v.map(String::from).to_vec()
+    }
+
+    /// `supervise` takes a name and the program after `--`; `restart`
+    /// takes the name alone.
+    #[test]
+    fn supervise_and_restart_take_the_plugin_name() {
+        let args =
+            Args::try_parse_from("choractl supervise tiling -- sleep 60".split(' ')).unwrap();
+        assert!(
+            matches!(args.command, Cmd::Supervise { ref name, ref argv }
+                if name == "tiling" && *argv == ["sleep", "60"]),
+            "everything after the name and `--` is the program",
+        );
+        let args = Args::try_parse_from("choractl restart tiling".split(' ')).unwrap();
+        assert!(matches!(args.command, Cmd::Restart { ref client } if client == "tiling"));
+    }
+
+    /// One minute fits the first start and five restarts; the next start
+    /// is an error, and an old start leaves the window again.
+    #[test]
+    fn supervise_allows_five_restarts_per_minute() {
+        let now = Instant::now();
+        let mut starts = Vec::new();
+        for _ in 0..6 {
+            assert!(
+                may_start(&mut starts, now),
+                "{} starts fit",
+                starts.len() + 1
+            );
+            starts.push(now);
+        }
+        assert!(
+            !may_start(&mut starts, now + Duration::from_secs(1)),
+            "the seventh start in one minute is an error",
+        );
+        assert!(
+            may_start(&mut starts, now + Duration::from_secs(61)),
+            "starts older than a minute do not count",
+        );
     }
 
     /// No argument of a command takes the place of `--name`.

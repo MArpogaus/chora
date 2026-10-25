@@ -44,7 +44,7 @@ This table is the one list of node properties.
 | `id` | all | stable id; ids of the form `s1`, `s2` belong to surfaces, and the core assigns them; `chora:inject` belongs to the injection mark of the core |
 | `owner` | all | client name of the owner; read-only |
 | `focused` | all | `true` in `scene.query` on the surface with the keyboard focus and on the node of `focus_node`; read-only, left out on all other nodes |
-| `rects` | all | in `scene.query`: the output name maps to `[x, y, w, h]` in logical pixels of that output, after all parent transforms and the camera of that output; outputs where the node does not show are left out; the bounding box when rotation or a mesh makes the shape no rectangle; inside a clip, cut to the clip area; read-only |
+| `rects` | all | in `scene.query`: the output name maps to `[x, y, w, h]` in logical pixels of that output. The core applies all parent transforms and the camera, and projects like the renderer. The query leaves out outputs where the node does not show. The box holds the drawn shape under rotation, perspective or a mesh. A clip or an ancestor layer cuts the box to its own box. The mesh of a layer does not move the boxes of its descendants. Read-only. |
 | `to` | surface | the only client name that can attach this detached surface, after a `remove` with `to` or for a new toplevel; read-only |
 | `claim` | all | `[x, y, w, h]` in scene coordinates: the area of the owner as a window manager; a new toplevel can go to it (see [below](#window-managers)); `null` removes the claim |
 | `transform` | all | a 4x4 matrix in column-major order, with the translation at the indices 12 to 14, or the short form translate, scale, rotate |
@@ -55,12 +55,13 @@ This table is the one list of node properties.
 | `meta` | all | free key/value pairs to tag and find nodes; an empty value removes a key; at most 32 keys, 1 KiB per key or value and 4 KiB in all per node |
 | `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
 | `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; optional `depth`: the z of each point, which the transform of the node projects; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
-| `color` | rect | RGBA, each from 0 to 1, with straight alpha: `[1, 1, 1, 0.5]` is white at half opacity |
+| `color` | rect, text | RGBA, each from 0 to 1, with straight alpha: `[1, 1, 1, 0.5]` is white at half opacity |
 | `radius` | rect | the radius of the corners in logical pixels; the rect becomes a layer |
 | `border` | rect | `{"width": w, "color": [r, g, b, a]}`: a line of `w` logical pixels along the inner edge; the rect becomes a layer; `null` removes it |
 | `image` | image | absolute path of a PNG file; the core loads it again after a change |
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch |
 | `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, at most 4 |
+| `text`, `family`, `font_size`, `max_width` | text | `text`: UTF-8, needed at `create`, at most 4 KiB; `family`: a font family, at most 4 KiB, a system font without it; `font_size`: logical pixels, from 1 to 1024; `max_width`: the width at which lines wrap, and nothing else; a text node has no `size`, it sizes itself by its layout, so it is never a layer: rotated, mirrored or projected outside a layer, it draws nothing, so put it in a group with a `size` and a `clip`; the core draws it in `color`, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale, and 256 MiB for all text nodes together; a raster beyond the second limit draws nothing until its node changes; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale |
 
 A surface node gets its size from its client. The `configure` command asks
 the client for a new size.
@@ -132,7 +133,7 @@ path.
 
 | Command | Purpose |
 |---------|---------|
-| `create` | create a group, rect, image or shader node under a parent |
+| `create` | create a group, rect, image, shader or text node under a parent |
 | `attach` | put a surface without an owner under a parent; the caller becomes its owner |
 | `update` | change node properties |
 | `animate` | change properties over a duration with an easing curve |
@@ -344,20 +345,21 @@ methods. Only there do `grants.set`, `grants.revoke` and `clients.create`
 work. `choractl grant`, `choractl revoke` and `choractl clients create`
 use it; `choractl clients up [FILE]` applies a YAML file of
 `NAME: { grants: [...] }` entries: it opens the socket of every name
-and makes its grants equal to the list, so grants that are missing from
-the file are revoked. An existing socket is kept (`clients.create`
-answers the `socket_exists` reason) and its connections stay; while a
-name is connected or in its grace time the socket cannot open
-(`clients.create` answers the `connected` reason). `choractl clients up`
-reports both reasons and goes on with the remaining names, syncing only
-the grants of that name. Without a
-file argument the first of `$XDG_CONFIG_HOME/chora/clients.yaml` and
+with exactly the capabilities of the list (D33, D40). A socket with the
+equal capabilities stays (`clients.create` answers the `socket_exists`
+reason) with its connections; changed capabilities recreate the socket
+and disconnect its Wayland clients. While a name is connected or in its
+grace time the socket cannot open (`clients.create` answers the
+`connected` reason); `choractl clients up` then syncs the grants of
+that name. It reports both reasons and goes on with the remaining
+names. Without a file argument the first of
+`$XDG_CONFIG_HOME/chora/clients.yaml` and
 `~/.config/chora/clients.yaml` is read, `-` for stdin. The core
 answers every request.
 
 | Method | Purpose |
 |--------|---------|
-| `hello(name, keep_nodes, resume)` | name the client (lowercase letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes); `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); returns `{"version": ...}` |
+| `hello(name, keep_nodes, resume, protocol, features)` | name the client (lowercase letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes); `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); `protocol` and `features` say what the client speaks (see [Protocol versions](#protocol-versions)); returns `{"version": ..., "protocol": ..., "features": [...]}` |
 | `scene.query(selector, filter)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused |
@@ -366,8 +368,8 @@ answers every request.
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture`, `process.spawn` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket |
-| `clients.create(name)` | open the client socket of a name and return its `path` (see [Client sockets](#client-sockets)); only on the admin socket; `choractl clients create NAME` calls it |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket; a name with a client socket answers code 9 instead, because its capabilities live in `clients.yaml` |
+| `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
 | `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; scale and mode must keep the logical size within 16384 pixels a side; returns the output |
@@ -377,41 +379,37 @@ answers every request.
 | `methods.list` | list the methods that clients exported, each with its description and input schema |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
 | `methods.return(call, result, error)` | answer a `method.called` event |
-| `process.spawn(argv, capture)` | start a program with the environment of the core; with `capture`, the core keeps its output for `process.wait`; needs the grant `process.spawn` |
-| `process.wait(pid, timeout_ms)` | wait up to `timeout_ms` (at most 30000) for a program of `process.spawn` with `capture`, and return its output so far; needs the grant `process.spawn` |
-| `plugins.restart(name)` | stop the process of a client name and start its command again; needs the grant `process.spawn` |
+| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket gets code 9 |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
 An error has a `code`, a `message` and, where it helps, a machine
-readable `data`: the JSON-RPC codes for a method or parameters that do
-not exist, 1 for a request that breaks a rule, and 2 for a transaction
-that names a surface node that is gone, for example of a window that
-closed in the meantime. A plugin can ignore code 2. A rejected
-transaction carries `{"command": INDEX}` in `data`, the position of the
-failed command in the transaction.
+readable `data`. [Error codes](#error-codes) lists the stable codes. A
+rejected transaction carries `{"command": INDEX}` in `data`, the
+position of the failed command in the transaction.
 
 A request is one line of at most 1 MiB (`MAX_LINE`). The core reads a
-longer line to its end, answers it with code 1 and the id `null`, and
+longer line to its end, answers it with code 6 and the id `null`, and
 closes the connection. The core holds at most 8 MiB (`MAX_OUTPUT`) of
 answers and events that a connection did not read yet; a connection that
 passes this limit closes, so a client reads its socket while it waits. An
 answer that does not fit, for example of a query of all nodes, fails with
-code 1 instead, and the connection stays.
+code 6 instead, and the connection stays.
 
 The core takes at most 128 connections, at most 16 of one process. The
 last 8 go only to a process without a connection, so `choractl` and a
 window manager that starts again still connect while one client holds many.
-A refused connection gets an error line with code 1 and the reason, `too
+A refused connection gets an error line with code 6 and the reason, `too
 many connections: ...`, before the core closes it.
 
 `hello` answers with the version of the core: the crate version and,
 for a build in a git checkout, the commit, for example
-`{"version": "0.5.4+1ea0e89abc"}`. `chora --version` prints the same.
+`{"version": "0.5.4+1ea0e89abc", "protocol": 1, "features": []}`.
+See "Protocol versions" for the other two fields. `chora --version`
+prints the same version.
 The client library of `chora-scene` warns once on stderr when the core is
 another build, so `choractl` and the plugins tell why a request fails
-after an update. This is a first step: the versioned `hello` of D29, with
-the protocol version and the features of both sides, follows in 0.7.
+after an update.
 
 A connection sends `hello` once, within 5 s. Connections with the same name share their
 nodes, so they must agree on `keep_nodes` and `resume`. The core refuses a
@@ -499,13 +497,62 @@ without wlr-randr. After a new mode, position, transform or scale,
 the core sends `output.changed`. For an output that turns off, it sends
 `output.removed`, and `output.list` no longer lists the output.
 
+## Error codes
+
+Each failure has a stable code (T2). The negative codes are the JSON-RPC
+codes for requests the core cannot route. The positive codes name the
+kind of refusal, and a client can act on them without reading the
+message.
+
+| code | kind | example |
+| --- | --- | --- |
+| -32700 | the line is no JSON request | a line without a JSON object |
+| -32601 | no method of this name | `scene.drop` |
+| -32602 | parameters are missing or invalid | `scene.query` with `"selector": 3` |
+| 1 | the request breaks a rule of the scene or of the core | updating a node of another client |
+| 2 | a surface node of a transaction is gone | a window closed during the wait |
+| 3 | a protocol the core does not speak | a `hello` with `protocol` 2 (D29) |
+| 4 | a capability the method needs | `screen.capture` without a grant |
+| 5 | an unknown node | `update` of a node id that never existed |
+| 6 | a limit of the core is reached | a request longer than 1 MiB |
+| 7 | a client name that is taken | a `hello` with a name that has a client socket |
+| 8 | a method of the admin socket | `grants.set` on the main socket |
+| 9 | a rule of client sockets | a `hello` with another name on `clients/agent/ipc.sock` |
+
+Code 1 stays for every refusal the table has no own code for, for
+example a scene rule. The message always names the rule. A plugin can
+ignore code 2. A rejected transaction, so codes 1, 2, 5 and 6, carries
+the index of the failed command in `data`.
+
+## Protocol versions
+
+Both sides of the IPC say which protocol they speak (D29). `hello` takes
+an optional `protocol`, an integer, and a list `features`. It answers
+with the `protocol`, the `features` and the `version` of the core:
+
+```json
+{"jsonrpc": "2.0", "id": 1, "method": "hello", "params": {"name": "wm", "protocol": 1, "features": []}}
+{"jsonrpc": "2.0", "id": 1, "result": {"version": "0.7.0+1ea0e89", "protocol": 1, "features": []}}
+```
+
+The core speaks protocol 1. It refuses a client with a higher protocol
+with code 3, and the client must upgrade its core. A lower protocol
+works, so an older client keeps running. A missing `protocol` means a
+client from before the versioning, and works. Compatible additions
+arrive as named features while the protocol stays 1; a breaking change
+raises the number. The core answers with its own list, never with a mix.
+The client library of `chora-scene` sends its own `protocol` and
+`features`. It warns once on stderr when the core answers with another
+protocol.
+
 ## Grants
 
-`input.inject` and `screen.capture` see or drive the whole session,
-`process.spawn` runs any program as the user, and `input.grab-any` lets a
-client catch keys and buttons without a modifier, so they need a grant of
-the user for the client name. Milestone 0.7 replaces the grants with the
-capabilities of client sockets (D33, D40):
+`input.inject` and `screen.capture` see or drive the whole session, and
+`input.grab-any` lets a client catch keys and buttons without a
+modifier, so they need a grant of the user for the client name. A name
+with a client socket needs no grant: `clients.create` and
+`clients.yaml` give it the capabilities
+(D33, D40):
 
 ```console
 $ choractl grant agent screen.capture input.inject
@@ -515,10 +562,12 @@ $ choractl revoke agent
 ```
 
 A grant lasts until `choractl revoke` or the end of the session. The
-emergency reset revokes all grants. A Wayland client of a client socket
-gets the grants of its name when it connects. A revoke of one of them,
-and the reset, disconnect it and drop its waiting frames. Only the admin socket changes grants.
-A process of the user on the host reaches the admin socket too. So a
+emergency reset revokes all grants. A connection through a client socket
+instead has exactly the capabilities the socket was opened with. A
+recreate with changed capabilities ends the Wayland clients that
+connected before it, and so does the reset. Only the admin socket
+changes grants. A process of the user on the host reaches the admin
+socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that [Client sockets](#client-sockets) lists.
 `choractl mcp` offers no tool for grants.
@@ -527,11 +576,12 @@ socket alone, with the gaps that [Client sockets](#client-sockets) lists.
 
 A client socket fixes the name of its clients (D33). `clients.create`
 on the admin socket opens `clients/NAME/ipc.sock` below the directory of
-the main socket, which has mode 0700. `choractl clients create agent` prints its
-path:
+the main socket, which has mode 0700. `capabilities` says what a
+connection through it may do; `clients.yaml` and `clients up` fill it
+in. `choractl clients create agent` prints its path:
 
 ```json
-{"jsonrpc": "2.0", "id": 1, "method": "clients.create", "params": {"name": "agent"}}
+{"jsonrpc": "2.0", "id": 1, "method": "clients.create", "params": {"name": "agent", "capabilities": ["screen.capture"]}}
 ```
 
 - `clients.create` also opens `clients/NAME/wayland.sock`, a Wayland
@@ -541,8 +591,9 @@ path:
 - It cannot change grants or make client sockets, as these need the
   admin socket.
 - It fixes the name, confines the files and narrows the scene. On it,
-  `scene.apply` follows these rules. A refusal has code 1, names its
-  rule and carries the index of the command in `data`:
+  `scene.apply` follows these rules. A refusal by one of them has code 9,
+  names its rule and carries the index of the command in `data`. The
+  rules of the scene keep codes 1, 2, 5 and 6:
   - `focus_node` with a node needs the last press of the user on a node
     or a window of the name. The press counts once, and a key press
     ends it.
@@ -556,8 +607,14 @@ path:
   of its `wayland.sock`. The `surface.*` events come only for these
   windows.
 - A claim of the name gets only the new windows of its `wayland.sock`.
-- The other methods answer by the name and its grants: a process that
-  may use the socket drives the session as far as that name may.
+- The socket has exactly the capabilities of its `clients.create`; the
+  other methods answer by them. A process that may use the socket
+  drives the session as far as they reach.
+- `grants.set` and `grants.revoke` answer code 9 for the name: change
+  `clients.yaml` and run `choractl clients up`.
+- `activation.token` answers code 9. A window of its `wayland.sock`
+  asks for tokens through `xdg-activation`, under the focus rules
+  above.
 - Its `image`, `shader` and effect paths name only its own files of
   `assets.put`. The main socket has no such rule: a client of it runs as
   the same account as the core and could read those files anyway.
@@ -566,16 +623,17 @@ path:
   socket.
 - The main socket refuses a `hello` with a name that has a client
   socket, so no client of the main socket takes that name.
-- A name that has a socket already keeps it. `clients.create` answers the
-  `socket_exists` reason with the `path` of that socket. `choractl clients
-  create NAME` prints `NAME has a client socket already: PATH` on stderr
-  and exits 1.
+- Equal capabilities keep an existing socket. `clients.create` answers
+  the `socket_exists` reason with the `path` of that socket. `choractl
+  clients create NAME` prints `NAME has a client socket already: PATH`
+  on stderr and exits 1. Changed capabilities recreate the socket at
+  the same path and disconnect its Wayland clients.
 - `clients.create` fails for a name with a connection or in its grace
   time, and beyond 64 client sockets.
 - The name has lowercase letters, digits, `_`, `-` and `.`, and starts
   with a letter, at most 64 bytes; `hello` and `clients.create` refuse
   everything else. Its socket path must fit a Unix socket. A second
-  `clients.create` of a name fails.
+  `clients.create` of a name takes only other capabilities.
 - The emergency reset removes the client sockets, and so does the exit of
   chora.
 
@@ -610,65 +668,76 @@ takes the focus only after input, once per press. Synthetic input from
 create the press itself. When the token is used, it must still be at
 most 10 s old and the client must still have the keyboard focus.
 
-The client gets the grants of the name at the time it connects. A
-revoke of a capability that it got disconnects it, and so does the
+The client gets the capabilities of the socket at the time it connects.
+A recreate with changed capabilities disconnects it, and so does the
 emergency reset. Its frames of screencopy and image capture that wait
 then get nothing. Its socket closes at its next request. Its windows carry the name: a query shows it in
 `surface.client`. It reads the clipboard only while it has the keyboard
 focus, as every Wayland client does.
 
 A container that mounts only its client directory cannot take another
-name or give itself capabilities. One gap stays until a later step of
-0.7: a program of `process.spawn` gets `CHORA_SOCKET` and
-`WAYLAND_DISPLAY` of the core. So a grant of `process.spawn` gives a
-container the main IPC socket and the main Wayland socket with all
-protocols. D42 moves the start of programs out of the core.
+name or give itself capabilities. The last known gap is gone: the core
+starts no program, so no program carries its `CHORA_SOCKET` and
+`WAYLAND_DISPLAY` into a container (D42).
 
 ## Programs
 
-`process.spawn(argv)` starts a program with the environment of the core,
-as the startup command (D30): `WAYLAND_DISPLAY` and `CHORA_SOCKET` of this
-compositor, without the variables of a host session, and with no stdin.
-The core looks the program up in its own `PATH`, so it works for an agent
-in another namespace too. The answer has the `pid` and the `argv`.
-`choractl spawn` prints its answer as one JSON line, so that a script can
-read it.
+The core starts no program except its own startup command (D30, D42).
+`choractl run`, `choractl supervise` and `choractl restart` start and
+keep programs outside the core.
 
-`plugins.restart(name)` restarts a plugin, for example after a rebuild.
-The core finds the process of the connections of the client name,
-reads its command line and working directory from `/proc`, and sends it
-SIGTERM, and a SIGKILL 5 s later. Once it exited, the core closes its
-connections that only wait for answers, as these reach nobody. Once no
-connection of the name is left, the core starts the same command again
-and answers with the new `pid`. When that takes more than 6 s, the restart
-fails. A name with several
-processes, or a process in a namespace that the core cannot see, fails.
-
-With `capture: true`, `process.spawn` keeps stdout and stderr of the
-program, up to 64 KiB each, for the client that started it.
-`process.wait(pid, timeout_ms)` waits until the program ends or the time
-is up, and answers with `pid`, `running`, `stdout`, `stderr`, `truncated`
-for output that went beyond 64 KiB, and, once the program ended, `status`:
-its exit code, or 128 plus the signal number. 100 ms after the end of the
-program, the core closes its pipes, also when a child in the background
-still holds them. The first answer after the end is the last one; then
-the core forgets the program. At most 32 programs of a client wait for
-`process.wait`. Their output goes when the last connection of the client
-name closes, so `choractl spawn --capture` waits on its own connection.
-
-Both methods need the grant `process.spawn`, and fail while the session is
-locked:
+`choractl run [--] CMD ARGS...` starts a program outside the core (D42).
+The old name `choractl spawn` is a hidden alias of it that prints one
+deprecation line on stderr.
+It first asks the core for an activation token with `activation.token`
+and passes it to the program in `XDG_ACTIVATION_TOKEN`. When `systemctl
+--user is-system-running` answers, `systemd-run --user` starts the
+program in a transient unit of its own and returns at once. The unit
+also gets `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and `CHORA_SOCKET` of
+the caller, so a plain `WAYLAND_DISPLAY` name resolves in the caller's
+runtime directory. It gets `DISPLAY` and the other host session
+variables only from the caller, never from the user manager. It starts
+in the caller's directory, and its output goes to the journal.
+Otherwise `choractl` forks the program itself, detached in a session of
+its own, with the environment of the caller and with no terminal. The
+command prints the pid and the token as one JSON line while the
+program runs. When
+the unit starts but its `MainPID` stays unknown after a short wait, for
+example because the program already ended, `pid` is `null`. The command
+never starts the program twice. Export
+the two variables for the fallback as for any client. A window that
+activates with the token before
+its first map shows it in `surface.created`. Since 0.7 the
+core itself starts nothing; `choractl run` and systemd do (D42).
 
 ```console
-$ choractl grant agent process.spawn
-$ choractl --name agent spawn foot
-$ choractl --name agent spawn --capture -- uname -s
-{"pid": 4242, "running": false, "status": 0, "stdout": "Linux\n", "stderr": "", "truncated": false}
-$ choractl --name agent restart tiling
+$ choractl run -- foot
+{"pid":4343,"token":"a1b2c3d4e5f60718"}
 ```
 
-Milestone 0.7 moves the start of programs from the core to `choractl run`
-and systemd (D42).
+`choractl supervise NAME -- CMD ARGS...` runs a plugin and starts it
+again when it ends (D42). It allows at most five restarts per minute
+and exits with an error after them. It writes the pid of the running
+program to `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`, so that
+`choractl restart` finds it. SIGTERM or SIGINT to `supervise` ends the
+program, removes the pid file, and exits with 128 plus the signal, as
+process managers expect. Only one `supervise` runs per name; a second
+one exits with an error. A restart through `choractl restart` counts
+toward the five restarts too. The command calls no core.
+
+`choractl restart NAME` restarts a plugin. While the systemd user unit
+`NAME.service` or `chora-NAME-wm.service` of a flavor is active, it
+runs `systemctl --user restart` on that unit. Otherwise it sends SIGTERM to the running program of
+`choractl supervise NAME`, which starts it again. A name that runs in
+neither way is an error. A pid file whose program no longer runs is an
+error too, and the command removes the file. It prints what it
+restarted as one JSON line.
+
+```console
+$ choractl supervise tiling -- chora-tiling &
+$ choractl restart tiling
+{"restarted":"supervise","pid":4444}
+```
 
 ## Screen capture
 
@@ -845,13 +914,11 @@ example in the `.mcp.json` of Claude Code:
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
 | `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views), by name only |
-| `spawn_process`, `restart_plugin` | start a program, or restart a plugin, as `process.spawn` and `plugins.restart`; `spawn_process` with `capture` keeps the output |
-| `wait_process` | the output of a program of `spawn_process` with `capture`, as `process.wait` |
 | `reserve_space` | space at the edges of an output, as `output.reserve`, while the server runs |
 | `configure_output` | the scale or the transform of an output, as `output.configure` |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
 | `subscribe_events` | start to collect events, and grab keys and buttons; `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the current subscription |
-| `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500) |
+| `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500, 0 takes nothing) |
 
 The input schemas of `apply_commands` and `inject_input` come from the
 types of `chora-scene`. They list every command, every input event and
@@ -859,10 +926,13 @@ every field, with its description, so the model sees the shape of a call
 before the first try. A test checks that the schemas, the types and the
 examples of this page agree.
 
-The screenshot of `describe_screen`, `capture`, `inject_input`,
-`spawn_process` and `restart_plugin` need the grants of the client name,
-for example `choractl grant agent screen.capture`. Without a grant, `describe_screen`
-still describes the scene. No tool grants anything (D40).
+The screenshot of `describe_screen`, `capture` and `inject_input` need
+the grants of the client name, for example
+`choractl grant agent screen.capture`. Without a grant, `describe_screen`
+still describes the scene. No tool grants anything (D40). Programs are
+outside the MCP server: start them with `choractl run` (D42). Since 0.7
+the tools `spawn_process`, `wait_process` and `restart_plugin` are gone,
+because a tool that starts programs would pass every grant.
 
 A subscription has a connection of its own under the same client name. A
 thread reads its events into a buffer of 1000 events, so the core never
@@ -873,3 +943,19 @@ the subscription.
 A tool that fails, also on invalid arguments, answers with `isError` and
 the reason, so that the model can correct its call. An unknown tool is a
 JSON-RPC error.
+
+Every method that a plugin exports is a tool of its own, named
+`client.method`, with the description and the input schema of the
+export. `call_method` stays for the general case. The tool list answers
+fresh on every `tools/list`, so a later `methods.export` needs no
+restart. A call of such a tool passes its whole arguments object as the
+params of the method.
+
+While the core is not reachable, `tools/list` answers with the built-in
+tools alone and logs the reason on stderr. The plugin tools come back with
+the next call.
+
+The server answers requests in parallel: a running `wait_events` blocks
+no other call. A `notifications/cancelled` ends the wait of
+`wait_events` within 100 ms; the cancelled call gets no answer, as the
+protocol keeps it.

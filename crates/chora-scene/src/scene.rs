@@ -36,6 +36,9 @@ pub enum SceneError {
     /// A value is out of range, for example a negative size.
     #[error("{0}")]
     Invalid(String),
+    /// A limit of the scene is reached, for example the number of nodes.
+    #[error("{0}")]
+    Limit(String),
     /// The root cannot change.
     #[error("the root cannot change")]
     Root,
@@ -96,6 +99,9 @@ const MAX_PAN: f64 = 1e7;
 const MAX_LENGTH: f64 = 10_000.0;
 /// The largest zoom of a camera, and the inverse of the smallest.
 const MAX_ZOOM: f64 = 64.0;
+/// The range of `font_size`, in logical pixels. A size of 0 gives a line
+/// height of 0, on which the layout of the core panics.
+const FONT_SIZES: std::ops::RangeInclusive<f64> = 1.0..=1024.0;
 
 /// A transform without its z axis: a camera works in 2D, so the z of a
 /// uniform scale such as `{"scale": 1.5}`, or of a translation, does not
@@ -373,6 +379,11 @@ impl Scene {
                         "the shader node {id:?} needs a shader"
                     )));
                 }
+                if *kind == NodeKind::Text && props.text.is_none() {
+                    return Err(SceneError::Invalid(format!(
+                        "the text node {id:?} needs a text"
+                    )));
+                }
                 self.create(owned_node(owner, id, *kind, props), parent)
             }
             Command::Attach { surface, parent } => self.attach(owner, surface, parent),
@@ -542,7 +553,7 @@ impl Scene {
             )));
         }
         if !self.cameras.contains_key(output) && self.cameras.len() >= MAX_CAMERAS {
-            return Err(SceneError::Invalid(format!(
+            return Err(SceneError::Limit(format!(
                 "{output:?}: the scene holds {MAX_CAMERAS} cameras, its limit"
             )));
         }
@@ -582,7 +593,7 @@ impl Scene {
         }
         // The root and the surfaces do not count.
         if self.nodes.len() - self.surfaces > MAX_NODES {
-            return Err(SceneError::Invalid(format!(
+            return Err(SceneError::Limit(format!(
                 "{id:?}: the scene holds {MAX_NODES} nodes, its limit"
             )));
         }
@@ -1290,6 +1301,9 @@ fn is_surface_id(id: &str) -> bool {
 
 /// The longest path of an image file.
 const MAX_PATH: usize = 4096;
+
+/// The most bytes of the text and the family of a text node.
+const MAX_TEXT: usize = 4096;
 /// The most keys in the meta data of a node.
 const MAX_META_KEYS: usize = 32;
 /// The longest key or value of the meta data, in bytes.
@@ -1322,9 +1336,10 @@ fn check_meta(
     Ok(())
 }
 
-/// Only rects and images have a size, only rects a color, only images a
-/// file and a slice. Image paths are absolute, sizes and slices are not
-/// negative, and all numbers are finite.
+/// Only rects and images have a size, only rects and text a color, only
+/// images a file and a slice, only text its text properties and no size.
+/// Image paths are absolute, sizes and slices are not negative, text has
+/// at most `MAX_TEXT` bytes, and all numbers are finite.
 fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
     check_kinds(id, kind, props)?;
     check_numbers(id, props)?;
@@ -1359,6 +1374,16 @@ fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
             "the file of {id:?} needs an absolute path"
         )));
     }
+    if props
+        .text
+        .iter()
+        .chain(props.family.iter())
+        .any(|t| t.len() > MAX_TEXT)
+    {
+        return Err(SceneError::Invalid(format!(
+            "the text and the family of {id:?} have at most {MAX_TEXT} bytes"
+        )));
+    }
     Ok(())
 }
 
@@ -1368,9 +1393,10 @@ fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
     if kind == NodeKind::Surface && (props.size.is_some() || props.clip.is_some()) {
         return wrong("group, rect, image or shader");
     }
-    if kind != NodeKind::Rect
-        && (props.color.is_some() || props.radius.is_some() || props.border.is_some())
-    {
+    if kind != NodeKind::Rect && kind != NodeKind::Text && props.color.is_some() {
+        return wrong("rect or text");
+    }
+    if kind != NodeKind::Rect && (props.radius.is_some() || props.border.is_some()) {
         return wrong("rect");
     }
     if kind != NodeKind::Image && (props.image.is_some() || props.slice.is_some()) {
@@ -1378,6 +1404,18 @@ fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
     }
     if kind != NodeKind::Shader && (props.shader.is_some() || props.uniforms.is_some()) {
         return wrong("shader");
+    }
+    if kind != NodeKind::Text
+        && (props.text.is_some()
+            || props.family.is_some()
+            || props.font_size.is_some()
+            || props.max_width.is_some())
+    {
+        return wrong("text");
+    }
+    // A text node reports the size of its layout; a given size has no use.
+    if kind == NodeKind::Text && props.size.is_some() {
+        return wrong("group, rect, image or shader");
     }
     Ok(())
 }
@@ -1437,6 +1475,8 @@ fn check_numbers(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
         )
         .chain(props.opacity.iter())
         .chain(props.radius.iter())
+        .chain(props.font_size.iter())
+        .chain(props.max_width.iter())
         .chain(
             props
                 .border
@@ -1460,9 +1500,16 @@ fn check_numbers(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
         .size
         .iter()
         .flatten()
-        .chain(props.slice.iter().flatten());
+        .chain(props.slice.iter().flatten())
+        .chain(props.font_size.iter())
+        .chain(props.max_width.iter());
     if negative.copied().any(|n| n < 0.0) {
         return Err(SceneError::Invalid(format!("negative size for {id:?}")));
+    }
+    if props.font_size.is_some_and(|f| !FONT_SIZES.contains(&f)) {
+        return Err(SceneError::Invalid(format!(
+            "the font_size of {id:?} is not between 1 and 1024"
+        )));
     }
     Ok(())
 }

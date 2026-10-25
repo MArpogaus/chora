@@ -64,6 +64,7 @@ jobs:
     - run: install -m755 /usr/bin/sway /usr/local/bin/sway
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
     - run: cargo build --workspace --locked
+    - run: tests/legacy-callers.sh
     - run: tests/nested.sh target/debug e2e
     - run: tests/xp.sh target/debug e2e/xp
     - run: tests/agent.sh target/debug e2e/agent
@@ -72,6 +73,31 @@ jobs:
       with:
         name: e2e-logs
         path: e2e
+
+  # Gate check 4 of 0.7: a Podman container that mounts only the client
+  # directory of agent queries the scene and draws a node. Podman is
+  # preinstalled on the ubuntu runner. The binaries are built there, not
+  # in the Fedora container of the other jobs, so the native libraries
+  # of the core come from apt.
+  podman:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    # The equivalents of dist/fedora-build-requires.txt.
+    - run: |
+        sudo apt-get update
+        sudo apt-get install -y libdisplay-info-dev libdrm-dev libinput-dev \
+            libseat-dev libsystemd-dev libudev-dev libwayland-dev \
+            libxkbcommon-dev libegl1-mesa-dev libgbm-dev
+        # The software EGL device of the headless core, as mesa-dri-drivers
+        # in the Fedora jobs.
+        sudo apt-get install -y libegl-mesa0 libgl1-mesa-dri
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
+    - run: cargo build --locked -p chora -p choractl
+    - run: tests/gate-0.7-4.sh
 
   deny:
     runs-on: ubuntu-latest

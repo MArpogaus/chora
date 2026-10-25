@@ -138,11 +138,11 @@ Scope:
   and the client library warns on a mismatch.
 - Stable error codes: one code for each kind of failure. The error data
   already names the failed command.
-- `process.spawn`, `process.wait` and `plugins.restart` leave the core
-  (D42). `choractl run` starts a program through `systemd-run --user` with
-  an activation token. Without a reachable user systemd, `choractl` starts
-  and restarts the program itself. `choractl supervise` restarts a plugin
-  that ends.
+- Done (D42): `process.spawn`, `process.wait` and `plugins.restart` have
+  left the core. `choractl run` starts a program through
+  `systemd-run --user` with an activation token. Without a reachable user
+  systemd, `choractl` starts and restarts the program itself.
+  `choractl supervise` restarts a plugin that ends.
 - Focus in queries: the surface and the node that have the keyboard.
 - Queries return the screen rectangle of a node on each output.
 - `choractl wait SELECTOR` returns when a node matches, or fails after a
@@ -152,7 +152,7 @@ Scope:
   applying it.
 - `chora-tiling` exports methods for tags, focus and moves. `chora-xp`
   exports methods for the start menu, minimize, restore and Restart.
-- Small fixes from the battle test: compact JSON from `choractl spawn`,
+- Small fixes from the battle test: compact JSON from `choractl run`,
   a clear error from `clients create` for a taken name,
   `chora-probe --exit-on-close`, and `tests/ipc-bench.sh` on the headless
   session.

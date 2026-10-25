@@ -5,6 +5,7 @@
 //! `hello` with a name that has a client socket.
 
 use std::{
+    collections::BTreeSet,
     os::unix::net::{UnixListener, UnixStream},
     path::{Path, PathBuf},
     sync::{
@@ -24,7 +25,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use smithay::reexports::calloop::{Interest, Mode, PostAction, generic::Generic};
 
-use super::{RpcError, Socket, private_dir, rejected};
+use super::{RpcError, Socket, private_dir, rejected, socket_rule};
 use crate::state::{ClientState, Slot, State};
 
 /// The most client sockets.
@@ -45,20 +46,32 @@ const MAX_SOCKET_PATH: usize = 107;
 #[serde(deny_unknown_fields)]
 pub struct Create {
     name: String,
+    /// What a connection through the socket may do (D33, D40); the list
+    /// of `clients.yaml`. Without it, a new socket gets none and an
+    /// existing socket keeps its own.
+    #[serde(default)]
+    capabilities: Option<Vec<Capability>>,
 }
 
 impl State {
     /// `clients.create`: opens the client socket and the Wayland socket of
-    /// a name, and returns their paths.
+    /// a name with its capabilities, and returns their paths. The same
+    /// capabilities keep the socket; other capabilities recreate it and
+    /// end its Wayland clients (D33, D40).
     pub(super) fn ipc_client_socket(&mut self, create: &Create) -> Result<Value, RpcError> {
         let name = &create.name;
         let base = (self.ipc.path.as_ref())
             .and_then(|p| p.parent())
             .ok_or_else(|| rejected("the core has no socket directory"))?;
         let dir = base.join("clients").join(name);
-        self.check_new_socket(name, &dir)?;
+        let wanted: Option<BTreeSet<Capability>> =
+            (create.capabilities.as_ref()).map(|caps| caps.iter().copied().collect());
+        let wanted = self.settle_socket(name, &dir, wanted)?;
         if dir.join(WAYLAND).as_os_str().len() > MAX_SOCKET_PATH {
-            return Err(rejected(format!("{name:?}: the socket path is too long")));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("{name:?}: the socket path is too long"),
+            ));
         }
         let (ipc, wayland) = open(&dir).map_err(|e| rejected(format!("{name:?}: {e}")))?;
         let fixed = Socket::Client(name.clone());
@@ -98,8 +111,11 @@ impl State {
                 wayland_count,
                 dir: dir.clone(),
                 clients: Vec::new(),
+                capabilities: wanted.clone(),
             },
         );
+        // A connection through the socket has exactly these (D33).
+        self.grants.set_exact(name.clone(), wanted);
         Ok(json!({"path": dir.join(IPC), "wayland": dir.join(WAYLAND)}))
     }
 
@@ -162,30 +178,60 @@ impl State {
         self.copies.ext.retain(|w| !gone(w.client()));
     }
 
-    /// Why `clients.create` of a name must fail, if it must. `dir` is the
-    /// directory its sockets would live in.
-    fn check_new_socket(&self, name: &str, dir: &Path) -> Result<(), RpcError> {
+    /// The capabilities for a new socket of a name. An existing socket
+    /// with the same capabilities, or with none asked for, stays and
+    /// answers `socket_exists`; other capabilities close it first (D40).
+    fn settle_socket(
+        &mut self,
+        name: &str,
+        dir: &Path,
+        wanted: Option<BTreeSet<Capability>>,
+    ) -> Result<BTreeSet<Capability>, RpcError> {
+        if let Some(socket) = self.ipc.clients.get(name) {
+            if wanted.as_ref().is_none_or(|w| *w == socket.capabilities) {
+                // The same file gives back what the revoke binding took.
+                if let Some(wanted) = wanted {
+                    self.grants.set_exact(name.to_owned(), wanted);
+                }
+                return Err(socket_exists(name, dir));
+            }
+        } else {
+            self.check_new_socket(name)?;
+        }
+        let wanted = wanted.unwrap_or_default();
+        if self.ipc.clients.contains_key(name) {
+            // The old connections keep running; they get the new
+            // capabilities first, also when the new socket fails to open.
+            self.grants.set_exact(name.to_owned(), wanted.clone());
+            if !wanted.contains(&Capability::GrabAny) {
+                self.revoke_free_grabs(name);
+            }
+            self.close_socket(name);
+        }
+        Ok(wanted)
+    }
+
+    /// Why `clients.create` of a name without a socket must fail, if it
+    /// must.
+    fn check_new_socket(&self, name: &str) -> Result<(), RpcError> {
         if !crate::methods::valid_name(name) {
             return Err(rejected(format!(
                 "{name:?}: a client name for a socket has lowercase letters, digits, _, - and ., from a letter"
             )));
         }
-        if self.ipc.clients.contains_key(name) {
-            // The path lets `choractl clients create` name the socket.
-            return Err(rejected(format!("{name:?} has a client socket already"))
-                .with_data(serde_json::json!({"reason": "socket_exists", "path": dir.join(IPC)})));
-        }
         // A live connection of the name would share the nodes and grants.
         if self.ipc.live(name) {
-            return Err(
-                rejected(format!("{name:?} is connected or in its grace time"))
-                    .with_data(serde_json::json!({"reason": "connected"})),
-            );
+            return Err(RpcError::new(
+                RpcError::NAME_TAKEN,
+                format!("{name:?} is connected or in its grace time"),
+            )
+            .with_data(serde_json::json!({"reason": "connected"})));
         }
         if self.ipc.clients.len() >= MAX_SOCKETS {
-            return Err(rejected(format!(
-                "the core holds {MAX_SOCKETS} client sockets"
-            )));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("the core holds {MAX_SOCKETS} client sockets"),
+            ));
         }
         Ok(())
     }
@@ -195,9 +241,15 @@ impl State {
     pub fn remove_client_sockets(&mut self) {
         let names: Vec<String> = self.ipc.clients.keys().cloned().collect();
         for name in names {
-            self.disconnect_wayland(&name, &[]);
+            self.close_socket(&name);
         }
-        for (_, socket) in self.ipc.clients.drain() {
+    }
+
+    /// Ends the Wayland clients of a name, unregisters its listeners and
+    /// removes its socket files; also the first half of a recreate.
+    fn close_socket(&mut self, name: &str) {
+        self.disconnect_wayland(name, &[]);
+        if let Some(socket) = self.ipc.clients.remove(name) {
             self.loop_handle.remove(socket.ipc);
             self.loop_handle.remove(socket.wayland);
             socket.remove_files();
@@ -224,7 +276,7 @@ impl State {
             })
             .find(|path| !self.ipc.uploads.owns(name, Path::new(path)));
         match foreign {
-            Some(path) => Err(rejected(format!(
+            Some(path) => Err(socket_rule(format!(
                 "{path:?}: a client socket names only its own assets"
             ))),
             None => Ok(()),
@@ -239,7 +291,7 @@ impl State {
         };
         for (index, command) in commands.iter().enumerate() {
             self.confine_one(&name, command)
-                .map_err(|e| rejected(e).with_data(json!({"command": index})))?;
+                .map_err(|e| socket_rule(e).with_data(json!({"command": index})))?;
         }
         Ok(())
     }
@@ -322,6 +374,9 @@ pub(super) struct ClientSocket {
     dir: PathBuf,
     /// The Wayland clients that connected through it.
     pub clients: Vec<ClientId>,
+    /// What `clients.create` gave the socket (D33); `clients up`
+    /// recreates it when these change.
+    capabilities: BTreeSet<Capability>,
 }
 
 impl ClientSocket {
@@ -357,6 +412,16 @@ fn remove(dir: &Path) {
     let _ = std::fs::remove_file(dir.join(IPC));
     let _ = std::fs::remove_file(dir.join(WAYLAND));
     let _ = std::fs::remove_dir(dir);
+}
+
+/// The answer of `clients.create` for a name whose socket already has the
+/// capabilities; the `path` lets `choractl clients create` name the socket.
+fn socket_exists(name: &str, dir: &Path) -> RpcError {
+    RpcError::new(
+        RpcError::NAME_TAKEN,
+        format!("{name:?} has a client socket already"),
+    )
+    .with_data(serde_json::json!({"reason": "socket_exists", "path": dir.join(IPC)}))
 }
 
 #[cfg(test)]

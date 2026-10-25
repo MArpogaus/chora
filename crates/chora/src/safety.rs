@@ -346,7 +346,7 @@ mod tests {
     fn the_revoke_binding_takes_the_capabilities_of_all_agents() {
         let mut core = Core::new();
         let mut ctl = core.admin();
-        let agent = json!({"client": "agent", "capabilities": ["input.inject", "process.spawn"]});
+        let agent = json!({"client": "agent", "capabilities": ["input.inject", "input.grab-any"]});
         ctl.ok(&mut core, "grants.set", agent);
         let eye = json!({"client": "eye", "capabilities": ["screen.capture"]});
         ctl.ok(&mut core, "grants.set", eye);
@@ -358,7 +358,7 @@ mod tests {
         let list = ctl.ok(&mut core, "grants.list", Value::Null);
         assert_eq!(
             list["agent"],
-            json!(["input.inject", "process.spawn"]),
+            json!(["input.inject", "input.grab-any"]),
             "{list}"
         );
         // The fixed binding: Ctrl+Alt+i.

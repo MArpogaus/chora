@@ -76,22 +76,23 @@ tests/headless-session.sh 1280x800 -- target/debug/chora-tiling >session.env &
 session=$!
 until grep -q CHORA_SOCKET session.env; do sleep 0.1; done
 set -a; . ./session.env; set +a
-target/debug/choractl grant agent process.spawn screen.capture input.inject
-target/debug/choractl --name agent spawn foot
+target/debug/choractl grant agent screen.capture input.inject
+target/debug/choractl run foot
 target/debug/choractl --name agent capture shot.png
 kill $session
 ```
 
 `CHORA_BIN` sets the directory of `chora` (default `target/debug`), and
-`CHORA_LOG` the log file of the core. Programs of `choractl spawn` get the
-environment of the core. Without system Mesa, the software EGL driver and
-the clients can come from Fedora RPMs unpacked into the home directory:
+`CHORA_LOG` the log file of the core. Programs of `choractl run` get the
+environment of the caller (D42), which the sourced lines provide. Without
+system Mesa, the software EGL driver and the clients can come from Fedora
+RPMs unpacked into the home directory:
 
 ```bash
 export __EGL_VENDOR_LIBRARY_DIRS=$HOME/.local/opt/mesa-egl/usr/share/glvnd/egl_vendor.d
 export LD_LIBRARY_PATH=$HOME/.local/opt/mesa-egl/usr/lib64
 # a client, for example foot, with its own libraries and fonts
-choractl --name agent spawn env \
+choractl run env \
     LD_LIBRARY_PATH=$HOME/.local/opt/clients/usr/lib64:$LD_LIBRARY_PATH \
     FONTCONFIG_FILE=$HOME/.local/opt/clients/fonts.conf \
     $HOME/.local/opt/clients/usr/bin/foot -f "DejaVu Sans Mono:size=10"

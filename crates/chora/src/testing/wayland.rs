@@ -31,6 +31,7 @@ use wayland_protocols::wp::text_input::zv3::client::{
     zwp_text_input_manager_v3::ZwpTextInputManagerV3,
     zwp_text_input_v3::{self, ZwpTextInputV3},
 };
+use wayland_protocols::xdg::activation::v1::client::xdg_activation_v1::XdgActivationV1;
 use wayland_protocols::xdg::shell::client::{
     xdg_popup::{self, XdgPopup},
     xdg_positioner::XdgPositioner,
@@ -58,6 +59,7 @@ pub struct Wayland {
 struct App {
     compositor: Option<WlCompositor>,
     wm_base: Option<XdgWmBase>,
+    activation: Option<XdgActivationV1>,
     layer_shell: Option<ZwlrLayerShellV1>,
     lock_manager: Option<ExtSessionLockManagerV1>,
     text_manager: Option<ZwpTextInputManagerV3>,
@@ -210,6 +212,33 @@ impl Wayland {
         self.app.surfaces.push(Configures::default());
         let compositor = self.app.compositor.as_ref().expect("wl_compositor");
         let surface = compositor.create_surface(&qh, ());
+        let wm_base = self.app.wm_base.as_ref().expect("xdg_wm_base");
+        let xdg = wm_base.get_xdg_surface(&surface, &qh, index);
+        let role = xdg.get_toplevel(&qh, index);
+        role.set_app_id(app_id.into());
+        surface.commit();
+        self.roundtrip(core);
+        Toplevel {
+            surface,
+            xdg,
+            role,
+            index,
+        }
+    }
+
+    /// A toplevel that activates with the token before its first commit,
+    /// as a program of `choractl run` does; its `surface.created` then
+    /// carries the token.
+    pub fn activated_toplevel(&mut self, core: &mut Core, app_id: &str, token: &str) -> Toplevel {
+        let qh = self.queue.handle();
+        let index = self.app.surfaces.len();
+        self.app.surfaces.push(Configures::default());
+        let compositor = self.app.compositor.as_ref().expect("wl_compositor");
+        let surface = compositor.create_surface(&qh, ());
+        // The activation comes before the toplevel role, as in a program
+        // that reads `XDG_ACTIVATION_TOKEN` on its way to the first map.
+        let activation = self.app.activation.as_ref().expect("xdg_activation");
+        activation.activate(token.into(), &surface);
         let wm_base = self.app.wm_base.as_ref().expect("xdg_wm_base");
         let xdg = wm_base.get_xdg_surface(&surface, &qh, index);
         let role = xdg.get_toplevel(&qh, index);
@@ -450,6 +479,7 @@ impl Dispatch<WlRegistry, ()> for App {
         match interface.as_str() {
             "wl_compositor" => app.compositor = Some(registry.bind(name, version, qh, ())),
             "xdg_wm_base" => app.wm_base = Some(registry.bind(name, version, qh, ())),
+            "xdg_activation_v1" => app.activation = Some(registry.bind(name, version, qh, ())),
             "zwlr_layer_shell_v1" => app.layer_shell = Some(registry.bind(name, version, qh, ())),
             "ext_session_lock_manager_v1" => {
                 app.lock_manager = Some(registry.bind(name, version, qh, ()));
@@ -513,6 +543,8 @@ impl Dispatch<XdgSurface, usize> for App {
         }
     }
 }
+
+delegate_noop!(App: XdgActivationV1);
 
 impl Dispatch<XdgToplevel, usize> for App {
     fn event(

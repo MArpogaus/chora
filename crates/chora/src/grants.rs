@@ -1,10 +1,11 @@
 //! Grants of the user for the IPC methods that see or drive the whole
-//! session, or start programs: `input.inject`, `screen.capture` and
-//! `process.spawn`.
+//! session: `input.inject`, `screen.capture` and `input.grab-any`.
 //!
 //! `choractl grant NAME CAPABILITY` grants a capability to a client name,
 //! until `choractl revoke` or the end of the session, through the admin
-//! socket (D40). A client of a client socket cannot reach it, a process of
+//! socket (D40). A name with a client socket is excluded: its
+//! capabilities live in `clients.yaml` and `clients.create` (D33). A
+//! client of a client socket cannot reach the admin socket, a process of
 //! the user on the host can. The MCP bridge offers no tool for grants, so
 //! an agent cannot grant itself by accident. The emergency reset revokes
 //! all grants.
@@ -24,6 +25,16 @@ impl Grants {
     /// Whether a client name holds a capability.
     pub fn allows(&self, client: &str, capability: Capability) -> bool {
         self.0.get(client).is_some_and(|c| c.contains(&capability))
+    }
+
+    /// The exact capabilities of a name with a client socket (D33); the
+    /// answer of `clients.create` and of `clients.yaml`, nothing more.
+    pub fn set_exact(&mut self, client: String, capabilities: BTreeSet<Capability>) {
+        if capabilities.is_empty() {
+            self.0.remove(&client);
+        } else {
+            self.0.insert(client, capabilities);
+        }
     }
 
     fn set(&mut self, change: GrantChange) -> Result<(), RpcError> {
@@ -87,6 +98,12 @@ impl State {
             return Ok(self.grants.list());
         }
         let change: GrantChange = crate::ipc::params_of(params)?;
+        if self.ipc.has_socket(&change.client) {
+            return Err(crate::ipc::socket_rule(format!(
+                "{:?} has a client socket: change clients.yaml and run choractl clients up",
+                change.client
+            )));
+        }
         tracing::info!(method, client = change.client, capabilities = ?change.capabilities);
         if method == "grants.set" {
             self.grants.set(change)?;
@@ -111,9 +128,16 @@ impl State {
         if self.grants.allows(name, capability) {
             Ok(())
         } else {
-            Err(rejected(format!(
-                "{capability} needs a grant: choractl grant {name} {capability}"
-            )))
+            Err(RpcError::new(
+                RpcError::MISSING_CAPABILITY,
+                if self.ipc.has_socket(name) {
+                    format!(
+                        "{capability} needs a grant: add it to {name} in clients.yaml and run choractl clients up"
+                    )
+                } else {
+                    format!("{capability} needs a grant: choractl grant {name} {capability}")
+                },
+            ))
         }
     }
 }
@@ -184,7 +208,8 @@ mod tests {
             ("grants.revoke", grant),
             ("clients.create", json!({"name": "agent"})),
         ] {
-            let (_, message) = agent.fails(&mut core, method, params);
+            let (error_code, message) = agent.fails(&mut core, method, params);
+            assert_eq!(error_code, RpcError::ADMIN_SOCKET_ONLY, "{method}");
             assert!(
                 message.contains("only on the admin socket"),
                 "{method}: {message}"
@@ -200,12 +225,9 @@ mod tests {
         for (method, capability) in [
             ("input.inject", "input.inject"),
             ("screen.capture", "screen.capture"),
-            ("process.spawn", "process.spawn"),
-            ("process.wait", "process.spawn"),
-            ("plugins.restart", "process.spawn"),
         ] {
             let (error_code, message) = agent.fails(&mut core, method, json!({}));
-            assert_eq!(error_code, RpcError::REJECTED, "{method}");
+            assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{method}");
             let wanted = format!("{capability} needs a grant: choractl grant agent {capability}");
             assert_eq!(message, wanted, "{method}");
         }
@@ -224,14 +246,14 @@ mod tests {
         }
         let mut other = core.named("other");
         let (error_code, _) = other.fails(&mut core, "input.inject", inject);
-        assert_eq!(error_code, RpcError::REJECTED);
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
     }
 
     #[test]
     fn the_emergency_reset_revokes_every_grant_and_disconnects() {
         let mut core = Core::new();
         let mut ctl = core.admin();
-        let all = json!({"client": "agent", "capabilities": ["input.inject", "process.spawn"]});
+        let all = json!({"client": "agent", "capabilities": ["input.inject", "input.grab-any"]});
         ctl.ok(&mut core, "grants.set", all);
         core.state.reset();
         assert!(ctl.closed(&mut core));

@@ -27,8 +27,8 @@ impl Conn {
     pub fn connect(name: &str) -> Result<Self, ClientError> {
         let hello = Hello {
             name: name.into(),
-            keep_nodes: false,
             resume: true,
+            ..Hello::default()
         };
         Ok(Self {
             client: Client::from_env(&hello)?,

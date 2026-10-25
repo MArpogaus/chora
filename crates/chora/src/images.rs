@@ -79,7 +79,41 @@ pub struct Decoded {
     pub ticket: u64,
     path: String,
     modified: Option<SystemTime>,
-    result: Result<(MemoryBuffer, [u32; 2]), String>,
+    result: Result<(MemoryBuffer, [u32; 2]), Error>,
+}
+
+/// Why an image did not load. `limit` is true when a limit of the image
+/// cache is the reason, so that the transaction answers code 6.
+#[derive(Debug)]
+pub struct Error {
+    /// Whether a limit of the image cache is the reason.
+    pub limit: bool,
+    /// The message for the client.
+    pub message: String,
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.message.fmt(f)
+    }
+}
+
+impl From<String> for Error {
+    fn from(message: String) -> Self {
+        Error {
+            limit: false,
+            message,
+        }
+    }
+}
+
+impl From<&str> for Error {
+    fn from(message: &str) -> Self {
+        Error {
+            limit: false,
+            message: message.into(),
+        }
+    }
 }
 
 impl Images {
@@ -124,7 +158,7 @@ impl Images {
     /// Sends the files that the commands name to the worker, unless the
     /// cache holds them unchanged. Returns how many it sent; each comes
     /// back as a `Decoded` with the ticket.
-    pub fn decode_for(&mut self, ticket: u64, commands: &[Command]) -> Result<usize, String> {
+    pub fn decode_for(&mut self, ticket: u64, commands: &[Command]) -> Result<usize, Error> {
         let mut sent = HashSet::new();
         for command in commands {
             let (Command::Create { props, .. }
@@ -163,16 +197,22 @@ impl Images {
 
     /// Puts a decoded file into the cache, if it still fits: other files
     /// may have come in since the worker started.
-    pub fn insert(&mut self, decoded: Decoded) -> Result<(), String> {
+    pub fn insert(&mut self, decoded: Decoded) -> Result<(), Error> {
         let path = decoded.path;
-        let (memory, size) = decoded.result.map_err(|e| format!("{path}: {e}"))?;
+        let (memory, size) = decoded.result.map_err(|mut e| {
+            e.message = format!("{path}: {}", e.message);
+            e
+        })?;
         self.room_for(&path)?;
         let bytes = u64::from(size[0]) * u64::from(size[1]) * 4;
         if bytes > self.budget(&path) {
-            return Err(format!(
-                "{path}: {}x{} pixels exceed the {MAX_DECODED} bytes of all images",
-                size[0], size[1]
-            ));
+            return Err(Error {
+                limit: true,
+                message: format!(
+                    "{path}: {}x{} pixels exceed the {MAX_DECODED} bytes of all images",
+                    size[0], size[1]
+                ),
+            });
         }
         let buffer = MemoryRenderBuffer::from_memory(memory, 1, Transform::Normal, None);
         let image = Image {
@@ -186,9 +226,12 @@ impl Images {
     }
 
     /// Fails if the cache is full and does not hold the path.
-    fn room_for(&self, path: &str) -> Result<(), String> {
+    fn room_for(&self, path: &str) -> Result<(), Error> {
         if !self.cache.contains_key(path) && self.cache.len() >= MAX_IMAGES {
-            return Err(format!("{path}: the core holds {MAX_IMAGES} images"));
+            return Err(Error {
+                limit: true,
+                message: format!("{path}: the core holds {MAX_IMAGES} images"),
+            });
         }
         Ok(())
     }
@@ -284,18 +327,19 @@ pub fn open_file(path: &str, max: u64) -> Result<(File, std::fs::Metadata), Stri
 
 /// Decodes a PNG file into premultiplied RGBA pixels, if they fit into a
 /// budget of bytes.
-fn decode(file: File, budget: u64) -> Result<(Vec<u8>, [u32; 2]), String> {
+fn decode(file: File, budget: u64) -> Result<(Vec<u8>, [u32; 2]), Error> {
     let mut decoder = png::Decoder::new(BufReader::new(file));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
     let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
     let (w, h) = reader.info().size();
     if w == 0 || h == 0 || w > MAX_SIDE || h > MAX_SIDE {
-        return Err(format!("{w}x{h} pixels; at most {MAX_SIDE} on a side"));
+        return Err(format!("{w}x{h} pixels; at most {MAX_SIDE} on a side").into());
     }
     if u64::from(w) * u64::from(h) * 4 > budget {
-        return Err(format!(
-            "{w}x{h} pixels exceed the {MAX_DECODED} bytes of all images"
-        ));
+        return Err(Error {
+            limit: true,
+            message: format!("{w}x{h} pixels exceed the {MAX_DECODED} bytes of all images"),
+        });
     }
     let len = reader.output_buffer_size().ok_or("too large")?;
     let mut data = vec![0; len];
@@ -548,6 +592,30 @@ mod tests {
         std::fs::write(&file, b"ab").unwrap();
         assert!(open_file(file.to_str().unwrap(), 1).is_err());
         assert!(open_file(file.to_str().unwrap(), 2).is_ok());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A file over the decode budget is a limit, so that the transaction
+    /// answers code 6 and not code 1.
+    #[test]
+    fn pixels_over_the_budget_are_a_limit() {
+        let dir = std::env::temp_dir().join(format!("chora-budget-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("img.png");
+        let mut png = Vec::new();
+        {
+            let mut enc = png::Encoder::new(std::io::Cursor::new(&mut png), 4, 4);
+            enc.set_color(png::ColorType::Rgba);
+            enc.set_depth(png::BitDepth::Eight);
+            enc.write_header()
+                .unwrap()
+                .write_image_data(&[0u8; 64])
+                .unwrap();
+        }
+        std::fs::write(&path, png).unwrap();
+        let err = decode(File::open(&path).unwrap(), 3).unwrap_err();
+        assert!(err.limit, "{err}");
+        assert!(decode(File::open(&path).unwrap(), MAX_DECODED).is_ok());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

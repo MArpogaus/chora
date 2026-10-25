@@ -24,7 +24,7 @@ use std::{
 };
 
 use chora_scene::{
-    Command, Effect, TransactionError,
+    Command, Effect, SceneError, TransactionError,
     ipc::{Message, RpcError},
 };
 use serde_json::Value;
@@ -37,7 +37,11 @@ use smithay::{
     },
 };
 
-use crate::{images::Decoded, ipc::rejected, state::State};
+use crate::{
+    images::{self, Decoded},
+    ipc::rejected,
+    state::State,
+};
 
 /// How long a transaction waits for its clients.
 pub const DEADLINE: Duration = Duration::from_millis(150);
@@ -66,7 +70,7 @@ struct Pending {
     /// How many images the worker still decodes for it.
     decoding: usize,
     /// The first image that failed to load.
-    failed: Option<String>,
+    failed: Option<images::Error>,
     /// The configure serial that each surface still has to commit.
     waiting: HashMap<String, Serial>,
     /// Set when the configure events are out.
@@ -180,7 +184,7 @@ impl State {
     ) {
         let waiting = self.transactions.all().filter(|p| p.conn == conn).count();
         if waiting >= MAX_PENDING {
-            let error = rejected("too many waiting transactions");
+            let error = RpcError::new(RpcError::LIMIT_REACHED, "too many waiting transactions");
             self.ipc.respond(conn, &Message::error(id, error));
             return;
         }
@@ -220,7 +224,7 @@ impl State {
             // `assets.put` replaced it. The next frame draws the new
             // bytes; a failure keeps the old image.
             if let Err(error) = self.assets.images.insert(decoded) {
-                tracing::warn!(error, "a replaced asset does not load");
+                tracing::warn!(error = %error, "a replaced asset does not load");
             }
             return;
         }
@@ -279,7 +283,11 @@ impl State {
             .check(&head.owner, &head.commands)
             .map_err(|e| transaction_error(&e))?;
         if let Some(error) = head.failed.take() {
-            return Err(rejected(error));
+            return Err(if error.limit {
+                RpcError::new(RpcError::LIMIT_REACHED, error.message)
+            } else {
+                rejected(error.message)
+            });
         }
         self.check_effects(&head.commands).map_err(rejected)?;
         for effect in &effects {
@@ -419,6 +427,10 @@ impl State {
 fn transaction_error(error: &TransactionError) -> RpcError {
     let code = if error.is_gone_surface() {
         RpcError::GONE_SURFACE
+    } else if matches!(error.error, SceneError::Missing(_)) {
+        RpcError::UNKNOWN_NODE
+    } else if matches!(error.error, SceneError::Limit(_)) {
+        RpcError::LIMIT_REACHED
     } else {
         RpcError::REJECTED
     };
@@ -447,6 +459,17 @@ mod tests {
             .expect_err("the id exists the second time");
         assert_eq!(error["code"], RpcError::REJECTED);
         assert_eq!(error["data"]["command"], 1);
+    }
+
+    /// A scene limit answers code 6, not code 1.
+    #[test]
+    fn a_scene_limit_answers_the_limit_code() {
+        let error = transaction_error(&TransactionError {
+            index: 3,
+            error: SceneError::Limit("the scene holds 16384 nodes, its limit".into()),
+        });
+        assert_eq!(error.code, RpcError::LIMIT_REACHED);
+        assert_eq!(error.data.expect("the failed command")["command"], 3);
     }
 
     /// A transaction of a connection that waits for the configures of
@@ -705,7 +728,8 @@ mod tests {
         }
         core.dispatch();
         assert_eq!(wm.responses(), Vec::<Value>::new());
-        let (_, message) = wm.fails(&mut core, "scene.apply", rect("over"));
+        let (error_code, message) = wm.fails(&mut core, "scene.apply", rect("over"));
+        assert_eq!(error_code, RpcError::LIMIT_REACHED);
         assert_eq!(message, "too many waiting transactions");
         let mut panel = core.named("panel");
         let id = panel.send("scene.apply", rect("p"));

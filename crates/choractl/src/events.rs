@@ -65,7 +65,7 @@ impl Subscription {
         let hello = Hello {
             name: name.into(),
             keep_nodes: true,
-            resume: false,
+            ..Hello::default()
         };
         let mut client = Client::from_stream(socket.try_clone()?, &hello)?;
         let mut grabbed = Vec::new();

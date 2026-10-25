@@ -1,14 +1,15 @@
-//! `choractl mcp`: the API of chora as MCP tools over stdio (D34).
+//! `choractl mcp`: the API of chora as MCP tools over stdio (D34), on rmcp.
 //!
 //! The server reads JSON-RPC messages, one per line, from stdin and writes
-//! its answers to stdout. It holds one connection to the core under its
-//! client name, `agent` by default, which also names the grants that
-//! `capture`, `describe_screen` and `inject_input` need. No tool grants
-//! anything (D40).
+//! its answers to stdout. rmcp answers requests in parallel and ends a
+//! cancelled call through `notifications/cancelled`. The server holds one
+//! connection to the core under its client name, `agent` by default, which
+//! also names the grants that `capture`, `describe_screen` and
+//! `inject_input` need. No tool grants anything (D40).
 
 use std::{
     collections::HashMap,
-    io::{BufRead, Write},
+    sync::{Arc, Mutex, MutexGuard, PoisonError},
     time::Duration,
 };
 
@@ -17,41 +18,62 @@ use chora_scene::{
     Node, NodeKind, OutputInfo, Transform,
     ipc::{
         Apply, AssetPut, Capture, Client, ClientError, Hello, Inject, MethodCall, OutputConfigure,
-        Picture, ProcessWait, Query, Reserve, Restart, RpcError, Spawn,
+        Picture, Query, Reserve, RpcError,
     },
 };
+use rmcp::{
+    model::{
+        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorCode,
+        ErrorData, Implementation, JsonObject, ListToolsResult, PaginatedRequestParams,
+        ServerCapabilities, ServerConfig, Tool,
+    },
+    service::{RequestContext, RoleServer},
+    transport::io::stdio_pipes,
+};
 use serde_json::{Value, json};
+use tokio::task::{block_in_place, spawn_blocking};
 
 use crate::{
     events::{self, Subscription},
     schema, view,
 };
 
-/// The versions of the protocol that the server speaks, newest first.
-const VERSIONS: [&str; 4] = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
+/// The custom JSON-RPC code of a cancelled call, from the LSP.
+const CANCELLED: ErrorCode = ErrorCode(-32800);
+/// The longest single wait of `wait_events` between two looks at the
+/// cancellation: a blocked `take` cannot be interrupted, so the wait runs
+/// in slices, and the process ends within one slice after the last answer.
+/// The slice stays well under the 100 ms of gate check 3 of 0.8, since the
+/// wake, the log line and the pipe add to its end.
+const SLICE: Duration = Duration::from_millis(20);
 /// The longer side of the screenshot of `describe_screen` by default.
 const DESCRIBE_SIDE: u32 = 1280;
 /// The longer side of a picture of `capture` by default.
 const CAPTURE_SIDE: u32 = 1920;
+/// The instructions of `initialize`, so the model starts in the right order.
+const INSTRUCTIONS: &str = "chora is a programmable Wayland compositor. Start with \
+    describe_screen: it shows a screenshot, the windows and the plugins with \
+    their methods. Ask plugins for changes with call_method, for example \
+    tiling.set_layout, instead of moving their windows. Screenshots and input \
+    need a grant that only the user gives with choractl grant.";
 
 /// The connection to the core. After the core closed it, for example in
 /// an emergency reset, the next call connects again.
 pub struct Core {
     name: String,
     client: Option<Client>,
-    /// The events of `subscribe_events`, on a connection of their own.
-    subscription: Option<Subscription>,
     /// The reserves of `reserve_space` by output, for a new connection.
     reserves: HashMap<String, Reserve>,
 }
 
 /// The methods that change nothing, so that a call goes again after a lost
 /// connection.
-const READ_ONLY: [&str; 5] = [
+const READ_ONLY: [&str; 6] = [
     "scene.query",
     "output.list",
     "clients.list",
     "grants.list",
+    "methods.list",
     "screen.capture",
 ];
 
@@ -82,7 +104,7 @@ impl Core {
             let hello = Hello {
                 name: self.name.clone(),
                 keep_nodes: true,
-                resume: false,
+                ..Hello::default()
             };
             let mut client = Client::from_env(&hello)?;
             // A reserve that the core refuses now, for example of an output
@@ -103,115 +125,283 @@ impl Core {
     }
 }
 
-/// Serves MCP until stdin ends.
+/// The MCP server: the core connection and the subscription of
+/// `wait_events`, each behind a lock, since rmcp runs the tools in
+/// parallel. No lock is held across an await.
+pub struct Mcp {
+    name: String,
+    core: Mutex<Core>,
+    /// The subscription of `wait_events`, on a connection of its own.
+    subscription: Mutex<Option<Arc<Subscription>>>,
+}
+
+impl Mcp {
+    fn locked(&self) -> MutexGuard<'_, Core> {
+        self.core.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Runs one tool, or routes `client.method` to `methods.call`.
+    fn dispatch(&self, name: &str, args: &Value) -> Result<Vec<ContentBlock>, Failure> {
+        if name == "subscribe_events" {
+            // The subscription lives on a connection of its own.
+            return self.subscribe(args);
+        }
+        let mut core = self.locked();
+        match run_tool(&mut core, name, args) {
+            Err(Failure::UnknownTool(unknown)) => match plugin_method(name) {
+                Some((client, method)) => call_plugin(&mut core, client, method, args),
+                None => Err(Failure::UnknownTool(unknown)),
+            },
+            other => other,
+        }
+    }
+
+    /// The exported methods of all clients, for `list_tools`.
+    fn exported(&self) -> Result<Vec<Value>, String> {
+        self.locked()
+            .call::<_, Vec<Value>>("methods.list", Value::Null)
+            .map_err(|e| e.to_string())
+    }
+
+    /// Starts a subscription, which replaces the earlier one.
+    fn subscribe(&self, args: &Value) -> Result<Vec<ContentBlock>, Failure> {
+        let strings = |key: &str| -> Result<Vec<String>, Failure> {
+            match args.get(key) {
+                None | Some(Value::Null) => Ok(Vec::new()),
+                Some(v) => serde_json::from_value(v.clone())
+                    .map_err(|e| Failure::Tool(format!("{key}: {e}"))),
+            }
+        };
+        let events = strings("events")?;
+        let keys = strings("keys")?
+            .iter()
+            .map(|k| {
+                k.parse::<chora_scene::Binding>()
+                    .map_err(|e| Failure::Tool(e.to_string()))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let replacing = self
+            .subscription
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take()
+            .is_some();
+        let (subscription, grabbed) =
+            Subscription::start(&self.name, events.clone(), keys, replacing)?;
+        *self
+            .subscription
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = Some(Arc::new(subscription));
+        let events = if events.is_empty() {
+            json!("all")
+        } else {
+            json!(events)
+        };
+        Ok(vec![json_text(&json!({"events": events, "keys": grabbed}))])
+    }
+
+    /// The events of the subscription. rmcp cancels the context token on
+    /// `notifications/cancelled`; the wait ends within one slice then, and
+    /// also when the process shuts down.
+    async fn wait(
+        &self,
+        args: &Value,
+        context: &RequestContext<RoleServer>,
+    ) -> Result<CallToolResponse, ErrorData> {
+        let current = self
+            .subscription
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        let Some(subscription) = current else {
+            return Ok(tool_error("call subscribe_events first"));
+        };
+        let max = args["max"]
+            .as_u64()
+            .and_then(|m| usize::try_from(m).ok())
+            .unwrap_or(50)
+            .min(events::MAX_TAKE);
+        let timeout = Duration::from_millis(args["timeout_ms"].as_u64().unwrap_or(5000))
+            .min(events::MAX_WAIT);
+        let deadline = tokio::time::Instant::now() + timeout;
+        let mut collected: Vec<Value> = Vec::new();
+        let mut dropped = 0;
+        let mut ended = Value::Null;
+        loop {
+            let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+            let want = max - collected.len();
+            // A `take` drains the buffer, so a `max` of 0 ends the wait
+            // before it reaches one: it looks at nothing and keeps nothing.
+            if want == 0 {
+                break;
+            }
+            let filled = Arc::clone(&subscription);
+            let pending = spawn_blocking(move || filled.take(want, left.min(SLICE)));
+            let taken = tokio::select! {
+                // First the finished `take`: it drains the buffer, so its
+                // events must not go to a cancel that arrives at the same
+                // instant as the last slice.
+                biased;
+                got = pending => got.map_err(|e| ErrorData::internal_error(e.to_string(), None))?,
+                () = context.ct.cancelled() => {
+                    // rmcp swallows the answer of a cancelled call, so the
+                    // line on stderr is all the gate check 0.8-3 can see.
+                    eprintln!("wait_events cancelled");
+                    return Err(ErrorData::new(CANCELLED, "call cancelled", None));
+                }
+            };
+            if let Some(list) = taken["events"].as_array() {
+                collected.extend(list.iter().cloned());
+            }
+            dropped += taken["dropped"].as_u64().unwrap_or(0);
+            if taken["ended"].is_string() {
+                ended = taken["ended"].clone();
+            }
+            if !collected.is_empty() || ended.is_string() || left <= SLICE {
+                break;
+            }
+        }
+        let batch = json!({"events": collected, "dropped": dropped, "ended": ended});
+        Ok(CallToolResult::success(vec![json_text(&batch)]).into())
+    }
+}
+
+impl rmcp::ServerHandler for Mcp {
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
+            .with_instructions(INSTRUCTIONS)
+            .with_server_info(Implementation::new("choractl", env!("CARGO_PKG_VERSION")))
+    }
+
+    /// The built-in tools plus one tool per exported plugin method. The
+    /// list answers fresh on every call, so a later `methods.export` needs
+    /// no restart and no list-changed notification.
+    fn list_tools(
+        &self,
+        _page: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl std::future::Future<Output = Result<ListToolsResult, ErrorData>>
+    + rmcp::service::MaybeSendFuture
+    + '_ {
+        // Off the worker, as in `call_tool`: the core socket blocks.
+        let exported = block_in_place(|| self.exported());
+        if let Err(e) = &exported {
+            // The built-ins stay, since a client that cached the list would
+            // else show a dead server until it restarts.
+            eprintln!("tools/list without the plugin tools: {e}");
+        }
+        let mut all = tools();
+        all.extend(plugin_tools(&exported.unwrap_or_default()));
+        std::future::ready(Ok(ListToolsResult::with_all_items(all)))
+    }
+
+    async fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResponse, ErrorData> {
+        let args = request.arguments.map_or_else(|| json!({}), Value::Object);
+        if request.name == "wait_events" {
+            return self.wait(&args, &context).await;
+        }
+        // Off the worker: the core socket blocks, and a plugin method may
+        // wait for seconds. The transport must still read the cancel.
+        let answer = block_in_place(|| self.dispatch(&request.name, &args));
+        Ok(match answer {
+            Ok(blocks) => CallToolResult::success(blocks).into(),
+            Err(Failure::UnknownTool(message)) => {
+                return Err(ErrorData::invalid_params(message, None));
+            }
+            Err(Failure::Tool(message)) => tool_error(message),
+        })
+    }
+}
+
+/// Serves MCP over stdin and stdout until the client closes the pipe.
 pub fn serve(name: String) -> Result<(), String> {
     let hello = Hello {
         name: name.clone(),
         keep_nodes: true,
-        resume: false,
+        ..Hello::default()
     };
     let client = Client::from_env(&hello).map_err(|e| e.to_string())?;
-    let mut chora = Core {
-        name,
-        client: Some(client),
-        subscription: None,
-        reserves: HashMap::new(),
+    let server = Mcp {
+        name: name.clone(),
+        core: Mutex::new(Core {
+            name,
+            client: Some(client),
+            reserves: HashMap::new(),
+        }),
+        subscription: Mutex::new(None),
     };
-    let stdin = std::io::stdin().lock();
-    let mut stdout = std::io::stdout().lock();
-    for line in stdin.lines() {
-        let line = line.map_err(|e| e.to_string())?;
-        if line.trim().is_empty() {
-            continue;
-        }
-        if let Some(answer) = handle_line(&mut chora, &line) {
-            let mut text = answer.to_string();
-            text.push('\n');
-            if stdout
-                .write_all(text.as_bytes())
-                .and_then(|()| stdout.flush())
-                .is_err()
-            {
-                return Ok(());
-            }
-        }
-    }
-    Ok(())
-}
-
-/// The answer to one line: a message, or a batch of them as protocol
-/// version 2025-03-26 allows. None when nothing needs an answer.
-fn handle_line(chora: &mut Core, line: &str) -> Option<Value> {
-    match serde_json::from_str(line) {
-        Ok(Value::Array(batch)) => {
-            let answers: Vec<Value> = batch.iter().filter_map(|m| handle(chora, m)).collect();
-            (!answers.is_empty()).then_some(Value::Array(answers))
-        }
-        Ok(message) => handle(chora, &message),
-        Err(e) => Some(error(&Value::Null, -32700, &format!("parse error: {e}"))),
-    }
-}
-
-/// The answer to one message; none for a notification or a response.
-fn handle(chora: &mut Core, message: &Value) -> Option<Value> {
-    let method = message.get("method")?.as_str().unwrap_or_default();
-    let id = message.get("id").cloned()?;
-    let params = message.get("params").cloned().unwrap_or(Value::Null);
-    let result = match method {
-        "initialize" => Ok(initialize(&params)),
-        "ping" => Ok(json!({})),
-        "tools/list" => Ok(json!({"tools": tools()})),
-        "tools/call" => call_tool(chora, &params),
-        other => Err((-32601, format!("no method {other:?}"))),
-    };
-    Some(match result {
-        Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
-        Err((code, text)) => error(&id, code, &text),
-    })
-}
-
-fn error(id: &Value, code: i64, message: &str) -> Value {
-    json!({"jsonrpc": "2.0", "id": id, "error": {"code": code, "message": message}})
-}
-
-fn initialize(params: &Value) -> Value {
-    let asked = params["protocolVersion"].as_str().unwrap_or_default();
-    let version = VERSIONS
-        .into_iter()
-        .find(|v| *v == asked)
-        .unwrap_or(VERSIONS[0]);
-    json!({
-        "protocolVersion": version,
-        "capabilities": {"tools": {"listChanged": false}},
-        "serverInfo": {"name": "choractl", "version": env!("CARGO_PKG_VERSION")},
-        "instructions": "chora is a programmable Wayland compositor. Start with \
-            describe_screen: it shows a screenshot, the windows and the plugins with \
-            their methods. Ask plugins for changes with call_method, for example \
-            tiling.set_layout, instead of moving their windows. Screenshots and input \
-            need a grant that only the user gives with choractl grant.",
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| e.to_string())?;
+    runtime.block_on(async {
+        let service = rmcp::serve_server(server, stdio_pipes())
+            .await
+            .map_err(|e| e.to_string())?;
+        service.waiting().await.map(drop).map_err(|e| e.to_string())
     })
 }
 
 /// A tool: its name, description and the schema of its arguments.
-fn tool(name: &str, description: &str, properties: &Value, required: &[&str]) -> Value {
-    json!({
-        "name": name,
-        "description": description,
-        "inputSchema": {"type": "object", "properties": properties, "required": required},
-    })
+fn tool(
+    name: &'static str,
+    description: &'static str,
+    properties: &Value,
+    required: &[&str],
+) -> Tool {
+    let schema = json!({
+        "type": "object",
+        "properties": properties,
+        "required": required,
+    });
+    Tool::new(name, description, object(&schema))
 }
 
 /// A tool whose input schema comes from the type of its parameters, so that
 /// the model sees every command and every field.
-fn typed_tool<T: schemars::JsonSchema>(name: &str, description: &str) -> Value {
-    json!({
-        "name": name,
-        "description": description,
-        "inputSchema": schema::of::<T>(),
-    })
+fn typed_tool<T: schemars::JsonSchema>(name: &'static str, description: &'static str) -> Tool {
+    Tool::new(name, description, object(&schema::of::<T>()))
 }
 
-fn tools() -> Vec<Value> {
+fn object(schema: &Value) -> JsonObject {
+    schema.as_object().expect("a JSON object").clone()
+}
+
+/// One tool per exported plugin method: the name `client.method`, the
+/// description and the input schema of the export. A plain export gets a
+/// schema that accepts any object.
+fn plugin_tools(methods: &[Value]) -> Vec<Tool> {
+    methods
+        .iter()
+        .filter_map(|method| {
+            let client = method["client"].as_str()?;
+            let name = method["name"].as_str()?;
+            let schema = match &method["input_schema"] {
+                Value::Object(fields) => fields.clone(),
+                _ => object(&json!({"type": "object"})),
+            };
+            let description = method["description"]
+                .as_str()
+                .map_or_else(|| format!("Call {client}.{name}."), str::to_owned);
+            Some(Tool::new(format!("{client}.{name}"), description, schema))
+        })
+        .collect()
+}
+
+/// The tool name of an exported method: `tiling.set_layout` is the method
+/// `set_layout` of the client `tiling`. None for a name with no dot or
+/// with more than one.
+fn plugin_method(name: &str) -> Option<(&str, &str)> {
+    let (client, method) = name.split_once('.')?;
+    (!client.is_empty() && !method.is_empty() && !method.contains('.')).then_some((client, method))
+}
+
+/// The built-in tools.
+fn tools() -> Vec<Tool> {
     let mut tools = screen_tools();
     tools.extend(scene_tools());
     tools.extend(session_tools());
@@ -221,7 +411,7 @@ fn tools() -> Vec<Value> {
 }
 
 /// The tools of events.
-fn event_tools() -> Vec<Value> {
+fn event_tools() -> Vec<Tool> {
     vec![
         tool(
             "subscribe_events",
@@ -234,10 +424,10 @@ fn event_tools() -> Vec<Value> {
         ),
         tool(
             "wait_events",
-            "The events that arrived since the last call, or the first one that arrives within the timeout. dropped counts events that a full buffer lost.",
+            "The events that arrived since the last call, or the first one that arrives within the timeout. dropped counts events that a full buffer lost. A notifications/cancelled ends the wait without an answer.",
             &json!({
                 "timeout_ms": {"type": "integer", "description": "how long to wait for the first event; 5000 by default, at most 30000"},
-                "max": {"type": "integer", "description": "the most events to return; 50 by default, at most 500"},
+                "max": {"type": "integer", "description": "the most events to return; 50 by default, at most 500, 0 takes nothing"},
             }),
             &[],
         ),
@@ -245,7 +435,7 @@ fn event_tools() -> Vec<Value> {
 }
 
 /// The tools that see the screen.
-fn screen_tools() -> Vec<Value> {
+fn screen_tools() -> Vec<Tool> {
     let max_side =
         json!({"type": "integer", "description": "the longer side of the picture in pixels"});
     let output =
@@ -267,7 +457,7 @@ fn screen_tools() -> Vec<Value> {
 }
 
 /// The tools of the scene, the plugins and the input.
-fn scene_tools() -> Vec<Value> {
+fn scene_tools() -> Vec<Tool> {
     vec![
         tool(
             "query_scene",
@@ -287,7 +477,7 @@ fn scene_tools() -> Vec<Value> {
         ),
         tool(
             "call_method",
-            "Call a method that a plugin exported, for example client tiling, method set_layout, params {\"layout\": \"rows\"}.",
+            "Call a method that a plugin exported, for example client tiling, method set_layout, params {\"layout\": \"rows\"}. Every export also has its own tool named client.method.",
             &json!({"client": {"type": "string"}, "method": {"type": "string"}, "params": {"description": "any JSON value"}}),
             &["client", "method"],
         ),
@@ -298,27 +488,10 @@ fn scene_tools() -> Vec<Value> {
     ]
 }
 
-/// The tools of the session: programs, the work area and assets.
-fn session_tools() -> Vec<Value> {
+/// The tools of the session: the work area and assets. Programs come
+/// from `choractl run` outside the core (D42).
+fn session_tools() -> Vec<Tool> {
     vec![
-        tool(
-            "spawn_process",
-            "Start a program in the session with the environment of chora, for example a terminal or a plugin. With capture, chora keeps stdout, stderr and the exit status for wait_process. Needs a grant of process.spawn. Returns the pid.",
-            &json!({
-                "argv": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "the program and its arguments, for example [\"foot\"]"},
-                "capture": {"type": "boolean", "description": "keep the output, at most 64 KiB of each stream"},
-            }),
-            &["argv"],
-        ),
-        tool(
-            "wait_process",
-            "The output and the exit status of a program of spawn_process with capture: at once with timeout_ms 0, or once it ended, at the latest after timeout_ms (at most 30000). running is true while it runs.",
-            &json!({
-                "pid": {"type": "integer", "minimum": 0},
-                "timeout_ms": {"type": "integer", "minimum": 0, "maximum": 30000},
-            }),
-            &["pid"],
-        ),
         tool(
             "configure_output",
             "Set the scale or the transform of an output, as wlr-randr does. Returns the output.",
@@ -328,12 +501,6 @@ fn session_tools() -> Vec<Value> {
                 "transform": {"enum": ["normal", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"]},
             }),
             &[],
-        ),
-        tool(
-            "restart_plugin",
-            "Restart a plugin, for example after a rebuild: stop the process of a client name and start its command again. Needs a grant of process.spawn. Returns the new pid.",
-            &json!({"name": {"type": "string", "description": "the client name, for example tiling"}}),
-            &["name"],
         ),
         tool(
             "reserve_space",
@@ -361,7 +528,7 @@ fn session_tools() -> Vec<Value> {
 }
 
 /// The tools of the views.
-fn view_tools() -> Vec<Value> {
+fn view_tools() -> Vec<Tool> {
     let name = json!({"type": "string", "description": "the name of the view"});
     vec![
         tool(
@@ -385,23 +552,6 @@ fn view_tools() -> Vec<Value> {
     ]
 }
 
-/// The result of a tool call. A tool that fails, also on invalid
-/// arguments, gives a result with `isError`, so that the model can correct
-/// its call, as protocol version 2025-11-25 asks. An unknown tool gives a
-/// JSON-RPC error.
-fn call_tool(chora: &mut Core, params: &Value) -> Result<Value, (i64, String)> {
-    let name = params["name"].as_str().unwrap_or_default();
-    let args = params
-        .get("arguments")
-        .cloned()
-        .unwrap_or_else(|| json!({}));
-    match run_tool(chora, name, &args) {
-        Ok(content) => Ok(json!({"content": content, "isError": false})),
-        Err(Failure::UnknownTool(message)) => Err((-32602, message)),
-        Err(Failure::Tool(message)) => Ok(json!({"content": [text(&message)], "isError": true})),
-    }
-}
-
 /// Why a tool call failed.
 enum Failure {
     /// An unknown tool: a JSON-RPC error.
@@ -422,16 +572,18 @@ impl From<ClientError> for Failure {
     }
 }
 
-fn text(text: &str) -> Value {
-    json!({"type": "text", "text": text})
+/// A tool that ran and failed: the model reads the reason and can correct
+/// its call, as the protocol asks.
+fn tool_error(message: impl Into<String>) -> CallToolResponse {
+    CallToolResult::error(vec![ContentBlock::text(message.into())]).into()
 }
 
-fn json_text(value: &Value) -> Value {
-    text(&serde_json::to_string_pretty(value).expect("values always serialize"))
+fn json_text(value: &Value) -> ContentBlock {
+    ContentBlock::text(serde_json::to_string_pretty(value).expect("values always serialize"))
 }
 
-fn image(picture: &Picture) -> Value {
-    json!({"type": "image", "data": picture.png, "mimeType": "image/png"})
+fn image(picture: &Picture) -> ContentBlock {
+    ContentBlock::image(picture.png.clone(), "image/png")
 }
 
 fn arg<T: serde::de::DeserializeOwned>(args: &Value) -> Result<T, Failure> {
@@ -439,7 +591,7 @@ fn arg<T: serde::de::DeserializeOwned>(args: &Value) -> Result<T, Failure> {
         .map_err(|e| Failure::Tool(format!("invalid arguments: {e}")))
 }
 
-fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Failure> {
+fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBlock>, Failure> {
     let string = |key: &str| -> Result<String, Failure> {
         args[key]
             .as_str()
@@ -447,36 +599,36 @@ fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Fa
             .ok_or_else(|| Failure::Tool(format!("{key} is missing")))
     };
     match name {
-        "describe_screen" => describe(chora, args),
+        "describe_screen" => describe(core, args),
         "capture" => {
             let mut capture: Capture = arg(args)?;
             capture.max_side = capture.max_side.or(Some(CAPTURE_SIDE));
-            let picture: Picture = chora.call("screen.capture", capture)?;
+            let picture: Picture = core.call("screen.capture", capture)?;
             Ok(vec![image(&picture), json_text(&picture_info(&picture))])
         }
         "query_scene" => {
             let selector = args["selector"].as_str().unwrap_or_default().to_string();
-            let nodes: Value = chora.call("scene.query", Query::new(selector))?;
+            let nodes: Value = core.call("scene.query", Query::new(selector))?;
             Ok(vec![json_text(&nodes)])
         }
         "apply_commands" => {
             let apply: Apply = arg(args)?;
-            chora.call::<_, Value>("scene.apply", apply)?;
-            Ok(vec![text("applied")])
+            core.call::<_, Value>("scene.apply", apply)?;
+            Ok(vec![ContentBlock::text("applied")])
         }
         "list_plugins" => {
-            let clients: Value = chora.call("clients.list", Value::Null)?;
+            let clients: Value = core.call("clients.list", Value::Null)?;
             Ok(vec![json_text(&clients)])
         }
         "call_method" => {
             let call: MethodCall = arg(args)?;
-            let result: Value = chora.call("methods.call", call)?;
+            let result: Value = core.call("methods.call", call)?;
             Ok(vec![json_text(&result)])
         }
         "inject_input" => {
             let inject: Inject = arg(args)?;
-            chora.call::<_, Value>("input.inject", inject)?;
-            Ok(vec![text("injected")])
+            core.call::<_, Value>("input.inject", inject)?;
+            Ok(vec![ContentBlock::text("injected")])
         }
         "load_view" => {
             // An agent loads views by name only, not any file by path.
@@ -486,31 +638,42 @@ fn run_tool(chora: &mut Core, name: &str, args: &Value) -> Result<Vec<Value>, Fa
         }
         "save_view" => Ok(vec![json_text(&view::save(&string("name")?, None)?)]),
         "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
-        "subscribe_events" => subscribe(chora, args),
-        "put_asset" => put_asset(chora, args),
-        "reserve_space" => reserve_space(chora, args),
-        "spawn_process" => pass::<Spawn>(chora, "process.spawn", args),
-        "wait_process" => pass::<ProcessWait>(chora, "process.wait", args),
-        "configure_output" => pass::<OutputConfigure>(chora, "output.configure", args),
-        "restart_plugin" => pass::<Restart>(chora, "plugins.restart", args),
-        "wait_events" => wait(chora, args),
+        "put_asset" => put_asset(core, args),
+        "reserve_space" => reserve_space(core, args),
+        "configure_output" => pass::<OutputConfigure>(core, "output.configure", args),
         other => Err(Failure::UnknownTool(format!("no tool {other:?}"))),
     }
+}
+
+/// Calls an exported plugin method, the body of its own tool.
+fn call_plugin(
+    core: &mut Core,
+    client: &str,
+    method: &str,
+    args: &Value,
+) -> Result<Vec<ContentBlock>, Failure> {
+    let call = MethodCall {
+        client: client.to_string(),
+        method: method.to_string(),
+        params: args.clone(),
+    };
+    let result: Value = core.call("methods.call", call)?;
+    Ok(vec![json_text(&result)])
 }
 
 /// Checks the arguments of a tool as the parameters of a method, calls it
 /// and answers with its result.
 fn pass<P: serde::de::DeserializeOwned + serde::Serialize>(
-    chora: &mut Core,
+    core: &mut Core,
     method: &str,
     args: &Value,
-) -> Result<Vec<Value>, Failure> {
-    let result: Value = chora.call(method, arg::<P>(args)?)?;
+) -> Result<Vec<ContentBlock>, Failure> {
+    let result: Value = core.call(method, arg::<P>(args)?)?;
     Ok(vec![json_text(&result)])
 }
 
 /// Reserves space at the edges of an output for the life of the server.
-fn reserve_space(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
+fn reserve_space(core: &mut Core, args: &Value) -> Result<Vec<ContentBlock>, Failure> {
     let mut edges = if args.is_object() {
         args.clone()
     } else {
@@ -526,78 +689,32 @@ fn reserve_space(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> 
         output,
         edges: arg(&edges)?,
     };
-    let output: Value = chora.call("output.reserve", &reserve)?;
+    let output: Value = core.call("output.reserve", &reserve)?;
     // By the name of the output in the answer, so that the first output
     // and its name are one entry.
     let name = output["name"].as_str().unwrap_or_default().to_owned();
     if reserve.edges.is_empty() {
-        chora.reserves.remove(&name);
+        core.reserves.remove(&name);
     } else {
         let reserve = Reserve {
             output: Some(name.clone()),
             ..reserve
         };
-        chora.reserves.insert(name, reserve);
+        core.reserves.insert(name, reserve);
     }
     Ok(vec![json_text(&output)])
 }
 
 /// Stores an asset from text or base64.
-fn put_asset(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
+fn put_asset(core: &mut Core, args: &Value) -> Result<Vec<ContentBlock>, Failure> {
     let name = args["name"].as_str().unwrap_or_default().to_string();
     let data = match (args["text"].as_str(), args["base64"].as_str()) {
         (Some(text), None) => STANDARD.encode(text),
         (None, Some(data)) => data.to_string(),
         _ => return Err(Failure::Tool("pass either text or base64".into())),
     };
-    let asset: Value = chora.call("assets.put", AssetPut { name, data })?;
+    let asset: Value = core.call("assets.put", AssetPut { name, data })?;
     Ok(vec![json_text(&asset)])
-}
-
-/// Takes the events of the subscription.
-fn wait(chora: &Core, args: &Value) -> Result<Vec<Value>, Failure> {
-    let subscription = chora
-        .subscription
-        .as_ref()
-        .ok_or_else(|| Failure::Tool("call subscribe_events first".into()))?;
-    let wait = args["timeout_ms"].as_u64().unwrap_or(5000);
-    let wait = Duration::from_millis(wait).min(events::MAX_WAIT);
-    let max = args["max"]
-        .as_u64()
-        .and_then(|m| usize::try_from(m).ok())
-        .unwrap_or(50)
-        .min(events::MAX_TAKE);
-    Ok(vec![json_text(&subscription.take(max, wait))])
-}
-
-/// Starts a subscription, which replaces the earlier one.
-fn subscribe(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
-    let strings = |key: &str| -> Result<Vec<String>, Failure> {
-        match args.get(key) {
-            None | Some(Value::Null) => Ok(Vec::new()),
-            Some(v) => {
-                serde_json::from_value(v.clone()).map_err(|e| Failure::Tool(format!("{key}: {e}")))
-            }
-        }
-    };
-    let events = strings("events")?;
-    let keys = strings("keys")?
-        .iter()
-        .map(|k| {
-            k.parse::<chora_scene::Binding>()
-                .map_err(|e| Failure::Tool(e.to_string()))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    let replacing = chora.subscription.take().is_some();
-    let (subscription, grabbed) =
-        Subscription::start(&chora.name, events.clone(), keys, replacing)?;
-    chora.subscription = Some(subscription);
-    let events = if events.is_empty() {
-        json!("all")
-    } else {
-        json!(events)
-    };
-    Ok(vec![json_text(&json!({"events": events, "keys": grabbed}))])
 }
 
 fn picture_info(picture: &Picture) -> Value {
@@ -618,7 +735,7 @@ fn picture_info(picture: &Picture) -> Value {
 }
 
 /// A screenshot, if the grant allows it, and the scene in words.
-fn describe(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
+fn describe(core: &mut Core, args: &Value) -> Result<Vec<ContentBlock>, Failure> {
     let capture = Capture {
         output: args["output"].as_str().map(String::from),
         node: None,
@@ -630,8 +747,8 @@ fn describe(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
         ),
     };
     let mut content = Vec::new();
-    let mut description = describe_scene(chora)?;
-    match chora.call::<_, Picture>("screen.capture", capture) {
+    let mut description = describe_scene(core)?;
+    match core.call::<_, Picture>("screen.capture", capture) {
         Ok(picture) => {
             content.push(image(&picture));
             description["picture"] = picture_info(&picture);
@@ -646,10 +763,10 @@ fn describe(chora: &mut Core, args: &Value) -> Result<Vec<Value>, Failure> {
 }
 
 /// The outputs, the windows and the plugins.
-fn describe_scene(chora: &mut Core) -> Result<Value, Failure> {
-    let outputs: Vec<OutputInfo> = chora.call("output.list", Value::Null)?;
-    let clients: Value = chora.call("clients.list", Value::Null)?;
-    let nodes: Vec<Node> = chora.call("scene.query", Query::new("*"))?;
+fn describe_scene(core: &mut Core) -> Result<Value, Failure> {
+    let outputs: Vec<OutputInfo> = core.call("output.list", Value::Null)?;
+    let clients: Value = core.call("clients.list", Value::Null)?;
+    let nodes: Vec<Node> = core.call("scene.query", Query::new("*"))?;
     let by_id: HashMap<&str, &Node> = nodes.iter().map(|n| (n.id.as_str(), n)).collect();
     let windows: Vec<Value> = nodes
         .iter()
@@ -698,59 +815,63 @@ fn placement(node: &Node, by_id: &HashMap<&str, &Node>) -> Transform {
 mod tests {
     use super::*;
 
-    #[test]
-    fn initialize_speaks_the_version_of_the_client() {
-        let result = initialize(&json!({"protocolVersion": "2025-03-26"}));
-        assert_eq!(result["protocolVersion"], "2025-03-26");
-        let result = initialize(&json!({"protocolVersion": "1999-01-01"}));
-        assert_eq!(result["protocolVersion"], VERSIONS[0]);
+    fn names(tools: &[Tool]) -> Vec<&str> {
+        tools.iter().map(|t| t.name.as_ref()).collect()
     }
 
     #[test]
-    fn only_requests_get_answers() {
-        let mut chora = Core {
-            name: "agent".into(),
-            client: None,
-            subscription: None,
-            reserves: HashMap::new(),
-        };
-        let mut answer = |line: &str| handle_line(&mut chora, line);
-        assert!(answer(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#).is_none());
-        assert!(
-            answer(r#"{"jsonrpc":"2.0","id":7,"result":{}}"#).is_none(),
-            "a response"
-        );
-        let unknown = answer(r#"{"jsonrpc":"2.0","id":1,"method":"nope"}"#).unwrap();
-        assert_eq!(unknown["error"]["code"], -32601);
-        let batch = answer(
-            r#"[{"jsonrpc":"2.0","id":2,"method":"ping"},{"jsonrpc":"2.0","method":"notifications/initialized"}]"#,
-        )
-        .unwrap();
-        assert_eq!(batch, json!([{"jsonrpc": "2.0", "id": 2, "result": {}}]));
-        let tools = answer(r#"{"jsonrpc":"2.0","id":3,"method":"tools/list"}"#).unwrap();
-        assert!(
-            tools["result"]["tools"]
-                .as_array()
-                .is_some_and(|t| t.len() == 18)
-        );
-        let bad =
-            answer(r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nope"}}"#)
-                .unwrap();
-        assert_eq!(bad["error"]["code"], -32602);
-        let wrong = answer(
-            r#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"apply_commands","arguments":{}}}"#,
-        )
-        .unwrap();
-        assert_eq!(wrong["result"]["isError"], true, "{wrong}");
-    }
-
-    #[test]
-    fn no_tool_grants() {
-        let names: Vec<_> = tools()
-            .iter()
-            .map(|t| t["name"].as_str().unwrap().to_string())
-            .collect();
+    fn the_builtins_keep_their_names_and_take_no_grant() {
+        let builtins = tools();
+        let names = names(&builtins);
+        assert_eq!(names.len(), 15, "{names:?}");
+        assert!(names.contains(&"describe_screen"));
         assert!(names.iter().all(|n| !n.contains("grant")), "{names:?}");
-        assert!(names.contains(&"describe_screen".to_string()));
+    }
+
+    #[test]
+    fn every_exported_method_has_its_tool() {
+        let methods = vec![
+            json!({"client": "tiling", "name": "focus", "description": "Focus a window.",
+                   "input_schema": {"type": "object",
+                                    "properties": {"surface": {"type": "string"}}}}),
+            json!({"client": "tiling", "name": "give", "description": null,
+                   "input_schema": null}),
+        ];
+        let exported = plugin_tools(&methods);
+        assert_eq!(names(&exported), ["tiling.focus", "tiling.give"]);
+        assert_eq!(exported[0].description.as_deref(), Some("Focus a window."));
+        assert_eq!(
+            exported[0].input_schema["properties"]["surface"]["type"],
+            "string"
+        );
+        assert_eq!(
+            exported[1].description.as_deref(),
+            Some("Call tiling.give.")
+        );
+        assert_eq!(exported[1].input_schema["type"], "object");
+    }
+
+    #[test]
+    fn the_tool_list_of_the_core_goes_again_when_lost() {
+        assert!(READ_ONLY.contains(&"methods.list"), "{READ_ONLY:?}");
+    }
+
+    #[test]
+    fn the_wait_slice_stays_under_the_cancelled_second() {
+        // Gate check 3 of 0.8 measures the end of a cancelled wait against
+        // 100 ms, which one slice plus the wake must beat.
+        assert!(SLICE * 2 <= Duration::from_millis(100), "{SLICE:?}");
+    }
+
+    #[test]
+    fn a_dotted_tool_name_routes_to_the_plugin() {
+        assert_eq!(
+            plugin_method("tiling.set_layout"),
+            Some(("tiling", "set_layout"))
+        );
+        assert_eq!(plugin_method("describe_screen"), None);
+        assert_eq!(plugin_method("a.b.c"), None);
+        assert_eq!(plugin_method(".x"), None);
+        assert_eq!(plugin_method("x."), None);
     }
 }

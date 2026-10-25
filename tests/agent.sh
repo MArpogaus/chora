@@ -8,9 +8,9 @@
 # capture through both screencopy protocols, and a client of a sandbox
 # sees none of the privileged protocols. An MCP client waits for events
 # and draws a shader that it hands to the core as an asset. Connections
-# reserve space at the edges of the output. An agent starts a program,
-# reads the output of another one, and restarts the tiling plugin. An MCP
-# client scales the output and keeps a HUD in place during a camera move.
+# reserve space at the edges of the output. An agent starts a program with
+# choractl run, keeps one under supervise and restarts it. An MCP client
+# scales the output and keeps a HUD in place during a camera move.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
@@ -442,79 +442,40 @@ wait_for work_area_is "[0,0,1280,800]"
 wait_for xs_are "0 0"
 if ctl reserve --output nowhere --top 1 2>/dev/null; then fail "a reserve of no output worked"; fi
 
-step "21. process.spawn starts a program, and plugins.restart restarts a plugin"
-if ctl spawn true 2>"$out/spawn-denied.err"; then fail "a spawn without grant worked"; fi
-grep -q "needs a grant" "$out/spawn-denied.err" || fail "denied: $(cat "$out/spawn-denied.err")"
-"$bin/choractl" grant agent process.spawn || fail "the grant failed"
-ctl spawn "$bin/chora-probe" window 0 255 0 >"$out/spawn.json" || fail "the spawn failed"
-pids+=("$(jq -r .pid "$out/spawn.json")")
+step "21. choractl run starts a program, supervise and restart handle one"
+# Run needs no grant (D42): the core only hands out an activation token.
+# The probe connects to chora, not to the host sway, with the inner display.
+WAYLAND_DISPLAY=$inner "$bin/choractl" --name agent run "$bin/chora-probe" window 0 255 0 >"$out/run.json" ||
+    fail "the run failed"
+pids+=("$(jq -r .pid "$out/run.json")")
 wait_for count_is 3 '.owner == "tiling"'
-# Without an init that reaps them, stopped plugins stay as zombies, so only
-# running ones count.
-running_tiling() { pgrep -x -r R,S,D chora-tiling; }
-old=$(running_tiling)
-ctl restart tiling >"$out/restart.json" 2>"$out/restart.err" ||
-    fail "the restart failed: $(cat "$out/restart.err")"
-new=$(jq -r .pid "$out/restart.json")
-pids+=("$new")
-test "$new" != "$old" || fail "the restart kept pid $old"
-jq -e '.argv[0] | endswith("/chora-tiling")' "$out/restart.json" >/dev/null ||
-    fail "the restart: $(cat "$out/restart.json")"
-tiling_is() { test "$(running_tiling)" = "$1"; }
-wait_for tiling_is "$new"
-wait_for count_is 3 '.owner == "tiling"'
-if ctl restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
-# A restart waits for the end of the old streams, not for the answers to
-# calls of the old process: "busy" waits for a method that never answers.
-python3 -I - "$CHORA_SOCKET" <<'EOF' >"$out/slow.log" 2>&1 &
-import json, socket, sys, time
-s = socket.socket(socket.AF_UNIX)
-s.connect(sys.argv[1])
-f = s.makefile()
-for i, (m, p) in enumerate([("hello", {"name": "slow"}), ("methods.export", {"names": ["hang"]})]):
-    s.sendall(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}).encode() + b"\n")
-    f.readline()
-time.sleep(60)
-EOF
+# The token travels the whole trip to the window (T4): run exports it,
+# the probe activates with it, surface.created carries it.
+ctl events surface.created >"$out/token.jsonl" &
 pids+=($!)
-busy='import json, os, socket
-s = socket.socket(socket.AF_UNIX)
-s.connect(os.environ["CHORA_SOCKET"])
-for i, (m, p) in enumerate([("hello", {"name": "busy"}),
-                            ("methods.call", {"client": "slow", "method": "hang", "params": {}})]):
-    s.sendall(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}).encode() + b"\n")
-s.recv(1 << 16)
-s.recv(1 << 16)'
-# Succeeds when a client of the name is connected.
-connected() {
-    python3 -I -c '
-import json, socket, sys
-s = socket.socket(socket.AF_UNIX)
-s.connect(sys.argv[1])
-f = s.makefile()
-for i, m in enumerate(["hello", "clients.list"]):
-    p = {"name": "probe-clients"} if m == "hello" else {}
-    s.sendall(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}).encode() + b"\n")
-    answer = json.loads(f.readline())
-sys.exit(0 if any(c["name"] == sys.argv[2] for c in answer["result"]) else 1)
-' "$CHORA_SOCKET" "$1"
+sleep 0.3
+WAYLAND_DISPLAY=$inner "$bin/choractl" --name agent run "$bin/chora-probe" activated >"$out/run-token.json" ||
+    fail "the run of the activated probe"
+token=$(jq -r .token "$out/run-token.json")
+wait_for grep -q "\"token\":\"$token\"" "$out/token.jsonl"
+# A program under `choractl supervise` answers `choractl restart`: the
+# pid file names the running program, and a new one takes over.
+"$bin/choractl" supervise slow -- sleep 60 &
+pids+=($!)
+sup_file=$XDG_RUNTIME_DIR/chora/supervise/slow.pid
+wait_for test -s "$sup_file"
+old=$(cat "$sup_file")
+"$bin/choractl" restart slow >"$out/restart.json" 2>"$out/restart.err" ||
+    fail "the restart failed: $(cat "$out/restart.err")"
+jq -e --argjson old "$old" '.restarted == "supervise" and .pid == $old' \
+    "$out/restart.json" >/dev/null || fail "the restart: $(cat "$out/restart.json")"
+pid_is_new() {
+    local now
+    now=$(cat "$sup_file" 2>/dev/null) && test -n "$now" && test "$now" != "$old"
 }
-wait_for connected slow
-ctl spawn python3 -I -c "$busy" >"$out/busy.json" || fail "the busy client failed"
-pids+=("$(jq -r .pid "$out/busy.json")")
-wait_for connected busy
-started=$(date +%s)
-ctl restart busy >"$out/busy-restart.json" 2>"$out/busy-restart.err" ||
-    fail "the restart of a busy client failed: $(cat "$out/busy-restart.err")"
-pids+=("$(jq -r .pid "$out/busy-restart.json")")
-test $(($(date +%s) - started)) -lt 5 || fail "the restart waited for the answers of the old process"
-# With --capture, choractl waits for the end and prints the output.
-ctl spawn --capture -- sh -c 'echo out; exit 3' >"$out/captured.json" ||
-    fail "the captured spawn failed"
-jq -e '.running == false and .status == 3 and .stdout == "out\n"' "$out/captured.json" >/dev/null ||
-    fail "the captured spawn: $(cat "$out/captured.json")"
-"$bin/choractl" revoke agent process.spawn || fail "the revoke failed"
-if ctl restart tiling 2>/dev/null; then fail "a restart after the revoke worked"; fi
+wait_for pid_is_new
+pids+=("$(cat "$sup_file")")
+if "$bin/choractl" restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
 
 step "22. an MCP client draws a panel and moves the camera on a click"
 rm -f "$out/panel-ready.txt"
@@ -541,7 +502,7 @@ wait_for work_area_is "[0,0,1280,800]"
 wait_for min_y_is 0
 
 step "23. an MCP client reads a probe, scales the output, and keeps a HUD in place"
-"$bin/choractl" grant agent process.spawn screen.capture || fail "the grant failed"
+"$bin/choractl" grant agent screen.capture || fail "the grant failed"
 timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" hud >"$out/hud.log" 2>&1 ||
     fail "the MCP client: $(cat "$out/hud.log")"
 grep -q "kept its HUD" "$out/hud.log" || fail "hud: $(cat "$out/hud.log")"

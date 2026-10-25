@@ -17,6 +17,7 @@ Usage: tests/mcp-client.py CHORACTL OUT_DIR (LAYOUT | panel | hud)
 
 import base64
 import json
+import os
 import subprocess
 import sys
 import time
@@ -261,7 +262,12 @@ def panel(mcp, out):
     )
 
 
-PROBE = "echo probe; echo warning >&2; exit 7"
+# The probe runs through `choractl run` (D42), detached, so it writes its
+# stdout, its stderr and its exit status into files for the client to read.
+PROBE = (
+    "( echo probe; echo warning >&2; exit 7 ) "
+    '>"{out}/probe.out" 2>"{out}/probe.err"; echo $? >"{out}/probe.status"'
+)
 
 
 def text(content):
@@ -275,27 +281,44 @@ def save_capture(mcp, out, name, output):
         f.write(base64.b64decode(images[0]["data"]))
 
 
-def hud(mcp, out):
+def run_probe(choractl, out):
+    """Starts the probe with `choractl run` and checks the files it wrote.
+
+    `run` detaches the program (D42), so the client waits for the status
+    file and then checks stdout, stderr and the exit status of the probe.
+    """
+    probe = subprocess.run(
+        [choractl, "--name", "agent", "run", "sh", "-c", PROBE.format(out=out)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    for _ in range(100):
+        if os.path.exists(f"{out}/probe.status"):
+            break
+        time.sleep(0.1)
+    got = {
+        "stdout": open(f"{out}/probe.out").read(),
+        "stderr": open(f"{out}/probe.err").read(),
+        "status": open(f"{out}/probe.status").read(),
+    }
+    wanted = {"stdout": "probe\n", "stderr": "warning\n", "status": "7\n"}
+    if got != wanted:
+        sys.exit(f"probe {probe.stdout.strip()}: {got}")
+
+
+def hud(choractl, mcp, out):
     """The HUD test: a probe, the scale, and a HUD on the screen.
 
-    The client runs a probe with capture and reads its output, sets the
-    scale of the output and back, and draws a HUD under the overlay root of
-    the output, next to a mark in the scene. It captures the output during
-    an animated camera move, as OUT_DIR/hud-moving.png, and after it, as
-    OUT_DIR/hud-moved.png, for the checks of tests/agent.sh.
+    The client runs a probe with `choractl run` and reads the files it
+    wrote, sets the scale of the output and back, and draws a HUD under the
+    overlay root of the output, next to a mark in the scene. It captures
+    the output during an animated camera move, as OUT_DIR/hud-moving.png,
+    and after it, as OUT_DIR/hud-moved.png, for the checks of
+    tests/agent.sh.
     """
-    started = text(mcp.tool("spawn_process", {"argv": ["sh", "-c", PROBE], "capture": True}))
-    done = text(mcp.tool("wait_process", {"pid": started["pid"], "timeout_ms": 10000}))
-    wanted = {
-        "pid": started["pid"],
-        "running": False,
-        "status": 7,
-        "stdout": "probe\n",
-        "stderr": "warning\n",
-        "truncated": False,
-    }
-    if done != wanted:
-        sys.exit(f"wait_process: {done}")
+    run_probe(choractl, out)
     output = describe(mcp, out, "hud-start")["outputs"][0]
     name = output["name"]
     scaled = text(mcp.tool("configure_output", {"output": name, "scale": 2}))
@@ -383,7 +406,7 @@ def main():
         print("the MCP client moved the camera from its panel")
         return
     if layout == "hud":
-        hud(mcp, out)
+        hud(choractl, mcp, out)
         mcp.close()
         print("the MCP client read its probe, scaled the output and kept its HUD")
         return

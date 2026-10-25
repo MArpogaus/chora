@@ -46,9 +46,19 @@ pub fn admin_socket(socket: &Path) -> PathBuf {
 
 /// The version of this build: the crate version and, when it was built in
 /// a git checkout, the commit, for example `0.5.4+1ea0e89abc`. `hello`
-/// answers with the version of the core, so that a client of another build
-/// can tell. The versioned `hello` of D29 replaces this.
+/// answers with the version of the core, next to the protocol version of
+/// [`PROTOCOL`], so that a client of another build can tell.
 pub const VERSION: &str = env!("CHORA_VERSION");
+
+/// The protocol version this build speaks (D29). It is the major version:
+/// compatible additions arrive as features, a breaking change raises the
+/// number. `hello` negotiates it; the core refuses a client with a higher
+/// one and serves a lower one.
+pub const PROTOCOL: u64 = 1;
+
+/// The protocol features this build knows. Protocol 1 starts without any;
+/// named additions appear here while the protocol stays 1.
+pub const FEATURES: &[&str] = &[];
 
 /// A request or a notification from the client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +121,26 @@ impl RpcError {
     /// A transaction names a surface node that is gone, for example of a
     /// window that closed in the meantime.
     pub const GONE_SURFACE: i64 = 2;
+    /// The client speaks a newer protocol than the core (D29).
+    pub const UNSUPPORTED_PROTOCOL: i64 = 3;
+    /// The client lacks a capability that the method needs, for example
+    /// `screen.capture` without a grant.
+    pub const MISSING_CAPABILITY: i64 = 4;
+    /// A command names a node that does not exist; a surface node that
+    /// went away during a wait keeps code 2.
+    pub const UNKNOWN_NODE: i64 = 5;
+    /// A limit of the core is reached: too many connections, transactions
+    /// or calls, or a line and an answer that are too long.
+    pub const LIMIT_REACHED: i64 = 6;
+    /// The client name belongs to a live connection or to a client socket.
+    pub const NAME_TAKEN: i64 = 7;
+    /// The method works only on the admin socket of `choractl`, not on a
+    /// client socket.
+    pub const ADMIN_SOCKET_ONLY: i64 = 8;
+    /// A rule of client sockets refuses the request: another name in
+    /// `hello`, a node or an asset outside the client's own, an activation
+    /// token, or a grant for a name whose capabilities a socket fixes.
+    pub const CLIENT_SOCKET_RULE: i64 = 9;
 
     /// An error with a code and a message and no `data`.
     #[must_use]
@@ -191,7 +221,7 @@ impl Message {
 }
 
 /// Parameters of `hello`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Hello {
     /// The client name, the owner of the nodes of this client.
@@ -204,6 +234,36 @@ pub struct Hello {
     /// `keep_nodes`, `resume` has no effect.
     #[serde(default)]
     pub resume: bool,
+    /// The protocol version of the client (D29). Missing from a client
+    /// that predates the versioning. [`Client`] fills in [`PROTOCOL`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protocol: Option<u64>,
+    /// The features the client wants to use. The core answers with its
+    /// own list.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<String>,
+}
+
+/// The `hello` the client library sends: `protocol` and `features` filled
+/// in from this build where the caller left them out.
+fn hello_request(hello: &Hello) -> Hello {
+    let mut hello = hello.clone();
+    hello.protocol.get_or_insert(PROTOCOL);
+    if hello.features.is_empty() {
+        hello.features = FEATURES.iter().map(ToString::to_string).collect();
+    }
+    hello
+}
+
+/// The warning for a core that answers `hello` with a protocol other than
+/// [`PROTOCOL`]; `None` when both speak the same one.
+fn protocol_warning(core_protocol: u64) -> Option<String> {
+    (core_protocol != PROTOCOL).then(|| {
+        format!(
+            "warning: the core speaks protocol {core_protocol}, this client speaks protocol \
+             {PROTOCOL}"
+        )
+    })
 }
 
 /// Parameters of `scene.query`.
@@ -399,67 +459,6 @@ pub enum OutputTransform {
     Flipped270,
 }
 
-/// Parameters of `process.spawn`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Spawn {
-    /// The program and its arguments, for example `["foot"]`. The core
-    /// looks the program up in its `PATH`.
-    pub argv: Vec<String>,
-    /// Keep stdout, stderr and the exit status for `process.wait`, at most
-    /// 64 KiB of each stream.
-    #[serde(default)]
-    pub capture: bool,
-}
-
-/// Parameters of `process.wait`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ProcessWait {
-    /// The pid of a program that `process.spawn` started with `capture`.
-    pub pid: u32,
-    /// How long to wait for its end, in milliseconds, at most 30000; 0
-    /// answers at once.
-    #[serde(default)]
-    pub timeout_ms: u64,
-}
-
-/// The answer of `process.wait`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ProcessOutput {
-    /// The pid.
-    pub pid: u32,
-    /// The program still runs; the output is the one so far.
-    pub running: bool,
-    /// The exit code after the end, or 128 and the signal that ended it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub status: Option<i32>,
-    /// What it wrote to stdout, as UTF-8 with replacements.
-    pub stdout: String,
-    /// What it wrote to stderr.
-    pub stderr: String,
-    /// A stream had more than 64 KiB, and the rest went.
-    #[serde(default)]
-    pub truncated: bool,
-}
-
-/// Parameters of `plugins.restart`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Restart {
-    /// The client name of the plugin, for example `tiling`.
-    pub name: String,
-}
-
-/// The answer of `process.spawn` and `plugins.restart`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Spawned {
-    /// The process id of the new program.
-    pub pid: u32,
-    /// The program and its arguments.
-    pub argv: Vec<String>,
-}
-
 /// Parameters of `assets.put`: a file for image nodes, shader nodes and
 /// effects, from a client that shares no directory with the core.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -497,9 +496,6 @@ pub enum Capability {
     /// `screen.capture`: capture an output, a group or a surface.
     #[serde(rename = "screen.capture")]
     ScreenCapture,
-    /// `process.spawn`: start programs, and restart plugins.
-    #[serde(rename = "process.spawn")]
-    ProcessSpawn,
     /// `input.grab-any`: grab keys and buttons without Ctrl, Alt or Super
     /// (D45).
     #[serde(rename = "input.grab-any")]
@@ -508,12 +504,7 @@ pub enum Capability {
 
 impl Capability {
     /// Every capability.
-    pub const ALL: [Self; 4] = [
-        Self::InputInject,
-        Self::ScreenCapture,
-        Self::ProcessSpawn,
-        Self::GrabAny,
-    ];
+    pub const ALL: [Self; 3] = [Self::InputInject, Self::ScreenCapture, Self::GrabAny];
 
     /// The name, which is also the name of the method.
     #[must_use]
@@ -521,7 +512,6 @@ impl Capability {
         match self {
             Self::InputInject => "input.inject",
             Self::ScreenCapture => "screen.capture",
-            Self::ProcessSpawn => "process.spawn",
             Self::GrabAny => "input.grab-any",
         }
     }
@@ -871,8 +861,12 @@ impl Client {
             partial: Vec::new(),
             core_version: None,
         };
-        let answer: Value = client.call("hello", hello)?;
+        let answer: Value = client.call("hello", hello_request(hello))?;
         client.core_version = answer["version"].as_str().map(str::to_owned);
+        if let Some(warning) = answer["protocol"].as_u64().and_then(protocol_warning) {
+            static WARNED_PROTOCOL: std::sync::Once = std::sync::Once::new();
+            WARNED_PROTOCOL.call_once(|| eprintln!("{warning}"));
+        }
         if client.core_version.as_deref() != Some(VERSION) {
             static WARNED: std::sync::Once = std::sync::Once::new();
             WARNED.call_once(|| {
@@ -1102,8 +1096,7 @@ mod tests {
         });
         let hello = Hello {
             name: "wm".into(),
-            keep_nodes: false,
-            resume: false,
+            ..Hello::default()
         };
         let mut client = Client::from_stream(client, &hello).unwrap();
         let commands: Vec<Command> = serde_json::from_str(
@@ -1138,8 +1131,58 @@ mod tests {
     fn hello() -> Hello {
         Hello {
             name: "test".into(),
-            keep_nodes: false,
-            resume: false,
+            ..Hello::default()
+        }
+    }
+
+    #[test]
+    fn the_client_sends_its_protocol_and_keeps_the_answer() {
+        let (client, server) = UnixStream::pair().unwrap();
+        let core = thread::spawn(move || {
+            let mut reader = BufReader::new(server);
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            writeln!(
+                reader.get_mut(),
+                r#"{{"jsonrpc":"2.0","id":1,"result":{{"version":"test","protocol":1,"features":[]}}}}"#
+            )
+            .unwrap();
+            line
+        });
+        let client = Client::from_stream(client, &hello()).unwrap();
+        assert_eq!(client.core_version(), Some("test"));
+        let request: Value = serde_json::from_str(&core.join().unwrap()).unwrap();
+        assert_eq!(request["params"]["protocol"], serde_json::json!(PROTOCOL));
+    }
+
+    #[test]
+    fn the_hello_request_fills_protocol_and_features_of_this_build() {
+        let filled = hello_request(&hello());
+        assert_eq!(filled.protocol, Some(PROTOCOL));
+        assert_eq!(
+            filled.features,
+            FEATURES
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<String>>()
+        );
+        let wanted = Hello {
+            features: vec!["drag".into()],
+            ..hello()
+        };
+        assert_eq!(hello_request(&wanted).features, vec!["drag".to_owned()]);
+    }
+
+    #[test]
+    fn the_client_warns_when_the_core_protocol_differs() {
+        assert!(protocol_warning(PROTOCOL).is_none());
+        for other in [PROTOCOL + 1, PROTOCOL - 1] {
+            let warning = protocol_warning(other).expect("a warning for a differing protocol");
+            assert!(
+                warning.contains(&format!("core speaks protocol {other}"))
+                    && warning.contains(&format!("client speaks protocol {PROTOCOL}")),
+                "{warning}"
+            );
         }
     }
 

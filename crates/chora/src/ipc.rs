@@ -7,7 +7,7 @@
 //! stall the event loop.
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     io::{self, ErrorKind, Read, Write},
     os::unix::{
         fs::{DirBuilderExt, MetadataExt, PermissionsExt},
@@ -35,7 +35,10 @@ use smithay::{
 };
 
 use crate::{
-    captured::Processes, output::output_area, render::window_rect, state::State, uploads::Uploads,
+    output::output_area,
+    render::{location_and_scale, window_rect},
+    state::State,
+    uploads::Uploads,
 };
 
 mod clients;
@@ -65,13 +68,6 @@ pub struct Ipc {
     path: Option<PathBuf>,
     /// The files of `assets.put`.
     pub uploads: Uploads,
-    /// The client names whose `plugins.restart` waits for the old process.
-    pub restarting: HashSet<String>,
-    /// The output of the programs of `process.spawn` with `capture`.
-    pub processes: Processes,
-    /// The connections that wait for a late answer of `process.wait` or
-    /// `plugins.restart`, once per answer.
-    pub late: Vec<u64>,
     listener: Option<RegistrationToken>,
     /// The listener of the admin socket and its path.
     admin: Option<(RegistrationToken, PathBuf)>,
@@ -233,38 +229,6 @@ impl Drop for Ipc {
 }
 
 impl Ipc {
-    /// The path of the socket, once it listens.
-    pub fn path(&self) -> Option<&Path> {
-        self.path.as_deref()
-    }
-
-    /// The connections of a client name and a process that reached the end
-    /// of their streams and only wait for answers.
-    pub fn ended(&self, name: &str, pid: Pid) -> Vec<u64> {
-        self.conns
-            .iter()
-            .filter(|(_, c)| c.name.as_deref() == Some(name) && c.reader.is_none())
-            .filter(|(_, c)| socket_peercred(&c.stream).is_ok_and(|p| p.pid == pid))
-            .map(|(id, _)| *id)
-            .collect()
-    }
-
-    /// The processes of the connections of a client name, each once; `None`
-    /// for a process that the core cannot see.
-    pub fn peer_pids(&self, name: &str) -> Vec<Option<Pid>> {
-        let mut pids = Vec::new();
-        for conn in self.conns.values() {
-            if conn.name.as_deref() != Some(name) {
-                continue;
-            }
-            let pid = socket_peercred(&conn.stream).ok().map(|c| c.pid);
-            if !pids.contains(&pid) {
-                pids.push(pid);
-            }
-        }
-        pids
-    }
-
     /// The reserves of all connections on an output, added up.
     pub fn reserved(&self, output: &str) -> Edges {
         self.conns
@@ -346,11 +310,14 @@ impl Ipc {
         };
         let mut bytes = line(message);
         if message.result.is_some() && c.output.len() + bytes.len() > MAX_OUTPUT {
-            let error = rejected(format!(
-                "the answer has {} bytes and does not fit in the output of the connection, \
-                 {MAX_OUTPUT} bytes; ask for less, for example with a narrower selector",
-                bytes.len()
-            ));
+            let error = RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!(
+                    "the answer has {} bytes and does not fit in the output of the connection, \
+                     {MAX_OUTPUT} bytes; ask for less, for example with a narrower selector",
+                    bytes.len()
+                ),
+            );
             let id = message.id.clone().unwrap_or(Value::Null);
             bytes = line(&Message::error(id, error));
         }
@@ -430,12 +397,12 @@ impl Ipc {
         self.has_client(name) || self.graces.contains_key(name)
     }
 
-    /// Whether a connection came through the admin socket.
     /// Whether a client name has a client socket.
     pub fn has_socket(&self, name: &str) -> bool {
         self.clients.contains_key(name)
     }
 
+    /// Whether a connection came through the admin socket.
     fn admin(&self, conn: u64) -> bool {
         self.conns
             .get(&conn)
@@ -646,7 +613,7 @@ impl State {
         stream.set_nonblocking(true).map_err(failed)?;
         let pid = socket_peercred(&stream).ok().map(|c| c.pid);
         if let Some(reason) = self.ipc.refusal(pid, socket.name()) {
-            let error = rejected(reason.clone());
+            let error = RpcError::new(RpcError::LIMIT_REACHED, reason.clone());
             let _ = (&stream).write_all(&line(&Message::error(Value::Null, error)));
             // A close with unread bytes in the receive queue sends an RST
             // and eats the error line, so read what arrived before closing.
@@ -720,10 +687,13 @@ impl State {
         conn.input = Vec::new();
         conn.reader = None;
         if conn.too_long {
-            let error = rejected(format!(
-                "the request is longer than {MAX_LINE} bytes, the limit of a line; \
-                 the core closes the connection"
-            ));
+            let error = RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!(
+                    "the request is longer than {MAX_LINE} bytes, the limit of a line; \
+                     the core closes the connection"
+                ),
+            );
             self.ipc.respond(id, &Message::error(Value::Null, error));
         }
         PostAction::Remove
@@ -798,9 +768,7 @@ impl State {
             "screen.capture" => self.ipc_capture(conn, params),
             "input.inject" => self.ipc_inject(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
-            "process.spawn" | "process.wait" | "plugins.restart" => {
-                return self.ipc_process(conn, id, &request.method, params);
-            }
+            "activation.token" => self.ipc_activation_token(conn),
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
             }
@@ -809,6 +777,25 @@ impl State {
                 format!("no method {other:?}"),
             )),
         })
+    }
+
+    /// A token for `choractl run` (D42): an xdg activation token of no
+    /// client, so that the started program can activate with it. A use
+    /// ends the token; an unused token of no client is forgotten after
+    /// `MAX_TOKEN_AGE`, by its own deadline and by every new token. A
+    /// client socket gets none: such a token skips the focus rule of its
+    /// own tokens.
+    fn ipc_activation_token(&mut self, conn: u64) -> Result<Value, RpcError> {
+        if self.ipc.fixed(conn).is_some() {
+            return Err(socket_rule(
+                "a client socket asks its Wayland connection for activation tokens",
+            ));
+        }
+        self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
+        let (token, _) = self.activation_state.create_external_token(None);
+        let token = token.as_str().to_owned();
+        let _ = self.expire_at(self.time.now() + crate::protocols::MAX_TOKEN_AGE);
+        Ok(serde_json::json!({"token": token}))
     }
 
     /// Streams the named events, or all of them for an empty list. An
@@ -833,9 +820,10 @@ impl State {
     /// `choractl` changes them (D40); any connection lists the grants.
     fn ipc_admin(&mut self, conn: u64, method: &str, params: Value) -> Result<Value, RpcError> {
         if method != "grants.list" && !self.ipc.admin(conn) {
-            return Err(rejected(format!(
-                "{method} works only on the admin socket of choractl"
-            )));
+            return Err(RpcError::new(
+                RpcError::ADMIN_SOCKET_ONLY,
+                format!("{method} works only on the admin socket of choractl"),
+            ));
         }
         if method == "clients.create" {
             return params_of(params).and_then(|c| self.ipc_client_socket(&c));
@@ -860,6 +848,7 @@ impl State {
     /// `keep_nodes` and one `resume` setting. With `resume`, a name in its
     /// grace time gets its nodes back; without, they go first.
     fn ipc_hello(&mut self, conn: u64, hello: Hello) -> Result<Value, RpcError> {
+        check_protocol(hello.protocol)?;
         if self.ipc.name(conn).is_some() {
             return Err(rejected("hello was sent already"));
         }
@@ -871,10 +860,10 @@ impl State {
         // A client socket fixes the name (D33).
         match self.ipc.fixed(conn) {
             Some(fixed) if fixed != hello.name => {
-                return Err(rejected(format!("this socket belongs to {fixed:?}")));
+                return Err(socket_rule(format!("this socket belongs to {fixed:?}")));
             }
             None if self.ipc.clients.contains_key(&hello.name) => {
-                return Err(rejected(format!(
+                return Err(name_taken(format!(
                     "{:?} has a client socket and connects only through it",
                     hello.name
                 )));
@@ -889,7 +878,7 @@ impl State {
         if let Some(peer) =
             peer.filter(|p| (p.keep_nodes, p.resume) != (hello.keep_nodes, hello.resume))
         {
-            return Err(rejected(format!(
+            return Err(name_taken(format!(
                 "{:?} is in use with keep_nodes {} and resume {}",
                 hello.name, peer.keep_nodes, peer.resume
             )));
@@ -897,7 +886,7 @@ impl State {
         // Resume is for a name without a live connection: a second instance
         // must not take the nodes of a running one.
         if hello.resume && peer.is_some() {
-            return Err(rejected(format!(
+            return Err(name_taken(format!(
                 "{:?} is connected; resume needs a name without a live connection",
                 hello.name
             )));
@@ -916,7 +905,11 @@ impl State {
         if !known {
             self.emit(&Event::ClientConnected { name: hello.name });
         }
-        Ok(serde_json::json!({"version": chora_scene::ipc::VERSION}))
+        Ok(serde_json::json!({
+            "version": chora_scene::ipc::VERSION,
+            "protocol": chora_scene::ipc::PROTOCOL,
+            "features": chora_scene::ipc::FEATURES,
+        }))
     }
 
     /// Removes the nodes, the cameras and the assets of a client name, and
@@ -990,21 +983,26 @@ impl State {
                 (Transform::IDENTITY, self.scene.overlay_draw_list(&name)),
                 (self.camera(output), self.scene.draw_list()),
             ];
-            let shown = views.iter().flat_map(|(camera, list)| {
-                list.iter().filter_map(move |placed| {
-                    let transform = camera.then(&placed.transform);
+            for (camera, list) in &views {
+                // The absolute transform by node, for the boxes of the
+                // layers in this list.
+                let at: HashMap<&str, Transform> = list
+                    .iter()
+                    .map(|placed| (placed.node.id.as_str(), camera.then(&placed.transform)))
+                    .collect();
+                let shown = list.iter().filter_map(|placed| {
                     Some((
-                        placed.node,
-                        self.screen_rect(placed, camera, &transform, screen)?,
+                        placed.node.id.as_str(),
+                        self.screen_rect(placed, &at, screen)?,
                     ))
-                })
-            });
-            for (node, rect) in shown {
-                let rect = [rect.loc.x, rect.loc.y, rect.size.w, rect.size.h];
-                found
-                    .entry(node.id.as_str())
-                    .or_default()
-                    .insert(name.clone(), serde_json::json!(rect));
+                });
+                for (id, rect) in shown {
+                    let rect = [rect.loc.x, rect.loc.y, rect.size.w, rect.size.h];
+                    found
+                        .entry(id)
+                        .or_default()
+                        .insert(name.clone(), serde_json::json!(rect));
+                }
             }
         }
         found
@@ -1013,43 +1011,82 @@ impl State {
             .collect()
     }
 
-    /// The rectangle of one placed node with its absolute transform on an
-    /// output, if it shows there. Under a rotation or a mesh this is the
-    /// bounding box of the drawn shape, and a node inside a clip is cut
-    /// to the area of the clip.
+    /// The rectangle of one placed node on an output, as the renderer
+    /// draws it there. A layer, and with a size also a shader, shows
+    /// through its mesh, so its box is the box of the projected shape.
+    /// Any other node needs a plain positive scale below its innermost
+    /// ancestor layer, and every ancestor layer cuts its box like a clip
+    /// does. The mesh of a layer does not move the boxes of descendants.
     fn screen_rect(
         &self,
         placed: &Placed<'_>,
-        camera: &Transform,
-        transform: &Transform,
+        at: &HashMap<&str, Transform>,
         screen: Rectangle<f64, Logical>,
     ) -> Option<Rectangle<f64, Logical>> {
-        let mut rect = match placed.node.kind {
+        let node = placed.node;
+        let transform = at.get(node.id.as_str())?;
+        let (below, layers) = self.lineage(node)?;
+        let mut rect = if node.is_layer() {
+            layer_box(node, transform)?
+        } else {
+            // A mirrored, rotated, collapsed or projected node draws
+            // nothing outside a layer.
+            location_and_scale(&below)?;
+            self.content_box(node, transform)?
+        };
+        // Every ancestor layer cuts the box like a clip does.
+        for ancestor in layers {
+            rect = intersect(rect, layer_box(ancestor, at.get(ancestor.id.as_str())?)?)?;
+        }
+        rect.overlaps(screen).then_some(rect)
+    }
+
+    /// The node's transform below the innermost ancestor layer, and every
+    /// ancestor layer. The renderer draws the node with that transform,
+    /// also inside the texture of a layer, and the node shows only inside
+    /// every layer: a layer composes into a texture of its size. A clip
+    /// makes a layer and cuts through the same box.
+    fn lineage(&self, node: &Node) -> Option<(Transform, Vec<&Node>)> {
+        let mut below = node.props.transform;
+        let mut layers = Vec::new();
+        let mut parent = node.parent.as_deref();
+        while let Some(id) = parent {
+            let ancestor = self.scene.node(id)?;
+            if ancestor.is_layer() {
+                layers.push(ancestor);
+            } else if layers.is_empty() {
+                below = ancestor.props.transform.then(&below);
+            }
+            parent = ancestor.parent.as_deref();
+        }
+        Some((below, layers))
+    }
+
+    /// The box of a node that is not a layer itself.
+    fn content_box(&self, node: &Node, transform: &Transform) -> Option<Rectangle<f64, Logical>> {
+        match node.kind {
             // A surface is sized by its buffer, subsurfaces and decorations.
-            NodeKind::Surface => window_rect(self.windows.get(placed.node.id.as_str())?, transform),
-            NodeKind::Rect => node_box(placed.node, transform, placed.node.props.size?)?,
+            NodeKind::Surface => Some(window_rect(self.windows.get(node.id.as_str())?, transform)),
+            NodeKind::Rect => Some(bounding_box(transform, node.props.size?)),
             NodeKind::Image => {
                 // Without the file the renderer draws nothing.
-                let image = self
-                    .assets
-                    .images
-                    .get(placed.node.props.image.as_deref()?)?;
-                let [w, h] = placed
-                    .node
+                let image = self.assets.images.get(node.props.image.as_deref()?)?;
+                let [w, h] = node
                     .props
                     .size
                     .unwrap_or([f64::from(image.size[0]), f64::from(image.size[1])]);
-                node_box(placed.node, transform, [w, h])?
+                Some(bounding_box(transform, [w, h]))
             }
-            // A group draws nothing, and a shader only draws inside a layer.
-            NodeKind::Group | NodeKind::Shader => return None,
-        };
-        // The renderer shows a node and its descendants only inside every
-        // clip of its ancestors.
-        for (clip, size) in &placed.clips {
-            rect = intersect(rect, bounding_box(&camera.then(clip), *size))?;
+            NodeKind::Text => {
+                // A text node reports its layout size, like an image
+                // without a size.
+                let size = self.assets.texts.size(node)?;
+                Some(bounding_box(transform, size))
+            }
+            // A group without a layer of its own draws nothing, and
+            // so does a shader without a size.
+            NodeKind::Group | NodeKind::Shader => None,
         }
-        rect.overlaps(screen).then_some(rect)
     }
 
     /// Grabs a binding of a key or a pointer button for a named connection.
@@ -1063,9 +1100,10 @@ impl State {
         };
         let m = binding.mods;
         if !(m.ctrl || m.alt || m.logo || self.grants.allows(&name, Capability::GrabAny)) {
-            return Err(rejected(format!(
-                "{binding} needs Ctrl, Alt or Super or the capability input.grab-any"
-            )));
+            return Err(RpcError::new(
+                RpcError::MISSING_CAPABILITY,
+                format!("{binding} needs Ctrl, Alt or Super or the capability input.grab-any"),
+            ));
         }
         let trigger = trigger(&binding)?;
         if m.ctrl && m.alt && matches!(trigger, Trigger::Key(sym) if is_safety_key(sym)) {
@@ -1143,7 +1181,6 @@ impl State {
             let effects = self.scene.unreserve(&name);
             self.execute(effects);
         }
-        self.ipc.processes.drop_client(&name);
         self.emit(&Event::ClientDisconnected { name });
     }
 
@@ -1167,7 +1204,6 @@ impl State {
     fn ipc_write(&mut self) -> Vec<u64> {
         let transactions = &self.transactions;
         let methods = &self.methods;
-        let late = &self.ipc.late;
         self.ipc
             .conns
             .iter_mut()
@@ -1184,8 +1220,7 @@ impl State {
                 let answered = conn.reader.is_none()
                     && conn.output.is_empty()
                     && !transactions.waits_for(*id)
-                    && !methods.waits_for(*id)
-                    && !late.contains(id);
+                    && !methods.waits_for(*id);
                 (broken || answered).then_some(*id)
             })
             .collect()
@@ -1202,31 +1237,42 @@ pub fn params_of<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
         .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))
 }
 
+/// Refuses a client whose protocol is newer than the core's (D29); a
+/// lower or missing protocol works.
+pub fn check_protocol(protocol: Option<u64>) -> Result<(), RpcError> {
+    if let Some(protocol) = protocol.filter(|p| *p > chora_scene::ipc::PROTOCOL) {
+        return Err(RpcError::new(
+            RpcError::UNSUPPORTED_PROTOCOL,
+            format!(
+                "client protocol {protocol} is newer than the core protocol {}",
+                chora_scene::ipc::PROTOCOL
+            ),
+        ));
+    }
+    Ok(())
+}
+
 pub fn rejected(message: impl Into<String>) -> RpcError {
     RpcError::new(RpcError::REJECTED, message)
 }
 
-/// The box of a node size on the screen. A node with a mesh, or under a
-/// matrix with perspective, shows through the projection of the renderer;
-/// its box is then the box of the projected points.
-fn node_box(node: &Node, transform: &Transform, size: [f64; 2]) -> Option<Rectangle<f64, Logical>> {
-    if node.props.size.is_some() && (node.props.mesh.is_some() || has_perspective(transform)) {
-        let at = crate::mesh::Placing {
-            transform,
-            scale: 1.0,
-        };
-        let shape = crate::mesh::shape(node, &at)?;
-        return Some(shape.bounds.to_f64().to_logical(1.0));
-    }
-    Some(bounding_box(transform, size))
+fn name_taken(message: impl Into<String>) -> RpcError {
+    RpcError::new(RpcError::NAME_TAKEN, message)
 }
 
-/// Whether a matrix divides by w, so that projected points land elsewhere
-/// than under an affine transform.
-#[allow(clippy::float_cmp)] // the entries are exact or the client sent them
-fn has_perspective(transform: &Transform) -> bool {
-    let m = transform.matrix();
-    m[3] != 0.0 || m[7] != 0.0 || m[11] != 0.0 || m[15] != 1.0
+/// A refusal by a rule of client sockets (D33).
+pub fn socket_rule(message: impl Into<String>) -> RpcError {
+    RpcError::new(RpcError::CLIENT_SOCKET_RULE, message)
+}
+
+/// The box of a layer node on the screen: the points of its mesh, or the
+/// corners of its size, through the full transform of the renderer.
+fn layer_box(node: &Node, transform: &Transform) -> Option<Rectangle<f64, Logical>> {
+    let size = node.props.size?;
+    let Some(mesh) = &node.props.mesh else {
+        return Some(bounding_box(transform, size));
+    };
+    Some(projected_box(transform, mesh.points.iter().copied()))
 }
 
 /// The largest rectangle inside both, or `None` when they miss each other.
@@ -1246,9 +1292,34 @@ fn intersect(
 /// The smallest axis-aligned rectangle that holds the box from `(0, 0)` to
 /// `(w, h)` after the transform.
 fn bounding_box(transform: &Transform, [w, h]: [f64; 2]) -> Rectangle<f64, Logical> {
-    let points = [(0.0, 0.0), (w, 0.0), (0.0, h), (w, h)].map(|(x, y)| transform.apply(x, y));
+    projected_box(
+        transform,
+        [[0.0, 0.0], [w, 0.0], [0.0, h], [w, h]].into_iter(),
+    )
+}
+
+/// The smallest axis-aligned rectangle that holds the points after the
+/// transform. The points go through the projection of the renderer, so
+/// that a matrix which divides by w moves them as the frame does; the
+/// depth of mesh points stays out, as in `Transform::apply`. A point at
+/// or behind the eye is left out, and a box of no point in front overlaps
+/// nothing.
+fn projected_box(
+    transform: &Transform,
+    points: impl Iterator<Item = [f64; 2]>,
+) -> Rectangle<f64, Logical> {
+    let m = transform.matrix();
     let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
-    for (x, y) in points {
+    for [px, py] in points {
+        // The least w of a point that shows, as in the renderer.
+        let hw = m[3] * px + m[7] * py + m[15];
+        if hw <= 1e-6 {
+            continue;
+        }
+        let (x, y) = (
+            (m[0] * px + m[4] * py + m[12]) / hw,
+            (m[1] * px + m[5] * py + m[13]) / hw,
+        );
         x0 = x0.min(x);
         y0 = y0.min(y);
         x1 = x1.max(x);
@@ -1399,6 +1470,138 @@ mod tests {
             query_node(&mut wm, &mut core, "deep")["rects"],
             json!({"out": [0.0, 0.0, 50.0, 50.0]}),
             "the perspective moves the right edge in"
+        );
+    }
+
+    #[test]
+    fn query_leaves_out_mirrored_rotated_and_collapsed_nodes() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "win");
+        let mut wm = core.named("wm");
+        let path = png("mirror", 8);
+        let sent = wm.send(
+            "scene.apply",
+            json!({"commands": [
+                {"attach": {"surface": "s1", "parent": "root"}},
+                {"update": {"id": "s1", "props": {
+                    "transform": {"translate": [400, 0], "scale": [-1, 1]}}}},
+                // An image without a size, so no layer: the renderer
+                // draws it only under a plain positive scale.
+                {"create": {"id": "turn", "kind": "image", "parent": "root",
+                    "props": {"image": &path,
+                              "transform": {"translate": [10, 10], "rotate": 30}}}},
+                {"create": {"id": "flat", "kind": "rect", "parent": "root",
+                    "props": {"size": [50, 50], "transform": {"scale": [1, 0]}}}},
+            ]}),
+        );
+        // The answer waits for the worker that decodes the file.
+        for _ in 0..1000 {
+            if wm.answer(&mut core, sent).is_some() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        for id in ["s1", "turn", "flat"] {
+            assert_eq!(
+                query_node(&mut wm, &mut core, id)["rects"],
+                json!({}),
+                "{id} draws nothing, so it shows on no output"
+            );
+        }
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn query_reports_the_box_of_a_shader_node_with_a_size() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        // A shader with a size is a layer and draws wherever it stands,
+        // also outside of any other layer.
+        let setup = json!({"commands": [
+            {"create": {"id": "glow", "kind": "shader", "parent": "root",
+                "props": {"size": [40, 20], "shader": "/glow.glsl",
+                          "transform": {"translate": [60, 70]}}}},
+            {"create": {"id": "bare", "kind": "shader", "parent": "root",
+                "props": {"shader": "/bare.glsl"}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "glow")["rects"],
+            json!({"out": [60.0, 70.0, 40.0, 20.0]}),
+            "the shader draws as a layer and gets its box"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "bare")["rects"],
+            json!({}),
+            "a shader without a size draws nothing"
+        );
+    }
+
+    #[test]
+    fn query_cuts_nodes_to_their_ancestor_layer() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        // The layer composes into a texture of its size: the mesh stretches
+        // it to x 120, and nodes outside the size are drawn nowhere. The
+        // mesh does not move the box of the node inside.
+        let setup = json!({"commands": [
+            {"create": {"id": "mat", "kind": "group", "parent": "root",
+                "props": {"size": [100, 100], "mesh": {"cols": 1, "rows": 1,
+                         "points": [[0, 0], [120, 0], [0, 100], [120, 100]]}}}},
+            {"create": {"id": "on", "kind": "rect", "parent": "mat",
+                "props": {"size": [10, 10], "transform": {"translate": [10, 10]}}}},
+            {"create": {"id": "away", "kind": "rect", "parent": "mat",
+                "props": {"size": [10, 10], "transform": {"translate": [200, 0]}}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        assert_eq!(
+            query_node(&mut wm, &mut core, "on")["rects"],
+            json!({"out": [10.0, 10.0, 10.0, 10.0]}),
+            "a node inside the layer keeps its box"
+        );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "away")["rects"],
+            json!({}),
+            "a node outside the size of the layer is drawn nowhere"
+        );
+    }
+
+    #[test]
+    fn query_cuts_a_clip_under_a_perspective_matrix_like_the_renderer() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut wm = core.named("wm");
+        let mut matrix = [0.0; 16];
+        for i in [0, 5, 10, 15] {
+            matrix[i] = 1.0;
+        }
+        // The w row divides x by 1 + 0.1 * x, so x 50 lands at 8.33.
+        matrix[3] = 0.1;
+        let setup = json!({"commands": [
+            {"create": {"id": "win", "kind": "group", "parent": "root",
+                "props": {"size": [50, 50], "clip": {},
+                          "transform": {"matrix": matrix}}}},
+            {"create": {"id": "bit", "kind": "rect", "parent": "win",
+                "props": {"size": [10, 10], "transform": {"translate": [40, 0]}}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", setup);
+        let got = query_node(&mut wm, &mut core, "bit")["rects"]["out"]
+            .as_array()
+            .expect("a rect")
+            .iter()
+            .map(Value::as_f64)
+            .collect::<Option<Vec<f64>>>()
+            .expect("six numbers");
+        // The renderer draws x 40 to 50 at 8.0 to 8.33; the affine box
+        // would say 40.0 to 50.0.
+        let near = |got: f64, want: f64| (got - want).abs() < 1e-9;
+        assert!(
+            near(got[0], 8.0) && near(got[1], 0.0) && near(got[2], 1.0 / 3.0) && near(got[3], 2.0),
+            "the clip cuts at the projected edge, not the affine one: {got:?}"
         );
     }
 
@@ -1690,11 +1893,10 @@ mod tests {
     }
 
     #[test]
-    fn hello_names_a_connection_once_and_tells_the_version() {
+    fn hello_names_a_connection_once() {
         let mut core = Core::new();
         let mut client = core.connect();
-        let answer = client.ok(&mut core, "hello", json!({"name": "wm"}));
-        assert_eq!(answer, json!({"version": chora_scene::ipc::VERSION}));
+        client.ok(&mut core, "hello", json!({"name": "wm"}));
         assert_eq!(core.state.ipc.name(1), None);
         assert_eq!(core.state.ipc.name(0), Some("wm"));
         let (error_code, message) = client.fails(&mut core, "hello", json!({"name": "other"}));
@@ -1702,6 +1904,63 @@ mod tests {
             (error_code, message.as_str()),
             (REJECTED, "hello was sent already")
         );
+    }
+
+    /// The full answer of the core, and a missing `protocol` means a
+    /// client from before the versioning (D29).
+    #[test]
+    fn hello_without_a_protocol_gets_the_full_answer() {
+        let mut core = Core::new();
+        let mut client = core.connect();
+        let answer = client.ok(&mut core, "hello", json!({"name": "wm"}));
+        assert_eq!(
+            answer,
+            json!({
+                "version": chora_scene::ipc::VERSION,
+                "protocol": chora_scene::ipc::PROTOCOL,
+                "features": [],
+            })
+        );
+    }
+
+    #[test]
+    fn hello_with_an_equal_protocol_answers_with_the_core_own_values() {
+        let mut core = Core::new();
+        let mut client = core.connect();
+        let answer = client.ok(
+            &mut core,
+            "hello",
+            json!({"name": "wm", "protocol": 1, "features": ["drag"]}),
+        );
+        assert_eq!(answer["protocol"], json!(chora_scene::ipc::PROTOCOL));
+        assert_eq!(answer["features"], json!([]), "the core tells its own");
+    }
+
+    #[test]
+    fn hello_with_a_lower_protocol_works() {
+        let mut core = Core::new();
+        let mut client = core.connect();
+        client.ok(&mut core, "hello", json!({"name": "wm", "protocol": 0}));
+    }
+
+    #[test]
+    fn hello_with_a_higher_protocol_fails_with_the_protocol_code() {
+        let mut core = Core::new();
+        let mut client = core.connect();
+        let (error_code, message) =
+            client.fails(&mut core, "hello", json!({"name": "wm", "protocol": 2}));
+        assert_eq!(error_code, RpcError::UNSUPPORTED_PROTOCOL);
+        assert!(
+            message.contains("client protocol 2") && message.contains("core protocol 1"),
+            "{message}"
+        );
+        // Beyond u32 the answer is still the protocol code.
+        let (error_code, _) = client.fails(
+            &mut core,
+            "hello",
+            json!({"name": "wm", "protocol": 1u64 << 40}),
+        );
+        assert_eq!(error_code, RpcError::UNSUPPORTED_PROTOCOL);
     }
 
     #[test]
@@ -1769,7 +2028,7 @@ mod tests {
         );
         let mut second = core.connect();
         let (error_code, message) = second.fails(&mut core, "hello", json!({"name": "wm"}));
-        assert_eq!(error_code, REJECTED);
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
         assert_eq!(
             message,
             "\"wm\" is in use with keep_nodes true and resume false"
@@ -1779,6 +2038,67 @@ mod tests {
             "hello",
             json!({"name": "wm", "keep_nodes": true}),
         );
+    }
+
+    /// Gate check 9 of 0.7: each error code has a test that provokes it.
+    /// Code 2 has `a_gone_surface_has_its_own_code` in `transaction.rs`,
+    /// code 3 `hello_with_a_higher_protocol_fails_with_the_protocol_code`
+    /// above.
+    #[test]
+    fn a_method_without_its_grant_answers_missing_capability() {
+        let mut core = Core::new();
+        let mut agent = core.named("agent");
+        let (error_code, _) = agent.fails(&mut core, "screen.capture", json!({}));
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+    }
+
+    #[test]
+    fn a_command_for_a_missing_node_answers_unknown_node() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let error = wm
+            .call(
+                &mut core,
+                "scene.apply",
+                json!({"commands": [{"update": {"id": "n9", "props": {"visible": false}}}]}),
+            )
+            .expect_err("the node does not exist");
+        assert_eq!(error["code"], RpcError::UNKNOWN_NODE);
+        assert_eq!(error["data"]["command"], 0, "data names the command");
+    }
+
+    #[test]
+    fn a_second_hello_of_a_live_name_answers_name_taken() {
+        let mut core = Core::new();
+        let _wm = core.named("wm");
+        let mut second = core.connect();
+        let (error_code, _) =
+            second.fails(&mut core, "hello", json!({"name": "wm", "resume": true}));
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
+    }
+
+    #[test]
+    fn an_admin_method_off_the_admin_socket_answers_its_code() {
+        let mut core = Core::new();
+        let mut agent = core.named("agent");
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        let (error_code, message) = agent.fails(&mut core, "grants.set", grant);
+        assert_eq!(error_code, RpcError::ADMIN_SOCKET_ONLY);
+        assert!(message.contains("only on the admin socket"), "{message}");
+    }
+
+    /// A client socket asks for no activation token over IPC: such a
+    /// token belongs to no client and would skip the focus rule of its
+    /// own tokens.
+    #[test]
+    fn a_client_socket_gets_no_activation_token() {
+        let (mut core, dir) = socket_dir("token");
+        let mut admin = core.admin();
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let (error_code, _) = agent.fails(&mut core, "activation.token", Value::Null);
+        assert_eq!(error_code, RpcError::CLIENT_SOCKET_RULE);
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
@@ -2197,8 +2517,11 @@ mod tests {
             .clone()
             .unwrap();
         assert_eq!(surface.client.as_deref(), Some("agent"));
-        let grant = json!({"client": "agent", "capabilities": ["screen.capture"]});
-        admin.ok(&mut core, "grants.set", grant);
+        admin.ok(
+            &mut core,
+            "clients.create",
+            json!({"name": "agent", "capabilities": ["screen.capture"]}),
+        );
         let granted = Wayland::connect_to(&mut core, &path);
         assert!(offers(&granted, "zwlr_screencopy") && offers(&granted, "ext_image_copy_capture"));
         assert!(!offers(&granted, "input_method") && !offers(&granted, "zwlr_output_manager"));
@@ -2274,20 +2597,23 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// A create with other capabilities recreates the socket (D33) and
+    /// ends its Wayland clients, so none keeps a capability that the
+    /// clients file took away. The reset ends all of them.
     #[test]
-    fn a_revoke_and_the_reset_disconnect_the_wayland_clients_that_had_the_grant() {
-        let (mut core, dir) = socket_dir("wayland-revoke");
+    fn changed_capabilities_and_the_reset_disconnect_the_wayland_clients() {
+        let (mut core, dir) = socket_dir("wayland-recreate");
         let mut admin = core.admin();
-        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let caps = json!({"name": "agent", "capabilities": ["screen.capture"]});
+        let created = admin.ok(&mut core, "clients.create", caps);
         let path = PathBuf::from(created["wayland"].as_str().unwrap());
-        let grant = json!({"client": "agent", "capabilities": ["screen.capture"]});
-        admin.ok(&mut core, "grants.set", grant.clone());
         let mut capturer = Wayland::connect_to(&mut core, &path);
-        let inject = json!({"client": "agent", "capabilities": ["input.inject"]});
-        admin.ok(&mut core, "grants.revoke", inject);
-        assert!(!capturer.closed(&mut core), "it had no input.inject");
-        admin.ok(&mut core, "grants.revoke", grant);
-        assert!(capturer.closed(&mut core), "the revoke ends screen.capture");
+        let inject = json!({"name": "agent", "capabilities": ["input.inject"]});
+        admin.ok(&mut core, "clients.create", inject);
+        assert!(
+            capturer.closed(&mut core),
+            "the recreate ends the client that had screen.capture"
+        );
         let mut plain = Wayland::connect_to(&mut core, &path);
         assert!(!plain.closed(&mut core));
         core.state.reset();
@@ -2353,7 +2679,7 @@ mod tests {
         let error = admin
             .call(&mut core, "clients.create", json!({"name": "agent"}))
             .expect_err("the name has a socket already");
-        assert_eq!(error["code"], REJECTED);
+        assert_eq!(error["code"], RpcError::NAME_TAKEN);
         assert_eq!(error["data"]["reason"], "socket_exists");
         assert_eq!(
             error["data"]["path"],
@@ -2368,7 +2694,9 @@ mod tests {
         let (mut core, dir) = socket_dir("live");
         let mut admin = core.admin();
         let squatter = core.named("agent");
-        let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "agent"}));
+        let (error_code, message) =
+            admin.fails(&mut core, "clients.create", json!({"name": "agent"}));
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
         assert!(
             message.contains("connected or in its grace time"),
             "{message}"
@@ -2664,20 +2992,26 @@ mod tests {
         let grab = |binding: &str| json!({"binding": binding});
         let normal = wm.ok(&mut core, "input.grab", grab("Super+Shift+Return"));
         assert_eq!(normal, "Shift+Super+Return");
-        for (binding, message) in [
+        for (binding, code, message) in [
             (
                 "Shift+a",
+                RpcError::MISSING_CAPABILITY,
                 "Shift+a needs Ctrl, Alt or Super or the capability input.grab-any",
             ),
             (
                 "Ctrl+Alt+BackSpace",
+                REJECTED,
                 "Ctrl+Alt+BackSpace belongs to the safety layer",
             ),
-            ("Ctrl+Alt+F3", "Ctrl+Alt+F3 belongs to the safety layer"),
-            ("Super+NoSuchKey", "unknown key \"NoSuchKey\""),
+            (
+                "Ctrl+Alt+F3",
+                REJECTED,
+                "Ctrl+Alt+F3 belongs to the safety layer",
+            ),
+            ("Super+NoSuchKey", REJECTED, "unknown key \"NoSuchKey\""),
         ] {
             let (error_code, got) = wm.fails(&mut core, "input.grab", grab(binding));
-            assert_eq!((error_code, got.as_str()), (REJECTED, message));
+            assert_eq!((error_code, got.as_str()), (code, message));
         }
     }
 
@@ -2768,30 +3102,77 @@ mod tests {
         assert!(client.closed(&mut core));
     }
 
+    /// `choractl run` asks the core for a token (D42). A toplevel that
+    /// activates with it before its first commit shows it in
+    /// `surface.created`, and its use ends the token.
     #[test]
-    fn a_process_wait_gets_its_answer_after_the_end_of_the_stream() {
+    fn the_issued_token_reaches_the_surface_created_of_its_window() {
         let mut core = Core::new();
-        core.state.ipc.path = Some("/nonexistent.sock".into());
-        let grant = json!({"client": "agent", "capabilities": ["process.spawn"]});
-        core.admin().ok(&mut core, "grants.set", grant);
-        let mut agent = core.named("agent");
-        let spawn = json!({"argv": ["sleep", "0.2"], "capture": true});
-        let pid = agent.ok(&mut core, "process.spawn", spawn)["pid"].clone();
-        let id = agent.send("process.wait", json!({"pid": pid, "timeout_ms": 5000}));
-        agent.shut_down_writes();
-        let started = Instant::now();
-        let answer = loop {
-            assert!(started.elapsed() < Duration::from_secs(5), "no answer");
-            std::thread::sleep(Duration::from_millis(20));
-            core.dispatch();
-            let messages = agent.read().expect("the connection waits for the answer");
-            if let Some(answer) = messages.into_iter().find(|m| m["id"] == id) {
-                break answer;
-            }
-        };
-        assert_eq!(answer["result"]["running"], false, "{answer}");
-        assert_eq!(answer["result"]["status"], 0, "{answer}");
-        assert!(agent.closed(&mut core));
+        core.add_output("A", (64, 48));
+        let mut ctl = core.named("choractl");
+        let answer = ctl.ok(&mut core, "activation.token", Value::Null);
+        let token = answer["token"]
+            .as_str()
+            .expect("an activation token")
+            .to_owned();
+        assert!(
+            core.state
+                .activation_state
+                .tokens()
+                .any(|(t, _)| t.as_str() == token),
+            "the core knows the token it answered",
+        );
+        let mut wm = core.named("wm");
+        wm.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["surface.created"]}),
+        );
+        let mut client = Wayland::connect(&mut core);
+        let _top = client.activated_toplevel(&mut core, "run", &token);
+        let created: Vec<Value> = wm
+            .events_now(&mut core)
+            .into_iter()
+            .filter(|e| e["params"]["event"] == "surface.created")
+            .collect();
+        assert_eq!(created.len(), 1, "one toplevel was created");
+        assert_eq!(created[0]["params"]["token"], token);
+        assert!(created[0]["params"]["pid"].as_u64().is_some());
+        assert!(
+            !core
+                .state
+                .activation_state
+                .tokens()
+                .any(|(t, _)| t.as_str() == token),
+            "one use ends the token",
+        );
+    }
+
+    /// A program that never activates leaves its token behind. The core
+    /// forgets such unused tokens of no client once they grow old; a
+    /// fresh token and the tokens of clients stay.
+    #[test]
+    fn an_unused_activation_token_is_forgotten() {
+        let mut core = Core::new();
+        let mut ctl = core.named("choractl");
+        let answer = ctl.ok(&mut core, "activation.token", Value::Null);
+        let token = answer["token"]
+            .as_str()
+            .expect("an activation token")
+            .to_owned();
+        core.state.forget_unused_tokens(Duration::from_secs(30));
+        assert_eq!(
+            core.state.activation_state.tokens().count(),
+            1,
+            "a fresh token survives the sweep",
+        );
+        std::thread::sleep(Duration::from_millis(5));
+        core.state.forget_unused_tokens(Duration::ZERO);
+        assert_eq!(
+            core.state.activation_state.tokens().count(),
+            0,
+            "{token} of a program that never activated stayed",
+        );
     }
 
     #[test]
@@ -2816,7 +3197,7 @@ mod tests {
             responses.extend(client.responses());
         }
         assert_eq!(responses.len(), 1);
-        assert_eq!(responses[0]["error"]["code"], REJECTED);
+        assert_eq!(responses[0]["error"]["code"], RpcError::LIMIT_REACHED);
         assert_eq!(
             responses[0]["error"]["message"],
             "the request is longer than 1048576 bytes, the limit of a line; \
@@ -2843,7 +3224,7 @@ mod tests {
         }
         let mut asker = core.named("asker");
         let (error_code, message) = asker.fails(&mut core, "scene.query", json!({}));
-        assert_eq!(error_code, REJECTED);
+        assert_eq!(error_code, RpcError::LIMIT_REACHED);
         assert!(message.contains("does not fit in the output"), "{message}");
         assert!(!asker.closed(&mut core));
         assert_eq!(ids(&mut asker, &mut core, "id:g7"), ["g7"]);
@@ -2868,7 +3249,7 @@ mod tests {
         let mut answer = String::new();
         ours.read_to_string(&mut answer).unwrap();
         let answer: Value = serde_json::from_str(&answer).unwrap();
-        assert_eq!(answer["error"]["code"], REJECTED);
+        assert_eq!(answer["error"]["code"], RpcError::LIMIT_REACHED);
         answer["error"]["message"].as_str().unwrap().to_owned()
     }
 
@@ -2927,7 +3308,7 @@ mod tests {
         ours.read_to_string(&mut answer).unwrap();
         assert_eq!(
             serde_json::from_str::<Value>(&answer).unwrap()["error"]["code"],
-            REJECTED
+            RpcError::LIMIT_REACHED
         );
     }
 

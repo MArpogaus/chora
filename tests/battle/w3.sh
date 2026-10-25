@@ -2,11 +2,12 @@
 # W3: two window managers on two outputs, drag windows from XP (output 1)
 # across the edge into the tiling output, restart each WM.
 WF=w3; . "$(dirname "$0")/lib.sh"
-session_start "1280x800,1280x800+1280+0" sh -c "$bin/chora-xp --output HEADLESS-1 --theme flavors/xp/theme --no-sounds & $bin/chora-tiling --output HEADLESS-2 & wait" || exit 1
+# one supervise per plugin, so that `choractl restart` finds them (D42)
+session_start "1280x800,1280x800+1280+0" sh -c "$bin/choractl supervise xp -- $bin/chora-xp --output HEADLESS-1 --theme flavors/xp/theme --no-sounds & $bin/choractl supervise tiling -- $bin/chora-tiling --output HEADLESS-2 & wait" || exit 1
 
 for i in $(seq 5); do open $((i*30)) 120 $((255-i*30)) --server-deco; done
 wait_count "app_id:chora-probe kind:surface" 5 \
-  || finding "W3: $(count_windows) windows instead of 5" wrong "spawn 5 windows on two WMs"
+  || finding "W3: $(count_windows) windows instead of 5" wrong "run 5 windows on two WMs"
 health "5 windows on two WMs"
 owners() { ctl query "app_id:chora-probe kind:surface" | python3 -c 'import json,sys,collections
 c=collections.Counter(n["owner"] for n in json.load(sys.stdin))

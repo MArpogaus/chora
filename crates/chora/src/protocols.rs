@@ -284,9 +284,9 @@ fn token_allowed(client: &ClientState, serial: Option<u32>, focused: bool) -> bo
         || (focused && serial.is_some_and(|s| crate::security::last_press(client, s)))
 }
 
-/// How long a token of a client of a client socket may wait between
-/// creation and use.
-const MAX_TOKEN_AGE: std::time::Duration = std::time::Duration::from_secs(10);
+/// How long a token may wait between creation and use: for a client of a
+/// client socket, and for the unused tokens `choractl run` leaves behind.
+pub(crate) const MAX_TOKEN_AGE: std::time::Duration = std::time::Duration::from_secs(10);
 
 impl State {
     /// Whether a kept token may still activate: a token of a client of a
@@ -322,6 +322,18 @@ impl State {
 /// of at most 10 s.
 fn token_focused_and_fresh(focused: bool, age: std::time::Duration) -> bool {
     focused && age <= MAX_TOKEN_AGE
+}
+
+impl State {
+    /// The core forgets the unused tokens of no client that are older than
+    /// `max_age`. A program of `choractl run` activates at its start; a
+    /// token nobody used must not live for the life of the core. Tokens
+    /// with a client stay: that client decides when to use them.
+    pub(crate) fn forget_unused_tokens(&mut self, max_age: std::time::Duration) {
+        self.activation_state.retain_tokens(|_, data| {
+            data.client_id.is_some() || data.timestamp.elapsed() <= max_age
+        });
+    }
 }
 
 #[cfg(test)]

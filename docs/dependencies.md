@@ -11,6 +11,7 @@ check of each choice. [Decisions](decisions.md) records the result.
 | libinput, libseat, udev, GBM, Mesa | hardware access | through Smithay |
 | calloop | event loop | Smithay uses it; the IPC socket runs in the same loop |
 | [imbl](https://github.com/jneem/imbl) | the node map of the scene | a persistent map, so each transaction copies the scene in O(1) |
+| [cosmic-text](https://github.com/pop-os/cosmic-text) | the text node: font fallback, layout and raster through swash | 0.19; reads the font dirs from `CHORA_FONT_DIRS`; MIT OR Apache-2.0 |
 | serde, serde_json, thiserror | API types, JSON-RPC, error types | |
 | tracing, tracing-subscriber | logs | Smithay logs through tracing too |
 
@@ -21,10 +22,8 @@ check of each choice. [Decisions](decisions.md) records the result.
 | clap | command line arguments | also for the plugins |
 | serde-saphyr | views | strict YAML (D41) |
 | schemars | the JSON schemas of the MCP tools, from the types of `chora-scene` | |
-
-`choractl mcp` implements the stdio transport of MCP itself. Milestone 0.8
-replaces it with [rmcp](https://github.com/modelcontextprotocol/rust-sdk),
-the official Rust MCP SDK (D34).
+| [rmcp](https://github.com/modelcontextprotocol/rust-sdk) | the MCP server of `choractl mcp` | the official Rust MCP SDK (D34), with the features `server` and `transport-io`; MIT |
+| tokio | the async runtime under that server | answers the requests in parallel; the blocking core socket runs with `block_in_place`, the event wait with `spawn_blocking`; MIT |
 
 ## Plugins
 

@@ -1,3 +1,50 @@
+## v0.7.0-rc.2 (2026-10-25)
+
+### Feat
+
+- remove program start from the core
+- **ipc**: fix the capabilities of a client socket (D33, D40)
+- draw text nodes with cosmic-text and CHORA_FONT_DIRS
+- add the text node kind with its text and font props
+- **choractl**: supervise and restart a plugin without the core (T5)
+- **choractl**: run starts a program with an activation token (T4)
+- **ipc**: give every failure kind a stable error code
+- **ipc**: negotiate the protocol version in hello (D29)
+
+### Fix
+
+- **tests**: gate 4 says hello as agent from the container
+- **tests**: use the private mesa copy of the gates only where it exists
+- **text**: draw no text instead of panicking without any font
+- **ipc**: answer the protocol code for any protocol above u32
+- **ipc**: keep and restore client socket capabilities on create
+- **choractl**: one supervise per name, whole pid files, no orphan
+- **choractl**: run and restart on a login with user systemd
+- **text**: whole raster pixels, bounded caches, fallback last
+- **scene**: keep font_size between 1 and 1024
+- **ipc**: refuse activation tokens on client sockets, code 9
+- **tests**: gate 4 follows the client socket rule of T3
+- **text**: a space is laid out, not drawn, and stays quiet
+- **text**: draw a glyph with a fallback font when none inks it
+- **choractl**: the spawn alias warns on stderr again
+- **choractl**: run never starts twice nor prints pid 0
+- **query**: give rects only to what the renderer draws
+- premultiply color glyphs and default text color to white
+- keep text rasters per scale and cap the raster by bytes
+- **choractl**: keep the MCP tools and the wait correct under load
+- **choractl**: harden the MCP wait cancel and tool list retry
+- **battle**: keep detached probe pids in a file across subshells
+- **choractl**: end supervise without a stale pid file or orphan
+- **ipc**: expire unused activation tokens without new issuance
+- **run**: start programs without blocking, noise or leaked tokens
+- **ipc**: answer code 6 at the camera and image cache limits
+- **ipc**: answer code 6 at every limit site of the core
+- **ipc**: send features in hello and test the protocol warning
+
+### Refactor
+
+- **choractl**: serve MCP on rmcp with parallel requests
+
 ## v0.7.0-rc.1 (2026-10-24)
 
 ### Feat

@@ -65,32 +65,43 @@ impl Uploads {
     }
 
     /// Stores a file of a client, or replaces it, and returns its path.
-    pub fn put(&mut self, client: &str, name: &str, data: &[u8]) -> Result<PathBuf, String> {
-        check_name(name)?;
+    /// A limit of the assets answers with the limit code.
+    pub fn put(&mut self, client: &str, name: &str, data: &[u8]) -> Result<PathBuf, RpcError> {
+        check_name(name).map_err(rejected)?;
         // In hex, the name of the directory must stay within a path part.
         if client.len() > MAX_CLIENT_NAME {
-            return Err(format!(
-                "a client name of more than {MAX_CLIENT_NAME} bytes stores no assets"
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("a client name of more than {MAX_CLIENT_NAME} bytes stores no assets"),
             ));
         }
         if data.len() > MAX_FILE {
-            return Err(format!("{name} has more than {} KiB", MAX_FILE >> 10));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("{name} has more than {} KiB", MAX_FILE >> 10),
+            ));
         }
-        let root = self.dir.as_ref().ok_or("chora has no asset directory")?;
+        let root = self
+            .dir
+            .as_ref()
+            .ok_or_else(|| rejected("chora has no asset directory"))?;
         let old = self.files.get(client).and_then(|f| f.get(name)).copied();
         let count = self.files.get(client).map_or(0, HashMap::len);
         if old.is_none() && count >= MAX_FILES {
-            return Err(format!("a client has at most {MAX_FILES} assets"));
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("a client has at most {MAX_FILES} assets"),
+            ));
         }
         let total: usize = self.files.values().flat_map(HashMap::values).sum();
         if total - old.unwrap_or(0) + data.len() > MAX_TOTAL {
-            return Err(format!(
-                "all assets together have at most {} MiB",
-                MAX_TOTAL >> 20
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("all assets together have at most {} MiB", MAX_TOTAL >> 20),
             ));
         }
         let dir = root.join(hex(client));
-        let path = write(&dir, name, data).map_err(|e| format!("{name}: {e}"))?;
+        let path = write(&dir, name, data).map_err(|e| rejected(format!("{name}: {e}")))?;
         self.files
             .entry(client.to_string())
             .or_default()
@@ -199,11 +210,7 @@ impl State {
         let data = STANDARD.decode(&put.data).map_err(|e| {
             RpcError::new(RpcError::INVALID_PARAMS, format!("data is no base64: {e}"))
         })?;
-        let path = self
-            .ipc
-            .uploads
-            .put(&client, &put.name, &data)
-            .map_err(rejected)?;
+        let path = self.ipc.uploads.put(&client, &put.name, &data)?;
         let path = path
             .to_str()
             .ok_or_else(|| rejected("the asset directory is no UTF-8 path"))?;
@@ -263,11 +270,17 @@ mod tests {
     #[test]
     fn an_upload_beyond_the_size_or_file_limit_fails() {
         let (mut uploads, _dir) = uploads("limits");
-        assert!(uploads.put("agent", "big", &vec![0; MAX_FILE + 1]).is_err());
+        let error = uploads
+            .put("agent", "big", &vec![0; MAX_FILE + 1])
+            .expect_err("a file beyond the size limit");
+        assert_eq!(error.code, RpcError::LIMIT_REACHED);
         for i in 0..MAX_FILES {
             uploads.put("agent", &format!("{i}"), b"x").unwrap();
         }
-        assert!(uploads.put("agent", "one-more", b"x").is_err());
+        let error = uploads
+            .put("agent", "one-more", b"x")
+            .expect_err("a file beyond the count limit");
+        assert_eq!(error.code, RpcError::LIMIT_REACHED);
         assert!(
             uploads.put("agent", "0", b"y").is_ok(),
             "a replace needs no room"
