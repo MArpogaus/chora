@@ -196,16 +196,15 @@ fn activated(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     let activation = probe.activation.clone().ok_or("no xdg activation")?;
     let qh = queue.handle();
     // The token of `choractl run` wins over one of the probe's own (D42).
-    let token = match std::env::var("XDG_ACTIVATION_TOKEN") {
-        Ok(token) => token,
-        Err(_) => {
-            let token_obj = activation.get_activation_token(&qh, ());
-            token_obj.commit();
-            if !dispatch_until(queue, probe, TIMEOUT, |p| p.token.is_some()) {
-                return Err("no activation token".into());
-            }
-            probe.token.take().unwrap_or_default()
+    let token = if let Ok(token) = std::env::var("XDG_ACTIVATION_TOKEN") {
+        token
+    } else {
+        let token_obj = activation.get_activation_token(&qh, ());
+        token_obj.commit();
+        if !dispatch_until(queue, probe, TIMEOUT, |p| p.token.is_some()) {
+            return Err("no activation token".into());
         }
+        probe.token.take().unwrap_or_default()
     };
     let wm_base = probe.wm_base.clone().ok_or("no xdg shell")?;
     let surface = create_surface(probe, &qh)?;
