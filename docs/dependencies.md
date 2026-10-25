@@ -11,6 +11,7 @@ check of each choice. [Decisions](decisions.md) records the result.
 | libinput, libseat, udev, GBM, Mesa | hardware access | through Smithay |
 | calloop | event loop | Smithay uses it; the IPC socket runs in the same loop |
 | [imbl](https://github.com/jneem/imbl) | the node map of the scene | a persistent map, so each transaction copies the scene in O(1) |
+| [cosmic-text](https://github.com/pop-os/cosmic-text) | the text node: font fallback, layout and raster through swash | 0.19; reads the font dirs from `CHORA_FONT_DIRS`; MIT OR Apache-2.0 |
 | serde, serde_json, thiserror | API types, JSON-RPC, error types | |
 | tracing, tracing-subscriber | logs | Smithay logs through tracing too |
 
