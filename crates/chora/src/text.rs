@@ -263,8 +263,11 @@ fn paint_runs(
     let mut blank = 0;
     for run in buffer.layout_runs() {
         for glyph in run.glyphs {
-            let at = glyph.physical((0.0, run.line_y), 1.0);
             let word = run.text.get(glyph.start..glyph.end).unwrap_or("");
+            if word.trim().is_empty() {
+                continue; // a space lays out with no image and draws none
+            }
+            let at = glyph.physical((0.0, run.line_y), 1.0);
             let drawn = paint_glyph(
                 fonts,
                 rgba,
@@ -627,7 +630,7 @@ mod tests {
             return;
         }
         let node = text_node(Props {
-            text: Some("🙂".into()),
+            text: Some("🙂 🙂".into()),
             font_size: Some(40.0),
             ..Props::default()
         });
