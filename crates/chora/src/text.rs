@@ -9,7 +9,8 @@ use std::{collections::HashMap, sync::Mutex};
 
 use chora_scene::Node;
 use cosmic_text::{
-    Attrs, Buffer, Family, FontSystem, Metrics, Shaping, SwashCache, SwashContent, SwashImage,
+    Attrs, Buffer, CacheKey, CacheKeyFlags, Family, FontSystem, Metrics, Shaping, SwashCache,
+    SwashContent, SwashImage, fallback::FontFallbackIter,
 };
 use smithay::{
     backend::{
@@ -208,37 +209,144 @@ fn layout(fonts: &mut Fonts, key: &Key, scale: f32) -> Option<(Buffer, [f64; 2],
     ))
 }
 
-/// Rasterizes one key at a physical scale into premultiplied RGBA,
-/// next to the layout size in logical pixels and the raster size.
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+/// Rasterizes one key at a physical scale into premultiplied RGBA and
+/// wraps it in a render buffer.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_wrap
+)] // at most the raster limit
 fn rasterize(
     fonts: &mut Fonts,
     key: &Key,
     scale: f64,
 ) -> Option<([f64; 2], [f32; 2], MemoryRenderBuffer)> {
-    let color = straight(key.4.as_ref());
-    let (buffer, size, [width, height]) = layout(fonts, key, scale as f32)?;
-    let (w, h) = (width.ceil() as usize, height.ceil() as usize);
-    let mut rgba = vec![0; w * h * 4];
-    for run in buffer.layout_runs() {
-        for glyph in run.glyphs {
-            let at = glyph.physical((0.0, run.line_y), 1.0);
-            let Some(image) = fonts.swash.get_image(&mut fonts.system, at.cache_key) else {
-                continue;
-            };
-            blit(&mut rgba, (w, h), (at.x, at.y), image, color);
-        }
-    }
-    #[allow(clippy::cast_possible_wrap)] // at most the raster limit
+    let (size, [width, height], rgba) = paint(fonts, key, scale)?;
     let raster = MemoryRenderBuffer::from_slice(
         &rgba,
         Fourcc::Abgr8888,
-        (w as i32, h as i32),
+        (width as i32, height as i32),
         1,
         Transform::Normal,
         None,
     );
     Some((size, [width, height], raster))
+}
+
+/// Lays out one key at a physical scale and paints its glyphs into
+/// premultiplied RGBA, next to the layout size in logical pixels and
+/// the raster size.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn paint(fonts: &mut Fonts, key: &Key, scale: f64) -> Option<([f64; 2], [f32; 2], Vec<u8>)> {
+    let color = straight(key.4.as_ref());
+    let (buffer, size, [width, height]) = layout(fonts, key, scale as f32)?;
+    let (w, h) = (width.ceil() as usize, height.ceil() as usize);
+    let mut rgba = vec![0; w * h * 4];
+    let blank = paint_runs(fonts, &mut rgba, &buffer, (w, h), key.1.as_deref(), color);
+    if blank > 0 {
+        tracing::warn!(text = %key.0, blank, "glyphs laid out but drawn by no font");
+    }
+    Some((size, [width, height], rgba))
+}
+
+/// Paints all layout runs into the premultiplied RGBA buffer; the
+/// number of glyphs that no font drew.
+#[allow(clippy::too_many_arguments)]
+fn paint_runs(
+    fonts: &mut Fonts,
+    rgba: &mut [u8],
+    buffer: &Buffer,
+    raster: (usize, usize),
+    family: Option<&str>,
+    color: [u8; 4],
+) -> u32 {
+    let mut blank = 0;
+    for run in buffer.layout_runs() {
+        for glyph in run.glyphs {
+            let at = glyph.physical((0.0, run.line_y), 1.0);
+            let word = run.text.get(glyph.start..glyph.end).unwrap_or("");
+            let drawn = paint_glyph(
+                fonts,
+                rgba,
+                raster,
+                (at.x, at.y),
+                at.cache_key,
+                family,
+                word,
+                color,
+            );
+            blank += u32::from(!drawn);
+        }
+    }
+    blank
+}
+
+/// Draws one glyph into the raster; when the laid out font draws
+/// nothing for it, for example a `COLRv1` glyph, asks the other fonts
+/// of the database. Whether any pixel landed.
+#[allow(clippy::too_many_arguments)]
+fn paint_glyph(
+    fonts: &mut Fonts,
+    rgba: &mut [u8],
+    raster: (usize, usize),
+    at: (i32, i32),
+    cache_key: CacheKey,
+    family: Option<&str>,
+    word: &str,
+    color: [u8; 4],
+) -> bool {
+    for key in std::iter::once(cache_key).chain(redraw(fonts, family, word, cache_key)) {
+        if let Some(image) = inked(fonts.swash.get_image(&mut fonts.system, key).as_ref()) {
+            blit(rgba, raster, at, image, color);
+            return true;
+        }
+    }
+    false
+}
+
+/// An image with at least one pixel; swash answers an empty mask for
+/// a glyph it lays out but cannot draw.
+fn inked(image: Option<&SwashImage>) -> Option<&SwashImage> {
+    let image = image?;
+    (image.placement.width > 0 && image.placement.height > 0).then_some(image)
+}
+
+/// The same word in the other fonts of the database, in fallback
+/// order, as cache keys; empty when no other font has the first
+/// character of the word.
+fn redraw(fonts: &mut Fonts, family: Option<&str>, word: &str, from: CacheKey) -> Vec<CacheKey> {
+    let Some(first) = word.chars().next() else {
+        return Vec::new();
+    };
+    let attrs = Attrs::new().family(family.map_or(Family::SansSerif, Family::Name));
+    let matches = fonts.system.get_font_matches(&attrs);
+    let iter = FontFallbackIter::new(
+        &mut fonts.system,
+        &matches,
+        &[],
+        &[],
+        word,
+        from.font_weight,
+    );
+    let mut keys = Vec::new();
+    for font in iter {
+        if font.id() == from.font_id {
+            continue;
+        }
+        let glyph = font.as_swash().charmap().map(u32::from(first));
+        if glyph != 0 {
+            keys.push(CacheKey {
+                font_id: font.id(),
+                glyph_id: glyph,
+                font_size_bits: from.font_size_bits,
+                x_bin: from.x_bin,
+                y_bin: from.y_bin,
+                font_weight: from.font_weight,
+                flags: CacheKeyFlags::empty(),
+            });
+        }
+    }
+    keys
 }
 
 /// The node color as straight-alpha RGBA bytes, white by default.
@@ -510,6 +618,24 @@ mod tests {
             entry.rasters.contains_key(&2.0f64.to_bits()),
             "reading the size evicted the raster of scale 2"
         );
+    }
+
+    #[test]
+    fn an_emoji_node_inks_its_pixels() {
+        if !fonts_present() {
+            println!("SKIP: no fonts for the layout");
+            return;
+        }
+        let node = text_node(Props {
+            text: Some("🙂".into()),
+            font_size: Some(40.0),
+            ..Props::default()
+        });
+        let key = super::props_key(&node).expect("the props of a text node");
+        let mut fonts = super::Fonts::new();
+        let (_, _, rgba) = super::paint(&mut fonts, &key, 1.0).expect("a raster of the emoji");
+        let inked = rgba.chunks(4).filter(|px| px[3] > 0).count();
+        assert!(inked > 100, "the emoji node painted only {inked} pixels");
     }
 
     #[test]
