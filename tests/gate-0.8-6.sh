@@ -15,7 +15,7 @@ done
 need python3
 session_start 800x600 -- "$bin/chora-tiling"
 out=$(mcp_py <<'PY' 2>&1
-import json, os, socket, sys
+import json, os, socket, sys, time
 from gate_mcp import Mcp
 
 mcp = Mcp()
@@ -33,7 +33,14 @@ for i, (m, p) in enumerate([("hello", {"name": "gate-extra"}),
     lines.write(json.dumps({"jsonrpc": "2.0", "id": i, "method": m,
                             "params": p}) + "\n")
 lines.flush()
-tools = {t["name"] for t in mcp.request("tools/list")["tools"]}
+# The export arrives on a second core connection; retry tools/list
+# until it is in, so tools and list_plugins see the same state.
+tools = set()
+for _ in range(60):
+    tools = {t["name"] for t in mcp.request("tools/list")["tools"]}
+    if "gate-extra.ping_pong" in tools:
+        break
+    time.sleep(0.05)
 listed = {p["name"]: p for p in mcp.json("list_plugins")}
 missing = []
 for plugin in listed.values():

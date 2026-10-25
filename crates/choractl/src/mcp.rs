@@ -66,11 +66,12 @@ pub struct Core {
 
 /// The methods that change nothing, so that a call goes again after a lost
 /// connection.
-const READ_ONLY: [&str; 5] = [
+const READ_ONLY: [&str; 6] = [
     "scene.query",
     "output.list",
     "clients.list",
     "grants.list",
+    "methods.list",
     "screen.capture",
 ];
 
@@ -230,6 +231,10 @@ impl Mcp {
             let filled = Arc::clone(&subscription);
             let pending = spawn_blocking(move || filled.take(want.max(1), left.min(SLICE)));
             let taken = tokio::select! {
+                // First the finished `take`: it drains the buffer, so its
+                // events must not go to a cancel that arrives at the same
+                // instant as the last slice.
+                biased;
                 got = pending => got.map_err(|e| ErrorData::internal_error(e.to_string(), None))?,
                 () = context.ct.cancelled() => {
                     // rmcp swallows the answer of a cancelled call, so the
@@ -408,7 +413,7 @@ fn event_tools() -> Vec<Tool> {
         ),
         tool(
             "wait_events",
-            "The events that arrived since the last call, or the first one that arrives within the timeout. dropped counts events that a full buffer lost. A notifications/cancelled ends a waiting call with an error.",
+            "The events that arrived since the last call, or the first one that arrives within the timeout. dropped counts events that a full buffer lost. A notifications/cancelled ends the wait without an answer.",
             &json!({
                 "timeout_ms": {"type": "integer", "description": "how long to wait for the first event; 5000 by default, at most 30000"},
                 "max": {"type": "integer", "description": "the most events to return; 50 by default, at most 500"},
@@ -859,6 +864,11 @@ mod tests {
             Some("Call tiling.give.")
         );
         assert_eq!(exported[1].input_schema["type"], "object");
+    }
+
+    #[test]
+    fn the_tool_list_of_the_core_goes_again_when_lost() {
+        assert!(READ_ONLY.contains(&"methods.list"), "{READ_ONLY:?}");
     }
 
     #[test]

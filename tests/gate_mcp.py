@@ -12,14 +12,15 @@ import sys
 
 
 class Mcp:
-    def __init__(self, choractl=None):
+    def __init__(self, choractl=None, stderr=None):
         ctl = choractl or os.path.join(
             os.environ.get("BIN") or os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "target/debug"), "choractl")
         self.server = subprocess.Popen(
             [ctl, "--name", "agent", "mcp"],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=stderr, text=True)
         self.n = 0
         self.request("initialize", {
             "protocolVersion": "2025-06-18", "capabilities": {},

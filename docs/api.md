@@ -954,7 +954,7 @@ JSON-RPC error.
 
 Every method that a plugin exports is a tool of its own, named
 `client.method`, with the description and the input schema of the
-export; `call_method` stays for the general case. The tool list answers
+export. `call_method` stays for the general case. The tool list answers
 fresh on every `tools/list`, so a later `methods.export` needs no
 restart.
 
