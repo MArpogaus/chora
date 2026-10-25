@@ -98,13 +98,10 @@ impl State {
         }
         let change: GrantChange = crate::ipc::params_of(params)?;
         if self.ipc.has_socket(&change.client) {
-            return Err(RpcError::new(
-                RpcError::NAME_TAKEN,
-                format!(
-                    "{:?} has a client socket: change clients.yaml and run choractl clients up",
-                    change.client
-                ),
-            ));
+            return Err(crate::ipc::socket_rule(format!(
+                "{:?} has a client socket: change clients.yaml and run choractl clients up",
+                change.client
+            )));
         }
         tracing::info!(method, client = change.client, capabilities = ?change.capabilities);
         if method == "grants.set" {
@@ -132,7 +129,13 @@ impl State {
         } else {
             Err(RpcError::new(
                 RpcError::MISSING_CAPABILITY,
-                format!("{capability} needs a grant: choractl grant {name} {capability}"),
+                if self.ipc.has_socket(name) {
+                    format!(
+                        "{capability} needs a grant: add it to {name} in clients.yaml and run choractl clients up"
+                    )
+                } else {
+                    format!("{capability} needs a grant: choractl grant {name} {capability}")
+                },
             ))
         }
     }

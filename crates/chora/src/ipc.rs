@@ -768,7 +768,7 @@ impl State {
             "screen.capture" => self.ipc_capture(conn, params),
             "input.inject" => self.ipc_inject(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
-            "activation.token" => Ok(self.ipc_activation_token()),
+            "activation.token" => self.ipc_activation_token(conn),
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
             }
@@ -782,13 +782,20 @@ impl State {
     /// A token for `choractl run` (D42): an xdg activation token of no
     /// client, so that the started program can activate with it. A use
     /// ends the token; an unused token of no client is forgotten after
-    /// `MAX_TOKEN_AGE`, by its own deadline and by every new token.
-    fn ipc_activation_token(&mut self) -> Value {
+    /// `MAX_TOKEN_AGE`, by its own deadline and by every new token. A
+    /// client socket gets none: such a token skips the focus rule of its
+    /// own tokens.
+    fn ipc_activation_token(&mut self, conn: u64) -> Result<Value, RpcError> {
+        if self.ipc.fixed(conn).is_some() {
+            return Err(socket_rule(
+                "a client socket asks its Wayland connection for activation tokens",
+            ));
+        }
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
         let (token, _) = self.activation_state.create_external_token(None);
         let token = token.as_str().to_owned();
         let _ = self.expire_at(self.time.now() + crate::protocols::MAX_TOKEN_AGE);
-        serde_json::json!({"token": token})
+        Ok(serde_json::json!({"token": token}))
     }
 
     /// Streams the named events, or all of them for an empty list. An
@@ -853,7 +860,7 @@ impl State {
         // A client socket fixes the name (D33).
         match self.ipc.fixed(conn) {
             Some(fixed) if fixed != hello.name => {
-                return Err(rejected(format!("this socket belongs to {fixed:?}")));
+                return Err(socket_rule(format!("this socket belongs to {fixed:?}")));
             }
             None if self.ipc.clients.contains_key(&hello.name) => {
                 return Err(name_taken(format!(
@@ -1251,6 +1258,11 @@ pub fn rejected(message: impl Into<String>) -> RpcError {
 
 fn name_taken(message: impl Into<String>) -> RpcError {
     RpcError::new(RpcError::NAME_TAKEN, message)
+}
+
+/// A refusal by a rule of client sockets (D33).
+pub fn socket_rule(message: impl Into<String>) -> RpcError {
+    RpcError::new(RpcError::CLIENT_SOCKET_RULE, message)
 }
 
 /// The box of a layer node on the screen: the points of its mesh, or the
@@ -2066,6 +2078,20 @@ mod tests {
         let (error_code, message) = agent.fails(&mut core, "grants.set", grant);
         assert_eq!(error_code, RpcError::ADMIN_SOCKET_ONLY);
         assert!(message.contains("only on the admin socket"), "{message}");
+    }
+
+    /// A client socket asks for no activation token over IPC: such a
+    /// token belongs to no client and would skip the focus rule of its
+    /// own tokens.
+    #[test]
+    fn a_client_socket_gets_no_activation_token() {
+        let (mut core, dir) = socket_dir("token");
+        let mut admin = core.admin();
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let (error_code, _) = agent.fails(&mut core, "activation.token", Value::Null);
+        assert_eq!(error_code, RpcError::CLIENT_SOCKET_RULE);
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

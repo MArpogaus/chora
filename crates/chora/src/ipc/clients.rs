@@ -25,7 +25,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use smithay::reexports::calloop::{Interest, Mode, PostAction, generic::Generic};
 
-use super::{RpcError, Socket, private_dir, rejected};
+use super::{RpcError, Socket, private_dir, rejected, socket_rule};
 use crate::state::{ClientState, Slot, State};
 
 /// The most client sockets.
@@ -259,7 +259,7 @@ impl State {
             })
             .find(|path| !self.ipc.uploads.owns(name, Path::new(path)));
         match foreign {
-            Some(path) => Err(rejected(format!(
+            Some(path) => Err(socket_rule(format!(
                 "{path:?}: a client socket names only its own assets"
             ))),
             None => Ok(()),
@@ -274,7 +274,7 @@ impl State {
         };
         for (index, command) in commands.iter().enumerate() {
             self.confine_one(&name, command)
-                .map_err(|e| rejected(e).with_data(json!({"command": index})))?;
+                .map_err(|e| socket_rule(e).with_data(json!({"command": index})))?;
         }
         Ok(())
     }

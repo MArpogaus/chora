@@ -368,7 +368,7 @@ answers every request.
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket; a name with a client socket answers code 7 instead, because its capabilities live in `clients.yaml` |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket; a name with a client socket answers code 9 instead, because its capabilities live in `clients.yaml` |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket, changed ones recreate it; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
@@ -379,7 +379,7 @@ answers every request.
 | `methods.list` | list the methods that clients exported, each with its description and input schema |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
 | `methods.return(call, result, error)` | answer a `method.called` event |
-| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s |
+| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket gets code 9 |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
@@ -517,6 +517,7 @@ message.
 | 6 | a limit of the core is reached | a request longer than 1 MiB |
 | 7 | a client name that is taken | a `hello` with a name that has a client socket |
 | 8 | a method of the admin socket | `grants.set` on the main socket |
+| 9 | a rule of client sockets | a `hello` with another name on `clients/agent/ipc.sock` |
 
 Code 1 stays for every refusal the table has no own code for, for
 example a scene rule. The message always names the rule. A plugin can
@@ -590,8 +591,9 @@ in. `choractl clients create agent` prints its path:
 - It cannot change grants or make client sockets, as these need the
   admin socket.
 - It fixes the name, confines the files and narrows the scene. On it,
-  `scene.apply` follows these rules. A refusal has code 1, 2, 5 or 6,
-  names its rule and carries the index of the command in `data`:
+  `scene.apply` follows these rules. A refusal by one of them has code 9,
+  names its rule and carries the index of the command in `data`. The
+  rules of the scene keep codes 1, 2, 5 and 6:
   - `focus_node` with a node needs the last press of the user on a node
     or a window of the name. The press counts once, and a key press
     ends it.
@@ -608,8 +610,11 @@ in. `choractl clients create agent` prints its path:
 - The socket has exactly the capabilities of its `clients.create`; the
   other methods answer by them. A process that may use the socket
   drives the session as far as they reach.
-- `grants.set` and `grants.revoke` answer code 7 for the name: change
+- `grants.set` and `grants.revoke` answer code 9 for the name: change
   `clients.yaml` and run `choractl clients up`.
+- `activation.token` answers code 9. A window of its `wayland.sock`
+  asks for tokens through `xdg-activation`, under the focus rules
+  above.
 - Its `image`, `shader` and effect paths name only its own files of
   `assets.put`. The main socket has no such rule: a client of it runs as
   the same account as the core and could read those files anyway.

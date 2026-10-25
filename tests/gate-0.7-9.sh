@@ -22,6 +22,7 @@ test_for() {
     6) echo an_answer_beyond_the_output_limit_is_an_error ;;
     7) echo a_second_hello_of_a_live_name_answers_name_taken ;;
     8) echo an_admin_method_off_the_admin_socket_answers_its_code ;;
+    9) echo a_client_socket_gets_no_activation_token ;;
     esac
 }
 

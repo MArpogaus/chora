@@ -921,7 +921,7 @@ fn the_spy_of_the_review_fails() {
     let camera = scene.camera("A").is_some();
     drop(core);
     std::fs::remove_dir_all(&dir).unwrap();
-    assert_eq!(error, 1);
+    assert_eq!(error, RpcError::CLIENT_SOCKET_RULE);
     assert!(message.contains("no screen:* parents"), "{message}");
     assert_eq!(left, (false, false), "no spy and no keyboard");
     assert!(!camera, "no camera");
@@ -978,7 +978,7 @@ fn a_client_socket_has_the_capabilities_of_its_file() {
 }
 
 /// The capabilities of a name with a client socket are the file's job:
-/// `grants.set` and `grants.revoke` answer the taken-name code with the
+/// `grants.set` and `grants.revoke` answer the client-socket code with the
 /// hint to change `clients.yaml`, the list of `grants.list` stays what
 /// the create gave, and a create with other capabilities recreates the
 /// socket at the same path.
@@ -994,13 +994,13 @@ fn the_grants_of_a_client_socket_name_point_at_the_file() {
     let path = PathBuf::from(created["path"].as_str().unwrap());
     let caps = json!({"client": "agent", "capabilities": ["input.inject"]});
     let (error_code, message) = admin.fails(&mut core, "grants.set", caps.clone());
-    assert_eq!(error_code, RpcError::NAME_TAKEN);
+    assert_eq!(error_code, RpcError::CLIENT_SOCKET_RULE);
     assert!(
         message.contains("change clients.yaml and run choractl clients up"),
         "{message}",
     );
     let (error_code, _) = admin.fails(&mut core, "grants.revoke", caps);
-    assert_eq!(error_code, RpcError::NAME_TAKEN);
+    assert_eq!(error_code, RpcError::CLIENT_SOCKET_RULE);
     assert_eq!(
         admin.ok(&mut core, "grants.list", json!({})),
         json!({"agent": ["screen.capture"]}),
