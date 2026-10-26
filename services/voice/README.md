@@ -63,7 +63,7 @@ choractl grant voice screen.capture input.inject activation.token
 ```
 
 Settings are environment variables, in `~/.config/gufo/agent.env` for
-the service: `ASR_URL`, `TTS_URL`, `LLM_URL`, `MODEL`, `RMS_SPEECH`,
+the service: `ASR_URL`, `TTS_URL`, `LLM_URL`, `MODEL`, `LANGUAGE`, `RMS_SPEECH`,
 `SILENCE_MS`, `SETTLE_MS`, `RMS_BARGE_IN`, `BARGE_MS`, `PTT_KEY`,
 `CHORA_NAME`, `CODER_CMD` and `SYSTEM`.
 

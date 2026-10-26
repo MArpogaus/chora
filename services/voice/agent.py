@@ -42,6 +42,7 @@ ASR_URL = ENV("ASR_URL", "ws://127.0.0.1:8881/v1/realtime?intent=transcription")
 TTS_URL = ENV("TTS_URL", "http://127.0.0.1:8882")
 LLM_URL = ENV("LLM_URL", "http://127.0.0.1:8888/v1")
 MODEL = ENV("MODEL", "gufo")  # the served name of all three models
+LANGUAGE = ENV("LANGUAGE", "de")  # of the ASR; without it, it guesses
 RMS_SPEECH = int(ENV("RMS_SPEECH", "5000"))
 SILENCE_MS = int(ENV("SILENCE_MS", "700"))
 SETTLE_MS = int(ENV("SETTLE_MS", "300"))  # quiet before a turn may start
@@ -53,8 +54,9 @@ PTT_KEY = ENV("PTT_KEY", "Super+v")  # chora reports its release with Super
 CHORA_NAME = ENV("CHORA_NAME", "voice")  # the client name of the agent
 CODER_CMD = ENV("CODER_CMD", "")  # for example "pi -p" or "claude -p"
 SYSTEM = ENV("SYSTEM", (
-    "You are a voice assistant on a Linux desktop named chora. Answer in one "
-    "or two short spoken sentences, without markdown. Use the tools to look "
+    "You are a voice assistant on a Linux desktop named chora. Answer in the "
+    "language of the user, in one or two short spoken sentences, without "
+    "markdown. Use the tools to look "
     "at and change the desktop. Hand a task that needs code or many steps to "
     "delegate, then say that it runs."))
 
@@ -144,7 +146,8 @@ async def tts(http, text):
                 if "error" in kind:
                     log("tts:", msg.data[:200])
                     return
-                if kind.endswith("done"):
+                # audio.done ends a sentence, session.done the reply.
+                if kind == "session.done":
                     return
                 # Some servers send the PCM as base64 in a text event.
                 if isinstance(event.get("audio"), str):
@@ -169,7 +172,7 @@ async def transcribe(http, pcm):
         await ws.send_json({"type": "session.update", "session": {
             "type": "transcription",
             "audio": {"input": {"format": {"type": "audio/pcm", "rate": RATE},
-                                "transcription": {"model": MODEL},
+                                "transcription": {"model": MODEL, "language": LANGUAGE},
                                 "turn_detection": None}}}})
         for i in range(0, len(pcm), FRAME_BYTES):
             chunk = base64.b64encode(pcm[i:i + FRAME_BYTES]).decode()
@@ -353,6 +356,7 @@ async def record(ptt, preroll=b""):
     frames, quiet, speaking, pushed, settled, waited = [], 0, False, False, 0, 0
     if preroll:  # a barge-in: the user talks already
         frames, speaking, settled = [preroll], True, SETTLE_MS // FRAME_MS
+    log("listening")
     proc = await mic()
     try:
         while True:
