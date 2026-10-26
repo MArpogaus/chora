@@ -1,6 +1,4 @@
 # Gufo llm server on the AMD GPU, the systemd form of gufo.sh llm.
-# Another model: systemctl --user edit gufo-llm, then a [Container]
-# section with an empty Exec= line and a new Exec= line.
 
 [Unit]
 Description=Gufo llm server (port 8888)
@@ -16,7 +14,6 @@ Device=/dev/dri
 UserNS=keep-id
 GroupAdd=keep-groups
 ReadOnly=true
-Tmpfs=/tmp
 DropCapability=all
 NoNewPrivileges=true
 SecurityLabelDisable=true

@@ -8,10 +8,9 @@
 agent.py                 the conversation loop (default)
 agent.py roundtrip [T]   TTS speaks T into ASR, the LLM answers, TTS plays
 agent.py tts [TEXT]      text -> TTS -> speaker
-agent.py asr FILE        PCM or WAV file -> ASR -> transcript
+agent.py asr FILE        raw PCM file -> ASR -> transcript
 agent.py levels          live mic level, to tune RMS_SPEECH
 agent.py tools           the tools the LLM gets from chora and this agent
-agent.py ptt             print the push-to-talk key as chora reports it
 
 A turn starts when the mic level passes RMS_SPEECH and ends after
 SILENCE_MS of quiet. While PTT_KEY is held in chora, the agent records
@@ -33,7 +32,7 @@ import sys
 from contextlib import AsyncExitStack
 
 import aiohttp
-from mcp import ClientSession, StdioServerParameters
+from mcp import ClientSession, MCPError, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 ENV = os.environ.get
@@ -95,10 +94,16 @@ async def play(pcm_chunks):
 
 # --- speech servers ----------------------------------------------------
 
+VOICES = []  # the voices of the TTS server, asked for once
+SPEAKING = asyncio.Lock()  # one voice at a time: replies and delegate results
+
+
 async def tts(http, text):
     """Yields the PCM of TEXT from the TTS websocket."""
-    async with http.get(f"{TTS_URL}/v1/audio/voices") as r:
-        voice = (await r.json())["data"][0]["id"]
+    if not VOICES:
+        async with http.get(f"{TTS_URL}/v1/audio/voices") as r:
+            VOICES.extend(v["id"] for v in (await r.json())["data"])
+    voice = VOICES[0]
     url = TTS_URL.replace("http", "ws", 1) + "/v1/audio/speech/stream"
     async with http.ws_connect(url) as ws:
         # The server refuses stream_audio without response_format pcm.
@@ -130,7 +135,8 @@ async def tts(http, text):
 
 async def speak(http, text):
     log(f"agent: {text}")
-    await play(tts(http, text))
+    async with SPEAKING:
+        await play(tts(http, text))
 
 
 async def transcribe(http, pcm):
@@ -206,13 +212,16 @@ class Tools:
 
     async def run_coder(self, task, cwd):
         log(f"delegate in {cwd}: {task}")
-        proc = await asyncio.create_subprocess_exec(
-            *shlex.split(CODER_CMD), task, cwd=cwd,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
-        out, _ = await proc.communicate()
-        lines = [l for l in out.decode(errors="replace").splitlines() if l.strip()]
-        last = lines[-1][:200] if lines else "no output"
-        state = "is done" if proc.returncode == 0 else "failed"
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *shlex.split(CODER_CMD), task, cwd=cwd,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+            out, _ = await proc.communicate()
+            lines = [l for l in out.decode(errors="replace").splitlines() if l.strip()]
+            last = lines[-1][:200] if lines else "no output"
+            state = "is done" if proc.returncode == 0 else "failed"
+        except OSError as err:
+            last, state = str(err), "did not start"
         try:
             await speak(self.http, f"The coding task {state}. {last}")
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
@@ -254,7 +263,6 @@ class PushToTalk:
     def __init__(self, session):
         self.session = session
         self.held = asyncio.Event()
-        self.up = asyncio.Event()
 
     async def watch(self):
         args = {"events": ["input.key"], "keys": [PTT_KEY]}
@@ -268,33 +276,37 @@ class PushToTalk:
             for c in result.content:
                 if c.type != "text":
                     continue
-                for event in json.loads(c.text).get("events", []):
+                batch = json.loads(c.text)
+                for event in batch.get("events", []):
                     if event.get("binding") != binding:
                         continue
-                    if event.get("state") == "pressed" and not self.held.is_set():
-                        self.up.clear()
+                    if event.get("state") == "pressed":
                         self.held.set()
                     elif event.get("state") == "released":
                         self.held.clear()
-                        self.up.set()
+                if batch.get("ended"):
+                    # chora ended the subscription, for example at a restart.
+                    self.held.clear()
+                    log(f"push-to-talk ended: {batch['ended']}")
+                    return
 
 
 async def record(ptt):
     """Records one turn: by level, or while the push-to-talk key is held."""
-    frames, quiet, speaking = [], 0, False
+    frames, quiet, speaking, pushed = [], 0, False, False
     proc = await mic()
     try:
         while True:
             frame = await proc.stdout.readexactly(FRAME_BYTES)
             held = ptt is not None and ptt.held.is_set()
+            pushed = pushed or held
             loud = rms(frame) >= RMS_SPEECH
             speaking = speaking or loud or held
             if speaking:
                 frames.append(frame)
             if held:
                 quiet = 0
-            elif ptt is not None and ptt.up.is_set() and frames:
-                ptt.up.clear()
+            elif pushed:
                 return b"".join(frames)
             else:
                 quiet = 0 if loud else quiet + 1
@@ -326,22 +338,33 @@ async def run_loop(http, stack, args):
     session = await chora(stack)
     tools = Tools(session, http)
     await tools.load()
-    ptt = None
+    ptt = watch = None
     if session and PTT_KEY:
         ptt = PushToTalk(session)
-        asyncio.create_task(ptt.watch())
+        watch = asyncio.create_task(ptt.watch())
+        watch.add_done_callback(lambda t: t.cancelled() or t.exception() and log(
+            f"push-to-talk failed: {t.exception()}"))
     history = [{"role": "system", "content": SYSTEM}]
     log(f"listening; level {RMS_SPEECH}, push-to-talk {PTT_KEY if ptt else 'off'}")
     while True:
-        said = await transcribe(http, await record(ptt))
-        log(f"you: {said}")
-        if not said:
-            continue
-        history.append({"role": "user", "content": said})
-        reply = await answer(http, tools, history)
+        # A failed server or tool costs one turn, not the conversation.
+        try:
+            said = await transcribe(http, await record(ptt))
+            log(f"you: {said}")
+            if not said:
+                continue
+            history.append({"role": "user", "content": said})
+            reply = await answer(http, tools, history)
+            if reply:
+                await speak(http, reply)
+        except (aiohttp.ClientError, asyncio.TimeoutError, KeyError, ValueError,
+                MCPError) as err:
+            log(f"turn failed: {err!r}")
+        # Keep the last turns; the kept part starts with a user message, so
+        # no tool result loses the call it answers.
         del history[1:-HISTORY]
-        if reply:
-            await speak(http, reply)
+        while len(history) > 1 and history[1]["role"] != "user":
+            del history[1]
 
 
 async def run_roundtrip(http, stack, args):
@@ -360,10 +383,7 @@ async def run_tts(http, stack, args):
 
 
 async def run_asr(http, stack, args):
-    pcm = open(args.file, "rb").read()
-    if pcm[:4] == b"RIFF":
-        pcm = pcm[44:]
-    print(await transcribe(http, pcm))
+    print(await transcribe(http, open(args.file, "rb").read()))
 
 
 async def run_levels(http, stack, args):
@@ -386,21 +406,6 @@ async def run_tools(http, stack, args):
         print(spec["function"]["name"])
 
 
-async def run_ptt(http, stack, args):
-    session = await chora(stack)
-    if not session:
-        sys.exit("push-to-talk needs chora")
-    ptt = PushToTalk(session)
-    watch = asyncio.create_task(ptt.watch())
-    print(f"hold {PTT_KEY}", flush=True)
-    while not watch.done():
-        await ptt.held.wait()
-        print("held", flush=True)
-        await ptt.up.wait()
-        print("up", flush=True)
-    await watch
-
-
 async def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -409,10 +414,11 @@ async def main():
         cmd = sub.add_parser(name)
         cmd.add_argument("text", nargs="*")
         cmd.set_defaults(func=func)
-    sub.add_parser("asr").add_argument("file")
-    for name, func in [("levels", run_levels), ("tools", run_tools), ("ptt", run_ptt)]:
+    asr = sub.add_parser("asr")
+    asr.add_argument("file")
+    asr.set_defaults(func=run_asr)
+    for name, func in [("levels", run_levels), ("tools", run_tools)]:
         sub.add_parser(name).set_defaults(func=func)
-    sub.choices["asr"].set_defaults(func=run_asr)
     args = p.parse_args()
     func = getattr(args, "func", run_loop)
     async with aiohttp.ClientSession() as http, AsyncExitStack() as stack:

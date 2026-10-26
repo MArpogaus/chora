@@ -1,12 +1,12 @@
-# The voice agent as a user service. It needs the PipeWire of the
-# session and uv on PATH; settings go into ~/.config/gufo/agent.env.
+# The voice agent as a user service of the graphical session, which
+# brings PipeWire and, under chora, CHORA_SOCKET. Settings go into
+# ~/.config/gufo/agent.env.
 
 [Unit]
 Description=Chora voice agent
+PartOf=graphical-session.target
 Wants=gufo-asr.service gufo-tts.service gufo-llm.service
-After=gufo-asr.service gufo-tts.service gufo-llm.service
-StartLimitIntervalSec=120
-StartLimitBurst=5
+After=graphical-session.target gufo-asr.service gufo-tts.service gufo-llm.service
 
 [Service]
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
@@ -16,4 +16,4 @@ Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target
