@@ -170,7 +170,7 @@ Gate:
 7. The core has no code that forks a process except the startup command.
 8. `choractl run foot` starts foot in a transient systemd unit of its
    own, and the `surface.created` event of its window carries the
-   activation token. Without a user systemd, the same command starts foot
+   activation token. Without a user manager, the same command starts foot
    directly.
 9. Each error code of the API has a test that provokes it.
 10. The battle workflows in `tests/battle/` pass with `choractl wait`, the

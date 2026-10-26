@@ -1,8 +1,8 @@
 //! The one program the core starts: the startup command (D30). It gets
 //! the environment of the core, with `WAYLAND_DISPLAY` and `CHORA_SOCKET`
 //! of this compositor and without the variables of a host session. Every
-//! other program comes from `choractl run` outside the core (D42); the
-//! core forks nothing else (gate check 7 of 0.7).
+//! other program comes from `choractl run` or a systemd unit outside the
+//! core (D42); the core forks nothing else (gate check 7 of 0.7).
 
 use std::{
     ffi::OsStr,

@@ -73,8 +73,8 @@ impl Grants {
     }
 
     /// Revokes the grants of every client that holds only capabilities
-    /// agents work with (D23), which all capabilities are. Returns the
-    /// names, so the caller can end what the grants gave these clients.
+    /// that agents work with (D23); all capabilities are such. Returns
+    /// the names, so the caller can end what the grants gave them.
     pub fn revoke_agents(&mut self) -> Vec<String> {
         let names: Vec<String> = self
             .0

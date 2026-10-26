@@ -368,7 +368,7 @@ answers every request.
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket; they answer code 9 for a name with a client socket, because its capabilities live in `clients.yaml`; `methods.call` and `activation.token` change nothing for a name of the main socket |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. `methods.call` and `activation.token` change nothing for a name of the main socket. |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
@@ -694,8 +694,9 @@ asks the core for an activation token with `activation.token` and
 passes it to the program in `XDG_ACTIVATION_TOKEN`. It prints the pid,
 the unit and the token as one JSON line while the program runs.
 
-- When `systemctl --user is-system-running` answers, `systemd-run --user`
-  starts the program in the transient unit `chora-run-PID-TIME.service`.
+- When `systemctl --user is-system-running` shows a state other than
+  `offline`, a user manager runs. `systemd-run --user` then starts the
+  program in the transient unit `chora-run-PID-TIME.service`.
   `journalctl --user -u UNIT` shows its output. The unit lives until the
   last process in it ends, so an app that a launcher starts lives on.
   The arguments reach the program literally, without the expansion of
@@ -889,9 +890,11 @@ configure: set_layout
 a plugin that does not run with `exec`, and passes the `config` of the view
 to the method in `configure` (see
 [Configuration](configuration.md#plugin-manifests)). The start goes
-through `choractl run`. With a user systemd, the unit
+through `choractl run`. With a user manager, the unit
 `chora-NAME.service` restarts the plugin when it fails. A flavor starts
-its plugins as its own systemd units instead.
+its plugins as its own systemd units instead. When a flavor linked a
+unit of that name in this boot, `systemd-run` refuses the view unit, and
+the view does not start the plugin.
 
 ## MCP tools
 

@@ -20,8 +20,8 @@ use crate::{Command, Event};
 pub const SOCKET_ENV: &str = "CHORA_SOCKET";
 
 /// Variables of a host session that would let a program of chora reach
-/// the host compositor instead; the startup command of the core and the
-/// units of `choractl run` drop them.
+/// the host compositor instead. The startup command of the core drops
+/// them, and the units of `choractl run` take them only from the caller.
 pub const HOST_VARIABLES: [&str; 6] = [
     "WAYLAND_SOCKET",
     "DISPLAY",
