@@ -490,13 +490,6 @@ pub(crate) fn run_program(
     if argv.is_empty() {
         return Err(ClientError::Io(std::io::Error::other("no program")));
     }
-    let answer: Value = client.call("activation.token", Value::Null)?;
-    let Some(token) = answer["token"].as_str().map(str::to_owned) else {
-        return Err(ClientError::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "the core answered no activation token",
-        )));
-    };
     let unit = plugin.map_or_else(
         || {
             let now = std::time::SystemTime::now()
@@ -510,6 +503,17 @@ pub(crate) fn run_program(
         },
         view_unit,
     );
+    // A plugin that starts, or waits for its restart, has its unit already.
+    if plugin.is_some() && matches!(unit_state(&unit).as_str(), "active" | "activating") {
+        return Ok(serde_json::json!({ "pid": null, "unit": unit, "token": null }));
+    }
+    let answer: Value = client.call("activation.token", Value::Null)?;
+    let Some(token) = answer["token"].as_str().map(str::to_owned) else {
+        return Err(ClientError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "the core answered no activation token",
+        )));
+    };
     let (pid, unit) = match systemd_unit(argv, &token, &unit, plugin.is_some()) {
         RunStart::Unit(pid) => (Some(pid), Some(unit)),
         RunStart::NoManager => (
@@ -656,6 +660,16 @@ fn view_unit(name: &str) -> String {
     format!("chora-{name}-{:08x}.service", hash >> 32)
 }
 
+/// The `ActiveState` of a systemd user unit; empty without a manager.
+fn unit_state(unit: &str) -> String {
+    std::process::Command::new("systemctl")
+        .args(["--user", "show", "--property=ActiveState", "--value", unit])
+        .stderr(std::process::Stdio::null())
+        .output()
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
+        .unwrap_or_default()
+}
+
 /// Whether a user manager runs. Without one, as in a container or a
 /// chroot, systemctl answers `offline` or nothing.
 fn manager_runs() -> bool {
@@ -696,12 +710,7 @@ fn restart_program(name: &str) -> Result<(), String> {
     // A plain restart would also start a plugin that does not run.
     let unit = units
         .iter()
-        .find(|unit| {
-            std::process::Command::new("systemctl")
-                .args(["--user", "is-active", "--quiet", unit])
-                .status()
-                .is_ok_and(|s| s.success())
-        })
+        .find(|unit| unit_state(unit) == "active")
         .ok_or_else(|| format!("{name}: no active unit {}", units.join(" or ")))?;
     let restarted = std::process::Command::new("systemctl")
         .args(["--user", "restart", unit])
