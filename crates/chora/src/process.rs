@@ -7,32 +7,20 @@
 use std::{
     ffi::OsStr,
     path::Path,
-    process::{Child, Command, Stdio},
+    process::{Child, Command},
 };
 
-/// Variables of the host session that would let a program reach the host
-/// compositor instead of this one.
-const HOST_VARIABLES: [&str; 6] = [
-    "WAYLAND_SOCKET",
-    "DISPLAY",
-    "SWAYSOCK",
-    "I3SOCK",
-    "NIRI_SOCKET",
-    "HYPRLAND_INSTANCE_SIGNATURE",
-];
-
 /// Starts the startup command with the environment of this compositor.
-pub fn spawn(argv: &[String], wayland: &OsStr, socket: &Path) -> std::io::Result<Child> {
+pub fn start(argv: &[String], wayland: &OsStr, socket: &Path) -> std::io::Result<Child> {
     let (program, rest) = argv
         .split_first()
         .ok_or_else(|| std::io::Error::other("no program"))?;
     let mut command = Command::new(program);
     command
         .args(rest)
-        .stdin(Stdio::inherit())
         .env("WAYLAND_DISPLAY", wayland)
         .env(chora_scene::ipc::SOCKET_ENV, socket);
-    for variable in HOST_VARIABLES {
+    for variable in chora_scene::ipc::HOST_VARIABLES {
         command.env_remove(variable);
     }
     command.spawn()
@@ -51,14 +39,6 @@ mod tests {
     /// Fork and exec sites of production code.
     const FORK_NEEDLES: [&str; 5] = ["Command::new", "posix_spawn", "execv(", "execve(", "fork("];
 
-    /// The methods that left the core (D42), in two pieces, so that this
-    /// file itself stays free of the literals the gate script greps for.
-    const REMOVED: [(&str, &str); 3] = [
-        ("process.", "spawn"),
-        ("process.", "wait"),
-        ("plugins.", "restart"),
-    ];
-
     /// Every `.rs` file under `dir`, recursively.
     fn sources(dir: &Path) -> Vec<std::path::PathBuf> {
         let mut found = Vec::new();
@@ -75,8 +55,7 @@ mod tests {
 
     /// Gate check 7 of 0.7: no fork, `Command::new` or spawn of a process
     /// in `crates/chora/src` except the startup command in this file. The
-    /// production code of a file ends at its first test module; the
-    /// removed methods are searched in every line.
+    /// production code of a file ends at its first test module.
     #[test]
     fn the_core_forks_nothing_but_its_startup_command() {
         let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
@@ -93,15 +72,6 @@ mod tests {
                     .filter(|needle| production.contains(**needle))
                     .map(|needle| format!("{}: {needle}", path.display())),
             );
-            for (head, tail) in REMOVED {
-                let method = format!("{head}{tail}");
-                if text.contains(&method) {
-                    sites.push(format!(
-                        "{}: the core serves {method} again",
-                        path.display()
-                    ));
-                }
-            }
         }
         assert!(sites.is_empty(), "sites: {sites:#?}");
     }

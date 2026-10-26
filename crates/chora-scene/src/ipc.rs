@@ -19,6 +19,18 @@ use crate::{Command, Event};
 /// The environment variable with the path of the IPC socket.
 pub const SOCKET_ENV: &str = "CHORA_SOCKET";
 
+/// Variables of a host session that would let a program of chora reach
+/// the host compositor instead; the startup command of the core and the
+/// units of `choractl run` drop them.
+pub const HOST_VARIABLES: [&str; 6] = [
+    "WAYLAND_SOCKET",
+    "DISPLAY",
+    "SWAYSOCK",
+    "I3SOCK",
+    "NIRI_SOCKET",
+    "HYPRLAND_INSTANCE_SIGNATURE",
+];
+
 /// The longest name: a method name or a client name.
 pub const MAX_NAME: usize = 64;
 

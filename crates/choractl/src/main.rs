@@ -622,17 +622,6 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
     }
 }
 
-/// Variables of a display session that a unit must not take from the
-/// user manager; the startup command of the core drops the same ones.
-const HOST_VARIABLES: [&str; 6] = [
-    "WAYLAND_SOCKET",
-    "DISPLAY",
-    "SWAYSOCK",
-    "I3SOCK",
-    "NIRI_SOCKET",
-    "HYPRLAND_INSTANCE_SIGNATURE",
-];
-
 /// The program forked by `choractl` itself, detached in a session of its
 /// own and with the token in its environment; the pid of the child.
 /// Stdout and stderr go to the null device, so that the output of the
@@ -702,7 +691,7 @@ fn unit_env() -> Vec<String> {
     let mut options = vec!["--setenv=XDG_ACTIVATION_TOKEN".to_owned()];
     for key in ["XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"]
         .into_iter()
-        .chain(HOST_VARIABLES)
+        .chain(chora_scene::ipc::HOST_VARIABLES)
     {
         options.push(if std::env::var_os(key).is_some() {
             format!("--setenv={key}")
@@ -1214,7 +1203,7 @@ mod tests {
     #[test]
     fn a_unit_sets_or_unsets_every_host_variable() {
         let props = super::unit_env();
-        for key in super::HOST_VARIABLES {
+        for key in chora_scene::ipc::HOST_VARIABLES {
             let set = format!("--setenv={key}");
             let unset = format!("-pUnsetEnvironment={key}");
             let hits = props.iter().filter(|p| **p == set || **p == unset).count();
