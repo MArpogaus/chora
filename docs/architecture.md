@@ -390,8 +390,8 @@ grants and makes client sockets (see [API](api.md#client-sockets)).
   plugins running.
 - A connection of a client socket acts only on its own nodes and on the
   windows of its `wayland.sock`. It sets no camera and puts no node
-  under `screen:*`. It takes the keyboard with `focus_node` only after a
-  press of the user on it (see [API](api.md#client-sockets)).
+  under `screen:*`. It takes the keyboard with `focus_node` or `focus`
+  only after a press of the user on it (see [API](api.md#client-sockets)).
 
 ## Sessions and flavors
 

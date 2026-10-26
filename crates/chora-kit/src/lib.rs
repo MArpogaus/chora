@@ -10,10 +10,9 @@ pub mod lamp;
 pub mod wobbly;
 pub mod xdg;
 
-/// Starts a shell command as an app with `choractl run` (D42), so that
-/// the app gets an activation token, and a unit of its own when a user
-/// manager runs. `&` lets the shell exit at once, so nothing waits for
-/// `run` and no zombie stays.
+/// Starts a shell command as an app with `choractl run` (D42). The app
+/// gets an activation token, and a unit of its own when a user manager
+/// runs. `&` lets the shell exit at once, so no zombie stays.
 pub fn run(command: &str) {
     let started = std::process::Command::new("sh")
         .args(["-c", r#"choractl run sh -c "$0" >/dev/null &"#, command])

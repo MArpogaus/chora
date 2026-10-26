@@ -3005,7 +3005,11 @@ impl Wm {
                     commands.extend(self.close_window(&surface));
                 }
             }
-            Choice::StandBy => chora_kit::run("systemctl suspend"),
+            Choice::StandBy => drop(
+                std::process::Command::new("systemctl")
+                    .arg("suspend")
+                    .status(),
+            ),
             Choice::TurnOff => {
                 self.play(Sound::ShutDown);
                 self.done = true;

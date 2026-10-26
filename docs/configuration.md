@@ -684,4 +684,4 @@ admin socket, so a container never mounts it (see
 [API](api.md#client-sockets)). Through its `ipc.sock`, the container sees
 and changes only its own nodes and the windows of its `wayland.sock`. It
 sets no camera and puts no node under `screen:*`. It takes the keyboard
-with `focus_node` only after a press of the user on it.
+with `focus_node` or `focus` only after a press of the user on it.

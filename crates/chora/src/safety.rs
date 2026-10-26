@@ -252,9 +252,8 @@ impl State {
     }
 
     /// The revoke binding (D23): takes the capabilities away from every
-    /// client, as a full `grants.revoke` does, and drops the activation
-    /// tokens of no client that wait for a use. The connections stay;
-    /// only what the grants gave them goes.
+    /// client, as a full `grants.revoke` does. It also drops the unused
+    /// activation tokens of no client. The connections stay.
     pub fn revoke_all(&mut self) {
         self.forget_unused_tokens(std::time::Duration::ZERO);
         let names = self.grants.revoke_all();
