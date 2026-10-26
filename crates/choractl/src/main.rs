@@ -153,7 +153,7 @@ enum Cmd {
         output: String,
     },
     /// Restart a plugin (D42): `systemctl --user restart` of its unit,
-    /// `chora-NAME-DISPLAY.service` of a view in this session or
+    /// `chora-NAME-SESSION.service` of a view in this session or
     /// `chora-NAME.service` of a flavor. Prints the unit as one JSON line.
     /// Does not call the core.
     Restart {
@@ -627,15 +627,15 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
 /// The program forked by `choractl` itself, with the token in its
 /// environment; the pid of the child. It stays in the process group of
 /// the caller, so that a test session that ends its group ends it too.
-/// Stdout and stderr go to the null device, so that the output of the
-/// program never mixes with the JSON line on stdout.
+/// Stdout goes to the null device, so that the output of the program
+/// never mixes with the JSON line or the MCP protocol on stdout; stderr
+/// stays with the caller.
 fn start_child(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
     let mut child = std::process::Command::new(&argv[0])
         .args(&argv[1..])
         .env("XDG_ACTIVATION_TOKEN", token)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
         .spawn()?;
     let pid = child.id();
     // `choractl mcp` lives long: wait for the child, so it never stays a
@@ -645,15 +645,13 @@ fn start_child(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
 }
 
 /// The unit of a plugin that a view starts: one per plugin and session,
-/// since a nested chora shares the user manager with its host.
+/// since every chora of the user shares the user manager. The session is
+/// a hash of `CHORA_SOCKET`, the one path that no two cores share.
 fn view_unit(name: &str) -> String {
-    let display = std::env::var("WAYLAND_DISPLAY").unwrap_or_default();
-    let display = std::path::Path::new(&display)
-        .file_name()
-        .and_then(|d| d.to_str())
-        .unwrap_or("none")
-        .to_owned();
-    format!("chora-{name}-{display}.service")
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::hash::DefaultHasher::new();
+    std::env::var_os(SOCKET_ENV).hash(&mut hasher);
+    format!("chora-{name}-{:08x}.service", hasher.finish() >> 32)
 }
 
 /// Whether a user manager runs. Without one, as in a container or a

@@ -711,7 +711,8 @@ the unit and the token as one JSON line while the program runs.
   manager. It starts in the directory of the caller.
 - Without a running user manager, `choractl` starts the program itself,
   with the environment of the caller.
-  Its output goes to `/dev/null`, and `unit` is `null`.
+  Its stdout goes to `/dev/null`, its stderr to the stderr of the
+  caller, and `unit` is `null`.
 - When the unit starts but its `MainPID` stays unknown after a short
   wait, for example because the program ended at once, `pid` is `null`.
   The command never starts the program twice.
@@ -727,8 +728,8 @@ $ choractl run -- foot
 ```
 
 `choractl restart NAME` restarts a plugin with `systemctl --user restart`.
-The unit is `chora-NAME-DISPLAY.service` of a view in this session,
-where DISPLAY is the name of `WAYLAND_DISPLAY`, or else
+The unit is `chora-NAME-SESSION.service` of a view in this session,
+where SESSION is a short hash of `CHORA_SOCKET`, or else
 `chora-NAME.service` of a flavor (see [Plugins](#plugins)). The flavor
 unit counts only in the session whose `WAYLAND_DISPLAY` the user
 manager holds, so a nested chora never restarts a plugin of its host.
@@ -895,8 +896,8 @@ a plugin that does not run with `exec`, and passes the `config` of the view
 to the method in `configure` (see
 [Configuration](configuration.md#plugin-manifests)). The start goes
 through `choractl run`. With a user manager, the unit
-`chora-NAME-DISPLAY.service` restarts the plugin when it fails. It
-carries the display, so that a nested chora on the same user manager
+`chora-NAME-SESSION.service` restarts the plugin when it fails. It
+carries the session, so that every chora on the same user manager
 starts its own plugins. A flavor starts its plugins as its own systemd
 units `chora-NAME.service` instead. A client socket loads only views
 whose plugins run already: a plugin that it starts would get its socket
