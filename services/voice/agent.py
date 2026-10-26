@@ -32,6 +32,7 @@ import math
 import os
 import shlex
 import sys
+import time
 
 import aiohttp
 from mcp import ClientSession, MCPError, StdioServerParameters
@@ -57,8 +58,10 @@ SYSTEM = ENV("SYSTEM", (
     "You are a voice assistant on a Linux desktop named chora. Answer in the "
     "language of the user, in one or two short spoken sentences, without "
     "markdown. Use the tools to look "
-    "at and change the desktop. Hand a task that needs code or many steps to "
-    "delegate, then say that it runs."))
+    "at and change the desktop."))
+if CODER_CMD:
+    SYSTEM += (" Hand a task that needs code or many steps to delegate, then say "
+               "that it runs.")
 
 RATE = 24000
 FRAME_MS = 20
@@ -92,16 +95,26 @@ async def play(pcm_chunks):
     player = await asyncio.create_subprocess_exec(
         "aplay", "-q", "-r", str(RATE), "-c", "1", "-f", "S16_LE", "-t", "raw", "-",
         stdin=asyncio.subprocess.PIPE)
+    start, written = time.monotonic(), 0
     try:
         async for chunk in pcm_chunks:
             player.stdin.write(chunk)
+            written += len(chunk)
             await player.stdin.drain()
     except asyncio.CancelledError:
         player.kill()  # a barge-in: stop the sound at once
         raise
     finally:
         player.stdin.close()
-        await player.wait()
+        # aplay on PipeWire may never exit after its input ends: wait for
+        # the sound it got, plus a second, then end it.
+        left = written / (RATE * 2) - (time.monotonic() - start) + 1
+        try:
+            await asyncio.wait_for(player.wait(), max(left, 1))
+        except asyncio.TimeoutError:
+            log("aplay did not end after the sound; ended it")
+            player.kill()
+            await player.wait()
 
 
 # --- speech servers ----------------------------------------------------
