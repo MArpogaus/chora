@@ -964,11 +964,11 @@ terms and no synonyms.</p>
 </tr>
 <tr>
 <td><strong>Capability</strong></td>
-<td>A right of a client beyond the scene API: <code>input.inject</code>, <code>screen.capture</code> or <code>input.grab-any</code>. The user grants it per client name with <code>choractl grant</code>. Client sockets fix it from milestone 0.7 (D33).</td>
+<td>A right of a client beyond the scene API: <code>input.inject</code>, <code>screen.capture</code>, <code>input.grab-any</code>, <code>methods.call</code> and <code>activation.token</code>. A client socket fixes the capabilities of its name (D33).</td>
 </tr>
 <tr>
 <td><strong>Grant</strong></td>
-<td>The current form of a capability: a permission of the user for one client name. Client sockets replace it in milestone 0.7.</td>
+<td>A capability that a client name holds: from <code>choractl grant</code> on the main socket, or from <code>clients.yaml</code> for a client socket.</td>
 </tr>
 <tr>
 <td><strong>Milestone</strong></td>
