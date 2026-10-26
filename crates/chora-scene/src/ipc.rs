@@ -532,13 +532,6 @@ impl Capability {
         Self::ActivationToken,
     ];
 
-    /// Whether only a client socket needs the capability; the main
-    /// socket may always use its method.
-    #[must_use]
-    pub fn socket_only(self) -> bool {
-        matches!(self, Self::MethodsCall | Self::ActivationToken)
-    }
-
     /// The name, which is also the name of the method.
     #[must_use]
     pub fn name(self) -> &'static str {

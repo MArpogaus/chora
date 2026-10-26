@@ -368,7 +368,7 @@ answers every request.
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket; they answer code 9 for a name with a client socket, and `grants.set` for `methods.call` and `activation.token`, because these live in `clients.yaml` |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket; they answer code 9 for a name with a client socket, because its capabilities live in `clients.yaml`; `methods.call` and `activation.token` change nothing for a name of the main socket |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
@@ -727,8 +727,8 @@ $ choractl run -- foot
 
 `choractl restart NAME` restarts a plugin with `systemctl --user restart`.
 The unit is `chora-NAME.service`, of a flavor or of a view (see
-[Plugins](#plugins)). A name without an active unit is an
-error: the command exits 1 with the reason on stderr. It prints the unit
+[Plugins](#plugins)). A name without a unit is an error: the command
+exits 1, and `systemctl` gives the reason on stderr. It prints the unit
 as one JSON line and calls no core.
 
 ```console

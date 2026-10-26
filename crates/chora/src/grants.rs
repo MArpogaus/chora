@@ -106,13 +106,6 @@ impl State {
                 change.client
             )));
         }
-        if method == "grants.set"
-            && let Some(only) = change.capabilities.iter().find(|c| c.socket_only())
-        {
-            return Err(crate::ipc::socket_rule(format!(
-                "{only} is a capability of client sockets: put it in clients.yaml"
-            )));
-        }
         tracing::info!(method, client = change.client, capabilities = ?change.capabilities);
         if method == "grants.set" {
             self.grants.set(change)?;
@@ -215,20 +208,6 @@ mod tests {
         let unknown = json!({"client": "agent", "capabilities": ["disk.write"]});
         let (error_code, _) = ctl.fails(&mut core, "grants.set", unknown);
         assert_eq!(error_code, RpcError::INVALID_PARAMS);
-    }
-
-    /// `methods.call` and `activation.token` would do nothing on the main
-    /// socket, so a grant of them is a mistake that answers.
-    #[test]
-    fn the_capabilities_of_client_sockets_take_no_grant() {
-        let mut core = Core::new();
-        let mut ctl = core.admin();
-        for capability in ["methods.call", "activation.token"] {
-            let grant = json!({"client": "agent", "capabilities": [capability]});
-            let (error_code, message) = ctl.fails(&mut core, "grants.set", grant);
-            assert_eq!(error_code, RpcError::CLIENT_SOCKET_RULE);
-            assert!(message.contains("clients.yaml"), "{message}");
-        }
     }
 
     #[test]

@@ -660,9 +660,6 @@ fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
 fn restart_program(name: &str) -> Result<(), String> {
     view::check_name(name)?;
     let unit = format!("chora-{name}.service");
-    if !unit_active(&unit) {
-        return Err(format!("{name}: no active unit {unit}"));
-    }
     let restarted = std::process::Command::new("systemctl")
         .args(["--user", "restart", &unit])
         .status()
@@ -672,18 +669,6 @@ fn restart_program(name: &str) -> Result<(), String> {
     }
     print_line(std::io::stdout(), &serde_json::json!({ "unit": unit }));
     Ok(())
-}
-
-/// Whether a systemd user unit is active. `false` when there is no
-/// systemctl, no user manager, or no such unit.
-fn unit_active(unit: &str) -> bool {
-    std::process::Command::new("systemctl")
-        .args(["--user", "is-active", "--quiet", unit])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|s| s.success())
 }
 
 /// The environment options of a unit of `run`: the token and the
@@ -949,10 +934,8 @@ fn sync_grants(
         .map(|v| serde_json::from_value(v).map_err(ClientError::Json))
         .transpose()?
         .unwrap_or_default();
-    // The main socket needs no capability of client sockets.
     let wanted = listed
         .into_iter()
-        .filter(|c| !c.socket_only())
         .collect::<std::collections::BTreeSet<_>>();
     let (gone, added) = grant_delta(&current, &wanted);
     if !gone.is_empty() {
