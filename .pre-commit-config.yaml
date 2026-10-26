@@ -20,8 +20,7 @@ repos:
     entry: SPDX-License-Identifier:\s*GPL-3\.0(-only)?(?![-+.\w])
     language: pygrep
 
-# Python: lint with the complexity guards of ruff.toml, and format. Only
-# services/voice/ for now; the examples and test clients follow.
+# Python: lint with the complexity guards of ruff.toml, and format.
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.17.2
   hooks:

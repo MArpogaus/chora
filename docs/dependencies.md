@@ -87,6 +87,6 @@ The core speaks these protocols, so existing tools work unchanged:
 | fuzzel, wofi | launchers |
 | swaybg, swww | wallpapers |
 | Chromium or Firefox in app mode | HTML content from agents |
-| [Gufo](https://github.com/gufo-org/gufo) with speech, router and main models | the voice pipeline of `chora-voice` (D53) |
+| [Gufo](https://github.com/gufo-org/gufo) with speech and language models | the voice pipeline of `chora-voice` (D53) |
 | Podman with Quadlet, distrobox, systemd user units | services and flavors |
 | kanshi, wlr-randr | output configuration |
