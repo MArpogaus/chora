@@ -712,8 +712,7 @@ the unit and the token as one JSON line while the program runs.
   manager. It starts in the directory of the caller.
 - Without a running user manager, `choractl` starts the program itself,
   with the environment of the caller.
-  Its stdout goes to `/dev/null`, its stderr to the stderr of the
-  caller, and `unit` is `null`.
+  Its output goes to `/dev/null`, and `unit` is `null`.
 - When the unit starts but its `MainPID` stays unknown after a short
   wait, for example because the program ended at once, `pid` is `null`.
   The command never starts the program twice.

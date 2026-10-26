@@ -616,15 +616,16 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
 /// The program forked by `choractl` itself, with the token in its
 /// environment; the pid of the child. It stays in the process group of
 /// the caller, so that a test session that ends its group ends it too.
-/// Stdout goes to the null device, so that the output of the program
-/// never mixes with the JSON line or the MCP protocol on stdout; stderr
-/// stays with the caller.
+/// Stdout and stderr go to the null device: the output of the program
+/// never mixes with the JSON line or the MCP protocol, and a caller that
+/// reads the stderr of `run` to its end does not wait for the program.
 fn start_child(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
     let mut child = std::process::Command::new(&argv[0])
         .args(&argv[1..])
         .env("XDG_ACTIVATION_TOKEN", token)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .spawn()?;
     let pid = child.id();
     // `choractl mcp` lives long: wait for the child, so it never stays a
