@@ -380,7 +380,7 @@ the effects of the scene and serves as their test.
 The voice pipeline lives in `services/voice/` of the core repository and
 moves to `chora-desktop/chora-voice` with the split at 1.0. It started with
 milestone 0.6 (D53). It runs as Quadlet units on the reference hardware:
-speech to text, a router model, a main model and text to speech, served by
+speech to text, a language model and text to speech, served by
 [Gufo](https://github.com/gufo-org/gufo).
 
 | Milestone | Goal | Gate | Needs from the core |
