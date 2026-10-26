@@ -660,6 +660,14 @@ fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
 fn restart_program(name: &str) -> Result<(), String> {
     view::check_name(name)?;
     let unit = format!("chora-{name}.service");
+    // A plain restart would also start a plugin that does not run.
+    let active = std::process::Command::new("systemctl")
+        .args(["--user", "is-active", "--quiet", &unit])
+        .status()
+        .is_ok_and(|s| s.success());
+    if !active {
+        return Err(format!("{name}: no active unit {unit}"));
+    }
     let restarted = std::process::Command::new("systemctl")
         .args(["--user", "restart", &unit])
         .status()
