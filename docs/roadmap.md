@@ -140,9 +140,6 @@ Scope:
 - Stable error codes: one code for each kind of failure. The error data
   already names the failed command.
 - The core starts no program except its startup command (D42).
-  `choractl run` starts a program through `systemd-run --user` with an
-  activation token, or detached without a user systemd. systemd units
-  restart plugins, and `choractl restart` restarts such a unit.
 - Focus in queries: the surface and the node that have the keyboard.
 - Queries return the screen rectangle of a node on each output.
 - `choractl wait SELECTOR` returns when a node matches, or fails after a

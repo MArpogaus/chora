@@ -783,8 +783,8 @@ impl State {
     /// client, so that the started program can activate with it. A use
     /// ends the token; an unused token of no client is forgotten after
     /// `MAX_TOKEN_AGE`, by its own deadline and by every new token. A
-    /// client socket gets none: such a token skips the focus rule of its
-    /// own tokens.
+    /// client socket needs the capability `activation.token`, because
+    /// such a token skips the focus rule of its own tokens.
     fn ipc_activation_token(&mut self, conn: u64) -> Result<Value, RpcError> {
         self.check_socket_grant(conn, Capability::ActivationToken)?;
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
@@ -2083,9 +2083,9 @@ mod tests {
         assert!(message.contains("only on the admin socket"), "{message}");
     }
 
-    /// A client socket asks for no activation token over IPC: such a
-    /// token belongs to no client and would skip the focus rule of its
-    /// own tokens.
+    /// A client socket gets an activation token over IPC only with the
+    /// capability: such a token belongs to no client and skips the focus
+    /// rule of its own tokens.
     #[test]
     fn a_client_socket_gets_activation_tokens_only_with_the_capability() {
         let (mut core, dir) = socket_dir("token");
