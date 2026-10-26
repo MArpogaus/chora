@@ -77,9 +77,9 @@ tests/headless-session.sh 1280x800 -- target/debug/chora-tiling >session.env &
 session=$!
 until grep -q CHORA_SOCKET session.env; do sleep 0.1; done
 set -a; . ./session.env; set +a
-target/debug/choractl grant agent screen.capture input.inject
-target/debug/choractl run foot
-target/debug/choractl --name agent capture shot.png
+choractl grant agent screen.capture input.inject
+choractl run foot
+choractl --name agent capture shot.png
 kill $session
 ```
 

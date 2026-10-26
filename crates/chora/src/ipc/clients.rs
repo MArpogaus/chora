@@ -321,7 +321,7 @@ impl State {
             Command::FocusNode { node: Some(_) } | Command::Focus { .. }
                 if !self.pressed_by(name) =>
             {
-                Err("a client socket takes the keyboard with focus_node or focus only right after a press on its own node or window".into())
+                Err("a client socket takes or drops the keyboard with focus_node or focus only right after a press on its own node or window".into())
             }
             _ => Ok(()),
         }

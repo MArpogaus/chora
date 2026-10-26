@@ -516,7 +516,8 @@ pub enum Capability {
     #[serde(rename = "methods.call")]
     MethodsCall,
     /// `activation.token`: get activation tokens for `choractl run`.
-    /// Checked only for a client socket; the main socket may always ask.
+    /// The core checks it only for a client socket; `choractl mcp` also
+    /// needs it on the main socket for `run_program`.
     #[serde(rename = "activation.token")]
     ActivationToken,
 }

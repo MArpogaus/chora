@@ -603,7 +603,7 @@ in. `choractl clients create agent` prints its path:
   - No `camera` command works.
   - `attach`, `focus`, `close` and `configure` take only a window of its
     own `wayland.sock` or a surface that the name owns. `focus` needs a
-    press as `focus_node` does.
+    press as `focus_node` does, also to drop the focus.
 - `scene.query` on it returns only the nodes of the name and the windows
   of its `wayland.sock`. The `surface.*` events come only for these
   windows.

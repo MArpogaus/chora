@@ -224,7 +224,7 @@ Gate:
    plugins after each `methods.export`.
 7. A capture shows the indicator while a client injects input.
 8. A test shows that the revoke binding removes the capabilities of all
-   agents.
+   clients.
 9. A text node shows `Grüße 你好 🙂` with fallback fonts, and a pixel test
    against a reference capture passes.
 10. An MCP client puts a text node under `screen:NAME`, and a capture shows
