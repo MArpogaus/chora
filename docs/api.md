@@ -702,6 +702,9 @@ the unit and the token as one JSON line while the program runs.
   last process in it ends, so an app that a launcher starts lives on.
   The arguments reach the program literally, without the expansion of
   `$` by systemd.
+- This needs systemd 254 or later. When `systemd-run` fails, for example
+  because the unit exists already, `run` exits 1 with its error and
+  starts nothing.
 - The unit gets the environment of the user manager, plus the token and
   the values of the caller for `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and
   `CHORA_SOCKET`. It gets `DISPLAY` and the other host session variables

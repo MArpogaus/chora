@@ -512,7 +512,7 @@ pub(crate) fn run_program(
     );
     let (pid, unit) = match systemd_unit(argv, &token, &unit, plugin.is_some()) {
         RunStart::Unit(pid) => (Some(pid), Some(unit)),
-        RunStart::Fallback => (
+        RunStart::NoManager => (
             Some(start_detached(argv, &token).map_err(|e| {
                 ClientError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", argv[0])))
             })?),
@@ -521,6 +521,11 @@ pub(crate) fn run_program(
         // The unit started; a short program ended and was collected
         // before its pid was read.
         RunStart::Unknown => (None, Some(unit)),
+        RunStart::Refused => {
+            return Err(ClientError::Io(std::io::Error::other(format!(
+                "systemd-run refused the unit {unit}"
+            ))));
+        }
     };
     Ok(serde_json::json!({ "pid": pid, "unit": unit, "token": token }))
 }
@@ -528,9 +533,12 @@ pub(crate) fn run_program(
 /// The outcome of one start attempt through `systemd-run`.
 #[derive(Debug, PartialEq, Eq)]
 enum RunStart {
-    /// No user manager, or `systemd-run` failed: the detached fallback
-    /// of `run` may start the program.
-    Fallback,
+    /// No user manager answers: `run` starts the program detached.
+    NoManager,
+    /// `systemd-run` failed, for example because the unit exists already
+    /// or the systemd is older than 254; its error is on stderr. `run`
+    /// fails too and never starts the program a second time.
+    Refused,
     /// The unit runs the program under this pid.
     Unit(u32),
     /// The unit started, but its `MainPID` stayed unknown, for example
@@ -539,13 +547,9 @@ enum RunStart {
     Unknown,
 }
 
-/// The pure fallback decision of `run`: only a unit that did not start
-/// allows the detached start. On a successful start, a `MainPID` that is
-/// empty, `0` or no number is `Unknown`, never pid 0 as success.
-fn classify_start(started: bool, main_pid: &str) -> RunStart {
-    if !started {
-        return RunStart::Fallback;
-    }
+/// The pid of a unit that started: a `MainPID` that is empty, `0` or no
+/// number is `Unknown`, never pid 0 as success.
+fn classify_start(main_pid: &str) -> RunStart {
     match main_pid.trim().parse::<u32>() {
         Ok(pid) if pid > 0 => RunStart::Unit(pid),
         _ => RunStart::Unknown,
@@ -565,10 +569,10 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
         .stderr(std::process::Stdio::null())
         .output()
     else {
-        return RunStart::Fallback;
+        return RunStart::NoManager;
     };
     if answered.stdout.is_empty() {
-        return RunStart::Fallback;
+        return RunStart::NoManager;
     }
     let mut started = std::process::Command::new("systemd-run");
     started
@@ -587,11 +591,13 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
     if restart {
         started.arg("-pRestart=on-failure");
     }
-    let Ok(started) = started.args(argv).status() else {
-        return RunStart::Fallback;
-    };
-    if !started.success() {
-        return RunStart::Fallback;
+    if !started
+        .arg("--")
+        .args(argv)
+        .status()
+        .is_ok_and(|s| s.success())
+    {
+        return RunStart::Refused;
     }
     // A unit fills in `MainPID` a moment after the start job. Wait for
     // it, then report what is known: a pid, or the error of the unknown
@@ -614,7 +620,7 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
             Ok(out) => String::from_utf8_lossy(&out.stdout).into_owned(),
             Err(_) => String::new(),
         };
-        let decision = classify_start(true, &text);
+        let decision = classify_start(&text);
         if decision != RunStart::Unknown || std::time::Instant::now() >= deadline {
             return decision;
         }
@@ -644,7 +650,12 @@ fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
             Ok(())
         });
     }
-    command.spawn().map(|child| child.id())
+    let mut child = command.spawn()?;
+    let pid = child.id();
+    // `choractl mcp` lives long: wait for the child, so it never stays a
+    // zombie.
+    std::thread::spawn(move || child.wait());
+    Ok(pid)
 }
 
 /// `choractl restart` (D42): restarts the systemd user unit of a plugin
@@ -1061,7 +1072,7 @@ fn print_line<W: Write>(mut out: W, value: &Value) {
 mod tests {
     use clap::Parser;
     use serde_json::{Value, json};
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     use chora_scene::ipc::RpcError;
 
@@ -1209,48 +1220,29 @@ mod tests {
     }
 
     #[test]
-    fn only_a_unit_that_did_not_start_may_fall_back() {
-        assert_eq!(super::classify_start(false, ""), super::RunStart::Fallback);
-        assert_eq!(
-            super::classify_start(false, "0"),
-            super::RunStart::Fallback,
-            "a failed systemd-run may fall back even with a pid in hand",
-        );
-        assert_eq!(
-            super::classify_start(true, "4343\n"),
-            super::RunStart::Unit(4343),
-        );
-        assert_eq!(super::classify_start(true, "0"), super::RunStart::Unknown);
-        assert_eq!(super::classify_start(true, ""), super::RunStart::Unknown);
-        assert_eq!(
-            super::classify_start(true, "not a pid"),
-            super::RunStart::Unknown,
-        );
+    fn a_unit_answers_its_pid_or_none() {
+        assert_eq!(super::classify_start("4343\n"), super::RunStart::Unit(4343));
+        assert_eq!(super::classify_start("0"), super::RunStart::Unknown);
+        assert_eq!(super::classify_start(""), super::RunStart::Unknown);
+        assert_eq!(super::classify_start("not a pid"), super::RunStart::Unknown);
     }
 
     /// The fallback starts the program detached, with the activation
-    /// token in its environment, and answers a pid. `true` runs the
-    /// same way a real program would.
+    /// token in its environment, and answers a pid.
     #[test]
-    #[allow(unsafe_code)] // one `waitpid`, to reap the children
     fn the_fallback_starts_the_program_with_the_token() {
         let token = format!("tok-{}", std::process::id());
         let out = std::env::temp_dir().join(format!("chora-run-{}.txt", std::process::id()));
         let _ = std::fs::remove_file(&out);
         let script = format!("printf %s \"$XDG_ACTIVATION_TOKEN\" > {}", out.display());
-        for argv in [
-            vec!["true".to_owned()],
-            vec!["sh".into(), "-c".into(), script],
-        ] {
-            let pid = super::start_detached(&argv, &token).expect("the program starts");
-            assert!(pid > 0);
-            let mut status = 0;
-            // SAFETY: `status` is a live `i32` until `waitpid` returns.
-            let waited = unsafe { libc::waitpid(pid.cast_signed(), &raw mut status, 0) };
-            assert_eq!(waited, pid.cast_signed(), "{argv:?} is our child");
-            assert_eq!(status, 0, "{argv:?} exited clean");
+        let program = ["sh".into(), "-c".into(), script];
+        let pid = super::start_detached(&program, &token).expect("the program starts");
+        assert!(pid > 0);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while std::fs::read_to_string(&out).unwrap_or_default() != token {
+            assert!(Instant::now() < deadline, "no token in {}", out.display());
+            std::thread::sleep(Duration::from_millis(20));
         }
-        assert_eq!(std::fs::read_to_string(&out).unwrap(), token);
         let _ = std::fs::remove_file(&out);
         let args = Args::try_parse_from("choractl run -- /bin/echo -n".split(' ')).unwrap();
         assert!(
