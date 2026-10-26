@@ -43,7 +43,7 @@ cleanup() {
     trap - EXIT INT TERM HUP
     if [[ -n $pid ]]; then
         # chora leads its process group, which holds its startup command
-        # and the programs that `choractl run` started without a user
+        # and the programs that its plugins started without a user
         # manager.
         kill -TERM -- "-$pid" 2>/dev/null || true
         for _ in $(seq 50); do
