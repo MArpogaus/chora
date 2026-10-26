@@ -156,9 +156,9 @@ enum Cmd {
         #[arg(value_name = "NAME")]
         output: String,
     },
-    /// Restart a plugin (D42): `systemctl --user restart` of its unit,
-    /// `chora-NAME-wm.service` of a flavor or `chora-NAME.service` of a
-    /// view. Prints the unit as one JSON line. Does not call the core.
+    /// Restart a plugin (D42): `systemctl --user restart` of its unit
+    /// `chora-NAME.service`, of a flavor or a view. Prints the unit as one
+    /// JSON line. Does not call the core.
     Restart {
         /// The plugin name, for example `tiling`.
         #[arg(value_name = "NAME")]
@@ -651,16 +651,12 @@ fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
 /// and prints the unit as one JSON line.
 fn restart_program(name: &str) -> Result<(), String> {
     view::check_name(name)?;
-    let units = [
-        format!("chora-{name}-wm.service"),
-        format!("chora-{name}.service"),
-    ];
-    let unit = units
-        .iter()
-        .find(|unit| unit_active(unit))
-        .ok_or_else(|| format!("{name}: no active unit {}", units.join(" or ")))?;
+    let unit = format!("chora-{name}.service");
+    if !unit_active(&unit) {
+        return Err(format!("{name}: no active unit {unit}"));
+    }
     let restarted = std::process::Command::new("systemctl")
-        .args(["--user", "restart", unit])
+        .args(["--user", "restart", &unit])
         .status()
         .map_err(|e| format!("systemctl: {e}"))?;
     if !restarted.success() {
@@ -1074,6 +1070,7 @@ mod tests {
         wait_loop,
     };
 
+    /// A line of `run` is compact JSON, so that a script reads it at once.
     #[test]
     fn the_answer_of_run_is_one_json_line() {
         let mut line = Vec::new();

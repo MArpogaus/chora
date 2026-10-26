@@ -9,8 +9,8 @@
 # sees none of the privileged protocols. An MCP client waits for events
 # and draws a shader that it hands to the core as an asset. Connections
 # reserve space at the edges of the output. An agent starts a program with
-# choractl run. An MCP client
-# scales the output and keeps a HUD in place during a camera move.
+# choractl run. An MCP client scales the output and keeps a HUD in place
+# during a camera move.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe

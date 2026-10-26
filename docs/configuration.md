@@ -216,7 +216,7 @@ The package installs the tiling flavor:
 ```text
 /usr/share/chora/flavors/tiling/
 ├── chora-tiling.target              # wants the two units below
-├── chora-tiling-wm.service          # chora-tiling
+├── chora-tiling.service             # chora-tiling
 └── chora-tiling-xwayland.service    # xwayland-satellite, if installed
 ```
 
@@ -232,7 +232,7 @@ connects with the client name `xp`.
 ```text
 /usr/share/chora/flavors/xp/
 ├── chora-xp.target              # wants the two units below
-├── chora-xp-wm.service          # chora-xp
+├── chora-xp.service             # chora-xp
 ├── chora-xp-xwayland.service    # xwayland-satellite, if installed
 └── theme/                       # SVG files, fonts, wallpaper and cursors
 ```

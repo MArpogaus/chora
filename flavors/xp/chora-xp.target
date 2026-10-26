@@ -4,4 +4,4 @@
 Description=The XP flavor of chora
 BindsTo=graphical-session.target
 After=graphical-session.target
-Wants=chora-xp-wm.service chora-xp-xwayland.service
+Wants=chora-xp.service chora-xp-xwayland.service
