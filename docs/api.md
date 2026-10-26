@@ -729,8 +729,8 @@ $ choractl run -- foot
 `choractl restart NAME` restarts a plugin with `systemctl --user restart`.
 The unit is `chora-NAME.service`, of a flavor or of a view (see
 [Plugins](#plugins)). A name without an active unit is an error: the
-command exits 1 with the reason on stderr, and starts nothing. It prints the unit
-as one JSON line and calls no core.
+command exits 1 with the reason on stderr, and starts nothing. It
+prints the unit as one JSON line and calls no core.
 
 ```console
 $ choractl restart tiling

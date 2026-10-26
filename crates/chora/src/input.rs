@@ -42,7 +42,7 @@ enum KeyAction {
     Quit,
     /// The emergency reset.
     Reset,
-    /// Revokes the capabilities of all agents (D23).
+    /// Revokes the capabilities of every client (D23).
     RevokeAll,
     /// Switch to another virtual terminal.
     SwitchVt(i32),

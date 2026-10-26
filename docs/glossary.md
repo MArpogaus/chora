@@ -32,7 +32,7 @@ terms and no synonyms.
 | **Selector** | An expression that finds nodes by id, attribute or meta data, for example `app_id:firefox`. |
 | **Transaction** | A batch of commands that the core applies as one unit. If one command fails, the core applies none of them. |
 | **Capability** | A right of a client beyond the scene API: `input.inject`, `screen.capture`, `input.grab-any`, `methods.call` and `activation.token`. A client socket fixes the capabilities of its name (D33). |
-| **Grant** | A capability that the user gives a client name of the main socket with `choractl grant`. |
+| **Grant** | A capability that a client name holds: from `choractl grant` on the main socket, or from `clients.yaml` for a client socket. |
 | **Milestone** | A minor release on the way to 1.0, with a goal, a scope and a gate. See [Roadmap](roadmap.md). |
 | **Gate** | The checks that end a milestone; see [Roadmap](roadmap.md). |
 | **Safety layer** | The only built-in behavior of the core: fixed bindings, emergency reset, session lock, watchdog. |

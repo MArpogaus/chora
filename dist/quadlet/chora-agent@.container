@@ -15,8 +15,8 @@
 # the grants of that name and cannot choose another one. Through
 # ipc.sock it sees and changes only its own nodes and the windows of
 # its wayland.sock. It sets no camera and puts no node under screen:*.
-# It takes the keyboard with focus_node only after a press of the user
-# on it. The sockets
+# It takes the keyboard with focus_node or focus only after a press of
+# the user on it. The sockets
 # and their grants live in memory: after every start of chora run
 # `choractl clients up` again, then start this unit. On an SELinux
 # host the container likely needs `SecurityLabelDisable=true`, which
