@@ -512,11 +512,25 @@ pub enum Capability {
     /// (D45).
     #[serde(rename = "input.grab-any")]
     GrabAny,
+    /// `methods.call`: call the methods of plugins. Checked only for a
+    /// client socket; the main socket may always call.
+    #[serde(rename = "methods.call")]
+    MethodsCall,
+    /// `activation.token`: get activation tokens for `choractl run`.
+    /// Checked only for a client socket; the main socket may always ask.
+    #[serde(rename = "activation.token")]
+    ActivationToken,
 }
 
 impl Capability {
     /// Every capability.
-    pub const ALL: [Self; 3] = [Self::InputInject, Self::ScreenCapture, Self::GrabAny];
+    pub const ALL: [Self; 5] = [
+        Self::InputInject,
+        Self::ScreenCapture,
+        Self::GrabAny,
+        Self::MethodsCall,
+        Self::ActivationToken,
+    ];
 
     /// The name, which is also the name of the method.
     #[must_use]
@@ -525,6 +539,8 @@ impl Capability {
             Self::InputInject => "input.inject",
             Self::ScreenCapture => "screen.capture",
             Self::GrabAny => "input.grab-any",
+            Self::MethodsCall => "methods.call",
+            Self::ActivationToken => "activation.token",
         }
     }
 }

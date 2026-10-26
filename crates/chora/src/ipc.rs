@@ -410,7 +410,7 @@ impl Ipc {
     }
 
     /// The name of the client socket of a connection.
-    fn fixed(&self, conn: u64) -> Option<&str> {
+    pub(crate) fn fixed(&self, conn: u64) -> Option<&str> {
         self.conns.get(&conn)?.fixed()
     }
 
@@ -786,11 +786,7 @@ impl State {
     /// client socket gets none: such a token skips the focus rule of its
     /// own tokens.
     fn ipc_activation_token(&mut self, conn: u64) -> Result<Value, RpcError> {
-        if self.ipc.fixed(conn).is_some() {
-            return Err(socket_rule(
-                "a client socket asks its Wayland connection for activation tokens",
-            ));
-        }
+        self.check_socket_grant(conn, Capability::ActivationToken)?;
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
         let (token, _) = self.activation_state.create_external_token(None);
         let token = token.as_str().to_owned();
@@ -2091,12 +2087,44 @@ mod tests {
     /// token belongs to no client and would skip the focus rule of its
     /// own tokens.
     #[test]
-    fn a_client_socket_gets_no_activation_token() {
+    fn a_client_socket_gets_activation_tokens_only_with_the_capability() {
         let (mut core, dir) = socket_dir("token");
         let mut admin = core.admin();
         let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
         let (error_code, _) = agent.fails(&mut core, "activation.token", Value::Null);
-        assert_eq!(error_code, RpcError::CLIENT_SOCKET_RULE);
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+        let create = json!({"name": "runner", "capabilities": ["activation.token"]});
+        admin.ok(&mut core, "clients.create", create);
+        let path = dir.join("clients/runner/ipc.sock");
+        let mut runner = core.connect_to(&path);
+        runner.ok(&mut core, "hello", json!({"name": "runner"}));
+        let answer = runner.ok(&mut core, "activation.token", Value::Null);
+        assert!(answer["token"].is_string(), "{answer}");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A confined agent calls no plugin method without the capability, so
+    /// it cannot ask a window manager for the focus.
+    #[test]
+    fn a_client_socket_calls_methods_only_with_the_capability() {
+        let (mut core, dir) = socket_dir("call");
+        let mut admin = core.admin();
+        let call = json!({"client": "wm", "method": "focus"});
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let (error_code, _) = agent.fails(&mut core, "methods.call", call.clone());
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+        let create = json!({"name": "caller", "capabilities": ["methods.call"]});
+        admin.ok(&mut core, "clients.create", create);
+        let mut caller = core.connect_to(&dir.join("clients/caller/ipc.sock"));
+        caller.ok(&mut core, "hello", json!({"name": "caller"}));
+        let (error_code, message) = caller.fails(&mut core, "methods.call", call);
+        assert_eq!(
+            error_code,
+            RpcError::REJECTED,
+            "the grant lets the call pass"
+        );
+        assert_eq!(message, "wm.focus is no exported method");
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
     }

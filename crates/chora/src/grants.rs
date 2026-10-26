@@ -1,5 +1,8 @@
 //! Grants of the user for the IPC methods that see or drive the whole
-//! session: `input.inject`, `screen.capture` and `input.grab-any`.
+//! session: `input.inject`, `screen.capture` and `input.grab-any`. A
+//! client socket also needs `methods.call` to call plugin methods and
+//! `activation.token` to start programs with `choractl run`; the main
+//! socket may always do both.
 //!
 //! `choractl grant NAME CAPABILITY` grants a capability to a client name,
 //! until `choractl revoke` or the end of the session, through the admin
@@ -117,6 +120,16 @@ impl State {
             }
         }
         Ok(Value::Null)
+    }
+
+    /// Checks a capability that only a client socket needs: the main
+    /// socket may always use it.
+    pub fn check_socket_grant(&self, conn: u64, capability: Capability) -> Result<(), RpcError> {
+        if self.ipc.fixed(conn).is_some() {
+            self.check_grant(conn, capability)
+        } else {
+            Ok(())
+        }
     }
 
     /// Checks that the client of a connection holds a capability.
