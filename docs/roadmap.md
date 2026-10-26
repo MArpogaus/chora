@@ -67,7 +67,8 @@ add one to two weeks.
 ## 0.6: Foundation
 
 Released as `v0.6.0` on 2026-10-19 without the gate checks 1, 2 and 5.
-These checks moved to the gate of 0.7.
+These checks moved to the gate of 0.7. Check 1 then moved to the gate of
+1.0: the repository stays one monorepo until then.
 
 **Goal:** the project works with gates in the GitHub organization
 `chora-desktop`. Unit tests check the core in process.
@@ -159,8 +160,7 @@ Scope:
 
 Gate:
 
-1. The organization `chora-desktop` and the core repository exist, and
-   `main` accepts pull requests only (from 0.6).
+1. Moved to the gate of 1.0: the organization and the protected `main`.
 2. A test release `v0.7.0-rc.1` comes from a tag on a merge commit. A
    tag on a commit with red CI starts no release (from 0.6).
 3. The `vkms` job is green in 10 runs in a row (from 0.6).
@@ -346,6 +346,9 @@ Scope:
   example of the documentation against it.
 - A final review loop over the whole code base until a round finds
   nothing that matters (D47).
+- The organization `chora-desktop` (D36). The core repository moves
+  there, and `main` accepts pull requests only. The plugins, the XP
+  showroom and the voice pipeline move into repositories of their own.
 - All plugins of the organization use the protocol version 1.
 
 Gate:
@@ -358,13 +361,15 @@ Gate:
 4. The schema job and the documentation test are green.
 5. Every plugin repository of the organization pins protocol version 1,
    and a CI job checks it.
-6. The gate checks of the earlier milestones still hold, and the showroom CI
+6. The organization `chora-desktop` and its repositories exist, and
+   `main` of each accepts pull requests only (from 0.6).
+7. The gate checks of the earlier milestones still hold, and the showroom CI
    is green against the release candidate.
 
 ## Track: XP showroom
 
-The showroom grows in the core repository through 0.6 and moves to
-`chora-desktop/chora-xp` with the postponed split (D36, D39). It shows
+The showroom grows in the core repository and moves to
+`chora-desktop/chora-xp` with the split at 1.0 (D36, D39). It shows
 the effects of the scene and serves as their test.
 
 - Each core milestone ends with a showroom release that uses its API. The
@@ -375,7 +380,8 @@ the effects of the scene and serves as their test.
 
 ## Track: voice pipeline
 
-The voice pipeline lives in `chora-desktop/chora-voice` and starts with
+The voice pipeline lives in `services/voice/` of the core repository and
+moves to `chora-desktop/chora-voice` with the split at 1.0. It started with
 milestone 0.6 (D53). It runs as Quadlet units on the reference hardware:
 speech to text, a router model, a main model and text to speech, served by
 [Gufo](https://github.com/gufo-org/gufo).
