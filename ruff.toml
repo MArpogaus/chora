@@ -1,5 +1,3 @@
-# Python of the repository: lint and format. pre-commit runs it on
-# services/voice/ for now; the examples and test clients follow.
 line-length = 100
 target-version = "py311"
 
