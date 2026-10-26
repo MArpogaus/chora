@@ -312,10 +312,10 @@ The safety layer is the only built-in behavior (see
   (quit), Ctrl+Alt+Escape (emergency reset), Ctrl+Alt+i (revoke) and
   Ctrl+Alt+F1 to F12 (VT switch).
 - **Revoke binding.** Ctrl+Alt+i takes every capability away from every
-  client and drops the unused activation tokens. It also ends the grabs
-  that need no modifier and disconnects the Wayland clients that a
-  capability gave a protocol, for example screencopy. The IPC
-  connections stay.
+  client and drops the unused activation tokens of no client. It also
+  ends the grabs that need no modifier and disconnects the Wayland
+  clients that a capability gave a protocol, for example screencopy. The
+  IPC connections stay.
 - **Injection mark.** While a client injects input, the core shows a
   small yellow rect of its own next to the pointer. It goes 500 ms after
   the last injected event. No client owns the mark or can remove it.

@@ -262,8 +262,9 @@ def panel(mcp, out):
     )
 
 
-# The probe runs through `choractl run` (D42), detached, so it writes its
-# stdout, its stderr and its exit status into files for the client to read.
+# The probe runs through `choractl run` (D42), which returns while the
+# probe runs, so it writes its stdout, its stderr and its exit status into
+# files for the client to read.
 PROBE = (
     "( echo probe; echo warning >&2; exit 7 ) "
     '>"{out}/probe.out" 2>"{out}/probe.err"; echo $? >"{out}/probe.status"'
@@ -284,8 +285,9 @@ def save_capture(mcp, out, name, output):
 def run_probe(choractl, out):
     """Starts the probe with `choractl run` and checks the files it wrote.
 
-    `run` detaches the program (D42), so the client waits for the status
-    file and then checks stdout, stderr and the exit status of the probe.
+    `run` returns while the program runs (D42), so the client waits for the
+    status file and then checks stdout, stderr and the exit status of the
+    probe.
     """
     probe = subprocess.run(
         [choractl, "--name", "agent", "run", "sh", "-c", PROBE.format(out=out)],
@@ -319,6 +321,11 @@ def hud(choractl, mcp, out):
     tests/agent.sh.
     """
     run_probe(choractl, out)
+    # run_program needs the grant activation.token, which agent lacks here.
+    args = {"name": "run_program", "arguments": {"argv": ["true"]}}
+    denied = mcp.request("tools/call", args)
+    if not denied.get("isError") or "activation.token" not in denied["content"][0]["text"]:
+        sys.exit(f"run_program without the grant: {denied}")
     output = describe(mcp, out, "hud-start")["outputs"][0]
     name = output["name"]
     scaled = text(mcp.tool("configure_output", {"output": name, "scale": 2}))

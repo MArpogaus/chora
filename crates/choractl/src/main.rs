@@ -605,22 +605,7 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
     // counts as unknown too; the program ran, but `run` cannot say so.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
     loop {
-        let shown = std::process::Command::new("systemctl")
-            .args([
-                "--user",
-                "show",
-                "--property=MainPID",
-                "--value",
-                "--unit",
-                unit,
-            ])
-            .stderr(std::process::Stdio::null())
-            .output();
-        let text = match &shown {
-            Ok(out) => String::from_utf8_lossy(&out.stdout).into_owned(),
-            Err(_) => String::new(),
-        };
-        let decision = classify_start(&text);
+        let decision = classify_start(&systemctl(&["show", "--property=MainPID", "--value", unit]));
         if decision != RunStart::Unknown || std::time::Instant::now() >= deadline {
             return decision;
         }
@@ -662,8 +647,15 @@ fn view_unit(name: &str) -> String {
 
 /// The `ActiveState` of a systemd user unit; empty without a manager.
 fn unit_state(unit: &str) -> String {
+    systemctl(&["show", "--property=ActiveState", "--value", unit])
+}
+
+/// The trimmed stdout of `systemctl --user ARGS`; empty when it fails to
+/// run.
+fn systemctl(args: &[&str]) -> String {
     std::process::Command::new("systemctl")
-        .args(["--user", "show", "--property=ActiveState", "--value", unit])
+        .arg("--user")
+        .args(args)
         .stderr(std::process::Stdio::null())
         .output()
         .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
@@ -673,24 +665,12 @@ fn unit_state(unit: &str) -> String {
 /// Whether a user manager runs. Without one, as in a container or a
 /// chroot, systemctl answers `offline` or nothing.
 fn manager_runs() -> bool {
-    std::process::Command::new("systemctl")
-        .args(["--user", "is-system-running"])
-        .stderr(std::process::Stdio::null())
-        .output()
-        .is_ok_and(|out| {
-            let state = String::from_utf8_lossy(&out.stdout);
-            !matches!(state.trim(), "" | "offline")
-        })
+    !matches!(systemctl(&["is-system-running"]).as_str(), "" | "offline")
 }
 
 /// The `WAYLAND_DISPLAY` of the user manager, which a flavor sets.
 fn manager_display() -> Option<String> {
-    let shown = std::process::Command::new("systemctl")
-        .args(["--user", "show-environment"])
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()?;
-    String::from_utf8_lossy(&shown.stdout)
+    systemctl(&["show-environment"])
         .lines()
         .find_map(|l| l.strip_prefix("WAYLAND_DISPLAY="))
         .map(str::to_owned)

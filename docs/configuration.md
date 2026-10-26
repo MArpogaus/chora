@@ -69,8 +69,8 @@ scene:
   `text`), a `parent`
   (the root by default) and its `props` as in a `create` command.
 - A name has lowercase letters, digits, `_`, `-` and `.`, and starts
-  with a letter, so that its file stays in its directory. The file `NAME.yaml` must name the same
-  view.
+  with a letter, so that its file stays in its directory. The file
+  `NAME.yaml` must name the same view.
 - `choractl view load` also takes the path of a YAML file; the MCP tools
   take names only.
 - A plugin that a view starts gets no stdin and no stdout of `choractl`,

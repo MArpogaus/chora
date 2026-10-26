@@ -287,9 +287,12 @@ fn start_plugins(client: &mut Client, plugins: &[PluginUse]) -> Result<Vec<Strin
     for manifest in &manifests {
         if !running.contains_key(&manifest.name) {
             let argv = ["sh".into(), "-c".into(), manifest.exec.clone()];
-            crate::run_program(client, &argv, Some(&manifest.name))
+            let answer = crate::run_program(client, &argv, Some(&manifest.name))
                 .map_err(|e| format!("{}: {e}", manifest.name))?;
-            started.push(manifest.name.clone());
+            // A unit that runs already answers no token: nothing started.
+            if !answer["token"].is_null() {
+                started.push(manifest.name.clone());
+            }
         }
     }
     for (plugin, manifest) in plugins.iter().zip(&manifests) {
