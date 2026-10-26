@@ -42,8 +42,14 @@ services/voice/agent.py             # the conversation loop
 ```
 
 A turn starts when the mic level passes `RMS_SPEECH` after `SETTLE_MS`
-of quiet, and ends after `SILENCE_MS` of quiet. Under chora, holding `PTT_KEY` (`Super+v`) also
-records, whatever the level, and the turn ends when Super goes up.
+of quiet, and ends after `SILENCE_MS` of quiet. Under chora, holding
+`PTT_KEY` (`Super+v`) also records, whatever the level, and the turn
+ends when Super goes up.
+
+Talking over the reply above `RMS_BARGE_IN` (twice `RMS_SPEECH` by
+default) for `BARGE_MS` stops the reply and starts a turn, and so does
+the push-to-talk key. The mic also hears the speaker, so headphones or
+the echo cancel module of PipeWire keep the reply from stopping itself.
 
 The LLM gets the tools of `choractl --name voice mcp`. The service finds
 chora through `CHORA_SOCKET`, which a chora flavor gives the user
@@ -58,8 +64,8 @@ choractl grant voice screen.capture input.inject activation.token
 
 Settings are environment variables, in `~/.config/gufo/agent.env` for
 the service: `ASR_URL`, `TTS_URL`, `LLM_URL`, `MODEL`, `RMS_SPEECH`,
-`SILENCE_MS`, `SETTLE_MS`, `PTT_KEY`, `CHORA_NAME`, `CODER_CMD` and
-`SYSTEM`.
+`SILENCE_MS`, `SETTLE_MS`, `RMS_BARGE_IN`, `BARGE_MS`, `PTT_KEY`,
+`CHORA_NAME`, `CODER_CMD` and `SYSTEM`.
 
 ## Checks
 
