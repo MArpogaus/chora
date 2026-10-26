@@ -646,12 +646,14 @@ fn start_child(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
 
 /// The unit of a plugin that a view starts: one per plugin and session,
 /// since every chora of the user shares the user manager. The session is
-/// a hash of `CHORA_SOCKET`, the one path that no two cores share.
+/// an FNV-1a hash of `CHORA_SOCKET`, the one path that no two cores
+/// share; every build of choractl gives the same hash.
 fn view_unit(name: &str) -> String {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::hash::DefaultHasher::new();
-    std::env::var_os(SOCKET_ENV).hash(&mut hasher);
-    format!("chora-{name}-{:08x}.service", hasher.finish() >> 32)
+    let socket = std::env::var(SOCKET_ENV).unwrap_or_default();
+    let hash = socket.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
+        (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
+    });
+    format!("chora-{name}-{:08x}.service", hash >> 32)
 }
 
 /// Whether a user manager runs. Without one, as in a container or a
