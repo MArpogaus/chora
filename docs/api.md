@@ -706,9 +706,9 @@ the unit and the token as one JSON line while the program runs.
   starts nothing.
 - The unit gets the environment of the user manager, plus the token and
   the values of the caller for `PATH`, `XDG_RUNTIME_DIR`,
-  `WAYLAND_DISPLAY` and `CHORA_SOCKET`. It gets `DISPLAY` and the other host session variables
-  only from the caller, never from the user manager. It starts in the
-  directory of the caller.
+  `WAYLAND_DISPLAY` and `CHORA_SOCKET`. It gets `DISPLAY` and the other
+  host session variables only from the caller, never from the user
+  manager. It starts in the directory of the caller.
 - Without a running user manager, `choractl` starts the program itself,
   with the environment of the caller.
   Its output goes to `/dev/null`, and `unit` is `null`.
@@ -731,10 +731,10 @@ The unit is `chora-NAME-DISPLAY.service` of a view in this session,
 where DISPLAY is the name of `WAYLAND_DISPLAY`, or else
 `chora-NAME.service` of a flavor (see [Plugins](#plugins)). The flavor
 unit counts only in the session whose `WAYLAND_DISPLAY` the user
-manager holds, so a nested chora never restarts a plugin of its host. A name
-without an active unit is an error: the
-command exits 1 with the reason on stderr, and starts nothing. It
-prints the unit as one JSON line and calls no core.
+manager holds, so a nested chora never restarts a plugin of its host.
+A name without an active unit is an error: the command exits 1 with the
+reason on stderr, and starts nothing. It prints the unit as one JSON
+line and calls no core.
 
 ```console
 $ choractl restart tiling
@@ -898,8 +898,9 @@ through `choractl run`. With a user manager, the unit
 `chora-NAME-DISPLAY.service` restarts the plugin when it fails. It
 carries the display, so that a nested chora on the same user manager
 starts its own plugins. A flavor starts its plugins as its own systemd
-units `chora-NAME.service` instead. A client socket needs
-`activation.token` to start the plugins of a view.
+units `chora-NAME.service` instead. A client socket loads only views
+whose plugins run already: a plugin that it starts would get its socket
+and could not say `hello` with its own name.
 
 ## MCP tools
 

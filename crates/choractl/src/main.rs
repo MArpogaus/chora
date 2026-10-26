@@ -84,14 +84,12 @@ enum Cmd {
         /// The parameters as JSON; `null` if missing.
         params: Option<String>,
     },
-    /// Grant a client name `input.inject`, `screen.capture`,
-    /// `input.grab-any`, `methods.call` or `activation.token`, until the
-    /// session ends or a revoke. Goes through the admin socket.
+    /// Grant a client name capabilities until the session ends or a
+    /// revoke. Goes through the admin socket.
     Grant {
         /// The client name, for example `agent`.
         client: String,
-        /// One or more of `input.inject`, `screen.capture`,
-        /// `input.grab-any`, `methods.call` and `activation.token`.
+        /// One or more capabilities, for example `screen.capture`.
         #[arg(required = true)]
         capabilities: Vec<Capability>,
     },
@@ -100,8 +98,7 @@ enum Cmd {
     Revoke {
         /// The client name.
         client: String,
-        /// One or more of `input.inject`, `screen.capture`,
-        /// `input.grab-any`, `methods.call` and `activation.token`.
+        /// One or more capabilities, for example `screen.capture`.
         capabilities: Vec<Capability>,
     },
     /// Print the grants by client name.
@@ -121,7 +118,7 @@ enum Cmd {
     Mcp,
     /// Start a program outside the core (D42), with an activation token
     /// of the core in `XDG_ACTIVATION_TOKEN`: in its own transient unit
-    /// when a user manager runs, detached otherwise. Prints pid,
+    /// when a user manager runs, as its own child otherwise. Prints pid,
     /// unit and token as one JSON line.
     Run {
         /// The program and its arguments.
@@ -516,7 +513,7 @@ pub(crate) fn run_program(
     let (pid, unit) = match systemd_unit(argv, &token, &unit, plugin.is_some()) {
         RunStart::Unit(pid) => (Some(pid), Some(unit)),
         RunStart::NoManager => (
-            Some(start_detached(argv, &token).map_err(|e| {
+            Some(start_child(argv, &token).map_err(|e| {
                 ClientError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", argv[0])))
             })?),
             None,
@@ -536,7 +533,7 @@ pub(crate) fn run_program(
 /// The outcome of one start attempt through `systemd-run`.
 #[derive(Debug, PartialEq, Eq)]
 enum RunStart {
-    /// No user manager answers: `run` starts the program detached.
+    /// No user manager answers: `run` starts the program as its child.
     NoManager,
     /// `systemd-run` failed, for example because the unit exists already
     /// or the systemd is older than 254; its error is on stderr. `run`
@@ -632,7 +629,7 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
 /// the caller, so that a test session that ends its group ends it too.
 /// Stdout and stderr go to the null device, so that the output of the
 /// program never mixes with the JSON line on stdout.
-fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
+fn start_child(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
     let mut child = std::process::Command::new(&argv[0])
         .args(&argv[1..])
         .env("XDG_ACTIVATION_TOKEN", token)
@@ -1254,7 +1251,7 @@ mod tests {
         assert_eq!(super::classify_start("not a pid"), super::RunStart::Unknown);
     }
 
-    /// The fallback starts the program detached, with the activation
+    /// The fallback starts the program as a child, with the activation
     /// token in its environment, and answers a pid.
     #[test]
     fn the_fallback_starts_the_program_with_the_token() {
@@ -1263,7 +1260,7 @@ mod tests {
         let _ = std::fs::remove_file(&out);
         let script = format!("printf %s \"$XDG_ACTIVATION_TOKEN\" > {}", out.display());
         let program = ["sh".into(), "-c".into(), script];
-        let pid = super::start_detached(&program, &token).expect("the program starts");
+        let pid = super::start_child(&program, &token).expect("the program starts");
         assert!(pid > 0);
         let deadline = Instant::now() + Duration::from_secs(5);
         while std::fs::read_to_string(&out).unwrap_or_default() != token {
