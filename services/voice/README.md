@@ -15,20 +15,22 @@ in `~/Projekte/chora`.
 |---|---|---|
 | `gufo-asr.container` | 8881 | `/var/models/Qwen/Qwen3-ASR-1.7B` |
 | `gufo-tts.container` | 8882 | `/var/models/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice` |
-| `gufo-llm.container` | 8888 | `/var/models/gufo-llm`, a link to the first shard of your GGUF |
+| `gufo-llm.container` | 8888 | `/var/models/gufo-llm`, a link to your GGUF file |
 
 All three models serve the name `gufo` and listen on `127.0.0.1` only.
 Their internal networks keep them off the internet. A drop-in such as
 `~/.config/containers/systemd/gufo-tts.container.d/model.conf`, with a
-`[Container]` section and a new `Exec=` line, changes the ASR or TTS
-model. `gufo.sh` stays for ad hoc runs with extra arguments.
+`[Container]` section and a new `Exec=` line, changes a model. A GGUF in
+several files needs such a drop-in with the path of its first file,
+because the link hides the numbers in the file names. `gufo.sh` stays for
+ad hoc runs with extra arguments.
 
 ## Setup
 
 From the root of the repository:
 
 ```bash
-sudo ln -s /var/models/<dir>/<first shard>.gguf /var/models/gufo-llm
+sudo ln -s /var/models/<dir>/<model>.gguf /var/models/gufo-llm
 mkdir -p ~/.config/containers/systemd
 ln -s "$PWD"/services/voice/systemd/*.{container,network} ~/.config/containers/systemd/
 systemctl --user link "$PWD/services/voice/systemd/voice-agent.service"
@@ -74,9 +76,10 @@ the level that `RMS_BARGE_IN` must stay above.
 
 The LLM gets the tools of `choractl --name voice mcp`. The service finds
 chora through `CHORA_SOCKET`, which a chora flavor gives the user
-manager. `CODER_CMD`, for example `pi -p` or `claude -p`, adds the tool
-`delegate`. It runs bigger tasks in the background in your home
-directory and speaks the result.
+manager. `CODER_CMD`, for example
+`claude -p --permission-mode acceptEdits`, adds the tool `delegate`. It
+runs bigger tasks in the background in your home directory and speaks
+the result.
 
 The tools that drive the session need grants for the client name
 `voice`. A grant lasts until the session ends:
