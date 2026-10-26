@@ -55,7 +55,7 @@ RMS_BARGE_IN = int(ENV("RMS_BARGE_IN", str(2 * RMS_SPEECH)))
 BARGE_MS = int(ENV("BARGE_MS", "300"))
 PTT_KEY = ENV("PTT_KEY", "Super+v")  # chora reports its release with Super
 CHORA_NAME = ENV("CHORA_NAME", "voice")  # the client name of the agent
-CODER_CMD = ENV("CODER_CMD", "")  # for example "pi -p" or "claude -p"
+CODER_CMD = ENV("CODER_CMD", "")  # for example "claude -p --permission-mode acceptEdits"
 SYSTEM = ENV(
     "SYSTEM",
     "You are a voice assistant on a Linux desktop named chora. Answer in the "
@@ -457,8 +457,8 @@ async def answer(
     tools : Tools
         The tools the LLM may call.
     history : list[dict]
-        The conversation; the answer and the tool results join it, also a
-        reply that a barge-in cuts short.
+        The conversation; the answer and the tool results join it. A reply
+        that a barge-in cuts short keeps the words that the LLM wrote.
     """
     for _ in range(TOOL_ROUNDS):
         body: dict = {"model": MODEL, "messages": history, "stream": True}
@@ -514,14 +514,19 @@ async def push_to_talk(session: ClientSession, down: asyncio.Event) -> None:
     """Keep `down` set while the push-to-talk key is held in chora.
 
     chora ends the subscription when it restarts; then this subscribes
-    again.
+    again until chora is back.
     """
     args = {"events": ["input.key"], "keys": [PTT_KEY]}
+    first = True
     while True:
         result = await session.call_tool("subscribe_events", args)
-        if result.is_error:
+        if result.is_error and first:
             log(f"no push-to-talk: {result.content[0].text}")
             return
+        if result.is_error:  # chora is not back yet
+            await asyncio.sleep(1)
+            continue
+        first = False
         binding = json.loads(result.content[0].text)["keys"][0]  # in chora's spelling
         try:
             await _follow_key(session, down, binding)
@@ -708,7 +713,9 @@ async def run_loop(
                 preroll = []
                 said = await transcribe(http, pcm)
                 log(f"you: {said}")
-                if said:
+                if said and history[-1]["role"] == "user":  # the last turn got no answer
+                    history[-1]["content"] += " " + said
+                elif said:
                     history.append({"role": "user", "content": said})
                     preroll = await talk(http, mic, answer(http, tools, history), ptt)
             except TURN_ERRORS as err:
