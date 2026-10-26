@@ -1,6 +1,6 @@
 #!/bin/bash
 # W2 xp: 5 windows, start menu, 20 Alt+Tab, minimize/restore/activate,
-# XP Restart x5, choractl restart xp x5; windows must keep their place.
+# XP Restart x5, five outside restarts; windows must keep their place.
 WF=w2; . "$(dirname "$0")/lib.sh"
 # keep.sh starts xp again after each restart
 session_start "1280x800" tests/battle/keep.sh "/tmp/bt-$WF-xp.pid" "$bin/chora-xp" --theme flavors/xp/theme --no-sounds || exit 1

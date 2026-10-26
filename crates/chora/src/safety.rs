@@ -252,7 +252,7 @@ impl State {
     }
 
     /// The revoke binding (D23): takes the capabilities away from every
-    /// client that holds only agent capabilities, as a full
+    /// client, as a full
     /// `grants.revoke` does. The connections stay; only what the grants
     /// gave them goes, also the activation tokens of no client that wait
     /// for a use.

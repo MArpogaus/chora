@@ -72,20 +72,10 @@ impl Grants {
         self.0.clear();
     }
 
-    /// Revokes the grants of every client that holds only capabilities
-    /// that agents work with (D23); all capabilities are such. Returns
-    /// the names, so the caller can end what the grants gave them.
+    /// Revokes the grants of every client (D23). Returns the names, so
+    /// the caller can end what the grants gave them.
     pub fn revoke_agents(&mut self) -> Vec<String> {
-        let names: Vec<String> = self
-            .0
-            .iter()
-            .filter(|(_, held)| held.iter().all(|c| Capability::ALL.contains(c)))
-            .map(|(name, _)| name.clone())
-            .collect();
-        for name in &names {
-            self.0.remove(name);
-        }
-        names
+        std::mem::take(&mut self.0).into_keys().collect()
     }
 
     fn list(&self) -> Value {
