@@ -16,6 +16,7 @@ GroupAdd=keep-groups
 ReadOnly=true
 DropCapability=all
 NoNewPrivileges=true
+# Without it, SELinux denies the container the GPU devices.
 SecurityLabelDisable=true
 Exec=gufo serve --host 0.0.0.0 --port 8882 tts --model /var/models/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --served-model-name gufo
 PublishPort=127.0.0.1:8882:8882
