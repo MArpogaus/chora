@@ -149,9 +149,8 @@ impl RpcError {
     /// The method works only on the admin socket of `choractl`, not on a
     /// client socket.
     pub const ADMIN_SOCKET_ONLY: i64 = 8;
-    /// A rule of client sockets refuses the request: another name in
-    /// `hello`, a node or an asset outside the client's own, or a grant
-    /// for a name whose capabilities a socket fixes.
+    /// A rule of client sockets refuses the request; the API reference
+    /// lists the rules under Client sockets.
     pub const CLIENT_SOCKET_RULE: i64 = 9;
 
     /// An error with a code and a message and no `data`.

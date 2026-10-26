@@ -3005,11 +3005,14 @@ impl Wm {
                     commands.extend(self.close_window(&surface));
                 }
             }
-            Choice::StandBy => drop(
-                std::process::Command::new("systemctl")
+            Choice::StandBy => {
+                if let Err(err) = std::process::Command::new("systemctl")
                     .arg("suspend")
-                    .status(),
-            ),
+                    .status()
+                {
+                    eprintln!("chora-xp: cannot suspend: {err}");
+                }
+            }
             Choice::TurnOff => {
                 self.play(Sound::ShutDown);
                 self.done = true;

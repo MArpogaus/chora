@@ -655,8 +655,9 @@ socket, with these exceptions:
   the security context manager, idle inhibit and idle notify are not
   offered. On Wayland the client cannot lock the session, list the
   windows, control the windows of others, open a socket of its own or
-  keep the screen awake. On `ipc.sock`, `focus_node` takes the keyboard
-  only after a press of the user on the client, as a token below does.
+  keep the screen awake. On `ipc.sock`, `focus_node` and `focus` take the
+  keyboard only after a press of the user on the client, as a token
+  below does.
 
 The layer shell stays, so a panel can run in a container. Such a client
 can draw over all windows in the top layer, but the core refuses the
@@ -899,9 +900,10 @@ through `choractl run`. With a user manager, the unit
 `chora-NAME-SESSION.service` restarts the plugin when it fails. It
 carries the session, so that every chora on the same user manager
 starts its own plugins. A flavor starts its plugins as its own systemd
-units `chora-NAME.service` instead. A client socket loads only views
-whose plugins run already: a plugin that it starts would get its socket
-and could not say `hello` with its own name.
+units `chora-NAME.service` instead. A plugin that a view starts through
+a client socket gets that socket, so its `hello` with its own name
+fails, and the load ends after the start timeout. Start such plugins
+from the main socket.
 
 ## MCP tools
 
