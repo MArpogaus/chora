@@ -669,7 +669,7 @@ To try the flavor from a source tree, start it nested:
 
 ```bash
 cargo build --workspace
-target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme
+PATH=$PWD/target/debug:$PATH chora -- chora-xp --theme flavors/xp/theme
 ```
 
 ## Services

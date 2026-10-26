@@ -72,6 +72,7 @@ of the core stops the core with its startup command and removes the
 directory. An agent or a CI job uses it so:
 
 ```bash
+export PATH=$PWD/target/debug:$PATH  # plugins start apps with choractl run
 tests/headless-session.sh 1280x800 -- target/debug/chora-tiling >session.env &
 session=$!
 until grep -q CHORA_SOCKET session.env; do sleep 0.1; done

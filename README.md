@@ -75,8 +75,10 @@ edge of the output, wait for clicks and keys, and move the camera. With
 restart` restarts the systemd unit of a plugin (D42).
 
 To try the XP flavor, a stacking desktop in the style of Windows XP, start
-`chora -- chora-xp`. From a source tree, point it at the theme:
-`target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme`.
+`chora -- chora-xp`. From a source tree, put the binaries on `PATH`,
+since the plugins start apps with `choractl run`, and point it at the
+theme: `PATH=$PWD/target/debug:$PATH chora -- chora-xp --theme
+flavors/xp/theme`.
 Windows wobble while you drag them and minimize through a magic lamp.
 Ctrl+Alt+Left and Ctrl+Alt+Right, or the desktop buttons 1 to 4 in the
 taskbar, turn a cube of four desktops. Inside GNOME, which keeps

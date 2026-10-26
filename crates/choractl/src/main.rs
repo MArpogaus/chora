@@ -527,7 +527,7 @@ pub(crate) fn run_program(
         RunStart::Unknown => (None, Some(unit)),
         RunStart::Refused => {
             return Err(ClientError::Io(std::io::Error::other(format!(
-                "systemd-run refused the unit {unit}, see its error above; a unit that runs already stops with systemctl --user stop {unit}"
+                "systemd-run refused the unit {unit}. Its error is above. To stop a running unit, run systemctl --user stop {unit}."
             ))));
         }
     };
