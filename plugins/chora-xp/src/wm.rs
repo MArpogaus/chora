@@ -3005,14 +3005,15 @@ impl Wm {
                     commands.extend(self.close_window(&surface));
                 }
             }
-            Choice::StandBy => {
+            // A thread, since polkit may ask first and the loop must go on.
+            Choice::StandBy => drop(std::thread::spawn(|| {
                 if let Err(err) = std::process::Command::new("systemctl")
                     .arg("suspend")
                     .status()
                 {
                     eprintln!("chora-xp: cannot suspend: {err}");
                 }
-            }
+            })),
             Choice::TurnOff => {
                 self.play(Sound::ShutDown);
                 self.done = true;
