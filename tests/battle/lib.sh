@@ -6,6 +6,8 @@ cd "$repo" || exit 1
 bin=$repo/target/debug
 findings=$repo/tests/battle/findings.md
 export PATH=/home/agent/.local/share/mamba/envs/chora/bin:$PATH
+# no user manager of the host: run starts children that the session ends
+unset DBUS_SESSION_BUS_ADDRESS
 # software EGL for the headless backend (system libEGL is not installed)
 export LD_LIBRARY_PATH=/home/agent/.local/opt/mesa-egl/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 export __EGL_VENDOR_LIBRARY_FILENAMES=/home/agent/.local/opt/mesa-egl/usr/share/glvnd/egl_vendor.d/50_mesa.json

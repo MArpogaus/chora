@@ -39,7 +39,8 @@ session_start() {
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }
 ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
 # run_pid <pid> remembers a program of `choractl run` (D42): it lives in
-# a session of its own, so the EXIT trap of session_start must end it.
+# a unit or outside the group of the core, so the EXIT trap of
+# session_start must end it.
 run_pids=()
 run_pid() { run_pids+=("$1"); }
 pixel() { python3 -I "$repo/tests/png-pixel.py" "$@"; }
