@@ -321,7 +321,7 @@ impl State {
                     "a client socket acts only on its own surfaces, and {surface:?} is of another client"
                 ))
             }
-            Command::Focus { surface: Some(_) } if !self.pressed_by(name) => Err(
+            Command::Focus { .. } if !self.pressed_by(name) => Err(
                 "a client socket focuses its window only right after a press on its own node or window".into(),
             ),
             _ => Ok(()),
