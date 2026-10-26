@@ -1,0 +1,16 @@
+# Python of the repository: lint and format. pre-commit runs it on
+# services/voice/ for now; the examples and test clients follow.
+line-length = 100
+target-version = "py311"
+
+[lint]
+# pycodestyle, pyflakes, isort, pydocstyle, pyupgrade, and the complexity
+# guards: McCabe complexity and the refactor rules of pylint (too many
+# branches, statements, arguments, magic values).
+select = ["C90", "D", "E", "F", "I", "PLR", "UP"]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.pydocstyle]
+convention = "numpy"
