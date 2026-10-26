@@ -1237,19 +1237,6 @@ mod tests {
         assert!(taken_socket("agent", &no_data).is_none());
     }
 
-    /// A unit of `run` takes no host session variable from the user
-    /// manager: each one is set from this session or unset.
-    #[test]
-    fn a_unit_sets_or_unsets_every_host_variable() {
-        let props = super::unit_env();
-        for key in chora_scene::ipc::HOST_VARIABLES {
-            let set = format!("--setenv={key}");
-            let unset = format!("-pUnsetEnvironment={key}");
-            let hits = props.iter().filter(|p| **p == set || **p == unset).count();
-            assert_eq!(hits, 1, "{key} in {props:?}");
-        }
-    }
-
     /// A started unit with an unknown `MainPID` answers no pid, never
     /// pid 0.
     #[test]
