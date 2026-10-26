@@ -8,11 +8,13 @@
 agent.py                 the conversation loop (default)
 agent.py roundtrip [TEXT] TTS speaks TEXT into ASR, the LLM answers, TTS plays
 agent.py tts [TEXT]       text -> TTS -> speaker
-agent.py asr FILE         raw PCM (24 kHz, 16 bit, mono) -> ASR -> transcript
+agent.py asr FILE         raw PCM (24 kHz, 16 bit, mono) -> ASR -> transcript;
+                          arecord -r 24000 -c 1 -f S16_LE -t raw FILE records one
 agent.py levels           live mic level, to tune RMS_SPEECH
 agent.py tools            the tools the LLM gets from chora and this agent
 
-services/voice/README.md describes the turns and the settings.
+services/voice/README.md describes the turns. The settings are the
+environment variables in the globals section below.
 """
 
 # %% imports
@@ -39,7 +41,7 @@ from mcp.client.stdio import stdio_client
 # %% globals
 ENV = os.environ.get
 ASR_URL = ENV("ASR_URL", "ws://127.0.0.1:8881/v1/realtime?intent=transcription")
-TTS_URL = ENV("TTS_URL", "http://127.0.0.1:8882")
+TTS_URL = ENV("TTS_URL", "ws://127.0.0.1:8882/v1/audio/speech/stream")
 LLM_URL = ENV("LLM_URL", "http://127.0.0.1:8888/v1")
 MODEL = ENV("MODEL", "gufo")  # the served name of all three models
 VOICE = ENV("VOICE", "aiden")  # a voice of the TTS server
@@ -204,8 +206,7 @@ async def tts(http: aiohttp.ClientSession, text: str) -> AsyncIterator[bytes]:
     text : str
         The text; the server reads it whole.
     """
-    url = TTS_URL.replace("http", "ws", 1) + "/v1/audio/speech/stream"
-    async with http.ws_connect(url) as ws:
+    async with http.ws_connect(TTS_URL) as ws:
         # The server refuses stream_audio without response_format pcm.
         config = {"model": MODEL, "voice": VOICE, "response_format": "pcm"}
         await ws.send_json({"type": "session.config", **config, "stream_audio": True})
@@ -534,9 +535,11 @@ async def _follow_key(session: ClientSession, down: asyncio.Event, binding: str)
         result = await session.call_tool("wait_events", {"timeout_ms": 30000})
         for batch in (json.loads(c.text) for c in result.content if c.type == "text"):
             for event in batch.get("events", []):
-                if event.get("binding") == binding and event.get("state") == "pressed":
+                if event.get("binding") != binding:
+                    continue
+                if event.get("state") == "pressed":
                     down.set()
-                elif event.get("binding") == binding and event.get("state") == "released":
+                elif event.get("state") == "released":
                     down.clear()
             if batch.get("ended"):
                 log(f"push-to-talk ended: {batch['ended']}")
@@ -638,7 +641,7 @@ async def talk(
         peak = max(peak, level)
         loud = loud + 1 if level >= RMS_BARGE_IN else 0
         if ms(loud) >= BARGE_MS or ptt.is_set():
-            log(f"barge-in at level {level:.0f}")
+            log("barge-in by key" if ptt.is_set() else f"barge-in at level {level:.0f}")
             reply.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await reply
@@ -669,7 +672,7 @@ async def chora(stack: contextlib.AsyncExitStack) -> ClientSession | None:
 def trim(history: list[dict]) -> None:
     """Keep the last turns, from a user message on, and at least the last turn.
 
-    So no tool result loses the call it answers.
+    This keeps each tool result with the call that it answers.
     """
     users = [i for i, m in enumerate(history) if m["role"] == "user"]
     start = next((i for i in users if i >= len(history) - HISTORY), users[-1] if users else 1)
