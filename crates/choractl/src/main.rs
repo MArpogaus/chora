@@ -122,8 +122,8 @@ enum Cmd {
     Mcp,
     /// Start a program outside the core (D42), with an activation token
     /// of the core in `XDG_ACTIVATION_TOKEN`: in its own transient unit
-    /// when the user manager answers, detached otherwise. Prints the pid
-    /// as one JSON line.
+    /// when the user manager answers, detached otherwise. Prints pid,
+    /// unit and token as one JSON line.
     Run {
         /// The program and its arguments.
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]

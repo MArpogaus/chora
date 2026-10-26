@@ -123,6 +123,11 @@ showroom:
   grants: []
 ```
 
+The grants are the capabilities of `choractl grant`, plus `methods.call`
+and `activation.token`, which only a client socket needs (see
+[API](api.md#client-sockets)). An agent that drives the window manager
+needs `methods.call`, and one that starts apps needs `activation.token`.
+
 The names follow the rules of `hello`. `clients up` opens the socket of
 every name with exactly the capabilities of its list. A socket that
 already has the equal capabilities stays with its connections and gets
@@ -152,7 +157,7 @@ option:
 | `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
 | `new_window` | `master` or `stack`: where a new window goes |
 | `focus` | `click` or `follow_mouse` |
-| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once |
+| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run` |
 
 The layouts and the default bindings follow the awesome window manager.
 Each output has its own tags, and each tag its own layout and parameters.

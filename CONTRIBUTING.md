@@ -68,7 +68,7 @@ scale and transform.
 `XDG_RUNTIME_DIR` under `/tmp`, without the `WAYLAND_DISPLAY` and
 `DISPLAY` of the host. It prints `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and
 `CHORA_SOCKET` as lines `KEY=VALUE`, waits, and on a signal or at the end
-of the core stops the core with all its programs and removes the
+of the core stops the core with its startup command and removes the
 directory. An agent or a CI job uses it so:
 
 ```bash
@@ -83,8 +83,11 @@ kill $session
 ```
 
 `CHORA_BIN` sets the directory of `chora` (default `target/debug`), and
-`CHORA_LOG` the log file of the core. Programs of `choractl run` get the
-environment of the caller (D42), which the sourced lines provide. Without
+`CHORA_LOG` the log file of the core. Programs of `choractl run` get
+`XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and `CHORA_SOCKET` of the caller,
+which the sourced lines provide. With a user systemd, other variables
+of the caller do not reach them (see
+[Programs](docs/api.md#programs)). Without
 system Mesa, the software EGL driver and the clients can come from Fedora
 RPMs unpacked into the home directory:
 

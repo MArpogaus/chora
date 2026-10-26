@@ -139,11 +139,10 @@ Scope:
   and the client library warns on a mismatch.
 - Stable error codes: one code for each kind of failure. The error data
   already names the failed command.
-- Done (D42): `process.spawn`, `process.wait` and `plugins.restart` have
-  left the core. `choractl run` starts a program through
-  `systemd-run --user` with an activation token. Without a reachable user
-  systemd, `choractl` starts and restarts the program itself.
-  `choractl supervise` restarts a plugin that ends.
+- The core starts no program except its startup command (D42).
+  `choractl run` starts a program through `systemd-run --user` with an
+  activation token, or detached without a user systemd. systemd units
+  restart plugins, and `choractl restart` restarts such a unit.
 - Focus in queries: the surface and the node that have the keyboard.
 - Queries return the screen rectangle of a node on each output.
 - `choractl wait SELECTOR` returns when a node matches, or fails after a
@@ -172,9 +171,10 @@ Gate:
 6. A client with `input.grab-any` grabs F13 and a letter key. A client
    without it gets the error code for a missing capability.
 7. The core has no code that forks a process except the startup command.
-8. `choractl run foot` starts foot in its own systemd scope, and the
-   `surface.created` event of its window carries the activation token.
-   Without a user systemd, the same command starts foot directly.
+8. `choractl run foot` starts foot in a transient systemd unit of its
+   own, and the `surface.created` event of its window carries the
+   activation token. Without a user systemd, the same command starts foot
+   directly.
 9. Each error code of the API has a test that provokes it.
 10. The battle workflows in `tests/battle/` pass with `choractl wait`, the
     focus and the rectangles of queries and the plugin methods, without

@@ -377,9 +377,9 @@ answers every request.
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.list` | list the methods that clients exported, each with its description and input schema |
-| `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method |
+| `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call` |
 | `methods.return(call, result, error)` | answer a `method.called` event |
-| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket gets code 9 |
+| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability `activation.token` |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
@@ -612,9 +612,11 @@ in. `choractl clients create agent` prints its path:
   drives the session as far as they reach.
 - `grants.set` and `grants.revoke` answer code 9 for the name: change
   `clients.yaml` and run `choractl clients up`.
-- `activation.token` answers code 9. A window of its `wayland.sock`
-  asks for tokens through `xdg-activation`, under the focus rules
-  above.
+- `methods.call` needs the capability `methods.call`, and
+  `activation.token` the capability `activation.token`. Without them
+  both answer code 4. The main socket needs neither. A window of its
+  `wayland.sock` asks for tokens through `xdg-activation`, under the
+  focus rules above.
 - Its `image`, `shader` and effect paths name only its own files of
   `assets.put`. The main socket has no such rule: a client of it runs as
   the same account as the core and could read those files anyway.
@@ -676,67 +678,56 @@ then get nothing. Its socket closes at its next request. Its windows carry the n
 focus, as every Wayland client does.
 
 A container that mounts only its client directory cannot take another
-name or give itself capabilities. The last known gap is gone: the core
-starts no program, so no program carries its `CHORA_SOCKET` and
-`WAYLAND_DISPLAY` into a container (D42).
+name or give itself capabilities.
 
 ## Programs
 
 The core starts no program except its own startup command (D30, D42).
-`choractl run`, `choractl supervise` and `choractl restart` start and
-keep programs outside the core.
+`choractl run` starts programs outside the core, and systemd keeps
+plugins running.
 
-`choractl run [--] CMD ARGS...` starts a program outside the core (D42).
-The old name `choractl spawn` is a hidden alias of it that prints one
-deprecation line on stderr.
-It first asks the core for an activation token with `activation.token`
-and passes it to the program in `XDG_ACTIVATION_TOKEN`. When `systemctl
---user is-system-running` answers, `systemd-run --user` starts the
-program in a transient unit of its own and returns at once. The unit
-also gets `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and `CHORA_SOCKET` of
-the caller, so a plain `WAYLAND_DISPLAY` name resolves in the caller's
-runtime directory. It gets `DISPLAY` and the other host session
-variables only from the caller, never from the user manager. It starts
-in the caller's directory, and its output goes to the journal.
-Otherwise `choractl` forks the program itself, detached in a session of
-its own, with the environment of the caller and with no terminal. The
-command prints the pid and the token as one JSON line while the
-program runs. When
-the unit starts but its `MainPID` stays unknown after a short wait, for
-example because the program already ended, `pid` is `null`. The command
-never starts the program twice. Export
-the two variables for the fallback as for any client. A window that
-activates with the token before
-its first map shows it in `surface.created`. Since 0.7 the
-core itself starts nothing; `choractl run` and systemd do (D42).
+`choractl run [--] CMD ARGS...` starts a program outside the core. It
+asks the core for an activation token with `activation.token` and
+passes it to the program in `XDG_ACTIVATION_TOKEN`. It prints the pid,
+the unit and the token as one JSON line while the program runs.
+
+- When `systemctl --user is-system-running` answers, `systemd-run --user`
+  starts the program in the transient unit `chora-run-PID-TIME.service`.
+  `journalctl --user -u UNIT` shows its output. The unit lives until the
+  last process in it ends, so an app that a launcher starts lives on.
+  The arguments reach the program literally, without the expansion of
+  `$` by systemd.
+- The unit gets the environment of the user manager, plus the token and
+  the values of the caller for `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and
+  `CHORA_SOCKET`. It gets `DISPLAY` and the other host session variables
+  only from the caller, never from the user manager. It starts in the
+  directory of the caller.
+- Without an answer, `choractl` starts the program itself, detached in
+  a session of its own, with the environment of the caller. Its output
+  goes to `/dev/null`, and `unit` is `null`.
+- When the unit starts but its `MainPID` stays unknown after a short
+  wait, for example because the program ended at once, `pid` is `null`.
+  The command never starts the program twice.
+
+A window that activates with the token before its first map shows the
+token in `surface.created`. `chora-tiling` and `chora-xp` start apps with
+`choractl run` too, so a restart of a window manager leaves its apps
+running.
 
 ```console
 $ choractl run -- foot
-{"pid":4343,"token":"a1b2c3d4e5f60718"}
+{"pid":4343,"token":"a1b2c3d4e5f60718","unit":"chora-run-4342-1761400000.service"}
 ```
 
-`choractl supervise NAME -- CMD ARGS...` runs a plugin and starts it
-again when it ends (D42). It allows at most five restarts per minute
-and exits with an error after them. It writes the pid of the running
-program to `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`, so that
-`choractl restart` finds it. SIGTERM or SIGINT to `supervise` ends the
-program, removes the pid file, and exits with 128 plus the signal, as
-process managers expect. Only one `supervise` runs per name; a second
-one exits with an error. A restart through `choractl restart` counts
-toward the five restarts too. The command calls no core.
-
-`choractl restart NAME` restarts a plugin. While the systemd user unit
-`NAME.service` or `chora-NAME-wm.service` of a flavor is active, it
-runs `systemctl --user restart` on that unit. Otherwise it sends SIGTERM to the running program of
-`choractl supervise NAME`, which starts it again. A name that runs in
-neither way is an error. A pid file whose program no longer runs is an
-error too, and the command removes the file. It prints what it
-restarted as one JSON line.
+`choractl restart NAME` restarts a plugin with `systemctl --user restart`.
+The unit is `chora-NAME-wm.service` of a flavor or `chora-NAME.service`
+of a view (see [Plugins](#plugins)). A name without an active unit is an
+error: the command exits 1 with the reason on stderr. It prints the unit
+as one JSON line and calls no core.
 
 ```console
-$ choractl supervise tiling -- chora-tiling &
 $ choractl restart tiling
-{"restarted":"supervise","pid":4444}
+{"unit":"chora-tiling-wm.service"}
 ```
 
 ## Screen capture
@@ -891,8 +882,10 @@ configure: set_layout
 `choractl view load` reads the manifest of each plugin of a view: it starts
 a plugin that does not run with `exec`, and passes the `config` of the view
 to the method in `configure` (see
-[Configuration](configuration.md#plugin-manifests)). A flavor starts its
-plugins as systemd units instead.
+[Configuration](configuration.md#plugin-manifests)). The start goes
+through `choractl run` in the unit `chora-NAME.service`, which restarts
+the plugin when it fails. A flavor starts its plugins as its own systemd
+units instead.
 
 ## MCP tools
 
@@ -914,6 +907,7 @@ example in the `.mcp.json` of Claude Code:
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
 | `load_view`, `save_view`, `unload_view` | the views of [Configuration](configuration.md#views), by name only |
+| `run_program` | start a program as `choractl run` does, on the machine of the MCP server; answers pid, unit and token |
 | `reserve_space` | space at the edges of an output, as `output.reserve`, while the server runs |
 | `configure_output` | the scale or the transform of an output, as `output.configure` |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
@@ -929,10 +923,11 @@ examples of this page agree.
 The screenshot of `describe_screen`, `capture` and `inject_input` need
 the grants of the client name, for example
 `choractl grant agent screen.capture`. Without a grant, `describe_screen`
-still describes the scene. No tool grants anything (D40). Programs are
-outside the MCP server: start them with `choractl run` (D42). Since 0.7
-the tools `spawn_process`, `wait_process` and `restart_plugin` are gone,
-because a tool that starts programs would pass every grant.
+still describes the scene. No tool grants anything (D40). On a client
+socket, `call_method` and the tools of plugin methods need the capability
+`methods.call`, and `run_program` needs `activation.token`. A program
+of `run_program` starts where the MCP server runs, for example inside
+the container of an agent.
 
 A subscription has a connection of its own under the same client name. A
 thread reads its events into a buffer of 1000 events, so the core never

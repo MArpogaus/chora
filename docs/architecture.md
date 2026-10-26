@@ -386,7 +386,8 @@ grants and makes client sockets (see [API](api.md#client-sockets)).
   hostile code of the same user. The emergency reset revokes all grants.
 - `screen.capture` and `input.inject` fail while the session is locked.
 - The core starts no program except its own startup command (D42).
-  `choractl run`, `supervise` and `restart` start programs outside it.
+  `choractl run` starts programs outside it, and systemd units keep
+  plugins running.
 - A connection of a client socket acts only on its own nodes and on the
   windows of its `wayland.sock`. It sets no camera and puts no node
   under `screen:*`. It takes the keyboard with `focus_node` only after a
