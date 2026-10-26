@@ -286,7 +286,9 @@ fn start_plugins(client: &mut Client, plugins: &[PluginUse]) -> Result<Vec<Strin
     let mut started = Vec::new();
     for manifest in &manifests {
         if !running.contains_key(&manifest.name) {
-            spawn(&manifest.exec)?;
+            let argv = ["sh".into(), "-c".into(), format!("exec {}", manifest.exec)];
+            crate::run_program(client, &argv, Some(&manifest.name))
+                .map_err(|e| format!("{}: {e}", manifest.name))?;
             started.push(manifest.name.clone());
         }
     }
@@ -337,20 +339,6 @@ fn wait_for(client: &mut Client, name: &str, method: Option<&str>) -> Result<(),
         }
         std::thread::sleep(Duration::from_millis(100));
     }
-}
-
-/// Runs a shell command in the background; `&` lets the shell exit at
-/// once, so the plugin outlives `choractl`.
-fn spawn(command: &str) -> Result<(), String> {
-    // The plugin must not take the stdin and stdout of choractl, which
-    // carry MCP under `choractl mcp`.
-    std::process::Command::new("sh")
-        .args(["-c", &format!("{command} &")])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .status()
-        .map_err(|e| format!("cannot run {command:?}: {e}"))
-        .map(drop)
 }
 
 /// The nodes that a view owns.
