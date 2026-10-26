@@ -9,7 +9,7 @@
 # sees none of the privileged protocols. An MCP client waits for events
 # and draws a shader that it hands to the core as an asset. Connections
 # reserve space at the edges of the output. An agent starts a program with
-# choractl run, keeps one under supervise and restarts it. An MCP client
+# choractl run. An MCP client
 # scales the output and keeps a HUD in place during a camera move.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
@@ -442,7 +442,7 @@ wait_for work_area_is "[0,0,1280,800]"
 wait_for xs_are "0 0"
 if ctl reserve --output nowhere --top 1 2>/dev/null; then fail "a reserve of no output worked"; fi
 
-step "21. choractl run starts a program, supervise and restart handle one"
+step "21. choractl run starts a program, restart needs a unit"
 # Run needs no grant (D42): the core only hands out an activation token.
 # The probe connects to chora, not to the host sway, with the inner display.
 WAYLAND_DISPLAY=$inner "$bin/choractl" --name agent run "$bin/chora-probe" window 0 255 0 >"$out/run.json" ||
@@ -458,23 +458,6 @@ WAYLAND_DISPLAY=$inner "$bin/choractl" --name agent run "$bin/chora-probe" activ
     fail "the run of the activated probe"
 token=$(jq -r .token "$out/run-token.json")
 wait_for grep -q "\"token\":\"$token\"" "$out/token.jsonl"
-# A program under `choractl supervise` answers `choractl restart`: the
-# pid file names the running program, and a new one takes over.
-"$bin/choractl" supervise slow -- sleep 60 &
-pids+=($!)
-sup_file=$XDG_RUNTIME_DIR/chora/supervise/slow.pid
-wait_for test -s "$sup_file"
-old=$(cat "$sup_file")
-"$bin/choractl" restart slow >"$out/restart.json" 2>"$out/restart.err" ||
-    fail "the restart failed: $(cat "$out/restart.err")"
-jq -e --argjson old "$old" '.restarted == "supervise" and .pid == $old' \
-    "$out/restart.json" >/dev/null || fail "the restart: $(cat "$out/restart.json")"
-pid_is_new() {
-    local now
-    now=$(cat "$sup_file" 2>/dev/null) && test -n "$now" && test "$now" != "$old"
-}
-wait_for pid_is_new
-pids+=("$(cat "$sup_file")")
 if "$bin/choractl" restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
 
 step "22. an MCP client draws a panel and moves the camera on a click"

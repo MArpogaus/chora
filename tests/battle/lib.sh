@@ -14,6 +14,9 @@ export GALLIUM_DRIVER=llvmpipe LIBGL_ALWAYS_SOFTWARE=1
 step() { echo "-- $*" >> "$RUN"; }
 ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
 admin() { timeout 10 "$bin/choractl" "$@"; }
+# restart_plugin <name> ends a plugin that keep.sh runs with the pid file
+# /tmp/bt-$WF-<name>.pid; keep.sh starts it again.
+restart_plugin() { kill "$(cat "/tmp/bt-$WF-$1.pid")"; }
 
 # health <what just happened>  -> a finding with severity crash if the core
 # does not answer within 5 s.

@@ -5,8 +5,8 @@
 WF=w8; . "$(dirname "$0")/lib.sh"
 free_gb=$(awk '/MemAvailable/ {print int($2/1048576)}' /proc/meminfo)
 [ "$free_gb" -ge 8 ] || { echo "W8 skipped: only ${free_gb} GB free" >> "$RUN"; exit 0; }
-# supervise keeps tiling alive and answers `choractl restart` (D42)
-session_start "1280x800,1280x800+1280+0" "$bin/choractl" supervise tiling -- "$bin/chora-tiling" || exit 1
+# keep.sh starts tiling again after each restart
+session_start "1280x800,1280x800+1280+0" tests/battle/keep.sh "/tmp/bt-$WF-tiling.pid" "$bin/chora-tiling" || exit 1
 
 step "opening 40 windows"
 N=40
@@ -35,13 +35,10 @@ for i in $(seq 50); do
 done
 
 step "20 plugin restarts"
-# supervise allows at most five restarts per minute (D42): keep the
-# restarts fifteen seconds apart
 for i in $(seq 20); do
-  ctl restart tiling > /dev/null 2>&1 || { finding "W8: restart $i failed" wrong "choractl restart tiling"; break; }
-  ready tiling get_layout '{}' || { finding "W8: tiling silent after restart $i" wrong "choractl restart tiling"; break; }
+  restart_plugin tiling || { finding "W8: restart $i failed" wrong "restart tiling"; break; }
+  ready tiling get_layout '{}' || { finding "W8: tiling silent after restart $i" wrong "restart tiling"; break; }
   health "restart $i"
-  sleep 15
 done
 c=$(count_windows)
 [ $c -ge $((N-2)) ] || finding "W8: $c windows left after the stress" wrong "$N windows, 36x3 layouts, 50 hotplug, 20 restarts"
