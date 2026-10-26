@@ -488,10 +488,17 @@ fn scene_tools() -> Vec<Tool> {
     ]
 }
 
-/// The tools of the session: the work area and assets. Programs come
-/// from `choractl run` outside the core (D42).
+/// The tools of the session: programs, the work area and assets.
 fn session_tools() -> Vec<Tool> {
     vec![
+        tool(
+            "run_program",
+            "Start a program as choractl run does, on the machine of this MCP server: in a systemd user unit of its own, or detached without a user manager. The program gets an activation token, so that its window gets the focus. A client socket needs the capability activation.token. Returns the pid, the unit and the token.",
+            &json!({
+                "argv": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "the program and its arguments, for example [\"foot\"]"},
+            }),
+            &["argv"],
+        ),
         tool(
             "configure_output",
             "Set the scale or the transform of an output, as wlr-randr does. Returns the output.",
@@ -638,6 +645,14 @@ fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBloc
         }
         "save_view" => Ok(vec![json_text(&view::save(&string("name")?, None)?)]),
         "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
+        "run_program" => {
+            let program: Vec<String> = arg(&args["argv"])?;
+            if program.is_empty() {
+                return Err(Failure::Tool("argv is empty".into()));
+            }
+            let line = crate::run_program(core.connected()?, &program, None)?;
+            Ok(vec![json_text(&line)])
+        }
         "put_asset" => put_asset(core, args),
         "reserve_space" => reserve_space(core, args),
         "configure_output" => pass::<OutputConfigure>(core, "output.configure", args),
@@ -823,7 +838,7 @@ mod tests {
     fn the_builtins_keep_their_names_and_take_no_grant() {
         let builtins = tools();
         let names = names(&builtins);
-        assert_eq!(names.len(), 15, "{names:?}");
+        assert_eq!(names.len(), 16, "{names:?}");
         assert!(names.contains(&"describe_screen"));
         assert!(names.iter().all(|n| !n.contains("grant")), "{names:?}");
     }
