@@ -692,6 +692,7 @@ fn restart_program(name: &str) -> Result<(), String> {
         .iter()
         .find(|unit| unit_state(unit) == "active")
         .ok_or_else(|| format!("{name}: no active unit {}", units.join(" or ")))?;
+    // Not the helper: the user sees the error of systemctl on stderr.
     let restarted = std::process::Command::new("systemctl")
         .args(["--user", "restart", unit])
         .status()

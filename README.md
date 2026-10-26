@@ -62,11 +62,12 @@ chora-tiling`. The log names the layouts at the start.
 The safety layer has fixed bindings: Ctrl+Alt+Escape resets the scene,
 Ctrl+Alt+BackSpace quits chora, and Ctrl+Alt+F1 to F12 switch the VT.
 
-To let an agent drive chora, grant it screenshots and input, and add
-`choractl --name agent mcp` as an MCP server of the agent:
+To let an agent drive chora, grant it screenshots, input and program
+starts, and add `choractl --name agent mcp` as an MCP server of the
+agent:
 
 ```bash
-choractl grant agent screen.capture input.inject
+choractl grant agent screen.capture input.inject activation.token
 ```
 
 The agent can then put its own shaders and images, reserve a panel at the

@@ -27,6 +27,9 @@ mkdir -p "$out"
 # A short path, because a socket path has at most 107 bytes.
 XDG_RUNTIME_DIR=$(mktemp -d /tmp/chora-agent-e2e.XXXXXX)
 export XDG_RUNTIME_DIR
+# No user manager of the host: choractl run starts programs as its
+# children, which the cleanup ends, and leaves no unit behind.
+unset DBUS_SESSION_BUS_ADDRESS
 pids=()
 cleanup() {
     kill "${pids[@]}" 2>/dev/null || true
