@@ -727,8 +727,10 @@ $ choractl run -- foot
 ```
 
 `choractl restart NAME` restarts a plugin with `systemctl --user restart`.
-The unit is `chora-NAME.service`, of a flavor or of a view (see
-[Plugins](#plugins)). A name without an active unit is an error: the
+The unit is `chora-NAME-DISPLAY.service` of a view in this session,
+where DISPLAY is the name of `WAYLAND_DISPLAY`, or else
+`chora-NAME.service` of a flavor (see [Plugins](#plugins)). A name
+without an active unit is an error: the
 command exits 1 with the reason on stderr, and starts nothing. It
 prints the unit as one JSON line and calls no core.
 
@@ -891,10 +893,10 @@ a plugin that does not run with `exec`, and passes the `config` of the view
 to the method in `configure` (see
 [Configuration](configuration.md#plugin-manifests)). The start goes
 through `choractl run`. With a user manager, the unit
-`chora-NAME.service` restarts the plugin when it fails. A flavor starts
-its plugins as its own systemd units instead. When a flavor linked a
-unit of that name in this boot, `systemd-run` refuses the view unit, and
-the view does not start the plugin. A client socket needs
+`chora-NAME-DISPLAY.service` restarts the plugin when it fails. It
+carries the display, so that a nested chora on the same user manager
+starts its own plugins. A flavor starts its plugins as its own systemd
+units `chora-NAME.service` instead. A client socket needs
 `activation.token` to start the plugins of a view.
 
 ## MCP tools

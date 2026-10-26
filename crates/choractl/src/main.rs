@@ -156,9 +156,10 @@ enum Cmd {
         #[arg(value_name = "NAME")]
         output: String,
     },
-    /// Restart a plugin (D42): `systemctl --user restart` of its unit
-    /// `chora-NAME.service`, of a flavor or a view. Prints the unit as one
-    /// JSON line. Does not call the core.
+    /// Restart a plugin (D42): `systemctl --user restart` of its unit,
+    /// `chora-NAME-DISPLAY.service` of a view in this session or
+    /// `chora-NAME.service` of a flavor. Prints the unit as one JSON line.
+    /// Does not call the core.
     Restart {
         /// The plugin name, for example `tiling`.
         #[arg(value_name = "NAME")]
@@ -483,8 +484,8 @@ fn taken_socket(name: &str, err: &RpcError) -> Option<String> {
 /// `choractl run` (D42): asks the core for an activation token, starts
 /// the program with it in the environment, and answers pid, unit and
 /// token as one JSON value; the token lets a test follow the trip to the
-/// window. With `plugin`, the unit is `chora-PLUGIN.service` and restarts
-/// the program when it fails, as the unit of a flavor does.
+/// window. With `plugin`, the unit is the one of `view_unit` and
+/// restarts the program when it fails, as the unit of a flavor does.
 pub(crate) fn run_program(
     client: &mut Client,
     argv: &[String],
@@ -511,7 +512,7 @@ pub(crate) fn run_program(
                 now.as_nanos()
             )
         },
-        |name| format!("chora-{name}.service"),
+        view_unit,
     );
     let (pid, unit) = match systemd_unit(argv, &token, &unit, plugin.is_some()) {
         RunStart::Unit(pid) => (Some(pid), Some(unit)),
@@ -655,21 +656,36 @@ fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
     Ok(pid)
 }
 
-/// `choractl restart` (D42): restarts the systemd user unit of a plugin
-/// and prints the unit as one JSON line.
+/// The unit of a plugin that a view starts: one per plugin and session,
+/// since a nested chora shares the user manager with its host.
+fn view_unit(name: &str) -> String {
+    let display = std::env::var("WAYLAND_DISPLAY").unwrap_or_default();
+    let display = std::path::Path::new(&display)
+        .file_name()
+        .and_then(|d| d.to_str())
+        .unwrap_or("none")
+        .to_owned();
+    format!("chora-{name}-{display}.service")
+}
+
+/// `choractl restart` (D42): restarts the systemd user unit of a plugin,
+/// the unit of a view in this session or else the unit of a flavor, and
+/// prints the unit as one JSON line.
 fn restart_program(name: &str) -> Result<(), String> {
     view::check_name(name)?;
-    let unit = format!("chora-{name}.service");
+    let units = [view_unit(name), format!("chora-{name}.service")];
     // A plain restart would also start a plugin that does not run.
-    let active = std::process::Command::new("systemctl")
-        .args(["--user", "is-active", "--quiet", &unit])
-        .status()
-        .is_ok_and(|s| s.success());
-    if !active {
-        return Err(format!("{name}: no active unit {unit}"));
-    }
+    let unit = units
+        .iter()
+        .find(|unit| {
+            std::process::Command::new("systemctl")
+                .args(["--user", "is-active", "--quiet", unit])
+                .status()
+                .is_ok_and(|s| s.success())
+        })
+        .ok_or_else(|| format!("{name}: no active unit {}", units.join(" or ")))?;
     let restarted = std::process::Command::new("systemctl")
-        .args(["--user", "restart", &unit])
+        .args(["--user", "restart", unit])
         .status()
         .map_err(|e| format!("systemctl: {e}"))?;
     if !restarted.success() {
