@@ -85,14 +85,14 @@ enum Cmd {
         /// The parameters as JSON; `null` if missing.
         params: Option<String>,
     },
-    /// Grant a client name `input.inject`, `screen.capture` or
-    /// `input.grab-any`, until the session ends or a revoke. Goes
-    /// through the admin socket.
+    /// Grant a client name `input.inject`, `screen.capture`,
+    /// `input.grab-any`, `methods.call` or `activation.token`, until the
+    /// session ends or a revoke. Goes through the admin socket.
     Grant {
         /// The client name, for example `agent`.
         client: String,
-        /// One or more of `input.inject`, `screen.capture` and
-        /// `input.grab-any`.
+        /// One or more of `input.inject`, `screen.capture`,
+        /// `input.grab-any`, `methods.call` and `activation.token`.
         #[arg(required = true)]
         capabilities: Vec<Capability>,
     },
@@ -101,8 +101,8 @@ enum Cmd {
     Revoke {
         /// The client name.
         client: String,
-        /// One or more of `input.inject`, `screen.capture` and
-        /// `input.grab-any`.
+        /// One or more of `input.inject`, `screen.capture`,
+        /// `input.grab-any`, `methods.call` and `activation.token`.
         capabilities: Vec<Capability>,
     },
     /// Print the grants by client name.
@@ -568,17 +568,7 @@ fn classify_start(main_pid: &str) -> RunStart {
 /// app it started. The arguments reach the program literally. Output
 /// goes to the journal, never into the line on stdout.
 fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunStart {
-    let Ok(answered) = std::process::Command::new("systemctl")
-        .args(["--user", "is-system-running"])
-        .stderr(std::process::Stdio::null())
-        .output()
-    else {
-        return RunStart::NoManager;
-    };
-    // Without a running user manager, as in a container or a chroot,
-    // systemctl answers `offline` or nothing.
-    let state = String::from_utf8_lossy(&answered.stdout);
-    if matches!(state.trim(), "" | "offline") {
+    if !manager_runs() {
         return RunStart::NoManager;
     }
     let mut started = std::process::Command::new("systemd-run");
@@ -598,9 +588,12 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
     if restart {
         started.arg("-pRestart=on-failure");
     }
+    // The MCP protocol of `choractl mcp` runs on stdin and stdout.
     if !started
         .arg("--")
         .args(argv)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
         .status()
         .is_ok_and(|s| s.success())
     {
@@ -668,12 +661,43 @@ fn view_unit(name: &str) -> String {
     format!("chora-{name}-{display}.service")
 }
 
+/// Whether a user manager runs. Without one, as in a container or a
+/// chroot, systemctl answers `offline` or nothing.
+fn manager_runs() -> bool {
+    std::process::Command::new("systemctl")
+        .args(["--user", "is-system-running"])
+        .stderr(std::process::Stdio::null())
+        .output()
+        .is_ok_and(|out| {
+            let state = String::from_utf8_lossy(&out.stdout);
+            !matches!(state.trim(), "" | "offline")
+        })
+}
+
+/// The `WAYLAND_DISPLAY` of the user manager, which a flavor sets.
+fn manager_display() -> Option<String> {
+    let shown = std::process::Command::new("systemctl")
+        .args(["--user", "show-environment"])
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    String::from_utf8_lossy(&shown.stdout)
+        .lines()
+        .find_map(|l| l.strip_prefix("WAYLAND_DISPLAY="))
+        .map(str::to_owned)
+}
+
 /// `choractl restart` (D42): restarts the systemd user unit of a plugin,
-/// the unit of a view in this session or else the unit of a flavor, and
-/// prints the unit as one JSON line.
+/// the unit of a view in this session or else the unit of the flavor of
+/// this session, and prints the unit as one JSON line.
 fn restart_program(name: &str) -> Result<(), String> {
     view::check_name(name)?;
-    let units = [view_unit(name), format!("chora-{name}.service")];
+    let mut units = vec![view_unit(name)];
+    // The flavor unit belongs to the session of the user manager, not to
+    // a nested chora on it.
+    if manager_display() == std::env::var("WAYLAND_DISPLAY").ok() {
+        units.push(format!("chora-{name}.service"));
+    }
     // A plain restart would also start a plugin that does not run.
     let unit = units
         .iter()

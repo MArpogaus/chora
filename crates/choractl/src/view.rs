@@ -286,7 +286,7 @@ fn start_plugins(client: &mut Client, plugins: &[PluginUse]) -> Result<Vec<Strin
     let mut started = Vec::new();
     for manifest in &manifests {
         if !running.contains_key(&manifest.name) {
-            let argv = ["sh".into(), "-c".into(), format!("exec {}", manifest.exec)];
+            let argv = ["sh".into(), "-c".into(), manifest.exec.clone()];
             crate::run_program(client, &argv, Some(&manifest.name))
                 .map_err(|e| format!("{}: {e}", manifest.name))?;
             started.push(manifest.name.clone());
