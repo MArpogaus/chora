@@ -41,8 +41,8 @@ services/voice/agent.py levels      # speak, read your RMS_SPEECH
 services/voice/agent.py             # the conversation loop
 ```
 
-A turn starts when the mic level passes `RMS_SPEECH` and ends after
-`SILENCE_MS` of quiet. Under chora, holding `PTT_KEY` (`Super+v`) also
+A turn starts when the mic level passes `RMS_SPEECH` after `SETTLE_MS`
+of quiet, and ends after `SILENCE_MS` of quiet. Under chora, holding `PTT_KEY` (`Super+v`) also
 records, whatever the level, and the turn ends when Super goes up.
 
 The LLM gets the tools of `choractl --name voice mcp`. The service finds
@@ -58,7 +58,8 @@ choractl grant voice screen.capture input.inject activation.token
 
 Settings are environment variables, in `~/.config/gufo/agent.env` for
 the service: `ASR_URL`, `TTS_URL`, `LLM_URL`, `MODEL`, `RMS_SPEECH`,
-`SILENCE_MS`, `PTT_KEY`, `CHORA_NAME`, `CODER_CMD` and `SYSTEM`.
+`SILENCE_MS`, `SETTLE_MS`, `PTT_KEY`, `CHORA_NAME`, `CODER_CMD` and
+`SYSTEM`.
 
 ## Checks
 

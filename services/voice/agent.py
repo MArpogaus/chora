@@ -12,8 +12,8 @@ agent.py asr FILE        raw PCM file -> ASR -> transcript
 agent.py levels          live mic level, to tune RMS_SPEECH
 agent.py tools           the tools the LLM gets from chora and this agent
 
-A turn starts when the mic level passes RMS_SPEECH and ends after
-SILENCE_MS of quiet. While PTT_KEY is held in chora, the agent records
+A turn starts when the mic level passes RMS_SPEECH after SETTLE_MS of
+quiet, and ends after SILENCE_MS of quiet. While PTT_KEY is held in chora, the agent records
 whatever the level, and the turn ends when the key goes up. The LLM gets
 the MCP tools of `choractl mcp` and a tool `delegate` that hands bigger
 tasks to CODER_CMD. Every setting is an environment variable.
@@ -42,6 +42,7 @@ LLM_URL = ENV("LLM_URL", "http://127.0.0.1:8888/v1")
 MODEL = ENV("MODEL", "gufo")  # the served name of all three models
 RMS_SPEECH = int(ENV("RMS_SPEECH", "5000"))
 SILENCE_MS = int(ENV("SILENCE_MS", "700"))
+SETTLE_MS = int(ENV("SETTLE_MS", "300"))  # quiet before a turn may start
 PTT_KEY = ENV("PTT_KEY", "Super+v")  # chora reports its release with Super
 CHORA_NAME = ENV("CHORA_NAME", "voice")  # the client name of the agent
 CODER_CMD = ENV("CODER_CMD", "")  # for example "pi -p" or "claude -p"
@@ -292,15 +293,29 @@ class PushToTalk:
 
 
 async def record(ptt):
-    """Records one turn: by level, or while the push-to-talk key is held."""
-    frames, quiet, speaking, pushed = [], 0, False, False
+    """Records one turn: by level, or while the push-to-talk key is held.
+
+    A turn by level starts only after SETTLE_MS below RMS_SPEECH, so that
+    the click of a new mic or the end of the reply does not start one.
+    """
+    frames, quiet, speaking, pushed, settled, waited = [], 0, False, False, 0, 0
     proc = await mic()
     try:
         while True:
             frame = await proc.stdout.readexactly(FRAME_BYTES)
             held = ptt is not None and ptt.held.is_set()
             pushed = pushed or held
-            loud = rms(frame) >= RMS_SPEECH
+            level = rms(frame)
+            loud = level >= RMS_SPEECH
+            if settled * FRAME_MS < SETTLE_MS and not held:
+                settled = 0 if loud else settled + 1
+                waited += 1
+                if settled * FRAME_MS >= SETTLE_MS:
+                    log("speak now")
+                elif waited * FRAME_MS == 2000:
+                    log(f"no quiet below RMS_SPEECH {RMS_SPEECH}, level {level:.0f}; "
+                        "agent.py levels shows the room")
+                continue
             speaking = speaking or loud or held
             if speaking:
                 frames.append(frame)
