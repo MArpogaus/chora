@@ -368,7 +368,7 @@ answers every request.
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name; `methods.call` and `activation.token` answer code 9, since only a client socket needs them; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket; a name with a client socket answers code 9 instead, because its capabilities live in `clients.yaml` |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name; `choractl grant` and `choractl revoke` call them; `grants.set` and `grants.revoke` work only on the admin socket; they answer code 9 for a name with a client socket, and `grants.set` for `methods.call` and `activation.token`, because these live in `clients.yaml` |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
@@ -602,8 +602,8 @@ in. `choractl clients create agent` prints its path:
   - No `create` or `move` puts a node under `screen:*` or below it.
   - No `camera` command works.
   - `attach`, `focus`, `close` and `configure` take only a window of its
-    own `wayland.sock` or a surface that the name owns. `focus` with a
-    surface needs a press as `focus_node` does.
+    own `wayland.sock` or a surface that the name owns. `focus` needs a
+    press as `focus_node` does.
 - `scene.query` on it returns only the nodes of the name and the windows
   of its `wayland.sock`. The `surface.*` events come only for these
   windows.
@@ -617,9 +617,7 @@ in. `choractl clients create agent` prints its path:
   `activation.token` the capability `activation.token`. Without them
   both answer code 4. The main socket needs neither. A token of
   `activation.token` belongs to no client, so the window of a program
-  started with it takes the focus without a press. The capability also
-  lets the MCP tool `run_program` start any program where the MCP server
-  runs. A window of its
+  started with it takes the focus without a press. A window of its
   `wayland.sock` asks for tokens through `xdg-activation`, under the
   focus rules above.
 - Its `image`, `shader` and effect paths name only its own files of
@@ -710,8 +708,8 @@ the unit and the token as one JSON line while the program runs.
   `CHORA_SOCKET`. It gets `DISPLAY` and the other host session variables
   only from the caller, never from the user manager. It starts in the
   directory of the caller.
-- Without an answer, `choractl` starts the program itself, detached in
-  a session of its own, with the environment of the caller. Its output
+- Without a running user manager, `choractl` starts the program itself,
+  in a process group of its own, with the environment of the caller. Its output
   goes to `/dev/null`, and `unit` is `null`.
 - When the unit starts but its `MainPID` stays unknown after a short
   wait, for example because the program ended at once, `pid` is `null`.

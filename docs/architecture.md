@@ -311,9 +311,8 @@ The safety layer is the only built-in behavior (see
   [Input injection](api.md#input-injection). They are Ctrl+Alt+BackSpace
   (quit), Ctrl+Alt+Escape (emergency reset), Ctrl+Alt+i (revoke) and
   Ctrl+Alt+F1 to F12 (VT switch).
-- **Revoke binding.** Ctrl+Alt+i takes every capability away from each
-  client that holds only agent capabilities, which today are all of them.
-  It also ends
+- **Revoke binding.** Ctrl+Alt+i takes every capability away from every
+  client and drops the unused activation tokens. It also ends
   the grabs that need no modifier and disconnects Wayland clients that
   held a grant. The IPC connections stay.
 - **Injection mark.** While a client injects input, the core shows a

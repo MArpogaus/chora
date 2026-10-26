@@ -84,9 +84,7 @@ kill $session
 
 `CHORA_BIN` sets the directory of `chora` (default `target/debug`), and
 `CHORA_LOG` the log file of the core. Programs of `choractl run` get
-`XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and `CHORA_SOCKET` of the caller,
-which the sourced lines provide. With a user systemd, other variables
-of the caller do not reach them (see
+the variables that the sourced lines provide (see
 [Programs](docs/api.md#programs)). Without
 system Mesa, the software EGL driver and the clients can come from Fedora
 RPMs unpacked into the home directory:
