@@ -73,9 +73,8 @@ impl Grants {
     }
 
     /// Revokes the grants of every client that holds only capabilities
-    /// agents work with (D23): all capabilities are agent capabilities
-    /// today. Returns the names, so the caller can end what the grants
-    /// gave these clients.
+    /// agents work with (D23), which all capabilities are. Returns the
+    /// names, so the caller can end what the grants gave these clients.
     pub fn revoke_agents(&mut self) -> Vec<String> {
         let names: Vec<String> = self
             .0
@@ -108,10 +107,7 @@ impl State {
             )));
         }
         if method == "grants.set"
-            && let Some(only) = change
-                .capabilities
-                .iter()
-                .find(|c| matches!(c, Capability::MethodsCall | Capability::ActivationToken))
+            && let Some(only) = change.capabilities.iter().find(|c| c.socket_only())
         {
             return Err(crate::ipc::socket_rule(format!(
                 "{only} is a capability of client sockets: put it in clients.yaml"

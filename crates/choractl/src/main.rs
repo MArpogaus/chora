@@ -490,6 +490,9 @@ pub(crate) fn run_program(
     argv: &[String],
     plugin: Option<&str>,
 ) -> Result<Value, ClientError> {
+    if argv.is_empty() {
+        return Err(ClientError::Io(std::io::Error::other("no program")));
+    }
     let answer: Value = client.call("activation.token", Value::Null)?;
     let Some(token) = answer["token"].as_str().map(str::to_owned) else {
         return Err(ClientError::Io(std::io::Error::new(
@@ -571,7 +574,10 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
     else {
         return RunStart::NoManager;
     };
-    if answered.stdout.is_empty() {
+    // Without a running user manager, as in a container or a chroot,
+    // systemctl answers `offline` or nothing.
+    let state = String::from_utf8_lossy(&answered.stdout);
+    if matches!(state.trim(), "" | "offline") {
         return RunStart::NoManager;
     }
     let mut started = std::process::Command::new("systemd-run");
@@ -628,29 +634,20 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
     }
 }
 
-/// The program forked by `choractl` itself, detached in a session of its
-/// own and with the token in its environment; the pid of the child.
+/// The program forked by `choractl` itself, detached in a process group
+/// of its own and with the token in its environment; the pid of the
+/// child.
 /// Stdout and stderr go to the null device, so that the output of the
 /// program never mixes with the JSON line on stdout.
-#[allow(unsafe_code)] // one `setsid` in the fork hook, nothing else
 fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
-    let mut command = std::process::Command::new(&argv[0]);
-    command
+    let mut child = std::process::Command::new(&argv[0])
         .args(&argv[1..])
         .env("XDG_ACTIVATION_TOKEN", token)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null());
-    // SAFETY: the hook only calls `setsid`, an async-signal-safe function.
-    unsafe {
-        command.pre_exec(|| {
-            if libc::setsid() == -1 {
-                return Err(std::io::Error::last_os_error());
-            }
-            Ok(())
-        });
-    }
-    let mut child = command.spawn()?;
+        .stderr(std::process::Stdio::null())
+        .process_group(0)
+        .spawn()?;
     let pid = child.id();
     // `choractl mcp` lives long: wait for the child, so it never stays a
     // zombie.
@@ -952,8 +949,10 @@ fn sync_grants(
         .map(|v| serde_json::from_value(v).map_err(ClientError::Json))
         .transpose()?
         .unwrap_or_default();
+    // The main socket needs no capability of client sockets.
     let wanted = listed
         .into_iter()
+        .filter(|c| !c.socket_only())
         .collect::<std::collections::BTreeSet<_>>();
     let (gone, added) = grant_delta(&current, &wanted);
     if !gone.is_empty() {
@@ -1203,9 +1202,6 @@ mod tests {
         assert!(taken_socket("agent", &no_data).is_none());
     }
 
-    /// The fallback decision of `run` is pure. Only a unit that did not
-    /// start may start the program a second time. A started unit with an
-    /// unknown `MainPID` is never a second start and never pid 0.
     /// A unit of `run` takes no host session variable from the user
     /// manager: each one is set from this session or unset.
     #[test]
@@ -1219,6 +1215,8 @@ mod tests {
         }
     }
 
+    /// A started unit with an unknown `MainPID` answers no pid, never
+    /// pid 0.
     #[test]
     fn a_unit_answers_its_pid_or_none() {
         assert_eq!(super::classify_start("4343\n"), super::RunStart::Unit(4343));

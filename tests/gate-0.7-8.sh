@@ -25,8 +25,9 @@ test -n "$token" || fail "the run of foot printed no token"
 run_pid "$pid"
 "$bin/choractl" --name agent wait "app_id:foot kind:surface" --timeout 20 >/dev/null ||
     fail "no foot window appeared"
-# The same test as choractl: any answer, also degraded with exit 1.
-if [ -n "$(systemctl --user is-system-running 2>/dev/null)" ]; then
+# The same test as choractl: any answer but offline, also degraded.
+state=$(systemctl --user is-system-running 2>/dev/null)
+if [ -n "$state" ] && [ "$state" != offline ]; then
     # run starts a transient chora-run-<pid>-<nanos>.service, not a
     # scope; accept either shape of a transient unit of its own.
     grep -qE '\.scope|chora-run.*\.(service|scope)' "/proc/$pid/cgroup" ||

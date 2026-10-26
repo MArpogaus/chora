@@ -647,9 +647,6 @@ fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBloc
         "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
         "run_program" => {
             let program: Vec<String> = arg(&args["argv"])?;
-            if program.is_empty() {
-                return Err(Failure::Tool("argv is empty".into()));
-            }
             let line = crate::run_program(core.connected()?, &program, None)?;
             Ok(vec![json_text(&line)])
         }
