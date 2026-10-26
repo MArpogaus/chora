@@ -1,4 +1,4 @@
-# Voice agent (M6)
+# Voice agent
 
 `Microphone -> Qwen3-ASR -> LLM with tools -> Qwen3-TTS -> speaker`, one
 Python file. The three models run as Gufo containers on the AMD GPU. The
