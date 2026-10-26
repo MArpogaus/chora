@@ -345,7 +345,7 @@ mod tests {
     }
 
     #[test]
-    fn the_revoke_binding_takes_the_capabilities_of_all_agents() {
+    fn the_revoke_binding_takes_the_capabilities_of_all_clients() {
         let mut core = Core::new();
         let mut ctl = core.admin();
         let agent = json!({"client": "agent", "capabilities": ["input.inject", "input.grab-any"]});

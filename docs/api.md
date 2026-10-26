@@ -729,7 +729,9 @@ $ choractl run -- foot
 `choractl restart NAME` restarts a plugin with `systemctl --user restart`.
 The unit is `chora-NAME-DISPLAY.service` of a view in this session,
 where DISPLAY is the name of `WAYLAND_DISPLAY`, or else
-`chora-NAME.service` of a flavor (see [Plugins](#plugins)). A name
+`chora-NAME.service` of a flavor (see [Plugins](#plugins)). The flavor
+unit counts only in the session whose `WAYLAND_DISPLAY` the user
+manager holds, so a nested chora never restarts a plugin of its host. A name
 without an active unit is an error: the
 command exits 1 with the reason on stderr, and starts nothing. It
 prints the unit as one JSON line and calls no core.
@@ -937,10 +939,11 @@ the grants of the client name, for example
 `choractl grant agent screen.capture`. Without a grant, `describe_screen`
 still describes the scene. No tool grants anything (D40). On a client
 socket, `call_method` and the tools of plugin methods need the capability
-`methods.call`. `run_program` needs `activation.token` for the client
-name on every socket, for example `choractl grant agent activation.token`,
-because a started program can do all that the user can. It starts where
-the MCP server runs, for example inside the container of an agent.
+`methods.call`. `run_program` needs the grant `activation.token` on
+every socket, because a started program can do all that the user can.
+On the main socket, `choractl grant agent activation.token` gives it; a
+client socket lists it in `clients.yaml`. The program starts where the
+MCP server runs, for example inside the container of an agent.
 
 A subscription has a connection of its own under the same client name. A
 thread reads its events into a buffer of 1000 events, so the core never

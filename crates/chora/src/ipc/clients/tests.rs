@@ -1065,7 +1065,7 @@ fn a_recreate_without_grab_any_ends_free_grabs() {
 /// gave them no protocol, and ends those that a capability gave one.
 #[test]
 fn the_revoke_binding_ends_only_windows_with_a_granted_protocol() {
-    let (mut core, dir) = caps_core("keep");
+    let (mut core, dir) = caps_core("revoke-protocol");
     let mut admin = core.admin();
     let created = open_agent(&mut core, &mut admin, &["activation.token"]);
     let mut window = Wayland::connect_to(

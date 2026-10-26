@@ -202,7 +202,7 @@ Scope:
   the current keymap does not have, for example German umlauts on a US
   layout.
 - A visible indicator while a client injects input, and a binding of the
-  safety layer that revokes the capabilities of all agents (D23).
+  safety layer that revokes the capabilities of all clients (D23).
 - A text node (D18): text with a font family, a size, a color and a
   maximum width. cosmic-text shapes it and finds fallback fonts. The
   indicator, plugins and agents use it for labels without a client.

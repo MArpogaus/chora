@@ -123,8 +123,8 @@ showroom:
   grants: []
 ```
 
-The grants are the capabilities of `choractl grant`, plus `methods.call`
-and `activation.token` (see [API](api.md#client-sockets)). An agent that
+The grants are the five capabilities of `choractl grant` (see
+[API](api.md#client-sockets)). An agent that
 drives the window manager needs `methods.call`, and one that starts apps
 needs `activation.token`.
 

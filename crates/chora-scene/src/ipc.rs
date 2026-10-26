@@ -150,8 +150,8 @@ impl RpcError {
     /// client socket.
     pub const ADMIN_SOCKET_ONLY: i64 = 8;
     /// A rule of client sockets refuses the request: another name in
-    /// `hello`, a node or an asset outside the client's own, an activation
-    /// token, or a grant for a name whose capabilities a socket fixes.
+    /// `hello`, a node or an asset outside the client's own, or a grant
+    /// for a name whose capabilities a socket fixes.
     pub const CLIENT_SOCKET_RULE: i64 = 9;
 
     /// An error with a code and a message and no `data`.
