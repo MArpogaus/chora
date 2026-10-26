@@ -425,7 +425,9 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             "camera.release",
             serde_json::json!({"output": output}),
         ),
-        Cmd::Run { argv } => run_program(client, &argv),
+        Cmd::Run { argv } => {
+            run_program(client, &argv, None).map(|line| print_line(std::io::stdout(), &line))
+        }
         Cmd::ConfigureOutput {
             output,
             scale,
@@ -479,9 +481,15 @@ fn taken_socket(name: &str, err: &RpcError) -> Option<String> {
 }
 
 /// `choractl run` (D42): asks the core for an activation token, starts
-/// the program with it in the environment, and prints pid and token as
-/// one JSON line; the token lets a test follow the trip to the window.
-fn run_program(client: &mut Client, argv: &[String]) -> Result<(), ClientError> {
+/// the program with it in the environment, and answers pid, unit and
+/// token as one JSON value; the token lets a test follow the trip to the
+/// window. With `plugin`, the unit is `chora-PLUGIN.service` and restarts
+/// the program when it fails, as the unit of a flavor does.
+pub(crate) fn run_program(
+    client: &mut Client,
+    argv: &[String],
+    plugin: Option<&str>,
+) -> Result<Value, ClientError> {
     let answer: Value = client.call("activation.token", Value::Null)?;
     let Some(token) = answer["token"].as_str().map(str::to_owned) else {
         return Err(ClientError::Io(std::io::Error::new(
@@ -489,20 +497,32 @@ fn run_program(client: &mut Client, argv: &[String]) -> Result<(), ClientError> 
             "the core answered no activation token",
         )));
     };
-    let pid = match systemd_unit(argv, &token) {
-        RunStart::Unit(pid) => Some(pid),
-        RunStart::Fallback => Some(start_detached(argv, &token).map_err(|e| {
-            ClientError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", argv[0])))
-        })?),
+    let unit = plugin.map_or_else(
+        || {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default();
+            format!(
+                "chora-run-{}-{}.service",
+                std::process::id(),
+                now.as_nanos()
+            )
+        },
+        |name| format!("chora-{name}.service"),
+    );
+    let (pid, unit) = match systemd_unit(argv, &token, &unit, plugin.is_some()) {
+        RunStart::Unit(pid) => (Some(pid), Some(unit)),
+        RunStart::Fallback => (
+            Some(start_detached(argv, &token).map_err(|e| {
+                ClientError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", argv[0])))
+            })?),
+            None,
+        ),
         // The unit started; a short program ended and was collected
         // before its pid was read.
-        RunStart::Unknown => None,
+        RunStart::Unknown => (None, Some(unit)),
     };
-    print_line(
-        std::io::stdout(),
-        &serde_json::json!({ "pid": pid, "token": token }),
-    );
-    Ok(())
+    Ok(serde_json::json!({ "pid": pid, "unit": unit, "token": token }))
 }
 
 /// The outcome of one start attempt through `systemd-run`.
@@ -532,14 +552,14 @@ fn classify_start(started: bool, main_pid: &str) -> RunStart {
     }
 }
 
-/// How starting the program in a transient unit went. `systemd-run`
-/// without `--scope` returns once the start job of the unit is done, so
-/// the line with the pid comes out while the program runs; the pid is
-/// the program's own (`MainPID`), waited for up to 2 s. A unit starts
-/// with the environment of the user manager, so the variables of this
-/// session travel in the `Environment=` property. Output goes to the
-/// journal, never into the line on stdout.
-fn systemd_unit(argv: &[String], token: &str) -> RunStart {
+/// How starting the program in the transient unit `unit` went.
+/// `systemd-run` without `--scope` returns once the start job of the
+/// unit is done, so the answer comes while the program runs; the pid is
+/// the program's own (`MainPID`), waited for up to 2 s. The unit lives
+/// until the last process in it ends, so a launcher may exit before the
+/// app it started. The arguments reach the program literally. Output
+/// goes to the journal, never into the line on stdout.
+fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunStart {
     let Ok(answered) = std::process::Command::new("systemctl")
         .args(["--user", "is-system-running"])
         .stderr(std::process::Stdio::null())
@@ -550,27 +570,23 @@ fn systemd_unit(argv: &[String], token: &str) -> RunStart {
     if answered.stdout.is_empty() {
         return RunStart::Fallback;
     }
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()
-        .unwrap_or_default();
-    let unit = format!(
-        "chora-run-{}-{}.service",
-        std::process::id(),
-        now.as_nanos()
-    );
     let mut started = std::process::Command::new("systemd-run");
-    started.args([
-        "--user",
-        "--collect",
-        "--quiet",
-        "--same-dir",
-        "--unit",
-        &unit,
-    ]);
-    started.args(unit_env(token));
-    // ponytail: the token is visible in argv of the short-lived
-    // `systemd-run`; it dies with `--collect` and within 10 s anyway.
+    started
+        .args([
+            "--user",
+            "--collect",
+            "--quiet",
+            "--same-dir",
+            "--expand-environment=no",
+            "-pExitType=cgroup",
+            "--unit",
+            unit,
+        ])
+        .env("XDG_ACTIVATION_TOKEN", token)
+        .args(unit_env());
+    if restart {
+        started.arg("-pRestart=on-failure");
+    }
     let Ok(started) = started.args(argv).status() else {
         return RunStart::Fallback;
     };
@@ -590,7 +606,7 @@ fn systemd_unit(argv: &[String], token: &str) -> RunStart {
                 "--property=MainPID",
                 "--value",
                 "--unit",
-                &unit,
+                unit,
             ])
             .stderr(std::process::Stdio::null())
             .output();
@@ -677,32 +693,24 @@ fn unit_active(unit: &str) -> bool {
         .is_ok_and(|s| s.success())
 }
 
-/// The environment properties of a unit of `run`: the token and the
-/// variables of this session. The user manager may hold the variables of
-/// another session, for example the host of a nested chora, so each host
-/// variable gets this session's value or none.
-fn unit_env(token: &str) -> Vec<String> {
-    let mut props = vec![env_prop("XDG_ACTIVATION_TOKEN", token)];
-    for key in ["XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"] {
-        if let Ok(value) = std::env::var(key) {
-            props.push(env_prop(key, &value));
-        }
-    }
-    for key in HOST_VARIABLES {
-        props.push(match std::env::var(key) {
-            Ok(value) => env_prop(key, &value),
-            Err(_) => format!("-pUnsetEnvironment={key}"),
+/// The environment options of a unit of `run`: the token and the
+/// variables of this session, each with the value of this process. The
+/// user manager may hold the variables of another session, for example
+/// the host of a nested chora, so each host variable gets this session's
+/// value or none. All other variables come from the user manager.
+fn unit_env() -> Vec<String> {
+    let mut options = vec!["--setenv=XDG_ACTIVATION_TOKEN".to_owned()];
+    for key in ["XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"]
+        .into_iter()
+        .chain(HOST_VARIABLES)
+    {
+        options.push(if std::env::var_os(key).is_some() {
+            format!("--setenv={key}")
+        } else {
+            format!("-pUnsetEnvironment={key}")
         });
     }
-    props
-}
-
-/// The `Environment=` property of `systemd-run` for one variable. systemd
-/// parses the value like a shell, so quotes and backslashes need an
-/// escape and the value stays one assignment when it holds a space.
-fn env_prop(key: &str, value: &str) -> String {
-    let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
-    format!("-pEnvironment={key}=\"{escaped}\"")
+    options
 }
 
 /// Polls `scene.query` until the selector matches, or with `gone` until
@@ -1073,20 +1081,10 @@ mod tests {
     use chora_scene::ipc::RpcError;
 
     use super::{
-        Args, AssetCmd, Capability, ClientSpec, Cmd, env_prop, grant_delta, print_line,
-        taken_socket, wait_loop,
+        Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta, print_line, taken_socket,
+        wait_loop,
     };
 
-    /// The `Environment=` property of `systemd-run` is one shell-parsed
-    /// list: a value with a space stays one assignment.
-    #[test]
-    fn an_environment_property_quotes_its_value() {
-        assert_eq!(env_prop("A", "x y"), r#"-pEnvironment=A="x y""#);
-        assert_eq!(env_prop("A", "a\"b\\c"), r#"-pEnvironment=A="a\"b\\c""#);
-    }
-
-    /// The answer of `run` is one JSON line, so that a script can read
-    /// it. A newline inside a string stays escaped.
     #[test]
     fn the_answer_of_run_is_one_json_line() {
         let mut line = Vec::new();
@@ -1215,14 +1213,11 @@ mod tests {
     /// manager: each one is set from this session or unset.
     #[test]
     fn a_unit_sets_or_unsets_every_host_variable() {
-        let props = super::unit_env("t");
+        let props = super::unit_env();
         for key in super::HOST_VARIABLES {
-            let set = format!("-pEnvironment={key}=");
+            let set = format!("--setenv={key}");
             let unset = format!("-pUnsetEnvironment={key}");
-            let hits = props
-                .iter()
-                .filter(|p| p.starts_with(&set) || **p == unset)
-                .count();
+            let hits = props.iter().filter(|p| **p == set || **p == unset).count();
             assert_eq!(hits, 1, "{key} in {props:?}");
         }
     }
