@@ -9,7 +9,6 @@ mod view;
 
 use std::{
     io::{Read, Write},
-    os::unix::process::CommandExt,
     process::ExitCode,
 };
 
@@ -163,7 +162,7 @@ enum Cmd {
     Restart {
         /// The plugin name, for example `tiling`.
         #[arg(value_name = "NAME")]
-        client: String,
+        plugin: String,
     },
     /// Store a file for image nodes, shader nodes and effects in a
     /// directory of the core, or remove it; for a client that shares no
@@ -317,7 +316,7 @@ fn run(args: Args) -> Result<(), String> {
     match &args.command {
         Cmd::View { action } => return view_command(action),
         Cmd::Mcp => return mcp::serve(args.name.unwrap_or_else(|| "agent".into())),
-        Cmd::Restart { client } => return restart_program(client),
+        Cmd::Restart { plugin } => return restart_program(plugin),
         _ => {}
     }
     let (commands, input) = match &args.command {
@@ -527,7 +526,7 @@ pub(crate) fn run_program(
         RunStart::Unknown => (None, Some(unit)),
         RunStart::Refused => {
             return Err(ClientError::Io(std::io::Error::other(format!(
-                "systemd-run refused the unit {unit}"
+                "systemd-run refused the unit {unit}, see its error above; a unit that runs already stops with systemctl --user stop {unit}"
             ))));
         }
     };
@@ -628,9 +627,9 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
     }
 }
 
-/// The program forked by `choractl` itself, detached in a process group
-/// of its own and with the token in its environment; the pid of the
-/// child.
+/// The program forked by `choractl` itself, with the token in its
+/// environment; the pid of the child. It stays in the process group of
+/// the caller, so that a test session that ends its group ends it too.
 /// Stdout and stderr go to the null device, so that the output of the
 /// program never mixes with the JSON line on stdout.
 fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
@@ -640,7 +639,6 @@ fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .process_group(0)
         .spawn()?;
     let pid = child.id();
     // `choractl mcp` lives long: wait for the child, so it never stays a
@@ -1273,18 +1271,20 @@ mod tests {
             std::thread::sleep(Duration::from_millis(20));
         }
         let _ = std::fs::remove_file(&out);
+    }
+
+    /// Everything after `run` is the program.
+    #[test]
+    fn run_takes_the_rest_as_the_program() {
         let args = Args::try_parse_from("choractl run -- /bin/echo -n".split(' ')).unwrap();
-        assert!(
-            matches!(args.command, Cmd::Run { ref argv } if *argv == ["/bin/echo", "-n"]),
-            "everything after `run` is the program",
-        );
+        assert!(matches!(args.command, Cmd::Run { ref argv } if *argv == ["/bin/echo", "-n"]));
     }
 
     /// `restart` takes the plugin name.
     #[test]
     fn restart_takes_the_plugin_name() {
         let args = Args::try_parse_from("choractl restart tiling".split(' ')).unwrap();
-        assert!(matches!(args.command, Cmd::Restart { ref client } if client == "tiling"));
+        assert!(matches!(args.command, Cmd::Restart { ref plugin } if plugin == "tiling"));
     }
 
     /// No argument of a command takes the place of `--name`.
