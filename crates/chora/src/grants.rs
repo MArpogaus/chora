@@ -67,14 +67,9 @@ impl Grants {
         }
     }
 
-    /// Revokes every grant.
-    pub fn clear(&mut self) {
-        self.0.clear();
-    }
-
-    /// Revokes the grants of every client (D23). Returns the names, so
-    /// the caller can end what the grants gave them.
-    pub fn revoke_agents(&mut self) -> Vec<String> {
+    /// Revokes every grant (D23). Returns the names, so the caller can
+    /// end what the grants gave them.
+    pub fn revoke_all(&mut self) -> Vec<String> {
         std::mem::take(&mut self.0).into_keys().collect()
     }
 

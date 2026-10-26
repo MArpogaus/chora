@@ -1068,7 +1068,7 @@ fn the_same_create_gives_back_revoked_capabilities() {
     let (mut core, dir) = caps_core("restore");
     let mut admin = core.admin();
     open_agent(&mut core, &mut admin, &["screen.capture"]);
-    core.state.revoke_agents();
+    core.state.revoke_all();
     assert_eq!(admin.ok(&mut core, "grants.list", json!({})), json!({}));
     let (error_code, _) = admin.fails(
         &mut core,

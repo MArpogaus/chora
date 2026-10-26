@@ -252,17 +252,16 @@ impl State {
     }
 
     /// The revoke binding (D23): takes the capabilities away from every
-    /// client, as a full
-    /// `grants.revoke` does. The connections stay; only what the grants
-    /// gave them goes, also the activation tokens of no client that wait
-    /// for a use.
-    pub fn revoke_agents(&mut self) {
-        let names = self.grants.revoke_agents();
+    /// client, as a full `grants.revoke` does, and drops the activation
+    /// tokens of no client that wait for a use. The connections stay;
+    /// only what the grants gave them goes.
+    pub fn revoke_all(&mut self) {
+        self.forget_unused_tokens(std::time::Duration::ZERO);
+        let names = self.grants.revoke_all();
         if names.is_empty() {
             return;
         }
-        self.forget_unused_tokens(std::time::Duration::ZERO);
-        tracing::warn!(clients = ?names, "the revoke binding took the capabilities of the agents");
+        tracing::warn!(clients = ?names, "the revoke binding took the capabilities of every client");
         for name in names {
             self.disconnect_wayland(&name, &[]);
             self.revoke_free_grabs(&name);
@@ -284,7 +283,7 @@ impl State {
         }
         self.end_graces();
         self.remove_client_sockets();
-        self.grants.clear();
+        self.grants.revoke_all();
         self.inject_mark = None;
         self.node_grab = None;
         self.button_grab = None;
