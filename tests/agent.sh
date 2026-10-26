@@ -445,7 +445,7 @@ wait_for xs_are "0 0"
 if ctl reserve --output nowhere --top 1 2>/dev/null; then fail "a reserve of no output worked"; fi
 
 step "21. choractl run starts a program, restart needs a unit"
-# Run needs no grant (D42): the core only hands out an activation token.
+# On the main socket, run needs no grant (D42): the core only hands out an activation token.
 # The probe connects to chora, not to the host sway, with the inner display.
 WAYLAND_DISPLAY=$inner "$bin/choractl" --name agent run "$bin/chora-probe" window 0 255 0 >"$out/run.json" ||
     fail "the run failed"

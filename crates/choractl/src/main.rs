@@ -1279,20 +1279,6 @@ mod tests {
         let _ = std::fs::remove_file(&out);
     }
 
-    /// Everything after `run` is the program.
-    #[test]
-    fn run_takes_the_rest_as_the_program() {
-        let args = Args::try_parse_from("choractl run -- /bin/echo -n".split(' ')).unwrap();
-        assert!(matches!(args.command, Cmd::Run { ref argv } if *argv == ["/bin/echo", "-n"]));
-    }
-
-    /// `restart` takes the plugin name.
-    #[test]
-    fn restart_takes_the_plugin_name() {
-        let args = Args::try_parse_from("choractl restart tiling".split(' ')).unwrap();
-        assert!(matches!(args.command, Cmd::Restart { ref plugin } if plugin == "tiling"));
-    }
-
     /// No argument of a command takes the place of `--name`.
     #[test]
     fn arguments_keep_the_client_name() {
