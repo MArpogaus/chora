@@ -1,7 +1,8 @@
 # Voice agent (M6)
 
-`Microphone -> Qwen3-ASR -> LLM -> Qwen3-TTS -> speaker`, one Python file,
-no Pipecat. The three models run as Gufo containers on the AMD GPU.
+`Microphone -> Qwen3-ASR -> LLM with tools -> Qwen3-TTS -> speaker`, one
+Python file, no Pipecat. The three models run as Gufo containers on the
+AMD GPU. The LLM drives chora through `choractl mcp`.
 
 ## Services
 
@@ -9,47 +10,55 @@ no Pipecat. The three models run as Gufo containers on the AMD GPU.
 
 | unit | port | model |
 |---|---|---|
-| `gufo-asr.container` | 8881 | `Qwen/Qwen3-ASR-1.7B` |
-| `gufo-tts.container` | 8882 | `Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice` |
-| `gufo-llm.container` | 8888 | your GGUF, first shard |
+| `gufo-asr.container` | 8881 | `/var/models/Qwen/Qwen3-ASR-1.7B` |
+| `gufo-tts.container` | 8882 | `/var/models/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice` |
+| `gufo-llm.container` | 8888 | `/var/models/gufo-llm`, your GGUF |
 
-All three serve the name `gufo` and listen on `127.0.0.1` only.
+All three serve the name `gufo` and listen on `127.0.0.1` only. Their
+internal networks keep them off the internet.
 
 ```bash
-ln -s "$PWD/services/voice/systemd"/* ~/.config/containers/systemd/
+cd services/voice/systemd
+ln -s "$PWD"/*.container "$PWD"/*.network ~/.config/containers/systemd/
+systemctl --user link "$PWD/voice-agent.service"
 systemctl --user daemon-reload
-systemctl --user edit gufo-llm   # point MODEL at your GGUF
 systemctl --user start gufo-asr gufo-tts gufo-llm
 journalctl --user -u gufo-tts -f  # "Uvicorn running" after the load
 ```
 
-`gufo.sh` stays for ad hoc runs with extra arguments, one foreground
-container per call.
+`/usr/libexec/podman/quadlet -dryrun -user` shows the units that the
+quadlets become. `gufo.sh` stays for ad hoc runs with extra arguments.
 
 ## Agent
 
 ```bash
-uv run services/voice/agent.py levels  # speak, read your RMS_SPEECH
-uv run services/voice/agent.py         # the conversation loop
+services/voice/agent.py roundtrip   # TTS -> ASR -> LLM -> TTS, no mic
+services/voice/agent.py levels      # speak, read your RMS_SPEECH
+services/voice/agent.py             # the conversation loop
 ```
 
-The loop records a turn when the mic level passes `RMS_SPEECH`, waits
-`SILENCE_MS` of quiet, transcribes, answers and speaks. Speaking while
-the agent answers interrupts it (`RMS_BARGE_IN`); the part already said
-stays in the history, the last six turns are kept. Everything is
-environment: `ASR_URL`, `TTS_URL`, `LLM_URL`, `MODEL`, `VOICE`,
-`LANGUAGE`, `RMS_SPEECH`, `RMS_BARGE_IN`, `SILENCE_MS`.
+A turn starts when the mic level passes `RMS_SPEECH` and ends after
+`SILENCE_MS` of quiet. Under chora, holding `PTT_KEY` (`Super+v`) also
+records, whatever the level, and the turn ends when Super goes up.
 
-`voice-agent.service` keeps the loop alive across logouts of the
-terminal; `systemctl --user start voice-agent` once the models are up.
+The LLM gets the tools of `choractl --name voice mcp`. `CODER_CMD`, for
+example `pi -p` or `claude -p`, adds the tool `delegate`. It runs bigger
+tasks in the background and speaks the result. The client name `voice`
+needs grants for the tools that see or drive the session:
+
+```bash
+choractl grant voice screen.capture input.inject activation.token
+```
+
+Settings are environment variables, in `~/.config/gufo/agent.env` for the
+service: `ASR_URL`, `TTS_URL`, `LLM_URL`, `MODEL`, `RMS_SPEECH`,
+`SILENCE_MS`, `PTT_KEY`, `CHORA_NAME`, `CODER_CMD` and `SYSTEM`.
 
 ## Checks
 
 ```bash
-uv run services/voice/agent.py test        # turn cutting, no servers
-uv run services/voice/agent.py tts hallo   # one stage at a time
-uv run services/voice/agent.py asr speech.pcm
+services/voice/agent.py tts hallo        # one stage at a time
+services/voice/agent.py asr speech.pcm
+services/voice/agent.py tools            # the tools of the LLM
+services/voice/agent.py ptt              # the push-to-talk key in chora
 ```
-
-The stage that stays silent or errors is the one to look at; the logs
-show what the server sends. A WAV file works for `asr` too.
