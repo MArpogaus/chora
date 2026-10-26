@@ -602,7 +602,8 @@ in. `choractl clients create agent` prints its path:
   - No `create` or `move` puts a node under `screen:*` or below it.
   - No `camera` command works.
   - `attach`, `focus`, `close` and `configure` take only a window of its
-    own `wayland.sock` or a surface that the name owns.
+    own `wayland.sock` or a surface that the name owns. `focus` with a
+    surface needs a press as `focus_node` does.
 - `scene.query` on it returns only the nodes of the name and the windows
   of its `wayland.sock`. The `surface.*` events come only for these
   windows.
@@ -616,7 +617,9 @@ in. `choractl clients create agent` prints its path:
   `activation.token` the capability `activation.token`. Without them
   both answer code 4. The main socket needs neither. A token of
   `activation.token` belongs to no client, so the window of a program
-  started with it takes the focus without a press. A window of its
+  started with it takes the focus without a press. The capability also
+  lets the MCP tool `run_program` start any program where the MCP server
+  runs. A window of its
   `wayland.sock` asks for tokens through `xdg-activation`, under the
   focus rules above.
 - Its `image`, `shader` and effect paths name only its own files of

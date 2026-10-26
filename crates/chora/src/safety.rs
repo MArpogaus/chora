@@ -254,12 +254,14 @@ impl State {
     /// The revoke binding (D23): takes the capabilities away from every
     /// client that holds only agent capabilities, as a full
     /// `grants.revoke` does. The connections stay; only what the grants
-    /// gave them goes.
+    /// gave them goes, also the activation tokens of no client that wait
+    /// for a use.
     pub fn revoke_agents(&mut self) {
         let names = self.grants.revoke_agents();
         if names.is_empty() {
             return;
         }
+        self.forget_unused_tokens(std::time::Duration::ZERO);
         tracing::warn!(clients = ?names, "the revoke binding took the capabilities of the agents");
         for name in names {
             self.disconnect_wayland(&name, &[]);
@@ -361,12 +363,16 @@ mod tests {
             json!(["input.inject", "input.grab-any"]),
             "{list}"
         );
+        // A waiting token of no client goes with the grants.
+        ctl.ok(&mut core, "activation.token", Value::Null);
+        assert_eq!(core.state.activation_state.tokens().count(), 1);
         // The fixed binding: Ctrl+Alt+i.
         press(&mut core, CTRL, true);
         press(&mut core, ALT, true);
         press(&mut core, I, true);
         press(&mut core, I, false);
         assert_eq!(ctl.ok(&mut core, "grants.list", Value::Null), json!({}));
+        assert_eq!(core.state.activation_state.tokens().count(), 0);
         let (_, message) = agent.fails(&mut core, "input.inject", json!({"events": []}));
         assert!(message.contains("needs a grant"), "{message}");
         assert!(!ctl.closed(&mut core), "the connections stay");

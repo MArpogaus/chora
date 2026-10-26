@@ -1855,6 +1855,7 @@ mod tests {
         agent.ok(&mut core, "hello", json!({"name": "agent"}));
         let mut windows = Wayland::connect_to(&mut core, &wayland);
         windows.toplevel(&mut core, "app");
+        core.state.pressed = Some("agent".into());
         let own = json!({"commands": [
             {"attach": {"surface": "s1", "parent": "root"}},
             {"focus": {"surface": "s1"}},

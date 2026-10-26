@@ -755,11 +755,11 @@ fn a_client_socket_adopts_no_foreign_window() {
         let (_, message) = agent.fails(&mut core, "scene.apply", apply(&json!([command])));
         assert!(message.contains("only on its own surfaces"), "{message}");
     }
-    agent.ok(
-        &mut core,
-        "scene.apply",
-        apply(&json!([{"focus": {"surface": "s2"}}])),
-    );
+    let focus = apply(&json!([{"focus": {"surface": "s2"}}]));
+    let (_, message) = agent.fails(&mut core, "scene.apply", focus.clone());
+    assert!(message.contains("only right after a press"), "{message}");
+    core.state.pressed = Some("agent".into());
+    agent.ok(&mut core, "scene.apply", focus);
     // New windows under the claim of the agent: only its own go to it.
     core.state.pointer_layout = (10.0, 10.0).into();
     user.toplevel(&mut core, "next");
