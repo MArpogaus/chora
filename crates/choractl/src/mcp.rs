@@ -493,7 +493,7 @@ fn session_tools() -> Vec<Tool> {
     vec![
         tool(
             "run_program",
-            "Start a program as choractl run does, on the machine of this MCP server: in a systemd user unit of its own, or detached without a user manager. The program gets an activation token, so that its window gets the focus. A client socket needs the capability activation.token. Returns the pid, the unit and the token.",
+            "Start a program as choractl run does, on the machine of this MCP server. It runs in a systemd user unit of its own, or detached without a user manager. The program gets an activation token, so that its window gets the focus. A client socket needs the capability activation.token. Returns the pid, the unit and the token.",
             &json!({
                 "argv": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "the program and its arguments, for example [\"foot\"]"},
             }),
@@ -645,16 +645,30 @@ fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBloc
         }
         "save_view" => Ok(vec![json_text(&view::save(&string("name")?, None)?)]),
         "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
-        "run_program" => {
-            let program: Vec<String> = arg(&args["argv"])?;
-            let line = crate::run_program(core.connected()?, &program, None)?;
-            Ok(vec![json_text(&line)])
-        }
+        "run_program" => run_program(core, args),
         "put_asset" => put_asset(core, args),
         "reserve_space" => reserve_space(core, args),
         "configure_output" => pass::<OutputConfigure>(core, "output.configure", args),
         other => Err(Failure::UnknownTool(format!("no tool {other:?}"))),
     }
+}
+
+/// `run_program`. A started program can do all the user can, also grant
+/// itself, so the tool needs the grant on every socket.
+fn run_program(core: &mut Core, args: &Value) -> Result<Vec<ContentBlock>, Failure> {
+    let grants: Value = core.call("grants.list", Value::Null)?;
+    let held = grants[&core.name]
+        .as_array()
+        .is_some_and(|held| held.iter().any(|c| c == "activation.token"));
+    if !held {
+        return Err(Failure::Tool(format!(
+            "run_program needs the grant activation.token for {}",
+            core.name
+        )));
+    }
+    let program: Vec<String> = arg(&args["argv"])?;
+    let line = crate::run_program(core.connected()?, &program, None)?;
+    Ok(vec![json_text(&line)])
 }
 
 /// Calls an exported plugin method, the body of its own tool.

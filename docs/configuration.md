@@ -124,9 +124,9 @@ showroom:
 ```
 
 The grants are the capabilities of `choractl grant`, plus `methods.call`
-and `activation.token`, which only a client socket needs (see
-[API](api.md#client-sockets)). An agent that drives the window manager
-needs `methods.call`, and one that starts apps needs `activation.token`.
+and `activation.token` (see [API](api.md#client-sockets)). An agent that
+drives the window manager needs `methods.call`, and one that starts apps
+needs `activation.token`.
 
 The names follow the rules of `hello`. `clients up` opens the socket of
 every name with exactly the capabilities of its list. A socket that

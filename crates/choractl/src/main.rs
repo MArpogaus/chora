@@ -686,7 +686,7 @@ fn restart_program(name: &str) -> Result<(), String> {
 /// value or none. All other variables come from the user manager.
 fn unit_env() -> Vec<String> {
     let mut options = vec!["--setenv=XDG_ACTIVATION_TOKEN".to_owned()];
-    for key in ["XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"]
+    for key in ["PATH", "XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"]
         .into_iter()
         .chain(chora_scene::ipc::HOST_VARIABLES)
     {

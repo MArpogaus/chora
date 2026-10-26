@@ -368,7 +368,7 @@ answers every request.
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. `methods.call` and `activation.token` change nothing for a name of the main socket. |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke `input.inject`, `screen.capture` and `input.grab-any` for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. For a name of the main socket, `methods.call` changes nothing, and `activation.token` only opens the MCP tool `run_program`. |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
@@ -705,13 +705,13 @@ the unit and the token as one JSON line while the program runs.
   because the unit exists already, `run` exits 1 with its error and
   starts nothing.
 - The unit gets the environment of the user manager, plus the token and
-  the values of the caller for `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and
-  `CHORA_SOCKET`. It gets `DISPLAY` and the other host session variables
+  the values of the caller for `PATH`, `XDG_RUNTIME_DIR`,
+  `WAYLAND_DISPLAY` and `CHORA_SOCKET`. It gets `DISPLAY` and the other host session variables
   only from the caller, never from the user manager. It starts in the
   directory of the caller.
 - Without a running user manager, `choractl` starts the program itself,
-  in a process group of its own, with the environment of the caller. Its output
-  goes to `/dev/null`, and `unit` is `null`.
+  in a process group of its own, with the environment of the caller.
+  Its output goes to `/dev/null`, and `unit` is `null`.
 - When the unit starts but its `MainPID` stays unknown after a short
   wait, for example because the program ended at once, `pid` is `null`.
   The command never starts the program twice.
@@ -935,9 +935,10 @@ the grants of the client name, for example
 `choractl grant agent screen.capture`. Without a grant, `describe_screen`
 still describes the scene. No tool grants anything (D40). On a client
 socket, `call_method` and the tools of plugin methods need the capability
-`methods.call`, and `run_program` needs `activation.token`. A program
-of `run_program` starts where the MCP server runs, for example inside
-the container of an agent.
+`methods.call`. `run_program` needs `activation.token` for the client
+name on every socket, for example `choractl grant agent activation.token`,
+because a started program can do all that the user can. It starts where
+the MCP server runs, for example inside the container of an agent.
 
 A subscription has a connection of its own under the same client name. A
 thread reads its events into a buffer of 1000 events, so the core never
