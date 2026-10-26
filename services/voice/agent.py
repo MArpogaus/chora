@@ -13,31 +13,37 @@ agent.py levels          live mic level, to tune RMS_SPEECH
 agent.py tools           the tools the LLM gets from chora and this agent
 
 A turn starts when the mic level passes RMS_SPEECH after SETTLE_MS of
-quiet, and ends after SILENCE_MS of quiet. While PTT_KEY is held in chora, the agent records
-whatever the level, and the turn ends when the key goes up. Talking over
-the reply above RMS_BARGE_IN for BARGE_MS, or the key, stops the reply
-and starts a turn. The LLM gets
-the MCP tools of `choractl mcp` and a tool `delegate` that hands bigger
-tasks to CODER_CMD. Every setting is an environment variable.
+quiet, and ends after SILENCE_MS of quiet. While PTT_KEY is held in chora,
+the agent records whatever the level, and the turn ends when the key goes
+up. Talking over the reply above RMS_BARGE_IN for BARGE_MS, or the key,
+stops the reply and starts a turn. The LLM gets the MCP tools of
+`choractl mcp` and a tool `delegate` that hands bigger tasks to CODER_CMD.
+Every setting is an environment variable.
 """
 
+# %% imports
 import argparse
 import array
 import asyncio
 import base64
 import binascii
+import collections
 import contextlib
 import json
 import math
 import os
+import re
 import shlex
 import sys
 import time
+from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
 
 import aiohttp
 from mcp import ClientSession, MCPError, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+# %% globals
 ENV = os.environ.get
 ASR_URL = ENV("ASR_URL", "ws://127.0.0.1:8881/v1/realtime?intent=transcription")
 TTS_URL = ENV("TTS_URL", "http://127.0.0.1:8882")
@@ -47,59 +53,136 @@ LANGUAGE = ENV("LANGUAGE", "de")  # of the ASR; without it, it guesses
 RMS_SPEECH = int(ENV("RMS_SPEECH", "5000"))
 SILENCE_MS = int(ENV("SILENCE_MS", "700"))
 SETTLE_MS = int(ENV("SETTLE_MS", "300"))  # quiet before a turn may start
-# Speech that interrupts the reply: louder than RMS_SPEECH, since the mic
-# also hears the speaker, and for BARGE_MS.
+# Speech that stops the reply: louder than RMS_SPEECH, since the mic also
+# hears the speaker, and for BARGE_MS.
 RMS_BARGE_IN = int(ENV("RMS_BARGE_IN", str(2 * RMS_SPEECH)))
 BARGE_MS = int(ENV("BARGE_MS", "300"))
 PTT_KEY = ENV("PTT_KEY", "Super+v")  # chora reports its release with Super
 CHORA_NAME = ENV("CHORA_NAME", "voice")  # the client name of the agent
 CODER_CMD = ENV("CODER_CMD", "")  # for example "pi -p" or "claude -p"
-SYSTEM = ENV("SYSTEM", (
+SYSTEM = ENV(
+    "SYSTEM",
     "You are a voice assistant on a Linux desktop named chora. Answer in the "
     "language of the user, in one or two short spoken sentences, without "
-    "markdown. Use the tools to look "
-    "at and change the desktop."))
+    "markdown. Use the tools to look at and change the desktop.",
+)
 if CODER_CMD:
-    SYSTEM += (" Hand a task that needs code or many steps to delegate, then say "
-               "that it runs.")
+    SYSTEM += " Hand a task that needs code or many steps to delegate, then say that it runs."
 
 RATE = 24000
 FRAME_MS = 20
 FRAME_BYTES = RATE * FRAME_MS // 1000 * 2
+PCM = ("-q", "-r", str(RATE), "-c", "1", "-f", "S16_LE", "-t", "raw", "-")  # aplay, arecord
+PREROLL_MS = 1000  # speech before a barge-in that the next turn keeps
+NO_QUIET_MS = 2000  # when the agent says that the room stays loud
 HISTORY = 12  # messages kept besides the system prompt
 TOOL_ROUNDS = 5  # LLM calls per turn while it asks for tools
-# Tools the agent uses itself; the LLM does not get them.
-OWN_TOOLS = {"subscribe_events", "wait_events"}
+FIRST_PIECE = 40  # characters after which a comma may end a piece
+SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+")
+OWN_TOOLS = {"subscribe_events", "wait_events"}  # the agent uses them itself
+# OSError: aplay or arecord died.
+TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
+
+VOICES: list[str] = []  # the voices of the TTS server, asked for once
+SEEN: set[str] = set()  # the kinds of TTS events, logged once each
+SPEAKING = asyncio.Lock()  # one voice at a time: replies and delegate results
 
 
-def log(*args):
+# %% private helpers
+def log(*args: object) -> None:
+    """Print a line to stderr."""
     print(*args, file=sys.stderr, flush=True)
 
 
-def rms(frame):
+def rms(frame: bytes) -> float:
+    """Return the root mean square of a frame of 16 bit samples."""
     samples = array.array("h", frame)
     return math.sqrt(sum(s * s for s in samples) / len(samples))
 
 
-# --- audio -------------------------------------------------------------
-
-async def mic():
-    # pw-record and pw-play sniff headers and choke on raw pipes; the alsa
-    # tools take an explicit raw format.
-    return await asyncio.create_subprocess_exec(
-        "arecord", "-q", "-r", str(RATE), "-c", "1", "-f", "S16_LE", "-t", "raw", "-",
-        stdout=asyncio.subprocess.PIPE)
+def ms(frames: int) -> int:
+    """Return the length of a number of frames in milliseconds."""
+    return frames * FRAME_MS
 
 
-async def play(pcm_chunks):
-    player = await asyncio.create_subprocess_exec(
-        "aplay", "-q", "-r", str(RATE), "-c", "1", "-f", "S16_LE", "-t", "raw", "-",
-        stdin=asyncio.subprocess.PIPE)
-    start, written = time.monotonic(), 0
+async def one(text: str) -> AsyncIterator[str]:
+    """Yield one text, as a stream of one sentence."""
+    yield text
+
+
+def function(name: str, description: str | None, parameters: dict | None) -> dict:
+    """Return an OpenAI function tool."""
+    return {
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": description or name,
+            "parameters": parameters or {"type": "object", "properties": {}},
+        },
+    }
+
+
+# %% audio
+class Mic:
+    """The microphone as one continuous stream of 20 ms frames.
+
+    A task reads arecord into a queue, so no frame gets lost between the
+    reply and the next turn. Use it as an async context manager.
+    """
+
+    def __init__(self) -> None:
+        self.queue: asyncio.Queue[bytes | Exception] = asyncio.Queue()
+
+    async def __aenter__(self) -> "Mic":
+        """Start arecord and the reader task."""
+        # pw-record sniffs headers and chokes on raw pipes; arecord takes
+        # an explicit raw format.
+        self.proc = await asyncio.create_subprocess_exec(
+            "arecord", *PCM, stdout=asyncio.subprocess.PIPE
+        )
+        self.reader = asyncio.create_task(self._read())
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        """Stop the reader task and arecord."""
+        self.reader.cancel()
+        self.proc.kill()
+        await self.proc.wait()
+
+    async def _read(self) -> None:
+        try:
+            while True:
+                self.queue.put_nowait(await self.proc.stdout.readexactly(FRAME_BYTES))
+        except asyncio.IncompleteReadError as err:
+            self.queue.put_nowait(err)  # arecord ended: the next frame() raises
+
+    async def frame(self) -> bytes:
+        """Return the next frame."""
+        frame = await self.queue.get()
+        if isinstance(frame, Exception):
+            raise frame
+        return frame
+
+    def flush(self) -> None:
+        """Drop the frames that came while nobody listened."""
+        while not self.queue.empty():
+            self.queue.get_nowait()
+
+
+async def play(pcm_chunks: AsyncIterator[bytes]) -> None:
+    """Play raw PCM chunks through aplay.
+
+    Parameters
+    ----------
+    pcm_chunks : AsyncIterator[bytes]
+        16 bit mono samples at RATE.
+    """
+    player = await asyncio.create_subprocess_exec("aplay", *PCM, stdin=asyncio.subprocess.PIPE)
+    end = time.monotonic()  # when the sound written so far ends
     try:
         async for chunk in pcm_chunks:
             player.stdin.write(chunk)
-            written += len(chunk)
+            end = max(end, time.monotonic()) + len(chunk) / (RATE * 2)
             await player.stdin.drain()
     except asyncio.CancelledError:
         player.kill()  # a barge-in: stop the sound at once
@@ -108,87 +191,133 @@ async def play(pcm_chunks):
         player.stdin.close()
         # aplay on PipeWire may never exit after its input ends: wait for
         # the sound it got, plus a second, then end it.
-        left = written / (RATE * 2) - (time.monotonic() - start) + 1
         try:
-            await asyncio.wait_for(player.wait(), max(left, 1))
-        except asyncio.TimeoutError:
+            await asyncio.wait_for(player.wait(), max(end - time.monotonic() + 1, 1))
+        except TimeoutError:
             log("aplay did not end after the sound; ended it")
             player.kill()
             await player.wait()
 
 
-# --- speech servers ----------------------------------------------------
+# %% speech servers
+async def tts(http: aiohttp.ClientSession, text: str) -> AsyncIterator[bytes]:
+    """Yield the PCM of one text from the TTS websocket.
 
-VOICES = []  # the voices of the TTS server, asked for once
-SEEN = set()  # the kinds of TTS events, logged once each
-SPEAKING = asyncio.Lock()  # one voice at a time: replies and delegate results
-
-
-async def tts(http, text):
-    """Yields the PCM of TEXT from the TTS websocket."""
+    Parameters
+    ----------
+    http : aiohttp.ClientSession
+        The session for the requests.
+    text : str
+        The text; the server reads it whole.
+    """
     if not VOICES:
         async with http.get(f"{TTS_URL}/v1/audio/voices") as r:
             VOICES.extend(v["id"] for v in (await r.json())["data"])
-    voice = VOICES[0]
     url = TTS_URL.replace("http", "ws", 1) + "/v1/audio/speech/stream"
     async with http.ws_connect(url) as ws:
         # The server refuses stream_audio without response_format pcm.
-        await ws.send_json({"type": "session.config", "model": MODEL, "voice": voice,
-                            "response_format": "pcm", "stream_audio": True})
+        config = {"model": MODEL, "voice": VOICES[0], "response_format": "pcm"}
+        await ws.send_json({"type": "session.config", **config, "stream_audio": True})
         await ws.send_json({"type": "input.text", "text": text})
         await ws.send_json({"type": "input.done"})
-        started = False
-        while True:
-            # The server may not say when it is done: a gap after the first
-            # audio ends the reply, so that the agent listens again.
-            try:
-                msg = await asyncio.wait_for(ws.receive(), 2 if started else 30)
-            except asyncio.TimeoutError:
-                if started:
-                    return
-                raise
-            if msg.type == aiohttp.WSMsgType.BINARY:
-                started = True
-                yield msg.data
-            elif msg.type == aiohttp.WSMsgType.TEXT:
-                event = json.loads(msg.data)
-                kind = event.get("type", "")
-                if kind not in SEEN:
-                    SEEN.add(kind)
-                    log("tts event:", msg.data[:120])
-                if "error" in kind:
-                    log("tts:", msg.data[:200])
-                    return
-                # audio.done ends a sentence, session.done the reply.
-                if kind == "session.done":
-                    return
-                # Some servers send the PCM as base64 in a text event.
-                if isinstance(event.get("audio"), str):
-                    try:
-                        started = True
-                        yield base64.b64decode(event["audio"])
-                    except binascii.Error:
-                        log("tts: no base64 in", msg.data[:200])
-            else:
+        async for chunk in _tts_audio(ws):
+            yield chunk
+
+
+async def _tts_audio(ws: aiohttp.ClientWebSocketResponse) -> AsyncIterator[bytes]:
+    started = False
+    while True:
+        # A gap after the first audio also ends the reply, in case the
+        # server never says session.done.
+        try:
+            msg = await asyncio.wait_for(ws.receive(), 2 if started else 30)
+        except TimeoutError:
+            if started:
                 return
+            raise
+        if msg.type == aiohttp.WSMsgType.BINARY:
+            started = True
+            yield msg.data
+        elif msg.type != aiohttp.WSMsgType.TEXT:
+            return
+        else:
+            event = json.loads(msg.data)
+            kind = event.get("type", "")
+            if kind not in SEEN:
+                SEEN.add(kind)
+                log("tts event:", msg.data[:120])
+            # audio.done ends a sentence, session.done the reply.
+            if kind == "session.done" or "error" in kind:
+                return
+            if isinstance(event.get("audio"), str):  # base64 PCM of some servers
+                with contextlib.suppress(binascii.Error):
+                    started = True
+                    yield base64.b64decode(event["audio"])
 
 
-async def speak(http, text):
-    log(f"agent: {text}")
-    async with SPEAKING:
-        await play(tts(http, text))
+async def speak(http: aiohttp.ClientSession, sentences: AsyncIterator[str]) -> None:
+    """Speak sentences one after the other through one aplay.
+
+    A task reads the sentences ahead into a queue, so the LLM writes on
+    while TTS speaks.
+
+    Parameters
+    ----------
+    http : aiohttp.ClientSession
+        The session for the requests.
+    sentences : AsyncIterator[str]
+        The sentences, as they come.
+    """
+    queue: asyncio.Queue[str | None] = asyncio.Queue()
+
+    async def read() -> None:
+        try:
+            async for sentence in sentences:
+                queue.put_nowait(sentence)
+        finally:
+            queue.put_nowait(None)
+
+    reader = asyncio.create_task(read())
+
+    async def sound() -> AsyncIterator[bytes]:
+        while (sentence := await queue.get()) is not None:
+            log(f"agent: {sentence}")
+            async for chunk in tts(http, sentence):
+                yield chunk
+        await reader  # its errors belong to the reply
+
+    try:
+        async with SPEAKING:
+            await play(sound())
+    finally:
+        reader.cancel()
 
 
-async def transcribe(http, pcm):
-    """Sends raw PCM to the ASR websocket and returns the transcript."""
+async def transcribe(http: aiohttp.ClientSession, pcm: bytes) -> str:
+    """Return the transcript of raw PCM from the ASR websocket.
+
+    Parameters
+    ----------
+    http : aiohttp.ClientSession
+        The session for the requests.
+    pcm : bytes
+        16 bit mono samples at RATE.
+
+    Returns
+    -------
+    str
+        The transcript, empty when the ASR heard nothing or failed.
+    """
     async with http.ws_connect(ASR_URL) as ws:
-        await ws.send_json({"type": "session.update", "session": {
-            "type": "transcription",
-            "audio": {"input": {"format": {"type": "audio/pcm", "rate": RATE},
-                                "transcription": {"model": MODEL, "language": LANGUAGE},
-                                "turn_detection": None}}}})
+        audio = {
+            "format": {"type": "audio/pcm", "rate": RATE},
+            "transcription": {"model": MODEL, "language": LANGUAGE},
+            "turn_detection": None,
+        }
+        session = {"type": "transcription", "audio": {"input": audio}}
+        await ws.send_json({"type": "session.update", "session": session})
         for i in range(0, len(pcm), FRAME_BYTES):
-            chunk = base64.b64encode(pcm[i:i + FRAME_BYTES]).decode()
+            chunk = base64.b64encode(pcm[i : i + FRAME_BYTES]).decode()
             await ws.send_json({"type": "input_audio_buffer.append", "audio": chunk})
         await ws.send_json({"type": "input_audio_buffer.commit"})
         while True:
@@ -204,19 +333,27 @@ async def transcribe(http, pcm):
                 return ""
 
 
-# --- tools -------------------------------------------------------------
-
+# %% llm and tools
 class Tools:
-    """The tools of the LLM: those of `choractl mcp` and `delegate`."""
+    """The tools of the LLM: those of `choractl mcp` and `delegate`.
 
-    def __init__(self, session, http):
+    Parameters
+    ----------
+    session : ClientSession | None
+        The MCP session of chora; None gives no chora tools.
+    http : aiohttp.ClientSession
+        The session for speaking the results of `delegate`.
+    """
+
+    def __init__(self, session: ClientSession | None, http: aiohttp.ClientSession) -> None:
         self.session = session
         self.http = http
-        self.specs = []
-        self.names = {}  # OpenAI function name -> MCP tool name
-        self.jobs = set()
+        self.specs: list[dict] = []
+        self.names: dict[str, str] = {}  # OpenAI function name -> MCP tool name
+        self.jobs: set[asyncio.Task] = set()
 
-    async def load(self):
+    async def load(self) -> None:
+        """Ask chora for its tools and add `delegate`."""
         if self.session:
             for tool in (await self.session.list_tools()).tools:
                 if tool.name in OWN_TOOLS:
@@ -226,17 +363,23 @@ class Tools:
                 self.names[name] = tool.name
                 self.specs.append(function(name, tool.description, tool.input_schema))
         if CODER_CMD:
-            self.specs.append(function(
-                "delegate",
+            task = {"type": "string", "description": "the task in full"}
+            cwd = {"type": "string", "description": "the working directory"}
+            parameters = {
+                "type": "object",
+                "required": ["task"],
+                "properties": {"task": task, "dir": cwd},
+            }
+            description = (
                 "Hand a bigger task, such as code changes, to a coding agent. "
-                "It runs in the background and the result is spoken when it ends.",
-                {"type": "object", "required": ["task"], "properties": {
-                    "task": {"type": "string", "description": "the task in full"},
-                    "dir": {"type": "string", "description": "the working directory"}}}))
+                "It runs in the background and the result is spoken when it ends."
+            )
+            self.specs.append(function("delegate", description, parameters))
 
-    async def call(self, name, arguments):
+    async def call(self, name: str, arguments: dict) -> str:
+        """Run a tool and return its text for the LLM."""
         if name == "delegate" and CODER_CMD:
-            return self.delegate(**arguments)
+            return self.delegate(arguments["task"], arguments.get("dir", "~"))
         if name not in self.names:
             return f"no tool {name}"
         result = await self.session.call_tool(self.names[name], arguments)
@@ -244,278 +387,444 @@ class Tools:
         text = "\n".join(c.text for c in result.content if c.type == "text")
         return ("error: " if result.is_error else "") + (text or "done")
 
-    def delegate(self, task, dir="~"):
-        job = asyncio.create_task(self.run_coder(task, os.path.expanduser(dir)))
+    def delegate(self, task: str, cwd: str) -> str:
+        """Start CODER_CMD with a task in the background."""
+        job = asyncio.create_task(self._run_coder(task, os.path.expanduser(cwd)))
         self.jobs.add(job)
         job.add_done_callback(self.jobs.discard)
         return "the coding agent started"
 
-    async def run_coder(self, task, cwd):
+    async def _run_coder(self, task: str, cwd: str) -> None:
         log(f"delegate in {cwd}: {task}")
         try:
             proc = await asyncio.create_subprocess_exec(
-                *shlex.split(CODER_CMD), task, cwd=cwd,
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+                *shlex.split(CODER_CMD),
+                task,
+                cwd=cwd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
             out, _ = await proc.communicate()
-            lines = [l for l in out.decode(errors="replace").splitlines() if l.strip()]
+            lines = [line for line in out.decode(errors="replace").splitlines() if line.strip()]
             last = lines[-1][:200] if lines else "no output"
             state = "is done" if proc.returncode == 0 else "failed"
         except OSError as err:
             last, state = str(err), "did not start"
         try:
-            await speak(self.http, f"The coding task {state}. {last}")
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+            await speak(self.http, one(f"The coding task {state}. {last}"))
+        except TURN_ERRORS as err:
             log(f"cannot speak the result: {err}")
 
 
-def function(name, description, parameters):
-    return {"type": "function", "function": {
-        "name": name, "description": description or name,
-        "parameters": parameters or {"type": "object", "properties": {}}}}
+@dataclass
+class Reply:
+    """One streamed answer of the LLM: its words and its tool calls."""
+
+    text: str = ""
+    calls: dict[int, dict] = field(default_factory=dict)
+    complete: bool = False
+
+    def add(self, delta: dict) -> str:
+        """Add one delta of the stream and return its words."""
+        # A tool call comes in parts: the id and name first, then the
+        # arguments piece by piece.
+        for part in delta.get("tool_calls") or []:
+            empty = {"id": "", "name": "", "args": ""}
+            call = self.calls.setdefault(part.get("index", 0), empty)
+            fn = part.get("function") or {}
+            call["id"] = part.get("id") or call["id"]
+            call["name"] += fn.get("name") or ""
+            call["args"] += fn.get("arguments") or ""
+        words = delta.get("content") or ""
+        self.text += words
+        return words
+
+    def message(self) -> dict | None:
+        """Return the message for the history; a cut reply keeps no calls."""
+        message: dict = {"role": "assistant", "content": self.text}
+        if self.calls and self.complete:
+            message["tool_calls"] = [
+                {
+                    "id": c["id"],
+                    "type": "function",
+                    "function": {"name": c["name"], "arguments": c["args"]},
+                }
+                for c in self.calls.values()
+            ]
+        return message if self.text or "tool_calls" in message else None
 
 
-async def answer(http, tools, history):
-    """Asks the LLM until it answers in words, running the tools it calls."""
+async def _deltas(http: aiohttp.ClientSession, body: dict) -> AsyncIterator[dict]:
+    async with http.post(f"{LLM_URL}/chat/completions", json=body) as r:
+        r.raise_for_status()
+        async for raw in r.content:
+            line = raw.decode().strip()
+            if line.startswith("data:") and line != "data: [DONE]":
+                yield (json.loads(line[5:]).get("choices") or [{}])[0].get("delta") or {}
+
+
+async def _run_call(tools: Tools, call: dict) -> dict:
+    try:
+        arguments = json.loads(call["args"] or "{}")
+        log(f"tool {call['name']} {arguments}")
+        result = await tools.call(call["name"], arguments)
+    except TURN_ERRORS as err:  # the LLM reads the error and goes on
+        result = f"error: {err}"
+    return {"role": "tool", "tool_call_id": call["id"], "content": result}
+
+
+async def answer(
+    http: aiohttp.ClientSession, tools: Tools, history: list[dict]
+) -> AsyncIterator[str]:
+    """Yield the words of the LLM as they come, running its tool calls.
+
+    Parameters
+    ----------
+    http : aiohttp.ClientSession
+        The session for the requests.
+    tools : Tools
+        The tools the LLM may call.
+    history : list[dict]
+        The conversation; the answer and the tool results join it, also a
+        reply that a barge-in cuts short.
+    """
     for _ in range(TOOL_ROUNDS):
-        body = {"model": MODEL, "messages": history}
+        body: dict = {"model": MODEL, "messages": history, "stream": True}
         if tools.specs:
             body["tools"] = tools.specs
-        async with http.post(f"{LLM_URL}/chat/completions", json=body) as r:
-            message = (await r.json())["choices"][0]["message"]
-        history.append(message)
-        calls = message.get("tool_calls") or []
-        if not calls:
-            return message.get("content") or ""
-        for call in calls:
-            fn = call["function"]
-            arguments = json.loads(fn.get("arguments") or "{}")
-            log(f"tool {fn['name']} {arguments}")
-            result = await tools.call(fn["name"], arguments)
-            history.append({"role": "tool", "tool_call_id": call["id"], "content": result})
-    return "I stopped after too many tool calls."
+        reply = Reply()
+        try:
+            async for delta in _deltas(http, body):
+                if words := reply.add(delta):
+                    yield words
+            reply.complete = True
+        finally:
+            if not reply.complete and (message := reply.message()):
+                history.append(message)  # a barge-in cut it: its words only
+        if not reply.calls:
+            if message := reply.message():
+                history.append(message)
+            return
+        # The calls join the history only with their results, so a failed
+        # or cut round leaves no call without an answer.
+        results = [await _run_call(tools, call) for call in reply.calls.values()]
+        history += [reply.message(), *results]
+    yield "I stopped after too many tool calls."
 
 
-# --- listening ---------------------------------------------------------
+async def sentences(words: AsyncIterator[str]) -> AsyncIterator[str]:
+    """Group streamed words into sentences.
 
+    TTS reads a text whole, so a sentence is the smallest piece it can
+    start on. A long sentence may end its first piece at a comma, so the
+    first sound comes sooner.
+
+    Parameters
+    ----------
+    words : AsyncIterator[str]
+        The words of the LLM, as they come.
+    """
+    buffer = ""
+    async for word in words:
+        buffer += word
+        *done, buffer = SENTENCE_END.split(buffer)
+        if not done and len(buffer) > FIRST_PIECE and ", " in buffer:
+            head, buffer = buffer.rsplit(", ", 1)
+            done = [head + ","]
+        for sentence in done:
+            if sentence.strip():
+                yield sentence.strip()
+    if buffer.strip():
+        yield buffer.strip()
+
+
+# %% listening
 class PushToTalk:
-    """Follows PTT_KEY through chora: held between pressed and released."""
+    """The push-to-talk key in chora: held between pressed and released.
 
-    def __init__(self, session):
+    Parameters
+    ----------
+    session : ClientSession
+        The MCP session of chora.
+    """
+
+    def __init__(self, session: ClientSession) -> None:
         self.session = session
-        self.held = asyncio.Event()
+        self.down = asyncio.Event()
 
-    async def watch(self):
+    async def watch(self) -> None:
+        """Follow the key until chora ends the subscription."""
         args = {"events": ["input.key"], "keys": [PTT_KEY]}
         result = await self.session.call_tool("subscribe_events", args)
         if result.is_error:
-            raise SystemExit(f"push-to-talk: {result.content[0].text}")
-        # chora names the binding in its own spelling.
-        binding = json.loads(result.content[0].text)["keys"][0]
-        while True:
-            result = await self.session.call_tool("wait_events", {"timeout_ms": 30000})
-            for c in result.content:
-                if c.type != "text":
-                    continue
-                batch = json.loads(c.text)
-                for event in batch.get("events", []):
-                    if event.get("binding") != binding:
-                        continue
-                    if event.get("state") == "pressed":
-                        self.held.set()
-                    elif event.get("state") == "released":
-                        self.held.clear()
-                if batch.get("ended"):
-                    # chora ended the subscription, for example at a restart.
-                    self.held.clear()
-                    log(f"push-to-talk ended: {batch['ended']}")
-                    return
+            log(f"no push-to-talk: {result.content[0].text}")
+            return
+        binding = json.loads(result.content[0].text)["keys"][0]  # in chora's spelling
+        try:
+            while True:
+                result = await self.session.call_tool("wait_events", {"timeout_ms": 30000})
+                for content in result.content:
+                    if content.type == "text" and not self._take(json.loads(content.text), binding):
+                        return
+        finally:
+            self.down.clear()  # a key that nobody follows is up
+
+    def _take(self, batch: dict, binding: str) -> bool:
+        for event in batch.get("events", []):
+            if event.get("binding") == binding:
+                if event.get("state") == "pressed":
+                    self.down.set()
+                elif event.get("state") == "released":
+                    self.down.clear()
+        if batch.get("ended"):  # chora ended the subscription, as at a restart
+            log(f"push-to-talk ended: {batch['ended']}")
+            return False
+        return True
 
 
-async def talk(http, text, ptt):
-    """Speaks TEXT while the mic listens. Returns the recent frames when
-    the user talks over the reply or holds the push-to-talk key, which
-    stops the reply; else empty bytes."""
-    reply = asyncio.create_task(speak(http, text))
-    proc = await mic()
-    recent, loud = [], 0
-    try:
-        while not reply.done():
-            read = asyncio.create_task(proc.stdout.readexactly(FRAME_BYTES))
-            await asyncio.wait({read, reply}, return_when=asyncio.FIRST_COMPLETED)
-            if not read.done():
-                read.cancel()
-                break
-            frame = read.result()
-            recent = [*recent[-(BARGE_MS // FRAME_MS + 10):], frame]
-            loud = loud + 1 if rms(frame) >= RMS_BARGE_IN else 0
-            if loud * FRAME_MS >= BARGE_MS or (ptt is not None and ptt.held.is_set()):
-                log("barge-in")
-                reply.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await reply
-                return b"".join(recent)
-    finally:
-        proc.kill()
-    await reply  # its errors belong to the turn
-    return b""
+def held(ptt: PushToTalk | None) -> bool:
+    """Return whether a push-to-talk key exists and is down."""
+    return ptt is not None and ptt.down.is_set()
 
 
-async def record(ptt, preroll=b""):
-    """Records one turn: by level, or while the push-to-talk key is held.
+async def settle(mic: Mic, ptt: PushToTalk | None) -> None:
+    """Wait for SETTLE_MS below RMS_SPEECH, or for the push-to-talk key.
 
-    A turn by level starts only after SETTLE_MS below RMS_SPEECH, so that
-    the click of a new mic or the end of the reply does not start one.
+    The frames that came while the agent was busy go first, and the quiet
+    keeps the loud start of the mic and the end of a reply out.
     """
-    frames, quiet, speaking, pushed, settled, waited = [], 0, False, False, 0, 0
-    if preroll:  # a barge-in: the user talks already
-        frames, speaking, settled = [preroll], True, SETTLE_MS // FRAME_MS
+    async with SPEAKING:  # a spoken delegate result is no turn
+        mic.flush()
     log("listening")
-    proc = await mic()
-    try:
-        while True:
-            frame = await proc.stdout.readexactly(FRAME_BYTES)
-            held = ptt is not None and ptt.held.is_set()
-            pushed = pushed or held
-            level = rms(frame)
-            loud = level >= RMS_SPEECH
-            if settled * FRAME_MS < SETTLE_MS and not held:
-                settled = 0 if loud else settled + 1
-                waited += 1
-                if settled * FRAME_MS >= SETTLE_MS:
-                    log("speak now")
-                elif waited * FRAME_MS == 2000:
-                    log(f"no quiet below RMS_SPEECH {RMS_SPEECH}, level {level:.0f}; "
-                        "agent.py levels shows the room")
-                continue
-            speaking = speaking or loud or held
-            if speaking:
-                frames.append(frame)
-            if held:
-                quiet = 0
-            elif pushed:
-                return b"".join(frames)
-            else:
-                quiet = 0 if loud else quiet + 1
-                if speaking and quiet * FRAME_MS >= SILENCE_MS:
-                    return b"".join(frames)
-    finally:
-        proc.kill()
+    quiet, waited = 0, 0
+    while ms(quiet) < SETTLE_MS and not held(ptt):
+        level = rms(await mic.frame())
+        quiet = 0 if level >= RMS_SPEECH else quiet + 1
+        waited += 1
+        if ms(waited) == NO_QUIET_MS:
+            log(f"no quiet below RMS_SPEECH {RMS_SPEECH}, level {level:.0f}")
+    log("speak now")
 
 
-# --- commands ----------------------------------------------------------
+async def record(mic: Mic, ptt: PushToTalk | None, preroll: list[bytes]) -> bytes:
+    """Record one turn: by level, or while the push-to-talk key is held.
 
-async def chora(stack):
-    """The MCP session of `choractl mcp`, or None when chora is not there."""
+    Parameters
+    ----------
+    mic : Mic
+        The microphone.
+    ptt : PushToTalk | None
+        The push-to-talk key, if chora is there.
+    preroll : list[bytes]
+        The frames of a barge-in; the turn goes on from them without a
+        gap. Empty for a new turn, which waits for quiet first.
+
+    Returns
+    -------
+    bytes
+        The PCM of the turn.
+    """
+    if not preroll:
+        await settle(mic, ptt)
+    frames, quiet, pushed = list(preroll), 0, False
+    while True:
+        frame = await mic.frame()
+        loud, down = rms(frame) >= RMS_SPEECH, held(ptt)
+        pushed = pushed or down
+        if frames or loud or down:
+            frames.append(frame)
+        if down:
+            continue
+        if pushed:  # the key went up
+            return b"".join(frames)
+        quiet = 0 if loud else quiet + 1
+        if frames and ms(quiet) >= SILENCE_MS:
+            return b"".join(frames)
+
+
+async def talk(
+    http: aiohttp.ClientSession, mic: Mic, words: AsyncIterator[str], ptt: PushToTalk | None
+) -> list[bytes]:
+    """Speak the streamed words while the mic listens for a barge-in.
+
+    Parameters
+    ----------
+    http : aiohttp.ClientSession
+        The session for the requests.
+    mic : Mic
+        The microphone.
+    words : AsyncIterator[str]
+        The words of the LLM, as they come.
+    ptt : PushToTalk | None
+        The push-to-talk key, if chora is there.
+
+    Returns
+    -------
+    list[bytes]
+        The last PREROLL_MS of frames when the user talked over the reply
+        or pressed the key, which stopped the reply; else an empty list.
+    """
+    reply = asyncio.create_task(speak(http, sentences(words)))
+    recent: collections.deque[bytes] = collections.deque(maxlen=PREROLL_MS // FRAME_MS)
+    loud, peak = 0, 0.0
+    mic.flush()
+    while not reply.done():
+        read = asyncio.create_task(mic.frame())
+        await asyncio.wait({read, reply}, return_when=asyncio.FIRST_COMPLETED)
+        if not read.done():
+            read.cancel()
+            break
+        recent.append(read.result())
+        level = rms(recent[-1])
+        peak = max(peak, level)
+        loud = loud + 1 if level >= RMS_BARGE_IN else 0
+        if ms(loud) >= BARGE_MS or held(ptt):
+            log(f"barge-in at level {level:.0f}")
+            reply.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await reply
+            # By key, the recent frames hold the reply, not the user.
+            return [] if held(ptt) else list(recent)
+    log(f"mic peak during the reply: {peak:.0f}, barge-in at {RMS_BARGE_IN}")
+    await reply  # its errors belong to the turn
+    return []
+
+
+# %% commands
+async def chora(stack: contextlib.AsyncExitStack) -> ClientSession | None:
+    """Return the MCP session of `choractl mcp`, or None without chora."""
     # The mcp package passes only a few variables by default; choractl
     # needs CHORA_SOCKET and the rest of the session.
-    params = StdioServerParameters(command="choractl", args=["--name", CHORA_NAME, "mcp"],
-                                   env=dict(os.environ))
+    args = ["--name", CHORA_NAME, "mcp"]
+    params = StdioServerParameters(command="choractl", args=args, env=dict(os.environ))
     try:
         read, write = await stack.enter_async_context(stdio_client(params))
         session = await stack.enter_async_context(ClientSession(read, write))
         await session.initialize()
-        return session
-    except Exception as err:  # no choractl, no core: talk without tools
+    except Exception as err:  # no choractl or no core: talk without tools
         log(f"no chora tools: {err}")
         return None
+    return session
 
 
-async def run_loop(http, stack, args):
+def trim(history: list[dict]) -> None:
+    """Keep the last turns, from a user message on.
+
+    So no tool result loses the call it answers.
+    """
+    del history[1:-HISTORY]
+    while len(history) > 1 and history[1]["role"] != "user":
+        del history[1]
+
+
+def report(task: asyncio.Task) -> None:
+    """Log the error of a background task that ended."""
+    if not task.cancelled() and task.exception():
+        log(f"{task.get_name()} failed: {task.exception()}")
+
+
+async def run_loop(
+    http: aiohttp.ClientSession, stack: contextlib.AsyncExitStack, args: argparse.Namespace
+) -> None:
+    """Run the conversation loop until Ctrl-C."""
     session = await chora(stack)
     tools = Tools(session, http)
     await tools.load()
-    ptt = watch = None
+    ptt = None
     if session and PTT_KEY:
         ptt = PushToTalk(session)
-        watch = asyncio.create_task(ptt.watch())
-        watch.add_done_callback(lambda t: t.cancelled() or t.exception() and log(
-            f"push-to-talk failed: {t.exception()}"))
+        asyncio.create_task(ptt.watch(), name="push-to-talk").add_done_callback(report)
+    log(f"level {RMS_SPEECH}, barge-in {RMS_BARGE_IN}, push-to-talk {PTT_KEY if ptt else 'off'}")
     history = [{"role": "system", "content": SYSTEM}]
-    log(f"listening; level {RMS_SPEECH}, barge-in {RMS_BARGE_IN}, "
-        f"push-to-talk {PTT_KEY if ptt else 'off'}")
-    preroll = b""
-    while True:
-        # A failed server or tool costs one turn, not the conversation.
-        try:
-            pcm, preroll = await record(ptt, preroll), b""
-            said = await transcribe(http, pcm)
-            log(f"you: {said}")
-            if not said:
-                continue
-            history.append({"role": "user", "content": said})
-            reply = await answer(http, tools, history)
-            if reply:
-                preroll = await talk(http, reply, ptt)
-        except (aiohttp.ClientError, asyncio.TimeoutError, KeyError, ValueError,
-                MCPError) as err:
-            log(f"turn failed: {err!r}")
-        # Keep the last turns; the kept part starts with a user message, so
-        # no tool result loses the call it answers.
-        del history[1:-HISTORY]
-        while len(history) > 1 and history[1]["role"] != "user":
-            del history[1]
+    preroll: list[bytes] = []
+    async with Mic() as mic:
+        while True:
+            # A failed server or tool costs one turn, not the conversation.
+            try:
+                pcm = await record(mic, ptt, preroll)
+                preroll = []
+                said = await transcribe(http, pcm)
+                log(f"you: {said}")
+                if said:
+                    history.append({"role": "user", "content": said})
+                    preroll = await talk(http, mic, answer(http, tools, history), ptt)
+            except TURN_ERRORS as err:
+                log(f"turn failed: {err!r}")
+            trim(history)
 
 
-async def run_roundtrip(http, stack, args):
+async def run_roundtrip(
+    http: aiohttp.ClientSession, stack: contextlib.AsyncExitStack, args: argparse.Namespace
+) -> None:
+    """Speak a text into the ASR and answer the transcript."""
     text = " ".join(args.text) or "What time is it in Tokyo when it is noon in Berlin?"
     pcm = b"".join([chunk async for chunk in tts(http, text)])
     log(f"tts gave {len(pcm) / (RATE * 2):.2f} s for: {text}")
     said = await transcribe(http, pcm)
     log(f"asr heard: {said}")
-    tools = Tools(None, http)
     history = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": said}]
-    await speak(http, await answer(http, tools, history))
+    await speak(http, sentences(answer(http, Tools(None, http), history)))
 
 
-async def run_tts(http, stack, args):
-    await speak(http, " ".join(args.text) or "Hallo, die Sprachausgabe läuft.")
+async def run_tts(
+    http: aiohttp.ClientSession, stack: contextlib.AsyncExitStack, args: argparse.Namespace
+) -> None:
+    """Speak a text."""
+    await speak(http, one(" ".join(args.text) or "Hallo, die Sprachausgabe läuft."))
 
 
-async def run_asr(http, stack, args):
-    print(await transcribe(http, open(args.file, "rb").read()))
+async def run_asr(
+    http: aiohttp.ClientSession, stack: contextlib.AsyncExitStack, args: argparse.Namespace
+) -> None:
+    """Print the transcript of a raw PCM file."""
+    with open(args.file, "rb") as f:
+        print(await transcribe(http, f.read()))
 
 
-async def run_levels(http, stack, args):
-    proc = await mic()
+async def run_levels(
+    http: aiohttp.ClientSession, stack: contextlib.AsyncExitStack, args: argparse.Namespace
+) -> None:
+    """Show the live mic level until Ctrl-C."""
     peak = 0.0
-    try:
+    async with Mic() as mic:
         while True:
-            level = rms(await proc.stdout.readexactly(FRAME_BYTES))
+            level = rms(await mic.frame())
             peak = max(peak, level)
-            print(f"\rlevel {level:7.0f} peak {peak:7.0f} " + "#" * min(40, int(level / 500)),
-                  end="", flush=True)
-    finally:
-        proc.kill()
+            bar = "#" * min(40, int(level / 500))
+            print(f"\rlevel {level:7.0f} peak {peak:7.0f} {bar:40}", end="", flush=True)
 
 
-async def run_tools(http, stack, args):
+async def run_tools(
+    http: aiohttp.ClientSession, stack: contextlib.AsyncExitStack, args: argparse.Namespace
+) -> None:
+    """Print the names of the tools of the LLM."""
     tools = Tools(await chora(stack), http)
     await tools.load()
     for spec in tools.specs:
         print(spec["function"]["name"])
 
 
-async def main():
-    p = argparse.ArgumentParser(description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
-    sub = p.add_subparsers(dest="command")
+async def main() -> None:
+    """Parse the command line and run a command."""
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    sub = parser.add_subparsers(dest="command")
     for name, func in [("roundtrip", run_roundtrip), ("tts", run_tts)]:
-        cmd = sub.add_parser(name)
-        cmd.add_argument("text", nargs="*")
-        cmd.set_defaults(func=func)
+        command = sub.add_parser(name)
+        command.add_argument("text", nargs="*")
+        command.set_defaults(func=func)
     asr = sub.add_parser("asr")
     asr.add_argument("file")
     asr.set_defaults(func=run_asr)
     for name, func in [("levels", run_levels), ("tools", run_tools)]:
         sub.add_parser(name).set_defaults(func=func)
-    args = p.parse_args()
+    args = parser.parse_args()
     func = getattr(args, "func", run_loop)
     async with aiohttp.ClientSession() as http, contextlib.AsyncExitStack() as stack:
         await func(http, stack, args)
 
 
 if __name__ == "__main__":
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(main())
-    except KeyboardInterrupt:
-        pass
