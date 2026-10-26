@@ -46,8 +46,8 @@ pub enum Focus {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
-    /// Runs a shell command.
-    Spawn(String),
+    /// Runs a shell command as an app.
+    Run(String),
     FocusNext,
     FocusPrevious,
     /// Focuses the window that had the focus before.
@@ -215,7 +215,7 @@ mod tests {
         let config = Config::parse(DEFAULT).unwrap();
         assert_eq!(config.tags, 9);
         assert_eq!(config.layouts[0], Layout::Tile);
-        assert_eq!(config.bindings["MOD+Return"], Action::Spawn("foot".into()));
+        assert_eq!(config.bindings["MOD+Return"], Action::Run("foot".into()));
         assert_eq!(
             config.binding("MOD+Shift+1").unwrap().to_string(),
             "Shift+Super+1"

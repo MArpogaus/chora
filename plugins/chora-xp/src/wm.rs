@@ -1346,7 +1346,7 @@ impl Wm {
                 None => Vec::new(),
             },
             Some(Key::Terminal) => {
-                spawn(&self.config.terminal);
+                chora_kit::run(&self.config.terminal);
                 Vec::new()
             }
             Some(Key::Turn(steps)) => self.turn(steps),
@@ -2324,7 +2324,7 @@ impl Wm {
     fn run(&mut self, action: &Action, output: Option<&str>) -> Vec<Command> {
         match action {
             Action::Run(command) => {
-                spawn(command);
+                chora_kit::run(command);
                 Vec::new()
             }
             Action::LogOff => self.open_dialog(Mode::LogOff, output),
@@ -2821,11 +2821,11 @@ impl Wm {
             desktop_icons::Open::Computer => Place::Computer,
             desktop_icons::Open::Trash => Place::Trash,
             desktop_icons::Open::Run(command) => {
-                spawn(&command);
+                chora_kit::run(&command);
                 return Vec::new();
             }
             desktop_icons::Open::File(path) => {
-                spawn(&desktop_icons::xdg_open(&path));
+                chora_kit::run(&desktop_icons::xdg_open(&path));
                 return Vec::new();
             }
         };
@@ -3005,7 +3005,7 @@ impl Wm {
                     commands.extend(self.close_window(&surface));
                 }
             }
-            Choice::StandBy => spawn("systemctl suspend"),
+            Choice::StandBy => chora_kit::run("systemctl suspend"),
             Choice::TurnOff => {
                 self.play(Sound::ShutDown);
                 self.done = true;
@@ -3310,17 +3310,6 @@ fn close(surface: &str) -> Vec<Command> {
 /// The largest scale of some outputs, at least 1.
 fn max_scale(outputs: &[OutputInfo]) -> f64 {
     outputs.iter().map(|o| o.scale).fold(1.0, f64::max)
-}
-
-/// Runs a shell command. `&` lets the shell exit at once, so the command
-/// never becomes a zombie of this plugin.
-pub fn spawn(command: &str) {
-    let spawned = std::process::Command::new("sh")
-        .args(["-c", &format!("{command} &")])
-        .status();
-    if let Err(err) = spawned {
-        eprintln!("chora-xp: cannot run {command:?}: {err}");
-    }
 }
 
 /// A position in one area at the same place in another, so that at least

@@ -24,6 +24,8 @@
 set -euo pipefail
 
 bin=$(realpath "$1")
+# The plugins start apps with `choractl run` from PATH (D42).
+export PATH="$bin:$PATH"
 out=$(realpath "${2:-$(mktemp -d)}")
 theme=$(realpath "$(dirname "$0")/../flavors/xp/theme")
 mkdir -p "$out"
