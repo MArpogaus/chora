@@ -8,7 +8,7 @@ Wants=gufo-asr.service gufo-tts.service gufo-llm.service
 After=graphical-session.target gufo-asr.service gufo-tts.service gufo-llm.service
 
 [Service]
-# uv and choractl, which the user manager does not find by default.
+# uv in ~/.local/bin, which the user manager does not search by default.
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
 ExecStart=%h/Projekte/chora/services/voice/agent.py
 EnvironmentFile=-%h/.config/gufo/agent.env
