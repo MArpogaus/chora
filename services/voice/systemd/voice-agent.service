@@ -1,16 +1,19 @@
-# Optional: the voice agent as a user service, so it survives logout of
-# the terminal (it still needs the Pipewire of the session). Start the
-# three gufo-<kind> units first, they are not hard dependencies.
+# The voice agent as a user service. It needs the PipeWire of the
+# session and uv on PATH; settings go into ~/.config/gufo/agent.env.
 
 [Unit]
-Description=Chora voice agent (M6)
+Description=Chora voice agent
+Wants=gufo-asr.service gufo-tts.service gufo-llm.service
 After=gufo-asr.service gufo-tts.service gufo-llm.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
 
 [Service]
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
 ExecStart=%h/Projekte/chora/services/voice/agent.py
 EnvironmentFile=-%h/.config/gufo/agent.env
-Restart=always
-RestartSec=3
+Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=default.target

@@ -1,10 +1,9 @@
-# Gufo llm server on the AMD GPU, the systemd twin of gufo.sh llm.
-# Point MODEL at your checkpoint (dir for llm without GGUF note): systemctl
-# --user edit gufo-llm  ->  Environment=MODEL=/var/models/...
+# Gufo llm server on the AMD GPU, the systemd form of gufo.sh llm.
+# Another model: systemctl --user edit gufo-llm, then a [Container]
+# section with an empty Exec= line and a new Exec= line.
 
 [Unit]
 Description=Gufo llm server (port 8888)
-After=podman-user-wait-network-online.service
 
 [Container]
 Image=ghcr.io/gufo-org/toolboxes/gufo-runtime:latest
@@ -14,11 +13,17 @@ Network=ai-net-offline.network
 Volume=/var/models:/var/models:ro
 Device=/dev/kfd
 Device=/dev/dri
-PodmanArgs=--userns=keep-id --user=%U:%G --group-add keep-groups
-Environment=MODEL=/var/models/gufo-llm
-Environment=EXTRA_ARGS=
-Exec=gufo serve --host 0.0.0.0 --port 8888 llm --model $MODEL --served-model-name gufo $EXTRA_ARGS
+UserNS=keep-id
+GroupAdd=keep-groups
+ReadOnly=true
+Tmpfs=/tmp
+DropCapability=all
+NoNewPrivileges=true
+SecurityLabelDisable=true
+Exec=gufo serve --host 0.0.0.0 --port 8888 llm --model /var/models/gufo-llm --served-model-name gufo
 PublishPort=127.0.0.1:8888:8888
 
 [Service]
 Restart=on-failure
+# The first start pulls an image of several GB.
+TimeoutStartSec=900
