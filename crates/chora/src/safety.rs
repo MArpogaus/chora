@@ -263,7 +263,8 @@ impl State {
         }
         tracing::warn!(clients = ?names, "the revoke binding took the capabilities of every client");
         for name in names {
-            self.disconnect_wayland(&name, &[]);
+            // Only the clients that a capability gave a protocol go.
+            self.disconnect_wayland(&name, &chora_scene::ipc::Capability::ALL);
             self.revoke_free_grabs(&name);
         }
     }

@@ -1061,6 +1061,35 @@ fn a_recreate_without_grab_any_ends_free_grabs() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// The revoke binding keeps the windows of a name whose capabilities
+/// gave them no protocol, and ends those that a capability gave one.
+#[test]
+fn the_revoke_binding_ends_only_windows_with_a_granted_protocol() {
+    let (mut core, dir) = caps_core("keep");
+    let mut admin = core.admin();
+    let created = open_agent(&mut core, &mut admin, &["activation.token"]);
+    let mut window = Wayland::connect_to(
+        &mut core,
+        &PathBuf::from(created["wayland"].as_str().unwrap()),
+    );
+    window.toplevel(&mut core, "app");
+    core.state.revoke_all();
+    assert!(
+        !window.closed(&mut core),
+        "activation.token gave no protocol"
+    );
+    let created = open_agent(&mut core, &mut admin, &["screen.capture"]);
+    let mut eye = Wayland::connect_to(
+        &mut core,
+        &PathBuf::from(created["wayland"].as_str().unwrap()),
+    );
+    eye.toplevel(&mut core, "eye");
+    core.state.revoke_all();
+    assert!(eye.closed(&mut core), "screen.capture gave screencopy");
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
 /// After the revoke binding, `clients up` with the same file gives the
 /// capabilities back.
 #[test]
