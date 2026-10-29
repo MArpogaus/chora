@@ -47,7 +47,7 @@ SETTLE_MS = int(ENV("SETTLE_MS", "300"))  # quiet before a turn may start
 # hears the speaker, and for BARGE_MS.
 RMS_BARGE_IN = int(ENV("RMS_BARGE_IN", str(2 * RMS_SPEECH)))
 BARGE_MS = int(ENV("BARGE_MS", "300"))
-PTT_KEY = ENV("PTT_KEY", "Super+v")  # chora reports its release with Super
+PTT_KEY = ENV("PTT_KEY", "Super+v")  # chora reports its release with the modifier
 CHORA_NAME = ENV("CHORA_NAME", "voice")  # the client name of the agent
 CODER_CMD = ENV("CODER_CMD", "")  # for example "claude -p --permission-mode acceptEdits"
 SYSTEM = ENV(
@@ -605,13 +605,14 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
         frame = await mic.frame()
         if SPEAKING.locked():  # a delegate result: wait for its end and for quiet
             return await record(mic, ptt, [])
-        loud, down = rms(frame) >= RMS_SPEECH, ptt.is_set()
+        level, down = rms(frame), ptt.is_set()
+        loud = level >= RMS_SPEECH
         pushed = pushed or down
         if not (frames or loud or down):
             before.append(frame)
             continue
         if not frames:
-            log(f"turn at level {rms(frame):.0f}")
+            log(f"turn at level {level:.0f}")
             frames = [*before]
         frames.append(frame)
         if down:
@@ -772,13 +773,17 @@ async def run_levels(
     http: aiohttp.ClientSession, stack: contextlib.AsyncExitStack, args: argparse.Namespace
 ) -> None:
     """Show the live mic level until Ctrl-C."""
+    log(f"RMS_SPEECH {RMS_SPEECH}, RMS_BARGE_IN {RMS_BARGE_IN}")
     peak = 0.0
     async with Mic() as mic:
-        while True:
-            level = rms(await mic.frame())
-            peak = max(peak, level)
-            bar = "#" * min(40, int(level / 500))
-            print(f"\rlevel {level:7.0f} peak {peak:7.0f} {bar:40}", end="", flush=True)
+        try:
+            while True:
+                level = rms(await mic.frame())
+                peak = max(peak, level)
+                bar = "#" * min(40, int(level / 500))
+                print(f"\rlevel {level:7.0f} peak {peak:7.0f} {bar:40}", end="", flush=True)
+        finally:
+            print()  # the prompt after Ctrl-C goes on a new line
 
 
 async def run_tools(
