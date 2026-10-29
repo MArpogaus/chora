@@ -35,8 +35,10 @@ model stopped.
 
 Download the ASR and TTS models from Hugging Face, and link the GGUF of
 an LLM from the [model table of
-Gufo](https://github.com/gufo-org/gufo#models-and-benchmarks). The GGUF must be under
-`/var/models`, which the containers mount. Then link and start the
+Gufo](https://github.com/gufo-org/gufo#models-and-benchmarks). The GPU
+needs the groups and the `crun` runtime of the [quickstart of
+Gufo](https://github.com/gufo-org/gufo#quickstart). The GGUF must be
+under `/var/models`, which the containers mount. Then link and start the
 units. Run the steps in the checkout `~/Projekte/chora`, which the unit
 expects:
 
@@ -62,11 +64,10 @@ systemctl --user daemon-reload
 systemctl --user start gufo-asr gufo-tts gufo-llm
 ```
 
-The first start pulls the image. When the agent starts, also after a
-login, it starts the models, which load for some minutes. A model is
-ready when its log, for example `journalctl --user -u gufo-tts`, shows
-`event=listening`. Until then a turn of the agent fails. Then check the
-models and the mic:
+When the agent starts, also after a login, it starts the models, which
+load for some minutes. A model is ready when its log, for example
+`journalctl --user -u gufo-tts`, shows `event=listening`. Until then a
+turn of the agent fails. Then check the models and the mic:
 
 ```bash
 services/voice/agent.py roundtrip   # the three models, without a mic
@@ -110,7 +111,8 @@ The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
 up, because chora reports the release with it. After a pause of
 `SILENCE_MS`, the agent loses the words until its first sound; hold the
 key during the transcription to add words, or raise `SILENCE_MS`. A key
-press after the transcription stops the reply and withdraws the request.
+press after the transcription stops the reply. It withdraws a request
+without an answer; tool calls that already ran stay in the history.
 
 When the mic level stays above `RMS_BARGE_IN` for `BARGE_MS` while the
 agent answers, the reply stops and a turn starts. The push-to-talk key
@@ -148,9 +150,8 @@ as you. `delegate` needs no grant, so `choractl revoke` does not stop
 it. `systemctl --user stop voice-agent` stops the agent and a running
 coder. Without grants, the LLM still closes windows and changes the
 outputs, the scene and the plugins, and overwrites the saved views. It
-also writes assets and starts the plugins of installed views. Any voice
-that the mic hears can start a turn, also from a video, and also while
-the screen is locked. Text on the screen that a tool reads can also
-steer the LLM. So can the plugins, which write the descriptions and
-results of their tools. The journal keeps each transcript and each tool
-call.
+also starts the plugins of installed views. Any voice that the mic hears
+can start a turn, also from a video, and also while the screen is
+locked. Text on the screen that a tool reads can also steer the LLM. So
+can the plugins, which write the descriptions and results of their
+tools. The journal keeps each transcript and each tool call.
