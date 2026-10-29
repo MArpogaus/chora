@@ -3,7 +3,8 @@
 `Microphone -> Qwen3-ASR -> LLM with tools -> Qwen3-TTS -> speaker`, one
 Python file. The three models run as Gufo containers on the AMD GPU. The
 LLM drives chora through `choractl mcp`. The agent needs `uv`, `arecord`
-and `aplay`, and `choractl` for the chora tools.
+and `aplay`, and `choractl` for the chora tools. The unit finds them in
+`~/.local/bin`, `/usr/local/bin` and `/usr/bin`.
 
 ## Services
 
@@ -27,10 +28,15 @@ ad hoc runs with extra arguments.
 
 ## Setup
 
+The model files of the table come from Hugging Face, into a
+`/var/models` that you can write to. The link names the GGUF of your LLM.
 From the root of the repository:
 
 ```bash
-sudo ln -s /var/models/<dir>/<model>.gguf /var/models/gufo-llm
+for m in Qwen/Qwen3-ASR-1.7B Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice; do
+    hf download "$m" --local-dir "/var/models/$m"
+done
+ln -s /var/models/<dir>/<model>.gguf /var/models/gufo-llm
 mkdir -p ~/.config/containers/systemd
 ln -s "$PWD"/services/voice/systemd/*.{container,network} ~/.config/containers/systemd/
 systemctl --user link "$PWD/services/voice/systemd/voice-agent.service"
@@ -39,7 +45,9 @@ systemctl --user start gufo-asr gufo-tts gufo-llm
 ```
 
 The first start pulls the image and loads the models, which takes
-minutes. Then check the models and the mic:
+minutes. Each model is ready when its log, for example
+`journalctl --user -u gufo-tts`, shows `Uvicorn running`. Then check the
+models and the mic:
 
 ```bash
 services/voice/agent.py roundtrip   # the three models, without a mic
