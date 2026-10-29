@@ -4,11 +4,16 @@
 [Unit]
 Description=Chora voice agent
 PartOf=graphical-session.target
+After=graphical-session.target
 ConditionEnvironment=CHORA_SOCKET
-Wants=gufo-asr.service gufo-tts.service gufo-llm.service
-After=graphical-session.target gufo-asr.service gufo-tts.service gufo-llm.service
+# Stop after five failed starts, such as a missing capture device.
+StartLimitIntervalSec=120
+StartLimitBurst=5
 
 [Service]
+# Wants= would start the models also when the condition fails; this
+# line runs only when it holds. Until the models are up, a turn fails.
+ExecStartPre=/usr/bin/systemctl --user start --no-block gufo-asr gufo-tts gufo-llm
 # uv in ~/.local/bin, which the user manager does not search by default.
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
 ExecStart=%h/Projekte/chora/services/voice/agent.py
