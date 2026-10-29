@@ -74,6 +74,9 @@ services/voice/agent.py levels      # the mic level
 services/voice/agent.py tools       # the connection to chora
 ```
 
+The unit finds `choractl` only in the three directories above, also
+when the check in a terminal finds it elsewhere.
+
 Set `RMS_SPEECH` above the level of the quiet room and below the level
 of your voice. Then start the agent, which runs only in a chora
 session:
@@ -140,7 +143,7 @@ Anthropic. The journal keeps its whole output. A drop-in with
 
 To type and to start programs, the client name `voice` (`CHORA_NAME`)
 needs grants. A grant lasts until the session ends, until `choractl
-revoke voice` or until the emergency reset:
+revoke voice`, the revoke binding or the emergency reset:
 
 ```bash
 choractl grant voice input.inject activation.token
@@ -148,16 +151,15 @@ choractl grant voice input.inject activation.token
 
 Each of these grants alone, and `CODER_CMD`, lets the LLM run commands
 as you. `delegate` needs no grant, so `choractl revoke` does not stop
-it. `systemctl --user stop voice-agent` stops the agent and a running
-coder. Without grants, the LLM still closes windows and changes the
+it. Without grants, the LLM still closes windows and changes the
 outputs, the scene and the plugins, and overwrites the saved views. It
 also starts the plugins of installed views. Any voice that the mic hears
 can start a turn, also from a video, and also while the screen is
 locked. Text on the screen that a tool reads can also steer the LLM. So
 can the plugins, which write the descriptions and results of their
 tools. The journal keeps each transcript and each tool call. The
-emergency reset does not undo output changes or reserved space; stopping
-the agent ends the reserved space, and `wlr-randr` resets the outputs.
-The emergency reset and the revoke binding do not stop the agent; after
-the reset, it connects again. Only `systemctl --user stop voice-agent`
-stops it.
+emergency reset does not undo output changes, and the reserved space
+returns with the next tool call; `wlr-randr` resets the outputs. The
+emergency reset and the revoke binding do not stop the agent; after the
+reset, it connects again. Only `systemctl --user stop voice-agent` stops
+it and a running coder.
