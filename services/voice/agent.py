@@ -14,7 +14,7 @@ agent.py levels           live mic level, to tune RMS_SPEECH
 agent.py tools            the tools the LLM gets from chora and this agent
 
 services/voice/README.md describes the turns. The settings are the
-environment variables in the globals section below.
+environment variables in the globals section of agent.py.
 """
 
 # %% imports
@@ -361,10 +361,11 @@ class Tools:
         return ("error: " if result.is_error else "") + (text or "done")
 
     def delegate(self, task: str) -> str:
-        """Start CODER_CMD with a task in the background, in the home directory."""
-        job = asyncio.create_task(self._run_coder(task))
+        """Start CODER_CMD with a task in the background."""
+        job = asyncio.create_task(self._run_coder(task), name="delegate")
         self.jobs.add(job)
         job.add_done_callback(self.jobs.discard)
+        job.add_done_callback(report)
         return "the coding agent started"
 
     async def _run_coder(self, task: str) -> None:
@@ -373,7 +374,6 @@ class Tools:
             proc = await asyncio.create_subprocess_exec(
                 *shlex.split(CODER_CMD),
                 task,
-                cwd=os.path.expanduser("~"),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
@@ -435,7 +435,10 @@ async def _deltas(http: aiohttp.ClientSession, body: dict) -> AsyncIterator[dict
         async for raw in r.content:
             line = raw.decode().strip()
             if line.startswith("data:") and line != "data: [DONE]":
-                yield (json.loads(line[5:]).get("choices") or [{}])[0].get("delta") or {}
+                event = json.loads(line[5:])
+                if "error" in event:
+                    raise ValueError(f"llm: {event['error']}")
+                yield (event.get("choices") or [{}])[0].get("delta") or {}
 
 
 async def _run_call(tools: Tools, call: dict) -> dict:
@@ -481,6 +484,8 @@ async def answer(
                 history.append(message)
             history += reply.results
         if not reply.calls:
+            if not reply.text:
+                log("the LLM gave no words and no tool calls")
             return
     yield "I stopped after too many tool calls."
 
@@ -637,13 +642,8 @@ async def talk(
     recent: collections.deque[bytes] = collections.deque(maxlen=PREROLL_MS // FRAME_MS)
     loud, peak = 0, 0.0
     mic.flush()
-    while not reply.done():
-        read = asyncio.create_task(mic.frame())
-        await asyncio.wait({read, reply}, return_when=asyncio.FIRST_COMPLETED)
-        if not read.done():
-            read.cancel()
-            break
-        recent.append(read.result())
+    while not reply.done():  # the mic gives a frame every 20 ms
+        recent.append(await mic.frame())
         level = rms(recent[-1])
         peak = max(peak, level)
         loud = loud + 1 if level >= RMS_BARGE_IN else 0
@@ -784,14 +784,14 @@ async def main() -> None:
     )
     sub = parser.add_subparsers(dest="command")
     for name, func in [("roundtrip", run_roundtrip), ("tts", run_tts)]:
-        command = sub.add_parser(name)
+        command = sub.add_parser(name, description=func.__doc__)
         command.add_argument("text", nargs="*")
         command.set_defaults(func=func)
-    asr = sub.add_parser("asr")
+    asr = sub.add_parser("asr", description=run_asr.__doc__)
     asr.add_argument("file")
     asr.set_defaults(func=run_asr)
     for name, func in [("levels", run_levels), ("tools", run_tools)]:
-        sub.add_parser(name).set_defaults(func=func)
+        sub.add_parser(name, description=func.__doc__).set_defaults(func=func)
     args = parser.parse_args()
     func = getattr(args, "func", run_loop)
     async with aiohttp.ClientSession() as http, contextlib.AsyncExitStack() as stack:
