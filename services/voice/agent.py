@@ -190,7 +190,7 @@ async def tts(http: aiohttp.ClientSession, text: str) -> AsyncIterator[bytes]:
     http : aiohttp.ClientSession
         The session for the requests.
     text : str
-        The text; the server reads it whole.
+        The text; the agent sends one text per websocket.
     """
     async with http.ws_connect(TTS_URL) as ws:
         # The server refuses stream_audio without response_format pcm.
@@ -486,6 +486,8 @@ async def answer(
         if not reply.calls:
             if not reply.text:
                 log("the LLM gave no words and no tool calls")
+                if history[-1]["role"] == "user":  # no answer, so no merge later
+                    history.pop()
             return
     yield "I stopped after too many tool calls."
 
@@ -493,9 +495,9 @@ async def answer(
 async def sentences(words: AsyncIterator[str]) -> AsyncIterator[str]:
     """Group streamed words into sentences.
 
-    TTS reads a text whole, so a sentence is the smallest piece it can
-    start on. The first sentence of a reply may end at a comma, so the
-    first sound comes sooner.
+    The agent sends one sentence per TTS websocket, so TTS starts on the
+    first sentence while the LLM still writes. The first sentence of a
+    reply may end at a comma, so the first sound comes sooner.
 
     Parameters
     ----------
@@ -611,7 +613,7 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
             before.append(frame)
             continue
         if not frames:
-            log(f"turn at level {level:.0f}")
+            log("turn by key" if down else f"turn at level {level:.0f}")
             frames = [*before]
         frames.append(frame)
         if down:
