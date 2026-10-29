@@ -29,11 +29,12 @@ hides. `gufo.sh` runs one model ad hoc, with extra arguments.
 
 ## Setup
 
-Make `/var/models` writable for you. Download the ASR and TTS models
-from Hugging Face, and link the GGUF of an LLM that can call tools. Then
-link and start the units. From the root of the repository:
+Download the ASR and TTS models from Hugging Face, and link the GGUF of
+an LLM that can call tools. Then link and start the units. Run the steps
+in the checkout `~/Projekte/chora`, which the unit expects:
 
 ```bash
+sudo install -d -o "$USER" /var/models
 for m in Qwen/Qwen3-ASR-1.7B Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice; do
     uvx --from huggingface_hub hf download "$m" --local-dir "/var/models/$m"
 done
@@ -57,9 +58,8 @@ services/voice/agent.py levels      # the mic level
 
 Set `RMS_SPEECH` above the level of the quiet room and below the level
 of your voice. The commands in a terminal read their settings from the
-environment, for example `RMS_SPEECH=3000 services/voice/agent.py levels`.
-The unit reads them from `~/.config/gufo/agent.env`. Then start the
-agent:
+environment, for example `RMS_SPEECH=3000 services/voice/agent.py`. The
+unit reads them from `~/.config/gufo/agent.env`. Then start the agent:
 
 ```bash
 mkdir -p ~/.config/gufo
@@ -80,8 +80,9 @@ of quiet, and ends after `SILENCE_MS` of quiet. Under chora, holding
 when Super goes up, because chora reports the release with the modifier.
 
 Speech over the reply above `RMS_BARGE_IN` for `BARGE_MS` stops the
-reply and starts a turn. The push-to-talk key does the same. The mic also hears the speaker, so headphones or
-the echo cancel module of PipeWire keep the reply from stopping itself.
+reply and starts a turn. The push-to-talk key does the same. The mic
+also hears the speaker, so headphones or the echo cancel module of
+PipeWire keep the reply from stopping itself.
 After each full reply, the log line `mic peak during the reply` shows
 the level that `RMS_BARGE_IN` must stay above.
 
@@ -92,7 +93,8 @@ chora through `CHORA_SOCKET`, which a chora flavor gives the user
 manager. `CODER_CMD`, for example
 `claude -p --permission-mode acceptEdits`, adds the tool `delegate`. It
 runs bigger tasks in the background, in the working directory of the
-agent, and speaks the result. The unit runs in your home directory.
+agent, and speaks the result. The unit runs in your home directory; a
+drop-in with `WorkingDirectory=` gives the coder a smaller one.
 
 To type and to start programs, the client name `voice` needs grants. A
 grant lasts until the session ends or until `choractl revoke voice`:
@@ -102,9 +104,10 @@ choractl grant voice input.inject activation.token
 ```
 
 These grants and `CODER_CMD` let the LLM type and run programs as you.
-Without grants, the LLM still changes the outputs, the scene and the
-plugins.
-Any voice that the mic hears can start a turn, also from a video, and
+`delegate` needs no grant, so `choractl revoke` does not stop it; only
+an empty `CODER_CMD` does. Without grants, the LLM still changes the
+outputs, the scene and the plugins, and starts the plugins of installed
+views. Any voice that the mic hears can start a turn, also from a video, and
 also while the screen is locked. Text on the screen that a tool reads
 can also steer the LLM. The journal keeps each transcript and each tool
 call.
