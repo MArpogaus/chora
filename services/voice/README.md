@@ -73,7 +73,8 @@ journalctl --user -u voice-agent -f
 ```
 
 If the log says `no quiet below RMS_SPEECH`, or `turn at level` with an
-empty `you:` after it, the value is too low.
+empty `you:` after it, the value is too low. If the agent does not
+react to your voice, the value is too high.
 
 The settings are the environment variables in the globals section of
 `agent.py`, such as `ASR_LANGUAGE` (`de`) and `VOICE`. The unit reads
@@ -111,8 +112,9 @@ a chora flavor gives the user manager. `CODER_CMD`, for example `claude
 bigger tasks in the background, in the working directory of the agent,
 and speaks the result. The unit runs in your home directory. There the
 coder of the example changes and deletes files without asking, and runs
-what your Claude settings allow. A drop-in with `WorkingDirectory=`
-gives the coder a smaller directory.
+what your Claude settings allow. It also sends the task and the files
+that it reads to Anthropic. The journal keeps its whole output. A
+drop-in with `WorkingDirectory=` gives the coder a smaller directory.
 
 To type and to start programs, the client name `voice` needs grants. A
 grant lasts until the session ends or until `choractl revoke voice`:
