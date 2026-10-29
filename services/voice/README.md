@@ -23,11 +23,12 @@ Their internal networks keep them off the internet. A drop-in such as
 `~/.config/containers/systemd/gufo-tts.container.d/model.conf` changes a
 model: a `[Container]` section with a copy of the `Exec=` line of the
 quadlet and another model path. Then run `systemctl --user
-daemon-reload` and restart the unit. For a GGUF in several files, give
-the path of the first file in such a drop-in. The server finds the other
-files by their numbered names, which a link hides. `gufo.sh` runs one
-model for a test with extra arguments. It publishes the port on all
-interfaces, and it needs the unit of that model stopped.
+daemon-reload` and restart the unit of the model, such as `gufo-tts`.
+For a GGUF in several files, give the path of the first file in such a
+drop-in. The server finds the other files by their numbered names, which
+a link hides. `gufo.sh` runs one model for a test with extra arguments.
+It publishes the port on all interfaces, and it needs the unit of that
+model stopped.
 
 ## Setup
 
@@ -71,7 +72,8 @@ systemctl --user enable --now voice-agent
 journalctl --user -u voice-agent -f
 ```
 
-If the log says `no quiet below RMS_SPEECH`, the value is too low.
+If the log says `no quiet below RMS_SPEECH`, or `turn at level` with an
+empty `you:` after it, the value is too low.
 
 The settings are the environment variables in the globals section of
 `agent.py`, such as `ASR_LANGUAGE` (`de`) and `VOICE`. The unit reads
@@ -87,10 +89,10 @@ stop voice-agent gufo-asr gufo-tts gufo-llm`.
 ## Turns
 
 A turn starts when the mic level passes `RMS_SPEECH` after `SETTLE_MS`
-of quiet, and ends after `SILENCE_MS` of quiet. Under chora, holding
-`PTT_KEY` (`Super+v`) also records, whatever the level. The key needs
-Ctrl, Alt or Super. The turn ends when the modifier goes up, because
-chora reports the release with it.
+of quiet, and ends after `SILENCE_MS` of quiet or after 30 s. Under
+chora, holding `PTT_KEY` (`Super+v`) also records, whatever the level.
+The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
+up, because chora reports the release with it.
 
 When the mic level stays above `RMS_BARGE_IN` for `BARGE_MS` while the
 agent answers, the reply stops and a turn starts. The push-to-talk key
