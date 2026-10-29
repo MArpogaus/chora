@@ -1,9 +1,10 @@
-# The voice agent as a user service of the graphical session, which
-# brings PipeWire and, under chora, CHORA_SOCKET.
+# The voice agent as a user service of a chora session, which gives the
+# user manager CHORA_SOCKET.
 
 [Unit]
 Description=Chora voice agent
 PartOf=graphical-session.target
+ConditionEnvironment=CHORA_SOCKET
 Wants=gufo-asr.service gufo-tts.service gufo-llm.service
 After=graphical-session.target gufo-asr.service gufo-tts.service gufo-llm.service
 
