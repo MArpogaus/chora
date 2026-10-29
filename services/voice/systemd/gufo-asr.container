@@ -1,4 +1,4 @@
-# Gufo asr server on the AMD GPU, the systemd form of gufo.sh asr.
+# Gufo asr server on the AMD GPU.
 
 [Unit]
 Description=Gufo asr server (port 8881)

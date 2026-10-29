@@ -17,9 +17,11 @@ chora/
 │   └── chora-xp/      # stacking window manager in the style of Windows XP
 ├── flavors/           # systemd units of the flavors; the theme of the XP flavor
 ├── examples/          # loader prototype and showcase apps over the API
+├── services/voice/    # the voice agent and the quadlets of its models
 ├── dist/              # RPM build script, Fedora build requirements, session files, Quadlet examples
 ├── tests/             # end-to-end scripts, headless sessions, input probe
 ├── deny.toml          # cargo-deny: allowed licenses, advisories
+├── ruff.toml          # ruff: the rules for the Python in services/voice/
 ├── docs/              # this documentation (MkDocs)
 ├── mkdocs.yml
 └── Cargo.toml         # workspace, lints

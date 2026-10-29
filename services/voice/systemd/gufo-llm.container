@@ -1,4 +1,4 @@
-# Gufo llm server on the AMD GPU, the systemd form of gufo.sh llm.
+# Gufo llm server on the AMD GPU.
 
 [Unit]
 Description=Gufo llm server (port 8888)
