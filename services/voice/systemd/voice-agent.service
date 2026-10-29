@@ -8,9 +8,9 @@ After=graphical-session.target
 ConditionEnvironment=CHORA_SOCKET
 
 [Service]
-# Wants= would start the models also when the condition fails; this
-# line runs only when it holds, and it may fail for models elsewhere.
-# Until the models are up, a turn fails.
+# Wants= would start the models also when the condition fails. This
+# line runs only when the condition holds. The "-" lets the agent start
+# when the models run elsewhere. Until the models are up, a turn fails.
 ExecStartPre=-/usr/bin/systemctl --user start --no-block gufo-asr gufo-tts gufo-llm
 # uv in ~/.local/bin, which the user manager does not search by default.
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin

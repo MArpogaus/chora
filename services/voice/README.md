@@ -57,6 +57,7 @@ then a turn of the agent fails. Then check the models and the mic:
 ```bash
 services/voice/agent.py roundtrip   # the three models, without a mic
 services/voice/agent.py levels      # the mic level
+services/voice/agent.py tools       # the connection to chora
 ```
 
 Set `RMS_SPEECH` above the level of the quiet room and below the level
@@ -81,7 +82,7 @@ A command in a terminal reads them from its environment, for example
 unit, or both agents answer. `set -a; . ~/.config/gufo/agent.env; set
 +a` gives the terminal the settings of the unit. `agent.py --help` lists
 the commands. The models keep the GPU memory until `systemctl --user
-stop gufo-asr gufo-tts gufo-llm`.
+stop voice-agent gufo-asr gufo-tts gufo-llm`.
 
 ## Turns
 
@@ -92,7 +93,7 @@ Ctrl, Alt or Super. The turn ends when the modifier goes up, because
 chora reports the release with it.
 
 When the mic level stays above `RMS_BARGE_IN` for `BARGE_MS` while the
-agent speaks, the reply stops and a turn starts. The push-to-talk key
+agent answers, the reply stops and a turn starts. The push-to-talk key
 does the same. The mic also hears the speaker, so headphones or the echo
 cancel module of PipeWire keep the reply from stopping itself. After
 each full reply, the log line `mic peak during the reply` shows the
@@ -111,23 +112,21 @@ coder of the example changes and deletes files without asking, and runs
 what your Claude settings allow. A drop-in with `WorkingDirectory=`
 gives the coder a smaller directory.
 
-To type and to start programs, the client name `voice` needs grants.
-Each of the two grants alone lets the LLM run commands as you. A grant
-lasts until the session ends or until `choractl revoke voice`:
+To type and to start programs, the client name `voice` needs grants. A
+grant lasts until the session ends or until `choractl revoke voice`:
 
 ```bash
 choractl grant voice input.inject activation.token
-services/voice/agent.py tools   # the tools that the LLM gets
 ```
 
-These grants and `CODER_CMD` let the LLM type and run programs as you.
-`delegate` needs no grant, so `choractl revoke` does not stop it.
-`systemctl --user stop voice-agent` stops the agent and a running coder.
-Without grants, the LLM still closes windows and changes the outputs,
-the scene and the plugins, and overwrites the saved views. It also
-writes assets and starts the plugins of installed views. Any voice that
-the mic hears can start a turn, also from a video, and also while the
-screen is locked. Text on the screen that a tool reads can also steer
-the LLM, and so can the plugins, which write the descriptions and
+Each of these grants alone, and `CODER_CMD`, lets the LLM run commands
+as you. `delegate` needs no grant, so `choractl revoke` does not stop
+it. `systemctl --user stop voice-agent` stops the agent and a running
+coder. Without grants, the LLM still closes windows and changes the
+outputs, the scene and the plugins, and overwrites the saved views. It
+also writes assets and starts the plugins of installed views. Any voice
+that the mic hears can start a turn, also from a video, and also while
+the screen is locked. Text on the screen that a tool reads can also
+steer the LLM. So can the plugins, which write the descriptions and
 results of their tools. The journal keeps each transcript and each tool
 call.
