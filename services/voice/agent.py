@@ -194,7 +194,8 @@ async def tts(http: aiohttp.ClientSession, text: str) -> AsyncIterator[bytes]:
     """
     async with http.ws_connect(TTS_URL) as ws:
         # The server refuses stream_audio without response_format pcm.
-        config = {"model": MODEL, "voice": VOICE, "response_format": "pcm"}
+        # Without a language, Gufo speaks English; auto lets the model choose.
+        config = {"model": MODEL, "voice": VOICE, "response_format": "pcm", "language": "auto"}
         await ws.send_json({"type": "session.config", **config, "stream_audio": True})
         await ws.send_json({"type": "input.text", "text": text})
         await ws.send_json({"type": "input.done"})
@@ -642,13 +643,15 @@ async def talk(
     -------
     list[bytes] | None
         The last PREROLL_FRAMES frames when the user talked over the reply,
-        which stopped it; None after a stop by key; else an empty list.
+        which stopped it; None after a stop by key; else an empty list,
+        also when the key went down during the ASR, so the user goes on.
     """
+    if ptt.is_set():  # pressed during the ASR: no reply, the turns merge
+        return []
     reply = asyncio.create_task(speak(http, sentences(words)))
     recent: collections.deque[bytes] = collections.deque(maxlen=PREROLL_FRAMES)
     loud, peak = 0, 0.0  # loud in ms
-    if not ptt.is_set():  # a key pressed during the ASR keeps its start
-        mic.flush()
+    mic.flush()
     while not reply.done():  # the mic gives a frame every 20 ms
         recent.append(await mic.frame())
         level = rms(recent[-1])
@@ -729,7 +732,9 @@ async def run_loop(
                     else:
                         history.append({"role": "user", "content": said})
                     preroll = await talk(http, mic, answer(http, tools, history), ptt)
-                if preroll is None:  # the key withdrew a request without an answer
+                # A stop by key, or a barge-in without words, withdraws a
+                # request that got no answer.
+                if preroll is None or not said:
                     if history[-1]["role"] == "user":
                         history.pop()
                     preroll = []
