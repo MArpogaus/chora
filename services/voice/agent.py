@@ -63,7 +63,8 @@ RATE = 24000
 FRAME_MS = 20
 FRAME_BYTES = RATE * FRAME_MS // 1000 * 2
 PCM = ("-q", "-r", str(RATE), "-c", "1", "-f", "S16_LE", "-t", "raw", "-")  # aplay, arecord
-PREROLL_FRAMES = 1000 // FRAME_MS  # the mic before a turn starts, which the turn keeps
+# The mic before a turn starts, which the turn keeps.
+PREROLL_FRAMES = int(ENV("PREROLL_MS", "1000")) // FRAME_MS
 NO_QUIET_MS = 2000  # when the agent says that the room stays loud
 MAX_TURN_MS = 30000  # a turn that music or a TV keeps loud ends here
 HISTORY = 12  # messages kept besides the system prompt
