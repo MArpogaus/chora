@@ -281,8 +281,9 @@ async def transcribe(http: aiohttp.ClientSession, pcm: bytes) -> str:
         }
         session = {"type": "transcription", "audio": {"input": audio}}
         await ws.send_json({"type": "session.update", "session": session})
-        for i in range(0, len(pcm), FRAME_BYTES):
-            chunk = base64.b64encode(pcm[i : i + FRAME_BYTES]).decode()
+        # Pieces of a second: Gufo closes a socket with 128 waiting messages.
+        for i in range(0, len(pcm), RATE * 2):
+            chunk = base64.b64encode(pcm[i : i + RATE * 2]).decode()
             await ws.send_json({"type": "input_audio_buffer.append", "audio": chunk})
         await ws.send_json({"type": "input_audio_buffer.commit"})
         while True:
@@ -653,7 +654,8 @@ async def talk(
     reply = asyncio.create_task(speak(http, sentences(words)))
     recent: collections.deque[bytes] = collections.deque(maxlen=PREROLL_FRAMES)
     loud, peak = 0, 0.0  # loud in ms
-    mic.flush()
+    # No flush: the queue holds what the user said during the ASR, which a
+    # barge-in keeps.
     while not reply.done():  # the mic gives a frame every 20 ms
         recent.append(await mic.frame())
         level = rms(recent[-1])
@@ -718,7 +720,9 @@ async def turn(
         The frames of a barge-in, which start the next turn.
     """
     barged, http = bool(preroll), tools.http
-    said = await transcribe(http, await record(mic, ptt, preroll))
+    pcm = await record(mic, ptt, preroll)
+    # Gufo refuses less than 100 ms, such as the rest of a key tap.
+    said = await transcribe(http, pcm) if len(pcm) >= RATE * 2 // 10 else ""
     log(f"you: {said}")
     pending = history[-1]["role"] == "user"
     if said and pending:
