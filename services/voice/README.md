@@ -158,5 +158,6 @@ can the plugins, which write the descriptions and results of their
 tools. The journal keeps each transcript and each tool call. The
 emergency reset does not undo output changes or reserved space; stopping
 the agent ends the reserved space, and `wlr-randr` resets the outputs.
-The emergency reset and the revoke binding do not stop the agent: it
-connects again. Only `systemctl --user stop voice-agent` stops it.
+The emergency reset and the revoke binding do not stop the agent; after
+the reset, it connects again. Only `systemctl --user stop voice-agent`
+stops it.
