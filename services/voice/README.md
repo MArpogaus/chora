@@ -64,10 +64,9 @@ systemctl --user daemon-reload
 systemctl --user start gufo-asr gufo-tts gufo-llm
 ```
 
-When the agent starts, also after a login, it starts the models, which
-load for some minutes. A model is ready when its log, for example
-`journalctl --user -u gufo-tts`, shows `event=listening`. Until then a
-turn of the agent fails. Then check the models and the mic:
+The models load for some minutes. A model is ready when its log, for
+example `journalctl --user -u gufo-tts`, shows `event=listening`. Then
+check the models and the mic:
 
 ```bash
 services/voice/agent.py roundtrip   # the three models, without a mic
@@ -87,8 +86,9 @@ journalctl --user -u voice-agent -f
 ```
 
 If the log says `no quiet below RMS_SPEECH`, or `turn at level` with an
-empty `you:` after it, the value is too low. If the agent does not
-react to your voice, the value is too high.
+empty `you:` after it, the value is too low. If the agent does not react
+to your voice, the value is too high. After a login, the agent starts
+the models itself; until they are up, a turn fails.
 
 The settings are the environment variables in the globals section of
 `agent.py`, such as `ASR_LANGUAGE` (`de`) and `VOICE`. The unit reads
@@ -109,10 +109,11 @@ of quiet, and ends after `SILENCE_MS` of quiet or after 30 s. Under
 chora, holding `PTT_KEY` (`Super+v`) also records, whatever the level.
 The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
 up, because chora reports the release with it. After a pause of
-`SILENCE_MS`, the agent loses the words until its first sound; hold the
-key during the transcription to add words, or raise `SILENCE_MS`. A key
-press after the transcription stops the reply. It withdraws a request
-without an answer; tool calls that already ran stay in the history.
+`SILENCE_MS`, the agent loses the words until its first sound. To add
+words, hold the key during the transcription, or raise `SILENCE_MS`. A
+key press after the transcription stops the reply. It withdraws the
+request, and the agent does not answer it; tool calls that already ran
+stay in the history.
 
 When the mic level stays above `RMS_BARGE_IN` for `BARGE_MS` while the
 agent answers, the reply stops and a turn starts. The push-to-talk key
@@ -157,3 +158,5 @@ can the plugins, which write the descriptions and results of their
 tools. The journal keeps each transcript and each tool call. The
 emergency reset does not undo output changes or reserved space; stopping
 the agent ends the reserved space, and `wlr-randr` resets the outputs.
+The emergency reset and the revoke binding do not stop the agent: it
+connects again. Only `systemctl --user stop voice-agent` stops it.
