@@ -473,7 +473,13 @@ async def answer(
         that a barge-in cuts short keeps the words that the LLM wrote.
     """
     for _ in range(TOOL_ROUNDS):
-        body: dict = {"model": MODEL, "messages": history, "stream": True}
+        # Gufo thinks by default, which would keep each reply silent for seconds.
+        body: dict = {
+            "model": MODEL,
+            "messages": history,
+            "stream": True,
+            "reasoning_effort": "none",
+        }
         if tools.specs:
             body["tools"] = tools.specs
         reply = Reply()
