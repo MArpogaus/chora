@@ -45,7 +45,8 @@ TTS_URL = ENV("TTS_URL", "ws://127.0.0.1:8882/v1/audio/speech/stream")
 LLM_URL = ENV("LLM_URL", "http://127.0.0.1:8888/v1")
 MODEL = ENV("MODEL", "gufo")  # the served name of all three models
 VOICE = ENV("VOICE", "aiden")  # a voice of the TTS server
-LANGUAGE = ENV("LANGUAGE", "de")  # of the ASR; without it, it guesses
+# Not LANGUAGE, which gettext reads. Without a language, the ASR guesses.
+ASR_LANGUAGE = ENV("ASR_LANGUAGE", "de")
 RMS_SPEECH = int(ENV("RMS_SPEECH", "5000"))
 SILENCE_MS = int(ENV("SILENCE_MS", "700"))
 SETTLE_MS = int(ENV("SETTLE_MS", "300"))  # quiet before a turn may start
@@ -75,8 +76,8 @@ HISTORY = 12  # messages kept besides the system prompt
 TOOL_ROUNDS = 5  # LLM calls per turn while it asks for tools
 FIRST_PIECE = 40  # characters after which a comma may end a piece
 SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+")
-OWN_TOOLS = {"subscribe_events", "wait_events"}  # the agent uses them itself
-# OSError: aplay died.
+# The agent uses the event tools itself, and the LLM reads no images.
+SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
 TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
 
 SPEAKING = asyncio.Lock()  # one voice at a time: replies and delegate results
@@ -224,7 +225,7 @@ async def _tts_audio(ws: aiohttp.ClientWebSocketResponse) -> AsyncIterator[bytes
             continue
         if msg.type != aiohttp.WSMsgType.TEXT:
             return
-        # audio.done ends a sentence, session.done the reply.
+        # audio.done ends the audio, session.done the session.
         kind = json.loads(msg.data).get("type", "")
         if "error" in kind:
             log("tts:", msg.data[:200])
@@ -288,7 +289,7 @@ async def transcribe(http: aiohttp.ClientSession, pcm: bytes) -> str:
     async with http.ws_connect(ASR_URL) as ws:
         audio = {
             "format": {"type": "audio/pcm", "rate": RATE},
-            "transcription": {"model": MODEL, "language": LANGUAGE},
+            "transcription": {"model": MODEL, "language": ASR_LANGUAGE},
             "turn_detection": None,
         }
         session = {"type": "transcription", "audio": {"input": audio}}
@@ -333,7 +334,7 @@ class Tools:
         """Ask chora for its tools and add `delegate`."""
         if self.session:
             for tool in (await self.session.list_tools()).tools:
-                if tool.name in OWN_TOOLS:
+                if tool.name in SKIPPED_TOOLS:
                     continue
                 # OpenAI function names take no dots, plugin methods have one.
                 name = tool.name.replace(".", "__")
@@ -394,7 +395,7 @@ class Reply:
 
     text: str = ""
     calls: dict[int, dict] = field(default_factory=dict)
-    complete: bool = False  # the calls have their results
+    results: list[dict] = field(default_factory=list)  # tool messages, in call order
 
     def add(self, delta: dict) -> str:
         """Add one delta of the stream and return its words."""
@@ -412,18 +413,20 @@ class Reply:
         return words
 
     def message(self) -> dict | None:
-        """Return the message for the history; calls only once answered."""
+        """Return the message for the history, with the calls that have results."""
+        answered = {r["tool_call_id"] for r in self.results}
+        calls = [c for c in self.calls.values() if c["id"] in answered]
         message: dict = {"role": "assistant", "content": self.text}
-        if self.calls and self.complete:
+        if calls:
             message["tool_calls"] = [
                 {
                     "id": c["id"],
                     "type": "function",
                     "function": {"name": c["name"], "arguments": c["args"]},
                 }
-                for c in self.calls.values()
+                for c in calls
             ]
-        return message if self.text or "tool_calls" in message else None
+        return message if self.text or calls else None
 
 
 async def _deltas(http: aiohttp.ClientSession, body: dict) -> AsyncIterator[dict]:
@@ -469,14 +472,14 @@ async def answer(
             async for delta in _deltas(http, body):
                 if words := reply.add(delta):
                     yield words
-            results = [await _run_call(tools, call) for call in reply.calls.values()]
-            reply.complete = True
+            for call in reply.calls.values():
+                reply.results.append(await _run_call(tools, call))
         finally:
-            # A failed or cut round keeps its words only, so no call is
-            # left without its result.
+            # A failed or cut round keeps its words and the calls that ran,
+            # so no call is left without its result.
             if message := reply.message():
                 history.append(message)
-        history += results
+            history += reply.results
         if not reply.calls:
             return
     yield "I stopped after too many tool calls."
@@ -486,7 +489,7 @@ async def sentences(words: AsyncIterator[str]) -> AsyncIterator[str]:
     """Group streamed words into sentences.
 
     TTS reads a text whole, so a sentence is the smallest piece it can
-    start on. A long sentence may end its first piece at a comma, so the
+    start on. The first sentence of a reply may end at a comma, so the
     first sound comes sooner.
 
     Parameters
@@ -594,7 +597,6 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
     while True:
         frame = await mic.frame()
         if SPEAKING.locked():  # a delegate result, not the user
-            frames, quiet = [], 0
             continue
         loud, down = rms(frame) >= RMS_SPEECH, ptt.is_set()
         pushed = pushed or down
@@ -717,6 +719,7 @@ async def run_loop(
                     history[-1]["content"] += " " + said
                 elif said:
                     history.append({"role": "user", "content": said})
+                if said:
                     preroll = await talk(http, mic, answer(http, tools, history), ptt)
             except TURN_ERRORS as err:
                 log(f"turn failed: {err!r}")
