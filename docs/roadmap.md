@@ -386,7 +386,7 @@ speech to text, a language model and text to speech, served by
 | Milestone | Goal | Gate | Needs from the core |
 |-----------|------|------|---------------------|
 | V1 Pipeline | speech in, an answer as speech out, with barge-in | median 1.0 s or less from the end of speech to the first audio, over 20 German utterances | nothing |
-| V2 Control | the voice agent drives chora through MCP | "move the terminal to the right" works in 18 of 20 tries | 0.7 (push-to-talk), 0.8 (read model, text injection) |
+| V2 Control | the voice agent drives chora through MCP | "move the terminal to the right" works in 18 of 20 tries | 0.8 (read model, text injection) |
 | V3 Views | a morning view and task views | "show my tasks for today" opens a view with the tasks of an MCP source; "open a view for the first task" opens a view with two surfaces | 0.8 |
 
 ## After 1.0

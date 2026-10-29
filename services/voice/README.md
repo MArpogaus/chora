@@ -47,8 +47,10 @@ uvx --from huggingface_hub hf download Qwen/Qwen3-ASR-1.7B \
     --local-dir /var/models/Qwen/Qwen3-ASR-1.7B  # the revision that Gufo tests
 uvx --from huggingface_hub hf download Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
     --local-dir /var/models/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+# An LLM from the model table of Gufo, with its revision. For a GGUF in
+# several files, use a drop-in instead of the link, as in Services.
 uvx --from huggingface_hub hf download <repo> <model>.gguf \
-    --local-dir /var/models/<dir>  # an LLM from the model table of Gufo
+    --revision <revision> --local-dir /var/models/<dir>
 ln -s /var/models/<dir>/<model>.gguf /var/models/gufo-llm
 mkdir -p ~/.config/containers/systemd
 ln -s "$PWD"/services/voice/systemd/*.{container,network} ~/.config/containers/systemd/
