@@ -125,17 +125,17 @@ the line `barge-in at level` shows the level of the echo.
 ## Tools
 
 The LLM gets the tools of `choractl --name voice mcp`, except the event
-tools and `capture`. The unit finds chora through `CHORA_SOCKET`, which
-a chora flavor gives the user manager. `CODER_CMD`, for example `claude
--p --permission-mode acceptEdits`, adds the tool `delegate`. It runs
-bigger tasks in the background, in the working directory of the agent,
-and speaks the result. The unit runs in your home directory. There the
-coder of the example changes and deletes files without asking, and runs
-what your Claude settings allow. Its changes stay after a stop, also
-changes to the settings or the code of the agent. It also sends the task
-and the files that it reads to Anthropic. The journal keeps its whole
-output. A drop-in with `WorkingDirectory=` gives the coder a smaller
-directory.
+tools, `capture` and `put_asset`. The unit finds chora through
+`CHORA_SOCKET`, which a chora flavor gives the user manager.
+`CODER_CMD`, for example `claude -p --permission-mode acceptEdits`, adds
+the tool `delegate`. It runs bigger tasks in the background, in the
+working directory of the agent, and speaks the result. The unit runs in
+your home directory. There the coder of the example changes and deletes
+files without asking, and runs what your Claude settings allow. Its
+changes stay after a stop, also changes to the settings or the code of
+the agent. It also sends the task and the files that it reads to
+Anthropic. The journal keeps its whole output. A drop-in with
+`WorkingDirectory=` gives the coder a smaller directory.
 
 To type and to start programs, the client name `voice` (`CHORA_NAME`)
 needs grants. A grant lasts until the session ends, until `choractl
@@ -154,4 +154,6 @@ also starts the plugins of installed views. Any voice that the mic hears
 can start a turn, also from a video, and also while the screen is
 locked. Text on the screen that a tool reads can also steer the LLM. So
 can the plugins, which write the descriptions and results of their
-tools. The journal keeps each transcript and each tool call.
+tools. The journal keeps each transcript and each tool call. The
+emergency reset does not undo output changes or reserved space; stopping
+the agent ends the reserved space, and `wlr-randr` resets the outputs.
