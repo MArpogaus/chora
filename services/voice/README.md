@@ -19,7 +19,8 @@ agent, `voice-agent.service`.
 | `gufo-llm.container` | 8888 | `/var/models/gufo-llm`, a link to your GGUF file |
 
 All three models serve the name `gufo` and listen on `127.0.0.1` only.
-Their internal networks keep them off the internet. A drop-in such as
+Their internal networks keep them off the internet. Any program and any
+web page on this machine can still use them. A drop-in such as
 `~/.config/containers/systemd/gufo-tts.container.d/model.conf` changes a
 model: a `[Container]` section with a copy of the `Exec=` line of the
 quadlet and another model path. Then run `systemctl --user
@@ -41,9 +42,11 @@ expects:
 
 ```bash
 sudo install -d -o "$USER" /var/models
-for m in Qwen/Qwen3-ASR-1.7B Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice; do
-    uvx --from huggingface_hub hf download "$m" --local-dir "/var/models/$m"
-done
+hf="uvx --from huggingface_hub hf download"
+$hf Qwen/Qwen3-ASR-1.7B --revision 7278e1e70fe206f11671096ffdd38061171dd6e5 \
+    --local-dir /var/models/Qwen/Qwen3-ASR-1.7B  # the revision that Gufo tests
+$hf Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+    --local-dir /var/models/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
 ln -s /var/models/<dir>/<model>.gguf /var/models/gufo-llm
 mkdir -p ~/.config/containers/systemd
 ln -s "$PWD"/services/voice/systemd/*.{container,network} ~/.config/containers/systemd/
