@@ -52,8 +52,8 @@ systemctl --user start gufo-asr gufo-tts gufo-llm
 
 The first start pulls the image and loads the models, which takes
 minutes, also after each login. Each model is ready when its log, for
-example `journalctl --user -u gufo-tts`, shows `Uvicorn running`; until
-then a turn of the agent fails. Then check the models and the mic:
+example `journalctl --user -u gufo-tts`, says that the server listens;
+until then a turn of the agent fails. Then check the models and the mic:
 
 ```bash
 services/voice/agent.py roundtrip   # the three models, without a mic
