@@ -42,13 +42,15 @@ expects:
 
 ```bash
 sudo install -d -o "$USER" /var/models
+# The revision that Gufo tests.
 uvx --from huggingface_hub hf download Qwen/Qwen3-ASR-1.7B \
     --revision 7278e1e70fe206f11671096ffdd38061171dd6e5 \
-    --local-dir /var/models/Qwen/Qwen3-ASR-1.7B  # the revision that Gufo tests
+    --local-dir /var/models/Qwen/Qwen3-ASR-1.7B
 uvx --from huggingface_hub hf download Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
     --local-dir /var/models/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
 # An LLM from the model table of Gufo, with its revision. For a GGUF in
-# several files, use a drop-in instead of the link, as in Services.
+# several files, download them all (--include '<folder>/*') and use a
+# drop-in instead of the link, as in Services.
 uvx --from huggingface_hub hf download <repo> <model>.gguf \
     --revision <revision> --local-dir /var/models/<dir>
 ln -s /var/models/<dir>/<model>.gguf /var/models/gufo-llm
@@ -104,7 +106,9 @@ A turn starts when the mic level passes `RMS_SPEECH` after `SETTLE_MS`
 of quiet, and ends after `SILENCE_MS` of quiet or after 30 s. Under
 chora, holding `PTT_KEY` (`Super+v`) also records, whatever the level.
 The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
-up, because chora reports the release with it.
+up, because chora reports the release with it. Words that follow a pause
+of `SILENCE_MS` while the agent transcribes are lost; hold the key or
+raise `SILENCE_MS` for long sentences.
 
 When the mic level stays above `RMS_BARGE_IN` for `BARGE_MS` while the
 agent answers, the reply stops and a turn starts. The push-to-talk key
