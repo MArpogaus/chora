@@ -65,6 +65,7 @@ FRAME_BYTES = RATE * FRAME_MS // 1000 * 2
 PCM = ("-q", "-r", str(RATE), "-c", "1", "-f", "S16_LE", "-t", "raw", "-")  # aplay, arecord
 PREROLL_FRAMES = 1000 // FRAME_MS  # the mic before a turn starts, which the turn keeps
 NO_QUIET_MS = 2000  # when the agent says that the room stays loud
+MAX_TURN_MS = 30000  # a turn that music or a TV keeps loud ends here
 HISTORY = 12  # messages kept besides the system prompt
 TOOL_ROUNDS = 5  # LLM calls per turn while it asks for tools
 FIRST_PIECE = 40  # characters before the comma that may end the first piece
@@ -313,7 +314,7 @@ class Tools:
         self.http = http
         self.specs: list[dict] = []
         self.names: dict[str, str] = {}  # OpenAI function name -> MCP tool name
-        self.jobs: set[asyncio.Task] = set()  # asyncio keeps only weak references
+        self.job: asyncio.Task | None = None  # asyncio keeps only weak references
 
     async def load(self) -> None:
         """Ask chora for its tools and add `delegate`."""
@@ -347,12 +348,10 @@ class Tools:
 
     def delegate(self, task: str) -> str:
         """Start CODER_CMD with a task in the background, one at a time."""
-        if self.jobs:
+        if self.job and not self.job.done():
             return "a coding task still runs; wait for its result"
-        job = asyncio.create_task(self._run_coder(task), name="delegate")
-        self.jobs.add(job)
-        job.add_done_callback(self.jobs.discard)
-        job.add_done_callback(report)
+        self.job = asyncio.create_task(self._run_coder(task), name="delegate")
+        self.job.add_done_callback(report)
         return "the coding agent started"
 
     async def _run_coder(self, task: str) -> None:
@@ -561,7 +560,8 @@ async def settle(mic: Mic, ptt: asyncio.Event) -> None:
     keeps the loud start of the mic and the end of a reply out.
     """
     async with SPEAKING:  # a spoken delegate result is no turn
-        mic.flush()
+        if not ptt.is_set():  # a held key keeps what it recorded
+            mic.flush()
     log("listening")
     quiet, waited = 0, 0  # in ms
     while quiet < SETTLE_MS and not ptt.is_set():
@@ -615,7 +615,7 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
         if pushed:  # the key went up
             return b"".join(frames)
         quiet = 0 if loud else quiet + FRAME_MS
-        if quiet >= SILENCE_MS:
+        if quiet >= SILENCE_MS or len(frames) * FRAME_MS >= MAX_TURN_MS:
             return b"".join(frames)
 
 
@@ -644,7 +644,8 @@ async def talk(
     reply = asyncio.create_task(speak(http, sentences(words)))
     recent: collections.deque[bytes] = collections.deque(maxlen=PREROLL_FRAMES)
     loud, peak = 0, 0.0  # loud in ms
-    mic.flush()
+    if not ptt.is_set():  # a key pressed during the ASR keeps its start
+        mic.flush()
     while not reply.done():  # the mic gives a frame every 20 ms
         recent.append(await mic.frame())
         level = rms(recent[-1])
