@@ -21,5 +21,3 @@ PublishPort=127.0.0.1:8881:8881
 
 [Service]
 Restart=on-failure
-# The first start pulls an image of several GB.
-TimeoutStartSec=900
