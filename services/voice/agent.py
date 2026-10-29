@@ -70,7 +70,8 @@ HISTORY = 12  # messages kept besides the system prompt
 TOOL_ROUNDS = 5  # LLM calls per turn while it asks for tools
 FIRST_PIECE = 40  # characters before the comma that may end the first piece
 SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
-# The agent uses the event tools itself; capture gives only an image.
+# The agent uses the event tools itself; the LLM reads text only, and the
+# picture is the point of capture.
 SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
 TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
 
@@ -561,8 +562,9 @@ async def _follow_key(session: ClientSession, down: asyncio.Event) -> None:
 async def settle(mic: Mic, ptt: asyncio.Event) -> None:
     """Wait for SETTLE_MS below RMS_SPEECH, or for the push-to-talk key.
 
-    The frames that came while the agent was busy go first, and the quiet
-    keeps the loud start of the mic and the end of a reply out.
+    The frames that came while the agent was busy go first, unless the
+    push-to-talk key holds them. The quiet keeps the loud start of the mic
+    and the end of a reply out.
     """
     # A held key keeps what it recorded, but not a spoken delegate result.
     echo = SPEAKING.locked()
@@ -654,8 +656,7 @@ async def talk(
     reply = asyncio.create_task(speak(http, sentences(words)))
     recent: collections.deque[bytes] = collections.deque(maxlen=PREROLL_FRAMES)
     loud, peak = 0, 0.0  # loud in ms
-    # No flush: the queue holds what the user said during the ASR, which a
-    # barge-in keeps.
+    mic.flush()  # the ASR time is not a barge-in
     while not reply.done():  # the mic gives a frame every 20 ms
         recent.append(await mic.frame())
         level = rms(recent[-1])
