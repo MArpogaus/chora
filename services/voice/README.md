@@ -24,8 +24,9 @@ Their internal networks keep them off the internet. A drop-in such as
 `[Container]` section and a new `Exec=` line, changes a model. For a GGUF
 in several files, give the path of the first file in such a drop-in. The
 server finds the other files by their numbered names, which a link
-hides. `gufo.sh` runs one model for a test with extra arguments; it
-publishes the port on all interfaces.
+hides. `gufo.sh` runs one model for a test with extra arguments. It
+publishes the port on all interfaces, and it needs the quadlet of that
+model stopped.
 
 ## Setup
 
@@ -58,10 +59,7 @@ services/voice/agent.py levels      # the mic level
 ```
 
 Set `RMS_SPEECH` above the level of the quiet room and below the level
-of your voice. The commands in a terminal read their settings from the
-environment, for example `RMS_SPEECH=3000 services/voice/agent.py`. The
-unit reads its settings from `~/.config/gufo/agent.env`. Then start the
-agent:
+of your voice. Then start the agent, which runs only in a chora session:
 
 ```bash
 mkdir -p ~/.config/gufo
@@ -70,20 +68,22 @@ systemctl --user enable --now voice-agent
 journalctl --user -u voice-agent -f
 ```
 
-After a change to `agent.env`, run `systemctl --user restart voice-agent`.
-Stop the unit before a test in a terminal, or both agents answer. To
-give the test the settings of the unit, run
-`set -a; . ~/.config/gufo/agent.env; set +a` first, and quote values
-with spaces, such as `CODER_CMD`, in that file.
-`services/voice/agent.py --help` lists the other commands. The settings
-are the environment variables in the globals section of `agent.py`.
+The settings are the environment variables in the globals section of
+`agent.py`. The unit reads them from `~/.config/gufo/agent.env`; quote
+values with spaces, such as `CODER_CMD`. After a change, run
+`systemctl --user restart voice-agent`. A command in a terminal reads
+them from its environment, for example
+`RMS_SPEECH=3000 services/voice/agent.py`. Before such a test, stop the
+unit, or both agents answer. `set -a; . ~/.config/gufo/agent.env; set +a`
+gives the terminal the settings of the unit. `agent.py --help` lists the
+commands.
 
 ## Turns
 
 A turn starts when the mic level passes `RMS_SPEECH` after `SETTLE_MS`
 of quiet, and ends after `SILENCE_MS` of quiet. Under chora, holding
 `PTT_KEY` (`Super+v`) also records, whatever the level. The turn ends
-when Super goes up, because chora reports the release with the modifier.
+when the modifier goes up, because chora reports the release with it.
 
 Speech over the reply above `RMS_BARGE_IN` for `BARGE_MS` stops the
 reply and starts a turn. The push-to-talk key does the same. The mic
@@ -100,9 +100,9 @@ chora through `CHORA_SOCKET`, which a chora flavor gives the user
 manager. `CODER_CMD`, for example `claude -p --permission-mode
 acceptEdits`, adds the tool `delegate`. It runs bigger tasks in the
 background, in the working directory of the agent, and speaks the
-result. The unit runs in your home directory, so the coder of the
-example changes and deletes files there without asking, and runs what
-your Claude settings allow. A drop-in with `WorkingDirectory=` gives the
+result. The unit runs in your home directory. There the coder of the
+example changes and deletes files without asking, and runs what your
+Claude settings allow. A drop-in with `WorkingDirectory=` gives the
 coder a smaller directory.
 
 To type and to start programs, the client name `voice` needs grants. A
@@ -115,9 +115,9 @@ choractl grant voice input.inject activation.token
 These grants and `CODER_CMD` let the LLM type and run programs as you.
 `delegate` needs no grant, so `choractl revoke` does not stop it.
 `systemctl --user stop voice-agent` stops the agent and a running coder.
-Without grants, the LLM still closes windows, changes the outputs, the
-scene, the views and the plugins, writes assets, and starts the plugins
-of installed views. Any voice that the mic hears can start a turn, also
+Without grants, the LLM still closes windows and changes the outputs,
+the scene, the views and the plugins. It also writes assets and starts
+the plugins of installed views. Any voice that the mic hears can start a turn, also
 from a video, and also while the screen is locked. Text on the screen
 that a tool reads can also steer the LLM. The journal keeps each
 transcript and each tool call.
