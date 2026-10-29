@@ -69,7 +69,7 @@ HISTORY = 12  # messages kept besides the system prompt
 TOOL_ROUNDS = 5  # LLM calls per turn while it asks for tools
 FIRST_PIECE = 40  # characters after which a comma may end a piece
 SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
-# The agent uses the event tools itself, and the LLM reads no images.
+# The agent uses the event tools itself; capture gives only an image.
 SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
 TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
 
@@ -110,9 +110,9 @@ def function(name: str, description: str, parameters: dict) -> dict:
 class Mic:
     """The microphone as one continuous stream of 20 ms frames.
 
-    A task reads arecord into a queue, so a turn that starts with a
-    barge-in goes on from the reply without a gap. Use it as an async
-    context manager.
+    A task reads arecord into a queue, so arecord never waits on a full
+    pipe while the agent speaks or thinks. Use it as an async context
+    manager.
     """
 
     def __init__(self) -> None:
@@ -152,7 +152,9 @@ class Mic:
     def flush(self) -> None:
         """Drop the frames that came while nobody listened."""
         while not self.queue.empty():
-            self.queue.get_nowait()
+            if isinstance(frame := self.queue.get_nowait(), Exception):
+                self.queue.put_nowait(frame)  # the end of arecord stays
+                return
 
 
 async def play(pcm_chunks: AsyncIterator[bytes]) -> None:
@@ -258,6 +260,7 @@ async def speak(http: aiohttp.ClientSession, sentences: AsyncIterator[str]) -> N
             await play(sound())
     finally:
         reader.cancel()
+        await asyncio.wait([reader])  # answer() writes the history first
 
 
 async def transcribe(http: aiohttp.ClientSession, pcm: bytes) -> str:
@@ -340,7 +343,7 @@ class Tools:
 
     async def call(self, name: str, arguments: dict) -> str:
         """Run a tool and return its text for the LLM."""
-        if name == "delegate" and CODER_CMD:  # else the task would be the program
+        if name == "delegate" and CODER_CMD:  # else shlex.split gives no program
             return self.delegate(arguments["task"])
         if name not in self.names:
             return f"no tool {name}"
@@ -372,10 +375,7 @@ class Tools:
             state = "is done" if proc.returncode == 0 else "failed"
         except OSError as err:
             last, state = str(err), "did not start"
-        try:
-            await speak(self.http, one(f"The coding task {state}. {last}"))
-        except TURN_ERRORS as err:
-            log(f"cannot speak the result: {err}")
+        await speak(self.http, one(f"The coding task {state}. {last}"))
 
 
 @dataclass
@@ -522,14 +522,12 @@ async def push_to_talk(session: ClientSession, down: asyncio.Event) -> None:
         if result.is_error and first:
             log(f"no push-to-talk: {result.content[0].text}")
             return
-        if result.is_error:  # chora is not back yet
-            await asyncio.sleep(1)
-            continue
-        first = False
-        try:
-            await _follow_key(session, down)
-        finally:
-            down.clear()  # a key that nobody follows is up
+        if not result.is_error:  # else chora is not back yet
+            first = False
+            try:
+                await _follow_key(session, down)
+            finally:
+                down.clear()  # a key that nobody follows is up
         await asyncio.sleep(1)
 
 
@@ -589,14 +587,20 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
     if not preroll:
         await settle(mic, ptt)
     frames, quiet, pushed = list(preroll), 0, False
+    # The start of a word is quieter than RMS_SPEECH; the turn keeps it.
+    before: collections.deque[bytes] = collections.deque(maxlen=PREROLL_MS // FRAME_MS)
     while True:
         frame = await mic.frame()
         if SPEAKING.locked():  # a delegate result: wait for its end and for quiet
             return await record(mic, ptt, [])
         loud, down = rms(frame) >= RMS_SPEECH, ptt.is_set()
         pushed = pushed or down
-        if frames or loud or down:
-            frames.append(frame)
+        if not (frames or loud or down):
+            before.append(frame)
+            continue
+        if not frames:
+            frames = [*before]
+        frames.append(frame)
         if down:
             continue
         if pushed:  # the key went up
@@ -780,14 +784,15 @@ async def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = parser.add_subparsers(dest="command")
+    text = ("text", {"nargs": "*", "help": "the text; a German sentence without one"})
     commands = {
-        "roundtrip": run_roundtrip,
-        "tts": run_tts,
-        "asr": run_asr,
-        "levels": run_levels,
-        "tools": run_tools,
+        "roundtrip": (run_roundtrip, [text]),
+        "tts": (run_tts, [text]),
+        "asr": (run_asr, [("file", {})]),
+        "levels": (run_levels, []),
+        "tools": (run_tools, []),
     }
-    for name, func in commands.items():
+    for name, (func, arguments) in commands.items():
         doc = func.__doc__
         command = sub.add_parser(
             name,
@@ -796,10 +801,8 @@ async def main() -> None:
             formatter_class=argparse.RawDescriptionHelpFormatter,
         )
         command.set_defaults(func=func)
-        if name in ("roundtrip", "tts"):
-            command.add_argument("text", nargs="*")
-        elif name == "asr":
-            command.add_argument("file")
+        for argument, options in arguments:
+            command.add_argument(argument, **options)
     args = parser.parse_args()
     func = getattr(args, "func", run_loop)
     async with aiohttp.ClientSession() as http, contextlib.AsyncExitStack() as stack:
