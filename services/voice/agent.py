@@ -292,7 +292,7 @@ async def transcribe(http: aiohttp.ClientSession, pcm: bytes) -> str:
             kind = event.get("type", "")
             if kind.endswith("transcription.completed"):
                 return event.get("transcript", "").strip()
-            if "error" in kind:
+            if "error" in kind or kind.endswith("failed"):
                 log("asr:", msg.data[:200])
                 return ""
 
@@ -364,6 +364,7 @@ class Tools:
                 stderr=asyncio.subprocess.STDOUT,
             )
             out, _ = await proc.communicate()
+            log(out.decode(errors="replace"))  # what the coder did, for later
             lines = [line for line in out.decode(errors="replace").splitlines() if line.strip()]
             last = lines[-1][:200] if lines else "no output"
             state = "is done" if proc.returncode == 0 else "failed"
