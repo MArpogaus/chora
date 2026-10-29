@@ -624,7 +624,7 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
 
 async def talk(
     http: aiohttp.ClientSession, mic: Mic, words: AsyncIterator[str], ptt: asyncio.Event
-) -> list[bytes]:
+) -> list[bytes] | None:
     """Speak the streamed words while the mic listens for a barge-in.
 
     Parameters
@@ -640,9 +640,9 @@ async def talk(
 
     Returns
     -------
-    list[bytes]
+    list[bytes] | None
         The last PREROLL_FRAMES frames when the user talked over the reply,
-        which stopped it; else an empty list, also after a stop by key.
+        which stopped it; None after a stop by key; else an empty list.
     """
     reply = asyncio.create_task(speak(http, sentences(words)))
     recent: collections.deque[bytes] = collections.deque(maxlen=PREROLL_FRAMES)
@@ -661,7 +661,7 @@ async def talk(
             with contextlib.suppress(asyncio.CancelledError):
                 await reply
             # By key, the recent frames hold the reply, not the user.
-            return [] if by_key else list(recent)
+            return None if by_key else list(recent)
     log(f"mic peak during the reply: {peak:.0f}, barge-in at {RMS_BARGE_IN}")
     await reply  # its errors belong to the turn
     return []
@@ -729,6 +729,10 @@ async def run_loop(
                     else:
                         history.append({"role": "user", "content": said})
                     preroll = await talk(http, mic, answer(http, tools, history), ptt)
+                if preroll is None:  # the key withdrew a request without an answer
+                    if history[-1]["role"] == "user":
+                        history.pop()
+                    preroll = []
             except TURN_ERRORS as err:
                 # The history may be what the LLM refuses, such as a context
                 # that grew too long, so the next turn starts anew.
