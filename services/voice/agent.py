@@ -63,7 +63,7 @@ RATE = 24000
 FRAME_MS = 20
 FRAME_BYTES = RATE * FRAME_MS // 1000 * 2
 PCM = ("-q", "-r", str(RATE), "-c", "1", "-f", "S16_LE", "-t", "raw", "-")  # aplay, arecord
-PREROLL_MS = 1000  # the mic before a turn starts, which the turn keeps
+PREROLL_FRAMES = 1000 // FRAME_MS  # the mic before a turn starts, which the turn keeps
 NO_QUIET_MS = 2000  # when the agent says that the room stays loud
 HISTORY = 12  # messages kept besides the system prompt
 TOOL_ROUNDS = 5  # LLM calls per turn while it asks for tools
@@ -86,11 +86,6 @@ def rms(frame: bytes) -> float:
     """Return the root mean square of a frame of 16 bit samples."""
     samples = array.array("h", frame)
     return math.sqrt(sum(s * s for s in samples) / len(samples))
-
-
-def ms(frames: int) -> int:
-    """Return the length of a number of frames in milliseconds."""
-    return frames * FRAME_MS
 
 
 async def one(text: str) -> AsyncIterator[str]:
@@ -181,8 +176,7 @@ async def play(pcm_chunks: AsyncIterator[bytes]) -> None:
         # A barge-in, also while the sound plays out, or an aplay that
         # did not end: stop the sound at once.
         if player.returncode is None:
-            with contextlib.suppress(ProcessLookupError):
-                player.kill()
+            player.kill()
             await player.wait()
 
 
@@ -226,8 +220,8 @@ async def _tts_audio(ws: aiohttp.ClientWebSocketResponse) -> AsyncIterator[bytes
 async def speak(http: aiohttp.ClientSession, sentences: AsyncIterator[str]) -> None:
     """Speak sentences one after the other through one aplay.
 
-    A task reads the sentences ahead into a queue, so the LLM writes on
-    while TTS speaks.
+    A task reads the sentences ahead into a queue, so the tool calls and
+    the next LLM round run while TTS speaks.
 
     Parameters
     ----------
@@ -384,7 +378,6 @@ class Reply:
     text: str = ""
     calls: dict[int, dict] = field(default_factory=dict)
     results: list[dict] = field(default_factory=list)  # tool messages, in call order
-    running: dict | None = None  # the call that runs now
 
     def add(self, delta: dict) -> str:
         """Add one delta of the stream and return its words."""
@@ -401,25 +394,28 @@ class Reply:
         self.text += words
         return words
 
-    async def run_calls(self, tools: "Tools") -> None:
-        """Run the tool calls one after the other."""
-        for self.running in self.calls.values():
-            self.results.append(await _run_call(tools, self.running))
-        self.running = None
+    async def run_calls(self, tools: Tools) -> None:
+        """Run the tool calls one after the other.
+
+        chora still finishes a call that a barge-in cuts, so the call stays
+        with an unknown result.
+        """
+        for call in self.calls.values():
+            try:
+                self.results.append(await _run_call(tools, call))
+            except asyncio.CancelledError:
+                content = "cut off by the user; the result is unknown"
+                self.results.append(
+                    {"role": "tool", "tool_call_id": call["id"], "content": content}
+                )
+                raise
 
     def messages(self) -> list[dict]:
         """Return the messages for the history: words, calls that ran, results.
 
         A failed or cut round keeps its words and the calls that ran, so no
-        call is left without its result. chora still finishes a call that a
-        barge-in cut, so it stays with an unknown result.
+        call is left without its result.
         """
-        if self.running:
-            content = "cut off by the user; the result is unknown"
-            self.results.append(
-                {"role": "tool", "tool_call_id": self.running["id"], "content": content}
-            )
-            self.running = None
         answered = {r["tool_call_id"] for r in self.results}
         calls = [c for c in self.calls.values() if c["id"] in answered]
         message: dict = {"role": "assistant", "content": self.text}
@@ -568,12 +564,12 @@ async def settle(mic: Mic, ptt: asyncio.Event) -> None:
     async with SPEAKING:  # a spoken delegate result is no turn
         mic.flush()
     log("listening")
-    quiet, waited = 0, 0
-    while ms(quiet) < SETTLE_MS and not ptt.is_set():
+    quiet, waited = 0, 0  # in ms
+    while quiet < SETTLE_MS and not ptt.is_set():
         level = rms(await mic.frame())
-        quiet = 0 if level >= RMS_SPEECH else quiet + 1
-        waited += 1
-        if ms(waited) == NO_QUIET_MS:
+        quiet = 0 if level >= RMS_SPEECH else quiet + FRAME_MS
+        waited += FRAME_MS
+        if waited == NO_QUIET_MS:
             log(f"no quiet below RMS_SPEECH {RMS_SPEECH}, level {level:.0f}")
     log("speak now")
 
@@ -598,9 +594,9 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
     """
     if not preroll:
         await settle(mic, ptt)
-    frames, quiet, pushed = list(preroll), 0, False
+    frames, quiet, pushed = list(preroll), 0, False  # quiet in ms
     # The start of a word is quieter than RMS_SPEECH; the turn keeps it.
-    before: collections.deque[bytes] = collections.deque(maxlen=PREROLL_MS // FRAME_MS)
+    before: collections.deque[bytes] = collections.deque(maxlen=PREROLL_FRAMES)
     while True:
         frame = await mic.frame()
         if SPEAKING.locked():  # a delegate result: wait for its end and for quiet
@@ -619,8 +615,8 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
             continue
         if pushed:  # the key went up
             return b"".join(frames)
-        quiet = 0 if loud else quiet + 1
-        if ms(quiet) >= SILENCE_MS:
+        quiet = 0 if loud else quiet + FRAME_MS
+        if quiet >= SILENCE_MS:
             return b"".join(frames)
 
 
@@ -643,20 +639,20 @@ async def talk(
     Returns
     -------
     list[bytes]
-        The last PREROLL_MS of frames when the user talked over the reply,
+        The last PREROLL_FRAMES frames when the user talked over the reply,
         which stopped it; else an empty list, also after a stop by key.
     """
     reply = asyncio.create_task(speak(http, sentences(words)))
-    recent: collections.deque[bytes] = collections.deque(maxlen=PREROLL_MS // FRAME_MS)
-    loud, peak = 0, 0.0
+    recent: collections.deque[bytes] = collections.deque(maxlen=PREROLL_FRAMES)
+    loud, peak = 0, 0.0  # loud in ms
     mic.flush()
     while not reply.done():  # the mic gives a frame every 20 ms
         recent.append(await mic.frame())
         level = rms(recent[-1])
         peak = max(peak, level)
-        loud = loud + 1 if level >= RMS_BARGE_IN else 0
+        loud = loud + FRAME_MS if level >= RMS_BARGE_IN else 0
         by_key = ptt.is_set()
-        if ms(loud) >= BARGE_MS or by_key:
+        if loud >= BARGE_MS or by_key:
             log("barge-in by key" if by_key else f"barge-in at level {level:.0f}")
             reply.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -801,12 +797,12 @@ async def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    sub = parser.add_subparsers(dest="command")
+    sub = parser.add_subparsers()
     text = ("text", {"nargs": "*", "help": "the text; a German sentence without one"})
     commands = {
         "roundtrip": (run_roundtrip, [text]),
         "tts": (run_tts, [text]),
-        "asr": (run_asr, [("file", {})]),
+        "asr": (run_asr, [("file", {"help": "the raw PCM file"})]),
         "levels": (run_levels, []),
         "tools": (run_tools, []),
     }
