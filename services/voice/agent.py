@@ -5,16 +5,9 @@
 # ///
 """Voice agent: microphone -> ASR -> LLM with tools -> TTS -> speaker.
 
-agent.py                 the conversation loop (default)
-agent.py roundtrip [TEXT] TTS speaks TEXT into ASR, the LLM answers, TTS plays
-agent.py tts [TEXT]       text -> TTS -> speaker
-agent.py asr FILE         raw PCM (24 kHz, 16 bit, mono) -> ASR -> transcript;
-                          arecord -r 24000 -c 1 -f S16_LE -t raw FILE records one
-agent.py levels           live mic level, to tune RMS_SPEECH
-agent.py tools            the tools the LLM gets from chora and this agent
-
-services/voice/README.md describes the turns. The settings are the
-environment variables in the globals section of agent.py.
+Without a command, it runs the conversation loop. services/voice/README.md
+describes the turns. The settings are the environment variables in the
+globals section of agent.py.
 """
 
 # %% imports
@@ -105,15 +98,11 @@ async def one(text: str) -> AsyncIterator[str]:
     yield text
 
 
-def function(name: str, description: str | None, parameters: dict | None) -> dict:
+def function(name: str, description: str, parameters: dict) -> dict:
     """Return an OpenAI function tool."""
     return {
         "type": "function",
-        "function": {
-            "name": name,
-            "description": description or name,
-            "parameters": parameters or {"type": "object", "properties": {}},
-        },
+        "function": {"name": name, "description": description, "parameters": parameters},
     }
 
 
@@ -356,7 +345,7 @@ class Tools:
         if name not in self.names:
             return f"no tool {name}"
         result = await self.session.call_tool(self.names[name], arguments)
-        # The LLM reads text only; images of captures stay out.
+        # The LLM reads text only, so the image of describe_screen stays out.
         text = "\n".join(c.text for c in result.content if c.type == "text")
         return ("error: " if result.is_error else "") + (text or "done")
 
@@ -475,6 +464,8 @@ async def answer(
             async for delta in _deltas(http, body):
                 if words := reply.add(delta):
                     yield words
+            if reply.text and reply.calls:
+                yield " "  # so the words before the tools are spoken while they run
             for call in reply.calls.values():
                 reply.results.append(await _run_call(tools, call))
         finally:
@@ -546,17 +537,17 @@ async def push_to_talk(session: ClientSession, down: asyncio.Event) -> None:
 async def _follow_key(session: ClientSession, down: asyncio.Event, binding: str) -> None:
     while True:
         result = await session.call_tool("wait_events", {"timeout_ms": 30000})
-        for batch in (json.loads(c.text) for c in result.content if c.type == "text"):
-            for event in batch.get("events", []):
-                if event.get("binding") != binding:
-                    continue
-                if event.get("state") == "pressed":
-                    down.set()
-                elif event.get("state") == "released":
-                    down.clear()
-            if batch.get("ended"):
-                log(f"push-to-talk ended: {batch['ended']}")
-                return
+        batch = json.loads(result.content[0].text)
+        for event in batch.get("events", []):
+            if event.get("binding") != binding:
+                continue
+            if event.get("state") == "pressed":
+                down.set()
+            elif event.get("state") == "released":
+                down.clear()
+        if batch.get("ended"):
+            log(f"push-to-talk ended: {batch['ended']}")
+            return
 
 
 async def settle(mic: Mic, ptt: asyncio.Event) -> None:
@@ -601,8 +592,8 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
     frames, quiet, pushed = list(preroll), 0, False
     while True:
         frame = await mic.frame()
-        if SPEAKING.locked():  # a delegate result, not the user
-            continue
+        if SPEAKING.locked():  # a delegate result: wait for its end and for quiet
+            return await record(mic, ptt, [])
         loud, down = rms(frame) >= RMS_SPEECH, ptt.is_set()
         pushed = pushed or down
         if frames or loud or down:
@@ -647,13 +638,14 @@ async def talk(
         level = rms(recent[-1])
         peak = max(peak, level)
         loud = loud + 1 if level >= RMS_BARGE_IN else 0
-        if ms(loud) >= BARGE_MS or ptt.is_set():
-            log("barge-in by key" if ptt.is_set() else f"barge-in at level {level:.0f}")
+        by_key = ptt.is_set()
+        if ms(loud) >= BARGE_MS or by_key:
+            log("barge-in by key" if by_key else f"barge-in at level {level:.0f}")
             reply.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await reply
             # By key, the recent frames hold the reply, not the user.
-            return [] if ptt.is_set() else list(recent)
+            return [] if by_key else list(recent)
     log(f"mic peak during the reply: {peak:.0f}, barge-in at {RMS_BARGE_IN}")
     await reply  # its errors belong to the turn
     return []
@@ -715,14 +707,17 @@ async def run_loop(
                 preroll = []
                 said = await transcribe(http, pcm)
                 log(f"you: {said}")
-                if said and history[-1]["role"] == "user":  # the last turn got no answer
-                    history[-1]["content"] += " " + said
-                elif said:
-                    history.append({"role": "user", "content": said})
                 if said:
+                    if history[-1]["role"] == "user":  # a cut turn got no answer
+                        history[-1]["content"] += " " + said
+                    else:
+                        history.append({"role": "user", "content": said})
                     preroll = await talk(http, mic, answer(http, tools, history), ptt)
             except TURN_ERRORS as err:
-                log(f"turn failed: {err!r}")
+                # The history may be what the LLM refuses, such as a context
+                # that grew too long, so the next turn starts anew.
+                log(f"turn failed, the conversation starts anew: {err!r}")
+                del history[1:]
             trim(history)
 
 
@@ -749,7 +744,10 @@ async def run_tts(
 async def run_asr(
     http: aiohttp.ClientSession, stack: contextlib.AsyncExitStack, args: argparse.Namespace
 ) -> None:
-    """Print the transcript of a raw PCM file."""
+    """Print the transcript of a raw PCM file: 24 kHz, 16 bit, mono.
+
+    `arecord -r 24000 -c 1 -f S16_LE -t raw FILE` records one.
+    """
     with open(args.file, "rb") as f:
         print(await transcribe(http, f.read()))
 
@@ -783,15 +781,21 @@ async def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = parser.add_subparsers(dest="command")
-    for name, func in [("roundtrip", run_roundtrip), ("tts", run_tts)]:
-        command = sub.add_parser(name, description=func.__doc__)
-        command.add_argument("text", nargs="*")
+    commands = {
+        "roundtrip": run_roundtrip,
+        "tts": run_tts,
+        "asr": run_asr,
+        "levels": run_levels,
+        "tools": run_tools,
+    }
+    for name, func in commands.items():
+        doc = func.__doc__
+        command = sub.add_parser(name, help=doc.splitlines()[0], description=doc)
         command.set_defaults(func=func)
-    asr = sub.add_parser("asr", description=run_asr.__doc__)
-    asr.add_argument("file")
-    asr.set_defaults(func=run_asr)
-    for name, func in [("levels", run_levels), ("tools", run_tools)]:
-        sub.add_parser(name, description=func.__doc__).set_defaults(func=func)
+        if name in ("roundtrip", "tts"):
+            command.add_argument("text", nargs="*")
+        elif name == "asr":
+            command.add_argument("file")
     args = parser.parse_args()
     func = getattr(args, "func", run_loop)
     async with aiohttp.ClientSession() as http, contextlib.AsyncExitStack() as stack:
