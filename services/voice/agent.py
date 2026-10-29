@@ -68,7 +68,7 @@ NO_QUIET_MS = 2000  # when the agent says that the room stays loud
 HISTORY = 12  # messages kept besides the system prompt
 TOOL_ROUNDS = 5  # LLM calls per turn while it asks for tools
 FIRST_PIECE = 40  # characters after which a comma may end a piece
-SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+")
+SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
 # The agent uses the event tools itself, and the LLM reads no images.
 SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
 TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
@@ -465,7 +465,7 @@ async def answer(
                 if words := reply.add(delta):
                     yield words
             if reply.text and reply.calls:
-                yield " "  # so the words before the tools are spoken while they run
+                yield "\n"  # so the words before the tools are spoken while they run
             for call in reply.calls.values():
                 reply.results.append(await _run_call(tools, call))
         finally:
@@ -526,21 +526,20 @@ async def push_to_talk(session: ClientSession, down: asyncio.Event) -> None:
             await asyncio.sleep(1)
             continue
         first = False
-        binding = json.loads(result.content[0].text)["keys"][0]  # in chora's spelling
         try:
-            await _follow_key(session, down, binding)
+            await _follow_key(session, down)
         finally:
             down.clear()  # a key that nobody follows is up
         await asyncio.sleep(1)
 
 
-async def _follow_key(session: ClientSession, down: asyncio.Event, binding: str) -> None:
+async def _follow_key(session: ClientSession, down: asyncio.Event) -> None:
+    # The subscription grabs only PTT_KEY, and chora sends input.key only
+    # to the grab, so every event is the key.
     while True:
         result = await session.call_tool("wait_events", {"timeout_ms": 30000})
         batch = json.loads(result.content[0].text)
         for event in batch.get("events", []):
-            if event.get("binding") != binding:
-                continue
             if event.get("state") == "pressed":
                 down.set()
             elif event.get("state") == "released":
@@ -692,7 +691,7 @@ async def run_loop(
     tools = Tools(session, http)
     await tools.load()
     ptt = asyncio.Event()
-    if session and PTT_KEY:
+    if session:
         task = asyncio.create_task(push_to_talk(session, ptt), name="push-to-talk")
         task.add_done_callback(report)
     key = PTT_KEY if session else "off"
@@ -790,7 +789,12 @@ async def main() -> None:
     }
     for name, func in commands.items():
         doc = func.__doc__
-        command = sub.add_parser(name, help=doc.splitlines()[0], description=doc)
+        command = sub.add_parser(
+            name,
+            help=doc.splitlines()[0],
+            description=doc,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
         command.set_defaults(func=func)
         if name in ("roundtrip", "tts"):
             command.add_argument("text", nargs="*")
