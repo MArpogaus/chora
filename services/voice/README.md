@@ -142,7 +142,10 @@ pactl set-default-source echo-cancel-source
 To check it, run `services/voice/agent.py levels` while music plays from
 the speakers. The level must stay near the level of the quiet room, and
 rise when you speak. Then set `RMS_BARGE_IN` close to `RMS_SPEECH`, so
-that you can talk over a reply at a normal level.
+that you can talk over a reply at a normal level. The canceller also
+damps your voice while the agent speaks, so a shorter `BARGE_MS` such as
+100 stops a reply sooner. `SETTLE_MS=0` keeps the words that you say
+right after a reply.
 
 ## Tools
 
