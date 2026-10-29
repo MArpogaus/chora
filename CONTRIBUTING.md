@@ -24,8 +24,8 @@ The hooks run:
 
 - `cargo fmt` and `cargo clippy` with `-D warnings`. `clippy.toml` sets the
   complexity guards. Split a function instead of raising a limit.
-- `ruff check` and `ruff format` on `services/voice/`. `ruff.toml` sets
-  the rules and the complexity guards.
+- `ruff check` and `ruff format` on `services/voice/`. `ruff.toml`
+  selects the rules and the complexity guards.
 - file hygiene, YAML and TOML formatting, and a spell check
 - `actionlint` on the workflows
 - `commitizen` on every commit message

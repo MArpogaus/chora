@@ -4,8 +4,8 @@ The voice agent is one Python file:
 `Microphone -> Qwen3-ASR -> LLM with tools -> Qwen3-TTS -> speaker`. The
 three models run as Gufo containers on the AMD GPU. The LLM drives chora
 through `choractl mcp`. The agent needs `uv`, `arecord` and `aplay`, and
-`choractl` for the chora tools. The unit finds them in `~/.local/bin`,
-`/usr/local/bin` and `/usr/bin`.
+`choractl` for the chora tools. The unit finds them, and the program of
+`CODER_CMD`, in `~/.local/bin`, `/usr/local/bin` and `/usr/bin`.
 
 ## Services
 
@@ -25,7 +25,8 @@ Their internal networks keep them off the internet. A drop-in such as
 `[Container]` section and a new `Exec=` line, changes a model. For a GGUF
 in several files, give the path of the first file in such a drop-in. The
 server finds the other files by their numbered names, which a link
-hides. `gufo.sh` runs one model ad hoc, with extra arguments.
+hides. `gufo.sh` runs one model for a test with extra arguments; it
+publishes the port on all interfaces.
 
 ## Setup
 
@@ -59,9 +60,9 @@ services/voice/agent.py levels      # the mic level
 
 Set `RMS_SPEECH` above the level of the quiet room and below the level
 of your voice. The commands in a terminal read their settings from the
-environment, for example `RMS_SPEECH=3000 services/voice/agent.py`. Stop
-the unit before such a test, or both agents answer. The unit reads its
-settings from `~/.config/gufo/agent.env`. Then start the agent:
+environment, for example `RMS_SPEECH=3000 services/voice/agent.py`. The
+unit reads its settings from `~/.config/gufo/agent.env`. Then start the
+agent:
 
 ```bash
 mkdir -p ~/.config/gufo
@@ -71,6 +72,7 @@ journalctl --user -u voice-agent -f
 ```
 
 After a change to `agent.env`, run `systemctl --user restart voice-agent`.
+Stop the unit before a test in a terminal, or both agents answer.
 `services/voice/agent.py --help` lists the other commands. The settings
 are the environment variables in the globals section of `agent.py`.
 
@@ -86,11 +88,12 @@ reply and starts a turn. The push-to-talk key does the same. The mic
 also hears the speaker, so headphones or the echo cancel module of
 PipeWire keep the reply from stopping itself.
 After each full reply, the log line `mic peak during the reply` shows
-the level that `RMS_BARGE_IN` must stay above.
+the level that `RMS_BARGE_IN` must stay above. When the reply stops
+itself, the line `barge-in at level` shows the level of the echo.
 
 ## Tools
 
-The LLM gets the tools of `choractl --name voice mcp`. The service finds
+The LLM gets the tools of `choractl --name voice mcp`. The unit finds
 chora through `CHORA_SOCKET`, which a chora flavor gives the user
 manager. `CODER_CMD`, for example
 `claude -p --permission-mode acceptEdits`, adds the tool `delegate`. It
@@ -109,8 +112,9 @@ choractl grant voice input.inject activation.token
 These grants and `CODER_CMD` let the LLM type and run programs as you.
 `delegate` needs no grant, so `choractl revoke` does not stop it.
 `systemctl --user stop voice-agent` stops the agent and a running coder.
-Without grants, the LLM still changes the outputs, the scene and the
-plugins, and starts the plugins of installed views. Any voice that the
-mic hears can start a turn, also from a video, and also while the screen
-is locked. Text on the screen that a tool reads can also steer the LLM.
-The journal keeps each transcript and each tool call.
+Without grants, the LLM still closes windows, changes the outputs, the
+scene, the views and the plugins, and starts the plugins of installed
+views. Any voice that the mic hears can start a turn, also from a video,
+and also while the screen is locked. Text on the screen that a tool
+reads can also steer the LLM. The journal keeps each transcript and each
+tool call.
