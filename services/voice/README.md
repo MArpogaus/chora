@@ -59,7 +59,9 @@ services/voice/agent.py levels      # the mic level
 ```
 
 Set `RMS_SPEECH` above the level of the quiet room and below the level
-of your voice. Then start the agent, which runs only in a chora session:
+of your voice. If the log of the agent says `no quiet below RMS_SPEECH`,
+the value is too low. Then start the agent, which runs only in a chora
+session:
 
 ```bash
 mkdir -p ~/.config/gufo
@@ -69,55 +71,58 @@ journalctl --user -u voice-agent -f
 ```
 
 The settings are the environment variables in the globals section of
-`agent.py`. The unit reads them from `~/.config/gufo/agent.env`; quote
-values with spaces, such as `CODER_CMD`. After a change, run
-`systemctl --user restart voice-agent`. A command in a terminal reads
-them from its environment, for example
+`agent.py`, such as `ASR_LANGUAGE` (`de`) and `VOICE`. The unit reads
+them from `~/.config/gufo/agent.env`; quote values with spaces, such as
+`CODER_CMD`. After a change, run `systemctl --user restart voice-agent`.
+A command in a terminal reads them from its environment, for example
 `RMS_SPEECH=3000 services/voice/agent.py`. Before such a test, stop the
-unit, or both agents answer. `set -a; . ~/.config/gufo/agent.env; set +a`
-gives the terminal the settings of the unit. `agent.py --help` lists the
-commands.
+unit, or both agents answer. `set -a; . ~/.config/gufo/agent.env; set
++a` gives the terminal the settings of the unit. `agent.py --help` lists
+the commands. The models keep the GPU memory until `systemctl --user
+stop gufo-asr gufo-tts gufo-llm`.
 
 ## Turns
 
 A turn starts when the mic level passes `RMS_SPEECH` after `SETTLE_MS`
 of quiet, and ends after `SILENCE_MS` of quiet. Under chora, holding
-`PTT_KEY` (`Super+v`) also records, whatever the level. The turn ends
-when the modifier goes up, because chora reports the release with it.
+`PTT_KEY` (`Super+v`) also records, whatever the level. The key needs
+Ctrl, Alt or Super. The turn ends when the modifier goes up, because
+chora reports the release with it.
 
-Speech over the reply above `RMS_BARGE_IN` for `BARGE_MS` stops the
-reply and starts a turn. The push-to-talk key does the same. The mic
-also hears the speaker, so headphones or the echo cancel module of
-PipeWire keep the reply from stopping itself.
-After each full reply, the log line `mic peak during the reply` shows
-the level that `RMS_BARGE_IN` must stay above. When the reply stops
-itself, the line `barge-in at level` shows the level of the echo.
+When the mic level stays above `RMS_BARGE_IN` for `BARGE_MS` while the
+agent speaks, the reply stops and a turn starts. The push-to-talk key
+does the same. The mic also hears the speaker, so headphones or the echo
+cancel module of PipeWire keep the reply from stopping itself. After
+each full reply, the log line `mic peak during the reply` shows the
+level that `RMS_BARGE_IN` must stay above. When the reply stops itself,
+the line `barge-in at level` shows the level of the echo.
 
 ## Tools
 
-The LLM gets the tools of `choractl --name voice mcp`. The unit finds
-chora through `CHORA_SOCKET`, which a chora flavor gives the user
-manager. `CODER_CMD`, for example `claude -p --permission-mode
-acceptEdits`, adds the tool `delegate`. It runs bigger tasks in the
-background, in the working directory of the agent, and speaks the
-result. The unit runs in your home directory. There the coder of the
-example changes and deletes files without asking, and runs what your
-Claude settings allow. A drop-in with `WorkingDirectory=` gives the
-coder a smaller directory.
+The LLM gets the tools of `choractl --name voice mcp`, except the event
+tools and `capture`. The unit finds chora through `CHORA_SOCKET`, which
+a chora flavor gives the user manager. `CODER_CMD`, for example `claude
+-p --permission-mode acceptEdits`, adds the tool `delegate`. It runs
+bigger tasks in the background, in the working directory of the agent,
+and speaks the result. The unit runs in your home directory. There the
+coder of the example changes and deletes files without asking, and runs
+what your Claude settings allow. A drop-in with `WorkingDirectory=`
+gives the coder a smaller directory.
 
 To type and to start programs, the client name `voice` needs grants. A
 grant lasts until the session ends or until `choractl revoke voice`:
 
 ```bash
 choractl grant voice input.inject activation.token
+services/voice/agent.py tools   # the tools that the LLM gets
 ```
 
 These grants and `CODER_CMD` let the LLM type and run programs as you.
 `delegate` needs no grant, so `choractl revoke` does not stop it.
 `systemctl --user stop voice-agent` stops the agent and a running coder.
 Without grants, the LLM still closes windows and changes the outputs,
-the scene, the views and the plugins. It also writes assets and starts
-the plugins of installed views. Any voice that the mic hears can start a turn, also
-from a video, and also while the screen is locked. Text on the screen
-that a tool reads can also steer the LLM. The journal keeps each
-transcript and each tool call.
+the scene and the plugins, and overwrites the saved views. It also
+writes assets and starts the plugins of installed views. Any voice that
+the mic hears can start a turn, also from a video, and also while the
+screen is locked. Text on the screen that a tool reads can also steer
+the LLM. The journal keeps each transcript and each tool call.
