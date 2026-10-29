@@ -10,8 +10,7 @@ through `choractl mcp`. The agent needs `uv`, `arecord` and `aplay`, and
 ## Services
 
 `systemd/` holds the quadlets of the models and the user unit of the
-agent, `voice-agent.service`. The unit runs the agent from the checkout
-in `~/Projekte/chora`.
+agent, `voice-agent.service`.
 
 | quadlet | port | model |
 |---|---|---|
@@ -72,7 +71,10 @@ journalctl --user -u voice-agent -f
 ```
 
 After a change to `agent.env`, run `systemctl --user restart voice-agent`.
-Stop the unit before a test in a terminal, or both agents answer.
+Stop the unit before a test in a terminal, or both agents answer. To
+give the test the settings of the unit, run
+`set -a; . ~/.config/gufo/agent.env; set +a` first, and quote values
+with spaces, such as `CODER_CMD`, in that file.
 `services/voice/agent.py --help` lists the other commands. The settings
 are the environment variables in the globals section of `agent.py`.
 
@@ -95,12 +97,13 @@ itself, the line `barge-in at level` shows the level of the echo.
 
 The LLM gets the tools of `choractl --name voice mcp`. The unit finds
 chora through `CHORA_SOCKET`, which a chora flavor gives the user
-manager. `CODER_CMD`, for example
-`claude -p --permission-mode acceptEdits`, adds the tool `delegate`. It
-runs bigger tasks in the background, in the working directory of the
-agent, and speaks the result. The unit runs in your home directory, so
-the coder of the example edits any file there without asking. A drop-in
-with `WorkingDirectory=` gives the coder a smaller directory.
+manager. `CODER_CMD`, for example `claude -p --permission-mode
+acceptEdits`, adds the tool `delegate`. It runs bigger tasks in the
+background, in the working directory of the agent, and speaks the
+result. The unit runs in your home directory, so the coder of the
+example changes and deletes files there without asking, and runs what
+your Claude settings allow. A drop-in with `WorkingDirectory=` gives the
+coder a smaller directory.
 
 To type and to start programs, the client name `voice` needs grants. A
 grant lasts until the session ends or until `choractl revoke voice`:
@@ -113,8 +116,8 @@ These grants and `CODER_CMD` let the LLM type and run programs as you.
 `delegate` needs no grant, so `choractl revoke` does not stop it.
 `systemctl --user stop voice-agent` stops the agent and a running coder.
 Without grants, the LLM still closes windows, changes the outputs, the
-scene, the views and the plugins, and starts the plugins of installed
-views. Any voice that the mic hears can start a turn, also from a video,
-and also while the screen is locked. Text on the screen that a tool
-reads can also steer the LLM. The journal keeps each transcript and each
-tool call.
+scene, the views and the plugins, writes assets, and starts the plugins
+of installed views. Any voice that the mic hears can start a turn, also
+from a video, and also while the screen is locked. Text on the screen
+that a tool reads can also steer the LLM. The journal keeps each
+transcript and each tool call.
