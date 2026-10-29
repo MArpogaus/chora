@@ -72,7 +72,8 @@ FIRST_PIECE = 40  # characters before the comma that may end the first piece
 SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
 # The agent uses the event tools itself; the LLM reads text only, and the
 # picture is the point of capture.
-SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
+# put_asset could store a shader that never returns and so hang chora.
+SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture", "put_asset"}
 TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
 
 SPEAKING = asyncio.Lock()  # one voice at a time: replies and delegate results
@@ -713,7 +714,7 @@ async def turn(
 
     A request without an answer, after a cut or a key held during the ASR,
     merges with the next words. A stop by key, or a barge-in without words,
-    withdraws it.
+    withdraws it; the tool calls that already ran stay in the history.
 
     Returns
     -------
