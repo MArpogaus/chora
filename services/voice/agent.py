@@ -559,8 +559,10 @@ async def settle(mic: Mic, ptt: asyncio.Event) -> None:
     The frames that came while the agent was busy go first, and the quiet
     keeps the loud start of the mic and the end of a reply out.
     """
-    async with SPEAKING:  # a spoken delegate result is no turn
-        if not ptt.is_set():  # a held key keeps what it recorded
+    # A held key keeps what it recorded, but not a spoken delegate result.
+    echo = SPEAKING.locked()
+    async with SPEAKING:
+        if echo or not ptt.is_set():
             mic.flush()
     log("listening")
     quiet, waited = 0, 0  # in ms
