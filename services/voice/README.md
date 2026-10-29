@@ -120,11 +120,29 @@ and the words and tool calls so far stay in the history.
 
 When the mic level stays above `RMS_BARGE_IN` for `BARGE_MS` while the
 agent answers, the reply stops and a turn starts. The push-to-talk key
-does the same. The mic also hears the speaker, so headphones or the echo
-cancel module of PipeWire keep the reply from stopping itself. After
-each full reply, the log line `mic peak during the reply` shows the
-level that `RMS_BARGE_IN` must stay above. When the reply stops itself,
-the line `barge-in at level` shows the level of the echo.
+does the same. The mic also hears the speaker, so use headphones or the
+echo cancellation below. After each full reply, the log line `mic peak
+during the reply` shows the level that `RMS_BARGE_IN` must stay above.
+When the reply stops itself, the line `barge-in at level` shows the
+level of the echo.
+
+## Echo cancellation
+
+`pipewire/echo-cancel.conf` loads the echo canceller of PipeWire. It
+adds the source `echo-cancel-source`, a mic without the sound of the
+speakers. Make it the default source, so that the agent records from it:
+
+```bash
+mkdir -p ~/.config/pipewire/pipewire.conf.d
+ln -s "$PWD"/services/voice/pipewire/echo-cancel.conf ~/.config/pipewire/pipewire.conf.d/
+systemctl --user restart pipewire
+pactl set-default-source echo-cancel-source
+```
+
+To check it, run `services/voice/agent.py levels` while music plays from
+the speakers. The level must stay near the level of the quiet room, and
+rise when you speak. Then set `RMS_BARGE_IN` close to `RMS_SPEECH`, so
+that you can talk over a reply at a normal level.
 
 ## Tools
 
