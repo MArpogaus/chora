@@ -33,9 +33,11 @@ model stopped.
 ## Setup
 
 Download the ASR and TTS models from Hugging Face, and link the GGUF of
-an LLM that can call tools. The GGUF must be under `/var/models`, which
-the containers mount. Then link and start the units. Run the steps
-in the checkout `~/Projekte/chora`, which the unit expects:
+an LLM from the [model table of
+Gufo](https://github.com/gufo-org/gufo#models-and-benchmarks). The GGUF must be under
+`/var/models`, which the containers mount. Then link and start the
+units. Run the steps in the checkout `~/Projekte/chora`, which the unit
+expects:
 
 ```bash
 sudo install -d -o "$USER" /var/models
@@ -50,10 +52,10 @@ systemctl --user daemon-reload
 systemctl --user start gufo-asr gufo-tts gufo-llm
 ```
 
-The first start pulls the image and loads the models, which takes
-minutes, also after each login. Each model is ready when its log, for
-example `journalctl --user -u gufo-tts`, says that the server listens;
-until then a turn of the agent fails. Then check the models and the mic:
+The first start pulls the image. Each start loads the models for some
+minutes, also after a login. A model is ready when its log, for example
+`journalctl --user -u gufo-tts`, shows `event=listening`. Until then a
+turn of the agent fails. Then check the models and the mic:
 
 ```bash
 services/voice/agent.py roundtrip   # the three models, without a mic
@@ -83,9 +85,10 @@ them from `~/.config/gufo/agent.env`; quote values with spaces, such as
 A command in a terminal reads them from its environment, for example
 `RMS_SPEECH=3000 services/voice/agent.py`. Before such a test, stop the
 unit, or both agents answer. `set -a; . ~/.config/gufo/agent.env; set
-+a` gives the terminal the settings of the unit. `agent.py --help` lists
-the commands. The models keep the GPU memory until `systemctl --user
-stop voice-agent gufo-asr gufo-tts gufo-llm`.
++a` gives the terminal the settings of the unit.
+`services/voice/agent.py --help` lists the commands. The models keep the
+GPU memory until `systemctl --user stop voice-agent gufo-asr gufo-tts
+gufo-llm`.
 
 ## Turns
 
@@ -112,12 +115,15 @@ a chora flavor gives the user manager. `CODER_CMD`, for example `claude
 bigger tasks in the background, in the working directory of the agent,
 and speaks the result. The unit runs in your home directory. There the
 coder of the example changes and deletes files without asking, and runs
-what your Claude settings allow. It also sends the task and the files
-that it reads to Anthropic. The journal keeps its whole output. A
-drop-in with `WorkingDirectory=` gives the coder a smaller directory.
+what your Claude settings allow. Its changes stay after a stop, also
+changes to the settings or the code of the agent. It also sends the task
+and the files that it reads to Anthropic. The journal keeps its whole
+output. A drop-in with `WorkingDirectory=` gives the coder a smaller
+directory.
 
 To type and to start programs, the client name `voice` needs grants. A
-grant lasts until the session ends or until `choractl revoke voice`:
+grant lasts until the session ends, until `choractl revoke voice` or
+until the emergency reset:
 
 ```bash
 choractl grant voice input.inject activation.token
