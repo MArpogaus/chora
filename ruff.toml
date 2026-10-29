@@ -7,8 +7,5 @@ target-version = "py311"
 # branches, statements, arguments, magic values).
 select = ["C90", "D", "E", "F", "I", "PLR", "UP"]
 
-[lint.mccabe]
-max-complexity = 10
-
 [lint.pydocstyle]
 convention = "numpy"
