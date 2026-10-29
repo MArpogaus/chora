@@ -114,9 +114,9 @@ The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
 up, because chora reports the release with it. After a pause of
 `SILENCE_MS`, the agent loses the words until its first sound. To add
 words, hold the key during the transcription, or raise `SILENCE_MS`. A
-key press after the transcription stops the reply. It withdraws the
-request, and the agent does not answer it; tool calls that already ran
-stay in the history.
+key press after the transcription stops the reply. Before the first
+words of the LLM, it also withdraws the request. After them, the request
+and the words and tool calls so far stay in the history.
 
 When the mic level stays above `RMS_BARGE_IN` for `BARGE_MS` while the
 agent answers, the reply stops and a turn starts. The push-to-talk key

@@ -720,7 +720,8 @@ async def turn(
 
     A request without an answer, after a cut or a key held during the ASR,
     merges with the next words. A stop by key, or a barge-in without words,
-    withdraws it; the tool calls that already ran stay in the history.
+    withdraws it while the LLM has written no words; after them, the words
+    and tool calls so far stay in the history.
 
     Returns
     -------
