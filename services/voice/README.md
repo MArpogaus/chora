@@ -30,7 +30,8 @@ hides. `gufo.sh` runs one model ad hoc, with extra arguments.
 ## Setup
 
 Download the ASR and TTS models from Hugging Face, and link the GGUF of
-an LLM that can call tools. Then link and start the units. Run the steps
+an LLM that can call tools. The GGUF must be under `/var/models`, which
+the containers mount. Then link and start the units. Run the steps
 in the checkout `~/Projekte/chora`, which the unit expects:
 
 ```bash
@@ -58,12 +59,13 @@ services/voice/agent.py levels      # the mic level
 
 Set `RMS_SPEECH` above the level of the quiet room and below the level
 of your voice. The commands in a terminal read their settings from the
-environment, for example `RMS_SPEECH=3000 services/voice/agent.py`. The
-unit reads them from `~/.config/gufo/agent.env`. Then start the agent:
+environment, for example `RMS_SPEECH=3000 services/voice/agent.py`. Stop
+the unit before such a test, or both agents answer. The unit reads its
+settings from `~/.config/gufo/agent.env`. Then start the agent:
 
 ```bash
 mkdir -p ~/.config/gufo
-echo RMS_SPEECH=3000 >>~/.config/gufo/agent.env
+echo RMS_SPEECH=<level> >>~/.config/gufo/agent.env
 systemctl --user enable --now voice-agent
 journalctl --user -u voice-agent -f
 ```
@@ -93,8 +95,9 @@ chora through `CHORA_SOCKET`, which a chora flavor gives the user
 manager. `CODER_CMD`, for example
 `claude -p --permission-mode acceptEdits`, adds the tool `delegate`. It
 runs bigger tasks in the background, in the working directory of the
-agent, and speaks the result. The unit runs in your home directory; a
-drop-in with `WorkingDirectory=` gives the coder a smaller one.
+agent, and speaks the result. The unit runs in your home directory, so
+the coder of the example edits any file there without asking. A drop-in
+with `WorkingDirectory=` gives the coder a smaller directory.
 
 To type and to start programs, the client name `voice` needs grants. A
 grant lasts until the session ends or until `choractl revoke voice`:
@@ -104,10 +107,10 @@ choractl grant voice input.inject activation.token
 ```
 
 These grants and `CODER_CMD` let the LLM type and run programs as you.
-`delegate` needs no grant, so `choractl revoke` does not stop it; only
-an empty `CODER_CMD` does. Without grants, the LLM still changes the
-outputs, the scene and the plugins, and starts the plugins of installed
-views. Any voice that the mic hears can start a turn, also from a video, and
-also while the screen is locked. Text on the screen that a tool reads
-can also steer the LLM. The journal keeps each transcript and each tool
-call.
+`delegate` needs no grant, so `choractl revoke` does not stop it.
+`systemctl --user stop voice-agent` stops the agent and a running coder.
+Without grants, the LLM still changes the outputs, the scene and the
+plugins, and starts the plugins of installed views. Any voice that the
+mic hears can start a turn, also from a video, and also while the screen
+is locked. Text on the screen that a tool reads can also steer the LLM.
+The journal keeps each transcript and each tool call.
