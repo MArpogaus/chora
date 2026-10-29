@@ -20,13 +20,14 @@ agent, `voice-agent.service`.
 
 All three models serve the name `gufo` and listen on `127.0.0.1` only.
 Their internal networks keep them off the internet. A drop-in such as
-`~/.config/containers/systemd/gufo-tts.container.d/model.conf`, with a
-`[Container]` section and a new `Exec=` line, changes a model. For a GGUF
-in several files, give the path of the first file in such a drop-in. The
-server finds the other files by their numbered names, which a link
-hides. `gufo.sh` runs one model for a test with extra arguments. It
-publishes the port on all interfaces, and it needs the quadlet of that
-model stopped.
+`~/.config/containers/systemd/gufo-tts.container.d/model.conf` changes a
+model: a `[Container]` section with a copy of the `Exec=` line of the
+quadlet and another model path. Then run `systemctl --user
+daemon-reload` and restart the unit. For a GGUF in several files, give
+the path of the first file in such a drop-in. The server finds the other
+files by their numbered names, which a link hides. `gufo.sh` runs one
+model for a test with extra arguments. It publishes the port on all
+interfaces, and it needs the unit of that model stopped.
 
 ## Setup
 
@@ -49,9 +50,9 @@ systemctl --user start gufo-asr gufo-tts gufo-llm
 ```
 
 The first start pulls the image and loads the models, which takes
-minutes. Each model is ready when its log, for example
-`journalctl --user -u gufo-tts`, shows `Uvicorn running`. Then check the
-models and the mic:
+minutes, also after each login. Each model is ready when its log, for
+example `journalctl --user -u gufo-tts`, shows `Uvicorn running`; until
+then a turn of the agent fails. Then check the models and the mic:
 
 ```bash
 services/voice/agent.py roundtrip   # the three models, without a mic
@@ -59,8 +60,7 @@ services/voice/agent.py levels      # the mic level
 ```
 
 Set `RMS_SPEECH` above the level of the quiet room and below the level
-of your voice. If the log of the agent says `no quiet below RMS_SPEECH`,
-the value is too low. Then start the agent, which runs only in a chora
+of your voice. Then start the agent, which runs only in a chora
 session:
 
 ```bash
@@ -69,6 +69,8 @@ echo RMS_SPEECH=<level> >>~/.config/gufo/agent.env
 systemctl --user enable --now voice-agent
 journalctl --user -u voice-agent -f
 ```
+
+If the log says `no quiet below RMS_SPEECH`, the value is too low.
 
 The settings are the environment variables in the globals section of
 `agent.py`, such as `ASR_LANGUAGE` (`de`) and `VOICE`. The unit reads
@@ -109,8 +111,9 @@ coder of the example changes and deletes files without asking, and runs
 what your Claude settings allow. A drop-in with `WorkingDirectory=`
 gives the coder a smaller directory.
 
-To type and to start programs, the client name `voice` needs grants. A
-grant lasts until the session ends or until `choractl revoke voice`:
+To type and to start programs, the client name `voice` needs grants.
+Each of the two grants alone lets the LLM run commands as you. A grant
+lasts until the session ends or until `choractl revoke voice`:
 
 ```bash
 choractl grant voice input.inject activation.token
@@ -125,4 +128,6 @@ the scene and the plugins, and overwrites the saved views. It also
 writes assets and starts the plugins of installed views. Any voice that
 the mic hears can start a turn, also from a video, and also while the
 screen is locked. Text on the screen that a tool reads can also steer
-the LLM. The journal keeps each transcript and each tool call.
+the LLM, and so can the plugins, which write the descriptions and
+results of their tools. The journal keeps each transcript and each tool
+call.
