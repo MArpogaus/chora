@@ -67,7 +67,7 @@ PREROLL_FRAMES = 1000 // FRAME_MS  # the mic before a turn starts, which the tur
 NO_QUIET_MS = 2000  # when the agent says that the room stays loud
 HISTORY = 12  # messages kept besides the system prompt
 TOOL_ROUNDS = 5  # LLM calls per turn while it asks for tools
-FIRST_PIECE = 40  # characters after which a comma may end a piece
+FIRST_PIECE = 40  # characters before the comma that may end the first piece
 SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
 # The agent uses the event tools itself; capture gives only an image.
 SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
@@ -336,7 +336,7 @@ class Tools:
 
     async def call(self, name: str, arguments: dict) -> str:
         """Run a tool and return its text for the LLM."""
-        if name == "delegate" and CODER_CMD:  # else shlex.split gives no program
+        if name == "delegate" and CODER_CMD:  # else the task text would run as the program
             return self.delegate(arguments["task"])
         if name not in self.names:
             return f"no tool {name}"
@@ -346,7 +346,9 @@ class Tools:
         return ("error: " if result.is_error else "") + (text or "done")
 
     def delegate(self, task: str) -> str:
-        """Start CODER_CMD with a task in the background."""
+        """Start CODER_CMD with a task in the background, one at a time."""
+        if self.jobs:
+            return "a coding task still runs; wait for its result"
         job = asyncio.create_task(self._run_coder(task), name="delegate")
         self.jobs.add(job)
         job.add_done_callback(self.jobs.discard)
@@ -401,14 +403,13 @@ class Reply:
         with an unknown result.
         """
         for call in self.calls.values():
+            content = "cut off by the user; the result is unknown"
             try:
-                self.results.append(await _run_call(tools, call))
-            except asyncio.CancelledError:
-                content = "cut off by the user; the result is unknown"
+                content = await _run_call(tools, call)
+            finally:
                 self.results.append(
                     {"role": "tool", "tool_call_id": call["id"], "content": content}
                 )
-                raise
 
     def messages(self) -> list[dict]:
         """Return the messages for the history: words, calls that ran, results.
@@ -443,14 +444,13 @@ async def _deltas(http: aiohttp.ClientSession, body: dict) -> AsyncIterator[dict
                 yield (event.get("choices") or [{}])[0].get("delta") or {}
 
 
-async def _run_call(tools: Tools, call: dict) -> dict:
+async def _run_call(tools: Tools, call: dict) -> str:
     try:
         arguments = json.loads(call["args"] or "{}")
         log(f"tool {call['name']} {arguments}")
-        result = await tools.call(call["name"], arguments)
+        return await tools.call(call["name"], arguments)
     except (*TURN_ERRORS, TypeError) as err:  # the LLM reads the error and goes on
-        result = f"error: {err}"
-    return {"role": "tool", "tool_call_id": call["id"], "content": result}
+        return f"error: {err}"
 
 
 async def answer(
@@ -505,9 +505,8 @@ async def sentences(words: AsyncIterator[str]) -> AsyncIterator[str]:
     async for word in words:
         buffer += word
         *done, buffer = SENTENCE_END.split(buffer)
-        if first and not done and len(buffer) > FIRST_PIECE and ", " in buffer:
-            head, buffer = buffer.rsplit(", ", 1)
-            done = [head + ","]
+        if first and not done and (comma := buffer.find(", ", FIRST_PIECE)) > 0:
+            done, buffer = [buffer[: comma + 1]], buffer[comma + 2 :]
         for sentence in done:
             if sentence.strip():
                 first = False
