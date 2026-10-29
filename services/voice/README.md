@@ -54,6 +54,7 @@ uvx --from huggingface_hub hf download Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
 uvx --from huggingface_hub hf download <repo> <model>.gguf \
     --revision <revision> --local-dir /var/models/<dir>
 ln -s /var/models/<dir>/<model>.gguf /var/models/gufo-llm
+podman pull ghcr.io/gufo-org/toolboxes/gufo-runtime:latest  # GBs, once
 mkdir -p ~/.config/containers/systemd
 ln -s "$PWD"/services/voice/systemd/*.{container,network} ~/.config/containers/systemd/
 systemctl --user link "$PWD/services/voice/systemd/voice-agent.service"
@@ -91,14 +92,14 @@ react to your voice, the value is too high.
 The settings are the environment variables in the globals section of
 `agent.py`, such as `ASR_LANGUAGE` (`de`) and `VOICE`. The unit reads
 them from `~/.config/gufo/agent.env`; quote values with spaces, such as
-`CODER_CMD`. After a change, run `systemctl --user restart voice-agent`.
-A command in a terminal reads them from its environment, for example
-`RMS_SPEECH=3000 services/voice/agent.py`. Before such a test, stop the
-unit, or both agents answer. `set -a; . ~/.config/gufo/agent.env; set
-+a` gives the terminal the settings of the unit.
-`services/voice/agent.py --help` lists the commands. The models keep the
-GPU memory until `systemctl --user stop voice-agent gufo-asr gufo-tts
-gufo-llm`.
+`CODER_CMD`. A `PATH=` line there replaces the PATH of the unit. After a
+change, run `systemctl --user restart voice-agent`. A command in a
+terminal reads them from its environment, for example `RMS_SPEECH=3000
+services/voice/agent.py`. Before such a test, stop the unit, or both
+agents answer. `set -a; . ~/.config/gufo/agent.env; set +a` gives the
+terminal the settings of the unit. `services/voice/agent.py --help`
+lists the commands. The models keep the GPU memory until `systemctl
+--user stop voice-agent gufo-asr gufo-tts gufo-llm`.
 
 ## Turns
 
@@ -106,9 +107,10 @@ A turn starts when the mic level passes `RMS_SPEECH` after `SETTLE_MS`
 of quiet, and ends after `SILENCE_MS` of quiet or after 30 s. Under
 chora, holding `PTT_KEY` (`Super+v`) also records, whatever the level.
 The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
-up, because chora reports the release with it. Words that follow a pause
-of `SILENCE_MS` while the agent transcribes are lost; hold the key or
-raise `SILENCE_MS` for long sentences.
+up, because chora reports the release with it. After a pause of
+`SILENCE_MS`, the agent loses the words until its first sound; hold the
+key during the transcription to add words, or raise `SILENCE_MS`. A key
+press after the transcription stops the reply and withdraws the request.
 
 When the mic level stays above `RMS_BARGE_IN` for `BARGE_MS` while the
 agent answers, the reply stops and a turn starts. The push-to-talk key
@@ -133,9 +135,9 @@ and the files that it reads to Anthropic. The journal keeps its whole
 output. A drop-in with `WorkingDirectory=` gives the coder a smaller
 directory.
 
-To type and to start programs, the client name `voice` needs grants. A
-grant lasts until the session ends, until `choractl revoke voice` or
-until the emergency reset:
+To type and to start programs, the client name `voice` (`CHORA_NAME`)
+needs grants. A grant lasts until the session ends, until `choractl
+revoke voice` or until the emergency reset:
 
 ```bash
 choractl grant voice input.inject activation.token
