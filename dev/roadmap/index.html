@@ -1567,8 +1567,8 @@ the effects of the scene and serves as their test.</p>
 <h2 id="track-voice-pipeline">Track: voice pipeline<a class="headerlink" href="#track-voice-pipeline" title="Permanent link">&para;</a></h2>
 <p>The voice pipeline lives in <code>services/voice/</code> of the core repository and
 moves to <code>chora-desktop/chora-voice</code> with the split at 1.0. It started with
-milestone 0.6 (D53). It runs as Quadlet units on the reference hardware:
-speech to text, a router model, a main model and text to speech, served by
+milestone 0.6 (D53). The models run as Quadlet units on the reference hardware:
+speech to text, a language model and text to speech, served by
 <a href="https://github.com/gufo-org/gufo">Gufo</a>.</p>
 <table>
 <thead>
@@ -1590,7 +1590,7 @@ speech to text, a router model, a main model and text to speech, served by
 <td>V2 Control</td>
 <td>the voice agent drives chora through MCP</td>
 <td>"move the terminal to the right" works in 18 of 20 tries</td>
-<td>0.7 (push-to-talk with <code>input.grab-any</code>), 0.8 (read model, text injection)</td>
+<td>0.8 (read model, text injection)</td>
 </tr>
 <tr>
 <td>V3 Views</td>
