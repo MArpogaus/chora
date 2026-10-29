@@ -42,11 +42,13 @@ expects:
 
 ```bash
 sudo install -d -o "$USER" /var/models
-hf="uvx --from huggingface_hub hf download"
-$hf Qwen/Qwen3-ASR-1.7B --revision 7278e1e70fe206f11671096ffdd38061171dd6e5 \
+uvx --from huggingface_hub hf download Qwen/Qwen3-ASR-1.7B \
+    --revision 7278e1e70fe206f11671096ffdd38061171dd6e5 \
     --local-dir /var/models/Qwen/Qwen3-ASR-1.7B  # the revision that Gufo tests
-$hf Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+uvx --from huggingface_hub hf download Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
     --local-dir /var/models/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+uvx --from huggingface_hub hf download <repo> <model>.gguf \
+    --local-dir /var/models/<dir>  # an LLM from the model table of Gufo
 ln -s /var/models/<dir>/<model>.gguf /var/models/gufo-llm
 mkdir -p ~/.config/containers/systemd
 ln -s "$PWD"/services/voice/systemd/*.{container,network} ~/.config/containers/systemd/
@@ -55,10 +57,11 @@ systemctl --user daemon-reload
 systemctl --user start gufo-asr gufo-tts gufo-llm
 ```
 
-The first start pulls the image. Each start loads the models for some
-minutes, also after a login. A model is ready when its log, for example
-`journalctl --user -u gufo-tts`, shows `event=listening`. Until then a
-turn of the agent fails. Then check the models and the mic:
+The first start pulls the image. When the agent starts, also after a
+login, it starts the models, which load for some minutes. A model is
+ready when its log, for example `journalctl --user -u gufo-tts`, shows
+`event=listening`. Until then a turn of the agent fails. Then check the
+models and the mic:
 
 ```bash
 services/voice/agent.py roundtrip   # the three models, without a mic
