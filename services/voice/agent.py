@@ -699,6 +699,42 @@ def trim(history: list[dict]) -> None:
     del history[1:start]
 
 
+async def turn(
+    mic: Mic,
+    tools: Tools,
+    history: list[dict],
+    ptt: asyncio.Event,
+    preroll: list[bytes],
+) -> list[bytes]:
+    """Record one turn, transcribe it and speak the answer.
+
+    A request without an answer, after a cut or a key held during the ASR,
+    merges with the next words. A stop by key, or a barge-in without words,
+    withdraws it.
+
+    Returns
+    -------
+    list[bytes]
+        The frames of a barge-in, which start the next turn.
+    """
+    barged, http = bool(preroll), tools.http
+    said = await transcribe(http, await record(mic, ptt, preroll))
+    log(f"you: {said}")
+    pending = history[-1]["role"] == "user"
+    if said and pending:
+        history[-1]["content"] += " " + said
+    elif said:
+        history.append({"role": "user", "content": said})
+    preroll = []
+    if said or (pending and not barged):  # a held key leaves its request to answer
+        preroll = await talk(http, mic, answer(http, tools, history), ptt)
+    if preroll is None or (barged and not said):
+        if history[-1]["role"] == "user":
+            history.pop()
+        return []
+    return preroll
+
+
 def report(task: asyncio.Task) -> None:
     """Log the error of a background task that ended."""
     if not task.cancelled() and task.exception():
@@ -724,27 +760,13 @@ async def run_loop(
         while True:
             # A failed server or tool costs one turn, not the conversation.
             try:
-                pcm = await record(mic, ptt, preroll)
-                preroll = []
-                said = await transcribe(http, pcm)
-                log(f"you: {said}")
-                if said:
-                    if history[-1]["role"] == "user":  # a cut turn got no answer
-                        history[-1]["content"] += " " + said
-                    else:
-                        history.append({"role": "user", "content": said})
-                    preroll = await talk(http, mic, answer(http, tools, history), ptt)
-                # A stop by key, or a barge-in without words, withdraws a
-                # request that got no answer.
-                if preroll is None or not said:
-                    if history[-1]["role"] == "user":
-                        history.pop()
-                    preroll = []
+                preroll = await turn(mic, tools, history, ptt, preroll)
             except TURN_ERRORS as err:
                 # The history may be what the LLM refuses, such as a context
                 # that grew too long, so the next turn starts anew.
                 log(f"turn failed, the conversation starts anew: {err!r}")
                 del history[1:]
+                preroll = []
             trim(history)
 
 
