@@ -1,5 +1,3 @@
-# Gufo llm server on the AMD GPU.
-
 [Unit]
 Description=Gufo llm server (port 8888)
 

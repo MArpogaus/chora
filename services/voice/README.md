@@ -1,10 +1,11 @@
 # Voice agent
 
-`Microphone -> Qwen3-ASR -> LLM with tools -> Qwen3-TTS -> speaker`, one
-Python file. The three models run as Gufo containers on the AMD GPU. The
-LLM drives chora through `choractl mcp`. The agent needs `uv`, `arecord`
-and `aplay`, and `choractl` for the chora tools. The unit finds them in
-`~/.local/bin`, `/usr/local/bin` and `/usr/bin`.
+The voice agent is one Python file:
+`Microphone -> Qwen3-ASR -> LLM with tools -> Qwen3-TTS -> speaker`. The
+three models run as Gufo containers on the AMD GPU. The LLM drives chora
+through `choractl mcp`. The agent needs `uv`, `arecord` and `aplay`, and
+`choractl` for the chora tools. The unit finds them in `~/.local/bin`,
+`/usr/local/bin` and `/usr/bin`.
 
 ## Services
 
@@ -21,20 +22,20 @@ in `~/Projekte/chora`.
 All three models serve the name `gufo` and listen on `127.0.0.1` only.
 Their internal networks keep them off the internet. A drop-in such as
 `~/.config/containers/systemd/gufo-tts.container.d/model.conf`, with a
-`[Container]` section and a new `Exec=` line, changes a model. A GGUF in
-several files needs such a drop-in with the path of its first file,
-because the link hides the numbers in the file names. `gufo.sh` stays for
-ad hoc runs with extra arguments.
+`[Container]` section and a new `Exec=` line, changes a model. For a GGUF
+in several files, give the path of the first file in such a drop-in. The
+server finds the other files by their numbered names, which a link
+hides. `gufo.sh` runs one model ad hoc, with extra arguments.
 
 ## Setup
 
-The model files of the table come from Hugging Face, into a
-`/var/models` that you can write to. The link names the GGUF of your LLM.
-From the root of the repository:
+Make `/var/models` writable for you. Download the ASR and TTS models
+from Hugging Face, and link the GGUF of an LLM that can call tools. Then
+link and start the units. From the root of the repository:
 
 ```bash
 for m in Qwen/Qwen3-ASR-1.7B Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice; do
-    hf download "$m" --local-dir "/var/models/$m"
+    uvx --from huggingface_hub hf download "$m" --local-dir "/var/models/$m"
 done
 ln -s /var/models/<dir>/<model>.gguf /var/models/gufo-llm
 mkdir -p ~/.config/containers/systemd
@@ -55,9 +56,14 @@ services/voice/agent.py levels      # the mic level
 ```
 
 Set `RMS_SPEECH` above the level of the quiet room and below the level
-of your voice, in `~/.config/gufo/agent.env`. Then start the agent:
+of your voice. The commands in a terminal read their settings from the
+environment, for example `RMS_SPEECH=3000 services/voice/agent.py levels`.
+The unit reads them from `~/.config/gufo/agent.env`. Then start the
+agent:
 
 ```bash
+mkdir -p ~/.config/gufo
+echo RMS_SPEECH=3000 >>~/.config/gufo/agent.env
 systemctl --user enable --now voice-agent
 journalctl --user -u voice-agent -f
 ```
@@ -73,9 +79,8 @@ of quiet, and ends after `SILENCE_MS` of quiet. Under chora, holding
 `PTT_KEY` (`Super+v`) also records, whatever the level. The turn ends
 when Super goes up, because chora reports the release with the modifier.
 
-Talking over the reply above `RMS_BARGE_IN` (twice `RMS_SPEECH` by
-default) for `BARGE_MS` stops the reply and starts a turn, and so does
-the push-to-talk key. The mic also hears the speaker, so headphones or
+Speech over the reply above `RMS_BARGE_IN` for `BARGE_MS` stops the
+reply and starts a turn. The push-to-talk key does the same. The mic also hears the speaker, so headphones or
 the echo cancel module of PipeWire keep the reply from stopping itself.
 After each full reply, the log line `mic peak during the reply` shows
 the level that `RMS_BARGE_IN` must stay above.
@@ -86,17 +91,19 @@ The LLM gets the tools of `choractl --name voice mcp`. The service finds
 chora through `CHORA_SOCKET`, which a chora flavor gives the user
 manager. `CODER_CMD`, for example
 `claude -p --permission-mode acceptEdits`, adds the tool `delegate`. It
-runs bigger tasks in the background in your home directory and speaks
-the result.
+runs bigger tasks in the background, in the working directory of the
+agent, and speaks the result. The unit runs in your home directory.
 
-The tools that drive the session need grants for the client name
-`voice`. A grant lasts until the session ends:
+To type and to start programs, the client name `voice` needs grants. A
+grant lasts until the session ends or until `choractl revoke voice`:
 
 ```bash
 choractl grant voice input.inject activation.token
 ```
 
 These grants and `CODER_CMD` let the LLM type and run programs as you.
+Without grants, the LLM still changes the outputs, the scene and the
+plugins.
 Any voice that the mic hears can start a turn, also from a video, and
 also while the screen is locked. Text on the screen that a tool reads
 can also steer the LLM. The journal keeps each transcript and each tool

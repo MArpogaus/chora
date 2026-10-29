@@ -1,5 +1,3 @@
-# Gufo tts server on the AMD GPU.
-
 [Unit]
 Description=Gufo tts server (port 8882)
 
