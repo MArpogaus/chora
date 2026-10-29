@@ -38,7 +38,7 @@ TTS_URL = ENV("TTS_URL", "ws://127.0.0.1:8882/v1/audio/speech/stream")
 LLM_URL = ENV("LLM_URL", "http://127.0.0.1:8888/v1")
 MODEL = ENV("MODEL", "gufo")  # the served name of all three models
 VOICE = ENV("VOICE", "aiden")  # a voice of the TTS server
-# Not LANGUAGE, which gettext reads. Without a language, the ASR guesses.
+# Not LANGUAGE, which gettext reads.
 ASR_LANGUAGE = ENV("ASR_LANGUAGE", "de")
 RMS_SPEECH = int(ENV("RMS_SPEECH", "5000"))
 SILENCE_MS = int(ENV("SILENCE_MS", "700"))
@@ -63,7 +63,7 @@ RATE = 24000
 FRAME_MS = 20
 FRAME_BYTES = RATE * FRAME_MS // 1000 * 2
 PCM = ("-q", "-r", str(RATE), "-c", "1", "-f", "S16_LE", "-t", "raw", "-")  # aplay, arecord
-PREROLL_MS = 1000  # speech before a barge-in that the next turn keeps
+PREROLL_MS = 1000  # the mic before a turn starts, which the turn keeps
 NO_QUIET_MS = 2000  # when the agent says that the room stays loud
 HISTORY = 12  # messages kept besides the system prompt
 TOOL_ROUNDS = 5  # LLM calls per turn while it asks for tools
@@ -172,18 +172,17 @@ async def play(pcm_chunks: AsyncIterator[bytes]) -> None:
             player.stdin.write(chunk)
             end = max(end, time.monotonic()) + len(chunk) / (RATE * 2)
             await player.stdin.drain()
-    except asyncio.CancelledError:
-        player.kill()  # a barge-in: stop the sound at once
-        raise
-    finally:
         player.stdin.close()
         # aplay on PipeWire may never exit after its input ends: wait for
-        # the sound it got, plus a second, then end it.
-        try:
+        # the sound it got, plus a second.
+        with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(player.wait(), max(end - time.monotonic() + 1, 1))
-        except TimeoutError:
-            log("aplay did not end after the sound; ended it")
-            player.kill()
+    finally:
+        # A barge-in, also while the sound plays out, or an aplay that
+        # did not end: stop the sound at once.
+        if player.returncode is None:
+            with contextlib.suppress(ProcessLookupError):
+                player.kill()
             await player.wait()
 
 
@@ -320,7 +319,7 @@ class Tools:
         self.http = http
         self.specs: list[dict] = []
         self.names: dict[str, str] = {}  # OpenAI function name -> MCP tool name
-        self.jobs: set[asyncio.Task] = set()
+        self.jobs: set[asyncio.Task] = set()  # asyncio keeps only weak references
 
     async def load(self) -> None:
         """Ask chora for its tools and add `delegate`."""
@@ -385,6 +384,7 @@ class Reply:
     text: str = ""
     calls: dict[int, dict] = field(default_factory=dict)
     results: list[dict] = field(default_factory=list)  # tool messages, in call order
+    running: dict | None = None  # the call that runs now
 
     def add(self, delta: dict) -> str:
         """Add one delta of the stream and return its words."""
@@ -401,8 +401,25 @@ class Reply:
         self.text += words
         return words
 
-    def message(self) -> dict | None:
-        """Return the message for the history, with the calls that have results."""
+    async def run_calls(self, tools: "Tools") -> None:
+        """Run the tool calls one after the other."""
+        for self.running in self.calls.values():
+            self.results.append(await _run_call(tools, self.running))
+        self.running = None
+
+    def messages(self) -> list[dict]:
+        """Return the messages for the history: words, calls that ran, results.
+
+        A failed or cut round keeps its words and the calls that ran, so no
+        call is left without its result. chora still finishes a call that a
+        barge-in cut, so it stays with an unknown result.
+        """
+        if self.running:
+            content = "cut off by the user; the result is unknown"
+            self.results.append(
+                {"role": "tool", "tool_call_id": self.running["id"], "content": content}
+            )
+            self.running = None
         answered = {r["tool_call_id"] for r in self.results}
         calls = [c for c in self.calls.values() if c["id"] in answered]
         message: dict = {"role": "assistant", "content": self.text}
@@ -415,7 +432,7 @@ class Reply:
                 }
                 for c in calls
             ]
-        return message if self.text or calls else None
+        return ([message] if self.text or calls else []) + self.results
 
 
 async def _deltas(http: aiohttp.ClientSession, body: dict) -> AsyncIterator[dict]:
@@ -435,7 +452,7 @@ async def _run_call(tools: Tools, call: dict) -> dict:
         arguments = json.loads(call["args"] or "{}")
         log(f"tool {call['name']} {arguments}")
         result = await tools.call(call["name"], arguments)
-    except TURN_ERRORS as err:  # the LLM reads the error and goes on
+    except (*TURN_ERRORS, TypeError) as err:  # the LLM reads the error and goes on
         result = f"error: {err}"
     return {"role": "tool", "tool_call_id": call["id"], "content": result}
 
@@ -466,14 +483,9 @@ async def answer(
                     yield words
             if reply.text and reply.calls:
                 yield "\n"  # so the words before the tools are spoken while they run
-            for call in reply.calls.values():
-                reply.results.append(await _run_call(tools, call))
+            await reply.run_calls(tools)
         finally:
-            # A failed or cut round keeps its words and the calls that ran,
-            # so no call is left without its result.
-            if message := reply.message():
-                history.append(message)
-            history += reply.results
+            history += reply.messages()
         if not reply.calls:
             if not reply.text:
                 log("the LLM gave no words and no tool calls")
@@ -599,6 +611,7 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
             before.append(frame)
             continue
         if not frames:
+            log(f"turn at level {rms(frame):.0f}")
             frames = [*before]
         frames.append(frame)
         if down:
@@ -606,7 +619,7 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
         if pushed:  # the key went up
             return b"".join(frames)
         quiet = 0 if loud else quiet + 1
-        if frames and ms(quiet) >= SILENCE_MS:
+        if ms(quiet) >= SILENCE_MS:
             return b"".join(frames)
 
 
