@@ -624,7 +624,7 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
             continue
         if not frames:
             log("turn by key" if down else f"turn at level {level:.0f}")
-            frames = [*before]
+            frames = [] if down else [*before]  # the key marks the start itself
         frames.append(frame)
         if down:
             continue
