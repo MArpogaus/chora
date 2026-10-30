@@ -1308,7 +1308,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D23</td>
-<td>A hardcoded safety layer: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT, SIGUSR1 resets while the main loop runs; a watchdog that blames the client whose visible nodes cost the most for slow frames, removes its effects and then disconnects it, and never resets the session (target: the watchdog in its own thread; it runs on the main loop, so a hung shader stops it too); a binding that revokes the capabilities of all clients</td>
+<td>A hardcoded safety layer: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT, SIGUSR1 resets while the main loop runs; a watchdog that blames the client whose visible nodes cost the most for slow frames, removes its effects and then disconnects it, and never resets the session (D57); a watchdog thread on a heartbeat of the main loop for a hung loop (D64); a binding that revokes the capabilities of all clients</td>
 <td>A recovery path must not depend on a file that an agent can break, or on a main loop that hangs. One client without grants must not take the window manager, the grants and the effects of the others down with it.</td>
 </tr>
 <tr>
@@ -1330,6 +1330,11 @@ that the code does not implement yet.</p>
 <td>D27</td>
 <td>Output configuration through <code>wlr-output-management</code> and through <code>output.configure</code>, on the same path</td>
 <td>kanshi and wlr-randr exist. An agent has no wlr-randr in every session.</td>
+</tr>
+<tr>
+<td>D64</td>
+<td>A watchdog thread watches a heartbeat that the main loop bumps after each dispatch; the loop wakes at least once a second. After 3 s without a beat, the thread logs the stall with the action that follows. After <code>CHORA_HANG_ABORT_S</code> seconds without a beat, 30 by default, it aborts chora with SIGABRT and a core dump, so that the session can start again; 0 means never abort. The frame watchdog of D57 stays on the main loop</td>
+<td>A hung shader or driver blocks the main loop, so the frame watchdog and SIGUSR1 cannot act. Only another thread sees the hang. An abort ends the session, so the user can start it again, and leaves a core dump for the bug. 3 s is above the idle wake-up of 1 s and below the 5 s of gate check 3 of 0.9. A hang of 30 s is longer than any slow frame of llvmpipe, and the user waits no longer than that.</td>
 </tr>
 </tbody>
 </table>

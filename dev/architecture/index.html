@@ -1632,12 +1632,18 @@ opens on F10 when the key goes up.</p>
   time. When no client alone reaches the budget, the watchdog drops the
   effects of all clients and disconnects none. The watchdog never starts
   the emergency reset; only the binding and SIGUSR1 do.</li>
-<li><strong>Shader hangs.</strong> A shader that never returns blocks the loop, for
-  every backend renders on it. Neither the watchdog, which measures
-  between frames, nor SIGUSR1, whose source the loop dispatches, can
-  end it: on llvmpipe the core hangs, on a GPU until the driver resets
-  the context. The way out is to kill the core from another TTY or
-  over SSH.</li>
+<li><strong>Hang watchdog</strong> (D64). A thread of its own watches a heartbeat that
+  the main loop bumps after each dispatch; the loop wakes at least once a
+  second, also without events. A shader that never returns blocks the
+  loop, for every backend renders on it, and with the loop the frame
+  watchdog and SIGUSR1. After 3 s without a beat, the thread logs
+  <code>the main loop stalls</code> with the action that follows. After
+  <code>CHORA_HANG_ABORT_S</code> seconds without a beat, 30 by default, it logs
+  <code>the main loop hangs</code> and aborts chora with SIGABRT and a core dump, so
+  that the session can start again. With <code>CHORA_HANG_ABORT_S=0</code> it only logs.
+  When the loop runs again before the abort, the thread logs
+  <code>the main loop runs again</code>. <code>tests/gate-0.9-shader-hang.sh</code> checks both
+  on llvmpipe.</li>
 </ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
 <p>chora trusts every client of the same user. One gap comes with the Rust
