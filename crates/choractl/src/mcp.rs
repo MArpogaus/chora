@@ -493,7 +493,7 @@ fn session_tools() -> Vec<Tool> {
     vec![
         tool(
             "run_program",
-            "Start a program as choractl run does, on the machine of this MCP server. It runs in a systemd user unit of its own, or as its own child without a user manager. The program gets an activation token, so that its window gets the focus. The client name needs the grant activation.token on every socket. Returns the pid, the unit and the token.",
+            "Start a program as choractl run does, on the machine of this MCP server. It runs in a systemd user unit of its own, or as its own child without a user manager. The program gets an activation token, so that its window gets the focus. The client name needs the grant activation.token on every socket. Returns the pid, the unit and the token, or the error when the start failed. The output of the program never comes back: it goes to the journal of the unit, or nowhere without a user manager.",
             &json!({
                 "argv": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "the program and its arguments, for example [\"foot\"]"},
             }),
