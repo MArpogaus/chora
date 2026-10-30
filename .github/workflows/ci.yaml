@@ -68,7 +68,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
       with:
         persist-credentials: false
-    - run: xargs dnf install -y sway foot grim jq gawk mesa-dri-drivers procps-ng python3 thunar waybar fuzzel wlrctl swaylock wlr-randr dbus-daemon mako swaybg swayidle kanshi systemd desktop-file-utils google-noto-sans-cjk-vf-fonts twitter-twemoji-fonts < dist/fedora-build-requires.txt
+    - run: xargs dnf install -y sway foot grim jq gawk mesa-dri-drivers procps-ng python3 thunar waybar fuzzel wlrctl swaylock wlr-randr dbus-daemon mako swaybg swayidle kanshi systemd desktop-file-utils google-noto-sans-cjk-vf-fonts twitter-twemoji-fonts xdg-desktop-portal xdg-desktop-portal-wlr pipewire python3-gobject-base xwayland-satellite xorg-x11-server-Xwayland xeyes < dist/fedora-build-requires.txt
     # The file capabilities of the packaged sway fail in a container; a
     # copy without them runs.
     - run: install -m755 /usr/bin/sway /usr/local/bin/sway
@@ -114,6 +114,10 @@ jobs:
       run: tests/gate-0.8-tiling-look.sh
     - name: get_tags and the tags module of waybar follow a window
       run: tests/gate-0.9-tiling-tags.sh
+    - name: the portal shares an output through xdg-desktop-portal-wlr
+      run: tests/gate-0.9-screencast.sh
+    - name: an X11 program through xwayland-satellite is a tiled surface
+      run: tests/gate-0.9-x11.sh
     - name: the file manager of the XP start menu gets its activation token
       run: tests/gate-0.8-xp-token.sh e2e/xp
     - name: settings.set changes the XP wallpaper and saves it
