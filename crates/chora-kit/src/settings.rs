@@ -3,7 +3,8 @@
 //! only writer: `settings.set` checks a change, hands it to the plugin to
 //! apply and then writes the file. A change that the plugin cannot apply
 //! is not saved; a change that cannot be saved stays applied, and the
-//! caller gets the error. Edits by hand apply at the next start.
+//! caller gets the error. Edits by hand apply with `settings.reload`, which
+//! reads the file again, or at the next start.
 //!
 //! A key of a struct that the file leaves out takes its value of the
 //! default file; a map in the file replaces the default map. A change of
@@ -61,6 +62,14 @@ pub trait Store {
     ///
     /// The file cannot be written.
     fn save(&self) -> Result<(), RpcError>;
+
+    /// Reads the file again and takes its settings; answers them.
+    ///
+    /// # Errors
+    ///
+    /// The file cannot be read, or its settings are wrong; the settings
+    /// stay.
+    fn reload(&mut self) -> Result<Value, RpcError>;
 }
 
 impl<S: Settings> File<S> {
@@ -124,6 +133,12 @@ impl<S: Settings> File<S> {
         }
         vec![
             runtime::method("settings.get", "Answers the settings.", json!({}), &[]),
+            runtime::method(
+                "settings.reload",
+                "Reads the settings file again, after an edit by hand, and applies it.",
+                json!({}),
+                &[],
+            ),
             ExportMethod::Described(DescribedMethod {
                 name: "settings.set".into(),
                 description: Some(
@@ -176,6 +191,13 @@ impl<S: Settings> Store for File<S> {
     fn save(&self) -> Result<(), RpcError> {
         self.write()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e))
+    }
+
+    fn reload(&mut self) -> Result<Value, RpcError> {
+        self.value = Self::load(self.path.clone(), self.default)
+            .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e))?
+            .value;
+        Ok(self.get())
     }
 }
 
@@ -381,8 +403,8 @@ pub(crate) mod tests {
     fn the_schema_of_set_takes_single_keys() {
         let methods = File::<Demo>::methods();
         let names: Vec<&str> = methods.iter().map(ExportMethod::name).collect();
-        assert_eq!(names, ["settings.get", "settings.set"]);
-        let ExportMethod::Described(set) = &methods[1] else {
+        assert_eq!(names, ["settings.get", "settings.reload", "settings.set"]);
+        let ExportMethod::Described(set) = &methods[2] else {
             panic!("settings.set has a schema");
         };
         let schema = set.input_schema.as_ref().unwrap();

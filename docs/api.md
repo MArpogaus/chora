@@ -925,11 +925,15 @@ lists all of its methods:
 | `get_layout` | none | the same |
 | `give` | `to`: a client name | hands the focused window to `to` with a `remove` with `to`, and answers with its surface id |
 
-A plugin with settings exports `settings.get` and `settings.set` through
-the runtime of `chora-kit` (D62). `settings.get` answers all settings.
+A plugin with settings exports `settings.get`, `settings.set` and
+`settings.reload` through the runtime of `chora-kit` (D62). `settings.get`
+answers all settings. `settings.reload` reads the file again after an
+edit by hand, applies it and answers all settings; a wrong file gets the
+error `-32602` and changes nothing.
 `settings.set` takes a JSON merge patch (RFC 7386) of the settings: an
 object merges into the current settings key by key, also in nested
-objects, and a list or another value replaces its value. The other
+structs and maps, and a list or another value replaces its value, also an
+enum such as the action of a binding. The other
 settings stay. `null` removes the key: a map such as `bindings` loses that
 entry, and a fixed setting takes its default again. So `null` cannot set an
 optional setting such as `session.log_off` to none; the file can. The
@@ -943,6 +947,7 @@ In `methods.list`, the schema of `settings.set` lists every setting.
 ```console
 $ choractl call tiling settings.set '{"style": {"opacity": 0.9}}'
 $ choractl call tiling settings.set '{"bindings": {"MOD+u": null}}'
+$ choractl call tiling settings.reload
 ```
 
 `chora-xp` exports `start_menu`, `minimize`, `restore`, `activate`,
@@ -950,7 +955,7 @@ $ choractl call tiling settings.set '{"bindings": {"MOD+u": null}}'
 effects, the programs of the start menu and the commands of Log Off and
 Turn Off. [The XP flavor](configuration.md#the-xp-flavor) lists them.
 Its dialogs change the settings in the same way as `settings.set`. The
-method `restart` runs `chora-xp` again, which reads the file again:
+method `restart` runs `chora-xp` again, which also reads the file again:
 
 ```console
 $ choractl call xp settings.set '{"effects": {"wobbly": false, "sounds": false}}'

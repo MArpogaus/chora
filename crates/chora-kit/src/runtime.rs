@@ -1,6 +1,7 @@
 //! The runtime that every plugin repeats: it connects, subscribes to the
 //! events, exports the methods, grabs bindings, answers method calls,
-//! answers `settings.get`, `settings.set` and `settings.reload`, keeps to the outputs of
+//! answers `settings.get`, `settings.set` and `settings.reload`, keeps to
+//! the outputs of
 //! `--output`, and comes back after the core closed the connection.
 
 use std::{
@@ -230,6 +231,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
             let result = match (method.as_str(), plugin.settings()) {
                 ("settings.get", Some(settings)) => Ok(settings.get()),
                 ("settings.set", Some(_)) => set_settings(plugin, params),
+                ("settings.reload", Some(_)) => reload_settings(plugin),
                 _ => plugin.method(&method, params),
             };
             let rt = plugin.runtime();
@@ -264,6 +266,20 @@ pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, 
         .ok_or_else(no_settings)?
         .save()
         .map_err(|e| RpcError::new(e.code, format!("applied, not saved: {}", e.message)))?;
+    Ok(answer)
+}
+
+/// `settings.reload`: reads the settings file again, after an edit by
+/// hand, and has the plugin apply it. A wrong file changes nothing.
+///
+/// # Errors
+///
+/// The plugin has no settings, the file is wrong, or the plugin cannot
+/// apply it.
+pub fn reload_settings<P: Plugin>(plugin: &mut P) -> Result<Value, RpcError> {
+    let no_settings = || RpcError::new(RpcError::METHOD_NOT_FOUND, "settings.reload");
+    let answer = plugin.settings().ok_or_else(no_settings)?.reload()?;
+    plugin.settings_changed()?;
     Ok(answer)
 }
 
@@ -402,6 +418,28 @@ mod tests {
         assert_eq!(err.code, RpcError::REJECTED);
         assert_eq!(plugin.applied, 10, "the change stays applied");
         assert_eq!(plugin.settings.value.gap, 10);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// An edit by hand applies with a reload; a wrong edit changes nothing.
+    #[test]
+    fn reload_settings_reads_the_file_and_applies_it() {
+        let dir = dir("runtime-reload");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("demo.yaml");
+        let settings = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+        let mut plugin = Fake {
+            settings,
+            fail: false,
+            applied: 0,
+        };
+        std::fs::write(&path, "gap: 6\n").unwrap();
+        assert_eq!(reload_settings(&mut plugin).unwrap()["gap"], 6);
+        assert_eq!(plugin.applied, 6);
+        std::fs::write(&path, "gap: wide\n").unwrap();
+        let err = reload_settings(&mut plugin).unwrap_err();
+        assert_eq!(err.code, RpcError::INVALID_PARAMS);
+        assert_eq!(plugin.settings.value.gap, 6);
         std::fs::remove_dir_all(dir).unwrap();
     }
 

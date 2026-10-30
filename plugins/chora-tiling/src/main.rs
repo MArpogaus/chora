@@ -308,18 +308,6 @@ impl Tiling {
         Ok(())
     }
 
-    /// Reads the configuration file again and applies it.
-    fn reload(&mut self) -> Result<(), ClientError> {
-        match settings::File::load(self.settings.file().to_owned(), config::DEFAULT) {
-            Ok(settings) => self.settings = settings,
-            Err(err) => {
-                eprintln!("chora-tiling: {err}");
-                return Ok(());
-            }
-        }
-        self.reconfigure()
-    }
-
     /// Applies the settings and grabs their bindings.
     fn reconfigure(&mut self) -> Result<(), ClientError> {
         self.rt.ungrab_all()?;
@@ -604,7 +592,13 @@ impl Tiling {
                 Ok(())
             }
             Some(Effect::Close(surface)) => self.apply(vec![Command::Close { surface }]),
-            Some(Effect::Reload) => self.reload(),
+            // The same path as the method `settings.reload`.
+            Some(Effect::Reload) => {
+                if let Err(err) = runtime::reload_settings(self) {
+                    eprintln!("chora-tiling: {}", err.message);
+                }
+                Ok(())
+            }
             None => Ok(()),
         }
     }

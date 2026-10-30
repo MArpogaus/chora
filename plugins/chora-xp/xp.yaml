@@ -1,7 +1,7 @@
 # The settings of chora-xp. It lists every option. Copy it to
 # ~/.config/chora/chora-xp.yaml and change it there, or change it with the
 # method settings.set or the dialogs of chora-xp, which rewrite the file.
-# Edits by hand apply on the method restart.
+# Edits by hand apply on the method settings.reload or restart.
 
 # The shell command of the terminal, for Super+e and the desktop files
 # that need a terminal.

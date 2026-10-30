@@ -150,7 +150,8 @@ default `~/.config`, or the file of `--config`. Without a file, it uses its
 default, which `chora-tiling --print-config` prints. The file holds the
 settings of D62: `settings.set` changes them at once and writes the file
 again, without its comments (see [API](api.md#plugin-methods)). Edits by
-hand apply at the next start of the plugin or with `MOD+Ctrl+r`. The
+hand apply with `settings.reload` or `MOD+Ctrl+r`, or at the next start
+of the plugin. The
 default file lists every option. A file can leave options out, and they
 take their defaults; a map such as `bindings` in the file replaces the
 default map:
@@ -190,7 +191,7 @@ like `set_layout`.
 | `focus` | `surface` | a click: focuses and raises the window, and its output; a window that shows nowhere only gets the urgent mark |
 | `focus_next`, `focus_prev` | none | `MOD+j` and `MOD+k` |
 | `swap_master` | `surface` | `MOD+Ctrl+Return`, for this window |
-| `settings.get`, `settings.set` | see [API](api.md#plugin-methods) | an edit of the file and `MOD+Ctrl+r` |
+| `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | an edit of the file and `MOD+Ctrl+r` |
 
 `chora-tiling` connects with `resume` (see [API](api.md#ipc-methods)). It
 keeps the tags and the layouts of each output, and the tags, the states
@@ -255,7 +256,8 @@ again changes nothing. The effect is `plugins/chora-mc/write.frag`, and
 the `animate` of the core moves its uniform `progress` from 0 to 1.
 
 A window that no scene started, for example from a launcher, gets a scene
-of its own. The settings of D62 are in `chora/chora-mc.yaml`:
+of its own. The settings of D62 are in `chora/chora-mc.yaml`; edits by
+hand apply with `settings.reload`:
 
 - `theme` (`light` or `dark`) and the colors of each theme.
 - `font`: Inter by default, from the Fedora package `rsms-inter-fonts`;
@@ -670,7 +672,7 @@ these bindings, Super+Ctrl with the arrows stands in.
 default, `plugins/chora-xp/xp.yaml` of the source tree. The file holds
 the settings of D62: `settings.set` and the dialogs change them at once
 and write the file again, without its comments. Edits by hand apply with
-the method `restart`. The default file lists every option; an option
+the method `settings.reload` or `restart`. The default file lists every option; an option
 that the file leaves out takes its default:
 
 | Option | Default | Meaning |

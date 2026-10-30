@@ -2,6 +2,7 @@
 # bindings use every action at least once. `chora-tiling --print-config` prints this
 # file. Copy it to ~/.config/chora/chora-tiling.yaml and change it there,
 # or change it with the method settings.set, which rewrites the file.
+# Edits by hand apply on the method settings.reload or MOD+Ctrl+r.
 # The bindings follow the default keymap of the awesome window manager.
 
 # What MOD means in the bindings: Super or Alt.
