@@ -3,7 +3,8 @@
 # checklist on the reference hardware, run by the user inside the chora
 # session. It asks before every step, collects the evidence of the core
 # (choractl, journal, coredumpctl, units, loginctl) and writes one log.
-# It never suspends or changes anything: the user does each action.
+# It never suspends: the user does each action. It only sets the input
+# settings of the step "input settings", which stay for the session.
 #
 # Usage: tests/gate-0.9-hardware.sh [LOGFILE]
 #   Default log: ./gate-0.9-hardware-YYYYmmdd-HHMMSS.log
@@ -82,6 +83,17 @@ step "VT switch" "Switch to another VT (Ctrl+Alt+F3), then back"
 step "lock and unlock" "Lock the session (swaylock), then unlock it"
 step "screen share" "Share a screen or a window in a browser (a web conference test page)"
 step "X11 app" "Start an X11 app (xeyes) and see it as a tiled window"
+
+# Gate check 6 on real devices: a view sets tap, natural scroll and key
+# repeat. The answer of view load is the readback of input.configure.
+input_view=$(mktemp --suffix=.yaml)
+printf '%s\n' 'name: gate-input' 'input:' \
+    '  keyboard: {repeat_rate: 40, repeat_delay: 300}' \
+    '  touchpad: {tap: true, natural_scroll: true}' >"$input_view"
+note "== input view: choractl view load (readback of input.configure)"
+timeout 10 choractl view load "$input_view" >>"$log" 2>&1
+rm -f "$input_view"
+step "input settings" "Tap on the touchpad to click, scroll with two fingers (content follows the fingers), hold a key (fast repeat after a short delay)"
 
 say ""
 say "### end state"
