@@ -300,12 +300,33 @@ skips tells the client that it missed an event, so it queries again. After
 a reconnect a client works from the new snapshot and forgets the old
 numbers.
 
-The response of `scene.apply` reports the result of a transaction: `null`
-when it applied, an error with the index of the failed command when not.
+The response of `scene.apply` reports the result of a transaction. When
+the transaction applied, the result is `{"warnings": [...]}`. When it did
+not apply, the response is an error with the index of the failed command.
+A warning does not stop the transaction. It tells the client that a
+command applied but does not give the result that the client probably
+expects (D59). Each warning has a stable `code`, the `node` and a short
+`message`:
+
+```json
+{"warnings": [{"code": "deaf_surface", "node": "s1",
+               "message": "an ancestor has input pass or block, so the surface gets no pointer input"}]}
+```
+
+| Code | Cause |
+|------|-------|
+| `deaf_surface` | an `attach` or a `move` puts a surface under an ancestor with `input: pass` or `block`; the surface gets no pointer input |
+| `layer_over_budget` | after a `create`, `update` or `animate`, the layer textures of a layer node and its descendants need more pixels than the budget of one frame, at the scale of each output; no frame draws the node |
+
+The pixel budget of a frame is 64 Mi pixels. The layers that do not fit
+into a frame because of other layers are no warning: the event
+`layers.dropped` tells them when the frame shows.
+
 `choractl apply FILE` reads one list of commands as JSON, from standard
-input when the file is `-`; it prints nothing when it applied and the
-reason when not, so the exit code is the answer. Only the `view`
-subcommand reads YAML.
+input when the file is `-`. It prints nothing when it applied and the
+reason when not, so the exit code is the answer. It prints each warning
+on standard error and exits with success. Only the `view` subcommand
+reads YAML.
 A request that a client makes before its `surface.created` follows
 that event. A taskbar asks through `wlr-foreign-toplevel-management`.
 The core does not act on a request, also not on `close`. A plugin answers
@@ -931,7 +952,7 @@ nodes that it does not need (D61).
 | `describe_screen` | a screenshot of an output, at most 1280 pixels a side by default, and in words: the outputs, the windows with their positions in scene coordinates and sizes, and the plugins with their methods |
 | `capture` | a picture of an output or of a node, as `screen.capture`, at most 1920 pixels a side by default |
 | `query_scene` | the nodes of a selector |
-| `apply_commands` | a transaction |
+| `apply_commands` | a transaction; the answer is `applied`, and the warnings of `scene.apply` as JSON when there are some |
 | `list_plugins` | the connected clients and their methods |
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
