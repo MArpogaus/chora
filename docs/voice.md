@@ -1,6 +1,6 @@
 # chora-voice: the voice agent in Rust (draft specification)
 
-Status: draft, 2026-10-30. WP0 to WP4 are done. Sources:
+Status: draft, 2026-10-30. WP0 to WP5 are done. Sources:
 `services/voice/agent.py`, D53, D58, D61, D62, `docs/api.md`, the
 `chora-kit` runtime and settings, `choractl mcp`, and live probes of the
 Gufo servers.
@@ -111,10 +111,15 @@ The agent starts in `listening` (awake).
 | any | Sleep word or `voice.sleep` | `sleeping`, earcon |
 | `sleeping` | `voice.wake` | `listening`, earcon |
 
-Until WP6, `recording` ends in `transcribing` (asleep: `sleeping`), and
-the transcript (or an ASR error with the error earcon) returns to
-`listening`. The log and `last_transcript` show the text. The final
-text of an older turn still counts; a late interim text drops.
+Until WP6, `recording` ends in `transcribing` (asleep: `sleeping`). An
+ASR error (with the error earcon), an empty text or a text while asleep
+returns to `listening` or `sleeping`. Other text, awake, starts a reply
+without the word matcher: `thinking`, `tool`, `confirming` and
+`speaking` as the reply goes on, then `listening`. While a reply runs,
+the speech gate rests: no barge-in and no queue yet. PTT down,
+`voice.cancel` and `voice.sleep` stop the reply and its sound. The log,
+`last_transcript` and `last_reply` show the texts. The final text of an
+older turn still counts; a late interim text drops.
 
 Barge-in while `speaking`: speech over the barge-in gate (section 4) for
 `barge_in_ms` stops playback at once. The unplayed sentences stay
@@ -172,7 +177,10 @@ A keyword-spotting model can replace this later.
 A rule matches by `tool` (glob), and optionally by the command kinds of
 `apply_commands`, by `argv0` of `run_program`, or by `method` (glob) of
 `call_method`. The agent speaks the `prompt` of the rule and waits for
-yes or no. The method `confirm` answers from a key or the HUD.
+yes or no. The method `confirm` answers from a key or the HUD (WP5);
+the spoken yes and no come with WP6. No answer within
+`confirm_timeout_ms` is a no. A no gives the LLM the result "declined by
+the user; nothing happened".
 
 ## 6. Error handling
 
@@ -184,8 +192,8 @@ yes or no. The method `confirm` answers from a key or the HUD.
 | TTS | Error or timeout | Earcon; the text stays in the history and in `last_reply`; the tool loop goes on |
 | LLM | Connect error | One retry, then "Das Sprachmodell antwortet nicht." |
 | LLM | First token, idle or total timeout | Abort, keep the rounds so far, say so |
-| LLM | Context error or `finish_reason: length` | Trim the history to half the budget, one retry |
-| LLM | `tool_rounds` reached | German phrase from `phrases`; history stays |
+| LLM | Context error | Trim the history to half the budget, one retry |
+| LLM | `tool_rounds` reached | A final round with `tool_choice: none` and a note: sum up in the language of the user; without words, `phrases.tool_rounds`; history stays |
 | MCP | Child exits | Restart with backoff; call in flight gets "connection lost, result unknown"; tools reload |
 | MCP | `tool_timeout_s` | Cancel the call; result "timeout, result unknown" |
 | chora | Connection closed | Runtime reconnects and grabs PTT again; after 30 s, exit 1 |
@@ -198,16 +206,29 @@ are synthesized tones: wake, sleep, cancel, question, error.
 
 ## 7. History and token budget
 
-- `context_tokens` from the setting, else from the server (`/props` or
-  `/v1/models`; Gufo has 128000), else 32768.
-- Budget: `context_tokens` minus `reply_reserve_tokens`, the prompt and
-  the tools. The estimate uses characters per token, learned from the
-  last `usage.prompt_tokens`; no tokenizer.
+- `context_tokens` from the setting, else from the server
+  (`context_length` in `/v1/models`; Gufo has 128000), else 32768.
+- Budget: `context_tokens` minus `reply_reserve_tokens`. The estimate
+  counts the characters of the prompt, the tools and the messages (a
+  picture counts as 4000), divided by the characters per token of the
+  last request: its length over its `usage.prompt_tokens` (3.0 at the
+  start; requests with a picture teach nothing). No tokenizer.
 - Before each request, drop the oldest whole turns until the estimate
-  fits. Old tool texts shrink to `old_tool_chars`; the last `put_asset`
-  of each name stays whole.
-- The user words of `saved_requests` turns go to
-  `~/.local/state/chora/voice-history.json`.
+  fits; the turn in progress stays. Before a new turn, old tool texts
+  shrink to `old_tool_chars` and lose their pictures, and long arguments
+  of old calls become `{"shortened": true}`; the last `put_asset` of
+  each name stays whole.
+- The requests of the last `saved_requests` turns go to
+  `$XDG_STATE_HOME/chora/voice-history.json` (default
+  `~/.local/state`), in the format of the Python agent (a list of user
+  messages). At start, they go into the system prompt as quoted lines
+  under "Earlier requests of the user", not as chat messages.
+- The system prompt: `system_prompt`, or the built-in prompt
+  (`src/prompt.md`, from the Python agent); then the `context_docs`
+  (`FILE` or `FILE#HEADING` for one `## HEADING` section), or the
+  built-in ones: `README.md`, `docs/glossary.md` and ten sections of
+  `docs/api.md`, compiled into the binary; then `prompt_file`. A
+  missing document or heading is an error at start.
 
 ## 8. ASR and TTS protocol (live probe, 2026-10-30)
 
@@ -277,11 +298,13 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `asr_timeout_s`, `tts_timeout_s`, `tool_timeout_s` | `15`, `10`, `30` |
 | `llm_first_token_s`, `llm_idle_s`, `llm_total_s` | `30`, `20`, `120` |
 | `chora_mcp`, `coder_cmd` | `[choractl]`, `[]` |
-| `skipped_tools` | `[subscribe_events, wait_events, capture]` |
+| `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]` |
+| `playback_buffer_ms` | `1000` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`: German sentences |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
-device. The German canned sentences (`phrases`) come with WP5.
+device.
 
 ```yaml
 confirm:
@@ -309,11 +332,12 @@ two lists, a `ptt_key` that does not parse, and a rule without a prompt.
 | `restart` | none | reads the settings file again |
 | `settings.get`, `settings.set` | D62 | D62 |
 | `talk` (WP6) | `down: bool` | PTT from another client, for example `chora-mc` |
-| `confirm` (WP6) | `answer: yes\|no` | the new state record |
+| `confirm` (WP5) | `answer: yes\|no` | the new state record |
 
 The state record: `state`, `since_ms` (time in the state), `seq` (one
 more per change), `awake`, `muted: {mic, speaker}`, `turn`,
-`last_transcript`, `last_reply`. Later packages add `confirming`,
+`last_transcript`, `last_reply`. Later packages add `confirming` (the
+prompt),
 `coder` and `health`.
 
 HUD: the core will get client-emitted events (a new decision record,
@@ -406,7 +430,9 @@ Replay tests:
 Fake servers for CI (`src/fake.rs`, WP4): a scripted ASR websocket
 (text, error, silence, a first socket that fails), a TTS websocket
 (silence, 60 ms per character, one sentence per `.` or `?`, a wrong
-rate, no answer); WP5 adds an SSE LLM with scripted tool calls. With a
+rate, no answer); WP5 added an LLM (`/models`, SSE with scripted words,
+tool calls, HTTP errors and silence; a quarter of the request length as
+`prompt_tokens`) and an in-process MCP server for `tools.rs`. With a
 fake tool executor, an end-to-end test runs a replay through the whole
 agent and checks the LLM requests and the state sequence.
 
@@ -414,8 +440,9 @@ Live tests: `services/voice/tests/live.py TTS_URL ASR_URL [CLIP]` checks
 the TTS events, the ASR at 24 kHz and 16 kHz, and writes the test clip.
 WP4 added the `chora-voice` subcommands `roundtrip [TEXT]` (TTS, then
 its sound to the ASR, with the latencies), `tts TEXT [--out FILE]` and
-`asr FILE`; WP3 added `replay DIR...`. WP5 and WP6 add `levels` and
-`tools`. The URLs come
+`asr FILE`; WP3 added `replay DIR...`; WP5 added `ask TEXT [--speak]
+[--yes]` (one turn with the LLM and the tools of `choractl mcp`, with
+the latencies). WP6 adds `levels`. The URLs come
 from the settings. From the agent sandbox, the servers are at
 `192.168.178.195`: ASR `:8881`, TTS `:8882`, LLM `:8888` (model `gufo`,
 context 128000, text and image), reachable only with the sandbox off.
@@ -428,14 +455,14 @@ a headless chora session.
 Reused from `Cargo.lock`: `serde`, `serde_json`, `schemars`,
 `serde-saphyr`, `clap`, `tracing`, `tracing-subscriber`, `chora-kit`,
 `chora-scene`; WP4 added `tokio` (the workspace features and `net`),
-`futures-util` (`sink`) and `base64`; WP5 adds `rmcp` (`client`,
-`transport-child-process`) and the `tokio` features it needs.
+`futures-util` (`sink`) and `base64`; WP5 added `rmcp` (`client`,
+`transport-child-process`) and the `tokio` feature `process`.
 
 | New crate | Why |
 |---|---|
 | `tract-onnx` 0.22 | Silero VAD in pure Rust. 0.23 needs Rust 1.91; the workspace has 1.89 |
 | `tokio-tungstenite` 0.28 (default features: no TLS; WP4) | ASR and TTS websockets, fake servers |
-| `reqwest` (no defaults; `json`, `stream`, WP5) | LLM SSE; chunked HTTP by hand is a bug source |
+| `reqwest` 0.13 (no defaults; `stream`; WP5) | LLM SSE; chunked HTTP by hand is a bug source. It brings `hyper`, `tower` and `tower-http` (MIT); 0.13 is the version of the optional `rmcp` dependency |
 
 `tract-linalg` builds its kernels with `cc` and needs `ar` at build time.
 
@@ -447,7 +474,7 @@ binary with `include_bytes!`. The crate lives in `services/voice/` (D53)
 as a workspace member. No package and no unit until the agent completes
 full turns; then `chora-voice.service` replaces `voice-agent.service`.
 
-## 15. Results of WP0 to WP4 (2026-10-30)
+## 15. Results of WP0 to WP5 (2026-10-30)
 
 Silero on `tract`:
 
@@ -559,6 +586,53 @@ build, from the agent sandbox):
   sentence in samples. The HUD gets them with the speaking state (WP6)
   and the client events (WP8).
 
+WP5, the LLM and the tool loop:
+
+- Modules: `llm.rs` (SSE client), `tools.rs` (MCP client, confirm
+  rules), `chat.rs` (prompt, history, budget, tool loop), `speech.rs`
+  (sentence splitter, speech with playback buffer), and the reply states
+  in `core.rs`.
+- The splitter ends a sentence after `.!?:;` and a space, or at a line
+  break; not after a number ("3. Oktober") or a short abbreviation ("z.
+  B."). The first piece of a reply may end at a comma after 40
+  characters. It drops the marks of markdown.
+- One TTS socket per sentence, one after the other: the next sentence
+  starts when the one before has all its sound, which is while it plays.
+- MCP: a call has `tool_timeout_s`; a dropped call sends
+  `notifications/cancelled` (rmcp `call_tool_once`). A lost child answers
+  "the connection to chora was lost; the result is unknown"; the next
+  call or turn connects again (backoff 0.5 s to 5 s) and loads the tools
+  again. Tools reload at the start of each turn, so new plugin methods
+  need no restart. Dots in tool names become `__` for the LLM.
+- Deviations: `finish_reason: length` only logs. A cancel aborts the
+  reply task: the round in flight does not go into the history, and the
+  note "cancelled by the user; result unknown" comes with WP6. The
+  final round keeps the tools and sends `tool_choice: none`: without
+  the tools, Gufo read the whole prompt again (21 s instead of 1.4 s).
+
+Live check, debug build, `chora-voice ask` in a headless chora session
+with `chora-tiling` and one `foot` window, against Gufo (25 tools,
+prompt 22700 tokens, warm cache):
+
+| Request | Tools | First token | Total | Outcome |
+|---|---|---|---|---|
+| "Welche Fenster sind gerade offen? Schau bitte nach." | `query_scene` | 1.31 s | 3.6 s | answered |
+| "Wie viele Fenster sind offen, und wie heißt das Layout?" (`--speak`) | `query_scene`, `tiling.get_layout` | 1.04 s | 14.7 s | answered |
+| "Schließ bitte das Terminal-Fenster." (confirm: no) | `query_scene`, `apply_commands` declined | 0.91 s | 5.5 s | answered |
+| Layout and plugins with `tool_rounds: 1` | three in one round | 0.55 s | 4.7 s | tool_rounds |
+| The same in English | three in one round | 0.63 s | 13.5 s | tool_rounds |
+
+- With `--speak`: the first sentence came 3.4 s after the request (two
+  rounds), the TTS sent its first sound 0.56 s later, and playback
+  started at 5.9 s, after 1 s of buffer. The TTS needs 3.2 s for the
+  2.4 s of "Es ist ein Fenster offen, der Terminal foot.".
+- After the declined `apply_commands`, the LLM said that the user
+  declined and asked what to do. The final rounds summed up in German
+  and in English.
+- The agent itself started in the session, connected the tools as
+  `voice-mcp`, warmed the cache in 0.4 s and answered `voice.confirm`
+  and `voice.state`; a wrong answer gives -32602.
+
 ## 16. Work packages
 
 | # | Package | Size |
@@ -568,7 +642,7 @@ build, from the agent sandbox):
 | WP2 | `audio_in` with Silero, `audio_out`, earcons, `record_dir` (done) | M |
 | WP3 | Replay harness, labels, metrics with thresholds, CI corpus (done) | M |
 | WP4 | ASR and TTS clients, interim text, fake servers (done) | M |
-| WP5 | LLM client, tool loop, MCP reconnect and timeouts, token budget | L |
+| WP5 | LLM client, tool loop, MCP reconnect and timeouts, token budget (done) | L |
 | WP6 | State machine, word matcher, barge-in, cancel, sleep/wake, confirmation; first full voice turn; remove `agent.py` and `voice-agent.service` | L |
 | WP7 | Coder port | S |
 | WP8 | Error paths, health, indicator, client events for the HUD, live gate | M |
@@ -590,6 +664,16 @@ S: up to 1 day. M: 2 to 3 days. L: about 1 week.
    agent learns), or keep the rule and trust the echo canceller? A
    recording with the echo canceller on the reference hardware would
    show the real echo level.
-5. The TTS is slower than real time for longer sentences (section 15,
-   WP4). Start playback only after a buffer (for example 1 s, or the
-   whole first sentence), or accept gaps?
+5. Answered for now (WP5): playback starts after `playback_buffer_ms`
+   (1 s) of sound or at the end of the sentence, and again so after it
+   ran dry.
+6. The tools connect as `NAME-mcp` (`voice-mcp`), not as `voice`: the
+   core refuses a second connection of a name with other `hello` flags
+   (the runtime has `resume`, `choractl mcp` has `keep_nodes`). So the
+   nodes of the LLM belong to `voice-mcp`, and the grant for the picture
+   of `describe_screen` is `choractl grant voice-mcp screen.capture`.
+   Keep this, or give `choractl mcp` a flag for the `hello` of the
+   runtime?
+7. The built-in prompt and documents are about 22700 tokens. A cold
+   warm-up took 41 s on Gufo; with the cache 0.2 s to 10 s. Fewer
+   sections of `docs/api.md` would make a cold start faster.
