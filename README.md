@@ -62,21 +62,24 @@ chora-tiling`. The log names the layouts at the start.
 The safety layer has fixed bindings: Ctrl+Alt+Escape resets the scene,
 Ctrl+Alt+BackSpace quits chora, and Ctrl+Alt+F1 to F12 switch the VT.
 
-To let an agent drive chora, grant it screenshots and input, and add
-`choractl --name agent mcp` as an MCP server of the agent:
+To let an agent drive chora, grant it screenshots, input and program
+starts, and add `choractl --name agent mcp` as an MCP server of the
+agent:
 
 ```bash
-choractl grant agent screen.capture input.inject
+choractl grant agent screen.capture input.inject activation.token
 ```
 
 The agent can then put its own shaders and images, reserve a panel at the
 edge of the output, wait for clicks and keys, and move the camera. With
 `choractl run` it starts programs outside the core, and `choractl
-supervise` with `choractl restart` keeps a plugin running (D42).
+restart` restarts the systemd unit of a plugin (D42).
 
 To try the XP flavor, a stacking desktop in the style of Windows XP, start
-`chora -- chora-xp`. From a source tree, point it at the theme:
-`target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme`.
+`chora -- chora-xp`. From a source tree, put the binaries on `PATH`,
+since the plugins start apps with `choractl run`, and point it at the
+theme: `PATH=$PWD/target/debug:$PATH chora -- chora-xp --theme
+flavors/xp/theme`.
 Windows wobble while you drag them and minimize through a magic lamp.
 Ctrl+Alt+Left and Ctrl+Alt+Right, or the desktop buttons 1 to 4 in the
 taskbar, turn a cube of four desktops. Inside GNOME, which keeps

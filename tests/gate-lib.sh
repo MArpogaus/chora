@@ -1,5 +1,5 @@
 #!/bin/bash
-# Shared helpers for the gate scripts of plan 0.8 (tests/gate-0.8-<n>.sh).
+# Shared helpers for the gate scripts (tests/gate-*.sh).
 # A gate script answers "ok: ..." or "SKIP: <why>" with exit 0, or
 # "FAIL: <why>" with exit 1. Sources cleanly from any directory.
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -39,7 +39,8 @@ session_start() {
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }
 ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
 # run_pid <pid> remembers a program of `choractl run` (D42): it lives in
-# a session of its own, so the EXIT trap of session_start must end it.
+# a unit or outside the group of the core, so the EXIT trap of
+# session_start must end it.
 run_pids=()
 run_pid() { run_pids+=("$1"); }
 pixel() { python3 -I "$repo/tests/png-pixel.py" "$@"; }

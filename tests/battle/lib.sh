@@ -1,19 +1,34 @@
 #!/bin/bash
 # Shared helpers for the battle workflows. Source this, then call
 # session_start, health, session_stop. Run files: $RUN set by the driver.
-repo=/home/marcel/Projekte/chora
+repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$repo" || exit 1
-bin=$repo/target/debug
+bin=${BIN:-$repo/target/debug}
 findings=$repo/tests/battle/findings.md
-export PATH=/home/agent/.local/share/mamba/envs/chora/bin:$PATH
-# software EGL for the headless backend (system libEGL is not installed)
-export LD_LIBRARY_PATH=/home/agent/.local/opt/mesa-egl/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-export __EGL_VENDOR_LIBRARY_FILENAMES=/home/agent/.local/opt/mesa-egl/usr/share/glvnd/egl_vendor.d/50_mesa.json
+mamba=$HOME/.local/share/mamba/envs/chora/bin
+[ -d "$mamba" ] && export PATH=$mamba:$PATH
+# no user manager of the host: run starts children that the session ends
+unset DBUS_SESSION_BUS_ADDRESS
+# software EGL for the headless backend where the system has no libEGL
+egl=$HOME/.local/opt/mesa-egl
+if [ -d "$egl" ]; then
+  export LD_LIBRARY_PATH=$egl/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+  export __EGL_VENDOR_LIBRARY_FILENAMES=$egl/usr/share/glvnd/egl_vendor.d/50_mesa.json
+fi
 export GALLIUM_DRIVER=llvmpipe LIBGL_ALWAYS_SOFTWARE=1
 
 step() { echo "-- $*" >> "$RUN"; }
 ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
 admin() { timeout 10 "$bin/choractl" "$@"; }
+# restart_plugin <name> ends a plugin that keep.sh runs with the pid file
+# /tmp/bt-$WF-<name>.pid; keep.sh starts it again.
+restart_plugin() {
+  local file=/tmp/bt-$WF-$1.pid old
+  old=$(cat "$file") && kill "$old" || return 1
+  # wait for the new pid, so that the next restart ends the new plugin
+  for _ in $(seq 50); do [ "$(cat "$file")" != "$old" ] && return 0; sleep 0.1; done
+  return 1
+}
 
 # health <what just happened>  -> a finding with severity crash if the core
 # does not answer within 5 s.
@@ -76,8 +91,8 @@ session_stop() {
   [ -n "$HLPID" ] && kill "$HLPID" 2>/dev/null
   wait "$HLPID" 2>/dev/null
   HLPID=
-  # `choractl run` detaches its programs (D42): they live outside the
-  # process group of the core, so this script ends them. Their pids are
+  # `choractl run` starts its programs in the process group of this
+  # script (D42), outside the group of the core, so this script ends them. Their pids are
   # in a file because `$(open ...)` runs `open` in a subshell.
   kill $(cat "/tmp/bt-$WF.pids" 2>/dev/null) 2>/dev/null
   : > "/tmp/bt-$WF.pids"

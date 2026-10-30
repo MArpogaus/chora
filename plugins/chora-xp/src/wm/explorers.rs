@@ -3,7 +3,7 @@
 
 use chora_scene::Command;
 
-use super::{DIALOGS, Panel, Wm, desktops::desk_id, spawn};
+use super::{DIALOGS, Panel, Wm, desktops::desk_id};
 use crate::{
     confirm::ConfirmDialog,
     context,
@@ -107,7 +107,7 @@ impl Wm {
             Outcome::ControlPanel => self.open_control_panel(),
             Outcome::EmptyTrash(names) => self.confirm_empty(&names),
             Outcome::Open(path) => {
-                spawn(&desktop_icons::xdg_open(&path));
+                chora_kit::run(&desktop_icons::xdg_open(&path));
                 Vec::new()
             }
             Outcome::Menu(entries, [x, y]) => {

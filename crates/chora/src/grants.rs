@@ -1,5 +1,8 @@
 //! Grants of the user for the IPC methods that see or drive the whole
-//! session: `input.inject`, `screen.capture` and `input.grab-any`.
+//! session: `input.inject`, `screen.capture` and `input.grab-any`. A
+//! client socket also needs `methods.call` to call plugin methods, and
+//! `activation.token` to start programs with `choractl run`. The main
+//! socket may always do both.
 //!
 //! `choractl grant NAME CAPABILITY` grants a capability to a client name,
 //! until `choractl revoke` or the end of the session, through the admin
@@ -64,26 +67,10 @@ impl Grants {
         }
     }
 
-    /// Revokes every grant.
-    pub fn clear(&mut self) {
-        self.0.clear();
-    }
-
-    /// Revokes the grants of every client that holds only capabilities
-    /// agents work with (D23): all capabilities are agent capabilities
-    /// today. Returns the names, so the caller can end what the grants
-    /// gave these clients.
-    pub fn revoke_agents(&mut self) -> Vec<String> {
-        let names: Vec<String> = self
-            .0
-            .iter()
-            .filter(|(_, held)| held.iter().all(|c| Capability::ALL.contains(c)))
-            .map(|(name, _)| name.clone())
-            .collect();
-        for name in &names {
-            self.0.remove(name);
-        }
-        names
+    /// Revokes every grant (D23). Returns the names, so the caller can
+    /// end what the grants gave them.
+    pub fn revoke_all(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.0).into_keys().collect()
     }
 
     fn list(&self) -> Value {
@@ -117,6 +104,16 @@ impl State {
             }
         }
         Ok(Value::Null)
+    }
+
+    /// Checks a capability that only a client socket needs: the main
+    /// socket may always use it.
+    pub fn check_socket_grant(&self, conn: u64, capability: Capability) -> Result<(), RpcError> {
+        if self.ipc.fixed(conn).is_some() {
+            self.check_grant(conn, capability)
+        } else {
+            Ok(())
+        }
     }
 
     /// Checks that the client of a connection holds a capability.

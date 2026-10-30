@@ -1,9 +1,9 @@
 #!/bin/bash
 # W2 xp: 5 windows, start menu, 20 Alt+Tab, minimize/restore/activate,
-# XP Restart x5, choractl restart xp x5; windows must keep their place.
+# XP Restart x5, five outside restarts; windows must keep their place.
 WF=w2; . "$(dirname "$0")/lib.sh"
-# supervise keeps xp alive and answers `choractl restart` (D42)
-session_start "1280x800" "$bin/choractl" supervise xp -- "$bin/chora-xp" --theme flavors/xp/theme --no-sounds || exit 1
+# keep.sh starts xp again after each restart
+session_start "1280x800" tests/battle/keep.sh "/tmp/bt-$WF-xp.pid" "$bin/chora-xp" --theme flavors/xp/theme --no-sounds || exit 1
 
 for i in $(seq 5); do open $((i*40)) $((200-i*30)) 90 --server-deco; done
 wait_count "app_id:chora-probe kind:surface" 5 \
@@ -79,21 +79,20 @@ for _ in $(seq 30); do
     sleep 0.2
 done
 
-# the Restart method of T11 five times, then choractl restart xp five times
+# the Restart method of T11 five times, then five restarts from the outside
 for i in $(seq 5); do
-  # xp runs itself again in the same process, so supervise sees no end
-  # and counts no restart; Ok comes back before the exec, so only a
-  # refused or unknown method fails here
+  # xp runs itself again in the same process; Ok comes back before the
+  # exec, so only a refused or unknown method fails here
   ctl call xp restart > /dev/null 2>&1 || finding "W2: xp restart refused in round $i" wrong "call xp restart"
   ready xp turn_to '{"desktop": 0}' || finding "W2: xp did not answer after Restart $i" wrong "call xp restart"
   health "XP Restart $i"
 done
 
-# five restarts from the outside: the most supervise allows in a minute
+# five restarts from the outside, as `choractl restart xp` on a login
 for i in $(seq 5); do
-  ctl restart xp > /dev/null 2>&1 || finding "W2: choractl restart xp failed" ugly "restart xp"
-  ready xp turn_to '{"desktop": 0}' || finding "W2: xp did not answer after restart $i" wrong "choractl restart xp"
-  health "choractl restart xp $i"
+  restart_plugin xp || finding "W2: the restart of xp failed" ugly "restart xp"
+  ready xp turn_to '{"desktop": 0}' || finding "W2: xp did not answer after restart $i" wrong "restart xp"
+  health "restart xp $i"
 done
 
 after=$(places)

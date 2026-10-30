@@ -1,7 +1,7 @@
 #!/bin/bash
 # Gate check 5 of 0.7: the Quadlet unit dist/quadlet/chora-agent@.container
 # connects through its client directory after a restart of chora, with no
-# change to the unit. This needs podman, a running user systemd, an
+# change to the unit. This needs podman, a running user manager, an
 # installed chora@.service and the image localhost/chora-agent:latest
 # with a choractl inside. None of it exists in this sandbox, so the
 # answer here is SKIP.
@@ -11,7 +11,7 @@ set -u
 . "$(dirname "$0")/gate-lib.sh"
 need podman
 systemctl --user is-system-running >/dev/null 2>&1 ||
-    skip "no answering user systemd; Quadlet units need one"
+    skip "no user manager answers; Quadlet units need one"
 test -f "$HOME/.config/containers/systemd/chora-agent@.container" ||
     skip "the Quadlet example is not installed under ~/.config/containers/systemd"
 test -f "$HOME/.config/systemd/user/chora@.service" ||

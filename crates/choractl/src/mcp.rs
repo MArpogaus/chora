@@ -488,10 +488,17 @@ fn scene_tools() -> Vec<Tool> {
     ]
 }
 
-/// The tools of the session: the work area and assets. Programs come
-/// from `choractl run` outside the core (D42).
+/// The tools of the session: programs, the work area and assets.
 fn session_tools() -> Vec<Tool> {
     vec![
+        tool(
+            "run_program",
+            "Start a program as choractl run does, on the machine of this MCP server. It runs in a systemd user unit of its own, or as its own child without a user manager. The program gets an activation token, so that its window gets the focus. The client name needs the grant activation.token on every socket. Returns the pid, the unit and the token, or the error when the start failed. The output of the program never comes back: it goes to the journal of the unit, or nowhere without a user manager.",
+            &json!({
+                "argv": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "the program and its arguments, for example [\"foot\"]"},
+            }),
+            &["argv"],
+        ),
         tool(
             "configure_output",
             "Set the scale or the transform of an output, as wlr-randr does. Returns the output.",
@@ -638,11 +645,30 @@ fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBloc
         }
         "save_view" => Ok(vec![json_text(&view::save(&string("name")?, None)?)]),
         "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
+        "run_program" => run_program(core, args),
         "put_asset" => put_asset(core, args),
         "reserve_space" => reserve_space(core, args),
         "configure_output" => pass::<OutputConfigure>(core, "output.configure", args),
         other => Err(Failure::UnknownTool(format!("no tool {other:?}"))),
     }
+}
+
+/// `run_program`. A started program can do all the user can, also grant
+/// itself, so the tool needs the grant on every socket.
+fn run_program(core: &mut Core, args: &Value) -> Result<Vec<ContentBlock>, Failure> {
+    let grants: Value = core.call("grants.list", Value::Null)?;
+    let held = grants[&core.name]
+        .as_array()
+        .is_some_and(|held| held.iter().any(|c| c == "activation.token"));
+    if !held {
+        return Err(Failure::Tool(format!(
+            "run_program needs the grant activation.token for {}",
+            core.name
+        )));
+    }
+    let program: Vec<String> = arg(&args["argv"])?;
+    let line = crate::run_program(core.connected()?, &program, None)?;
+    Ok(vec![json_text(&line)])
 }
 
 /// Calls an exported plugin method, the body of its own tool.
@@ -823,7 +849,7 @@ mod tests {
     fn the_builtins_keep_their_names_and_take_no_grant() {
         let builtins = tools();
         let names = names(&builtins);
-        assert_eq!(names.len(), 15, "{names:?}");
+        assert_eq!(names.len(), 16, "{names:?}");
         assert!(names.contains(&"describe_screen"));
         assert!(names.iter().all(|n| !n.contains("grant")), "{names:?}");
     }

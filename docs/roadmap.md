@@ -67,7 +67,8 @@ add one to two weeks.
 ## 0.6: Foundation
 
 Released as `v0.6.0` on 2026-10-19 without the gate checks 1, 2 and 5.
-These checks moved to the gate of 0.7.
+These checks moved to the gate of 0.7. Check 1 then moved to the gate of
+1.0: the repository stays one monorepo until then.
 
 **Goal:** the project works with gates in the GitHub organization
 `chora-desktop`. Unit tests check the core in process.
@@ -138,11 +139,7 @@ Scope:
   and the client library warns on a mismatch.
 - Stable error codes: one code for each kind of failure. The error data
   already names the failed command.
-- Done (D42): `process.spawn`, `process.wait` and `plugins.restart` have
-  left the core. `choractl run` starts a program through
-  `systemd-run --user` with an activation token. Without a reachable user
-  systemd, `choractl` starts and restarts the program itself.
-  `choractl supervise` restarts a plugin that ends.
+- The core starts no program except its startup command (D42).
 - Focus in queries: the surface and the node that have the keyboard.
 - Queries return the screen rectangle of a node on each output.
 - `choractl wait SELECTOR` returns when a node matches, or fails after a
@@ -159,8 +156,7 @@ Scope:
 
 Gate:
 
-1. The organization `chora-desktop` and the core repository exist, and
-   `main` accepts pull requests only (from 0.6).
+1. Moved to the gate of 1.0: the organization and the protected `main`.
 2. A test release `v0.7.0-rc.1` comes from a tag on a merge commit. A
    tag on a commit with red CI starts no release (from 0.6).
 3. The `vkms` job is green in 10 runs in a row (from 0.6).
@@ -172,9 +168,10 @@ Gate:
 6. A client with `input.grab-any` grabs F13 and a letter key. A client
    without it gets the error code for a missing capability.
 7. The core has no code that forks a process except the startup command.
-8. `choractl run foot` starts foot in its own systemd scope, and the
-   `surface.created` event of its window carries the activation token.
-   Without a user systemd, the same command starts foot directly.
+8. `choractl run foot` starts foot in a transient systemd unit of its
+   own, and the `surface.created` event of its window carries the
+   activation token. Without a user manager, the same command starts foot
+   directly.
 9. Each error code of the API has a test that provokes it.
 10. The battle workflows in `tests/battle/` pass with `choractl wait`, the
     focus and the rectangles of queries and the plugin methods, without
@@ -205,7 +202,7 @@ Scope:
   the current keymap does not have, for example German umlauts on a US
   layout.
 - A visible indicator while a client injects input, and a binding of the
-  safety layer that revokes the capabilities of all agents (D23).
+  safety layer that revokes the capabilities of all clients (D23).
 - A text node (D18): text with a font family, a size, a color and a
   maximum width. cosmic-text shapes it and finds fallback fonts. The
   indicator, plugins and agents use it for labels without a client.
@@ -227,7 +224,7 @@ Gate:
    plugins after each `methods.export`.
 7. A capture shows the indicator while a client injects input.
 8. A test shows that the revoke binding removes the capabilities of all
-   agents.
+   clients.
 9. A text node shows `Grüße 你好 🙂` with fallback fonts, and a pixel test
    against a reference capture passes.
 10. An MCP client puts a text node under `screen:NAME`, and a capture shows
@@ -346,6 +343,9 @@ Scope:
   example of the documentation against it.
 - A final review loop over the whole code base until a round finds
   nothing that matters (D47).
+- The organization `chora-desktop` (D36). The core repository moves
+  there, and `main` accepts pull requests only. The plugins, the XP
+  showroom and the voice pipeline move into repositories of their own.
 - All plugins of the organization use the protocol version 1.
 
 Gate:
@@ -358,13 +358,15 @@ Gate:
 4. The schema job and the documentation test are green.
 5. Every plugin repository of the organization pins protocol version 1,
    and a CI job checks it.
-6. The gate checks of the earlier milestones still hold, and the showroom CI
+6. The organization `chora-desktop` and its repositories exist, and
+   `main` of each accepts pull requests only (from 0.6).
+7. The gate checks of the earlier milestones still hold, and the showroom CI
    is green against the release candidate.
 
 ## Track: XP showroom
 
-The showroom grows in the core repository through 0.6 and moves to
-`chora-desktop/chora-xp` with the postponed split (D36, D39). It shows
+The showroom grows in the core repository and moves to
+`chora-desktop/chora-xp` with the split at 1.0 (D36, D39). It shows
 the effects of the scene and serves as their test.
 
 - Each core milestone ends with a showroom release that uses its API. The
@@ -375,15 +377,16 @@ the effects of the scene and serves as their test.
 
 ## Track: voice pipeline
 
-The voice pipeline lives in `chora-desktop/chora-voice` and starts with
-milestone 0.6 (D53). It runs as Quadlet units on the reference hardware:
-speech to text, a router model, a main model and text to speech, served by
+The voice pipeline lives in `services/voice/` of the core repository and
+moves to `chora-desktop/chora-voice` with the split at 1.0. It started with
+milestone 0.6 (D53). The models run as Quadlet units on the reference hardware:
+speech to text, a language model and text to speech, served by
 [Gufo](https://github.com/gufo-org/gufo).
 
 | Milestone | Goal | Gate | Needs from the core |
 |-----------|------|------|---------------------|
 | V1 Pipeline | speech in, an answer as speech out, with barge-in | median 1.0 s or less from the end of speech to the first audio, over 20 German utterances | nothing |
-| V2 Control | the voice agent drives chora through MCP | "move the terminal to the right" works in 18 of 20 tries | 0.7 (push-to-talk with `input.grab-any`), 0.8 (read model, text injection) |
+| V2 Control | the voice agent drives chora through MCP | "move the terminal to the right" works in 18 of 20 tries | 0.8 (read model, text injection) |
 | V3 Views | a morning view and task views | "show my tasks for today" opens a view with the tasks of an MCP source; "open a view for the first task" opens a view with two surfaces | 0.8 |
 
 ## After 1.0

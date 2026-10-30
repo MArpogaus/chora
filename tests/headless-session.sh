@@ -11,7 +11,7 @@
 # When the IPC socket is up, it prints lines KEY=VALUE for the clients:
 # XDG_RUNTIME_DIR, WAYLAND_DISPLAY (an absolute path) and CHORA_SOCKET.
 # Then it waits until the core ends or until a signal; either way it
-# stops the core with its children and removes the temp dir. An end of
+# stops the process group of the core and removes the temp dir. An end of
 # the core is the exit status of the script, with the last log lines on
 # stderr; a signal of the script itself answers 130 or 143.
 #
@@ -42,8 +42,9 @@ pid=
 cleanup() {
     trap - EXIT INT TERM HUP
     if [[ -n $pid ]]; then
-        # chora leads its process group, which holds the plugins and the
-        # programs that it started.
+        # chora leads its process group, which holds its startup command
+        # and the programs that its plugins started without a user
+        # manager.
         kill -TERM -- "-$pid" 2>/dev/null || true
         for _ in $(seq 50); do
             kill -0 "$pid" 2>/dev/null || break
@@ -60,7 +61,7 @@ trap 'exit 143' TERM HUP
 # llvmpipe starts a thread per core; 4 render a headless frame at half the
 # CPU cost of 32.
 export LP_NUM_THREADS=${LP_NUM_THREADS:-4}
-env -u WAYLAND_DISPLAY -u DISPLAY -u WAYLAND_SOCKET XDG_RUNTIME_DIR="$runtime" \
+env -u WAYLAND_DISPLAY -u DISPLAY -u WAYLAND_SOCKET -u DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR="$runtime" \
     setsid "$bin/chora" --headless "$outputs" -- "$@" >"$log" 2>&1 &
 pid=$!
 

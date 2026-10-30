@@ -129,14 +129,16 @@ fn is_path(name: &str) -> bool {
 
 /// Checks the name of a view or a plugin by the rule of the core. The
 /// check carries the `view-` prefix of a view, so a plugin name stays a
-/// few bytes below the limit of `hello`.
+/// few bytes below the limit of `hello`. A name that ends in `.yaml`
+/// would load a file by path, so it is no name.
 pub fn check_name(name: &str) -> Result<(), String> {
     let client = format!("view-{name}");
-    if chora_scene::ipc::valid_name(name) && chora_scene::ipc::valid_name(&client) {
+    if chora_scene::ipc::valid_name(name) && chora_scene::ipc::valid_name(&client) && !is_path(name)
+    {
         Ok(())
     } else {
         Err(format!(
-            "invalid name {name:?}: lowercase letters, digits, _, - and ., from a letter, at most {} bytes",
+            "invalid name {name:?}: lowercase letters, digits, _, - and ., from a letter, at most {} bytes, not ending in .yaml",
             chora_scene::ipc::MAX_NAME
         ))
     }
@@ -286,8 +288,13 @@ fn start_plugins(client: &mut Client, plugins: &[PluginUse]) -> Result<Vec<Strin
     let mut started = Vec::new();
     for manifest in &manifests {
         if !running.contains_key(&manifest.name) {
-            spawn(&manifest.exec)?;
-            started.push(manifest.name.clone());
+            let argv = ["sh".into(), "-c".into(), manifest.exec.clone()];
+            let answer = crate::run_program(client, &argv, Some(&manifest.name))
+                .map_err(|e| format!("{}: {e}", manifest.name))?;
+            // A unit that runs already answers no token: nothing started.
+            if !answer["token"].is_null() {
+                started.push(manifest.name.clone());
+            }
         }
     }
     for (plugin, manifest) in plugins.iter().zip(&manifests) {
@@ -337,20 +344,6 @@ fn wait_for(client: &mut Client, name: &str, method: Option<&str>) -> Result<(),
         }
         std::thread::sleep(Duration::from_millis(100));
     }
-}
-
-/// Runs a shell command in the background; `&` lets the shell exit at
-/// once, so the plugin outlives `choractl`.
-fn spawn(command: &str) -> Result<(), String> {
-    // The plugin must not take the stdin and stdout of choractl, which
-    // carry MCP under `choractl mcp`.
-    std::process::Command::new("sh")
-        .args(["-c", &format!("{command} &")])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .status()
-        .map_err(|e| format!("cannot run {command:?}: {e}"))
-        .map(drop)
 }
 
 /// The nodes that a view owns.
@@ -552,7 +545,15 @@ mod tests {
     fn names_stay_in_their_directory() {
         assert!(check_name("work-2.night").is_ok());
         for bad in [
-            "", "../x", ".hidden", "a/b", "/etc/x", "a b", "Work", "9lives",
+            "",
+            "../x",
+            ".hidden",
+            "a/b",
+            "/etc/x",
+            "a b",
+            "Work",
+            "9lives",
+            "evil.yaml",
         ] {
             assert!(check_name(bad).is_err(), "{bad:?}");
         }

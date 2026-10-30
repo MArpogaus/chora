@@ -306,9 +306,6 @@ impl State {
                 "a client socket has no screen:* parents, and {parent:?} is on a screen"
             )),
             Command::Camera { .. } => Err("a client socket has no camera commands".into()),
-            Command::FocusNode { node: Some(_) } if !self.pressed_by(name) => Err(
-                "a client socket takes the keyboard with focus_node only right after a press on its own node or window".into(),
-            ),
             Command::Attach { surface, .. }
             | Command::Focus {
                 surface: Some(surface),
@@ -320,6 +317,11 @@ impl State {
                 Err(format!(
                     "a client socket acts only on its own surfaces, and {surface:?} is of another client"
                 ))
+            }
+            Command::FocusNode { node: Some(_) } | Command::Focus { .. }
+                if !self.pressed_by(name) =>
+            {
+                Err("a client socket takes or drops the keyboard with focus_node or focus only right after a press on its own node or window".into())
             }
             _ => Ok(()),
         }

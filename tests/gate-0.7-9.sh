@@ -7,7 +7,6 @@
 # Usage: tests/gate-0.7-9.sh
 set -u
 . "$(dirname "$0")/gate-lib.sh"
-command -v micromamba >/dev/null 2>&1 || skip "micromamba is not installed here"
 
 # The test that provokes each code, by the number of the table row.
 test_for() {
@@ -22,7 +21,7 @@ test_for() {
     6) echo an_answer_beyond_the_output_limit_is_an_error ;;
     7) echo a_second_hello_of_a_live_name_answers_name_taken ;;
     8) echo an_admin_method_off_the_admin_socket_answers_its_code ;;
-    9) echo a_client_socket_gets_no_activation_token ;;
+    9) echo the_grants_of_a_client_socket_name_point_at_the_file ;;
     esac
 }
 
@@ -33,7 +32,7 @@ test -n "$codes" || fail "no table Error codes in docs/api.md"
 for code in $codes; do
     name=$(test_for "$code")
     test -n "$name" || fail "code $code of docs/api.md has no test in this script"
-    out=$(micromamba run -n chora cargo test -p chora --lib --locked -- "$name" 2>&1) ||
+    out=$(cargo test -p chora --lib --locked -- "$name" 2>&1) ||
         fail "code $code: $(tail -n 5 <<<"$out")"
     grep -q "test result: ok. 1 passed" <<<"$out" ||
         fail "code $code: the test $name did not run green: $(tail -n 5 <<<"$out")"

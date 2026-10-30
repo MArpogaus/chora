@@ -107,8 +107,8 @@ bindings:
   MOD+Ctrl+Shift+8: {toggle_window_tag: 8}
   MOD+Ctrl+Shift+9: {toggle_window_tag: 9}
   # Programs
-  MOD+Return: {spawn: foot}
-  MOD+r: {spawn: fuzzel}
-  MOD+p: {spawn: fuzzel}
+  MOD+Return: {run: foot}
+  MOD+r: {run: fuzzel}
+  MOD+p: {run: fuzzel}
   # The plugin
   MOD+Ctrl+r: reload

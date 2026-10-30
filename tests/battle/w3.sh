@@ -2,8 +2,8 @@
 # W3: two window managers on two outputs, drag windows from XP (output 1)
 # across the edge into the tiling output, restart each WM.
 WF=w3; . "$(dirname "$0")/lib.sh"
-# one supervise per plugin, so that `choractl restart` finds them (D42)
-session_start "1280x800,1280x800+1280+0" sh -c "$bin/choractl supervise xp -- $bin/chora-xp --output HEADLESS-1 --theme flavors/xp/theme --no-sounds & $bin/choractl supervise tiling -- $bin/chora-tiling --output HEADLESS-2 & wait" || exit 1
+# one keep.sh per plugin, so that restart_plugin finds them
+session_start "1280x800,1280x800+1280+0" sh -c "tests/battle/keep.sh /tmp/bt-$WF-xp.pid $bin/chora-xp --output HEADLESS-1 --theme flavors/xp/theme --no-sounds & tests/battle/keep.sh /tmp/bt-$WF-tiling.pid $bin/chora-tiling --output HEADLESS-2 & wait" || exit 1
 
 for i in $(seq 5); do open $((i*30)) 120 $((255-i*30)) --server-deco; done
 wait_count "app_id:chora-probe kind:surface" 5 \
@@ -44,10 +44,10 @@ print(f"X={int(r[0]+r[2]/2)} Y={int(r[1]+r[3]/2)}" if r else "")')"
 done
 step "owners after drags: $(owners)"
 
-ctl restart xp >/dev/null 2>&1 || finding "W3: choractl restart xp failed" ugly "restart xp (sh -c startup)"
+restart_plugin xp || finding "W3: the restart of xp failed" ugly "restart xp"
 ready xp turn_to '{"desktop": 0}' || finding "W3: xp did not answer after restart" wrong "restart xp"
 health "restart xp"
-ctl restart tiling >/dev/null 2>&1 || finding "W3: choractl restart tiling failed" ugly "restart tiling"
+restart_plugin tiling || finding "W3: the restart of tiling failed" ugly "restart tiling"
 ready tiling get_layout '{}' || finding "W3: tiling did not answer after restart" wrong "restart tiling"
 health "restart tiling"
 [ "$(count_windows)" -ge 5 ] || finding "W3: only $(count_windows) windows after the restarts" wrong "5 windows, restart both WMs"

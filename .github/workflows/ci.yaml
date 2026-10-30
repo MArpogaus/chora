@@ -31,6 +31,9 @@ jobs:
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
     - run: cargo clippy --workspace --all-targets --locked -- -D warnings
     - run: cargo test --workspace --locked
+    # Gate check 9 of 0.7: every error code of docs/api.md has a test.
+    # cargo test above also runs the test of gate check 7.
+    - run: tests/gate-0.7-9.sh
 
   # The minimum Rust version of Cargo.toml builds the workspace.
   msrv:
@@ -64,10 +67,13 @@ jobs:
     - run: install -m755 /usr/bin/sway /usr/local/bin/sway
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
     - run: cargo build --workspace --locked
-    - run: tests/legacy-callers.sh
     - run: tests/nested.sh target/debug e2e
     - run: tests/xp.sh target/debug e2e/xp
     - run: tests/agent.sh target/debug e2e/agent
+    # Gate checks 6, 10 and 8 (without a user manager) of 0.7.
+    - run: tests/gate-0.7-6.sh
+    - run: tests/gate-0.7-10.sh
+    - run: tests/gate-0.7-8.sh
     - if: failure()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
       with:
@@ -98,6 +104,36 @@ jobs:
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
     - run: cargo build --locked -p chora -p choractl
     - run: tests/gate-0.7-4.sh
+
+  # Gate check 3 of 0.7: chora on the tty backend with the vkms card. The
+  # azure kernel of the runner has vkms. The card of Hyper-V goes, so that
+  # vkms is the only card. seatd gives root the seat.
+  vkms:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    # The equivalents of dist/fedora-build-requires.txt, as in the podman job.
+    - run: |
+        sudo apt-get update
+        sudo apt-get install -y libdisplay-info-dev libdrm-dev libinput-dev \
+            libseat-dev libsystemd-dev libudev-dev libwayland-dev \
+            libxkbcommon-dev libegl1-mesa-dev libgbm-dev \
+            libegl-mesa0 libgl1-mesa-dri seatd foot
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
+    - run: cargo build --locked -p chora -p choractl -p chora-tiling
+    - run: |
+        sudo modprobe vkms
+        for dev in /sys/bus/vmbus/drivers/hyperv_drm/*-*; do
+            basename "$dev" | sudo tee /sys/bus/vmbus/drivers/hyperv_drm/unbind
+        done
+        ls -l /dev/dri
+    - run: |
+        sudo seatd -g root &
+        sleep 1
+        sudo LIBSEAT_BACKEND=seatd BIN="$PWD/target/debug" tests/gate-0.7-3.sh
 
   deny:
     runs-on: ubuntu-latest

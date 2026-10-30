@@ -9,8 +9,8 @@
 # sees none of the privileged protocols. An MCP client waits for events
 # and draws a shader that it hands to the core as an asset. Connections
 # reserve space at the edges of the output. An agent starts a program with
-# choractl run, keeps one under supervise and restarts it. An MCP client
-# scales the output and keeps a HUD in place during a camera move.
+# choractl run. An MCP client scales the output and keeps a HUD in place
+# during a camera move.
 #
 # Usage: tests/agent.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-tiling and chora-probe
@@ -19,12 +19,17 @@
 set -euo pipefail
 
 bin=$(realpath "$1")
+# The plugins start apps with `choractl run` from PATH (D42).
+export PATH="$bin:$PATH"
 tests=$(realpath "$(dirname "$0")")
 out=$(realpath "${2:-$(mktemp -d)}")
 mkdir -p "$out"
 # A short path, because a socket path has at most 107 bytes.
 XDG_RUNTIME_DIR=$(mktemp -d /tmp/chora-agent-e2e.XXXXXX)
 export XDG_RUNTIME_DIR
+# No user manager of the host: choractl run starts programs as its
+# children, which the cleanup ends, and leaves no unit behind.
+unset DBUS_SESSION_BUS_ADDRESS
 pids=()
 cleanup() {
     kill "${pids[@]}" 2>/dev/null || true
@@ -442,8 +447,8 @@ wait_for work_area_is "[0,0,1280,800]"
 wait_for xs_are "0 0"
 if ctl reserve --output nowhere --top 1 2>/dev/null; then fail "a reserve of no output worked"; fi
 
-step "21. choractl run starts a program, supervise and restart handle one"
-# Run needs no grant (D42): the core only hands out an activation token.
+step "21. choractl run starts a program, restart needs a unit"
+# On the main socket, run needs no grant (D42): the core only hands out an activation token.
 # The probe connects to chora, not to the host sway, with the inner display.
 WAYLAND_DISPLAY=$inner "$bin/choractl" --name agent run "$bin/chora-probe" window 0 255 0 >"$out/run.json" ||
     fail "the run failed"
@@ -458,23 +463,6 @@ WAYLAND_DISPLAY=$inner "$bin/choractl" --name agent run "$bin/chora-probe" activ
     fail "the run of the activated probe"
 token=$(jq -r .token "$out/run-token.json")
 wait_for grep -q "\"token\":\"$token\"" "$out/token.jsonl"
-# A program under `choractl supervise` answers `choractl restart`: the
-# pid file names the running program, and a new one takes over.
-"$bin/choractl" supervise slow -- sleep 60 &
-pids+=($!)
-sup_file=$XDG_RUNTIME_DIR/chora/supervise/slow.pid
-wait_for test -s "$sup_file"
-old=$(cat "$sup_file")
-"$bin/choractl" restart slow >"$out/restart.json" 2>"$out/restart.err" ||
-    fail "the restart failed: $(cat "$out/restart.err")"
-jq -e --argjson old "$old" '.restarted == "supervise" and .pid == $old' \
-    "$out/restart.json" >/dev/null || fail "the restart: $(cat "$out/restart.json")"
-pid_is_new() {
-    local now
-    now=$(cat "$sup_file" 2>/dev/null) && test -n "$now" && test "$now" != "$old"
-}
-wait_for pid_is_new
-pids+=("$(cat "$sup_file")")
 if "$bin/choractl" restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
 
 step "22. an MCP client draws a panel and moves the camera on a click"

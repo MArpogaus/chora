@@ -755,11 +755,11 @@ fn a_client_socket_adopts_no_foreign_window() {
         let (_, message) = agent.fails(&mut core, "scene.apply", apply(&json!([command])));
         assert!(message.contains("only on its own surfaces"), "{message}");
     }
-    agent.ok(
-        &mut core,
-        "scene.apply",
-        apply(&json!([{"focus": {"surface": "s2"}}])),
-    );
+    let focus = apply(&json!([{"focus": {"surface": "s2"}}]));
+    let (_, message) = agent.fails(&mut core, "scene.apply", focus.clone());
+    assert!(message.contains("only right after a press"), "{message}");
+    core.state.pressed = Some("agent".into());
+    agent.ok(&mut core, "scene.apply", focus);
     // New windows under the claim of the agent: only its own go to it.
     core.state.pointer_layout = (10.0, 10.0).into();
     user.toplevel(&mut core, "next");
@@ -1061,6 +1061,35 @@ fn a_recreate_without_grab_any_ends_free_grabs() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// The revoke binding keeps the windows of a name whose capabilities
+/// gave them no protocol, and ends those that a capability gave one.
+#[test]
+fn the_revoke_binding_ends_only_windows_with_a_granted_protocol() {
+    let (mut core, dir) = caps_core("revoke-protocol");
+    let mut admin = core.admin();
+    let created = open_agent(&mut core, &mut admin, &["activation.token"]);
+    let mut window = Wayland::connect_to(
+        &mut core,
+        &PathBuf::from(created["wayland"].as_str().unwrap()),
+    );
+    window.toplevel(&mut core, "app");
+    core.state.revoke_all();
+    assert!(
+        !window.closed(&mut core),
+        "activation.token gave no protocol"
+    );
+    let created = open_agent(&mut core, &mut admin, &["screen.capture"]);
+    let mut eye = Wayland::connect_to(
+        &mut core,
+        &PathBuf::from(created["wayland"].as_str().unwrap()),
+    );
+    eye.toplevel(&mut core, "eye");
+    core.state.revoke_all();
+    assert!(eye.closed(&mut core), "screen.capture gave screencopy");
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
 /// After the revoke binding, `clients up` with the same file gives the
 /// capabilities back.
 #[test]
@@ -1068,7 +1097,7 @@ fn the_same_create_gives_back_revoked_capabilities() {
     let (mut core, dir) = caps_core("restore");
     let mut admin = core.admin();
     open_agent(&mut core, &mut admin, &["screen.capture"]);
-    core.state.revoke_agents();
+    core.state.revoke_all();
     assert_eq!(admin.ok(&mut core, "grants.list", json!({})), json!({}));
     let (error_code, _) = admin.fails(
         &mut core,

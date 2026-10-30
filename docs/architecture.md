@@ -311,11 +311,11 @@ The safety layer is the only built-in behavior (see
   [Input injection](api.md#input-injection). They are Ctrl+Alt+BackSpace
   (quit), Ctrl+Alt+Escape (emergency reset), Ctrl+Alt+i (revoke) and
   Ctrl+Alt+F1 to F12 (VT switch).
-- **Revoke binding.** Ctrl+Alt+i takes every capability away from each
-  client that holds only agent capabilities: `input.inject`,
-  `screen.capture` and `input.grab-any`. It also ends
-  the grabs that need no modifier and disconnects Wayland clients that
-  held a grant. The IPC connections stay.
+- **Revoke binding.** Ctrl+Alt+i takes every capability away from every
+  client and drops the unused activation tokens of no client. It also
+  ends the grabs that need no modifier and disconnects the Wayland
+  clients that a capability gave a protocol, for example screencopy. The
+  IPC connections stay.
 - **Injection mark.** While a client injects input, the core shows a
   small yellow rect of its own next to the pointer. It goes 500 ms after
   the last injected event. No client owns the mark or can remove it.
@@ -386,11 +386,12 @@ grants and makes client sockets (see [API](api.md#client-sockets)).
   hostile code of the same user. The emergency reset revokes all grants.
 - `screen.capture` and `input.inject` fail while the session is locked.
 - The core starts no program except its own startup command (D42).
-  `choractl run`, `supervise` and `restart` start programs outside it.
+  `choractl run` starts programs outside it, and systemd units keep
+  plugins running.
 - A connection of a client socket acts only on its own nodes and on the
   windows of its `wayland.sock`. It sets no camera and puts no node
-  under `screen:*`. It takes the keyboard with `focus_node` only after a
-  press of the user on it (see [API](api.md#client-sockets)).
+  under `screen:*`. It takes the keyboard with `focus_node` or `focus`
+  only after a press of the user on it (see [API](api.md#client-sockets)).
 
 ## Sessions and flavors
 

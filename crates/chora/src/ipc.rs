@@ -410,7 +410,7 @@ impl Ipc {
     }
 
     /// The name of the client socket of a connection.
-    fn fixed(&self, conn: u64) -> Option<&str> {
+    pub(crate) fn fixed(&self, conn: u64) -> Option<&str> {
         self.conns.get(&conn)?.fixed()
     }
 
@@ -783,14 +783,10 @@ impl State {
     /// client, so that the started program can activate with it. A use
     /// ends the token; an unused token of no client is forgotten after
     /// `MAX_TOKEN_AGE`, by its own deadline and by every new token. A
-    /// client socket gets none: such a token skips the focus rule of its
-    /// own tokens.
+    /// client socket needs the capability `activation.token`, because
+    /// such a token skips the focus rule of its own tokens.
     fn ipc_activation_token(&mut self, conn: u64) -> Result<Value, RpcError> {
-        if self.ipc.fixed(conn).is_some() {
-            return Err(socket_rule(
-                "a client socket asks its Wayland connection for activation tokens",
-            ));
-        }
+        self.check_socket_grant(conn, Capability::ActivationToken)?;
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
         let (token, _) = self.activation_state.create_external_token(None);
         let token = token.as_str().to_owned();
@@ -1859,6 +1855,7 @@ mod tests {
         agent.ok(&mut core, "hello", json!({"name": "agent"}));
         let mut windows = Wayland::connect_to(&mut core, &wayland);
         windows.toplevel(&mut core, "app");
+        core.state.pressed = Some("agent".into());
         let own = json!({"commands": [
             {"attach": {"surface": "s1", "parent": "root"}},
             {"focus": {"surface": "s1"}},
@@ -2087,16 +2084,48 @@ mod tests {
         assert!(message.contains("only on the admin socket"), "{message}");
     }
 
-    /// A client socket asks for no activation token over IPC: such a
-    /// token belongs to no client and would skip the focus rule of its
-    /// own tokens.
+    /// A client socket gets an activation token over IPC only with the
+    /// capability: such a token belongs to no client and skips the focus
+    /// rule of its own tokens.
     #[test]
-    fn a_client_socket_gets_no_activation_token() {
+    fn a_client_socket_gets_activation_tokens_only_with_the_capability() {
         let (mut core, dir) = socket_dir("token");
         let mut admin = core.admin();
         let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
         let (error_code, _) = agent.fails(&mut core, "activation.token", Value::Null);
-        assert_eq!(error_code, RpcError::CLIENT_SOCKET_RULE);
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+        let create = json!({"name": "runner", "capabilities": ["activation.token"]});
+        admin.ok(&mut core, "clients.create", create);
+        let path = dir.join("clients/runner/ipc.sock");
+        let mut runner = core.connect_to(&path);
+        runner.ok(&mut core, "hello", json!({"name": "runner"}));
+        let answer = runner.ok(&mut core, "activation.token", Value::Null);
+        assert!(answer["token"].is_string(), "{answer}");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A confined agent calls no plugin method without the capability, so
+    /// it cannot ask a window manager for the focus.
+    #[test]
+    fn a_client_socket_calls_methods_only_with_the_capability() {
+        let (mut core, dir) = socket_dir("call");
+        let mut admin = core.admin();
+        let call = json!({"client": "wm", "method": "focus"});
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let (error_code, _) = agent.fails(&mut core, "methods.call", call.clone());
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+        let create = json!({"name": "caller", "capabilities": ["methods.call"]});
+        admin.ok(&mut core, "clients.create", create);
+        let mut caller = core.connect_to(&dir.join("clients/caller/ipc.sock"));
+        caller.ok(&mut core, "hello", json!({"name": "caller"}));
+        let (error_code, message) = caller.fails(&mut core, "methods.call", call);
+        assert_eq!(
+            error_code,
+            RpcError::REJECTED,
+            "the grant lets the call pass"
+        );
+        assert_eq!(message, "wm.focus is no exported method");
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -3103,10 +3132,16 @@ mod tests {
     }
 
     /// `choractl run` asks the core for a token (D42). A toplevel that
-    /// activates with it before its first commit shows it in
+    /// activates with it before or with its first commit shows it in
     /// `surface.created`, and its use ends the token.
     #[test]
     fn the_issued_token_reaches_the_surface_created_of_its_window() {
+        for after_commit in [false, true] {
+            token_reaches_surface_created(after_commit);
+        }
+    }
+
+    fn token_reaches_surface_created(after_commit: bool) {
         let mut core = Core::new();
         core.add_output("A", (64, 48));
         let mut ctl = core.named("choractl");
@@ -3129,14 +3164,17 @@ mod tests {
             json!({"events": ["surface.created"]}),
         );
         let mut client = Wayland::connect(&mut core);
-        let _top = client.activated_toplevel(&mut core, "run", &token);
+        let _top = client.activated_toplevel(&mut core, "run", &token, after_commit);
         let created: Vec<Value> = wm
             .events_now(&mut core)
             .into_iter()
             .filter(|e| e["params"]["event"] == "surface.created")
             .collect();
         assert_eq!(created.len(), 1, "one toplevel was created");
-        assert_eq!(created[0]["params"]["token"], token);
+        assert_eq!(
+            created[0]["params"]["token"], token,
+            "after commit: {after_commit}"
+        );
         assert!(created[0]["params"]["pid"].as_u64().is_some());
         assert!(
             !core

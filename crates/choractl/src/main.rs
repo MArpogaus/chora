@@ -9,10 +9,7 @@ mod view;
 
 use std::{
     io::{Read, Write},
-    os::unix::{ffi::OsStrExt, process::CommandExt},
     process::ExitCode,
-    sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize, Ordering},
-    time::{Duration, Instant},
 };
 
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -25,7 +22,7 @@ use chora_scene::{
         SOCKET_ENV, Subscribe, admin_socket,
     },
 };
-use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use serde_json::Value;
 
 /// Talk to the chora compositor in `CHORA_SOCKET`.
@@ -87,14 +84,12 @@ enum Cmd {
         /// The parameters as JSON; `null` if missing.
         params: Option<String>,
     },
-    /// Grant a client name `input.inject`, `screen.capture` or
-    /// `input.grab-any`, until the session ends or a revoke. Goes
-    /// through the admin socket.
+    /// Grant a client name capabilities until the session ends or a
+    /// revoke. Goes through the admin socket.
     Grant {
         /// The client name, for example `agent`.
         client: String,
-        /// One or more of `input.inject`, `screen.capture` and
-        /// `input.grab-any`.
+        /// One or more capabilities, for example `screen.capture`.
         #[arg(required = true)]
         capabilities: Vec<Capability>,
     },
@@ -103,8 +98,7 @@ enum Cmd {
     Revoke {
         /// The client name.
         client: String,
-        /// One or more of `input.inject`, `screen.capture` and
-        /// `input.grab-any`.
+        /// One or more capabilities, for example `screen.capture`.
         capabilities: Vec<Capability>,
     },
     /// Print the grants by client name.
@@ -124,10 +118,8 @@ enum Cmd {
     Mcp,
     /// Start a program outside the core (D42), with an activation token
     /// of the core in `XDG_ACTIVATION_TOKEN`: in its own transient unit
-    /// when the user manager answers, detached otherwise. Prints the pid
-    /// as one JSON line. The old name `spawn` is a hidden alias that
-    /// warns on stderr.
-    #[command(alias = "spawn")]
+    /// when a user manager runs, as its own child otherwise. Prints pid,
+    /// unit and token as one JSON line.
     Run {
         /// The program and its arguments.
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
@@ -160,27 +152,14 @@ enum Cmd {
         #[arg(value_name = "NAME")]
         output: String,
     },
-    /// Restart a plugin (D42): `systemctl --user restart NAME.service`
-    /// while that unit is active, else end the program of
-    /// `choractl supervise NAME`, which starts it again. Prints what it
-    /// restarted as one JSON line. Does not call the core.
+    /// Restart a plugin (D42): `systemctl --user restart` of its unit,
+    /// `chora-NAME-SESSION.service` of a view in this session or
+    /// `chora-NAME.service` of a flavor. Prints the unit as one JSON line.
+    /// Does not call the core.
     Restart {
-        /// The client name, for example `tiling`.
-        #[arg(value_name = "NAME")]
-        client: String,
-    },
-    /// Run a plugin and start it again when it ends (D42), at most five
-    /// restarts per minute. Writes the pid of the running program to
-    /// `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`, for `choractl
-    /// restart NAME`. SIGTERM ends the program, removes the pid file
-    /// and exits with 128 plus the signal. Does not call the core.
-    Supervise {
         /// The plugin name, for example `tiling`.
         #[arg(value_name = "NAME")]
-        name: String,
-        /// The program and its arguments.
-        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
-        argv: Vec<String>,
+        plugin: String,
     },
     /// Store a file for image nodes, shader nodes and effects in a
     /// directory of the core, or remove it; for a client that shares no
@@ -320,29 +299,8 @@ enum AssetCmd {
     },
 }
 
-/// The subcommand name that the user typed, hidden aliases included:
-/// clap reports the target of an alias, never the alias itself.
-fn used_name(argv: &[String]) -> Option<&str> {
-    let mut it = argv.iter().skip(1);
-    while let Some(a) = it.next() {
-        match a.as_str() {
-            "--name" => {
-                it.next();
-            }
-            s if s.starts_with('-') && s != "-" => {}
-            s => return Some(s),
-        }
-    }
-    None
-}
-
 fn main() -> ExitCode {
-    let matches = Args::command().get_matches();
-    if used_name(&std::env::args().collect::<Vec<_>>()) == Some("spawn") {
-        eprintln!("choractl: spawn is deprecated (D42), use choractl run");
-    }
-    let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
-    match run(args) {
+    match run(Args::parse()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             eprintln!("choractl: {err}");
@@ -355,8 +313,7 @@ fn run(args: Args) -> Result<(), String> {
     match &args.command {
         Cmd::View { action } => return view_command(action),
         Cmd::Mcp => return mcp::serve(args.name.unwrap_or_else(|| "agent".into())),
-        Cmd::Restart { client } => return restart_program(client),
-        Cmd::Supervise { name, argv } => return supervise(name, argv),
+        Cmd::Restart { plugin } => return restart_program(plugin),
         _ => {}
     }
     let (commands, input) = match &args.command {
@@ -389,7 +346,7 @@ fn run(args: Args) -> Result<(), String> {
             params,
         } => return call(&mut client, callee, method, params.as_deref()),
         Cmd::Asset { action } => return asset(&mut client, action),
-        Cmd::View { .. } | Cmd::Mcp | Cmd::Restart { .. } | Cmd::Supervise { .. } => {
+        Cmd::View { .. } | Cmd::Mcp | Cmd::Restart { .. } => {
             unreachable!("handled before the connection")
         }
         Cmd::Inject { dry_run, .. } => inject(&mut client, input, dry_run),
@@ -465,7 +422,9 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             "camera.release",
             serde_json::json!({"output": output}),
         ),
-        Cmd::Run { argv } => run_program(client, &argv),
+        Cmd::Run { argv } => {
+            run_program(client, &argv, None).map(|line| print_line(std::io::stdout(), &line))
+        }
         Cmd::ConfigureOutput {
             output,
             scale,
@@ -519,9 +478,35 @@ fn taken_socket(name: &str, err: &RpcError) -> Option<String> {
 }
 
 /// `choractl run` (D42): asks the core for an activation token, starts
-/// the program with it in the environment, and prints pid and token as
-/// one JSON line; the token lets a test follow the trip to the window.
-fn run_program(client: &mut Client, argv: &[String]) -> Result<(), ClientError> {
+/// the program with it in the environment, and answers pid, unit and
+/// token as one JSON value; the token lets a test follow the trip to the
+/// window. With `plugin`, the unit is the one of `view_unit` and
+/// restarts the program when it fails, as the unit of a flavor does.
+pub(crate) fn run_program(
+    client: &mut Client,
+    argv: &[String],
+    plugin: Option<&str>,
+) -> Result<Value, ClientError> {
+    if argv.is_empty() {
+        return Err(ClientError::Io(std::io::Error::other("no program")));
+    }
+    let unit = plugin.map_or_else(
+        || {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default();
+            format!(
+                "chora-run-{}-{}.service",
+                std::process::id(),
+                now.as_nanos()
+            )
+        },
+        view_unit,
+    );
+    // A plugin that starts, or waits for its restart, has its unit already.
+    if plugin.is_some() && matches!(unit_state(&unit).as_str(), "active" | "activating") {
+        return Ok(serde_json::json!({ "pid": null, "unit": unit, "token": null }));
+    }
     let answer: Value = client.call("activation.token", Value::Null)?;
     let Some(token) = answer["token"].as_str().map(str::to_owned) else {
         return Err(ClientError::Io(std::io::Error::new(
@@ -529,28 +514,35 @@ fn run_program(client: &mut Client, argv: &[String]) -> Result<(), ClientError> 
             "the core answered no activation token",
         )));
     };
-    let pid = match systemd_unit(argv, &token) {
-        RunStart::Unit(pid) => Some(pid),
-        RunStart::Fallback => Some(start_detached(argv, &token).map_err(|e| {
-            ClientError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", argv[0])))
-        })?),
+    let (pid, unit) = match systemd_unit(argv, &token, &unit, plugin.is_some()) {
+        RunStart::Unit(pid) => (Some(pid), Some(unit)),
+        RunStart::NoManager => (
+            Some(start_child(argv, &token).map_err(|e| {
+                ClientError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", argv[0])))
+            })?),
+            None,
+        ),
         // The unit started; a short program ended and was collected
         // before its pid was read.
-        RunStart::Unknown => None,
+        RunStart::Unknown => (None, Some(unit)),
+        RunStart::Refused(error) => {
+            return Err(ClientError::Io(std::io::Error::other(format!(
+                "systemd-run refused the unit {unit}: {error}"
+            ))));
+        }
     };
-    print_line(
-        std::io::stdout(),
-        &serde_json::json!({ "pid": pid, "token": token }),
-    );
-    Ok(())
+    Ok(serde_json::json!({ "pid": pid, "unit": unit, "token": token }))
 }
 
 /// The outcome of one start attempt through `systemd-run`.
 #[derive(Debug, PartialEq, Eq)]
 enum RunStart {
-    /// No user manager, or `systemd-run` failed: the detached fallback
-    /// of `run` may start the program.
-    Fallback,
+    /// No user manager answers: `run` starts the program as its child.
+    NoManager,
+    /// `systemd-run` failed with this error, for example because the
+    /// program is missing, the unit exists already or the systemd is older
+    /// than 254. `run` fails too and never starts the program a second time.
+    Refused(String),
     /// The unit runs the program under this pid.
     Unit(u32),
     /// The unit started, but its `MainPID` stayed unknown, for example
@@ -559,63 +551,56 @@ enum RunStart {
     Unknown,
 }
 
-/// The pure fallback decision of `run`: only a unit that did not start
-/// allows the detached start. On a successful start, a `MainPID` that is
-/// empty, `0` or no number is `Unknown`, never pid 0 as success.
-fn classify_start(started: bool, main_pid: &str) -> RunStart {
-    if !started {
-        return RunStart::Fallback;
-    }
+/// The pid of a unit that started: a `MainPID` that is empty, `0` or no
+/// number is `Unknown`, never pid 0 as success.
+fn classify_start(main_pid: &str) -> RunStart {
     match main_pid.trim().parse::<u32>() {
         Ok(pid) if pid > 0 => RunStart::Unit(pid),
         _ => RunStart::Unknown,
     }
 }
 
-/// How starting the program in a transient unit went. `systemd-run`
-/// without `--scope` returns once the start job of the unit is done, so
-/// the line with the pid comes out while the program runs; the pid is
-/// the program's own (`MainPID`), waited for up to 2 s. A unit starts
-/// with the environment of the user manager, so the variables of this
-/// session travel in the `Environment=` property. Output goes to the
-/// journal, never into the line on stdout.
-fn systemd_unit(argv: &[String], token: &str) -> RunStart {
-    let Ok(answered) = std::process::Command::new("systemctl")
-        .args(["--user", "is-system-running"])
-        .stderr(std::process::Stdio::null())
-        .output()
-    else {
-        return RunStart::Fallback;
-    };
-    if answered.stdout.is_empty() {
-        return RunStart::Fallback;
+/// How starting the program in the transient unit `unit` went.
+/// `systemd-run` without `--scope` returns once the start job of the
+/// unit is done, so the answer comes while the program runs; the pid is
+/// the program's own (`MainPID`), waited for up to 2 s. The unit lives
+/// until the last process in it ends, so a launcher may exit before the
+/// app it started. The arguments reach the program literally. Output
+/// goes to the journal, never into the line on stdout.
+fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunStart {
+    if !manager_runs() {
+        return RunStart::NoManager;
     }
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()
-        .unwrap_or_default();
-    let unit = format!(
-        "chora-run-{}-{}.service",
-        std::process::id(),
-        now.as_nanos()
-    );
     let mut started = std::process::Command::new("systemd-run");
-    started.args([
-        "--user",
-        "--collect",
-        "--quiet",
-        "--same-dir",
-        "--unit",
-        &unit,
-    ]);
-    started.args(unit_env(token));
-    // ponytail: the token is visible in argv of the short-lived
-    // `systemd-run`; it dies with `--collect` and within 10 s anyway.
-    let Ok(started) = started.args(argv).status() else {
-        return RunStart::Fallback;
-    };
-    if !started.success() {
-        return RunStart::Fallback;
+    started
+        .args([
+            "--user",
+            "--collect",
+            "--quiet",
+            "--same-dir",
+            "--expand-environment=no",
+            "-pExitType=cgroup",
+            "--unit",
+            unit,
+        ])
+        .env("XDG_ACTIVATION_TOKEN", token)
+        .args(unit_env());
+    if restart {
+        started.arg("-pRestart=on-failure");
+    }
+    // The MCP protocol of `choractl mcp` runs on stdin and stdout. The
+    // error goes into the answer, so that an MCP client reads it too.
+    let out = started
+        .arg("--")
+        .args(argv)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .output();
+    match out {
+        Ok(out) if out.status.success() => {}
+        Ok(out) => return RunStart::Refused(String::from_utf8_lossy(&out.stderr).trim().into()),
+        Err(err) => return RunStart::Refused(format!("systemd-run: {err}")),
     }
     // A unit fills in `MainPID` a moment after the start job. Wait for
     // it, then report what is known: a pid, or the error of the unknown
@@ -623,22 +608,7 @@ fn systemd_unit(argv: &[String], token: &str) -> RunStart {
     // counts as unknown too; the program ran, but `run` cannot say so.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
     loop {
-        let shown = std::process::Command::new("systemctl")
-            .args([
-                "--user",
-                "show",
-                "--property=MainPID",
-                "--value",
-                "--unit",
-                &unit,
-            ])
-            .stderr(std::process::Stdio::null())
-            .output();
-        let text = match &shown {
-            Ok(out) => String::from_utf8_lossy(&out.stdout).into_owned(),
-            Err(_) => String::new(),
-        };
-        let decision = classify_start(true, &text);
+        let decision = classify_start(&systemctl(&["show", "--property=MainPID", "--value", unit]));
         if decision != RunStart::Unknown || std::time::Instant::now() >= deadline {
             return decision;
         }
@@ -646,310 +616,123 @@ fn systemd_unit(argv: &[String], token: &str) -> RunStart {
     }
 }
 
-/// Variables of a display session that a unit must not take from the
-/// user manager; the startup command of the core drops the same ones.
-const HOST_VARIABLES: [&str; 6] = [
-    "WAYLAND_SOCKET",
-    "DISPLAY",
-    "SWAYSOCK",
-    "I3SOCK",
-    "NIRI_SOCKET",
-    "HYPRLAND_INSTANCE_SIGNATURE",
-];
-
-/// The program forked by `choractl` itself, detached in a session of its
-/// own and with the token in its environment; the pid of the child.
-/// Stdout and stderr go to the null device, so that the output of the
-/// program never mixes with the JSON line on stdout.
-#[allow(unsafe_code)] // one `setsid` in the fork hook, nothing else
-fn start_detached(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
-    let mut command = std::process::Command::new(&argv[0]);
-    command
+/// The program forked by `choractl` itself, with the token in its
+/// environment; the pid of the child. It stays in the process group of
+/// the caller, so that a test session that ends its group ends it too.
+/// Stdout and stderr go to the null device: the output of the program
+/// never mixes with the JSON line or the MCP protocol, and a caller that
+/// reads the stderr of `run` to its end does not wait for the program.
+fn start_child(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
+    let mut child = std::process::Command::new(&argv[0])
         .args(&argv[1..])
         .env("XDG_ACTIVATION_TOKEN", token)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null());
-    // SAFETY: the hook only calls `setsid`, an async-signal-safe function.
-    unsafe {
-        command.pre_exec(|| {
-            if libc::setsid() == -1 {
-                return Err(std::io::Error::last_os_error());
-            }
-            Ok(())
+        .stderr(std::process::Stdio::null())
+        .spawn()?;
+    let pid = child.id();
+    // `choractl mcp` lives long: wait for the child, so it never stays a
+    // zombie.
+    std::thread::spawn(move || child.wait());
+    Ok(pid)
+}
+
+/// The unit of a plugin that a view starts: one per plugin and session,
+/// since every chora of the user shares the user manager. The session is
+/// an FNV-1a hash of `CHORA_SOCKET`, the one path that no two cores
+/// share; every build of choractl gives the same hash.
+fn view_unit(name: &str) -> String {
+    session_unit(name, &std::env::var_os(SOCKET_ENV).unwrap_or_default())
+}
+
+/// The unit of `view_unit` for the socket `socket`. A symlink to the
+/// socket gives the unit of the socket itself.
+fn session_unit(name: &str, socket: &std::ffi::OsStr) -> String {
+    let socket = std::fs::canonicalize(socket).unwrap_or_else(|_| socket.into());
+    let hash = (socket.as_os_str().as_encoded_bytes().iter())
+        .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
+            (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3)
         });
-    }
-    command.spawn().map(|child| child.id())
+    format!("chora-{name}-{:08x}.service", hash >> 32)
 }
 
-/// The pid of the program the running `supervise` watches, for the
-/// signal handler that ends it together with `supervise`.
-static SUPERVISED_PID: AtomicU32 = AtomicU32::new(0);
-
-/// The pid file as a C string, so that the signal handler can remove
-/// it; `unlink` is async-signal-safe. Stored once by `supervise`, so
-/// the leaked allocation lives as long as the process.
-static PID_FILE_C: AtomicUsize = AtomicUsize::new(0);
-
-/// Whether a stop signal arrived while `SUPERVISED_PID` was still 0:
-/// in the window between the start of the child and the store of its
-/// pid, or between two starts. A lock-free store is safe in a handler.
-static STOP_REQUESTED: AtomicBool = AtomicBool::new(false);
-
-/// The signal number behind `STOP_REQUESTED`, for the exit code.
-static STOP_SIGNAL: AtomicI32 = AtomicI32::new(libc::SIGTERM);
-
-/// Starts a program and starts it again when it ends (D42), at most
-/// five restarts per minute. Writes the pid of the running program to
-/// `pid_file`, so that `choractl restart` can end it; that ends the
-/// wait here and starts the program again.
-fn supervise(name: &str, argv: &[String]) -> Result<(), String> {
-    view::check_name(name)?;
-    let file = pid_file(name)?;
-    let dir = file.parent().expect("the pid file has a name");
-    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    // One supervise per name: a second one would take over the pid file,
-    // and the first to stop would remove it. The lock ends with the
-    // process, also on SIGKILL.
-    let lock_path = file.with_extension("lock");
-    let lock =
-        std::fs::File::create(&lock_path).map_err(|e| format!("{}: {e}", lock_path.display()))?;
-    lock.try_lock()
-        .map_err(|_| format!("{name}: another choractl supervise runs it"))?;
-    let c_file = std::ffi::CString::new(file.as_os_str().as_bytes())
-        .map_err(|_| format!("{}: not a valid path", file.display()))?;
-    PID_FILE_C.store(
-        std::mem::ManuallyDrop::new(c_file).as_ptr() as usize,
-        Ordering::Relaxed,
-    );
-    install_stop_handler();
-    let mut starts = Vec::new();
-    loop {
-        if STOP_REQUESTED.load(Ordering::Relaxed) {
-            // The signal arrived while no program ran, between two
-            // starts; stopping here avoids one more start.
-            stop_now(0);
-        }
-        if !may_start(&mut starts, Instant::now()) {
-            let _ = std::fs::remove_file(&file);
-            return Err(format!(
-                "{name}: gave up after {} restarts in one minute",
-                MAX_STARTS_PER_MINUTE - 1,
-            ));
-        }
-        starts.push(Instant::now());
-        let status = supervise_once(argv, &file)?;
-        eprintln!("{name}: the program ended with {status}, starting it again");
-    }
+/// The `ActiveState` of a systemd user unit; empty without a manager.
+fn unit_state(unit: &str) -> String {
+    systemctl(&["show", "--property=ActiveState", "--value", unit])
 }
 
-/// The largest number of starts of one program in one minute: the
-/// first start and five restarts.
-const MAX_STARTS_PER_MINUTE: usize = 6;
-
-/// Whether another start fits into the last minute; keeps the starts
-/// of the minute in `starts`.
-fn may_start(starts: &mut Vec<Instant>, now: Instant) -> bool {
-    starts.retain(|t| now.duration_since(*t) < Duration::from_secs(60));
-    starts.len() < MAX_STARTS_PER_MINUTE
+/// The trimmed stdout of `systemctl --user ARGS`; empty when it fails to
+/// run.
+fn systemctl(args: &[&str]) -> String {
+    std::process::Command::new("systemctl")
+        .arg("--user")
+        .args(args)
+        .stderr(std::process::Stdio::null())
+        .output()
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
+        .unwrap_or_default()
 }
 
-/// Starts the program, writes its pid to the file, and waits for its
-/// end. Stdio stays with the program, so its output goes to the
-/// terminal or the journal of whoever runs `supervise`.
-fn supervise_once(
-    argv: &[String],
-    file: &std::path::Path,
-) -> Result<std::process::ExitStatus, String> {
-    let mut child = std::process::Command::new(&argv[0])
-        .args(&argv[1..])
-        .spawn()
-        .map_err(|e| format!("{}: {e}", argv[0]))?;
-    SUPERVISED_PID.store(child.id(), Ordering::Relaxed);
-    // Written whole and renamed, so that restart never reads half a pid.
-    let partial = file.with_extension("pid.new");
-    let written = std::fs::write(&partial, format!("{}\n", child.id()))
-        .and_then(|()| std::fs::rename(&partial, file));
-    if let Err(e) = written {
-        // No pid file means no restart and no stop: end the program.
-        let _ = child.kill();
-        let _ = child.wait();
-        SUPERVISED_PID.store(0, Ordering::Relaxed);
-        return Err(format!("{}: {e}", file.display()));
-    }
-    if STOP_REQUESTED.load(Ordering::Relaxed) {
-        // A stop signal arrived before the store and only set the
-        // flag; stop now, so the child cannot be orphaned.
-        stop_now(child.id());
-    }
-    let status = child.wait().map_err(|e| e.to_string());
-    SUPERVISED_PID.store(0, Ordering::Relaxed);
-    let _ = std::fs::remove_file(file);
-    status
+/// Whether a user manager runs. Without one, as in a container or a
+/// chroot, systemctl answers `offline` or nothing.
+fn manager_runs() -> bool {
+    !matches!(systemctl(&["is-system-running"]).as_str(), "" | "offline")
 }
 
-/// The file `supervise NAME` writes the pid of its running program
-/// into: `$XDG_RUNTIME_DIR/chora/supervise/NAME.pid`.
-fn pid_file(name: &str) -> Result<std::path::PathBuf, String> {
-    let dir = std::env::var_os("XDG_RUNTIME_DIR")
-        .map(std::path::PathBuf::from)
-        .filter(|d| d.is_absolute())
-        .ok_or_else(|| "XDG_RUNTIME_DIR is not set".to_owned())?;
-    Ok(dir
-        .join("chora")
-        .join("supervise")
-        .join(format!("{name}.pid")))
+/// The `WAYLAND_DISPLAY` of the user manager, which a flavor sets.
+fn manager_display() -> Option<String> {
+    systemctl(&["show-environment"])
+        .lines()
+        .find_map(|l| l.strip_prefix("WAYLAND_DISPLAY="))
+        .map(str::to_owned)
 }
 
-/// SIGTERM and SIGINT to `supervise` end the supervised program too.
-#[allow(unsafe_code)] // `signal` for a handler that only stops our child
-fn install_stop_handler() {
-    for signal in [libc::SIGTERM, libc::SIGINT] {
-        // SAFETY: the handler is async-signal-safe; it only stores
-        // atomics, or calls `kill`, `unlink` and `_exit`.
-        unsafe {
-            libc::signal(signal, stop_supervised as *const () as libc::sighandler_t);
-        }
-    }
-}
-
-extern "C" fn stop_supervised(signal: libc::c_int) {
-    STOP_SIGNAL.store(signal, Ordering::Relaxed);
-    let pid = SUPERVISED_PID.load(Ordering::Relaxed);
-    if pid == 0 {
-        // No pid to end yet: the signal came in the window between
-        // the start of the child and the store of its pid. Leave the
-        // stop to `supervise_once`, which re-checks the flag after
-        // the store; ending here would orphan the child.
-        STOP_REQUESTED.store(true, Ordering::Relaxed);
-        return;
-    }
-    stop_now(pid);
-}
-
-/// Ends the supervised program of `pid`, removes the pid file, and
-/// exits with 128 plus the stop signal, the code of a signal stop,
-/// so that process managers notice it.
-#[allow(unsafe_code)] // `kill`, `unlink` and `_exit`, all async-signal-safe
-fn stop_now(pid: u32) -> ! {
-    let file = PID_FILE_C.load(Ordering::Relaxed);
-    // SAFETY: `kill`, `unlink` and `_exit` are async-signal-safe, the
-    // pid is the child of this process or zero, and the path was
-    // stored as a C string by `supervise`.
-    unsafe {
-        if pid > 0 {
-            libc::kill(pid.cast_signed(), libc::SIGTERM);
-        }
-        if file != 0 {
-            libc::unlink(file as *const libc::c_char);
-        }
-        libc::_exit(STOP_SIGNAL.load(Ordering::Relaxed) + 128);
-    }
-}
-
-/// `choractl restart` (D42): restarts a plugin that runs as the
-/// systemd user unit `NAME.service` or `chora-NAME-wm.service` with
-/// `systemctl --user restart`,
-/// and a program of `choractl supervise NAME` by sending it SIGTERM,
-/// which starts it again. Prints what it restarted as one JSON line.
-#[allow(unsafe_code)] // one `kill` of the program in the pid file
+/// `choractl restart` (D42): restarts the systemd user unit of a plugin,
+/// the unit of a view in this session or else the unit of the flavor of
+/// this session, and prints the unit as one JSON line.
 fn restart_program(name: &str) -> Result<(), String> {
     view::check_name(name)?;
-    // A flavor runs the window manager of a plugin as chora-NAME-wm.
-    let units = [
-        format!("{name}.service"),
-        format!("chora-{name}-wm.service"),
-    ];
-    if let Some(unit) = units.iter().find(|unit| unit_active(unit)) {
-        let restarted = std::process::Command::new("systemctl")
-            .args(["--user", "restart", unit])
-            .status()
-            .map_err(|e| format!("systemctl: {e}"))?;
-        if !restarted.success() {
-            return Err(format!("systemctl --user restart {unit} failed"));
-        }
-        let answer = serde_json::json!({ "restarted": "unit", "unit": unit });
-        print_line(std::io::stdout(), &answer);
-        return Ok(());
+    let mut units = vec![view_unit(name)];
+    // The flavor unit belongs to the session of the user manager, not to
+    // a nested chora on it.
+    if manager_display() == std::env::var("WAYLAND_DISPLAY").ok() {
+        units.push(format!("chora-{name}.service"));
     }
-    let file = pid_file(name)?;
-    let text = std::fs::read_to_string(&file).map_err(|_| {
-        let units = units.join(" or ");
-        format!("{name}: no active unit {units} and no {}", file.display())
-    })?;
-    let pid: u32 = text
-        .trim()
-        .parse()
-        .map_err(|_| format!("{}: not a pid", file.display()))?;
-    if !pid_alive(pid) {
-        let _ = std::fs::remove_file(&file);
-        return Err(format!(
-            "{name}: pid {pid} no longer runs, removed {}",
-            file.display()
-        ));
+    // A plain restart would also start a plugin that does not run.
+    let unit = units
+        .iter()
+        .find(|unit| unit_state(unit) == "active")
+        .ok_or_else(|| format!("{name}: no active unit {}", units.join(" or ")))?;
+    // Not the helper: the user sees the error of systemctl on stderr.
+    let restarted = std::process::Command::new("systemctl")
+        .args(["--user", "restart", unit])
+        .status()
+        .map_err(|e| format!("systemctl: {e}"))?;
+    if !restarted.success() {
+        return Err(format!("systemctl --user restart {unit} failed"));
     }
-    // SAFETY: `kill` of a pid we read from our own pid file.
-    if unsafe { libc::kill(pid.cast_signed(), libc::SIGTERM) } != 0 {
-        let err = std::io::Error::last_os_error();
-        return Err(format!("the program of {name} (pid {pid}): {err}"));
-    }
-    let answer = serde_json::json!({ "restarted": "supervise", "pid": pid });
-    print_line(std::io::stdout(), &answer);
+    print_line(std::io::stdout(), &serde_json::json!({ "unit": unit }));
     Ok(())
 }
 
-/// Whether `pid` names a process that runs and is not a zombie. A
-/// pid recycled for another program cannot be told apart here; the
-/// handler of `supervise` removes the file, so a stale file needs a
-/// SIGKILL of `supervise` and a pid reuse at once.
-fn pid_alive(pid: u32) -> bool {
-    let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
-        return false;
-    };
-    // The state follows the command, which sits in parentheses and may
-    // hold spaces; the state is the first word after the last `)`.
-    stat.rsplit_once(')')
-        .is_some_and(|(_, rest)| !rest.trim_start().starts_with('Z'))
-}
-
-/// Whether a systemd user unit is active. `false` when there is no
-/// systemctl, no user manager, or no such unit.
-fn unit_active(unit: &str) -> bool {
-    std::process::Command::new("systemctl")
-        .args(["--user", "is-active", "--quiet", unit])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|s| s.success())
-}
-
-/// The environment properties of a unit of `run`: the token and the
-/// variables of this session. The user manager may hold the variables of
-/// another session, for example the host of a nested chora, so each host
-/// variable gets this session's value or none.
-fn unit_env(token: &str) -> Vec<String> {
-    let mut props = vec![env_prop("XDG_ACTIVATION_TOKEN", token)];
-    for key in ["XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"] {
-        if let Ok(value) = std::env::var(key) {
-            props.push(env_prop(key, &value));
-        }
-    }
-    for key in HOST_VARIABLES {
-        props.push(match std::env::var(key) {
-            Ok(value) => env_prop(key, &value),
-            Err(_) => format!("-pUnsetEnvironment={key}"),
+/// The environment options of a unit of `run`: the token and the
+/// variables of this session, each with the value of this process. The
+/// user manager may hold the variables of another session, for example
+/// the host of a nested chora, so each host variable gets this session's
+/// value or none. All other variables come from the user manager.
+fn unit_env() -> Vec<String> {
+    let mut options = vec!["--setenv=XDG_ACTIVATION_TOKEN".to_owned()];
+    for key in ["PATH", "XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"]
+        .into_iter()
+        .chain(chora_scene::ipc::HOST_VARIABLES)
+    {
+        options.push(if std::env::var_os(key).is_some() {
+            format!("--setenv={key}")
+        } else {
+            format!("-pUnsetEnvironment={key}")
         });
     }
-    props
-}
-
-/// The `Environment=` property of `systemd-run` for one variable. systemd
-/// parses the value like a shell, so quotes and backslashes need an
-/// escape and the value stays one assignment when it holds a space.
-fn env_prop(key: &str, value: &str) -> String {
-    let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
-    format!("-pEnvironment={key}=\"{escaped}\"")
+    options
 }
 
 /// Polls `scene.query` until the selector matches, or with `gone` until
@@ -1315,26 +1098,16 @@ fn print_line<W: Write>(mut out: W, value: &Value) {
 mod tests {
     use clap::Parser;
     use serde_json::{Value, json};
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     use chora_scene::ipc::RpcError;
-    use std::time::Instant;
 
     use super::{
-        Args, AssetCmd, Capability, ClientSpec, Cmd, env_prop, grant_delta, may_start, print_line,
-        taken_socket, used_name, wait_loop,
+        Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta, print_line, taken_socket,
+        wait_loop,
     };
 
-    /// The `Environment=` property of `systemd-run` is one shell-parsed
-    /// list: a value with a space stays one assignment.
-    #[test]
-    fn an_environment_property_quotes_its_value() {
-        assert_eq!(env_prop("A", "x y"), r#"-pEnvironment=A="x y""#);
-        assert_eq!(env_prop("A", "a\"b\\c"), r#"-pEnvironment=A="a\"b\\c""#);
-    }
-
-    /// The answer of `run` is one JSON line, so that a script can read
-    /// it. A newline inside a string stays escaped.
+    /// A line of `run` is compact JSON, so that a script reads it at once.
     #[test]
     fn the_answer_of_run_is_one_json_line() {
         let mut line = Vec::new();
@@ -1456,144 +1229,33 @@ mod tests {
         assert!(taken_socket("agent", &no_data).is_none());
     }
 
-    /// The fallback decision of `run` is pure. Only a unit that did not
-    /// start may start the program a second time. A started unit with an
-    /// unknown `MainPID` is never a second start and never pid 0.
-    /// A unit of `run` takes no host session variable from the user
-    /// manager: each one is set from this session or unset.
+    /// A started unit with an unknown `MainPID` answers no pid, never
+    /// pid 0.
     #[test]
-    fn a_unit_sets_or_unsets_every_host_variable() {
-        let props = super::unit_env("t");
-        for key in super::HOST_VARIABLES {
-            let set = format!("-pEnvironment={key}=");
-            let unset = format!("-pUnsetEnvironment={key}");
-            let hits = props
-                .iter()
-                .filter(|p| p.starts_with(&set) || **p == unset)
-                .count();
-            assert_eq!(hits, 1, "{key} in {props:?}");
-        }
+    fn a_unit_answers_its_pid_or_none() {
+        assert_eq!(super::classify_start("4343\n"), super::RunStart::Unit(4343));
+        assert_eq!(super::classify_start("0"), super::RunStart::Unknown);
+        assert_eq!(super::classify_start(""), super::RunStart::Unknown);
+        assert_eq!(super::classify_start("not a pid"), super::RunStart::Unknown);
     }
 
+    /// The fallback starts the program as a child, with the activation
+    /// token in its environment, and answers a pid.
     #[test]
-    fn only_a_unit_that_did_not_start_may_fall_back() {
-        assert_eq!(super::classify_start(false, ""), super::RunStart::Fallback);
-        assert_eq!(
-            super::classify_start(false, "0"),
-            super::RunStart::Fallback,
-            "a failed systemd-run may fall back even with a pid in hand",
-        );
-        assert_eq!(
-            super::classify_start(true, "4343\n"),
-            super::RunStart::Unit(4343),
-        );
-        assert_eq!(super::classify_start(true, "0"), super::RunStart::Unknown);
-        assert_eq!(super::classify_start(true, ""), super::RunStart::Unknown);
-        assert_eq!(
-            super::classify_start(true, "not a pid"),
-            super::RunStart::Unknown,
-        );
-    }
-
-    /// The fallback starts the program detached, with the activation
-    /// token in its environment, and answers a pid. `true` runs the
-    /// same way a real program would.
-    #[test]
-    #[allow(unsafe_code)] // one `waitpid`, to reap the children
     fn the_fallback_starts_the_program_with_the_token() {
         let token = format!("tok-{}", std::process::id());
         let out = std::env::temp_dir().join(format!("chora-run-{}.txt", std::process::id()));
         let _ = std::fs::remove_file(&out);
         let script = format!("printf %s \"$XDG_ACTIVATION_TOKEN\" > {}", out.display());
-        for argv in [
-            vec!["true".to_owned()],
-            vec!["sh".into(), "-c".into(), script],
-        ] {
-            let pid = super::start_detached(&argv, &token).expect("the program starts");
-            assert!(pid > 0);
-            let mut status = 0;
-            // SAFETY: `status` is a live `i32` until `waitpid` returns.
-            let waited = unsafe { libc::waitpid(pid.cast_signed(), &raw mut status, 0) };
-            assert_eq!(waited, pid.cast_signed(), "{argv:?} is our child");
-            assert_eq!(status, 0, "{argv:?} exited clean");
+        let program = ["sh".into(), "-c".into(), script];
+        let pid = super::start_child(&program, &token).expect("the program starts");
+        assert!(pid > 0);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while std::fs::read_to_string(&out).unwrap_or_default() != token {
+            assert!(Instant::now() < deadline, "no token in {}", out.display());
+            std::thread::sleep(Duration::from_millis(20));
         }
-        assert_eq!(std::fs::read_to_string(&out).unwrap(), token);
         let _ = std::fs::remove_file(&out);
-        let args = Args::try_parse_from("choractl run -- /bin/echo -n".split(' ')).unwrap();
-        assert!(
-            matches!(args.command, Cmd::Run { ref argv } if *argv == ["/bin/echo", "-n"]),
-            "everything after `run` is the program",
-        );
-    }
-
-    /// The old name `spawn` is a hidden alias of `run` (D42); `main`
-    /// warns on stderr when it is used.
-    #[test]
-    fn spawn_is_an_alias_of_run() {
-        let args = Args::try_parse_from(["choractl", "spawn", "foot"]).unwrap();
-        assert!(
-            matches!(args.command, Cmd::Run { ref argv } if *argv == ["foot"]),
-            "spawn starts the program like run",
-        );
-        assert_eq!(
-            used_name(&s(["choractl", "spawn", "foot"])),
-            Some("spawn"),
-            "the deprecation warning must see the typed alias",
-        );
-        assert_eq!(
-            used_name(&s(["choractl", "--name", "a", "spawn"])),
-            Some("spawn"),
-            "a global option does not hide the alias",
-        );
-        assert_eq!(
-            used_name(&s(["choractl", "run", "spawn"])),
-            Some("run"),
-            "running a program called spawn is not the alias",
-        );
-    }
-
-    /// argv of a call, for the `used_name` assertions.
-    fn s<const N: usize>(v: [&str; N]) -> Vec<String> {
-        v.map(String::from).to_vec()
-    }
-
-    /// `supervise` takes a name and the program after `--`; `restart`
-    /// takes the name alone.
-    #[test]
-    fn supervise_and_restart_take_the_plugin_name() {
-        let args =
-            Args::try_parse_from("choractl supervise tiling -- sleep 60".split(' ')).unwrap();
-        assert!(
-            matches!(args.command, Cmd::Supervise { ref name, ref argv }
-                if name == "tiling" && *argv == ["sleep", "60"]),
-            "everything after the name and `--` is the program",
-        );
-        let args = Args::try_parse_from("choractl restart tiling".split(' ')).unwrap();
-        assert!(matches!(args.command, Cmd::Restart { ref client } if client == "tiling"));
-    }
-
-    /// One minute fits the first start and five restarts; the next start
-    /// is an error, and an old start leaves the window again.
-    #[test]
-    fn supervise_allows_five_restarts_per_minute() {
-        let now = Instant::now();
-        let mut starts = Vec::new();
-        for _ in 0..6 {
-            assert!(
-                may_start(&mut starts, now),
-                "{} starts fit",
-                starts.len() + 1
-            );
-            starts.push(now);
-        }
-        assert!(
-            !may_start(&mut starts, now + Duration::from_secs(1)),
-            "the seventh start in one minute is an error",
-        );
-        assert!(
-            may_start(&mut starts, now + Duration::from_secs(61)),
-            "starts older than a minute do not count",
-        );
     }
 
     /// No argument of a command takes the place of `--name`.
@@ -1614,5 +1276,22 @@ mod tests {
         assert!(
             matches!(args.command, Cmd::Asset { action: AssetCmd::Put { asset, .. } } if asset == "x.frag")
         );
+    }
+
+    /// A view loaded through a symlink to the socket and a restart through
+    /// the socket itself name the same unit.
+    #[test]
+    fn a_symlink_to_the_socket_names_the_same_unit() {
+        let dir = std::env::temp_dir().join(format!("choractl-unit-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let socket = dir.join("ipc.sock");
+        std::fs::write(&socket, "").unwrap();
+        let link = dir.join("link.sock");
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink(&socket, &link).unwrap();
+        let unit = super::session_unit("p", socket.as_os_str());
+        assert_eq!(super::session_unit("p", link.as_os_str()), unit);
+        assert_ne!(super::session_unit("q", socket.as_os_str()), unit);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

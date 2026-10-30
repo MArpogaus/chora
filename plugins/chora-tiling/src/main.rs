@@ -678,8 +678,8 @@ impl Tiling {
         }
         match effect {
             Some(Effect::Relayout) => self.relayout(),
-            Some(Effect::Spawn(command)) => {
-                spawn(&command);
+            Some(Effect::Run(command)) => {
+                chora_kit::run(&command);
                 Ok(())
             }
             Some(Effect::Close(surface)) => self.apply(vec![Command::Close { surface }]),
@@ -1069,17 +1069,6 @@ fn parse<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
 fn only(ok: bool, err: impl FnOnce() -> String) -> Result<(), RpcError> {
     ok.then_some(())
         .ok_or_else(|| RpcError::new(RpcError::REJECTED, err()))
-}
-
-/// Runs a shell command. `&` lets the shell exit at once, so the command
-/// never becomes a zombie of this plugin.
-fn spawn(command: &str) {
-    let spawned = std::process::Command::new("sh")
-        .args(["-c", &format!("{command} &")])
-        .status();
-    if let Err(err) = spawned {
-        eprintln!("chora-tiling: cannot run {command:?}: {err}");
-    }
 }
 
 /// Takes a surface and lets it go at once, without `to`: the core then

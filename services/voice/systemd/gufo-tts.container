@@ -1,23 +1,22 @@
-# Gufo tts server on the AMD GPU, the systemd twin of gufo.sh tts.
-# Point MODEL at your checkpoint (dir for tts without GGUF note): systemctl
-# --user edit gufo-tts  ->  Environment=MODEL=/var/models/...
-
 [Unit]
 Description=Gufo tts server (port 8882)
-After=podman-user-wait-network-online.service
 
 [Container]
-Image=ghcr.io/gufo-org/toolboxes/gufo-runtime:latest
+Image=ghcr.io/gufo-org/toolboxes/gufo-runtime:latest@sha256:af997f31d5a825ad02fd44cbb6744e71a21df6149c02c5ed3bb0bb843b3f0013
 ContainerName=gufo-tts
 Network=ai-net-intern.network
 Network=ai-net-offline.network
 Volume=/var/models:/var/models:ro
-Device=/dev/kfd
-Device=/dev/dri
-PodmanArgs=--userns=keep-id --user=%U:%G --group-add keep-groups
-Environment=MODEL=/var/models/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
-Environment=EXTRA_ARGS=
-Exec=gufo serve --host 0.0.0.0 --port 8882 tts --model $MODEL --served-model-name gufo $EXTRA_ARGS
+AddDevice=/dev/kfd
+AddDevice=/dev/dri
+UserNS=keep-id
+GroupAdd=keep-groups
+ReadOnly=true
+DropCapability=all
+NoNewPrivileges=true
+# Without it, SELinux denies the container the GPU devices.
+SecurityLabelDisable=true
+Exec=gufo serve --host 0.0.0.0 --port 8882 tts --model /var/models/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --served-model-name gufo
 PublishPort=127.0.0.1:8882:8882
 
 [Service]

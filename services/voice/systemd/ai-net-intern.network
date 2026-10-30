@@ -1,5 +1,3 @@
-# The internal network pair of gufo.sh: the containers never reach the
-# internet, only each other and the published ports on this host.
 [Network]
 NetworkName=ai-net-intern
 Internal=true

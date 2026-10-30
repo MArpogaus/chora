@@ -36,13 +36,18 @@ use crate::state::{ClientState, State};
 const MAX_EARLY_REQUESTS: usize = 64;
 
 impl State {
-    /// Tells plugins what a client asks for. A request before the first
-    /// commit waits for `surface.created`.
+    /// Whether the plugins got the `surface.created` of a toplevel.
+    pub fn announced(&self, id: &str) -> bool {
+        self.scene.node(id).is_some() && !self.unannounced.iter().any(|(s, _)| s == id)
+    }
+
+    /// Tells plugins what a client asks for. A request before
+    /// `surface.created` waits for it.
     pub fn request(&mut self, toplevel: &ToplevelSurface, request: SurfaceRequest) {
         let Some(surface) = self.surface_id(toplevel.wl_surface()) else {
             return;
         };
-        if self.scene.node(&surface).is_some() {
+        if self.announced(&surface) {
             self.emit(&Event::SurfaceRequested { surface, request });
         } else {
             let queued = self.early_requests.entry(surface).or_default();
@@ -266,11 +271,15 @@ impl XdgActivationHandler for State {
             .filter_map(Window::toplevel)
             .find(|t| *t.wl_surface() == surface)
             .cloned();
-        if let Some(toplevel) = toplevel {
+        if let Some(toplevel) = toplevel
+            && self
+                .surface_id(&surface)
+                .is_some_and(|id| self.announced(&id))
+        {
             self.request(&toplevel, SurfaceRequest::Activate);
             return;
         }
-        // The token belongs to the first map of the surface.
+        // Before `surface.created`, the token belongs to that event.
         self.pending_activations.retain(|(s, _)| *s != surface);
         self.pending_activations
             .push((surface.clone(), token.as_str().to_owned()));

@@ -212,14 +212,17 @@ pub struct State {
     pub foreign_toplevels: HashMap<String, ForeignToplevelHandle>,
     pub foreign_toplevel_manager_state: ForeignToplevelManagerState,
     pub activation_state: XdgActivationState,
-    /// Requests of surfaces before their first commit.
+    /// Requests of surfaces before their `surface.created`.
     pub early_requests: HashMap<String, Vec<SurfaceRequest>>,
+    /// Toplevels after their first commit whose `surface.created` waits
+    /// for the end of the batch of requests, with their window manager.
+    pub unannounced: Vec<(String, Option<String>)>,
 
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
     pub windows: HashMap<String, Window>,
-    /// Activations of surfaces that have not committed yet: the token
-    /// travels with the first `surface.created` of that surface.
+    /// Activations of surfaces before their `surface.created`: the token
+    /// travels with that event.
     pub pending_activations: Vec<(WlSurface, String)>,
     pub assets: Assets,
     next_surface: u64,
@@ -343,6 +346,7 @@ impl State {
             foreign_toplevel_manager_state: ForeignToplevelManagerState::new(&dh),
             activation_state: XdgActivationState::new::<Self>(&dh),
             early_requests: HashMap::new(),
+            unannounced: Vec::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
             pending_activations: Vec::new(),

@@ -24,12 +24,17 @@
 set -euo pipefail
 
 bin=$(realpath "$1")
+# The plugins start apps with `choractl run` from PATH (D42).
+export PATH="$bin:$PATH"
 out=$(realpath "${2:-$(mktemp -d)}")
 theme=$(realpath "$(dirname "$0")/../flavors/xp/theme")
 mkdir -p "$out"
 # A short path, because a socket path has at most 107 bytes.
 XDG_RUNTIME_DIR=$(mktemp -d /tmp/chora-xp-e2e.XXXXXX)
 export XDG_RUNTIME_DIR
+# No user manager of the host: apps of the start menu run as children
+# of choractl, which the cleanup ends.
+unset DBUS_SESSION_BUS_ADDRESS
 pids=()
 cleanup() {
     kill "${pids[@]}" 2>/dev/null || true
@@ -374,8 +379,8 @@ kill "$restart_job" 2>/dev/null || true
 wait_for count_is 2
 grim "$out/after-restart.png"
 
-# A token given before the first map reaches plugins through
-# surface.created.
+# A token given before or with the first commit reaches plugins
+# through surface.created.
 "$bin/choractl" events surface.created >"$out/created.jsonl" 2>/dev/null &
 events_job=$!
 sleep 0.5

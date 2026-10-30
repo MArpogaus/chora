@@ -16,7 +16,7 @@ use std::{
 pub(crate) use chora_scene::ipc::valid_name;
 use chora_scene::{
     Event,
-    ipc::{Export, ExportMethod, Message, MethodCall, MethodReturn, RpcError},
+    ipc::{Capability, Export, ExportMethod, Message, MethodCall, MethodReturn, RpcError},
 };
 use serde_json::Value;
 
@@ -77,6 +77,9 @@ impl State {
         Some(match method {
             "methods.export" => params_of(params).and_then(|e| self.export(conn, e)),
             "methods.call" => {
+                if let Err(e) = self.check_socket_grant(conn, Capability::MethodsCall) {
+                    return Some(Err(e));
+                }
                 let call = match params_of(params) {
                     Ok(c) => c,
                     Err(e) => return Some(Err(e)),

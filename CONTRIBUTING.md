@@ -24,6 +24,8 @@ The hooks run:
 
 - `cargo fmt` and `cargo clippy` with `-D warnings`. `clippy.toml` sets the
   complexity guards. Split a function instead of raising a limit.
+- `ruff check` and `ruff format` on `services/voice/`. `ruff.toml`
+  selects the rules and the complexity guards.
 - file hygiene, YAML and TOML formatting, and a spell check
 - `actionlint` on the workflows
 - `commitizen` on every commit message
@@ -68,23 +70,26 @@ scale and transform.
 `XDG_RUNTIME_DIR` under `/tmp`, without the `WAYLAND_DISPLAY` and
 `DISPLAY` of the host. It prints `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and
 `CHORA_SOCKET` as lines `KEY=VALUE`, waits, and on a signal or at the end
-of the core stops the core with all its programs and removes the
+of the core stops the process group of the core and removes the
 directory. An agent or a CI job uses it so:
 
 ```bash
+export PATH=$PWD/target/debug:$PATH  # plugins start apps with choractl run
+unset DBUS_SESSION_BUS_ADDRESS       # no units in the user manager of the host
 tests/headless-session.sh 1280x800 -- target/debug/chora-tiling >session.env &
 session=$!
 until grep -q CHORA_SOCKET session.env; do sleep 0.1; done
 set -a; . ./session.env; set +a
-target/debug/choractl grant agent screen.capture input.inject
-target/debug/choractl run foot
-target/debug/choractl --name agent capture shot.png
+choractl grant agent screen.capture input.inject
+choractl run foot
+choractl --name agent capture shot.png
 kill $session
 ```
 
 `CHORA_BIN` sets the directory of `chora` (default `target/debug`), and
-`CHORA_LOG` the log file of the core. Programs of `choractl run` get the
-environment of the caller (D42), which the sourced lines provide. Without
+`CHORA_LOG` the log file of the core. Programs of `choractl run` get
+the variables that the sourced lines provide (see
+[Programs](docs/api.md#programs)). Without
 system Mesa, the software EGL driver and the clients can come from Fedora
 RPMs unpacked into the home directory:
 
@@ -134,7 +139,12 @@ Each bug fix comes with a test that fails without the fix (D48).
 
 CI runs `cargo clippy`, `cargo test` and the end-to-end test with `--locked`
 in a Fedora 44 container, and `cargo deny` in a separate job. A further job
-checks the build with the minimum Rust version.
+checks the build with the minimum Rust version. The `check` job runs
+gate check 9 of 0.7, and `cargo test` covers check 7. The `e2e` job runs
+the gate checks 6, 8 and 10. Two jobs on an Ubuntu runner run the gate checks that
+need root or podman. `vkms` starts chora on the tty backend, and
+`podman` runs a client in a container. A gate check that needs a user
+manager runs by hand on the reference machine.
 
 ## Releases
 

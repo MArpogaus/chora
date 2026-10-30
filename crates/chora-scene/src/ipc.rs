@@ -19,6 +19,18 @@ use crate::{Command, Event};
 /// The environment variable with the path of the IPC socket.
 pub const SOCKET_ENV: &str = "CHORA_SOCKET";
 
+/// Variables of a host session that would let a program of chora reach
+/// the host compositor instead. The startup command of the core drops
+/// them, and the units of `choractl run` take them only from the caller.
+pub const HOST_VARIABLES: [&str; 6] = [
+    "WAYLAND_SOCKET",
+    "DISPLAY",
+    "SWAYSOCK",
+    "I3SOCK",
+    "NIRI_SOCKET",
+    "HYPRLAND_INSTANCE_SIGNATURE",
+];
+
 /// The longest name: a method name or a client name.
 pub const MAX_NAME: usize = 64;
 
@@ -137,9 +149,8 @@ impl RpcError {
     /// The method works only on the admin socket of `choractl`, not on a
     /// client socket.
     pub const ADMIN_SOCKET_ONLY: i64 = 8;
-    /// A rule of client sockets refuses the request: another name in
-    /// `hello`, a node or an asset outside the client's own, an activation
-    /// token, or a grant for a name whose capabilities a socket fixes.
+    /// A rule of client sockets refuses the request; the API reference
+    /// lists the rules under Client sockets.
     pub const CLIENT_SOCKET_RULE: i64 = 9;
 
     /// An error with a code and a message and no `data`.
@@ -500,11 +511,26 @@ pub enum Capability {
     /// (D45).
     #[serde(rename = "input.grab-any")]
     GrabAny,
+    /// `methods.call`: call the methods of plugins. Checked only for a
+    /// client socket; the main socket may always call.
+    #[serde(rename = "methods.call")]
+    MethodsCall,
+    /// `activation.token`: get activation tokens for `choractl run`.
+    /// The core checks it only for a client socket; `choractl mcp` also
+    /// needs it on the main socket for `run_program`.
+    #[serde(rename = "activation.token")]
+    ActivationToken,
 }
 
 impl Capability {
     /// Every capability.
-    pub const ALL: [Self; 3] = [Self::InputInject, Self::ScreenCapture, Self::GrabAny];
+    pub const ALL: [Self; 5] = [
+        Self::InputInject,
+        Self::ScreenCapture,
+        Self::GrabAny,
+        Self::MethodsCall,
+        Self::ActivationToken,
+    ];
 
     /// The name, which is also the name of the method.
     #[must_use]
@@ -513,6 +539,8 @@ impl Capability {
             Self::InputInject => "input.inject",
             Self::ScreenCapture => "screen.capture",
             Self::GrabAny => "input.grab-any",
+            Self::MethodsCall => "methods.call",
+            Self::ActivationToken => "activation.token",
         }
     }
 }

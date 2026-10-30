@@ -252,24 +252,27 @@ impl State {
     }
 
     /// The revoke binding (D23): takes the capabilities away from every
-    /// client that holds only agent capabilities, as a full
-    /// `grants.revoke` does. The connections stay; only what the grants
-    /// gave them goes.
-    pub fn revoke_agents(&mut self) {
-        let names = self.grants.revoke_agents();
+    /// client and ends only the Wayland clients that a capability gave a
+    /// protocol. It also drops the unused activation tokens of no client.
+    /// The IPC connections stay.
+    pub fn revoke_all(&mut self) {
+        self.forget_unused_tokens(std::time::Duration::ZERO);
+        let names = self.grants.revoke_all();
         if names.is_empty() {
             return;
         }
-        tracing::warn!(clients = ?names, "the revoke binding took the capabilities of the agents");
+        tracing::warn!(clients = ?names, "the revoke binding took the capabilities of every client");
         for name in names {
-            self.disconnect_wayland(&name, &[]);
+            // Only the clients that a capability gave a protocol go.
+            self.disconnect_wayland(&name, &chora_scene::ipc::Capability::ALL);
             self.revoke_free_grabs(&name);
         }
     }
 
     /// The emergency reset: disconnects all clients of the IPC socket,
-    /// revokes all grants, puts all surfaces in a grid that fills the output
-    /// and focuses the first one.
+    /// revokes all grants, drops the unused activation tokens of no client,
+    /// puts all surfaces in a grid that fills the output and focuses the
+    /// first one.
     pub fn reset(&mut self) {
         // The transactions of the clients end without effect, so that a
         // close does not start the next one.
@@ -282,7 +285,8 @@ impl State {
         }
         self.end_graces();
         self.remove_client_sockets();
-        self.grants.clear();
+        self.grants.revoke_all();
+        self.forget_unused_tokens(std::time::Duration::ZERO);
         self.inject_mark = None;
         self.node_grab = None;
         self.button_grab = None;
@@ -343,7 +347,17 @@ mod tests {
     }
 
     #[test]
-    fn the_revoke_binding_takes_the_capabilities_of_all_agents() {
+    fn the_reset_drops_the_waiting_tokens() {
+        let mut core = Core::new();
+        let mut ctl = core.admin();
+        ctl.ok(&mut core, "activation.token", Value::Null);
+        assert_eq!(core.state.activation_state.tokens().count(), 1);
+        core.state.reset();
+        assert_eq!(core.state.activation_state.tokens().count(), 0);
+    }
+
+    #[test]
+    fn the_revoke_binding_takes_the_capabilities_of_all_clients() {
         let mut core = Core::new();
         let mut ctl = core.admin();
         let agent = json!({"client": "agent", "capabilities": ["input.inject", "input.grab-any"]});
@@ -361,12 +375,16 @@ mod tests {
             json!(["input.inject", "input.grab-any"]),
             "{list}"
         );
+        // A waiting token of no client goes with the grants.
+        ctl.ok(&mut core, "activation.token", Value::Null);
+        assert_eq!(core.state.activation_state.tokens().count(), 1);
         // The fixed binding: Ctrl+Alt+i.
         press(&mut core, CTRL, true);
         press(&mut core, ALT, true);
         press(&mut core, I, true);
         press(&mut core, I, false);
         assert_eq!(ctl.ok(&mut core, "grants.list", Value::Null), json!({}));
+        assert_eq!(core.state.activation_state.tokens().count(), 0);
         let (_, message) = agent.fails(&mut core, "input.inject", json!({"events": []}));
         assert!(message.contains("needs a grant"), "{message}");
         assert!(!ctl.closed(&mut core), "the connections stay");

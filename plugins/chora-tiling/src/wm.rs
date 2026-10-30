@@ -91,7 +91,7 @@ pub struct States {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Effect {
     Relayout,
-    Spawn(String),
+    Run(String),
     Close(String),
     Reload,
 }
@@ -314,7 +314,7 @@ impl Wm {
     /// Runs an action of a binding.
     pub fn act(&mut self, action: &Action) -> Option<Effect> {
         match action {
-            Action::Spawn(command) => return Some(Effect::Spawn(command.clone())),
+            Action::Run(command) => return Some(Effect::Run(command.clone())),
             Action::Close => return self.focused().map(|id| Effect::Close(id.into())),
             Action::Reload => return Some(Effect::Reload),
             Action::FocusNext => self.focus_next(),

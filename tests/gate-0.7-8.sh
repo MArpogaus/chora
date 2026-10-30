@@ -1,9 +1,9 @@
 #!/bin/bash
 # Gate check 8 of 0.7: `choractl run foot` starts foot in its own
-# transient systemd unit when the user manager answers, and directly without one. foot
-# reads XDG_ACTIVATION_TOKEN of the run and asks for activation before
-# its first map, so the `surface.created` of its window carries the
-# token. foot is not installed here, so the answer is SKIP.
+# transient systemd unit when a user manager runs, and directly without
+# one. foot reads XDG_ACTIVATION_TOKEN of the run and asks for
+# activation right after its first commit, in the same batch, so the
+# `surface.created` of its window carries the token. Without foot, the answer is SKIP.
 #
 # Usage: tests/gate-0.7-8.sh   BIN: directory with the binaries
 set -u
@@ -25,20 +25,20 @@ test -n "$token" || fail "the run of foot printed no token"
 run_pid "$pid"
 "$bin/choractl" --name agent wait "app_id:foot kind:surface" --timeout 20 >/dev/null ||
     fail "no foot window appeared"
-# The same test as choractl: any answer, also degraded with exit 1.
-if [ -n "$(systemctl --user is-system-running 2>/dev/null)" ]; then
-    # run starts a transient chora-run-<pid>-<nanos>.service, not a
-    # scope; accept either shape of a transient unit of its own.
-    grep -qE '\.scope|chora-run.*\.(service|scope)' "/proc/$pid/cgroup" ||
+# The same test as choractl: any answer but offline, also degraded.
+state=$(systemctl --user is-system-running 2>/dev/null)
+if [ -n "$state" ] && [ "$state" != offline ]; then
+    # run starts the transient unit chora-run-<pid>-<nanos>.service.
+    grep -qE 'chora-run-.*\.service' "/proc/$pid/cgroup" ||
         fail "foot runs in no systemd unit of its own"
-    ok_kind=its own transient unit
+    ok_kind="its own transient unit"
 else
-    ok_kind=the direct fallback without a user systemd
+    ok_kind="the direct fallback without a user manager"
 fi
 for _ in $(seq 20); do
     grep -qF "\"token\":\"$token\"" "$out/events" && break
     sleep 0.5
 done
 grep -qF "\"token\":\"$token\"" "$out/events" ||
-    fail "the surface.created of foot carries not the token of the run"
+    fail "the surface.created of foot carries not the token $token: $(cat "$out/events")"
 ok "choractl run started foot in $ok_kind with the token in surface.created"

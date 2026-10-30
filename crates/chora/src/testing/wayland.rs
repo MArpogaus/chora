@@ -226,24 +226,34 @@ impl Wayland {
         }
     }
 
-    /// A toplevel that activates with the token before its first commit,
-    /// as a program of `choractl run` does; its `surface.created` then
-    /// carries the token.
-    pub fn activated_toplevel(&mut self, core: &mut Core, app_id: &str, token: &str) -> Toplevel {
+    /// A toplevel that activates with the token before or with its first
+    /// commit, as a program of `choractl run` does; its `surface.created` then carries
+    /// the token. The activation comes before the toplevel role, or right
+    /// after the first commit in the same batch, as in foot.
+    pub fn activated_toplevel(
+        &mut self,
+        core: &mut Core,
+        app_id: &str,
+        token: &str,
+        after_commit: bool,
+    ) -> Toplevel {
         let qh = self.queue.handle();
         let index = self.app.surfaces.len();
         self.app.surfaces.push(Configures::default());
         let compositor = self.app.compositor.as_ref().expect("wl_compositor");
         let surface = compositor.create_surface(&qh, ());
-        // The activation comes before the toplevel role, as in a program
-        // that reads `XDG_ACTIVATION_TOKEN` on its way to the first map.
         let activation = self.app.activation.as_ref().expect("xdg_activation");
-        activation.activate(token.into(), &surface);
+        if !after_commit {
+            activation.activate(token.into(), &surface);
+        }
         let wm_base = self.app.wm_base.as_ref().expect("xdg_wm_base");
         let xdg = wm_base.get_xdg_surface(&surface, &qh, index);
         let role = xdg.get_toplevel(&qh, index);
         role.set_app_id(app_id.into());
         surface.commit();
+        if after_commit {
+            activation.activate(token.into(), &surface);
+        }
         self.roundtrip(core);
         Toplevel {
             surface,

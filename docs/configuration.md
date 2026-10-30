@@ -68,9 +68,10 @@ scene:
 - A node has an `id`, a `kind` (`group`, `rect`, `image`, `shader` or
   `text`), a `parent`
   (the root by default) and its `props` as in a `create` command.
-- A name has letters, digits, `_`, `-` and `.`, but no `.` first, so that
-  its file stays in its directory. The file `NAME.yaml` must name the same
-  view.
+- A name has lowercase letters, digits, `_`, `-` and `.`, and starts
+  with a letter, so that its file stays in its directory. A name does
+  not end in `.yaml`, because such a name is a path. The file
+  `NAME.yaml` must name the same view.
 - `choractl view load` also takes the path of a YAML file; the MCP tools
   take names only.
 - A plugin that a view starts gets no stdin and no stdout of `choractl`,
@@ -123,6 +124,11 @@ showroom:
   grants: []
 ```
 
+The grants are the five capabilities of `choractl grant` (see
+[API](api.md#client-sockets)). An agent that
+drives the window manager needs `methods.call`, and one that starts apps
+needs `activation.token`. Both let it take the keyboard focus.
+
 The names follow the rules of `hello`. `clients up` opens the socket of
 every name with exactly the capabilities of its list. A socket that
 already has the equal capabilities stays with its connections and gets
@@ -152,7 +158,7 @@ option:
 | `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
 | `new_window` | `master` or `stack`: where a new window goes |
 | `focus` | `click` or `follow_mouse` |
-| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once |
+| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run` |
 
 The layouts and the default bindings follow the awesome window manager.
 Each output has its own tags, and each tag its own layout and parameters.
@@ -181,8 +187,8 @@ like `set_layout`.
 `chora-tiling` connects with `resume` (see [API](api.md#ipc-methods)). It
 keeps the tags and the layouts of each output, and the tags, the states
 and the stacking of each window, in the `meta` of its nodes. A restart
-within the grace time rebuilds them from there, for example `choractl
-restart tiling` after a rebuild.
+within the grace time rebuilds them from there. In a flavor or a view,
+`choractl restart tiling` does that after a rebuild.
 
 `chora-tiling` claims the box around the work areas of its outputs
 (D55). `--output NAME` limits it to some outputs, as for `chora-xp`, and
@@ -211,7 +217,7 @@ The package installs the tiling flavor:
 ```text
 /usr/share/chora/flavors/tiling/
 ├── chora-tiling.target              # wants the two units below
-├── chora-tiling-wm.service          # chora-tiling
+├── chora-tiling.service             # chora-tiling
 └── chora-tiling-xwayland.service    # xwayland-satellite, if installed
 ```
 
@@ -227,7 +233,7 @@ connects with the client name `xp`.
 ```text
 /usr/share/chora/flavors/xp/
 ├── chora-xp.target              # wants the two units below
-├── chora-xp-wm.service          # chora-xp
+├── chora-xp.service             # chora-xp
 ├── chora-xp-xwayland.service    # xwayland-satellite, if installed
 └── theme/                       # SVG files, fonts, wallpaper and cursors
 ```
@@ -664,7 +670,7 @@ To try the flavor from a source tree, start it nested:
 
 ```bash
 cargo build --workspace
-target/debug/chora -- target/debug/chora-xp --theme flavors/xp/theme
+PATH=$PWD/target/debug:$PATH chora -- chora-xp --theme flavors/xp/theme
 ```
 
 ## Services
@@ -679,4 +685,4 @@ admin socket, so a container never mounts it (see
 [API](api.md#client-sockets)). Through its `ipc.sock`, the container sees
 and changes only its own nodes and the windows of its `wayland.sock`. It
 sets no camera and puts no node under `screen:*`. It takes the keyboard
-with `focus_node` only after a press of the user on it.
+with `focus_node` or `focus` only after a press of the user on it.
