@@ -13,11 +13,18 @@ license=('GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or
 depends=(gcc-libs glibc libdisplay-info libdrm libinput libxkbcommon mesa seatd systemd-libs wayland)
 makedepends=(cargo pkgconf)
 optdepends=(
+  'uwsm: the sessions managed by uwsm'
   'foot: the terminal of the tiling flavor'
   'fuzzel: the launcher of the tiling flavor'
   'waybar: the panel of the tiling flavor'
+  'mako: the notifications of the tiling flavor'
+  'swaybg: the wallpaper of the tiling flavor'
+  'swayidle: the idle lock of the tiling flavor'
+  'swaylock: the lock screen of the tiling flavor'
+  'kanshi: the output profiles of the tiling flavor'
   'xwayland-satellite: X11 programs'
 )
+backup=(etc/xdg/uwsm/env-chora)
 options=(!lto !debug)
 
 build() {
@@ -34,13 +41,15 @@ package() {
   install -Dm755 dist/session/chora-session dist/session/chora-flavor -t "$pkgdir/usr/bin/"
   # The X11 units of the flavors start it from this path.
   install -Dm755 dist/session/chora-xwayland -t "$pkgdir/usr/libexec/chora/"
-  install -Dm644 dist/session/chora.desktop dist/session/chora-xp.desktop \
-    -t "$pkgdir/usr/share/wayland-sessions/"
+  install -Dm644 dist/session/*.desktop -t "$pkgdir/usr/share/wayland-sessions/"
+  install -Dm644 dist/session/env-chora -t "$pkgdir/etc/xdg/uwsm/"
   install -Dm644 dist/session/chora@.service dist/session/chora-shutdown.target \
     -t "$pkgdir/usr/lib/systemd/user/"
   install -Dm644 LICENSE LICENSES/MIT-Smithay.txt -t "$pkgdir/usr/share/licenses/chora/"
   install -Dm644 README.md -t "$pkgdir/usr/share/doc/chora/"
-  install -Dm644 flavors/tiling/* -t "$pkgdir/usr/share/chora/flavors/tiling/"
+  install -Dm644 flavors/tiling/*.service flavors/tiling/*.target \
+    -t "$pkgdir/usr/share/chora/flavors/tiling/"
+  install -Dm644 flavors/tiling/waybar/* -t "$pkgdir/usr/share/chora/flavors/tiling/waybar/"
   install -Dm644 dist/shaders/* -t "$pkgdir/usr/share/chora/shaders/"
   install -Dm644 dist/plugins/* -t "$pkgdir/usr/share/chora/plugins/"
   install -Dm644 flavors/xp/chora-xp* -t "$pkgdir/usr/share/chora/flavors/xp/"

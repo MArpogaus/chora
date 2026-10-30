@@ -15,7 +15,9 @@ sed "s/@VERSION@/${version//-/}/" dist/arch/PKGBUILD >"$work/PKGBUILD"
 # Every file of the RPM is in the package too.
 package=$(ls "$work"/chora-*.pkg.tar.zst)
 for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
-    usr/share/wayland-sessions/chora.desktop usr/share/chora/flavors/xp/theme/winxp \
+    usr/share/wayland-sessions/chora.desktop usr/share/wayland-sessions/chora-uwsm.desktop \
+    etc/xdg/uwsm/env-chora usr/share/chora/flavors/tiling/waybar/config.jsonc \
+    usr/share/chora/flavors/xp/theme/winxp \
     usr/share/icons/ModernXP/index.theme usr/share/licenses/chora/LICENSE; do
     bsdtar -tf "$package" | grep -qx "$path/\?" || { echo "missing: $path" >&2; exit 1; }
 done
