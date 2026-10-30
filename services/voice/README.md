@@ -220,17 +220,32 @@ When the LLM reads images and `voice-mcp` has the grant
 unit finds chora through `CHORA_SOCKET`, which a chora flavor gives the
 user manager.
 
-To type and to start programs, the client name `voice-mcp` needs
-grants. A grant lasts until the session ends, until `choractl revoke
-voice-mcp`, the revoke binding or the emergency reset:
+`choractl mcp` confines its connection: although it uses the main
+socket, it has the capability rules of a client socket (D33). Each
+power of the LLM beyond the scene needs a grant of the client name
+`voice-mcp`. A grant lasts until the session ends, until `choractl
+revoke voice-mcp`, the revoke binding or the emergency reset:
+
+| grant | what the LLM can do with it |
+|---|---|
+| `methods.call` | call the methods of the plugins: `call_method` and the tools `client.method`, for example the focus of chora-tiling |
+| `methods.privileged` | with `methods.call`, call privileged methods: `settings.set`, `settings.reload` and methods that run commands, such as `app.open` of chora-mc |
+| `activation.token` | start any program with `run_program` |
+| `input.inject` | type and click with `inject_input` |
+| `screen.capture` | see the screenshot in `describe_screen` |
 
 ```bash
-choractl grant voice-mcp input.inject activation.token
+choractl grant voice-mcp methods.call
 ```
 
-Each of these grants alone lets the LLM run commands as you. Without
-grants, the LLM still closes windows and changes the outputs, the scene
-and the plugins, and overwrites the saved views. It also starts the
+`methods.call` alone keeps the plugins at their plain methods. Each of
+`methods.privileged`, `activation.token` and `input.inject` lets the
+LLM run commands as you: a setting such as the terminal of chora-xp or
+a binding with `run:` holds a command, and typing reaches a terminal.
+The agent asks for a spoken yes before each `run_program` and each
+`inject_input` (the `confirm` rules), not before a privileged method.
+Without grants, the LLM still closes windows and changes the outputs
+and the scene, and overwrites the saved views. It also starts the
 plugins of installed views. Any voice that the mic hears can start a
 turn, also from a video, and also while the screen is locked. Text on
 the screen that a tool reads can also steer the LLM. So can the plugins,
@@ -244,13 +259,21 @@ chora-voice` stops the agent.
 
 ## Coding tasks
 
-With a harness in `coder_cmd`, the LLM gets the tools `code_task`,
+An empty `coder_cmd` (the default) turns the coding tools off. With a
+harness in `coder_cmd`, the LLM gets the tools `code_task`,
 `code_status`, `code_cancel` and `list_projects`. The harness is any
-command that takes the task as its last argument, for example:
+command that takes the task as its last argument. Make it a sandbox
+wrapper, such as `agent-sandbox.sh` (a podman container, read-only,
+without capabilities), around the coding agent:
 
 ```yaml
-coder_cmd: [claude, -p, --output-format, stream-json, --verbose]
+coder_cmd: [agent-sandbox.sh, claude, -p, --output-format, stream-json, --verbose]
 ```
+
+Do not give a bare command such as `[claude, -p, ...]`. The task comes
+from the LLM, and so from any voice or text that steers it. A bare
+harness runs that task as you, with access to all your files and keys.
+The clone below does not protect your home directory.
 
 A task runs in the background, one at a time, in a clone of a project
 of `~/.local/share/chora/inventory/NAME` (a git repository), in
