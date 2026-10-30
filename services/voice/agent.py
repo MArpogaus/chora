@@ -72,7 +72,9 @@ How chora works:
   or chora-xp. It places the windows. list_plugins shows the plugins and
   the methods that each exports; call them with call_method or with their
   own tool, for example tiling.set_layout. Change the layout of windows
-  only through these methods, never by moving window nodes.
+  only through these methods. Never attach, remove or move a window
+  node: the window manager owns it, and a window you take is gone from
+  its layout.
 - You cannot stop, restart or swap a plugin. To switch to another window
   manager, such as the XP flavor, the user restarts chora; say so.
 - Put your own nodes under one group with an id that starts with voice-,
