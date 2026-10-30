@@ -192,7 +192,8 @@ A keyword-spotting model can replace this later.
 
 A rule matches by `tool` (glob), and optionally by the command kinds of
 `apply_commands`, by `argv0` of `run_program`, or by `method` (glob) of
-`call_method`. The agent speaks the `prompt` of the rule and waits for
+`call_method`. The agent speaks the `prompt` of the rule, with the
+program of `run_program` in place of `{program}`, and waits for
 yes or no. The method `confirm` answers from a key or the HUD (WP5),
 the spoken yes and no since WP6; two unclear answers are a no. No
 answer within `confirm_timeout_ms` is a no. A no gives the LLM the result "declined by
@@ -335,8 +336,7 @@ confirm:
   - {tool: unload_view, prompt: "Soll ich die Ansicht entfernen?"}
   - {tool: inject_input, prompt: "Soll ich tippen oder klicken?"}
   - {tool: code_task, prompt: "Soll ich die Programmieraufgabe starten?"}
-  - {tool: run_program, argv0: [systemctl, loginctl, shutdown, reboot, poweroff],
-     prompt: "Soll ich den Sitzungsbefehl ausführen?"}
+  - {tool: run_program, prompt: "Soll ich das Programm {program} starten?"}
   - {tool: configure_output, prompt: "Soll ich den Bildschirm ändern?"}
   - {tool: "*.restart", prompt: "Soll ich das Plugin neu starten?"}
   - {tool: call_method, method: "*.restart", prompt: "Soll ich das Plugin neu starten?"}

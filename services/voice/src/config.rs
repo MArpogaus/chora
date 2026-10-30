@@ -21,7 +21,8 @@ pub struct Confirm {
     pub argv0: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
-    /// What the agent asks.
+    /// What the agent asks; `{program}` stands for the program of
+    /// `run_program`.
     pub prompt: String,
 }
 
@@ -188,10 +189,8 @@ fn default_confirm() -> Vec<Confirm> {
         rule("unload_view", "Soll ich die Ansicht entfernen?"),
         rule("inject_input", "Soll ich tippen oder klicken?"),
         rule("code_task", "Soll ich die Programmieraufgabe starten?"),
-        Confirm {
-            argv0: words(&["systemctl", "loginctl", "shutdown", "reboot", "poweroff"]),
-            ..rule("run_program", "Soll ich den Sitzungsbefehl ausführen?")
-        },
+        // A program can do all that the user can (D42).
+        rule("run_program", "Soll ich das Programm {program} starten?"),
         rule("configure_output", "Soll ich den Bildschirm ändern?"),
         rule("*.restart", restart),
         Confirm {

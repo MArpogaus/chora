@@ -552,8 +552,9 @@ impl Chat {
             return true;
         };
         let (answer, rx) = oneshot::channel();
+        let program = tools::program(args).unwrap_or_default();
         out(Event::Confirm {
-            prompt: rule.prompt.clone(),
+            prompt: rule.prompt.replace("{program}", program),
             answer,
         });
         let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());

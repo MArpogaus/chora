@@ -268,11 +268,7 @@ pub fn rule<'a>(rules: &'a [Confirm], tool: &str, args: &Value) -> Option<&'a Co
                 .filter_map(Value::as_object)
                 .flat_map(|c| c.keys())
         };
-        let program = args["argv"][0].as_str().map(|p| {
-            Path::new(p)
-                .file_name()
-                .map_or(p, |n| n.to_str().unwrap_or(p))
-        });
+        let program = program(args);
         glob(&r.tool, tool)
             && (r.commands.is_empty() || kinds().any(|k| r.commands.contains(k)))
             && (r.argv0.is_empty() || program.is_some_and(|p| r.argv0.iter().any(|a| a == p)))
@@ -281,6 +277,15 @@ pub fn rule<'a>(rules: &'a [Confirm], tool: &str, args: &Value) -> Option<&'a Co
                     .as_str()
                     .is_some_and(|method| glob(m, method))
             })
+    })
+}
+
+/// The file name of the program of `run_program`.
+pub fn program(args: &Value) -> Option<&str> {
+    args["argv"][0].as_str().map(|p| {
+        Path::new(p)
+            .file_name()
+            .map_or(p, |n| n.to_str().unwrap_or(p))
     })
 }
 
@@ -507,14 +512,12 @@ pub mod tests {
             prompt("apply_commands", json!({"commands": [{"create": {}}]})),
             None
         );
-        assert_eq!(
-            prompt(
-                "run_program",
-                json!({"argv": ["/usr/bin/systemctl", "poweroff"]})
-            ),
-            Some("Soll ich den Sitzungsbefehl ausführen?")
-        );
-        assert_eq!(prompt("run_program", json!({"argv": ["foot"]})), None);
+        for argv in [json!(["/usr/bin/systemctl", "poweroff"]), json!(["foot"])] {
+            assert_eq!(
+                prompt("run_program", json!({ "argv": argv })),
+                Some("Soll ich das Programm {program} starten?")
+            );
+        }
         assert_eq!(
             prompt("tiling.restart", json!({})),
             Some("Soll ich das Plugin neu starten?")
