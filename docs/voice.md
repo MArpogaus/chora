@@ -51,7 +51,7 @@ same channel.
 | `tools` | MCP client of `choractl --name voice mcp`, the coder tools, the confirmation gate |
 | `coder` | One background coding task, as in Python |
 | `chora` | A thread with the `chora-kit` runtime: methods, settings, PTT grab |
-| `hud` | A thread with its own connection `NAME-hud`: reports to chora-mc, the indicator node (WP8) |
+| `hud` | A thread: times the events of the HUD for the `chora` thread; the indicator node on its own connection `NAME-hud` (WP8) |
 | `core` | State machine, speech gate, history, word matcher, turn metrics |
 
 Audio: the ASR takes 24 kHz only (WP0), and the TTS sends 24 kHz. So the
@@ -364,26 +364,29 @@ more per change), `awake`, `muted: {mic, speaker}`, `turn`,
 (the parameters of `agent.set` for the coder, or null before the first
 task) and `health` (section 6).
 
-HUD: the core will get client-emitted events (a new decision record,
-implemented by another package). Then the agent emits the event
-`voice.state` with the state record on each change of `seq`. Until then,
-a HUD polls the method `state` (4 Hz; `seq` shows a change). The
+HUD: the agent emits client events (D65) on its connection `NAME`, so
+a HUD subscribes to `voice.*` and needs no polling. The method `state`
+stays for a full state record. The
 indicator node signals without a HUD: with `indicator`, a dot of 12
 pixels at the bottom right of the first output, under `screen:OUTPUT`,
 in the color of the state (input `pass`). The `hud` thread places it
 once per connection.
 
-chora-mc (WP6): when `mc` runs, the agent calls `mc agent.set {name,
-state, task, said}` on each change (`state` mapped to the states of mc:
-`asleep`, `listening`, `thinking`, `working`, `question`, `speaking`;
-`task` the request, `said` the last reply) and `mc hud.say {state:
-speaking, text, duration_ms}` for each sentence when its sound starts,
-with the length of its PCM (a late sentence gets the rest of its
-length). A thread with its own connection `NAME-hud` calls them through
-`methods.call`; errors only log at debug level, so mc may be absent.
-A coding task is a sub-agent: `mc agent.set {name: coder, state, task,
+The events (D65): `voice.state {state, task, said}` on each change
+(`state` mapped to the states of mc: `asleep`, `listening`, `thinking`,
+`working`, `question`, `speaking`; `task` the request, `said` the last
+reply), and `voice.say {state: speaking, text, duration_ms}` for each
+sentence when its sound starts, with the length of its PCM (a late
+sentence gets the rest of its length). The data are the parameters of
+`mc agent.set` and `mc hud.say`, and chora-mc subscribes to `voice.*`.
+A coding task is a sub-agent: `voice.state {name: coder, state, task,
 said}` with `state` `working`, then `done` or `blocked` (failed or
 cancelled), `task` the task, and `said` its last step, then its result.
+The `hud` thread waits for the sound of a sentence and hands the events
+to the `chora` thread, which emits them on the connection of the
+methods: only that connection has the name `voice`. The `chora` thread
+looks for them every 50 ms between the events of chora. A refused event,
+for example over the rate limit of the core, logs at debug level.
 
 ## 11. Logging and latency
 
@@ -804,7 +807,7 @@ WP8, error paths, health, indicator and the live gate:
 | WP5 | LLM client, tool loop, MCP reconnect and timeouts, token budget (done) | L |
 | WP6 | State machine, word matcher, barge-in, cancel, sleep/wake, confirmation; first full voice turn; remove `agent.py` and `voice-agent.service` (done) | L |
 | WP7 | Coder port (done) | S |
-| WP8 | Error paths, health, indicator, live gate (done); client events for the HUD wait for the core | M |
+| WP8 | Error paths, health, indicator, live gate, client events for the HUD (D65) (done) | M |
 | WP9 | Unit, README, package | S |
 
 S: up to 1 day. M: 2 to 3 days. L: about 1 week.
@@ -847,5 +850,6 @@ S: up to 1 day. M: 2 to 3 days. L: about 1 week.
     done."), as the Python agent did, with the result of the harness in
     its own language. Make it a German phrase, or let the LLM sum it
     up (one more LLM round per task)?
-12. Client events for the HUD (`voice.state` as an event) need a core
-    feature (section 10); until then, chora-mc gets `agent.set`.
+12. Decided (D65): the agent emits `voice.state` and `voice.say`, and
+    chora-mc subscribes to `voice.*` (section 10). `tests/voice-events.sh`
+    checks it in a headless session.

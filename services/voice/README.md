@@ -167,9 +167,10 @@ answers, is a no.
 `speaking` or `working` (listening while a coding task runs). A dot at
 the bottom right of the first output shows it too (`indicator`): blue
 listens, red records, amber thinks, violet asks, green speaks, teal
-works, gray sleeps. When `chora-mc` runs, the agent reports its state
-with `mc agent.set` and each spoken sentence with `mc hud.say`, so the
-agents scene and the HUD show it. The log has one line per stage with
+works, gray sleeps. The agent emits its state as the event `voice.state`
+and each spoken sentence as `voice.say` (D65); `chora-mc` follows
+them, so its agents scene and its HUD show it, and
+`choractl events voice.*` prints them. The log has one line per stage with
 its latency and one summary per reply.
 
 `choractl call voice health` shows each server (`asr`, `tts`, `llm`,
