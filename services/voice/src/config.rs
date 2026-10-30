@@ -38,6 +38,12 @@ pub struct Phrases {
     pub tool_rounds: String,
     /// The ASR failed for a request.
     pub asr_failed: String,
+    /// After the first sentence of a long answer of a sub-agent.
+    pub details: String,
+    /// The question of a sub-agent: `{name}` and `{what}`.
+    pub agent_asks: String,
+    /// A sub-agent ended by itself: `{name}`.
+    pub agent_ended: String,
 }
 
 impl Default for Phrases {
@@ -47,6 +53,9 @@ impl Default for Phrases {
             llm_slow: "Das Sprachmodell braucht zu lange.".into(),
             tool_rounds: "Ich habe nach zu vielen Werkzeugaufrufen aufgehört.".into(),
             asr_failed: "Ich habe dich nicht verstanden.".into(),
+            details: "Details auf dem Bildschirm.".into(),
+            agent_asks: "{name} fragt: {what}. Erlauben?".into(),
+            agent_ended: "{name} hat sich beendet.".into(),
         }
     }
 }
@@ -138,8 +147,28 @@ pub struct Config {
     pub llm_total_s: u32,
     /// The command of `choractl`, for example in a container.
     pub chora_mcp: Vec<String>,
-    /// A coding harness; empty turns the coding tools off.
+    /// A coding harness; empty turns the coding tools off. It runs in
+    /// `sandbox_cmd`.
     pub coder_cmd: Vec<String>,
+    /// The sandbox in front of `coder_cmd` and `agent_cmd`; it runs the
+    /// command in the directory where it starts.
+    pub sandbox_cmd: Vec<String>,
+    /// Runs `coder_cmd` and `agent_cmd` without `sandbox_cmd`, with all
+    /// rights of the user.
+    pub unsandboxed: bool,
+    /// The command of an ACP agent (docs/voice.md section 18), in
+    /// `sandbox_cmd`; `{dir}` and `{project}` are the project. Empty turns
+    /// the agent tools off.
+    pub agent_cmd: Vec<String>,
+    /// Projects for the agents besides the inventory: name and directory.
+    pub agent_projects: BTreeMap<String, String>,
+    /// The voices that the agents get in turn.
+    pub agent_voices: Vec<String>,
+    /// A longer answer of an agent speaks its first sentence and
+    /// `phrases.details`.
+    pub agent_said_chars: u32,
+    /// A question of an agent without an answer is a no after this time.
+    pub agent_permission_s: u32,
     /// The tools that the LLM does not get, as globs, for example the
     /// methods of the agent itself.
     pub skipped_tools: Vec<String>,
@@ -201,6 +230,15 @@ fn default_confirm() -> Vec<Confirm> {
 }
 
 impl Config {
+    /// The command line of a harness: in `sandbox_cmd`, unless
+    /// `unsandboxed`; empty stays empty.
+    pub fn spawn(&self, cmd: &[String]) -> Vec<String> {
+        if cmd.is_empty() || self.unsandboxed {
+            return cmd.to_vec();
+        }
+        self.sandbox_cmd.iter().chain(cmd).cloned().collect()
+    }
+
     /// The language of the TTS: `tts_language`, else the one of
     /// `language`. With `auto`, the TTS made short German clips hard to
     /// understand (WP6).
@@ -225,6 +263,7 @@ impl Config {
 }
 
 impl Default for Config {
+    #[allow(clippy::too_many_lines)] // one line per key
     fn default() -> Self {
         Self {
             asr_url: "ws://127.0.0.1:8881/v1/realtime?intent=transcription".into(),
@@ -282,6 +321,13 @@ impl Default for Config {
             llm_total_s: 120,
             chora_mcp: words(&["choractl"]),
             coder_cmd: Vec::new(),
+            sandbox_cmd: words(&["agent-sandbox.sh"]),
+            unsandboxed: false,
+            agent_cmd: Vec::new(),
+            agent_projects: BTreeMap::new(),
+            agent_voices: words(&["ryan", "vivian", "serena", "eric"]),
+            agent_said_chars: 160,
+            agent_permission_s: 120,
             skipped_tools: words(&["subscribe_events", "wait_events", "capture", "voice.*"]),
             record_dir: String::new(),
         }
@@ -394,7 +440,24 @@ impl Config {
 impl Settings for Config {
     fn check(&self) -> Result<(), String> {
         self.check_values()?;
+        self.check_harnesses()?;
         self.check_words()
+    }
+}
+
+impl Config {
+    /// The sandbox and the agents.
+    fn check_harnesses(&self) -> Result<(), String> {
+        if !self.unsandboxed
+            && self.sandbox_cmd.first().is_none_or(String::is_empty)
+            && !(self.coder_cmd.is_empty() && self.agent_cmd.is_empty())
+        {
+            return Err("sandbox_cmd: a program, or unsandboxed: true".into());
+        }
+        if self.agent_said_chars == 0 || self.agent_permission_s == 0 {
+            return Err("agent_said_chars, agent_permission_s: at least 1".into());
+        }
+        Ok(())
     }
 }
 
@@ -422,6 +485,19 @@ mod tests {
     }
 
     #[test]
+    fn harnesses_run_in_the_sandbox_unless_unsandboxed() {
+        let mut config = Config::default();
+        let cmd = words(&["opencode", "acp"]);
+        assert_eq!(
+            config.spawn(&cmd),
+            ["agent-sandbox.sh", "opencode", "acp"]
+        );
+        assert_eq!(config.spawn(&[]), Vec::<String>::new());
+        config.unsandboxed = true;
+        assert_eq!(config.spawn(&cmd), cmd);
+    }
+
+    #[test]
     fn the_tts_language_follows_the_language() {
         let mut config = Config::default();
         assert_eq!(config.tts_language(), "German");
@@ -445,6 +521,10 @@ mod tests {
             ("yes_words: [Nein]", "nein"),
             ("confirm: [{tool: x, prompt: ' '}]", "confirm"),
             ("colour: 1", "colour"),
+            (
+                "{sandbox_cmd: [], agent_cmd: [opencode, acp]}",
+                "sandbox_cmd",
+            ),
         ] {
             let err = parse::<Config>(yaml).unwrap_err();
             assert!(err.contains(key), "{yaml}: {err}");

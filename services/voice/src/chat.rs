@@ -194,7 +194,7 @@ impl Chat {
         };
         self.llm = Llm::new(&self.config);
         if let Some(coder) = &self.tools.coder {
-            coder.set_cmd(self.config.coder_cmd.clone());
+            coder.set_cmd(self.config.spawn(&self.config.coder_cmd));
         }
         self.tools.timeout = Duration::from_secs(self.config.tool_timeout_s.into());
         self.tools.skipped.clone_from(&self.config.skipped_tools);

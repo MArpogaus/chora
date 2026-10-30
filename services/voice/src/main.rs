@@ -177,7 +177,11 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     let (tx, rx) = mpsc::channel();
     let mcp = mcp_name(&name);
     let mut tools = Tools::chora(&config, &mcp);
-    let coder = coder::Coder::new(config.coder_cmd.clone(), coder::data_dir(), tx.clone());
+    let coder = coder::Coder::new(
+        config.spawn(&config.coder_cmd),
+        coder::data_dir(),
+        tx.clone(),
+    );
     tools.coder = Some(coder.clone());
     let chat = net.block_on(Chat::start(
         config.clone(),
