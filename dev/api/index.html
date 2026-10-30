@@ -1463,6 +1463,11 @@ empties it.</p>
 <td>text</td>
 <td><code>text</code>: UTF-8, needed at <code>create</code>, at most 4 KiB; <code>family</code>: a font family, at most 4 KiB, a system font without it; <code>font_size</code>: logical pixels, from 1 to 1024; <code>max_width</code>: the width at which lines wrap, and nothing else; a text node has no <code>size</code>, it sizes itself by its layout, so it is never a layer: rotated, mirrored or projected outside a layer, it draws nothing, so put it in a group with a <code>size</code> and a <code>clip</code>; the core draws it in <code>color</code>, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale, and 256 MiB for all text nodes together; a raster beyond the second limit draws nothing until its node changes; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale</td>
 </tr>
+<tr>
+<td><code>line_height</code>, <code>weight</code>, <code>style</code>, <code>letter_spacing</code>, <code>features</code></td>
+<td>text</td>
+<td><code>line_height</code>: the distance of the lines as a multiple of the font size, from 0.5 to 10, 1.2 by default; <code>weight</code>: from 1 to 1000, 400 normal, 700 bold, the nearest face of the family; <code>style</code>: <code>normal</code> or <code>italic</code>, slanted when the family has no italic; <code>letter_spacing</code>: extra space after each character in em, from -1 to 1, also after the last one; <code>features</code>: at most 32 OpenType features by their tag of four ASCII characters and their value, for example <code>{"smcp": 1, "onum": 1}</code> for small caps and old-style figures; a feature that the font lacks changes nothing; an update of <code>features</code> replaces all</td>
+</tr>
 </tbody>
 </table>
 <p>A surface node gets its size from its client. The <code>configure</code> command asks

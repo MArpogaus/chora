@@ -1452,14 +1452,28 @@ a frame. The plugin has the built-in scenes <code>agenda</code> and <code>termin
 of the same name replaces a built-in scene.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/mc/scenes/day.yaml</span>
 <span class="nt">grid</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">]</span><span class="w">          </span><span class="c1"># columns and rows</span>
+<span class="nt">chapter</span><span class="p">:</span><span class="w">              </span><span class="c1"># all optional: the place, the name, the date</span>
+<span class="w">  </span><span class="nt">number</span><span class="p">:</span><span class="w"> </span><span class="s">"2"</span>
+<span class="w">  </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Day</span>
+<span class="w">  </span><span class="nt">running_head</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Week 44</span>
 <span class="nt">panels</span><span class="p">:</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mail</span>
 <span class="w">  </span><span class="nt">cell</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># column, row, width and height in cells</span>
 <span class="w">  </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Mail</span>
+<span class="w">  </span><span class="nt">style</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">base</span><span class="p">:</span><span class="w"> </span><span class="nv">body</span><span class="p p-Indicator">,</span><span class="nt"> color</span><span class="p">:</span><span class="w"> </span><span class="nv">accent</span><span class="p p-Indicator">}</span><span class="w">   </span><span class="c1"># a style of the settings, changed</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agents</span>
 <span class="w">  </span><span class="nt">cell</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">]</span>
 <span class="w">  </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Agents</span>
 </code></pre></div>
+<p>Each scene of panels has a head in the style of the LaTeX package
+classicthesis: a running head top right, by default the date, and the
+number and the title of the scene as <code>chapter.layout</code> sets. The panels
+share the text block, one column of <code>page.measure</code> per column of the
+grid. A line <code>TIME&lt;tab&gt;TEXT</code> puts the time in the margin column left of
+the text, flush right, and the text wraps under it. A panel names the
+styles of its lines, its title and its notes with <code>style</code>, <code>title_style</code>
+and <code>note_style</code>; each takes a <code>base</code> (by default <code>body</code>, <code>heading</code> and
+<code>margin</code>) and changes single fields.</p>
 <table>
 <thead>
 <tr>
@@ -1482,7 +1496,7 @@ of the same name replaces a built-in scene.</p>
 </tr>
 <tr>
 <td><code>panel.set</code></td>
-<td><code>scene</code>, <code>panel</code>, <code>lines</code> and an optional <code>title</code>; until the next start. A line with a tab makes two columns: the part before the first tab, and the rest, which does not wrap</td>
+<td><code>scene</code>, <code>panel</code>, <code>lines</code> and an optional <code>title</code>; until the next start. A line with a tab puts the part before the first tab in the margin</td>
 </tr>
 <tr>
 <td><code>hud.set</code></td>
@@ -1507,18 +1521,35 @@ the <code>animate</code> of the core moves its uniform <code>progress</code> fro
 of its own. The settings of D62 are in <code>chora/chora-mc.yaml</code>; edits by
 hand apply with <code>settings.reload</code>:</p>
 <ul>
-<li><code>theme</code> (<code>light</code> or <code>dark</code>) and the colors of each theme.</li>
-<li><code>font</code>: Inter by default, from the Fedora package <code>rsms-inter-fonts</code>;
-  a system font shows without it.</li>
+<li><code>theme</code> (<code>light</code> or <code>dark</code>) and the colors of each theme by name, at
+  least a <code>background</code>.</li>
+<li><code>scale</code>: the font sizes as steps of a modular scale (<code>base</code>, <code>ratio</code>),
+  and the <code>baseline</code> grid; each line of text is whole lines of the grid.</li>
+<li><code>styles</code>: named styles with <code>base</code>, <code>family</code>, <code>weight</code>, <code>style</code>
+  (<code>normal</code> or <code>italic</code>), <code>size</code> or <code>step</code>, <code>color</code> (a name of the theme
+  or RGBA), <code>line_height</code>, <code>letter_spacing</code> in em, OpenType <code>features</code> and
+  <code>uppercase</code>. The plugin uses <code>chapter_number</code>, <code>chapter</code>,
+  <code>chapter_large</code>, <code>running_head</code>, <code>heading</code>, <code>body</code>, <code>margin</code> and <code>hud</code>.
+  The default sets TeX Gyre Pagella with small caps and old-style figures
+  for the text, from the Fedora package <code>texlive-tex-gyre</code>, whose
+  directory <code>/usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre</code>
+  must be in <code>CHORA_FONT_DIRS</code>, and Inter with tabular figures for the
+  running head, the notes and the HUD.</li>
+<li><code>chapter.layout</code>: <code>number</code> (a large light number, the title in spaced
+  small caps below), <code>caps</code> (the title only) or <code>large</code> (one large light
+  title).</li>
+<li><code>page</code>: the <code>measure</code> of a column of text, the <code>margin</code> column and the
+  <code>gap</code>, in em of <code>scale.base</code>.</li>
 <li><code>write</code>: <code>enabled</code> (default <code>true</code>) and <code>duration_ms</code> (default 900).</li>
 <li><code>default_scene</code>, and the <code>bindings</code> with the actions <code>next_scene</code>,
   <code>previous_scene</code>, <code>scene: NAME</code> and <code>run: COMMAND</code>.</li>
 </ul>
-<p><code>chora-mc --print-config</code> prints the default. An option that the file
+<p>The HUD hides over an app unless its <code>state</code> is set.
+<code>chora-mc --print-config</code> prints the default. An option that the file
 leaves out takes its default. The collector
 <code>plugins/chora-mc/collectors/agenda.sh</code> puts the org agenda of today into
 the scene <code>agenda</code>, with <code>emacs --batch</code>: the entries with a time, and the
-tasks scheduled or due today, each as a time and a text in two columns.
+tasks scheduled or due today, each as a time in the margin and a text.
 It leaves out overdue, upcoming and done tasks. <code>ORG_TODO</code> sets the TODO
 keywords, by default <code>PROJ TODO NEXT WAIT | DONE KILL</code>.</p>
 <h2 id="flavors">Flavors<a class="headerlink" href="#flavors" title="Permanent link">&para;</a></h2>
