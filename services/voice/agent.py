@@ -2,6 +2,10 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = ["aiohttp>=3.9,<4", "mcp>=2.3,<3"]
+#
+# [tool.uv]
+# # A new environment takes no release after this date; raise it on purpose.
+# exclude-newer = "2026-10-29T00:00:00Z"
 # ///
 """Voice agent: microphone -> ASR -> LLM with tools -> TTS -> speaker.
 
