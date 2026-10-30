@@ -13,16 +13,10 @@ if systemctl --user -q is-active 'chora@*.service'; then
     exit 1
 fi
 
-# chora reads no configuration (D35); the keyboard layout comes from the
-# variables of xkbcommon. Without them, take the layout of the system.
-if [ -z "${XKB_DEFAULT_LAYOUT:-}" ] && command -v localectl >/dev/null; then
-    settings=$(localectl status)
-    layout=$(printf '%s\n' "$settings" | sed -n 's/^ *X11 Layout: //p')
-    variant=$(printf '%s\n' "$settings" | sed -n 's/^ *X11 Variant: //p')
-    options=$(printf '%s\n' "$settings" | sed -n 's/^ *X11 Options: //p')
-    if [ -n "$layout" ]; then export XKB_DEFAULT_LAYOUT="$layout"; fi
-    if [ -n "$variant" ]; then export XKB_DEFAULT_VARIANT="$variant"; fi
-    if [ -n "$options" ]; then export XKB_DEFAULT_OPTIONS="$options"; fi
+# The keyboard layout of the system, as under uwsm.
+if [ -r /etc/xdg/uwsm/env-chora ]; then
+    # shellcheck source=env-chora
+    . /etc/xdg/uwsm/env-chora
 fi
 
 # The units of the session get the environment of the login.
@@ -37,4 +31,4 @@ systemctl --user --wait start "chora@$flavor.service" || true
 # Stop the units of the session, and forget its variables.
 systemctl --user start --job-mode=replace-irreversibly chora-shutdown.target
 systemctl --user unset-environment WAYLAND_DISPLAY CHORA_SOCKET DISPLAY \
-    XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
+    CHORA_FLAVOR_DIR XDG_CURRENT_DESKTOP XDG_SESSION_TYPE

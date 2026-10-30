@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=chora (Windows XP, uwsm)
+Comment=A programmable Wayland compositor, with the XP flavor, managed by uwsm
+Exec=env XCURSOR_THEME=ModernXP uwsm start -e -D chora -N chora -- chora -- chora-flavor xp
+TryExec=uwsm
+Type=Application

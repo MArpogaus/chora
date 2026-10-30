@@ -1,0 +1,18 @@
+# shellcheck shell=sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# The environment of a chora session. uwsm sources it from
+# /etc/xdg/uwsm/env-chora before chora starts, and chora-session does too.
+#
+# chora reads no configuration (D35); the keyboard layout comes from the
+# variables of xkbcommon. Without them, take the layout of the system.
+if [ -z "${XKB_DEFAULT_LAYOUT:-}" ] && command -v localectl >/dev/null; then
+    settings=$(localectl status 2>/dev/null || true)
+    layout=$(printf '%s\n' "$settings" | sed -n 's/^ *X11 Layout: //p')
+    variant=$(printf '%s\n' "$settings" | sed -n 's/^ *X11 Variant: //p')
+    options=$(printf '%s\n' "$settings" | sed -n 's/^ *X11 Options: //p')
+    if [ -n "$layout" ]; then export XKB_DEFAULT_LAYOUT="$layout"; fi
+    if [ -n "$variant" ]; then export XKB_DEFAULT_VARIANT="$variant"; fi
+    if [ -n "$options" ]; then export XKB_DEFAULT_OPTIONS="$options"; fi
+    unset settings layout variant options
+fi

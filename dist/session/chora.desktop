@@ -3,4 +3,3 @@ Name=chora
 Comment=A programmable Wayland compositor, with the tiling flavor
 Exec=chora-session tiling
 Type=Application
-DesktopNames=chora
