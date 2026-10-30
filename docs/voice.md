@@ -1,6 +1,6 @@
 # chora-voice: the voice agent in Rust (draft specification)
 
-Status: draft, 2026-10-30. WP0 to WP6 are done. Sources: the Python
+Status: draft, 2026-10-30. WP0 to WP8 are done. Sources: the Python
 agent of before WP6 (`services/voice/agent.py` in git history), D53,
 D58, D61, D62, `docs/api.md`, the `chora-kit` runtime and settings,
 `choractl mcp`, and live probes of the Gufo servers.
@@ -50,7 +50,8 @@ same channel.
 | `llm` | `/chat/completions` with SSE and tools |
 | `tools` | MCP client of `choractl --name voice mcp`, the coder tools, the confirmation gate |
 | `coder` | One background coding task, as in Python |
-| `chora` | A thread with the `chora-kit` runtime: methods, settings, PTT grab, later the indicator node |
+| `chora` | A thread with the `chora-kit` runtime: methods, settings, PTT grab |
+| `hud` | A thread with its own connection `NAME-hud`: reports to chora-mc, the indicator node (WP8) |
 | `core` | State machine, speech gate, history, word matcher, turn metrics |
 
 Audio: the ASR takes 24 kHz only (WP0), and the TTS sends 24 kHz. So the
@@ -84,7 +85,7 @@ exits with 1.
 | `tool` | A tool call runs |
 | `confirming` | Waits for yes or no |
 | `speaking` | Plays the reply |
-| `working` | Listening while a coding task runs (WP7) |
+| `working` | Listening while a coding task runs |
 
 The agent starts in `listening` (awake). The core derives the state from
 what goes on, in this order: an utterance in progress is `recording`;
@@ -203,8 +204,8 @@ the user; nothing happened".
 |---|---|---|
 | Mic | Capture command exits | Restart, backoff 0.5 s to 5 s, error earcon once |
 | VAD | Model does not load | Exit 1; systemd restarts |
-| ASR | Error or timeout | One retry with the same audio, then earcon and "Ich habe dich nicht verstanden." |
-| TTS | Error or timeout | Earcon; the text stays in the history and in `last_reply`; the tool loop goes on |
+| ASR | Error or timeout | One retry with the same audio, then earcon and `phrases.asr_failed` ("Ich habe dich nicht verstanden.") when the agent listens again; a wake word asleep only sounds the earcon |
+| TTS | Error or timeout | Earcon once per reply; the text stays in the history, in `last_reply` and on the HUD; the tool loop goes on; for the backoff of the TTS (1 s, doubling to 30 s), its sentences skip without a try |
 | LLM | Connect error | One retry, then "Das Sprachmodell antwortet nicht." |
 | LLM | First token, idle or total timeout | Abort, keep the rounds so far, say so |
 | LLM | Context error | Trim the history to half the budget, one retry |
@@ -215,9 +216,15 @@ the user; nothing happened".
 | Any thread | Panic or end | Exit 1; the unit has `Restart=always` |
 
 The history commits per LLM round; an audio failure never rolls it back.
-`state.health` shows `asr`, `tts`, `llm` and `chora` as `ok` or `down`.
-At start, the agent warms the LLM cache and checks ASR and TTS. Earcons
-are synthesized tones: wake, sleep, cancel, question, error.
+`voice.health` and the `health` of the state record show `asr`, `tts`,
+`llm`, `mcp` and `chora` as `ok`, `down` or `unknown` (before the first
+report), with the last error and its Unix time `error_at`. Each actor
+reports its successes and failures. At start, the agent warms the LLM
+cache, again with the backoff of the LLM until it answers, so the cache
+is warm when the LLM comes back. A probe connects to the websockets of
+the ASR and the TTS, without a request, at start, after a new URL, every
+30 s, and at the end of the backoff of a server that is down. Earcons
+are synthesized tones: wake, sleep, cancel, error.
 
 ## 7. History and token budget
 
@@ -313,10 +320,10 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `reasoning_effort` | `none` |
 | `asr_timeout_s`, `tts_timeout_s`, `tool_timeout_s` | `15`, `10`, `30` |
 | `llm_first_token_s`, `llm_idle_s`, `llm_total_s` | `30`, `20`, `120` |
-| `chora_mcp`, `coder_cmd` | `[choractl]`, `[]` |
+| `chora_mcp`, `coder_cmd` | `[choractl]`, `[]` (no coding tools; the task is the last argument) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]` |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`: German sentences |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`: German sentences |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
@@ -349,17 +356,22 @@ two lists, a `ptt_key` that does not parse, and a rule without a prompt.
 | `settings.get`, `settings.set` | D62 | D62 |
 | `talk` | `down: bool` | PTT from another client, for example `chora-mc` |
 | `confirm` (WP5) | `answer: yes\|no` | the new state record |
+| `health` (WP8) | none | the health record of section 6 |
 
 The state record: `state`, `since_ms` (time in the state), `seq` (one
 more per change), `awake`, `muted: {mic, speaker}`, `turn`,
-`last_transcript`, `last_reply`, `queued` (texts that wait). Later
-packages add `confirming` (the prompt), `coder` and `health`.
+`last_transcript`, `last_reply`, `queued` (texts that wait), `coder`
+(the parameters of `agent.set` for the coder, or null before the first
+task) and `health` (section 6).
 
 HUD: the core will get client-emitted events (a new decision record,
 implemented by another package). Then the agent emits the event
 `voice.state` with the state record on each change of `seq`. Until then,
 a HUD polls the method `state` (4 Hz; `seq` shows a change). The
-indicator node signals without a HUD.
+indicator node signals without a HUD: with `indicator`, a dot of 12
+pixels at the bottom right of the first output, under `screen:OUTPUT`,
+in the color of the state (input `pass`). The `hud` thread places it
+once per connection.
 
 chora-mc (WP6): when `mc` runs, the agent calls `mc agent.set {name,
 state, task, said}` on each change (`state` mapped to the states of mc:
@@ -369,6 +381,9 @@ speaking, text, duration_ms}` for each sentence when its sound starts,
 with the length of its PCM (a late sentence gets the rest of its
 length). A thread with its own connection `NAME-hud` calls them through
 `methods.call`; errors only log at debug level, so mc may be absent.
+A coding task is a sub-agent: `mc agent.set {name: coder, state, task,
+said}` with `state` `working`, then `done` or `blocked` (failed or
+cancelled), `task` the task, and `said` its last step, then its result.
 
 ## 11. Logging and latency
 
@@ -389,8 +404,9 @@ first_sound=1.43s tools=2/3.4s barge_ins=0 outcome=answered
 logs `turn`, `speech`, `length`, `end_wait` (last speech frame to the
 end of the turn) and `awake` per utterance, for example
 `turn=2 speech=2816ms length=3872ms end_wait=608ms awake=true`, and a
-warning when the VAD is slower than real time. WP8 writes the same
-record to `~/.local/state/chora/voice-turns.jsonl`.
+warning when the VAD is slower than real time. Not done: the same
+record in `~/.local/state/chora/voice-turns.jsonl` (planned for WP8;
+`tests/live-gate.sh` reads the log instead).
 
 ## 12. Recording for replay
 
@@ -477,8 +493,11 @@ from the settings. From the agent sandbox, the servers are at
 `192.168.178.195`: ASR `:8881`, TTS `:8882`, LLM `:8888` (model `gufo`,
 context 128000, text and image), reachable only with the sandbox off.
 The live tests also check that `context_tokens: 0` reads 128000 and that
-`describe_screen` sends the picture. `tests/gate-voice.sh` runs them in
-a headless chora session.
+`describe_screen` sends the picture. WP8 added
+`services/voice/tests/live-gate.sh [TEXT]`: one voice turn through the
+whole agent in the running chora session, against the servers of the
+settings, with the latency of each stage (section 15). In the agent
+sandbox, it ran in a headless chora session with `chora-tiling`.
 
 ## 14. Dependencies and packaging
 
@@ -505,7 +524,7 @@ as a workspace member. No package and no unit until the agent completes
 full turns; since WP6, `chora-voice.service` replaces
 `voice-agent.service`.
 
-## 15. Results of WP0 to WP6 (2026-10-30)
+## 15. Results of WP0 to WP8 (2026-10-30)
 
 Silero on `tract`:
 
@@ -715,6 +734,64 @@ WP6, the state machine and the first full voice turns:
   warte mal"; with `tts_language: German` it heard "Abbrechen." See open
   question 8.
 
+WP7, the coder port (`coder.rs`):
+
+- The tools of the Python agent: `code_task` (task, optional project),
+  `code_status`, `code_cancel` and `list_projects`, for the LLM only
+  with a `coder_cmd`, after the tools of chora; the confirm rule of
+  `code_task` asks before a task. The prompt gets the coding part of
+  the Python agent.
+- A task clones `$XDG_DATA_HOME/chora/inventory/NAME` with
+  `--no-hardlinks` to `worktrees/NAME-N` on the branch `voice/N` and
+  removes `origin`; without a project, `git init`. The harness gets
+  the task as its last argument, runs in its own process group with
+  stdout and stderr to `worktrees/NAME-N.log`, and a line has at most
+  16 MiB. stream-json lines give the steps (tool calls and texts) and
+  the result; other lines are steps.
+- A stop and the end of the harness end the whole process group (TERM,
+  KILL 5 s later). `code_status` gives the time and the last step, or
+  the last result; the spoken result is "The coding task in NAME-N is
+  done|failed|was cancelled." with up to 400 characters of the result.
+- The core: `working` while a task runs and the agent is awake; the
+  result waits in a queue until the state is `listening` or `working`
+  (no utterance, no text that waits, no reply), then a reply without
+  the LLM says it and puts it into the history as an answer. A barge-in
+  or a cancel word stops it as any reply. The task shows in chora-mc as
+  the agent `coder`.
+- Not checked live: a coding task through a spoken turn. The unit
+  tests run `sh` scripts as the harness (clone without origin, log,
+  result, cancel of a process group with a child).
+
+WP8, error paths, health, indicator and the live gate:
+
+- `health.rs`: one record for all actors; `voice.health` and the state
+  record show it. The probes and the backoffs are in section 6.
+- `tts_language` is empty by default and follows `language` (`de`
+  gives `German`, unknown codes `auto`); open question 8 is decided.
+- Live, headless session: the dot `voice-indicator` (owner
+  `voice-hud`) sat at 1256, 776 on an output of 1280x800, blue, and
+  turned gray with `voice.sleep`. `voice.health` showed all five `ok`
+  4 s after the start; after `settings.set` of a `tts_url` without a
+  server, `tts` was `down` with "Connection refused" within 2 s.
+- `tests/live-gate.sh` against Gufo, debug build, headless session with
+  `chora-tiling` and no window, "Welche Fenster sind gerade offen?"
+  (clip 2.4 s, voice `vivian`):
+
+| Stage | First run | Second run |
+|---|---|---|
+| LLM warm-up | 12.4 s (new prompt) | 1.1 s |
+| Speech (VAD) | 2.27 s | 2.30 s |
+| End of speech to end of the utterance | 800 ms | 800 ms |
+| ASR, final text after the commit | 256 ms | 235 ms |
+| LLM first token | 13.2 s | 705 ms |
+| Tools | 2 (`query_scene`, `describe_screen`), 3 rounds | 1 (`query_scene`) 11 ms, 2 rounds |
+| TTS first audio | 409 ms | 196 ms |
+| First sound after the end of the utterance | 16.5 s | 2.7 s |
+
+  In the first run, the first token came 13 s after the text, although
+  the warm-up had ended: the request missed the cache of the server.
+  The cause is open (the server may have served another client).
+
 ## 16. Work packages
 
 | # | Package | Size |
@@ -726,8 +803,8 @@ WP6, the state machine and the first full voice turns:
 | WP4 | ASR and TTS clients, interim text, fake servers (done) | M |
 | WP5 | LLM client, tool loop, MCP reconnect and timeouts, token budget (done) | L |
 | WP6 | State machine, word matcher, barge-in, cancel, sleep/wake, confirmation; first full voice turn; remove `agent.py` and `voice-agent.service` (done) | L |
-| WP7 | Coder port | S |
-| WP8 | Error paths, health, indicator, client events for the HUD, live gate | M |
+| WP7 | Coder port (done) | S |
+| WP8 | Error paths, health, indicator, live gate (done); client events for the HUD wait for the core | M |
 | WP9 | Unit, README, package | S |
 
 S: up to 1 day. M: 2 to 3 days. L: about 1 week.
@@ -757,11 +834,18 @@ S: up to 1 day. M: 2 to 3 days. L: about 1 week.
    warm-up took 41 s on Gufo; with the cache 0.2 s to 10 s. Fewer
    sections of `docs/api.md` would make a cold start faster. A turn
    waits for the warm-up (WP6 live: 40 s on a cold cache).
-8. `tts_language` is `auto`. For short German phrases, the TTS clips of
-   WP6 were hard to understand with `auto` and clear with `German`.
-   Should the default follow `language` (`de` gives `German`)?
+8. Decided (WP8): `tts_language` follows `language` (`de` gives
+   `German`); `auto` made the TTS clips of short German phrases hard
+   to understand in WP6.
 9. Queued text starts the next reply; it does not go into the running
    reply before its next LLM round (section 3). Is that enough?
 10. `first_sound` is about 4.8 s after the end of an utterance with one
     tool call; the 1 s playback buffer and the 0.8 s `silence_ms` are a
-    third of it. Lower them on the reference hardware?
+    third of it. Lower them on the reference hardware? (WP8 live gate:
+    2.7 s with one short sentence.)
+11. The coder speaks its result in English ("The coding task in ... is
+    done."), as the Python agent did, with the result of the harness in
+    its own language. Make it a German phrase, or let the LLM sum it
+    up (one more LLM round per task)?
+12. Client events for the HUD (`voice.state` as an event) need a core
+    feature (section 10); until then, chora-mc gets `agent.set`.

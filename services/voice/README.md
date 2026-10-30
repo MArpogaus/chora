@@ -147,7 +147,7 @@ fine, so the ASR's "Hallo Cora" is "Hallo Chora".
 | `schlaf`, `schlaf jetzt` | The agent sleeps: it hears only its wake words and the key |
 | `hör zu`, `hallo chora` | The agent wakes up |
 | `ja`, `okay`, `genau`, `mach das` / `nein`, `nicht`, `lieber nicht` | The answer to a question before a tool call |
-| `coding-aufgabe abbrechen` | Stops a coding task (comes with the coder port) |
+| `coding-aufgabe abbrechen` | Stops the coding task |
 
 While the agent speaks, you can talk over it (barge-in): the sound
 pauses, and your words decide. A stop word ends the reply. Echo of the
@@ -163,11 +163,23 @@ confirm '{"answer": "yes"}'`. No answer within 8 s, or two unclear
 answers, is a no.
 
 `choractl call voice state` shows the state: `sleeping`, `listening`,
-`recording`, `transcribing`, `thinking`, `tool`, `confirming` or
-`speaking`. When `chora-mc` runs, the agent reports its state with `mc
-agent.set` and each spoken sentence with `mc hud.say`, so the agents
-scene and the HUD show it. The log has one line per stage with its
-latency and one summary per reply.
+`recording`, `transcribing`, `thinking`, `tool`, `confirming`,
+`speaking` or `working` (listening while a coding task runs). A dot at
+the bottom right of the first output shows it too (`indicator`): blue
+listens, red records, amber thinks, violet asks, green speaks, teal
+works, gray sleeps. When `chora-mc` runs, the agent reports its state
+with `mc agent.set` and each spoken sentence with `mc hud.say`, so the
+agents scene and the HUD show it. The log has one line per stage with
+its latency and one summary per reply.
+
+`choractl call voice health` shows each server (`asr`, `tts`, `llm`,
+`mcp` and `chora`) as `ok`, `down` or `unknown`, with its last error.
+The agent probes the websockets of the ASR and the TTS every 30 s, and
+sooner while one is down. When a server fails, you hear it: the ASR
+sounds the error earcon and says "Ich habe dich nicht verstanden.", the
+LLM says that it does not answer, and the TTS sounds the error earcon;
+its text still goes to the HUD. A TTS that is down gets no request for
+1 s to 30 s.
 
 The agent keeps your requests of the last `saved_requests` (20) turns in
 `~/.local/state/chora/voice-history.json`. At its next start, they go
@@ -229,8 +241,30 @@ outputs. The emergency reset and the revoke binding do not stop the
 agent; after the reset, it connects again. Only `systemctl --user stop
 chora-voice` stops the agent.
 
-Coding tasks (`coder_cmd`) come with the port of the coder (WP7 of
-`docs/voice.md`).
+## Coding tasks
+
+With a harness in `coder_cmd`, the LLM gets the tools `code_task`,
+`code_status`, `code_cancel` and `list_projects`. The harness is any
+command that takes the task as its last argument, for example:
+
+```yaml
+coder_cmd: [claude, -p, --output-format, stream-json, --verbose]
+```
+
+A task runs in the background, one at a time, in a clone of a project
+of `~/.local/share/chora/inventory/NAME` (a git repository), in
+`~/.local/share/chora/worktrees/NAME-N` on the branch `voice/N`. The
+clone has no hardlinks and no `origin`, so a push does not reach the
+project. Without a project, the task gets an empty repository. Its
+output goes to `worktrees/NAME-N.log`. Lines of stream-json give the
+steps and the result; other lines are steps. Before a task starts, the
+agent asks (the `confirm` rule of `code_task`).
+
+While the task runs, the state is `working`, and chora-mc shows it as
+the agent `coder` with its last step. When it ends, the agent says the
+result once you and its reply are done, and keeps it in the history.
+`code_status` repeats the last result. "Coding-Aufgabe abbrechen" stops
+the task and all processes of its process group.
 
 ## Tests
 
@@ -239,3 +273,13 @@ corpus in `tests/data/corpus` and an end-to-end replay through the whole
 agent with fake servers. `chora-voice replay DIR...` replays recordings
 of `record_dir`. `tests/corpus.py TTS_URL` writes the corpus again with
 the live TTS, and `tests/live.py TTS_URL ASR_URL` checks the servers.
+
+`tests/live-gate.sh [TEXT]` runs one voice turn through the whole agent
+in the running chora session, against the servers of your settings,
+and prints the latency of each stage. The question is a TTS clip, which
+a capture command plays into the agent `voice-gate`; the agent `voice`
+goes on as it is. `GATE_PLAYBACK=1` plays the reply on the speakers.
+
+```bash
+services/voice/tests/live-gate.sh "Welche Fenster sind gerade offen?"
+```
