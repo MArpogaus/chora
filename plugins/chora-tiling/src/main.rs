@@ -310,6 +310,7 @@ impl Tiling {
 
     /// Applies the settings and grabs their bindings.
     fn reconfigure(&mut self) -> Result<(), ClientError> {
+        self.check_shaders()?;
         self.rt.ungrab_all()?;
         self.wm.reconfigure(self.settings.value.clone());
         self.grab_all()?;
@@ -731,6 +732,32 @@ impl Tiling {
         self.claimed = None;
         self.order.clear();
         self.focus.sent = false;
+    }
+
+    /// Has the core compile the shaders of the style, on a node that the
+    /// same transaction removes again, so that `settings.set` refuses a
+    /// shader that does not compile instead of each new window.
+    fn check_shaders(&mut self) -> Result<(), ClientError> {
+        let effects = self.settings.value.style.effects.clone();
+        if effects.is_empty() {
+            return Ok(());
+        }
+        let id = "tiling-shader-check";
+        self.call_apply(vec![
+            Command::Create {
+                id: id.into(),
+                kind: NodeKind::Rect,
+                parent: NAME.into(),
+                props: PropsUpdate {
+                    effects: Some(effects),
+                    ..PropsUpdate::default()
+                },
+            },
+            Command::Remove {
+                id: id.into(),
+                to: None,
+            },
+        ])
     }
 
     fn call_apply(&mut self, commands: Vec<Command>) -> Result<(), ClientError> {
