@@ -491,7 +491,7 @@ class Tools:
         text = "\n".join(c.text for c in result.content if c.type == "text")
         text = ("error: " if result.is_error else "") + (text or "done")
         images = [
-            {"type": "image_url", "image_url": {"url": f"data:{c.mimeType};base64,{c.data}"}}
+            {"type": "image_url", "image_url": {"url": f"data:{c.mime_type};base64,{c.data}"}}
             for c in result.content
             if c.type == "image" and self.vision
         ]
