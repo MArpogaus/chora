@@ -909,6 +909,19 @@ lists all of its methods:
 | `get_layout` | none | the same |
 | `give` | `to`: a client name | hands the focused window to `to` with a `remove` with `to`, and answers with its surface id |
 
+A plugin with settings exports `settings.get` and `settings.set` through
+the runtime of `chora-kit` (D62). `settings.get` answers all settings.
+`settings.set` takes an object. Each key replaces the value of that
+setting, and the other settings stay. The plugin checks the result, saves
+it in its YAML file in `$XDG_CONFIG_HOME/chora/` and applies it at once.
+`settings.set` answers all settings. A wrong value gets the error
+`-32602` and changes nothing. In `methods.list`, the schema of
+`settings.set` lists every setting.
+
+```console
+$ choractl call tiling settings.set '{"style": {"opacity": 0.9, "effects": []}}'
+```
+
 ## Plugins
 
 A plugin is a client with a manifest:

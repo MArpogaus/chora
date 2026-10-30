@@ -146,8 +146,11 @@ stays closed.
 
 `chora-tiling` reads `chora/chora-tiling.yaml` in `$XDG_CONFIG_HOME`, by
 default `~/.config`, or the file of `--config`. Without a file, it uses its
-default, which `chora-tiling --print-config` prints. The file lists every
-option:
+default, which `chora-tiling --print-config` prints. The file holds the
+settings of D62: `settings.set` changes them at once and writes the file
+again, without its comments (see [API](api.md#plugin-methods)). Edits by
+hand apply at the next start of the plugin or with `MOD+Ctrl+r`. The file
+lists every option:
 
 | Option | Meaning |
 |--------|---------|
@@ -158,6 +161,7 @@ option:
 | `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
 | `new_window` | `master` or `stack`: where a new window goes |
 | `focus` | `click` or `follow_mouse` |
+| `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window |
 | `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run` |
 
 The layouts and the default bindings follow the awesome window manager.
@@ -183,6 +187,7 @@ like `set_layout`.
 | `focus` | `surface` | a click: focuses and raises the window, and its output; a window that shows nowhere only gets the urgent mark |
 | `focus_next`, `focus_prev` | none | `MOD+j` and `MOD+k` |
 | `swap_master` | `surface` | `MOD+Ctrl+Return`, for this window |
+| `settings.get`, `settings.set` | see [API](api.md#plugin-methods) | an edit of the file and `MOD+Ctrl+r` |
 
 `chora-tiling` connects with `resume` (see [API](api.md#ipc-methods)). It
 keeps the tags and the layouts of each output, and the tags, the states
