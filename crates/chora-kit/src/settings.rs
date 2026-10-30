@@ -5,9 +5,10 @@
 //!
 //! A key of a struct that the file leaves out takes its value of the
 //! default file; a map in the file replaces the default map. A change of
-//! `settings.set` is a JSON merge patch (RFC 7386): objects merge, lists
-//! and other values replace, and `null` removes the key, so that a map
-//! loses the entry and a field of a struct takes its default again.
+//! `settings.set` is a JSON merge patch (RFC 7386): structs and maps merge,
+//! lists and other values replace, also an enum in an object, and `null`
+//! removes the key, so that a map loses the entry and a field of a struct
+//! takes its default again.
 
 use std::{
     io::Write as _,
@@ -118,7 +119,7 @@ impl<S: Settings> File<S> {
                 name: "settings.set".into(),
                 description: Some(
                     "Changes the settings at once and saves them, as a JSON merge patch: \
-                     objects merge, other values replace, null resets a key to its default \
+                     structs and maps merge, other values replace, null resets a key to its default \
                      or removes a map entry."
                         .into(),
                 ),
@@ -157,7 +158,8 @@ impl<S: Settings> Store for File<S> {
             return Err(invalid("settings.set takes an object".into()));
         };
         let mut merged = self.get();
-        merge(&mut merged, Value::Object(changes));
+        let schema = schema::<S>();
+        merge(&mut merged, Value::Object(changes), &schema, &schema);
         let value: S = complete(merged, self.default).map_err(invalid)?;
         self.save(&value)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e))?;
@@ -241,12 +243,21 @@ fn resolve<'a>(schema: &'a Value, root: &'a Value) -> &'a Value {
         .unwrap_or(schema)
 }
 
-/// Applies a JSON merge patch (RFC 7386).
-fn merge(target: &mut Value, patch: Value) {
+/// Applies a JSON merge patch (RFC 7386) where the schema has a struct or
+/// a map; any other value, such as an enum, takes the patch as it is, so
+/// that two variants never merge into one object.
+fn merge(target: &mut Value, patch: Value, schema: &Value, root: &Value) {
+    let schema = resolve(schema, root);
+    let fields = schema.get("properties");
+    let entries = schema.get("additionalProperties").filter(|s| s.is_object());
     let Value::Object(patch) = patch else {
         *target = patch;
         return;
     };
+    if fields.is_none() && entries.is_none() {
+        *target = Value::Object(patch);
+        return;
+    }
     if !target.is_object() {
         *target = Value::Object(Map::new());
     }
@@ -257,7 +268,13 @@ fn merge(target: &mut Value, patch: Value) {
         if value.is_null() {
             target.remove(&key);
         } else {
-            merge(target.entry(key).or_insert(Value::Null), value);
+            let schema = fields.map_or(entries.unwrap_or(&Value::Null), |f| &f[&key]);
+            merge(
+                target.entry(key).or_insert(Value::Null),
+                value,
+                schema,
+                root,
+            );
         }
     }
 }
@@ -275,6 +292,7 @@ mod tests {
     enum Action {
         Close,
         Run(String),
+        Spawn(String),
     }
 
     #[derive(Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
@@ -360,7 +378,7 @@ mod tests {
         assert_eq!(schema["properties"]["gap"]["type"], "integer");
     }
 
-    /// `settings.set` is a JSON merge patch (RFC 7386): objects merge,
+    /// `settings.set` is a JSON merge patch (RFC 7386): structs and maps merge,
     /// `null` removes a map entry and resets a field to its default.
     #[test]
     fn set_merges_a_patch() {
@@ -386,6 +404,13 @@ mod tests {
         assert_eq!(file.value.gap, 4, "null resets a field to its default");
         assert_eq!(file.value.frame.title.as_deref(), Some("demo"));
         assert_eq!(file.value.frame.width, 3);
+        file.set(json!({"bindings": {"MOD+r": {"spawn": "kitty"}}}))
+            .unwrap();
+        assert_eq!(
+            file.value.bindings["MOD+r"],
+            Action::Spawn("kitty".into()),
+            "an entry that is no struct takes the patch as it is"
+        );
         let err = file.set(json!({"frame": {"width": "wide"}})).unwrap_err();
         assert_eq!(err.code, RpcError::INVALID_PARAMS);
         std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
