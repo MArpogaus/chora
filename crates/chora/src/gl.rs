@@ -449,7 +449,10 @@ mod tests {
     fn a_proc_file_reads_no_more_than_the_limit() {
         let path = "/proc/self/smaps";
         assert!(std::fs::read(path).unwrap().len() as u64 > MAX_SOURCE);
-        let err = read_source(path).err().expect("the read stops");
+        // Not `unwrap_err`: on a failure it would print the whole file.
+        let Err(err) = read_source(path) else {
+            panic!("the read must stop at the limit");
+        };
         assert!(err.contains("larger than"), "{err}");
     }
 
