@@ -3,6 +3,8 @@
 # `agenda` of chora-mc: the entries with a time of today, and the tasks
 # scheduled or due today. Nothing overdue, nothing upcoming, nothing done.
 # Each line is "TIME<tab>TEXT"; an entry without a time has an empty time.
+# The next entry with a time goes into the content `next` of the regions,
+# for the footer; nothing when none is left today.
 # Emacs builds the agenda, so repeats come out as in Emacs; the files are
 # only read.
 #
@@ -60,12 +62,24 @@ params=$(ORG_TODO="${ORG_TODO-PROJ TODO NEXT WAIT | DONE KILL}" emacs -Q --batch
             (list (cons "scene" "agenda") (cons "panel" "today")
                   (cons "lines" (vconcat
                                  (mapcar (lambda (i) (concat (car i) "\t" (cdr i)))
-                                         items))))))))' "$@" 2>/dev/null) || {
+                                         items))))))
+    ;; The next entry whose start is not over, times as HH:MM.
+    (let* ((pad (lambda (time) (if (string-match "^[0-9]:" time) (concat "0" time) time)))
+           (now (format-time-string "%H:%M"))
+           (next (seq-find (lambda (i) (and (> (length (car i)) 0)
+                                            (not (string< (funcall pad (car i)) now))))
+                           items)))
+      (princ "\n")
+      (princ (json-encode
+              (list (cons "content" "next")
+                    (cons "lines" (vconcat (and next
+                                                (list (concat (car next) "  " (cdr next))))))))))))' "$@" 2>/dev/null) || {
     echo "agenda.sh: emacs failed with status $?" >&2
     exit 1
 }
 if [ -n "$print" ]; then
     printf '%s\n' "$params"
 else
-    choractl call mc panel.set "$params" >/dev/null
+    choractl call mc panel.set "$(printf '%s\n' "$params" | sed -n 1p)" >/dev/null
+    choractl call mc content.set "$(printf '%s\n' "$params" | sed -n 2p)" >/dev/null
 fi
