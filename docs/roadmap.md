@@ -269,7 +269,6 @@ Gate:
 12. The battle workflows in `tests/battle/` pass on the shared runtime.
 13. `chora-xp` has at most half of its 21,334 lines of Rust at
     `v0.7.0-rc.3`.
-14. The voice milestone V2 succeeds in 18 of 20 tries.
 
 ## 0.9: Daily driver
 
@@ -311,6 +310,9 @@ Gate:
    them.
 7. The gate checks of the earlier milestones still hold, and the showroom CI
    is green against the release candidate.
+8. chora installs from the release RPM, layered on secureblue with
+   `rpm-ostree`, and starts as a uwsm session with the tiling flavor. The
+   log of the reference hardware shows both steps.
 
 ## 0.10: Renderer
 
