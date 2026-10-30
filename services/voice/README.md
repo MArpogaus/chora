@@ -166,7 +166,9 @@ right after a reply.
 ## Tools
 
 The LLM gets the tools of `choractl --name voice mcp`, except the event
-tools, `capture` and `put_asset`. The unit finds chora through
+tools, `capture` and `put_asset`. `CHORA_MCP` is the command of `choractl`, so
+that the tools run in another place, for example `podman exec -i NAME
+choractl` in a container. Its programs then start in the container. The unit finds chora through
 `CHORA_SOCKET`, which a chora flavor gives the user manager.
 `CODER_CMD`, for example `claude -p --permission-mode acceptEdits`, adds
 the tool `delegate`. It runs bigger tasks in the background, in the

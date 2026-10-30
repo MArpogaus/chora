@@ -57,6 +57,9 @@ RMS_BARGE_IN = int(ENV("RMS_BARGE_IN", str(2 * RMS_SPEECH)))
 BARGE_MS = int(ENV("BARGE_MS", "300"))
 PTT_KEY = ENV("PTT_KEY", "Super+v")  # chora reports its release with the modifier
 CHORA_NAME = ENV("CHORA_NAME", "voice")  # the client name of the agent
+# The command of choractl; its tools, also run_program, run where it runs,
+# for example "podman exec -i chora-sandbox choractl" for a container.
+CHORA_MCP = ENV("CHORA_MCP", "choractl")
 CODER_CMD = ENV("CODER_CMD", "")  # for example "claude -p --permission-mode acceptEdits"
 SYSTEM = ENV(
     "SYSTEM",
@@ -760,8 +763,8 @@ async def chora(stack: contextlib.AsyncExitStack) -> ClientSession | None:
     """Return the MCP session of `choractl mcp`, or None without chora."""
     # The mcp package passes only a few variables by default; choractl
     # needs CHORA_SOCKET and the rest of the session.
-    args = ["--name", CHORA_NAME, "mcp"]
-    params = StdioServerParameters(command="choractl", args=args, env=dict(os.environ))
+    command, *args = [*shlex.split(CHORA_MCP), "--name", CHORA_NAME, "mcp"]
+    params = StdioServerParameters(command=command, args=args, env=dict(os.environ))
     try:
         read, write = await stack.enter_async_context(stdio_client(params))
         session = await stack.enter_async_context(ClientSession(read, write))
