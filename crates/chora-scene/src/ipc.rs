@@ -253,6 +253,12 @@ pub struct Hello {
     /// own list.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub features: Vec<String>,
+    /// Confines a connection of the main socket to the capability rules
+    /// of a client socket (D33): `choractl mcp` says so, and then needs
+    /// grants for privileged methods, `methods.call`, `activation.token`
+    /// and `session.quit`. A connection can only give up rights.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub confined: bool,
 }
 
 /// The `hello` the client library sends: `protocol` and `features` filled
@@ -630,22 +636,23 @@ pub enum Capability {
     #[serde(rename = "input.grab-any")]
     GrabAny,
     /// `methods.call`: call the methods of plugins. Checked only for a
-    /// client socket; the main socket may always call.
+    /// client socket or a confined connection ([`Hello::confined`]).
     #[serde(rename = "methods.call")]
     MethodsCall,
     /// `activation.token`: get activation tokens for `choractl run`.
-    /// The core checks it only for a client socket; `choractl mcp` also
-    /// needs it on the main socket for `run_program`.
+    /// Checked only for a client socket or a confined connection, such
+    /// as the one of `choractl mcp`.
     #[serde(rename = "activation.token")]
     ActivationToken,
-    /// `session.quit`: end chora. Checked only for a client socket.
+    /// `session.quit`: end chora. Checked only for a client socket or a
+    /// confined connection.
     #[serde(rename = "session.quit")]
     SessionQuit,
     /// `methods.privileged`: call a privileged method of a plugin, one
     /// that can run commands, such as `settings.set`, `settings.reload`
     /// and the methods that the export marks `privileged`, on top of
     /// `methods.call`; also the core method `input.configure`. Checked
-    /// only for a client socket.
+    /// only for a client socket or a confined connection.
     #[serde(rename = "methods.privileged")]
     MethodsPrivileged,
 }

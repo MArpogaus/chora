@@ -147,6 +147,8 @@ struct Conn {
     hello_by: Instant,
     keep_nodes: bool,
     resume: bool,
+    /// The `hello` asked for the capability rules of a client socket.
+    confined: bool,
     /// The socket that the connection came through.
     socket: Socket,
     events: Option<Vec<String>>,
@@ -434,6 +436,14 @@ impl Ipc {
         self.conns.get(&conn)?.fixed()
     }
 
+    /// Whether a connection follows the capability rules of a client
+    /// socket: it came through one, or its `hello` confined it.
+    pub(crate) fn confined(&self, conn: u64) -> bool {
+        self.conns
+            .get(&conn)
+            .is_some_and(|c| c.confined || c.fixed().is_some())
+    }
+
     /// The client name of a connection.
     pub fn name(&self, conn: u64) -> Option<&str> {
         self.conns.get(&conn)?.name.as_deref()
@@ -704,6 +714,7 @@ impl State {
             hello_by,
             keep_nodes: false,
             resume: false,
+            confined: false,
             socket,
             events: None,
             seq: 0,
@@ -1023,8 +1034,8 @@ impl State {
         }
         if let Some(c) = self.ipc.conns.get_mut(&conn) {
             c.name = Some(hello.name.clone());
-            c.keep_nodes = hello.keep_nodes;
-            c.resume = hello.resume;
+            (c.keep_nodes, c.resume) = (hello.keep_nodes, hello.resume);
+            c.confined = hello.confined;
         }
         self.ipc.greeted = true;
         if !known {
@@ -2289,6 +2300,46 @@ mod tests {
         assert_eq!(message, "wm.focus is no exported method");
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// `choractl mcp` confines its connection of the main socket: the
+    /// rules of a client socket hold until a grant of its name opens them.
+    #[test]
+    fn a_confined_main_socket_connection_needs_the_grants_of_a_client_socket() {
+        let mut core = Core::new();
+        let mut admin = core.admin();
+        let mut mc = core.named("mc");
+        let names = json!({"names": [{"name": "app.open", "privileged": true}]});
+        mc.ok(&mut core, "methods.export", names);
+        let mut mcp = core.connect();
+        mcp.ok(
+            &mut core,
+            "hello",
+            json!({"name": "voice-mcp", "confined": true}),
+        );
+        let open = json!({"client": "mc", "method": "app.open", "params": {}});
+        for (method, params) in [
+            ("methods.call", open.clone()),
+            ("activation.token", Value::Null),
+            ("session.quit", Value::Null),
+        ] {
+            let (error_code, message) = mcp.fails(&mut core, method, params);
+            assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{method}");
+            assert!(message.contains("choractl grant voice-mcp"), "{message}");
+        }
+        let grant = json!({"client": "voice-mcp", "capabilities": ["methods.call"]});
+        admin.ok(&mut core, "grants.set", grant);
+        let (error_code, message) = mcp.fails(&mut core, "methods.call", open.clone());
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+        assert!(message.contains("methods.privileged"), "{message}");
+        let grant = json!({"client": "voice-mcp", "capabilities": ["methods.privileged"]});
+        admin.ok(&mut core, "grants.set", grant);
+        mcp.send("methods.call", open);
+        assert_eq!(mc.event_names(&mut core), ["method.called"]);
+        // Another connection of the name without the flag stays free.
+        let mut free = core.connect();
+        free.ok(&mut core, "hello", json!({"name": "other"}));
+        free.ok(&mut core, "activation.token", Value::Null);
     }
 
     /// Plugin settings hold commands that the plugin runs: a client socket
