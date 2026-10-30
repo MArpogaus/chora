@@ -15,6 +15,7 @@ mod gate;
 mod live;
 mod llm;
 mod log;
+mod mc;
 mod pcm;
 mod record;
 mod replay;
@@ -38,6 +39,7 @@ use std::{
 
 use chora_kit::settings;
 use clap::{Parser, Subcommand};
+use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
 use crate::{
     audio::{Analyzer, FRAME, Mic, Speaker},
@@ -46,6 +48,7 @@ use crate::{
     core::{Core, Effect, Input, Reply},
     gate::{FRAME_MS, Gate},
     record::Recorder,
+    speech::Control,
     tools::Tools,
     vad::Vad,
 };
@@ -173,28 +176,19 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
         tools,
         chat::history_file(),
     ))?;
-    let chat = Arc::new(tokio::sync::Mutex::new(chat));
-    let warm = chat.clone();
-    net.spawn(async move { warm.lock().await.warm().await });
     let (tx, rx) = mpsc::channel();
-    let mut agent = Agent {
-        mic: Mic::start(config.capture_cmd.clone(), Analyzer::new(vad), tx.clone()),
-        speaker: Speaker::new(config.playback_cmd.clone()),
-        recorder: start_recording(&config.record_dir),
-        core: Core::new(config),
-        net,
-        tx: tx.clone(),
-        interim_busy: Arc::default(),
-        chat,
-        reply: None,
-    };
+    let mut agent = Agent::new(config.clone(), chat, net, tx.clone());
+    agent.warm();
+    agent.mic = Some(Mic::start(
+        config.capture_cmd,
+        Analyzer::new(vad),
+        tx.clone(),
+    ));
+    agent.mc = Some(mc::start(&name));
     client::start(name, settings, tx);
     log::info(&format!("started, {:?}", agent.core.state()));
     while let Ok(input) = rx.recv() {
-        agent.input(&input);
-        for effect in agent.core.handle(input) {
-            agent.effect(effect)?;
-        }
+        agent.step(input)?;
     }
     Err("an audio thread ended".into())
 }
@@ -202,20 +196,68 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
 /// The core and the actors that run its effects.
 struct Agent {
     core: Core,
-    mic: Mic,
+    mic: Option<Mic>,
     speaker: Speaker,
     recorder: Option<Recorder>,
-    /// The network actors: ASR, later TTS and LLM.
+    /// The network actors: ASR, TTS, LLM and tools.
     net: tokio::runtime::Runtime,
     tx: mpsc::Sender<Input>,
     /// An interim transcription runs; the next interval waits for it.
     interim_busy: Arc<AtomicBool>,
     chat: Arc<tokio::sync::Mutex<Chat>>,
-    /// The reply in progress.
-    reply: Option<tokio::task::JoinHandle<()>>,
+    /// The reply in progress: the control of its speech, and its stop
+    /// with the words that played.
+    reply: Option<(UnboundedSender<Control>, oneshot::Sender<String>)>,
+    /// The reports to chora-mc, and the last agent report.
+    mc: Option<mpsc::Sender<mc::Report>>,
+    reported: serde_json::Value,
 }
 
 impl Agent {
+    fn new(
+        config: Config,
+        chat: Chat,
+        net: tokio::runtime::Runtime,
+        tx: mpsc::Sender<Input>,
+    ) -> Self {
+        Self {
+            speaker: Speaker::new(config.playback_cmd.clone()),
+            recorder: start_recording(&config.record_dir),
+            core: Core::new(config),
+            mic: None,
+            net,
+            tx,
+            interim_busy: Arc::default(),
+            chat: Arc::new(tokio::sync::Mutex::new(chat)),
+            reply: None,
+            mc: None,
+            reported: serde_json::Value::Null,
+        }
+    }
+
+    /// Lets the LLM read the prompt.
+    fn warm(&self) {
+        let chat = self.chat.clone();
+        self.net
+            .spawn(async move { chat.lock().await.warm().await });
+    }
+
+    /// Runs an input through the core and its effects.
+    fn step(&mut self, input: Input) -> Result<(), String> {
+        self.input(&input);
+        for effect in self.core.handle(input) {
+            self.effect(effect)?;
+        }
+        if let Some(mc) = &self.mc {
+            let report = self.core.agent();
+            if report != self.reported {
+                let _ = mc.send(mc::Report::Agent(report.clone()));
+                self.reported = report;
+            }
+        }
+        Ok(())
+    }
+
     /// What happens to an input before the core gets it.
     fn input(&mut self, input: &Input) {
         match input {
@@ -227,10 +269,19 @@ impl Agent {
                     self.recorder = None;
                 }
             }
+            Input::Reply(_, Reply::Played { at, pcm }) => {
+                if let Some(r) = &mut self.recorder {
+                    let ahead = at.saturating_duration_since(std::time::Instant::now());
+                    let ahead = usize::try_from(ahead.as_millis()).unwrap_or(0) * 24;
+                    let _ = r.played(pcm, ahead);
+                }
+            }
             Input::Settings(new) => {
                 let old = self.core.config();
-                if new.capture_cmd != old.capture_cmd {
-                    self.mic.restart(new.capture_cmd.clone());
+                if new.capture_cmd != old.capture_cmd
+                    && let Some(mic) = &self.mic
+                {
+                    mic.restart(new.capture_cmd.clone());
                 }
                 if new.record_dir != old.record_dir {
                     self.recorder = start_recording(&new.record_dir);
@@ -258,7 +309,7 @@ impl Agent {
                     log::error(&format!("playback: {e}"));
                 }
                 if let Some(r) = &mut self.recorder {
-                    let _ = r.played(&pcm);
+                    let _ = r.played(&pcm, 0);
                 }
             }
             Effect::Mark(event) => {
@@ -286,16 +337,27 @@ impl Agent {
                 }
             }
             Effect::Ask {
-                turn,
+                reply,
                 text,
                 speak,
                 ended,
-            } => self.ask(turn, text, speak, ended),
-            Effect::Stop => {
-                if let Some(reply) = self.reply.take() {
-                    reply.abort();
+            } => self.ask(reply, text, speak, ended),
+            Effect::Stop(played) => {
+                if let Some((_, stop)) = self.reply.take() {
+                    let _ = stop.send(played);
                 }
                 self.speaker.stop();
+            }
+            Effect::Speech(control) => {
+                if let Some((speech, _)) = &self.reply {
+                    let _ = speech.send(control);
+                }
+            }
+            Effect::StopCode => {}
+            Effect::Say { text, at, len } => {
+                if let Some(mc) = &self.mc {
+                    let _ = mc.send(mc::Report::Say { text, at, len });
+                }
             }
             Effect::Exit => return Err("chora stays away".into()),
         }
@@ -304,19 +366,39 @@ impl Agent {
 }
 
 impl Agent {
-    /// Starts the reply to `text`; its events go to the core.
-    fn ask(&mut self, turn: u64, text: String, speak: bool, ended: std::time::Instant) {
+    /// Starts reply `id` to `text`; its events go to the core. A stop
+    /// ends the turn with the note of the words that played.
+    fn ask(&mut self, id: u64, text: String, speak: bool, ended: std::time::Instant) {
         let (chat, tx) = (self.chat.clone(), self.tx.clone());
         let config = self.core.config().clone();
         let speaker = speak.then(|| self.speaker.clone());
-        self.reply = Some(self.net.spawn(async move {
-            let mut chat = chat.lock().await;
-            let on = |reply| drop(tx.send(Input::Reply(turn, reply)));
-            let (report, spoken) =
-                speech::reply(&mut chat, &config, &text, speaker.as_ref(), &on).await;
+        let (speech, control) = tokio::sync::mpsc::unbounded_channel();
+        let (stop, mut stopped) = oneshot::channel::<String>();
+        self.net.spawn(async move {
+            let mut chat = tokio::select! {
+                chat = chat.lock() => chat,
+                _ = &mut stopped => return,
+            };
+            let on = |reply| drop(tx.send(Input::Reply(id, reply)));
+            let reply = speech::reply(
+                &mut chat,
+                &config,
+                &text,
+                speaker.as_ref().map(|s| (s, control)),
+                &on,
+            );
+            let (report, spoken) = tokio::select! {
+                // The turn starts before a stop can drop it.
+                biased;
+                done = reply => done,
+                played = &mut stopped => {
+                    chat.cancelled(&played.unwrap_or_default());
+                    return;
+                }
+            };
             let ms = |d: Option<Duration>| d.map_or("-".into(), |d| format!("{}ms", d.as_millis()));
             log::info(&format!(
-                "turn={turn} llm_first={} tts_first={} first_sound={} tools={}/{}ms \
+                "reply={id} llm_first={} tts_first={} first_sound={} tools={}/{}ms \
                  rounds={} outcome={}",
                 ms(report.llm_first),
                 ms(spoken.tts_first),
@@ -329,7 +411,8 @@ impl Agent {
                 report.outcome
             ));
             on(Reply::Done(report.reply));
-        }));
+        });
+        self.reply = Some((speech, stop));
     }
 
     /// Sends `pcm` to the ASR; the text comes back as an input.
@@ -422,7 +505,172 @@ fn utterances(config: &Config, file: &Path) -> Result<Vec<String>, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
+
     use super::*;
+    use crate::{
+        core::State::{self, Listening, Recording, Speaking, Thinking, Transcribing},
+        fake,
+        gate::Frame,
+    };
+
+    /// The frames of a corpus clip from `from` s on, with their speech
+    /// probability.
+    fn clip(name: &str, from: f64) -> Vec<Frame> {
+        let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/data/corpus")
+            .join(name)
+            .join("mic.wav");
+        let (_, samples) = pcm::read_wav(&file).unwrap();
+        let mut analyzer = Analyzer::new(Vad::new().unwrap());
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let skip = (from * f64::from(pcm::RATE)) as usize / FRAME;
+        samples.as_chunks::<FRAME>().0[skip..]
+            .iter()
+            .map(|c| analyzer.frame(c.to_vec()).unwrap())
+            .collect()
+    }
+
+    /// The agent with its inputs, and the states it went through.
+    struct Run {
+        agent: Agent,
+        rx: mpsc::Receiver<Input>,
+        states: Vec<State>,
+    }
+
+    impl Run {
+        fn step(&mut self, input: Input) {
+            self.agent.step(input).unwrap();
+            let state = self.agent.core.state();
+            if self.states.last() != Some(&state) {
+                self.states.push(state);
+            }
+        }
+
+        /// Feeds frames at full speed, with the inputs that come.
+        fn feed(&mut self, frames: &[Frame]) {
+            for frame in frames {
+                self.step(Input::Frame(frame.clone()));
+                while let Ok(input) = self.rx.try_recv() {
+                    self.step(input);
+                }
+            }
+        }
+
+        /// Feeds quiet frames in real time until `done`.
+        fn wait(&mut self, what: &str, done: impl Fn(&Core) -> bool) {
+            let deadline = Instant::now() + Duration::from_secs(20);
+            while !done(&self.agent.core) {
+                assert!(Instant::now() < deadline, "{what}: {:?}", self.states);
+                let next = Instant::now() + Duration::from_millis(FRAME_MS.into());
+                while let Ok(input) = self.rx.recv_timeout(next - Instant::now().min(next)) {
+                    self.step(input);
+                }
+                let quiet = Frame {
+                    samples: vec![0; FRAME],
+                    prob: 0.0,
+                };
+                self.step(Input::Frame(quiet));
+            }
+        }
+    }
+
+    /// The agent with the fake servers: the ASR hears a question, a
+    /// cancel word and the next question; the LLM answers two of them.
+    fn agent() -> (Run, fake::Server) {
+        let net = tokio::runtime::Runtime::new().unwrap();
+        let texts = &["Wie spät ist es?", "Stopp.", "Und morgen?"];
+        let asr = net.block_on(fake::asr(fake::Asr::Seq(texts)));
+        let tts = net.block_on(fake::tts(fake::Tts::Speak));
+        let llm = net.block_on(fake::llm(vec![
+            fake::Reply::Text("Es ist zehn Uhr. Schönen Tag noch."),
+            fake::Reply::Text("Morgen ist frei."),
+        ]));
+        let config = Config {
+            asr_url: asr.url,
+            tts_url: tts.url,
+            llm_url: llm.url.clone(),
+            playback_cmd: ["sh", "-c", "cat > /dev/null"].map(Into::into).to_vec(),
+            system_prompt: "Du bist ein Test.".into(),
+            // The fake LLM has a context of 4000 tokens.
+            context_docs: vec![
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("tests/data/corpus/hallo-chora/labels.txt")
+                    .display()
+                    .to_string(),
+            ],
+            prompt_file: String::new(),
+            // The short "Stopp." of the clip.
+            barge_in_ms: 128,
+            ..Config::default()
+        };
+        let (tools, _) = tools::tests::fake(0);
+        let chat = net
+            .block_on(Chat::start(config.clone(), "voice-mcp".into(), tools, None))
+            .unwrap();
+        let (tx, rx) = mpsc::channel();
+        let run = Run {
+            agent: Agent::new(config, chat, net, tx),
+            rx,
+            states: vec![State::Listening],
+        };
+        (run, llm)
+    }
+
+    /// docs/voice.md section 13: recorded speech through the whole agent
+    /// with the fake servers and tools. A question, a barge-in with a
+    /// cancel word while the agent speaks, and the next question, whose
+    /// request holds the note of the stopped reply.
+    #[test]
+    fn a_replay_runs_through_the_whole_agent() {
+        let (mut run, llm) = agent();
+        let (question, stop) = (clip("hallo-chora", 0.0), clip("turns-noise", 3.6));
+        run.feed(&question);
+        run.wait("the reply speaks", |core| core.state() == State::Speaking);
+        run.feed(&stop);
+        run.wait("the cancel word stops it", |core| {
+            core.state() == State::Listening
+        });
+        run.feed(&question);
+        run.wait("the next reply", |core| {
+            core.record()["last_reply"] == "Morgen ist frei." && core.state() == State::Listening
+        });
+        assert_eq!(
+            run.states,
+            [
+                Listening,
+                Recording,
+                Transcribing,
+                Thinking,
+                Speaking,
+                Recording,
+                Transcribing,
+                Listening,
+                Recording,
+                Transcribing,
+                Thinking,
+                Speaking,
+                Listening
+            ]
+        );
+        let seen = llm.seen.lock().unwrap();
+        assert_eq!(seen.len(), 2, "two requests");
+        let messages: Vec<(&str, &str)> = seen[1]["messages"].as_array().unwrap()[1..]
+            .iter()
+            .map(|m| (m["role"].as_str().unwrap(), m["content"].as_str().unwrap()))
+            .collect();
+        assert_eq!(
+            messages,
+            [
+                ("user", "Wie spät ist es?"),
+                (
+                    "assistant",
+                    "Es ist zehn Uhr. (cancelled by the user; result unknown)"
+                ),
+                ("user", "Und morgen?"),
+            ]
+        );
+    }
 
     #[test]
     fn the_gate_finds_the_one_utterance_of_the_tts_clip() {

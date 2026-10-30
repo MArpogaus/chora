@@ -18,7 +18,7 @@ use std::{fmt, ops::Range, path::Path};
 use crate::{
     audio::{Analyzer, FRAME},
     config::Config,
-    gate::{self, BargeIn, ECHO_WINDOW, FRAME_MS, Gate},
+    gate::{self, BARGE_PREROLL_MS, BargeIn, ECHO_WINDOW, FRAME_MS, Gate},
     pcm::{self, RATE},
     vad::Vad,
 };
@@ -26,8 +26,6 @@ use crate::{
 /// A detection matches a labelled barge-in from 100 ms before it to 1 s
 /// after it.
 const BARGE_WINDOW: (f64, f64) = (-0.1, 1.0);
-/// The pre-roll of an utterance that a barge-in starts (section 4).
-const BARGE_PREROLL_MS: u32 = 100;
 
 /// Turns and barge-ins, in s.
 #[derive(Debug, Default, PartialEq)]

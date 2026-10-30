@@ -195,6 +195,10 @@ impl Gate {
 /// a little later than it is written.
 pub const ECHO_WINDOW: usize = 5;
 
+/// The pre-roll of an utterance that a barge-in starts: it keeps the
+/// agent's own words out.
+pub const BARGE_PREROLL_MS: u32 = 100;
+
 /// Played sound under this level teaches the coupling nothing.
 const LEARN_FROM: f64 = 200.0;
 /// The step of the coupling per frame, and the step up on a frame that

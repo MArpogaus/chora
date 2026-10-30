@@ -99,14 +99,15 @@ impl Recorder {
         writeln!(self.events, "{line}")
     }
 
-    /// Appends played sound and notes where it started.
+    /// Appends played sound that starts `ahead` samples after now, and
+    /// notes where it starts.
     ///
     /// # Errors
     ///
     /// A file cannot be written.
-    pub fn played(&mut self, samples: &[i16]) -> io::Result<()> {
+    pub fn played(&mut self, samples: &[i16], ahead: usize) -> io::Result<()> {
         let line = json!({
-            "at": self.mic.samples,
+            "at": self.mic.samples as usize + ahead,
             "event": "play",
             "from": self.played.samples,
             "len": samples.len(),
@@ -170,7 +171,7 @@ mod tests {
         let dir = rec.dir().to_owned();
         rec.mic(&[1; 768]).unwrap();
         rec.event("onset").unwrap();
-        rec.played(&[7; 100]).unwrap();
+        rec.played(&[7; 100], 0).unwrap();
         rec.mic(&[2; 768]).unwrap();
         // A crash before the end: the header has no length yet.
         rec.mic.file.flush().unwrap();

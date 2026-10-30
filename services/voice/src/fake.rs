@@ -30,6 +30,8 @@ pub enum Asr {
     Text(&'static str),
     /// Closes the first socket at the commit, then answers.
     FailFirst(&'static str),
+    /// Answers the n-th commit with the n-th text, then with the last.
+    Seq(&'static [&'static str]),
     /// Answers each commit with the error of a wrong rate.
     Error,
     /// Never answers.
@@ -86,8 +88,9 @@ async fn send(ws: &mut Socket, event: &Value) {
 
 pub async fn asr(script: Asr) -> Server {
     let failed = Arc::new(AtomicBool::new(false));
+    let commits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     start(move |mut ws, seen| {
-        let failed = failed.clone();
+        let (failed, commits) = (failed.clone(), commits.clone());
         async move {
             while let Some(event) = next(&mut ws, &seen).await {
                 if event["type"] != "input_audio_buffer.commit" {
@@ -97,6 +100,10 @@ pub async fn asr(script: Asr) -> Server {
                     Asr::Silent => continue,
                     Asr::FailFirst(_) if !failed.swap(true, Ordering::SeqCst) => return,
                     Asr::Text(text) | Asr::FailFirst(text) => text,
+                    Asr::Seq(texts) => {
+                        let n = commits.fetch_add(1, Ordering::SeqCst);
+                        texts[n.min(texts.len() - 1)]
+                    }
                     Asr::Error => {
                         let error =
                             json!({"type": "error", "error": {"code": "invalid_audio_event"}});

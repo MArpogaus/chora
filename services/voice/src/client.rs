@@ -47,6 +47,13 @@ struct ConfirmParams {
     answer: Answer,
 }
 
+/// The parameters of `talk`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Talk {
+    down: bool,
+}
+
 /// The parameters of `mute`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -137,6 +144,13 @@ fn exported_methods() -> Vec<ExportMethod> {
             &["answer"],
         ),
         runtime::method(
+            "talk",
+            "The push-to-talk key of another client: down stops a reply and records, up \
+             ends the utterance.",
+            json!({"down": {"type": "boolean"}}),
+            &["down"],
+        ),
+        runtime::method(
             "restart",
             "Reads the settings file again, for example after an edit by hand.",
             none,
@@ -207,6 +221,10 @@ impl Plugin for Client {
             "confirm" => {
                 let ConfirmParams { answer } = runtime::params(params)?;
                 Call::Confirm(matches!(answer, Answer::Yes))
+            }
+            "talk" => {
+                let Talk { down } = runtime::params(params)?;
+                Call::Talk(down)
             }
             "mute" => {
                 let Mute { mic, speaker } = runtime::params(params)?;

@@ -116,6 +116,8 @@ pub fn ask(config: &Config, name: &str, text: &str, speak: bool, yes: bool) -> R
         );
         chat.warm().await;
         let speaker = speak.then(|| Speaker::new(config.playback_cmd.clone()));
+        // Nothing pauses the speech here.
+        let (_pause, control) = tokio::sync::mpsc::unbounded_channel();
         let start = Instant::now();
         let at = || start.elapsed().as_millis();
         let on = |reply| match reply {
@@ -124,10 +126,10 @@ pub fn ask(config: &Config, name: &str, text: &str, speak: bool, yes: bool) -> R
                 println!("{:>6}ms confirm {prompt:?}: {}", at(), if yes { "yes" } else { "no" });
                 let _ = answer.send(yes);
             }
-            Reply::Sound => println!("{:>6}ms first sound", at()),
+            Reply::Said { text, .. } => println!("{:>6}ms say {text:?}", at()),
             _ => {}
         };
-        let (report, spoken) = speech::reply(&mut chat, config, text, speaker.as_ref(), &on).await;
+        let (report, spoken) = speech::reply(&mut chat, config, text, speaker.as_ref().map(|s| (s, control)), &on).await;
         let ms = |d: Option<Duration>| d.map_or("-".into(), |d| format!("{}ms", d.as_millis()));
         println!("reply={:?}", report.reply);
         println!(

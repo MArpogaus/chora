@@ -4,7 +4,7 @@
 
 use std::time::{Duration, Instant};
 
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::{
     audio::Speaker,
@@ -103,57 +103,79 @@ pub struct Spoken {
     pub errors: usize,
 }
 
-/// Speaks the sentences as they come, one TTS socket after the other,
-/// and hands the PCM to `play`. Playback starts once
-/// `playback_buffer_ms` of sound or the whole sentence is there, and
-/// again so after it ran dry. Ends when the sound ends. A TTS error
-/// skips its sentence.
-pub async fn speak(
+/// What the speech asks of the player.
+#[derive(Debug, PartialEq)]
+pub enum Out {
+    /// PCM that plays from `at`, after the sound before.
+    Pcm { at: Instant, pcm: Vec<i16> },
+    /// A sentence: its sound starts at `at` and lasts `len`.
+    Said {
+        text: String,
+        at: Instant,
+        len: Duration,
+    },
+    /// Stops the sound at once: a barge-in.
+    Stop,
+}
+
+/// A barge-in pauses the speech; the agent then resumes it from the cut
+/// sentence, or after it with `skip`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Control {
+    Pause,
+    Resume { skip: bool },
+}
+
+/// A piece of the TTS for the player.
+enum Piece {
+    Start(String),
+    Pcm(Vec<i16>),
+    Done,
+}
+
+/// A sentence in the player.
+struct Sent {
+    text: String,
+    pcm: Vec<i16>,
+    done: bool,
+    /// The samples that went to the player.
+    written: usize,
+    /// When its sound starts.
+    at: Option<Instant>,
+    said: bool,
+    skip: bool,
+}
+
+fn duration(samples: usize) -> Duration {
+    let samples = u64::try_from(samples).unwrap_or(u64::MAX);
+    Duration::from_micros(samples * 1_000_000 / u64::from(RATE))
+}
+
+/// Asks the TTS for each sentence, one socket after the other; a TTS
+/// error skips its sentence.
+async fn fetch(
     config: &Config,
     mut sentences: UnboundedReceiver<String>,
-    mut play: impl FnMut(Vec<i16>),
-) -> Spoken {
-    let buffer = usize::try_from(config.playback_buffer_ms * RATE / 1000).unwrap_or(usize::MAX);
-    let mut spoken = Spoken::default();
-    // When the sound written so far ends.
-    let mut end = Instant::now();
-    let mut write = |pcm: Vec<i16>, spoken: &mut Spoken| {
-        let now = Instant::now();
-        spoken.first_sound.get_or_insert(now);
-        let samples = u64::try_from(pcm.len()).unwrap_or(u64::MAX);
-        end = end.max(now) + Duration::from_micros(samples * 1_000_000 / u64::from(RATE));
-        play(pcm);
-        end
-    };
-    let mut sound_end = Instant::now();
-    let mut held: Vec<i16> = Vec::new();
+    tx: UnboundedSender<Piece>,
+    spoken: &mut Spoken,
+) {
     while let Some(sentence) = sentences.recv().await {
         crate::log::info(&format!("say: {sentence}"));
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let _ = tx.send(Piece::Start(sentence.clone()));
+        let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let asked = Instant::now();
         let feed = async {
             let mut first = None;
             while let Some(event) = rx.recv().await {
-                let tts::Event::Audio(pcm) = event else {
-                    continue;
-                };
-                first.get_or_insert_with(|| asked.elapsed());
-                // Held back while the sound ran dry.
-                if Instant::now() >= sound_end {
-                    held.extend(pcm);
-                } else {
-                    sound_end = write(pcm, &mut spoken);
-                }
-                if held.len() >= buffer {
-                    sound_end = write(std::mem::take(&mut held), &mut spoken);
+                if let tts::Event::Audio(pcm) = event {
+                    first.get_or_insert_with(|| asked.elapsed());
+                    let _ = tx.send(Piece::Pcm(pcm));
                 }
             }
             first
         };
-        let (result, first) = tokio::join!(tts::speak(config, &sentence, tx), feed);
-        if !held.is_empty() {
-            sound_end = write(std::mem::take(&mut held), &mut spoken);
-        }
+        let (result, first) = tokio::join!(tts::speak(config, &sentence, events), feed);
+        let _ = tx.send(Piece::Done);
         if spoken.sentences == 0 {
             spoken.tts_first = first;
         }
@@ -163,20 +185,183 @@ pub async fn speak(
             spoken.errors += 1;
         }
     }
-    tokio::time::sleep_until(sound_end.into()).await;
+}
+
+/// The player side of `speak`.
+struct Player<F> {
+    out: F,
+    sents: Vec<Sent>,
+    /// The first sentence that is not all written.
+    next: usize,
+    /// When the sound written so far ends.
+    end: Instant,
+    buffer: usize,
+    paused: bool,
+    first_sound: Option<Instant>,
+}
+
+impl<F: FnMut(Out)> Player<F> {
+    fn piece(&mut self, piece: Piece) {
+        match piece {
+            Piece::Start(text) => self.sents.push(Sent {
+                text,
+                pcm: Vec::new(),
+                done: false,
+                written: 0,
+                at: None,
+                said: false,
+                skip: false,
+            }),
+            Piece::Pcm(pcm) => {
+                if let Some(s) = self.sents.last_mut() {
+                    s.pcm.extend(pcm);
+                }
+            }
+            Piece::Done => {
+                if let Some(s) = self.sents.last_mut() {
+                    s.done = true;
+                }
+            }
+        }
+    }
+
+    /// Writes what may play: once `buffer` samples or the whole sentence
+    /// are there, and again so after the sound ran dry.
+    fn pump(&mut self) {
+        if self.paused {
+            return;
+        }
+        let now = Instant::now();
+        let waiting: usize = self.sents[self.next..]
+            .iter()
+            .filter(|s| !s.skip)
+            .map(|s| s.pcm.len() - s.written)
+            .sum();
+        let whole = self.sents.get(self.next).is_some_and(|s| s.done);
+        if now >= self.end && waiting < self.buffer && !whole {
+            return;
+        }
+        while let Some(s) = self.sents.get_mut(self.next) {
+            if !s.skip && s.written < s.pcm.len() {
+                let at = self.end.max(now);
+                s.at.get_or_insert(at);
+                let pcm = s.pcm[s.written..].to_vec();
+                s.written = s.pcm.len();
+                self.end = at + duration(pcm.len());
+                self.first_sound.get_or_insert(now);
+                (self.out)(Out::Pcm { at, pcm });
+            }
+            if !s.done {
+                return;
+            }
+            if let (false, false, Some(at)) = (s.skip, s.said, s.at) {
+                s.said = true;
+                let (text, len) = (s.text.clone(), duration(s.pcm.len()));
+                (self.out)(Out::Said { text, at, len });
+            }
+            self.next += 1;
+        }
+    }
+
+    fn control(&mut self, control: Control) {
+        match control {
+            Control::Pause if !self.paused => {
+                self.paused = true;
+                (self.out)(Out::Stop);
+                // The cut sentence and those after it play again.
+                let now = Instant::now();
+                let cut = self
+                    .sents
+                    .iter()
+                    .position(|s| !s.skip && s.at.is_none_or(|at| at + duration(s.written) > now))
+                    .unwrap_or(self.sents.len());
+                for s in &mut self.sents[cut..] {
+                    (s.written, s.at, s.said) = (0, None, false);
+                }
+                self.next = cut;
+                self.end = now;
+            }
+            Control::Resume { skip } if self.paused => {
+                self.paused = false;
+                if skip && let Some(s) = self.sents.get_mut(self.next) {
+                    s.skip = true;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn written(&self) -> bool {
+        self.next == self.sents.len()
+    }
+}
+
+/// Speaks the sentences as they come, one TTS socket after the other,
+/// and hands the sound to `out`. Playback starts once
+/// `playback_buffer_ms` of sound or the whole sentence is there, and
+/// again so after it ran dry. A pause stops the sound; the resume plays
+/// the cut sentence again or skips it. Ends when the sound ends.
+pub async fn speak(
+    config: &Config,
+    sentences: UnboundedReceiver<String>,
+    mut control: UnboundedReceiver<Control>,
+    out: impl FnMut(Out),
+) -> Spoken {
+    let mut spoken = Spoken::default();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let mut player = Player {
+        out,
+        sents: Vec::new(),
+        next: 0,
+        end: Instant::now(),
+        buffer: usize::try_from(config.playback_buffer_ms * RATE / 1000).unwrap_or(usize::MAX),
+        paused: false,
+        first_sound: None,
+    };
+    let play = async {
+        let (mut fetching, mut controlled) = (true, true);
+        loop {
+            player.pump();
+            let ended = !fetching && player.written() && !player.paused;
+            if ended && Instant::now() >= player.end {
+                return;
+            }
+            tokio::select! {
+                piece = rx.recv(), if fetching => match piece {
+                    Some(piece) => player.piece(piece),
+                    None => fetching = false,
+                },
+                c = control.recv(), if controlled => match c {
+                    Some(c) => player.control(c),
+                    None => controlled = false,
+                },
+                () = tokio::time::sleep_until(player.end.into()), if ended => {}
+                // A pause whose control is gone: the reply ends with its
+                // stop.
+                else => std::future::pending::<()>().await,
+            }
+        }
+    };
+    tokio::join!(fetch(config, sentences, tx, &mut spoken), play);
+    spoken.first_sound = player.first_sound;
     spoken
 }
 
 /// Runs a turn of `chat` and speaks its sentences and confirmation
-/// prompts through `speaker`, none without it. `on` gets the events for
+/// prompts through the speaker of `voice`, none without it; the control
+/// of `voice` pauses and resumes the speech. `on` gets the events for
 /// the core.
 pub async fn reply(
     chat: &mut Chat,
     config: &Config,
     text: &str,
-    speaker: Option<&Speaker>,
+    voice: Option<(&Speaker, UnboundedReceiver<Control>)>,
     on: &(impl Fn(Reply) + Sync),
 ) -> (Report, Spoken) {
+    let (speaker, control) = match voice {
+        Some((speaker, control)) => (Some(speaker), control),
+        None => (None, tokio::sync::mpsc::unbounded_channel().1),
+    };
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let turn = async {
         let tx = tx;
@@ -196,22 +381,34 @@ pub async fn reply(
         .await
     };
     let mut player = None;
-    let play = |pcm| {
+    let out = |out| {
         let Some(speaker) = speaker else {
             return;
         };
-        if player.is_none() {
-            on(Reply::Sound);
-            player = speaker
-                .stream()
-                .map_err(|e| crate::log::error(&format!("playback: {e}")))
-                .ok();
-        }
-        if let Some(player) = &player {
-            let _ = player.send(pcm);
+        match out {
+            Out::Pcm { at, pcm } => {
+                on(Reply::Played {
+                    at,
+                    pcm: pcm.clone(),
+                });
+                if player.is_none() {
+                    player = speaker
+                        .stream()
+                        .map_err(|e| crate::log::error(&format!("playback: {e}")))
+                        .ok();
+                }
+                if let Some(player) = &player {
+                    let _ = player.send(pcm);
+                }
+            }
+            Out::Said { text, at, len } => on(Reply::Said { text, at, len }),
+            Out::Stop => {
+                player = None;
+                speaker.stop();
+            }
         }
     };
-    tokio::join!(turn, speak(config, rx, play))
+    tokio::join!(turn, speak(config, rx, control, out))
 }
 
 #[cfg(test)]
@@ -278,7 +475,13 @@ mod tests {
         drop(tx);
         let mut pieces = Vec::new();
         let start = Instant::now();
-        let spoken = speak(&config, rx, |pcm| pieces.push(pcm.len())).await;
+        let (_control, nothing) = tokio::sync::mpsc::unbounded_channel();
+        let spoken = speak(&config, rx, nothing, |out| {
+            if let Out::Pcm { pcm, .. } = out {
+                pieces.push(pcm.len());
+            }
+        })
+        .await;
         assert_eq!(spoken.sentences, 2);
         assert_eq!(spoken.errors, 0);
         // The fake sends 2400 samples per message: the first write holds
@@ -289,6 +492,58 @@ mod tests {
             start.elapsed() >= Duration::from_millis(1300),
             "speak ends with the sound"
         );
+    }
+
+    /// Speaks two sentences, pauses at the first sound and resumes; the
+    /// log of the player.
+    async fn paused(config: &Config, skip: bool) -> Vec<String> {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        tx.send("Eins zwei drei.".into()).unwrap();
+        tx.send("Vier.".into()).unwrap();
+        drop(tx);
+        let (control, controls) = tokio::sync::mpsc::unbounded_channel();
+        let mut log = Vec::new();
+        speak(config, rx, controls, |out| {
+            if log.is_empty() {
+                control.send(Control::Pause).unwrap();
+                control.send(Control::Resume { skip }).unwrap();
+            }
+            log.push(match out {
+                Out::Pcm { pcm, .. } => format!("pcm {}", pcm.len()),
+                Out::Said { text, len, .. } => format!("said {text} {}", len.as_millis()),
+                Out::Stop => "stop".into(),
+            });
+        })
+        .await;
+        log
+    }
+
+    #[tokio::test]
+    async fn a_pause_stops_the_sound_and_the_resume_plays_the_cut_sentence_again() {
+        let server = fake::tts(fake::Tts::Speak).await;
+        let config = Config {
+            tts_url: server.url,
+            playback_buffer_ms: 0,
+            ..Config::default()
+        };
+        // 60 ms of sound per character: 0.9 s and 0.3 s.
+        let (eins, vier) = (15 * 1440, 5 * 1440);
+        for (skip, after) in [(false, eins + vier), (true, vier)] {
+            let log = paused(&config, skip).await;
+            let stop = log.iter().position(|l| l == "stop").expect("a stop");
+            let played: usize = log[stop..]
+                .iter()
+                .filter_map(|l| l.strip_prefix("pcm ")?.parse::<usize>().ok())
+                .sum();
+            assert_eq!(played, after, "skip={skip}: {log:?}");
+            let said: Vec<_> = log.iter().filter(|l| l.starts_with("said")).collect();
+            let want: &[&str] = if skip {
+                &["said Vier. 300"]
+            } else {
+                &["said Eins zwei drei. 900", "said Vier. 300"]
+            };
+            assert_eq!(said, want, "{log:?}");
+        }
     }
 
     #[tokio::test]
@@ -324,12 +579,15 @@ mod tests {
                     "confirm".into()
                 }
                 Reply::Chat(event) => format!("{event:?}"),
-                Reply::Sound => "sound".into(),
+                Reply::Played { .. } => "sound".into(),
+                Reply::Said { text, .. } => format!("said {text}"),
                 Reply::Done(_) => unreachable!(),
             };
             events.lock().unwrap().push(line);
         };
-        let (report, spoken) = reply(&mut chat, &config, "Echo.", Some(&speaker), &on).await;
+        let (_control, nothing) = tokio::sync::mpsc::unbounded_channel();
+        let (report, spoken) =
+            reply(&mut chat, &config, "Echo.", Some((&speaker, nothing)), &on).await;
         assert_eq!(report.reply, "Gut. Fertig.");
         assert_eq!((spoken.sentences, spoken.errors), (3, 0));
         let texts: Vec<_> = tts

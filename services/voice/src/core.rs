@@ -1,8 +1,12 @@
 //! The core: one thread reads all inputs from one channel and answers
-//! with effects (docs/voice.md sections 2 and 3). `Core::handle` does no
+//! with effects (docs/voice.md sections 2 to 4). `Core::handle` does no
 //! IO, so the tests drive it directly.
 
-use std::{sync::mpsc::Sender, time::Instant};
+use std::{
+    collections::VecDeque,
+    sync::mpsc::Sender,
+    time::{Duration, Instant},
+};
 
 use tokio::sync::oneshot;
 
@@ -14,7 +18,9 @@ use crate::{
     chat,
     config::Config,
     earcon::Earcon,
-    gate::{self, FRAME_MS, Frame, Gate},
+    gate::{self, BARGE_PREROLL_MS, BargeIn, ECHO_WINDOW, FRAME_MS, Frame, Gate},
+    speech::Control,
+    words::{self, Word},
 };
 
 /// The states of docs/voice.md section 3; `working` comes with the
@@ -32,6 +38,20 @@ pub enum State {
     Speaking,
 }
 
+impl State {
+    /// The state of an agent in `mc agent.set`.
+    pub fn agent(self) -> &'static str {
+        match self {
+            Self::Sleeping => "asleep",
+            Self::Listening | Self::Recording => "listening",
+            Self::Transcribing | Self::Thinking => "thinking",
+            Self::Tool => "working",
+            Self::Confirming => "question",
+            Self::Speaking => "speaking",
+        }
+    }
+}
+
 /// A method call of another client.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Call {
@@ -45,14 +65,25 @@ pub enum Call {
     },
     /// The answer to a confirmation: yes or no.
     Confirm(bool),
+    /// The push-to-talk key of another client: down or up.
+    Talk(bool),
 }
 
 /// What the reply of a turn tells the core.
 #[derive(Debug)]
 pub enum Reply {
     Chat(chat::Event),
-    /// The first sound of the reply plays.
-    Sound,
+    /// Sound went to the player: it plays from `at`.
+    Played {
+        at: Instant,
+        pcm: Vec<i16>,
+    },
+    /// A sentence plays from `at` for `len`.
+    Said {
+        text: String,
+        at: Instant,
+        len: Duration,
+    },
     /// The reply ended, also its sound.
     Done(String),
 }
@@ -69,14 +100,14 @@ pub enum Input {
     Settings(Box<Config>),
     /// The runtime gave up on chora.
     ChoraGone,
-    /// The ASR answered for a turn: the final text of a finished
-    /// utterance, or an interim text of the utterance in progress.
+    /// The ASR answered for an utterance: the final text of a finished
+    /// one, or an interim text of the one in progress.
     Transcript {
         turn: u64,
         interim: bool,
         result: Result<Transcript, String>,
     },
-    /// The reply of the turn.
+    /// The reply with this number.
     Reply(u64, Reply),
 }
 
@@ -100,15 +131,26 @@ pub enum Effect {
         end_wait_ms: u32,
         awake: bool,
     },
-    /// Starts the reply to a text; `ended` is the end of the speech.
+    /// Starts reply `reply` to a text; `ended` is the end of the speech.
     Ask {
-        turn: u64,
+        reply: u64,
         text: String,
         speak: bool,
         ended: Instant,
     },
-    /// Stops the reply in progress and its sound.
-    Stop,
+    /// Stops the reply in progress and its sound; the words that played
+    /// go into its note in the history.
+    Stop(String),
+    /// Pauses or resumes the speech of the reply: a barge-in.
+    Speech(Control),
+    /// Stops the coding task.
+    StopCode,
+    /// A sentence for the HUD: it plays from `at` for `len`.
+    Say {
+        text: String,
+        at: Instant,
+        len: Duration,
+    },
     Exit,
 }
 
@@ -119,22 +161,66 @@ pub struct Muted {
     pub speaker: bool,
 }
 
+/// An utterance whose final text waits.
+struct Pending {
+    turn: u64,
+    length_ms: u32,
+    /// Awake or by the key: the text is a request, not only a wake word.
+    heard: bool,
+}
+
+/// The push-to-talk key.
+#[derive(Default)]
+struct Key {
+    down: bool,
+    /// Down during the utterance in progress.
+    used: bool,
+}
+
+/// Words that played within this time count for the echo filter.
+const ECHO_MEMORY: Duration = Duration::from_secs(3);
+
 pub struct Core {
     config: Config,
     gate: Gate,
+    barge: BargeIn,
     state: State,
     since: Instant,
     seq: u64,
     awake: bool,
     muted: Muted,
-    ptt: bool,
+    key: Key,
+    /// The number of the last utterance.
     turn: u64,
     last_transcript: String,
     last_reply: String,
-    /// The turn whose reply runs.
+    /// The number of the last reply.
+    replies: u64,
+    /// The reply that runs.
     asking: Option<u64>,
-    /// The answer of the confirmation that waits.
+    /// The text of the reply that runs or ran last.
+    request: String,
+    /// What the reply does when it neither speaks nor asks: thinking or
+    /// a tool.
+    doing: State,
+    /// The answer of the confirmation that waits, and the unclear
+    /// answers so far.
     confirm: Option<oneshot::Sender<bool>>,
+    unclear: u32,
+    /// The utterances whose final text waits.
+    pending: Vec<Pending>,
+    /// A barge-in paused the speech.
+    paused: bool,
+    /// The level of each played frame, by its time.
+    levels: VecDeque<(Instant, f64)>,
+    /// When the played sound ends.
+    sound_end: Instant,
+    /// The sentences that played, with the end of their sound.
+    said: VecDeque<(Instant, String)>,
+    /// The words of the reply that played.
+    played: String,
+    /// Texts that came while a reply ran; they start the next one.
+    queue: Vec<String>,
     /// The end of the last utterance.
     ended: Instant,
     /// Frames since the onset of the utterance in progress.
@@ -146,21 +232,34 @@ pub struct Core {
 impl Core {
     /// The agent starts awake.
     pub fn new(config: Config) -> Self {
+        let now = Instant::now();
         Self {
             gate: Gate::new(&config),
+            barge: BargeIn::new(&config),
             config,
             state: State::Listening,
-            since: Instant::now(),
+            since: now,
             seq: 0,
             awake: true,
             muted: Muted::default(),
-            ptt: false,
+            key: Key::default(),
             turn: 0,
             last_transcript: String::new(),
             last_reply: String::new(),
+            replies: 0,
             asking: None,
+            request: String::new(),
+            doing: State::Thinking,
             confirm: None,
-            ended: Instant::now(),
+            unclear: 0,
+            pending: Vec::new(),
+            paused: false,
+            levels: VecDeque::new(),
+            sound_end: now,
+            said: VecDeque::new(),
+            played: String::new(),
+            queue: Vec::new(),
+            ended: now,
             recorded: 0,
             mic_down: false,
         }
@@ -174,6 +273,16 @@ impl Core {
         self.state
     }
 
+    /// The parameters of `mc agent.set` without the name: the state, the
+    /// request and the last reply.
+    pub fn agent(&self) -> Value {
+        json!({
+            "state": self.state.agent(),
+            "task": self.request,
+            "said": self.last_reply,
+        })
+    }
+
     /// The state record of `voice.state` (docs/voice.md section 10).
     pub fn record(&self) -> Value {
         json!({
@@ -185,6 +294,7 @@ impl Core {
             "turn": self.turn,
             "last_transcript": self.last_transcript,
             "last_reply": self.last_reply,
+            "queued": self.queue.len(),
         })
     }
 
@@ -196,13 +306,27 @@ impl Core {
         }
     }
 
-    /// The state after an utterance.
-    fn rest(&self) -> State {
-        if self.awake {
+    /// The state from what goes on: an utterance first, then its text,
+    /// then the reply.
+    fn refresh(&mut self) {
+        let state = if self.gate.pcm().is_some() {
+            State::Recording
+        } else if self.pending.iter().any(|p| p.heard) {
+            State::Transcribing
+        } else if self.asking.is_some() {
+            if self.confirm.is_some() {
+                State::Confirming
+            } else if self.paused || Instant::now() < self.sound_end {
+                State::Speaking
+            } else {
+                self.doing
+            }
+        } else if self.awake {
             State::Listening
         } else {
             State::Sleeping
-        }
+        };
+        self.set(state);
     }
 
     fn earcon(&self, kind: Earcon) -> Option<Effect> {
@@ -210,42 +334,30 @@ impl Core {
     }
 
     pub fn handle(&mut self, input: Input) -> Vec<Effect> {
-        match input {
+        let mut effects = match input {
             Input::Frame(frame) => {
                 self.mic_down = false;
-                self.frame(&frame).into_iter().collect()
+                self.frame(&frame)
             }
             Input::MicDown if self.mic_down => Vec::new(),
             Input::MicDown => {
                 self.mic_down = true;
                 // The cut utterance is gone with the mic.
                 self.gate.reset();
-                let rest = self.rest();
-                self.set(rest);
                 self.earcon(Earcon::Error).into_iter().collect()
             }
-            Input::PttDown if self.asking.is_some() => {
-                crate::log::info("ptt down: the reply stops");
-                self.stop(Earcon::Cancel)
-            }
-            Input::PttDown => {
-                crate::log::debug("ptt down");
-                self.ptt = true;
-                Vec::new()
-            }
-            Input::PttUp => {
-                crate::log::debug("ptt up");
-                self.ptt = false;
-                Vec::new()
-            }
+            Input::PttDown => self.key(true),
+            Input::PttUp => self.key(false),
             Input::Call(call, reply) => {
                 let effects = self.call(call);
+                self.refresh();
                 // The caller may have gone after its timeout.
                 let _ = reply.send(self.record());
                 effects
             }
             Input::Settings(config) => {
                 self.gate.configure(&config);
+                self.barge.configure(&config);
                 self.config = *config;
                 Vec::new()
             }
@@ -255,46 +367,164 @@ impl Core {
                 interim,
                 result,
             } => self.transcript(turn, interim, result),
-            Input::Reply(turn, reply) => self.reply(turn, reply),
+            Input::Reply(reply, event) => self.reply(reply, event),
+        };
+        // A barge-in that came to nothing: the speech goes on.
+        if self.paused && self.gate.pcm().is_none() && self.pending.is_empty() {
+            self.paused = false;
+            effects.push(Effect::Speech(Control::Resume { skip: false }));
         }
+        self.refresh();
+        effects
     }
 
-    /// Stops the reply in progress with an earcon.
-    fn stop(&mut self, earcon: Earcon) -> Vec<Effect> {
-        self.asking = None;
+    /// The push-to-talk key: down stops a reply and records.
+    fn key(&mut self, down: bool) -> Vec<Effect> {
+        crate::log::debug(if down { "ptt down" } else { "ptt up" });
+        self.key.down = down;
+        if down && self.asking.is_some() {
+            crate::log::info("ptt down: the reply stops");
+            return self.stop(Some(Earcon::Cancel));
+        }
+        Vec::new()
+    }
+
+    /// Stops the reply in progress; its played words wait for the note
+    /// in the history.
+    fn stop(&mut self, earcon: Option<Earcon>) -> Vec<Effect> {
+        if let Some(reply) = self.asking.take() {
+            crate::log::info(&format!("reply={reply} stopped"));
+        }
         self.confirm = None;
-        let rest = self.rest();
-        self.set(rest);
-        std::iter::once(Effect::Stop)
-            .chain(self.earcon(earcon))
+        self.paused = false;
+        self.queue.clear();
+        self.sound_end = Instant::now();
+        std::iter::once(Effect::Stop(std::mem::take(&mut self.played)))
+            .chain(earcon.and_then(|e| self.earcon(e)))
             .collect()
     }
 
-    fn reply(&mut self, turn: u64, reply: Reply) -> Vec<Effect> {
+    /// Starts a reply to the queued texts and `text`.
+    fn ask(&mut self, text: String) -> Vec<Effect> {
+        if !text.is_empty() {
+            self.queue.push(text);
+        }
+        let text = std::mem::take(&mut self.queue).join(" ");
+        self.replies += 1;
+        self.asking = Some(self.replies);
+        self.request.clone_from(&text);
+        self.doing = State::Thinking;
+        self.unclear = 0;
+        self.played.clear();
+        vec![Effect::Ask {
+            reply: self.replies,
+            text,
+            speak: !self.muted.speaker,
+            ended: self.ended,
+        }]
+    }
+
+    /// Answers the confirmation that waits.
+    fn answer(&mut self, yes: bool) {
+        if let Some(answer) = self.confirm.take() {
+            crate::log::info(&format!("confirm: {}", if yes { "yes" } else { "no" }));
+            let _ = answer.send(yes);
+            self.doing = if yes { State::Tool } else { State::Thinking };
+        }
+    }
+
+    fn sleep(&mut self) -> Vec<Effect> {
+        self.gate.reset();
+        self.awake = false;
+        let mut effects = if self.asking.is_some() {
+            self.stop(None)
+        } else {
+            Vec::new()
+        };
+        self.queue.clear();
+        effects.extend(self.earcon(Earcon::Sleep));
+        effects
+    }
+
+    fn wake(&mut self) -> Vec<Effect> {
+        self.awake = true;
+        self.earcon(Earcon::Wake).into_iter().collect()
+    }
+
+    fn reply(&mut self, reply: u64, event: Reply) -> Vec<Effect> {
         // A late event of a stopped reply; a dropped confirmation is a no.
-        if self.asking != Some(turn) {
+        if self.asking != Some(reply) {
             return Vec::new();
         }
-        let speaking = self.state == State::Speaking;
-        match reply {
-            Reply::Chat(chat::Event::Thinking) if !speaking => self.set(State::Thinking),
-            Reply::Chat(chat::Event::Tool(_)) if !speaking => self.set(State::Tool),
+        match event {
+            Reply::Chat(chat::Event::Thinking) => self.doing = State::Thinking,
+            Reply::Chat(chat::Event::Tool(_)) => self.doing = State::Tool,
             Reply::Chat(chat::Event::Confirm { answer, .. }) => {
                 self.confirm = Some(answer);
-                self.set(State::Confirming);
+                self.unclear = 0;
             }
-            Reply::Sound => self.set(State::Speaking),
+            Reply::Chat(chat::Event::Sentence(_)) => {}
+            Reply::Played { at, pcm } => {
+                let frame = Duration::from_millis(FRAME_MS.into());
+                let levels = pcm.chunks(crate::audio::FRAME).map(crate::pcm::rms);
+                for (k, level) in (0u32..).zip(levels) {
+                    self.levels.push_back((at + frame * k, level));
+                    self.sound_end = self.sound_end.max(at + frame * (k + 1));
+                }
+            }
+            Reply::Said { text, at, len } => {
+                self.said.push_back((at + len, text.clone()));
+                self.played.push_str(&text);
+                self.played.push(' ');
+                return vec![Effect::Say { text, at, len }];
+            }
             Reply::Done(text) => {
                 self.last_reply = text;
                 self.asking = None;
                 self.confirm = None;
+                self.paused = false;
+                self.played.clear();
                 self.seq += 1;
-                let rest = self.rest();
-                self.set(rest);
+                if !self.queue.is_empty() {
+                    return self.ask(String::new());
+                }
             }
-            Reply::Chat(_) => {}
         }
         Vec::new()
+    }
+
+    /// Whether a text is the agent's own voice from the speaker.
+    fn echo(&mut self, text: &str) -> bool {
+        let now = Instant::now();
+        while self
+            .said
+            .front()
+            .is_some_and(|(end, _)| *end + ECHO_MEMORY < now)
+        {
+            self.said.pop_front();
+        }
+        let said: Vec<&str> = self.said.iter().map(|(_, t)| t.as_str()).collect();
+        words::is_echo(text, &said.join(" "))
+    }
+
+    /// An interim text of the utterance in progress.
+    fn interim_text(&mut self, turn: u64, result: Result<Transcript, String>) {
+        // A late interim text drops.
+        if self.gate.pcm().is_none() || turn != self.turn + 1 {
+            return;
+        }
+        match result {
+            Ok(t) => {
+                crate::log::info(&format!(
+                    "turn={turn} interim={}ms text={:?}",
+                    t.after_commit.as_millis(),
+                    t.text
+                ));
+                self.last_transcript = t.text;
+                self.seq += 1;
+            }
+            Err(e) => crate::log::warn(&format!("turn={turn} interim: {e}")),
+        }
     }
 
     fn transcript(
@@ -303,90 +533,115 @@ impl Core {
         interim: bool,
         result: Result<Transcript, String>,
     ) -> Vec<Effect> {
-        // A late interim text. The final text of an older turn still
-        // counts: no speech is dropped.
-        if interim && (self.state != State::Recording || turn != self.turn + 1) {
+        if interim {
+            self.interim_text(turn, result);
             return Vec::new();
         }
-        let kind = if interim { "interim" } else { "asr" };
-        let effects = match result {
+        // The final text of an older utterance still counts: no speech is
+        // dropped.
+        let at = self.pending.iter().position(|p| p.turn == turn);
+        let (length_ms, heard) = at.map_or((u32::MAX, self.awake), |at| {
+            let p = self.pending.remove(at);
+            (p.length_ms, p.heard)
+        });
+        let text = match result {
             Ok(t) => {
                 crate::log::info(&format!(
-                    "turn={turn} {kind}={}ms text={:?}",
+                    "turn={turn} asr={}ms text={:?}",
                     t.after_commit.as_millis(),
                     t.text
                 ));
                 self.last_transcript = t.text;
                 self.seq += 1;
-                Vec::new()
-            }
-            Err(e) if interim => {
-                crate::log::warn(&format!("turn={turn} interim: {e}"));
-                Vec::new()
+                self.last_transcript.trim().to_owned()
             }
             Err(e) => {
                 crate::log::error(&format!("turn={turn} asr: {e}"));
-                self.earcon(Earcon::Error).into_iter().collect()
+                return self.earcon(Earcon::Error).into_iter().collect();
             }
         };
-        if !interim && turn == self.turn && self.state == State::Transcribing {
-            // The word matcher and the queue of WP6 come before this.
-            let text = self.last_transcript.trim().to_owned();
-            if self.awake && !text.is_empty() {
-                self.asking = Some(turn);
-                self.set(State::Thinking);
-                return vec![Effect::Ask {
-                    turn,
-                    text,
-                    speak: !self.muted.speaker,
-                    ended: self.ended,
-                }];
-            }
-            let rest = self.rest();
-            self.set(rest);
+        let word = words::matches(&self.config, &text, length_ms, self.confirm.is_some());
+        if let Some(word) = word {
+            crate::log::info(&format!("turn={turn} word={word:?}"));
         }
-        effects
+        if !heard {
+            return if word == Some(Word::Wake) {
+                self.wake()
+            } else {
+                Vec::new()
+            };
+        }
+        match word {
+            Some(Word::CodeCancel) => {
+                // ponytail: no coder before WP7; the word only logs.
+                crate::log::info("no coding task runs");
+                std::iter::once(Effect::StopCode)
+                    .chain(self.earcon(Earcon::Cancel))
+                    .collect()
+            }
+            Some(Word::Cancel) if self.asking.is_some() => self.stop(Some(Earcon::Cancel)),
+            Some(Word::Cancel) => {
+                self.queue.clear();
+                self.earcon(Earcon::Cancel).into_iter().collect()
+            }
+            Some(Word::Sleep) => self.sleep(),
+            Some(Word::Wake) => Vec::new(),
+            Some(yes @ (Word::Yes | Word::No)) => self.yes_no(yes == Word::Yes),
+            None => self.text(text),
+        }
+    }
+
+    /// A spoken yes or no: the cut prompt does not play again.
+    fn yes_no(&mut self, yes: bool) -> Vec<Effect> {
+        self.answer(yes);
+        if !self.paused {
+            return Vec::new();
+        }
+        self.paused = false;
+        vec![Effect::Speech(Control::Resume { skip: true })]
+    }
+
+    /// A text without a command word.
+    fn text(&mut self, text: String) -> Vec<Effect> {
+        if text.is_empty() || self.echo(&text) {
+            crate::log::info("empty or echo");
+            return Vec::new();
+        }
+        if self.confirm.is_some() {
+            self.unclear += 1;
+            crate::log::info(&format!("confirm: unclear answer {}", self.unclear));
+            if self.unclear >= 2 {
+                self.answer(false);
+            }
+            return Vec::new();
+        }
+        if self.asking.is_none() {
+            return self.ask(text);
+        }
+        if self.paused {
+            // A barge-in with new words: the reply ends, the words start
+            // the next one.
+            let mut effects = self.stop(None);
+            effects.extend(self.ask(text));
+            return effects;
+        }
+        crate::log::info(&format!("queued: {text:?}"));
+        self.queue.push(text);
+        Vec::new()
     }
 
     fn call(&mut self, call: Call) -> Vec<Effect> {
-        if call == Call::Cancel && self.asking.is_some() {
-            return self.stop(Earcon::Cancel);
-        }
-        let kind = match call {
-            Call::Confirm(yes) => {
-                if let Some(answer) = self.confirm.take() {
-                    let _ = answer.send(yes);
-                    self.set(if yes { State::Tool } else { State::Thinking });
-                }
-                return Vec::new();
-            }
-            Call::Cancel if self.state == State::Recording => {
+        match call {
+            Call::Confirm(yes) => self.yes_no(yes),
+            Call::Cancel if self.asking.is_some() => self.stop(Some(Earcon::Cancel)),
+            Call::Cancel if self.gate.pcm().is_some() => {
                 self.gate.reset();
-                let rest = self.rest();
-                self.set(rest);
-                Earcon::Cancel
+                self.earcon(Earcon::Cancel).into_iter().collect()
             }
-            Call::State | Call::Cancel => return Vec::new(),
-            Call::Sleep => {
-                self.gate.reset();
-                self.awake = false;
-                self.set(State::Sleeping);
-                if self.asking.is_some() {
-                    self.asking = None;
-                    self.confirm = None;
-                    return std::iter::once(Effect::Stop)
-                        .chain(self.earcon(Earcon::Sleep))
-                        .collect();
-                }
-                Earcon::Sleep
-            }
-            Call::Wake => {
-                self.awake = true;
-                if self.state == State::Sleeping {
-                    self.set(State::Listening);
-                }
-                Earcon::Wake
-            }
+            Call::State | Call::Cancel => Vec::new(),
+            Call::Sleep => self.sleep(),
+            Call::Wake => self.wake(),
+            Call::Talk(down) => self.key(down),
             Call::Mute { mic, speaker } => {
                 let before = self.muted;
                 self.muted.mic = mic.unwrap_or(before.mic);
@@ -394,27 +649,60 @@ impl Core {
                 if self.muted != before {
                     self.seq += 1;
                 }
-                return Vec::new();
+                Vec::new()
             }
-        };
-        self.earcon(kind).into_iter().collect()
+        }
+    }
+
+    /// The loudest played frame near `now`: the echo reaches the mic a
+    /// little later.
+    fn played_level(&mut self, now: Instant) -> f64 {
+        let window = Duration::from_millis(u64::from(FRAME_MS) * ECHO_WINDOW as u64);
+        while self
+            .levels
+            .front()
+            .is_some_and(|(at, _)| *at + window < now)
+        {
+            self.levels.pop_front();
+        }
+        self.levels
+            .iter()
+            .take_while(|(at, _)| *at <= now)
+            .fold(0.0, |max, (_, level)| f64::max(max, *level))
     }
 
     fn frame(&mut self, frame: &Frame) -> Vec<Effect> {
-        // During a reply the gate rests: barge-in comes with WP6.
-        let busy = self.asking.is_some();
-        let listen = !self.muted.mic && !busy;
-        match self.gate.push(frame, listen, self.ptt && !busy) {
+        let now = Instant::now();
+        let playing = self.asking.is_some() && !self.paused && now < self.sound_end;
+        if playing && self.gate.pcm().is_none() && !self.key.down {
+            // Only the barge-in gate listens over the agent's sound.
+            let level = self.played_level(now);
+            if !self.muted.mic && self.barge.push(frame, level) {
+                crate::log::info(&format!(
+                    "barge-in played={level:.0} coupling={:.3}",
+                    self.barge.coupling()
+                ));
+                self.paused = true;
+                self.sound_end = now;
+                self.gate.open(BARGE_PREROLL_MS);
+                self.recorded = 0;
+                return vec![Effect::Speech(Control::Pause), Effect::Mark("barge")];
+            }
+            // The gate keeps its pre-roll.
+            self.gate.push(frame, false, false);
+            return Vec::new();
+        }
+        self.barge.reset();
+        self.key.used |= self.key.down;
+        match self.gate.push(frame, !self.muted.mic, self.key.down) {
             None => self.interim().into_iter().collect(),
             Some(gate::Event::Onset) => {
                 self.recorded = 0;
-                self.set(State::Recording);
                 vec![Effect::Mark("onset")]
             }
             Some(gate::Event::Noise { speech_ms }) => {
+                self.key.used = false;
                 crate::log::debug(&format!("noise speech={speech_ms}ms"));
-                let rest = self.rest();
-                self.set(rest);
                 vec![Effect::Mark("noise")]
             }
             Some(gate::Event::End {
@@ -423,14 +711,14 @@ impl Core {
                 end_wait_ms,
             }) => {
                 self.turn += 1;
-                self.ended = Instant::now();
-                // Asleep, the text only looks for a wake word (WP6).
-                let next = if self.awake {
-                    State::Transcribing
-                } else {
-                    State::Sleeping
-                };
-                self.set(next);
+                self.ended = now;
+                let length_ms =
+                    u32::try_from(pcm.len() * 1000 / crate::pcm::RATE as usize).unwrap_or(u32::MAX);
+                self.pending.push(Pending {
+                    turn: self.turn,
+                    length_ms,
+                    heard: self.awake || std::mem::take(&mut self.key.used),
+                });
                 vec![
                     Effect::Mark("end"),
                     Effect::Utterance {
@@ -470,6 +758,14 @@ mod tests {
         })
     }
 
+    /// A frame of loud speech, as over the agent's sound.
+    fn loud() -> Input {
+        Input::Frame(Frame {
+            samples: vec![3000; 768],
+            prob: 0.95,
+        })
+    }
+
     fn call(core: &mut Core, call: Call) -> (Vec<Effect>, Value) {
         let (tx, rx) = mpsc::channel();
         let effects = core.handle(Input::Call(call, tx));
@@ -480,6 +776,79 @@ mod tests {
         (0..frames).flat_map(|_| core.handle(frame(0.9))).collect()
     }
 
+    fn quiet(core: &mut Core, frames: usize) -> Vec<Effect> {
+        (0..frames).flat_map(|_| core.handle(frame(0.0))).collect()
+    }
+
+    fn text(turn: u64, interim: bool, result: Result<&str, &str>) -> Input {
+        Input::Transcript {
+            turn,
+            interim,
+            result: result
+                .map(|text| Transcript {
+                    text: text.into(),
+                    after_commit: Duration::ZERO,
+                })
+                .map_err(Into::into),
+        }
+    }
+
+    /// One short utterance (about 1.2 s) with its final text.
+    fn say(core: &mut Core, words: &str) -> Vec<Effect> {
+        let mut effects = speak(core, 10);
+        effects.extend(quiet(core, 26));
+        let turn = effects
+            .iter()
+            .find_map(|e| match e {
+                Effect::Utterance { turn, .. } => Some(*turn),
+                _ => None,
+            })
+            .expect("an utterance");
+        effects.extend(core.handle(text(turn, false, Ok(words))));
+        effects
+    }
+
+    fn reply(id: u64, event: chat::Event) -> Input {
+        Input::Reply(id, Reply::Chat(event))
+    }
+
+    /// Sound of the reply for `ms` from now, at the level 1000.
+    fn sound(id: u64, ms: u32) -> Input {
+        Input::Reply(
+            id,
+            Reply::Played {
+                at: Instant::now(),
+                pcm: vec![1000; (ms * 24) as usize],
+            },
+        )
+    }
+
+    fn asks(effects: &[Effect]) -> Vec<(u64, &str)> {
+        effects
+            .iter()
+            .filter_map(|e| match e {
+                Effect::Ask { reply, text, .. } => Some((*reply, text.as_str())),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn no_ask(effects: &[Effect]) -> bool {
+        !effects.iter().any(|e| matches!(e, Effect::Ask { .. }))
+    }
+
+    fn stop() -> Effect {
+        Effect::Stop(String::new())
+    }
+
+    /// A core whose reply 1 runs.
+    fn asking() -> Core {
+        let mut core = Core::new(Config::default());
+        let effects = say(&mut core, "hallo");
+        assert_eq!(asks(&effects), [(1, "hallo")]);
+        core
+    }
+
     #[test]
     fn speech_records_an_utterance_and_its_text_starts_a_reply() {
         let mut core = Core::new(Config::default());
@@ -487,7 +856,7 @@ mod tests {
         let effects = speak(&mut core, 10);
         assert_eq!(effects, [Effect::Mark("onset")]);
         assert_eq!(core.state(), State::Recording);
-        let effects: Vec<_> = (0..25).flat_map(|_| core.handle(frame(0.0))).collect();
+        let effects = quiet(&mut core, 25);
         assert!(
             matches!(
                 &effects[1],
@@ -503,28 +872,15 @@ mod tests {
         let effects = core.handle(text(1, false, Ok(" hallo ")));
         let [
             Effect::Ask {
-                turn, text, speak, ..
+                reply, text, speak, ..
             },
         ] = &effects[..]
         else {
             panic!("{effects:?}");
         };
-        assert_eq!((*turn, text.as_str(), *speak), (1, "hallo", true));
+        assert_eq!((*reply, text.as_str(), *speak), (1, "hallo", true));
         assert_eq!(core.state(), State::Thinking);
         assert_eq!(call(&mut core, Call::State).1["last_transcript"], " hallo ");
-    }
-
-    fn reply(turn: u64, event: chat::Event) -> Input {
-        Input::Reply(turn, Reply::Chat(event))
-    }
-
-    /// A core whose turn 1 waits for its reply.
-    fn asking() -> Core {
-        let mut core = Core::new(Config::default());
-        speak(&mut core, 10);
-        (0..30).for_each(|_| drop(core.handle(frame(0.0))));
-        core.handle(text(1, false, Ok("hallo")));
-        core
     }
 
     #[test]
@@ -545,12 +901,13 @@ mod tests {
         assert_eq!(effects, []);
         assert_eq!(record["state"], "tool");
         assert_eq!(rx.try_recv(), Ok(true));
-        core.handle(Input::Reply(1, Reply::Sound));
+        core.handle(sound(1, 2000));
+        assert_eq!(core.state(), State::Speaking, "the sound plays");
         core.handle(reply(1, chat::Event::Thinking));
         assert_eq!(core.state(), State::Speaking, "the sound goes on");
         assert!(
             speak(&mut core, 20).is_empty(),
-            "the gate rests during a reply"
+            "quiet speech is no barge-in"
         );
         core.handle(Input::Reply(1, Reply::Done("Erledigt.".into())));
         let record = call(&mut core, Call::State).1;
@@ -562,7 +919,7 @@ mod tests {
 
     #[test]
     fn cancel_and_the_key_stop_a_reply_and_its_late_events() {
-        for stop in [Input::PttDown, Input::Call(Call::Cancel, mpsc::channel().0)] {
+        for input in [Input::PttDown, Input::Call(Call::Cancel, mpsc::channel().0)] {
             let mut core = asking();
             let (answer, mut rx) = oneshot::channel();
             core.handle(reply(
@@ -572,30 +929,179 @@ mod tests {
                     answer,
                 },
             ));
-            let effects = core.handle(stop);
-            assert_eq!(effects, [Effect::Stop, Effect::Earcon(Earcon::Cancel)]);
+            let effects = core.handle(input);
+            assert_eq!(effects, [stop(), Effect::Earcon(Earcon::Cancel)]);
             assert_eq!(core.state(), State::Listening);
             assert!(rx.try_recv().is_err(), "a dropped answer is a no");
-            core.handle(Input::Reply(1, Reply::Sound));
-            assert_eq!(core.state(), State::Listening, "a late event of turn 1");
+            core.handle(sound(1, 1000));
+            assert_eq!(core.state(), State::Listening, "a late event of reply 1");
         }
         let mut core = asking();
         let (effects, record) = call(&mut core, Call::Sleep);
-        assert_eq!(effects, [Effect::Stop, Effect::Earcon(Earcon::Sleep)]);
+        assert_eq!(effects, [stop(), Effect::Earcon(Earcon::Sleep)]);
         assert_eq!(record["state"], "sleeping");
     }
 
-    fn text(turn: u64, interim: bool, result: Result<&str, &str>) -> Input {
-        Input::Transcript {
-            turn,
-            interim,
-            result: result
-                .map(|text| Transcript {
-                    text: text.into(),
-                    after_commit: std::time::Duration::ZERO,
-                })
-                .map_err(Into::into),
-        }
+    #[test]
+    fn a_cancel_word_stops_the_reply_with_the_words_that_played() {
+        let mut core = asking();
+        let said = Reply::Said {
+            text: "Es ist zehn Uhr.".into(),
+            at: Instant::now(),
+            len: Duration::from_secs(1),
+        };
+        let effects = core.handle(Input::Reply(1, said));
+        assert!(matches!(&effects[..], [Effect::Say { .. }]), "{effects:?}");
+        let effects = say(&mut core, "Stopp!");
+        let played = Effect::Stop("Es ist zehn Uhr. ".into());
+        assert!(effects.contains(&played), "{effects:?}");
+        assert!(effects.contains(&Effect::Earcon(Earcon::Cancel)));
+        assert_eq!(core.state(), State::Listening);
+        let effects = say(&mut core, "Wie spät ist es morgen?");
+        assert_eq!(asks(&effects), [(2, "Wie spät ist es morgen?")]);
+    }
+
+    #[test]
+    fn a_barge_in_pauses_the_speech_and_its_text_decides() {
+        let config = Config {
+            barge_in_ms: 96,
+            ..Config::default()
+        };
+        // Echo or nothing: the speech goes on from the cut sentence.
+        let mut core = Core::new(config.clone());
+        say(&mut core, "hallo");
+        core.handle(sound(1, 5000));
+        let effects: Vec<_> = (0..3).flat_map(|_| core.handle(loud())).collect();
+        assert_eq!(
+            effects,
+            [Effect::Speech(Control::Pause), Effect::Mark("barge")]
+        );
+        assert_eq!(core.state(), State::Recording);
+        (0..8).for_each(|_| drop(core.handle(loud())));
+        let effects = quiet(&mut core, 26);
+        assert!(
+            effects
+                .iter()
+                .any(|e| matches!(e, Effect::Utterance { .. }))
+        );
+        assert_eq!(core.state(), State::Transcribing);
+        let effects = core.handle(text(2, false, Ok("")));
+        assert_eq!(effects, [Effect::Speech(Control::Resume { skip: false })]);
+        assert_eq!(core.state(), State::Thinking, "until the sound comes again");
+        // New words: the reply ends and they start the next one.
+        core.handle(sound(1, 5000));
+        (0..11).for_each(|_| drop(core.handle(loud())));
+        quiet(&mut core, 26);
+        let effects = core.handle(text(3, false, Ok("Und morgen?")));
+        assert_eq!(effects[0], stop());
+        assert_eq!(asks(&effects), [(2, "Und morgen?")]);
+        // A muted mic barges in nowhere.
+        call(
+            &mut core,
+            Call::Mute {
+                mic: Some(true),
+                speaker: None,
+            },
+        );
+        core.handle(sound(2, 5000));
+        assert!((0..5).flat_map(|_| core.handle(loud())).next().is_none());
+    }
+
+    #[test]
+    fn speech_during_a_reply_waits_in_the_queue_and_starts_the_next() {
+        let mut core = asking();
+        core.handle(reply(1, chat::Event::Tool("query".into())));
+        say(&mut core, "Und mach das Fenster größer.");
+        assert_eq!(core.state(), State::Tool, "the reply goes on");
+        assert_eq!(call(&mut core, Call::State).1["queued"], 1);
+        let effects = core.handle(Input::Reply(1, Reply::Done("Gut.".into())));
+        assert_eq!(asks(&effects), [(2, "Und mach das Fenster größer.")]);
+        // A cancel word drops the queue with the reply.
+        say(&mut core, "Noch etwas.");
+        say(&mut core, "Vergiss es.");
+        assert_eq!(call(&mut core, Call::State).1["queued"], 0);
+        assert_eq!(core.state(), State::Listening);
+    }
+
+    #[test]
+    fn spoken_yes_and_no_answer_and_two_unclear_answers_are_a_no() {
+        let confirming = |core: &mut Core| {
+            let (answer, rx) = oneshot::channel();
+            core.handle(reply(
+                1,
+                chat::Event::Confirm {
+                    prompt: "Wirklich?".into(),
+                    answer,
+                },
+            ));
+            rx
+        };
+        let mut core = asking();
+        let mut rx = confirming(&mut core);
+        say(&mut core, "Ja, bitte.");
+        assert_eq!(rx.try_recv(), Ok(true));
+        assert_eq!(core.state(), State::Tool);
+        let mut rx = confirming(&mut core);
+        say(&mut core, "Lieber nicht.");
+        assert_eq!(rx.try_recv(), Ok(false));
+        let mut rx = confirming(&mut core);
+        say(&mut core, "Was meinst du?");
+        assert!(rx.try_recv().is_err(), "one unclear answer waits");
+        say(&mut core, "Keine Ahnung.");
+        assert_eq!(rx.try_recv(), Ok(false));
+        assert_eq!(call(&mut core, Call::State).1["queued"], 0);
+    }
+
+    #[test]
+    fn sleep_and_wake_words_and_the_code_cancel_word() {
+        let mut core = Core::new(Config::default());
+        let effects = say(&mut core, "Schlaf.");
+        assert_eq!(effects.last(), Some(&Effect::Earcon(Earcon::Sleep)));
+        assert_eq!(core.state(), State::Sleeping);
+        let effects = say(&mut core, "Wie spät ist es?");
+        assert!(no_ask(&effects), "asleep, only a wake word counts");
+        assert_eq!(core.state(), State::Sleeping);
+        let effects = say(&mut core, "Hallo Cora.");
+        assert_eq!(effects.last(), Some(&Effect::Earcon(Earcon::Wake)));
+        assert_eq!(core.state(), State::Listening);
+        let effects = say(&mut core, "Coding-Aufgabe abbrechen.");
+        assert!(effects.contains(&Effect::StopCode), "{effects:?}");
+        assert!(no_ask(&effects), "{effects:?}");
+    }
+
+    #[test]
+    fn the_agents_own_words_come_back_as_echo() {
+        let mut core = asking();
+        core.handle(Input::Reply(
+            1,
+            Reply::Said {
+                text: "Heute hast du drei Termine.".into(),
+                at: Instant::now(),
+                len: Duration::from_secs(2),
+            },
+        ));
+        core.handle(Input::Reply(1, Reply::Done("Heute ...".into())));
+        let effects = say(&mut core, "drei Termine");
+        assert!(no_ask(&effects), "{effects:?}");
+    }
+
+    #[test]
+    fn the_key_records_asleep_and_its_text_gets_a_reply() {
+        let mut core = Core::new(Config::default());
+        call(&mut core, Call::Sleep);
+        call(&mut core, Call::Talk(true));
+        quiet(&mut core, 10);
+        assert_eq!(core.state(), State::Recording);
+        call(&mut core, Call::Talk(false));
+        let effects = quiet(&mut core, 1);
+        assert!(matches!(
+            &effects[1],
+            Effect::Utterance { awake: false, .. }
+        ));
+        let effects = core.handle(text(1, false, Ok("Wie spät ist es?")));
+        assert_eq!(asks(&effects), [(1, "Wie spät ist es?")]);
+        core.handle(Input::Reply(1, Reply::Done("Zehn.".into())));
+        assert_eq!(core.state(), State::Sleeping, "and asleep again");
     }
 
     #[test]
@@ -616,7 +1122,7 @@ mod tests {
         assert_eq!(lengths, [13, 23], "{effects:?}");
         core.handle(text(1, true, Ok("hallo")));
         assert_eq!(call(&mut core, Call::State).1["last_transcript"], "hallo");
-        (0..30).for_each(|_| drop(core.handle(frame(0.0))));
+        quiet(&mut core, 30);
         assert_eq!(core.state(), State::Transcribing);
         core.handle(text(1, true, Ok("late interim")));
         assert_eq!(call(&mut core, Call::State).1["last_transcript"], "hallo");
@@ -631,7 +1137,7 @@ mod tests {
     fn a_failed_transcript_sounds_the_error_and_listens_again() {
         let mut core = Core::new(Config::default());
         speak(&mut core, 10);
-        (0..30).for_each(|_| drop(core.handle(frame(0.0))));
+        quiet(&mut core, 30);
         let old = core.handle(text(0, false, Err("old turn")));
         assert_eq!(old, [Effect::Earcon(Earcon::Error)]);
         assert_eq!(core.state(), State::Transcribing);
@@ -647,7 +1153,7 @@ mod tests {
         let (effects, record) = call(&mut core, Call::Cancel);
         assert_eq!(effects, [Effect::Earcon(Earcon::Cancel)]);
         assert_eq!(record["state"], "listening");
-        let after: Vec<_> = (0..40).flat_map(|_| core.handle(frame(0.0))).collect();
+        let after = quiet(&mut core, 40);
         assert!(after.is_empty(), "no utterance after a cancel: {after:?}");
         let (effects, _) = call(&mut core, Call::Cancel);
         assert!(effects.is_empty(), "nothing to cancel");
@@ -664,7 +1170,7 @@ mod tests {
         );
         // Asleep, speech still records: the ASR looks for the wake word.
         speak(&mut core, 10);
-        let effects: Vec<_> = (0..25).flat_map(|_| core.handle(frame(0.0))).collect();
+        let effects = quiet(&mut core, 25);
         assert!(matches!(
             &effects[1],
             Effect::Utterance { awake: false, .. }
