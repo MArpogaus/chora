@@ -759,12 +759,12 @@ pub fn send_frames(state: &mut State, output: &Output) {
         } else {
             window.output_leave(output);
         }
-        let throttle = if on_output {
-            Duration::ZERO
-        } else {
-            Duration::from_secs(1)
-        };
-        window.send_frame(output, time, Some(throttle), |_, _| Some(output.clone()));
+        // Smithay sends every frame to a surface whose primary output is
+        // this one, and applies the throttle only to the others.
+        let primary = on_output.then(|| output.clone());
+        window.send_frame(output, time, Some(Duration::from_secs(1)), |_, _| {
+            primary.clone()
+        });
     }
     for layer in layer_map_for_output(output).layers() {
         layer.send_frame(output, time, Some(Duration::ZERO), |_, _| {
@@ -849,8 +849,32 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{location_and_scale, premultiplied, surface_under};
+    use super::{location_and_scale, premultiplied, send_frames, surface_under};
     use crate::testing::{Core, wayland::Wayland};
+
+    /// A window that no output shows gets a frame callback at most once a
+    /// second, so that a hidden client stops drawing (#60).
+    #[test]
+    fn a_hidden_window_gets_no_frame_callback_each_frame() {
+        let mut core = Core::new();
+        let output = core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        let shown = wayland.toplevel(&mut core, "shown");
+        let hidden = wayland.toplevel(&mut core, "hidden");
+        wayland.attach(&mut core, &shown, (100, 100));
+        wayland.attach(&mut core, &hidden, (100, 100));
+        let mut wm = core.named("wm");
+        let commands = json!({"commands": [{"attach": {"surface": "s1", "parent": "root"}}]});
+        wm.ok(&mut core, "scene.apply", commands);
+        for _ in 0..3 {
+            wayland.frame(&mut core, &shown);
+            wayland.frame(&mut core, &hidden);
+            send_frames(&mut core.state, &output);
+            wayland.roundtrip(&mut core);
+        }
+        assert_eq!(wayland.configures(&shown).frames, 3);
+        assert!(wayland.configures(&hidden).frames <= 1);
+    }
 
     #[test]
     fn a_client_gets_the_pointer_in_its_own_units_on_a_scaled_node() {

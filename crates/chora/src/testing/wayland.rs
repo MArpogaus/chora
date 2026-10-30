@@ -90,6 +90,8 @@ pub struct Configures {
     pub count: usize,
     /// Whether the core closed the popup.
     pub done: bool,
+    /// How many frame callbacks the core sent.
+    pub frames: usize,
 }
 
 /// A toplevel of the client.
@@ -396,6 +398,12 @@ impl Wayland {
         self.roundtrip(core);
     }
 
+    /// Asks for a frame callback of a toplevel and commits.
+    pub fn frame(&mut self, core: &mut Core, toplevel: &Toplevel) {
+        toplevel.surface.frame(&self.queue.handle(), toplevel.index);
+        self.commit(core, toplevel);
+    }
+
     /// Unmaps a toplevel with a commit without a buffer.
     pub fn unmap(&mut self, core: &mut Core, toplevel: &Toplevel) {
         toplevel.surface.attach(None, 0, 0);
@@ -518,6 +526,22 @@ impl Dispatch<WlCallback, ()> for App {
     ) {
         if let wl_callback::Event::Done { .. } = event {
             app.synced = true;
+        }
+    }
+}
+
+/// A frame callback of the surface with this index.
+impl Dispatch<WlCallback, usize> for App {
+    fn event(
+        app: &mut Self,
+        _: &WlCallback,
+        event: wl_callback::Event,
+        index: &usize,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_callback::Event::Done { .. } = event {
+            app.surfaces[*index].frames += 1;
         }
     }
 }
