@@ -30,6 +30,10 @@ All ideas that are not decisions yet. An idea moves to
 - Pixel-perfect copies of existing desktops as flavors, for example KDE
   Plasma, next to the XP showroom (D39). They prove the flexibility. They
   are not a goal.
+- The XP window frames from the xfwm4 theme of
+  [xfce-winxp-tc](https://github.com/rozniak/xfce-winxp-tc) instead of the
+  Aurorae theme Exposé, so that the frames and its Luna GTK theme come from
+  one theme family.
 
 ## Agents and the ecosystem around chora
 
