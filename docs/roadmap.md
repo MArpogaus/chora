@@ -256,8 +256,8 @@ Scope:
   change across layouts (#97).
 - `chora-tiling` has a default style for new windows (#99).
 - The answer of `scene.apply` carries `warnings` (D59): a surface attached
-  under a group with `input: pass` (#98), and a layer that alone is larger
-  than the pixel budget of every output (#100).
+  under a group with `input: pass` (#98), and a layer whose subtree needs more
+  pixels than the budget of every output (#100).
 - `docs/api.md` tells agents to remove their own old nodes after a
   restart (D61).
 - Bugs of `choractl mcp`: #53, #54 and #56.
@@ -288,8 +288,8 @@ Gate:
    checks this.
 6. `scene.apply` answers with a warning code for a surface attached under
    a group with `input: pass` (D59). It also answers with a warning code
-   for a layer that alone is larger than the pixel budget of every output
-   (#100). Unit tests check both.
+   for a layer whose subtree (the layer and every layer under it) needs
+   more pixels than the budget of every output (#100). Unit tests check both.
 7. #53, #54 and #56 each have a test (D48).
 8. A Quadlet unit from `dist/` connects through its client directory
    after a restart of chora, without a change to the unit. The user runs
