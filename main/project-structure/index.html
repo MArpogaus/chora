@@ -16,7 +16,7 @@
         <link rel="prev" href="../configuration/">
       
       
-        <link rel="next" href="../dependencies/">
+        <link rel="next" href="../voice/">
       
       
         
@@ -662,6 +662,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice agent (draft)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -833,34 +861,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ideas/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Idea backlog
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -945,11 +945,12 @@ can use it. The plugins move into repositories of their own with 1.0
 ├── crates/
 │   ├── chora-scene/   # scene model, commands, events, selectors, IPC types and client; no Smithay
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
-│   ├── chora-kit/     # building blocks for plugins: wobbly windows, magic lamp, XDG dirs, icons, desktop entries
+│   ├── chora-kit/     # building blocks for plugins: the plugin runtime, wobbly windows, magic lamp, XDG dirs, icons, desktop entries
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
 │   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome
-│   └── chora-xp/      # stacking window manager in the style of Windows XP
+│   ├── chora-xp/      # stacking window manager in the style of Windows XP
+│   └── chora-mc/      # experimental: a voice-first desktop, one full-screen scene at a time
 ├── flavors/           # systemd units of the flavors; the theme of the XP flavor
 ├── examples/          # loader prototype and showcase apps over the API
 ├── services/voice/    # the voice agent and the quadlets of its models
@@ -968,8 +969,8 @@ can use it. The plugins move into repositories of their own with 1.0
   and plugins share this one definition of the API.</li>
 <li><strong><code>chora-kit</code> holds the building blocks that plugins share</strong> and that
   are not part of the API of the core: the IPC and event connection, the
-  self-computed effects and the freedesktop files. Today <code>conn</code> is the
-  part with more than one user; code of one plugin stays in that plugin.</li>
+  plugin runtime, the self-computed effects and the freedesktop files.
+  Code of one plugin stays in that plugin.</li>
 <li><strong>Reference plugins are workspace members.</strong> They keep the API honest.</li>
 <li><strong><code>choractl</code> builds the JSON schemas</strong> from the Rust types at run time, in
   <code>crates/choractl/src/schema.rs</code>. The repository does not contain them.

@@ -822,6 +822,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice agent (draft)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -980,34 +1008,6 @@
     
   
     Roadmap
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ideas/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Idea backlog
   
 
     
@@ -1285,6 +1285,23 @@ Plugins, <code>choractl</code>, services and agents all use it. Nothing outside 
 changes the scene in another way.</p>
 <p>Plugins are separate processes (D28). A plugin can also be a Wayland client,
 for example to draw window decorations as its own surfaces.</p>
+<p>The plugin runtime in <code>chora-kit</code> (<code>runtime.rs</code>) does what every plugin
+repeats. It connects with <code>resume</code>, subscribes to the events and exports
+the methods of the plugin, before the plugin builds its scene, or after
+it with <code>connect</code> and <code>announce</code>. It grabs
+the bindings, answers the method calls and drops the events of outputs
+that <code>--output</code> leaves to other window managers. It answers
+<code>settings.get</code>, <code>settings.set</code> and <code>settings.reload</code> of a plugin with
+settings (D62): it checks a change, the plugin applies it, and then the
+runtime saves the YAML file of the plugin. When the core closes
+the connection, for example at the emergency reset, it connects again
+after 500 ms. It gives up when only failures follow for 30 s. The plugin keeps
+its claim and its restart from <code>meta</code>, because each plugin rebuilds
+different things. <code>chora-tiling</code> runs on the runtime with <code>serve</code>.
+<code>chora-xp</code> runs its own loop with a timeout for the clock and the frames
+of its effects, and hands each event to <code>dispatch</code>. It announces itself
+after its scene: the removal of the root group of a restart detaches its
+windows, and these events would make new windows of them.</p>
 <h2 id="components">Components<a class="headerlink" href="#components" title="Permanent link">&para;</a></h2>
 <h3 id="core">Core<a class="headerlink" href="#core" title="Permanent link">&para;</a></h3>
 <p>The compositor binary <code>chora</code>. Its tasks, and nothing more:</p>
@@ -1475,6 +1492,11 @@ requests that arrived, also those of waiting transactions and
 <td>nodes other than surfaces</td>
 <td>16,384</td>
 <td>the core rejects the <code>create</code></td>
+</tr>
+<tr>
+<td>levels of nodes below the root</td>
+<td>64</td>
+<td>the core rejects the <code>create</code>, <code>attach</code> or <code>move</code></td>
 </tr>
 <tr>
 <td>cameras</td>

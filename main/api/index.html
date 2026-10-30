@@ -838,6 +838,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice agent (draft)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -996,34 +1024,6 @@
     
   
     Roadmap
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ideas/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Idea backlog
   
 
     
@@ -1315,7 +1315,10 @@ are errors, so a typo never passes silently.</p>
 has a second root, <code>screen:NAME</code>, for example <code>screen:DP-1</code> (D43). Its
 nodes stay fixed to the screen: they sit in the logical coordinates of the
 output, without its camera, above the scene and below the top and overlay
-layers of layer shell. A HUD or a progress bar goes there, also during an
+layers of layer shell. The tree is at most 64 levels deep below a root:
+a <code>create</code>, <code>attach</code> or <code>move</code> that puts a node, or the subtree of a
+moved node, deeper fails with code 6 and the transaction changes
+nothing. A HUD or a progress bar goes there, also during an
 animated camera move. The nodes under <code>screen:NAME</code> work as all others,
 with input, effects and ownership. The overlay root stays when its output
 goes, with its nodes, for the return of the output; the emergency reset
@@ -1435,6 +1438,11 @@ empties it.</p>
 <td>text</td>
 <td><code>text</code>: UTF-8, needed at <code>create</code>, at most 4 KiB; <code>family</code>: a font family, at most 4 KiB, a system font without it; <code>font_size</code>: logical pixels, from 1 to 1024; <code>max_width</code>: the width at which lines wrap, and nothing else; a text node has no <code>size</code>, it sizes itself by its layout, so it is never a layer: rotated, mirrored or projected outside a layer, it draws nothing, so put it in a group with a <code>size</code> and a <code>clip</code>; the core draws it in <code>color</code>, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale, and 256 MiB for all text nodes together; a raster beyond the second limit draws nothing until its node changes; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale</td>
 </tr>
+<tr>
+<td><code>line_height</code>, <code>weight</code>, <code>style</code>, <code>letter_spacing</code>, <code>features</code></td>
+<td>text</td>
+<td><code>line_height</code>: the distance of the lines as a multiple of the font size, from 0.5 to 10, 1.2 by default; <code>weight</code>: from 1 to 1000, 400 normal, 700 bold, the nearest face of the family; <code>style</code>: <code>normal</code> or <code>italic</code>, slanted when the family has no italic; <code>letter_spacing</code>: extra space after each character in em, from -1 to 1, also after the last one; <code>features</code>: at most 32 OpenType features by their tag of four ASCII characters and their value, for example <code>{"smcp": 1, "onum": 1}</code> for small caps and old-style figures; a feature that the font lacks changes nothing; an update of <code>features</code> replaces all</td>
+</tr>
 </tbody>
 </table>
 <p>A surface node gets its size from its client. The <code>configure</code> command asks
@@ -1515,7 +1523,7 @@ path.</p>
 </tr>
 <tr>
 <td><code>update</code></td>
-<td>change node properties</td>
+<td>change node properties. An update of only opacity, effects and meta of a node of another client answers with <code>node.requested</code> to its owner (D58), if the owner subscribes to <code>node.requested</code>; else it fails as other changes of a foreign node do, so the change is not lost unseen. An update that mixes other props with them fails with an error that names the other props. A confined client socket may send this request too.</td>
 </tr>
 <tr>
 <td><code>animate</code></td>
@@ -1559,7 +1567,18 @@ path.</p>
 <p>The core moves <code>transform</code>, <code>opacity</code>, <code>size</code> and <code>color</code> toward the
 targets along the curve: <code>linear</code> (the default), <code>ease_in</code>, <code>ease_out</code> or
 <code>ease_in_out</code>. The other properties change at the end, so this example
-fades the node out and then hides it. The duration is in milliseconds, at
+fades the node out and then hides it.</p>
+<p><code>effects</code> in <code>animate</code> is the full list of the end. An effect of the
+list that has the same index and the same <code>shader</code> as the effect of the
+node now moves its numeric uniforms, a number or 2 to 4 numbers, toward
+the targets. All other changes, a new shader, a new uniform or a list of
+another length, come at the end. So a shader with a uniform <code>progress</code>
+runs from 0 to 1:</p>
+<!-- parses: commands -->
+<div class="highlight"><pre><span></span><code><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">update</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">title</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">effects</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt">shader</span><span class="p">:</span><span class="w"> </span><span class="nv">/home/me/write.frag</span><span class="p p-Indicator">,</span><span class="nt"> uniforms</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">progress</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">}}]}}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">animate</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">title</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">effects</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt">shader</span><span class="p">:</span><span class="w"> </span><span class="nv">/home/me/write.frag</span><span class="p p-Indicator">,</span><span class="nt"> uniforms</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">progress</span><span class="p">:</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">}}]},</span><span class="nt"> duration</span><span class="p">:</span><span class="w"> </span><span class="nv">900</span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<p>The duration is in milliseconds, at
 most one minute. A later <code>animate</code> or <code>update</code> of the node ends the
 animation where it is. The end sends <code>animation.done</code>.</p>
 <p>A camera moves the same way, with <code>duration</code> and <code>easing</code>. It starts
@@ -1678,7 +1697,7 @@ by default; a timeout exits 1 with the reason on stderr.</p>
 </tr>
 <tr>
 <td><code>node.requested</code></td>
-<td>a client asks to change a node of another client: <code>node</code>, the asking <code>client</code>, <code>action</code> and <code>args</code>. The actions are <code>focus</code>, <code>move</code>, <code>resize</code> and <code>close</code>, with the arguments of the command. Only the owner of the node gets it, and decides by doing the change or not (D31). Other changes of a foreign node stay refused.</td>
+<td>a client asks to change a node of another client: <code>node</code>, the asking <code>client</code>, <code>action</code> and <code>args</code>. The actions are <code>focus</code>, <code>move</code>, <code>resize</code>, <code>close</code> and <code>update</code>, with the arguments of the command; the arguments of <code>update</code> are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An <code>update</code> of an owner that does not subscribe to <code>node.requested</code> fails with the error <code>belongs to</code>. Other changes of a foreign node stay refused.</td>
 </tr>
 <tr>
 <td><code>input.key</code></td>
@@ -1751,12 +1770,42 @@ it, the events that follow cover every change after it. A number that
 skips tells the client that it missed an event, so it queries again. After
 a reconnect a client works from the new snapshot and forgets the old
 numbers.</p>
-<p>The response of <code>scene.apply</code> reports the result of a transaction: <code>null</code>
-when it applied, an error with the index of the failed command when not.
-<code>choractl apply FILE</code> reads one list of commands as JSON, from standard
-input when the file is <code>-</code>; it prints nothing when it applied and the
-reason when not, so the exit code is the answer. Only the <code>view</code>
-subcommand reads YAML.
+<p>The response of <code>scene.apply</code> reports the result of a transaction. When
+the transaction applied, the result is <code>{"warnings": [...]}</code>. When it did
+not apply, the response is an error with the index of the failed command.
+A warning does not stop the transaction. It tells the client that a
+command applied but does not give the result that the client probably
+expects (D59). Each warning has a stable <code>code</code>, the <code>node</code> and a short
+<code>message</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"warnings"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">"code"</span><span class="p">:</span><span class="w"> </span><span class="s2">"deaf_surface"</span><span class="p">,</span><span class="w"> </span><span class="nt">"node"</span><span class="p">:</span><span class="w"> </span><span class="s2">"s1"</span><span class="p">,</span>
+<span class="w">               </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"an ancestor has input pass or block, so the surface gets no pointer input"</span><span class="p">}]}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>deaf_surface</code></td>
+<td>an <code>attach</code> or a <code>move</code> puts a surface under an ancestor with <code>input: pass</code> or <code>block</code>; the surface gets no pointer input</td>
+</tr>
+<tr>
+<td><code>layer_over_budget</code></td>
+<td>after a <code>create</code>, <code>update</code>, <code>animate</code>, <code>attach</code> or <code>move</code>, the layer textures of a layer node and its descendants need more pixels than the budget of one frame on every output; the core counts them at the smallest scale of the outputs. The node is the named node or its outermost layer ancestor that passes the budget, so a child added under a big layer warns for that layer. No frame draws the node</td>
+</tr>
+</tbody>
+</table>
+<p>The pixel budget of a frame is 64 Mi pixels. The layers that do not fit
+into a frame because of other layers are no warning: the event
+<code>layers.dropped</code> tells them when the frame shows.</p>
+<p><code>choractl apply FILE</code> reads one list of commands as JSON, from standard
+input when the file is <code>-</code>. It prints nothing when it applied and the
+reason when not, so the exit code is the answer. It prints each warning
+on standard error and exits with success. Only the <code>view</code> subcommand
+reads YAML.
 A request that a client makes before its <code>surface.created</code> follows
 that event. A taskbar asks through <code>wlr-foreign-toplevel-management</code>.
 The core does not act on a request, also not on <code>close</code>. A plugin answers
@@ -1829,7 +1878,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>input.grab(binding)</code></td>
-<td>get the events of a key or a pointer button with modifiers, for example <code>Super+Return</code> or <code>Super+BTN_LEFT</code>; a binding needs Ctrl, Alt or Super unless the client has the capability <code>input.grab-any</code>; <code>Ctrl+Alt</code> with a key of the safety layer stays refused either way; returns the binding as <code>input.key</code> and <code>input.button</code> name it</td>
+<td>get the events of a key or a pointer button with modifiers, for example <code>Super+Return</code> or <code>Super+BTN_LEFT</code>; a binding needs Ctrl, Alt or Super unless the client has the capability <code>input.grab-any</code>; <code>Ctrl+Alt</code> with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as <code>input.key</code> and <code>input.button</code> name it</td>
 </tr>
 <tr>
 <td><code>input.ungrab(binding)</code></td>
@@ -1849,7 +1898,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>grants.set(client, capabilities)</code>, <code>grants.revoke(client, capabilities)</code>, <code>grants.list</code></td>
-<td>grant or revoke capabilities for a client name. <code>choractl grant</code> and <code>choractl revoke</code> call them. <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket. A name with a client socket answers code 9, because <code>clients.yaml</code> holds its capabilities. For a name of the main socket, <code>methods.call</code> changes nothing, and <code>activation.token</code> only opens the MCP tool <code>run_program</code>.</td>
+<td>grant or revoke capabilities for a client name. <code>choractl grant</code> and <code>choractl revoke</code> call them. <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket. A name with a client socket answers code 9, because <code>clients.yaml</code> holds its capabilities. For a name of the main socket, <code>methods.call</code>, <code>session.quit</code> and <code>methods.privileged</code> change nothing, and <code>activation.token</code> only opens the MCP tool <code>run_program</code>.</td>
 </tr>
 <tr>
 <td><code>clients.create(name, capabilities)</code></td>
@@ -1885,11 +1934,15 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>methods.call(client, method, params)</code></td>
-<td>call a method of another client; the answer is the result of the method; a client socket needs the capability <code>methods.call</code></td>
+<td>call a method of another client; the answer is the result of the method; a client socket needs the capability <code>methods.call</code>, and for a privileged method, such as <code>settings.set</code>, <code>settings.reload</code> or one that the export marks <code>privileged</code>, also <code>methods.privileged</code></td>
 </tr>
 <tr>
 <td><code>methods.return(call, result, error)</code></td>
 <td>answer a <code>method.called</code> event</td>
+</tr>
+<tr>
+<td><code>session.quit</code></td>
+<td>end chora as Ctrl+Alt+Backspace does, after the answer; a client socket needs the capability <code>session.quit</code>, the main socket may always; <code>choractl quit</code> calls it</td>
 </tr>
 <tr>
 <td><code>activation.token</code></td>
@@ -2122,8 +2175,8 @@ socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that <a href="#client-sockets">Client sockets</a> lists.
 <code>choractl mcp</code> offers no tool for grants. On the main socket,
-<code>activation.token</code> opens the MCP tool <code>run_program</code>, and <code>methods.call</code>
-changes nothing.</p>
+<code>activation.token</code> opens the MCP tool <code>run_program</code>, and <code>methods.call</code>,
+<code>session.quit</code> and <code>methods.privileged</code> change nothing.</p>
 <h2 id="client-sockets">Client sockets<a class="headerlink" href="#client-sockets" title="Permanent link">&para;</a></h2>
 <p>A client socket fixes the name of its clients (D33). <code>clients.create</code>
 on the admin socket opens <code>clients/NAME/ipc.sock</code> below the directory of
@@ -2162,9 +2215,15 @@ in. <code>choractl clients create agent</code> prints its path:</p>
   drives the session as far as they reach.</li>
 <li><code>grants.set</code> and <code>grants.revoke</code> answer code 9 for the name: change
   <code>clients.yaml</code> and run <code>choractl clients up</code>.</li>
-<li><code>methods.call</code> needs the capability <code>methods.call</code>, and
-  <code>activation.token</code> the capability <code>activation.token</code>. Without them
-  both answer code 4. The main socket needs neither. A token of
+<li><code>methods.call</code> needs the capability <code>methods.call</code>,
+  <code>activation.token</code> the capability <code>activation.token</code> and
+  <code>session.quit</code> the capability <code>session.quit</code>. A <code>methods.call</code> of a
+  privileged method also needs <code>methods.privileged</code>: <code>settings.set</code> and
+  <code>settings.reload</code> of any client, because plugin settings hold commands
+  that the plugin runs and paths that it reads, and each method that its
+  export marks <code>"privileged": true</code>, such as <code>app.open</code> of <code>chora-mc</code>. Without them they answer code 4. The main
+  socket needs none of them. So a confined agent cannot end chora or
+  change the settings of a plugin by default. A token of
   <code>activation.token</code> belongs to no client. Any window that activates
   with it takes the focus without a press, also a window of the client
   itself. With <code>methods.call</code>, a client can also ask a window manager for
@@ -2236,8 +2295,11 @@ name or give itself capabilities.</p>
 plugins running.</p>
 <p><code>choractl run [--] CMD ARGS...</code> starts a program outside the core. It
 asks the core for an activation token with <code>activation.token</code> and
-passes it to the program in <code>XDG_ACTIVATION_TOKEN</code>. It prints the pid,
-the unit and the token as one JSON line while the program runs.</p>
+passes it to the program in <code>XDG_ACTIVATION_TOKEN</code>, and in
+<code>DESKTOP_STARTUP_ID</code> for GTK 3. The children of the program inherit
+both variables unless the program removes them, as GTK does after it
+read the token. It prints the pid, the unit and the token as one
+JSON line while the program runs.</p>
 <ul>
 <li>When <code>systemctl --user is-system-running</code> shows a state other than
   <code>offline</code>, a user manager runs. <code>systemd-run --user</code> then starts the
@@ -2426,9 +2488,13 @@ plugin answers with <code>methods.return</code>: the same <code>call</code> and 
 <code>error</code> with a <code>code</code> and a <code>message</code>. The core passes the answer to the
 caller. The <code>Client</code> of <code>chora-scene</code> answers with <code>Client::answer</code>.</p>
 <p>Each entry of <code>methods.export</code> is a plain name, or an object with <code>name</code>,
-<code>description</code> and <code>input_schema</code>. <code>methods.list</code> answers every exported
+<code>description</code>, <code>input_schema</code> and <code>privileged</code>. A method that runs a
+command or writes a file sets <code>"privileged": true</code>: a caller on a client
+socket then needs the capability <code>methods.privileged</code> besides
+<code>methods.call</code>. <code>settings.set</code> and <code>settings.reload</code> are always
+privileged. <code>methods.list</code> answers every exported
 method as <code>{"client", "name", "description", "input_schema"}</code>, with <code>null</code>
-for a plain export. The core passes description and schema through
+for a plain export, and <code>"privileged": true</code> for a privileged one. The core passes description and schema through
 unchanged, and <code>chora-tiling</code> gives one to each of its methods.</p>
 <ul>
 <li>A method name has at most 64 characters: lowercase letters, digits, <code>_</code>,
@@ -2467,6 +2533,41 @@ lists all of its methods:</p>
 </tr>
 </tbody>
 </table>
+<p>A plugin with settings exports <code>settings.get</code>, <code>settings.set</code> and
+<code>settings.reload</code> through the runtime of <code>chora-kit</code> (D62). <code>settings.get</code>
+answers all settings. <code>settings.reload</code> reads the file again after an
+edit by hand, applies it and answers all settings; a wrong file gets the
+error <code>-32602</code> and changes nothing.
+<code>settings.set</code> takes a JSON merge patch (RFC 7386) of the settings: an
+object merges into the current settings key by key, also in nested
+structs and maps, and a list or another value replaces its value, also an
+enum such as the action of a binding. The other
+settings stay. <code>null</code> removes the key: a map such as <code>bindings</code> loses that
+entry, and a fixed setting takes its default again. So <code>null</code> cannot set an
+optional setting such as <code>session.log_off</code> to none; the file can. The
+plugin checks the result, applies it at once and then saves it in its YAML
+file in <code>$XDG_CONFIG_HOME/chora/</code>: it writes a new file of mode 0600
+next to it and renames it over the old one. A symlink there stays, and
+the file that it points to gets the settings. <code>settings.set</code> answers all
+settings. A
+wrong value gets the error <code>-32602</code> and changes nothing. A change that the
+plugin cannot apply is taken back and not saved, also by <code>settings.reload</code>. A change that the plugin cannot save
+stays applied until the next start, and the caller gets the error.
+In <code>methods.list</code>, the schema of <code>settings.set</code> lists every setting.
+On a client socket, <code>settings.set</code> and <code>settings.reload</code> need the
+capability <code>methods.privileged</code> besides <code>methods.call</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"style": {"opacity": 0.9}}'</span>
+<span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"bindings": {"MOD+u": null}}'</span>
+<span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.reload
+</code></pre></div>
+<p><code>chora-xp</code> exports <code>start_menu</code>, <code>minimize</code>, <code>restore</code>, <code>activate</code>,
+<code>turn_to</code> and <code>restart</code>, and its settings: the wallpaper, the taskbar, the
+effects, the programs of the start menu and the commands of Log Off and
+Turn Off. <a href="../configuration/#the-xp-flavor">The XP flavor</a> lists them.
+Its dialogs change the settings in the same way as <code>settings.set</code>. The
+method <code>restart</code> runs <code>chora-xp</code> again, which also reads the file again:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>xp<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"effects": {"wobbly": false, "sounds": false}}'</span>
+</code></pre></div>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
 <p>A plugin is a client with a manifest:</p>
 <!-- parses: manifest -->
@@ -2492,6 +2593,9 @@ as the client <code>agent</code>, or under <code>--name</code>. An MCP client st
 example in the <code>.mcp.json</code> of Claude Code:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"mcpServers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"chora"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"choractl"</span><span class="p">,</span><span class="w"> </span><span class="nt">"args"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"--name"</span><span class="p">,</span><span class="w"> </span><span class="s2">"agent"</span><span class="p">,</span><span class="w"> </span><span class="s2">"mcp"</span><span class="p">]}}}</span>
 </code></pre></div>
+<p><code>choractl mcp</code> connects with <code>keep_nodes</code>, so the nodes of the agent stay
+after the server stops. After a restart, the agent removes its own old
+nodes that it does not need (D61).</p>
 <table>
 <thead>
 <tr>
@@ -2514,7 +2618,7 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tr>
 <tr>
 <td><code>apply_commands</code></td>
-<td>a transaction</td>
+<td>a transaction; the answer is <code>applied</code>, and the warnings of <code>scene.apply</code> as JSON when there are some</td>
 </tr>
 <tr>
 <td><code>list_plugins</code></td>
@@ -2550,7 +2654,7 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tr>
 <tr>
 <td><code>subscribe_events</code></td>
-<td>start to collect events, and grab keys and buttons; <code>events</code> and <code>keys</code> as in <code>events.subscribe</code> and <code>input.grab</code>; replaces the current subscription</td>
+<td>start to collect events, and grab keys and buttons; <code>events</code> and <code>keys</code> as in <code>events.subscribe</code> and <code>input.grab</code>; replaces the current subscription, which stays if the new one fails</td>
 </tr>
 <tr>
 <td><code>wait_events</code></td>
@@ -2568,7 +2672,8 @@ the grants of the client name, for example
 <code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
 still describes the scene. No tool grants anything (D40). On a client
 socket, <code>call_method</code> and the tools of plugin methods need the capability
-<code>methods.call</code>. <code>run_program</code> needs the grant <code>activation.token</code> on
+<code>methods.call</code>, and privileged methods, such as <code>settings.set</code> and
+<code>settings.reload</code>, also <code>methods.privileged</code>. <code>run_program</code> needs the grant <code>activation.token</code> on
 every socket, because a started program can do all that the user can.
 On the main socket, <code>choractl grant agent activation.token</code> gives it; a
 client socket lists it in <code>clients.yaml</code>. The program starts where the

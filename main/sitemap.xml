@@ -33,10 +33,6 @@
          <lastmod>2026-10-30</lastmod>
     </url>
     <url>
-         <loc>https://marpogaus.github.io/chora/main/ideas/</loc>
-         <lastmod>2026-10-30</lastmod>
-    </url>
-    <url>
          <loc>https://marpogaus.github.io/chora/main/project-structure/</loc>
          <lastmod>2026-10-30</lastmod>
     </url>
@@ -50,6 +46,10 @@
     </url>
     <url>
          <loc>https://marpogaus.github.io/chora/main/vision/</loc>
+         <lastmod>2026-10-30</lastmod>
+    </url>
+    <url>
+         <loc>https://marpogaus.github.io/chora/main/voice/</loc>
          <lastmod>2026-10-30</lastmod>
     </url>
 </urlset>

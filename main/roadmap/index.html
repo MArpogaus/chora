@@ -16,8 +16,6 @@
         <link rel="prev" href="../decisions/">
       
       
-        <link rel="next" href="../ideas/">
-      
       
         
       
@@ -591,6 +589,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice agent (draft)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -872,34 +898,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ideas/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Idea backlog
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1297,39 +1295,45 @@ differ from the numbered 0.7 checks:</p>
 <p><strong>Goal:</strong> lean plugins on a shared runtime, and the agent API gaps.</p>
 <p>Scope:</p>
 <ul>
-<li><code>chora-xp</code> draws no programs into the scene: no Explorer and folder
-  windows, no Control Panel, Display Properties, Date and Time and file
-  properties, and no session dialogs. The git tag
-  <code>archive/xp-scene-programs</code> keeps this code.</li>
+<li><code>chora-xp</code> draws no programs into the scene (D63). The Explorer, the
+  folder windows, file Properties and the Delete confirmation leave the
+  plugin. The git tag <code>archive/xp-scene-programs</code> keeps this code.</li>
+<li><code>chora-xp</code> keeps the dialogs of the XP shell, pixel-perfect (D63): Log
+  Off, Turn Off, Display Properties, Taskbar and Start Menu Properties,
+  Date and Time Properties and the Control Panel menu. The buttons of Log
+  Off and Turn Off run the commands of the settings.</li>
 <li>A shared plugin runtime in <code>chora-kit</code>: the reconnect loop, the startup
   with <code>output.list</code>, <code>events.subscribe</code> and <code>methods.export</code>, grabs, the
   export and dispatch of methods, and the <code>--output</code> filter. Claims and
   the resume from <code>meta</code> go into the runtime only where both plugins use
   them in the same way.</li>
+<li>The settings interface of D62 for both plugins: <code>settings.get</code> and
+  <code>settings.set</code> through the runtime, with a schema in <code>methods.export</code>,
+  and the YAML file of the plugin.</li>
 <li><code>chora-tiling</code> is the lean reference window manager on the runtime.
-  <code>chora-xp</code> moves onto it.</li>
+  Its default style for new windows is a setting (#99).</li>
+<li><code>chora-xp</code> moves onto the runtime and the settings. The settings file
+  replaces most of its command-line flags;
+  <a href="../configuration/#the-xp-flavor">Configuration</a> lists the others. Its
+  dialogs change the settings with <code>settings.set</code>.</li>
 <li>The start menu and double clicks of <code>chora-xp</code> start installed
-  programs. Its configuration chooses them, for example a file manager
-  such as Thunar.</li>
+  programs. My Documents, My Computer, folder icons and the Recycle Bin
+  open the file manager of the settings, by default Thunar.</li>
 <li><code>chora-xp</code> keeps the XP look: frames, taskbar, start menu, the XP
   notification balloons, wallpaper, sounds and the cube (D39).</li>
 <li>The action <code>update</code> of <code>node.requested</code> changes opacity, effects and
   <code>meta</code> of a node through its owner (D58). The window manager keeps the
   change across layouts (#97).</li>
-<li><code>chora-tiling</code> has a default style for new windows (#99).</li>
 <li>The answer of <code>scene.apply</code> carries <code>warnings</code> (D59): a surface attached
-  under a group with <code>input: pass</code> (#98), and a layer that alone is larger
-  than the pixel budget of every output (#100).</li>
+  under a group with <code>input: pass</code> (#98), and a layer whose subtree needs more
+  pixels than the budget of every output (#100).</li>
 <li><code>docs/api.md</code> tells agents to remove their own old nodes after a
   restart (D61).</li>
 <li>Bugs of <code>choractl mcp</code>: #53, #54 and #56.</li>
-<li>The release workflow builds the RPM only (D14).</li>
 <li>The hardware checks 5 and 8 of the 0.7 gate.</li>
-<li>Remove <code>dist/arch</code>, <code>dist/build-arch.sh</code> and the Arch install lines of
-  <code>README.md</code>.</li>
 </ul>
-<p>The work removes the XP programs first, then extracts the runtime from
-<code>chora-tiling</code>, and then ports <code>chora-xp</code> to the runtime.</p>
+<p>The work removes the XP programs first, then extracts the runtime and
+the settings from <code>chora-tiling</code>, and then ports <code>chora-xp</code> to both.</p>
 <p>Gate:</p>
 <ol>
 <li>No plugin crate (<code>chora-tiling</code>, <code>chora-xp</code>) has a reconnect loop or
@@ -1337,23 +1341,27 @@ differ from the numbered 0.7 checks:</p>
    this with a grep over <code>plugins/</code>. The battle workflows in
    <code>tests/battle/</code> and <code>tests/xp.sh</code> pass.</li>
 <li>The program modules of <code>chora-xp</code> are gone: <code>explorer.rs</code>,
-   <code>explorer/view.rs</code>, <code>folder.rs</code>, <code>wm/explorers.rs</code>, <code>control.rs</code>,
-   <code>display.rs</code>, <code>datetime.rs</code>, <code>properties.rs</code>, <code>confirm.rs</code>,
-   <code>session.rs</code> and <code>taskbar_dialog.rs</code>. The tag
-   <code>archive/xp-scene-programs</code> exists.</li>
-<li>The start menu of <code>chora-xp</code> starts the configured file manager, and
-   the <code>surface.created</code> event of its window carries the activation token.
-   The check runs in CI in the e2e container, without a user manager. The
-   container installs Thunar from Fedora 44 as the file manager.</li>
+   <code>explorer/view.rs</code>, <code>folder.rs</code>, <code>wm/explorers.rs</code>, <code>properties.rs</code>
+   and <code>confirm.rs</code>. The tag <code>archive/xp-scene-programs</code> exists.</li>
+<li>The start menu of <code>chora-xp</code> starts the file manager of its settings,
+   and the <code>surface.created</code> event of its window carries the activation
+   token. The check runs in CI in the e2e container, without a user
+   manager. The container installs Thunar from Fedora 44 as the file
+   manager.</li>
+<li><code>choractl</code> sets a setting of <code>chora-xp</code>, for example the wallpaper,
+   with <code>settings.set</code> (D62). A capture shows the change at once. After a
+   restart of the plugin, the YAML file holds the value. A wrong value
+   gets an error. A CI job checks this.</li>
 <li>A client sets the opacity of a tiling window to 0.5 with the action
    <code>update</code> of <code>node.requested</code> (D58). After a relayout, a query or a
    capture in CI shows the opacity 0.5.</li>
-<li>A new window of <code>chora-tiling</code> gets the default style (#99). A CI job
-   checks this.</li>
+<li><code>settings.set</code> changes the default style of <code>chora-tiling</code>, and a new
+   window gets this style (#99). A CI job checks this.</li>
 <li><code>scene.apply</code> answers with a warning code for a surface attached under
    a group with <code>input: pass</code> (D59). It also answers with a warning code
-   for a layer that alone is larger than the pixel budget of every output
-   (#100). Unit tests check both.</li>
+   for a layer whose subtree (the layer and every layer under it) needs
+   more pixels than the budget of every output (#100). Unit tests check
+   both.</li>
 <li>
 <h1 id="53-54-and-56-each-have-a-test-d48">53, #54 and #56 each have a test (D48).<a class="headerlink" href="#53-54-and-56-each-have-a-test-d48" title="Permanent link">&para;</a></h1>
 </li>
@@ -1361,11 +1369,9 @@ differ from the numbered 0.7 checks:</p>
    after a restart of chora, without a change to the unit. The user runs
    this check on the reference hardware, with a log.</li>
 <li>With a user manager, <code>choractl run foot</code> starts foot in a transient
-   systemd unit of its own, and the <code>surface.created</code> event of its window
-   carries the activation token. The user runs this check on the
-   reference hardware, with a log.</li>
-<li>The release of the next release candidate carries only the RPM and its
-    SHA256 sum (D14).</li>
+    systemd unit of its own, and the <code>surface.created</code> event of its window
+    carries the activation token. The user runs this check on the
+    reference hardware, with a log.</li>
 <li>CI runs the CI scripts of the earlier gates again. The user runs the
     hardware checks again on the reference hardware, with a log.</li>
 </ol>
@@ -1562,7 +1568,6 @@ speech to text, a language model and text to speech, served by
   the notifications, and a launcher (D51). Until then, shared code lives
   in <code>chora-kit</code>.</li>
 <li>Conformance tests with wlcs.</li>
-<li>Items from the <a href="../ideas/">Idea backlog</a>.</li>
 </ul>
 
 
