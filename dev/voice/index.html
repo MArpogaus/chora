@@ -814,10 +814,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#15-results-of-wp0-to-wp5-2026-10-30" class="md-nav__link">
+  <a href="#15-results-of-wp0-to-wp6-2026-10-30" class="md-nav__link">
     <span class="md-ellipsis">
       
-        15. Results of WP0 to WP5 (2026-10-30)
+        15. Results of WP0 to WP6 (2026-10-30)
       
     </span>
   </a>
@@ -1214,10 +1214,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#15-results-of-wp0-to-wp5-2026-10-30" class="md-nav__link">
+  <a href="#15-results-of-wp0-to-wp6-2026-10-30" class="md-nav__link">
     <span class="md-ellipsis">
       
-        15. Results of WP0 to WP5 (2026-10-30)
+        15. Results of WP0 to WP6 (2026-10-30)
       
     </span>
   </a>
@@ -1267,15 +1267,14 @@
 
 
 <h1 id="chora-voice-the-voice-agent-in-rust-draft-specification">chora-voice: the voice agent in Rust (draft specification)<a class="headerlink" href="#chora-voice-the-voice-agent-in-rust-draft-specification" title="Permanent link">&para;</a></h1>
-<p>Status: draft, 2026-10-30. WP0 to WP5 are done. Sources:
-<code>services/voice/agent.py</code>, D53, D58, D61, D62, <code>docs/api.md</code>, the
-<code>chora-kit</code> runtime and settings, <code>choractl mcp</code>, and live probes of the
-Gufo servers.</p>
-<p><code>chora-voice</code> is the first voice agent of chora for real use. The Python
-agent <code>services/voice/agent.py</code> is not in production use. It is only a
-reference for the protocols of the servers and for the lessons of its
-turns. When <code>chora-voice</code> completes a full voice turn (end of WP6), the
-Python agent and <code>voice-agent.service</code> go.</p>
+<p>Status: draft, 2026-10-30. WP0 to WP6 are done. Sources: the Python
+agent of before WP6 (<code>services/voice/agent.py</code> in git history), D53,
+D58, D61, D62, <code>docs/api.md</code>, the <code>chora-kit</code> runtime and settings,
+<code>choractl mcp</code>, and live probes of the Gufo servers.</p>
+<p><code>chora-voice</code> is the voice agent of chora. It completed full voice turns
+against the live servers in WP6; the Python agent and
+<code>voice-agent.service</code> are gone, and <code>chora-voice.service</code> runs it
+(<code>services/voice/README.md</code>).</p>
 <h2 id="1-goals-and-non-goals">1. Goals and non-goals<a class="headerlink" href="#1-goals-and-non-goals" title="Permanent link">&para;</a></h2>
 <p>Goals:</p>
 <ul>
@@ -1376,7 +1375,7 @@ exits with 1.</p>
 <tbody>
 <tr>
 <td><code>sleeping</code></td>
-<td>Hears only wake words and PTT</td>
+<td>Hears only wake words; PTT records a request</td>
 </tr>
 <tr>
 <td><code>listening</code></td>
@@ -1408,11 +1407,18 @@ exits with 1.</p>
 </tr>
 <tr>
 <td><code>working</code></td>
-<td>Listening while a coding task runs</td>
+<td>Listening while a coding task runs (WP7)</td>
 </tr>
 </tbody>
 </table>
-<p>The agent starts in <code>listening</code> (awake).</p>
+<p>The agent starts in <code>listening</code> (awake). The core derives the state from
+what goes on, in this order: an utterance in progress is <code>recording</code>;
+an utterance whose text waits is <code>transcribing</code> (not while asleep); a
+reply is <code>confirming</code> while a question waits, <code>speaking</code> while its sound
+plays or ran dry less than 1.5 s ago, else <code>thinking</code> or <code>tool</code>; else
+<code>listening</code> or <code>sleeping</code>. So speech during a reply shows as
+<code>recording</code> and <code>transcribing</code>, and the state of the reply comes back
+after it.</p>
 <table>
 <thead>
 <tr>
@@ -1519,27 +1525,28 @@ exits with 1.</p>
 </tr>
 </tbody>
 </table>
-<p>Until WP6, <code>recording</code> ends in <code>transcribing</code> (asleep: <code>sleeping</code>). An
-ASR error (with the error earcon), an empty text or a text while asleep
-returns to <code>listening</code> or <code>sleeping</code>. Other text, awake, starts a reply
-without the word matcher: <code>thinking</code>, <code>tool</code>, <code>confirming</code> and
-<code>speaking</code> as the reply goes on, then <code>listening</code>. While a reply runs,
-the speech gate rests: no barge-in and no queue yet. PTT down,
-<code>voice.cancel</code> and <code>voice.sleep</code> stop the reply and its sound. The log,
-<code>last_transcript</code> and <code>last_reply</code> show the texts. The final text of an
-older turn still counts; a late interim text drops.</p>
+<p>An ASR error sounds the error earcon. The final text of an older
+utterance still counts; a late interim text drops. An utterance while
+asleep only looks for a wake word; one by the PTT key is a request, and
+the agent sleeps again after the reply.</p>
 <p>Barge-in while <code>speaking</code>: speech over the barge-in gate (section 4) for
-<code>barge_in_ms</code> stops playback at once. The unplayed sentences stay
+<code>barge_in_ms</code> pauses playback at once. The unplayed sentences stay
 queued. A cancel word drops them and cancels the turn. Empty text or
-echo plays them from the cut sentence. Other text ends the reply; the
-history keeps only the played text, and the new text starts a turn.</p>
-<p>Speech while <code>thinking</code>, <code>tool</code> or <code>working</code>: each utterance goes to the
-ASR at once. A cancel word cancels. Other text waits in a queue and goes
-into the history before the next LLM round, or starts the next turn. No
-speech is dropped.</p>
-<p>Cancel stops only the current turn: it aborts the SSE request, sends
-<code>notifications/cancelled</code> for the MCP call in flight, records "cancelled
-by the user; result unknown" and stops playback. A cancel word does not
+echo plays them from the cut sentence; a spoken yes or no to a question
+skips the cut question. Other text ends the reply; the history keeps
+only the played text, and the new text starts a reply.</p>
+<p>Speech while <code>thinking</code>, <code>tool</code> or <code>confirming</code>: each utterance goes to
+the ASR at once. A cancel word cancels. In <code>confirming</code>, the text is the
+answer. Other text waits in a queue and starts the next reply, together
+with the texts before it (<code>queued</code> in the state record). No speech is
+dropped. Deviation: queued text does not go into the history before the
+next LLM round of the running reply.</p>
+<p>Cancel stops only the current turn: the reply task drops the SSE request
+and the MCP call in flight (rmcp sends <code>notifications/cancelled</code>), the
+history gets the words that played and the note "cancelled by the user;
+result unknown" (for a call in flight, as its tool result; for a reply
+whose words were all there but did not all play, in place of its
+words), and playback stops. A cancel word does not
 stop a coding task. A code cancel word ("Coding-Aufgabe abbrechen")
 stops it. Coding results wait for <code>listening</code> or <code>working</code>, and also go
 into the history.</p>
@@ -1553,19 +1560,27 @@ text still goes to <code>last_reply</code> and to the HUD.</p>
 before the first frame of its onset. The PTT key starts an utterance at
 once; while the key is down, each frame counts as speech, and only the
 release ends the utterance.</p>
-<p>Echo: during playback, frames without speech update an echo level (a
-running mean of RMS). Barge-in needs probability over
-<code>barge_in_vad_threshold</code> and RMS over <code>max(barge_in_min_rms, echo level ×
-barge_in_echo_ratio)</code>. Its pre-roll is at most 100 ms, which keeps the
-agent's own words ("Ich" fragments) out. A transcript whose words match
-more than 80 % of the words spoken in the last 3 s is echo.</p>
+<p>Echo (decided in WP6, open question 4): the echo level is the level of
+the played sound times a coupling. The played level is the loudest RMS
+of the played frames in the last 160 ms (the sound reaches the mic a
+little later than it is written). The coupling starts at
+<code>barge_in_coupling</code> (0.1: the PipeWire echo canceller is assumed) and is
+learned during playback: a median tracker of mic RMS over played level
+(steps of 5 % per frame; only 1 % up on a frame that counts as speech).
+Barge-in needs probability over <code>barge_in_vad_threshold</code> and RMS over
+<code>max(barge_in_min_rms, echo level × barge_in_echo_ratio)</code> for
+<code>barge_in_ms</code>. Its utterance keeps that speech and <code>preroll_ms</code> before
+it: with 100 ms, the ASR heard "verbrechen" for "Abbrechen" (WP6 live).
+A transcript whose words match more than 80 % of the words spoken in the
+last 3 s is echo.</p>
 <p>Word matcher (no LLM):</p>
 <ol>
 <li>Only utterances up to <code>word_max_ms</code> and four words count.</li>
 <li>Normalize: lowercase, no punctuation, <code>ä→ae</code>, <code>ö→oe</code>, <code>ü→ue</code>, <code>ß→ss</code>.</li>
 <li>Remove <code>filler_words</code>.</li>
 <li>The rest must equal a phrase. Words of four letters or more may
-   differ by one edit.</li>
+   differ by one edit; words written together also match
+   ("Codingaufgabe").</li>
 <li>Order: code cancel, cancel, sleep, wake, yes, no. Yes and no count
    only in <code>confirming</code>.</li>
 </ol>
@@ -1575,9 +1590,9 @@ A keyword-spotting model can replace this later.</p>
 <p>A rule matches by <code>tool</code> (glob), and optionally by the command kinds of
 <code>apply_commands</code>, by <code>argv0</code> of <code>run_program</code>, or by <code>method</code> (glob) of
 <code>call_method</code>. The agent speaks the <code>prompt</code> of the rule and waits for
-yes or no. The method <code>confirm</code> answers from a key or the HUD (WP5);
-the spoken yes and no come with WP6. No answer within
-<code>confirm_timeout_ms</code> is a no. A no gives the LLM the result "declined by
+yes or no. The method <code>confirm</code> answers from a key or the HUD (WP5),
+the spoken yes and no since WP6; two unclear answers are a no. No
+answer within <code>confirm_timeout_ms</code> is a no. A no gives the LLM the result "declined by
 the user; nothing happened".</p>
 <h2 id="6-error-handling">6. Error handling<a class="headerlink" href="#6-error-handling" title="Permanent link">&para;</a></h2>
 <table>
@@ -1778,12 +1793,16 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 <td><code>2.0</code>, <code>300</code></td>
 </tr>
 <tr>
+<td><code>barge_in_coupling</code></td>
+<td><code>0.1</code> (start of the learned echo coupling)</td>
+</tr>
+<tr>
 <td><code>word_max_ms</code></td>
 <td><code>2000</code></td>
 </tr>
 <tr>
 <td><code>sleep_words</code>, <code>wake_words</code></td>
-<td><code>[schlaf, schlaf jetzt]</code>, <code>[hör zu]</code></td>
+<td><code>[schlaf, schlaf jetzt]</code>, <code>[hör zu, hallo chora]</code></td>
 </tr>
 <tr>
 <td><code>cancel_words</code></td>
@@ -1914,7 +1933,7 @@ two lists, a <code>ptt_key</code> that does not parse, and a rule without a prom
 <td>D62</td>
 </tr>
 <tr>
-<td><code>talk</code> (WP6)</td>
+<td><code>talk</code></td>
 <td><code>down: bool</code></td>
 <td>PTT from another client, for example <code>chora-mc</code></td>
 </tr>
@@ -1927,14 +1946,21 @@ two lists, a <code>ptt_key</code> that does not parse, and a rule without a prom
 </table>
 <p>The state record: <code>state</code>, <code>since_ms</code> (time in the state), <code>seq</code> (one
 more per change), <code>awake</code>, <code>muted: {mic, speaker}</code>, <code>turn</code>,
-<code>last_transcript</code>, <code>last_reply</code>. Later packages add <code>confirming</code> (the
-prompt),
-<code>coder</code> and <code>health</code>.</p>
+<code>last_transcript</code>, <code>last_reply</code>, <code>queued</code> (texts that wait). Later
+packages add <code>confirming</code> (the prompt), <code>coder</code> and <code>health</code>.</p>
 <p>HUD: the core will get client-emitted events (a new decision record,
 implemented by another package). Then the agent emits the event
 <code>voice.state</code> with the state record on each change of <code>seq</code>. Until then,
 a HUD polls the method <code>state</code> (4 Hz; <code>seq</code> shows a change). The
 indicator node signals without a HUD.</p>
+<p>chora-mc (WP6): when <code>mc</code> runs, the agent calls <code>mc agent.set {name,
+state, task, said}</code> on each change (<code>state</code> mapped to the states of mc:
+<code>asleep</code>, <code>listening</code>, <code>thinking</code>, <code>working</code>, <code>question</code>, <code>speaking</code>;
+<code>task</code> the request, <code>said</code> the last reply) and <code>mc hud.say {state:
+speaking, text, duration_ms}</code> for each sentence when its sound starts,
+with the length of its PCM (a late sentence gets the rest of its
+length). A thread with its own connection <code>NAME-hud</code> calls them through
+<code>methods.call</code>; errors only log at debug level, so mc may be absent.</p>
 <h2 id="11-logging-and-latency">11. Logging and latency<a class="headerlink" href="#11-logging-and-latency" title="Permanent link">&para;</a></h2>
 <p><code>tracing</code> with timestamps to stderr (journald), without colors when
 stderr is no terminal. <code>RUST_LOG</code> filters; the default is
@@ -1956,7 +1982,8 @@ record to <code>~/.local/state/chora/voice-turns.jsonl</code>.</p>
 <p>With <code>record_dir</code>, each run writes a directory <code>DIR/YYYYMMDD-HHMMSS/</code>:</p>
 <ul>
 <li><code>mic.wav</code>: all mic frames, 24 kHz, without gaps.</li>
-<li><code>played.wav</code>: all played sound, one piece after the other.</li>
+<li><code>played.wav</code>: all played sound (earcons and replies), one piece after
+  the other.</li>
 <li><code>events.jsonl</code>: one line per gate event and per played piece, with
   the mic sample at which it happened, for example
   <code>{"at": 48000, "event": "onset"}</code> and
@@ -1971,9 +1998,9 @@ per line, times in s of <code>mic.wav</code>, <code>#</code> starts a comment.</
 barge 2.08       # the user starts to speak over the agent
 </code></pre></div>
 <p><code>chora-voice replay DIR...</code> runs the gates of the settings over each
-recording and prints the metrics of section 13. It reads only the
-<code>play</code> lines of <code>events.jsonl</code> (the agent's sound) and not
-<code>played.wav</code>; a plain clip needs only <code>mic.wav</code> and <code>labels.txt</code>.</p>
+recording and prints the metrics of section 13. It reads the <code>play</code>
+lines of <code>events.jsonl</code> and, for the barge-in level, <code>played.wav</code>; a
+plain clip needs only <code>mic.wav</code> and <code>labels.txt</code>.</p>
 <h2 id="13-test-plan">13. Test plan<a class="headerlink" href="#13-test-plan" title="Permanent link">&para;</a></h2>
 <p>Unit tests: every transition of <code>step()</code>, also cancel in each busy
 state; word matcher table with ASR variants and near misses ("schlafen
@@ -1985,8 +2012,8 @@ confirm rules; token trimming; settings <code>check()</code>; the 3:2 low-pass.<
   barge-ins). Expected words come with the word matcher (WP6).</li>
 <li>The harness feeds the frames at full speed. While the agent plays,
   only the barge-in gate listens; a barge-in stops the playback for the
-  rest of the recording's piece and starts an utterance with 100 ms of
-  pre-roll.</li>
+  rest of the recording's piece and starts an utterance with the
+  barge-in speech and <code>preroll_ms</code> before it, as the agent does.</li>
 <li>Metrics against the labels: missed and false turns (a detected turn
   matches the first unmatched labelled turn that it overlaps), onset
   and offset error (detected speech start and last speech frame minus
@@ -1994,9 +2021,10 @@ confirm rules; token trimming; settings <code>check()</code>; the 3:2 low-pass.<
   before to 1 s after the label), false barge-ins per minute of agent
   sound, and barge-in latency. The test <code>the_corpus_meets_the_thresholds</code>
   holds them to thresholds.</li>
-<li>The CI corpus is <code>services/voice/tests/data/corpus/</code> (648 KB of new
-  clips): <code>hallo-chora</code> (the clip of WP2), <code>turns-noise</code> and
-  <code>echo-barge</code>. <code>tests/corpus.py TTS_URL</code> writes the last two again
+<li>The CI corpus is <code>services/voice/tests/data/corpus/</code> (1.7 MB):
+  <code>hallo-chora</code> (the clip of WP2), <code>turns-noise</code>, <code>echo-barge</code> (echo of
+  RMS 150) and <code>echo-loud</code> (echo of RMS 600, WP6), the last two with
+  <code>played.wav</code>. <code>tests/corpus.py TTS_URL</code> writes the last three again
   with the live TTS (user voices <code>vivian</code> and <code>ryan</code>, agent voice
   <code>aiden</code>; noise from a fixed seed): <code>uv run tests/corpus.py
   ws://HOST:8882/v1/audio/speech/stream</code> in <code>services/voice</code>. The TTS
@@ -2008,16 +2036,20 @@ confirm rules; token trimming; settings <code>check()</code>; the 3:2 low-pass.<
 (silence, 60 ms per character, one sentence per <code>.</code> or <code>?</code>, a wrong
 rate, no answer); WP5 added an LLM (<code>/models</code>, SSE with scripted words,
 tool calls, HTTP errors and silence; a quarter of the request length as
-<code>prompt_tokens</code>) and an in-process MCP server for <code>tools.rs</code>. With a
-fake tool executor, an end-to-end test runs a replay through the whole
-agent and checks the LLM requests and the state sequence.</p>
+<code>prompt_tokens</code>) and an in-process MCP server for <code>tools.rs</code>; WP6 added
+an ASR with a text per utterance. With the fake tool executor, the test
+<code>a_replay_runs_through_the_whole_agent</code> (WP6) feeds recorded speech
+through the whole agent: a question, a cancel word over the reply, the
+next question. It checks the state sequence and that the second LLM
+request holds the played words with the cancel note.</p>
 <p>Live tests: <code>services/voice/tests/live.py TTS_URL ASR_URL [CLIP]</code> checks
 the TTS events, the ASR at 24 kHz and 16 kHz, and writes the test clip.
 WP4 added the <code>chora-voice</code> subcommands <code>roundtrip [TEXT]</code> (TTS, then
 its sound to the ASR, with the latencies), <code>tts TEXT [--out FILE]</code> and
 <code>asr FILE</code>; WP3 added <code>replay DIR...</code>; WP5 added <code>ask TEXT [--speak]
 [--yes]</code> (one turn with the LLM and the tools of <code>choractl mcp</code>, with
-the latencies). WP6 adds <code>levels</code>. The URLs come
+the latencies). WP6 added <code>levels</code> (mic level and speech probability
+twice a second). The URLs come
 from the settings. From the agent sandbox, the servers are at
 <code>192.168.178.195</code>: ASR <code>:8881</code>, TTS <code>:8882</code>, LLM <code>:8888</code> (model <code>gufo</code>,
 context 128000, text and image), reachable only with the sandbox off.
@@ -2058,8 +2090,9 @@ a headless chora session.</p>
 <p>The Silero model (MIT, <code>LICENSES/MIT-silero-vad.txt</code>) goes into the
 binary with <code>include_bytes!</code>. The crate lives in <code>services/voice/</code> (D53)
 as a workspace member. No package and no unit until the agent completes
-full turns; then <code>chora-voice.service</code> replaces <code>voice-agent.service</code>.</p>
-<h2 id="15-results-of-wp0-to-wp5-2026-10-30">15. Results of WP0 to WP5 (2026-10-30)<a class="headerlink" href="#15-results-of-wp0-to-wp5-2026-10-30" title="Permanent link">&para;</a></h2>
+full turns; since WP6, <code>chora-voice.service</code> replaces
+<code>voice-agent.service</code>.</p>
+<h2 id="15-results-of-wp0-to-wp6-2026-10-30">15. Results of WP0 to WP6 (2026-10-30)<a class="headerlink" href="#15-results-of-wp0-to-wp6-2026-10-30" title="Permanent link">&para;</a></h2>
 <p>Silero on <code>tract</code>:</p>
 <table>
 <thead>
@@ -2191,17 +2224,14 @@ the test clip in real time as the capture command):</p>
 <li>Echo of RMS 150 starts no barge-in. The barge-in comes 416 ms after
   the first sound of the user: 256 ms of <code>barge_in_ms</code> plus the rise of
   Silero over 0.7.</li>
-<li>Echo of RMS 600 without the user is a false barge-in (15 per minute of
-  agent sound in this corpus) and then a false turn. Silero gives the
-  echo of the agent's voice a high probability, so the rule of section
-  4 never learns the echo level from it, and RMS 600 is over
-  <code>barge_in_min_rms</code>. See open question 4. The test allows this one
-  false barge-in and false turn; the other thresholds are 0 missed
-  turns and barge-ins, 200 ms onset and offset error, 450 ms barge-in
-  latency.</li>
+<li>Echo of RMS 600 without the user was a false barge-in (15 per minute
+  of agent sound) and then a false turn: Silero gives the echo of the
+  agent's voice a high probability, so the rule of WP3 never learned the
+  echo level from it. WP6 takes the echo level from the played sound
+  (section 4); see the WP6 results.</li>
 <li>The harness implements the barge-in gate of section 4 (<code>BargeIn</code> in
-  <code>gate.rs</code>; the echo level is a running mean over about 0.5 s) and
-  <code>Gate::open</code> for the utterance that a barge-in starts. WP6 uses both.</li>
+  <code>gate.rs</code>) and <code>Gate::open</code> for the utterance that a barge-in starts.
+  The agent uses both since WP6.</li>
 </ul>
 <p>WP4, live check against the servers (<code>chora-voice roundtrip</code>, debug
 build, from the agent sandbox):</p>
@@ -2357,6 +2387,145 @@ prompt 22700 tokens, warm cache):</p>
   <code>voice-mcp</code>, warmed the cache in 0.4 s and answered <code>voice.confirm</code>
   and <code>voice.state</code>; a wrong answer gives -32602.</li>
 </ul>
+<p>WP6, the state machine and the first full voice turns:</p>
+<ul>
+<li>Modules: <code>words.rs</code> (word matcher, echo filter), <code>mc.rs</code> (reports to
+  chora-mc); the core has all states but <code>working</code> (WP7); <code>speech.rs</code>
+  pauses and resumes the speech (<code>Control</code>) and reports the played PCM
+  and each sentence with its start and length.</li>
+<li>Replay with the played sound (corpus regenerated, <code>echo-barge</code> with
+  one coupling for both replies, <code>echo-loud</code> new; the corpus cut a
+  barge-in reply 0.8 s after the label, not 0.4 s):</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Recording</th>
+<th>Turns</th>
+<th>Missed</th>
+<th>False</th>
+<th>Onset error</th>
+<th>Offset error</th>
+<th>Barge-ins</th>
+<th>Missed</th>
+<th>False</th>
+<th>Latency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>echo-barge</code></td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>160 ms</td>
+<td>82 ms</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>416 ms</td>
+</tr>
+<tr>
+<td><code>echo-loud</code></td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>180 ms</td>
+<td>70 ms</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>436 ms</td>
+</tr>
+<tr>
+<td><code>hallo-chora</code></td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>2 ms</td>
+<td>62 ms</td>
+<td>0</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>turns-noise</code></td>
+<td>2</td>
+<td>0</td>
+<td>0</td>
+<td>26 ms (max 50)</td>
+<td>50 ms (max 82)</td>
+<td>0</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>The learned coupling is about 0.1 on <code>echo-loud</code>. With a start of
+  0.05, <code>echo-loud</code> has one false barge-in before the coupling grows;
+  with 0.1 and 0.3, none. The test now wants 0 false turns and
+  barge-ins.
+- Live, debug build, headless session with <code>chora-tiling</code>, one <code>foot</code>
+  window and <code>chora-mc</code>, against Gufo; the mic was a script that writes
+  a TTS clip (voice <code>vivian</code>) in real time, the speaker <code>cat &gt;
+  /dev/null</code>. "Welche Fenster sind gerade offen?" (2.2 s), warm cache:</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Speech end to end of the utterance</td>
+<td>800 ms (<code>silence_ms</code>)</td>
+</tr>
+<tr>
+<td>ASR, final text after the commit</td>
+<td>379 to 406 ms</td>
+</tr>
+<tr>
+<td>LLM first token (a <code>query_scene</code> call)</td>
+<td>645 to 669 ms</td>
+</tr>
+<tr>
+<td>Tool <code>query_scene</code></td>
+<td>28 to 35 ms</td>
+</tr>
+<tr>
+<td>First sentence after the ASR text (two rounds)</td>
+<td>2.4 to 2.6 s</td>
+</tr>
+<tr>
+<td>TTS first audio</td>
+<td>408 to 424 ms</td>
+</tr>
+<tr>
+<td>First sound after the end of the utterance</td>
+<td>4.8 to 5.0 s</td>
+</tr>
+</tbody>
+</table>
+<p><code>first_sound</code> holds the 1 s of <code>playback_buffer_ms</code>: the TTS is slower
+  than real time. <code>mc agent.list</code> showed the agent <code>voice</code> with its
+  task and reply; <code>voice.state</code> went back to <code>listening</code>. A cold cache
+  (the LLM after a restart) took 40 s for the warm-up, and a turn waits
+  for it.
+- Live barge-in: the clip says "Abbrechen." 8 s after the question,
+  over the reply. The barge-in came between two sentences (the TTS ran
+  dry), the ASR heard "Abbrechen.", the word matcher found the cancel
+  word, and the reply stopped. Two fixes came from it: speech in a dry
+  gap of up to 1.5 s is a barge-in, not queued text; and the barge-in
+  utterance keeps its speech and <code>preroll_ms</code> (with 100 ms, the ASR
+  heard "verbrechen"). The LLM saw the note: to the next text it said
+  "Ich habe meine Antwort nicht zu Ende sagen können."
+- The TTS clips of short German phrases with <code>tts_language: auto</code> gave
+  the ASR "April Rare" for "Abbrechen" and "Stopp auf Thema" for "Stopp,
+  warte mal"; with <code>tts_language: German</code> it heard "Abbrechen." See open
+  question 8.</p>
 <h2 id="16-work-packages">16. Work packages<a class="headerlink" href="#16-work-packages" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2399,7 +2568,7 @@ prompt 22700 tokens, warm cache):</p>
 </tr>
 <tr>
 <td>WP6</td>
-<td>State machine, word matcher, barge-in, cancel, sleep/wake, confirmation; first full voice turn; remove <code>agent.py</code> and <code>voice-agent.service</code></td>
+<td>State machine, word matcher, barge-in, cancel, sleep/wake, confirmation; first full voice turn; remove <code>agent.py</code> and <code>voice-agent.service</code> (done)</td>
 <td>L</td>
 </tr>
 <tr>
@@ -2427,13 +2596,10 @@ prompt 22700 tokens, warm cache):</p>
 <li>Mic mute: is "PTT still records" correct (section 3)?</li>
 <li><code>pw-record --raw</code> on the host: does the PipeWire of the host have
    1.4 or later? <code>pw-record --version</code> shows it.</li>
-<li>Barge-in over loud echo (section 15, WP3): the echo level of section
-   4 learns only from frames that Silero calls quiet, and the echo of a
-   voice is speech for Silero. Take the echo level from the played sound
-   instead (the RMS of the played frames times a coupling that the
-   agent learns), or keep the rule and trust the echo canceller? A
+<li>Decided (WP6): the echo level comes from the played sound times a
+   learned coupling, with a default that assumes the echo canceller. A
    recording with the echo canceller on the reference hardware would
-   show the real echo level.</li>
+   show the real coupling and check the default 0.1.</li>
 <li>Answered for now (WP5): playback starts after <code>playback_buffer_ms</code>
    (1 s) of sound or at the end of the sentence, and again so after it
    ran dry.</li>
@@ -2446,7 +2612,16 @@ prompt 22700 tokens, warm cache):</p>
    runtime?</li>
 <li>The built-in prompt and documents are about 22700 tokens. A cold
    warm-up took 41 s on Gufo; with the cache 0.2 s to 10 s. Fewer
-   sections of <code>docs/api.md</code> would make a cold start faster.</li>
+   sections of <code>docs/api.md</code> would make a cold start faster. A turn
+   waits for the warm-up (WP6 live: 40 s on a cold cache).</li>
+<li><code>tts_language</code> is <code>auto</code>. For short German phrases, the TTS clips of
+   WP6 were hard to understand with <code>auto</code> and clear with <code>German</code>.
+   Should the default follow <code>language</code> (<code>de</code> gives <code>German</code>)?</li>
+<li>Queued text starts the next reply; it does not go into the running
+   reply before its next LLM round (section 3). Is that enough?</li>
+<li><code>first_sound</code> is about 4.8 s after the end of an utterance with one
+    tool call; the 1 s playback buffer and the 0.8 s <code>silence_ms</code> are a
+    third of it. Lower them on the reference hardware?</li>
 </ol>
 
 
