@@ -67,6 +67,19 @@ fi
 # A portal of an earlier session in the same user manager chose its
 # backends for another XDG_CURRENT_DESKTOP; the next call starts it anew
 # with the variables of chora, so screen sharing goes through
-# chora-portals.conf (D37).
-systemctl --user stop xdg-desktop-portal.service 2>/dev/null || true
+# chora-portals.conf (D37). Another graphical session of the user that
+# is still open (active or online, not closing) shares the portal, so
+# then the portal stays.
+other=
+for session in $(loginctl show-user "$(id -u)" -p Sessions --value 2>/dev/null); do
+    [ "$session" != "${XDG_SESSION_ID:-}" ] || continue
+    type=$(loginctl show-session "$session" -p Type --value 2>/dev/null) || true
+    state=$(loginctl show-session "$session" -p State --value 2>/dev/null) || true
+    case "$type $state" in
+    "wayland active" | "wayland online" | "x11 active" | "x11 online") other=$session ;;
+    esac
+done
+if [ -z "$other" ]; then
+    systemctl --user stop xdg-desktop-portal.service 2>/dev/null || true
+fi
 exec systemctl --user start --no-block "chora-$name.target"
