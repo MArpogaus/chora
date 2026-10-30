@@ -13,7 +13,8 @@ need python3
 out=$(mktemp -d /tmp/gate1.XXXXXX)
 trap 'rm -rf "$out"' EXIT
 session_start 1280x800 -- "$bin/chora-tiling"
-grant screen.capture input.inject
+# `choractl mcp` is confined: tiling.focus goes through methods.call.
+grant screen.capture input.inject methods.call
 # On the main socket, run needs no grant (D42); it prints the pid as one JSON line
 run_window() {  # run_window <r> <g> <b> <name>
     local pid
