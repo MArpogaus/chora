@@ -1,5 +1,6 @@
 //! Reports the agent to a HUD such as chora-mc as client events (D65):
-//! `NAME.state` with the state of the agent or of its coder, and
+//! `NAME.state` with the state of the agent or of a sub-agent,
+//! `NAME.remove` when a sub-agent is gone, and
 //! `NAME.say` for each spoken sentence when its sound starts. The `chora`
 //! thread emits them on the connection of the agent's name. Also the
 //! indicator: a dot in the color of the state, at the bottom right of the
@@ -35,6 +36,8 @@ pub enum Report {
     /// The state of the agent: `state`, `task` and `said`; with a `name`,
     /// that of a sub-agent such as the coder.
     Agent(Value),
+    /// A sub-agent is gone.
+    Gone(String),
     /// A sentence that plays from `at` for `len`.
     Say {
         text: String,
@@ -110,6 +113,9 @@ impl Reporter {
             match report {
                 Some(Report::Agent(params)) => {
                     let _ = self.emits.send(("state", params));
+                }
+                Some(Report::Gone(name)) => {
+                    let _ = self.emits.send(("remove", json!({"name": name})));
                 }
                 Some(Report::Say { text, at, len }) => says.push_back((at, text, len)),
                 Some(Report::State(state)) => self.indicate(state),

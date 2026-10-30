@@ -17,7 +17,7 @@ use rmcp::{
 };
 use serde_json::{Value, json};
 
-use crate::{coder::Coder, config::Confirm};
+use crate::{agents::Agents, coder::Coder, config::Confirm};
 
 pub type Service = RunningService<RoleClient, ()>;
 type Connecting = Pin<Box<dyn Future<Output = Result<Service, String>> + Send>>;
@@ -43,6 +43,8 @@ pub struct Tools {
     retry_at: Instant,
     /// The coding tools, when `coder_cmd` has a harness.
     pub coder: Option<Coder>,
+    /// The tools of the ACP agents, when `agent_cmd` has a command.
+    pub agents: Option<Agents>,
 }
 
 /// `CMD --name NAME mcp` as a child process; its stderr goes to ours.
@@ -84,6 +86,7 @@ impl Tools {
             backoff: Duration::ZERO,
             retry_at: Instant::now(),
             coder: None,
+            agents: None,
         }
     }
 
@@ -96,11 +99,13 @@ impl Tools {
     /// stay while chora is away. The coding tools come last.
     pub async fn refresh(&mut self) {
         self.load().await;
-        let coder = self.coder.as_ref().map(Coder::specs).unwrap_or_default();
+        let mut own = self.coder.as_ref().map(Coder::specs).unwrap_or_default();
+        own.extend(self.agents.as_ref().map(Agents::specs).unwrap_or_default());
         self.specs.retain(|s| {
-            !crate::coder::TOOLS.contains(&s["function"]["name"].as_str().unwrap_or_default())
+            let name = s["function"]["name"].as_str().unwrap_or_default();
+            !crate::coder::TOOLS.contains(&name) && !crate::agents::TOOLS.contains(&name)
         });
-        for spec in coder {
+        for spec in own {
             let name = spec["function"]["name"]
                 .as_str()
                 .unwrap_or_default()
@@ -178,6 +183,11 @@ impl Tools {
             && crate::coder::TOOLS.contains(&name.as_str())
         {
             return coder.call(&name, &Value::Object(args));
+        }
+        if let Some(agents) = &self.agents
+            && crate::agents::TOOLS.contains(&name.as_str())
+        {
+            return agents.call(&name, &Value::Object(args));
         }
         self.refresh().await;
         let Some(service) = self.connected() else {

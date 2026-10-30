@@ -99,6 +99,25 @@ pub fn matches(config: &Config, text: &str, length_ms: u32, confirming: bool) ->
         .map(|(word, _)| word)
 }
 
+/// The agent of `names` whose name starts `text` ("Coder, mach weiter"),
+/// near as a command word, and the rest of the text after it.
+pub fn addressed<'a>(
+    text: &str,
+    names: impl IntoIterator<Item = &'a String>,
+) -> Option<(String, String)> {
+    let tokens: Vec<&str> = text.split_whitespace().collect();
+    names.into_iter().find_map(|name| {
+        let want = normalize(name);
+        let n = want.len();
+        if n == 0 || tokens.len() < n {
+            return None;
+        }
+        let head = normalize(&tokens[..n].join(" "));
+        let near_all = head.len() == n && want.iter().zip(&head).all(|(w, h)| near(w, h));
+        (near_all || head.concat() == want.concat()).then(|| (name.clone(), tokens[n..].join(" ")))
+    })
+}
+
 /// Whether `text` is the agent's own voice: more than 80 % of its words
 /// are in `said`, the words spoken in the last seconds.
 pub fn is_echo(text: &str, said: &str) -> bool {
@@ -114,6 +133,24 @@ pub fn is_echo(text: &str, said: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_name_at_the_start_addresses_an_agent() {
+        let names = ["coder".to_owned(), "chora-docs".to_owned()];
+        let to = |text| addressed(text, &names);
+        assert_eq!(
+            to("Coder, mach weiter."),
+            Some(("coder".into(), "mach weiter.".into()))
+        );
+        assert_eq!(to("Koder: stopp"), Some(("coder".into(), "stopp".into())));
+        assert_eq!(
+            to("Chora Docs, lies vor"),
+            Some(("chora-docs".into(), "lies vor".into()))
+        );
+        assert_eq!(to("Coder"), Some(("coder".into(), String::new())));
+        assert_eq!(to("Mach weiter, Coder"), None);
+        assert_eq!(to("Cola, bitte"), None, "too far");
+    }
 
     #[test]
     fn the_matcher_finds_words_of_asr_variants_and_rejects_near_misses() {

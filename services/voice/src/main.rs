@@ -2,6 +2,7 @@
 //! through a speech gate with Silero VAD; the agent is a chora client
 //! with methods, settings and a push-to-talk key.
 
+mod agents;
 mod asr;
 mod audio;
 mod chat;
@@ -168,6 +169,23 @@ fn mcp_name(name: &str) -> String {
     format!("{name}-mcp")
 }
 
+/// SIGTERM and SIGINT quit the loop of the agent, which then stops its
+/// sub-agents.
+async fn quit_on_signal(tx: mpsc::Sender<Input>) {
+    use tokio::signal::unix::{SignalKind, signal};
+    let (Ok(mut term), Ok(mut int)) = (
+        signal(SignalKind::terminate()),
+        signal(SignalKind::interrupt()),
+    ) else {
+        return;
+    };
+    tokio::select! {
+        _ = term.recv() => {}
+        _ = int.recv() => {}
+    }
+    let _ = tx.send(Input::Quit);
+}
+
 /// Runs the agent until chora stays away or a thread ends.
 fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     let config = settings.value.clone();
@@ -183,6 +201,8 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
         tx.clone(),
     );
     tools.coder = Some(coder.clone());
+    let agents = agents::Agents::new(&config, coder::data_dir(), tx.clone());
+    tools.agents = Some(agents.clone());
     let chat = net.block_on(Chat::start(
         config.clone(),
         mcp,
@@ -191,7 +211,9 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     ))?;
     let mut agent = Agent::new(config.clone(), chat, net, tx.clone());
     agent.coder = Some(coder);
+    agent.agents = Some(agents.clone());
     agent.warm();
+    agent.net.spawn(quit_on_signal(tx.clone()));
     agent.mic = Some(Mic::start(
         config.capture_cmd,
         Analyzer::new(vad),
@@ -201,10 +223,20 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     agent.mc = Some(mc::start(&name, emits));
     client::start(name, settings, tx, emitted);
     log::info(&format!("started, {:?}", agent.core.state()));
-    while let Ok(input) = rx.recv() {
-        agent.step(input)?;
-    }
-    Err("an audio thread ended".into())
+    let result = loop {
+        match rx.recv() {
+            Ok(Input::Quit) => break Ok(()),
+            Ok(input) => {
+                if let Err(e) = agent.step(input) {
+                    break Err(e);
+                }
+            }
+            Err(_) => break Err("an audio thread ended".into()),
+        }
+    };
+    // The sub-agents end with the agent.
+    agents.shutdown();
+    result
 }
 
 /// The core and the actors that run its effects.
@@ -226,11 +258,14 @@ struct Agent {
     /// its coder.
     mc: Option<mpsc::Sender<mc::Report>>,
     reported: [Option<serde_json::Value>; 2],
+    /// The last reports of the sub-agents.
+    reported_subs: std::collections::BTreeMap<String, serde_json::Value>,
     /// The state that the indicator shows; none without it.
     dot: Option<core::State>,
     /// The URLs of the ASR and the TTS for the health probes.
     probe: tokio::sync::watch::Sender<[String; 2]>,
     coder: Option<coder::Coder>,
+    agents: Option<agents::Agents>,
 }
 
 impl Agent {
@@ -252,9 +287,11 @@ impl Agent {
             reply: None,
             mc: None,
             reported: [None, None],
+            reported_subs: std::collections::BTreeMap::new(),
             dot: None,
             probe: tokio::sync::watch::Sender::new([String::new(), String::new()]),
             coder: None,
+            agents: None,
         }
     }
 
@@ -299,6 +336,18 @@ impl Agent {
                 *reported = Some(report);
             }
         }
+        let subs = self.core.subs();
+        for (name, record) in subs {
+            if self.reported_subs.get(name) != Some(record) {
+                let _ = mc.send(mc::Report::Agent(record.clone()));
+            }
+        }
+        for name in self.reported_subs.keys() {
+            if !subs.contains_key(name) {
+                let _ = mc.send(mc::Report::Gone(name.clone()));
+            }
+        }
+        self.reported_subs.clone_from(subs);
         let dot = self.core.config().indicator.then(|| self.core.state());
         if dot != self.dot {
             let _ = mc.send(mc::Report::State(dot));
@@ -401,6 +450,8 @@ impl Agent {
                 }
             }
             Effect::StopCode => self.stop_code(),
+            Effect::AgentPrompt { name, text } => self.to_agent(&name, Some(&text)),
+            Effect::AgentCancel(name) => self.to_agent(&name, None),
             Effect::Say { text, at, len } => {
                 if let Some(mc) = &self.mc {
                     let _ = mc.send(mc::Report::Say { text, at, len });
@@ -422,12 +473,16 @@ impl Agent {
             speak,
             ended,
             say,
+            voice,
         } = ask
         else {
             return;
         };
         let (chat, tx) = (self.chat.clone(), self.tx.clone());
-        let config = self.core.config().clone();
+        let mut config = self.core.config().clone();
+        if let Some(voice) = voice.filter(|v| !v.is_empty()) {
+            config.voice = voice;
+        }
         let speaker = speak.then(|| self.speaker.clone());
         let (speech, control) = tokio::sync::mpsc::unbounded_channel();
         let (stop, mut stopped) = oneshot::channel::<String>();
@@ -470,6 +525,15 @@ impl Agent {
             on(Reply::Done(report.reply));
         });
         self.reply = Some((speech, stop));
+    }
+
+    /// A prompt for a sub-agent said to it by name; none cancels.
+    fn to_agent(&self, name: &str, text: Option<&str>) {
+        let Some(agents) = &self.agents else { return };
+        log::info(&match text {
+            Some(text) => agents.prompt(name, text),
+            None => agents.cancel(name),
+        });
     }
 
     fn stop_code(&self) {

@@ -15,7 +15,7 @@ schemars.workspace = true
 serde.workspace = true
 serde-saphyr.workspace = true
 serde_json.workspace = true
-tokio = { workspace = true, features = ["net", "process"] }
+tokio = { workspace = true, features = ["net", "process", "signal"] }
 # No TLS: the servers are on the local network.
 tokio-tungstenite = "0.28"
 tracing.workspace = true

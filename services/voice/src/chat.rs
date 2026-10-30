@@ -65,6 +65,15 @@ const CODING: &str = "# Coding tasks\n\n\
   code_cancel stops it.\n\
 - When the user asks about a spoken coding result, call code_status.";
 
+/// The part of the prompt for the ACP agents, with an `agent_cmd`.
+const AGENTS: &str = "# Agents\n\n\
+- Coding agents work in the projects of agent_list, one per project, each with its own \
+  name and voice. agent_start starts one; it keeps its conversation until agent_stop.\n\
+- Hand work in a project to its agent with agent_say, in full: it hears nothing else. \
+  Its answer is spoken in its voice when it is done; you need not repeat it.\n\
+- The user can also talk to an agent directly by its name; agent_status tells what each \
+  agent does, its plan and its last words.";
+
 /// The characters that a picture counts for in the estimate, instead of
 /// its base64 text.
 const PICTURE_CHARS: usize = 4000;
@@ -196,6 +205,9 @@ impl Chat {
         if let Some(coder) = &self.tools.coder {
             coder.set_cmd(self.config.spawn(&self.config.coder_cmd));
         }
+        if let Some(agents) = &self.tools.agents {
+            agents.configure(&self.config);
+        }
         self.tools.timeout = Duration::from_secs(self.config.tool_timeout_s.into());
         self.tools.skipped.clone_from(&self.config.skipped_tools);
         if self.config.context_tokens > 0 {
@@ -250,6 +262,9 @@ impl Chat {
         }
         if !config.coder_cmd.is_empty() {
             parts.push(CODING.into());
+        }
+        if !config.agent_cmd.is_empty() {
+            parts.push(AGENTS.into());
         }
         if let Ok(text) =
             chora_kit::read_text(&crate::expand(&config.prompt_file), chora_kit::MAX_TEXT)

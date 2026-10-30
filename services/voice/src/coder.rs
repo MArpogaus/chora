@@ -337,7 +337,7 @@ async fn clone(source: Option<&Path>, dir: &Path, number: u32) -> Result<(), Str
 
 /// The process group of the harness: its drop ends what is left of it,
 /// also after a stop, so that no coder runs on next to the next task.
-struct Group(Option<u32>);
+pub struct Group(pub Option<u32>);
 
 impl Drop for Group {
     fn drop(&mut self) {
@@ -364,7 +364,9 @@ impl Drop for Group {
 }
 
 /// One line of at most `LINE_LIMIT` bytes; none at the end.
-async fn read_line(out: &mut (impl AsyncBufReadExt + Unpin)) -> Result<Option<Vec<u8>>, String> {
+pub async fn read_line(
+    out: &mut (impl AsyncBufReadExt + Unpin),
+) -> Result<Option<Vec<u8>>, String> {
     let mut line = Vec::new();
     let n = out
         .take(LINE_LIMIT + 1)

@@ -488,10 +488,7 @@ mod tests {
     fn harnesses_run_in_the_sandbox_unless_unsandboxed() {
         let mut config = Config::default();
         let cmd = words(&["opencode", "acp"]);
-        assert_eq!(
-            config.spawn(&cmd),
-            ["agent-sandbox.sh", "opencode", "acp"]
-        );
+        assert_eq!(config.spawn(&cmd), ["agent-sandbox.sh", "opencode", "acp"]);
         assert_eq!(config.spawn(&[]), Vec::<String>::new());
         config.unsandboxed = true;
         assert_eq!(config.spawn(&cmd), cmd);
