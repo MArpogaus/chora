@@ -221,6 +221,10 @@ struct Agent {
     /// of its coder.
     mc: Option<mpsc::Sender<mc::Report>>,
     reported: [Option<serde_json::Value>; 2],
+    /// The state that the indicator shows; none without it.
+    dot: Option<core::State>,
+    /// The URLs of the ASR and the TTS for the health probes.
+    probe: tokio::sync::watch::Sender<[String; 2]>,
     coder: Option<coder::Coder>,
 }
 
@@ -243,13 +247,20 @@ impl Agent {
             reply: None,
             mc: None,
             reported: [None, None],
+            dot: None,
+            probe: tokio::sync::watch::Sender::new([String::new(), String::new()]),
             coder: None,
         }
     }
 
     /// Lets the LLM read the prompt; tries again with the backoff of the
     /// LLM until it answers, so that the cache is warm when it is back.
+    /// Starts the health probes of the ASR and the TTS.
     fn warm(&self) {
+        let config = self.core.config();
+        self.probe
+            .send_replace([config.asr_url.clone(), config.tts_url.clone()]);
+        self.net.spawn(health::probe(self.probe.subscribe()));
         let chat = self.chat.clone();
         self.net.spawn(async move {
             while !chat.lock().await.warm().await {
@@ -264,18 +275,30 @@ impl Agent {
         for effect in self.core.handle(input) {
             self.effect(effect)?;
         }
-        if let Some(mc) = &self.mc {
-            let reports = [Some(self.core.agent()), self.core.coder()];
-            for (report, reported) in reports.into_iter().zip(&mut self.reported) {
-                if let Some(report) = report
-                    && Some(&report) != reported.as_ref()
-                {
-                    let _ = mc.send(mc::Report::Agent(report.clone()));
-                    *reported = Some(report);
-                }
+        self.report();
+        Ok(())
+    }
+
+    /// Reports the changes of the agent, its coder and its state for the
+    /// indicator to the HUD thread.
+    fn report(&mut self) {
+        let Some(mc) = &self.mc else {
+            return;
+        };
+        let reports = [Some(self.core.agent()), self.core.coder()];
+        for (report, reported) in reports.into_iter().zip(&mut self.reported) {
+            if let Some(report) = report
+                && Some(&report) != reported.as_ref()
+            {
+                let _ = mc.send(mc::Report::Agent(report.clone()));
+                *reported = Some(report);
             }
         }
-        Ok(())
+        let dot = self.core.config().indicator.then(|| self.core.state());
+        if dot != self.dot {
+            let _ = mc.send(mc::Report::State(dot));
+            self.dot = dot;
+        }
     }
 
     /// What happens to an input before the core gets it.
@@ -307,6 +330,10 @@ impl Agent {
                     self.recorder = start_recording(&new.record_dir);
                 }
                 self.speaker.set_cmd(new.playback_cmd.clone());
+                self.probe.send_if_modified(|urls| {
+                    let new = [new.asr_url.clone(), new.tts_url.clone()];
+                    std::mem::replace(urls, new.clone()) != new
+                });
                 let (chat, config) = (self.chat.clone(), (**new).clone());
                 self.net.spawn(async move {
                     let mut chat = chat.lock().await;

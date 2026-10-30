@@ -82,6 +82,36 @@ pub fn wait(server: &'static str) -> Duration {
     })
 }
 
+/// The interval of the probes of a server that is up.
+const PROBE: Duration = Duration::from_secs(30);
+
+/// Probes the websockets of the ASR and the TTS (`urls`) at the start,
+/// after a change of `urls`, every 30 s, and when the backoff of a server
+/// that is down ends: a connect without a request, so that
+/// `voice.health` shows an outage and its end without a turn.
+pub async fn probe(mut urls: tokio::sync::watch::Receiver<[String; 2]>) {
+    loop {
+        let now = urls.borrow_and_update().clone();
+        for (server, url) in ["asr", "tts"].into_iter().zip(now) {
+            let connect = tokio_tungstenite::connect_async(url.as_str());
+            match tokio::time::timeout(Duration::from_secs(5), connect).await {
+                Ok(Ok(_)) => ok(server),
+                Ok(Err(e)) => drop(down(server, &format!("{url}: {e}"))),
+                Err(_) => drop(down(server, &format!("{url}: no answer within 5 s"))),
+            }
+        }
+        let next = ["asr", "tts"]
+            .map(wait)
+            .into_iter()
+            .filter(|w| !w.is_zero())
+            .min();
+        tokio::select! {
+            () = tokio::time::sleep(next.unwrap_or(PROBE)) => {}
+            changed = urls.changed() => if changed.is_err() { return },
+        }
+    }
+}
+
 /// `{SERVER: {status, error, error_at}}` for each of `SERVERS`; the
 /// status is `ok`, `down` or `unknown` before the first report, and
 /// `error_at` the Unix time of the last error.
