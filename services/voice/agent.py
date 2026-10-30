@@ -633,7 +633,7 @@ class Coder:
             state = "was cancelled"
         except OSError as err:
             result = str(err)
-        text = f"{CODER_REPORT} {self.workdir} {state}. {(result or self.step)[:400]}"
+        text = f"{CODER_REPORT} {self.workdir.name} {state}. {(result or self.step)[:400]}"
         self.reports.append(text)
         await speak(self.http, one(text))
 
@@ -1145,6 +1145,9 @@ async def turn(
     """
     barged, http = bool(preroll), tools.http
     pcm = await record(mic, ptt, preroll)
+    if tools.coder:  # the results that the user heard, before questions about them
+        history += [{"role": "assistant", "content": r} for r in tools.coder.reports]
+        tools.coder.reports.clear()
     # Gufo refuses less than 100 ms, such as the rest of a key tap.
     said = await transcribe(http, pcm) if len(pcm) >= RATE * 2 // 10 else ""
     log(f"you: {said}")
@@ -1224,9 +1227,6 @@ async def run_loop(
                 log(f"turn failed, the history drops it: {err!r}")
                 del history[start:]
                 preroll = []
-            if tools.coder:  # the results that the user heard, for questions about them
-                history += [{"role": "assistant", "content": r} for r in tools.coder.reports]
-                tools.coder.reports.clear()
             trim(history)
             save(past, history)
 
