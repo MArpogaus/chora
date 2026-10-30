@@ -33,6 +33,16 @@ changes the scene in another way.
 Plugins are separate processes (D28). A plugin can also be a Wayland client,
 for example to draw window decorations as its own surfaces.
 
+The plugin runtime in `chora-kit` (`runtime.rs`) does what every plugin
+repeats. It connects with `resume`, subscribes to the events and exports
+the methods of the plugin, before the plugin builds its scene. It grabs
+the bindings, answers the method calls and drops the events of outputs
+that `--output` leaves to other window managers. When the core closes
+the connection, for example at the emergency reset, it connects again
+after 500 ms. It gives up when only failures follow for 30 s. The plugin keeps
+its claim and its restart from `meta`, because each plugin rebuilds
+different things. `chora-tiling` runs on the runtime.
+
 ## Components
 
 ### Core

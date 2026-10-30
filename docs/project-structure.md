@@ -10,7 +10,7 @@ chora/
 ├── crates/
 │   ├── chora-scene/   # scene model, commands, events, selectors, IPC types and client; no Smithay
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
-│   ├── chora-kit/     # building blocks for plugins: wobbly windows, magic lamp, XDG dirs, icons, desktop entries
+│   ├── chora-kit/     # building blocks for plugins: the plugin runtime, wobbly windows, magic lamp, XDG dirs, icons, desktop entries
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
 │   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome
@@ -34,8 +34,8 @@ chora/
   and plugins share this one definition of the API.
 - **`chora-kit` holds the building blocks that plugins share** and that
   are not part of the API of the core: the IPC and event connection, the
-  self-computed effects and the freedesktop files. Today `conn` is the
-  part with more than one user; code of one plugin stays in that plugin.
+  plugin runtime, the self-computed effects and the freedesktop files.
+  Code of one plugin stays in that plugin.
 - **Reference plugins are workspace members.** They keep the API honest.
 - **`choractl` builds the JSON schemas** from the Rust types at run time, in
   `crates/choractl/src/schema.rs`. The repository does not contain them.
