@@ -416,6 +416,7 @@ answers every request.
 | `methods.list` | list the methods that clients exported, each with its description and input schema |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call` |
 | `methods.return(call, result, error)` | answer a `method.called` event |
+| `session.quit` | end chora as Ctrl+Alt+Backspace does, after the answer; a client socket needs the capability `session.quit`, the main socket may always; `choractl quit` calls it |
 | `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability `activation.token` |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
@@ -652,9 +653,11 @@ in. `choractl clients create agent` prints its path:
   drives the session as far as they reach.
 - `grants.set` and `grants.revoke` answer code 9 for the name: change
   `clients.yaml` and run `choractl clients up`.
-- `methods.call` needs the capability `methods.call`, and
-  `activation.token` the capability `activation.token`. Without them
-  both answer code 4. The main socket needs neither. A token of
+- `methods.call` needs the capability `methods.call`,
+  `activation.token` the capability `activation.token` and
+  `session.quit` the capability `session.quit`. Without them they
+  answer code 4. The main socket needs none of them. So a confined agent
+  cannot end chora by default. A token of
   `activation.token` belongs to no client. Any window that activates
   with it takes the focus without a press, also a window of the client
   itself. With `methods.call`, a client can also ask a window manager for
@@ -924,15 +927,20 @@ lists all of its methods:
 
 A plugin with settings exports `settings.get` and `settings.set` through
 the runtime of `chora-kit` (D62). `settings.get` answers all settings.
-`settings.set` takes an object. Each key replaces the value of that
-setting, and the other settings stay. The plugin checks the result, saves
-it in its YAML file in `$XDG_CONFIG_HOME/chora/` and applies it at once.
-`settings.set` answers all settings. A wrong value gets the error
-`-32602` and changes nothing. In `methods.list`, the schema of
-`settings.set` lists every setting.
+`settings.set` takes a JSON merge patch (RFC 7386) of the settings: an
+object merges into the current settings key by key, also in nested
+objects, and a list or another value replaces its value. The other
+settings stay. `null` removes the key: a map such as `bindings` loses that
+entry, and a fixed setting takes its default again. So `null` cannot set an
+optional setting such as `session.log_off` to none; the file can. The
+plugin checks the result, saves it in its YAML file in
+`$XDG_CONFIG_HOME/chora/` and applies it at once. `settings.set` answers
+all settings. A wrong value gets the error `-32602` and changes nothing.
+In `methods.list`, the schema of `settings.set` lists every setting.
 
 ```console
-$ choractl call tiling settings.set '{"style": {"opacity": 0.9, "effects": []}}'
+$ choractl call tiling settings.set '{"style": {"opacity": 0.9}}'
+$ choractl call tiling settings.set '{"bindings": {"MOD+u": null}}'
 ```
 
 `chora-xp` exports `start_menu`, `minimize`, `restore`, `activate`,
@@ -943,7 +951,7 @@ Its dialogs change the settings in the same way as `settings.set`. The
 method `restart` runs `chora-xp` again, which reads the file again:
 
 ```console
-$ choractl call xp settings.set '{"effects": {"wobbly": false, "lamp": true, "cube": true, "sounds": false}}'
+$ choractl call xp settings.set '{"effects": {"wobbly": false, "sounds": false}}'
 ```
 
 ## Plugins

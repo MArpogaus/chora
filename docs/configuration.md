@@ -124,10 +124,11 @@ showroom:
   grants: []
 ```
 
-The grants are the five capabilities of `choractl grant` (see
+The grants are the six capabilities of `choractl grant` (see
 [API](api.md#client-sockets)). An agent that
 drives the window manager needs `methods.call`, and one that starts apps
-needs `activation.token`. Both let it take the keyboard focus.
+needs `activation.token`. Both let it take the keyboard focus. A name
+that may end chora needs `session.quit`.
 
 The names follow the rules of `hello`. `clients up` opens the socket of
 every name with exactly the capabilities of its list. A socket that
@@ -149,8 +150,10 @@ default `~/.config`, or the file of `--config`. Without a file, it uses its
 default, which `chora-tiling --print-config` prints. The file holds the
 settings of D62: `settings.set` changes them at once and writes the file
 again, without its comments (see [API](api.md#plugin-methods)). Edits by
-hand apply at the next start of the plugin or with `MOD+Ctrl+r`. The file
-lists every option:
+hand apply at the next start of the plugin or with `MOD+Ctrl+r`. The
+default file lists every option. A file can leave options out, and they
+take their defaults; a map such as `bindings` in the file replaces the
+default map:
 
 | Option | Meaning |
 |--------|---------|
@@ -261,7 +264,8 @@ of its own. The settings of D62 are in `chora/chora-mc.yaml`:
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME` and `run: COMMAND`.
 
-`chora-mc --print-config` prints the default. The collector
+`chora-mc --print-config` prints the default. An option that the file
+leaves out takes its default. The collector
 `plugins/chora-mc/collectors/agenda.sh` puts the org agenda of today into
 the scene `agenda`, with `emacs --batch`: the entries with a time, and the
 tasks scheduled or due today, each as a time and a text in two columns.
@@ -575,8 +579,9 @@ button runs its command of the setting `session` (D63). In Turn off
 computer, Stand By runs `systemctl suspend`, Turn Off `systemctl
 poweroff` and Restart `systemctl reboot` by default. Stand By is disabled
 when the first word of its command is not on the `PATH`. In Log Off
-Windows, Log Off has no command by default, because the core has no
-method that ends the session: it asks every window to close and ends
+Windows, Log Off runs `choractl quit` by default, which ends
+chora through the core method `session.quit`. Without a command
+(`log_off: null`), Log Off asks every window to close and ends
 `chora-xp`. A command such as `loginctl terminate-session
 $XDG_SESSION_ID` ends a login session. Switch User is always disabled,
 because chora has no second session to switch to. Without a command,
@@ -665,7 +670,8 @@ these bindings, Super+Ctrl with the arrows stands in.
 default, `plugins/chora-xp/xp.yaml` of the source tree. The file holds
 the settings of D62: `settings.set` and the dialogs change them at once
 and write the file again, without its comments. Edits by hand apply with
-the method `restart`. The file lists every option:
+the method `restart`. The default file lists every option; an option
+that the file leaves out takes its default:
 
 | Option | Default | Meaning |
 |--------|---------|---------|
@@ -679,12 +685,13 @@ the method `restart`. The file lists every option:
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
 | `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
 
-`settings.set` replaces each key that it gets, so a change of the
-wallpaper names `picture`, `position` and `color`:
+`settings.set` merges its object into the settings (see
+[API](api.md#plugin-methods)), so a change of the wallpaper names only
+what changes:
 
 ```bash
 choractl call xp settings.set \
-  '{"wallpaper": {"picture": {"file": "/usr/share/backgrounds/a.png"}, "position": "fill", "color": [0, 78, 152]}}'
+  '{"wallpaper": {"picture": {"file": "/usr/share/backgrounds/a.png"}}}'
 ```
 
 To try the flavor from a source tree, start it nested:
