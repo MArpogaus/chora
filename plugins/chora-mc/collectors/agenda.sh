@@ -1,10 +1,14 @@
 #!/bin/sh
-# Puts the org agenda of today into the panel `today` of the scene `agenda`
-# of chora-mc. Emacs builds the agenda, so repeats, warnings and overdue
-# entries come out as in Emacs; the files are only read.
+# Puts the org agenda of today into the panel `today` of the scene
+# `agenda` of chora-mc: the entries with a time of today, and the tasks
+# scheduled or due today. Nothing overdue, nothing upcoming, nothing done.
+# Each line is "TIME  TEXT"; an entry without a time has an empty time.
+# Emacs builds the agenda, so repeats come out as in Emacs; the files are
+# only read.
 #
-# Usage: agenda.sh [ORG_FILE...]   (default: ~/Notes/agenda/gtd.org)
+# Usage: agenda.sh [--print] [ORG_FILE...]   (default: ~/Notes/agenda/gtd.org)
 # Run it from a timer, or with --print to see the JSON without chora.
+# ORG_TODO sets the TODO keywords, as in #+TODO, when the files have none.
 set -eu
 print=
 if [ "${1-}" = --print ]; then
@@ -12,24 +16,52 @@ if [ "${1-}" = --print ]; then
     shift
 fi
 [ $# -gt 0 ] || set -- "$HOME/Notes/agenda/gtd.org"
-params=$(emacs -Q --batch --eval '
+params=$(ORG_TODO="${ORG_TODO-PROJ TODO NEXT WAIT | DONE KILL}" emacs -Q --batch --eval '
 (progn
   (require (quote org-agenda))
   (require (quote json))
   (setq org-agenda-files command-line-args-left
         command-line-args-left nil
-        org-agenda-prefix-format "%?-12t%s"
-        org-agenda-todo-keyword-format ""
-        org-agenda-remove-tags t
-        org-agenda-use-time-grid nil)
+        org-todo-keywords (list (cons (quote sequence) (split-string (getenv "ORG_TODO"))))
+        org-agenda-use-time-grid nil
+        org-agenda-skip-scheduled-if-done t
+        org-agenda-skip-deadline-if-done t
+        org-agenda-skip-timestamp-if-done t)
   (org-agenda-list nil nil 1)
-  ;; The first two lines are the header and the date.
-  (let ((lines (cddr (split-string (buffer-substring-no-properties (point-min) (point-max))
-                                  "\n" t "[ \t]+"))))
-    (princ (json-encode
-            (list (cons "scene" "agenda") (cons "panel" "today")
-                  (cons "title" (format-time-string "%A, %e %B"))
-                  (cons "lines" (vconcat lines)))))))' "$@" 2>/dev/null)
+  (let ((today (org-today)) items)
+    (goto-char (point-min))
+    (while (not (eobp))
+      (let* ((p (point))
+             (type (get-text-property p (quote type)))
+             (txt (get-text-property p (quote txt)))
+             (state (get-text-property p (quote todo-state)))
+             (due (get-text-property p (quote ts-date))))
+        (when (and txt
+                   (member type (quote ("timestamp" "block" "scheduled" "deadline")))
+                   (or (member type (quote ("timestamp" "block"))) (eql due today))
+                   (not (member state org-done-keywords-for-agenda)))
+          (let ((time (replace-regexp-in-string
+                       "^ " "\u2007" (string-trim-right (replace-regexp-in-string
+                                          "\\.+$" "" (or (get-text-property p (quote time)) "")))))
+                (text (substring-no-properties txt)))
+            (when (and state (string-prefix-p (concat state " ") text))
+              (setq text (substring text (1+ (length state)))))
+            (setq text (string-trim (replace-regexp-in-string
+                                     "[ \t]+:[[:alnum:]_@#%:]+:[ \t]*$" "" text)))
+            (push (cons time text) items))))
+      (forward-line 1))
+    (setq items (nreverse items))
+    ;; Figure spaces as wide as digits keep the texts in one column.
+    (let ((width (apply (function max) 0 (mapcar (lambda (i) (length (car i))) items))))
+      (princ (json-encode
+              (list (cons "scene" "agenda") (cons "panel" "today")
+                    (cons "title" (format-time-string "%A, %e %B"))
+                    (cons "lines" (vconcat
+                                   (mapcar (lambda (i)
+                                             (concat (car i)
+                                                     (make-string (- width (length (car i))) ? )
+                                                     "  " (cdr i)))
+                                           items)))))))))' "$@" 2>/dev/null)
 if [ -n "$print" ]; then
     printf '%s\n' "$params"
 else

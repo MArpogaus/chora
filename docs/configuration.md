@@ -251,7 +251,10 @@ of its own. The settings of D62 are in `chora/chora-mc.yaml`:
 `previous_scene`, `scene: NAME` and `run: COMMAND`. `chora-mc
 --print-config` prints the default. The collector
 `plugins/chora-mc/collectors/agenda.sh` puts the org agenda of today into
-the scene `agenda`, with `emacs --batch`.
+the scene `agenda`, with `emacs --batch`: the entries with a time, and the
+tasks scheduled or due today, as `TIME  TEXT`. It leaves out overdue,
+upcoming and done tasks. `ORG_TODO` sets the TODO keywords, by default
+`PROJ TODO NEXT WAIT | DONE KILL`.
 
 ## Flavors
 
