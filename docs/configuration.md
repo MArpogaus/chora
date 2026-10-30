@@ -205,6 +205,54 @@ windows again when one of its outputs comes back. Next to `chora-xp`,
 tiling needs `modifier: Super`: with `Alt`, tiling grabs Alt+Space for
 `next_layout`, and the system menu of XP does not open.
 
+## chora-mc (experimental)
+
+!!! warning "Experimental"
+    `chora-mc` is an experiment. It is not in the packages, and its
+    methods and files change without notice.
+
+`chora-mc` connects with the client name `mc`. It is a voice-first
+desktop without window management: the whole screen shows one view at a
+time on the first output, and a quiet HUD line at the bottom shows what the
+voice agent does. The voice agent and small collector scripts fill the
+views through methods; the plugin reads no sources itself.
+
+A view of `chora-mc` is not a view of D35. It is a YAML file
+`NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/views/`: a grid of panels, each
+with a title and lines, or one app whose window fills the screen without
+a frame. The plugin has the built-in views `agenda` and `terminal`. A file
+of the same name replaces a built-in view.
+
+```yaml
+# ~/.config/chora/mc/views/day.yaml
+grid: [2, 2]          # columns and rows
+panels:
+- id: mail
+  cell: [0, 0, 1, 1]  # column, row, width and height in cells
+  title: Mail
+- id: agents
+  cell: [1, 0, 1, 2]
+  title: Agents
+```
+
+| Method | Parameters |
+|--------|------------|
+| `view.show` | `name`; the view fades in, the old one fades out |
+| `view.list` | none; answers `views` and `current` |
+| `view.save` | `name`, `grid`, `panels` or `app`; writes the file |
+| `panel.set` | `view`, `panel`, `lines` and an optional `title`; until the next start |
+| `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line |
+| `app.open` | `command`: a shell command that starts in a view of its own |
+
+A window that no view started, for example from a launcher, gets a view
+of its own. The settings of D62 are in `chora/chora-mc.yaml`:
+`theme` (`light` or `dark`), the colors of each theme, the `font`, the
+`default_view` and the `bindings` with the actions `next_view`,
+`previous_view`, `view: NAME` and `run: COMMAND`. `chora-mc
+--print-config` prints the default. The collector
+`plugins/chora-mc/collectors/agenda.sh` puts the org agenda of today into
+the view `agenda`, with `emacs --batch`.
+
 ## Flavors
 
 A flavor is a directory with views, plugin manifests and services, plus a
