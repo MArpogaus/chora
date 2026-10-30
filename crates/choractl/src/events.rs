@@ -6,6 +6,7 @@
 
 use std::{
     collections::VecDeque,
+    path::Path,
     sync::{Arc, Condvar, Mutex},
     thread,
     time::{Duration, Instant},
@@ -39,6 +40,10 @@ pub struct Subscription {
     buffer: Arc<(Mutex<Buffer>, Condvar)>,
     /// The connection, shut down when the subscription ends.
     socket: std::os::unix::net::UnixStream,
+    /// The event names it started with.
+    pub events: Vec<String>,
+    /// The keys it started with.
+    pub keys: Vec<Binding>,
 }
 
 impl Drop for Subscription {
@@ -55,12 +60,12 @@ impl Subscription {
     /// another one tries a grab again for a while, since the core may not
     /// yet have closed the old connection with its grabs.
     pub fn start(
+        path: &Path,
         name: &str,
         events: Vec<String>,
         keys: Vec<Binding>,
         replaces: bool,
     ) -> Result<(Self, Vec<String>), ClientError> {
-        let path = std::env::var_os(chora_scene::ipc::SOCKET_ENV).ok_or(ClientError::NoSocket)?;
         let socket = std::os::unix::net::UnixStream::connect(path)?;
         let hello = Hello {
             name: name.into(),
@@ -69,14 +74,25 @@ impl Subscription {
         };
         let mut client = Client::from_stream(socket.try_clone()?, &hello)?;
         let mut grabbed = Vec::new();
-        for binding in keys {
-            grabbed.push(grab(&mut client, &binding, replaces)?);
+        for binding in &keys {
+            grabbed.push(grab(&mut client, binding, replaces)?);
         }
-        client.call::<_, Value>("events.subscribe", Subscribe { events })?;
+        let subscribe = Subscribe {
+            events: events.clone(),
+        };
+        client.call::<_, Value>("events.subscribe", subscribe)?;
         let buffer = Arc::new((Mutex::new(Buffer::default()), Condvar::new()));
         let filled = Arc::clone(&buffer);
         thread::spawn(move || read(&mut client, &filled));
-        Ok((Self { buffer, socket }, grabbed))
+        Ok((
+            Self {
+                buffer,
+                socket,
+                events,
+                keys,
+            },
+            grabbed,
+        ))
     }
 
     /// Takes up to `max` events; waits up to `timeout` for the first one.

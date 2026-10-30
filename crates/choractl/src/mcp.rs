@@ -9,6 +9,7 @@
 
 use std::{
     collections::HashMap,
+    path::PathBuf,
     sync::{Arc, Mutex, MutexGuard, PoisonError},
     time::Duration,
 };
@@ -18,7 +19,7 @@ use chora_scene::{
     Node, NodeKind, OutputInfo, Transform,
     ipc::{
         Apply, AssetPut, Capture, Client, ClientError, Hello, Inject, MethodCall, OutputConfigure,
-        Picture, Query, Reserve, RpcError,
+        Picture, Query, Reserve, RpcError, SOCKET_ENV,
     },
 };
 use rmcp::{
@@ -130,6 +131,8 @@ impl Core {
 /// parallel. No lock is held across an await.
 pub struct Mcp {
     name: String,
+    /// The path of the core socket.
+    socket: PathBuf,
     core: Mutex<Core>,
     /// The subscription of `wait_events`, on a connection of its own.
     subscription: Mutex<Option<Arc<Subscription>>>,
@@ -180,14 +183,34 @@ impl Mcp {
                     .map_err(|e| Failure::Tool(e.to_string()))
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let replacing = self
+        // The old subscription ends first, since its grabs block the new
+        // ones; its events and keys bring it back if the new one fails.
+        let old = self
             .subscription
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .take()
-            .is_some();
-        let (subscription, grabbed) =
-            Subscription::start(&self.name, events.clone(), keys, replacing)?;
+            .map(|old| (old.events.clone(), old.keys.clone()));
+        let started = Subscription::start(
+            &self.socket,
+            &self.name,
+            events.clone(),
+            keys,
+            old.is_some(),
+        );
+        let (subscription, grabbed) = match started {
+            Ok(started) => started,
+            Err(e) => {
+                let back = old.and_then(|(events, keys)| {
+                    Subscription::start(&self.socket, &self.name, events, keys, true).ok()
+                });
+                *self
+                    .subscription
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner) = back.map(|(s, _)| Arc::new(s));
+                return Err(e.into());
+            }
+        };
         *self
             .subscription
             .lock()
@@ -324,9 +347,11 @@ pub fn serve(name: String) -> Result<(), String> {
         keep_nodes: true,
         ..Hello::default()
     };
-    let client = Client::from_env(&hello).map_err(|e| e.to_string())?;
+    let socket = PathBuf::from(std::env::var_os(SOCKET_ENV).ok_or("CHORA_SOCKET is not set")?);
+    let client = Client::connect(&socket, &hello).map_err(|e| e.to_string())?;
     let server = Mcp {
         name: name.clone(),
+        socket,
         core: Mutex::new(Core {
             name,
             client: Some(client),
@@ -415,7 +440,7 @@ fn event_tools() -> Vec<Tool> {
     vec![
         tool(
             "subscribe_events",
-            "Start to collect events for wait_events, and grab keys and buttons, which then arrive as input.key events, or as input.button and input.moved events for a button such as Super+BTN_LEFT. Replaces the earlier subscription. Events: surface.created, surface.changed, surface.destroyed, surface.requested, pointer.pressed, pointer.moved, pointer.released, pointer.scroll, pointer.entered, pointer.left, input.key, node.key, animation.done, output.changed and others.",
+            "Start to collect events for wait_events, and grab keys and buttons, which then arrive as input.key events, or as input.button and input.moved events for a button such as Super+BTN_LEFT. Replaces the earlier subscription; if it fails, the earlier one stays. Events: surface.created, surface.changed, surface.destroyed, surface.requested, pointer.pressed, pointer.moved, pointer.released, pointer.scroll, pointer.entered, pointer.left, input.key, node.key, animation.done, output.changed and others.",
             &json!({
                 "events": {"type": "array", "items": {"type": "string"}, "description": "event names; every event if empty or missing"},
                 "keys": {"type": "array", "items": {"type": "string"}, "description": "bindings to grab, for example Super+F1 or Super+BTN_LEFT; they need Ctrl, Alt or Super"},
@@ -922,6 +947,53 @@ mod tests {
         let by_id: HashMap<&str, &Node> = nodes.iter().map(|n| (n.id.as_str(), n)).collect();
         assert!(!shown(&nodes[2], &by_id));
         assert!(shown(&nodes[3], &by_id));
+    }
+
+    /// A core on a socket that grants every grab but `Super+k`.
+    fn fake_core() -> PathBuf {
+        let path = std::env::temp_dir().join(format!("choractl-test-{}.sock", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let listener = std::os::unix::net::UnixListener::bind(&path).expect("bind");
+        std::thread::spawn(move || {
+            for stream in listener.incoming().flatten() {
+                std::thread::spawn(move || serve_fake(stream));
+            }
+        });
+        path
+    }
+
+    fn serve_fake(stream: std::os::unix::net::UnixStream) {
+        use std::io::{BufRead, BufReader, Write};
+        let mut writer = stream.try_clone().expect("clone");
+        for line in BufReader::new(stream).lines().map_while(Result::ok) {
+            let request: Value = serde_json::from_str(&line).expect("json");
+            let mut answer = if request["params"]["binding"] == "Super+k" {
+                json!({"error": {"code": -32000, "message": "Super+k is taken"}})
+            } else {
+                json!({"result": request["params"]["binding"]})
+            };
+            answer["jsonrpc"] = json!("2.0");
+            answer["id"] = request["id"].clone();
+            let _ = writeln!(writer, "{answer}");
+        }
+    }
+
+    #[test]
+    fn a_failed_subscription_keeps_the_old_one() {
+        let mcp = Mcp {
+            name: "agent".into(),
+            socket: fake_core(),
+            core: Mutex::new(Core {
+                name: "agent".into(),
+                client: None,
+                reserves: HashMap::new(),
+            }),
+            subscription: Mutex::new(None),
+        };
+        assert!(mcp.subscribe(&json!({"keys": ["Super+a"]})).is_ok());
+        assert!(mcp.subscribe(&json!({"keys": ["Super+k"]})).is_err());
+        assert!(mcp.subscription.lock().expect("lock").is_some());
+        let _ = std::fs::remove_file(&mcp.socket);
     }
 
     #[test]
