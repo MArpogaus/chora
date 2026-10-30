@@ -167,6 +167,11 @@ impl Settings for Config {
             if let Some(other) = keys.insert(self.binding(binding)?.to_string(), binding) {
                 return Err(format!("{binding}: the same key as {other}"));
             }
+            if let Action::Run(command) = action
+                && command.trim().is_empty()
+            {
+                return Err(format!("{binding}: run takes a command"));
+            }
             if let Action::IncMasterWidth(step) = action
                 && !step.is_finite()
             {
@@ -235,6 +240,15 @@ mod tests {
             config.binding("MOD+Shift+1").unwrap().to_string(),
             "Shift+Super+1"
         );
+    }
+
+    /// W9: settings.set took {"run": ""}.
+    #[test]
+    fn a_run_without_a_command_fails() {
+        let run = DEFAULT.replace("MOD+Return: {run: foot}", "MOD+Return: {run: ' '}");
+        assert_ne!(run, DEFAULT);
+        let err = parse::<Config>(&run).unwrap_err();
+        assert!(err.contains("run takes a command"), "{err}");
     }
 
     #[test]
