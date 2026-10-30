@@ -129,14 +129,16 @@ fn is_path(name: &str) -> bool {
 
 /// Checks the name of a view or a plugin by the rule of the core. The
 /// check carries the `view-` prefix of a view, so a plugin name stays a
-/// few bytes below the limit of `hello`.
+/// few bytes below the limit of `hello`. A name that ends in `.yaml`
+/// would load a file by path, so it is no name.
 pub fn check_name(name: &str) -> Result<(), String> {
     let client = format!("view-{name}");
-    if chora_scene::ipc::valid_name(name) && chora_scene::ipc::valid_name(&client) {
+    if chora_scene::ipc::valid_name(name) && chora_scene::ipc::valid_name(&client) && !is_path(name)
+    {
         Ok(())
     } else {
         Err(format!(
-            "invalid name {name:?}: lowercase letters, digits, _, - and ., from a letter, at most {} bytes",
+            "invalid name {name:?}: lowercase letters, digits, _, - and ., from a letter, at most {} bytes, not ending in .yaml",
             chora_scene::ipc::MAX_NAME
         ))
     }
@@ -543,7 +545,15 @@ mod tests {
     fn names_stay_in_their_directory() {
         assert!(check_name("work-2.night").is_ok());
         for bad in [
-            "", "../x", ".hidden", "a/b", "/etc/x", "a b", "Work", "9lives",
+            "",
+            "../x",
+            ".hidden",
+            "a/b",
+            "/etc/x",
+            "a b",
+            "Work",
+            "9lives",
+            "evil.yaml",
         ] {
             assert!(check_name(bad).is_err(), "{bad:?}");
         }
