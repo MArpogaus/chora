@@ -4,6 +4,7 @@
 
 mod asr;
 mod audio;
+mod chat;
 mod client;
 mod config;
 mod core;
