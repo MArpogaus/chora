@@ -2544,27 +2544,34 @@ lists all of its methods:</p>
 </tr>
 </tbody>
 </table>
-<p>A plugin with settings exports <code>settings.get</code> and <code>settings.set</code> through
-the runtime of <code>chora-kit</code> (D62). <code>settings.get</code> answers all settings.
+<p>A plugin with settings exports <code>settings.get</code>, <code>settings.set</code> and
+<code>settings.reload</code> through the runtime of <code>chora-kit</code> (D62). <code>settings.get</code>
+answers all settings. <code>settings.reload</code> reads the file again after an
+edit by hand, applies it and answers all settings; a wrong file gets the
+error <code>-32602</code> and changes nothing.
 <code>settings.set</code> takes a JSON merge patch (RFC 7386) of the settings: an
 object merges into the current settings key by key, also in nested
-objects, and a list or another value replaces its value. The other
+structs and maps, and a list or another value replaces its value, also an
+enum such as the action of a binding. The other
 settings stay. <code>null</code> removes the key: a map such as <code>bindings</code> loses that
 entry, and a fixed setting takes its default again. So <code>null</code> cannot set an
 optional setting such as <code>session.log_off</code> to none; the file can. The
-plugin checks the result, saves it in its YAML file in
-<code>$XDG_CONFIG_HOME/chora/</code> and applies it at once. <code>settings.set</code> answers
-all settings. A wrong value gets the error <code>-32602</code> and changes nothing.
+plugin checks the result, applies it at once and then saves it in its YAML
+file in <code>$XDG_CONFIG_HOME/chora/</code>. <code>settings.set</code> answers all settings. A
+wrong value gets the error <code>-32602</code> and changes nothing. A change that the
+plugin cannot apply is not saved. A change that the plugin cannot save
+stays applied until the next start, and the caller gets the error.
 In <code>methods.list</code>, the schema of <code>settings.set</code> lists every setting.</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"style": {"opacity": 0.9}}'</span>
 <span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"bindings": {"MOD+u": null}}'</span>
+<span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.reload
 </code></pre></div>
 <p><code>chora-xp</code> exports <code>start_menu</code>, <code>minimize</code>, <code>restore</code>, <code>activate</code>,
 <code>turn_to</code> and <code>restart</code>, and its settings: the wallpaper, the taskbar, the
 effects, the programs of the start menu and the commands of Log Off and
 Turn Off. <a href="../configuration/#the-xp-flavor">The XP flavor</a> lists them.
 Its dialogs change the settings in the same way as <code>settings.set</code>. The
-method <code>restart</code> runs <code>chora-xp</code> again, which reads the file again:</p>
+method <code>restart</code> runs <code>chora-xp</code> again, which also reads the file again:</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>xp<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"effects": {"wobbly": false, "sounds": false}}'</span>
 </code></pre></div>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>

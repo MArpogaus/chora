@@ -1306,7 +1306,8 @@ default <code>~/.config</code>, or the file of <code>--config</code>. Without a 
 default, which <code>chora-tiling --print-config</code> prints. The file holds the
 settings of D62: <code>settings.set</code> changes them at once and writes the file
 again, without its comments (see <a href="../api/#plugin-methods">API</a>). Edits by
-hand apply at the next start of the plugin or with <code>MOD+Ctrl+r</code>. The
+hand apply with <code>settings.reload</code> or <code>MOD+Ctrl+r</code>, or at the next start
+of the plugin. The
 default file lists every option. A file can leave options out, and they
 take their defaults; a map such as <code>bindings</code> in the file replaces the
 default map:</p>
@@ -1413,7 +1414,7 @@ like <code>set_layout</code>.</p>
 <td><code>MOD+Ctrl+Return</code>, for this window</td>
 </tr>
 <tr>
-<td><code>settings.get</code>, <code>settings.set</code></td>
+<td><code>settings.get</code>, <code>settings.set</code>, <code>settings.reload</code></td>
 <td>see <a href="../api/#plugin-methods">API</a></td>
 <td>an edit of the file and <code>MOD+Ctrl+r</code></td>
 </tr>
@@ -1503,7 +1504,8 @@ shows and when <code>panel.set</code> changes the text of a panel; the same text
 again changes nothing. The effect is <code>plugins/chora-mc/write.frag</code>, and
 the <code>animate</code> of the core moves its uniform <code>progress</code> from 0 to 1.</p>
 <p>A window that no scene started, for example from a launcher, gets a scene
-of its own. The settings of D62 are in <code>chora/chora-mc.yaml</code>:</p>
+of its own. The settings of D62 are in <code>chora/chora-mc.yaml</code>; edits by
+hand apply with <code>settings.reload</code>:</p>
 <ul>
 <li><code>theme</code> (<code>light</code> or <code>dark</code>) and the colors of each theme.</li>
 <li><code>font</code>: Inter by default, from the Fedora package <code>rsms-inter-fonts</code>;
@@ -1703,7 +1705,7 @@ and the Menu key open the menu of the selected icon, or of the desktop.</p>
   among them Delete and Empty Recycle Bin: the file manager does that.</li>
 <li><strong>A program or a place of the start menu, or a program of All
   Programs</strong>: Open in bold, and Remove from This List for the programs
-  of the left column, which removes the program from the setting
+  of the left column except Terminal, which removes the program from the setting
   <code>programs</code>. Run as, Pin to Start menu, Send To and Rename are gray.</li>
 </ul>
 <p>The Control Panel opens as a menu, as with XP's "Display as a menu". A
@@ -1983,7 +1985,7 @@ these bindings, Super+Ctrl with the arrows stands in.</p>
 default, <code>plugins/chora-xp/xp.yaml</code> of the source tree. The file holds
 the settings of D62: <code>settings.set</code> and the dialogs change them at once
 and write the file again, without its comments. Edits by hand apply with
-the method <code>restart</code>. The default file lists every option; an option
+the method <code>settings.reload</code> or <code>restart</code>. The default file lists every option; an option
 that the file leaves out takes its default:</p>
 <table>
 <thead>
@@ -1997,7 +1999,7 @@ that the file leaves out takes its default:</p>
 <tr>
 <td><code>terminal</code></td>
 <td><code>foot</code></td>
-<td>the terminal of Super+e; <code>CMD -e</code> runs the programs with <code>Terminal=true</code></td>
+<td>the terminal of Super+e and of Terminal at the top of the start menu; <code>CMD -e</code> runs the programs with <code>Terminal=true</code></td>
 </tr>
 <tr>
 <td><code>launcher</code></td>
@@ -2011,8 +2013,8 @@ that the file leaves out takes its default:</p>
 </tr>
 <tr>
 <td><code>programs</code></td>
-<td>the terminal</td>
-<td>the programs at the top left of the start menu, each with <code>title</code>, <code>command</code> and <code>icon</code>, the name of an icon of the icon theme</td>
+<td>none</td>
+<td>the programs at the top left of the start menu below Terminal, each with <code>title</code>, <code>command</code> and <code>icon</code>, the name of an icon of the icon theme</td>
 </tr>
 <tr>
 <td><code>clock_format</code></td>
