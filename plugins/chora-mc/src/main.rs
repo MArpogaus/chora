@@ -167,7 +167,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let shader = runtime.join(format!("chora-mc-{}/write.frag", std::process::id()));
     std::fs::create_dir_all(shader.parent().expect("a file in a directory"))?;
     std::fs::write(&shader, WRITE_SHADER)?;
-    let rt = Runtime::start(NAME, Vec::new(), &EVENTS, methods)?;
+    let rt = Runtime::connect(NAME, Vec::new())?;
     let mut mc = Mc {
         rt,
         settings,
@@ -185,7 +185,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         typing: None,
         shader,
     };
-    mc.start()?;
+    mc.start(methods)?;
     Ok(runtime::serve(&mut mc)?)
 }
 
@@ -432,7 +432,7 @@ fn translate(x: f64, y: f64) -> Transform {
 }
 
 impl Mc {
-    fn start(&mut self) -> Result<(), ClientError> {
+    fn start(&mut self, methods: Vec<ExportMethod>) -> Result<(), ClientError> {
         self.output = self.rt.outputs()?.into_iter().next();
         // The nodes that the core kept over a restart: the windows in them
         // become free and come back as scenes of their own.
@@ -450,6 +450,9 @@ impl Mc {
             })
             .collect();
         self.apply(old)?;
+        // After the removal: it detaches the kept windows, and those
+        // events would adopt them a second time.
+        self.rt.announce(&EVENTS, methods)?;
         self.grab_all()?;
         self.build()?;
         let first = self.scenes.keys().next().cloned();
@@ -914,7 +917,8 @@ impl Mc {
         app_id: Option<&str>,
         token: Option<&str>,
     ) -> Result<(), ClientError> {
-        if !self.built {
+        // The start adopts the free surfaces that events then announce too.
+        if !self.built || self.windows.values().any(|s| s == surface) {
             return Ok(());
         }
         let started = token.and_then(|t| self.starting.remove(t));
