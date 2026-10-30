@@ -109,7 +109,10 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     }
     let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
     if sym.raw() == 0 {
-        return Err(rejected(format!("unknown key {:?}", binding.key)));
+        return Err(RpcError::new(
+            RpcError::INVALID_PARAMS,
+            format!("unknown key {:?}", binding.key),
+        ));
     }
     Ok(Trigger::Key(sym))
 }
@@ -3190,7 +3193,11 @@ mod tests {
                 REJECTED,
                 "Ctrl+Alt+F3 belongs to the safety layer",
             ),
-            ("Super+NoSuchKey", REJECTED, "unknown key \"NoSuchKey\""),
+            (
+                "Super+NoSuchKey",
+                RpcError::INVALID_PARAMS,
+                "unknown key \"NoSuchKey\"",
+            ),
         ] {
             let (error_code, got) = wm.fails(&mut core, "input.grab", grab(binding));
             assert_eq!((error_code, got.as_str()), (code, message));

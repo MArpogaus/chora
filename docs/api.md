@@ -406,7 +406,7 @@ answers every request.
 | `scene.query(selector, filter)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused |
-| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; `Ctrl+Alt` with a key of the safety layer stays refused either way; returns the binding as `input.key` and `input.button` name it |
+| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
