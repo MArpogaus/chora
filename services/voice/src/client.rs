@@ -147,6 +147,7 @@ fn serve(
     }
 }
 
+#[allow(clippy::too_many_lines)] // one entry per method
 fn exported_methods() -> Vec<ExportMethod> {
     let none = json!({});
     vec![
@@ -198,6 +199,17 @@ fn exported_methods() -> Vec<ExportMethod> {
             none.clone(),
             &[],
         ),
+        // Privileged (D62): it starts programs.
+        runtime::privileged(runtime::method(
+            "agent",
+            "Runs a tool of the ACP agents without the LLM: tool is agent_list, agent_start \
+             (project, name, voice), agent_say (name, text), agent_stop (name) or \
+             agent_status (name); answers its text.",
+            json!({"tool": {"type": "string"}, "project": {"type": "string"},
+                "name": {"type": "string"}, "voice": {"type": "string"},
+                "text": {"type": "string"}}),
+            &["tool"],
+        )),
         runtime::method(
             "restart",
             "Reads the settings file again, for example after an edit by hand.",
@@ -263,6 +275,20 @@ impl Plugin for Client {
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         let call = match method {
             "health" => return Ok(crate::health::record()),
+            "agent" => {
+                let tool = params["tool"].as_str().unwrap_or_default().to_owned();
+                if !crate::agents::TOOLS.contains(&tool.as_str()) {
+                    let tools = crate::agents::TOOLS.join(", ");
+                    return Err(RpcError::new(
+                        RpcError::INVALID_PARAMS,
+                        format!("tool: one of {tools}"),
+                    ));
+                }
+                let (tx, rx) = mpsc::channel();
+                let gone = || RpcError::new(RpcError::REJECTED, "the agent does not answer");
+                (self.tx.send(Input::AgentCall(tool, params, tx))).map_err(|_| gone())?;
+                return rx.recv_timeout(ANSWER).map_err(|_| gone());
+            }
             "state" => Call::State,
             "cancel" => Call::Cancel,
             "sleep" => Call::Sleep,

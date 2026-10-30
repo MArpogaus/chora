@@ -226,6 +226,11 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     let result = loop {
         match rx.recv() {
             Ok(Input::Quit) => break Ok(()),
+            Ok(Input::AgentCall(tool, args, reply)) => {
+                // agent_start spawns its actor on the runtime.
+                let _runtime = agent.net.enter();
+                let _ = reply.send(agents.call(&tool, &args));
+            }
             Ok(input) => {
                 if let Err(e) = agent.step(input) {
                     break Err(e);
