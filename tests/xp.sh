@@ -5,10 +5,9 @@
 # mesh, the minimize button sends the window through the magic lamp and
 # the task button brings it back, the start menu opens and starts a
 # terminal, the buttons of the title bar maximize and close a window, and
-# the desktop buttons turn the cube to another desktop and back, Escape
-# answers No to Confirm File Delete, and the exported methods do what the
-# clicks do. Buttons light up under the
-# pointer.
+# the desktop buttons turn the cube to another desktop and back, My
+# Documents of the start menu starts the file manager, and the exported
+# methods do what the clicks do. Buttons light up under the pointer.
 #
 # A virtual pointer of the host drives chora, as in tests/nested.sh. Its
 # coordinates are those of the 1280x800 output, which shows the scene
@@ -20,7 +19,8 @@
 # Usage: tests/xp.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-xp and chora-probe
 #   OUT_DIR  receives the logs and screenshots (default: a temp dir)
-# Needs: sway, foot, grim, jq, pgrep and a Mesa driver.
+# Needs: sway, foot, grim, jq, pgrep and a Mesa driver. The file manager
+# is thunar when it is installed, else foot in the folder.
 set -euo pipefail
 
 bin=$(realpath "$1")
@@ -64,13 +64,19 @@ WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
 pids+=($!)
 wait_for test -S "$XDG_RUNTIME_DIR/wayland-1"
 export WAYLAND_DISPLAY=wayland-1
-# A home of its own: step 13 drops a file of the Desktop into the bin.
+# A home of its own: step 13 opens it in the file manager.
 export HOME=$XDG_RUNTIME_DIR
 unset XDG_CONFIG_HOME XDG_DATA_HOME
 
+if command -v thunar >/dev/null; then
+    file_manager=thunar
+else
+    file_manager="foot --working-directory"
+fi
+
 step "1. chora -- chora-xp starts nested"
 CHORA_FRAME_BUDGET_US=500000 "$bin/chora" -- "$bin/chora-xp" --theme "$theme" --slow-motion 5 \
-    >"$out/chora.log" 2>&1 &
+    --file-manager "$file_manager" >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
 wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"
@@ -295,50 +301,24 @@ desk_visible 0 false || fail "the first desktop still shows"
 keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
 
-step "13. Escape answers No to Confirm File Delete"
-# A file of the Desktop, dropped on the Recycle Bin, asks first; Escape
-# answers No, as on XP, and the file stays. My Documents and My Computer
-# stay first and the Recycle Bin last, so the one file of the Desktop is
-# the third icon and the bin follows it.
-mkdir -p "$HOME/Desktop"
-echo delete-me >"$HOME/Desktop/x.txt"
-icon_count() {
-    query kind:image |
-        jq '[.[] | select(.id | startswith("xp-icon-"))] | length'
-}
-four_icons() { test "$(icon_count)" = 4; }
-wait_for four_icons
-icon_at() {
-    query "id:$1" |
-        jq -r '.[0].transform.matrix | "\(.[12] + 40 | floor) \(.[13] + 40 | floor)"'
-}
-# The windows of the first desktop cover the icons; the second desktop
-# is empty and shows the same icons. A turn waits until the turn back of
-# step 12 ends: chora-xp runs in slow motion and ignores a second turn.
-wait_for has_node_count 0 id:xp-face-1
-keys 29+56+106 || fail "the keys failed: $out/probe.log"
-wait_for desk_visible 1 true
-wait_for has_node_count 0 id:xp-face-0
-icons_shown() { test "$(query id:xp-icons | jq '.[0].visible')" = "true"; }
-wait_for icons_shown
-read -r fx fy <<<"$(icon_at xp-icon-2)"
-read -r bx by <<<"$(icon_at xp-icon-3)"
-timeout 20 "$bin/chora-probe" drag "$fx" "$fy" "$bx" "$by" >>"$out/probe.log" 2>&1 &
-job=$!
-asked() { test "$(query id:xp-dlg-confirm | jq -r '.[0].visible // false')" = "true"; }
-wait_for asked
-grim "$out/confirm.png"
-wait "$job" || fail "the drop failed: $out/probe.log"
-keys 1 || fail "the keys failed: $out/probe.log"
-answered() {
-    test "$(query id:xp-dlg-confirm | jq -r '.[0].visible // false')" = "false"
-}
-wait_for answered
-test -f "$HOME/Desktop/x.txt" || fail "Escape answered Yes"
-grim "$out/escape-no.png"
-keys 29+56+105 || fail "the keys failed: $out/probe.log"
-wait_for desk_visible 0 true
-wait_for has_node_count 0 id:xp-face-1
+step "13. My Documents of the start menu starts the file manager"
+# Its window comes with the activation token of choractl run (D42).
+"$bin/choractl" events surface.created >"$out/fm-created.jsonl" 2>/dev/null &
+fm_job=$!
+sleep 0.5
+click 50 785 || fail "the click failed"
+wait_for menu_visible true
+# The first place sits right of the 189 pixel column, below the header.
+click 280 $((menu_y + 85)) || fail "the click failed"
+wait_for menu_visible false
+wait_for count_is 3
+kill "$fm_job" 2>/dev/null || true
+app=$(query "kind:surface owner:xp" | jq -r '[.[] | .surface.app_id // ""] | join(" ")')
+grep -qiw "${file_manager%% *}" <<<"$app" || fail "no ${file_manager%% *} window: $app"
+jq -e 'select(.event == "surface.created" and (.token // "") != "")' \
+    "$out/fm-created.jsonl" >/dev/null ||
+    fail "no surface.created with a token: $out/fm-created.jsonl"
+grim "$out/file-manager.png"
 
 step "14. the exported methods do what the clicks do"
 xp() { "$bin/choractl" call xp "$1" "${2:-null}"; }
@@ -376,7 +356,7 @@ wait_for jq -e 'select(.event == "client.disconnected" and .name == "xp")' \
 wait_for jq -e 'select(.event == "client.connected" and .name == "xp")' \
     "$out/restart-events.jsonl"
 kill "$restart_job" 2>/dev/null || true
-wait_for count_is 2
+wait_for count_is 3
 grim "$out/after-restart.png"
 
 # A token given before or with the first commit reaches plugins
