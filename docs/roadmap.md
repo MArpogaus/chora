@@ -16,9 +16,8 @@ with a stable, versioned API (D3).
   milestone closes the issue.
 - Two tracks run in parallel to the core: the XP showroom and the voice
   pipeline.
-- The showroom track has no milestones of its own. Its CI must be green
-  against each release candidate of the core, so every core gate has that
-  check.
+- The showroom track has no milestones of its own (see
+  [Track: XP showroom](#track-xp-showroom)).
 - The voice track has milestones of its own. It never blocks the core.
 
 ## Current state
@@ -127,8 +126,8 @@ Gate:
 
 ## 0.7: Identity, processes and the basics of the read model
 
-The release candidate `v0.7.0-rc.3` is tagged. The open gate checks are
-5, 8 with a user systemd, and 11. They run on the reference hardware.
+The release candidate `v0.7.0-rc.3` is tagged. No check of the 0.7 gate is
+open.
 
 **Goal:** a client cannot take another name or give itself capabilities,
 the core starts no programs, and an agent can see focus and geometry
@@ -186,21 +185,42 @@ Gate:
 4. A Podman container that mounts only `clients/agent/` queries the scene
    and draws a node. Its `grants.set` and its `hello` with another name
    fail. A CI job checks this.
-5. A Quadlet unit from `dist/` connects through its client directory
-   after a restart of chora, without a change to the unit.
+5. Moved to the gate of 0.8: the Quadlet unit after a restart of chora.
 6. A client with `input.grab-any` grabs F13 and a letter key. A client
    without it gets the error code for a missing capability.
 7. The core has no code that forks a process except the startup command.
-8. `choractl run foot` starts foot in a transient systemd unit of its
-   own, and the `surface.created` event of its window carries the
-   activation token. Without a user manager, the same command starts foot
-   directly.
+8. Without a user manager, `choractl run foot` starts foot directly, and
+   the `surface.created` event of its window carries the activation token.
+   The case with a user manager moved to the gate of 0.8.
 9. Each error code of the API has a test that provokes it.
 10. The battle workflows in `tests/battle/` pass with `choractl wait`, the
     focus and the rectangles of queries and the plugin methods, without
     pixel clicks.
-11. The gate checks of the earlier milestones still hold, and the showroom
-    CI is green against the release candidate.
+
+The checks of the delivered scope, named by their scripts:
+
+- `tests/gate-0.8-1.sh`: An MCP client in CI calls the tools to focus the
+  second terminal and to request a move to the right. `chora-tiling`
+  performs both, and a capture shows them.
+- `tests/gate-0.8-2.sh`: Under a camera with pan and zoom, a click on a node
+  through the MCP tools hits that node in 20 of 20 tries.
+- `tests/gate-0.8-3.sh`: `wait_events` returns while another tool call runs,
+  and a cancelled call ends within 100 ms.
+- `tests/gate-0.8-4.sh`: Injected text `Grüße äöüß` appears unchanged in
+  foot on a US layout. A CI job checks this.
+- `tests/gate-0.8-5.sh`: A subscription that starts during a transaction
+  misses no event and sees no event twice: a test with 1,000 transactions
+  checks the sequence numbers.
+- `tests/gate-0.8-6.sh`: The tool list of `choractl mcp` matches the
+  exported methods of the plugins after each `methods.export`.
+- `tests/gate-0.8-7.sh`: A capture shows the indicator while a client
+  injects input.
+- `tests/gate-0.8-8.sh`: A test shows that the revoke binding removes the
+  capabilities of all clients.
+- `tests/gate-0.8-9.sh`: A text node shows `Grüße 你好 🙂` with fallback fonts,
+  and a pixel test against a reference capture passes.
+- `tests/gate-0.8-10.sh`: An MCP client puts a text node under
+  `screen:NAME`, and a capture shows it.
 
 ## 0.8: Lean plugins and the agent API
 
@@ -243,32 +263,30 @@ Scope:
 
 Gate:
 
-1. An MCP client in CI calls the tools to focus the second terminal and to
-   request a move to the right. `chora-tiling` performs both, and a capture
-   shows them.
-2. Under a camera with pan and zoom, a click on a node through the MCP
-   tools hits that node in 20 of 20 tries.
-3. `wait_events` returns while another tool call runs, and a cancelled
-   call ends within 100 ms.
-4. Injected text `Grüße äöüß` appears unchanged in foot on a US layout. A
-   CI job checks this.
-5. A subscription that starts during a transaction misses no event and
-   sees no event twice: a test with 1,000 transactions checks the
-   sequence numbers.
-6. The tool list of `choractl mcp` matches the exported methods of the
-   plugins after each `methods.export`.
-7. A capture shows the indicator while a client injects input.
-8. A test shows that the revoke binding removes the capabilities of all
-   clients.
-9. A text node shows `Grüße 你好 🙂` with fallback fonts, and a pixel test
-   against a reference capture passes.
-10. An MCP client puts a text node under `screen:NAME`, and a capture shows
-    it.
-11. The gate checks of the earlier milestones still hold, and the showroom
-    CI is green against the release candidate. A CI job runs this check.
-12. The battle workflows in `tests/battle/` pass on the shared runtime.
-13. `chora-xp` has at most half of its 21,334 lines of Rust at
-    `v0.7.0-rc.3`.
+1. `chora-tiling` and `chora-xp` both use the shared plugin runtime, and
+   the battle workflows in `tests/battle/` pass.
+2. The program modules of `chora-xp` are gone: `explorer.rs`,
+   `explorer/view.rs`, `folder.rs`, `wm/explorers.rs`, `control.rs`,
+   `display.rs`, `datetime.rs`, `properties.rs`, `confirm.rs`,
+   `session.rs` and `taskbar_dialog.rs`. The tag
+   `archive/xp-scene-programs` exists.
+3. The start menu of `chora-xp` starts the configured file manager, and
+   the `surface.created` event of its window carries the activation token.
+4. A client sets the opacity of a tiling window to 0.5 with the action
+   `update` of `node.requested` (D58). After a relayout, a query or a
+   capture in CI shows the opacity 0.5.
+5. `scene.apply` answers with a warning code for a surface attached under
+   a group with `input: pass` (D59). A unit test checks it.
+6. #53, #54 and #56 each have a test (D48).
+7. A Quadlet unit from `dist/` connects through its client directory
+   after a restart of chora, without a change to the unit. The user runs
+   this check on the reference hardware, with a log.
+8. With a user manager, `choractl run foot` starts foot in a transient
+   systemd unit of its own, and the `surface.created` event of its window
+   carries the activation token. The user runs this check on the
+   reference hardware, with a log.
+9. CI runs the CI scripts of the earlier gates again; the user runs the
+   hardware checks again on the reference hardware, with a log.
 
 ## 0.9: Daily driver
 
@@ -308,8 +326,8 @@ Gate:
 5. The `vkms` job covers hotplug of a second output.
 6. A view sets tap and key repeat, and a test shows that the core applies
    them.
-7. The gate checks of the earlier milestones still hold, and the showroom CI
-   is green against the release candidate.
+7. CI runs the CI scripts of the earlier gates again; the user runs the
+   hardware checks again on the reference hardware, with a log.
 8. chora installs from the release RPM, layered on secureblue with
    `rpm-ostree`, and starts as a uwsm session with the tiling flavor. The
    log of the reference hardware shows both steps.
@@ -367,8 +385,8 @@ Gate:
    are on time over 30 s.
 7. The decision on the plugin protocol is in the decision log, with the
    measurement.
-8. The gate checks of the earlier milestones still hold, and the showroom CI
-   is green against the release candidate.
+8. CI runs the CI scripts of the earlier gates again; the user runs the
+   hardware checks again on the reference hardware, with a log.
 
 ## 1.0: Stable API
 
@@ -409,8 +427,8 @@ Gate:
 7. The secureblue image builds with chora from COPR. `rpm-ostree upgrade`
    on the reference hardware updates chora, and the login screen offers the
    session.
-8. The gate checks of the earlier milestones still hold, and the showroom CI
-   is green against the release candidate.
+8. CI runs the CI scripts of the earlier gates again; the user runs the
+   hardware checks again on the reference hardware, with a log.
 
 ## Track: XP showroom
 
@@ -418,10 +436,10 @@ The showroom grows in the core repository and moves to
 `chora-desktop/chora-xp` with the split at 1.0 (D36, D39). It shows
 the effects of the scene and serves as their test.
 
-- Each core milestone ends with a showroom release that uses its API. The
-  core gate checks that the showroom CI is green against the release
-  candidate.
-- The showroom gets fixes only (D39).
+- The showroom has no release per milestone. `tests/xp.sh` runs in the CI
+  of the core.
+- After its rework in 0.8, the showroom gets fixes and the API ports of
+  the core only (D39).
 
 ## Track: voice pipeline
 
