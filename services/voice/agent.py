@@ -585,10 +585,10 @@ class Coder:
             return f"no project {project}; list_projects names them"
         if task.lstrip().startswith("-"):  # it would be an option of the harness
             return "a task must not start with -"
-        number = 1
-        while (WORKTREES / (name := f"{project}-{number}" if project else str(number))).exists():
+        stem, number = f"{project}-" if project else "", 1
+        while (WORKTREES / f"{stem}{number}").exists():
             number += 1
-        self.workdir = WORKTREES / name
+        self.workdir = WORKTREES / f"{stem}{number}"
         self.job = asyncio.create_task(self._run(task, project, number), name="coding task")
         self.job.add_done_callback(report)
         return f"the coding task started in {self.workdir}"
@@ -636,6 +636,9 @@ class Coder:
                     os.killpg(self.proc.pid, signal.SIGKILL)
                     await self.proc.wait()
         self.last = f"The coding task in {self.workdir.name} {state}. {(result or self.step)[:400]}"
+        # The task is over while its result waits for a reply to end; the
+        # waiter of SPEAKING keeps a reference to it.
+        self.job = None
         await speak(self.http, one(self.last))
 
 
@@ -657,8 +660,9 @@ async def _git(*args: str) -> None:
 def _step(line: str, result: str) -> tuple[str, str]:
     """Return the step that a line of coder output shows, and the result so far.
 
-    A JSON line of stream-json shows a tool call or a text, or the result;
-    any other line, also JSON of another shape, is a step as it is.
+    A stream-json event of a tool call or a text gives a step, the result
+    event the result, and other stream-json events no step. A line that is
+    not stream-json, such as plain text, is a step as it is.
     """
     try:
         event = json.loads(line)
@@ -670,7 +674,7 @@ def _step(line: str, result: str) -> tuple[str, str]:
                 return f"{part.get('name')} {target}"[:200], result
             if part.get("type") == "text":
                 return part.get("text", "")[:200], result
-    except (ValueError, AttributeError, TypeError):
+    except Exception:  # also a RecursionError of deep JSON: one line never ends the task
         return line.strip()[:200], result
     return "", result
 
