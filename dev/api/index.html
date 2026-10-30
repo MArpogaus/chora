@@ -1515,7 +1515,7 @@ path.</p>
 </tr>
 <tr>
 <td><code>update</code></td>
-<td>change node properties</td>
+<td>change node properties. An update of only opacity, effects and meta of a node of another client answers with <code>node.requested</code> to its owner (D58).</td>
 </tr>
 <tr>
 <td><code>animate</code></td>
@@ -1678,7 +1678,7 @@ by default; a timeout exits 1 with the reason on stderr.</p>
 </tr>
 <tr>
 <td><code>node.requested</code></td>
-<td>a client asks to change a node of another client: <code>node</code>, the asking <code>client</code>, <code>action</code> and <code>args</code>. The actions are <code>focus</code>, <code>move</code>, <code>resize</code> and <code>close</code>, with the arguments of the command. Only the owner of the node gets it, and decides by doing the change or not (D31). Other changes of a foreign node stay refused.</td>
+<td>a client asks to change a node of another client: <code>node</code>, the asking <code>client</code>, <code>action</code> and <code>args</code>. The actions are <code>focus</code>, <code>move</code>, <code>resize</code>, <code>close</code> and <code>update</code>, with the arguments of the command; the arguments of <code>update</code> are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). Other changes of a foreign node stay refused.</td>
 </tr>
 <tr>
 <td><code>input.key</code></td>
