@@ -365,12 +365,10 @@ that connection deaf instead of answered with a protocol error, and the
 core has no frame of its own to reject. Correct clients send no such
 message. The caps of the IPC socket (16 connections per process, 128
 in total) and of the client sockets (16) bound the harm; the main
-Wayland socket has no cap. Milestone 0.7 replaces the
-grants with client sockets that fix the name and the capabilities of a
-client (D33, D40). In: a client socket fixes the name of
-its clients, and a Wayland socket next to it offers the privileged
-protocols only with grants. Only the admin socket of `choractl` changes
-grants and makes client sockets (see [API](api.md#client-sockets)).
+Wayland socket has no cap. Client sockets fix the name and the
+capabilities of a client (D33, D40). The Wayland socket of a client
+socket offers the privileged protocols only with grants. Only the admin
+socket of `choractl` changes grants and makes client sockets (see [API](api.md#client-sockets)).
 
 - Unsandboxed Wayland clients get all protocols, as in sway. So any client
   can, for example, take the keyboard as an input method, or configure the
