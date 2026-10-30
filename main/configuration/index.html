@@ -716,6 +716,50 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#sessions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sessions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#screen-sharing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screen sharing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#x11-programs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        X11 programs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-tiling-flavor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The tiling flavor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-xp-flavor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1124,6 +1168,50 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#sessions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sessions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#screen-sharing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screen sharing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#x11-programs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        X11 programs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-tiling-flavor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The tiling flavor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-xp-flavor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1211,17 +1299,26 @@ font in <code>~/.local/share/fonts</code> needs no setting at all.</p>
 <span class="w">  </span><span class="nt">props</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">100</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">30</span><span class="p p-Indicator">]</span>
 <span class="w">    </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">]</span>
+<span class="nt">input</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">keyboard</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">repeat_rate</span><span class="p">:</span><span class="w"> </span><span class="nv">30</span><span class="p p-Indicator">,</span><span class="nt"> repeat_delay</span><span class="p">:</span><span class="w"> </span><span class="nv">250</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">touchpad</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tap</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> natural_scroll</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">mouse</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">accel_profile</span><span class="p">:</span><span class="w"> </span><span class="nv">flat</span><span class="p p-Indicator">,</span><span class="nt"> accel_speed</span><span class="p">:</span><span class="w"> </span><span class="nv">-0.2</span><span class="p p-Indicator">}</span>
 </code></pre></div>
 <ul>
-<li><code>choractl view load work</code> starts each plugin of the view that does not
-  run yet, with the <code>exec</code> of its manifest, and waits up to 10 s until it
-  connects. It passes each <code>config</code> to the method that the manifest names
-  in <code>configure</code>. Then it applies the nodes of the view as one transaction.</li>
+<li><code>choractl view load work</code> first sends <code>input</code> to the core method
+  <code>input.configure</code>, if the view has it. Then it starts each plugin of
+  the view that does not run yet, with the <code>exec</code> of its manifest. It
+  waits up to 10 s until the plugin connects. It passes each <code>config</code> to
+  the method that the manifest names in <code>configure</code>. Then it applies the
+  nodes of the view as one transaction.
+  It prints the started plugins, the count of nodes and, as <code>input</code>, the
+  answer of <code>input.configure</code>.</li>
 <li>The client <code>view-work</code> owns the nodes. A second load replaces them,
   <code>choractl view unload work</code> removes them.</li>
 <li><code>choractl view save work</code> writes the nodes of <code>view-work</code> as they are
-  now, with the plugins of the file that was there, to
-  <code>~/.config/chora/views/work.yaml</code>, or to <code>--file PATH</code>. A plugin or an
+  now to <code>~/.config/chora/views/work.yaml</code>, or to <code>--file PATH</code>. It keeps
+  the plugins and the <code>input</code> of the file that was there, not the live
+  settings of the core. A plugin or an
   agent changes the nodes as <code>view-work</code>, for example
   <code>choractl --name view-work apply</code>.</li>
 <li>A node has an <code>id</code>, a <code>kind</code> (<code>group</code>, <code>rect</code>, <code>image</code>, <code>shader</code> or
@@ -1233,6 +1330,12 @@ font in <code>~/.local/share/fonts</code> needs no setting at all.</p>
   <code>NAME.yaml</code> must name the same view.</li>
 <li><code>choractl view load</code> also takes the path of a YAML file; the MCP tools
   take names only.</li>
+<li><code>input</code> sets the input devices of the whole session through
+  <code>input.configure</code>, so the core reads no file for them (D35).
+  <code>keyboard</code> has <code>repeat_rate</code> and <code>repeat_delay</code>. <code>touchpad</code> and
+  <code>mouse</code> have <code>tap</code>, <code>natural_scroll</code>, <code>left_handed</code>, <code>accel_profile</code>
+  and <code>accel_speed</code>. <a href="../api/#ipc-methods">IPC methods</a> gives the ranges
+  and the rules.</li>
 <li>A plugin that a view starts gets no stdin and no stdout of <code>choractl</code>,
   which carry MCP under <code>choractl mcp</code>.</li>
 </ul>
@@ -1296,7 +1399,8 @@ drives the window manager needs <code>methods.call</code>, and one that starts a
 needs <code>activation.token</code>. Both let it take the keyboard focus. A name
 that may end chora needs <code>session.quit</code>. A name that may change the
 settings of a plugin, or call a plugin method that starts programs, such
-as <code>app.open</code> of <code>chora-mc</code>, also needs <code>methods.privileged</code>.</p>
+as <code>app.open</code> of <code>chora-mc</code>, also needs <code>methods.privileged</code>. So does
+a name that sets the input devices with <code>input.configure</code>.</p>
 <p>The names follow the rules of <code>hello</code>. <code>clients up</code> opens the socket of
 every name with exactly the capabilities of its list. A socket that
 already has the equal capabilities stays with its connections and gets
@@ -1401,7 +1505,7 @@ pointer raises nothing. The binding
 windows do not exist.</p>
 <p><code>chora-tiling</code> exports methods for other clients (see
 <a href="../api/#plugin-methods">Plugin methods</a>). Every method but <code>get_layout</code>
-changes something and answers with the layout info of the current tag,
+and <code>get_tags</code> changes something and answers with the layout info of the current tag,
 like <code>set_layout</code>. The <code>gap</code> of <code>set_layout</code> is a live value: the file
 keeps the old gap, and the next <code>settings.set</code> or <code>settings.reload</code> sets
 the gap of the file again.</p>
@@ -1418,6 +1522,11 @@ the gap of the file again.</p>
 <td><code>set_layout</code>, <code>get_layout</code></td>
 <td>see <a href="../api/#plugin-methods">API</a></td>
 <td>the layout of the current tag</td>
+</tr>
+<tr>
+<td><code>get_tags</code></td>
+<td>none, see <a href="../api/#plugin-methods">API</a></td>
+<td>the tags of each output, for a panel</td>
 </tr>
 <tr>
 <td><code>give</code></td>
@@ -1531,6 +1640,12 @@ set a <code>rule</code>, a color of the theme for a hairline left of it, an
 context that steps back (<code>plugins/chora-mc/blur.frag</code>).</p>
 <p>The methods marked privileged start programs: a caller on a client
 socket needs <code>methods.privileged</code> besides <code>methods.call</code>.</p>
+<p>mc also follows the events of the voice agent (D65); it subscribes to
+<code>voice.*</code>. <code>voice.state</code> sets the agent <code>voice</code> as <code>agent.set</code> does, or
+the sub-agent that the <code>name</code> of its data names, such as <code>coder</code>.
+<code>voice.say</code> shows a sentence as <code>hud.say</code> does. Data that mc does not
+take only goes to its log, since the emitter gets no answer. Other
+clients use <code>agent.set</code> and <code>hud.say</code>.</p>
 <table>
 <thead>
 <tr>
@@ -1838,7 +1953,8 @@ show the JSON without chora:</p>
 </table>
 <p>Run <code>morning.py</code> from a timer in the morning, and <code>system.py</code> while the
 session runs, for example as a user unit. The agents scene needs no
-collector: <code>agent.set</code> fills the panel <code>agent-N</code> with the N-th agent (its
+collector: <code>agent.set</code> and the event <code>voice.state</code> fill the panel
+<code>agent-N</code> with the N-th agent (its
 title in the color of its state, the sign and the state, its task and
 its last words) and <code>band-N</code> below it with its voice and its start; a
 scene file with more columns shows more agents.</p>
@@ -1850,20 +1966,144 @@ choractl<span class="w"> </span>call<span class="w"> </span>mc<span class="w"> <
 <p>A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target <code>chora-&lt;name&gt;.target</code>. <code>chora-flavor &lt;name&gt;</code> looks for
 the directory in <code>~/.config/chora/flavors/</code> first and then in
-<code>/usr/share/chora/flavors/</code>. It imports <code>WAYLAND_DISPLAY</code>, <code>CHORA_SOCKET</code> and
-the X11 <code>DISPLAY</code> of <code>xwayland-satellite</code> into the systemd user manager, so
-that every unit of the flavor starts with them. It links the units of the
-directory, and starts
-the target. The target starts the services and the plugins. systemd handles
-start, restart and order, so chora needs no service manager.</p>
-<p>The package installs the tiling flavor:</p>
+<code>/usr/share/chora/flavors/</code>. It imports <code>WAYLAND_DISPLAY</code>, <code>CHORA_SOCKET</code>,
+<code>CHORA_FLAVOR_DIR</code> (the directory that it found) and the X11 <code>DISPLAY</code> of
+<code>xwayland-satellite</code> into the systemd user manager. So every unit of the
+flavor starts with them. It links the units of the directory, tells
+systemd that chora is ready, and starts the target. The target starts the
+services and the plugins. systemd handles start, restart and order, so
+chora needs no service manager. <code>chora-flavor</code> is not for nested use:
+its variables would reach the units of the host session.</p>
+<h3 id="sessions">Sessions<a class="headerlink" href="#sessions" title="Permanent link">&para;</a></h3>
+<p>The login screen shows a session per flavor, twice:</p>
+<table>
+<thead>
+<tr>
+<th>Session</th>
+<th>Starts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>chora (uwsm), chora (Windows XP, uwsm)</td>
+<td><code>uwsm start -e -D chora -N chora -- chora -- chora-flavor &lt;name&gt;</code> (D50)</td>
+</tr>
+<tr>
+<td>chora, chora (Windows XP)</td>
+<td><code>chora-session &lt;name&gt;</code>, without uwsm</td>
+</tr>
+</tbody>
+</table>
+<p>The uwsm sessions show only when uwsm is installed. uwsm is not in
+Fedora 44, so there the sessions without uwsm are the fallback (D50).
+uwsm runs chora as
+the user unit <code>wayland-wm@chora.service</code> and binds it to
+<code>graphical-session.target</code>. Under uwsm, <code>chora-flavor</code> calls <code>uwsm
+finalize</code> with its variables: uwsm exports them, marks chora as ready and
+removes the variables again when the session ends. Before chora starts,
+uwsm sources <code>/etc/xdg/uwsm/env-chora</code>. Without <code>XKB_DEFAULT_LAYOUT</code>,
+this file takes the keyboard layout of the system from <code>localectl</code>.
+<code>~/.config/uwsm/env-chora</code> adds variables of the user.</p>
+<p><code>chora-session</code> does the same without uwsm. It sources
+<code>/etc/xdg/uwsm/env-chora</code>, imports the environment of the login into the
+systemd user manager and runs chora as <code>chora@&lt;name&gt;.service</code>. The unit
+drops a <code>WAYLAND_DISPLAY</code> and a <code>DISPLAY</code> that another session left in
+the user manager, because chora would then run nested. When chora ends,
+<code>chora-session</code> stops the units of the graphical session.</p>
+<h3 id="screen-sharing">Screen sharing<a class="headerlink" href="#screen-sharing" title="Permanent link">&para;</a></h3>
+<p>Browsers and video calls share the screen through <code>xdg-desktop-portal</code>,
+which hands the work to <code>xdg-desktop-portal-wlr</code> (D37). Both sessions set
+<code>XDG_CURRENT_DESKTOP=chora</code>, and <code>chora-flavor</code> gives it and
+<code>WAYLAND_DISPLAY</code> to systemd and D-Bus, so that the portals start with
+them. <code>chora-flavor</code> also stops a portal that an earlier session in the
+same user manager started. The next call starts it again with the
+variables of chora. While another graphical session of the user is
+open, the portal stays. The packages install two files:</p>
+<ul>
+<li><code>/usr/share/xdg-desktop-portal/chora-portals.conf</code>: for
+  <code>XDG_CURRENT_DESKTOP=chora</code>, screen sharing and screenshots go through
+  <code>xdg-desktop-portal-wlr</code>, the other portals through
+  <code>xdg-desktop-portal-gtk</code>.</li>
+<li><code>/etc/xdg/xdg-desktop-portal-wlr/chora</code>: fuzzel asks which output or
+  window to share. <code>~/.config/xdg-desktop-portal-wlr/chora</code> replaces it,
+  for example with <code>chooser_type=none</code> and <code>output_name=eDP-1</code> to share
+  that output without a question.</li>
+</ul>
+<p><code>xdg-desktop-portal-wlr</code> captures through <code>ext-image-copy-capture</code>, and
+through <code>wlr-screencopy</code> on older versions. It shares outputs, and
+windows of <code>ext-foreign-toplevel-list</code>. The core copies through shm, so
+each frame takes a copy on the CPU, and the shared picture has no
+cursor. The portal runs on the Wayland socket of the session, which has
+every capture protocol. A client of a client socket needs the grant
+<code>screen.capture</code> (see <a href="../api/">API</a>).</p>
+<h3 id="x11-programs">X11 programs<a class="headerlink" href="#x11-programs" title="Permanent link">&para;</a></h3>
+<p><code>xwayland-satellite</code> runs X11 programs as Wayland windows. When it is
+installed, <code>chora-flavor</code> picks a free display, for example <code>:0</code>, and
+gives <code>DISPLAY</code> to systemd and D-Bus. The unit
+<code>chora-&lt;flavor&gt;-xwayland.service</code> of each flavor then starts
+<code>xwayland-satellite</code> on this display. The X11 windows are toplevels like
+all others, so <code>chora-tiling</code> tiles them.</p>
+<h3 id="the-tiling-flavor">The tiling flavor<a class="headerlink" href="#the-tiling-flavor" title="Permanent link">&para;</a></h3>
+<p>The package installs the tiling flavor (D51):</p>
 <div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/tiling/
-├── chora-tiling.target              # wants the two units below
-├── chora-tiling.service             # chora-tiling
-└── chora-tiling-xwayland.service    # xwayland-satellite, if installed
+├── chora-tiling.target               # wants the units below and mako.service
+├── chora-tiling.service              # chora-tiling
+├── chora-tiling-xwayland.service     # xwayland-satellite
+├── chora-tiling-waybar.service       # the panel
+├── chora-tiling-swaybg.service       # the wallpaper, a plain color
+├── chora-tiling-swayidle.service     # the idle lock with swaylock
+├── chora-tiling-kanshi.service       # the output profiles of the user
+└── waybar/
+    ├── config.jsonc                  # the modules of the panel
+    └── tags.jq                       # the text of the tags module
 </code></pre></div>
-<p>The target also wants <code>waybar.service</code>, which the waybar package installs.
-A copy of the directory in <code>~/.config/chora/flavors/tiling/</code> replaces it.</p>
+<p>Each unit starts only when its program is installed. The packages
+recommend them: uwsm, foot, fuzzel, waybar, jq, mako, swaybg, swayidle,
+swaylock, kanshi, <code>xwayland-satellite</code>, <code>xdg-desktop-portal-wlr</code> and
+<code>xdg-desktop-portal-gtk</code>. mako starts from the unit of
+its own package and needs no configuration.</p>
+<ul>
+<li><strong>The panel</strong>: waybar with the configuration of the flavor. It shows only
+  modules that need no IPC of sway: the tags of the output, the layout of
+  the current tag, the clock, the volume, the network, the processor, the
+  memory, the battery and the tray. The layout module calls
+  <code>choractl call tiling get_layout</code> each second. The tags module calls
+  <code>choractl call tiling get_tags</code> each second, and <code>jq</code> with
+  <code>waybar/tags.jq</code> turns the answer into the text: the shown and the
+  occupied tags, shown ones underlined, focused ones bold and urgent ones
+  red.</li>
+<li><strong>The launcher</strong>: <code>MOD+r</code> starts fuzzel, as the default bindings of
+  <code>chora-tiling</code> say.</li>
+<li><strong>The lock</strong>: swayidle runs <code>swaylock -f</code> after 5 minutes without input,
+  before sleep, and on <code>loginctl lock-session</code>, which <code>MOD+Shift+Escape</code>
+  runs. swaylock locks through the session lock protocol of the core.
+  The core has no protocol to turn outputs off yet, so the screens stay on.</li>
+<li><strong>The wallpaper</strong>: swaybg with a plain color. For a picture, override
+  the command:</li>
+</ul>
+<div class="highlight"><pre><span></span><code>systemctl<span class="w"> </span>--user<span class="w"> </span>edit<span class="w"> </span>chora-tiling-swaybg.service
+<span class="c1"># [Service]</span>
+<span class="c1"># ExecStart=</span>
+<span class="c1"># ExecStart=/usr/bin/swaybg --image %h/Pictures/wall.png --mode fill</span>
+</code></pre></div>
+<ul>
+<li><strong>The outputs</strong>: kanshi starts only when <code>~/.config/kanshi/config</code>
+  exists, because it fails without profiles. The core takes the
+  configuration through <code>wlr-output-management</code>. An example with the
+  names that <code>wlr-randr</code> prints:</li>
+</ul>
+<div class="highlight"><pre><span></span><code>profile docked {
+  output eDP-1 disable
+  output "Dell Inc. DELL U2720Q *" mode 3840x2160 scale 1.5
+}
+profile mobile {
+  output eDP-1 enable scale 1.25
+}
+</code></pre></div>
+<p>A copy of the directory in <code>~/.config/chora/flavors/tiling/</code> replaces it,
+also the configuration of waybar. <code>systemctl --user edit UNIT</code> changes a
+single unit. A user who enabled <code>waybar.service</code> of the waybar package
+gets a second panel; <code>systemctl --user disable waybar.service</code> ends it.</p>
 <h3 id="the-xp-flavor">The XP flavor<a class="headerlink" href="#the-xp-flavor" title="Permanent link">&para;</a></h3>
 <p>The XP flavor is the showroom (D39): a stacking desktop in
 the style of Windows XP. It is a demo, not a daily driver. <code>chora-xp</code>

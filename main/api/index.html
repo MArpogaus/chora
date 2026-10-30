@@ -1759,6 +1759,10 @@ by default; a timeout exits 1 with the reason on stderr.</p>
 <td><code>method.called</code></td>
 <td>another client calls a method that this connection exported: <code>call</code> id, <code>caller</code>, <code>method</code> and <code>params</code>; only the exporting connection gets it, subscribed or not</td>
 </tr>
+<tr>
+<td><code>NAME.something</code></td>
+<td>a client emitted it with <code>events.emit</code>, for example <code>voice.state</code>: <code>client</code>, the name of the emitter, and its <code>data</code>; only to the connections that name the event or a pattern of it (D65)</td>
+</tr>
 </tbody>
 </table>
 <p>Every event carries <code>seq</code>, the count of its connection (D32). Every event
@@ -1770,6 +1774,38 @@ it, the events that follow cover every change after it. A number that
 skips tells the client that it missed an event, so it queries again. After
 a reconnect a client works from the new snapshot and forgets the old
 numbers.</p>
+<p>A client emits events of its own with <code>events.emit</code> (D65), for example a
+voice agent that tells a HUD its state:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="nt">"method"</span><span class="p">:</span><span class="w"> </span><span class="s2">"events.emit"</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"voice.state"</span><span class="p">,</span><span class="w"> </span><span class="nt">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"listening"</span><span class="p">}}}</span>
+<span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"method"</span><span class="p">:</span><span class="w"> </span><span class="s2">"event"</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"voice.state"</span><span class="p">,</span><span class="w"> </span><span class="nt">"client"</span><span class="p">:</span><span class="w"> </span><span class="s2">"voice"</span><span class="p">,</span><span class="w"> </span><span class="nt">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"listening"</span><span class="p">},</span><span class="w"> </span><span class="nt">"seq"</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="p">}}</span>
+</code></pre></div>
+<ul>
+<li>The name starts with the client name and a dot. The rest has lowercase
+  letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, from a letter, at most 64 bytes. So
+  no client sends a core event or the event of another name. A client
+  whose name starts as a core namespace, such as <code>surface</code> or <code>output</code>,
+  cannot emit.</li>
+<li>A connection subscribes to the name, for example <code>voice.state</code>, or to
+  a pattern <code>PREFIX.*</code>, for example <code>voice.*</code>. A pattern also works for
+  core events, for example <code>surface.*</code>. An empty list means every core
+  event, not the events of clients. In <code>events.subscribe</code>, a name outside
+  the core namespaces is the event of a client, so a typo there is no
+  error; a typo in a core name, such as <code>surface.creatd</code>, is.</li>
+<li><code>data</code> is any JSON value of at most 64 KiB; <code>null</code> when it is missing.</li>
+<li>A client name emits at most 32 events per second, over all its
+  connections. The core refuses the rest with code 6 and sends nothing.
+  It does not coalesce: after a burst, the client sends its last state
+  again.</li>
+<li>Any named client may emit, also through a client socket without
+  capabilities: an event reaches only subscribers. Any connection may
+  subscribe to the events of other clients, also a client socket; it
+  gets them as it gets core events. The emitter gets its own event when
+  it subscribed to it.</li>
+<li>Only the main socket lets a client take a free name. A name of a client
+  socket is safe from emitters on other sockets (D33).</li>
+</ul>
 <p>The response of <code>scene.apply</code> reports the result of a transaction. When
 the transaction applied, the result is <code>{"warnings": [...]}</code>. When it did
 not apply, the response is an error with the index of the failed command.
@@ -1861,8 +1897,8 @@ answers every request.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>hello(name, keep_nodes, resume, protocol, features)</code></td>
-<td>name the client (lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, from a letter, at most 64 bytes); <code>keep_nodes</code> keeps its nodes and cameras after the disconnect, <code>resume</code> keeps them for a grace time (see below); <code>protocol</code> and <code>features</code> say what the client speaks (see <a href="#protocol-versions">Protocol versions</a>); returns <code>{"version": ..., "protocol": ..., "features": [...]}</code></td>
+<td><code>hello(name, keep_nodes, resume, protocol, features, confined)</code></td>
+<td>name the client (lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, from a letter, at most 64 bytes); <code>keep_nodes</code> keeps its nodes and cameras after the disconnect, <code>resume</code> keeps them for a grace time (see below); <code>protocol</code> and <code>features</code> say what the client speaks (see <a href="#protocol-versions">Protocol versions</a>); <code>confined: true</code> gives this connection the capability rules of a client socket also on the main socket (see <a href="#client-sockets">Client sockets</a>), and <code>choractl mcp</code> sends it; returns <code>{"version": ..., "protocol": ..., "features": [...]}</code></td>
 </tr>
 <tr>
 <td><code>scene.query(selector, filter)</code></td>
@@ -1874,7 +1910,11 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>events.subscribe(events)</code></td>
-<td>stream the named events, or all events for an empty list, as notifications; answers with a snapshot of the scene first (see <a href="#events">Events</a>); each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused</td>
+<td>stream the named events, or all core events for an empty list, as notifications; a name can be the event of a client, such as <code>voice.state</code>, or a pattern such as <code>voice.*</code> (D65); answers with a snapshot of the scene first (see <a href="#events">Events</a>); each subscribed connection gets each event, also when several connections share a client name; an unknown core name is refused</td>
+</tr>
+<tr>
+<td><code>events.emit(event, data)</code></td>
+<td>send an event of this client, named <code>NAME.something</code> after its client name, with <code>data</code> of at most 64 KiB to its subscribers; at most 32 per second per client name, the rest fails with code 6 (see <a href="#events">Events</a>, D65)</td>
 </tr>
 <tr>
 <td><code>input.grab(binding)</code></td>
@@ -1889,6 +1929,10 @@ answers every request.</p>
 <td>send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant</td>
 </tr>
 <tr>
+<td><code>input.configure(keyboard, touchpad, mouse)</code></td>
+<td>set the input devices of the session (D35): <code>keyboard</code> has <code>repeat_rate</code> (0 to 100 per second, 0 for no repeat) and <code>repeat_delay</code> (100 to 5000 ms), which every <code>wl_keyboard</code> gets as <code>repeat_info</code> and which the keys of nodes follow; <code>touchpad</code> (devices that can tap) and <code>mouse</code> (the other pointer devices) have <code>tap</code>, <code>natural_scroll</code>, <code>left_handed</code>, <code>accel_profile</code> (<code>flat</code> or <code>adaptive</code>) and <code>accel_speed</code> (-1 to 1), which the core sets through libinput on the tty backend, also on devices that come later; the settings last until the session ends; a device that lacks a setting skips it; a missing field keeps its value, so empty params only read; <code>null</code> resets a field, the key repeat to the 25 per second and 200 ms of the core, a libinput setting to the default of each device; returns all settings that are set; a value out of range fails with code -32602; a client socket needs the capability <code>methods.privileged</code>; the <code>input</code> of a view calls it (<a href="../configuration/#views">Views</a>)</td>
+</tr>
+<tr>
 <td><code>screen.capture(output, node, max_side)</code></td>
 <td>capture an output or a node as a PNG file; needs a grant</td>
 </tr>
@@ -1898,7 +1942,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>grants.set(client, capabilities)</code>, <code>grants.revoke(client, capabilities)</code>, <code>grants.list</code></td>
-<td>grant or revoke capabilities for a client name. <code>choractl grant</code> and <code>choractl revoke</code> call them. <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket. A name with a client socket answers code 9, because <code>clients.yaml</code> holds its capabilities. For a name of the main socket, <code>methods.call</code>, <code>session.quit</code> and <code>methods.privileged</code> change nothing, and <code>activation.token</code> only opens the MCP tool <code>run_program</code>.</td>
+<td>grant or revoke capabilities for a client name. <code>choractl grant</code> and <code>choractl revoke</code> call them. <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket. A name with a client socket answers code 9, because <code>clients.yaml</code> holds its capabilities. For a name of the main socket, <code>methods.call</code>, <code>session.quit</code>, <code>methods.privileged</code> and <code>activation.token</code> count only on connections with <code>confined: true</code> in their <code>hello</code>, such as <code>choractl mcp</code>.</td>
 </tr>
 <tr>
 <td><code>clients.create(name, capabilities)</code></td>
@@ -2175,8 +2219,12 @@ socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that <a href="#client-sockets">Client sockets</a> lists.
 <code>choractl mcp</code> offers no tool for grants. On the main socket,
-<code>activation.token</code> opens the MCP tool <code>run_program</code>, and <code>methods.call</code>,
-<code>session.quit</code> and <code>methods.privileged</code> change nothing.</p>
+<code>methods.call</code>, <code>activation.token</code>, <code>session.quit</code> and
+<code>methods.privileged</code> change nothing, except for a connection whose
+<code>hello</code> has <code>confined: true</code>. <code>choractl mcp</code> confines its connection,
+so its client name, <code>agent</code> by default, needs <code>methods.call</code> for
+<code>call_method</code> and the plugin tools, <code>methods.privileged</code> for
+privileged methods and <code>activation.token</code> for <code>run_program</code>.</p>
 <h2 id="client-sockets">Client sockets<a class="headerlink" href="#client-sockets" title="Permanent link">&para;</a></h2>
 <p>A client socket fixes the name of its clients (D33). <code>clients.create</code>
 on the admin socket opens <code>clients/NAME/ipc.sock</code> below the directory of
@@ -2216,13 +2264,17 @@ in. <code>choractl clients create agent</code> prints its path:</p>
 <li><code>grants.set</code> and <code>grants.revoke</code> answer code 9 for the name: change
   <code>clients.yaml</code> and run <code>choractl clients up</code>.</li>
 <li><code>methods.call</code> needs the capability <code>methods.call</code>,
-  <code>activation.token</code> the capability <code>activation.token</code> and
-  <code>session.quit</code> the capability <code>session.quit</code>. A <code>methods.call</code> of a
+  <code>activation.token</code> the capability <code>activation.token</code>,
+  <code>session.quit</code> the capability <code>session.quit</code> and <code>input.configure</code>
+  the capability <code>methods.privileged</code>. A <code>methods.call</code> of a
   privileged method also needs <code>methods.privileged</code>: <code>settings.set</code> and
   <code>settings.reload</code> of any client, because plugin settings hold commands
   that the plugin runs and paths that it reads, and each method that its
   export marks <code>"privileged": true</code>, such as <code>app.open</code> of <code>chora-mc</code>. Without them they answer code 4. The main
-  socket needs none of them. So a confined agent cannot end chora or
+  socket needs none of them, unless the <code>hello</code> of the connection has
+  <code>confined: true</code>: then these rules hold for it too, with the grants
+  of its name. A connection can confine itself, never free itself;
+  other connections of the name stay free. So a confined agent cannot end chora or
   change the settings of a plugin by default. A token of
   <code>activation.token</code> belongs to no client. Any window that activates
   with it takes the focus without a press, also a window of the client
@@ -2505,7 +2557,7 @@ unchanged, and <code>chora-tiling</code> gives one to each of its methods.</p>
   exporter disconnects. A connection has at most 64 calls in flight, and it
   cannot call its own methods.</li>
 </ul>
-<p><code>chora-tiling</code> exports these three; <a href="../configuration/#chora-tiling">chora-tiling</a>
+<p><code>chora-tiling</code> exports these four; <a href="../configuration/#chora-tiling">chora-tiling</a>
 lists all of its methods:</p>
 <table>
 <thead>
@@ -2525,6 +2577,11 @@ lists all of its methods:</p>
 <td><code>get_layout</code></td>
 <td>none</td>
 <td>the same</td>
+</tr>
+<tr>
+<td><code>get_tags</code></td>
+<td>none</td>
+<td><code>outputs</code>: for each output its <code>name</code>, <code>focused</code> when it has the focus, and <code>tags</code>: for each tag its number <code>tag</code>, <code>shown</code>, <code>focused</code> (shown on the focused output), <code>occupied</code> (a window of the output is on it) and <code>urgent</code> (such a window asked for attention)</td>
 </tr>
 <tr>
 <td><code>give</code></td>
