@@ -1642,7 +1642,9 @@ context that steps back (<code>plugins/chora-mc/blur.frag</code>).</p>
 socket needs <code>methods.privileged</code> besides <code>methods.call</code>.</p>
 <p>mc also follows the events of the voice agent (D65); it subscribes to
 <code>voice.*</code>. <code>voice.state</code> sets the agent <code>voice</code> as <code>agent.set</code> does, or
-the sub-agent that the <code>name</code> of its data names, such as <code>coder</code>.
+the sub-agent that the <code>name</code> of its data names, such as <code>coder</code> or an
+ACP agent of the voice agent; <code>voice.remove {name}</code> removes such a
+sub-agent.
 <code>voice.say</code> shows a sentence as <code>hud.say</code> does. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
 clients use <code>agent.set</code> and <code>hud.say</code>.</p>
@@ -1708,7 +1710,11 @@ clients use <code>agent.set</code> and <code>hud.say</code>.</p>
 </tr>
 <tr>
 <td><code>agent.set</code></td>
-<td><code>name</code> and optional <code>state</code>, <code>task</code>, <code>said</code> and <code>voice</code>: adds an agent or changes it; a missing field stays. The <code>state</code> is a name of <code>states</code></td>
+<td><code>name</code> and optional <code>state</code>, <code>task</code>, <code>said</code>, <code>voice</code>, <code>plan</code> (lines), <code>question</code> and <code>log</code> (the last lines of its transcript): adds an agent or changes it; a missing field stays. The <code>state</code> is a name of <code>states</code>. The <code>agents</code> scene shows the state, the question, the task, the plan and the last words</td>
+</tr>
+<tr>
+<td><code>agent.focus</code></td>
+<td><code>name</code>: shows the <code>agents</code> scene with this agent alone in <code>agent-1</code> and its transcript in the other <code>agent-N</code> panels, newest last; an empty name shows all agents again</td>
 </tr>
 <tr>
 <td><code>agent.remove</code></td>
@@ -1716,7 +1722,7 @@ clients use <code>agent.set</code> and <code>hud.say</code>.</p>
 </tr>
 <tr>
 <td><code>agent.list</code></td>
-<td>none; answers <code>agents</code>, each with <code>name</code>, <code>state</code>, <code>task</code>, <code>said</code>, <code>voice</code> and <code>since</code> (the time of its first report)</td>
+<td>none; answers <code>agents</code>, each with <code>name</code>, <code>state</code>, <code>task</code>, <code>said</code>, <code>voice</code>, <code>plan</code>, <code>question</code>, <code>log</code> and <code>since</code> (the time of its first report)</td>
 </tr>
 <tr>
 <td><code>notify.push</code></td>

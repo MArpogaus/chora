@@ -846,6 +846,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#18-acp-sub-agents-wp10-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18. ACP sub-agents (WP10, 2026-10-31)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1240,6 +1251,17 @@
     <span class="md-ellipsis">
       
         17. Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#18-acp-sub-agents-wp10-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18. ACP sub-agents (WP10, 2026-10-31)
       
     </span>
   </a>
@@ -1876,6 +1898,18 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 <td><code>[choractl]</code>, <code>[]</code> (no coding tools; the task is the last argument)</td>
 </tr>
 <tr>
+<td><code>sandbox_cmd</code>, <code>unsandboxed</code></td>
+<td><code>[agent-sandbox.sh]</code>, <code>false</code> (<code>coder_cmd</code> and <code>agent_cmd</code> run in the sandbox)</td>
+</tr>
+<tr>
+<td><code>agent_cmd</code>, <code>agent_projects</code></td>
+<td><code>[]</code> (no agents; else an ACP command, <code>{dir}</code> and <code>{project}</code> replaced), <code>{}</code> (name: directory, besides the inventory)</td>
+</tr>
+<tr>
+<td><code>agent_voices</code>, <code>agent_said_chars</code>, <code>agent_permission_s</code></td>
+<td><code>[ryan, vivian, serena, eric]</code>, <code>160</code>, <code>120</code> (section 18)</td>
+</tr>
+<tr>
 <td><code>skipped_tools</code> (globs)</td>
 <td><code>[subscribe_events, wait_events, capture, "voice.*"]</code></td>
 </tr>
@@ -1885,7 +1919,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>phrases</code></td>
-<td><code>llm_down</code>, <code>llm_slow</code>, <code>tool_rounds</code>, <code>asr_failed</code>: German sentences</td>
+<td><code>llm_down</code>, <code>llm_slow</code>, <code>tool_rounds</code>, <code>asr_failed</code>, <code>details</code>, <code>agent_asks</code>, <code>agent_ended</code>: German sentences</td>
 </tr>
 <tr>
 <td><code>record_dir</code></td>
@@ -1900,6 +1934,7 @@ device.</p>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">unload_view</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">die</span><span class="nv"> </span><span class="s">Ansicht</span><span class="nv"> </span><span class="s">entfernen?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">inject_input</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">tippen</span><span class="nv"> </span><span class="s">oder</span><span class="nv"> </span><span class="s">klicken?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">code_task</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">die</span><span class="nv"> </span><span class="s">Programmieraufgabe</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">agent_start</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">den</span><span class="nv"> </span><span class="s">Agenten</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">run_program</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">das</span><span class="nv"> </span><span class="s">Programm</span><span class="nv"> </span><span class="s">{program}</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">configure_output</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">den</span><span class="nv"> </span><span class="s">Bildschirm</span><span class="nv"> </span><span class="s">ändern?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="s">"*.restart"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">das</span><span class="nv"> </span><span class="s">Plugin</span><span class="nv"> </span><span class="s">neu</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
@@ -1957,13 +1992,19 @@ two lists, a <code>ptt_key</code> that does not parse, and a rule without a prom
 <td>none</td>
 <td>the health record of section 6</td>
 </tr>
+<tr>
+<td><code>agent</code> (privileged)</td>
+<td><code>tool</code> (one of the agent tools) and its arguments</td>
+<td>the text of the tool (section 18)</td>
+</tr>
 </tbody>
 </table>
 <p>The state record: <code>state</code>, <code>since_ms</code> (time in the state), <code>seq</code> (one
 more per change), <code>awake</code>, <code>muted: {mic, speaker}</code>, <code>turn</code>,
 <code>last_transcript</code>, <code>last_reply</code>, <code>queued</code> (texts that wait), <code>coder</code>
 (the parameters of <code>agent.set</code> for the coder, or null before the first
-task) and <code>health</code> (section 6).</p>
+task), <code>agents</code> (the parameters of <code>agent.set</code> of each ACP agent) and
+<code>health</code> (section 6).</p>
 <p>HUD: the agent emits client events (D65) on its connection <code>NAME</code>, so
 a HUD subscribes to <code>voice.*</code> and needs no polling. The method <code>state</code>
 stays for a full state record. The
@@ -1981,6 +2022,9 @@ sentence gets the rest of its length). The data are the parameters of
 A coding task is a sub-agent: <code>voice.state {name: coder, state, task,
 said}</code> with <code>state</code> <code>working</code>, then <code>done</code> or <code>blocked</code> (failed or
 cancelled), <code>task</code> the task, and <code>said</code> its last step, then its result.
+An ACP agent (section 18) is a sub-agent too: <code>voice.state {name,
+state, task, said, voice, plan, question, log}</code>, and <code>voice.remove
+{name}</code> when it stops.
 The <code>hud</code> thread waits for the sound of a sentence and hands the events
 to the <code>chora</code> thread, which emits them on the connection of the
 methods: only that connection has the name <code>voice</code>. The <code>chora</code> thread
@@ -2712,6 +2756,11 @@ prompt 22700 tokens, warm cache):</p>
 <td>Unit, README, package</td>
 <td>S</td>
 </tr>
+<tr>
+<td>WP10</td>
+<td>ACP sub-agents, one per project, with mc (section 18) (done)</td>
+<td>M</td>
+</tr>
 </tbody>
 </table>
 <p>S: up to 1 day. M: 2 to 3 days. L: about 1 week.</p>
@@ -2756,7 +2805,99 @@ prompt 22700 tokens, warm cache):</p>
 <li>Decided (D65): the agent emits <code>voice.state</code> and <code>voice.say</code>, and
     chora-mc subscribes to <code>voice.*</code> (section 10). <code>tests/voice-events.sh</code>
     checks it in a headless session.</li>
+<li>Sub-agents (section 18): should agents start with the voice agent
+    (a list of projects and names in the settings), and should they
+    survive its restart (a detached supervisor that keeps the ACP
+    pipes)? Now they end with it.</li>
+<li><code>agent-sandbox.sh</code> drops the arguments after the command, so
+    <code>agent-sandbox.sh opencode acp</code> runs <code>opencode</code> without <code>acp</code>. Fix
+    the script (<code>*) ARGS+=("$1") ;;</code>), or give <code>sandbox_cmd</code> a wrapper?</li>
+<li>An ACP agent (opencode 1.19) calls <code>fs/write_text_file</code> although
+    the client offers no file system; the client answers "method not
+    found", and opencode writes the file itself. Offer the file system
+    and the terminal of ACP, so that the voice agent sees each write?</li>
 </ol>
+<h2 id="18-acp-sub-agents-wp10-2026-10-31">18. ACP sub-agents (WP10, 2026-10-31)<a class="headerlink" href="#18-acp-sub-agents-wp10-2026-10-31" title="Permanent link">&para;</a></h2>
+<p>The voice agent manages coding agents that speak the Agent Client
+Protocol (ACP, <a href="https://agentclientprotocol.com">https://agentclientprotocol.com</a>): JSON-RPC 2.0 over the
+stdin and stdout of the agent, one message per line. Module <code>agents.rs</code>.</p>
+<ul>
+<li>Spawn: one long-lived agent per project, by name. Its command line is
+  <code>sandbox_cmd</code> and <code>agent_cmd</code>, with <code>{dir}</code> and <code>{project}</code> replaced,
+  in the directory of the project, in its own process group. Without
+  <code>unsandboxed: true</code>, <code>coder_cmd</code> and <code>agent_cmd</code> always run in
+  <code>sandbox_cmd</code> (default <code>agent-sandbox.sh</code>: podman per start, project
+  directory mounted, own home, read-only root, all capabilities
+  dropped, network <code>ai-net</code>, ACP on stdio without a tty). The projects:
+  <code>agent_projects</code> and the directories of the inventory; a name matches
+  in any case.</li>
+<li>Protocol: <code>initialize</code> (protocol version 1, no file system, no
+  terminal), <code>session/new {cwd, mcpServers: []}</code>, <code>session/prompt</code>
+  with one text block, <code>session/update</code> notifications
+  (<code>agent_message_chunk</code>, <code>tool_call</code>, <code>plan</code>; thoughts and the rest
+  are ignored), the request <code>session/request_permission</code>, and the
+  notification <code>session/cancel</code>. Other requests of the agent get
+  "method not found". Prompts to a busy agent wait in a queue.</li>
+<li>States for mc: starting <code>thinking</code>, ready <code>idle</code>, prompt <code>working</code>,
+  question <code>question</code>, end of turn <code>done</code>, cancelled <code>idle</code>, an error or
+  a stop reason other than <code>end_turn</code> <code>blocked</code>; the end of its process
+  <code>blocked</code> and the phrase <code>agent_ended</code>.</li>
+<li>Speech: at the end of a turn, its last message is spoken in the voice
+  of the agent (<code>agent_voices</code> in turn, or the <code>voice</code> of
+  <code>agent_start</code>), queued as the coder results: never over the user.
+  More than <code>agent_said_chars</code> characters speak the first sentence and
+  <code>phrases.details</code>. The history of the LLM gets the spoken text.</li>
+<li>Questions: a permission request is spoken as <code>agent_asks</code> ("Atlas
+  möchte notes.txt ändern. Erlauben?": the file name of a path title
+  and a verb for the kind). It waits from when it is spoken; the state
+  is <code>confirming</code>. Yes and no words, <code>voice.confirm</code>, or "NAME, ja"
+  answer it; two unclear answers or <code>agent_permission_s</code> without one
+  are a no. Yes picks an <code>allow_once</code> option (else <code>allow_always</code>), no
+  a <code>reject_once</code> one; without a fitting option the outcome is
+  <code>cancelled</code>.</li>
+<li>Routing: the LLM gets <code>agent_list</code>, <code>agent_start {project, name?,
+  voice?}</code>, <code>agent_say {name, text}</code>, <code>agent_stop {name}</code> and
+  <code>agent_status {name?}</code>, and a part of the prompt. <code>agent_start</code> asks
+  first (its <code>confirm</code> rule). An utterance whose first words are the
+  name of an agent goes to it without the LLM: the rest is the prompt,
+  a cancel word cancels its prompt and its queue, a yes or no answers
+  its question. A name word of five letters or more may differ by one
+  edit, a shorter one must be exact ("oder" is not "coder").</li>
+<li>Events: each change of an agent is <code>voice.state {name, state, task,
+  said, voice, plan, question, log}</code> (<code>log</code>: the last 20 lines of its
+  transcript, <code>›</code> for the user, <code>⚙</code> for a tool call, <code>?</code> for a
+  question); <code>voice.remove {name}</code> when it stops. chora-mc shows the
+  agents in the status line and the <code>agents</code> scene; <code>mc agent.focus</code>
+  shows one agent with its transcript.</li>
+<li>Logs: <code>$XDG_DATA_HOME/chora/agents/NAME.log</code>, the stderr of the agent
+  and every message (<code>&gt;</code> sent, <code>&lt;</code> received).</li>
+<li>Lifetime: <code>agent_stop</code> and the end of the voice agent (an error,
+  <code>SIGTERM</code>, <code>SIGINT</code>) send <code>TERM</code> to the process group of each agent
+  and <code>KILL</code> after 5 s. The agents do not survive a restart.</li>
+</ul>
+<p>Tests: <code>tests/fake-acp.sh</code> is a fake agent (plan, tool call, question,
+long answer); the unit test of <code>agents.rs</code> runs it through a prompt, a
+yes, the short spoken answer and a stop. Core tests cover the question
+in the voice of the agent and the address by name.</p>
+<p>Live (2026-10-31, headless session with chora-mc, Gufo servers,
+<code>unsandboxed: true</code> with opencode 1.19 <code>acp --pure</code> and Gufo as an
+OpenAI-compatible provider, <code>permission.edit: ask</code>):</p>
+<ul>
+<li>With <code>voice.agent</code> calls: start to <code>idle</code> in about 5 s; the prompt
+  "Schreib eine Datei notes.txt mit einer Zeile Hallo Welt" gave a
+  permission request, spoken "Coder möchte notes.txt ändern. Erlauben?"
+  in the voice <code>ryan</code>; <code>voice.confirm yes</code>; the file was written and
+  "Die Datei notes.txt wurde mit der Zeile „Hallo Welt" geschrieben."
+  was spoken; <code>agent_stop</code> removed the agent from mc.</li>
+<li>Spoken, with TTS clips into a fake mic: "Starte bitte einen Agenten
+  für das Projekt demo mit dem Namen Atlas." made the LLM call
+  <code>agent_start</code> (first with "Demo", now found in any case); "Atlas,
+  schreib eine Datei ..." went to Atlas without the LLM; the spoken
+  "Ja." answered its question. Its second question (a shell command)
+  got no answer and was a no after 120 s. The ASR heard "Coder" as
+  "Coda"; that utterance went to the LLM, which sent it on with
+  <code>agent_say</code>.</li>
+</ul>
 
 
 
