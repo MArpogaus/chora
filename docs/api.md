@@ -265,7 +265,7 @@ by default; a timeout exits 1 with the reason on stderr.
 
 | Event | Data |
 |-------|------|
-| `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own. `to` names the window manager that the core reserved it for (see [Window managers](#window-managers)). `pid` is the process of the client as the socket reports it, a hint that a pid namespace can hide; `token` is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before the first map. |
+| `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own. `to` names the window manager that the core reserved it for (see [Window managers](#window-managers)). `pid` is the process of the client as the socket reports it, a hint that a pid namespace can hide; `token` is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before its first commit, or in the same batch of requests, as foot does. The core sends the event at the end of that batch. |
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
 | `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`. When `to` disconnects, the surface is free again, and all clients get `surface.detached`. With `resume`, this occurs at the end of the grace time. |
 | `focus.changed` | the focused surface changed, by a `focus` of a client or by the core: `surface`, or `null`. Window managers draw their frames from it (D55). |
@@ -303,8 +303,8 @@ when it applied, an error with the index of the failed command when not.
 input when the file is `-`; it prints nothing when it applied and the
 reason when not, so the exit code is the answer. Only the `view`
 subcommand reads YAML.
-A request that a client makes before its first commit follows its
-`surface.created`. A taskbar asks through `wlr-foreign-toplevel-management`.
+A request that a client makes before its `surface.created` follows
+that event. A taskbar asks through `wlr-foreign-toplevel-management`.
 The core does not act on a request, also not on `close`. A plugin answers
 with commands, for example `close`. A press over a surface reaches its
 client as well; a press over a rect or an image goes to plugins only, with
@@ -717,8 +717,8 @@ the unit and the token as one JSON line while the program runs.
   wait, for example because the program ended at once, `pid` is `null`.
   The command never starts the program twice.
 
-A window that activates with the token before its first map shows the
-token in `surface.created`. `chora-tiling` and `chora-xp` start apps with
+A window that activates with the token before its first commit, or in
+the same batch, shows the token in `surface.created`. `chora-tiling` and `chora-xp` start apps with
 `choractl run` too, so a restart of a window manager leaves its apps
 running.
 
