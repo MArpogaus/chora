@@ -55,7 +55,7 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.
 |-----------|-----------:|------------:|-----------:|---------:|
 | 0.6 Foundation | 2,500 | 14 to 18 | 3 | 1 week |
 | 0.7 Identity, processes and read model basics | 3,000 | 16 to 20 | 3 | 1 to 2 weeks |
-| 0.8 Agent read model | 4,600 | 23 to 30 | 3 | 2 weeks |
+| 0.8 Lean plugins and the agent API | open | open | open | open |
 | 0.9 Renderer | 7,000 | 40 to 50 | 6 | 3 weeks |
 | 0.10 Daily driver | 2,500 | 20 to 30 | 8 plus daily use | 3 weeks |
 | 1.0 Stable API | 1,500 | 12 to 16 | 4 plus daily use | 5 to 6 weeks |
@@ -201,33 +201,44 @@ Gate:
 11. The gate checks of the earlier milestones still hold, and the showroom
     CI is green against the release candidate.
 
-## 0.8: Agent read model
+## 0.8: Lean plugins and the agent API
 
-**Goal:** an agent sees what the user sees, it can ask the window manager
-for changes, and it can label what it shows.
+**Goal:** a lean core with generic plugins that every flavor can reuse.
+The XP flavor is a gimmick on top. An agent changes the look of windows
+through their window manager and gets warnings from the core.
 
 Scope:
 
-- JSON filters replace the selector strings (D32). They can match focus
-  and visibility.
-- `events.subscribe` starts with a snapshot of the state, and every event
-  has a sequence number.
-- `input.inject` takes a node and a point inside it.
-- A client that does not own a node can request a change: focus, move,
-  resize or close. The core sends the request to the owner as an event,
-  and the owner decides (D31). `chora-tiling` handles the requests.
-- Plugin methods carry a description and a JSON schema. `choractl mcp`
-  makes one tool from each method (D34).
-- `choractl mcp` uses rmcp, answers requests in parallel and supports
-  cancellation.
-- Text injection types every character of the text, also characters that
-  the current keymap does not have, for example German umlauts on a US
-  layout.
-- A visible indicator while a client injects input, and a binding of the
-  safety layer that revokes the capabilities of all clients (D23).
-- A text node (D18): text with a font family, a size, a color and a
-  maximum width. cosmic-text shapes it and finds fallback fonts. The
-  indicator, plugins and agents use it for labels without a client.
+- A shared plugin runtime in `chora-kit`: the reconnect loop, the startup
+  with `output.list`, `events.subscribe` and `methods.export`, grabs, the
+  export and dispatch of methods, the `--output` filter, claims, and the
+  resume from `meta`.
+- `chora-tiling` is the lean reference window manager on the runtime.
+  `chora-xp` moves onto it.
+- The wallpaper is a plugin of its own. Every flavor can use it.
+- `chora-xp` draws no programs into the scene: no Explorer and folder
+  windows, no Control Panel, Display Properties, Date and Time and file
+  properties, and no session dialogs. The git tag
+  `archive/xp-scene-programs` keeps this code.
+- The start menu and double clicks of `chora-xp` start installed
+  programs. Its configuration chooses them, for example Thunar as the file
+  manager. The explorer of xfce-winxp-tc is one optional choice. chora
+  takes no code from that project.
+- `chora-xp` keeps the XP look: frames, taskbar, start menu, the XP
+  notification balloons, wallpaper, sounds and the cube. Apart from this
+  milestone, it gets fixes only (D39).
+- The action `update` of `node.requested` changes opacity, effects and
+  `meta` of a node through its owner (D58). The window manager keeps the
+  change across layouts (#97).
+- `chora-tiling` has a default style for new windows (#99).
+- The answer of `scene.apply` carries `warnings` (D59): a surface attached
+  under a group with `input: pass` (#98), and a layer over the pixel
+  budget (#100).
+- An open question, decided in this milestone: the nodes of an agent stay
+  after its restart (#101). One option: `choractl mcp` connects with
+  `resume` instead of `keep_nodes`. The other option: `choractl mcp` keeps
+  `keep_nodes`, and the agent removes its old nodes.
+- Bugs of `choractl mcp`: #53, #54 and #56.
 
 Gate:
 
@@ -238,7 +249,8 @@ Gate:
    tools hits that node in 20 of 20 tries.
 3. `wait_events` returns while another tool call runs, and a cancelled
    call ends within 100 ms.
-4. Injected text `Grüße äöüß` appears unchanged in foot on a US layout.
+4. Injected text `Grüße äöüß` appears unchanged in foot on a US layout. A
+   CI job checks this.
 5. A subscription that starts during a transaction misses no event and
    sees no event twice: a test with 1,000 transactions checks the
    sequence numbers.
@@ -252,7 +264,11 @@ Gate:
 10. An MCP client puts a text node under `screen:NAME`, and a capture shows
     it.
 11. The gate checks of the earlier milestones still hold, and the showroom
-    CI is green against the release candidate.
+    CI is green against the release candidate. A CI job runs this check.
+12. The battle workflows in `tests/battle/` pass on the shared runtime.
+13. `chora-xp` has at most half of its 21,334 lines of Rust at
+    `v0.7.0-rc.3`.
+14. The voice milestone V2 succeeds in 18 of 20 tries.
 
 ## 0.9: Renderer
 
@@ -394,8 +410,7 @@ the effects of the scene and serves as their test.
 - Each core milestone ends with a showroom release that uses its API. The
   core gate checks that the showroom CI is green against the release
   candidate.
-- Scope and order of new effects are the decision of the user. Each new
-  effect gets a pixel test in `tests/xp.sh`.
+- The showroom gets fixes only (D39).
 
 ## Track: voice pipeline
 
@@ -408,8 +423,8 @@ speech to text, a language model and text to speech, served by
 | Milestone | Goal | Gate | Needs from the core |
 |-----------|------|------|---------------------|
 | V1 Pipeline | speech in, an answer as speech out, with barge-in | median 1.0 s or less from the end of speech to the first audio, over 20 German utterances | nothing |
-| V2 Control | the voice agent drives chora through MCP | "move the terminal to the right" works in 18 of 20 tries | 0.8 (read model, text injection) |
-| V3 Views | a morning view and task views | "show my tasks for today" opens a view with the tasks of an MCP source; "open a view for the first task" opens a view with two surfaces | 0.8 |
+| V2 Control | the voice agent drives chora through MCP | "move the terminal to the right" works in 18 of 20 tries | 0.7 (read model, text injection) |
+| V3 Views | a morning view and task views | "show my tasks for today" opens a view with the tasks of an MCP source; "open a view for the first task" opens a view with two surfaces | 0.7 |
 
 ## After 1.0
 
