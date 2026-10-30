@@ -159,7 +159,7 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                     && process::quits_after(state, status)
                 {
                     tracing::error!(
-                        "the startup command failed and no client is connected; chora quits"
+                        "the startup command failed and no client said hello; chora quits"
                     );
                     quit.set(true);
                     state.loop_signal.stop();

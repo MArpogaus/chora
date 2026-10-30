@@ -52,18 +52,12 @@ fn wait(mut child: Child, argv: &[String]) -> std::io::Result<ExitStatus> {
 }
 
 /// Whether the core quits after its startup command ended: it failed, no
-/// client said hello and no window is open. A window manager that does not
-/// start, for example on an unknown flag, otherwise leaves a black screen
-/// with no hint (#57); a window manager that crashes in a session with
-/// windows leaves the core running.
+/// client said hello since the core started and no window is open. A
+/// window manager that does not start, for example on an unknown flag,
+/// otherwise leaves a black screen with no hint (#57). A window manager
+/// that said hello and then crashes leaves the core running.
 pub fn quits_after(state: &State, status: ExitStatus) -> bool {
-    !status.success()
-        && state.windows.is_empty()
-        && state
-            .ipc
-            .conn_ids()
-            .into_iter()
-            .all(|conn| state.ipc.name(conn).is_none())
+    !status.success() && !state.ipc.greeted && state.windows.is_empty()
 }
 
 #[cfg(test)]
@@ -84,6 +78,22 @@ mod tests {
         assert!(super::quits_after(&core.state, failed));
         let _wm = core.named("wm");
         assert!(!super::quits_after(&core.state, failed));
+    }
+
+    /// A window manager that said hello and then crashes keeps the core,
+    /// also with no window open (only a bar runs).
+    #[test]
+    fn a_crash_after_hello_keeps_the_core() {
+        let mut core = Core::new();
+        let wm = core.named("wm");
+        drop(wm);
+        core.dispatch();
+        core.dispatch();
+        assert_eq!(core.state.ipc.conn_ids(), [] as [u64; 0]);
+        assert!(!super::quits_after(
+            &core.state,
+            ExitStatus::from_raw(2 << 8)
+        ));
     }
 
     /// A window manager that crashes in a session with windows leaves the

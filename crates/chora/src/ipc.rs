@@ -79,6 +79,8 @@ pub struct Ipc {
     graces: HashMap<String, Instant>,
     /// The client sockets by name: the source of the listener and the path.
     clients: HashMap<String, clients::ClientSocket>,
+    /// A client said hello since the core started.
+    pub greeted: bool,
 }
 
 /// What a grab waits for: a key or a pointer button.
@@ -926,6 +928,7 @@ impl State {
             c.keep_nodes = hello.keep_nodes;
             c.resume = hello.resume;
         }
+        self.ipc.greeted = true;
         if !known {
             self.emit(&Event::ClientConnected { name: hello.name });
         }
