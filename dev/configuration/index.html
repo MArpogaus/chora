@@ -1357,8 +1357,8 @@ like <code>set_layout</code>.</p>
 <p><code>chora-tiling</code> connects with <code>resume</code> (see <a href="../api/#ipc-methods">API</a>). It
 keeps the tags and the layouts of each output, and the tags, the states
 and the stacking of each window, in the <code>meta</code> of its nodes. A restart
-within the grace time rebuilds them from there, for example <code>choractl
-restart tiling</code> after a rebuild.</p>
+within the grace time rebuilds them from there. In a flavor or a view,
+<code>choractl restart tiling</code> does that after a rebuild.</p>
 <p><code>chora-tiling</code> claims the box around the work areas of its outputs
 (D55). <code>--output NAME</code> limits it to some outputs, as for <code>chora-xp</code>, and
 can come more than once. So each window manager takes its own outputs.
