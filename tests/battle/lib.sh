@@ -44,7 +44,7 @@ health() {
     # Dead or only hung? The process facts go into the finding, not into
     # its title, so repeats of this finding stay one title.
     local core state=
-    core=$(pgrep -x chora | tail -1)
+    core=$(pgrep -P "$HLPID" -x chora)
     if [ -n "$core" ]; then
       state=$(awk '/^(State|VmRSS|VmSwap):/ {printf "%s=%s ", $1, $2 $3}' /proc/$core/status 2>/dev/null)
       state="$state wchan=$(head -c 100 /proc/$core/wchan 2>/dev/null)"
@@ -91,6 +91,8 @@ session_start() {
   for _ in $(seq 120); do grep -q CHORA_SOCKET "$hlenv" && break; sleep 0.5; done
   grep -q CHORA_SOCKET "$hlenv" || { finding "session did not start" crash "setup" "headless-session.sh $outputs -- $*"; return 1; }
   set -a; . "$hlenv"; set +a
+  # the core of this session alone, for health and kill-session.sh
+  pgrep -P "$HLPID" -x chora > "/tmp/bt-$WF.core"
   sleep 2  # the plugin needs a moment before its nodes answer queries
   admin grant agent screen.capture input.inject >> "$RUN" 2>&1
   health "session started"

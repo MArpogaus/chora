@@ -6,8 +6,8 @@ for i in $(seq 6); do open 30 $((i*40)) 120; done
 wait_count "app_id:chora-probe kind:surface" 6 || finding "W7: $(count_windows) windows instead of 6" wrong "run 6 windows"
 health "6 windows tiled"
 
-core=$(pgrep -x chora | head -1)
-[ -n "$core" ] || { finding "W7: no chora process to signal" wrong "pgrep -x chora"; session_stop; exit 1; }
+core=$(pgrep -P "$HLPID" -x chora)
+[ -n "$core" ] || { finding "W7: no chora process to signal" wrong "pgrep -P \$HLPID -x chora"; session_stop; exit 1; }
 kill -USR1 "$core"
 # the emergency reset revokes all grants: grant again to continue testing
 sleep 1; admin grant agent screen.capture input.inject >> "$RUN" 2>&1
