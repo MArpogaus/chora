@@ -308,7 +308,9 @@ socket needs `methods.privileged` besides `methods.call`.
 
 mc also follows the events of the voice agent (D65); it subscribes to
 `voice.*`. `voice.state` sets the agent `voice` as `agent.set` does, or
-the sub-agent that the `name` of its data names, such as `coder`.
+the sub-agent that the `name` of its data names, such as `coder` or an
+ACP agent of the voice agent; `voice.remove {name}` removes such a
+sub-agent.
 `voice.say` shows a sentence as `hud.say` does. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
 clients use `agent.set` and `hud.say`.
@@ -328,9 +330,10 @@ clients use `agent.set` and `hud.say`.
 | `content.set` | `content`, `lines` and an optional `title` of a text content |
 | `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines |
 | `region.solo` | privileged. `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
-| `agent.set` | `name` and optional `state`, `task`, `said` and `voice`: adds an agent or changes it; a missing field stays. The `state` is a name of `states` |
+| `agent.set` | `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words |
+| `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
-| `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice` and `since` (the time of its first report) |
+| `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
 | `notify.push` | `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`; a critical one also shows in red in the text `urgent` until the next one |
 | `notify.clear` | none; empties `notify` and `urgent` |
 
