@@ -2,7 +2,7 @@
 //! lists every option. The file `tiling.yaml` next to the crate is the
 //! default and the reference.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::Path};
 
 use chora_kit::settings::Settings;
 use chora_scene::{Binding, ShaderEffect};
@@ -165,6 +165,16 @@ impl Settings for Config {
         if !(0.0..=1.0).contains(&self.style.opacity) {
             return Err("style.opacity: from 0 to 1".into());
         }
+        // Checked here, so that settings.set refuses it, and not at every
+        // new window.
+        if let Some(effect) = self
+            .style
+            .effects
+            .iter()
+            .find(|e| !Path::new(&e.shader).is_file())
+        {
+            return Err(format!("style.effects: no shader file {}", effect.shader));
+        }
         let mut keys = BTreeMap::new();
         for (binding, action) in &self.bindings {
             // Two spellings of one key would lose one grab at runtime.
@@ -254,6 +264,12 @@ mod tests {
         let opacity = DEFAULT.replace("opacity: 1.0", "opacity: 1.5");
         let err = parse::<Config>(&opacity).unwrap_err();
         assert!(err.contains("style.opacity"), "{err}");
+        let missing = DEFAULT.replace(
+            "effects: []",
+            "effects: [{shader: /nonexistent/chora-test.frag}]",
+        );
+        let err = parse::<Config>(&missing).unwrap_err();
+        assert!(err.contains("/nonexistent/chora-test.frag"), "{err}");
         let modifier = DEFAULT.replace("modifier: Super", "modifier: Shift");
         assert!(parse::<Config>(&modifier).is_err());
     }
