@@ -206,7 +206,7 @@ undo output changes, and the reserved space
 returns with the next tool call; `wlr-randr` resets the outputs. The
 emergency reset and the revoke binding do not stop the agent; after the
 reset, it connects again. Only `systemctl --user stop voice-agent` stops
-it and a running coder.
+the agent; it and `code_cancel` stop a running coding task.
 
 ## Coding tasks
 
@@ -223,12 +223,14 @@ It adds the tools `code_task`, `code_status`, `code_cancel` and
 - `code_task` with a project clones `~/.local/share/chora/inventory/NAME`
   to `~/.local/share/chora/worktrees/NAME-N`, on the branch `voice/N`.
   Without a project, it starts an empty repository `worktrees/N`.
-- The harness runs in that clone and writes its output to `coder.log`
-  there. The agent speaks the result and keeps it in the history.
+- The harness runs in that clone. Its output goes to the file of the
+  clone with `.log` after its name, such as `worktrees/chora-3.log`. The
+  agent speaks the result and keeps it in the history.
 - The inventory holds the projects that you keep, as directories or
   links, for example `ln -s ~/Projekte/chora
-  ~/.local/share/chora/inventory/chora`. Take a good result into a
-  project with `git fetch` from its clone.
+  ~/.local/share/chora/inventory/chora`. A result reaches the branch
+  `voice/N` only when the harness commits it; the agent asks for that.
+  Take a good result into a project with `git fetch` from its clone.
 
 JSON lines such as the `stream-json` of Claude Code give the steps and
 the result; other harnesses give plain lines. Without a sandbox of its

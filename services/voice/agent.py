@@ -169,8 +169,9 @@ Coding tasks:
 - Hand a task that needs code, a program or many steps to code_task. It
   runs in the background in a clone of a project of list_projects, or in
   an empty repository, and you hear its result when it ends.
-- Say the task in full: the coder hears nothing else. One task runs at a
-  time; code_status says how far it is, code_cancel stops it."""
+- Say the task in full: the coder hears nothing else. Ask it to commit
+  its work, or the clone keeps it uncommitted. One task runs at a time;
+  code_status says how far it is, code_cancel stops it."""
 
 RATE = 24000
 FRAME_MS = 20
@@ -193,6 +194,7 @@ SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
 # picture that capture would.
 SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
 GO_ON = "(A noise cut your answer; that was not me. Go on where you stopped.)"
+CODER_REPORT = "The coding task in"  # the start of each report of the coder
 TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
 
 SPEAKING = asyncio.Lock()  # one voice at a time: replies and coding results
@@ -501,7 +503,7 @@ class Tools:
 
     async def call(self, name: str, arguments: dict) -> str | list[dict]:
         """Run a tool and return its content for the LLM: text, and images if it sees them."""
-        if self.coder and name in self.coder.TOOLS:  # else the task text would go to chora
+        if self.coder and name in self.coder.TOOLS:
             return self.coder.call(name, arguments)
         if name not in self.names:
             return f"no tool {name}"
@@ -519,8 +521,9 @@ class Tools:
 class Coder:
     """Coding tasks of CODER_CMD in clones of the projects in INVENTORY.
 
-    One task runs at a time, in the background, in WORKTREES/NAME on the
-    branch voice/N. Its output goes to coder.log there. A line of JSON,
+    One task runs at a time, in the background, in WORKTREES/NAME-N on the
+    branch voice/N, or in WORKTREES/N without a project. Its output goes to
+    the file of the clone with .log after its name, outside the repository. A line of JSON,
     as the stream-json of Claude Code, gives the steps and the result;
     plain lines count as steps.
     """
@@ -575,8 +578,10 @@ class Coder:
         """Start a task in a new clone of `project`, or in an empty repository."""
         if self.job and not self.job.done():
             return "a coding task runs already; ask for its status or cancel it"
-        if project and not (INVENTORY / project).is_dir():
+        if project and project not in {p.name for p in INVENTORY.glob("*") if p.is_dir()}:
             return f"no project {project}; list_projects names them"
+        if task.lstrip().startswith("-"):  # it would be an option of the harness
+            return "a task must not start with -"
         WORKTREES.mkdir(parents=True, exist_ok=True)
         number = 1 + max(
             (
@@ -596,9 +601,8 @@ class Coder:
         self.started, self.step, result, state = time.monotonic(), "starting", "", "failed"
         try:
             if project:
-                await _git(
-                    "clone", "--quiet", "--local", str(INVENTORY / project), str(self.workdir)
-                )
+                source = str(INVENTORY / project)
+                await _git("clone", "--quiet", "--no-hardlinks", source, str(self.workdir))
                 await _git("-C", str(self.workdir), "switch", "--quiet", "-c", f"voice/{number}")
             else:
                 await _git("init", "--quiet", "-b", f"voice/{number}", str(self.workdir))
@@ -611,7 +615,7 @@ class Coder:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
-            with (self.workdir / "coder.log").open("wb") as out:
+            with self.workdir.with_suffix(".log").open("wb") as out:
                 async for line in self.proc.stdout:
                     out.write(line)
                     step, result = _step(line.decode(errors="replace"), result)
@@ -620,10 +624,16 @@ class Coder:
         except asyncio.CancelledError:
             if self.proc and self.proc.returncode is None:
                 os.killpg(self.proc.pid, signal.SIGTERM)
+                # A coder that ignores the signal must not run next to the next task.
+                try:
+                    await asyncio.wait_for(self.proc.wait(), 5)
+                except TimeoutError:
+                    os.killpg(self.proc.pid, signal.SIGKILL)
+                    await self.proc.wait()
             state = "was cancelled"
         except OSError as err:
             result = str(err)
-        text = f"The coding task in {self.workdir} {state}. {(result or self.step)[:400]}"
+        text = f"{CODER_REPORT} {self.workdir} {state}. {(result or self.step)[:400]}"
         self.reports.append(text)
         await speak(self.http, one(text))
 
@@ -1048,7 +1058,11 @@ def spoken(messages: list[dict]) -> list[dict]:
     words = [
         {"role": m["role"], "content": text_of(m["content"])}
         for m in messages
-        if m["role"] in ("user", "assistant") and m.get("content") and m["content"] != GO_ON
+        if m["role"] in ("user", "assistant")
+        and m.get("content")
+        and m["content"] != GO_ON
+        # The output of the coder in a report could steer a later session.
+        and not text_of(m["content"]).startswith(CODER_REPORT)
     ]
     users = [i for i, m in enumerate(words) if m["role"] == "user"]
     return words[users[-HISTORY] :] if len(users) > HISTORY else words
