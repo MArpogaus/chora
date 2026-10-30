@@ -661,22 +661,20 @@ def _step(line: str, result: str) -> tuple[str, str]:
     """Return the step that a line of coder output shows, and the result so far.
 
     A JSON line of stream-json shows a tool call or a text, or the result;
-    any other line is a step as it is.
+    any other line, also JSON of another shape, is a step as it is.
     """
     try:
         event = json.loads(line)
-    except ValueError:
+        if event.get("type") == "result":
+            return "", str(event.get("result") or result)
+        for part in (event.get("message") or {}).get("content") or []:
+            if part.get("type") == "tool_use":
+                target = next(iter((part.get("input") or {}).values()), "")
+                return f"{part.get('name')} {target}"[:200], result
+            if part.get("type") == "text":
+                return part.get("text", "")[:200], result
+    except (ValueError, AttributeError, TypeError):
         return line.strip()[:200], result
-    if not isinstance(event, dict):
-        return line.strip()[:200], result
-    if event.get("type") == "result":
-        return "", str(event.get("result") or result)
-    for part in (event.get("message") or {}).get("content") or []:
-        if isinstance(part, dict) and part.get("type") == "tool_use":
-            target = next(iter((part.get("input") or {}).values()), "")
-            return f"{part.get('name')} {target}"[:200], result
-        if isinstance(part, dict) and part.get("type") == "text":
-            return part.get("text", "")[:200], result
     return "", result
 
 
@@ -775,8 +773,8 @@ async def _run_call(tools: Tools, call: dict) -> str | list[dict]:
         arguments = json.loads(call["args"] or "{}")
         log(f"tool {call['name']} {arguments}")
         result = await tools.call(call["name"], arguments)
-    except (*TURN_ERRORS, TypeError) as err:  # the LLM reads the error and goes on
-        result = f"error: {err}"
+    except (*TURN_ERRORS, TypeError, AttributeError) as err:  # also arguments of a wrong type
+        result = f"error: {err}"  # the LLM reads the error and goes on
     log(f"  -> {' '.join(text_of(result).split())[:300]}")
     return result
 
