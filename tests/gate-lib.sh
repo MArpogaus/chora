@@ -48,3 +48,12 @@ pixel() { python3 -I "$repo/tests/png-pixel.py" "$@"; }
 mcp_py() {
     PYTHONPATH=$repo/tests python3 - "$@"
 }
+# The cargo of the micromamba env chora where it exists, else
+# the cargo on PATH, as in CI.
+cargo() {
+    if command -v micromamba >/dev/null 2>&1; then
+        micromamba run -n chora cargo "$@"
+    else
+        command cargo "$@"
+    fi
+}

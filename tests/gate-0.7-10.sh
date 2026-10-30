@@ -14,7 +14,7 @@ for what in chora choractl chora-tiling chora-probe; do
 done
 cd "$repo" || fail "no repo"
 findings=tests/battle/findings.md
-hits=$(git grep -lE 'pointer_move|\bclick\b' -- 'tests/battle/w*.sh' |
+hits=$(grep -lE 'pointer_move|\bclick\b' tests/battle/w*.sh |
     grep -v 'w3\.sh' || :)
 test -z "$hits" || fail "these workflows still click at pixels: $hits"
 before=$(grep -c '^## ' "$findings" 2>/dev/null || echo 0)
