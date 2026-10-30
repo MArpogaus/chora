@@ -7,7 +7,7 @@
 use std::{
     ffi::OsStr,
     path::Path,
-    process::{Child, Command},
+    process::{Child, Command, ExitStatus},
 };
 
 /// Starts the startup command with the environment of this compositor.
@@ -27,14 +27,40 @@ pub fn start(argv: &[String], wayland: &OsStr, socket: &Path) -> std::io::Result
 }
 
 /// Waits for the started child in a thread, so that it never stays a
-/// zombie.
-pub fn reap(mut child: Child) {
-    std::thread::spawn(move || child.wait());
+/// zombie, and logs how it ended: a startup command that exits early
+/// otherwise leaves only a black screen.
+pub fn reap(child: Child, argv: &[String]) {
+    let argv = argv.to_vec();
+    std::thread::spawn(move || wait(child, &argv));
+}
+
+/// Waits for the child and logs its exit status or signal with its
+/// command line.
+fn wait(mut child: Child, argv: &[String]) -> std::io::Result<ExitStatus> {
+    let status = child.wait();
+    // One macro: each tracing macro counts much for clippy's complexity.
+    let how = status
+        .as_ref()
+        .map_or_else(ToString::to_string, ToString::to_string);
+    tracing::warn!(status = %how, ?argv, "the startup command ended");
+    status
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::Path};
+    use std::{fs, os::unix::process::ExitStatusExt as _, path::Path};
+
+    /// The status of a startup command that ends reaches the log.
+    #[test]
+    fn wait_returns_the_exit_status_and_signal() {
+        let run = |script: &str| {
+            let argv = ["sh", "-c", script].map(String::from);
+            let child = super::start(&argv, "wayland-test".as_ref(), Path::new("/tmp/x")).unwrap();
+            super::wait(child, &argv).unwrap()
+        };
+        assert_eq!(run("exit 3").code(), Some(3));
+        assert_eq!(run("kill -TERM $$").signal(), Some(15));
+    }
 
     /// Fork and exec sites of production code.
     const FORK_NEEDLES: [&str; 5] = ["Command::new", "posix_spawn", "execv(", "execve(", "fork("];
