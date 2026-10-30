@@ -1462,7 +1462,10 @@ the viewer, and a perspective transform projects it. The texture maps
 perspective-correct. A triangle with a point behind the viewer does
 not show; the rest of the mesh does.</p>
 <p>An effect is a GLSL ES fragment shader with absolute path. It reads the
-layer in <code>uniform sampler2D tex</code> at <code>varying vec2 v_uv</code>, and may use
+layer in <code>uniform sampler2D tex</code> at <code>varying vec2 v_uv</code>. <code>v_uv</code> is
+<code>(0, 0)</code> at the top left of the node and grows to the right and down, as
+the scene does; a flame that rises therefore rises toward small <code>v_uv.y</code>.
+A shader node and an effect may use
 <code>uniform float alpha</code>, <code>uniform vec2 size</code> (the texture size in pixels),
 <code>uniform float time</code> (seconds) and its own <code>float</code> and <code>vec2</code> to <code>vec4</code>
 uniforms. The texture holds premultiplied colors, and the shader writes
