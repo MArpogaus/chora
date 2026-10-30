@@ -173,9 +173,11 @@ jobs:
             libxkbcommon-dev libegl1-mesa-dev libgbm-dev \
             libegl-mesa0 libgl1-mesa-dri seatd foot
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
-    - run: cargo build --locked -p chora -p choractl -p chora-tiling
+    - run: cargo build --locked -p chora -p choractl -p chora-tiling -p chora-probe
     - run: |
         sudo modprobe vkms
+        uname -r
+        ls /sys/kernel/config/vkms || true
         for dev in /sys/bus/vmbus/drivers/hyperv_drm/*-*; do
             basename "$dev" | sudo tee /sys/bus/vmbus/drivers/hyperv_drm/unbind
         done
@@ -184,6 +186,15 @@ jobs:
         sudo seatd -g root &
         sleep 1
         sudo LIBSEAT_BACKEND=seatd BIN="$PWD/target/debug" tests/gate-0.7-3.sh
+    - name: a second output plugs in and out (0.9 gate 5)
+      run: |
+        sudo LIBSEAT_BACKEND=seatd BIN="$PWD/target/debug" SHOTS="$PWD/hotplug" \
+            tests/gate-0.9-vkms-hotplug.sh
+    - if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      with:
+        name: vkms-hotplug
+        path: hotplug
 
   deny:
     runs-on: ubuntu-latest
