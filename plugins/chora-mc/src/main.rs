@@ -164,9 +164,12 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     methods.extend(settings::File::<Config>::methods());
     let runtime =
         std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, PathBuf::from);
-    let shader = runtime.join(format!("chora-mc-{}/write.frag", std::process::id()));
-    std::fs::create_dir_all(shader.parent().expect("a file in a directory"))?;
-    std::fs::write(&shader, WRITE_SHADER)?;
+    // One file for all starts, written when it differs.
+    let shader = runtime.join("chora-mc/write.frag");
+    if std::fs::read_to_string(&shader).ok().as_deref() != Some(WRITE_SHADER) {
+        std::fs::create_dir_all(shader.parent().expect("a file in a directory"))?;
+        std::fs::write(&shader, WRITE_SHADER)?;
+    }
     let rt = Runtime::connect(NAME, Vec::new())?;
     let mut mc = Mc {
         rt,
