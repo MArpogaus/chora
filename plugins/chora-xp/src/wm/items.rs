@@ -62,12 +62,11 @@ impl Wm {
                         commands.extend(self.run(&item.action, output.as_deref()));
                     }
                     Item::Remove => {
-                        if let Some(i) = item.program {
-                            commands.extend(self.menu.remove_program(
-                                i,
-                                &mut self.theme,
-                                &mut self.icons,
-                            ));
+                        let mut programs = self.settings.value.programs.clone();
+                        if let Some(i) = item.program.filter(|&i| i < programs.len()) {
+                            programs.remove(i);
+                            commands
+                                .extend(self.change(serde_json::json!({ "programs": programs })));
                         }
                     }
                 }

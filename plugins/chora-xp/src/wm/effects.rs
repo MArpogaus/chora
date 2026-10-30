@@ -274,7 +274,7 @@ impl Wm {
 
     /// A duration in the slow motion of the configuration.
     pub(super) fn slow(&self, duration: Duration) -> Duration {
-        duration.mul_f64(self.config.slow.max(0.01))
+        duration.mul_f64(self.slow.max(0.01))
     }
 }
 

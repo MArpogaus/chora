@@ -18,6 +18,7 @@ use std::{
 use chora_kit::{
     icons::Icons,
     runtime::{Plugin, Runtime},
+    settings::{self, Store},
 };
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
@@ -25,14 +26,15 @@ use chora_scene::{
     ipc::{ClientError, ExportMethod, Grab, OutputConfigure, PressState, RpcError},
 };
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use self::{desktops::desk_id, effects::Effects};
 use crate::{
     apps,
     balloon::{self, Balloon, Queue},
+    config::{Config, Wallpaper},
     context::{self, Act},
-    control::{self, Setting, Toggles},
+    control::{self, Setting},
     cube::DESKTOPS,
     datetime::{Click, DateDialog},
     decoration::{self, Button, Part},
@@ -76,23 +78,6 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 /// How long the desktop takes to lose its color behind a dialog, as in
 /// the Session Fade effect of the reference.
 const FADE: Duration = Duration::from_millis(1500);
-
-/// The settings of the window manager.
-pub struct Config {
-    /// The shell command of the terminal.
-    pub terminal: String,
-    /// The shell command of the file manager.
-    pub file_manager: String,
-    /// The strftime format of the clock.
-    pub clock: String,
-    /// The background of the desktop.
-    pub wallpaper: wallpaper::Style,
-    /// Stretches the time of the magic lamp and of the cube, for tests
-    /// and demos; 1 is the normal speed.
-    pub slow: f64,
-    /// The effects and sounds that are on at the start.
-    pub toggles: Toggles,
-}
 
 /// The window manager that a window dragged out of the work areas of
 /// `chora-xp` goes to (D55).
@@ -207,7 +192,13 @@ pub struct Wm {
     rt: Runtime<Key>,
     theme: Theme,
     icons: Icons,
-    config: Config,
+    /// The settings as the plugin applies them.
+    settings: settings::File<Config>,
+    /// The background of the desktop that shows.
+    wallpaper: wallpaper::Style,
+    /// Stretches the time of the magic lamp and of the cube, for tests
+    /// and demos; 1 is the normal speed.
+    slow: f64,
     /// The windows, bottom first.
     windows: Vec<Window>,
     /// The surfaces in the order they opened, for the taskbar.
@@ -289,6 +280,16 @@ impl Plugin for Wm {
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         parse_call(method, params).and_then(|call| self.call(call))
     }
+
+    fn settings(&mut self) -> Option<&mut dyn Store> {
+        Some(&mut self.settings)
+    }
+
+    fn settings_changed(&mut self) -> Result<(), RpcError> {
+        let commands = self.configure();
+        self.apply(commands)
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
+    }
 }
 
 impl Wm {
@@ -297,19 +298,25 @@ impl Wm {
     pub fn start(
         outputs: Vec<String>,
         theme: Theme,
-        menu: Menu,
-        icons: Icons,
-        config: Config,
+        settings: settings::File<Config>,
+        slow: f64,
     ) -> Result<Self, ClientError> {
-        let methods = METHODS.map(ExportMethod::from).to_vec();
+        let mut methods = METHODS.map(ExportMethod::from).to_vec();
+        methods.extend(settings::File::<Config>::methods());
+        let config = &settings.value;
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let menu = Menu::new(&config.menu(), &theme, &mut icons);
         let mut wm = Self {
             rt: Runtime::start(NAME, outputs, &EVENTS, methods)?,
-            theme,
-            icons,
             clock: String::new(),
             desk: DesktopIcons::new(&config.terminal),
-            effects: Effects::new(config.toggles),
-            config,
+            effects: Effects::new(config.effects),
+            taskbar: config.taskbar,
+            wallpaper: config.wallpaper.style(&theme),
+            theme,
+            icons,
+            settings,
+            slow,
             windows: Vec::new(),
             opened: Vec::new(),
             focused: None,
@@ -330,7 +337,6 @@ impl Wm {
             context: None,
             sys_window: None,
             last_icon: None,
-            taskbar: taskbar::Settings::default(),
             panels: Vec::new(),
             hide_at: None,
             last_clock: None,
@@ -408,14 +414,18 @@ impl Wm {
             .into_iter()
             .collect();
         commands.push(group(NAME, ROOT));
-        for id in [
+        let mut ids = [
             WALLPAPERS,
             desktop_icons::GROUP,
             WINDOWS,
             BARS,
             DIALOGS,
             MENUS,
-        ] {
+        ];
+        if !self.taskbar.on_top {
+            ids.swap(2, 3);
+        }
+        for id in ids {
             commands.push(group(id, NAME));
         }
         for desktop in 0..DESKTOPS {
@@ -446,8 +456,7 @@ impl Wm {
     }
 
     fn add_output(&mut self, output: &OutputInfo) -> Vec<Command> {
-        let mut commands =
-            wallpaper::create(&mut self.theme, &self.config.wallpaper, output, WALLPAPERS);
+        let mut commands = wallpaper::create(&mut self.theme, &self.wallpaper, output, WALLPAPERS);
         let mut bar = Bar::new(output);
         bar.configure(self.taskbar);
         commands.extend(bar.create(&mut self.theme, BARS, &self.clock, self.desktop));
@@ -651,7 +660,9 @@ impl Wm {
     }
 
     fn now(&self) -> String {
-        chrono::Local::now().format(&self.config.clock).to_string()
+        chrono::Local::now()
+            .format(&self.settings.value.clock_format)
+            .to_string()
     }
 
     // Windows
@@ -1091,11 +1102,7 @@ impl Wm {
         let mine: Vec<usize> = (0..self.windows.len())
             .filter(|&w| self.bars[i].contains(self.windows[w].pos))
             .collect();
-        let mut commands = vec![wallpaper::update(
-            &mut self.theme,
-            &self.config.wallpaper,
-            output,
-        )];
+        let mut commands = vec![wallpaper::update(&mut self.theme, &self.wallpaper, output)];
         commands.extend(self.bars[i].resize(&mut self.theme, output, &self.clock));
         commands.extend(self.pagers());
         let area = self.bars[i].usable();
@@ -1234,7 +1241,7 @@ impl Wm {
         match self.rt.action(binding).copied() {
             Some(Key::Close) => self.focused.as_deref().map(close).unwrap_or_default(),
             Some(Key::Terminal) => {
-                chora_kit::run(&self.config.terminal);
+                chora_kit::run(&self.settings.value.terminal);
                 Vec::new()
             }
             Some(Key::Turn(steps)) => self.turn(steps),
@@ -1702,10 +1709,13 @@ impl Wm {
                     .collect();
                 shown.iter().flat_map(|s| self.minimize(s)).collect()
             }
-            Act::Lock => self.set_taskbar(taskbar::Settings {
-                locked: !self.taskbar.locked,
-                ..self.taskbar
-            }),
+            Act::Lock => {
+                let taskbar = taskbar::Settings {
+                    locked: !self.taskbar.locked,
+                    ..self.taskbar
+                };
+                self.change(json!({ "taskbar": taskbar }))
+            }
             Act::ArrangeByName | Act::ArrangeByType => {
                 self.desk
                     .arrange(&mut self.theme, &mut self.icons, act == Act::ArrangeByType)
@@ -2196,7 +2206,7 @@ impl Wm {
                 .first_sized(&["user-trash-full", "user-trash"], 32),
             walls,
         };
-        let style = self.config.wallpaper.clone();
+        let style = self.wallpaper.clone();
         let mut panel = DisplayDialog::new(style, screen, self.display_tab, area, art);
         let page = panel.page(&mut self.theme);
         let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
@@ -2228,7 +2238,11 @@ impl Wm {
                         let page = panel.page();
                         return panel.dialog.show(&mut self.theme, page);
                     }
-                    display::Effects::Take(toggles) => self.effects.toggles = toggles,
+                    display::Effects::Take(toggles) => {
+                        let mut commands = self.close_panel(i);
+                        commands.extend(self.change(json!({ "effects": toggles })));
+                        return commands;
+                    }
                     display::Effects::Close => {}
                 }
                 return self.close_panel(i);
@@ -2253,8 +2267,8 @@ impl Wm {
                 } else {
                     self.redraw_panel(i)
                 };
-                if style != self.config.wallpaper {
-                    commands.extend(self.set_wallpaper(style));
+                if style != self.wallpaper {
+                    commands.extend(self.change(json!({ "wallpaper": Wallpaper::of(&style) })));
                 }
                 let current = self
                     .outputs()
@@ -2324,12 +2338,50 @@ impl Wm {
         commands
     }
 
+    /// Changes settings as `settings.set` does: checks them, saves the
+    /// file and applies them.
+    fn change(&mut self, changes: Value) -> Vec<Command> {
+        match self.settings.set(changes) {
+            Ok(_) => self.configure(),
+            Err(err) => {
+                eprintln!("chora-xp: {err}");
+                Vec::new()
+            }
+        }
+    }
+
+    /// Applies the settings where they differ from what shows.
+    fn configure(&mut self) -> Vec<Command> {
+        let config = self.settings.value.clone();
+        let mut commands = Vec::new();
+        let style = config.wallpaper.style(&self.theme);
+        if style != self.wallpaper {
+            commands.extend(self.set_wallpaper(style));
+        }
+        if config.taskbar != self.taskbar {
+            commands.extend(self.set_taskbar(config.taskbar));
+        }
+        self.effects.toggles = config.effects;
+        let menu = self.menu.config();
+        if menu.programs != config.programs
+            || menu.launcher != config.launcher
+            || menu.file_manager != config.file_manager
+            || self.desk.terminal != config.terminal
+        {
+            self.desk.terminal.clone_from(&config.terminal);
+            commands.extend(self.close_menu());
+            let menu = config.menu();
+            commands.extend(self.menu.rebuild(&menu, &mut self.theme, &mut self.icons));
+        }
+        commands
+    }
+
     /// Shows a background on every output.
     fn set_wallpaper(&mut self, style: wallpaper::Style) -> Vec<Command> {
-        self.config.wallpaper = style;
+        self.wallpaper = style;
         self.outputs()
             .iter()
-            .map(|o| wallpaper::update(&mut self.theme, &self.config.wallpaper, o))
+            .map(|o| wallpaper::update(&mut self.theme, &self.wallpaper, o))
             .collect()
     }
 
@@ -2400,7 +2452,7 @@ impl Wm {
                 if close {
                     commands.extend(self.close_panel(i));
                 }
-                commands.extend(self.set_taskbar(settings));
+                commands.extend(self.change(json!({ "taskbar": settings })));
             }
         }
         commands
@@ -2560,7 +2612,7 @@ impl Wm {
     /// Opens what an icon stands for: a folder in the file manager, a
     /// program or a file with the program of its type.
     fn open_icon(&mut self, open: desktop_icons::Open) -> Vec<Command> {
-        let fm = &self.config.file_manager;
+        let fm = &self.settings.value.file_manager;
         chora_kit::run(&match open {
             desktop_icons::Open::Folder(path) => desktop_icons::open_with(fm, &path),
             desktop_icons::Open::Computer => desktop_icons::open_with(fm, Path::new("/")),
@@ -2584,7 +2636,7 @@ impl Wm {
     /// The Control Panel for an output, with the current choices.
     fn control_panel(&mut self) -> Vec<apps::Node> {
         let walls = control::wallpapers(&wallpaper::dirs(&self.theme));
-        let current = self.config.wallpaper.file.as_deref();
+        let current = self.wallpaper.file.as_deref();
         control::menu(current, &walls, self.effects.toggles)
     }
 
@@ -2608,13 +2660,14 @@ impl Wm {
             Setting::Wallpaper(file) => {
                 let style = wallpaper::Style {
                     file: Some(file.clone()),
-                    ..self.config.wallpaper.clone()
+                    ..self.wallpaper.clone()
                 };
-                self.set_wallpaper(style)
+                self.change(json!({ "wallpaper": Wallpaper::of(&style) }))
             }
             Setting::Effect(effect) => {
-                self.effects.toggles.flip(*effect);
-                Vec::new()
+                let mut toggles = self.effects.toggles;
+                toggles.flip(*effect);
+                self.change(json!({ "effects": toggles }))
             }
             Setting::Taskbar | Setting::DateTime | Setting::Display => {
                 let area = output
@@ -2642,7 +2695,9 @@ impl Wm {
             return Vec::new();
         };
         let [.., w, h] = bar.area();
-        let suspend = session::on_path("systemctl");
+        let suspend = (self.settings.value.session.stand_by.as_deref())
+            .and_then(|c| c.split_whitespace().next())
+            .is_some_and(session::on_path);
         let dialog = Dialog::new(mode, &bar.output, [w, h], suspend);
         let mut commands = dialog.create(&mut self.theme);
         self.dialog = Some(dialog);
@@ -2730,35 +2785,41 @@ impl Wm {
         }
     }
 
-    /// Does what a button of a dialog says.
+    /// Does what a button of a dialog says: runs the command of the
+    /// settings, or acts on chora-xp without one.
     fn choose(&mut self, choice: Choice) -> Vec<Command> {
         let mut commands = self.close_dialog();
+        let session = self.settings.value.session.clone();
         match choice {
             Choice::LogOff => {
                 self.play(Sound::LogOff);
+                if let Some(command) = session.log_off {
+                    session::run(command);
+                    return commands;
+                }
                 let surfaces: Vec<String> =
                     self.windows.iter().map(|w| w.surface.clone()).collect();
                 for surface in surfaces {
                     commands.extend(close(&surface));
                 }
+                self.done = true;
             }
-            // A thread, since polkit may ask first and the loop must go on.
-            Choice::StandBy => drop(std::thread::spawn(|| {
-                if let Err(err) = std::process::Command::new("systemctl")
-                    .arg("suspend")
-                    .status()
-                {
-                    eprintln!("chora-xp: cannot suspend: {err}");
-                }
-            })),
+            Choice::StandBy => session.stand_by.into_iter().for_each(session::run),
             Choice::TurnOff => {
                 self.play(Sound::ShutDown);
-                self.done = true;
+                match session.turn_off {
+                    Some(command) => session::run(command),
+                    None => self.done = true,
+                }
             }
             Choice::Restart => {
-                commands.extend(self.keep_for_restart());
-                self.done = true;
-                self.restart = true;
+                if let Some(command) = session.restart {
+                    session::run(command);
+                } else {
+                    commands.extend(self.keep_for_restart());
+                    self.done = true;
+                    self.restart = true;
+                }
             }
             Choice::SwitchUser | Choice::Cancel => {}
         }

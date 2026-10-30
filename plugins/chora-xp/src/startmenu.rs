@@ -14,6 +14,7 @@ use chora_scene::{Command, NodeKind, PropsUpdate, Transform};
 use crate::{
     apps::{self, Node},
     cascade::{self, Cascade, Margins, Row},
+    config::Program,
     context::{Key, wrap},
     control::Setting,
     desktop_icons,
@@ -81,8 +82,8 @@ struct Entry {
 pub struct Config {
     /// The user name for the header.
     pub user: String,
-    /// The programs of the left column: title, command and icon name.
-    pub programs: Vec<(String, String, String)>,
+    /// The programs of the left column.
+    pub programs: Vec<Program>,
     /// The command of Run, and of All Programs without programs.
     pub launcher: String,
     /// The command of the file manager, for the places.
@@ -400,21 +401,20 @@ impl Menu {
         }
     }
 
-    /// Remove from This List: the menu without a program of its left
-    /// column, made again under its node, until `chora-xp` ends.
-    pub fn remove_program(
+    /// What the menu is made of.
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
+    /// The menu of other programs and places, made again under its node.
+    pub fn rebuild(
         &mut self,
-        index: usize,
+        config: &Config,
         theme: &mut Theme,
         icons: &mut Icons,
     ) -> Vec<Command> {
-        let mut config = self.config.clone();
-        if index >= config.programs.len() {
-            return Vec::new();
-        }
-        config.programs.remove(index);
         let parent = self.parent.clone();
-        *self = Self::new(&config, theme, icons);
+        *self = Self::new(config, theme, icons);
         let mut commands = vec![Command::Remove {
             id: GROUP.into(),
             to: None,
@@ -851,13 +851,13 @@ fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
         .programs
         .iter()
         .zip(0..)
-        .map(|((title, command, icon), i)| Entry {
-            title: title.clone(),
-            subtitle: Some(command.clone()),
-            icon: icons.program(icon),
+        .map(|(program, i)| Entry {
+            title: program.title.clone(),
+            subtitle: Some(program.command.clone()),
+            icon: icons.program(&program.icon),
             bold: true,
             kind: Kind::Program,
-            action: Action::Run(command.clone()),
+            action: Action::Run(program.command.clone()),
             cascade: false,
             rect: [FRAME + 2, top + i * PROGRAM_ROW, LEFT - 4, PROGRAM_ROW],
         })
@@ -1101,11 +1101,11 @@ mod tests {
     fn config() -> Config {
         Config {
             user: "tester".into(),
-            programs: vec![(
-                "Terminal".into(),
-                "foot".into(),
-                "utilities-terminal".into(),
-            )],
+            programs: vec![Program {
+                title: "Terminal".into(),
+                command: "foot".into(),
+                icon: "utilities-terminal".into(),
+            }],
             launcher: "fuzzel".into(),
             file_manager: "thunar".into(),
             apps: Vec::new(),

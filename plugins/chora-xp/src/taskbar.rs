@@ -47,9 +47,12 @@ const PAGER_GAP: i32 = 2;
 const PAGER_WIDTH: i32 = DESKTOPS as i32 * PAGER_BUTTON + (DESKTOPS as i32 - 1) * PAGER_GAP + 6;
 const WHITE: [u8; 4] = [255, 255, 255, 255];
 
-/// The settings of Taskbar and Start Menu Properties, for the session.
+/// The settings of Taskbar and Start Menu Properties.
 #[allow(clippy::struct_excessive_bools)] // independent check boxes
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
 pub struct Settings {
     /// Lock the taskbar: only a check mark, since chora-xp neither moves
     /// nor sizes the taskbar.

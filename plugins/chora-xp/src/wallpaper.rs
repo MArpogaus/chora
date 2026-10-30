@@ -14,7 +14,18 @@ pub const DESKTOP_BLUE: [u8; 3] = [0x00, 0x4E, 0x98];
 /// How the picture fills the screen: XP's Center, Tile and Stretch, and
 /// Fill of later Windows, which covers the screen without distortion and
 /// cuts the overflow.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum Position {
     /// At its own size in the middle, on the color of the desktop.
     Center,
@@ -54,6 +65,7 @@ pub struct Style {
     pub color: [u8; 3],
 }
 
+#[cfg(test)]
 impl Style {
     /// A picture filling the screen, on XP's blue.
     pub fn new(file: PathBuf) -> Self {

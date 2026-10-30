@@ -790,7 +790,7 @@ fn clear(dir: &Path) -> std::io::Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
     /// The theme of the source tree, with a cache of its own for a test.

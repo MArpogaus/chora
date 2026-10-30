@@ -533,6 +533,7 @@ dependencies = [
  "chrono",
  "clap",
  "resvg",
+ "schemars",
  "serde",
  "serde_json",
  "zbus",

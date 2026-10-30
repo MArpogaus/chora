@@ -109,7 +109,8 @@ const BAND_BORDER: [f64; 4] = [49.0 / 255.0, 106.0 / 255.0, 197.0 / 255.0, 1.0];
 
 /// The icons on the desktop of the first output.
 pub struct DesktopIcons {
-    terminal: String,
+    /// Runs the desktop files that need a terminal.
+    pub terminal: String,
     items: Vec<Item>,
     /// The work area above the taskbar.
     area: Rect,

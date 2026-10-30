@@ -42,9 +42,12 @@ pub enum Effect {
     Sounds,
 }
 
-/// Which effects are on, for the session.
+/// Which effects are on.
 #[allow(clippy::struct_excessive_bools)] // independent switches
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
 pub struct Toggles {
     /// Wobbly windows.
     pub wobbly: bool,

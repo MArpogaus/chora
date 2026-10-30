@@ -7,6 +7,7 @@
 mod apps;
 mod balloon;
 mod cascade;
+mod config;
 mod context;
 mod control;
 mod cube;
@@ -35,11 +36,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::{icons::Icons, runtime};
+use chora_kit::{runtime, settings};
 use chora_scene::{Event, ipc::ClientError};
 use clap::Parser;
 
-use crate::{startmenu::Menu, theme::Theme, wm::Wm};
+use crate::{config::Config, theme::Theme, wm::Wm};
 
 /// How often the plugin checks the clock.
 const TICK: Duration = Duration::from_secs(1);
@@ -58,34 +59,15 @@ struct Args {
         default_value = "/usr/share/chora/flavors/xp/theme"
     )]
     theme: PathBuf,
-    /// The shell command of the terminal, for the start menu and Super+e.
-    #[arg(long, default_value = "foot")]
-    terminal: String,
-    /// The shell command of Run, and of All Programs when no desktop file
-    /// lists a program.
-    #[arg(long, default_value = "fuzzel")]
-    launcher: String,
-    /// The shell command of the file manager, for the places of the start
-    /// menu and the folders of the desktop; the folder follows it.
-    #[arg(long, default_value = "thunar")]
-    file_manager: String,
-    /// More programs for the start menu, as TITLE=COMMAND.
-    #[arg(long = "program", value_name = "TITLE=COMMAND")]
-    programs: Vec<String>,
-    /// The format of the clock, as in strftime.
-    #[arg(long, default_value = "%-I:%M %p")]
-    clock: String,
-    /// The wallpaper, a PNG, JPEG or SVG file; XP's Bliss when it is
-    /// installed, else Bløff of the theme.
+    /// The settings file. Without it, chora-xp reads
+    /// $XDG_CONFIG_HOME/chora/chora-xp.yaml, by default in ~/.config, if
+    /// it exists, or the default.
     #[arg(long)]
-    wallpaper: Option<PathBuf>,
+    config: Option<PathBuf>,
     /// Stretches the time of the magic lamp and of the cube by a factor,
     /// to show them slowly.
     #[arg(long, value_name = "FACTOR", default_value_t = 1.0)]
     slow_motion: f64,
-    /// Plays no sounds; Control Panel > Effects > Sounds turns them on.
-    #[arg(long)]
-    no_sounds: bool,
     /// Manages only this output, by name, and leaves the others to other
     /// window managers; all outputs without it. Repeat it for more.
     #[arg(long = "output", value_name = "NAME")]
@@ -99,26 +81,10 @@ fn main() -> ExitCode {
 
 /// One connection to the core: window management until Turn Off.
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
+    let path = settings::File::<Config>::path(args.config.clone(), "chora-xp")?;
+    let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
     let theme = Theme::load(&args.theme, &cache_dir()).map_err(|e| format!("theme: {e}"))?;
-    let mut icons = Icons::new(crate::icons::THEMES);
-    let menu = Menu::new(&menu_config(args), &theme, &mut icons);
-    let config = wm::Config {
-        terminal: args.terminal.clone(),
-        file_manager: args.file_manager.clone(),
-        clock: args.clock.clone(),
-        wallpaper: wallpaper::Style::new(
-            args.wallpaper
-                .clone()
-                .or_else(|| chora_kit::xdg::data_file("wallpapers/WindowsXP/bliss.jpg"))
-                .unwrap_or_else(|| theme.path("wallpaper/bloff.png")),
-        ),
-        slow: args.slow_motion,
-        toggles: control::Toggles {
-            sounds: !args.no_sounds,
-            ..control::Toggles::default()
-        },
-    };
-    let mut wm = Wm::start(args.outputs.clone(), theme, menu, icons, config)?;
+    let mut wm = Wm::start(args.outputs.clone(), theme, settings, args.slow_motion)?;
     event_loop(&mut wm)?;
     if wm.restart {
         drop(wm);
@@ -190,29 +156,6 @@ fn last_move(wm: &mut Wm, mut event: Event) -> Result<(Event, Option<Event>), Cl
         }
     }
     Ok((event, None))
-}
-
-/// The programs of the start menu: the terminal, then the extra ones.
-fn menu_config(args: &Args) -> startmenu::Config {
-    let mut programs = vec![(
-        "Terminal".to_string(),
-        args.terminal.clone(),
-        "utilities-terminal".to_string(),
-    )];
-    for program in &args.programs {
-        let (title, command) = program.split_once('=').unwrap_or((program, program));
-        let icon = command.split_whitespace().next().unwrap_or_default();
-        programs.push((title.into(), command.into(), icon.into()));
-    }
-    startmenu::Config {
-        user: std::env::var("USER")
-            .or_else(|_| std::env::var("LOGNAME"))
-            .unwrap_or_else(|_| "User".into()),
-        programs,
-        launcher: args.launcher.clone(),
-        file_manager: args.file_manager.clone(),
-        apps: apps::load(&args.terminal),
-    }
 }
 
 /// The directory of the rendered files: one per chora instance, below
