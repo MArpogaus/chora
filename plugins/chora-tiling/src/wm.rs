@@ -66,6 +66,31 @@ pub struct Output {
     tags: Vec<Tag>,
 }
 
+/// The tags of an output, as `tiling.get_tags` answers them.
+#[derive(Debug, PartialEq, Eq, Serialize)]
+pub struct OutputTags {
+    pub name: String,
+    /// The output has the focus.
+    pub focused: bool,
+    pub tags: Vec<TagState>,
+}
+
+/// The state of one tag of an output.
+#[derive(Debug, PartialEq, Eq, Serialize)]
+#[allow(clippy::struct_excessive_bools)] // independent marks of a panel
+pub struct TagState {
+    /// The tag number, from 1.
+    pub tag: usize,
+    /// The output shows the tag.
+    pub shown: bool,
+    /// The output shows the tag and has the focus.
+    pub focused: bool,
+    /// A window of the output is on the tag.
+    pub occupied: bool,
+    /// A window of the output on the tag asked for attention.
+    pub urgent: bool,
+}
+
 /// Where a window shows, and the size to ask its client for.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Placement {
@@ -420,6 +445,31 @@ impl Wm {
         self.shown_on(self.current)
             .into_iter()
             .map(|i| self.windows[i].id.clone())
+            .collect()
+    }
+
+    /// The tags of each output, for a panel.
+    pub fn tags(&self) -> Vec<OutputTags> {
+        self.outputs
+            .iter()
+            .enumerate()
+            .map(|(index, output)| OutputTags {
+                name: output.name.clone(),
+                focused: index == self.current,
+                tags: (1..=self.config.tags)
+                    .map(|tag| {
+                        let on = |w: &&Window| w.output == output.name && w.tags & bit(tag) != 0;
+                        let shown = output.selected & bit(tag) != 0;
+                        TagState {
+                            tag,
+                            shown,
+                            focused: shown && index == self.current,
+                            occupied: self.windows.iter().any(|w| on(&w)),
+                            urgent: self.windows.iter().filter(on).any(|w| w.urgent),
+                        }
+                    })
+                    .collect(),
+            })
             .collect()
     }
 
@@ -1034,6 +1084,35 @@ mod tests {
         assert_eq!(wm.shown_windows(), ["b"], "a leaves the shown tag");
         wm.view_tag(2);
         assert_eq!(wm.shown_windows(), ["a"]);
+    }
+
+    #[test]
+    fn tags_tell_shown_focused_occupied_and_urgent() {
+        let mut wm = wm(&["a", "b"]);
+        wm.set_output("B", [100, 0, 100, 60], [100, 0, 100, 80]);
+        assert!(wm.move_to_tag("a", 2));
+        wm.act(&Action::Minimize); // b goes away, but stays on tag 1
+        wm.focus("b"); // b shows nowhere, so it gets the urgent mark
+        let tags = wm.tags();
+        let marks = |o: &OutputTags| -> Vec<_> {
+            o.tags
+                .iter()
+                .map(|t| (t.tag, t.shown, t.focused, t.occupied, t.urgent))
+                .collect()
+        };
+        assert_eq!(tags.len(), 2);
+        assert_eq!((tags[0].name.as_str(), tags[0].focused), ("A", true));
+        assert_eq!(
+            &marks(&tags[0])[..3],
+            [
+                (1, true, true, true, true),
+                (2, false, false, true, false),
+                (3, false, false, false, false),
+            ]
+        );
+        assert_eq!(marks(&tags[0]).len(), wm.config.tags);
+        assert_eq!((tags[1].name.as_str(), tags[1].focused), ("B", false));
+        assert_eq!(marks(&tags[1])[0], (1, true, false, false, false));
     }
 
     #[test]
