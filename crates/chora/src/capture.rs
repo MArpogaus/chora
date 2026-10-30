@@ -524,6 +524,47 @@ mod tests {
         assert!(ink >= 8, "{ink} ink pixels inside {w}x{h}");
     }
 
+    /// `v_uv` of a shader node starts at its top left corner and grows to
+    /// the right and down, as the scene does, not up as in OpenGL.
+    #[test]
+    fn the_uv_of_a_shader_node_starts_at_the_top_left() {
+        let dir = std::env::temp_dir().join(format!("chora-uv-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let shader = dir.join("uv.frag");
+        std::fs::write(
+            &shader,
+            "precision mediump float;\nvarying vec2 v_uv;\n\
+             void main() { gl_FragColor = vec4(v_uv.x, v_uv.y, 0.0, 1.0); }\n",
+        )
+        .unwrap();
+        let mut core = Core::with_renderer();
+        core.add_output("test-1", (64, 48));
+        let mut wm = core.named("wm");
+        let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let props = json!({"size": [40, 40], "shader": shader,
+            "transform": {"translate": [10, 4]}});
+        let create = json!({"id": "uv", "kind": "shader", "parent": "root", "props": props});
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": create}]}),
+        );
+        let picture = wm.ok(&mut core, "screen.capture", json!({"output": "test-1"}));
+        let (width, rgba) = decode(&picture);
+        let at = |x: usize, y: usize| &rgba[(y * width + x) * 4..][..2];
+        let (top_left, bottom_right) = (at(12, 6), at(48, 42));
+        assert!(
+            top_left[0] < 40 && top_left[1] < 40,
+            "top left {top_left:?}"
+        );
+        assert!(
+            bottom_right[0] > 200 && bottom_right[1] > 200,
+            "bottom right {bottom_right:?}"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn a_text_node_without_color_draws_white() {
         if !crate::text::fonts_present() {
