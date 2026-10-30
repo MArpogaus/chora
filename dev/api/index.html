@@ -1655,7 +1655,7 @@ by default; a timeout exits 1 with the reason on stderr.</p>
 <tbody>
 <tr>
 <td><code>surface.created</code></td>
-<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title, and <code>decoration</code>: <code>server</code> when the client asked for a frame of the plugins through <code>xdg-decoration</code>, <code>client</code> when it draws its own. <code>to</code> names the window manager that the core reserved it for (see <a href="#window-managers">Window managers</a>). <code>pid</code> is the process of the client as the socket reports it, a hint that a pid namespace can hide; <code>token</code> is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before the first map.</td>
+<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title, and <code>decoration</code>: <code>server</code> when the client asked for a frame of the plugins through <code>xdg-decoration</code>, <code>client</code> when it draws its own. <code>to</code> names the window manager that the core reserved it for (see <a href="#window-managers">Window managers</a>). <code>pid</code> is the process of the client as the socket reports it, a hint that a pid namespace can hide; <code>token</code> is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before its first commit, or in the same batch of requests, as foot does. The core sends the event at the end of that batch.</td>
 </tr>
 <tr>
 <td><code>surface.changed</code></td>
@@ -1754,8 +1754,8 @@ when it applied, an error with the index of the failed command when not.
 input when the file is <code>-</code>; it prints nothing when it applied and the
 reason when not, so the exit code is the answer. Only the <code>view</code>
 subcommand reads YAML.
-A request that a client makes before its first commit follows its
-<code>surface.created</code>. A taskbar asks through <code>wlr-foreign-toplevel-management</code>.
+A request that a client makes before its <code>surface.created</code> follows
+that event. A taskbar asks through <code>wlr-foreign-toplevel-management</code>.
 The core does not act on a request, also not on <code>close</code>. A plugin answers
 with commands, for example <code>close</code>. A press over a surface reaches its
 client as well; a press over a rect or an image goes to plugins only, with
@@ -2254,8 +2254,8 @@ the unit and the token as one JSON line while the program runs.</p>
   wait, for example because the program ended at once, <code>pid</code> is <code>null</code>.
   The command never starts the program twice.</li>
 </ul>
-<p>A window that activates with the token before its first map shows the
-token in <code>surface.created</code>. <code>chora-tiling</code> and <code>chora-xp</code> start apps with
+<p>A window that activates with the token before its first commit, or in
+the same batch, shows the token in <code>surface.created</code>. <code>chora-tiling</code> and <code>chora-xp</code> start apps with
 <code>choractl run</code> too, so a restart of a window manager leaves its apps
 running.</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>run<span class="w"> </span>--<span class="w"> </span>foot
