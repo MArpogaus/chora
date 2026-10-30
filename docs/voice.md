@@ -1,6 +1,6 @@
 # chora-voice: the voice agent in Rust (draft specification)
 
-Status: draft, 2026-10-30. WP0 is done. Sources:
+Status: draft, 2026-10-30. WP0 to WP2 are done. Sources:
 `services/voice/agent.py`, D53, D58, D61, D62, `docs/api.md`, the
 `chora-kit` runtime and settings, `choractl mcp`, and live probes of the
 Gufo servers.
@@ -141,7 +141,9 @@ text still goes to `last_reply` and to the HUD.
 
 Onset: probability over `vad_threshold` for `onset_ms`. End: under
 `vad_release` for `silence_ms`. An utterance keeps at most `preroll_ms`
-before the first frame of its onset.
+before the first frame of its onset. The PTT key starts an utterance at
+once; while the key is down, each frame counts as speech, and only the
+release ends the utterance.
 
 Echo: during playback, frames without speech update an echo level (a
 running mean of RMS). Barge-in needs probability over
@@ -316,8 +318,13 @@ indicator node signals without a HUD.
 
 ## 11. Logging and latency
 
-`tracing` with timestamps to stderr (journald); `RUST_LOG` filters. Each
-stage logs start and end with the turn number. One summary per turn:
+`tracing` with timestamps to stderr (journald), without colors when
+stderr is no terminal. `RUST_LOG` filters; the default is
+`info,tract_linalg=warn`. The lines are plain text in the form
+`key=value`: one call site per level in `log.rs` keeps the `tracing`
+macros out of the other functions, because clippy counts their expansion
+into the cognitive complexity. Each stage logs start and end with the
+turn number. One summary per turn:
 
 ```
 turn=17 speech=2.1s asr=380ms llm_first=650ms tts_first=310ms
@@ -325,9 +332,11 @@ first_sound=1.43s tools=2/3.4s barge_ins=0 outcome=answered
 ```
 
 `first_sound` (end of speech to first sound) is the main metric. WP2
-logs `speech`, `end_wait` (last speech frame to the end of the turn)
-and the VAD time per frame when it is slower than real time. WP8 writes
-the same record to `~/.local/state/chora/voice-turns.jsonl`.
+logs `turn`, `speech`, `length`, `end_wait` (last speech frame to the
+end of the turn) and `awake` per utterance, for example
+`turn=2 speech=2816ms length=3872ms end_wait=608ms awake=true`, and a
+warning when the VAD is slower than real time. WP8 writes the same
+record to `~/.local/state/chora/voice-turns.jsonl`.
 
 ## 12. Recording for replay
 
@@ -404,7 +413,7 @@ binary with `include_bytes!`. The crate lives in `services/voice/` (D53)
 as a workspace member. No package and no unit until the agent completes
 full turns; then `chora-voice.service` replaces `voice-agent.service`.
 
-## 15. WP0 results (2026-10-30)
+## 15. Results of WP0 to WP2 (2026-10-30)
 
 Silero on `tract`:
 
@@ -444,13 +453,27 @@ pipes". The capture and playback commands are settings: on a host
 without `--raw`, set them to `arecord`/`aplay` with `-t raw`. Tests use
 WAV files.
 
+WP1 and WP2, live check in a headless chora session (a script feeds
+the test clip in real time as the capture command):
+
+- `voice.state`, `mute`, `sleep`, `wake` and `settings.set` answer;
+  a wrong value answers code -32602 and changes nothing.
+- The PTT grab works, and a new `ptt_key` by `settings.set` grabs
+  again. A key press and release within one frame (32 ms) records
+  nothing.
+- The gate finds each pass of the clip: about 2.8 s of speech, the end
+  600 ms after the last speech frame with `silence_ms: 600`.
+- `record_dir` writes `mic.wav`, `played.wav` (the earcons) and
+  `events.jsonl`. After a kill, the files hold everything up to the last
+  second.
+
 ## 16. Work packages
 
 | # | Package | Size |
 |---|---|---|
 | WP0 | Spikes: Silero on tract, ASR at 16 kHz, `pw-record --raw` (done) | S |
-| WP1 | Crate, settings, `chora` thread, methods, PTT grab, logging | M |
-| WP2 | `audio_in` with Silero, `audio_out`, earcons, `record_dir` | M |
+| WP1 | Crate, settings, `chora` thread, methods, PTT grab, logging (done) | M |
+| WP2 | `audio_in` with Silero, `audio_out`, earcons, `record_dir` (done) | M |
 | WP3 | Replay harness, labels, metrics with thresholds, CI corpus | M |
 | WP4 | ASR and TTS clients, interim text, fake servers | M |
 | WP5 | LLM client, tool loop, MCP reconnect and timeouts, token budget | L |
