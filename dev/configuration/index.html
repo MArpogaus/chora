@@ -1256,10 +1256,11 @@ their grants (see <a href="../api/#client-sockets">API</a>):</p>
 <span class="nt">showroom</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">grants</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
 </code></pre></div>
-<p>The grants are the five capabilities of <code>choractl grant</code> (see
+<p>The grants are the six capabilities of <code>choractl grant</code> (see
 <a href="../api/#client-sockets">API</a>). An agent that
 drives the window manager needs <code>methods.call</code>, and one that starts apps
-needs <code>activation.token</code>. Both let it take the keyboard focus.</p>
+needs <code>activation.token</code>. Both let it take the keyboard focus. A name
+that may end chora needs <code>session.quit</code>.</p>
 <p>The names follow the rules of <code>hello</code>. <code>clients up</code> opens the socket of
 every name with exactly the capabilities of its list. A socket that
 already has the equal capabilities stays with its connections and gets
@@ -1277,8 +1278,10 @@ default <code>~/.config</code>, or the file of <code>--config</code>. Without a 
 default, which <code>chora-tiling --print-config</code> prints. The file holds the
 settings of D62: <code>settings.set</code> changes them at once and writes the file
 again, without its comments (see <a href="../api/#plugin-methods">API</a>). Edits by
-hand apply at the next start of the plugin or with <code>MOD+Ctrl+r</code>. The file
-lists every option:</p>
+hand apply at the next start of the plugin or with <code>MOD+Ctrl+r</code>. The
+default file lists every option. A file can leave options out, and they
+take their defaults; a map such as <code>bindings</code> in the file replaces the
+default map:</p>
 <table>
 <thead>
 <tr>
@@ -1481,7 +1484,8 @@ of its own. The settings of D62 are in <code>chora/chora-mc.yaml</code>:</p>
 <li><code>default_scene</code>, and the <code>bindings</code> with the actions <code>next_scene</code>,
   <code>previous_scene</code>, <code>scene: NAME</code> and <code>run: COMMAND</code>.</li>
 </ul>
-<p><code>chora-mc --print-config</code> prints the default. The collector
+<p><code>chora-mc --print-config</code> prints the default. An option that the file
+leaves out takes its default. The collector
 <code>plugins/chora-mc/collectors/agenda.sh</code> puts the org agenda of today into
 the scene <code>agenda</code>, with <code>emacs --batch</code>: the entries with a time, and the
 tasks scheduled or due today, each as a time and a text in two columns.
@@ -1776,8 +1780,9 @@ button runs its command of the setting <code>session</code> (D63). In Turn off
 computer, Stand By runs <code>systemctl suspend</code>, Turn Off <code>systemctl
 poweroff</code> and Restart <code>systemctl reboot</code> by default. Stand By is disabled
 when the first word of its command is not on the <code>PATH</code>. In Log Off
-Windows, Log Off has no command by default, because the core has no
-method that ends the session: it asks every window to close and ends
+Windows, Log Off runs <code>choractl quit</code> by default, which ends
+chora through the core method <code>session.quit</code>. Without a command
+(<code>log_off: null</code>), Log Off asks every window to close and ends
 <code>chora-xp</code>. A command such as <code>loginctl terminate-session
 $XDG_SESSION_ID</code> ends a login session. Switch User is always disabled,
 because chora has no second session to switch to. Without a command,
@@ -1950,7 +1955,8 @@ these bindings, Super+Ctrl with the arrows stands in.</p>
 default, <code>plugins/chora-xp/xp.yaml</code> of the source tree. The file holds
 the settings of D62: <code>settings.set</code> and the dialogs change them at once
 and write the file again, without its comments. Edits by hand apply with
-the method <code>restart</code>. The file lists every option:</p>
+the method <code>restart</code>. The default file lists every option; an option
+that the file leaves out takes its default:</p>
 <table>
 <thead>
 <tr>
@@ -2007,10 +2013,11 @@ the method <code>restart</code>. The file lists every option:</p>
 </tr>
 </tbody>
 </table>
-<p><code>settings.set</code> replaces each key that it gets, so a change of the
-wallpaper names <code>picture</code>, <code>position</code> and <code>color</code>:</p>
+<p><code>settings.set</code> merges its object into the settings (see
+<a href="../api/#plugin-methods">API</a>), so a change of the wallpaper names only
+what changes:</p>
 <div class="highlight"><pre><span></span><code>choractl<span class="w"> </span>call<span class="w"> </span>xp<span class="w"> </span>settings.set<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span><span class="s1">'{"wallpaper": {"picture": {"file": "/usr/share/backgrounds/a.png"}, "position": "fill", "color": [0, 78, 152]}}'</span>
+<span class="w">  </span><span class="s1">'{"wallpaper": {"picture": {"file": "/usr/share/backgrounds/a.png"}}}'</span>
 </code></pre></div>
 <p>To try the flavor from a source tree, start it nested:</p>
 <div class="highlight"><pre><span></span><code>cargo<span class="w"> </span>build<span class="w"> </span>--workspace
