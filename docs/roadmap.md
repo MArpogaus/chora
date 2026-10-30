@@ -236,8 +236,9 @@ Scope:
   `archive/xp-scene-programs` keeps this code.
 - A shared plugin runtime in `chora-kit`: the reconnect loop, the startup
   with `output.list`, `events.subscribe` and `methods.export`, grabs, the
-  export and dispatch of methods, and the `--output` filter. Claims and the resume from `meta` go into the
-  runtime only where both plugins use them in the same way.
+  export and dispatch of methods, and the `--output` filter. Claims and
+  the resume from `meta` go into the runtime only where both plugins use
+  them in the same way.
 - `chora-tiling` is the lean reference window manager on the runtime.
   `chora-xp` moves onto it.
 - The start menu and double clicks of `chora-xp` start installed
