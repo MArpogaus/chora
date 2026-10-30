@@ -716,6 +716,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#sessions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sessions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-tiling-flavor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The tiling flavor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-xp-flavor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1122,6 +1144,28 @@
   
     <nav class="md-nav" aria-label="Flavors">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sessions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sessions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-tiling-flavor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The tiling flavor
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#the-xp-flavor" class="md-nav__link">
@@ -1850,20 +1894,98 @@ choractl<span class="w"> </span>call<span class="w"> </span>mc<span class="w"> <
 <p>A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target <code>chora-&lt;name&gt;.target</code>. <code>chora-flavor &lt;name&gt;</code> looks for
 the directory in <code>~/.config/chora/flavors/</code> first and then in
-<code>/usr/share/chora/flavors/</code>. It imports <code>WAYLAND_DISPLAY</code>, <code>CHORA_SOCKET</code> and
-the X11 <code>DISPLAY</code> of <code>xwayland-satellite</code> into the systemd user manager, so
-that every unit of the flavor starts with them. It links the units of the
-directory, and starts
-the target. The target starts the services and the plugins. systemd handles
-start, restart and order, so chora needs no service manager.</p>
-<p>The package installs the tiling flavor:</p>
+<code>/usr/share/chora/flavors/</code>. It imports <code>WAYLAND_DISPLAY</code>, <code>CHORA_SOCKET</code>,
+<code>CHORA_FLAVOR_DIR</code> (the directory that it found) and the X11 <code>DISPLAY</code> of
+<code>xwayland-satellite</code> into the systemd user manager, so that every unit of
+the flavor starts with them. It links the units of the directory, tells
+systemd that chora is ready, and starts the target. The target starts the
+services and the plugins. systemd handles start, restart and order, so
+chora needs no service manager.</p>
+<h3 id="sessions">Sessions<a class="headerlink" href="#sessions" title="Permanent link">&para;</a></h3>
+<p>The login screen shows a session per flavor, twice:</p>
+<table>
+<thead>
+<tr>
+<th>Session</th>
+<th>Starts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>chora (uwsm), chora (Windows XP, uwsm)</td>
+<td><code>uwsm start -e -D chora -N chora -- chora -- chora-flavor &lt;name&gt;</code> (D50)</td>
+</tr>
+<tr>
+<td>chora, chora (Windows XP)</td>
+<td><code>chora-session &lt;name&gt;</code>, without uwsm</td>
+</tr>
+</tbody>
+</table>
+<p>The uwsm sessions show only when uwsm is installed. uwsm runs chora as
+the user unit <code>wayland-wm@chora.service</code> and binds it to
+<code>graphical-session.target</code>. Under uwsm, <code>chora-flavor</code> calls <code>uwsm
+finalize</code> with its variables: uwsm exports them, marks chora as ready and
+removes the variables again when the session ends. Before chora starts,
+uwsm sources <code>/etc/xdg/uwsm/env-chora</code>: without <code>XKB_DEFAULT_LAYOUT</code>, it
+takes the keyboard layout of the system from <code>localectl</code>.
+<code>~/.config/uwsm/env-chora</code> adds variables of the user.</p>
+<p><code>chora-session</code> does the same without uwsm: it runs chora as
+<code>chora@&lt;name&gt;.service</code>, and stops the units of the graphical session when
+chora ends.</p>
+<h3 id="the-tiling-flavor">The tiling flavor<a class="headerlink" href="#the-tiling-flavor" title="Permanent link">&para;</a></h3>
+<p>The package installs the tiling flavor (D51):</p>
 <div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/tiling/
-├── chora-tiling.target              # wants the two units below
-├── chora-tiling.service             # chora-tiling
-└── chora-tiling-xwayland.service    # xwayland-satellite, if installed
+├── chora-tiling.target               # wants the units below and mako.service
+├── chora-tiling.service              # chora-tiling
+├── chora-tiling-xwayland.service     # xwayland-satellite
+├── chora-tiling-waybar.service       # the panel
+├── chora-tiling-swaybg.service       # the wallpaper, a plain color
+├── chora-tiling-swayidle.service     # the idle lock with swaylock
+├── chora-tiling-kanshi.service       # the output profiles of the user
+└── waybar/config.jsonc               # the modules of the panel
 </code></pre></div>
-<p>The target also wants <code>waybar.service</code>, which the waybar package installs.
-A copy of the directory in <code>~/.config/chora/flavors/tiling/</code> replaces it.</p>
+<p>Each unit starts only when its program is installed. The packages
+recommend them: uwsm, foot, fuzzel, waybar, mako, swaybg, swayidle,
+swaylock, kanshi and <code>xwayland-satellite</code>. mako starts from the unit of
+its own package and needs no configuration.</p>
+<ul>
+<li><strong>The panel</strong>: waybar with the configuration of the flavor. It shows only
+  modules that need no IPC of sway: the layout of the current tag, the
+  clock, the volume, the network, the processor, the memory, the battery
+  and the tray. The layout module calls <code>choractl call tiling get_layout</code>
+  each second.</li>
+<li><strong>The launcher</strong>: <code>MOD+r</code> starts fuzzel, as the default bindings of
+  <code>chora-tiling</code> say.</li>
+<li><strong>The lock</strong>: swayidle runs <code>swaylock -f</code> after 5 minutes without input,
+  before sleep, and on <code>loginctl lock-session</code>, which <code>MOD+Shift+Escape</code>
+  runs. swaylock locks through the session lock protocol of the core.
+  The core has no protocol to turn outputs off yet, so the screens stay on.</li>
+<li><strong>The wallpaper</strong>: swaybg with a plain color. For a picture, override
+  the command:</li>
+</ul>
+<div class="highlight"><pre><span></span><code>systemctl<span class="w"> </span>--user<span class="w"> </span>edit<span class="w"> </span>chora-tiling-swaybg.service
+<span class="c1"># [Service]</span>
+<span class="c1"># ExecStart=</span>
+<span class="c1"># ExecStart=/usr/bin/swaybg --image %h/Pictures/wall.png --mode fill</span>
+</code></pre></div>
+<ul>
+<li><strong>The outputs</strong>: kanshi starts only when <code>~/.config/kanshi/config</code>
+  exists, because it fails without profiles. The core takes the
+  configuration through <code>wlr-output-management</code>. An example with the
+  names that <code>wlr-randr</code> prints:</li>
+</ul>
+<div class="highlight"><pre><span></span><code>profile docked {
+  output eDP-1 disable
+  output "Dell Inc. DELL U2720Q *" mode 3840x2160 scale 1.5
+}
+profile mobile {
+  output eDP-1 enable scale 1.25
+}
+</code></pre></div>
+<p>A copy of the directory in <code>~/.config/chora/flavors/tiling/</code> replaces it,
+also the configuration of waybar. <code>systemctl --user edit UNIT</code> changes a
+single unit. A user who enabled <code>waybar.service</code> of the waybar package
+gets a second panel; <code>systemctl --user disable waybar.service</code> ends it.</p>
 <h3 id="the-xp-flavor">The XP flavor<a class="headerlink" href="#the-xp-flavor" title="Permanent link">&para;</a></h3>
 <p>The XP flavor is the showroom (D39): a stacking desktop in
 the style of Windows XP. It is a demo, not a daily driver. <code>chora-xp</code>

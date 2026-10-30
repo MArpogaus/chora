@@ -1064,6 +1064,15 @@ Fedora 44 and a package for Arch Linux, with SHA256 sums:</p>
 sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> </span>./chora-*.rpm<span class="w">          </span><span class="c1"># Fedora</span>
 sudo<span class="w"> </span>pacman<span class="w"> </span>-U<span class="w"> </span>./chora-*.pkg.tar.zst<span class="w">    </span><span class="c1"># Arch Linux</span>
 </code></pre></div>
+<p>The login screen then shows the session "chora", with the tiling flavor,
+and "chora (uwsm)" when <a href="https://github.com/Vladimir-csp/uwsm">uwsm</a> is
+installed. The tiling flavor uses waybar, fuzzel, mako, swaybg, swaylock,
+swayidle and kanshi. The RPM recommends them; on Arch Linux, install them
+with the optional dependencies:</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>pacman<span class="w"> </span>-S<span class="w"> </span>--asdeps<span class="w"> </span>uwsm<span class="w"> </span>foot<span class="w"> </span>fuzzel<span class="w"> </span>waybar<span class="w"> </span>mako<span class="w"> </span>swaybg<span class="w"> </span>swayidle<span class="w"> </span>swaylock<span class="w"> </span>kanshi
+</code></pre></div>
+<p><a href="https://marpogaus.github.io/chora/configuration/#flavors">Flavors</a>
+describes the sessions and the flavors.</p>
 <h2 id="try-it">Try it<a class="headerlink" href="#try-it" title="Permanent link">&para;</a></h2>
 <p>Start chora with the tiling plugin inside a Wayland session:</p>
 <div class="highlight"><pre><span></span><code>chora<span class="w"> </span>--<span class="w"> </span>chora-tiling
