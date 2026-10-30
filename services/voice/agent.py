@@ -529,7 +529,6 @@ class Coder:
     plain lines count as steps.
     """
 
-    TOOLS = ("code_task", "code_status", "code_cancel", "list_projects")
     SPECS = [  # noqa: RUF012 - one list for all instances
         function(
             "code_task",
@@ -552,6 +551,7 @@ class Coder:
         function("code_cancel", "Stop the running coding task.", {}),
         function("list_projects", "The projects that code_task can clone.", {}),
     ]
+    TOOLS = tuple(spec["function"]["name"] for spec in SPECS)
 
     def __init__(self, http: aiohttp.ClientSession) -> None:
         self.http = http
@@ -567,9 +567,7 @@ class Coder:
         if name == "code_task":
             return self.start(arguments["task"], arguments.get("project"))
         if name == "list_projects":
-            return ", ".join(sorted(p.name for p in INVENTORY.glob("*") if p.is_dir())) or (
-                f"no projects in {INVENTORY}"
-            )
+            return ", ".join(_projects()) or f"no projects in {INVENTORY}"
         running = self.job is not None and not self.job.done()
         if name == "code_cancel" and running:
             self.job.cancel()
@@ -583,20 +581,14 @@ class Coder:
         """Start a task in a new clone of `project`, or in an empty repository."""
         if self.job and not self.job.done():
             return "a coding task runs already; ask for its status or cancel it"
-        if project and project not in {p.name for p in INVENTORY.glob("*") if p.is_dir()}:
+        if project and project not in _projects():
             return f"no project {project}; list_projects names them"
         if task.lstrip().startswith("-"):  # it would be an option of the harness
             return "a task must not start with -"
-        WORKTREES.mkdir(parents=True, exist_ok=True)
-        number = 1 + max(
-            (
-                int(p.name.rsplit("-", 1)[-1])
-                for p in WORKTREES.glob("*")
-                if p.name.rsplit("-", 1)[-1].isdigit()
-            ),
-            default=0,
-        )
-        self.workdir = WORKTREES / (f"{project}-{number}" if project else str(number))
+        number = 1
+        while (WORKTREES / (name := f"{project}-{number}" if project else str(number))).exists():
+            number += 1
+        self.workdir = WORKTREES / name
         self.job = asyncio.create_task(self._run(task, project, number), name="coding task")
         self.job.add_done_callback(report)
         return f"the coding task started in {self.workdir}"
@@ -645,6 +637,11 @@ class Coder:
                     await self.proc.wait()
         self.last = f"The coding task in {self.workdir.name} {state}. {(result or self.step)[:400]}"
         await speak(self.http, one(self.last))
+
+
+def _projects() -> list[str]:
+    """Return the names of the projects in INVENTORY."""
+    return sorted(p.name for p in INVENTORY.glob("*") if p.is_dir())
 
 
 async def _git(*args: str) -> None:
