@@ -502,10 +502,11 @@ impl Mc {
         };
         let config = &self.settings.value;
         let (em, b) = (config.scale.base, config.scale.baseline);
-        let gap = config.page.gap * em;
+        let page = self.page(scene);
+        let gap = page.gap * em;
         let cols = f64::from(scene.grid[0]);
-        let want = cols * config.page.measure * em + (cols - 1.0) * gap;
-        let room = f64::from(output.size[0]) - 4.0 * b - 2.0 * (config.page.margin * em + gap);
+        let want = cols * page.measure * em + (cols - 1.0) * (page.margin * em + 2.0 * gap);
+        let room = f64::from(output.size[0]) - 4.0 * b - 2.0 * (page.margin * em + gap);
         let placed = self.placed(name);
         let sides = [Region::Left, Region::Right].map(|region| {
             if placed.contains_key(&region) {
@@ -527,8 +528,7 @@ impl Mc {
         let output = self.output.as_ref()?;
         let [w, h] = output.size.map(f64::from);
         let config = &self.settings.value;
-        let (em, b) = (config.scale.base, config.scale.baseline);
-        let (note, gap) = (config.page.margin * em, config.page.gap * em);
+        let b = config.scale.baseline;
         let size = |region: Region| config.regions.get(region).size;
         let on = |region: Region| visible.contains(&region);
         let line = |region: Region| if on(region) { size(region) * b } else { 0.0 };
@@ -547,6 +547,7 @@ impl Mc {
             self.geometry(name)?
         };
         let [x, top, width, _] = geo.text;
+        let (note, gap) = (geo.note, geo.gap);
         let mut regions = BTreeMap::new();
         // Over the text of a page, else over the whole app.
         let (lx, lw) = if app {
@@ -1006,7 +1007,7 @@ fn place(surface: &str, [x, y, w, h]: [f64; 4], output: [i32; 2]) -> [Command; 2
     ]
 }
 
-fn rect(id: &str, parent: &str, [x, y, w, h]: [f64; 4], color: [f64; 4]) -> Command {
+pub fn rect(id: &str, parent: &str, [x, y, w, h]: [f64; 4], color: [f64; 4]) -> Command {
     create(
         id,
         NodeKind::Rect,

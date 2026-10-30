@@ -31,7 +31,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{
-    config::{Action, Config, Layout, Style, Type},
+    config::{Action, Config, Layout, Page, Style, Type},
     region::{Kind, MAX_LINES, REGIONS, Region, Rule},
     scene::{Panel, Scene},
 };
@@ -48,6 +48,8 @@ const CLOCK: &str = "mc-clock";
 const FADE: f64 = 250.0;
 /// The effect that writes new text.
 const WRITE_SHADER: &str = include_str!("../write.frag");
+/// The effect that blurs a panel.
+const BLUR_SHADER: &str = include_str!("../blur.frag");
 /// The lines of the baseline grid above the head of a scene.
 const HEAD: f64 = 3.0;
 
@@ -78,6 +80,14 @@ struct Geometry {
     gap: f64,
     /// The distance of the lines of the grid.
     baseline: f64,
+}
+
+impl Geometry {
+    /// The space between two columns of a grid: room for the margin of
+    /// the column on the right, with a gap on both sides.
+    fn columns(&self) -> f64 {
+        self.note + 2.0 * self.gap
+    }
 }
 
 /// Parameters of `scene.show`.
@@ -203,8 +213,9 @@ struct Mc {
     built: bool,
     hud: SetHud,
     typing: Option<Typing>,
-    /// The file of the effect that writes new text.
+    /// The files of the effects that write new text and that blur.
     shader: PathBuf,
+    blur: PathBuf,
     /// The rules of `region.put`, before those of the settings.
     put: Vec<Rule>,
     /// The regions that a key or `region.toggle` showed or hid.
@@ -246,11 +257,18 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let runtime =
         std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, PathBuf::from);
     // One file for all starts, written when it differs.
-    let shader = runtime.join("chora-mc/write.frag");
-    if std::fs::read_to_string(&shader).ok().as_deref() != Some(WRITE_SHADER) {
-        std::fs::create_dir_all(shader.parent().expect("a file in a directory"))?;
-        std::fs::write(&shader, WRITE_SHADER)?;
-    }
+    let [shader, blur] = [("write", WRITE_SHADER), ("blur", BLUR_SHADER)].map(|(name, text)| {
+        let path = runtime.join(format!("chora-mc/{name}.frag"));
+        let write = || -> std::io::Result<()> {
+            if std::fs::read_to_string(&path).ok().as_deref() != Some(text) {
+                std::fs::create_dir_all(path.parent().expect("a file in a directory"))?;
+                std::fs::write(&path, text)?;
+            }
+            Ok(())
+        };
+        write().map(|()| path)
+    });
+    let (shader, blur) = (shader?, blur?);
     let rt = Runtime::connect(NAME, Vec::new())?;
     let mut mc = Mc {
         rt,
@@ -268,6 +286,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         },
         typing: None,
         shader,
+        blur,
         put: Vec::new(),
         toggled: BTreeMap::new(),
         docks: HashMap::new(),
@@ -801,8 +820,19 @@ impl Mc {
         commands.extend(self.chapter(name, scene));
         for panel in &scene.panels {
             commands.extend(self.panel(name, panel));
+            commands.extend(self.rule(name, panel));
         }
         commands
+    }
+
+    /// The hairline of a panel, in the middle of the space before its
+    /// margin; outside the panel, which `panel.set` replaces.
+    fn rule(&self, name: &str, panel: &Panel) -> Option<Command> {
+        let color = self.settings.value.colors().get(panel.rule.as_ref()?)?;
+        let ([x, y, _, h], geo) = (self.place(name, panel)?, self.geometry(name)?);
+        let line = [(x - geo.note - 1.5 * geo.gap).round(), y, 1.0, h];
+        let id = format!("{}-rule", panel_id(name, &panel.id));
+        Some(region::rect(&id, &panels_id(name), line, *color))
     }
 
     /// A style of the settings, changed by a scene; a change that fails
@@ -823,12 +853,26 @@ impl Mc {
         scene.app.is_none() && !scene.panels.is_empty()
     }
 
-    /// The height of the head of a chapter.
-    fn chapter_height(&self) -> f64 {
-        match self.settings.value.chapter.layout {
-            Layout::Number => self.ty("chapter_number", None).line + self.ty("chapter", None).line,
-            Layout::Caps => self.ty("chapter", None).line,
-            Layout::Large => self.ty("chapter_large", None).line,
+    /// The layout of the head of a scene: its own, else the settings.
+    fn layout(&self, scene: &Scene) -> Layout {
+        (scene.chapter.layout).unwrap_or(self.settings.value.chapter.layout)
+    }
+
+    /// The text block of a scene: its own, else the settings.
+    pub fn page<'a>(&'a self, scene: &'a Scene) -> &'a Page {
+        scene.page.as_ref().unwrap_or(&self.settings.value.page)
+    }
+
+    /// The height of the head of a chapter, with the line under it.
+    fn chapter_height(&self, scene: &Scene) -> f64 {
+        let b = self.settings.value.scale.baseline;
+        match self.layout(scene) {
+            Layout::Number => {
+                self.ty("chapter_number", None).line + self.ty("chapter", None).line + b
+            }
+            Layout::Caps => self.ty("chapter", None).line + b,
+            Layout::Large => self.ty("chapter_large", None).line + b,
+            Layout::None => 0.0,
         }
     }
 
@@ -844,9 +888,10 @@ impl Mc {
         let [w, h] = output.size.map(f64::from);
         let config = &self.settings.value;
         let (em, b) = (config.scale.base, config.scale.baseline);
-        let (note, gap) = (config.page.margin * em, config.page.gap * em);
+        let page = self.page(scene);
+        let (note, gap) = (page.margin * em, page.gap * em);
         let cols = f64::from(scene.grid[0]);
-        let want = cols * config.page.measure * em + (cols - 1.0) * gap;
+        let want = cols * page.measure * em + (cols - 1.0) * (note + 2.0 * gap);
         // A margin column on both sides, so that the text stays centered,
         // and room for the sides, so that the text never moves when one
         // shows: centered where it fits, else beside the sides.
@@ -860,7 +905,7 @@ impl Mc {
             .max(2.0 * b + lneed)
             .round();
         let top = if Self::has_chapter(scene) {
-            HEAD * b + self.chapter_height() + b
+            HEAD * b + self.chapter_height(scene)
         } else {
             HEAD * b
         };
@@ -898,7 +943,7 @@ impl Mc {
         };
         let top = HEAD * b;
         let mut commands = Vec::new();
-        match self.settings.value.chapter.layout {
+        match self.layout(scene) {
             Layout::Number => {
                 let big = self.ty("chapter_number", None);
                 commands.push(node("number", &big, &number, top));
@@ -910,6 +955,7 @@ impl Mc {
                 let large = self.ty("chapter_large", None);
                 commands.push(node("title", &large, &title, top));
             }
+            Layout::None => {}
         }
         commands
     }
@@ -932,7 +978,7 @@ impl Mc {
             panel.cell,
             scene.grid,
             geo.text,
-            [geo.gap, geo.baseline],
+            [geo.columns(), geo.baseline],
         ))
     }
 
@@ -961,6 +1007,8 @@ impl Mc {
                 transform: Some(translate(x - indent, y)),
                 size: Some([w + indent, h]),
                 clip: Some(Some(chora_scene::Clip { radius: 0.0 })),
+                opacity: panel.opacity,
+                effects: self.blur_effect(panel).map(|e| vec![e]),
                 ..PropsUpdate::default()
             },
         )];
@@ -1051,6 +1099,15 @@ impl Mc {
         Ok(rect)
     }
 
+    /// The effect of the blur of a panel, if it has one.
+    fn blur_effect(&self, panel: &Panel) -> Option<ShaderEffect> {
+        let radius = panel.blur.filter(|r| *r > 0.0)?;
+        Some(ShaderEffect {
+            shader: self.blur.to_string_lossy().into_owned(),
+            uniforms: [("radius".into(), Uniform::Float(radius))].into(),
+        })
+    }
+
     /// Writes the text of the panels of a scene anew: the effect starts at
     /// 0 and the core animates it to 1. Nothing when the setting is off.
     #[allow(clippy::cast_precision_loss)] // at most 4 KiB of lines
@@ -1059,18 +1116,23 @@ impl Mc {
         if !config.write.enabled {
             return Vec::new();
         }
-        let effect = |rows: [f64; 3], progress: f64| {
-            Some(vec![ShaderEffect {
-                shader: self.shader.to_string_lossy().into_owned(),
-                uniforms: [
-                    ("progress".into(), Uniform::Float(progress)),
-                    ("rows".into(), Uniform::Vector(rows.to_vec())),
-                ]
-                .into(),
-            }])
-        };
         let mut commands = Vec::new();
         for panel in panels {
+            let effect = |rows: [f64; 3], progress: f64| {
+                let write = ShaderEffect {
+                    shader: self.shader.to_string_lossy().into_owned(),
+                    uniforms: [
+                        ("progress".into(), Uniform::Float(progress)),
+                        ("rows".into(), Uniform::Vector(rows.to_vec())),
+                    ]
+                    .into(),
+                };
+                Some(
+                    std::iter::once(write)
+                        .chain(self.blur_effect(panel))
+                        .collect(),
+                )
+            };
             let Some([_, _, _, h]) = self.place(name, panel) else {
                 continue;
             };
@@ -1178,6 +1240,9 @@ impl Mc {
         self.apply(commands)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         self.current = Some(name.into());
+        // A hidden scene has no layout of the core: its notes align now.
+        self.align(name)
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         // The regions follow the scene.
         self.render()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;

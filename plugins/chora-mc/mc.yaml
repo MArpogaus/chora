@@ -79,7 +79,8 @@ styles:
     family: DejaVu Sans Mono
     step: -1
 # The head of each scene: number (a large number, the title in small caps
-# below it), caps (the title in small caps) or large (one large title).
+# below it), caps (the title in small caps), large (one large title) or
+# none.
 chapter:
   layout: number
 # The text block: the width of a column of text, about 65 letters, the

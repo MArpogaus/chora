@@ -6,7 +6,10 @@ use std::{collections::BTreeMap, io::Write as _, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{config::Style, region::Region};
+use crate::{
+    config::{Layout, Page, Style},
+    region::Region,
+};
 
 /// The scenes that ship with the plugin; a file of the same name replaces
 /// one.
@@ -36,6 +39,10 @@ pub struct Scene {
     /// Whether a region shows in this scene, over the settings.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub regions: BTreeMap<Region, bool>,
+    /// The text block of this scene, over `page` of the settings: for
+    /// example narrow columns side by side on a wide screen.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub page: Option<Page>,
 }
 
 /// The head of a scene. Without them, the number is the place of the
@@ -49,6 +56,9 @@ pub struct Chapter {
     pub title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub running_head: Option<String>,
+    /// The layout of the head, over `chapter.layout` of the settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layout: Option<Layout>,
 }
 
 impl Chapter {
@@ -77,6 +87,16 @@ pub struct Panel {
     /// The style of the notes in the margin, `margin` without a base.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note_style: Option<Style>,
+    /// A hairline in this color of the theme left of the panel, in the
+    /// gap: a rule between columns, or a line for now.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rule: Option<String>,
+    /// The opacity of the panel, from 0 to 1: context that steps back.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opacity: Option<f64>,
+    /// A blur of the panel, its radius in pixels up to 16.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blur: Option<f64>,
 }
 
 fn one_cell() -> [u32; 2] {
@@ -92,6 +112,7 @@ impl Default for Scene {
             app: None,
             chapter: Chapter::default(),
             regions: BTreeMap::new(),
+            page: None,
         }
     }
 }
@@ -125,6 +146,14 @@ impl Scene {
                 return Err(format!("panel {id}: the cell is outside the grid"));
             }
             panel.check_text()?;
+            if panel.opacity.is_some_and(|o| !(0.0..=1.0).contains(&o))
+                || panel.blur.is_some_and(|b| !(0.0..=16.0).contains(&b))
+            {
+                return Err(format!("panel {id}: an opacity from 0 to 1, a blur to 16"));
+            }
+        }
+        if let Some(page) = &self.page {
+            page.check()?;
         }
         let chapter = &self.chapter;
         let texts = [&chapter.number, &chapter.title, &chapter.running_head];
@@ -293,6 +322,11 @@ mod tests {
                 ..Chapter::default()
             },
             regions: [(Region::Right, true)].into(),
+            page: Some(Page {
+                measure: 20.0,
+                margin: 0.0,
+                gap: 2.0,
+            }),
         };
         save(&dir, "agenda", &scene).unwrap();
         save(&dir, "news", &Scene::app("foot")).unwrap();
@@ -318,6 +352,8 @@ mod tests {
             "panels: [{id: a/b, cell: [0, 0, 1, 1]}]\n",
             "app: ' '\n",
             "frame: true\n",
+            "page: {measure: 5, margin: 0, gap: 1}\n",
+            "panels: [{id: a, cell: [0, 0, 1, 1], opacity: 2}]\n",
         ] {
             assert!(parse(wrong).is_err(), "{wrong}");
         }

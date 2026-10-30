@@ -183,6 +183,8 @@ pub enum Layout {
     Caps,
     /// One large title.
     Large,
+    /// No head: the panels start under the header.
+    None,
 }
 
 /// The head of each scene.
@@ -203,6 +205,23 @@ pub struct Page {
     /// The space between the margin and the text, and between columns,
     /// in em.
     pub gap: f64,
+}
+
+impl Page {
+    pub fn check(&self) -> Result<(), String> {
+        let Self {
+            measure,
+            margin,
+            gap,
+        } = *self;
+        if !(10.0..=200.0).contains(&measure)
+            || !(0.0..=50.0).contains(&margin)
+            || !(0.0..=10.0).contains(&gap)
+        {
+            return Err("page: a measure from 10 to 200, a margin to 50, a gap to 10".into());
+        }
+        Ok(())
+    }
 }
 
 /// How new text writes itself.
@@ -339,17 +358,7 @@ impl Settings for Config {
                 "scale: a base from 4 to 128, a ratio from 1 to 3, a baseline from 4 to 256".into(),
             );
         }
-        let Page {
-            measure,
-            margin,
-            gap,
-        } = self.page;
-        if !(10.0..=200.0).contains(&measure)
-            || !(0.0..=50.0).contains(&margin)
-            || !(0.0..=10.0).contains(&gap)
-        {
-            return Err("page: a measure from 10 to 200, a margin to 50, a gap to 10".into());
-        }
+        self.page.check()?;
         for name in NEEDED {
             if !self.styles.contains_key(name) {
                 return Err(format!("styles: no {name}"));
