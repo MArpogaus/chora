@@ -193,8 +193,9 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
         Analyzer::new(vad),
         tx.clone(),
     ));
-    agent.mc = Some(mc::start(&name));
-    client::start(name, settings, tx);
+    let (emits, emitted) = mpsc::channel();
+    agent.mc = Some(mc::start(&name, emits));
+    client::start(name, settings, tx, emitted);
     log::info(&format!("started, {:?}", agent.core.state()));
     while let Ok(input) = rx.recv() {
         agent.step(input)?;
@@ -217,8 +218,8 @@ struct Agent {
     /// The reply in progress: the control of its speech, and its stop
     /// with the words that played.
     reply: Option<(UnboundedSender<Control>, oneshot::Sender<String>)>,
-    /// The reports to chora-mc, and the last reports of the agent and
-    /// of its coder.
+    /// The reports to the HUD, and the last reports of the agent and of
+    /// its coder.
     mc: Option<mpsc::Sender<mc::Report>>,
     reported: [Option<serde_json::Value>; 2],
     /// The state that the indicator shows; none without it.

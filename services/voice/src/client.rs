@@ -1,9 +1,10 @@
 //! The chora client in a thread of its own: the methods of `voice`, the
-//! settings (D62) and the push-to-talk grab, on the `chora-kit` runtime.
+//! settings (D62), the push-to-talk grab and the events of the HUD (D65),
+//! on the `chora-kit` runtime.
 
 use std::{
     path::PathBuf,
-    sync::mpsc::{self, Sender},
+    sync::mpsc::{self, Receiver, Sender},
     thread,
     time::Duration,
 };
@@ -14,7 +15,7 @@ use chora_kit::{
 };
 use chora_scene::{
     Event,
-    ipc::{ClientError, ExportMethod, PressState, RpcError},
+    ipc::{ClientError, Emit, ExportMethod, PressState, RpcError},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -26,6 +27,10 @@ use crate::{
 
 /// How long a method waits for the core.
 const ANSWER: Duration = Duration::from_secs(1);
+/// How often the thread looks for events to emit.
+// ponytail: one thread cannot block on the socket and the channel at once,
+// so it polls; a wake-up fd if the idle wake-ups ever matter.
+const EMIT_POLL: Duration = Duration::from_millis(50);
 
 struct Client {
     rt: Runtime<()>,
@@ -63,8 +68,14 @@ struct Mute {
 }
 
 /// Starts the thread. It sends the inputs of chora to the core, and
-/// `ChoraGone` when the runtime gives up.
-pub fn start(name: String, settings: settings::File<Config>, tx: Sender<Input>) {
+/// `ChoraGone` when the runtime gives up. It emits the events of `emits`
+/// as `NAME.EVENT`.
+pub fn start(
+    name: String,
+    settings: settings::File<Config>,
+    tx: Sender<Input>,
+    emits: Receiver<crate::mc::Emit>,
+) {
     thread::spawn(move || {
         let path = settings.file().to_owned();
         let mut settings = Some(settings);
@@ -73,7 +84,7 @@ pub fn start(name: String, settings: settings::File<Config>, tx: Sender<Input>) 
                 Some(s) => s,
                 None => load(path.clone())?,
             };
-            session(&name, settings, &tx)
+            session(&name, settings, &tx, &emits)
         });
         let _ = tx.send(Input::ChoraGone);
     });
@@ -88,6 +99,7 @@ fn session(
     name: &str,
     settings: settings::File<Config>,
     tx: &Sender<Input>,
+    emits: &Receiver<crate::mc::Emit>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut methods = exported_methods();
     methods.extend(settings::File::<Config>::methods());
@@ -101,13 +113,38 @@ fn session(
     client.apply().map_err(|e| e.message)?;
     crate::log::info(&format!("connected to chora as {name}"));
     crate::health::ok("chora");
-    let result = runtime::serve(&mut client);
+    let result = serve(&mut client, name, emits);
     if let Err(e) = &result {
         crate::health::down("chora", &e.to_string());
     }
     // A key that nobody follows is up.
     let _ = tx.send(Input::PttUp);
     Ok(result?)
+}
+
+/// Handles the events of chora and emits the events of the HUD until the
+/// connection fails. A refused event, for example over the rate limit of
+/// the core, only logs.
+fn serve(
+    client: &mut Client,
+    name: &str,
+    emits: &Receiver<crate::mc::Emit>,
+) -> Result<(), ClientError> {
+    loop {
+        if let Some(event) = client.rt.conn.next_event_timeout(EMIT_POLL)? {
+            runtime::dispatch(client, event)?;
+        }
+        while let Ok((event, data)) = emits.try_recv() {
+            let emit = Emit {
+                event: format!("{name}.{event}"),
+                data,
+            };
+            match client.rt.conn.call::<_, Value>("events.emit", emit) {
+                Err(ClientError::Rpc(e)) => crate::log::debug(&format!("events.emit: {e}")),
+                other => drop(other?),
+            }
+        }
+    }
 }
 
 fn exported_methods() -> Vec<ExportMethod> {
