@@ -63,6 +63,8 @@ input:
   run yet, with the `exec` of its manifest, and waits up to 10 s until it
   connects. It passes each `config` to the method that the manifest names
   in `configure`. Then it applies the nodes of the view as one transaction.
+  It prints the started plugins, the count of nodes and, as `input`, the
+  answer of `input.configure`.
 - The client `view-work` owns the nodes. A second load replaces them,
   `choractl view unload work` removes them.
 - `choractl view save work` writes the nodes of `view-work` as they are

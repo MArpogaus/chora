@@ -176,7 +176,8 @@ fn connect(view: &str) -> Result<Client, String> {
         .map_err(|e| format!("the view {view:?} connects as {}: {e}", owner(view)))
 }
 
-/// Loads a view and returns what it did.
+/// Loads a view and returns what it did, with the answer of
+/// `input.configure`: the input settings of the core.
 /// A path loads the file; a name loads `NAME.yaml`, which must name the
 /// same view.
 pub fn load(name: &str) -> Result<Value, String> {
@@ -186,11 +187,12 @@ pub fn load(name: &str) -> Result<Value, String> {
     }
     check(&view)?;
     let mut client = connect(&view.name)?;
-    if let Some(input) = &view.input {
-        client
+    let input = match &view.input {
+        Some(input) => client
             .call::<_, Value>("input.configure", input)
-            .map_err(|e| format!("input: {e}"))?;
-    }
+            .map_err(|e| format!("input: {e}"))?,
+        None => Value::Null,
+    };
     let started = start_plugins(&mut client, &view.plugins)?;
     let mut commands = removals(&mut client, &view.name)?;
     commands.extend(view.scene.iter().map(|n| Command::Create {
@@ -206,6 +208,7 @@ pub fn load(name: &str) -> Result<Value, String> {
         "view": view.name,
         "started": started,
         "nodes": view.scene.len(),
+        "input": input,
     }))
 }
 

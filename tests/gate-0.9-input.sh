@@ -30,21 +30,9 @@ repeat=$(timeout 10 "$bin/chora-probe" repeat-info) || fail "the probe: $repeat"
 [ "$repeat" = "repeat-info: 40 300" ] || fail "a client got no new repeat_info: $repeat"
 ok "a view set the key repeat, and a Wayland client got repeat_info 40 300"
 
-# Empty params read the settings back.
-settings=$(timeout 10 python3 -I - "$CHORA_SOCKET" <<'PY'
-import json, socket, sys
-s = socket.socket(socket.AF_UNIX)
-s.connect(sys.argv[1])
-f = s.makefile("rw")
-for i, (method, params) in enumerate(
-    [("hello", {"name": "gate"}), ("input.configure", None)]
-):
-    f.write(json.dumps({"jsonrpc": "2.0", "id": i, "method": method, "params": params}) + "\n")
-    f.flush()
-    answer = json.loads(f.readline())
-print(json.dumps(answer["result"], sort_keys=True))
-PY
-) || fail "input.configure: $settings"
+# view load prints the answer of input.configure: the settings of the core.
+settings=$(python3 -I -c 'import json, sys; print(json.dumps(json.load(sys.stdin)["input"], sort_keys=True))' \
+    <"$work/load.log") || fail "no input in the answer of view load: $(cat "$work/load.log")"
 [ "$settings" = '{"keyboard": {"repeat_delay": 300, "repeat_rate": 40}, "touchpad": {"tap": true}}' ] ||
     fail "the settings: $settings"
 ok "the core holds tap for touchpads: $settings"
