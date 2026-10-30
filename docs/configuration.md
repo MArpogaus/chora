@@ -243,8 +243,9 @@ scenes through methods; the plugin reads no sources itself.
 A scene of `chora-mc` is not a view of D35. It is a YAML file
 `NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/scenes/`: a grid of panels, each
 with a title and lines, or one app whose window fills the screen without
-a frame. The plugin has the built-in scenes `agenda` and `terminal`. A file
-of the same name replaces a built-in scene.
+a frame. The plugin has the built-in scenes `agenda`, `agents`, `mission`
+(Mission Control), `morning` (the morning paper) and `terminal`. A file of
+the same name replaces a built-in scene.
 
 ```yaml
 # ~/.config/chora/mc/scenes/day.yaml
@@ -295,6 +296,12 @@ context that steps back (`plugins/chora-mc/blur.frag`).
 | `region.put` | `content`, `region` and an optional `slot`: the content goes there over the rules, until the next start. Without `region` the content follows the rules again |
 | `content.set` | `content`, `lines` and an optional `title` of a text content |
 | `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines |
+| `region.solo` | `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
+| `agent.set` | `name` and optional `state`, `task`, `said` and `voice`: adds an agent or changes it; a missing field stays. The `state` is a name of `states` |
+| `agent.remove` | `name` |
+| `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice` and `since` (the time of its first report) |
+| `notify.push` | `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`; a critical one also shows in red in the text `urgent` until the next one |
+| `notify.clear` | none; empties `notify` and `urgent` |
 
 New text writes itself, as Write of manim: a soft front draws the
 outlines line by line, and the fill follows. This happens when a scene
@@ -327,7 +334,16 @@ hand apply with `settings.reload`:
   `gap`, in em of `scale.base`.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
 - `default_scene`, and the `bindings` with the actions `next_scene`,
-  `previous_scene`, `scene: NAME`, `run: COMMAND` and `toggle: REGION`.
+  `previous_scene`, `scene: NAME`, `run: COMMAND`, `toggle: REGION` and
+  `solo: {content: NAME, region: REGION}` (as `region.solo`; the default
+  `Super+F12` shows the test overlay in the drawer).
+- `states`: the states of `agent.set`, each with a `sign`, a `color` of
+  the theme and an optional `label` for the agents scene. The default has
+  `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
+  `question` ? (has a question), `blocked` ✕, `done` ✓ and `asleep` ☾:
+  blue hears or thinks, green works or is done, the accent speaks, amber
+  needs you, red is blocked, faint rests. The themes have the colors
+  `green`, `amber`, `blue` and `red` for them.
 - `regions`, `contents`, `rules`, `preset` and `presets`: see below.
 
 ### Regions
@@ -378,6 +394,7 @@ The `contents` are named. Their `kind` is one of:
 | `clock` | the time as `date` formats it with `format`, each minute anew |
 | `state` | the `state` of `hud.set` and `hud.say`, in the accent color |
 | `hud` | the `text` of `hud.set` and `hud.say` |
+| `agents` | the sign and the name of each agent of `agent.set`, each in the color of its state, in the style `hud` |
 | `text` | a `title` and `lines` that `content.set` and `content.add` change |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
 
@@ -398,12 +415,16 @@ right side, and `Super+Up` and `Super+Down` for the header and the
 footer.
 
 The default `desk` setup: the header shows the running head left, and
-the state of the agent and the clock right; the footer shows the words
-of the agent left and the next entry of the agenda right (the collector
-fills the content `next`); the right side shows the notes, which an agent
-fills with `content.add`; `Super+Return` opens `foot` in the drawer in the
-colors of the theme. Over an app, the words of the agent move into the
-middle of the header.
+the agents, the state of the agent and the clock right; the footer shows
+the words of the agent left, a critical notification in red in the
+middle and the next entry of the agenda right (the collector fills the
+content `next`); the right side shows the notes, which an agent fills
+with `content.add`, and the notifications below them, newest on top;
+`Super+Return` opens `foot` in the drawer in the colors of the theme.
+Over an app, the words of the agent move into the middle of the header.
+On a narrow page the header has no room for many agents and the long
+clock: the end of the line is cut. Set the rule of `time` instead of
+`clock` there.
 
 `preset` picks an arrangement of `presets`. A preset sets which regions
 show in `shown` and has its own `rules`; without rules, those of the
@@ -443,6 +464,30 @@ the scene `agenda`, with `emacs --batch`: the entries with a time, and the
 tasks scheduled or due today, each as a time in the margin and a text.
 It leaves out overdue, upcoming and done tasks. `ORG_TODO` sets the TODO
 keywords, by default `PROJ TODO NEXT WAIT | DONE KILL`.
+
+The other collectors in `plugins/chora-mc/collectors/` are Python 3
+scripts without dependencies. They only read their sources, and a source
+that is missing leaves a short note or nothing. Each takes `--print` to
+show the JSON without chora:
+
+| Collector | Fills | Sources |
+|-----------|-------|---------|
+| `morning.py [ORG_FILE...]` | the scene `morning`: the lead (the first task due today, else the next entry), the weather, the day, the mail, overnight and the reading list | `agenda.sh`; [wttr.in](https://wttr.in) for the place `MC_WEATHER` (by IP without it), cached for an hour in `$XDG_CACHE_HOME/chora-mc`, nothing when offline; `notmuch` (unread mail in the inbox), a hint without it; the agents of `agent.list` that are `done`, nothing without them; the reading list `MC_READING` (default `~/Notes/reading.md`): items of markdown or org, the done ones left out |
+| `system.py [--every S] [--once]` | the scene `mission`, every 5 seconds: load with a cpu sparkline of the last 24 rounds, the busy processes, the errors of the journal today, the failed units, host facts | `/proc/stat`, `/proc/meminfo`, `/proc/net/dev`, `/sys/class/thermal`, `ps`; once a minute `journalctl -p err -b --since today -o json`, `systemctl --failed` and `systemctl --user --failed` |
+| `tests.py [--every S]` | the text `overlay`, the test sheet of `Super+F12` | `gh run list` in `MC_REPO` (the repository of the script by default); gate results in `MC_GATES` (default `MC_REPO/target/gates`), one file per gate whose last `ok:`, `SKIP:` or `FAIL:` line counts; `choractl query '*'` for the nodes by owner; the memory of the chora processes |
+
+Run `morning.py` from a timer in the morning, and `system.py` while the
+session runs, for example as a user unit. The agents scene needs no
+collector: `agent.set` fills the panel `agent-N` with the N-th agent (its
+title in the color of its state, the sign and the state, its task and
+its last words) and `band-N` below it with its voice and its start; a
+scene file with more columns shows more agents.
+
+```sh
+choractl call mc agent.set '{"name": "coder", "state": "working", "task": "Runs the tests"}'
+choractl call mc notify.push '{"title": "CI", "body": "dev failed", "urgency": "critical"}'
+choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
+```
 
 ## Flavors
 
