@@ -734,7 +734,7 @@ impl Actor {
         self.agents.update(&self.name, self.id, |s| {
             s.question.clear();
             s.state = "working";
-            s.note(if yes { "  ja" } else { "  nein" });
+            s.note(if yes { "› ja" } else { "› nein" });
         });
         Ok(())
     }
@@ -1139,7 +1139,7 @@ mod tests {
             unreachable!()
         };
         assert_eq!((name.as_str(), voice.as_str()), ("coder", "ryan"));
-        assert_eq!(prompt, "Coder fragt: notes.txt ändern. Erlauben?");
+        assert_eq!(prompt, "Coder möchte notes.txt ändern. Erlauben?");
         let status = agents.call("agent_status", &json!({"name": "coder"}));
         assert!(
             status
@@ -1166,7 +1166,7 @@ mod tests {
                 "Ich lese den Code.",
                 "⚙ Read src/main.rs",
                 "? notes.txt ändern",
-                "ja"
+                "› ja"
             ]
         );
         assert!(

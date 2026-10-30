@@ -54,7 +54,7 @@ impl Default for Phrases {
             tool_rounds: "Ich habe nach zu vielen Werkzeugaufrufen aufgehört.".into(),
             asr_failed: "Ich habe dich nicht verstanden.".into(),
             details: "Details auf dem Bildschirm.".into(),
-            agent_asks: "{name} fragt: {what}. Erlauben?".into(),
+            agent_asks: "{name} möchte {what}. Erlauben?".into(),
             agent_ended: "{name} hat sich beendet.".into(),
         }
     }
