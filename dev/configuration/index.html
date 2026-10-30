@@ -1349,7 +1349,7 @@ default map:</p>
 </tr>
 <tr>
 <td><code>style</code></td>
-<td>how a new window looks: <code>opacity</code> from 0 to 1, and <code>effects</code>, a list of shaders as in <code>scene.apply</code> (#99); <code>chora-tiling</code> sets it once, when it takes the window</td>
+<td>how a new window looks: <code>opacity</code> from 0 to 1, and <code>effects</code>, a list of shaders as in <code>scene.apply</code> (#99); <code>chora-tiling</code> sets it once, when it takes the window; a look that another client asks for wins (see below)</td>
 </tr>
 <tr>
 <td><code>bindings</code></td>
@@ -1425,6 +1425,14 @@ keeps the tags and the layouts of each output, and the tags, the states
 and the stacking of each window, in the <code>meta</code> of its nodes. A restart
 within the grace time rebuilds them from there. In a flavor or a view,
 <code>choractl restart tiling</code> does that after a rebuild.</p>
+<p>Another client changes the opacity, the effects or the meta of a tiling
+window with an <code>update</code> of the window (D58). The core asks
+<code>chora-tiling</code> with <code>node.requested</code>, and <code>chora-tiling</code> applies it,
+except the meta key <code>window</code>, which holds its own state. A layout or a
+tag never changes the opacity or the effects, so the requested look
+stays across relayouts, layout changes, tag moves and restarts with
+<code>resume</code>. The <code>style</code> applies only when <code>chora-tiling</code> takes a new
+window, so a requested value wins over the style for that window.</p>
 <p><code>chora-tiling</code> claims the box around the work areas of its outputs
 (D55). <code>--output NAME</code> limits it to some outputs, as for <code>chora-xp</code>, and
 can come more than once. So each window manager takes its own outputs.
@@ -1855,8 +1863,15 @@ keyboard does not work the dialogs (D45).</p>
 same arguments, and so reads the settings file again. The core keeps
 the nodes of <code>chora-xp</code> for the grace time of <code>resume</code> (see
 <a href="../api/#ipc-methods">API</a>). The windows keep their places, desktops,
-maximized state and stacking. The current desktop stays, and its top
+maximized state and stacking, and the opacity and effects that other
+clients asked for. The current desktop stays, and its top
 window gets the focus.</p>
+<p>Another client changes the opacity, the effects or the meta of an XP
+window with an <code>update</code> of the surface or of its group <code>xp-win-ID</code>
+(D58). <code>chora-xp</code> puts the opacity and the effects on the group, so the
+frame looks the same as the window, and the meta on the node that the
+client named, except the key <code>xp</code>. The meta of a surface does not stay
+over a restart.</p>
 <p><code>chora-xp</code> serves notifications (<code>org.freedesktop.Notifications</code> on the
 session bus), so that <code>notify-send</code> and programs show XP's balloon tips:
 a pale yellow balloon with a black border above the notification area of
