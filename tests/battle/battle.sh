@@ -27,7 +27,7 @@ while ! stopped; do
   cargo build --workspace >> "$bt/build.log" 2>&1 || say "pass build failed, using old binaries"
   pass=$((pass+1)); before=$(titles)
   say "pass $pass start (findings before: $before)"
-  for w in 1 2 3 4 5 6 7 8; do
+  for w in 1 2 3 4 5 6 7 8 9 10 11 12; do
     stopped && break
     run=$bt/run-$pass-w$w.md
     echo "# pass $pass W$w $(date -Is)" > "$run"
