@@ -357,11 +357,24 @@ pub struct Apply {
     pub commands: Vec<Command>,
 }
 
+/// Parameters of `events.emit` (D65).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Emit {
+    /// The name: the client name, a dot and a name of the client, for
+    /// example `voice.state`.
+    pub event: String,
+    /// The data that the subscribers get.
+    #[serde(default)]
+    pub data: Value,
+}
+
 /// Parameters of `events.subscribe`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Subscribe {
-    /// Event names, for example `surface.created`; every event if empty.
+    /// Event names, for example `surface.created` or `voice.state`, or
+    /// patterns such as `voice.*`; every core event if empty (D65).
     #[serde(default)]
     pub events: Vec<String>,
 }
