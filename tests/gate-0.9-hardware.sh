@@ -9,8 +9,10 @@
 #   Default log: ./gate-0.9-hardware-YYYYmmdd-HHMMSS.log
 #   The events of the core go to LOGFILE.events.
 set -u
+. "$(dirname "$0")/gate-lib.sh"
 log=${1:-gate-0.9-hardware-$(date +%Y%m%d-%H%M%S).log}
 results=()
+boot=$(uptime -s)
 
 say() { printf '%s\n' "$*" | tee -a "$log"; }
 note() { printf '[%s] %s\n' "$(date +%T)" "$*" >>"$log"; }
@@ -31,6 +33,8 @@ snapshot() { # snapshot LABEL: outputs, session and crashes
     loginctl session-status "${XDG_SESSION_ID:-}" 2>&1 | head -n 12 >>"$log"
     note "== $1: coredumpctl list chora"
     coredumpctl list chora --no-pager 2>&1 | tail -n 5 >>"$log"
+    note "== $1: crash lines of the journal in this boot (core dumps can be off)"
+    crash_lines "$boot" | tail -n 5 >>"$log"
 }
 step() { # step NAME ACTION [REPEAT]
     local name=$1 what=$2 n=${3:-1} i since pass=1

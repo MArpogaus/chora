@@ -4,10 +4,12 @@
 # the log (a second run on the same day replaces the line) and prints the
 # count of clean days in a row. A day is clean when chora runs, no crash
 # entry of chora is from today, the journal of chora since boot or since
-# midnight shows no emergency reset, and the user answers y.
+# midnight shows no emergency reset and no crash, hang or failed start
+# (crash_lines in gate-lib.sh), and the user answers y.
 #
 # Usage: tests/gate-0.9-daily.sh [LOGFILE]   default ~/gate-0.9-daily.log
 set -u
+. "$(dirname "$0")/gate-lib.sh"
 log=${1:-$HOME/gate-0.9-daily.log}
 today=$(date +%F)
 boot=$(uptime -s)
@@ -19,12 +21,14 @@ systemctl --user list-units --state=active --plain --no-legend 'chora@*' 'waylan
 dumps=$(coredumpctl list chora --since "$today" --no-pager --no-legend 2>/dev/null | grep -c .)
 resets=$(journalctl --user -u 'chora@*' -u 'wayland-wm@*' --since "$start" --no-pager 2>/dev/null |
     grep -c 'emergency reset')
+crashes=$(crash_lines "$start" | grep -c .)
 read -r -p "Did you work only in chora today, and was every reset your own? [y/n] " a
 verdict=BAD
-[ "$running" = yes ] && [ "$dumps" = 0 ] && [ "$resets" = 0 ] && [ "$a" = y ] && verdict=CLEAN
+[ "$running" = yes ] && [ "$dumps" = 0 ] && [ "$resets" = 0 ] && [ "$crashes" = 0 ] &&
+    [ "$a" = y ] && verdict=CLEAN
 touch "$log"
 grep -v "^$today " "$log" >"$log.new"
-echo "$today $verdict running=$running coredumps=$dumps resets=$resets user=$a" >>"$log.new"
+echo "$today $verdict running=$running coredumps=$dumps resets=$resets crashes=$crashes user=$a" >>"$log.new"
 mv "$log.new" "$log"
 # clean days in a row, counted to the newest line
 n=0

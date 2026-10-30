@@ -44,6 +44,13 @@ ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
 run_pids=()
 run_pid() { run_pids+=("$1"); }
 pixel() { python3 -I "$repo/tests/png-pixel.py" "$@"; }
+# crash_lines SINCE: the journal lines of the chora units since a time
+# that show a crash, a hang or a failed start. secureblue disables core
+# dumps, so coredumpctl alone sees nothing there.
+crash_lines() {
+    journalctl --user -u 'chora@*' -u 'wayland-wm@*' --since "$1" --no-pager 2>/dev/null |
+        grep -E 'the watchdog aborts|chora: SIG|the main loop stalls|the startup command failed'
+}
 # mcp_py runs one python MCP check with tests/gate-mcp.py importable.
 mcp_py() {
     PYTHONPATH=$repo/tests python3 - "$@"
