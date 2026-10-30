@@ -59,17 +59,6 @@ pub struct Toggles {
     pub sounds: bool,
 }
 
-impl Default for Toggles {
-    fn default() -> Self {
-        Self {
-            wobbly: true,
-            lamp: true,
-            cube: true,
-            sounds: true,
-        }
-    }
-}
-
 impl Toggles {
     fn get(self, effect: Effect) -> bool {
         match effect {
@@ -215,7 +204,7 @@ mod tests {
     #[test]
     fn the_current_choices_have_check_marks() {
         let walls = [PathBuf::from("/w/a.png"), PathBuf::from("/w/b.svg")];
-        let mut toggles = Toggles::default();
+        let mut toggles = crate::config::defaults().effects;
         toggles.flip(Effect::Lamp);
         let menu = menu(Some(Path::new("/w/b.svg")), &walls, toggles);
         assert_eq!(picks(&menu[1]), [("A", false), ("B", true)]);

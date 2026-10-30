@@ -162,6 +162,12 @@ impl Settings for Config {
     }
 }
 
+/// The default settings, for the tests.
+#[cfg(test)]
+pub fn defaults() -> Config {
+    chora_kit::settings::parse(DEFAULT).unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use chora_kit::settings::{File, Store, parse};
@@ -175,8 +181,6 @@ mod tests {
         assert_eq!(config.file_manager, "thunar");
         assert_eq!(config.wallpaper.picture, Picture::Default);
         assert_eq!(config.wallpaper.color, wallpaper::DESKTOP_BLUE);
-        assert_eq!(config.taskbar, taskbar::Settings::default());
-        assert_eq!(config.effects, Toggles::default());
         let session = config.session;
         assert_eq!(session.turn_off.as_deref(), Some("systemctl poweroff"));
         assert_eq!(session.restart.as_deref(), Some("systemctl reboot"));

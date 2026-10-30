@@ -1087,7 +1087,7 @@ mod tests {
 
     /// The default settings with kitty and no programs.
     fn config() -> Config {
-        let mut config: Config = chora_kit::settings::parse(crate::config::DEFAULT).unwrap();
+        let mut config = crate::config::defaults();
         config.terminal = "kitty".into();
         config.programs.clear();
         config

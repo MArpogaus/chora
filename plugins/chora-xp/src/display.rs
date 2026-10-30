@@ -1045,7 +1045,7 @@ mod tests {
 
     #[test]
     fn the_effects_change_on_ok() {
-        let mut e = EffectsDialog::new(Toggles::default(), [0, 0, 800, 600]);
+        let mut e = EffectsDialog::new(crate::config::defaults().effects, [0, 0, 800, 600]);
         let hit = |n: &str| Hit::Control(n.into(), [1, 1]);
         assert_eq!(e.click(&hit("cube")), Effects::Redraw);
         let Effects::Take(t) = e.click(&hit("ok")) else {
@@ -1084,7 +1084,7 @@ mod tests {
                 &format!("display-{}", name.replace(' ', "")),
             );
         }
-        let mut e = EffectsDialog::new(Toggles::default(), [0, 0, 800, 600]);
+        let mut e = EffectsDialog::new(crate::config::defaults().effects, [0, 0, 800, 600]);
         let page = e.page();
         e.dialog.create(&mut theme, "root", page);
         preview(&mut theme, &e.dialog, "effects");

@@ -65,17 +65,6 @@ pub struct Settings {
     pub clock: bool,
 }
 
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            locked: true,
-            auto_hide: false,
-            on_top: true,
-            clock: true,
-        }
-    }
-}
-
 /// A window as its task button shows it.
 pub struct Task<'a> {
     /// The surface node.
@@ -682,7 +671,7 @@ mod tests {
         assert_eq!(bar.usable(), [0, 0, 1280, 770]);
         bar.configure(Settings {
             auto_hide: true,
-            ..Settings::default()
+            ..crate::config::defaults().taskbar
         });
         assert_eq!(bar.usable(), [0, 0, 1280, 798]);
         // It slides down until its strip of 2 pixels shows, in 0.15 s.
@@ -704,7 +693,7 @@ mod tests {
         assert!(bar.clock_rect().is_some());
         bar.configure(Settings {
             clock: false,
-            ..Settings::default()
+            ..crate::config::defaults().taskbar
         });
         assert_eq!(bar.tray_width(), TRAY_EMPTY);
         assert_eq!(bar.clock_rect(), None);
