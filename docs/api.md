@@ -705,13 +705,14 @@ the unit and the token as one JSON line while the program runs.
 - This needs systemd 254 or later. When `systemd-run` fails, for example
   because the unit exists already, `run` exits 1 with its error and
   starts nothing.
-- The unit gets the environment of the user manager, plus the token and
-  the values of the caller for `PATH`, `XDG_RUNTIME_DIR`,
-  `WAYLAND_DISPLAY` and `CHORA_SOCKET`. It gets `DISPLAY` and the other
+- The unit gets the environment of the user manager, plus the token.
+  `PATH`, `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and `CHORA_SOCKET` get
+  the value of the caller, or none when the caller has none. It gets `DISPLAY` and the other
   host session variables only from the caller, never from the user
   manager. It starts in the directory of the caller.
 - Without a running user manager, `choractl` starts the program itself,
-  with the environment of the caller.
+  with the environment of the caller. The program stays in the process
+  group of the caller.
   Its output goes to `/dev/null`, and `unit` is `null`.
 - When the unit starts but its `MainPID` stays unknown after a short
   wait, for example because the program ended at once, `pid` is `null`.

@@ -70,7 +70,7 @@ scale and transform.
 `XDG_RUNTIME_DIR` under `/tmp`, without the `WAYLAND_DISPLAY` and
 `DISPLAY` of the host. It prints `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY` and
 `CHORA_SOCKET` as lines `KEY=VALUE`, waits, and on a signal or at the end
-of the core stops the core with its startup command and removes the
+of the core stops the process group of the core and removes the
 directory. An agent or a CI job uses it so:
 
 ```bash
@@ -142,7 +142,7 @@ in a Fedora 44 container, and `cargo deny` in a separate job. A further job
 checks the build with the minimum Rust version. The `check` and `e2e`
 jobs run the gate scripts `tests/gate-<milestone>-<n>.sh` that need no
 user manager. Two jobs on an Ubuntu runner run the gate checks that
-need root or podman: `vkms` starts chora on the tty backend, and
+need root or podman. `vkms` starts chora on the tty backend, and
 `podman` runs a client in a container. A gate check that needs a user
 manager runs by hand on the reference machine.
 
