@@ -1,6 +1,7 @@
 # The configuration of chora-tiling. It lists every option, and the
 # bindings use every action at least once. `chora-tiling --print-config` prints this
-# file. Copy it to ~/.config/chora/chora-tiling.yaml and change it there.
+# file. Copy it to ~/.config/chora/chora-tiling.yaml and change it there,
+# or change it with the method settings.set, which rewrites the file.
 # The bindings follow the default keymap of the awesome window manager.
 
 # What MOD means in the bindings: Super or Alt.
@@ -33,6 +34,11 @@ columns: 1
 new_window: master
 # How the focus follows the pointer: click or follow_mouse.
 focus: follow_mouse
+# How a new window looks: its opacity from 0 to 1, and its effects, each
+# a GLSL ES fragment shader with uniforms, as in scene.apply.
+style:
+  opacity: 1.0
+  effects: []
 
 bindings:
   # Windows

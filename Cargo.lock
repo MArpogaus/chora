@@ -505,6 +505,7 @@ dependencies = [
  "chora-kit",
  "chora-scene",
  "clap",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",

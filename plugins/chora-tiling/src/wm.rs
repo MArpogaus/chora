@@ -952,7 +952,7 @@ mod tests {
     use crate::config::DEFAULT;
 
     fn wm(windows: &[&str]) -> Wm {
-        let mut wm = Wm::new(Config::parse(DEFAULT).unwrap());
+        let mut wm = Wm::new(chora_kit::settings::parse::<Config>(DEFAULT).unwrap());
         wm.config.gap = 0;
         wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
         for id in windows {

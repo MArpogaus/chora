@@ -14,7 +14,10 @@ use std::{
     process::ExitCode,
 };
 
-use chora_kit::runtime::{self, Plugin, Runtime};
+use chora_kit::{
+    runtime::{self, Plugin, Runtime},
+    settings::{self, Store},
+};
 use chora_scene::{
     Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest, ToplevelState,
     Transform,
@@ -106,8 +109,8 @@ struct LayoutInfo {
 struct Tiling {
     rt: Runtime<Action>,
     wm: Wm,
-    /// The configuration file of the command line.
-    arg: Option<PathBuf>,
+    /// The configuration, as the file has it.
+    settings: settings::File<Config>,
     /// The app ids of windows to leave to other clients.
     ignore: Vec<String>,
     /// What the last transaction set, so that the next one sends changes
@@ -138,29 +141,17 @@ fn main() -> ExitCode {
     runtime::run(NAME, || play(&args))
 }
 
-/// The configuration file to read: the argument, or the file of the user.
-fn config_path(arg: Option<&PathBuf>) -> Option<PathBuf> {
-    arg.cloned().or_else(|| {
-        let base = std::env::var_os("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-        Some(base.join("chora/chora-tiling.yaml")).filter(|p| p.exists())
-    })
-}
-
-/// Reads the configuration file, or the default without one.
-fn load(arg: Option<&PathBuf>) -> Result<Config, String> {
-    config_path(arg).map_or_else(|| Config::parse(config::DEFAULT), |p| Config::read(&p))
-}
-
 /// One connection to the core: window management until it goes away.
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
-    let config = load(args.config.as_ref())?;
-    let rt = Runtime::start(NAME, args.outputs.clone(), &EVENTS, exported_methods())?;
+    let path = settings::File::<Config>::path(args.config.clone(), "chora-tiling")?;
+    let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
+    let mut methods = exported_methods();
+    methods.extend(settings::File::<Config>::methods());
+    let rt = Runtime::start(NAME, args.outputs.clone(), &EVENTS, methods)?;
     let mut tiling = Tiling {
         rt,
-        wm: Wm::new(config),
-        arg: args.config.clone(),
+        wm: Wm::new(settings.value.clone()),
+        settings,
         ignore: args.ignore.clone(),
         sent: HashMap::new(),
         order: Vec::new(),
@@ -200,6 +191,15 @@ impl Plugin for Tiling {
 
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         self.run(method, params)
+    }
+
+    fn settings(&mut self) -> Option<&mut dyn Store> {
+        Some(&mut self.settings)
+    }
+
+    fn settings_changed(&mut self) -> Result<(), RpcError> {
+        self.reconfigure()
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
     }
 }
 
@@ -308,17 +308,22 @@ impl Tiling {
         Ok(())
     }
 
-    /// Reads the configuration again and grabs its bindings.
+    /// Reads the configuration file again and applies it.
     fn reload(&mut self) -> Result<(), ClientError> {
-        let config = match load(self.arg.as_ref()) {
-            Ok(config) => config,
+        match settings::File::load(self.settings.file().to_owned(), config::DEFAULT) {
+            Ok(settings) => self.settings = settings,
             Err(err) => {
                 eprintln!("chora-tiling: {err}");
                 return Ok(());
             }
-        };
+        }
+        self.reconfigure()
+    }
+
+    /// Applies the settings and grabs their bindings.
+    fn reconfigure(&mut self) -> Result<(), ClientError> {
         self.rt.ungrab_all()?;
-        self.wm.reconfigure(config);
+        self.wm.reconfigure(self.settings.value.clone());
         self.grab_all()?;
         self.relayout()
     }
@@ -641,13 +646,22 @@ impl Tiling {
                 // A new window of tiling takes the focus.
                 self.wm.add_window(surface);
                 self.focus.take();
-                Ok(())
+                self.style(surface)
             }
             Err(ClientError::Rpc(err)) => {
                 eprintln!("chora-tiling: {surface}: {err}");
                 Ok(())
             }
             Err(err) => Err(err),
+        }
+    }
+
+    /// Gives a new window the style of the settings. A shader that fails
+    /// only logs, and the window stays.
+    fn style(&mut self, surface: &str) -> Result<(), ClientError> {
+        match styled(&self.wm.config.style, surface) {
+            Some(update) => self.apply(vec![update]),
+            None => Ok(()),
         }
     }
 
@@ -796,6 +810,18 @@ fn answers(wm: &mut Wm, node: &str, action: &str, args: &Value) -> Option<Vec<Co
         }]),
         _ => None,
     }
+}
+
+/// The update that gives a new window a style; none for the default.
+fn styled(style: &config::Style, surface: &str) -> Option<Command> {
+    (*style != config::Style::default()).then(|| Command::Update {
+        id: surface.into(),
+        props: PropsUpdate {
+            opacity: Some(style.opacity),
+            effects: Some(style.effects.clone()),
+            ..PropsUpdate::default()
+        },
+    })
 }
 
 /// The commands that bring a window from what was sent to its placement.
@@ -1066,7 +1092,7 @@ mod tests {
     }
 
     fn tiler(windows: &[&str]) -> Wm {
-        let mut wm = Wm::new(Config::parse(crate::config::DEFAULT).unwrap());
+        let mut wm = Wm::new(settings::parse(crate::config::DEFAULT).unwrap());
         wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
         for id in windows {
             wm.add_window(id);
@@ -1111,6 +1137,18 @@ mod tests {
             "a rejected move keeps the window managed"
         );
         assert!(!leaves_tiling(true, "focus", &to("other")));
+    }
+
+    #[test]
+    fn a_new_window_gets_the_style_of_the_settings() {
+        let mut style = config::Style::default();
+        assert_eq!(styled(&style, "s1"), None, "the default sends nothing");
+        style.opacity = 0.5;
+        assert!(matches!(
+            styled(&style, "s1"),
+            Some(Command::Update { id, props })
+                if id == "s1" && props.opacity == Some(0.5) && props.effects == Some(Vec::new())
+        ));
     }
 
     #[test]
