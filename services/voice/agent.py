@@ -77,7 +77,7 @@ CALIBRATE_MS = 750  # the mic at the start, which sets the level of the quiet ro
 FLOOR_MS = 5000  # the quiet frames between turns that the level follows
 MAX_TURN_MS = 30000  # a turn that music or a TV keeps loud ends here
 HISTORY = 12  # messages kept besides the system prompt
-TOOL_ROUNDS = 5  # LLM calls per turn while it asks for tools
+TOOL_ROUNDS = 10  # LLM calls per turn while it asks for tools
 FIRST_PIECE = 40  # characters before the comma that may end the first piece
 SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
 # The agent uses the event tools itself; the LLM reads text only, and the
