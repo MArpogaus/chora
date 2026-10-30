@@ -55,6 +55,9 @@ SETTLE_MS = int(ENV("SETTLE_MS", "300"))  # quiet before a turn may start
 # also hears the speaker, and for BARGE_MS.
 RMS_BARGE_IN = int(ENV("RMS_BARGE_IN", str(2 * RMS_SPEECH)))
 BARGE_MS = int(ENV("BARGE_MS", "300"))
+# While the agent works without sound, only longer speech stops it: a
+# sentence, not a "yes" to what it does.
+WORKING_BARGE_MS = 1000
 PTT_KEY = ENV("PTT_KEY", "Super+v")  # chora reports its release with the modifier
 CHORA_NAME = ENV("CHORA_NAME", "voice")  # the client name of the agent
 # The command of choractl; its tools, also run_program, run where it runs,
@@ -95,7 +98,10 @@ How chora works:
 
 Where to look:
 - describe_screen: the windows, the outputs and the plugins with their
-  methods. query_scene: the nodes and their properties.
+  methods, as text. You do not see the picture: you cannot tell colors,
+  shapes or how a shader looks. Never describe what the screen shows
+  beyond these facts; ask the user how it looks.
+- query_scene: the nodes and their properties.
 - list_plugins: the methods of each plugin, with their parameters.
 - The error of a tool says why it refused. Read it before you try again.
 - The documents after this prompt describe chora: the API, its commands
@@ -113,6 +119,10 @@ Limits:
   error names the line; fix that line.
 - You cannot read files or the output of commands. Do not write files
   to inspect them.
+- Start no program that keeps running in the background to watch or
+  change chora, such as a loop or choractl events. It would go on after
+  your turn, out of sight. When something has to happen again and again,
+  say that you cannot do it.
 - Look once, act, then check once. When a task fails twice, stop and say
   what failed.
 - Never end a reply with a promise such as "I check that now": a reply
@@ -270,6 +280,11 @@ class Mic:
                 return
 
 
+# When the sound written to aplay ends, so that talk() knows whether the
+# agent is heard.
+SOUND = {"end": 0.0}
+
+
 async def play(pcm_chunks: AsyncIterator[bytes]) -> None:
     """Play raw PCM chunks through aplay.
 
@@ -287,6 +302,7 @@ async def play(pcm_chunks: AsyncIterator[bytes]) -> None:
         async for chunk in pcm_chunks:
             player.stdin.write(chunk)
             end = max(end, time.monotonic()) + len(chunk) / (RATE * 2)
+            SOUND["end"] = end
             await player.stdin.drain()
         player.stdin.close()
         # aplay on PipeWire may never exit after its input ends: wait for
@@ -299,6 +315,7 @@ async def play(pcm_chunks: AsyncIterator[bytes]) -> None:
         if player.returncode is None:
             player.kill()
             await player.wait()
+        SOUND["end"] = min(SOUND["end"], time.monotonic())
 
 
 # %% speech servers
@@ -816,7 +833,8 @@ async def talk(
         elif level < mic.hold:
             loud = 0
         by_key = ptt.is_set()
-        if loud >= BARGE_MS or by_key:
+        heard = time.monotonic() < SOUND["end"] + 0.5  # and its echo
+        if loud >= (BARGE_MS if heard else WORKING_BARGE_MS) or by_key:
             log("barge-in by key" if by_key else f"barge-in at level {level:.0f}")
             reply.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -886,18 +904,26 @@ def trim(history: list[dict]) -> None:
     """Keep the last HISTORY turns, each from its user message on.
 
     This keeps each tool result with the call that it answers. Before the
-    last turn, a long tool result or long arguments of a call, such as a
-    shader of put_asset, keep their start only.
+    last turn, a long tool result or long arguments of a call keep their
+    start only; the last put_asset of each name stays whole, so that the
+    LLM can change its own shader.
     """
     users = [i for i, m in enumerate(history) if m["role"] == "user"]
     if len(users) > HISTORY:
         del history[1 : users[-HISTORY]]
         users = [i for i, m in enumerate(history) if m["role"] == "user"]
+    assets = {}  # the name of an asset and its last put_asset
+    for message in history:
+        for call in message.get("tool_calls", []):
+            if call["function"]["name"] == "put_asset":
+                with contextlib.suppress(ValueError, AttributeError):
+                    assets[json.loads(call["function"]["arguments"]).get("name")] = call
+    last = [id(call) for call in assets.values()]
     for message in history[1 : users[-1] if users else 1]:
         if message["role"] == "tool" and len(message["content"]) > OLD_TOOL_TEXT:
             message["content"] = message["content"][:OLD_TOOL_TEXT] + " [shortened]"
         for call in message.get("tool_calls", []):
-            if len(call["function"]["arguments"]) > OLD_TOOL_TEXT:
+            if len(call["function"]["arguments"]) > OLD_TOOL_TEXT and id(call) not in last:
                 # Arguments stay JSON, which the chat template of the LLM reads.
                 call["function"]["arguments"] = json.dumps({"shortened": True})
 
