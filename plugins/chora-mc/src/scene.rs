@@ -24,6 +24,9 @@ pub const BUILT_IN: [(&str, &str); 5] = [
 /// The most bytes of a text node of the core.
 pub const MAX_TEXT: usize = 4096;
 
+/// The most columns and rows of the grid of a scene.
+pub const MAX_GRID: u32 = 24;
+
 /// A scene as its file has it.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -132,8 +135,8 @@ impl Scene {
     /// Checks what serde cannot.
     pub fn check(&self) -> Result<(), String> {
         let [cols, rows] = self.grid;
-        if cols == 0 || rows == 0 {
-            return Err("grid: at least one column and one row".into());
+        if !(1..=MAX_GRID).contains(&cols) || !(1..=MAX_GRID).contains(&rows) {
+            return Err(format!("grid: 1 to {MAX_GRID} columns and rows"));
         }
         if self.app.as_deref().is_some_and(|a| a.trim().is_empty()) {
             return Err("app: an empty command".into());
@@ -145,7 +148,8 @@ impl Scene {
                 return Err(format!("panel {id}: twice"));
             }
             let [x, y, w, h] = panel.cell;
-            if w == 0 || h == 0 || x + w > cols || y + h > rows {
+            let inside = |at: u32, size: u32, max| at.checked_add(size).is_some_and(|e| e <= max);
+            if w == 0 || h == 0 || !inside(x, w, cols) || !inside(y, h, rows) {
                 return Err(format!("panel {id}: the cell is outside the grid"));
             }
             panel.check_text()?;
@@ -357,6 +361,11 @@ mod tests {
             "frame: true\n",
             "page: {measure: 5, margin: 0, gap: 1}\n",
             "panels: [{id: a, cell: [0, 0, 1, 1], opacity: 2}]\n",
+            // W11: a huge grid blanked mc, a cell near u32::MAX overflowed.
+            "grid: [4294967295, 4294967295]\n",
+            "grid: [25, 1]\n",
+            "grid: [2, 1]\npanels: [{id: a, cell: [4294967295, 0, 1, 1]}]\n",
+            "grid: [2, 1]\npanels: [{id: a, cell: [1, 0, 4294967295, 1]}]\n",
         ] {
             assert!(parse(wrong).is_err(), "{wrong}");
         }
