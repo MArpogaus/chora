@@ -805,7 +805,7 @@ fn describe_scene(core: &mut Core) -> Result<Value, Failure> {
                 "app_id": surface.and_then(|s| s.app_id.clone()),
                 "title": surface.and_then(|s| s.title.clone()),
                 "owner": n.owner,
-                "visible": n.props.visible && n.parent.is_some(),
+                "visible": shown(n, &by_id),
                 "position": [x, y],
                 "size": surface.and_then(|s| s.size),
             })
@@ -824,6 +824,15 @@ fn describe_scene(core: &mut Core) -> Result<Value, Failure> {
         })
         .collect();
     Ok(json!({"outputs": outputs, "windows": windows, "plugins": clients}))
+}
+
+/// Whether a node is in the scene and it and all its ancestors are visible.
+fn shown(node: &Node, by_id: &HashMap<&str, &Node>) -> bool {
+    node.parent.is_some()
+        && std::iter::successors(Some(node), |n| {
+            n.parent.as_deref().and_then(|id| by_id.get(id).copied())
+        })
+        .all(|n| n.props.visible)
 }
 
 /// The transform of a node to scene coordinates, through its parents.
@@ -887,6 +896,32 @@ mod tests {
         // Gate check 3 of 0.8 measures the end of a cancelled wait against
         // 100 ms, which one slice plus the wake must beat.
         assert!(SLICE * 2 <= Duration::from_millis(100), "{SLICE:?}");
+    }
+
+    #[test]
+    fn a_window_in_a_hidden_group_is_not_visible() {
+        let node = |id: &str, parent: Option<&str>, visible: bool| Node {
+            id: id.into(),
+            kind: NodeKind::Group,
+            owner: None,
+            parent: parent.map(String::from),
+            children: Vec::new(),
+            props: chora_scene::Props {
+                visible,
+                ..chora_scene::Props::default()
+            },
+            surface: None,
+            to: None,
+        };
+        let nodes = [
+            node("root", None, true),
+            node("group", Some("root"), false),
+            node("window", Some("group"), true),
+            node("shown", Some("root"), true),
+        ];
+        let by_id: HashMap<&str, &Node> = nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+        assert!(!shown(&nodes[2], &by_id));
+        assert!(shown(&nodes[3], &by_id));
     }
 
     #[test]
