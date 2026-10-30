@@ -358,16 +358,18 @@ fn at([x, y]: [i32; 2]) -> PropsUpdate {
 }
 
 /// Runs a shell command of the settings in a thread, since polkit may ask
-/// first and the loop must go on.
+/// first and the loop must go on. A failure only logs.
 pub fn run(command: String) {
-    drop(std::thread::spawn(move || {
-        if let Err(err) = std::process::Command::new("sh")
+    drop(std::thread::spawn(
+        move || match std::process::Command::new("sh")
             .args(["-c", &command])
             .status()
         {
-            eprintln!("chora-xp: {command}: {err}");
-        }
-    }));
+            Ok(status) if !status.success() => eprintln!("chora-xp: {command}: {status}"),
+            Ok(_) => {}
+            Err(err) => eprintln!("chora-xp: {command}: {err}"),
+        },
+    ));
 }
 
 /// Whether a program is on `$PATH`.
