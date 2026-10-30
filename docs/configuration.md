@@ -127,7 +127,7 @@ showroom:
 The grants are the five capabilities of `choractl grant` (see
 [API](api.md#client-sockets)). An agent that
 drives the window manager needs `methods.call`, and one that starts apps
-needs `activation.token`, which also lets it take the keyboard focus.
+needs `activation.token`. Both let it take the keyboard focus.
 
 The names follow the rules of `hello`. `clients up` opens the socket of
 every name with exactly the capabilities of its list. A socket that

@@ -618,10 +618,11 @@ in. `choractl clients create agent` prints its path:
 - `methods.call` needs the capability `methods.call`, and
   `activation.token` the capability `activation.token`. Without them
   both answer code 4. The main socket needs neither. A token of
-  `activation.token` belongs to no client, so any window that activates
+  `activation.token` belongs to no client. Any window that activates
   with it takes the focus without a press, also a window of the client
-  itself. So the capability lets a client take the keyboard. A window of its
-  `wayland.sock` asks for tokens through `xdg-activation`, under the
+  itself. With `methods.call`, a client can also ask a window manager for
+  the focus. So both capabilities let a client take the keyboard. A
+  window of its `wayland.sock` asks for tokens through `xdg-activation`, under the
   focus rules above.
 - Its `image`, `shader` and effect paths name only its own files of
   `assets.put`. The main socket has no such rule: a client of it runs as
