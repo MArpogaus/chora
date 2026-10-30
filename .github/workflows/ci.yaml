@@ -34,6 +34,10 @@ jobs:
     # Gate check 9 of 0.7: every error code of docs/api.md has a test.
     # cargo test above also runs the test of gate check 7.
     - run: tests/gate-0.7-9.sh
+    # Gate checks 5 and 8 of 0.8: the unit tests of the sequence numbers
+    # and of the revoke binding.
+    - run: tests/gate-0.8-5.sh
+    - run: tests/gate-0.8-8.sh
 
   # The minimum Rust version of Cargo.toml builds the workspace.
   msrv:
@@ -61,7 +65,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
       with:
         persist-credentials: false
-    - run: xargs dnf install -y sway foot grim jq gawk mesa-dri-drivers procps-ng python3 waybar fuzzel wlrctl swaylock wlr-randr dbus-daemon < dist/fedora-build-requires.txt
+    - run: xargs dnf install -y sway foot grim jq gawk mesa-dri-drivers procps-ng python3 waybar fuzzel wlrctl swaylock wlr-randr dbus-daemon google-noto-sans-cjk-vf-fonts twitter-twemoji-fonts < dist/fedora-build-requires.txt
     # The file capabilities of the packaged sway fail in a container; a
     # copy without them runs.
     - run: install -m755 /usr/bin/sway /usr/local/bin/sway
@@ -74,6 +78,20 @@ jobs:
     - run: tests/gate-0.7-6.sh
     - run: tests/gate-0.7-10.sh
     - run: tests/gate-0.7-8.sh
+    # Gate checks of 0.8; 5 and 8 run in the check job. Checks 9 and 10
+    # take the CJK and emoji fonts from the directory of tests/gate-0.8-9.sh.
+    - run: |
+        mkdir -p ~/.local/share/fonts/chora-test
+        ln -s /usr/share/fonts/google-noto-sans-cjk-vf-fonts/NotoSansCJK-VF.ttc \
+            /usr/share/fonts/twemoji/Twemoji.ttf ~/.local/share/fonts/chora-test/
+    - run: tests/gate-0.8-1.sh
+    - run: tests/gate-0.8-2.sh
+    - run: tests/gate-0.8-3.sh
+    - run: tests/gate-0.8-4.sh
+    - run: tests/gate-0.8-6.sh
+    - run: tests/gate-0.8-7.sh
+    - run: tests/gate-0.8-9.sh
+    - run: tests/gate-0.8-10.sh
     - if: failure()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
       with:
