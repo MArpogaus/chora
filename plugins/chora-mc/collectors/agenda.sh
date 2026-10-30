@@ -58,7 +58,6 @@ params=$(ORG_TODO="${ORG_TODO-PROJ TODO NEXT WAIT | DONE KILL}" emacs -Q --batch
     ;; chora-mc shows the part before the tab as a column of its own.
     (princ (json-encode
             (list (cons "scene" "agenda") (cons "panel" "today")
-                  (cons "title" (format-time-string "%A, %e %B"))
                   (cons "lines" (vconcat
                                  (mapcar (lambda (i) (concat (car i) "\t" (cdr i)))
                                          items))))))))' "$@" 2>/dev/null) || {
