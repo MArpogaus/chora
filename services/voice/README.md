@@ -20,7 +20,9 @@ agent, `voice-agent.service`.
 
 All three models serve the name `gufo` and listen on `127.0.0.1` only.
 Their internal networks keep them off the internet. Any program and any
-web page on this machine can still use them. A drop-in such as
+web page on this machine can still use them. A program that takes a
+port while its model is down answers in place of the model, so its tool
+calls run with the grants of the agent. A drop-in such as
 `~/.config/containers/systemd/gufo-tts.container.d/model.conf` changes a
 model: a `[Container]` section with a copy of the `Exec=` line of the
 quadlet and another model path. Then run `systemctl --user
@@ -112,7 +114,9 @@ of quiet, and ends after `SILENCE_MS` of quiet or after 30 s. Under
 chora, holding `PTT_KEY` (`Super+v`) also records, whatever the level.
 The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
 up, because chora reports the release with it. After a pause of
-`SILENCE_MS`, the agent loses the words until its first sound. To add
+`SILENCE_MS`, the agent loses the words until its first sound. A turn
+keeps the last `PREROLL_MS` (1000) of the mic before its start, also
+after a barge-in. To add
 words, hold the key during the transcription, or raise `SILENCE_MS`. A
 key press after the transcription stops the reply. Before the first
 words of the LLM, it also withdraws the request. After them, the request
