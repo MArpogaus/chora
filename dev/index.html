@@ -341,6 +341,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Install">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fedora-atomic-and-secureblue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fedora Atomic and secureblue
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -965,6 +982,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Install">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fedora-atomic-and-secureblue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fedora Atomic and secureblue
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1073,6 +1107,20 @@ with the optional dependencies:</p>
 </code></pre></div>
 <p><a href="https://marpogaus.github.io/chora/configuration/#flavors">Flavors</a>
 describes the sessions and the flavors.</p>
+<h3 id="fedora-atomic-and-secureblue">Fedora Atomic and secureblue<a class="headerlink" href="#fedora-atomic-and-secureblue" title="Permanent link">&para;</a></h3>
+<p>On an image-based system, layer the RPM with <code>rpm-ostree</code>. Download the
+RPM and <code>SHA256SUMS</code> from the release, then:</p>
+<div class="highlight"><pre><span></span><code>sha256sum<span class="w"> </span>-c<span class="w"> </span>--ignore-missing<span class="w"> </span>SHA256SUMS
+rpm-ostree<span class="w"> </span>install<span class="w"> </span>./chora-*.rpm
+systemctl<span class="w"> </span>reboot
+</code></pre></div>
+<p>The layer takes effect after the reboot. To start chora as a uwsm session
+with the tiling flavor, choose "chora (uwsm)" on the login screen.</p>
+<p>Open item: uwsm is not in Fedora 44. The "chora (uwsm)" session shows
+only when uwsm is installed, so the host needs it from a COPR repository
+or as a layered package, or it must be built locally. The decision is
+open. Until then, the session "chora" starts the tiling flavor without
+uwsm.</p>
 <h2 id="try-it">Try it<a class="headerlink" href="#try-it" title="Permanent link">&para;</a></h2>
 <p>Start chora with the tiling plugin inside a Wayland session:</p>
 <div class="highlight"><pre><span></span><code>chora<span class="w"> </span>--<span class="w"> </span>chora-tiling
