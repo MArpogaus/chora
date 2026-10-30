@@ -761,7 +761,7 @@ fn items(terminal: &str, icons: &mut Icons) -> Vec<Item> {
     if desktop != home {
         items.extend(scan(&desktop, terminal, icons));
     }
-    let full = trash_full(&trash_dir());
+    let full = trash_dir().is_some_and(|d| trash_full(&d));
     items.push(Item {
         key: "trash".into(),
         title: "Recycle Bin".into(),
@@ -899,11 +899,19 @@ fn parse_user_dir(text: &str, var: &str, home: &str) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-/// The files of the trash: `Trash/files` of `$XDG_DATA_HOME`.
-pub fn trash_dir() -> PathBuf {
-    chora_kit::xdg::data_home()
+/// The files of the trash: `Trash/files` of `$XDG_DATA_HOME`; none
+/// without a data home.
+fn trash_dir() -> Option<PathBuf> {
+    chora_kit::xdg::data_home().map(|d| d.join("Trash/files"))
+}
+
+/// The folder that the Recycle Bin opens: the trash, made when it is
+/// missing, else the home directory.
+pub fn trash_to_open() -> PathBuf {
+    trash_dir()
+        .filter(|d| fs::create_dir_all(d).is_ok())
+        .or_else(|| std::env::var_os("HOME").map(PathBuf::from))
         .unwrap_or_else(|| "/".into())
-        .join("Trash/files")
 }
 
 fn trash_full(dir: &Path) -> bool {

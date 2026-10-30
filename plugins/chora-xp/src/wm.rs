@@ -2628,7 +2628,9 @@ impl Wm {
         chora_kit::run(&match open {
             desktop_icons::Open::Folder(path) => desktop_icons::open_with(fm, &path),
             desktop_icons::Open::Computer => desktop_icons::open_with(fm, Path::new("/")),
-            desktop_icons::Open::Trash => desktop_icons::open_with(fm, &desktop_icons::trash_dir()),
+            desktop_icons::Open::Trash => {
+                desktop_icons::open_with(fm, &desktop_icons::trash_to_open())
+            }
             desktop_icons::Open::Run(command) => command,
             desktop_icons::Open::File(path) => desktop_icons::xdg_open(&path),
         });
