@@ -131,6 +131,10 @@ CONTEXT_DOCS = ENV(
     "docs/api.md#Plugins, docs/api.md#MCP tools",
 )
 REPO = pathlib.Path(__file__).resolve().parents[2]
+# The conversation without the system prompt, kept for the next start;
+# delete the file to start anew.
+STATE = pathlib.Path(ENV("XDG_STATE_HOME", "") or pathlib.Path.home() / ".local/state")
+HISTORY_FILE = STATE / "chora/voice-history.json"
 if CODER_CMD:
     SYSTEM += " Hand a task that needs code or many steps to delegate, then say that it runs."
 
@@ -858,6 +862,14 @@ def system_prompt() -> str:
     return "\n\n".join(parts)
 
 
+def save(history: list[dict]) -> None:
+    """Write the conversation without the system prompt to HISTORY_FILE."""
+    HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    part = HISTORY_FILE.with_suffix(".part")  # a crash never leaves half a file
+    part.write_text(json.dumps(history[1:], ensure_ascii=False))
+    part.replace(HISTORY_FILE)
+
+
 def trim(history: list[dict]) -> None:
     """Keep the last HISTORY turns, each from its user message on.
 
@@ -960,6 +972,9 @@ async def run_loop(
     log(f"RMS_SPEECH {RMS_SPEECH}, RMS_BARGE_IN {RMS_BARGE_IN}, PTT_KEY {key}")
     history = [{"role": "system", "content": system_prompt()}]
     log(f"system prompt: {len(history[0]['content'])} characters")
+    if HISTORY_FILE.is_file():
+        history += json.loads(HISTORY_FILE.read_text())
+        log(f"{len(history) - 1} messages from {HISTORY_FILE}")
     warming = asyncio.create_task(warm(http, tools, history[:1]), name="warm-up")
     warming.add_done_callback(report)
     preroll: list[bytes] = []
@@ -974,6 +989,7 @@ async def run_loop(
                 del history[users[-1] if users else 1 :]
                 preroll = []
             trim(history)
+            save(history)
 
 
 async def run_roundtrip(

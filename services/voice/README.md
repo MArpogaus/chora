@@ -143,7 +143,11 @@ When the mic level stays above the level of speech and above
 reply stops and a turn starts. Dips down to half the level of speech do
 not reset the count, since the echo canceller damps the voice in bursts. When that turn has no words, it
 was a noise: the LLM answers the request again, or goes on with the cut
-reply. The push-to-talk key
+reply.
+
+The agent keeps the last `HISTORY` (20) turns in
+`~/.local/state/chora/voice-history.json` and takes them up at its next
+start. Delete the file to start a new conversation. The push-to-talk key
 does the same. The mic also hears the speaker, so use headphones or the
 echo cancellation below. After each full reply, the log line `mic peak
 during the reply` shows the level that the barge-in level must stay above.
@@ -202,7 +206,7 @@ also starts the plugins of installed views. Any voice that the mic hears
 can start a turn, also from a video, and also while the screen is
 locked. Text on the screen that a tool reads can also steer the LLM. So
 can the plugins, which write the descriptions and results of their
-tools. The journal keeps each transcript and each tool call. The
+tools. The journal and the history file keep each transcript and each tool call. The
 emergency reset does not undo output changes, and the reserved space
 returns with the next tool call; `wlr-randr` resets the outputs. The
 emergency reset and the revoke binding do not stop the agent; after the
