@@ -2,7 +2,7 @@
 //! the key repeat and the libinput settings of touchpads and mice. The
 //! core reads no file; a view or a tool calls the method.
 
-use chora_scene::ipc::{AccelProfile, Capability, InputSettings, PointerSettings, RpcError};
+use chora_scene::ipc::{AccelProfile, Capability, InputSettings, RpcError};
 use serde_json::Value;
 use smithay::reexports::input;
 
@@ -25,14 +25,28 @@ pub trait Device {
     fn set_left_handed(&mut self, on: bool) -> Result<(), String>;
     fn set_accel_profile(&mut self, profile: AccelProfile) -> Result<(), String>;
     fn set_accel_speed(&mut self, speed: f64) -> Result<(), String>;
+    /// Sets a setting, by its key in `PointerSettings`, to the default of
+    /// the device.
+    fn reset(&mut self, key: &str) -> Result<(), String>;
 }
 
-/// Applies the settings of the class of a device. A setting that the
+/// Resets the settings of `resets` (class and key) of the class of a
+/// device, then applies the settings of its class. A setting that the
 /// device does not have is logged and skipped.
-pub fn apply(settings: &InputSettings, device: &mut dyn Device) {
-    let Some(p) = class_settings(settings, device) else {
+pub fn apply(settings: &InputSettings, resets: &[(String, String)], device: &mut dyn Device) {
+    let Some(class) = class(device) else {
         return;
     };
+    let p = if class == "touchpad" {
+        &settings.touchpad
+    } else {
+        &settings.mouse
+    };
+    let reset: Vec<_> = resets
+        .iter()
+        .filter(|(c, _)| c == class)
+        .map(|(_, key)| (key.as_str(), device.reset(key)))
+        .collect();
     let results = [
         p.tap.map(|on| ("tap", device.set_tap(on))),
         p.natural_scroll
@@ -44,9 +58,9 @@ pub fn apply(settings: &InputSettings, device: &mut dyn Device) {
         p.accel_speed
             .map(|s| ("accel_speed", device.set_accel_speed(s))),
     ];
-    let failed: Vec<_> = results
+    let failed: Vec<_> = reset
         .into_iter()
-        .flatten()
+        .chain(results.into_iter().flatten())
         .filter_map(|(setting, result)| Some(format!("{setting}: {}", result.err()?)))
         .collect();
     if !failed.is_empty() {
@@ -54,18 +68,66 @@ pub fn apply(settings: &InputSettings, device: &mut dyn Device) {
     }
 }
 
-/// The settings of the class of a device; none for a keyboard.
-fn class_settings<'a>(
-    settings: &'a InputSettings,
-    device: &dyn Device,
-) -> Option<&'a PointerSettings> {
+/// The class of a device in [`InputSettings`]; none for a keyboard.
+fn class(device: &dyn Device) -> Option<&'static str> {
     if device.is_touchpad() {
-        Some(&settings.touchpad)
+        Some("touchpad")
     } else if device.is_pointer() {
-        Some(&settings.mouse)
+        Some("mouse")
     } else {
         None
     }
+}
+
+/// Takes the keys with `null` out of the params of `input.configure`:
+/// the settings to reset, as class and key.
+fn take_resets(params: &mut Value) -> Vec<(String, String)> {
+    let mut resets = Vec::new();
+    for (class, keys) in params.as_object_mut().into_iter().flatten() {
+        if let Some(keys) = keys.as_object_mut() {
+            keys.retain(|key, value| {
+                if value.is_null() {
+                    resets.push((class.clone(), key.clone()));
+                }
+                !value.is_null()
+            });
+        }
+    }
+    resets
+}
+
+/// Resets a setting: the key repeat to the core's default, a libinput
+/// setting to none, so that each device keeps its own default.
+fn reset(settings: &mut InputSettings, class: &str, key: &str) -> Result<(), RpcError> {
+    let unknown = || {
+        RpcError::new(
+            RpcError::INVALID_PARAMS,
+            format!("unknown setting {class}.{key}"),
+        )
+    };
+    let default = defaults().keyboard;
+    let p = match (class, key) {
+        ("keyboard", "repeat_rate") => {
+            settings.keyboard.repeat_rate = default.repeat_rate;
+            return Ok(());
+        }
+        ("keyboard", "repeat_delay") => {
+            settings.keyboard.repeat_delay = default.repeat_delay;
+            return Ok(());
+        }
+        ("touchpad", _) => &mut settings.touchpad,
+        ("mouse", _) => &mut settings.mouse,
+        _ => return Err(unknown()),
+    };
+    match key {
+        "tap" => p.tap = None,
+        "natural_scroll" => p.natural_scroll = None,
+        "left_handed" => p.left_handed = None,
+        "accel_profile" => p.accel_profile = None,
+        "accel_speed" => p.accel_speed = None,
+        _ => return Err(unknown()),
+    }
+    Ok(())
 }
 
 fn checked(result: input::DeviceConfigResult) -> Result<(), String> {
@@ -111,6 +173,22 @@ impl Device for input::Device {
     fn set_accel_speed(&mut self, speed: f64) -> Result<(), String> {
         checked(self.config_accel_set_speed(speed))
     }
+
+    fn reset(&mut self, key: &str) -> Result<(), String> {
+        match key {
+            "tap" => self.set_tap(self.config_tap_default_enabled()),
+            "natural_scroll" => {
+                self.set_natural_scroll(self.config_scroll_default_natural_scroll_enabled())
+            }
+            "left_handed" => self.set_left_handed(self.config_left_handed_default()),
+            "accel_profile" => match self.config_accel_default_profile() {
+                Some(profile) => checked(self.config_accel_set_profile(profile)),
+                None => Err("no acceleration profile".into()),
+            },
+            "accel_speed" => self.set_accel_speed(self.config_accel_default_speed()),
+            _ => Err(format!("unknown setting {key}")),
+        }
+    }
 }
 
 /// The settings before the first `input.configure`: the key repeat of the
@@ -126,7 +204,7 @@ pub fn defaults() -> InputSettings {
 impl State {
     /// A new libinput device gets the settings of its class.
     pub fn device_added(&mut self, mut device: Box<dyn Device>) {
-        apply(&self.input_settings, device.as_mut());
+        apply(&self.input_settings, &[], device.as_mut());
         self.input_devices.push(device);
     }
 
@@ -144,22 +222,28 @@ impl State {
     /// `input.configure`: merges the settings, tells every keyboard of a
     /// client the repeat, and applies the rest to the devices. It changes
     /// the whole session, so a client socket needs `methods.privileged`.
-    /// Empty params read the settings.
-    pub fn ipc_input_configure(&mut self, conn: u64, params: Value) -> Result<Value, RpcError> {
+    /// Empty params read the settings; `null` resets a setting.
+    pub fn ipc_input_configure(&mut self, conn: u64, mut params: Value) -> Result<Value, RpcError> {
         if self.ipc.name(conn).is_none() {
             return Err(rejected("send hello first"));
         }
         self.check_socket_grant(conn, Capability::MethodsPrivileged)?;
+        let resets = take_resets(&mut params);
         let new: InputSettings = params_of(params)?;
         new.check()
             .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e))?;
-        self.input_settings.merge(&new);
+        let mut settings = self.input_settings.clone();
+        for (class, key) in &resets {
+            reset(&mut settings, class, key)?;
+        }
+        settings.merge(&new);
+        self.input_settings = settings;
         let (rate, delay) = self.repeat();
         let keyboard = self.seat.get_keyboard().expect("the seat has a keyboard");
         #[allow(clippy::cast_possible_wrap)] // checked ranges
         keyboard.change_repeat_info(rate as i32, delay as i32);
         for device in &mut self.input_devices {
-            apply(&self.input_settings, device.as_mut());
+            apply(&self.input_settings, &resets, device.as_mut());
         }
         Ok(serde_json::to_value(&self.input_settings).unwrap_or_default())
     }
@@ -169,6 +253,7 @@ impl State {
 mod tests {
     use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
+    use chora_scene::ipc::PointerSettings;
     use serde_json::json;
 
     use super::*;
@@ -220,6 +305,9 @@ mod tests {
         fn set_accel_speed(&mut self, speed: f64) -> Result<(), String> {
             self.push(format!("accel_speed {speed}"))
         }
+        fn reset(&mut self, key: &str) -> Result<(), String> {
+            self.push(format!("reset {key}"))
+        }
     }
 
     fn fake(touchpad: bool) -> (Box<Fake>, Rc<RefCell<Vec<String>>>) {
@@ -247,10 +335,10 @@ mod tests {
             ..InputSettings::default()
         };
         let (mut touchpad, tapped) = fake(true);
-        apply(&settings, touchpad.as_mut());
+        apply(&settings, &[], touchpad.as_mut());
         assert_eq!(*tapped.borrow(), ["tap true", "natural_scroll true"]);
         let (mut mouse, moved) = fake(false);
-        apply(&settings, mouse.as_mut());
+        apply(&settings, &[], mouse.as_mut());
         assert_eq!(*moved.borrow(), ["accel_profile Flat", "accel_speed -0.5"]);
     }
 
@@ -294,6 +382,38 @@ mod tests {
         assert_eq!(*tapped_later.borrow(), ["tap true"]);
         core.state.device_removed("event1");
         assert!(core.state.input_devices.is_empty());
+    }
+
+    /// `null` resets a setting: the key repeat to the core's default, a
+    /// libinput setting to the default of each device of its class.
+    #[test]
+    fn input_configure_null_resets_to_the_default() {
+        let mut core = Core::new();
+        let (touchpad, tapped) = fake(true);
+        core.state.device_added(touchpad);
+        let mut view = core.named("view-desk");
+        let settings = json!({
+            "keyboard": {"repeat_rate": 40, "repeat_delay": 300},
+            "touchpad": {"tap": true, "natural_scroll": true},
+        });
+        view.ok(&mut core, "input.configure", settings);
+        tapped.borrow_mut().clear();
+        let reset = json!({"keyboard": {"repeat_rate": null}, "touchpad": {"tap": null}});
+        let answer = view.ok(&mut core, "input.configure", reset);
+        assert_eq!(
+            answer,
+            json!({
+                "keyboard": {"repeat_rate": 25, "repeat_delay": 300},
+                "touchpad": {"natural_scroll": true},
+            })
+        );
+        assert_eq!(*tapped.borrow(), ["reset tap", "natural_scroll true"]);
+        let (error, _) = view.fails(
+            &mut core,
+            "input.configure",
+            json!({"touchpad": {"tapp": null}}),
+        );
+        assert_eq!(error, RpcError::INVALID_PARAMS);
     }
 
     /// A missing field keeps its value, empty params read the settings,
