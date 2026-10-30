@@ -91,8 +91,9 @@ session_stop() {
   [ -n "$HLPID" ] && kill "$HLPID" 2>/dev/null
   wait "$HLPID" 2>/dev/null
   HLPID=
-  # `choractl run` detaches its programs (D42): they live outside the
-  # process group of the core, so this script ends them. Their pids are
+  # `choractl run` starts its programs as children of this script (D42):
+  # they live outside the process group of the core, so this script ends
+  # them. Their pids are
   # in a file because `$(open ...)` runs `open` in a subshell.
   kill $(cat "/tmp/bt-$WF.pids" 2>/dev/null) 2>/dev/null
   : > "/tmp/bt-$WF.pids"
