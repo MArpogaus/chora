@@ -153,7 +153,9 @@ pub fn menu(wallpaper: Option<&Path>, walls: &[PathBuf], toggles: Toggles) -> Ve
     vec![
         Node {
             title: "Date and Time".into(),
-            icon: "preferences-system-time".into(),
+            // XP draws a calendar; the WindowsXP theme has no
+            // preferences-system-time.
+            icon: "x-office-calendar".into(),
             kind: Kind::Pick(Setting::DateTime, false),
         },
         group("Desktop", "preferences-desktop-wallpaper", walls),
