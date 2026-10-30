@@ -246,7 +246,8 @@ panels:
 
 A window that no scene started, for example from a launcher, gets a scene
 of its own. The settings of D62 are in `chora/chora-mc.yaml`:
-`theme` (`light` or `dark`), the colors of each theme, the `font`, the
+`theme` (`light` or `dark`), the colors of each theme, the `font` (Inter by default, from the Fedora
+package `rsms-inter-fonts`; a system font shows without it), the
 `default_scene` and the `bindings` with the actions `next_scene`,
 `previous_scene`, `scene: NAME` and `run: COMMAND`. `chora-mc
 --print-config` prints the default. The collector

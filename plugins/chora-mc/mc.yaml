@@ -15,9 +15,10 @@ themes:
     text: [0.86, 0.85, 0.82, 1.0]
     accent: [0.55, 0.55, 0.53, 1.0]
 # The font of all text; the size of the lines in logical pixels. Titles
-# are 1.5 times as large.
+# are 1.5 times as large. Inter is in the Fedora package rsms-inter-fonts;
+# without it, a system font shows.
 font:
-  family: Noto Sans
+  family: Inter
   size: 20
 # The scene at the start.
 default_scene: agenda
