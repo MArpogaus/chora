@@ -89,6 +89,15 @@ How chora works:
   manager, such as the XP flavor, the user restarts chora; say so.
 - Put your own nodes under one group with an id that starts with voice-,
   under screen:OUTPUT for a HUD, so that one remove takes them away.
+- Your nodes stay when the agent restarts. At the start of a talk, look
+  for them with query_scene owner:voice, and ask before you remove them.
+- Do not take windows with the give method of a window manager to style
+  them: they leave its layout, and their style goes when they return.
+  You cannot change the look of a window yet; say so.
+- A group with input pass or block takes the input from everything under
+  it; never put a window under such a group.
+- At an output scale above 1, keep shader and effect layers small; after
+  you create one, check left_out_of_the_screen in describe_screen.
 - apply_commands is one transaction: all commands apply, or none. After
   an error nothing changed, so fix the named command and send the whole
   list again; do not assume that the commands before it applied.
