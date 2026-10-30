@@ -308,6 +308,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
 | `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`; only the exporting connection gets it, subscribed or not |
+| `NAME.something` | a client emitted it with `events.emit`, for example `voice.state`: `client`, the name of the emitter, and its `data`; only to the connections that name the event or a pattern of it (D65) |
 
 Every event carries `seq`, the count of its connection (D32). Every event
 that the core pushes to a connection carries the next number of that
@@ -318,6 +319,40 @@ it, the events that follow cover every change after it. A number that
 skips tells the client that it missed an event, so it queries again. After
 a reconnect a client works from the new snapshot and forgets the old
 numbers.
+
+A client emits events of its own with `events.emit` (D65), for example a
+voice agent that tells a HUD its state:
+
+```json
+{"jsonrpc": "2.0", "id": 7, "method": "events.emit",
+ "params": {"event": "voice.state", "data": {"state": "listening"}}}
+{"jsonrpc": "2.0", "method": "event",
+ "params": {"event": "voice.state", "client": "voice", "data": {"state": "listening"}, "seq": 12}}
+```
+
+- The name starts with the client name and a dot. The rest has lowercase
+  letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes. So
+  no client sends a core event or the event of another name. A client
+  whose name starts as a core namespace, such as `surface` or `output`,
+  cannot emit.
+- A connection subscribes to the name, for example `voice.state`, or to
+  a pattern `PREFIX.*`, for example `voice.*`. A pattern also works for
+  core events, for example `surface.*`. An empty list means every core
+  event, not the events of clients. In `events.subscribe`, a name outside
+  the core namespaces is the event of a client, so a typo there is no
+  error; a typo in a core name, such as `surface.creatd`, is.
+- `data` is any JSON value of at most 64 KiB; `null` when it is missing.
+- A client name emits at most 32 events per second, over all its
+  connections. The core refuses the rest with code 6 and sends nothing.
+  It does not coalesce: after a burst, the client sends its last state
+  again.
+- Any named client may emit, also through a client socket without
+  capabilities: an event reaches only subscribers. Any connection may
+  subscribe to the events of other clients, also a client socket; it
+  gets them as it gets core events. The emitter gets its own event when
+  it subscribed to it.
+- Only the main socket lets a client take a free name. A name of a client
+  socket is safe from emitters on other sockets (D33).
 
 The response of `scene.apply` reports the result of a transaction. When
 the transaction applied, the result is `{"warnings": [...]}`. When it did
@@ -405,7 +440,8 @@ answers every request.
 | `hello(name, keep_nodes, resume, protocol, features)` | name the client (lowercase letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes); `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); `protocol` and `features` say what the client speaks (see [Protocol versions](#protocol-versions)); returns `{"version": ..., "protocol": ..., "features": [...]}` |
 | `scene.query(selector, filter)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
-| `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused |
+| `events.subscribe(events)` | stream the named events, or all core events for an empty list, as notifications; a name can be the event of a client, such as `voice.state`, or a pattern such as `voice.*` (D65); answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown core name is refused |
+| `events.emit(event, data)` | send an event of this client, named `NAME.something` after its client name, with `data` of at most 64 KiB to its subscribers; at most 32 per second per client name, the rest fails with code 6 (see [Events](#events), D65) |
 | `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
