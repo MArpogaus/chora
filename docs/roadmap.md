@@ -68,8 +68,8 @@ add one to two weeks.
 ## 0.6: Foundation
 
 Released as `v0.6.0` on 2026-10-19 without the gate checks 1, 2 and 5.
-These checks moved to the gate of 0.7. Check 1 then moved to the gate of
-1.0: the repository stays one monorepo until then.
+These checks moved to the gate of 0.7. Check 1 then moved to the time
+after 1.0, with the organization (D36).
 
 **Goal:** the project works with gates in the GitHub organization
 `chora-desktop`. Unit tests check the core in process.
@@ -179,7 +179,8 @@ Scope:
 
 Gate:
 
-1. Moved to the gate of 1.0: the organization and the protected `main`.
+1. Moved to the time after 1.0: the organization and the protected
+   `main` (D36).
 2. A test release `v0.7.0-rc.1` comes from a tag on a merge commit. A
    tag on a commit with red CI starts no release (from 0.6).
 3. The `vkms` job is green in 10 runs in a row (from 0.6).
@@ -397,18 +398,16 @@ Scope:
   change of the schema without a change of the protocol version.
 - The reference documentation comes from the schema. A test checks every
   example of the documentation against it.
-- On every path, the keyboard focus moves only after a press of the user
-  (#102).
+- A client socket (D33) moves the keyboard focus only after a press of
+  the user. The window manager that owns a surface, and requests through
+  `node.requested`, stay exempt (#102).
 - A failed grab names the client that holds the binding (#63).
 - Packages through COPR with Packit and subpackages per plugin (D49). The
   release keeps its assets.
 - The image of `secureblue-images` installs chora from COPR.
 - A final review loop over the whole code base until a round finds
   nothing that matters (D47).
-- The organization `chora-desktop` (D36). The core repository moves
-  there, and `main` accepts pull requests only. The plugins, the XP
-  showroom and the voice pipeline move into repositories of their own.
-- All plugins of the organization use the protocol version 1.
+- All plugins of the core repository use the protocol version 1.
 
 Gate:
 
@@ -418,20 +417,18 @@ Gate:
 3. The last review round leaves no open finding of high or medium
    severity.
 4. The schema job and the documentation test are green.
-5. Every plugin repository of the organization pins protocol version 1,
-   and a CI job checks it.
-6. The organization `chora-desktop` and its repositories exist, and
-   `main` of each accepts pull requests only (from 0.6).
-7. The secureblue image builds with chora from COPR. `rpm-ostree upgrade`
+5. Every plugin of the core repository uses protocol version 1, and a CI
+   job checks it.
+6. The secureblue image builds with chora from COPR. `rpm-ostree upgrade`
    on the reference hardware updates chora, and the login screen offers the
    session.
-8. CI runs the CI scripts of the earlier gates again; the user runs the
+7. CI runs the CI scripts of the earlier gates again; the user runs the
    hardware checks again on the reference hardware, with a log.
 
 ## Track: XP showroom
 
-The showroom grows in the core repository and moves to
-`chora-desktop/chora-xp` with the split at 1.0 (D36, D39). It shows
+The showroom lives in the core repository (D39) and moves to
+`chora-desktop/chora-xp` with the split after 1.0 (D36). It shows
 the effects of the scene and serves as their test.
 
 - The showroom has no release per milestone. `tests/xp.sh` runs in the CI
@@ -442,7 +439,7 @@ the effects of the scene and serves as their test.
 ## Track: voice pipeline
 
 The voice pipeline lives in `services/voice/` of the core repository and
-moves to `chora-desktop/chora-voice` with the split at 1.0. It started with
+moves to `chora-desktop/chora-voice` with the split after 1.0. It started with
 milestone 0.6 (D53). The models run as Quadlet units on the reference hardware:
 speech to text, a language model and text to speech, served by
 [Gufo](https://github.com/gufo-org/gufo).
@@ -455,7 +452,11 @@ speech to text, a language model and text to speech, served by
 
 ## After 1.0
 
+- The organization `chora-desktop` (D36). The core repository moves
+  there, and `main` accepts pull requests only (D47). The plugins, the XP
+  showroom and the voice pipeline move into repositories of their own.
 - Small plugins that window managers share: a panel with a task list and
-  the notifications. Until then, shared code lives in `chora-kit`.
+  the notifications, and a launcher (D51). Until then, shared code lives
+  in `chora-kit`.
 - Conformance tests with wlcs.
 - Items from the [Idea backlog](ideas.md).

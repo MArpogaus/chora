@@ -185,7 +185,8 @@ A release ends a milestone, once its gate holds (see
    GitHub release. Versions below 1.0 and release candidates are
    pre-releases.
 
-Milestone 0.6 lets `main` accept pull requests only.
+From the move to the organization after 1.0, `main` accepts pull
+requests only (D47).
 
 ## Commits
 
