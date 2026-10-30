@@ -6,6 +6,12 @@
 //! default, it aborts chora with a core dump (SIGABRT), so that the
 //! session can start again; 0 means never. A hung shader blocks the main
 //! loop, and with it the frame watchdog and SIGUSR1, but not this thread.
+//!
+//! The stall and the abort lines go to fd 2 with a raw `write(2)`, not
+//! through tracing or `std::io::stderr`: a main loop that hangs inside a
+//! log write holds their lock, and the watchdog must not wait for it. The
+//! SIGABRT handler then prints the backtrace of the watchdog thread, not
+//! that of the main loop; the core dump has all threads.
 
 use std::{
     sync::{
@@ -20,8 +26,7 @@ use calloop::EventLoop;
 
 /// The longest sleep of an idle main loop between two beats.
 pub const BEAT_EVERY: Duration = Duration::from_secs(1);
-/// How long the heartbeat may stop before the watchdog logs a stall. Under
-/// the 5 s of gate check 3 of 0.9, and well above [`BEAT_EVERY`].
+/// How long the heartbeat may stop before the watchdog logs a stall (D64).
 const STALL_AFTER: Duration = Duration::from_secs(3);
 /// How long the main loop may hang before the watchdog aborts chora.
 const ABORT_AFTER: Duration = Duration::from_secs(30);
@@ -29,10 +34,10 @@ const ABORT_AFTER: Duration = Duration::from_secs(30);
 const TICK: Duration = Duration::from_millis(250);
 
 /// What the watchdog sees.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Hang {
-    /// The heartbeat stopped for this long.
-    Stall(Duration),
+    /// The heartbeat stopped for this long; the abort time follows.
+    Stall(Duration, Option<Duration>),
     /// The heartbeat came back after a stall of this length.
     Runs(Duration),
     /// The heartbeat stopped for the abort time.
@@ -70,7 +75,7 @@ impl Watch {
         }
         if !self.stalled && gap >= STALL_AFTER {
             self.stalled = true;
-            return Some(Hang::Stall(gap));
+            return Some(Hang::Stall(gap, self.abort));
         }
         None
     }
@@ -91,7 +96,7 @@ fn abort_after(var: Option<&str>) -> Option<Duration> {
 fn spawn(
     beats: Arc<AtomicU64>,
     abort: Option<Duration>,
-    mut report: impl FnMut(Hang, Option<Duration>) + Send + 'static,
+    mut report: impl FnMut(Hang) + Send + 'static,
 ) -> std::io::Result<thread::JoinHandle<()>> {
     thread::Builder::new()
         .name("chora-watchdog".into())
@@ -100,39 +105,54 @@ fn spawn(
             while Arc::strong_count(&beats) > 1 {
                 thread::sleep(TICK);
                 if let Some(hang) = watch.check(beats.load(Ordering::Relaxed), Instant::now()) {
-                    report(hang, abort);
+                    report(hang);
                 }
             }
         })
 }
 
-/// Logs what the watchdog sees, and aborts on [`Hang::Abort`].
-fn log(hang: Hang, abort: Option<Duration>) {
-    let (gap, message) = match (hang, abort) {
-        (Hang::Abort(gap), _) => abort_hung(gap),
-        (Hang::Stall(gap), Some(abort)) => (
-            gap,
-            format!(
-                "the main loop stalls; the watchdog aborts chora with a core dump after {} s",
-                abort.as_secs()
-            ),
-        ),
-        (Hang::Stall(gap), None) => (
-            gap,
-            "the main loop stalls; the watchdog only logs, CHORA_HANG_ABORT_S=0".into(),
-        ),
-        (Hang::Runs(gap), _) => (gap, "the main loop runs again".into()),
-    };
-    tracing::warn!(stalled_s = gap.as_secs(), "{message}");
+/// Logs what the watchdog sees, and aborts on [`Hang::Abort`]. Only the
+/// line of a loop that runs again goes through tracing.
+fn log(hang: Hang) {
+    match hang {
+        Hang::Abort(gap) => {
+            say(format_args!(
+                "the main loop hangs; the watchdog aborts chora with a core dump \
+                 (stalled {} s); the backtrace below is the watchdog thread's",
+                gap.as_secs()
+            ));
+            std::process::abort();
+        }
+        Hang::Stall(gap, Some(abort)) => say(format_args!(
+            "the main loop stalls; the watchdog aborts chora with a core dump after {} s \
+             (stalled {} s)",
+            abort.as_secs(),
+            gap.as_secs()
+        )),
+        Hang::Stall(gap, None) => say(format_args!(
+            "the main loop stalls; the watchdog only logs, CHORA_HANG_ABORT_S=0 (stalled {} s)",
+            gap.as_secs()
+        )),
+        Hang::Runs(gap) => {
+            tracing::warn!(stalled_s = gap.as_secs(), "the main loop runs again");
+        }
+    }
 }
 
-/// Aborts chora with a core dump after a hang.
-fn abort_hung(gap: Duration) -> ! {
-    tracing::error!(
-        stalled_s = gap.as_secs(),
-        "the main loop hangs; the watchdog aborts chora with a core dump"
-    );
-    std::process::abort();
+/// Writes `chora: <line>` to fd 2 with one raw `write(2)`, from a buffer on
+/// the stack: no lock of tracing, of `std::io::stderr` or of malloc.
+#[allow(unsafe_code)] // one libc write to a fixed fd
+fn say(line: std::fmt::Arguments<'_>) {
+    use std::io::Write as _;
+    let mut buf = std::io::Cursor::new([0_u8; 256]);
+    // A line longer than the buffer ends short.
+    let _ = writeln!(buf, "chora: {line}");
+    let len = usize::try_from(buf.position()).unwrap_or(0);
+    let buf = buf.into_inner();
+    // SAFETY: the pointer and the length come from a live buffer.
+    unsafe {
+        libc::write(2, buf.as_ptr().cast(), len);
+    }
 }
 
 /// Runs an event loop until it stops, bumps the heartbeat after each
@@ -184,15 +204,40 @@ mod tests {
         let start = Instant::now();
         let mut watch = Watch::new(Some(10 * S), start);
         assert_eq!(watch.check(0, start + 2 * S), None);
-        assert_eq!(watch.check(0, start + 3 * S), Some(Hang::Stall(3 * S)));
+        assert_eq!(
+            watch.check(0, start + 3 * S),
+            Some(Hang::Stall(3 * S, Some(10 * S)))
+        );
         assert_eq!(watch.check(0, start + 4 * S), None);
         assert_eq!(watch.check(1, start + 5 * S), Some(Hang::Runs(5 * S)));
         assert_eq!(watch.check(2, start + 6 * S), None);
-        assert_eq!(watch.check(2, start + 9 * S), Some(Hang::Stall(3 * S)));
+        assert_eq!(
+            watch.check(2, start + 9 * S),
+            Some(Hang::Stall(3 * S, Some(10 * S)))
+        );
         assert_eq!(watch.check(2, start + 16 * S), Some(Hang::Abort(10 * S)));
         let mut never = Watch::new(None, start);
-        assert_eq!(never.check(0, start + 3 * S), Some(Hang::Stall(3 * S)));
+        assert_eq!(
+            never.check(0, start + 3 * S),
+            Some(Hang::Stall(3 * S, None))
+        );
         assert_eq!(never.check(0, start + 3600 * S), None);
+    }
+
+    /// The stall line does not wait for the stdout lock of tracing, which
+    /// a main loop that hangs inside a log write holds.
+    #[test]
+    fn the_stall_line_skips_the_log_lock() {
+        let held = std::io::stdout().lock();
+        let (done, finished) = mpsc::channel();
+        thread::spawn(move || {
+            let subscriber = tracing_subscriber::fmt().finish();
+            tracing::subscriber::with_default(subscriber, || log(Hang::Stall(3 * S, None)));
+            done.send(()).unwrap();
+        });
+        let result = finished.recv_timeout(2 * S);
+        drop(held);
+        assert!(result.is_ok(), "the watchdog waits for the stdout lock");
     }
 
     #[test]
@@ -203,14 +248,14 @@ mod tests {
         assert_eq!(abort_after(Some("7")), Some(7 * S));
     }
 
-    /// Gate check 3 of 0.9: a main loop that blocks for 5 s triggers the
-    /// watchdog thread; an idle loop does not.
+    /// A main loop that blocks for 5 s triggers the watchdog thread; an
+    /// idle loop does not.
     #[test]
     fn a_main_loop_that_blocks_for_5_s_triggers_the_watchdog() {
         let mut event_loop: EventLoop<()> = EventLoop::try_new().unwrap();
         let beats = Arc::new(AtomicU64::new(0));
         let (seen, hangs) = mpsc::channel();
-        let watchdog = spawn(beats.clone(), None, move |hang, _| {
+        let watchdog = spawn(beats.clone(), None, move |hang| {
             seen.send(hang).unwrap();
         })
         .unwrap();
@@ -237,7 +282,7 @@ mod tests {
         watchdog.join().unwrap();
         let hangs: Vec<Hang> = hangs.try_iter().collect();
         match hangs.as_slice() {
-            [Hang::Stall(stall), Hang::Runs(gap)] => {
+            [Hang::Stall(stall, None), Hang::Runs(gap)] => {
                 assert!(*stall >= STALL_AFTER && *stall < 5 * S, "{hangs:?}");
                 assert!(*gap >= 5 * S, "{hangs:?}");
             }

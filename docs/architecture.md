@@ -373,18 +373,10 @@ The safety layer is the only built-in behavior (see
   time. When no client alone reaches the budget, the watchdog drops the
   effects of all clients and disconnects none. The watchdog never starts
   the emergency reset; only the binding and SIGUSR1 do.
-- **Hang watchdog** (D64). A thread of its own watches a heartbeat that
-  the main loop bumps after each dispatch; the loop wakes at least once a
-  second, also without events. A shader that never returns blocks the
-  loop, for every backend renders on it, and with the loop the frame
-  watchdog and SIGUSR1. After 3 s without a beat, the thread logs
-  `the main loop stalls` with the action that follows. After
-  `CHORA_HANG_ABORT_S` seconds without a beat, 30 by default, it logs
-  `the main loop hangs` and aborts chora with SIGABRT and a core dump, so
-  that the session can start again. With `CHORA_HANG_ABORT_S=0` it only logs.
-  When the loop runs again before the abort, the thread logs
-  `the main loop runs again`. `tests/gate-0.9-shader-hang.sh` checks both
-  on llvmpipe.
+- **Hang watchdog** ([D64](decisions.md)). A thread of its own logs a
+  stall of the main loop and aborts chora when the loop hangs, for
+  example in a shader that never returns.
+  `tests/gate-0.9-shader-hang.sh` checks it on llvmpipe.
 
 ## Permissions
 
