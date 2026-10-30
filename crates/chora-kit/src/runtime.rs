@@ -1,8 +1,8 @@
 //! The runtime that every plugin repeats: it connects, subscribes to the
-//! events, exports the methods, grabs bindings, answers method calls,
-//! answers `settings.get`, `settings.set` and `settings.reload`, keeps to
-//! the outputs of
-//! `--output`, and comes back after the core closed the connection.
+//! events, exports the methods, grabs bindings, answers method calls and
+//! `settings.get`, `settings.set` and `settings.reload`, keeps to the
+//! outputs of `--output`, and comes back after the core closed the
+//! connection.
 
 use std::{
     process::ExitCode,
@@ -228,10 +228,12 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
             params,
             ..
         } => {
-            let result = match (method.as_str(), plugin.settings()) {
-                ("settings.get", Some(settings)) => Ok(settings.get()),
-                ("settings.set", Some(_)) => set_settings(plugin, params),
-                ("settings.reload", Some(_)) => reload_settings(plugin),
+            let result = match method.as_str() {
+                "settings.get" => {
+                    (plugin.settings().map(|s| s.get())).ok_or_else(|| no_settings("settings.get"))
+                }
+                "settings.set" => set_settings(plugin, params),
+                "settings.reload" => reload_settings(plugin),
                 _ => plugin.method(&method, params),
             };
             let rt = plugin.runtime();
@@ -258,8 +260,8 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
 ///
 /// The plugin has no settings, a change is wrong, the plugin cannot apply
 /// it, or the file cannot be written.
-pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
-    let no_settings = || RpcError::new(RpcError::METHOD_NOT_FOUND, "settings.set");
+fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
+    let no_settings = || no_settings("settings.set");
     let answer = plugin.settings().ok_or_else(no_settings)?.set(changes)?;
     apply(plugin)?;
     plugin
@@ -270,17 +272,24 @@ pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, 
     Ok(answer)
 }
 
+/// The error of a settings method of a plugin without settings.
+fn no_settings(method: &str) -> RpcError {
+    RpcError::new(RpcError::METHOD_NOT_FOUND, method)
+}
+
 /// `settings.reload`: reads the settings file again, after an edit by
 /// hand, and has the plugin apply it. A wrong file, or one that the plugin
-/// cannot apply, changes nothing.
+/// cannot apply, changes nothing. Public for a binding of the plugin
+/// that reloads, which has no method call to answer.
 ///
 /// # Errors
 ///
 /// The plugin has no settings, the file is wrong, or the plugin cannot
 /// apply it.
 pub fn reload_settings<P: Plugin>(plugin: &mut P) -> Result<Value, RpcError> {
-    let no_settings = || RpcError::new(RpcError::METHOD_NOT_FOUND, "settings.reload");
-    let answer = plugin.settings().ok_or_else(no_settings)?.reload()?;
+    let answer = (plugin.settings())
+        .ok_or_else(|| no_settings("settings.reload"))?
+        .reload()?;
     apply(plugin)?;
     Ok(answer)
 }
