@@ -1301,6 +1301,32 @@ stays closed.</p>
 <h2 id="chora-tiling">chora-tiling<a class="headerlink" href="#chora-tiling" title="Permanent link">&para;</a></h2>
 <p><code>chora-tiling</code> connects with the client name <code>tiling</code>. Grants and
 <code>choractl restart</code> use this name.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--config FILE</code></td>
+<td>the settings file instead of <code>$XDG_CONFIG_HOME/chora/chora-tiling.yaml</code></td>
+</tr>
+<tr>
+<td><code>--print-config</code></td>
+<td>prints the default settings and exits</td>
+</tr>
+<tr>
+<td><code>--output NAME</code></td>
+<td>manages only this output; can come more than once (see below)</td>
+</tr>
+<tr>
+<td><code>--ignore APP_ID</code></td>
+<td>leaves the windows with this app id to other clients; can come more than once</td>
+</tr>
+</tbody>
+</table>
 <p><code>chora-tiling</code> reads <code>chora/chora-tiling.yaml</code> in <code>$XDG_CONFIG_HOME</code>, by
 default <code>~/.config</code>, or the file of <code>--config</code>. Without a file, it uses its
 default, which <code>chora-tiling --print-config</code> prints. The file holds the
@@ -1368,7 +1394,9 @@ windows do not exist.</p>
 <p><code>chora-tiling</code> exports methods for other clients (see
 <a href="../api/#plugin-methods">Plugin methods</a>). Every method but <code>get_layout</code>
 changes something and answers with the layout info of the current tag,
-like <code>set_layout</code>.</p>
+like <code>set_layout</code>. The <code>gap</code> of <code>set_layout</code> is a live value: the file
+keeps the old gap, and the next <code>settings.set</code> or <code>settings.reload</code> sets
+the gap of the file again.</p>
 <table>
 <thead>
 <tr>
@@ -1678,9 +1706,7 @@ by default: My Documents, My Pictures and My Music of the start menu
 (<code>XDG_DOCUMENTS_DIR</code>, <code>XDG_PICTURES_DIR</code> and <code>XDG_MUSIC_DIR</code>, else the
 home directory and its folders <code>Pictures</code> and <code>Music</code>), and My Computer
 as <code>/</code>. <code>chora-xp</code> adds the folder to the command, for example
-<code>thunar '/home/user/Music'</code>. The tag <code>archive/xp-scene-programs</code> keeps
-the Explorer, the folder windows, file Properties and the Delete
-confirmation that <code>chora-xp</code> drew before 0.8.</p>
+<code>thunar '/home/user/Music'</code>.</p>
 <p>The desktop of the first output shows XP's icons in its grid of 75 by 75
 pixels: My Documents (<code>XDG_DOCUMENTS_DIR</code>, else the home directory) and My
 Computer at the top left, then the folders and files of the Desktop folder
@@ -1845,19 +1871,43 @@ core. Cancel and the close button close it without a change:</p>
 </ul>
 <p>Log Off and Turn Off Computer open XP's dialogs in the middle of the
 output, and the desktop behind them fades to gray in 1.5 seconds. Each
-button runs its command of the setting <code>session</code> (D63). In Turn off
-computer, Stand By runs <code>systemctl suspend</code>, Turn Off <code>systemctl
-poweroff</code> and Restart <code>systemctl reboot</code> by default. Stand By is disabled
-when the first word of its command is not on the <code>PATH</code>. In Log Off
-Windows, Log Off runs <code>choractl quit</code> by default, which ends
-chora through the core method <code>session.quit</code>. Without a command
-(<code>log_off: null</code>), Log Off asks every window to close and ends
-<code>chora-xp</code>. A command such as <code>loginctl terminate-session
+button runs its command of the setting <code>session</code> (D63):</p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Default command</th>
+<th>Without a command (<code>null</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Turn Off</td>
+<td><code>systemctl poweroff</code></td>
+<td>ends <code>chora-xp</code> and shuts nothing down</td>
+</tr>
+<tr>
+<td>Restart</td>
+<td><code>systemctl reboot</code></td>
+<td>runs <code>chora-xp</code> again, as the method <code>restart</code> does</td>
+</tr>
+<tr>
+<td>Stand By</td>
+<td><code>systemctl suspend</code></td>
+<td>disabled</td>
+</tr>
+<tr>
+<td>Log Off</td>
+<td><code>choractl quit</code>, which ends chora through the core method <code>session.quit</code></td>
+<td>asks every window to close and ends <code>chora-xp</code></td>
+</tr>
+</tbody>
+</table>
+<p>Stand By is also disabled when the first word of its command is not on
+the <code>PATH</code>. A command such as <code>loginctl terminate-session
 $XDG_SESSION_ID</code> ends a login session. Switch User is always disabled,
-because chora has no second session to switch to. Without a command,
-Turn Off ends <code>chora-xp</code> and shuts nothing down, and Restart runs
-<code>chora-xp</code> again, as the method <code>restart</code> does. Cancel or a click outside
-the dialog closes it. The buttons light up under the pointer; the
+because chora has no second session to switch to. Cancel or a click
+outside the dialog closes it. The buttons light up under the pointer; the
 keyboard does not work the dialogs (D45).</p>
 <p>The method <code>restart</code> runs <code>chora-xp</code> again in the same process, with the
 same arguments, and so reads the settings file again. The core keeps
@@ -1989,7 +2039,7 @@ these bindings, Super+Ctrl with the arrows stands in.</p>
 <td>a click on the desktop button</td>
 </tr>
 <tr>
-<td><code>settings.get</code>, <code>settings.set</code></td>
+<td><code>settings.get</code>, <code>settings.set</code>, <code>settings.reload</code></td>
 <td>see <a href="../api/#plugin-methods">API</a></td>
 <td>the dialogs and an edit of the file with <code>restart</code></td>
 </tr>
