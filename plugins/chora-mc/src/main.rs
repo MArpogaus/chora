@@ -486,6 +486,31 @@ impl Plugin for Mc {
                 self.show(&name)?;
                 Ok(json!({"scene": name}))
             }
+            _ => self.region_method(method, params),
+        }
+    }
+
+    fn settings(&mut self) -> Option<&mut dyn Store> {
+        Some(&mut self.settings)
+    }
+
+    fn settings_changed(&mut self) -> Result<(), RpcError> {
+        self.keep_texts();
+        let contents = &self.settings.value.contents;
+        (self.put).retain(|r| (r.content.as_ref()).is_some_and(|c| contents.contains_key(c)));
+        self.rt
+            .ungrab_all()
+            .and_then(|()| self.grab_all())
+            .and_then(|()| self.build())
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
+    }
+}
+
+impl Mc {
+    /// The methods of the regions and their contents.
+    fn region_method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
+        match method {
             "region.list" => Ok(self.list()),
             "region.toggle" => {
                 let Toggle { region, shown } = runtime::params(params)?;
@@ -518,21 +543,6 @@ impl Plugin for Mc {
             }
             _ => Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method)),
         }
-    }
-
-    fn settings(&mut self) -> Option<&mut dyn Store> {
-        Some(&mut self.settings)
-    }
-
-    fn settings_changed(&mut self) -> Result<(), RpcError> {
-        self.keep_texts();
-        let contents = &self.settings.value.contents;
-        (self.put).retain(|r| (r.content.as_ref()).is_some_and(|c| contents.contains_key(c)));
-        self.rt
-            .ungrab_all()
-            .and_then(|()| self.grab_all())
-            .and_then(|()| self.build())
-            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
     }
 }
 

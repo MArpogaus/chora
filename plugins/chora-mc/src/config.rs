@@ -368,14 +368,8 @@ impl Settings for Config {
         if !(0.0..=10_000.0).contains(&self.write.duration_ms) {
             return Err("write.duration_ms: from 0 to 10000".into());
         }
-        region::check(&self.regions, &self.contents, &self.rules)?;
-        if !self.presets.contains_key(&self.preset) {
-            return Err(format!("preset: no preset {}", self.preset));
-        }
-        for (name, preset) in &self.presets {
-            region::check(&self.regions, &self.contents, &preset.rules)
-                .map_err(|e| format!("presets.{name}: {e}"))?;
-        }
+        let presets = (self.preset.as_str(), &self.presets);
+        region::check(&self.regions, &self.contents, &self.rules, presets)?;
         let mut keys = BTreeMap::new();
         for binding in self.bindings.keys() {
             let parsed: Binding = binding.parse().map_err(|e| format!("{binding}: {e}"))?;

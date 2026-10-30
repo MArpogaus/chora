@@ -210,7 +210,14 @@ pub fn check(
     regions: &Regions,
     contents: &BTreeMap<String, Content>,
     rules: &[Rule],
+    (preset, presets): (&str, &BTreeMap<String, Preset>),
 ) -> Result<(), String> {
+    if !presets.contains_key(preset) {
+        return Err(format!("preset: no preset {preset}"));
+    }
+    for (name, preset) in presets {
+        check_rules(contents, &preset.rules).map_err(|e| format!("presets.{name}: {e}"))?;
+    }
     for region in Region::ALL {
         let size = regions.get(region).size;
         if !(1.0..=60.0).contains(&size) {
@@ -233,6 +240,11 @@ pub fn check(
             return Err(format!("contents.{name}: more than 4 KiB of text"));
         }
     }
+    check_rules(contents, rules)
+}
+
+/// Checks rules against the contents.
+fn check_rules(contents: &BTreeMap<String, Content>, rules: &[Rule]) -> Result<(), String> {
     for rule in rules {
         if rule.content.is_none() && rule.kind.is_none() {
             return Err("rules: each rule names a content or a kind".into());
@@ -258,10 +270,8 @@ pub fn put_check(content: &Content, region: Region) -> Result<(), String> {
 /// A color as RRGGBB.
 fn hex(rgba: [f64; 4]) -> String {
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // 0 to 255
-    rgba[..3]
-        .iter()
-        .map(|c| format!("{:02x}", (c.clamp(0.0, 1.0) * 255.0).round() as u8))
-        .collect()
+    let [r, g, b] = [0, 1, 2].map(|i| (rgba[i].clamp(0.0, 1.0) * 255.0).round() as u8);
+    format!("{r:02x}{g:02x}{b:02x}")
 }
 
 /// The command of an app with the colors of the theme in it.
@@ -302,6 +312,9 @@ struct Item {
     /// Where a stack in a side puts space before it: a new content.
     first: bool,
 }
+
+/// The items and the docked app of each region.
+type Plan = BTreeMap<Region, (Vec<Item>, Option<String>)>;
 
 /// The boxes of the regions and of the window of an app scene, x, y,
 /// width and height on the output.
@@ -418,75 +431,66 @@ impl Mc {
     }
 
     /// The items of the regions of a scene, and the docked app of each.
-    #[allow(clippy::type_complexity)]
-    fn items(&self, name: &str) -> BTreeMap<Region, (Vec<Item>, Option<String>)> {
+    fn items(&self, name: &str) -> Plan {
         let contents = &self.settings.value.contents;
-        let mut out = BTreeMap::new();
+        let mut out = Plan::new();
         for (region, slots) in self.placed(name) {
-            let mut items = Vec::new();
-            let mut dock = None;
-            for (slot, content_name) in slots {
-                let content = &contents[&content_name];
-                if content.kind == Kind::App {
-                    if dock.is_none() && self.docks.contains_key(&content_name) {
-                        dock = Some(content_name);
-                    }
-                    continue;
-                }
-                let (title, text) = self.content_text(&content_name, content, name);
-                // A text with a title shows it in a side that the user
-                // opened, so that the toggle shows where notes go.
-                let opened = self.toggled.get(&region) == Some(&true);
-                if text.is_empty() && !(opened && !title.is_empty() && !region.is_line()) {
-                    continue;
-                }
-                let id = format!("{}-{content_name}", region_id(region));
-                let mut first = true;
-                if region.is_line() {
-                    let text = text.replace('\n', "  ·  ");
-                    let props = self.content_type(content, false).props(&text);
-                    items.push(Item {
-                        id,
-                        slot,
-                        props,
-                        first,
-                    });
-                    continue;
-                }
-                if !title.is_empty() {
-                    let props = self.content_type(content, true).props(&title);
-                    items.push(Item {
-                        id: format!("{id}-title"),
-                        slot,
-                        props,
-                        first,
-                    });
-                    first = false;
-                }
-                if !text.is_empty() {
-                    let props = self.content_type(content, false).props(&text);
-                    items.push(Item {
-                        id,
-                        slot,
-                        props,
-                        first,
-                    });
-                }
-            }
+            let dock = (slots.iter().map(|(_, c)| c))
+                .find(|c| contents[*c].kind == Kind::App && self.docks.contains_key(*c))
+                .cloned();
+            let items: Vec<Item> = (slots.iter())
+                .flat_map(|(slot, c)| self.content_items(region, *slot, c, name))
+                .collect();
             if !items.is_empty() || dock.is_some() {
                 out.insert(region, (items, dock));
             }
         }
         // The sides show only where they fit.
         if let Some(scene) = self.scenes.get(name) {
-            let sides = self.side_widths(name, scene);
-            for (region, width) in [(Region::Left, sides[0]), (Region::Right, sides[1])] {
-                if width <= 0.0 {
-                    out.remove(&region);
-                }
-            }
+            let [left, right] = self.side_widths(name, scene);
+            out.retain(|region, _| match region {
+                Region::Left => left > 0.0,
+                Region::Right => right > 0.0,
+                _ => true,
+            });
         }
         out
+    }
+
+    /// The text items of a content in a region: one in a line, else its
+    /// title and its lines.
+    fn content_items(&self, region: Region, slot: i32, name: &str, scene: &str) -> Vec<Item> {
+        let content = &self.settings.value.contents[name];
+        if content.kind == Kind::App {
+            return Vec::new();
+        }
+        let (title, text) = self.content_text(name, content, scene);
+        let id = format!("{}-{name}", region_id(region));
+        let item = |id: String, is_title: bool, text: &str, first: bool| Item {
+            id,
+            slot,
+            props: self.content_type(content, is_title).props(text),
+            first,
+        };
+        if region.is_line() {
+            let text = text.replace('\n', "  ·  ");
+            return (!text.is_empty())
+                .then(|| item(id, false, &text, true))
+                .into_iter()
+                .collect();
+        }
+        // A text with a title shows it in a side that the user opened, so
+        // that the toggle shows where notes go.
+        let opened = self.toggled.get(&region) == Some(&true);
+        let mut items = Vec::new();
+        if !title.is_empty() && (opened || !text.is_empty()) {
+            items.push(item(format!("{id}-title"), true, &title, true));
+        }
+        if !text.is_empty() {
+            let first = items.is_empty();
+            items.push(item(id, false, &text, first));
+        }
+        items
     }
 
     /// The widths of the left and the right side of a scene, 0 for a side
@@ -577,7 +581,7 @@ impl Mc {
     }
 
     /// The regions that show in the current scene.
-    fn visible(&self, items: &BTreeMap<Region, (Vec<Item>, Option<String>)>) -> Vec<Region> {
+    fn visible(&self, items: &Plan) -> Vec<Region> {
         let name = self.current.clone().unwrap_or_default();
         (items.keys().copied())
             .filter(|r| self.shown(*r, &name))
@@ -593,30 +597,45 @@ impl Mc {
         if !self.built {
             return Ok(());
         }
-        let items = self.items(&name);
+        let mut items = self.items(&name);
         let visible = self.visible(&items);
         let Some(boxes) = self.boxes(&name, &visible) else {
             return Ok(());
         };
+        // Nodes exist only for the regions that show or fade out.
+        let drawn = |r: &Region| self.drawn.get(r).copied().unwrap_or(false);
+        items.retain(|r, _| visible.contains(r) || drawn(r));
         let key: Vec<String> = std::iter::once(name.clone())
             .chain(visible.iter().map(|r| r.name().into()))
             .chain(
-                items
-                    .values()
-                    .flat_map(|(i, d)| i.iter().map(|i| i.id.clone()).chain(d.iter().cloned())),
+                (items.iter().filter(|(r, _)| visible.contains(r))).flat_map(|(_, (i, d))| {
+                    i.iter().map(|i| i.id.clone()).chain(d.iter().cloned())
+                }),
             )
             .collect();
-        let mut commands = Vec::new();
         if self.rendered.as_ref() == Some(&key) {
-            for (items, _) in items.values() {
-                commands.extend(items.iter().map(|i| Command::Update {
-                    id: i.id.clone(),
-                    props: i.props.clone(),
-                }));
-            }
-            self.apply(commands)?;
+            let updates = (items.values().flat_map(|(i, _)| i)).map(|i| Command::Update {
+                id: i.id.clone(),
+                props: i.props.clone(),
+            });
+            self.apply(updates.collect())?;
             return self.arrange(&items, &boxes);
         }
+        let mut commands = self.redraw(&items, &visible, &boxes);
+        self.drawn = visible.iter().map(|r| (*r, true)).collect();
+        self.rendered = Some(key);
+        // The window of an app scene leaves the regions free.
+        if let Some(surface) = self.windows.get(&name) {
+            commands.extend(place(surface, boxes.window, self.output_size()));
+        }
+        self.apply(commands)?;
+        self.arrange(&items, &boxes)
+    }
+
+    /// The regions anew: the docked apps wait in a hidden group, and each
+    /// region that shows or showed fades from how it was to how it is.
+    fn redraw(&self, items: &Plan, visible: &[Region], boxes: &Boxes) -> Vec<Command> {
+        let mut commands = Vec::new();
         if self.rendered.is_some() {
             commands.extend(self.docks.values().map(|s| park(s, ROOT)));
             commands.push(Command::Remove {
@@ -636,22 +655,14 @@ impl Mc {
         };
         commands.push(create(PARKED, NodeKind::Group, REGIONS, hidden));
         commands.extend(self.docks.values().map(|s| park(s, PARKED)));
-        for (region, (region_items, dock)) in &items {
+        for (region, plan) in items {
             let now = visible.contains(region);
             let was = self.drawn.get(region).copied().unwrap_or(false);
-            if !now && !was {
-                continue;
+            if now || was {
+                commands.extend(self.region(*region, plan, boxes, [was, now]));
             }
-            commands.extend(self.region(*region, region_items, dock.as_deref(), &boxes, was, now));
         }
-        self.drawn = visible.iter().map(|r| (*r, true)).collect();
-        self.rendered = Some(key);
-        // The window of an app scene leaves the regions free.
-        if let Some(surface) = self.windows.get(&name) {
-            commands.extend(place(surface, boxes.window, self.output_size()));
-        }
-        self.apply(commands)?;
-        self.arrange(&items, &boxes)
+        commands
     }
 
     fn output_size(&self) -> [i32; 2] {
@@ -663,13 +674,11 @@ impl Mc {
     fn region(
         &self,
         region: Region,
-        items: &[Item],
-        dock: Option<&str>,
+        (items, dock): &(Vec<Item>, Option<String>),
         boxes: &Boxes,
-        was: bool,
-        now: bool,
+        [was, now]: [bool; 2],
     ) -> Vec<Command> {
-        let [x, y, w, h] = boxes.regions[&region];
+        let [left, top, width, height] = boxes.regions[&region];
         let id = region_id(region);
         let opacity = |shown| if shown { 1.0 } else { 0.0 };
         let mut commands = vec![
@@ -678,7 +687,7 @@ impl Mc {
                 NodeKind::Group,
                 REGIONS,
                 PropsUpdate {
-                    transform: Some(crate::translate(x, y)),
+                    transform: Some(crate::translate(left, top)),
                     opacity: Some(opacity(was)),
                     ..PropsUpdate::default()
                 },
@@ -698,109 +707,118 @@ impl Mc {
         let colors = config.colors();
         if region == Region::Drawer {
             // A sheet of the page over the text under it, and a hairline.
-            let b = config.scale.baseline;
-            let width = f64::from(self.output_size()[0]);
+            let baseline = config.scale.baseline;
+            let screen = f64::from(self.output_size()[0]);
             commands.push(rect(
                 &format!("{id}-sheet"),
                 &id,
-                [-x, -b, width, h + b],
+                [-left, -baseline, screen, height + baseline],
                 config.background(),
             ));
             let faint = colors.get("faint").copied().unwrap_or(config.background());
-            let rule = [0.0, -(b / 2.0).round(), w, 1.0];
+            let rule = [0.0, -(baseline / 2.0).round(), width, 1.0];
             commands.push(rect(&format!("{id}-rule"), &id, rule, faint));
         }
         for item in items {
             let props = PropsUpdate {
-                max_width: (!region.is_line()).then_some(w),
+                max_width: (!region.is_line()).then_some(width),
                 ..item.props.clone()
             };
             commands.push(create(&item.id, NodeKind::Text, &id, props));
         }
-        if let Some(surface) = dock.and_then(|d| self.docks.get(d)) {
+        if let Some(surface) = dock.as_ref().and_then(|d| self.docks.get(d)) {
             commands.push(park(surface, &id));
-            let top = if items.is_empty() {
+            let below = if items.is_empty() {
                 0.0
             } else {
                 config.scale.baseline * 2.0
             };
-            commands.extend(place(surface, [0.0, top, w, (h - top).max(1.0)], [0, 0]));
+            let window = [0.0, below, width, (height - below).max(1.0)];
+            commands.extend(place(surface, window, [0, 0]));
         }
         commands
     }
 
     /// Moves the items of the regions to their places, as the core lays
     /// them out: side by side in a line, else one under the other.
-    fn arrange(
-        &mut self,
-        items: &BTreeMap<Region, (Vec<Item>, Option<String>)>,
-        boxes: &Boxes,
-    ) -> Result<(), ClientError> {
-        let b = self.settings.value.scale.baseline;
-        let gap = self.settings.value.page.gap * self.settings.value.scale.base;
+    fn arrange(&mut self, items: &Plan, boxes: &Boxes) -> Result<(), ClientError> {
+        let baseline = self.settings.value.scale.baseline;
         let mut commands = Vec::new();
         for (region, (items, _)) in items {
-            let [_, _, w, h] = boxes.regions[region];
+            let [_, _, width, height] = boxes.regions[region];
             if region.is_line() {
-                let mut sizes = Vec::new();
-                for item in items {
-                    let [_, _, iw, ih] = self.rect(&item.id)?.unwrap_or_default();
-                    sizes.push((item, iw, ih));
-                }
-                let group = |pick: fn(i32) -> bool| -> Vec<(&Item, f64, f64)> {
-                    sizes
-                        .iter()
-                        .filter(|(i, _, _)| pick(i.slot))
-                        .copied()
-                        .collect()
-                };
-                let width = |g: &[(&Item, f64, f64)]| -> f64 {
-                    #[allow(clippy::cast_precision_loss)] // a few items
-                    let gaps = g.len().saturating_sub(1) as f64 * gap;
-                    g.iter().map(|(_, w, _)| w).sum::<f64>() + gaps
-                };
-                let (start, middle, end) = (group(|s| s < 0), group(|s| s == 0), group(|s| s > 0));
-                // The end keeps its place, the start ends before it, and the
-                // middle sits between them; what does not fit is cut.
-                let end_x = (w - width(&end)).max(0.0);
-                let free = |g: &[(&Item, f64, f64)], x: f64| if g.is_empty() { x } else { x - gap };
-                let start_room = free(&end, end_x);
-                let used = width(&start).min(start_room);
-                let low = if start.is_empty() { 0.0 } else { used + gap };
-                let high = free(&end, end_x);
-                let mid_x = ((w - width(&middle)) / 2.0)
-                    .round()
-                    .min(high - width(&middle))
-                    .max(low);
-                for (g, x0, room) in [
-                    (&start, 0.0, start_room),
-                    (&middle, mid_x, high - mid_x),
-                    (&end, end_x, w - end_x),
-                ] {
-                    let mut x = x0;
-                    for (item, iw, ih) in g {
-                        let y = ((h - ih.max(b)) / 2.0).round();
-                        let left = x0 + room - x;
-                        if *iw > left + 0.5 {
-                            commands.push(shorten(item, left / iw));
-                        }
-                        commands.push(move_to(item.id.clone(), x, y));
-                        x += iw.min(left) + gap;
-                    }
-                }
+                commands.extend(self.line(items, [width, height])?);
                 continue;
             }
             let mut y = 0.0;
             for item in items {
                 if item.first && y > 0.0 {
-                    y += b;
+                    y += baseline;
                 }
                 commands.push(move_to(item.id.clone(), 0.0, y));
-                let [_, _, _, ih] = self.rect(&item.id)?.unwrap_or_default();
-                y += ih.max(b);
+                let [_, _, _, item_height] = self.rect(&item.id)?.unwrap_or_default();
+                y += item_height.max(baseline);
             }
         }
         self.apply(commands)
+    }
+
+    /// Places the items of a line: the end keeps its place, the start ends
+    /// before it, and the middle sits between them; what does not fit is
+    /// cut.
+    fn line(
+        &mut self,
+        items: &[Item],
+        [width, height]: [f64; 2],
+    ) -> Result<Vec<Command>, ClientError> {
+        let config = &self.settings.value;
+        let (baseline, gap) = (config.scale.baseline, config.page.gap * config.scale.base);
+        let mut sizes = Vec::new();
+        for item in items {
+            let [_, _, w, h] = self.rect(&item.id)?.unwrap_or_default();
+            sizes.push((item, w, h));
+        }
+        let group = |pick: fn(i32) -> bool| -> Vec<(&Item, f64, f64)> {
+            (sizes.iter())
+                .filter(|(i, _, _)| pick(i.slot))
+                .copied()
+                .collect()
+        };
+        let span = |g: &[(&Item, f64, f64)]| -> f64 {
+            #[allow(clippy::cast_precision_loss)] // a few items
+            let gaps = g.len().saturating_sub(1) as f64 * gap;
+            g.iter().map(|(_, w, _)| w).sum::<f64>() + gaps
+        };
+        let (start, middle, end) = (group(|s| s < 0), group(|s| s == 0), group(|s| s > 0));
+        let end_x = (width - span(&end)).max(0.0);
+        let high = if end.is_empty() { end_x } else { end_x - gap };
+        let low = if start.is_empty() {
+            0.0
+        } else {
+            span(&start).min(high) + gap
+        };
+        let mid_x = ((width - span(&middle)) / 2.0)
+            .round()
+            .min(high - span(&middle))
+            .max(low);
+        let mut commands = Vec::new();
+        for (group, x0, room) in [
+            (start, 0.0, high),
+            (middle, mid_x, high - mid_x),
+            (end, end_x, width - end_x),
+        ] {
+            let mut x = x0;
+            for (item, w, h) in group {
+                let left = x0 + room - x;
+                if w > left + 0.5 {
+                    commands.push(shorten(item, left / w));
+                }
+                let y = ((height - h.max(baseline)) / 2.0).round();
+                commands.push(move_to(item.id.clone(), x, y));
+                x += w.min(left) + gap;
+            }
+        }
+        Ok(commands)
     }
 
     /// Shows or hides a region, by key or by method. Without `shown`, a
@@ -1041,7 +1059,7 @@ mod tests {
         }];
         rules.extend(config.rules.clone());
         let moved = layout(&rules, &config.contents, "agenda", false);
-        assert_eq!(names(&moved, Region::Left), ["next", "notes"]);
+        assert_eq!(names(&moved, Region::Left), ["next", "notes", "outline"]);
         assert!(!moved.contains_key(&Region::Right));
         let other = layout(&rules, &config.contents, "mail", false);
         assert_eq!(names(&other, Region::Right), ["notes"]);
@@ -1058,12 +1076,28 @@ mod tests {
             region: Region::Header,
             slot: 0,
         });
-        assert!(check(&config.regions, &config.contents, &rules).is_err());
+        assert!(
+            check(
+                &config.regions,
+                &config.contents,
+                &rules,
+                (&config.preset, &config.presets)
+            )
+            .is_err()
+        );
         let gone = DEFAULT.replace("content: notes,", "content: nothing,");
         assert!(parse::<Config>(&gone).unwrap_err().contains("no content"));
         let mut regions = config.regions.clone();
         regions.drawer.size = 0.0;
-        assert!(check(&regions, &config.contents, &config.rules).is_err());
+        assert!(
+            check(
+                &regions,
+                &config.contents,
+                &config.rules,
+                (&config.preset, &config.presets)
+            )
+            .is_err()
+        );
     }
 
     #[test]
