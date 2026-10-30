@@ -165,8 +165,8 @@ OLD_TOOL_TEXT = 500  # characters of a tool result or call of an earlier turn
 TOOL_ROUNDS = 10  # LLM calls per turn while it asks for tools
 FIRST_PIECE = 40  # characters before the comma that may end the first piece
 SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
-# The agent uses the event tools itself; the LLM reads text only, and the
-# picture is the point of capture.
+# The agent uses the event tools itself, and describe_screen gives the
+# picture that capture would.
 SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
 GO_ON = "(A noise cut your answer; that was not me. Go on where you stopped.)"
 TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
@@ -221,7 +221,7 @@ class Mic:
     @property
     def hold(self) -> float:
         """The level that keeps a turn going: soft word ends are speech too."""
-        return max(self.floor, self.speech / 2)
+        return self.speech / 2
 
     @property
     def barge_in(self) -> float:
@@ -899,31 +899,41 @@ def system_prompt() -> str:
     return "\n\n".join(parts)
 
 
-def earlier(messages: list[dict]) -> str:
-    """Return the words of a past session as a note for the system prompt.
+def spoken(messages: list[dict]) -> list[dict]:
+    """Return the words of the user and the replies, in the last HISTORY turns.
 
     Tool calls and results stay out: their node ids and places describe a
-    scene that may be gone. As chat messages, replies without their tool
-    calls would teach the LLM to talk about tools instead of calling them.
+    scene that may be gone, and a screenshot needs no place on the disk.
     """
-    lines = [
-        f"{'User' if m['role'] == 'user' else 'You'}: {text_of(m['content'])}"
+    words = [
+        {"role": m["role"], "content": text_of(m["content"])}
         for m in messages
-        if m["role"] in ("user", "assistant") and m.get("content")
+        if m["role"] in ("user", "assistant") and m.get("content") and m["content"] != GO_ON
     ]
-    if not lines:
+    users = [i for i, m in enumerate(words) if m["role"] == "user"]
+    return words[users[-HISTORY] :] if len(users) > HISTORY else words
+
+
+def earlier(words: list[dict]) -> str:
+    """Return the words of past sessions as a note for the system prompt.
+
+    As chat messages, replies without their tool calls would teach the LLM
+    to talk about tools instead of calling them.
+    """
+    if not words:
         return ""
+    lines = (f"{'User' if m['role'] == 'user' else 'You'}: {m['content']}" for m in words)
     return (
         "# Earlier conversation\n\nFor context only. The scene may have changed "
         "since; look before you act.\n\n" + "\n".join(lines)
     )
 
 
-def save(history: list[dict]) -> None:
-    """Write the conversation without the system prompt to HISTORY_FILE."""
+def save(past: list[dict], history: list[dict]) -> None:
+    """Write the words of the past sessions and of this one to HISTORY_FILE."""
     HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
     part = HISTORY_FILE.with_suffix(".part")  # a crash never leaves half a file
-    part.write_text(json.dumps(history[1:], ensure_ascii=False))
+    part.write_text(json.dumps(spoken(past + history[1:]), ensure_ascii=False))
     part.replace(HISTORY_FILE)
 
 
@@ -1041,7 +1051,8 @@ async def run_loop(
     log(f"RMS_SPEECH {RMS_SPEECH}, RMS_BARGE_IN {RMS_BARGE_IN}, PTT_KEY {key}")
     history = [{"role": "system", "content": system_prompt()}]
     log(f"system prompt: {len(history[0]['content'])} characters")
-    if HISTORY_FILE.is_file() and (note := earlier(json.loads(HISTORY_FILE.read_text()))):
+    past = spoken(json.loads(HISTORY_FILE.read_text())) if HISTORY_FILE.is_file() else []
+    if note := earlier(past):
         history[0]["content"] += "\n\n" + note
         log(f"the earlier conversation of {HISTORY_FILE}: {len(note)} characters")
     warming = asyncio.create_task(warm(http, tools, history[:1]), name="warm-up")
@@ -1058,7 +1069,7 @@ async def run_loop(
                 del history[users[-1] if users else 1 :]
                 preroll = []
             trim(history)
-            save(history)
+            save(past, history)
 
 
 async def run_roundtrip(

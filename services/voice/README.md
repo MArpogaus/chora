@@ -68,8 +68,8 @@ systemctl --user start gufo-asr gufo-tts gufo-llm
 ```
 
 The quadlets pin the image by its digest. For a newer runtime, change
-the digest in the three quadlets. The models load for some minutes. A model is ready when its log, for
-example `journalctl --user -u gufo-tts`, shows `event=listening`. Then
+the digest in the three quadlets. The models load for some minutes. A
+model is ready when its log, for example `journalctl --user -u gufo-tts`, shows `event=listening`. Then
 check the models and the mic:
 
 ```bash
@@ -77,9 +77,6 @@ services/voice/agent.py roundtrip   # the three models, without a mic
 services/voice/agent.py levels      # the mic level
 services/voice/agent.py tools       # the connection to chora
 ```
-
-The unit finds `choractl` only in the three directories above, also
-when the check in a terminal finds it elsewhere.
 
 The agent measures the level of the quiet room for 750 ms at its start,
 so keep quiet then. Then start the agent, which runs only in a chora
@@ -96,12 +93,10 @@ After a login, the agent starts the models itself; until they are up, a
 turn fails.
 
 The system prompt of the LLM, `SYSTEM`, explains chora and the limits of
-the tools. The documents of `CONTEXT_DOCS` follow it: the
-README, the glossary and the sections of the API on the scene, the
-commands, window managers, programs and MCP tools, about 10,000 tokens.
-`FILE#HEADING` picks one section of a file. The agent sends them to the
-LLM once at its start, so that the server keeps them in its cache. Facts of your
-machine, such as the installed programs, go into
+the tools. The sections that `CONTEXT_DOCS` names follow it;
+`FILE#HEADING` picks one section of a file. The agent sends the prompt
+to the LLM once at its start, so that the server keeps it in its cache.
+Facts of your machine, such as the installed programs, go into
 `~/.config/chora/voice-prompt.md`, which follows them too.
 
 The settings are the environment variables in the globals section of
@@ -122,40 +117,41 @@ Speech is louder than `SPEECH_RATIO` times the level of the quiet room,
 and at least `RMS_SPEECH` (5). The agent follows that level with a
 running mean of the quiet mic between turns. The line `speak now` shows
 the level of speech. A turn starts when the mic level passes it after
-`SETTLE_MS` of quiet. It ends after `SILENCE_MS` (1000) of quiet or after
-30 s. During a turn, half the level of speech still counts as speech,
-so soft word ends keep it going. A turn with less than `MIN_SPEECH_MS`
-(200) of speech, soft speech included, is a noise, such as a breath, and
-the agent drops it. Under
-chora, holding `PTT_KEY` (`Super+v`) also records, whatever the level.
-The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
-up, because chora reports the release with it. After a pause of
-`SILENCE_MS`, the agent loses the words until its first sound. A turn
-by level or by barge-in keeps the last `PREROLL_MS` (1000) of the mic
-before its start. To add
+`SETTLE_MS` (300) of quiet. It ends after `SILENCE_MS` (1000) of quiet
+or after 30 s. During a turn, half the level of speech still counts as
+speech, so soft word ends keep it going. A turn with less than
+`MIN_SPEECH_MS` (200) of speech, soft speech included, is a noise, such
+as a breath, and the agent drops it.
+
+Under chora, holding `PTT_KEY` (`Super+v`) also records, whatever the
+level. The key needs Ctrl, Alt or Super. The turn ends when the modifier
+goes up, because chora reports the release with it. After a pause of
+`SILENCE_MS`, the agent loses the words until its first sound. To add
 words, hold the key during the transcription, or raise `SILENCE_MS`. A
-key press after the transcription stops the reply. Before the first
-words of the LLM, it also withdraws the request. After them, the request
-and the words and tool calls so far stay in the history.
+turn by level or by barge-in keeps the last `PREROLL_MS` (1000) of the
+mic before its start. A key press after the transcription stops the
+reply. Before the first words of the LLM, it also withdraws the request.
+After them, the request and the words and tool calls so far stay in the
+history.
 
-When the mic level stays above the level of speech and above
-`RMS_BARGE_IN` (10) for `BARGE_MS` (300) while the agent answers, the
-reply stops and a turn starts. Dips down to half the level of speech do
-not reset the count, since the echo canceller damps the voice in bursts. When that turn has no words, it
-was a noise: the LLM answers the request again, or goes on with the cut
-reply.
+While the agent speaks, speech above `RMS_BARGE_IN` (10) and the level
+of speech for `BARGE_MS` (300) stops the reply, and a turn starts. While
+the agent works without sound, the speech must last 1 s, so that a short
+"yes" does not stop it. Dips down to half the level of speech do not
+reset the count, since the echo canceller damps the voice in bursts.
+When that turn has no words, it was a noise: the LLM answers the request
+again, or goes on with the cut reply. The push-to-talk key also stops a
+reply. The mic also hears the speaker, so use headphones or the echo
+cancellation below. After each full reply, the log line `mic peak during
+the reply` shows the level that the barge-in level must stay above. When
+the reply stops itself, the line `barge-in at level` shows the level of
+the echo.
 
-The agent keeps the last `HISTORY` (20) turns in
-`~/.local/state/chora/voice-history.json` and takes them up at its next
-start: its words go into the system prompt as a note. The tool calls
-and results of an earlier session stay out, since they describe a scene
-that may be gone. Delete the file to start a new
-conversation. The push-to-talk key
-does the same. The mic also hears the speaker, so use headphones or the
-echo cancellation below. After each full reply, the log line `mic peak
-during the reply` shows the level that the barge-in level must stay above.
-When the reply stops itself, the line `barge-in at level` shows the
-level of the echo.
+The agent keeps the words of the last `HISTORY` (20) turns in
+`~/.local/state/chora/voice-history.json`. At its next start, they go
+into the system prompt as a note. Tool calls and results stay out, since
+they describe a scene that may be gone. Delete the file to start a new
+conversation.
 
 ## Echo cancellation
 
@@ -181,10 +177,11 @@ speech, so that you can talk over a reply at a normal level.
 The LLM gets the tools of `choractl --name voice mcp`, except the event
 tools and `capture`. `CHORA_MCP` is the command of `choractl`, so
 that the tools run in another place, for example `podman exec -i NAME
-choractl` in a container. Its programs then start in the container. When the LLM reads images, which
-`/v1/models` of Gufo says with `input_modalities`, `describe_screen` gives
-it the screenshot too; the log says so at the start. A text-only LLM gets
-the windows and nodes as text only. The unit finds chora through
+choractl` in a container. Its programs then start in the container.
+When the LLM reads images, `describe_screen` gives it the screenshot
+too. Gufo says so in `input_modalities` of `/v1/models`, and the log at
+the start. A text-only LLM gets the windows and nodes as text only. The
+unit finds chora through
 `CHORA_SOCKET`, which a chora flavor gives the user manager.
 `CODER_CMD`, for example `claude -p --permission-mode acceptEdits`, adds
 the tool `delegate`. It runs bigger tasks in the background, in the
@@ -212,8 +209,9 @@ also starts the plugins of installed views. Any voice that the mic hears
 can start a turn, also from a video, and also while the screen is
 locked. Text on the screen that a tool reads can also steer the LLM. So
 can the plugins, which write the descriptions and results of their
-tools. The journal and the history file keep each transcript and each tool call. The
-emergency reset does not undo output changes, and the reserved space
+tools. The journal keeps each transcript and each tool call, and the
+history file the transcripts and replies. The emergency reset does not
+undo output changes, and the reserved space
 returns with the next tool call; `wlr-randr` resets the outputs. The
 emergency reset and the revoke binding do not stop the agent; after the
 reset, it connects again. Only `systemctl --user stop voice-agent` stops
