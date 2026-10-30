@@ -525,9 +525,9 @@ pub(crate) fn run_program(
         // The unit started; a short program ended and was collected
         // before its pid was read.
         RunStart::Unknown => (None, Some(unit)),
-        RunStart::Refused => {
+        RunStart::Refused(error) => {
             return Err(ClientError::Io(std::io::Error::other(format!(
-                "systemd-run refused the unit {unit}; see its error on stderr"
+                "systemd-run refused the unit {unit}: {error}"
             ))));
         }
     };
@@ -539,10 +539,10 @@ pub(crate) fn run_program(
 enum RunStart {
     /// No user manager answers: `run` starts the program as its child.
     NoManager,
-    /// `systemd-run` failed, for example because the unit exists already
-    /// or the systemd is older than 254; its error is on stderr. `run`
-    /// fails too and never starts the program a second time.
-    Refused,
+    /// `systemd-run` failed with this error, for example because the
+    /// program is missing, the unit exists already or the systemd is older
+    /// than 254. `run` fails too and never starts the program a second time.
+    Refused(String),
     /// The unit runs the program under this pid.
     Unit(u32),
     /// The unit started, but its `MainPID` stayed unknown, for example
@@ -588,16 +588,19 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
     if restart {
         started.arg("-pRestart=on-failure");
     }
-    // The MCP protocol of `choractl mcp` runs on stdin and stdout.
-    if !started
+    // The MCP protocol of `choractl mcp` runs on stdin and stdout. The
+    // error goes into the answer, so that an MCP client reads it too.
+    let out = started
         .arg("--")
         .args(argv)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|s| s.success())
-    {
-        return RunStart::Refused;
+        .stderr(std::process::Stdio::piped())
+        .output();
+    match out {
+        Ok(out) if out.status.success() => {}
+        Ok(out) => return RunStart::Refused(String::from_utf8_lossy(&out.stderr).trim().into()),
+        Err(err) => return RunStart::Refused(format!("systemd-run: {err}")),
     }
     // A unit fills in `MainPID` a moment after the start job. Wait for
     // it, then report what is known: a pid, or the error of the unknown
