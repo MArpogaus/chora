@@ -12,22 +12,16 @@ use std::{
     collections::{BTreeMap, HashMap},
     path::PathBuf,
     process::ExitCode,
-    thread::sleep,
-    time::Duration,
-    time::Instant,
 };
 
-use chora_kit::conn::Conn;
+use chora_kit::runtime::{self, Plugin, Runtime};
 use chora_scene::{
     Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest, ToplevelState,
     Transform,
-    ipc::{
-        ClientError, DescribedMethod, Export, ExportMethod, Grab, PressState, Query, RpcError,
-        Subscribe,
-    },
+    ipc::{ClientError, ExportMethod, PressState, Query, RpcError},
 };
 use clap::Parser;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
@@ -110,16 +104,12 @@ struct LayoutInfo {
 }
 
 struct Tiling {
-    client: Conn,
+    rt: Runtime<Action>,
     wm: Wm,
     /// The configuration file of the command line.
     arg: Option<PathBuf>,
     /// The app ids of windows to leave to other clients.
     ignore: Vec<String>,
-    /// The outputs that `--output` leaves to this plugin; all when empty.
-    outputs: Vec<String>,
-    /// The grabbed bindings, as the core names them.
-    grabs: Vec<(String, Action)>,
     /// What the last transaction set, so that the next one sends changes
     /// only.
     sent: HashMap<String, Placement>,
@@ -145,41 +135,7 @@ fn main() -> ExitCode {
         print!("{}", config::DEFAULT);
         return ExitCode::SUCCESS;
     }
-    // The core may close the connection and stay: the emergency reset
-    // revokes grants and disconnects, and the scene survives it. Come back
-    // in that case; give up when only failures follow within the episode.
-    let mut failing = Duration::ZERO;
-    loop {
-        let start = Instant::now();
-        match play(&args) {
-            Ok(()) => return ExitCode::SUCCESS,
-            Err(err) => {
-                failing = next_failing(start.elapsed(), failing);
-                if failing >= COME_BACK {
-                    eprintln!("chora-tiling: {err}");
-                    return ExitCode::FAILURE;
-                }
-                eprintln!("chora-tiling: {err}; I come back");
-                sleep(TRY_AGAIN);
-            }
-        }
-    }
-}
-
-/// How long a served session must last to start a new episode of errors.
-const SERVED: Duration = Duration::from_millis(500);
-/// How long one episode of failures may last before the plugin gives up.
-const COME_BACK: Duration = Duration::from_secs(30);
-/// The wait between two attempts.
-const TRY_AGAIN: Duration = Duration::from_millis(500);
-
-/// The failures of the current episode after a session of `served`.
-fn next_failing(served: Duration, failing: Duration) -> Duration {
-    if served >= SERVED {
-        TRY_AGAIN
-    } else {
-        failing + served + TRY_AGAIN
-    }
+    runtime::run(NAME, || play(&args))
 }
 
 /// The configuration file to read: the argument, or the file of the user.
@@ -200,13 +156,12 @@ fn load(arg: Option<&PathBuf>) -> Result<Config, String> {
 /// One connection to the core: window management until it goes away.
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let config = load(args.config.as_ref())?;
+    let rt = Runtime::start(NAME, args.outputs.clone(), &EVENTS, exported_methods())?;
     let mut tiling = Tiling {
-        client: Conn::connect(NAME)?,
+        rt,
         wm: Wm::new(config),
         arg: args.config.clone(),
         ignore: args.ignore.clone(),
-        outputs: args.outputs.clone(),
-        grabs: Vec::new(),
         sent: HashMap::new(),
         order: Vec::new(),
         focus: ShownFocus::default(),
@@ -214,9 +169,37 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         claimed: None,
     };
     tiling.start()?;
-    loop {
-        let event = tiling.client.next_event()?;
-        tiling.handle(event)?;
+    Ok(runtime::serve(&mut tiling)?)
+}
+
+/// The events that tiling handles.
+const EVENTS: [&str; 11] = [
+    "surface.created",
+    "surface.destroyed",
+    "surface.detached",
+    "surface.changed",
+    "surface.requested",
+    "node.requested",
+    "output.changed",
+    "output.removed",
+    "pointer.entered",
+    "pointer.pressed",
+    "focus.changed",
+];
+
+impl Plugin for Tiling {
+    type Action = Action;
+
+    fn runtime(&mut self) -> &mut Runtime<Action> {
+        &mut self.rt
+    }
+
+    fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        self.handle(event)
+    }
+
+    fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        self.run(method, params)
     }
 }
 
@@ -227,15 +210,10 @@ fn full_area(output: &OutputInfo) -> layout::Rect {
 }
 
 impl Tiling {
-    /// Whether `--output` leaves an output to this plugin.
-    fn manages(&self, output: &str) -> bool {
-        self.outputs.is_empty() || self.outputs.iter().any(|o| o == output)
-    }
-
     /// Whether `--output` names outputs and none of them is there: the
     /// plugin then leaves all windows to other window managers.
     fn without_outputs(&self) -> bool {
-        !self.outputs.is_empty() && self.wm.outputs.is_empty()
+        self.rt.filters() && self.wm.outputs.is_empty()
     }
 
     /// Gives all windows away with a remove without `to`, so that another
@@ -257,14 +235,10 @@ impl Tiling {
         Ok(())
     }
 
-    #[allow(clippy::too_many_lines)] // one step of the start after the other
     fn start(&mut self) -> Result<(), ClientError> {
-        let outputs: Vec<OutputInfo> = self.client.call("output.list", Value::Null)?;
-        for output in &outputs {
-            if self.manages(&output.name) {
-                self.wm
-                    .set_output(&output.name, output.layout_area(), full_area(output));
-            }
+        for output in self.rt.outputs()? {
+            self.wm
+                .set_output(&output.name, output.layout_area(), full_area(&output));
         }
         // The nodes that the core kept over a restart with resume.
         let kept = self.query(&format!("owner:{NAME}"))?;
@@ -280,31 +254,6 @@ impl Tiling {
             self.call_apply(vec![group])?;
         }
         self.grab_all()?;
-        self.client.call::<_, Value>(
-            "methods.export",
-            Export {
-                names: exported_methods(),
-            },
-        )?;
-        let events = [
-            "surface.created",
-            "surface.destroyed",
-            "surface.detached",
-            "surface.changed",
-            "surface.requested",
-            "node.requested",
-            "output.changed",
-            "output.removed",
-            "pointer.entered",
-            "pointer.pressed",
-            "focus.changed",
-        ];
-        self.client.call::<_, Value>(
-            "events.subscribe",
-            Subscribe {
-                events: events.map(String::from).to_vec(),
-            },
-        )?;
         // Free surfaces, and those the core reserved for tiling, for example
         // during the grace time of a restart.
         for node in self.query("kind:surface")? {
@@ -354,14 +303,7 @@ impl Tiling {
                 .config
                 .binding(&text)
                 .expect("the configuration checks its bindings");
-            match self
-                .client
-                .call::<_, String>("input.grab", Grab { binding })
-            {
-                Ok(normal) => self.grabs.push((normal, action)),
-                Err(ClientError::Rpc(err)) => eprintln!("chora-tiling: {text}: {err}"),
-                Err(err) => return Err(err),
-            }
+            self.rt.grab(binding, action)?;
         }
         Ok(())
     }
@@ -375,18 +317,14 @@ impl Tiling {
                 return Ok(());
             }
         };
-        for (normal, _) in std::mem::take(&mut self.grabs) {
-            let binding = normal.parse().expect("the core names valid bindings");
-            self.client
-                .call::<_, Value>("input.ungrab", Grab { binding })?;
-        }
+        self.rt.ungrab_all()?;
         self.wm.reconfigure(config);
         self.grab_all()?;
         self.relayout()
     }
 
     fn query(&mut self, selector: &str) -> Result<Vec<Value>, ClientError> {
-        self.client.call("scene.query", Query::new(selector))
+        self.rt.conn.call("scene.query", Query::new(selector))
     }
 
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
@@ -412,7 +350,7 @@ impl Tiling {
                     return Ok(());
                 }
             }
-            Event::OutputChanged { output } if self.manages(&output.name) => {
+            Event::OutputChanged { output } => {
                 self.wm
                     .set_output(&output.name, output.layout_area(), full_area(&output));
             }
@@ -443,12 +381,6 @@ impl Tiling {
             } => {
                 return self.answer_request(&node, &action, &args);
             }
-            Event::MethodCalled {
-                call,
-                method,
-                params,
-                ..
-            } => return self.answer(call, &method, params),
             _ => return Ok(()),
         }
         self.relayout()
@@ -502,25 +434,11 @@ impl Tiling {
         self.relayout()
     }
 
-    /// Answers a call of an exported method. The call may have ended
-    /// before the answer, for example when its caller left; that is no
-    /// reason to exit.
-    fn answer(&mut self, call: u64, method: &str, params: Value) -> Result<(), ClientError> {
-        let result = self.method(method, params);
-        match self.client.answer(call, result) {
-            Err(ClientError::Rpc(err)) => {
-                eprintln!("chora-tiling: {err}");
-                Ok(())
-            }
-            other => other,
-        }
-    }
-
     /// Runs an exported method. Everything but `get_layout` changes
     /// something, relayouts like the matching binding, and answers with
     /// the layout info of the current tag. A failed relayout fails the
     /// method.
-    fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+    fn run(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         if method == "give" {
             return self.give(params);
         }
@@ -555,7 +473,7 @@ impl Tiling {
     fn tune(&mut self, method: &str, params: Value) -> Result<bool, RpcError> {
         Ok(match method {
             "set_layout" => {
-                let change: SetLayout = parse(params)?;
+                let change: SetLayout = runtime::params(params)?;
                 if let Some(layout) = change.layout {
                     self.wm.set_layout(layout);
                 }
@@ -563,13 +481,13 @@ impl Tiling {
                 false
             }
             "view_tag" => {
-                let ViewTag { tag } = parse(params)?;
+                let ViewTag { tag } = runtime::params(params)?;
                 self.check_tag(tag)?;
                 self.wm.view_tag(tag);
                 false
             }
             "move_to_tag" => {
-                let MoveToTag { surface, tag } = parse(params)?;
+                let MoveToTag { surface, tag } = runtime::params(params)?;
                 self.check_tag(tag)?;
                 only(self.wm.move_to_tag(&surface, tag), || {
                     format!("tiling has no window {surface}")
@@ -577,7 +495,7 @@ impl Tiling {
                 false
             }
             "focus" => {
-                let ForSurface { surface } = parse(params)?;
+                let ForSurface { surface } = runtime::params(params)?;
                 only(self.wm.has(&surface), || {
                     format!("tiling has no window {surface}")
                 })?;
@@ -594,7 +512,7 @@ impl Tiling {
                 false
             }
             "swap_master" => {
-                let ForSurface { surface } = parse(params)?;
+                let ForSurface { surface } = runtime::params(params)?;
                 only(self.wm.swap_master(&surface), || {
                     format!("{surface} shows nowhere")
                 })?;
@@ -623,8 +541,7 @@ impl Tiling {
     /// Hands the focused window to another client with a remove with `to`,
     /// and answers with its id.
     fn give(&mut self, params: Value) -> Result<Value, RpcError> {
-        let Give { to } = serde_json::from_value(params)
-            .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))?;
+        let Give { to } = runtime::params(params)?;
         let surface = self
             .wm
             .focused()
@@ -666,10 +583,9 @@ impl Tiling {
     }
 
     fn act(&mut self, binding: &str) -> Result<(), ClientError> {
-        let Some((_, action)) = self.grabs.iter().find(|(b, _)| b == binding) else {
+        let Some(action) = self.rt.action(binding).cloned() else {
             return Ok(());
         };
-        let action = action.clone();
         let before = self.wm.focused().map(String::from);
         let effect = self.wm.act(&action);
         // A binding that moves the focus of tiling takes it back.
@@ -813,7 +729,7 @@ impl Tiling {
     }
 
     fn call_apply(&mut self, commands: Vec<Command>) -> Result<(), ClientError> {
-        match self.client.try_apply(commands)? {
+        match self.rt.conn.try_apply(commands)? {
             None => Ok(()),
             Some(err) => Err(ClientError::Rpc(err)),
         }
@@ -975,94 +891,62 @@ fn layout_schema() -> Value {
     })
 }
 
-/// One exported method: name, description, schema properties, required.
-type Spec = (&'static str, &'static str, Value, Vec<&'static str>);
-
 /// The methods that other clients call, with description and schema of
 /// their parameters, as `methods.list` answers them.
-fn method_specs() -> Vec<Spec> {
+fn exported_methods() -> Vec<ExportMethod> {
     let field = |ty: &str, description: &str| json!({"type": ty, "description": description});
     let window = || field("string", "The surface id of the window.");
     let tag = || field("integer", "The tag number, from 1.");
     let on_surface = json!({"surface": window()});
     vec![
-        (
+        runtime::method(
             "set_layout",
             "Sets the layout and the gap of the current tag.",
             json!({
                 "layout": layout_schema(),
                 "gap": field("integer", "The gap in logical pixels."),
             }),
-            vec![],
+            &[],
         ),
-        (
+        runtime::method(
             "get_layout",
             "Answers the layout of the current tag.",
             json!({}),
-            vec![],
+            &[],
         ),
-        (
+        runtime::method(
             "give",
             "Hands the focused window to another client.",
             json!({"to": field("string", "The client name.")}),
-            vec!["to"],
+            &["to"],
         ),
-        (
+        runtime::method(
             "view_tag",
             "Shows a tag on the current output.",
             json!({"tag": tag()}),
-            vec!["tag"],
+            &["tag"],
         ),
-        (
+        runtime::method(
             "move_to_tag",
             "Moves a window to a tag.",
             json!({"surface": window(), "tag": tag()}),
-            vec!["surface", "tag"],
+            &["surface", "tag"],
         ),
-        (
+        runtime::method(
             "focus",
             "Focuses a window.",
             on_surface.clone(),
-            vec!["surface"],
+            &["surface"],
         ),
-        ("focus_next", "Focuses the next window.", json!({}), vec![]),
-        (
-            "focus_prev",
-            "Focuses the previous window.",
-            json!({}),
-            vec![],
-        ),
-        (
+        runtime::method("focus_next", "Focuses the next window.", json!({}), &[]),
+        runtime::method("focus_prev", "Focuses the previous window.", json!({}), &[]),
+        runtime::method(
             "swap_master",
             "Swaps a window into the master slot.",
             on_surface,
-            vec!["surface"],
+            &["surface"],
         ),
     ]
-}
-
-/// Turns the specs into the entries of `methods.export`.
-fn exported_methods() -> Vec<ExportMethod> {
-    method_specs()
-        .into_iter()
-        .map(|(name, description, properties, required)| {
-            ExportMethod::Described(DescribedMethod {
-                name: name.into(),
-                description: Some(description.into()),
-                input_schema: Some(json!({
-                    "type": "object",
-                    "properties": properties,
-                    "required": required,
-                })),
-            })
-        })
-        .collect()
-}
-
-/// Parses the parameters of an exported method.
-fn parse<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
-    serde_json::from_value(params)
-        .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))
 }
 
 /// Fails the method unless the model accepted it.
@@ -1135,27 +1019,6 @@ impl ShownFocus {
 
 #[cfg(test)]
 mod tests {
-    use super::next_failing;
-    use super::{COME_BACK, SERVED, TRY_AGAIN};
-    use std::time::Duration;
-
-    #[test]
-    fn a_served_session_starts_a_new_episode_of_failures() {
-        assert_eq!(next_failing(SERVED * 2, COME_BACK / 2), TRY_AGAIN);
-    }
-
-    #[test]
-    fn an_episode_of_pure_failures_gives_up_after_come_back() {
-        let mut failing = Duration::ZERO;
-        for _ in 0..1000 {
-            failing = next_failing(Duration::ZERO, failing);
-            if failing >= COME_BACK {
-                return;
-            }
-        }
-        panic!("the plugin never gave up");
-    }
-
     use super::*;
 
     #[test]
