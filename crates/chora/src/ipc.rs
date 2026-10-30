@@ -65,7 +65,7 @@ const GRACE: Duration = Duration::from_secs(10);
 /// The connections of the IPC socket.
 #[derive(Default)]
 pub struct Ipc {
-    path: Option<PathBuf>,
+    pub(crate) path: Option<PathBuf>,
     /// The files of `assets.put`.
     pub uploads: Uploads,
     listener: Option<RegistrationToken>,
@@ -780,6 +780,7 @@ impl State {
             }
             "screen.capture" => self.ipc_capture(conn, params),
             "input.inject" => self.ipc_inject(conn, params),
+            "input.configure" => self.ipc_input_configure(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
             "activation.token" => self.ipc_activation_token(conn),
             "session.quit" => self.ipc_quit(conn),

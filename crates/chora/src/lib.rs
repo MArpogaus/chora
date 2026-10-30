@@ -5,6 +5,7 @@ mod backend;
 mod capture;
 mod copies;
 mod cursor;
+mod devices;
 mod foreign_toplevel;
 mod gl;
 mod grants;

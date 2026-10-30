@@ -238,6 +238,10 @@ pub struct State {
     pub copies: Copies,
     /// The keys and the key grabs that are down.
     pub held: Held,
+    /// The settings of `input.configure`.
+    pub input_settings: chora_scene::ipc::InputSettings,
+    /// The libinput devices, empty on other backends.
+    pub input_devices: Vec<Box<dyn crate::devices::Device>>,
 }
 
 /// Creates the globals that live as long as the display and whose state
@@ -358,6 +362,8 @@ impl State {
             image_capture: ImageCapture::new(&dh),
             copies: Copies::default(),
             held: Held::default(),
+            input_settings: crate::devices::defaults(),
+            input_devices: Vec::new(),
         }
     }
 

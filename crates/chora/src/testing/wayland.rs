@@ -68,6 +68,8 @@ struct App {
     shm: Option<WlShm>,
     /// The serials of the key events, press and release, in order.
     key_serials: Vec<u32>,
+    /// The newest `repeat_info`: rate and delay.
+    repeat_info: Option<(i32, i32)>,
     /// The commit strings that the core sent to the text input.
     commits: Vec<String>,
     /// The interfaces of all globals that the core offered.
@@ -309,6 +311,11 @@ impl Wayland {
     /// Whether the core closed a popup.
     pub fn popup_done(&self, popup: &Popup) -> bool {
         self.app.surfaces[popup.index].done
+    }
+
+    /// The newest key repeat that the core sent: rate and delay.
+    pub fn repeat_info(&self) -> Option<(i32, i32)> {
+        self.app.repeat_info
     }
 
     /// The serials of the key events that the client got.
@@ -694,8 +701,10 @@ impl Dispatch<WlKeyboard, ()> for App {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        if let wl_keyboard::Event::Key { serial, .. } = event {
-            app.key_serials.push(serial);
+        match event {
+            wl_keyboard::Event::Key { serial, .. } => app.key_serials.push(serial),
+            wl_keyboard::Event::RepeatInfo { rate, delay } => app.repeat_info = Some((rate, delay)),
+            _ => {}
         }
     }
 }

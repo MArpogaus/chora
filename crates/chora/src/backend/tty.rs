@@ -29,6 +29,7 @@ use smithay::{
             output::{DrmOutput, DrmOutputManager, DrmOutputRenderElements},
         },
         egl::context::ContextPriority,
+        input::InputEvent,
         libinput::{LibinputInputBackend, LibinputSessionInterface},
         renderer::{
             ImportDma, ImportMemWl, RendererSuper,
@@ -188,6 +189,11 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
     let handle = state.loop_handle.clone();
     handle
         .insert_source(LibinputInputBackend::new(libinput), |event, (), state| {
+            match &event {
+                InputEvent::DeviceAdded { device } => state.device_added(Box::new(device.clone())),
+                InputEvent::DeviceRemoved { device } => state.device_removed(device.sysname()),
+                _ => {}
+            }
             crate::input::process(state, event);
         })
         .map_err(|e| e.error)?;
