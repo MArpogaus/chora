@@ -124,8 +124,9 @@ running mean of the quiet mic between turns. The line `speak now` shows
 the level of speech. A turn starts when the mic level passes it after
 `SETTLE_MS` of quiet. It ends after `SILENCE_MS` (1000) of quiet or after
 30 s. During a turn, half the level of speech still counts as speech,
-so soft word ends keep it going. A turn with less than 300 ms of speech
-is a noise, such as a breath, and the agent drops it. Under
+so soft word ends keep it going. A turn with less than `MIN_SPEECH_MS`
+(200) of speech, soft speech included, is a noise, such as a breath, and
+the agent drops it. Under
 chora, holding `PTT_KEY` (`Super+v`) also records, whatever the level.
 The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
 up, because chora reports the release with it. After a pause of

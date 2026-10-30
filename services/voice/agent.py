@@ -139,7 +139,8 @@ PREROLL_FRAMES = int(ENV("PREROLL_MS", "1000")) // FRAME_MS
 NO_QUIET_MS = 2000  # when the agent says that the room stays loud
 CALIBRATE_MS = 750  # the mic at the start, which sets the level of the quiet room
 FLOOR_MS = 5000  # the quiet frames between turns that the level follows
-MIN_SPEECH_MS = 300  # a turn with less speech is a noise, such as a breath
+# A turn with less speech, also soft, is a noise, such as a breath.
+MIN_SPEECH_MS = int(ENV("MIN_SPEECH_MS", "200"))
 MAX_TURN_MS = 30000  # a turn that music or a TV keeps loud ends here
 HISTORY = int(ENV("HISTORY", "20"))  # turns kept, each with its tool calls
 OLD_TOOL_TEXT = 500  # characters of a tool result or call of an earlier turn
@@ -755,7 +756,7 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
             continue
         if pushed:  # the key went up
             return b"".join(frames)
-        voiced += FRAME_MS if loud else 0
+        voiced += FRAME_MS if level >= mic.hold else 0
         quiet = 0 if level >= mic.hold else quiet + FRAME_MS
         if quiet >= SILENCE_MS and voiced < MIN_SPEECH_MS:
             log(f"noise of {voiced} ms, no turn")
