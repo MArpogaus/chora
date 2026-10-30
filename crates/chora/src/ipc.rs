@@ -3136,6 +3136,12 @@ mod tests {
     /// `surface.created`, and its use ends the token.
     #[test]
     fn the_issued_token_reaches_the_surface_created_of_its_window() {
+        for after_commit in [false, true] {
+            token_reaches_surface_created(after_commit);
+        }
+    }
+
+    fn token_reaches_surface_created(after_commit: bool) {
         let mut core = Core::new();
         core.add_output("A", (64, 48));
         let mut ctl = core.named("choractl");
@@ -3158,14 +3164,17 @@ mod tests {
             json!({"events": ["surface.created"]}),
         );
         let mut client = Wayland::connect(&mut core);
-        let _top = client.activated_toplevel(&mut core, "run", &token);
+        let _top = client.activated_toplevel(&mut core, "run", &token, after_commit);
         let created: Vec<Value> = wm
             .events_now(&mut core)
             .into_iter()
             .filter(|e| e["params"]["event"] == "surface.created")
             .collect();
         assert_eq!(created.len(), 1, "one toplevel was created");
-        assert_eq!(created[0]["params"]["token"], token);
+        assert_eq!(
+            created[0]["params"]["token"], token,
+            "after commit: {after_commit}"
+        );
         assert!(created[0]["params"]["pid"].as_u64().is_some());
         assert!(
             !core

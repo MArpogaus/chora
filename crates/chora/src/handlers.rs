@@ -108,12 +108,14 @@ impl State {
             let surface = toplevel.wl_surface();
             self.pending_activations.retain(|(s, _)| *s != *surface);
         }
+        let announced = self.announced(id);
+        self.unannounced.retain(|(s, _)| s != id);
         let client = crate::ipc::window_client(&self.scene, id);
-        let existed = self.scene.remove_surface(id);
+        self.scene.remove_surface(id);
         self.transactions.forget(id);
         self.complete_transactions();
-        // A toplevel without a first commit never had a node or an event.
-        if existed {
+        // A toplevel without a `surface.created` gets no event.
+        if announced {
             let event = Event::SurfaceDestroyed { surface: id.into() };
             self.ipc.broadcast(&event, |_| client.clone());
         }
@@ -136,8 +138,30 @@ impl State {
         (pid, token)
     }
 
-    /// Handles a commit of a toplevel: the initial configure and the
-    /// `surface.created` event.
+    /// Sends `surface.created` for the toplevels of the last batch, and
+    /// the requests that waited for it.
+    fn announce(&mut self) {
+        for (id, to) in std::mem::take(&mut self.unannounced) {
+            let Some(toplevel) = self.windows.get(&id).and_then(Window::toplevel).cloned() else {
+                continue;
+            };
+            let info = self.surface_info(&id);
+            let (pid, token) = self.created_origin(toplevel.wl_surface());
+            self.emit(&Event::SurfaceCreated {
+                surface: id.clone(),
+                app_id: info.app_id,
+                title: info.title,
+                decoration: info.decoration,
+                to,
+                pid,
+                token,
+            });
+            self.send_early_requests(&id);
+        }
+    }
+
+    /// Handles a commit of a toplevel: the initial configure, and
+    /// `surface.created` at the end of the batch.
     fn toplevel_committed(&mut self, id: &str) {
         let toplevel = self.windows[id]
             .toplevel()
@@ -170,17 +194,13 @@ impl State {
                 .map(String::from);
             self.scene.reserve(id, to.as_deref());
             self.list_toplevel(id);
-            let (pid, token) = self.created_origin(toplevel.wl_surface());
-            self.emit(&Event::SurfaceCreated {
-                surface: id.into(),
-                app_id: info.app_id,
-                title: info.title,
-                decoration: info.decoration,
-                to,
-                pid,
-                token,
-            });
-            self.send_early_requests(id);
+            // A client often activates right after its first commit, in
+            // the same batch, as foot does: the event waits for the end of
+            // the batch, so that it carries the token.
+            if self.unannounced.is_empty() {
+                self.loop_handle.insert_idle(Self::announce);
+            }
+            self.unannounced.push((id.to_owned(), to));
             return;
         }
         let info = self.surface_info(id);
