@@ -414,28 +414,7 @@ socket of `choractl` changes grants and makes client sockets (see [API](api.md#c
 
 ## Sessions and flavors
 
-- The session file `chora.desktop` runs `chora-session tiling`. The script
-  imports the environment of the login into the systemd user manager and
-  starts the user service `chora@tiling.service`. It waits until chora
-  ends, and then stops the units of the graphical session.
-- Without `XKB_DEFAULT_LAYOUT`, `chora-session` takes the keyboard layout of
-  the system from `localectl`.
-- `chora@.service` runs `chora -- chora-flavor <name>` as part of
-  `graphical-session.target`. It drops `WAYLAND_DISPLAY` and `DISPLAY` that
-  another session left in the user manager, which would make chora run
-  nested.
-- `chora-flavor <name>` imports `WAYLAND_DISPLAY` and `CHORA_SOCKET` into the
-  systemd user manager, and `DISPLAY` when `xwayland-satellite` is
-  installed. It links the units of the flavor until the next boot,
-  tells systemd that chora is ready, and starts the target of the flavor.
-  Units of the flavor then find the compositor and the IPC socket. The
-  script is not for nested use: the variables would reach the units of the
-  host session.
-- The session file `chora-uwsm.desktop` runs `uwsm start -e -D chora -N
-  chora -- chora -- chora-flavor tiling` (D50). uwsm runs chora as
-  `wayland-wm@chora.service`, and `chora-flavor` calls `uwsm finalize`
-  instead of the import and the notification.
-- The tiling flavor starts `chora-tiling`, waybar, mako, swaybg, swayidle
-  and kanshi if they are installed (D51), and `xwayland-satellite` on a
-  free X11 display for X11 programs (D26).
-- A derived secureblue image installs the package (D10, D14).
+A login session runs chora as a systemd user unit, through uwsm or
+through `chora-session`, and chora starts the systemd target of a
+flavor. See [Sessions](configuration.md#sessions) and
+[Flavors](configuration.md#flavors).

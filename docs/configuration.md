@@ -527,7 +527,8 @@ the directory in `~/.config/chora/flavors/` first and then in
 the flavor starts with them. It links the units of the directory, tells
 systemd that chora is ready, and starts the target. The target starts the
 services and the plugins. systemd handles start, restart and order, so
-chora needs no service manager.
+chora needs no service manager. `chora-flavor` is not for nested use:
+its variables would reach the units of the host session.
 
 ### Sessions
 
@@ -538,18 +539,23 @@ The login screen shows a session per flavor, twice:
 | chora (uwsm), chora (Windows XP, uwsm) | `uwsm start -e -D chora -N chora -- chora -- chora-flavor <name>` (D50) |
 | chora, chora (Windows XP) | `chora-session <name>`, without uwsm |
 
-The uwsm sessions show only when uwsm is installed. uwsm runs chora as
+The uwsm sessions show only when uwsm is installed. uwsm is not in
+Fedora 44, so there the sessions without uwsm are the fallback (D50).
+uwsm runs chora as
 the user unit `wayland-wm@chora.service` and binds it to
 `graphical-session.target`. Under uwsm, `chora-flavor` calls `uwsm
 finalize` with its variables: uwsm exports them, marks chora as ready and
 removes the variables again when the session ends. Before chora starts,
-uwsm sources `/etc/xdg/uwsm/env-chora`: without `XKB_DEFAULT_LAYOUT`, it
-takes the keyboard layout of the system from `localectl`.
+uwsm sources `/etc/xdg/uwsm/env-chora`. Without `XKB_DEFAULT_LAYOUT`,
+this file takes the keyboard layout of the system from `localectl`.
 `~/.config/uwsm/env-chora` adds variables of the user.
 
-`chora-session` does the same without uwsm: it runs chora as
-`chora@<name>.service`, and stops the units of the graphical session when
-chora ends.
+`chora-session` does the same without uwsm. It sources
+`/etc/xdg/uwsm/env-chora`, imports the environment of the login into the
+systemd user manager and runs chora as `chora@<name>.service`. The unit
+drops a `WAYLAND_DISPLAY` and a `DISPLAY` that another session left in
+the user manager, because chora would then run nested. When chora ends,
+`chora-session` stops the units of the graphical session.
 
 ### Screen sharing
 
@@ -558,8 +564,9 @@ which hands the work to `xdg-desktop-portal-wlr` (D37). Both sessions set
 `XDG_CURRENT_DESKTOP=chora`, and `chora-flavor` gives it and
 `WAYLAND_DISPLAY` to systemd and D-Bus, so that the portals start with
 them. `chora-flavor` also stops a portal that an earlier session in the
-same user manager started; the next call starts it again with the
-variables of chora. The packages install two files:
+same user manager started, and the next call starts it again with the
+variables of chora. While another graphical session of the user is
+open, the portal stays. The packages install two files:
 
 - `/usr/share/xdg-desktop-portal/chora-portals.conf`: for
   `XDG_CURRENT_DESKTOP=chora`, screen sharing and screenshots go through
