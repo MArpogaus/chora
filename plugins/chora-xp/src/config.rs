@@ -101,7 +101,8 @@ pub struct Config {
     pub launcher: String,
     /// The shell command of the file manager; the folder follows it.
     pub file_manager: String,
-    /// The programs at the top left of the start menu.
+    /// The programs at the top left of the start menu, below the
+    /// terminal.
     pub programs: Vec<Program>,
     /// The format of the clock of the taskbar, as in strftime.
     pub clock_format: String,
@@ -118,6 +119,7 @@ impl Config {
             user: std::env::var("USER")
                 .or_else(|_| std::env::var("LOGNAME"))
                 .unwrap_or_else(|_| "User".into()),
+            terminal: self.terminal.clone(),
             programs: self.programs.clone(),
             launcher: self.launcher.clone(),
             file_manager: self.file_manager.clone(),

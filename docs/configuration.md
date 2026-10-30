@@ -475,7 +475,7 @@ and the Menu key open the menu of the selected icon, or of the desktop.
   among them Delete and Empty Recycle Bin: the file manager does that.
 - **A program or a place of the start menu, or a program of All
   Programs**: Open in bold, and Remove from This List for the programs
-  of the left column, which removes the program from the setting
+  of the left column except Terminal, which removes the program from the setting
   `programs`. Run as, Pin to Start menu, Send To and Rename are gray.
 
 The Control Panel opens as a menu, as with XP's "Display as a menu". A
@@ -677,10 +677,10 @@ that the file leaves out takes its default:
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `terminal` | `foot` | the terminal of Super+e; `CMD -e` runs the programs with `Terminal=true` |
+| `terminal` | `foot` | the terminal of Super+e and of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
 | `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
-| `programs` | the terminal | the programs at the top left of the start menu, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
+| `programs` | none | the programs at the top left of the start menu below Terminal, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
 | `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime |
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |

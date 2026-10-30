@@ -82,7 +82,9 @@ struct Entry {
 pub struct Config {
     /// The user name for the header.
     pub user: String,
-    /// The programs of the left column.
+    /// The command of the terminal, the first program of the left column.
+    pub terminal: String,
+    /// The programs of the left column below the terminal.
     pub programs: Vec<Program>,
     /// The command of Run, and of All Programs without programs.
     pub launcher: String,
@@ -375,7 +377,9 @@ impl Menu {
             Press::Entry(i) => {
                 let e = &self.entries[i];
                 let program = match e.kind {
-                    Kind::Program => Some(i),
+                    // The terminal comes first and is no program of the
+                    // settings.
+                    Kind::Program => i.checked_sub(1),
                     Kind::Place if !e.cascade => None,
                     _ => return None,
                 };
@@ -844,12 +848,17 @@ fn inside([x, y, w, h]: Rect, [px, py]: [f64; 2]) -> bool {
     (f64::from(x)..f64::from(x + w)).contains(&px) && (f64::from(y)..f64::from(y + h)).contains(&py)
 }
 
-/// The programs of the left column, below each other.
+/// The programs of the left column, below each other: the terminal of
+/// the settings first.
 fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
     let top = HEADER + 1 + 5;
-    config
-        .programs
-        .iter()
+    let terminal = Program {
+        title: "Terminal".into(),
+        command: config.terminal.clone(),
+        icon: "utilities-terminal".into(),
+    };
+    std::iter::once(&terminal)
+        .chain(&config.programs)
         .zip(0..)
         .map(|(program, i)| Entry {
             title: program.title.clone(),
@@ -1101,11 +1110,8 @@ mod tests {
     fn config() -> Config {
         Config {
             user: "tester".into(),
-            programs: vec![Program {
-                title: "Terminal".into(),
-                command: "foot".into(),
-                icon: "utilities-terminal".into(),
-            }],
+            terminal: "kitty".into(),
+            programs: Vec::new(),
             launcher: "fuzzel".into(),
             file_manager: "thunar".into(),
             apps: Vec::new(),
@@ -1116,6 +1122,7 @@ mod tests {
     fn the_columns_have_the_height_of_xp() {
         let mut icons = Icons::new(crate::icons::THEMES);
         let programs = programs(&config(), &mut icons);
+        assert_eq!(programs[0].action, Action::Run("kitty".into()));
         let places = places(&config(), &mut icons);
         assert_eq!(body_height(&programs, &places), MIN_BODY);
         assert_eq!(place_separators(&places, HEADER + 1).len(), 2);

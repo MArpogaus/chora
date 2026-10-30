@@ -3,8 +3,8 @@
 # method settings.set or the dialogs of chora-xp, which rewrite the file.
 # Edits by hand apply on the method settings.reload or restart.
 
-# The shell command of the terminal, for Super+e and the desktop files
-# that need a terminal.
+# The shell command of the terminal, for Super+e, the Terminal of the
+# start menu and the desktop files that need a terminal.
 terminal: foot
 # The shell command of Run, and of All Programs when no desktop file
 # lists a program.
@@ -12,12 +12,9 @@ launcher: fuzzel
 # The shell command of the file manager, for the places of the start menu
 # and the folders of the desktop; the folder follows it.
 file_manager: thunar
-# The programs of the start menu, at its top left: the title, the shell
-# command and the name of the icon.
-programs:
-- title: Terminal
-  command: foot
-  icon: utilities-terminal
+# The programs of the start menu, at its top left below Terminal: the
+# title, the shell command and the name of the icon.
+programs: []
 # The format of the clock of the taskbar, as in strftime.
 clock_format: '%-I:%M %p'
 # The background of the desktop, as Display Properties chooses it.
