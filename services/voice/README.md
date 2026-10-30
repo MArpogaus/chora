@@ -95,6 +95,13 @@ If the log says `turn at level` with an empty `you:` after it, raise
 After a login, the agent starts the models itself; until they are up, a
 turn fails.
 
+The system prompt of the LLM, `SYSTEM`, explains chora and the limits of
+the tools. The documents of `CONTEXT_DOCS` follow it: the README, the
+glossary, the API and the configuration, about 30,000 tokens. The context
+of the LLM must hold them and the turns of `HISTORY`. Facts of your
+machine, such as the installed programs, go into
+`~/.config/chora/voice-prompt.md`, which follows them too.
+
 The settings are the environment variables in the globals section of
 `agent.py`, such as `ASR_LANGUAGE` (`de`) and `VOICE`. The unit reads
 them from `~/.config/chora/voice.env`; quote values with spaces, such as

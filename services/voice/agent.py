@@ -24,6 +24,7 @@ import contextlib
 import json
 import math
 import os
+import pathlib
 import re
 import shlex
 import sys
@@ -59,10 +60,45 @@ CHORA_NAME = ENV("CHORA_NAME", "voice")  # the client name of the agent
 CODER_CMD = ENV("CODER_CMD", "")  # for example "claude -p --permission-mode acceptEdits"
 SYSTEM = ENV(
     "SYSTEM",
-    "You are a voice assistant on a Linux desktop named chora. Answer in the "
-    "language of the user, in one or two short spoken sentences, without "
-    "markdown. Use the tools to look at and change the desktop.",
+    """You are the voice assistant of chora, a Wayland compositor on Linux.
+You hear the user through speech recognition, so expect misheard words,
+and ask when a request makes no sense. Answer in one or two short spoken
+sentences, without markdown. Keep the language that the user asked for.
+
+How chora works:
+- The core shows a scene of nodes: windows (kind surface), groups, rects,
+  text, images and shaders. query_scene and describe_screen show it.
+- The window manager is a plugin, a separate program such as chora-tiling
+  or chora-xp. It places the windows. list_plugins shows the plugins and
+  the methods that each exports; call them with call_method or with their
+  own tool, for example tiling.set_layout. Change the layout of windows
+  only through these methods, never by moving window nodes.
+- You cannot stop, restart or swap a plugin. To switch to another window
+  manager, such as the XP flavor, the user restarts chora; say so.
+- Put your own nodes under one group with an id that starts with voice-,
+  under screen:OUTPUT for a HUD, so that one remove takes them away.
+
+Where to look:
+- describe_screen: the windows, the outputs and the plugins with their
+  methods. query_scene: the nodes and their properties.
+- list_plugins: the methods of each plugin, with their parameters.
+- The error of a tool says why it refused. Read it before you try again.
+- The documents after this prompt describe chora: the API, its commands
+  and node properties, the configuration and the words of the project.
+
+Limits:
+- run_program starts a graphical program. Its output never comes back,
+  only whether it started, or the error. When it fails, do not start the
+  same program again; say what failed.
+- You cannot read files or the output of commands, and you cannot store
+  shaders or images. Do not write files to inspect them.
+- Look once, act, then check once. When a task fails twice, stop and say
+  what failed.""",
 )
+# Documents that follow the system prompt, relative to the checkout, and
+# the facts of this machine in ~/.config/chora/voice-prompt.md.
+CONTEXT_DOCS = ENV("CONTEXT_DOCS", "README.md docs/glossary.md docs/api.md docs/configuration.md")
+REPO = pathlib.Path(__file__).resolve().parents[2]
 if CODER_CMD:
     SYSTEM += " Hand a task that needs code or many steps to delegate, then say that it runs."
 
@@ -734,6 +770,14 @@ async def chora(stack: contextlib.AsyncExitStack) -> ClientSession | None:
     return session
 
 
+def system_prompt() -> str:
+    """Return SYSTEM with the CONTEXT_DOCS and voice-prompt.md after it."""
+    files = [REPO / name for name in CONTEXT_DOCS.split()]
+    files.append(pathlib.Path.home() / ".config/chora/voice-prompt.md")
+    docs = (f"\n\n# File {f.name}\n\n{f.read_text()}" for f in files if f.is_file())
+    return SYSTEM + "".join(docs)
+
+
 def trim(history: list[dict]) -> None:
     """Keep the last HISTORY turns, each from its user message on.
 
@@ -802,7 +846,8 @@ async def run_loop(
         task.add_done_callback(report)
     key = PTT_KEY if session else "off"
     log(f"RMS_SPEECH {RMS_SPEECH}, RMS_BARGE_IN {RMS_BARGE_IN}, PTT_KEY {key}")
-    history = [{"role": "system", "content": SYSTEM}]
+    history = [{"role": "system", "content": system_prompt()}]
+    log(f"system prompt: {len(history[0]['content'])} characters")
     preroll: list[bytes] = []
     async with Mic() as mic:
         while True:
