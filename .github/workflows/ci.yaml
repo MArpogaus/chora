@@ -24,7 +24,7 @@ jobs:
       with:
         persist-credentials: false
     # The pixel tests render on the software driver of Mesa.
-    - run: xargs dnf install -y rustup mesa-dri-drivers < dist/fedora-build-requires.txt
+    - run: xargs dnf install -y rustup mesa-dri-drivers git < dist/fedora-build-requires.txt
     # rustup takes the toolchain of rust-toolchain.toml.
     - run: rustup-init -y --profile minimal --default-toolchain none
     - run: echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
