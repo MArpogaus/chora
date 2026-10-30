@@ -261,10 +261,7 @@ Scope:
 - `docs/api.md` tells agents to remove their own old nodes after a
   restart (D61).
 - Bugs of `choractl mcp`: #53, #54 and #56.
-- The release workflow builds the RPM only (D14).
 - The hardware checks 5 and 8 of the 0.7 gate.
-- Remove `dist/arch`, `dist/build-arch.sh` and the Arch install lines of
-  `README.md`.
 
 The work removes the XP programs first, then extracts the runtime from
 `chora-tiling`, and then ports `chora-xp` to the runtime.
@@ -301,9 +298,7 @@ Gate:
    systemd unit of its own, and the `surface.created` event of its window
    carries the activation token. The user runs this check on the
    reference hardware, with a log.
-10. The release of the next release candidate carries only the RPM and its
-    SHA256 sum (D14).
-11. CI runs the CI scripts of the earlier gates again. The user runs the
+10. CI runs the CI scripts of the earlier gates again. The user runs the
     hardware checks again on the reference hardware, with a log.
 
 ## 0.9: Daily driver
