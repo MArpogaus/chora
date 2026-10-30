@@ -140,6 +140,13 @@ the flavors with `systemd-analyze --user verify`, and the session entries
 with `desktop-file-validate`. It needs systemd, desktop-file-utils, waybar,
 mako, swaybg, swayidle and kanshi.
 
+The other gate scripts `tests/gate-*.sh` take the binaries from
+`target/debug`, or from the directory in `BIN`. The list of the scripts
+that CI runs is `.github/workflows/ci.yaml`, and its `dnf install` line
+names the packages that they need. A script without its tools answers
+`SKIP`. `tests/gate-0.9-daily.sh` and `tests/gate-0.9-hardware.sh` run by
+hand inside the chora session on the reference hardware.
+
 Each bug fix comes with a test that fails without the fix (D48).
 
 CI runs `cargo clippy`, `cargo test` and the end-to-end test with `--locked`
