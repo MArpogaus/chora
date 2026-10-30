@@ -492,7 +492,7 @@ fn scene_tools() -> Vec<Tool> {
         ),
         typed_tool::<Apply>(
             "apply_commands",
-            "Apply a transaction of scene commands: create, attach, update, animate, move, remove, configure, focus, focus_node, close, camera. All commands apply, or none. Warnings in the answer tell what applied but does not work as expected, for example a surface without input.",
+            "Apply a transaction of scene commands: create, attach, update, animate, move, remove, configure, focus, focus_node, close, camera. All commands apply, or none. Warnings in the answer tell what applied but does not work as expected, for example a surface without input. On a window of a window manager, focus, move, configure, close and an update of only opacity, effects and meta go to the window manager as a request, and it decides.",
         ),
         tool(
             "list_plugins",
