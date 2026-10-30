@@ -1,0 +1,24 @@
+# The voice agent as a user service of a chora session, which gives the
+# user manager CHORA_SOCKET.
+
+[Unit]
+Description=Chora voice agent
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionEnvironment=CHORA_SOCKET
+
+[Service]
+# Wants= would start the models also when the condition fails. This
+# line runs only when the condition holds. The "-" lets the agent start
+# when the models run elsewhere. Until the models are up, a turn fails.
+ExecStartPre=-/usr/bin/systemctl --user start --no-block gufo-asr gufo-tts gufo-llm
+# choractl and the capture and playback commands; the user manager does
+# not search ~/.cargo/bin by default.
+Environment=PATH=%h/.cargo/bin:%h/.local/bin:/usr/local/bin:/usr/bin
+ExecStart=%h/.cargo/bin/chora-voice
+# The agent exits 1 when a thread ends or chora stays away for 30 s.
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

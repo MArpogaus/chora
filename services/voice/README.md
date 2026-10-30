@@ -1,16 +1,20 @@
 # Voice agent
 
-The voice agent is one Python file:
-`Microphone -> Qwen3-ASR -> LLM with tools -> Qwen3-TTS -> speaker`. The
-three models run as Gufo containers on the AMD GPU. The LLM drives chora
-through `choractl mcp`. The agent needs `uv`, `arecord` and `aplay`, and
-`choractl` for the chora tools. The unit finds them, and the program of
-`CODER_CMD`, in `~/.local/bin`, `/usr/local/bin` and `/usr/bin`.
+`chora-voice` is the voice agent of chora, one Rust binary:
+`mic -> Silero VAD -> Qwen3-ASR -> LLM with tools -> Qwen3-TTS ->
+speaker`. The three models run as Gufo containers on the AMD GPU. The
+LLM drives chora through `choractl mcp`. The specification, the results
+and the open questions are in `docs/voice.md`.
+
+The agent records with `pw-record` and plays with `pw-play` (PipeWire
+1.4 or later, for `--raw`), and it needs `choractl` for the tools. The
+unit finds them in `~/.cargo/bin`, `~/.local/bin`, `/usr/local/bin` and
+`/usr/bin`.
 
 ## Services
 
 `systemd/` holds the quadlets of the models and the user unit of the
-agent, `voice-agent.service`.
+agent, `chora-voice.service`.
 
 | quadlet | port | model |
 |---|---|---|
@@ -40,9 +44,8 @@ an LLM from the [model table of
 Gufo](https://github.com/gufo-org/gufo#models-and-benchmarks). The GPU
 needs the groups and the `crun` runtime of the [quickstart of
 Gufo](https://github.com/gufo-org/gufo#quickstart). The GGUF must be
-under `/var/models`, which the containers mount. Then link and start the
-units. Run the steps in the checkout `~/Projekte/chora`, which the unit
-expects:
+under `/var/models`, which the containers mount. Run the steps in the
+checkout of chora:
 
 ```bash
 sudo install -d -o "$USER" /var/models
@@ -62,7 +65,6 @@ ln -s /var/models/<dir>/<model>.gguf /var/models/gufo-llm
 podman pull ghcr.io/gufo-org/toolboxes/gufo-runtime:latest@sha256:af997f31d5a825ad02fd44cbb6744e71a21df6149c02c5ed3bb0bb843b3f0013
 mkdir -p ~/.config/containers/systemd
 ln -s "$PWD"/services/voice/systemd/*.{container,network} ~/.config/containers/systemd/
-systemctl --user link "$PWD/services/voice/systemd/voice-agent.service"
 systemctl --user daemon-reload
 systemctl --user start gufo-asr gufo-tts gufo-llm
 ```
@@ -70,90 +72,107 @@ systemctl --user start gufo-asr gufo-tts gufo-llm
 The quadlets pin the image by its digest. For a newer runtime, change
 the digest in the three quadlets. The models load for some minutes. A
 model is ready when its log, for example `journalctl --user -u
-gufo-tts`, shows `event=listening`. Then check the models and the mic:
+gufo-tts`, shows `event=listening`.
+
+Then install the agent and its unit. The build needs `ar` (binutils)
+and a C compiler for the kernels of `tract`. `choractl` comes with
+chora:
 
 ```bash
-services/voice/agent.py roundtrip   # the three models, without a mic
-services/voice/agent.py levels      # the mic level
-services/voice/agent.py tools       # the connection to chora
+cargo install --locked --path services/voice
+systemctl --user link "$PWD/services/voice/systemd/chora-voice.service"
+systemctl --user daemon-reload
 ```
 
-The agent measures the level of the quiet room for 750 ms at its start,
-so keep quiet then. Then start the agent, which runs only in a chora
-session:
+Check the models and the mic before the first start:
 
 ```bash
-systemctl --user enable --now voice-agent
-journalctl --user -u voice-agent -f
+chora-voice roundtrip          # TTS, then its sound to the ASR, with latencies
+chora-voice ask "Welche Fenster sind offen?"   # one turn with the LLM and the tools
+chora-voice levels             # the mic level and the speech probability
 ```
 
-If the log says `turn at level` with an empty `you:` after it, raise
-`SPEECH_RATIO` (3). If the agent does not react to your voice, lower it.
+`chora-voice --help` lists all commands. Then start the agent, which
+runs only in a chora session:
+
+```bash
+systemctl --user enable --now chora-voice
+journalctl --user -u chora-voice -f
+```
+
 After a login, the agent starts the models itself; until they are up, a
-turn fails.
+turn fails. `systemctl --user stop chora-voice gufo-asr gufo-tts
+gufo-llm` frees the GPU memory. Stop the unit before you run
+`chora-voice` in a terminal, or both agents answer.
 
-The system prompt of the LLM, `SYSTEM`, explains chora and the limits of
-the tools. The sections that `CONTEXT_DOCS` names follow it;
-`FILE#HEADING` picks one section of a file. The agent sends the prompt
-to the LLM once at its start, so that the server keeps it in its cache.
-Facts of your machine, such as the installed programs, go into
-`~/.config/chora/voice-prompt.md`, which follows them too.
+## Settings
 
-The settings are the environment variables in the globals section of
-`agent.py`, such as `ASR_LANGUAGE` (`de`) and `VOICE`. The unit reads
-them from `~/.config/chora/voice.env`; quote values with spaces, such as
-`CODER_CMD`. A `PATH=` line there replaces the PATH of the unit. After a
-change, run `systemctl --user restart voice-agent`. A command in a
-terminal reads them from its environment, for example `SPEECH_RATIO=4
-services/voice/agent.py`. Before such a test, stop the unit, or both
-agents answer. `set -a; . ~/.config/chora/voice.env; set +a` gives the
-terminal the settings of the unit. `services/voice/agent.py --help`
-lists the commands. The models keep the GPU memory until `systemctl
---user stop voice-agent gufo-asr gufo-tts gufo-llm`.
+The settings are in `~/.config/chora/chora-voice.yaml`. A missing key
+keeps its default, so an empty file is valid. `chora-voice
+--print-config` prints all keys with their defaults; `docs/voice.md`
+(section 9) explains them. `choractl call voice settings.set` changes
+them at once; after an edit by hand, run `choractl call voice restart`.
+For example, the models of another host:
+
+```yaml
+asr_url: ws://HOST:8881/v1/realtime?intent=transcription
+tts_url: ws://HOST:8882/v1/audio/speech/stream
+llm_url: http://HOST:8888/v1
+```
+
+The built-in system prompt explains chora and the limits of the tools.
+The context documents (`context_docs`) follow it: `README.md`,
+`docs/glossary.md` and sections of `docs/api.md`. The agent sends the
+prompt to the LLM at its start, so that the server keeps it in its
+cache; a cold cache takes about 40 s. Facts of your machine, such as the
+installed programs, go into `~/.config/chora/voice-prompt.md`
+(`prompt_file`), which follows them.
 
 ## Turns
 
-Speech is louder than `SPEECH_RATIO` times the level of the quiet room,
-and at least `RMS_SPEECH` (5). The agent follows that level with a
-running mean of the quiet mic between turns. The line `speak now` shows
-the level of speech. A turn starts when the mic level passes it after
-`SETTLE_MS` (300) of quiet. It ends after `SILENCE_MS` (1000) of quiet
-or after 30 s. During a turn, half the level of speech still counts as
-speech, so soft word ends keep it going. A turn with less than
-`MIN_SPEECH_MS` (200) of speech, soft speech included, is a noise, such
-as a breath, and the agent drops it.
+The agent starts awake and listens all the time. Silero VAD finds
+speech: an utterance starts after `onset_ms` (96) of speech and ends
+after `silence_ms` (800) of quiet. The push-to-talk key `ptt_key`
+(`Super+v`) records while it is down, also when the agent sleeps; it
+also stops a reply. `choractl call voice talk '{"down": true}'` does
+the same for another client.
 
-Under chora, holding `PTT_KEY` (`Super+v`) also records, whatever the
-level. The key needs Ctrl, Alt or Super. The turn ends when the modifier
-goes up, because chora reports the release with it. The agent loses
-short words that you say during the transcription and before the first
-sound of the reply. To add words, hold the key during the transcription.
-For longer pauses inside a turn, raise `SILENCE_MS`. A turn by level or
-by barge-in keeps the last `PREROLL_MS` (1000) of the mic before its
-start. A key press after the transcription stops the
-reply. Before the first words of the LLM, it also withdraws the request.
-After them, the request and the words and tool calls so far stay in the
-history.
+The agent knows these words without the LLM, in an utterance of up to 2
+s and four words. One wrong letter in a word of four letters or more is
+fine, so the ASR's "Hallo Cora" is "Hallo Chora".
 
-While the agent speaks, speech above `RMS_BARGE_IN` (twice
-`RMS_SPEECH`) and the level of speech for `BARGE_MS` (300) stops the
-reply, and a turn starts. While the agent works without sound, the
-speech must last 1 s, so that a short "yes" does not stop it. The echo
-canceller damps the voice in bursts. So dips down to half the level of
-speech, for at most 100 ms, do not reset the count. When that turn has
-no words, it was a noise: the LLM answers the request again, or goes on
-with the cut reply. The push-to-talk key also stops a reply. The mic
-also hears the speaker, so use headphones or the echo cancellation
-below. After each full reply, the log line `mic peak during the reply`
-shows the level that the barge-in level must stay above. When the reply
-stops itself, the line `barge-in at level` shows the level of the echo.
+| Words | Effect |
+|---|---|
+| `stopp`, `abbrechen`, `halt`, `vergiss es` | Stops the current turn: the reply, its sound and its tool call |
+| `schlaf`, `schlaf jetzt` | The agent sleeps: it hears only its wake words and the key |
+| `hör zu`, `hallo chora` | The agent wakes up |
+| `ja`, `okay`, `genau`, `mach das` / `nein`, `nicht`, `lieber nicht` | The answer to a question before a tool call |
+| `coding-aufgabe abbrechen` | Stops a coding task (comes with the coder port) |
 
-The agent keeps your requests of the last `HISTORY` (20) turns in
+While the agent speaks, you can talk over it (barge-in): the sound
+pauses, and your words decide. A stop word ends the reply. Echo of the
+agent's own words, or nothing, lets it go on from the cut sentence.
+Other words end the reply and start the next one. Speech while the agent
+thinks or runs a tool waits in a queue and starts the next turn. A
+stopped turn stays in the history with the words that played and the
+note "cancelled by the user; result unknown".
+
+Before the tools of the `confirm` rules, such as closing a window or
+typing, the agent asks. Say yes or no, or call `choractl call voice
+confirm '{"answer": "yes"}'`. No answer within 8 s, or two unclear
+answers, is a no.
+
+`choractl call voice state` shows the state: `sleeping`, `listening`,
+`recording`, `transcribing`, `thinking`, `tool`, `confirming` or
+`speaking`. When `chora-mc` runs, the agent reports its state with `mc
+agent.set` and each spoken sentence with `mc hud.say`, so the agents
+scene and the HUD show it. The log has one line per stage with its
+latency and one summary per reply.
+
+The agent keeps your requests of the last `saved_requests` (20) turns in
 `~/.local/state/chora/voice-history.json`. At its next start, they go
 into the system prompt as a quoted note. Replies, tool calls and results
-stay out. A reply can repeat text from the screen or from a coder. Node
-ids describe a scene that may be gone. Delete the file to start a new
-conversation.
+stay out. Delete the file to start a new conversation.
 
 ## Echo cancellation
 
@@ -168,75 +187,55 @@ systemctl --user restart pipewire
 pactl set-default-source echo-cancel-source
 ```
 
-To check it, run `services/voice/agent.py levels` while music plays from
-the speakers. The level must stay near the level of the quiet room, and
-rise when you speak. Then set `RMS_BARGE_IN` close to the level of
-speech, so that you can talk over a reply at a normal level.
-`SETTLE_MS=0` keeps the words that you say right after a reply.
+To check it, run `chora-voice levels` while music plays from the
+speakers. The level must stay low, and rise when you speak. The
+barge-in compares the mic with the level of the agent's own sound: it
+learns how much of that sound reaches the mic, from
+`barge_in_coupling` (0.1, which assumes the echo canceller). Without
+the echo canceller, use headphones, or raise `barge_in_coupling` to the
+echo level over the played level.
 
 ## Tools
 
-The LLM gets the tools of `choractl --name voice mcp`, except the event
-tools and `capture`. `CHORA_MCP` is the command of `choractl`, so
-that the tools run in another place, for example `podman exec -i NAME
-choractl` in a container. Its programs then start in the container.
-When the LLM reads images and `voice` has the grant `screen.capture`,
-`describe_screen` gives it the screenshot too. Gufo says so in
-`input_modalities` of `/v1/models`, and the log at the start. A
-text-only LLM gets the windows and nodes as text only. The unit finds
-chora through `CHORA_SOCKET`, which a chora flavor gives the user
-manager.
+The LLM gets the tools of `choractl --name voice-mcp mcp`, except the
+event tools, `capture` and the methods of the agent itself
+(`skipped_tools`). `chora_mcp` is the command of `choractl`, so that the
+tools run in another place, for example `[podman, exec, -i, NAME,
+choractl]` in a container. Its programs then start in the container.
+When the LLM reads images and `voice-mcp` has the grant
+`screen.capture`, `describe_screen` gives it the screenshot too. The
+unit finds chora through `CHORA_SOCKET`, which a chora flavor gives the
+user manager.
 
-To type and to start programs, the client name `voice` (`CHORA_NAME`)
-needs grants. A grant lasts until the session ends, until `choractl
-revoke voice`, the revoke binding or the emergency reset:
-
-```bash
-choractl grant voice input.inject activation.token
-```
-
-Each of these grants alone, and `CODER_CMD`, lets the LLM run commands
-as you. Without grants, the LLM still closes windows and changes the
-outputs, the scene and the plugins, and overwrites the saved views. It
-also starts the plugins of installed views. Any voice that the mic hears
-can start a turn, also from a video, and also while the screen is
-locked. Text on the screen that a tool reads can also steer the LLM. So
-can the plugins, which write the descriptions and results of their
-tools. The journal keeps each transcript and each tool call, and the
-history file your requests. The emergency reset does not undo output
-changes, and the reserved space returns with the next tool call;
-`wlr-randr` resets the outputs. The emergency reset and the revoke
-binding do not stop the agent; after the reset, it connects again. Only
-`systemctl --user stop voice-agent` stops the agent. A coding task needs
-no grant, so only this command and `code_cancel` stop it.
-
-## Coding tasks
-
-`CODER_CMD` names a coding harness, which gets the task as its last
-argument, for example:
+To type and to start programs, the client name `voice-mcp` needs
+grants. A grant lasts until the session ends, until `choractl revoke
+voice-mcp`, the revoke binding or the emergency reset:
 
 ```bash
-CODER_CMD="claude -p --dangerously-skip-permissions --output-format stream-json --verbose"
+choractl grant voice-mcp input.inject activation.token
 ```
 
-It adds the tools `code_task`, `code_status`, `code_cancel` and
-`list_projects`. A task runs in the background, one at a time:
+Each of these grants alone lets the LLM run commands as you. Without
+grants, the LLM still closes windows and changes the outputs, the scene
+and the plugins, and overwrites the saved views. It also starts the
+plugins of installed views. Any voice that the mic hears can start a
+turn, also from a video, and also while the screen is locked. Text on
+the screen that a tool reads can also steer the LLM. So can the plugins,
+which write the descriptions and results of their tools. The journal
+keeps each transcript and each tool call, and the history file your
+requests. The emergency reset does not undo output changes, and the
+reserved space returns with the next tool call; `wlr-randr` resets the
+outputs. The emergency reset and the revoke binding do not stop the
+agent; after the reset, it connects again. Only `systemctl --user stop
+chora-voice` stops the agent.
 
-- `code_task` with a project clones `~/.local/share/chora/inventory/NAME`
-  to `~/.local/share/chora/worktrees/NAME-N`, on the branch `voice/N`.
-  Without a project, it starts an empty repository `worktrees/N`.
-- The harness runs in that clone. Its output goes to the file of the
-  clone with `.log` after its name, such as `worktrees/chora-3.log`. The
-  agent speaks the result, and `code_status` repeats the last one.
-- The inventory holds the projects that you keep, as git repositories
-  or links to them, for example `ln -s ~/Projekte/chora
-  ~/.local/share/chora/inventory/chora`. The clone has no remote. A
-  result reaches the branch `voice/N` only when the harness commits it;
-  the agent asks for that.
-  Take a good result into a project with `git fetch` from its clone.
+Coding tasks (`coder_cmd`) come with the port of the coder (WP7 of
+`docs/voice.md`).
 
-JSON lines such as the `stream-json` of Claude Code give the steps and
-the result; other harnesses give plain lines. The harness of the example
-has no sandbox of its own. It changes and deletes files without asking,
-also outside the clone, and runs any command as you. The task and the
-files that it reads go to the provider of the model.
+## Tests
+
+`cargo test -p chora-voice` runs the unit tests, the replay of the
+corpus in `tests/data/corpus` and an end-to-end replay through the whole
+agent with fake servers. `chora-voice replay DIR...` replays recordings
+of `record_dir`. `tests/corpus.py TTS_URL` writes the corpus again with
+the live TTS, and `tests/live.py TTS_URL ASR_URL` checks the servers.
