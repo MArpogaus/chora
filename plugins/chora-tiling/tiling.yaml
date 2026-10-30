@@ -116,6 +116,5 @@ bindings:
   # Programs
   MOD+Return: {run: foot}
   MOD+r: {run: fuzzel}
-  MOD+p: {run: fuzzel}
   # The plugin
   MOD+Ctrl+r: reload
