@@ -354,9 +354,13 @@ impl Agents {
         if inner.settings.cmd.is_empty() {
             return "error: no agent_cmd in the settings".into();
         }
-        let Some(dir) = self.projects(&inner.settings).remove(project) else {
+        // The ASR and the LLM may capitalize the name.
+        let found = (self.projects(&inner.settings).into_iter())
+            .find(|(p, _)| p.eq_ignore_ascii_case(project));
+        let Some((project, dir)) = found else {
             return format!("error: no project {project}; agent_list names them");
         };
+        let project = project.as_str();
         let name = name.unwrap_or(project).to_lowercase();
         if !good_name(&name) {
             return format!("error: {name}: a name has 1 to 32 letters, digits, - or _");
@@ -1117,7 +1121,7 @@ mod tests {
         let agents = Agents::new(&config, data.clone(), tx);
         assert_eq!(agents.specs().len(), TOOLS.len());
         assert!(agents.start("nope", None, None).contains("no project"));
-        assert!(agents.start("demo", Some("Coder"), None).contains("starts"));
+        assert!(agents.start("Demo", Some("Coder"), None).contains("starts"));
         assert!(
             agents
                 .start("demo", Some("coder"), None)
