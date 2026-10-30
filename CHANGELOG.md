@@ -1,3 +1,119 @@
+## v0.7.0-rc.3 (2026-10-30)
+
+### Feat
+
+- **voice**: coding tasks in clones of the inventory, with status and cancel
+- **voice**: an LLM that reads images gets the screenshot of describe_screen
+- **voice**: the conversation goes on at the next start
+- **voice**: the prompt takes only the sections of the docs that the LLM uses
+- **voice**: the LLM reads the system prompt at the start
+- **voice**: turns keep soft word ends and drop noises
+- **voice**: CHORA_MCP runs the chora tools in another place
+- **voice**: a system prompt that explains chora, with its docs after it
+- **voice**: the level of speech follows the quiet room
+- **voice**: PREROLL_MS sets the mic time a turn keeps
+- **voice**: PipeWire echo cancellation for the agent's mic
+- **voice**: stream the answer, one mic, and a barge-in without a gap
+- **voice**: rebuild the agent with chora tools and push-to-talk
+- **mcp**: a run_program tool for agents
+- **ipc**: client sockets need methods.call and activation.token
+
+### Fix
+
+- **voice**: coder reports are tool results, the history file keeps requests
+- **voice**: a coding result is in the history before the next answer
+- **voice**: coding tasks stay in the inventory and in their clone
+- **voice**: the prompt names the limits of the scene that the tests showed
+- **voice**: a failed turn keeps the turn before, echo peaks do not add up
+- **voice**: the history file keeps the words of all sessions only
+- **voice**: the image content of mcp 2.3 has mime_type
+- **voice**: the earlier session is a note in the system prompt
+- **voice**: silent work needs a sentence to stop, the LLM keeps its last shaders
+- **voice**: a new session takes up the words only, no stale tool results
+- **voice**: a barge-in without words hands the turn back to the LLM
+- **voice**: soft speech counts for the noise filter, 200 ms by default
+- **voice**: a barge-in counts through damped dips of the voice
+- **voice**: the warm-up has a user message, the prompt explains transactions
+- **voice**: a refused LLM request logs the answer of the server
+- **voice**: earlier turns keep short tool texts, the log shows why a reply ended
+- **voice**: the prompt forbids taking windows from the window manager
+- run answers with the error of systemd-run
+- **voice**: keep the last 20 turns with their tool calls
+- **voice**: allow 10 rounds of tool calls per turn
+- **voice**: the settings of the agent live in ~/.config/chora/voice.env
+- **voice**: log a reply that the end of the context cut
+- **voice**: AddDevice is the quadlet key for the GPU devices
+- the emergency reset drops the waiting activation tokens
+- **voice**: pin the runtime image of the models by its digest
+- a symlink to the socket names the unit of the socket
+- **voice**: a new environment takes no release after a set date
+- a view name that ends in .yaml loads no file by path
+- surface.created carries a token that follows the first commit
+- **voice**: a key turn starts at the press
+- **voice**: ask the LLM not to think
+- **voice**: the LLM gets no put_asset
+- **voice**: flush the mic before a reply again
+- **voice**: keep words said during the ASR, ASR pieces of a second
+- **voice**: answer a request held for more words, also when none follow
+- **voice**: an empty reply withdraws its request
+- **voice**: a key held during the ASR goes on, a noise withdraws
+- **voice**: a key stop withdraws a request without an answer
+- **voice**: end a turn on a failed transcription, log the coder output
+- **voice**: a held key does not keep the echo of a delegate result
+- **voice**: a turn ends after 30 s, a held key keeps its frames
+- **voice**: no start limit, start the agent also with remote models
+- **voice**: one coding task at a time, the first comma after 40 characters
+- **voice**: start the models only when the agent starts
+- **voice**: start the agent only in a chora session
+- **voice**: stop aplay on a late barge-in, keep a cut tool call
+- **voice**: exit when arecord ends, keep the quiet start of a turn
+- **voice**: words before tools without a period, key events without a filter
+- **voice**: recover from a refused history, speak words before tools
+- **voice**: log LLM error events, a plain read loop in talk()
+- **voice**: answer after a failed turn, keep calls that ran
+- **voice**: no two user turns in a row, push-to-talk waits for chora
+- **voice**: fix the history, echo and push-to-talk bugs from review
+- **voice**: end aplay after the sound, so the agent listens again
+- **voice**: German ASR, whole replies, a log line per turn
+- **voice**: listen again after a reply, and let the user barge in
+- **voice**: wait for quiet before a turn may start
+- **voice**: turns survive failures, push-to-talk ends cleanly
+- **voice**: quadlets that pass the model and harden the containers
+- **run**: the fallback sends stderr to the null device again
+- **view**: wait for a plugin whose unit runs already
+- **xp**: suspend without blocking the window manager
+- **view**: a stable hash in the name of a view unit
+- **view**: a view unit per core, the fallback keeps stderr
+- **run**: the fallback keeps the program in the process group of the caller
+- **choractl**: views run exec as written, restart stays in its session
+- **view**: one plugin unit per session
+- **safety**: the revoke binding keeps windows that got no protocol
+- **mcp**: run_program needs activation.token on every socket
+- **restart**: restart only a running plugin
+- **ipc**: a client socket clears the focus only after a press
+- **choractl**: fall back without a running manager, sync only main grants
+- **run**: fail instead of starting twice, reap detached programs
+- **ipc**: a client socket focuses only after a press, revoke ends tokens
+- **grants**: refuse the capabilities of client sockets
+- **plugins**: start apps with choractl run
+- **view**: start plugins as units that choractl restart finds
+- **run**: literal arguments, a unit that outlives a launcher
+
+### Refactor
+
+- **voice**: no start timeout, the setup pulls the image
+- **voice**: counters in ms, a cut call in run_calls
+- **voice**: levels shows the thresholds, one rms per frame
+- **voice**: a full TTS URL, a clearer barge-in log and key loop
+- **choractl**: one systemctl helper, views list only started plugins
+- one press rule arm, all clients in the revoke texts
+- **grants**: one revoke_all for the binding and the reset
+- the revoke binding takes all grants, gate 8 wants run's unit
+- drop two guards that stop nothing
+- **flavors**: one unit name chora-NAME.service per plugin
+- one fork check, one list of host variables
+- **choractl**: drop supervise and the spawn alias
+
 ## v0.7.0-rc.2 (2026-10-25)
 
 ### Feat
