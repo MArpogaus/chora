@@ -532,6 +532,42 @@ takes the keyboard layout of the system from `localectl`.
 `chora@<name>.service`, and stops the units of the graphical session when
 chora ends.
 
+### Screen sharing
+
+Browsers and video calls share the screen through `xdg-desktop-portal`,
+which hands the work to `xdg-desktop-portal-wlr` (D37). Both sessions set
+`XDG_CURRENT_DESKTOP=chora`, and `chora-flavor` gives it and
+`WAYLAND_DISPLAY` to systemd and D-Bus, so that the portals start with
+them. `chora-flavor` also stops a portal that an earlier session in the
+same user manager started; the next call starts it again with the
+variables of chora. The packages install two files:
+
+- `/usr/share/xdg-desktop-portal/chora-portals.conf`: for
+  `XDG_CURRENT_DESKTOP=chora`, screen sharing and screenshots go through
+  `xdg-desktop-portal-wlr`, the other portals through
+  `xdg-desktop-portal-gtk`.
+- `/etc/xdg/xdg-desktop-portal-wlr/chora`: fuzzel asks which output or
+  window to share. `~/.config/xdg-desktop-portal-wlr/chora` replaces it,
+  for example with `chooser_type=none` and `output_name=eDP-1` to share
+  that output without a question.
+
+`xdg-desktop-portal-wlr` captures through `ext-image-copy-capture`, and
+through `wlr-screencopy` on older versions. It shares outputs, and
+windows of `ext-foreign-toplevel-list`. The core copies through shm, so
+each frame takes a copy on the CPU, and the shared picture has no
+cursor. The portal runs on the Wayland socket of the session, which has
+every capture protocol; a client of a client socket needs the grant
+`screen.capture` (see [API](api.md)).
+
+### X11 programs
+
+`xwayland-satellite` runs X11 programs as Wayland windows. When it is
+installed, `chora-flavor` picks a free display, for example `:0`, and
+gives `DISPLAY` to systemd and D-Bus. The unit
+`chora-<flavor>-xwayland.service` of each flavor then starts
+`xwayland-satellite` on this display. The X11 windows are toplevels like
+all others, so `chora-tiling` tiles them.
+
 ### The tiling flavor
 
 The package installs the tiling flavor (D51):
@@ -551,8 +587,9 @@ The package installs the tiling flavor (D51):
 ```
 
 Each unit starts only when its program is installed. The packages
-recommend them: uwsm, foot, fuzzel, waybar, mako, swaybg, swayidle,
-swaylock, kanshi and `xwayland-satellite`. mako starts from the unit of
+recommend them: uwsm, foot, fuzzel, waybar, jq, mako, swaybg, swayidle,
+swaylock, kanshi, `xwayland-satellite`, `xdg-desktop-portal-wlr` and
+`xdg-desktop-portal-gtk`. mako starts from the unit of
 its own package and needs no configuration.
 
 - **The panel**: waybar with the configuration of the flavor. It shows only
