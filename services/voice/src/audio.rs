@@ -7,7 +7,7 @@ use std::{
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
-        mpsc::Sender,
+        mpsc::{self, Sender},
     },
     thread,
     time::{Duration, Instant},
@@ -177,10 +177,15 @@ fn capture(
 
 /// The playback command: one process per sound, stopped at once on
 /// request.
+#[derive(Clone)]
 pub struct Speaker {
     cmd: Vec<String>,
     child: Arc<Mutex<Option<Child>>>,
 }
+
+/// A sound in pieces: each `send` plays on after the piece before. The
+/// process ends one second after the sound, when the sender is gone.
+pub type Player = mpsc::Sender<Vec<i16>>;
 
 impl Speaker {
     pub fn new(cmd: Vec<String>) -> Self {
@@ -194,28 +199,46 @@ impl Speaker {
         self.cmd = cmd;
     }
 
-    /// Plays PCM at 24 kHz and stops the sound before. A thread writes
-    /// it, and ends the process one second after the sound: a player on
-    /// `PipeWire` may never exit by itself.
+    /// Plays PCM at 24 kHz and stops the sound before.
     ///
     /// # Errors
     ///
     /// The command does not start.
     pub fn play(&self, pcm: &[i16]) -> io::Result<()> {
+        // The thread plays it even when the player is gone at once.
+        let _ = self.stream()?.send(pcm.to_vec());
+        Ok(())
+    }
+
+    /// Starts a sound in pieces and stops the sound before. A thread
+    /// writes the pieces, and ends the process one second after the
+    /// sound: a player on `PipeWire` may never exit by itself.
+    ///
+    /// # Errors
+    ///
+    /// The command does not start.
+    pub fn stream(&self) -> io::Result<Player> {
         self.stop();
         let mut child = spawn(&self.cmd, Stdio::piped(), Stdio::null())?;
         let mut stdin = child.stdin.take().expect("piped");
         let id = child.id();
         *self.child.lock().expect("no panic with the lock") = Some(child);
         let slot = self.child.clone();
-        let bytes = pcm::bytes(pcm);
-        let samples = u64::try_from(pcm.len()).unwrap_or(u64::MAX);
-        let length = Duration::from_micros(samples * 1_000_000 / u64::from(RATE));
+        let (tx, rx) = mpsc::channel::<Vec<i16>>();
         thread::spawn(move || {
-            let end = Instant::now() + length + Duration::from_secs(1);
-            // A stopped player closes the pipe.
-            let _ = stdin.write_all(&bytes);
+            // When the sound written so far ends.
+            let mut end = Instant::now();
+            for pcm in rx {
+                let samples = u64::try_from(pcm.len()).unwrap_or(u64::MAX);
+                end = end.max(Instant::now())
+                    + Duration::from_micros(samples * 1_000_000 / u64::from(RATE));
+                // A stopped player closes the pipe.
+                if stdin.write_all(&pcm::bytes(&pcm)).is_err() {
+                    break;
+                }
+            }
             drop(stdin);
+            let end = end + Duration::from_secs(1);
             loop {
                 let mut slot = slot.lock().expect("no panic with the lock");
                 let Some(child) = slot.as_mut().filter(|c| c.id() == id) else {
@@ -231,7 +254,7 @@ impl Speaker {
                 thread::sleep(Duration::from_millis(50));
             }
         });
-        Ok(())
+        Ok(tx)
     }
 
     /// Stops the sound at once.

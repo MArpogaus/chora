@@ -4,18 +4,21 @@
 
 use std::{sync::mpsc::Sender, time::Instant};
 
+use tokio::sync::oneshot;
+
 use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::{
     asr::Transcript,
+    chat,
     config::Config,
     earcon::Earcon,
     gate::{self, FRAME_MS, Frame, Gate},
 };
 
-/// The states of docs/voice.md section 3; WP1 to WP4 use the first
-/// four.
+/// The states of docs/voice.md section 3; `working` comes with the
+/// coder (WP7).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum State {
@@ -23,6 +26,10 @@ pub enum State {
     Listening,
     Recording,
     Transcribing,
+    Thinking,
+    Tool,
+    Confirming,
+    Speaking,
 }
 
 /// A method call of another client.
@@ -36,6 +43,18 @@ pub enum Call {
         mic: Option<bool>,
         speaker: Option<bool>,
     },
+    /// The answer to a confirmation: yes or no.
+    Confirm(bool),
+}
+
+/// What the reply of a turn tells the core.
+#[derive(Debug)]
+pub enum Reply {
+    Chat(chat::Event),
+    /// The first sound of the reply plays.
+    Sound,
+    /// The reply ended, also its sound.
+    Done(String),
 }
 
 /// An input of the core.
@@ -57,6 +76,8 @@ pub enum Input {
         interim: bool,
         result: Result<Transcript, String>,
     },
+    /// The reply of the turn.
+    Reply(u64, Reply),
 }
 
 /// What the core asks the other actors to do.
@@ -79,6 +100,15 @@ pub enum Effect {
         end_wait_ms: u32,
         awake: bool,
     },
+    /// Starts the reply to a text; `ended` is the end of the speech.
+    Ask {
+        turn: u64,
+        text: String,
+        speak: bool,
+        ended: Instant,
+    },
+    /// Stops the reply in progress and its sound.
+    Stop,
     Exit,
 }
 
@@ -100,6 +130,13 @@ pub struct Core {
     ptt: bool,
     turn: u64,
     last_transcript: String,
+    last_reply: String,
+    /// The turn whose reply runs.
+    asking: Option<u64>,
+    /// The answer of the confirmation that waits.
+    confirm: Option<oneshot::Sender<bool>>,
+    /// The end of the last utterance.
+    ended: Instant,
     /// Frames since the onset of the utterance in progress.
     recorded: u32,
     /// The mic failed; the error earcon sounds once until it works again.
@@ -120,6 +157,10 @@ impl Core {
             ptt: false,
             turn: 0,
             last_transcript: String::new(),
+            last_reply: String::new(),
+            asking: None,
+            confirm: None,
+            ended: Instant::now(),
             recorded: 0,
             mic_down: false,
         }
@@ -143,7 +184,7 @@ impl Core {
             "muted": self.muted,
             "turn": self.turn,
             "last_transcript": self.last_transcript,
-            "last_reply": "",
+            "last_reply": self.last_reply,
         })
     }
 
@@ -183,6 +224,10 @@ impl Core {
                 self.set(rest);
                 self.earcon(Earcon::Error).into_iter().collect()
             }
+            Input::PttDown if self.asking.is_some() => {
+                crate::log::info("ptt down: the reply stops");
+                self.stop(Earcon::Cancel)
+            }
             Input::PttDown => {
                 crate::log::debug("ptt down");
                 self.ptt = true;
@@ -210,7 +255,46 @@ impl Core {
                 interim,
                 result,
             } => self.transcript(turn, interim, result),
+            Input::Reply(turn, reply) => self.reply(turn, reply),
         }
+    }
+
+    /// Stops the reply in progress with an earcon.
+    fn stop(&mut self, earcon: Earcon) -> Vec<Effect> {
+        self.asking = None;
+        self.confirm = None;
+        let rest = self.rest();
+        self.set(rest);
+        std::iter::once(Effect::Stop)
+            .chain(self.earcon(earcon))
+            .collect()
+    }
+
+    fn reply(&mut self, turn: u64, reply: Reply) -> Vec<Effect> {
+        // A late event of a stopped reply; a dropped confirmation is a no.
+        if self.asking != Some(turn) {
+            return Vec::new();
+        }
+        let speaking = self.state == State::Speaking;
+        match reply {
+            Reply::Chat(chat::Event::Thinking) if !speaking => self.set(State::Thinking),
+            Reply::Chat(chat::Event::Tool(_)) if !speaking => self.set(State::Tool),
+            Reply::Chat(chat::Event::Confirm { answer, .. }) => {
+                self.confirm = Some(answer);
+                self.set(State::Confirming);
+            }
+            Reply::Sound => self.set(State::Speaking),
+            Reply::Done(text) => {
+                self.last_reply = text;
+                self.asking = None;
+                self.confirm = None;
+                self.seq += 1;
+                let rest = self.rest();
+                self.set(rest);
+            }
+            Reply::Chat(_) => {}
+        }
+        Vec::new()
     }
 
     fn transcript(
@@ -246,6 +330,18 @@ impl Core {
             }
         };
         if !interim && turn == self.turn && self.state == State::Transcribing {
+            // The word matcher and the queue of WP6 come before this.
+            let text = self.last_transcript.trim().to_owned();
+            if self.awake && !text.is_empty() {
+                self.asking = Some(turn);
+                self.set(State::Thinking);
+                return vec![Effect::Ask {
+                    turn,
+                    text,
+                    speak: !self.muted.speaker,
+                    ended: self.ended,
+                }];
+            }
             let rest = self.rest();
             self.set(rest);
         }
@@ -253,7 +349,17 @@ impl Core {
     }
 
     fn call(&mut self, call: Call) -> Vec<Effect> {
+        if call == Call::Cancel && self.asking.is_some() {
+            return self.stop(Earcon::Cancel);
+        }
         let kind = match call {
+            Call::Confirm(yes) => {
+                if let Some(answer) = self.confirm.take() {
+                    let _ = answer.send(yes);
+                    self.set(if yes { State::Tool } else { State::Thinking });
+                }
+                return Vec::new();
+            }
             Call::Cancel if self.state == State::Recording => {
                 self.gate.reset();
                 let rest = self.rest();
@@ -265,6 +371,13 @@ impl Core {
                 self.gate.reset();
                 self.awake = false;
                 self.set(State::Sleeping);
+                if self.asking.is_some() {
+                    self.asking = None;
+                    self.confirm = None;
+                    return std::iter::once(Effect::Stop)
+                        .chain(self.earcon(Earcon::Sleep))
+                        .collect();
+                }
                 Earcon::Sleep
             }
             Call::Wake => {
@@ -288,8 +401,10 @@ impl Core {
     }
 
     fn frame(&mut self, frame: &Frame) -> Vec<Effect> {
-        let listen = !self.muted.mic;
-        match self.gate.push(frame, listen, self.ptt) {
+        // During a reply the gate rests: barge-in comes with WP6.
+        let busy = self.asking.is_some();
+        let listen = !self.muted.mic && !busy;
+        match self.gate.push(frame, listen, self.ptt && !busy) {
             None => self.interim().into_iter().collect(),
             Some(gate::Event::Onset) => {
                 self.recorded = 0;
@@ -308,6 +423,7 @@ impl Core {
                 end_wait_ms,
             }) => {
                 self.turn += 1;
+                self.ended = Instant::now();
                 // Asleep, the text only looks for a wake word (WP6).
                 let next = if self.awake {
                     State::Transcribing
@@ -365,7 +481,7 @@ mod tests {
     }
 
     #[test]
-    fn speech_records_an_utterance_and_returns_to_listening() {
+    fn speech_records_an_utterance_and_its_text_starts_a_reply() {
         let mut core = Core::new(Config::default());
         assert_eq!(core.state(), State::Listening, "the agent starts awake");
         let effects = speak(&mut core, 10);
@@ -384,9 +500,89 @@ mod tests {
             "{effects:?}"
         );
         assert_eq!(core.state(), State::Transcribing);
+        let effects = core.handle(text(1, false, Ok(" hallo ")));
+        let [
+            Effect::Ask {
+                turn, text, speak, ..
+            },
+        ] = &effects[..]
+        else {
+            panic!("{effects:?}");
+        };
+        assert_eq!((*turn, text.as_str(), *speak), (1, "hallo", true));
+        assert_eq!(core.state(), State::Thinking);
+        assert_eq!(call(&mut core, Call::State).1["last_transcript"], " hallo ");
+    }
+
+    fn reply(turn: u64, event: chat::Event) -> Input {
+        Input::Reply(turn, Reply::Chat(event))
+    }
+
+    /// A core whose turn 1 waits for its reply.
+    fn asking() -> Core {
+        let mut core = Core::new(Config::default());
+        speak(&mut core, 10);
+        (0..30).for_each(|_| drop(core.handle(frame(0.0))));
         core.handle(text(1, false, Ok("hallo")));
-        assert_eq!(core.state(), State::Listening);
-        assert_eq!(call(&mut core, Call::State).1["last_transcript"], "hallo");
+        core
+    }
+
+    #[test]
+    fn the_reply_moves_through_its_states_and_a_confirmation() {
+        let mut core = asking();
+        core.handle(reply(1, chat::Event::Tool("query".into())));
+        assert_eq!(core.state(), State::Tool);
+        let (answer, mut rx) = oneshot::channel();
+        core.handle(reply(
+            1,
+            chat::Event::Confirm {
+                prompt: "Wirklich?".into(),
+                answer,
+            },
+        ));
+        assert_eq!(core.state(), State::Confirming);
+        let (effects, record) = call(&mut core, Call::Confirm(true));
+        assert_eq!(effects, []);
+        assert_eq!(record["state"], "tool");
+        assert_eq!(rx.try_recv(), Ok(true));
+        core.handle(Input::Reply(1, Reply::Sound));
+        core.handle(reply(1, chat::Event::Thinking));
+        assert_eq!(core.state(), State::Speaking, "the sound goes on");
+        assert!(
+            speak(&mut core, 20).is_empty(),
+            "the gate rests during a reply"
+        );
+        core.handle(Input::Reply(1, Reply::Done("Erledigt.".into())));
+        let record = call(&mut core, Call::State).1;
+        assert_eq!(
+            (record["state"].as_str(), record["last_reply"].as_str()),
+            (Some("listening"), Some("Erledigt."))
+        );
+    }
+
+    #[test]
+    fn cancel_and_the_key_stop_a_reply_and_its_late_events() {
+        for stop in [Input::PttDown, Input::Call(Call::Cancel, mpsc::channel().0)] {
+            let mut core = asking();
+            let (answer, mut rx) = oneshot::channel();
+            core.handle(reply(
+                1,
+                chat::Event::Confirm {
+                    prompt: "Wirklich?".into(),
+                    answer,
+                },
+            ));
+            let effects = core.handle(stop);
+            assert_eq!(effects, [Effect::Stop, Effect::Earcon(Earcon::Cancel)]);
+            assert_eq!(core.state(), State::Listening);
+            assert!(rx.try_recv().is_err(), "a dropped answer is a no");
+            core.handle(Input::Reply(1, Reply::Sound));
+            assert_eq!(core.state(), State::Listening, "a late event of turn 1");
+        }
+        let mut core = asking();
+        let (effects, record) = call(&mut core, Call::Sleep);
+        assert_eq!(effects, [Effect::Stop, Effect::Earcon(Earcon::Sleep)]);
+        assert_eq!(record["state"], "sleeping");
     }
 
     fn text(turn: u64, interim: bool, result: Result<&str, &str>) -> Input {

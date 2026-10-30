@@ -33,6 +33,20 @@ struct Client {
     tx: Sender<Input>,
 }
 
+/// The parameters of `confirm`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "lowercase")]
+enum Answer {
+    Yes,
+    No,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConfirmParams {
+    answer: Answer,
+}
+
 /// The parameters of `mute`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -116,6 +130,13 @@ fn exported_methods() -> Vec<ExportMethod> {
             &[],
         ),
         runtime::method(
+            "confirm",
+            "Answers the question of the agent before a tool call: yes runs the call, no \
+             declines it.",
+            json!({"answer": {"type": "string", "enum": ["yes", "no"]}}),
+            &["answer"],
+        ),
+        runtime::method(
             "restart",
             "Reads the settings file again, for example after an edit by hand.",
             none,
@@ -183,6 +204,10 @@ impl Plugin for Client {
             "cancel" => Call::Cancel,
             "sleep" => Call::Sleep,
             "wake" => Call::Wake,
+            "confirm" => {
+                let ConfirmParams { answer } = runtime::params(params)?;
+                Call::Confirm(matches!(answer, Answer::Yes))
+            }
             "mute" => {
                 let Mute { mic, speaker } = runtime::params(params)?;
                 Call::Mute { mic, speaker }

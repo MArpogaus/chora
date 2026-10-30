@@ -40,10 +40,12 @@ use clap::{Parser, Subcommand};
 
 use crate::{
     audio::{Analyzer, FRAME, Mic, Speaker},
+    chat::Chat,
     config::Config,
-    core::{Core, Effect, Input},
+    core::{Core, Effect, Input, Reply},
     gate::{FRAME_MS, Gate},
     record::Recorder,
+    tools::Tools,
     vad::Vad,
 };
 
@@ -92,6 +94,17 @@ enum Command {
         #[arg(default_value = "Hallo Chora. Zeig mir bitte die Agenda für heute.")]
         text: String,
     },
+    /// Answer one text with the LLM and the tools of `choractl mcp`
+    /// (client NAME-mcp), and print the latencies.
+    Ask {
+        text: String,
+        /// Speak the reply with the TTS and the playback command.
+        #[arg(long)]
+        speak: bool,
+        /// Answer each confirmation with yes; else with no.
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 fn main() -> ExitCode {
@@ -99,7 +112,7 @@ fn main() -> ExitCode {
         .with_env_filter(
             // tract logs its kernels at info.
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,tract_linalg=warn".into()),
+                .unwrap_or_else(|_| "info,tract_linalg=warn,rmcp=warn".into()),
         )
         .with_writer(std::io::stderr)
         .with_ansi(std::io::stderr().is_terminal())
@@ -125,6 +138,9 @@ fn main() -> ExitCode {
             Some(Command::Asr { file }) => live::asr(&settings.value, file),
             Some(Command::Tts { text, out }) => live::tts(&settings.value, text, out.as_deref()),
             Some(Command::Roundtrip { text }) => live::roundtrip(&settings.value, text),
+            Some(Command::Ask { text, speak, yes }) => {
+                live::ask(&settings.value, &mcp_name(&args.name), text, *speak, *yes)
+            }
             None => run(args.name, settings),
         });
     match result {
@@ -136,20 +152,40 @@ fn main() -> ExitCode {
     }
 }
 
+/// The client name of the tools: the same name as the agent would need
+/// the same `hello` flags, and `choractl mcp` keeps its nodes.
+fn mcp_name(name: &str) -> String {
+    format!("{name}-mcp")
+}
+
 /// Runs the agent until chora stays away or a thread ends.
 fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     let config = settings.value.clone();
     log::info(&format!("settings: {}", settings.file().display()));
     let vad = Vad::new().map_err(|e| format!("the VAD model: {e}"))?;
+    let net = tokio::runtime::Runtime::new().map_err(|e| format!("tokio: {e}"))?;
+    let mcp = mcp_name(&name);
+    let tools = Tools::chora(&config, &mcp);
+    let chat = net.block_on(Chat::start(
+        config.clone(),
+        mcp,
+        tools,
+        chat::history_file(),
+    ))?;
+    let chat = Arc::new(tokio::sync::Mutex::new(chat));
+    let warm = chat.clone();
+    net.spawn(async move { warm.lock().await.warm().await });
     let (tx, rx) = mpsc::channel();
     let mut agent = Agent {
         mic: Mic::start(config.capture_cmd.clone(), Analyzer::new(vad), tx.clone()),
         speaker: Speaker::new(config.playback_cmd.clone()),
         recorder: start_recording(&config.record_dir),
         core: Core::new(config),
-        net: tokio::runtime::Runtime::new().map_err(|e| format!("tokio: {e}"))?,
+        net,
         tx: tx.clone(),
         interim_busy: Arc::default(),
+        chat,
+        reply: None,
     };
     client::start(name, settings, tx);
     log::info(&format!("started, {:?}", agent.core.state()));
@@ -173,6 +209,9 @@ struct Agent {
     tx: mpsc::Sender<Input>,
     /// An interim transcription runs; the next interval waits for it.
     interim_busy: Arc<AtomicBool>,
+    chat: Arc<tokio::sync::Mutex<Chat>>,
+    /// The reply in progress.
+    reply: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl Agent {
@@ -196,6 +235,15 @@ impl Agent {
                     self.recorder = start_recording(&new.record_dir);
                 }
                 self.speaker.set_cmd(new.playback_cmd.clone());
+                let (chat, config) = (self.chat.clone(), (**new).clone());
+                self.net.spawn(async move {
+                    let mut chat = chat.lock().await;
+                    match chat.configure(config) {
+                        Ok(true) => chat.warm().await,
+                        Ok(false) => {}
+                        Err(e) => log::error(&e),
+                    }
+                });
             }
             _ => {}
         }
@@ -236,6 +284,18 @@ impl Agent {
                     self.transcribe(turn, true, pcm);
                 }
             }
+            Effect::Ask {
+                turn,
+                text,
+                speak,
+                ended,
+            } => self.ask(turn, text, speak, ended),
+            Effect::Stop => {
+                if let Some(reply) = self.reply.take() {
+                    reply.abort();
+                }
+                self.speaker.stop();
+            }
             Effect::Exit => return Err("chora stays away".into()),
         }
         Ok(())
@@ -243,6 +303,34 @@ impl Agent {
 }
 
 impl Agent {
+    /// Starts the reply to `text`; its events go to the core.
+    fn ask(&mut self, turn: u64, text: String, speak: bool, ended: std::time::Instant) {
+        let (chat, tx) = (self.chat.clone(), self.tx.clone());
+        let config = self.core.config().clone();
+        let speaker = speak.then(|| self.speaker.clone());
+        self.reply = Some(self.net.spawn(async move {
+            let mut chat = chat.lock().await;
+            let on = |reply| drop(tx.send(Input::Reply(turn, reply)));
+            let (report, spoken) =
+                speech::reply(&mut chat, &config, &text, speaker.as_ref(), &on).await;
+            let ms = |d: Option<Duration>| d.map_or("-".into(), |d| format!("{}ms", d.as_millis()));
+            log::info(&format!(
+                "turn={turn} llm_first={} tts_first={} first_sound={} tools={}/{}ms \
+                 rounds={} outcome={}",
+                ms(report.llm_first),
+                ms(spoken.tts_first),
+                ms(spoken
+                    .first_sound
+                    .map(|t| t.saturating_duration_since(ended))),
+                report.tools,
+                report.tools_time.as_millis(),
+                report.rounds,
+                report.outcome
+            ));
+            on(Reply::Done(report.reply));
+        }));
+    }
+
     /// Sends `pcm` to the ASR; the text comes back as an input.
     fn transcribe(&self, turn: u64, interim: bool, pcm: Vec<i16>) {
         let config = self.core.config();

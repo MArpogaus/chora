@@ -1,5 +1,5 @@
 //! The subcommands that check the servers of the settings by hand:
-//! `asr FILE`, `tts TEXT` and `roundtrip [TEXT]`.
+//! `asr FILE`, `tts TEXT`, `roundtrip [TEXT]` and `ask TEXT`.
 
 use std::{
     path::Path,
@@ -9,8 +9,12 @@ use std::{
 use crate::{
     asr,
     audio::Speaker,
+    chat::{Chat, Event},
     config::Config,
+    core::Reply,
     pcm::{self, RATE},
+    speech,
+    tools::Tools,
     tts,
 };
 
@@ -97,4 +101,46 @@ pub fn tts(config: &Config, text: &str, out: Option<&Path>) -> Result<(), String
 pub fn roundtrip(config: &Config, text: &str) -> Result<(), String> {
     let pcm = speak(config, text)?;
     transcribe(config, &pcm)
+}
+
+/// `chora-voice ask TEXT`: one turn with the LLM and the tools of chora
+/// under the client name `name`, without the history file.
+pub fn ask(config: &Config, name: &str, text: &str, speak: bool, yes: bool) -> Result<(), String> {
+    runtime()?.block_on(async {
+        let start = Instant::now();
+        let mut chat = Chat::start(config.clone(), name.into(), Tools::chora(config, name), None).await?;
+        println!(
+            "start={}ms tools={}",
+            start.elapsed().as_millis(),
+            chat.tools.specs.len()
+        );
+        chat.warm().await;
+        let speaker = speak.then(|| Speaker::new(config.playback_cmd.clone()));
+        let start = Instant::now();
+        let at = || start.elapsed().as_millis();
+        let on = |reply| match reply {
+            Reply::Chat(Event::Tool(name)) => println!("{:>6}ms tool {name}", at()),
+            Reply::Chat(Event::Confirm { prompt, answer }) => {
+                println!("{:>6}ms confirm {prompt:?}: {}", at(), if yes { "yes" } else { "no" });
+                let _ = answer.send(yes);
+            }
+            Reply::Sound => println!("{:>6}ms first sound", at()),
+            _ => {}
+        };
+        let (report, spoken) = speech::reply(&mut chat, config, text, speaker.as_ref(), &on).await;
+        let ms = |d: Option<Duration>| d.map_or("-".into(), |d| format!("{}ms", d.as_millis()));
+        println!("reply={:?}", report.reply);
+        println!(
+            "llm_first={} tts_first={} first_sound={} tools={}/{}ms rounds={} outcome={} total={}ms",
+            ms(report.llm_first),
+            ms(spoken.tts_first),
+            ms(spoken.first_sound.map(|t| t.saturating_duration_since(start))),
+            report.tools,
+            report.tools_time.as_millis(),
+            report.rounds,
+            report.outcome,
+            at()
+        );
+        Ok(())
+    })
 }

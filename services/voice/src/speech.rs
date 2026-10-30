@@ -6,7 +6,14 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use crate::{config::Config, pcm::RATE, tts};
+use crate::{
+    audio::Speaker,
+    chat::{Chat, Event, Report},
+    config::Config,
+    core::Reply,
+    pcm::RATE,
+    tts,
+};
 
 /// The first piece of a reply may end at a comma after this many
 /// characters, so the first sound comes sooner.
@@ -160,6 +167,53 @@ pub async fn speak(
     spoken
 }
 
+/// Runs a turn of `chat` and speaks its sentences and confirmation
+/// prompts through `speaker`, none without it. `on` gets the events for
+/// the core.
+pub async fn reply(
+    chat: &mut Chat,
+    config: &Config,
+    text: &str,
+    speaker: Option<&Speaker>,
+    on: &(impl Fn(Reply) + Sync),
+) -> (Report, Spoken) {
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    let turn = async {
+        let tx = tx;
+        let say = |sentence: String| {
+            if speaker.is_some() {
+                let _ = tx.send(sentence);
+            }
+        };
+        chat.turn(text, &|event| match event {
+            Event::Sentence(sentence) => say(sentence),
+            Event::Confirm { prompt, answer } => {
+                say(prompt.clone());
+                on(Reply::Chat(Event::Confirm { prompt, answer }));
+            }
+            event => on(Reply::Chat(event)),
+        })
+        .await
+    };
+    let mut player = None;
+    let play = |pcm| {
+        let Some(speaker) = speaker else {
+            return;
+        };
+        if player.is_none() {
+            on(Reply::Sound);
+            player = speaker
+                .stream()
+                .map_err(|e| crate::log::error(&format!("playback: {e}")))
+                .ok();
+        }
+        if let Some(player) = &player {
+            let _ = player.send(pcm);
+        }
+    };
+    tokio::join!(turn, speak(config, rx, play))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -235,5 +289,59 @@ mod tests {
             start.elapsed() >= Duration::from_millis(1300),
             "speak ends with the sound"
         );
+    }
+
+    #[tokio::test]
+    async fn a_reply_speaks_its_sentences_and_the_question_of_a_confirmation() {
+        let llm = fake::llm(vec![
+            fake::Reply::Tool("echo", "{}"),
+            fake::Reply::Text("Gut. Fertig."),
+        ])
+        .await;
+        let tts = fake::tts(fake::Tts::Speak).await;
+        let config = Config {
+            llm_url: llm.url,
+            tts_url: tts.url,
+            confirm: vec![crate::config::Confirm {
+                tool: "echo".into(),
+                commands: Vec::new(),
+                argv0: Vec::new(),
+                method: None,
+                prompt: "Wirklich?".into(),
+            }],
+            ..Config::default()
+        };
+        let (tools, _) = crate::tools::tests::fake(0);
+        let mut chat = Chat::start(config.clone(), "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        let speaker = Speaker::new(["sh", "-c", "cat > /dev/null"].map(Into::into).to_vec());
+        let events = std::sync::Mutex::new(Vec::new());
+        let on = |reply| {
+            let line = match reply {
+                Reply::Chat(Event::Confirm { answer, .. }) => {
+                    let _ = answer.send(true);
+                    "confirm".into()
+                }
+                Reply::Chat(event) => format!("{event:?}"),
+                Reply::Sound => "sound".into(),
+                Reply::Done(_) => unreachable!(),
+            };
+            events.lock().unwrap().push(line);
+        };
+        let (report, spoken) = reply(&mut chat, &config, "Echo.", Some(&speaker), &on).await;
+        assert_eq!(report.reply, "Gut. Fertig.");
+        assert_eq!((spoken.sentences, spoken.errors), (3, 0));
+        let texts: Vec<_> = tts
+            .seen
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|m| m["text"].as_str().map(str::to_owned))
+            .collect();
+        assert_eq!(texts, ["Wirklich?", "Gut.", "Fertig."], "one socket each");
+        let events = events.into_inner().unwrap();
+        assert_eq!(events[..3], ["Thinking", "confirm", "Tool(\"echo\")"]);
+        assert!(events.contains(&"sound".to_owned()), "{events:?}");
     }
 }
