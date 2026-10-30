@@ -2118,7 +2118,9 @@ changes grants. A process of the user on the host reaches the admin
 socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that <a href="#client-sockets">Client sockets</a> lists.
-<code>choractl mcp</code> offers no tool for grants.</p>
+<code>choractl mcp</code> offers no tool for grants. On the main socket,
+<code>activation.token</code> opens the MCP tool <code>run_program</code>, and <code>methods.call</code>
+changes nothing.</p>
 <h2 id="client-sockets">Client sockets<a class="headerlink" href="#client-sockets" title="Permanent link">&para;</a></h2>
 <p>A client socket fixes the name of its clients (D33). <code>clients.create</code>
 on the admin socket opens <code>clients/NAME/ipc.sock</code> below the directory of
@@ -2264,7 +2266,7 @@ running.</p>
 </code></pre></div>
 <p><code>choractl restart NAME</code> restarts a plugin with <code>systemctl --user restart</code>.
 The unit is <code>chora-NAME-SESSION.service</code> of a view in this session,
-where SESSION is a short hash of <code>CHORA_SOCKET</code>, or else
+where SESSION is a short hash of <code>CHORA_SOCKET</code>. Else it is
 <code>chora-NAME.service</code> of a flavor (see <a href="#plugins">Plugins</a>). The flavor
 unit counts only in the session whose <code>WAYLAND_DISPLAY</code> the user
 manager holds, so a nested chora never restarts a plugin of its host.
