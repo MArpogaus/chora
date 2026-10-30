@@ -1308,7 +1308,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D23</td>
-<td>A hardcoded safety layer: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT, SIGUSR1 resets while the main loop runs; a watchdog that blames the client whose visible nodes cost the most for slow frames, removes its effects and then disconnects it, and never resets the session (target: the watchdog in its own thread; it runs on the main loop, so a hung shader stops it too); a binding that revokes the capabilities of all agents</td>
+<td>A hardcoded safety layer: Ctrl+Alt+Backspace quits, Ctrl+Alt+Escape resets, Ctrl+Alt+F1 to F12 switch the VT, SIGUSR1 resets while the main loop runs; a watchdog that blames the client whose visible nodes cost the most for slow frames, removes its effects and then disconnects it, and never resets the session (target: the watchdog in its own thread; it runs on the main loop, so a hung shader stops it too); a binding that revokes the capabilities of all clients</td>
 <td>A recovery path must not depend on a file that an agent can break, or on a main loop that hangs. One client without grants must not take the window manager, the grants and the effects of the others down with it.</td>
 </tr>
 <tr>
@@ -1370,7 +1370,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D33</td>
-<td>Each client has a socket directory with an IPC socket and a Wayland socket of its own that hides the privileged protocols; the socket fixes its name and its capabilities; <code>input.inject</code>, <code>screen.capture</code> and <code>input.grab-any</code> are capabilities</td>
+<td>Each client has a socket directory with an IPC socket and a Wayland socket of its own that hides the privileged protocols; the socket fixes its name and its capabilities; <code>input.inject</code>, <code>screen.capture</code>, <code>input.grab-any</code>, <code>methods.call</code> and <code>activation.token</code> are capabilities</td>
 <td>A client cannot take another name or give itself capabilities. A container mounts one directory and needs no configuration.</td>
 </tr>
 <tr>
@@ -1385,7 +1385,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D36</td>
-<td>The GitHub organization is <code>chora-desktop</code> (<code>chora</code> is taken). It holds <code>chora</code> (the core, <code>chora-scene</code>, <code>choractl</code>, the plugins, the reference documentation) and later <code>chora-website</code>, <code>chora-packaging</code>, <code>chora-voice</code> and <code>.github</code>. The split of the plugins into repositories of their own is postponed past 0.6; until then they live in the core repository and build with it</td>
+<td>The GitHub organization is <code>chora-desktop</code> (<code>chora</code> is taken). It holds <code>chora</code> (the core, <code>chora-scene</code>, <code>choractl</code>, the plugins, the reference documentation) and later <code>chora-website</code>, <code>chora-packaging</code>, <code>chora-voice</code> and <code>.github</code>. The organization and the split of the plugins into repositories of their own are postponed to 1.0; until then they live in the core repository and build with it</td>
 <td>Plugins and services get their own owners and releases once the API of <code>chora-scene</code> has settled. The core keeps the definition of the API.</td>
 </tr>
 </tbody>
@@ -1427,8 +1427,8 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D42</td>
-<td>The core starts no program except the startup command; <code>choractl run</code> starts programs through <code>systemd-run --user</code> with an activation token; <code>systemctl --user restart</code> restarts a plugin; journald keeps the output; without a reachable user systemd, <code>choractl</code> starts and restarts programs itself, decided at run time</td>
-<td>systemd already supervises processes. Test sessions and sandboxes have no user systemd; the fallback lives in <code>choractl</code>, so the core stays free of forks and one binary serves both. The activation token links a program to its window.</td>
+<td>The core starts no program except the startup command. <code>choractl run</code> starts programs through <code>systemd-run --user</code> with an activation token, and journald keeps their output. Without a running user manager, <code>choractl run</code> starts the program as its own child. systemd units restart plugins, and <code>choractl restart</code> restarts such a unit.</td>
+<td>systemd already supervises processes. Test sessions and sandboxes have no user manager; the fallback lives in <code>choractl</code>, so the core stays free of forks and one binary serves both. The activation token links a program to its window.</td>
 </tr>
 <tr>
 <td>D43</td>
@@ -1494,7 +1494,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D53</td>
-<td>The voice pipeline lives in <code>chora-voice</code> and runs in parallel to the core; the core supplies push-to-talk grabs, text injection, the read model and an agent indicator</td>
+<td>The voice pipeline lives in <code>chora-voice</code>, until 1.0 in <code>services/voice/</code> of the core repository (D36), and runs in parallel to the core; the core supplies push-to-talk grabs, text injection, the read model and an agent indicator</td>
 <td>The pipeline is a product of its own. It needs only the API of the core.</td>
 </tr>
 <tr>

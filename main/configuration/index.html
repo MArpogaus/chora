@@ -1171,9 +1171,10 @@ font in <code>~/.local/share/fonts</code> needs no setting at all.</p>
 <li>A node has an <code>id</code>, a <code>kind</code> (<code>group</code>, <code>rect</code>, <code>image</code>, <code>shader</code> or
   <code>text</code>), a <code>parent</code>
   (the root by default) and its <code>props</code> as in a <code>create</code> command.</li>
-<li>A name has letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, but no <code>.</code> first, so that
-  its file stays in its directory. The file <code>NAME.yaml</code> must name the same
-  view.</li>
+<li>A name has lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, and starts
+  with a letter, so that its file stays in its directory. A name does
+  not end in <code>.yaml</code>, because such a name is a path. The file
+  <code>NAME.yaml</code> must name the same view.</li>
 <li><code>choractl view load</code> also takes the path of a YAML file; the MCP tools
   take names only.</li>
 <li>A plugin that a view starts gets no stdin and no stdout of <code>choractl</code>,
@@ -1233,6 +1234,10 @@ their grants (see <a href="../api/#client-sockets">API</a>):</p>
 <span class="nt">showroom</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">grants</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
 </code></pre></div>
+<p>The grants are the five capabilities of <code>choractl grant</code> (see
+<a href="../api/#client-sockets">API</a>). An agent that
+drives the window manager needs <code>methods.call</code>, and one that starts apps
+needs <code>activation.token</code>. Both let it take the keyboard focus.</p>
 <p>The names follow the rules of <code>hello</code>. <code>clients up</code> opens the socket of
 every name with exactly the capabilities of its list. A socket that
 already has the equal capabilities stays with its connections and gets
@@ -1287,7 +1292,7 @@ option:</p>
 </tr>
 <tr>
 <td><code>bindings</code></td>
-<td>a binding with <code>MOD</code>, and its action; the default file uses every action at least once</td>
+<td>a binding with <code>MOD</code>, and its action; the default file uses every action at least once; <code>run: CMD</code> starts a shell command with <code>choractl run</code></td>
 </tr>
 </tbody>
 </table>
@@ -1352,8 +1357,8 @@ like <code>set_layout</code>.</p>
 <p><code>chora-tiling</code> connects with <code>resume</code> (see <a href="../api/#ipc-methods">API</a>). It
 keeps the tags and the layouts of each output, and the tags, the states
 and the stacking of each window, in the <code>meta</code> of its nodes. A restart
-within the grace time rebuilds them from there, for example <code>choractl
-restart tiling</code> after a rebuild.</p>
+within the grace time rebuilds them from there. In a flavor or a view,
+<code>choractl restart tiling</code> does that after a rebuild.</p>
 <p><code>chora-tiling</code> claims the box around the work areas of its outputs
 (D55). <code>--output NAME</code> limits it to some outputs, as for <code>chora-xp</code>, and
 can come more than once. So each window manager takes its own outputs.
@@ -1376,7 +1381,7 @@ start, restart and order, so chora needs no service manager.</p>
 <p>The package installs the tiling flavor:</p>
 <div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/tiling/
 ├── chora-tiling.target              # wants the two units below
-├── chora-tiling-wm.service          # chora-tiling
+├── chora-tiling.service             # chora-tiling
 └── chora-tiling-xwayland.service    # xwayland-satellite, if installed
 </code></pre></div>
 <p>The target also wants <code>waybar.service</code>, which the waybar package installs.
@@ -1387,7 +1392,7 @@ the style of Windows XP. It is a demo, not a daily driver. <code>chora-xp</code>
 connects with the client name <code>xp</code>.</p>
 <div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/xp/
 ├── chora-xp.target              # wants the two units below
-├── chora-xp-wm.service          # chora-xp
+├── chora-xp.service             # chora-xp
 ├── chora-xp-xwayland.service    # xwayland-satellite, if installed
 └── theme/                       # SVG files, fonts, wallpaper and cursors
 </code></pre></div>
@@ -1907,7 +1912,7 @@ these bindings, Super+Ctrl with the arrows stands in.</p>
 </table>
 <p>To try the flavor from a source tree, start it nested:</p>
 <div class="highlight"><pre><span></span><code>cargo<span class="w"> </span>build<span class="w"> </span>--workspace
-target/debug/chora<span class="w"> </span>--<span class="w"> </span>target/debug/chora-xp<span class="w"> </span>--theme<span class="w"> </span>flavors/xp/theme
+<span class="nv">PATH</span><span class="o">=</span><span class="nv">$PWD</span>/target/debug:<span class="nv">$PATH</span><span class="w"> </span>chora<span class="w"> </span>--<span class="w"> </span>chora-xp<span class="w"> </span>--theme<span class="w"> </span>flavors/xp/theme
 </code></pre></div>
 <h2 id="services">Services<a class="headerlink" href="#services" title="Permanent link">&para;</a></h2>
 <p>A service runs as a Quadlet unit with Podman, or in distrobox. It
@@ -1920,7 +1925,7 @@ admin socket, so a container never mounts it (see
 <a href="../api/#client-sockets">API</a>). Through its <code>ipc.sock</code>, the container sees
 and changes only its own nodes and the windows of its <code>wayland.sock</code>. It
 sets no camera and puts no node under <code>screen:*</code>. It takes the keyboard
-with <code>focus_node</code> only after a press of the user on it.</p>
+with <code>focus_node</code> or <code>focus</code> only after a press of the user on it.</p>
 
 
 

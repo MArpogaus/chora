@@ -1462,7 +1462,10 @@ the viewer, and a perspective transform projects it. The texture maps
 perspective-correct. A triangle with a point behind the viewer does
 not show; the rest of the mesh does.</p>
 <p>An effect is a GLSL ES fragment shader with absolute path. It reads the
-layer in <code>uniform sampler2D tex</code> at <code>varying vec2 v_uv</code>, and may use
+layer in <code>uniform sampler2D tex</code> at <code>varying vec2 v_uv</code>. <code>v_uv</code> is
+<code>(0, 0)</code> at the top left of the node and grows to the right and down, as
+the scene does; a flame that rises therefore rises toward small <code>v_uv.y</code>.
+A shader node and an effect may use
 <code>uniform float alpha</code>, <code>uniform vec2 size</code> (the texture size in pixels),
 <code>uniform float time</code> (seconds) and its own <code>float</code> and <code>vec2</code> to <code>vec4</code>
 uniforms. The texture holds premultiplied colors, and the shader writes
@@ -1655,7 +1658,7 @@ by default; a timeout exits 1 with the reason on stderr.</p>
 <tbody>
 <tr>
 <td><code>surface.created</code></td>
-<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title, and <code>decoration</code>: <code>server</code> when the client asked for a frame of the plugins through <code>xdg-decoration</code>, <code>client</code> when it draws its own. <code>to</code> names the window manager that the core reserved it for (see <a href="#window-managers">Window managers</a>). <code>pid</code> is the process of the client as the socket reports it, a hint that a pid namespace can hide; <code>token</code> is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before the first map.</td>
+<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title, and <code>decoration</code>: <code>server</code> when the client asked for a frame of the plugins through <code>xdg-decoration</code>, <code>client</code> when it draws its own. <code>to</code> names the window manager that the core reserved it for (see <a href="#window-managers">Window managers</a>). <code>pid</code> is the process of the client as the socket reports it, a hint that a pid namespace can hide; <code>token</code> is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before its first commit. An activation in the same batch of requests counts too, as in foot. The core sends the event at the end of that batch.</td>
 </tr>
 <tr>
 <td><code>surface.changed</code></td>
@@ -1754,8 +1757,8 @@ when it applied, an error with the index of the failed command when not.
 input when the file is <code>-</code>; it prints nothing when it applied and the
 reason when not, so the exit code is the answer. Only the <code>view</code>
 subcommand reads YAML.
-A request that a client makes before its first commit follows its
-<code>surface.created</code>. A taskbar asks through <code>wlr-foreign-toplevel-management</code>.
+A request that a client makes before its <code>surface.created</code> follows
+that event. A taskbar asks through <code>wlr-foreign-toplevel-management</code>.
 The core does not act on a request, also not on <code>close</code>. A plugin answers
 with commands, for example <code>close</code>. A press over a surface reaches its
 client as well; a press over a rect or an image goes to plugins only, with
@@ -1846,7 +1849,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>grants.set(client, capabilities)</code>, <code>grants.revoke(client, capabilities)</code>, <code>grants.list</code></td>
-<td>grant or revoke <code>input.inject</code>, <code>screen.capture</code> and <code>input.grab-any</code> for a client name; <code>choractl grant</code> and <code>choractl revoke</code> call them; <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket; a name with a client socket answers code 9 instead, because its capabilities live in <code>clients.yaml</code></td>
+<td>grant or revoke capabilities for a client name. <code>choractl grant</code> and <code>choractl revoke</code> call them. <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket. A name with a client socket answers code 9, because <code>clients.yaml</code> holds its capabilities. For a name of the main socket, <code>methods.call</code> changes nothing, and <code>activation.token</code> only opens the MCP tool <code>run_program</code>.</td>
 </tr>
 <tr>
 <td><code>clients.create(name, capabilities)</code></td>
@@ -1882,7 +1885,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>methods.call(client, method, params)</code></td>
-<td>call a method of another client; the answer is the result of the method</td>
+<td>call a method of another client; the answer is the result of the method; a client socket needs the capability <code>methods.call</code></td>
 </tr>
 <tr>
 <td><code>methods.return(call, result, error)</code></td>
@@ -1890,7 +1893,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>activation.token</code></td>
-<td>answer an xdg activation token of no client, for <code>choractl run</code> (D42, see <a href="#programs">Programs</a>); the next toplevel that activates with it shows the token in <code>surface.created</code>; one use ends it; an unused token of no client is forgotten after 10 s; a client socket gets code 9</td>
+<td>answer an xdg activation token of no client, for <code>choractl run</code> (D42, see <a href="#programs">Programs</a>); the next toplevel that activates with it shows the token in <code>surface.created</code>; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability <code>activation.token</code></td>
 </tr>
 <tr>
 <td><code>assets.put(name, data)</code></td>
@@ -2118,7 +2121,9 @@ changes grants. A process of the user on the host reaches the admin
 socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that <a href="#client-sockets">Client sockets</a> lists.
-<code>choractl mcp</code> offers no tool for grants.</p>
+<code>choractl mcp</code> offers no tool for grants. On the main socket,
+<code>activation.token</code> opens the MCP tool <code>run_program</code>, and <code>methods.call</code>
+changes nothing.</p>
 <h2 id="client-sockets">Client sockets<a class="headerlink" href="#client-sockets" title="Permanent link">&para;</a></h2>
 <p>A client socket fixes the name of its clients (D33). <code>clients.create</code>
 on the admin socket opens <code>clients/NAME/ipc.sock</code> below the directory of
@@ -2146,7 +2151,8 @@ in. <code>choractl clients create agent</code> prints its path:</p>
 <li>No <code>create</code> or <code>move</code> puts a node under <code>screen:*</code> or below it.</li>
 <li>No <code>camera</code> command works.</li>
 <li><code>attach</code>, <code>focus</code>, <code>close</code> and <code>configure</code> take only a window of its
-    own <code>wayland.sock</code> or a surface that the name owns.</li>
+    own <code>wayland.sock</code> or a surface that the name owns. <code>focus</code> needs a
+    press as <code>focus_node</code> does, also to drop the focus.</li>
 <li><code>scene.query</code> on it returns only the nodes of the name and the windows
   of its <code>wayland.sock</code>. The <code>surface.*</code> events come only for these
   windows.</li>
@@ -2156,9 +2162,15 @@ in. <code>choractl clients create agent</code> prints its path:</p>
   drives the session as far as they reach.</li>
 <li><code>grants.set</code> and <code>grants.revoke</code> answer code 9 for the name: change
   <code>clients.yaml</code> and run <code>choractl clients up</code>.</li>
-<li><code>activation.token</code> answers code 9. A window of its <code>wayland.sock</code>
-  asks for tokens through <code>xdg-activation</code>, under the focus rules
-  above.</li>
+<li><code>methods.call</code> needs the capability <code>methods.call</code>, and
+  <code>activation.token</code> the capability <code>activation.token</code>. Without them
+  both answer code 4. The main socket needs neither. A token of
+  <code>activation.token</code> belongs to no client. Any window that activates
+  with it takes the focus without a press, also a window of the client
+  itself. With <code>methods.call</code>, a client can also ask a window manager for
+  the focus. So both capabilities let a client take the keyboard. A
+  window of its <code>wayland.sock</code> asks for tokens through <code>xdg-activation</code>, under the
+  focus rules above.</li>
 <li>Its <code>image</code>, <code>shader</code> and effect paths name only its own files of
   <code>assets.put</code>. The main socket has no such rule: a client of it runs as
   the same account as the core and could read those files anyway.</li>
@@ -2193,8 +2205,9 @@ socket, with these exceptions:</p>
   the security context manager, idle inhibit and idle notify are not
   offered. On Wayland the client cannot lock the session, list the
   windows, control the windows of others, open a socket of its own or
-  keep the screen awake. On <code>ipc.sock</code>, <code>focus_node</code> takes the keyboard
-  only after a press of the user on the client, as a token below does.</li>
+  keep the screen awake. On <code>ipc.sock</code>, <code>focus_node</code> and <code>focus</code> take the
+  keyboard only after a press of the user on the client, as a token
+  below does.</li>
 </ul>
 <p>The layer shell stays, so a panel can run in a container. Such a client
 can draw over all windows in the top layer, but the core refuses the
@@ -2216,58 +2229,57 @@ then get nothing. Its socket closes at its next request. Its windows carry the n
 <code>surface.client</code>. It reads the clipboard only while it has the keyboard
 focus, as every Wayland client does.</p>
 <p>A container that mounts only its client directory cannot take another
-name or give itself capabilities. The last known gap is gone: the core
-starts no program, so no program carries its <code>CHORA_SOCKET</code> and
-<code>WAYLAND_DISPLAY</code> into a container (D42).</p>
+name or give itself capabilities.</p>
 <h2 id="programs">Programs<a class="headerlink" href="#programs" title="Permanent link">&para;</a></h2>
 <p>The core starts no program except its own startup command (D30, D42).
-<code>choractl run</code>, <code>choractl supervise</code> and <code>choractl restart</code> start and
-keep programs outside the core.</p>
-<p><code>choractl run [--] CMD ARGS...</code> starts a program outside the core (D42).
-The old name <code>choractl spawn</code> is a hidden alias of it that prints one
-deprecation line on stderr.
-It first asks the core for an activation token with <code>activation.token</code>
-and passes it to the program in <code>XDG_ACTIVATION_TOKEN</code>. When <code>systemctl
---user is-system-running</code> answers, <code>systemd-run --user</code> starts the
-program in a transient unit of its own and returns at once. The unit
-also gets <code>XDG_RUNTIME_DIR</code>, <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> of
-the caller, so a plain <code>WAYLAND_DISPLAY</code> name resolves in the caller's
-runtime directory. It gets <code>DISPLAY</code> and the other host session
-variables only from the caller, never from the user manager. It starts
-in the caller's directory, and its output goes to the journal.
-Otherwise <code>choractl</code> forks the program itself, detached in a session of
-its own, with the environment of the caller and with no terminal. The
-command prints the pid and the token as one JSON line while the
-program runs. When
-the unit starts but its <code>MainPID</code> stays unknown after a short wait, for
-example because the program already ended, <code>pid</code> is <code>null</code>. The command
-never starts the program twice. Export
-the two variables for the fallback as for any client. A window that
-activates with the token before
-its first map shows it in <code>surface.created</code>. Since 0.7 the
-core itself starts nothing; <code>choractl run</code> and systemd do (D42).</p>
+<code>choractl run</code> starts programs outside the core, and systemd keeps
+plugins running.</p>
+<p><code>choractl run [--] CMD ARGS...</code> starts a program outside the core. It
+asks the core for an activation token with <code>activation.token</code> and
+passes it to the program in <code>XDG_ACTIVATION_TOKEN</code>. It prints the pid,
+the unit and the token as one JSON line while the program runs.</p>
+<ul>
+<li>When <code>systemctl --user is-system-running</code> shows a state other than
+  <code>offline</code>, a user manager runs. <code>systemd-run --user</code> then starts the
+  program in the transient unit <code>chora-run-PID-TIME.service</code>.
+  <code>journalctl --user -u UNIT</code> shows its output. The unit lives until the
+  last process in it ends, so an app that a launcher starts lives on.
+  The arguments reach the program literally, without the expansion of
+  <code>$</code> by systemd.</li>
+<li>This needs systemd 254 or later. When <code>systemd-run</code> fails, for example
+  because the unit exists already, <code>run</code> exits 1 with its error and
+  starts nothing.</li>
+<li>The unit gets the environment of the user manager, plus the token.
+  <code>PATH</code>, <code>XDG_RUNTIME_DIR</code>, <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> get
+  the value of the caller, or none when the caller has none. It gets <code>DISPLAY</code> and the other
+  host session variables only from the caller, never from the user
+  manager. It starts in the directory of the caller.</li>
+<li>Without a running user manager, <code>choractl</code> starts the program itself,
+  with the environment of the caller. The program stays in the process
+  group of the caller.
+  Its output goes to <code>/dev/null</code>, and <code>unit</code> is <code>null</code>.</li>
+<li>When the unit starts but its <code>MainPID</code> stays unknown after a short
+  wait, for example because the program ended at once, <code>pid</code> is <code>null</code>.
+  The command never starts the program twice.</li>
+</ul>
+<p>A window that activates with the token before its first commit, or in
+the same batch, shows the token in <code>surface.created</code>. <code>chora-tiling</code> and <code>chora-xp</code> start apps with
+<code>choractl run</code> too, so a restart of a window manager leaves its apps
+running.</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>run<span class="w"> </span>--<span class="w"> </span>foot
-<span class="go">{"pid":4343,"token":"a1b2c3d4e5f60718"}</span>
+<span class="go">{"pid":4343,"token":"a1b2c3d4e5f60718","unit":"chora-run-4342-1761400000123456789.service"}</span>
 </code></pre></div>
-<p><code>choractl supervise NAME -- CMD ARGS...</code> runs a plugin and starts it
-again when it ends (D42). It allows at most five restarts per minute
-and exits with an error after them. It writes the pid of the running
-program to <code>$XDG_RUNTIME_DIR/chora/supervise/NAME.pid</code>, so that
-<code>choractl restart</code> finds it. SIGTERM or SIGINT to <code>supervise</code> ends the
-program, removes the pid file, and exits with 128 plus the signal, as
-process managers expect. Only one <code>supervise</code> runs per name; a second
-one exits with an error. A restart through <code>choractl restart</code> counts
-toward the five restarts too. The command calls no core.</p>
-<p><code>choractl restart NAME</code> restarts a plugin. While the systemd user unit
-<code>NAME.service</code> or <code>chora-NAME-wm.service</code> of a flavor is active, it
-runs <code>systemctl --user restart</code> on that unit. Otherwise it sends SIGTERM to the running program of
-<code>choractl supervise NAME</code>, which starts it again. A name that runs in
-neither way is an error. A pid file whose program no longer runs is an
-error too, and the command removes the file. It prints what it
-restarted as one JSON line.</p>
-<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>supervise<span class="w"> </span>tiling<span class="w"> </span>--<span class="w"> </span>chora-tiling<span class="w"> </span><span class="p">&amp;</span>
-<span class="gp">$ </span>choractl<span class="w"> </span>restart<span class="w"> </span>tiling
-<span class="go">{"restarted":"supervise","pid":4444}</span>
+<p><code>choractl restart NAME</code> restarts a plugin with <code>systemctl --user restart</code>.
+The unit is <code>chora-NAME-SESSION.service</code> of a view in this session,
+where SESSION is a short hash of <code>CHORA_SOCKET</code>. Else it is
+<code>chora-NAME.service</code> of a flavor (see <a href="#plugins">Plugins</a>). The flavor
+unit counts only in the session whose <code>WAYLAND_DISPLAY</code> the user
+manager holds, so a nested chora never restarts a plugin of its host.
+A name without an active unit is an error: the command exits 1 with the
+reason on stderr, and starts nothing. It prints the unit as one JSON
+line and calls no core.</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>restart<span class="w"> </span>tiling
+<span class="go">{"unit":"chora-tiling.service"}</span>
 </code></pre></div>
 <h2 id="screen-capture">Screen capture<a class="headerlink" href="#screen-capture" title="Permanent link">&para;</a></h2>
 <p><code>screen.capture</code> renders an output, or a node with its descendants, and
@@ -2465,8 +2477,15 @@ lists all of its methods:</p>
 <p><code>choractl view load</code> reads the manifest of each plugin of a view: it starts
 a plugin that does not run with <code>exec</code>, and passes the <code>config</code> of the view
 to the method in <code>configure</code> (see
-<a href="../configuration/#plugin-manifests">Configuration</a>). A flavor starts its
-plugins as systemd units instead.</p>
+<a href="../configuration/#plugin-manifests">Configuration</a>). The start goes
+through <code>choractl run</code>. With a user manager, the unit
+<code>chora-NAME-SESSION.service</code> restarts the plugin when it fails. It
+carries the session, so that every chora on the same user manager
+starts its own plugins. A flavor starts its plugins as its own systemd
+units <code>chora-NAME.service</code> instead. A view whose plugin unit runs
+already, for example while the plugin starts, waits for that plugin.
+<code>choractl view load</code> works only from the main socket: a view connects
+as <code>view-NAME</code>, and a client socket refuses any name but its own.</p>
 <h2 id="mcp-tools">MCP tools<a class="headerlink" href="#mcp-tools" title="Permanent link">&para;</a></h2>
 <p><code>choractl mcp</code> serves the API as MCP tools over stdio (D34). It connects
 as the client <code>agent</code>, or under <code>--name</code>. An MCP client starts it, for
@@ -2514,6 +2533,10 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 <td>the views of <a href="../configuration/#views">Configuration</a>, by name only</td>
 </tr>
 <tr>
+<td><code>run_program</code></td>
+<td>start a program as <code>choractl run</code> does, on the machine of the MCP server; answers pid, unit and token, or the error of the start; the output of the program never comes back</td>
+</tr>
+<tr>
 <td><code>reserve_space</code></td>
 <td>space at the edges of an output, as <code>output.reserve</code>, while the server runs</td>
 </tr>
@@ -2543,10 +2566,13 @@ examples of this page agree.</p>
 <p>The screenshot of <code>describe_screen</code>, <code>capture</code> and <code>inject_input</code> need
 the grants of the client name, for example
 <code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
-still describes the scene. No tool grants anything (D40). Programs are
-outside the MCP server: start them with <code>choractl run</code> (D42). Since 0.7
-the tools <code>spawn_process</code>, <code>wait_process</code> and <code>restart_plugin</code> are gone,
-because a tool that starts programs would pass every grant.</p>
+still describes the scene. No tool grants anything (D40). On a client
+socket, <code>call_method</code> and the tools of plugin methods need the capability
+<code>methods.call</code>. <code>run_program</code> needs the grant <code>activation.token</code> on
+every socket, because a started program can do all that the user can.
+On the main socket, <code>choractl grant agent activation.token</code> gives it; a
+client socket lists it in <code>clients.yaml</code>. The program starts where the
+MCP server runs, for example inside the container of an agent.</p>
 <p>A subscription has a connection of its own under the same client name. A
 thread reads its events into a buffer of 1000 events, so the core never
 waits for the agent. When the buffer is full, the oldest events go, and

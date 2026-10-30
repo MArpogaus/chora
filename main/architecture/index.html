@@ -1567,11 +1567,11 @@ opens on F10 when the key goes up.</p>
   <a href="../api/#input-injection">Input injection</a>. They are Ctrl+Alt+BackSpace
   (quit), Ctrl+Alt+Escape (emergency reset), Ctrl+Alt+i (revoke) and
   Ctrl+Alt+F1 to F12 (VT switch).</li>
-<li><strong>Revoke binding.</strong> Ctrl+Alt+i takes every capability away from each
-  client that holds only agent capabilities: <code>input.inject</code>,
-  <code>screen.capture</code> and <code>input.grab-any</code>. It also ends
-  the grabs that need no modifier and disconnects Wayland clients that
-  held a grant. The IPC connections stay.</li>
+<li><strong>Revoke binding.</strong> Ctrl+Alt+i takes every capability away from every
+  client and drops the unused activation tokens of no client. It also
+  ends the grabs that need no modifier and disconnects the Wayland
+  clients that a capability gave a protocol, for example screencopy. The
+  IPC connections stay.</li>
 <li><strong>Injection mark.</strong> While a client injects input, the core shows a
   small yellow rect of its own next to the pointer. It goes 500 ms after
   the last injected event. No client owns the mark or can remove it.</li>
@@ -1641,11 +1641,12 @@ grants and makes client sockets (see <a href="../api/#client-sockets">API</a>).<
   hostile code of the same user. The emergency reset revokes all grants.</li>
 <li><code>screen.capture</code> and <code>input.inject</code> fail while the session is locked.</li>
 <li>The core starts no program except its own startup command (D42).
-  <code>choractl run</code>, <code>supervise</code> and <code>restart</code> start programs outside it.</li>
+  <code>choractl run</code> starts programs outside it, and systemd units keep
+  plugins running.</li>
 <li>A connection of a client socket acts only on its own nodes and on the
   windows of its <code>wayland.sock</code>. It sets no camera and puts no node
-  under <code>screen:*</code>. It takes the keyboard with <code>focus_node</code> only after a
-  press of the user on it (see <a href="../api/#client-sockets">API</a>).</li>
+  under <code>screen:*</code>. It takes the keyboard with <code>focus_node</code> or <code>focus</code>
+  only after a press of the user on it (see <a href="../api/#client-sockets">API</a>).</li>
 </ul>
 <h2 id="sessions-and-flavors">Sessions and flavors<a class="headerlink" href="#sessions-and-flavors" title="Permanent link">&para;</a></h2>
 <ul>

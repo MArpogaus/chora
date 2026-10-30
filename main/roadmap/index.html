@@ -1269,7 +1269,8 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
 add one to two weeks.</p>
 <h2 id="06-foundation">0.6: Foundation<a class="headerlink" href="#06-foundation" title="Permanent link">&para;</a></h2>
 <p>Released as <code>v0.6.0</code> on 2026-10-19 without the gate checks 1, 2 and 5.
-These checks moved to the gate of 0.7.</p>
+These checks moved to the gate of 0.7. Check 1 then moved to the gate of
+1.0: the repository stays one monorepo until then.</p>
 <p><strong>Goal:</strong> the project works with gates in the GitHub organization
 <code>chora-desktop</code>. Unit tests check the core in process.</p>
 <p>Scope:</p>
@@ -1336,11 +1337,7 @@ without guessing.</p>
   and the client library warns on a mismatch.</li>
 <li>Stable error codes: one code for each kind of failure. The error data
   already names the failed command.</li>
-<li>Done (D42): <code>process.spawn</code>, <code>process.wait</code> and <code>plugins.restart</code> have
-  left the core. <code>choractl run</code> starts a program through
-  <code>systemd-run --user</code> with an activation token. Without a reachable user
-  systemd, <code>choractl</code> starts and restarts the program itself.
-  <code>choractl supervise</code> restarts a plugin that ends.</li>
+<li>The core starts no program except its startup command (D42).</li>
 <li>Focus in queries: the surface and the node that have the keyboard.</li>
 <li>Queries return the screen rectangle of a node on each output.</li>
 <li><code>choractl wait SELECTOR</code> returns when a node matches, or fails after a
@@ -1357,8 +1354,7 @@ without guessing.</p>
 </ul>
 <p>Gate:</p>
 <ol>
-<li>The organization <code>chora-desktop</code> and the core repository exist, and
-   <code>main</code> accepts pull requests only (from 0.6).</li>
+<li>Moved to the gate of 1.0: the organization and the protected <code>main</code>.</li>
 <li>A test release <code>v0.7.0-rc.1</code> comes from a tag on a merge commit. A
    tag on a commit with red CI starts no release (from 0.6).</li>
 <li>The <code>vkms</code> job is green in 10 runs in a row (from 0.6).</li>
@@ -1370,9 +1366,10 @@ without guessing.</p>
 <li>A client with <code>input.grab-any</code> grabs F13 and a letter key. A client
    without it gets the error code for a missing capability.</li>
 <li>The core has no code that forks a process except the startup command.</li>
-<li><code>choractl run foot</code> starts foot in its own systemd scope, and the
-   <code>surface.created</code> event of its window carries the activation token.
-   Without a user systemd, the same command starts foot directly.</li>
+<li><code>choractl run foot</code> starts foot in a transient systemd unit of its
+   own, and the <code>surface.created</code> event of its window carries the
+   activation token. Without a user manager, the same command starts foot
+   directly.</li>
 <li>Each error code of the API has a test that provokes it.</li>
 <li>The battle workflows in <code>tests/battle/</code> pass with <code>choractl wait</code>, the
     focus and the rectangles of queries and the plugin methods, without
@@ -1401,7 +1398,7 @@ for changes, and it can label what it shows.</p>
   the current keymap does not have, for example German umlauts on a US
   layout.</li>
 <li>A visible indicator while a client injects input, and a binding of the
-  safety layer that revokes the capabilities of all agents (D23).</li>
+  safety layer that revokes the capabilities of all clients (D23).</li>
 <li>A text node (D18): text with a font family, a size, a color and a
   maximum width. cosmic-text shapes it and finds fallback fonts. The
   indicator, plugins and agents use it for labels without a client.</li>
@@ -1423,7 +1420,7 @@ for changes, and it can label what it shows.</p>
    plugins after each <code>methods.export</code>.</li>
 <li>A capture shows the indicator while a client injects input.</li>
 <li>A test shows that the revoke binding removes the capabilities of all
-   agents.</li>
+   clients.</li>
 <li>A text node shows <code>Grüße 你好 🙂</code> with fallback fonts, and a pixel test
    against a reference capture passes.</li>
 <li>An MCP client puts a text node under <code>screen:NAME</code>, and a capture shows
@@ -1536,6 +1533,9 @@ and installs it from a package repository.</p>
   example of the documentation against it.</li>
 <li>A final review loop over the whole code base until a round finds
   nothing that matters (D47).</li>
+<li>The organization <code>chora-desktop</code> (D36). The core repository moves
+  there, and <code>main</code> accepts pull requests only. The plugins, the XP
+  showroom and the voice pipeline move into repositories of their own.</li>
 <li>All plugins of the organization use the protocol version 1.</li>
 </ul>
 <p>Gate:</p>
@@ -1548,12 +1548,14 @@ and installs it from a package repository.</p>
 <li>The schema job and the documentation test are green.</li>
 <li>Every plugin repository of the organization pins protocol version 1,
    and a CI job checks it.</li>
+<li>The organization <code>chora-desktop</code> and its repositories exist, and
+   <code>main</code> of each accepts pull requests only (from 0.6).</li>
 <li>The gate checks of the earlier milestones still hold, and the showroom CI
    is green against the release candidate.</li>
 </ol>
 <h2 id="track-xp-showroom">Track: XP showroom<a class="headerlink" href="#track-xp-showroom" title="Permanent link">&para;</a></h2>
-<p>The showroom grows in the core repository through 0.6 and moves to
-<code>chora-desktop/chora-xp</code> with the postponed split (D36, D39). It shows
+<p>The showroom grows in the core repository and moves to
+<code>chora-desktop/chora-xp</code> with the split at 1.0 (D36, D39). It shows
 the effects of the scene and serves as their test.</p>
 <ul>
 <li>Each core milestone ends with a showroom release that uses its API. The
@@ -1563,9 +1565,10 @@ the effects of the scene and serves as their test.</p>
   effect gets a pixel test in <code>tests/xp.sh</code>.</li>
 </ul>
 <h2 id="track-voice-pipeline">Track: voice pipeline<a class="headerlink" href="#track-voice-pipeline" title="Permanent link">&para;</a></h2>
-<p>The voice pipeline lives in <code>chora-desktop/chora-voice</code> and starts with
-milestone 0.6 (D53). It runs as Quadlet units on the reference hardware:
-speech to text, a router model, a main model and text to speech, served by
+<p>The voice pipeline lives in <code>services/voice/</code> of the core repository and
+moves to <code>chora-desktop/chora-voice</code> with the split at 1.0. It started with
+milestone 0.6 (D53). The models run as Quadlet units on the reference hardware:
+speech to text, a language model and text to speech, served by
 <a href="https://github.com/gufo-org/gufo">Gufo</a>.</p>
 <table>
 <thead>
@@ -1587,7 +1590,7 @@ speech to text, a router model, a main model and text to speech, served by
 <td>V2 Control</td>
 <td>the voice agent drives chora through MCP</td>
 <td>"move the terminal to the right" works in 18 of 20 tries</td>
-<td>0.7 (push-to-talk with <code>input.grab-any</code>), 0.8 (read model, text injection)</td>
+<td>0.8 (read model, text injection)</td>
 </tr>
 <tr>
 <td>V3 Views</td>
