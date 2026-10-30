@@ -1,0 +1,4 @@
+# Echo of RMS 600: a reply alone, then a barge-in.
+# Written by tests/corpus.py; times in s of mic.wav.
+barge 5.740
+turn 5.740 7.290

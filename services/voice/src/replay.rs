@@ -3,8 +3,9 @@
 //! labels.
 //!
 //! A recording is a directory in the format of `record_dir`: `mic.wav`,
-//! `events.jsonl` (optional; its `play` lines mark the agent's sound) and
-//! `labels.txt`, one label per line, times in s of `mic.wav`:
+//! `events.jsonl` and `played.wav` (optional; the `play` lines mark the
+//! agent's sound in both) and `labels.txt`, one label per line, times in
+//! s of `mic.wav`:
 //!
 //! ```text
 //! # a comment
@@ -17,7 +18,7 @@ use std::{fmt, ops::Range, path::Path};
 use crate::{
     audio::{Analyzer, FRAME},
     config::Config,
-    gate::{self, BargeIn, FRAME_MS, Gate},
+    gate::{self, BargeIn, ECHO_WINDOW, FRAME_MS, Gate},
     pcm::{self, RATE},
     vad::Vad,
 };
@@ -64,8 +65,11 @@ pub fn labels(text: &str) -> Result<Marks, String> {
 /// A recording with its labels.
 pub struct Recording {
     pub mic: Vec<i16>,
-    /// The agent's sound, in mic samples.
-    pub plays: Vec<Range<usize>>,
+    /// The agent's sound, in mic samples, and where each piece starts in
+    /// `played`.
+    pub plays: Vec<(Range<usize>, usize)>,
+    /// The played sound; empty without `played.wav`.
+    pub played: Vec<i16>,
     pub labels: Marks,
 }
 
@@ -90,12 +94,44 @@ impl Recording {
                 .map_err(|e| format!("{}/events.jsonl: {e}", dir.display()))?;
             let field = |key: &str| event[key].as_u64().and_then(|v| usize::try_from(v).ok());
             if event["event"] == "play"
-                && let (Some(at), Some(len)) = (field("at"), field("len"))
+                && let (Some(at), Some(len), Some(from)) =
+                    (field("at"), field("len"), field("from"))
             {
-                plays.push(at..at + len);
+                plays.push((at..at + len, from));
             }
         }
-        Ok(Self { mic, plays, labels })
+        let played = match pcm::read_wav(&dir.join("played.wav")) {
+            Ok((RATE, played)) => played,
+            Ok((rate, _)) => return Err(format!("{}/played.wav: {rate} Hz", dir.display())),
+            Err(_) => Vec::new(),
+        };
+        Ok(Self {
+            mic,
+            plays,
+            played,
+            labels,
+        })
+    }
+
+    /// The level of the played sound under mic frame `i`; 0 without
+    /// `played.wav`.
+    fn played_level(&self, i: usize) -> f64 {
+        let frame = i * FRAME..(i + 1) * FRAME;
+        let samples: Vec<i16> = self
+            .plays
+            .iter()
+            .flat_map(|(range, from)| {
+                let (start, end) = (frame.start.max(range.start), frame.end.min(range.end));
+                let at = |s: usize| (from + s - range.start).min(self.played.len());
+                if start < end {
+                    &self.played[at(start)..at(end)]
+                } else {
+                    &[][..]
+                }
+            })
+            .copied()
+            .collect();
+        crate::pcm::rms(&samples)
     }
 }
 
@@ -114,15 +150,21 @@ pub fn detect(config: &Config, rec: &Recording) -> Result<Marks, String> {
     let barge_s = seconds(config.barge_in_ms.div_ceil(FRAME_MS) * FRAME_MS);
     let mut found = Marks::default();
     let (mut start, mut stopped) = (None, None);
+    let mut levels = std::collections::VecDeque::new();
     for (i, chunk) in rec.mic.as_chunks::<FRAME>().0.iter().enumerate() {
         let frame = analyzer.frame(chunk.to_vec())?;
         let now = seconds(u32::try_from(i + 1).unwrap_or(u32::MAX) * FRAME_MS);
-        let play = rec.plays.iter().position(|p| p.contains(&(i * FRAME)));
+        let play = rec.plays.iter().position(|p| p.0.contains(&(i * FRAME)));
         let playing = play.is_some() && play != stopped;
+        levels.push_back(if playing { rec.played_level(i) } else { 0.0 });
+        if levels.len() > ECHO_WINDOW {
+            levels.pop_front();
+        }
         if !playing {
             barge.reset();
         }
-        if playing && barge.push(&frame) {
+        let played = levels.iter().copied().fold(0.0, f64::max);
+        if playing && barge.push(&frame, played) {
             found.barges.push(now);
             stopped = play;
             gate.reset();
@@ -286,7 +328,7 @@ pub fn run(config: &Config, dirs: &[&Path]) -> Result<(Vec<String>, Metrics), St
     for dir in dirs {
         let rec = Recording::load(dir)?;
         let found = detect(config, &rec)?;
-        let played: usize = rec.plays.iter().map(ExactSizeIterator::len).sum();
+        let played: usize = rec.plays.iter().map(|p| p.0.len()).sum();
         #[allow(clippy::cast_precision_loss)]
         let played_s = played as f64 / f64::from(RATE);
         let m = Metrics::new(&rec.labels, &found, played_s);
@@ -357,11 +399,7 @@ mod tests {
         let report = lines.join("\n");
         assert!(m.turns >= 4 && m.barges >= 1, "{report}");
         assert_eq!((m.missed_turns, m.missed_barges), (0, 0), "{report}");
-        // Known: the echo of RMS 600 in echo-barge is speech for Silero,
-        // so it never teaches the echo level, and it barges in and opens a
-        // turn. An echo level from the played sound (docs/voice.md, open
-        // questions) would bring both to 0.
-        assert!(m.false_barges <= 1 && m.false_turns <= 1, "{report}");
+        assert_eq!((m.false_barges, m.false_turns), (0, 0), "{report}");
         assert!(max_abs_ms(&m.onset_errors) <= 200.0, "{report}");
         assert!(max_abs_ms(&m.offset_errors) <= 200.0, "{report}");
         assert!(max_abs_ms(&m.barge_latencies) <= 450.0, "{report}");

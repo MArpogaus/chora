@@ -14,10 +14,10 @@ DIR defaults to tests/data/corpus beside this script. Each recording is
 a directory in the format of `record_dir`: mic.wav (24 kHz), events.jsonl
 with the played pieces, and labels.txt. The user's voices are ryan and
 vivian, the agent's voice is aiden; the agent's sound goes into mic.wav
-as echo at a fixed level, as a residual of the echo canceller. The noise
-comes from a fixed seed, so only the TTS changes from run to run.
-played.wav stays out to keep the corpus small; the harness does not
-read it.
+as echo with a fixed coupling per recording (the room and the echo
+canceller), and played.wav holds the agent's sound for the barge-in
+level. The noise comes from a fixed seed, so only the TTS changes from
+run to run.
 """
 
 import asyncio
@@ -62,11 +62,16 @@ def bounds(speech: np.ndarray) -> tuple[float, float]:
     return loud[0] / 100, (loud[-1] + 1) / 100
 
 
-def scaled(speech: np.ndarray, rms: float) -> np.ndarray:
-    """Return SPEECH at the level RMS over its loud part."""
+def loud_rms(speech: np.ndarray) -> float:
+    """Return the RMS of the loud part of SPEECH."""
     start, end = bounds(speech)
     part = speech[int(start * RATE) : int(end * RATE)]
-    return speech * rms / np.sqrt((part**2).mean())
+    return float(np.sqrt((part**2).mean()))
+
+
+def scaled(speech: np.ndarray, rms: float) -> np.ndarray:
+    """Return SPEECH at the level RMS over its loud part."""
+    return speech * rms / loud_rms(speech)
 
 
 def room(seconds: float) -> np.ndarray:
@@ -91,7 +96,7 @@ class Session:
         self.mic = room(seconds)
         self.events: list[dict] = []
         self.labels: list[str] = []
-        self.played = 0
+        self.played: list[np.ndarray] = []
 
     def say(self, at: float, speech: np.ndarray) -> tuple[float, float]:
         """The user speaks from AT; returns the labelled turn."""
@@ -101,14 +106,16 @@ class Session:
         self.labels.append(f"turn {at + start:.3f} {at + end:.3f}")
         return at + start, at + end
 
-    def play(self, at: float, sound: np.ndarray, echo: float, barge: float | None = None) -> None:
-        """The agent plays SOUND from AT; its echo has the level ECHO. A
-        barge-in at BARGE stops it 0.4 s later, as the agent would."""
-        n = len(sound) if barge is None else int((barge + 0.4 - at) * RATE)
+    def play(self, at: float, sound: np.ndarray, coupling: float, barge: float | None = None) -> None:
+        """The agent plays SOUND from AT; its echo is SOUND times
+        COUPLING. A barge-in at BARGE stops it 0.8 s later, as the agent
+        would."""
+        n = len(sound) if barge is None else int((barge + 0.8 - at) * RATE)
         i = int(at * RATE)
-        self.mic[i : i + n] += scaled(sound, echo)[:n]
-        self.events.append({"at": i, "event": "play", "from": self.played, "len": n})
-        self.played += n
+        self.mic[i : i + n] += sound[:n] * coupling
+        start = sum(len(p) for p in self.played)
+        self.events.append({"at": i, "event": "play", "from": start, "len": n})
+        self.played.append(sound[:n])
         if barge is not None:
             self.labels.append(f"barge {barge:.3f}")
 
@@ -120,6 +127,13 @@ class Session:
             wav.setsampwidth(2)
             wav.setframerate(RATE)
             wav.writeframes(np.clip(self.mic, -32768, 32767).astype(np.int16).tobytes())
+        if self.played:
+            with wave.open(str(out / "played.wav"), "wb") as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(RATE)
+                played = np.concatenate(self.played)
+                wav.writeframes(np.clip(played, -32768, 32767).astype(np.int16).tobytes())
         lines = "".join(json.dumps(e, separators=(",", ":")) + "\n" for e in self.events)
         (out / "events.jsonl").write_text(lines)
         header = f"# {note}\n# Written by tests/corpus.py; times in s of mic.wav.\n"
@@ -148,15 +162,27 @@ async def main() -> None:
     s.say(end + 1.2, stop)
     s.write(root, "turns-noise", "Two turns, a fan and keyboard clicks; no playback.")
 
-    # The agent speaks, the user stops it; then a reply with louder echo
-    # and no barge-in.
+    # A good echo canceller (echo of RMS 150): the agent speaks, the user
+    # stops it; then a reply without barge-in.
     at = 2.0
     assert 0.5 + len(reply) / RATE > at + 1, "the user speaks over the reply"
+    quiet = 150 / loud_rms(reply)
     s = Session(at + len(wait) / RATE + 1.0 + len(more) / RATE + 1.0)
-    s.play(0.5, reply, 150, barge=at + bounds(wait)[0])
+    s.play(0.5, reply, quiet, barge=at + bounds(wait)[0])
     _, end = s.say(at, wait)
-    s.play(end + 0.8, more, 600)
-    s.write(root, "echo-barge", "Echo of RMS 150, a barge-in, then echo of RMS 600 alone.")
+    s.play(end + 0.8, more, quiet)
+    s.write(root, "echo-barge", "Echo of RMS 150: a barge-in, then a reply alone.")
+
+    # A weak echo canceller (echo of RMS 600, as loud as speech for
+    # Silero): a reply alone, then the user stops the next one.
+    loud = 600 / loud_rms(reply)
+    first = 0.5 + len(reply) / RATE + 0.8
+    at = first + 1.0
+    s = Session(at + len(wait) / RATE + 1.5)
+    s.play(0.5, reply, loud)
+    s.play(first, more, loud, barge=at + bounds(wait)[0])
+    s.say(at, wait)
+    s.write(root, "echo-loud", "Echo of RMS 600: a reply alone, then a barge-in.")
 
 
 asyncio.run(main())

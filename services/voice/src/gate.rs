@@ -190,16 +190,29 @@ impl Gate {
     }
 }
 
+/// The frames of played sound, before and with a mic frame, whose
+/// loudest one is the reference of the echo: the sound reaches the mic
+/// a little later than it is written.
+pub const ECHO_WINDOW: usize = 5;
+
+/// Played sound under this level teaches the coupling nothing.
+const LEARN_FROM: f64 = 200.0;
+/// The step of the coupling per frame, and the step up on a frame that
+/// counts as speech.
+const LEARN_STEP: f64 = 1.05;
+const LEARN_STEP_SPEECH: f64 = 1.01;
+
 /// The barge-in gate (docs/voice.md section 4): speech over the agent's
-/// own sound. Frames without speech during playback learn the echo
-/// level.
+/// own sound. The echo level is the played level (the loudest frame of
+/// the last `ECHO_WINDOW`) times a coupling that the gate learns.
 pub struct BargeIn {
     threshold: f64,
     ratio: f64,
     min_rms: f64,
     frames: u32,
-    /// The running mean of the RMS of the echo.
-    echo: f64,
+    /// The mic level over the played level, learned while the agent
+    /// speaks.
+    coupling: f64,
     run: u32,
 }
 
@@ -210,25 +223,43 @@ impl BargeIn {
             ratio: c.barge_in_echo_ratio,
             min_rms: c.barge_in_min_rms,
             frames: c.barge_in_ms.div_ceil(FRAME_MS).max(1),
-            echo: 0.0,
+            coupling: c.barge_in_coupling,
             run: 0,
         }
     }
 
-    /// Takes a frame during playback; true once the speech over the gate
-    /// lasted `barge_in_ms`.
-    pub fn push(&mut self, frame: &Frame) -> bool {
+    /// Takes new settings; the learned coupling stays.
+    pub fn configure(&mut self, c: &Config) {
+        let coupling = self.coupling;
+        *self = Self::new(c);
+        self.coupling = coupling;
+    }
+
+    /// The learned coupling.
+    pub fn coupling(&self) -> f64 {
+        self.coupling
+    }
+
+    /// Takes a mic frame during playback and the played level with it;
+    /// true once the speech over the gate lasted `barge_in_ms`.
+    pub fn push(&mut self, frame: &Frame, played: f64) -> bool {
         let rms = crate::pcm::rms(&frame.samples);
-        let prob = f64::from(frame.prob);
-        if prob <= self.threshold {
-            // About 0.5 s of memory.
-            self.echo += (rms - self.echo) / 16.0;
+        let echo = self.coupling * played;
+        let speech =
+            f64::from(frame.prob) > self.threshold && rms > self.min_rms.max(echo * self.ratio);
+        // ponytail: a median tracker of mic over played level. Frames
+        // that count as speech raise it only slowly: the user's words
+        // until the barge-in, or echo over a coupling that is still too
+        // low. An adaptive filter on the played PCM would know more.
+        if played > LEARN_FROM {
+            let step = match (rms > echo, speech) {
+                (false, _) => 1.0 / LEARN_STEP,
+                (true, false) => LEARN_STEP,
+                (true, true) => LEARN_STEP_SPEECH,
+            };
+            self.coupling = (self.coupling * step).clamp(0.001, 10.0);
         }
-        if prob > self.threshold && rms > self.min_rms.max(self.echo * self.ratio) {
-            self.run += 1;
-        } else {
-            self.run = 0;
-        }
+        self.run = if speech { self.run + 1 } else { 0 };
         self.run == self.frames
     }
 
@@ -372,13 +403,19 @@ mod tests {
             barge_in_ms: 96,
             ..Config::default()
         });
-        let mut fires = |prob, level, n| (0..n).filter(|_| barge.push(&frame(prob, level))).count();
-        assert_eq!(fires(0.9, 200, 10), 0, "under barge_in_min_rms");
-        assert_eq!(fires(0.9, 1000, 10), 1, "once, after 3 frames");
-        // Quiet echo of RMS 400 raises the level to near 400.
-        assert_eq!(fires(0.1, 400, 64), 0);
-        assert_eq!(fires(0.9, 700, 10), 0, "under twice the echo");
-        assert_eq!(fires(0.9, 900, 10), 1);
+        let fires = |barge: &mut BargeIn, prob, level, played, n| {
+            (0..n)
+                .filter(|_| barge.push(&frame(prob, level), played))
+                .count()
+        };
+        let b = &mut barge;
+        assert_eq!(fires(b, 0.9, 200, 0.0, 10), 0, "under barge_in_min_rms");
+        assert_eq!(fires(b, 0.9, 1000, 0.0, 10), 1, "once, after 3 frames");
+        // Echo that Silero calls speech teaches a coupling of 0.2.
+        assert_eq!(fires(b, 0.9, 800, 4000.0, 100), 0, "loud echo");
+        assert!((b.coupling() - 0.2).abs() < 0.02, "{}", b.coupling());
+        assert_eq!(fires(b, 0.9, 1500, 4000.0, 3), 0, "under twice the echo");
+        assert_eq!(fires(b, 0.9, 2000, 4000.0, 10), 1);
     }
 
     #[test]

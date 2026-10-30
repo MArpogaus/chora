@@ -92,6 +92,10 @@ pub struct Config {
     pub barge_in_ms: u32,
     pub barge_in_echo_ratio: f64,
     pub barge_in_min_rms: f64,
+    /// The echo level over the played level at the start; the agent
+    /// learns it while it speaks. The default assumes the echo canceller
+    /// of PipeWire.
+    pub barge_in_coupling: f64,
     /// The longest utterance that can be a command word.
     pub word_max_ms: u32,
     pub sleep_words: Vec<String>,
@@ -219,6 +223,7 @@ impl Default for Config {
             barge_in_ms: 250,
             barge_in_echo_ratio: 2.0,
             barge_in_min_rms: 300.0,
+            barge_in_coupling: 0.1,
             word_max_ms: 2000,
             sleep_words: words(&["schlaf", "schlaf jetzt"]),
             wake_words: words(&["hör zu"]),
@@ -289,6 +294,9 @@ impl Config {
         }
         if self.barge_in_echo_ratio < 1.0 || self.barge_in_min_rms < 0.0 {
             return Err("barge_in_echo_ratio: at least 1; barge_in_min_rms: at least 0".into());
+        }
+        if !(0.001..=10.0).contains(&self.barge_in_coupling) {
+            return Err("barge_in_coupling: from 0.001 to 10".into());
         }
         for (key, ms) in [
             ("onset_ms", self.onset_ms),
