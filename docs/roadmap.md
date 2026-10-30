@@ -305,16 +305,17 @@ Scope:
   `xwayland-satellite`.
 - The install from the release RPM, layered on secureblue (D10, D14).
 - The stability bugs #14, #31, #32, #50, #57 and #60.
-- From the renderer: a render thread, and the watchdog in its own thread
-  with a heartbeat of the main loop (D23, #89, #35).
+- From the renderer: the watchdog in its own thread with a heartbeat of
+  the main loop (D23, #89).
 
 Gate:
 
 1. The user works 10 working days in a row only in chora on the reference
    hardware. `coredumpctl list chora` shows no entry, and the log shows no
    emergency reset that the user did not start.
-2. A shader that never returns leaves the core answering on the IPC
-   socket.
+2. A shader node with an endless loop on llvmpipe in CI: the watchdog
+   thread detects the stall and logs it within 6 s. What it does then is
+   decided at the start of 0.9.
 3. A main loop that blocks for 5 s triggers the watchdog. A test with a
    debug hook checks it.
 4. A checklist on the reference hardware passes, with the log of each
@@ -355,6 +356,7 @@ Scope:
   translation, rotation and scale apart, run per property, and support
   springs.
 - Transactions on disjoint surfaces do not wait for each other (D22).
+- A render thread (D23, #35).
 - Shader compile and capture encode run on worker threads, as the image
   decode does.
 - Debug counters for rendered frames and texture allocations, readable
@@ -379,9 +381,9 @@ Gate:
    first frame. A counter of the texture pool shows it.
 5. A client that delays its commit for 150 ms delays no transaction of
    another client. A unit test checks it.
-6. The wobbly windows, the magic lamp and the cube of the showroom run on
-   frame events. At 60 Hz and at 120 Hz in CI, 99 percent of their frames
-   are on time over 30 s.
+6. The wobbly window and magic lamp code of `chora-kit` runs on frame
+   events, with one animation of `chora-tiling`. At 60 Hz and at 120 Hz in
+   CI, 99 percent of its frames are on time over 30 s.
 7. The decision on the plugin protocol is in the decision log, with the
    measurement.
 8. CI runs the CI scripts of the earlier gates again; the user runs the
