@@ -82,6 +82,16 @@ How chora works:
   manager, such as the XP flavor, the user restarts chora; say so.
 - Put your own nodes under one group with an id that starts with voice-,
   under screen:OUTPUT for a HUD, so that one remove takes them away.
+- apply_commands is one transaction: all commands apply, or none. After
+  an error nothing changed, so fix the named command and send the whole
+  list again; do not assume that the commands before it applied.
+- Each command is an object with one key, such as {"create": {...}} or
+  {"animate": {...}}; two changes are two commands.
+- A shader node needs the shader property, the path of put_asset. An
+  effect goes into effects of a group, rect or image; it is no shader
+  node.
+- Read the error of a node that belongs to another client: you can change
+  only your own nodes.
 
 Where to look:
 - describe_screen: the windows, the outputs and the plugins with their
@@ -903,7 +913,9 @@ async def warm(http: aiohttp.ClientSession, tools: Tools, system: list[dict]) ->
     answer begins without reading it.
     """
     started = time.monotonic()
-    body: dict = {"model": MODEL, "messages": system, "max_tokens": 1, "reasoning_effort": "none"}
+    # The chat template of Qwen refuses a prompt without a user message.
+    messages = [*system, {"role": "user", "content": "Hello"}]
+    body: dict = {"model": MODEL, "messages": messages, "max_tokens": 1, "reasoning_effort": "none"}
     if tools.specs:
         body["tools"] = tools.specs  # the same start as the requests of answer()
     async with http.post(f"{LLM_URL}/chat/completions", json=body) as r:
