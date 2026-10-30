@@ -278,6 +278,8 @@ struct Mc {
     texts: BTreeMap<String, (String, Vec<String>)>,
     /// The agents of `agent.set`, in the order of their first report.
     agents: Vec<agent::Agent>,
+    /// The agent that the agents scene shows alone, with its transcript.
+    agent_focus: Option<String>,
     /// The content of `region.solo` that shows alone in its region.
     solo: Option<Solo>,
 }
@@ -355,6 +357,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         clocks: BTreeMap::new(),
         texts: BTreeMap::new(),
         agents: Vec::new(),
+        agent_focus: None,
         solo: None,
     };
     mc.keep_texts();
@@ -490,15 +493,26 @@ fn exported_methods() -> Vec<ExportMethod> {
         runtime::method(
             "agent.set",
             "Adds or changes an agent: its state (idle, listening, thinking, working, \
-             speaking, question, blocked, done or asleep), its task, its last words and \
-             its voice; a missing field stays.",
+             speaking, question, blocked, done or asleep), its task, its last words, its \
+             voice, its plan, its open question and the last lines of its transcript; a \
+             missing field stays.",
             json!({
                 "name": {"type": "string"},
                 "state": {"type": "string"},
                 "task": {"type": "string"},
                 "said": {"type": "string"},
                 "voice": {"type": "string"},
+                "plan": lines.clone(),
+                "question": {"type": "string"},
+                "log": lines.clone(),
             }),
+            &["name"],
+        ),
+        runtime::method(
+            "agent.focus",
+            "Shows the agents scene with one agent alone and its transcript; an empty \
+             name shows all agents again.",
+            json!({"name": {"type": "string"}}),
             &["name"],
         ),
         runtime::method(
@@ -712,8 +726,9 @@ impl Mc {
 
     /// An event of a client (D65): `NAME.state` sets the agent `NAME` as
     /// `agent.set` does, or the sub-agent that `name` in the data names;
-    /// `NAME.say` shows a sentence as `hud.say` does. Wrong data only
-    /// logs, since the emitter gets no answer; other events do nothing.
+    /// `NAME.remove` removes such a sub-agent; `NAME.say` shows a sentence
+    /// as `hud.say` does. Wrong data only logs, since the emitter gets no
+    /// answer; other events do nothing.
     fn follow(&mut self, event: &str, client: &str, mut data: Value) -> Result<(), ClientError> {
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
         let done = match kind {
@@ -723,6 +738,7 @@ impl Mc {
                 }
                 runtime::params(data).and_then(|set| self.set_agent(set))
             }
+            Some("remove") => runtime::params(data).and_then(|r| self.remove_agent(&r)),
             Some("say") => match runtime::params(data) {
                 Ok(say) => return self.say(say),
                 Err(e) => Err(e),
@@ -741,6 +757,7 @@ impl Mc {
             "agent.set" => self.set_agent(runtime::params(params)?),
             "agent.remove" => self.remove_agent(&runtime::params(params)?),
             "agent.list" => return Ok(self.list_agents()),
+            "agent.focus" => self.focus_agent(&runtime::params(params)?),
             "notify.push" => self.push(runtime::params(params)?),
             "notify.clear" => self.clear_notifications(),
             _ => Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method)),

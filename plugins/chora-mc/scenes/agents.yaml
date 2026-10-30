@@ -1,7 +1,9 @@
 # The agents at work, one column each: the state in its color and sign,
-# the task and the last words; a band below with the voice and the start.
+# its question, the task, the plan and the last words; a band below with
+# the voice and the start.
 # agent.set fills the panel agent-N with the N-th agent and band-N below
-# it: more columns show more agents.
+# it: more columns show more agents. agent.focus NAME shows one agent in
+# agent-1 and its transcript in the other agent-N columns.
 grid: [4, 3]
 page: {measure: 24, margin: 0, gap: 1.5}
 chapter: {title: Agents, layout: caps}
