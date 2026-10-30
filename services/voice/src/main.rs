@@ -109,6 +109,9 @@ enum Command {
         #[arg(long)]
         yes: bool,
     },
+    /// Print the mic level and the speech probability of the capture
+    /// command twice a second, until Ctrl+C.
+    Levels,
 }
 
 fn main() -> ExitCode {
@@ -145,6 +148,7 @@ fn main() -> ExitCode {
             Some(Command::Ask { text, speak, yes }) => {
                 live::ask(&settings.value, &mcp_name(&args.name), text, *speak, *yes)
             }
+            Some(Command::Levels) => live::levels(&settings.value),
             None => run(args.name, settings),
         });
     match result {

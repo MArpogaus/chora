@@ -1,5 +1,5 @@
 //! The subcommands that check the servers of the settings by hand:
-//! `asr FILE`, `tts TEXT`, `roundtrip [TEXT]` and `ask TEXT`.
+//! `asr FILE`, `tts TEXT`, `roundtrip [TEXT]`, `ask TEXT` and `levels`.
 
 use std::{
     path::Path,
@@ -8,14 +8,15 @@ use std::{
 
 use crate::{
     asr,
-    audio::Speaker,
+    audio::{Analyzer, Mic, Speaker},
     chat::{Chat, Event},
     config::Config,
-    core::Reply,
+    core::{Input, Reply},
     pcm::{self, RATE},
     speech,
     tools::Tools,
     tts,
+    vad::Vad,
 };
 
 fn runtime() -> Result<tokio::runtime::Runtime, String> {
@@ -145,4 +146,30 @@ pub fn ask(config: &Config, name: &str, text: &str, speak: bool, yes: bool) -> R
         );
         Ok(())
     })
+}
+
+/// `chora-voice levels`: the loudest mic level and speech probability of
+/// the capture command, twice a second, until Ctrl+C. For the check of
+/// the echo canceller and of the barge-in levels.
+pub fn levels(config: &Config) -> Result<(), String> {
+    let vad = Vad::new().map_err(|e| format!("the VAD model: {e}"))?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    let _mic = Mic::start(config.capture_cmd.clone(), Analyzer::new(vad), tx);
+    let (mut rms, mut prob, mut n) = (0.0, 0.0f32, 0);
+    for input in rx {
+        match input {
+            Input::Frame(frame) => {
+                rms = f64::max(rms, pcm::rms(&frame.samples));
+                prob = prob.max(frame.prob);
+                n += 1;
+                if n == 16 {
+                    println!("rms={rms:.0} speech={prob:.2}");
+                    (rms, prob, n) = (0.0, 0.0, 0);
+                }
+            }
+            Input::MicDown => println!("the capture command ended"),
+            _ => {}
+        }
+    }
+    Ok(())
 }
