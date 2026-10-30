@@ -781,7 +781,7 @@ fn leaves_tiling(applied: bool, action: &str, args: &Value) -> bool {
 /// The answer to a request of another client for one of the windows
 /// (D31): the commands that do it. `focus` goes through the model and
 /// answers without commands. `None`: the action, for example `resize`,
-/// stays unanswered.
+/// stays unanswered, as does an `update` with nothing left to change.
 fn answers(wm: &mut Wm, node: &str, action: &str, args: &Value) -> Option<Vec<Command>> {
     match action {
         "focus" => {
@@ -802,8 +802,31 @@ fn answers(wm: &mut Wm, node: &str, action: &str, args: &Value) -> Option<Vec<Co
                 .and_then(Value::as_u64)
                 .and_then(|i| usize::try_from(i).ok()),
         }]),
+        "update" => looked(node, args).map(|update| vec![update]),
         _ => None,
     }
+}
+
+/// The update of the look of a window that another client asks for
+/// (D58): opacity, effects and meta, without the meta key of tiling. No
+/// relayout sends opacity or effects, so the look stays across layouts,
+/// tags and restarts with resume, and wins over the style.
+fn looked(node: &str, args: &Value) -> Option<Command> {
+    let asked: PropsUpdate = serde_json::from_value(args.clone()).ok()?;
+    let mut meta = asked.meta;
+    if let Some(meta) = &mut meta {
+        meta.remove(WINDOW_KEY);
+    }
+    let props = PropsUpdate {
+        opacity: asked.opacity,
+        effects: asked.effects,
+        meta: meta.filter(|m| !m.is_empty()),
+        ..PropsUpdate::default()
+    };
+    (props != PropsUpdate::default()).then(|| Command::Update {
+        id: node.into(),
+        props,
+    })
 }
 
 /// The update that gives a new window a style; none for the default.
@@ -1143,6 +1166,30 @@ mod tests {
             Some(Command::Update { id, props })
                 if id == "s1" && props.opacity == Some(0.5) && props.effects == Some(Vec::new())
         ));
+    }
+
+    #[test]
+    fn a_requested_look_applies_without_the_meta_of_tiling() {
+        let mut tiler = tiler(&["s1"]);
+        let args = serde_json::json!({"opacity": 0.5, "meta": {WINDOW_KEY: "x", "role": "a"}});
+        let commands = answers(&mut tiler, "s1", "update", &args).expect("update answers");
+        assert!(matches!(
+            &commands[..],
+            [Command::Update { id, props }] if id == "s1"
+                && props.opacity == Some(0.5)
+                && props.meta == Some(BTreeMap::from([("role".into(), "a".into())]))
+        ));
+        let own = serde_json::json!({"meta": {WINDOW_KEY: "x"}});
+        assert!(answers(&mut tiler, "s1", "update", &own).is_none());
+        // A relayout sends no look, so it keeps the requested one.
+        let placed = Placement {
+            id: "s1".into(),
+            at: Some([0, 0]),
+            size: Some([10, 10]),
+            states: States::default(),
+        };
+        assert!(changes(None, &placed).iter().all(|c| !matches!(c,
+            Command::Update { props, .. } if props.opacity.is_some() || props.effects.is_some())));
     }
 
     #[test]
