@@ -309,10 +309,16 @@ pub fn check_effect(gles: &mut GlesRenderer, path: &str) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Reads a shader file. A file of `/proc` claims 0 bytes, so the read
+/// stops after the limit itself.
 fn read_source(path: &str) -> Result<String, String> {
-    let (mut file, _) = crate::images::open_file(path, MAX_SOURCE)?;
+    let (file, _) = crate::images::open_file(path, MAX_SOURCE)?;
     let mut source = String::new();
-    std::io::Read::read_to_string(&mut file, &mut source).map_err(|e| format!("{path}: {e}"))?;
+    std::io::Read::read_to_string(&mut std::io::Read::take(file, MAX_SOURCE + 1), &mut source)
+        .map_err(|e| format!("{path}: {e}"))?;
+    if source.len() as u64 > MAX_SOURCE {
+        return Err(format!("{path}: larger than {MAX_SOURCE} bytes"));
+    }
     Ok(with_derivatives(source))
 }
 
@@ -435,7 +441,17 @@ unsafe fn info_log(gl: &ffi::Gles2, object: u32, shader: bool) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::with_derivatives;
+    use super::{MAX_SOURCE, read_source, with_derivatives};
+
+    /// A file of `/proc` claims 0 bytes and passes the size check; the
+    /// read stops after the limit all the same (#31).
+    #[test]
+    fn a_proc_file_reads_no_more_than_the_limit() {
+        let path = "/proc/self/smaps";
+        assert!(std::fs::read(path).unwrap().len() as u64 > MAX_SOURCE);
+        let err = read_source(path).err().expect("the read stops");
+        assert!(err.contains("larger than"), "{err}");
+    }
 
     #[test]
     fn derivatives_come_after_the_version() {
