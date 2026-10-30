@@ -145,12 +145,32 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                 .ok()
         });
     safety::reset_on_signal(&event_loop.handle())?;
+    let failed = std::rc::Rc::new(std::cell::Cell::new(false));
     if let Some(child) = child {
-        process::reap(child, command);
+        let (ended, statuses) = calloop::channel::channel();
+        process::reap(child, command, ended);
+        let quit = failed.clone();
+        event_loop
+            .handle()
+            .insert_source(statuses, move |event, (), state| {
+                if let calloop::channel::Event::Msg(status) = event
+                    && process::quits_after(state, status)
+                {
+                    tracing::error!(
+                        "the startup command failed and no client is connected; chora quits"
+                    );
+                    quit.set(true);
+                    state.loop_signal.stop();
+                }
+            })
+            .map_err(|e| e.error)?;
     }
     backend::init(&mut state, headless.as_deref())?;
     input::log_layout(&mut state);
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
     event_loop.run(None, &mut state, State::after_events)?;
+    if failed.get() {
+        return Err("the startup command failed".into());
+    }
     Ok(())
 }
