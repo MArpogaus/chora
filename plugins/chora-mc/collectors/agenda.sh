@@ -22,12 +22,24 @@ command -v emacs >/dev/null || {
     echo "agenda.sh: no emacs on PATH" >&2
     exit 1
 }
-# Emacs talks on stderr even when it works: only its status counts.
-params=$(ORG_TODO="${ORG_TODO-PROJ TODO NEXT WAIT | DONE KILL}" emacs -Q --batch --eval '
+# A missing file makes org-agenda ask "[R]emove from list or [A]bort?",
+# and a batch Emacs then waits for ever, even on a closed stdin: check
+# first. Org reads a relative file name against org-directory, not the
+# current directory, so the Lisp expands each name.
+for f; do
+    [ -r "$f" ] || {
+        echo "agenda.sh: cannot read $f" >&2
+        exit 1
+    }
+done
+# Emacs talks on stderr even when it works: only its status counts. The
+# timeout ends an Emacs that waits on a prompt all the same.
+params=$(ORG_TODO="${ORG_TODO-PROJ TODO NEXT WAIT | DONE KILL}" timeout 60 emacs -Q --batch --eval '
 (progn
   (require (quote org-agenda))
   (require (quote json))
-  (setq org-agenda-files command-line-args-left
+  (setq org-agenda-files (mapcar (function expand-file-name) command-line-args-left)
+        org-agenda-skip-unavailable-files t
         command-line-args-left nil
         org-todo-keywords (list (cons (quote sequence) (split-string (getenv "ORG_TODO"))))
         org-agenda-use-time-grid nil
@@ -73,7 +85,7 @@ params=$(ORG_TODO="${ORG_TODO-PROJ TODO NEXT WAIT | DONE KILL}" emacs -Q --batch
       (princ (json-encode
               (list (cons "content" "next")
                     (cons "lines" (vconcat (and next
-                                                (list (concat (car next) "  " (cdr next))))))))))))' "$@" 2>/dev/null) || {
+                                                (list (concat (car next) "  " (cdr next))))))))))))' "$@" </dev/null 2>/dev/null) || {
     echo "agenda.sh: emacs failed with status $?" >&2
     exit 1
 }
