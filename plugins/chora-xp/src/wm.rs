@@ -84,7 +84,7 @@ const FADE: Duration = Duration::from_millis(1500);
 const HANDOVER: &str = "tiling";
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 18] = [
+const EVENTS: [&str; 19] = [
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -103,6 +103,7 @@ const EVENTS: [&str; 18] = [
     "input.button",
     "input.moved",
     "effects.dropped",
+    "node.requested",
 ];
 
 /// The methods that other clients call with the client name, as
@@ -557,6 +558,9 @@ impl Wm {
                 commands
             }
             Event::SurfaceRequested { surface, request } => self.request(&surface, request),
+            Event::NodeRequested {
+                node, action, args, ..
+            } if action == "update" => self.requested_look(&node, &args),
             Event::PointerPressed {
                 node,
                 button,
@@ -701,6 +705,12 @@ impl Wm {
         self.windows.push(window);
         self.opened.push(surface.into());
         let mut commands = decoration::create(surface, &desk, false);
+        if let Some(look) = self.kept.get(surface).map(|k| k.look.clone()) {
+            commands.push(Command::Update {
+                id: decoration::group_id(surface),
+                props: look,
+            });
+        }
         commands.extend(self.focus(Some(surface)));
         if let Some(err) = self.try_apply(commands)? {
             // Another client took it first.
@@ -961,6 +971,46 @@ impl Wm {
             SurfaceRequest::Unmaximize if maximized => self.toggle_maximize(surface),
             _ => Vec::new(),
         }
+    }
+
+    /// Applies the look that another client asks for a window or its
+    /// group (D58): opacity and effects on the group, so that the frame
+    /// looks the same, and meta on the asked node without the key of
+    /// chora-xp. The plugin sends no opacity or effects to the groups
+    /// otherwise, so the look stays; a restart keeps it too.
+    fn requested_look(&self, node: &str, args: &Value) -> Vec<Command> {
+        let surface = decoration::surface_of(node).unwrap_or(node);
+        let Ok(asked) = serde_json::from_value::<PropsUpdate>(args.clone()) else {
+            return Vec::new();
+        };
+        if self.index(surface).is_none() {
+            return Vec::new();
+        }
+        let mut commands = Vec::new();
+        if asked.opacity.is_some() || asked.effects.is_some() {
+            commands.push(Command::Update {
+                id: decoration::group_id(surface),
+                props: PropsUpdate {
+                    opacity: asked.opacity,
+                    effects: asked.effects,
+                    ..PropsUpdate::default()
+                },
+            });
+        }
+        let meta = asked.meta.map(|mut meta| {
+            meta.remove(restart::KEY);
+            meta
+        });
+        if let Some(meta) = meta.filter(|m| !m.is_empty()) {
+            commands.push(Command::Update {
+                id: node.into(),
+                props: PropsUpdate {
+                    meta: Some(meta),
+                    ..PropsUpdate::default()
+                },
+            });
+        }
+        commands
     }
 
     // Taskbars

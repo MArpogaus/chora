@@ -2,7 +2,8 @@
 //! grace time. Before Restart, `chora-xp` writes its model into the
 //! `meta` of its nodes. The root group keeps the current desktop. The
 //! group of each window keeps its frame, desktop, frame before
-//! maximizing and stacking. The new instance reads it,
+//! maximizing and stacking, and its opacity and effects stay in its
+//! props. The new instance reads it,
 //! removes the kept nodes, builds its scene again and puts the windows
 //! back.
 
@@ -15,7 +16,7 @@ use super::{NAME, Wm};
 use crate::{decoration, theme::Rect};
 
 /// The key of the meta.
-const KEY: &str = "xp";
+pub(super) const KEY: &str = "xp";
 
 /// A window before the restart.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -32,6 +33,10 @@ pub(super) struct KeptWindow {
     pub opened: usize,
     /// The window is minimized.
     pub minimized: bool,
+    /// The opacity and the effects of the group, from its props: what
+    /// other clients asked for (D58).
+    #[serde(skip)]
+    pub look: PropsUpdate,
 }
 
 /// A value as the meta of a node.
@@ -68,6 +73,7 @@ impl Wm {
                     .position(|s| *s == w.surface)
                     .unwrap_or(usize::MAX),
                 minimized: w.minimized,
+                look: PropsUpdate::default(),
             };
             commands.push(Command::Update {
                 id: decoration::group_id(&w.surface),
@@ -111,7 +117,14 @@ impl Wm {
             self.desktop = desktop;
         }
         for node in &nodes {
-            if let (Some(surface), Some(kept)) = (decoration::surface_of(&node.id), read(node)) {
+            if let (Some(surface), Some(mut kept)) =
+                (decoration::surface_of(&node.id), read::<KeptWindow>(node))
+            {
+                kept.look = PropsUpdate {
+                    opacity: Some(node.props.opacity),
+                    effects: Some(node.props.effects.clone()),
+                    ..PropsUpdate::default()
+                };
                 self.kept.insert(surface.into(), kept);
             }
         }
@@ -149,6 +162,7 @@ mod tests {
             z: 2,
             opened: 1,
             minimized: true,
+            look: PropsUpdate::default(),
         };
         let meta = meta(&kept).meta.expect("meta");
         assert_eq!(
