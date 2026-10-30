@@ -117,10 +117,12 @@ impl Tools {
             }
             match (self.connect)().await {
                 Ok(service) => {
+                    crate::health::ok("mcp");
                     self.service = Some(service);
                     self.backoff = Duration::ZERO;
                 }
                 Err(e) => {
+                    crate::health::down("mcp", &e);
                     self.service = None;
                     self.backoff =
                         (self.backoff * 2).clamp(Duration::from_millis(500), MAX_BACKOFF);
@@ -190,6 +192,7 @@ impl Tools {
             )
             .into(),
             Ok(Err(_)) if service.is_transport_closed() => {
+                crate::health::down("mcp", "the connection was lost");
                 "error: the connection to chora was lost; the result is unknown".into()
             }
             Ok(Err(e)) => format!("error: {e}").into(),

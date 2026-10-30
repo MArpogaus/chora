@@ -13,6 +13,7 @@ mod earcon;
 #[cfg(test)]
 mod fake;
 mod gate;
+mod health;
 mod live;
 mod llm;
 mod log;
@@ -246,11 +247,15 @@ impl Agent {
         }
     }
 
-    /// Lets the LLM read the prompt.
+    /// Lets the LLM read the prompt; tries again with the backoff of the
+    /// LLM until it answers, so that the cache is warm when it is back.
     fn warm(&self) {
         let chat = self.chat.clone();
-        self.net
-            .spawn(async move { chat.lock().await.warm().await });
+        self.net.spawn(async move {
+            while !chat.lock().await.warm().await {
+                tokio::time::sleep(health::wait("llm")).await;
+            }
+        });
     }
 
     /// Runs an input through the core and its effects.
@@ -306,7 +311,7 @@ impl Agent {
                 self.net.spawn(async move {
                     let mut chat = chat.lock().await;
                     match chat.configure(config) {
-                        Ok(true) => chat.warm().await,
+                        Ok(true) => drop(chat.warm().await),
                         Ok(false) => {}
                         Err(e) => log::error(&e),
                     }

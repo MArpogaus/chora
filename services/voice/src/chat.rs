@@ -206,11 +206,20 @@ impl Chat {
         Ok(changed)
     }
 
-    /// Lets the server read the system prompt and the tools.
-    pub async fn warm(&self) {
+    /// Lets the server read the system prompt and the tools; answers
+    /// whether it did.
+    pub async fn warm(&self) -> bool {
         match self.llm.warm(&self.system, &self.tools.specs).await {
-            Ok(time) => crate::log::info(&format!("llm warm={}ms", time.as_millis())),
-            Err(e) => crate::log::warn(&format!("llm warm-up: {e}")),
+            Ok(time) => {
+                crate::health::ok("llm");
+                crate::log::info(&format!("llm warm={}ms", time.as_millis()));
+                true
+            }
+            Err(e) => {
+                crate::health::down("llm", &e);
+                crate::log::warn(&format!("llm warm-up: {e}"));
+                false
+            }
         }
     }
 
@@ -469,8 +478,12 @@ impl Chat {
                 Err(llm::Error::Connect(_) | llm::Error::Context(_)) if !retried => {
                     retried = true;
                 }
-                Err(e) => return (said, Err(e)),
+                Err(e) => {
+                    crate::health::down("llm", &e.to_string());
+                    return (said, Err(e));
+                }
                 Ok(round) => {
+                    crate::health::ok("llm");
                     self.learn(&round, chars, &messages);
                     let elapsed = start.elapsed();
                     return (said, Ok(Timed { round, elapsed }));

@@ -87,6 +87,8 @@ pub enum Reply {
     },
     /// The reply ended, also its sound.
     Done(String),
+    /// The TTS failed for a sentence.
+    Failed,
 }
 
 /// An input of the core.
@@ -242,8 +244,11 @@ pub struct Core {
     /// `done` or `blocked`; empty before the first task) and its last
     /// step or result.
     code: (String, &'static str, String),
-    /// Texts to say when the agent listens: the coding results.
+    /// Texts to say when the agent listens: the coding results and the
+    /// spoken errors.
     notes: VecDeque<String>,
+    /// The reply in which the TTS failed; the error earcon sounded.
+    tts_failed: Option<u64>,
 }
 
 impl Core {
@@ -281,6 +286,7 @@ impl Core {
             mic_down: false,
             code: (String::new(), "", String::new()),
             notes: VecDeque::new(),
+            tts_failed: None,
         }
     }
 
@@ -323,6 +329,7 @@ impl Core {
             "last_reply": self.last_reply,
             "queued": self.queue.len(),
             "coder": self.coder(),
+            "health": crate::health::record(),
         })
     }
 
@@ -525,7 +532,11 @@ impl Core {
                 self.confirm = Some(answer);
                 self.unclear = 0;
             }
-            Reply::Chat(chat::Event::Sentence(_)) => {}
+            Reply::Failed if self.tts_failed != Some(reply) => {
+                self.tts_failed = Some(reply);
+                return self.earcon(Earcon::Error).into_iter().collect();
+            }
+            Reply::Chat(chat::Event::Sentence(_)) | Reply::Failed => {}
             Reply::Played { at, pcm } => {
                 let frame = Duration::from_millis(FRAME_MS.into());
                 let levels = pcm.chunks(crate::audio::FRAME).map(crate::pcm::rms);
@@ -620,6 +631,11 @@ impl Core {
             }
             Err(e) => {
                 crate::log::error(&format!("turn={turn} asr: {e}"));
+                // A request says so when the agent listens again.
+                let phrase = &self.config.phrases.asr_failed;
+                if heard && !self.notes.contains(phrase) {
+                    self.notes.push_back(phrase.clone());
+                }
                 return self.earcon(Earcon::Error).into_iter().collect();
             }
         };
@@ -1241,7 +1257,7 @@ mod tests {
     }
 
     #[test]
-    fn a_failed_transcript_sounds_the_error_and_listens_again() {
+    fn a_failed_transcript_sounds_the_error_and_says_so_once() {
         let mut core = Core::new(Config::default());
         speak(&mut core, 10);
         quiet(&mut core, 30);
@@ -1249,8 +1265,21 @@ mod tests {
         assert_eq!(old, [Effect::Earcon(Earcon::Error)]);
         assert_eq!(core.state(), State::Transcribing);
         let effects = core.handle(text(1, false, Err("timeout")));
-        assert_eq!(effects, [Effect::Earcon(Earcon::Error)]);
-        assert_eq!(core.state(), State::Listening);
+        assert_eq!(effects[0], Effect::Earcon(Earcon::Error));
+        assert_eq!(
+            asks(&effects[1..]),
+            [(1, "Ich habe dich nicht verstanden.")]
+        );
+        core.handle(Input::Reply(1, Reply::Done(String::new())));
+        assert_eq!(core.state(), State::Listening, "said once");
+    }
+
+    #[test]
+    fn a_failing_tts_sounds_the_error_once_per_reply() {
+        let mut core = asking();
+        let failed = || Input::Reply(1, Reply::Failed);
+        assert_eq!(core.handle(failed()), [Effect::Earcon(Earcon::Error)]);
+        assert_eq!(core.handle(failed()), []);
     }
 
     #[test]

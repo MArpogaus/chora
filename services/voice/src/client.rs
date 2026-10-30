@@ -100,7 +100,11 @@ fn session(
     // A new session reads the file again, which an edit may have changed.
     client.apply().map_err(|e| e.message)?;
     crate::log::info(&format!("connected to chora as {name}"));
+    crate::health::ok("chora");
     let result = runtime::serve(&mut client);
+    if let Err(e) = &result {
+        crate::health::down("chora", &e.to_string());
+    }
     // A key that nobody follows is up.
     let _ = tx.send(Input::PttUp);
     Ok(result?)
@@ -149,6 +153,13 @@ fn exported_methods() -> Vec<ExportMethod> {
              ends the utterance.",
             json!({"down": {"type": "boolean"}}),
             &["down"],
+        ),
+        runtime::method(
+            "health",
+            "Answers the health of the servers asr, tts, llm, mcp and chora: status ok, down \
+             or unknown, the last error and its Unix time error_at.",
+            none.clone(),
+            &[],
         ),
         runtime::method(
             "restart",
@@ -214,6 +225,7 @@ impl Plugin for Client {
 
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         let call = match method {
+            "health" => return Ok(crate::health::record()),
             "state" => Call::State,
             "cancel" => Call::Cancel,
             "sleep" => Call::Sleep,

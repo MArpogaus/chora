@@ -35,6 +35,8 @@ pub struct Phrases {
     pub llm_slow: String,
     /// The final round after `tool_rounds` gave no words.
     pub tool_rounds: String,
+    /// The ASR failed for a request.
+    pub asr_failed: String,
 }
 
 impl Default for Phrases {
@@ -43,6 +45,7 @@ impl Default for Phrases {
             llm_down: "Das Sprachmodell antwortet nicht.".into(),
             llm_slow: "Das Sprachmodell braucht zu lange.".into(),
             tool_rounds: "Ich habe nach zu vielen Werkzeugaufrufen aufgehört.".into(),
+            asr_failed: "Ich habe dich nicht verstanden.".into(),
         }
     }
 }
