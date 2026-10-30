@@ -579,6 +579,15 @@ dependencies = [
 name = "chora-voice"
 version = "0.7.0"
 dependencies = [
+ "chora-kit",
+ "chora-scene",
+ "clap",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
  "tract-onnx",
 ]
 
