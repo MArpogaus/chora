@@ -8,11 +8,14 @@ chora-kit.workspace = true
 chora-scene.workspace = true
 clap.workspace = true
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+# No TLS: the LLM is on the local network.
+reqwest = { version = "0.13", default-features = false, features = ["stream"] }
+rmcp = { workspace = true, features = ["client", "transport-child-process"] }
 schemars.workspace = true
 serde.workspace = true
 serde-saphyr.workspace = true
 serde_json.workspace = true
-tokio = { workspace = true, features = ["net"] }
+tokio = { workspace = true, features = ["net", "process"] }
 # No TLS: the servers are on the local network.
 tokio-tungstenite = "0.28"
 tracing.workspace = true

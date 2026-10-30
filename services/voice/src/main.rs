@@ -12,6 +12,7 @@ mod earcon;
 mod fake;
 mod gate;
 mod live;
+mod llm;
 mod log;
 mod pcm;
 mod record;

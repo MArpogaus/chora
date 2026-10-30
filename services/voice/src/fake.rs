@@ -1,14 +1,21 @@
-//! Fake ASR and TTS servers for the tests: websockets on 127.0.0.1 that
-//! speak the protocols of docs/voice.md section 8 from a script.
+//! Fake servers for the tests on 127.0.0.1: ASR and TTS websockets that
+//! speak the protocols of docs/voice.md section 8 from a script, and an
+//! LLM with SSE.
 
-use std::sync::{
-    Arc, Mutex,
-    atomic::{AtomicBool, Ordering},
+use std::{
+    collections::VecDeque,
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use tokio::net::TcpListener;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::{TcpListener, TcpStream},
+};
 use tokio_tungstenite::{WebSocketStream, tungstenite::Message};
 
 /// A running fake: its URL and the text messages it got.
@@ -146,4 +153,131 @@ pub async fn tts(script: Tts) -> Server {
         send(&mut ws, &json!({"type": "session.done"})).await;
     })
     .await
+}
+
+/// An answer of the fake LLM.
+#[derive(Clone, Copy, Debug)]
+pub enum Reply {
+    /// Words in pieces of up to 4 characters, then `stop`.
+    Text(&'static str),
+    /// One tool call: the name and the arguments, in two pieces.
+    Tool(&'static str, &'static str),
+    /// An HTTP status with this body.
+    Status(u16, &'static str),
+    /// Never answers.
+    Silent,
+}
+
+type Script = Arc<Mutex<VecDeque<Reply>>>;
+
+/// An OpenAI-compatible server: `GET /models` (context 4000, images)
+/// and `POST /chat/completions` with SSE, one scripted reply per request
+/// and then `Text("")`. `usage.prompt_tokens` is a quarter of the length
+/// of the request body. `seen` gets the request bodies.
+pub async fn llm(script: Vec<Reply>) -> Server {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/v1", listener.local_addr().unwrap());
+    let seen = Arc::<Mutex<Vec<Value>>>::default();
+    let (log, script) = (seen.clone(), Arc::new(Mutex::new(VecDeque::from(script))));
+    tokio::spawn(async move {
+        while let Ok((tcp, _)) = listener.accept().await {
+            tokio::spawn(answer(tcp, log.clone(), script.clone()));
+        }
+    });
+    Server { url, seen }
+}
+
+/// The head (lowercase) and the body of one HTTP request.
+async fn request(tcp: &mut TcpStream) -> Option<(String, Vec<u8>)> {
+    let (mut request, mut buf) = (Vec::new(), vec![0; 65536]);
+    let (head, length) = loop {
+        let n = tcp.read(&mut buf).await.ok().filter(|&n| n > 0)?;
+        request.extend_from_slice(&buf[..n]);
+        if let Some(end) = request.windows(4).position(|w| w == b"\r\n\r\n") {
+            let head = String::from_utf8_lossy(&request[..end]).to_lowercase();
+            let length = head
+                .lines()
+                .find_map(|l| l.strip_prefix("content-length:"))
+                .map_or(0, |n| n.trim().parse().unwrap());
+            request.drain(..end + 4);
+            break (head, length);
+        }
+    };
+    while request.len() < length {
+        let n = tcp.read(&mut buf).await.ok().filter(|&n| n > 0)?;
+        request.extend_from_slice(&buf[..n]);
+    }
+    Some((head, request))
+}
+
+async fn answer(mut tcp: TcpStream, seen: Arc<Mutex<Vec<Value>>>, script: Script) {
+    let Some((head, body)) = request(&mut tcp).await else {
+        return;
+    };
+    let (status, kind, body) = if head.starts_with("get") {
+        let models = json!({"data": [{"id": "gufo", "context_length": 4000,
+            "architecture": {"input_modalities": ["text", "image"]}}]});
+        (200, "application/json", models.to_string())
+    } else {
+        let tokens = body.len() / 4;
+        seen.lock()
+            .unwrap()
+            .push(serde_json::from_slice(&body).unwrap());
+        let reply = script.lock().unwrap().pop_front();
+        match reply.unwrap_or(Reply::Text("")) {
+            Reply::Silent => return std::future::pending().await,
+            Reply::Status(status, body) => (status, "application/json", body.into()),
+            reply => (200, "text/event-stream", sse(reply, tokens)),
+        }
+    };
+    let head = format!(
+        "HTTP/1.1 {status} X\r\ncontent-type: {kind}\r\ncontent-length: {}\r\n\
+         connection: close\r\n\r\n",
+        body.len()
+    );
+    let _ = tcp.write_all(head.as_bytes()).await;
+    let _ = tcp.write_all(body.as_bytes()).await;
+}
+
+fn sse(reply: Reply, tokens: usize) -> String {
+    let chunk = |delta: Value, finish: Value| json!({"choices": [{"index": 0, "delta": delta, "finish_reason": finish}]});
+    let mut events = vec![chunk(json!({"role": "assistant"}), Value::Null)];
+    let finish = match reply {
+        Reply::Text(text) => {
+            let chars: Vec<char> = text.chars().collect();
+            for piece in chars.chunks(4) {
+                let piece: String = piece.iter().collect();
+                events.push(chunk(json!({"content": piece}), Value::Null));
+            }
+            "stop"
+        }
+        Reply::Tool(name, args) => {
+            let (a, b) = args.split_at(args.len() / 2);
+            let call = |first: bool, args: &str| {
+                let mut part = json!({"index": 0, "function": {"arguments": args}});
+                if first {
+                    part["id"] = "call-1".into();
+                    part["function"]["name"] = name.into();
+                }
+                json!({"tool_calls": [part]})
+            };
+            events.push(chunk(call(true, a), Value::Null));
+            events.push(chunk(call(false, b), Value::Null));
+            "tool_calls"
+        }
+        Reply::Status(..) | Reply::Silent => unreachable!(),
+    };
+    events.push(chunk(json!({}), finish.into()));
+    events.push(json!({"choices": [], "usage": {"prompt_tokens": tokens}}));
+    let mut body = String::new();
+    for event in events
+        .iter()
+        .map(ToString::to_string)
+        .chain(["[DONE]".into()])
+    {
+        body += "data: ";
+        body += &event;
+        body += "\n\n";
+    }
+    body
 }
