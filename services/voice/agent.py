@@ -860,6 +860,21 @@ async def turn(
     return preroll
 
 
+async def warm(http: aiohttp.ClientSession, tools: Tools, system: list[dict]) -> None:
+    """Let the LLM read the system prompt and the tools before the first turn.
+
+    The server keeps that start of the prompt in its cache, so the first
+    answer begins without reading it.
+    """
+    started = time.monotonic()
+    body: dict = {"model": MODEL, "messages": system, "max_tokens": 1, "reasoning_effort": "none"}
+    if tools.specs:
+        body["tools"] = tools.specs  # the same start as the requests of answer()
+    async with http.post(f"{LLM_URL}/chat/completions", json=body) as r:
+        r.raise_for_status()
+    log(f"the LLM read the system prompt in {time.monotonic() - started:.0f} s")
+
+
 def report(task: asyncio.Task) -> None:
     """Log the error of a background task that ended."""
     if not task.cancelled() and task.exception():
@@ -881,6 +896,8 @@ async def run_loop(
     log(f"RMS_SPEECH {RMS_SPEECH}, RMS_BARGE_IN {RMS_BARGE_IN}, PTT_KEY {key}")
     history = [{"role": "system", "content": system_prompt()}]
     log(f"system prompt: {len(history[0]['content'])} characters")
+    warming = asyncio.create_task(warm(http, tools, history[:1]), name="warm-up")
+    warming.add_done_callback(report)
     preroll: list[bytes] = []
     async with Mic() as mic:
         while True:
