@@ -260,6 +260,11 @@ uses them instead of the free files of the theme:
   and `notify.wav` when a balloon opens. The first of `pw-play`, `paplay`
   and `canberra-gtk-play` on the `PATH` plays them in the background.
 
+The Luna GTK theme and the icons of `xfce-winxp-tc` give GTK
+applications, such as the file manager, an XP look. They hold
+non-free files of Windows XP: the user installs them, and chora does
+not ship them.
+
 `chora-xp` draws everything as image nodes. It rasterizes the SVG files of
 the theme with resvg into PNG files in `$XDG_RUNTIME_DIR/chora-xp/`. It
 renders each picture once, at the largest scale of the outputs, but at
@@ -319,6 +324,18 @@ and Right go between the columns and into and out of the cascades.
 Return starts the entry. Escape closes the innermost cascade, then the
 menu.
 
+`chora-xp` draws no programs into the scene except the dialogs of the XP
+shell (D63): Log Off, Turn Off, Display Properties, Taskbar and Start
+Menu Properties, Date and Time Properties and the Control Panel menu.
+Folders open in the file manager of `--file-manager`, `thunar` by
+default: My Documents, My Pictures and My Music of the start menu
+(`XDG_DOCUMENTS_DIR`, `XDG_PICTURES_DIR` and `XDG_MUSIC_DIR`, else the
+home directory and its folders `Pictures` and `Music`), and My Computer
+as `/`. `chora-xp` adds the folder to the command, for example
+`thunar '/home/user/Music'`. The tag `archive/xp-scene-programs` keeps
+the Explorer, the folder windows, file Properties and the Delete
+confirmation that `chora-xp` drew before 0.8.
+
 The desktop of the first output shows XP's icons in its grid of 75 by 75
 pixels: My Documents (`XDG_DOCUMENTS_DIR`, else the home directory) and My
 Computer at the top left, then the folders and files of the Desktop folder
@@ -336,10 +353,10 @@ nothing.
 
 A click selects an icon: its label turns white on dark blue, with a dotted
 focus rectangle while no window has the focus. A click on the empty
-desktop takes the selection away. A double click opens the icon: a
-folder, My Documents, My Computer and the Recycle Bin in XP's Explorer
-(see below); a desktop file runs its program; any other file opens with
-`xdg-open`. A drag
+desktop takes the selection away. A double click opens the icon. A
+folder and My Documents open in the file manager, My Computer opens `/`
+and the Recycle Bin opens `$XDG_DATA_HOME/Trash/files` in it. A desktop
+file runs its program, and any other file opens with `xdg-open`. A drag
 moves an icon to the nearest free cell of the grid, until `chora-xp` ends.
 A drag on the empty desktop draws XP's selection rectangle, in XP's
 selection blue with a translucent fill and a line of 1 pixel, and selects
@@ -348,7 +365,8 @@ grows and shrinks. A drag of one of the selected icons moves all of them,
 each to the cell at the same offset; if one of them would land on an icon
 that stays, or two in one cell, they all go back. A click on one of the
 selected icons selects it alone, and a click on the empty desktop selects
-nothing.
+nothing. Icons dropped on a window or on the Recycle Bin go back to
+their places: `chora-xp` changes no file.
 XP has one desktop, so the icons stay in place while the cube turns: each
 face of the cube shows them on the wallpaper.
 
@@ -378,112 +396,13 @@ and the Menu key open the menu of the selected icon, or of the desktop.
   gray.
 - **An icon of the desktop**: the right button selects the icon and
   opens XP's menu of its kind. When the icon is part of the selection,
-  the selection stays. The rows act on the icon under the pointer. Open, in bold, does what a double click does.
-  A folder and My Documents have Explore, which opens the folder in
-  Explorer, as My Computer and the Recycle Bin do. Delete of a file or a
-  folder of the Desktop folder asks in XP's Confirm File Delete or
-  Confirm Folder Delete, and Yes moves it to the trash of the
-  freedesktop.org specification: `$XDG_DATA_HOME/Trash/files`, with its
-  `.trashinfo` file in `Trash/info` that holds its percent-encoded path
-  and the date. A name that the trash holds already gets a number, as
-  `notes.2.txt`. A file on another file system than the trash stays
-  where it is, and `chora-xp` logs why. Properties shows the type, the
-  folder, the size or the number of items in a folder, and the times it
-  was created, changed and opened. The Recycle Bin has Empty Recycle
-  Bin while it holds files, and its Properties count them. Send To,
-  Open With, Search, Cut, Copy, Create Shortcut and Rename are gray, as
-  are Delete of My Documents and all rows of My Computer but Open and
-  Explore: its Properties would be XP's System Properties.
+  the selection stays. The rows act on the icon under the pointer. Open,
+  in bold, does what a double click does. The other rows are gray,
+  among them Delete and Empty Recycle Bin: the file manager does that.
 - **A program or a place of the start menu, or a program of All
-  Programs**: Open in bold, Explore for the folders, Remove from This
-  List for the programs of the left column, which leave the menu until
-  `chora-xp` ends, and Properties with the name, the icon and the
-  command or the folder. Run as, Pin to Start menu, Send To and Rename
-  are gray.
-
-`chora-xp` draws XP's Windows Explorer itself, as the client of a
-window of its own: the window has XP's frame and a task button with the
-icon and the name of the place, and it raises on a click, minimizes
-through the magic lamp, maximizes and wobbles like the windows of
-clients. It opens at 785 by 559 pixels, the size of XP's My Computer, or
-smaller on a small output, and resizes from its edges down to 428 by 294
-pixels: the task pane keeps its width, and the view and its scroll bar
-take the rest. From the top:
-
-- the menu bar with File, Edit, View, Favorites, Tools and Help, and
-  XP's flag when it is installed. A click opens a menu: File > Close
-  closes the window; View has Tiles, Go To (Back, Forward, Up One Level,
-  My Documents, My Computer, Recycle Bin) and Refresh. The other rows
-  are gray;
-- the Standard Buttons: Back, Forward and Up, as the history of the
-  window allows, and Views with Tiles. Search and Folders are gray. Up
-  goes from My Computer and the Recycle Bin to the Desktop folder, where
-  they sit on XP;
-- the address bar with the path and the icon of the place, its list of
-  places, and Go, which shows the place again;
-- the blue task pane with XP's boxes: the tasks of the place, Other
-  Places and Details. A click on the title of a box closes or opens it.
-  The links of Other Places go to the parent folder, My Documents and My
-  Computer, and Shared Documents when it exists, in the same window;
-  Control Panel and Change a setting open the Control Panel of the start
-  menu. The tasks that change files and My Network Places are gray.
-
-The view of a folder is XP's Tiles view: a 48 pixel icon for each folder
-and file, its name, and in gray its type and size as XP writes them,
-such as `Text Document` and `12.3 KB`. Folders come first, then the files
-by name without case and with numbers by their value (`file2` before
-`file10`); hidden files, whose name starts with a dot, are left out. The
-icon comes from the extension: folder, text, image, audio, video,
-archive, program (also a file that may run) or other. A click selects
-an item, and Details shows its type, date and size; a click on the empty
-view selects nothing. A double click opens a folder in the same window,
-with Back, Forward and Up, and a file with `xdg-open`. A view longer
-than the window gets XP's blue scroll bar: its arrows scroll by 40
-pixels, a click on the track by a page, and the thumb follows a drag.
-A notch of the mouse wheel scrolls by 120 pixels, three lines as on XP.
-A touchpad scrolls as far as the fingers move.
-
-My Computer shows XP's groups under their headings with the blue line:
-Files Stored on This Computer with Shared Documents (`XDG_PUBLICSHARE_DIR`,
-when it exists) and "USER's Documents" (My Documents); Hard Disk Drives;
-and Devices with Removable Storage. The drives come from
-`/proc/self/mounts`: the mounts of disk file systems (btrfs, ext2 to
-ext4, xfs, f2fs, vfat, exfat, NTFS and others) and of discs, each device
-once at its shortest mount point, without the bind mounts of a container
-below `/dev`, `/sys`, `/proc`, `/etc`, `/var/lib` and `/var/log`. A disk
-is "Local Disk (/)"; a medium below `/run/media` or `/media`, or a
-disc, is removable and goes by the name of its directory. Details shows
-the file system, the free space and the size, from `df`. A double click
-opens a drive or a folder in the same window.
-
-The Recycle Bin lists the trash of the freedesktop.org specification,
-`$XDG_DATA_HOME/Trash/files`, with the folder each item came from and
-the date it went, from its file in `Trash/info`. Recycle Bin Tasks has
-Empty the Recycle Bin, gray while the bin is empty. It asks first, in XP's
-Confirm File Delete or Confirm Multiple File Delete, and Yes deletes the
-files and folders of the trash and their info files for good. Restore
-all items is gray. Each question of `chora-xp` takes the keyboard while
-it shows, and Escape answers No.
-
-My Documents, My Pictures and My Music of the start menu
-(`XDG_DOCUMENTS_DIR`, `XDG_PICTURES_DIR` and `XDG_MUSIC_DIR`, else the
-home directory and its folders `Pictures` and `Music`) and My Computer
-open in Explorer too, and the window calls these folders by their names
-in XP.
-
-Desktop icons dropped on the window of a folder go into the folder, or
-into the folder item under the pointer. On a file item, or on another
-window such as a program or My Computer, they go back to their places,
-as XP does not allow that drop. A file or a folder moves on the same
-file system and is copied to another one, as XP moves on one drive and
-copies to another. When the folder has a file of the name, XP's Confirm
-File Replace asks first, for each such file in turn. Yes replaces the
-file. A folder on either side of a name stays, and `chora-xp` logs it. A
-drop on the window of the Recycle Bin, or on its desktop icon, asks
-first, as Delete does. Yes sends the files to the Recycle Bin. Beyond
-this and Empty the Recycle Bin, the window changes no file. The keyboard
-does not work it (D45). Its icons come from the icon theme, XP's own
-when `WindowsXP` of `get-microsoft-files.sh` is installed.
+  Programs**: Open in bold, and Remove from This List for the programs
+  of the left column, which leave the menu until `chora-xp` ends. Run
+  as, Pin to Start menu, Send To and Rename are gray.
 
 The Control Panel opens as a menu, as with XP's "Display as a menu". A
 check mark shows the current choice of each entry, and a click on an
@@ -588,12 +507,11 @@ computer, Stand By runs `systemctl suspend`. Without `systemctl`, Stand
 By is disabled. Turn Off ends `chora-xp` and shuts nothing down. Restart
 runs `chora-xp` again in the same process, with the same arguments. The
 core keeps the nodes of `chora-xp` for the grace time of `resume` (see
-[API](api.md#ipc-methods)). The
-windows keep their places, desktops, maximized state and stacking. The
-Explorer windows open again. The current desktop stays, and its top
-window gets the focus. Cancel or a click outside the dialog
-closes it. The buttons light up under the pointer; the keyboard does not
-work the dialogs, for the same reason as Escape.
+[API](api.md#ipc-methods)). The windows keep their places, desktops,
+maximized state and stacking. The current desktop stays, and its top
+window gets the focus. Cancel or a click outside the dialog closes it.
+The buttons light up under the pointer; the keyboard does not work the
+dialogs (D45).
 
 `chora-xp` serves notifications (`org.freedesktop.Notifications` on the
 session bus), so that `notify-send` and programs show XP's balloon tips:
@@ -660,6 +578,7 @@ these bindings, Super+Ctrl with the arrows stands in.
 | `--theme DIR` | `/usr/share/chora/flavors/xp/theme`, or `CHORA_XP_THEME` | the theme directory |
 | `--terminal CMD` | `foot` | the terminal of the start menu and of Super+e; `CMD -e` runs the programs with `Terminal=true` |
 | `--launcher CMD` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
+| `--file-manager CMD` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
 | `--program TITLE=CMD` | | another program in the start menu; repeat for more |
 | `--clock FORMAT` | `%-I:%M %p` | the clock, in the format of strftime |
 | `--wallpaper FILE` | Bliss if installed, else Bløff | a PNG, JPEG or SVG file |
