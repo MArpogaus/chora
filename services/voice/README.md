@@ -368,6 +368,11 @@ agent with fake servers. `chora-voice replay DIR...` replays recordings
 of `record_dir`. `tests/corpus.py TTS_URL` writes the corpus again with
 the live TTS, and `tests/live.py TTS_URL ASR_URL` checks the servers.
 
+`tests/voice-acp.sh` (in the repository root) runs the fake ACP agent
+`tests/fake-acp.sh` through chora-voice and chora-mc in a headless
+session: start, work, question, yes, done, stop. `SHOTS=DIR` saves a
+screenshot of the agents scene at each step.
+
 `tests/live-gate.sh [TEXT]` runs one voice turn through the whole agent
 in the running chora session, against the servers of your settings,
 and prints the latency of each stage. The question is a TTS clip, which
