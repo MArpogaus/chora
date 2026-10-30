@@ -134,11 +134,13 @@ reply. Before the first words of the LLM, it also withdraws the request.
 After them, the request and the words and tool calls so far stay in the
 history.
 
-While the agent speaks, speech above `RMS_BARGE_IN` (10) and the level
+While the agent speaks, speech above `RMS_BARGE_IN` (twice
+`RMS_SPEECH`) and the level
 of speech for `BARGE_MS` (300) stops the reply, and a turn starts. While
 the agent works without sound, the speech must last 1 s, so that a short
-"yes" does not stop it. Dips down to half the level of speech do not
-reset the count, since the echo canceller damps the voice in bursts.
+"yes" does not stop it. Dips down to half the level of speech, for at
+most 100 ms, do not reset the count, since the echo canceller damps the
+voice in bursts.
 When that turn has no words, it was a noise: the LLM answers the request
 again, or goes on with the cut reply. The push-to-talk key also stops a
 reply. The mic also hears the speaker, so use headphones or the echo
@@ -147,11 +149,12 @@ the reply` shows the level that the barge-in level must stay above. When
 the reply stops itself, the line `barge-in at level` shows the level of
 the echo.
 
-The agent keeps the words of the last `HISTORY` (20) turns in
+The agent keeps your requests of the last `HISTORY` (20) turns in
 `~/.local/state/chora/voice-history.json`. At its next start, they go
-into the system prompt as a note. Tool calls and results stay out, since
-they describe a scene that may be gone. Delete the file to start a new
-conversation.
+into the system prompt as a quoted note. Replies, tool calls and results
+stay out: a reply can repeat text from the screen or from a coder, and
+node ids describe a scene that may be gone. Delete the file to start a
+new conversation.
 
 ## Echo cancellation
 
@@ -178,8 +181,8 @@ The LLM gets the tools of `choractl --name voice mcp`, except the event
 tools and `capture`. `CHORA_MCP` is the command of `choractl`, so
 that the tools run in another place, for example `podman exec -i NAME
 choractl` in a container. Its programs then start in the container.
-When the LLM reads images, `describe_screen` gives it the screenshot
-too. Gufo says so in `input_modalities` of `/v1/models`, and the log at
+When the LLM reads images and `voice` has the grant `screen.capture`,
+`describe_screen` gives it the screenshot too. Gufo says so in `input_modalities` of `/v1/models`, and the log at
 the start. A text-only LLM gets the windows and nodes as text only. The
 unit finds chora through `CHORA_SOCKET`, which a chora flavor gives the
 user manager.
@@ -201,7 +204,7 @@ can start a turn, also from a video, and also while the screen is
 locked. Text on the screen that a tool reads can also steer the LLM. So
 can the plugins, which write the descriptions and results of their
 tools. The journal keeps each transcript and each tool call, and the
-history file the transcripts and replies. The emergency reset does not
+history file your requests. The emergency reset does not
 undo output changes, and the reserved space
 returns with the next tool call; `wlr-randr` resets the outputs. The
 emergency reset and the revoke binding do not stop the agent; after the
@@ -226,9 +229,9 @@ It adds the tools `code_task`, `code_status`, `code_cancel` and
 - The harness runs in that clone. Its output goes to the file of the
   clone with `.log` after its name, such as `worktrees/chora-3.log`. The
   agent speaks the result and keeps it in the history.
-- The inventory holds the projects that you keep, as directories or
-  links, for example `ln -s ~/Projekte/chora
-  ~/.local/share/chora/inventory/chora`. A result reaches the branch
+- The inventory holds the projects that you keep, as git repositories
+  or links to them, for example `ln -s ~/Projekte/chora
+  ~/.local/share/chora/inventory/chora`. The clone has no remote. A result reaches the branch
   `voice/N` only when the harness commits it; the agent asks for that.
   Take a good result into a project with `git fetch` from its clone.
 

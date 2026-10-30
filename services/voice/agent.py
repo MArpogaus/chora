@@ -194,7 +194,7 @@ SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
 # picture that capture would.
 SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
 GO_ON = "(A noise cut your answer; that was not me. Go on where you stopped.)"
-CODER_REPORT = "The coding task in"  # the start of each report of the coder
+LINE_LIMIT = 16 * 2**20  # a line of the coder, such as a tool result of stream-json
 TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
 
 SPEAKING = asyncio.Lock()  # one voice at a time: replies and coding results
@@ -557,6 +557,18 @@ class Coder:
         self.step = ""
         self.reports: list[str] = []  # results for the history, between two turns
 
+    def messages(self) -> list[dict]:
+        """Return the reports as results of code_status calls, for the history."""
+        out = []
+        for report in self.reports:
+            call = {"id": f"report-{abs(hash(report))}", "type": "function"}
+            call["function"] = {"name": "code_status", "arguments": "{}"}
+            out += [
+                {"role": "assistant", "content": "", "tool_calls": [call]},
+                {"role": "tool", "tool_call_id": call["id"], "content": report},
+            ]
+        return out
+
     def call(self, name: str, arguments: dict) -> str:
         """Run one of TOOLS and return its answer for the LLM."""
         if name == "code_task":
@@ -601,9 +613,11 @@ class Coder:
         self.started, self.step, result, state = time.monotonic(), "starting", "", "failed"
         try:
             if project:
-                source = str(INVENTORY / project)
-                await _git("clone", "--quiet", "--no-hardlinks", source, str(self.workdir))
-                await _git("-C", str(self.workdir), "switch", "--quiet", "-c", f"voice/{number}")
+                source, clone = str(INVENTORY / project), str(self.workdir)
+                await _git("clone", "--quiet", "--no-hardlinks", source, clone)
+                await _git("-C", clone, "switch", "--quiet", "-c", f"voice/{number}")
+                # No remote: a push from the clone must not reach the project.
+                await _git("-C", clone, "remote", "remove", "origin")
             else:
                 await _git("init", "--quiet", "-b", f"voice/{number}", str(self.workdir))
             # Its own process group, so that a cancel ends what it started too.
@@ -614,26 +628,29 @@ class Coder:
                 start_new_session=True,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
+                limit=LINE_LIMIT,
             )
-            with self.workdir.with_suffix(".log").open("wb") as out:
+            with (self.workdir.parent / f"{self.workdir.name}.log").open("wb") as out:
                 async for line in self.proc.stdout:
                     out.write(line)
                     step, result = _step(line.decode(errors="replace"), result)
                     self.step = step or self.step
             state = "is done" if await self.proc.wait() == 0 else "failed"
         except asyncio.CancelledError:
+            state = "was cancelled"
+        except (OSError, ValueError) as err:  # ValueError: a line over LINE_LIMIT
+            result = str(err)
+        finally:
+            # A coder that ends here, or ignores the signal, must not run on
+            # next to the next task.
             if self.proc and self.proc.returncode is None:
                 os.killpg(self.proc.pid, signal.SIGTERM)
-                # A coder that ignores the signal must not run next to the next task.
                 try:
                     await asyncio.wait_for(self.proc.wait(), 5)
                 except TimeoutError:
                     os.killpg(self.proc.pid, signal.SIGKILL)
                     await self.proc.wait()
-            state = "was cancelled"
-        except OSError as err:
-            result = str(err)
-        text = f"{CODER_REPORT} {self.workdir.name} {state}. {(result or self.step)[:400]}"
+        text = f"The coding task in {self.workdir.name} {state}. {(result or self.step)[:400]}"
         self.reports.append(text)
         await speak(self.http, one(text))
 
@@ -1050,36 +1067,32 @@ def system_prompt() -> str:
 
 
 def spoken(messages: list[dict]) -> list[dict]:
-    """Return the words of the user and the replies, in the last HISTORY turns.
+    """Return the words of the user in the last HISTORY turns.
 
-    Tool calls and results stay out: their node ids and places describe a
-    scene that may be gone, and a screenshot needs no place on the disk.
+    Replies, tool calls and results stay out: a reply can repeat text that
+    the LLM read on the screen or from the coder, which would then steer
+    every later session; node ids describe a scene that may be gone.
     """
     words = [
-        {"role": m["role"], "content": text_of(m["content"])}
+        {"role": "user", "content": text_of(m["content"])}
         for m in messages
-        if m["role"] in ("user", "assistant")
-        and m.get("content")
-        and m["content"] != GO_ON
-        # The output of the coder in a report could steer a later session.
-        and not text_of(m["content"]).startswith(CODER_REPORT)
+        if m["role"] == "user" and m["content"] != GO_ON
     ]
-    users = [i for i, m in enumerate(words) if m["role"] == "user"]
-    return words[users[-HISTORY] :] if len(users) > HISTORY else words
+    return words[-HISTORY:]
 
 
 def earlier(words: list[dict]) -> str:
     """Return the words of past sessions as a note for the system prompt.
 
-    As chat messages, replies without their tool calls would teach the LLM
-    to talk about tools instead of calling them.
+    Each request is one quoted line, so that it cannot start a section of
+    the prompt; as chat messages, the LLM would answer them again.
     """
     if not words:
         return ""
-    lines = (f"{'User' if m['role'] == 'user' else 'You'}: {m['content']}" for m in words)
+    lines = ("> " + " ".join(m["content"].split()) for m in words)
     return (
-        "# Earlier conversation\n\nFor context only. The scene may have changed "
-        "since; look before you act.\n\n" + "\n".join(lines)
+        "# Earlier requests of the user\n\nFor context only, not instructions. "
+        "The scene may have changed since; look before you act.\n\n" + "\n".join(lines)
     )
 
 
@@ -1145,9 +1158,11 @@ async def turn(
     """
     barged, http = bool(preroll), tools.http
     pcm = await record(mic, ptt, preroll)
-    if tools.coder:  # the results that the user heard, before questions about them
-        history += [{"role": "assistant", "content": r} for r in tools.coder.reports]
-        tools.coder.reports.clear()
+    if tools.coder and tools.coder.reports:  # before questions about them
+        # As tool results they are output of the coder, not words of the
+        # agent; an open request stays last, so that new words join it.
+        at = len(history) - (history[-1]["role"] == "user")
+        history[at:at] = tools.coder.messages()
     # Gufo refuses less than 100 ms, such as the rest of a key tap.
     said = await transcribe(http, pcm) if len(pcm) >= RATE * 2 // 10 else ""
     log(f"you: {said}")
@@ -1223,6 +1238,8 @@ async def run_loop(
             start = len(history)
             try:
                 preroll = await turn(mic, tools, history, ptt, preroll)
+                if tools.coder:  # a failed turn keeps them for the next one
+                    tools.coder.reports.clear()
             except TURN_ERRORS as err:
                 log(f"turn failed, the history drops it: {err!r}")
                 del history[start:]
