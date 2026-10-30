@@ -78,6 +78,8 @@ jobs:
       run: tests/gate-0.9-session-units.sh
     - name: the watchdog thread logs a shader hang and aborts the core
       run: tests/gate-0.9-shader-hang.sh
+    - name: a view sets tap and key repeat, and a client gets repeat_info
+      run: tests/gate-0.9-input.sh
     - run: tests/nested.sh target/debug e2e
     - run: tests/xp.sh target/debug e2e/xp
     - run: tests/agent.sh target/debug e2e/agent
