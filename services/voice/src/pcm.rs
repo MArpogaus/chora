@@ -1,5 +1,5 @@
 //! PCM helpers: 16 bit mono samples, the 24 kHz to 16 kHz step for the
-//! VAD, the level of a frame and WAV files.
+//! VAD, and WAV files.
 
 use std::{io, path::Path};
 
@@ -8,40 +8,39 @@ use std::{io, path::Path};
 pub const RATE: u32 = 24_000;
 
 /// Taps of the low-pass filter in front of the 3:2 step.
-const TAPS: usize = 33;
+const TAPS: u32 = 33;
 
 /// 24 kHz to 16 kHz for the VAD: a windowed-sinc low-pass at 7 kHz, then
 /// every sample at 1.5 steps. It keeps the last samples, so a stream of
 /// frames gives the same result as one long buffer.
 pub struct Downsampler {
-    taps: [f32; TAPS],
+    taps: [f32; TAPS as usize],
     history: Vec<f32>,
 }
 
 impl Default for Downsampler {
     fn default() -> Self {
+        use std::f64::consts::PI;
         let cutoff = 7_000.0 / f64::from(RATE);
-        let middle = (TAPS / 2) as f64;
-        let mut taps = [0.0; TAPS];
-        for (k, tap) in taps.iter_mut().enumerate() {
-            let x = k as f64 - middle;
-            let sinc = if x == 0.0 {
-                2.0 * cutoff
-            } else {
-                (2.0 * std::f64::consts::PI * cutoff * x).sin() / (std::f64::consts::PI * x)
-            };
-            let hamming =
-                0.54 - 0.46 * (2.0 * std::f64::consts::PI * k as f64 / (TAPS - 1) as f64).cos();
-            #[allow(clippy::cast_possible_truncation)]
-            {
-                *tap = (sinc * hamming) as f32;
-            }
-        }
-        let sum: f32 = taps.iter().sum();
-        taps.iter_mut().for_each(|t| *t /= sum);
+        let middle = f64::from(TAPS / 2);
+        let taps: Vec<f64> = (0..TAPS)
+            .map(|k| {
+                let x = f64::from(k) - middle;
+                let sinc = if x == 0.0 {
+                    2.0 * cutoff
+                } else {
+                    (2.0 * PI * cutoff * x).sin() / (PI * x)
+                };
+                let hamming = 0.54 - 0.46 * (2.0 * PI * f64::from(k) / f64::from(TAPS - 1)).cos();
+                sinc * hamming
+            })
+            .collect();
+        let sum: f64 = taps.iter().sum();
+        #[allow(clippy::cast_possible_truncation)]
+        let taps = std::array::from_fn(|k| (taps[k] / sum) as f32);
         Self {
             taps,
-            history: vec![0.0; TAPS - 1],
+            history: vec![0.0; TAPS as usize - 1],
         }
     }
 }
@@ -55,27 +54,16 @@ impl Downsampler {
             .extend(input.iter().map(|&s| f32::from(s) / 32768.0));
         let filtered: Vec<f32> = self
             .history
-            .windows(TAPS)
+            .windows(TAPS as usize)
             .map(|w| w.iter().zip(&self.taps).map(|(a, b)| a * b).sum())
             .collect();
         self.history.drain(..input.len());
         filtered
-            .chunks_exact(3)
-            .flat_map(|c| [c[0], f32::midpoint(c[1], c[2])])
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .flat_map(|[a, b, c]| [*a, f32::midpoint(*b, *c)])
             .collect()
-    }
-}
-
-/// The RMS of samples.
-#[must_use]
-pub fn rms(samples: &[i16]) -> f32 {
-    if samples.is_empty() {
-        return 0.0;
-    }
-    let sum: f64 = samples.iter().map(|&s| f64::from(s).powi(2)).sum();
-    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
-    {
-        (sum / samples.len() as f64).sqrt() as f32
     }
 }
 
@@ -83,8 +71,10 @@ pub fn rms(samples: &[i16]) -> f32 {
 #[must_use]
 pub fn samples(bytes: &[u8]) -> Vec<i16> {
     bytes
-        .chunks_exact(2)
-        .map(|b| i16::from_le_bytes([b[0], b[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|&b| i16::from_le_bytes(b))
         .collect()
 }
 
@@ -111,32 +101,40 @@ pub fn read_wav(path: &Path) -> io::Result<(u32, Vec<i16>)> {
         return Err(bad("no WAV file"));
     }
     let (mut at, mut rate) = (12, None);
-    while at + 8 <= data.len() {
-        let id = &data[at..at + 4];
-        let len = u32::from_le_bytes(data[at + 4..at + 8].try_into().expect("4 bytes")) as usize;
-        let body = data
-            .get(at + 8..at + 8 + len)
-            .ok_or_else(|| bad("a cut chunk"))?;
+    while let Some((id, body, next)) = chunk(&data, at) {
         match id {
-            b"fmt " if body.len() >= 16 => {
-                let format = u16::from_le_bytes([body[0], body[1]]);
-                let channels = u16::from_le_bytes([body[2], body[3]]);
-                let bits = u16::from_le_bytes([body[14], body[15]]);
-                if (format, channels, bits) != (1, 1, 16) {
-                    return Err(bad("not 16 bit mono PCM"));
-                }
-                rate = Some(u32::from_le_bytes(body[4..8].try_into().expect("4 bytes")));
-            }
+            b"fmt " => rate = Some(format(body).ok_or_else(|| bad("not 16 bit mono PCM"))?),
             b"data" => return Ok((rate.ok_or_else(|| bad("data before fmt"))?, samples(body))),
             _ => {}
         }
-        at += 8 + len + len % 2;
+        at = next;
     }
     Err(bad("no data"))
 }
 
+/// The chunk at `at`: its id, its body and where the next one starts. A
+/// recording that did not end has no length in its data chunk yet, or an
+/// old one: its body goes to the end of the file.
+fn chunk(data: &[u8], at: usize) -> Option<(&[u8], &[u8], usize)> {
+    let id = data.get(at..at + 4)?;
+    let len = u32::from_le_bytes(data.get(at + 4..at + 8)?.try_into().ok()?) as usize;
+    let body = match data.get(at + 8..at + 8 + len) {
+        Some(body) if !(id == b"data" && len == 0) => body,
+        _ if id == b"data" => &data[at + 8..],
+        _ => return None,
+    };
+    Some((id, body, at + 8 + len + len % 2))
+}
+
+/// The rate of a `fmt ` chunk of 16 bit mono PCM.
+fn format(body: &[u8]) -> Option<u32> {
+    let field = |at: usize| u16::from_le_bytes([body[at], body[at + 1]]);
+    let pcm16 = body.len() >= 16 && (field(0), field(2), field(14)) == (1, 1, 16);
+    pcm16.then(|| u32::from_le_bytes(body[4..8].try_into().expect("4 bytes")))
+}
+
 /// The header of a WAV file of 16 bit mono PCM; `len` is the number of
-/// bytes of the samples, `u32::MAX` while they still grow.
+/// bytes of the samples, 0 while they still grow.
 #[must_use]
 pub fn wav_header(rate: u32, len: u32) -> [u8; 44] {
     let mut h = [0; 44];
@@ -159,42 +157,38 @@ pub fn wav_header(rate: u32, len: u32) -> [u8; 44] {
 mod tests {
     use super::*;
 
-    fn sine(freq: f64, n: usize) -> Vec<i16> {
+    fn sine(freq: f64, n: u32) -> Vec<i16> {
         (0..n)
             .map(|i| {
-                let t = i as f64 / f64::from(RATE);
+                let t = f64::from(i) / f64::from(RATE);
                 #[allow(clippy::cast_possible_truncation)]
-                let s = (10_000.0 * (2.0 * std::f64::consts::PI * freq * t).sin()) as i16;
+                let s = (10_000.0 * (std::f64::consts::TAU * freq * t).sin()) as i16;
                 s
             })
             .collect()
     }
 
+    /// The level of a sine of amplitude 10000, from 0 to 1.
     fn level(x: &[f32]) -> f32 {
-        #[allow(clippy::cast_precision_loss)]
-        let n = x.len() as f32;
-        (x.iter().map(|s| s * s).sum::<f32>() / n).sqrt()
+        let n: f32 = x.iter().map(|_| 1.0).sum();
+        (x.iter().map(|s| s * s).sum::<f32>() / n).sqrt() / (10_000.0 / 32768.0 / 2f32.sqrt())
+    }
+
+    fn down(input: &[i16]) -> Vec<f32> {
+        let mut down = Downsampler::default();
+        input.chunks(768).flat_map(|c| down.push(c)).collect()
     }
 
     #[test]
     fn the_downsampler_keeps_speech_and_drops_what_16_khz_cannot_hold() {
-        let mut low = Downsampler::default();
-        let out: Vec<f32> = sine(1_000.0, 7_680)
-            .chunks(768)
-            .flat_map(|c| low.push(c))
-            .collect();
+        let out = down(&sine(1_000.0, 7_680));
         assert_eq!(out.len(), 5_120, "two out per three in");
-        let kept = level(&out[100..]) / (10_000.0 / 32768.0 / 2f32.sqrt());
+        let kept = level(&out[100..]);
         assert!((0.9..1.1).contains(&kept), "1 kHz keeps its level: {kept}");
         // 1 kHz at 16 kHz: 16 samples per period, so one period later the
         // sample repeats.
         assert!((out[1000] - out[1016]).abs() < 0.02);
-        let mut high = Downsampler::default();
-        let out: Vec<f32> = sine(10_000.0, 7_680)
-            .chunks(768)
-            .flat_map(|c| high.push(c))
-            .collect();
-        let alias = level(&out[100..]) / (10_000.0 / 32768.0 / 2f32.sqrt());
+        let alias = level(&down(&sine(10_000.0, 7_680))[100..]);
         assert!(alias < 0.1, "10 kHz would fold to 6 kHz: {alias}");
     }
 
@@ -208,7 +202,7 @@ mod tests {
         file.extend(bytes(&samples));
         std::fs::write(&path, file).unwrap();
         assert_eq!(read_wav(&path).unwrap(), (RATE, samples.to_vec()));
-        std::fs::write(&path, b"RIFF....WAVEdata").unwrap();
+        std::fs::write(&path, b"RIFF....WAVEfmt ").unwrap();
         assert!(read_wav(&path).is_err());
         std::fs::remove_dir_all(dir).unwrap();
     }

@@ -88,7 +88,9 @@ mod tests {
         let mut vad = Vad::new().map_err(|e| format!("{e:?}")).unwrap();
         let mut down = Downsampler::default();
         samples
-            .chunks_exact(FRAME * 3 / 2)
+            .as_chunks::<{ crate::audio::FRAME }>()
+            .0
+            .iter()
             .map(|c| {
                 let frame: [f32; FRAME] = down.push(c).try_into().unwrap();
                 vad.probability(&frame).unwrap()
@@ -103,14 +105,14 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/tests/data/hallo-chora.wav"
         ));
-        let at = |s: f64| (s / 0.032) as usize;
-        let loud = p[..at(0.9)]
+        let at = |ms: usize| ms / 32;
+        let loud = p[..at(900)]
             .iter()
-            .chain(&p[at(4.5)..])
+            .chain(&p[at(4500)..])
             .filter(|&&x| x > 0.5)
             .count();
         assert_eq!(loud, 0, "no speech in the quiet room: {p:?}");
-        let speech = &p[at(1.1)..at(3.9)];
+        let speech = &p[at(1100)..at(3900)];
         let heard = speech.iter().filter(|&&x| x > 0.5).count();
         assert!(
             heard * 10 > speech.len() * 7,
