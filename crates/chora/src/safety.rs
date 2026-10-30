@@ -270,8 +270,9 @@ impl State {
     }
 
     /// The emergency reset: disconnects all clients of the IPC socket,
-    /// revokes all grants, puts all surfaces in a grid that fills the output
-    /// and focuses the first one.
+    /// revokes all grants, drops the unused activation tokens of no client,
+    /// puts all surfaces in a grid that fills the output and focuses the
+    /// first one.
     pub fn reset(&mut self) {
         // The transactions of the clients end without effect, so that a
         // close does not start the next one.
@@ -285,6 +286,7 @@ impl State {
         self.end_graces();
         self.remove_client_sockets();
         self.grants.revoke_all();
+        self.forget_unused_tokens(std::time::Duration::ZERO);
         self.inject_mark = None;
         self.node_grab = None;
         self.button_grab = None;
@@ -342,6 +344,16 @@ mod tests {
             InputTime::now(),
             false,
         );
+    }
+
+    #[test]
+    fn the_reset_drops_the_waiting_tokens() {
+        let mut core = Core::new();
+        let mut ctl = core.admin();
+        ctl.ok(&mut core, "activation.token", Value::Null);
+        assert_eq!(core.state.activation_state.tokens().count(), 1);
+        core.state.reset();
+        assert_eq!(core.state.activation_state.tokens().count(), 0);
     }
 
     #[test]
