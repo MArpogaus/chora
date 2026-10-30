@@ -138,8 +138,9 @@ words of the LLM, it also withdraws the request. After them, the request
 and the words and tool calls so far stay in the history.
 
 When the mic level stays above the level of speech and above
-`RMS_BARGE_IN` (10) for `BARGE_MS` while the agent answers, the reply
-stops and a turn starts. The push-to-talk key
+`RMS_BARGE_IN` (10) for `BARGE_MS` (300) while the agent answers, the
+reply stops and a turn starts. Dips down to half the level of speech do
+not reset the count, since the echo canceller damps the voice in bursts. The push-to-talk key
 does the same. The mic also hears the speaker, so use headphones or the
 echo cancellation below. After each full reply, the log line `mic peak
 during the reply` shows the level that the barge-in level must stay above.
@@ -162,10 +163,8 @@ pactl set-default-source echo-cancel-source
 To check it, run `services/voice/agent.py levels` while music plays from
 the speakers. The level must stay near the level of the quiet room, and
 rise when you speak. Then set `RMS_BARGE_IN` close to the level of
-speech, so that you can talk over a reply at a normal level. The canceller also
-damps your voice while the agent speaks, so a shorter `BARGE_MS` such as
-100 stops a reply sooner. `SETTLE_MS=0` keeps the words that you say
-right after a reply.
+speech, so that you can talk over a reply at a normal level.
+`SETTLE_MS=0` keeps the words that you say right after a reply.
 
 ## Tools
 

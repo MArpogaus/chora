@@ -799,7 +799,12 @@ async def talk(
         recent.append(await mic.frame())
         level = rms(recent[-1])
         peak = max(peak, level)
-        loud = loud + FRAME_MS if level >= mic.barge_in else 0
+        # The echo canceller damps the voice in bursts: a dip down to half
+        # the level of speech keeps the count, only quiet resets it.
+        if level >= mic.barge_in:
+            loud += FRAME_MS
+        elif level < mic.hold:
+            loud = 0
         by_key = ptt.is_set()
         if loud >= BARGE_MS or by_key:
             log("barge-in by key" if by_key else f"barge-in at level {level:.0f}")
