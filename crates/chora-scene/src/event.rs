@@ -88,7 +88,7 @@ pub enum Event {
         node: String,
         /// The client that asked.
         client: String,
-        /// `focus`, `move`, `resize` or `close`.
+        /// `focus`, `move`, `resize`, `close` or `update`.
         action: String,
         /// The arguments of the command, for example `{"parent": "g"}`.
         args: serde_json::Value,

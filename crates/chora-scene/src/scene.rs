@@ -387,7 +387,9 @@ impl Scene {
                 self.create(owned_node(owner, id, *kind, props), parent)
             }
             Command::Attach { surface, parent } => self.attach(owner, surface, parent),
-            Command::Update { .. } | Command::Animate { .. } => self.change_props(owner, command),
+            Command::Update { .. } | Command::Animate { .. } => {
+                self.change_props(owner, command, effects)
+            }
             Command::Move { .. } => self.move_command(owner, command, effects),
             Command::Remove { id, to: None } => {
                 self.owned_mut(owner, id)?;
@@ -922,8 +924,14 @@ impl Scene {
     }
 
     /// Runs `update` and `animate`. Either ends a running animation of the
-    /// node where it is.
-    fn change_props(&mut self, owner: &str, command: &Command) -> Result<(), SceneError> {
+    /// node where it is. An `update` of opacity, effects or meta of a node
+    /// of another client answers with a request (D58).
+    fn change_props(
+        &mut self,
+        owner: &str,
+        command: &Command,
+        effects: &mut Vec<Effect>,
+    ) -> Result<(), SceneError> {
         let (id, props, timing) = match command {
             Command::Update { id, props } => (id, props, None),
             Command::Animate {
@@ -938,6 +946,23 @@ impl Scene {
             return Err(SceneError::Invalid(format!(
                 "the duration of {id:?} is not from 0 to {MAX_DURATION} ms"
             )));
+        }
+        let look = PropsUpdate {
+            opacity: props.opacity,
+            effects: props.effects.clone(),
+            meta: props.meta.clone(),
+            ..PropsUpdate::default()
+        };
+        if timing.is_none()
+            && *props == look
+            && let Some(other) = self.other_owner(owner, id)
+        {
+            let node = &self.nodes[id];
+            check_props(id, node.kind, props)?;
+            check_meta(id, &node.props.meta, props)?;
+            let args = serde_json::to_value(props).expect("props serialize");
+            effects.push(request(owner, id, other, "update", args));
+            return Ok(());
         }
         let node = self.owned_mut(owner, id)?;
         check_props(id, node.kind, props)?;

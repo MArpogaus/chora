@@ -169,7 +169,7 @@ pub enum Effect {
         owner: String,
         /// The client that asked.
         by: String,
-        /// `focus`, `move`, `resize` or `close`.
+        /// `focus`, `move`, `resize`, `close` or `update`.
         action: &'static str,
         /// The arguments of the command, for example `{"parent": "g"}`.
         args: serde_json::Value,

@@ -47,7 +47,7 @@ fn only_the_owner_changes_a_node() {
     let update = Command::Update {
         id: "work".into(),
         props: PropsUpdate {
-            opacity: Some(0.5),
+            visible: Some(false),
             ..PropsUpdate::default()
         },
     };

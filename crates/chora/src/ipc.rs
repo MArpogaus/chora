@@ -2453,6 +2453,35 @@ mod tests {
         );
     }
 
+    /// An update of the look of a foreign node reaches its owner after the
+    /// core checked it (D58).
+    #[test]
+    fn an_update_of_a_foreign_node_reaches_its_owner_as_a_request() {
+        let mut core = Core::new();
+        let (mut wm, _wayland) = resumable(&mut core);
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut b = core.named("b");
+        let update = |props: Value| json!({"commands": [{"update": {"id": "s1", "props": props}}]});
+        let props = json!({"opacity": 0.5, "meta": {"k": "v"}});
+        b.ok(&mut core, "scene.apply", update(props.clone()));
+        let events = wm.events_now(&mut core);
+        assert!(node_requested(&events, "b", "update", &props), "{events:?}");
+        assert_eq!(core.state.scene.node("s1").unwrap().props.opacity, 1.0);
+        let (_, message) = b.fails(
+            &mut core,
+            "scene.apply",
+            update(json!({"meta": {"k": "v".repeat(2000)}})),
+        );
+        assert!(message.contains("meta data"), "{message}");
+        let (_, message) = b.fails(
+            &mut core,
+            "scene.apply",
+            update(json!({"opacity": 0.5, "visible": false})),
+        );
+        assert!(message.contains("belongs to"), "{message}");
+        assert_eq!(wm.events_now(&mut core), Vec::<Value>::new());
+    }
+
     /// Whether one of the events is a `node.requested` of `s1` by `by`.
     fn node_requested(events: &[Value], by: &str, action: &str, args: &Value) -> bool {
         events.iter().any(|e| {
