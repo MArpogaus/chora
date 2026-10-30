@@ -15,7 +15,7 @@
     "tooltip": false
   },
   "custom/layout": {
-    "exec": "choractl call tiling get_layout 2>/dev/null | sed -n 's/^ *\"layout\": \"\\(.*\\)\",*$/\\1/p'",
+    "exec": "choractl call tiling get_layout 2>/dev/null | jq -r .layout",
     "interval": 1,
     "format": "[{}]",
     "tooltip": false
