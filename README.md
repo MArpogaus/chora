@@ -43,6 +43,26 @@ sudo pacman -S --asdeps uwsm foot fuzzel waybar mako swaybg swayidle swaylock ka
 [Flavors](https://marpogaus.github.io/chora/configuration/#flavors)
 describes the sessions and the flavors.
 
+### Fedora Atomic and secureblue
+
+On an image-based system, layer the RPM with `rpm-ostree`. Download the
+RPM and `SHA256SUMS` from the release, then:
+
+```bash
+sha256sum -c --ignore-missing SHA256SUMS
+rpm-ostree install ./chora-*.rpm
+systemctl reboot
+```
+
+The layer takes effect after the reboot. To start chora as a uwsm session
+with the tiling flavor, choose "chora (uwsm)" on the login screen.
+
+Open item: uwsm is not in Fedora 44. The "chora (uwsm)" session shows
+only when uwsm is installed, so the host needs it from a COPR repository
+or as a layered package, or it must be built locally. The decision is
+open. Until then, the session "chora" starts the tiling flavor without
+uwsm.
+
 ## Try it
 
 Start chora with the tiling plugin inside a Wayland session:
