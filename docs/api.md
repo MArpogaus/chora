@@ -942,7 +942,10 @@ settings stay. `null` removes the key: a map such as `bindings` loses that
 entry, and a fixed setting takes its default again. So `null` cannot set an
 optional setting such as `session.log_off` to none; the file can. The
 plugin checks the result, applies it at once and then saves it in its YAML
-file in `$XDG_CONFIG_HOME/chora/`. `settings.set` answers all settings. A
+file in `$XDG_CONFIG_HOME/chora/`: it writes a new file of mode 0600
+next to it and renames it over the old one. A symlink there stays, and
+the file that it points to gets the settings. `settings.set` answers all
+settings. A
 wrong value gets the error `-32602` and changes nothing. A change that the
 plugin cannot apply is not saved. A change that the plugin cannot save
 stays applied until the next start, and the caller gets the error.

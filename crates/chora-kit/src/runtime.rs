@@ -410,10 +410,10 @@ mod tests {
         assert_eq!(plugin.applied, 9);
         assert!(std::fs::read_to_string(&path).unwrap().contains("gap: 9"));
 
-        // A directory where the temporary file should be: the save fails.
+        // A directory where the file should be: the save fails.
         let blocked = dir.join("blocked.yaml");
-        plugin.settings = File::<Demo>::load(blocked, DEFAULT).unwrap();
-        std::fs::create_dir_all(dir.join("blocked.yaml.tmp")).unwrap();
+        plugin.settings = File::<Demo>::load(blocked.clone(), DEFAULT).unwrap();
+        std::fs::create_dir_all(&blocked).unwrap();
         let err = set_settings(&mut plugin, json!({"gap": 10})).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
         assert_eq!(plugin.applied, 10, "the change stays applied");

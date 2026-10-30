@@ -15,7 +15,9 @@
 
 use std::{
     io::Write as _,
+    os::unix::fs::OpenOptionsExt as _,
     path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 use chora_scene::ipc::{DescribedMethod, ExportMethod, RpcError};
@@ -152,20 +154,28 @@ impl<S: Settings> File<S> {
         ]
     }
 
-    /// Writes a temporary file and renames it, so that a crash leaves the
-    /// old file or the new one, never a part.
+    /// Writes a new temporary file of mode 0600 next to the file and
+    /// renames it, so that a crash leaves the old file or the new one,
+    /// never a part. A symlink, for example into a dotfiles repository,
+    /// stays: the file that it points to takes the settings.
     fn write(&self) -> Result<(), String> {
         let text = serde_saphyr::to_string(&self.value).map_err(|e| e.to_string())?;
-        let mut tmp = self.path.clone().into_os_string();
-        tmp.push(".tmp");
         let write = || -> std::io::Result<()> {
-            if let Some(dir) = self.path.parent() {
-                std::fs::create_dir_all(dir)?;
+            let dir = self.path.parent().unwrap_or(Path::new("."));
+            std::fs::create_dir_all(dir)?;
+            let target = std::fs::canonicalize(&self.path).unwrap_or_else(|_| {
+                // A dangling symlink still names its target.
+                std::fs::read_link(&self.path).map_or_else(|_| self.path.clone(), |l| dir.join(l))
+            });
+            let (tmp, mut file) = new_temp(&target)?;
+            let done = file
+                .write_all(text.as_bytes())
+                .and_then(|()| file.sync_all())
+                .and_then(|()| std::fs::rename(&tmp, &target));
+            if done.is_err() {
+                let _ = std::fs::remove_file(&tmp);
             }
-            let mut file = std::fs::File::create(&tmp)?;
-            file.write_all(text.as_bytes())?;
-            file.sync_all()?;
-            std::fs::rename(&tmp, &self.path)
+            done
         };
         write().map_err(|e| format!("{}: {e}", self.path.display()))
     }
@@ -198,6 +208,26 @@ impl<S: Settings> Store for File<S> {
             .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e))?
             .value;
         Ok(self.get())
+    }
+}
+
+/// Creates a temporary file of mode 0600 with a new name next to `path`;
+/// an existing file of the name is never opened.
+fn new_temp(path: &Path) -> std::io::Result<(PathBuf, std::fs::File)> {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    loop {
+        let n = NEXT.fetch_add(1, Ordering::Relaxed);
+        let tmp = path.with_file_name(format!(".{name}.{}.{n}.tmp", std::process::id()));
+        let open = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&tmp);
+        match open {
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            open => return open.map(|file| (tmp, file)),
+        }
     }
 }
 
@@ -377,7 +407,34 @@ pub(crate) mod tests {
         file.save().unwrap();
         let saved = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
         assert_eq!(saved.value, file.value, "the file round-trips");
-        assert!(!dir.join("chora/demo.yaml.tmp").exists());
+        let names: Vec<_> = std::fs::read_dir(dir.join("chora")).unwrap().collect();
+        assert_eq!(names.len(), 1, "no temporary file stays: {names:?}");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// The saved file has mode 0600, and a symlink to the settings, for
+    /// example into a dotfiles repository, stays a symlink.
+    #[test]
+    fn a_save_writes_through_a_symlink_with_mode_0600() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = dir("symlink");
+        std::fs::create_dir_all(dir.join("dotfiles")).unwrap();
+        let real = dir.join("dotfiles/demo.yaml");
+        std::fs::write(&real, "gap: 5\n").unwrap();
+        let link = dir.join("demo.yaml");
+        std::os::unix::fs::symlink("dotfiles/demo.yaml", &link).unwrap();
+        let mut file = File::<Demo>::load(link.clone(), DEFAULT).unwrap();
+        file.set(json!({"gap": 6})).unwrap();
+        file.save().unwrap();
+        assert!(link.symlink_metadata().unwrap().is_symlink());
+        assert!(std::fs::read_to_string(&real).unwrap().contains("gap: 6"));
+        let mode = real.metadata().unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
+        // A dangling symlink keeps its target too.
+        std::fs::remove_file(&real).unwrap();
+        file.save().unwrap();
+        assert!(link.symlink_metadata().unwrap().is_symlink());
+        assert!(real.exists());
         std::fs::remove_dir_all(dir).unwrap();
     }
 
