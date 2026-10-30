@@ -676,6 +676,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#chora-mc-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chora-mc (experimental)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#flavors" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1056,6 +1067,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#chora-mc-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chora-mc (experimental)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#flavors" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1380,6 +1402,74 @@ windows away, and another window manager adopts them. It takes new
 windows again when one of its outputs comes back. Next to <code>chora-xp</code>,
 tiling needs <code>modifier: Super</code>: with <code>Alt</code>, tiling grabs Alt+Space for
 <code>next_layout</code>, and the system menu of XP does not open.</p>
+<h2 id="chora-mc-experimental">chora-mc (experimental)<a class="headerlink" href="#chora-mc-experimental" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Experimental</p>
+<p><code>chora-mc</code> is an experiment. It is not in the packages, and its
+methods and files change without notice.</p>
+</div>
+<p><code>chora-mc</code> connects with the client name <code>mc</code>. It is a voice-first
+desktop without window management: the whole screen shows one view at a
+time on the first output, and a quiet HUD line at the bottom shows what the
+voice agent does. The voice agent and small collector scripts fill the
+views through methods; the plugin reads no sources itself.</p>
+<p>A view of <code>chora-mc</code> is not a view of D35. It is a YAML file
+<code>NAME.yaml</code> in <code>$XDG_CONFIG_HOME/chora/mc/views/</code>: a grid of panels, each
+with a title and lines, or one app whose window fills the screen without
+a frame. The plugin has the built-in views <code>agenda</code> and <code>terminal</code>. A file
+of the same name replaces a built-in view.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/mc/views/day.yaml</span>
+<span class="nt">grid</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">]</span><span class="w">          </span><span class="c1"># columns and rows</span>
+<span class="nt">panels</span><span class="p">:</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mail</span>
+<span class="w">  </span><span class="nt">cell</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># column, row, width and height in cells</span>
+<span class="w">  </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Mail</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agents</span>
+<span class="w">  </span><span class="nt">cell</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Agents</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>view.show</code></td>
+<td><code>name</code>; the view fades in, the old one fades out</td>
+</tr>
+<tr>
+<td><code>view.list</code></td>
+<td>none; answers <code>views</code> and <code>current</code></td>
+</tr>
+<tr>
+<td><code>view.save</code></td>
+<td><code>name</code>, <code>grid</code>, <code>panels</code> or <code>app</code>; writes the file</td>
+</tr>
+<tr>
+<td><code>panel.set</code></td>
+<td><code>view</code>, <code>panel</code>, <code>lines</code> and an optional <code>title</code>; until the next start</td>
+</tr>
+<tr>
+<td><code>hud.set</code></td>
+<td><code>state</code>, for example <code>listening</code>, <code>thinking</code> or <code>working</code>, and <code>text</code>; both empty hide the line</td>
+</tr>
+<tr>
+<td><code>app.open</code></td>
+<td><code>command</code>: a shell command that starts in a view of its own</td>
+</tr>
+</tbody>
+</table>
+<p>A window that no view started, for example from a launcher, gets a view
+of its own. The settings of D62 are in <code>chora/chora-mc.yaml</code>:
+<code>theme</code> (<code>light</code> or <code>dark</code>), the colors of each theme, the <code>font</code>, the
+<code>default_view</code> and the <code>bindings</code> with the actions <code>next_view</code>,
+<code>previous_view</code>, <code>view: NAME</code> and <code>run: COMMAND</code>. <code>chora-mc
+--print-config</code> prints the default. The collector
+<code>plugins/chora-mc/collectors/agenda.sh</code> puts the org agenda of today into
+the view <code>agenda</code>, with <code>emacs --batch</code>.</p>
 <h2 id="flavors">Flavors<a class="headerlink" href="#flavors" title="Permanent link">&para;</a></h2>
 <p>A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target <code>chora-&lt;name&gt;.target</code>. <code>chora-flavor &lt;name&gt;</code> looks for
