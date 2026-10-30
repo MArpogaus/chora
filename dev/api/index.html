@@ -1548,7 +1548,7 @@ path.</p>
 </tr>
 <tr>
 <td><code>update</code></td>
-<td>change node properties. An update of only opacity, effects and meta of a node of another client answers with <code>node.requested</code> to its owner (D58).</td>
+<td>change node properties. An update of only opacity, effects and meta of a node of another client answers with <code>node.requested</code> to its owner (D58), if the owner subscribes to <code>node.requested</code>; else it fails as other changes of a foreign node do, so the change is not lost unseen. An update that mixes other props with them fails with an error that names the other props. A confined client socket may send this request too.</td>
 </tr>
 <tr>
 <td><code>animate</code></td>
@@ -1602,18 +1602,16 @@ runs from 0 to 1:</p>
 <!-- parses: commands -->
 <div class="highlight"><pre><span></span><code><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">update</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">title</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">effects</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt">shader</span><span class="p">:</span><span class="w"> </span><span class="nv">/home/me/write.frag</span><span class="p p-Indicator">,</span><span class="nt"> uniforms</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">progress</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">}}]}}</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">animate</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">title</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">effects</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt">shader</span><span class="p">:</span><span class="w"> </span><span class="nv">/home/me/write.frag</span><span class="p p-Indicator">,</span><span class="nt"> uniforms</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">progress</span><span class="p">:</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">}}]},</span><span class="nt"> duration</span><span class="p">:</span><span class="w"> </span><span class="nv">900</span><span class="p p-Indicator">}</span>
-<span class="err">```</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">The duration is in milliseconds, at</span>
-<span class="l l-Scalar l-Scalar-Plain">most one minute. A later `animate` or `update` of the node ends the</span>
-<span class="l l-Scalar l-Scalar-Plain">animation where it is. The end sends `animation.done`.</span>
-
-<span class="l l-Scalar l-Scalar-Plain">A camera moves the same way, with `duration` and `easing`. It starts</span>
-<span class="l l-Scalar l-Scalar-Plain">where the camera is now, also in the middle of another move, and the end</span>
-<span class="nt">sends `animation.done` with the output and then `output.changed`</span><span class="p">:</span>
-
-<span class="nt">&lt;!-- parses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">command --&gt;</span>
-<span class="err">```</span><span class="l l-Scalar l-Scalar-Plain">json</span>
-<span class="p p-Indicator">{</span><span class="s">"camera"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="s">"output"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">"DP-1"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"transform"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="s">"scale"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"translate"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">-640</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">-400</span><span class="p p-Indicator">]},</span>
-<span class="w">            </span><span class="s">"duration"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">500</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"easing"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">"ease_in_out"</span><span class="p p-Indicator">}}</span>
+</code></pre></div>
+<p>The duration is in milliseconds, at
+most one minute. A later <code>animate</code> or <code>update</code> of the node ends the
+animation where it is. The end sends <code>animation.done</code>.</p>
+<p>A camera moves the same way, with <code>duration</code> and <code>easing</code>. It starts
+where the camera is now, also in the middle of another move, and the end
+sends <code>animation.done</code> with the output and then <code>output.changed</code>:</p>
+<!-- parses: command -->
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"camera"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DP-1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"transform"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"scale"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"translate"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">-640</span><span class="p">,</span><span class="w"> </span><span class="mi">-400</span><span class="p">]},</span>
+<span class="w">            </span><span class="nt">"duration"</span><span class="p">:</span><span class="w"> </span><span class="mi">500</span><span class="p">,</span><span class="w"> </span><span class="nt">"easing"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ease_in_out"</span><span class="p">}}</span>
 </code></pre></div>
 <h2 id="keyboard-focus-of-nodes">Keyboard focus of nodes<a class="headerlink" href="#keyboard-focus-of-nodes" title="Permanent link">&para;</a></h2>
 <p>The chrome of a plugin, for example a menu or a dialog, is made of nodes
@@ -1724,7 +1722,7 @@ by default; a timeout exits 1 with the reason on stderr.</p>
 </tr>
 <tr>
 <td><code>node.requested</code></td>
-<td>a client asks to change a node of another client: <code>node</code>, the asking <code>client</code>, <code>action</code> and <code>args</code>. The actions are <code>focus</code>, <code>move</code>, <code>resize</code>, <code>close</code> and <code>update</code>, with the arguments of the command; the arguments of <code>update</code> are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). Other changes of a foreign node stay refused.</td>
+<td>a client asks to change a node of another client: <code>node</code>, the asking <code>client</code>, <code>action</code> and <code>args</code>. The actions are <code>focus</code>, <code>move</code>, <code>resize</code>, <code>close</code> and <code>update</code>, with the arguments of the command; the arguments of <code>update</code> are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An <code>update</code> of an owner that does not subscribe to <code>node.requested</code> fails with the error <code>belongs to</code>. Other changes of a foreign node stay refused.</td>
 </tr>
 <tr>
 <td><code>input.key</code></td>
@@ -1821,7 +1819,7 @@ expects (D59). Each warning has a stable <code>code</code>, the <code>node</code
 </tr>
 <tr>
 <td><code>layer_over_budget</code></td>
-<td>after a <code>create</code>, <code>update</code> or <code>animate</code>, the layer textures of a layer node and its descendants need more pixels than the budget of one frame, at the scale of each output; no frame draws the node</td>
+<td>after a <code>create</code>, <code>update</code>, <code>animate</code>, <code>attach</code> or <code>move</code>, the layer textures of a layer node and its descendants need more pixels than the budget of one frame on every output; the core counts them at the smallest scale of the outputs. The node is the named node or its outermost layer ancestor that passes the budget, so a child added under a big layer warns for that layer. No frame draws the node</td>
 </tr>
 </tbody>
 </table>
@@ -1925,7 +1923,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>grants.set(client, capabilities)</code>, <code>grants.revoke(client, capabilities)</code>, <code>grants.list</code></td>
-<td>grant or revoke capabilities for a client name. <code>choractl grant</code> and <code>choractl revoke</code> call them. <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket. A name with a client socket answers code 9, because <code>clients.yaml</code> holds its capabilities. For a name of the main socket, <code>methods.call</code> changes nothing, and <code>activation.token</code> only opens the MCP tool <code>run_program</code>.</td>
+<td>grant or revoke capabilities for a client name. <code>choractl grant</code> and <code>choractl revoke</code> call them. <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket. A name with a client socket answers code 9, because <code>clients.yaml</code> holds its capabilities. For a name of the main socket, <code>methods.call</code>, <code>session.quit</code> and <code>settings.write</code> change nothing, and <code>activation.token</code> only opens the MCP tool <code>run_program</code>.</td>
 </tr>
 <tr>
 <td><code>clients.create(name, capabilities)</code></td>
@@ -1961,7 +1959,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>methods.call(client, method, params)</code></td>
-<td>call a method of another client; the answer is the result of the method; a client socket needs the capability <code>methods.call</code></td>
+<td>call a method of another client; the answer is the result of the method; a client socket needs the capability <code>methods.call</code>, and for a method <code>settings.set</code> or <code>settings.reload</code> also <code>settings.write</code></td>
 </tr>
 <tr>
 <td><code>methods.return(call, result, error)</code></td>
@@ -2202,8 +2200,8 @@ socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that <a href="#client-sockets">Client sockets</a> lists.
 <code>choractl mcp</code> offers no tool for grants. On the main socket,
-<code>activation.token</code> opens the MCP tool <code>run_program</code>, and <code>methods.call</code>
-changes nothing.</p>
+<code>activation.token</code> opens the MCP tool <code>run_program</code>, and <code>methods.call</code>,
+<code>session.quit</code> and <code>settings.write</code> change nothing.</p>
 <h2 id="client-sockets">Client sockets<a class="headerlink" href="#client-sockets" title="Permanent link">&para;</a></h2>
 <p>A client socket fixes the name of its clients (D33). <code>clients.create</code>
 on the admin socket opens <code>clients/NAME/ipc.sock</code> below the directory of
@@ -2244,9 +2242,12 @@ in. <code>choractl clients create agent</code> prints its path:</p>
   <code>clients.yaml</code> and run <code>choractl clients up</code>.</li>
 <li><code>methods.call</code> needs the capability <code>methods.call</code>,
   <code>activation.token</code> the capability <code>activation.token</code> and
-  <code>session.quit</code> the capability <code>session.quit</code>. Without them they
-  answer code 4. The main socket needs none of them. So a confined agent
-  cannot end chora by default. A token of
+  <code>session.quit</code> the capability <code>session.quit</code>. A <code>methods.call</code> of a
+  method <code>settings.set</code> or <code>settings.reload</code>, of any client, also needs
+  <code>settings.write</code>: plugin settings hold commands that the plugin runs
+  and paths that it reads. Without them they answer code 4. The main
+  socket needs none of them. So a confined agent cannot end chora or
+  change the settings of a plugin by default. A token of
   <code>activation.token</code> belongs to no client. Any window that activates
   with it takes the focus without a press, also a window of the client
   itself. With <code>methods.call</code>, a client can also ask a window manager for
@@ -2319,7 +2320,10 @@ plugins running.</p>
 <p><code>choractl run [--] CMD ARGS...</code> starts a program outside the core. It
 asks the core for an activation token with <code>activation.token</code> and
 passes it to the program in <code>XDG_ACTIVATION_TOKEN</code>, and in
-<code>DESKTOP_STARTUP_ID</code> for GTK 3. It prints the pid, the unit and the token as one JSON line while the program runs.</p>
+<code>DESKTOP_STARTUP_ID</code> for GTK 3. The children of the program inherit
+both variables unless the program removes them, as GTK does after it
+read the token. It prints the pid, the unit and the token as one
+JSON line while the program runs.</p>
 <ul>
 <li>When <code>systemctl --user is-system-running</code> shows a state other than
   <code>offline</code>, a user manager runs. <code>systemd-run --user</code> then starts the
@@ -2562,11 +2566,16 @@ settings stay. <code>null</code> removes the key: a map such as <code>bindings</
 entry, and a fixed setting takes its default again. So <code>null</code> cannot set an
 optional setting such as <code>session.log_off</code> to none; the file can. The
 plugin checks the result, applies it at once and then saves it in its YAML
-file in <code>$XDG_CONFIG_HOME/chora/</code>. <code>settings.set</code> answers all settings. A
+file in <code>$XDG_CONFIG_HOME/chora/</code>: it writes a new file of mode 0600
+next to it and renames it over the old one. A symlink there stays, and
+the file that it points to gets the settings. <code>settings.set</code> answers all
+settings. A
 wrong value gets the error <code>-32602</code> and changes nothing. A change that the
-plugin cannot apply is not saved. A change that the plugin cannot save
+plugin cannot apply is taken back and not saved, also by <code>settings.reload</code>. A change that the plugin cannot save
 stays applied until the next start, and the caller gets the error.
-In <code>methods.list</code>, the schema of <code>settings.set</code> lists every setting.</p>
+In <code>methods.list</code>, the schema of <code>settings.set</code> lists every setting.
+On a client socket, <code>settings.set</code> and <code>settings.reload</code> need the
+capability <code>settings.write</code> besides <code>methods.call</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"style": {"opacity": 0.9}}'</span>
 <span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"bindings": {"MOD+u": null}}'</span>
 <span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.reload
@@ -2683,7 +2692,8 @@ the grants of the client name, for example
 <code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
 still describes the scene. No tool grants anything (D40). On a client
 socket, <code>call_method</code> and the tools of plugin methods need the capability
-<code>methods.call</code>. <code>run_program</code> needs the grant <code>activation.token</code> on
+<code>methods.call</code>, and <code>settings.set</code> and <code>settings.reload</code> also
+<code>settings.write</code>. <code>run_program</code> needs the grant <code>activation.token</code> on
 every socket, because a started program can do all that the user can.
 On the main socket, <code>choractl grant agent activation.token</code> gives it; a
 client socket lists it in <code>clients.yaml</code>. The program starts where the

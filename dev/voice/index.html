@@ -814,10 +814,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#15-results-of-wp0-to-wp4-2026-10-30" class="md-nav__link">
+  <a href="#15-results-of-wp0-to-wp5-2026-10-30" class="md-nav__link">
     <span class="md-ellipsis">
       
-        15. Results of WP0 to WP4 (2026-10-30)
+        15. Results of WP0 to WP5 (2026-10-30)
       
     </span>
   </a>
@@ -1242,10 +1242,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#15-results-of-wp0-to-wp4-2026-10-30" class="md-nav__link">
+  <a href="#15-results-of-wp0-to-wp5-2026-10-30" class="md-nav__link">
     <span class="md-ellipsis">
       
-        15. Results of WP0 to WP4 (2026-10-30)
+        15. Results of WP0 to WP5 (2026-10-30)
       
     </span>
   </a>
@@ -1295,7 +1295,7 @@
 
 
 <h1 id="chora-voice-the-voice-agent-in-rust-draft-specification">chora-voice: the voice agent in Rust (draft specification)<a class="headerlink" href="#chora-voice-the-voice-agent-in-rust-draft-specification" title="Permanent link">&para;</a></h1>
-<p>Status: draft, 2026-10-30. WP0 to WP4 are done. Sources:
+<p>Status: draft, 2026-10-30. WP0 to WP5 are done. Sources:
 <code>services/voice/agent.py</code>, D53, D58, D61, D62, <code>docs/api.md</code>, the
 <code>chora-kit</code> runtime and settings, <code>choractl mcp</code>, and live probes of the
 Gufo servers.</p>
@@ -1547,10 +1547,15 @@ exits with 1.</p>
 </tr>
 </tbody>
 </table>
-<p>Until WP6, <code>recording</code> ends in <code>transcribing</code> (asleep: <code>sleeping</code>), and
-the transcript (or an ASR error with the error earcon) returns to
-<code>listening</code>. The log and <code>last_transcript</code> show the text. The final
-text of an older turn still counts; a late interim text drops.</p>
+<p>Until WP6, <code>recording</code> ends in <code>transcribing</code> (asleep: <code>sleeping</code>). An
+ASR error (with the error earcon), an empty text or a text while asleep
+returns to <code>listening</code> or <code>sleeping</code>. Other text, awake, starts a reply
+without the word matcher: <code>thinking</code>, <code>tool</code>, <code>confirming</code> and
+<code>speaking</code> as the reply goes on, then <code>listening</code>. While a reply runs,
+the speech gate rests: no barge-in and no queue yet. PTT down,
+<code>voice.cancel</code> and <code>voice.sleep</code> stop the reply and its sound. The log,
+<code>last_transcript</code> and <code>last_reply</code> show the texts. The final text of an
+older turn still counts; a late interim text drops.</p>
 <p>Barge-in while <code>speaking</code>: speech over the barge-in gate (section 4) for
 <code>barge_in_ms</code> stops playback at once. The unplayed sentences stay
 queued. A cancel word drops them and cancels the turn. Empty text or
@@ -1598,7 +1603,10 @@ A keyword-spotting model can replace this later.</p>
 <p>A rule matches by <code>tool</code> (glob), and optionally by the command kinds of
 <code>apply_commands</code>, by <code>argv0</code> of <code>run_program</code>, or by <code>method</code> (glob) of
 <code>call_method</code>. The agent speaks the <code>prompt</code> of the rule and waits for
-yes or no. The method <code>confirm</code> answers from a key or the HUD.</p>
+yes or no. The method <code>confirm</code> answers from a key or the HUD (WP5);
+the spoken yes and no come with WP6. No answer within
+<code>confirm_timeout_ms</code> is a no. A no gives the LLM the result "declined by
+the user; nothing happened".</p>
 <h2 id="6-error-handling">6. Error handling<a class="headerlink" href="#6-error-handling" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1641,13 +1649,13 @@ yes or no. The method <code>confirm</code> answers from a key or the HUD.</p>
 </tr>
 <tr>
 <td>LLM</td>
-<td>Context error or <code>finish_reason: length</code></td>
+<td>Context error</td>
 <td>Trim the history to half the budget, one retry</td>
 </tr>
 <tr>
 <td>LLM</td>
 <td><code>tool_rounds</code> reached</td>
-<td>German phrase from <code>phrases</code>; history stays</td>
+<td>A final round with <code>tool_choice: none</code> and a note: sum up in the language of the user; without words, <code>phrases.tool_rounds</code>; history stays</td>
 </tr>
 <tr>
 <td>MCP</td>
@@ -1677,16 +1685,29 @@ At start, the agent warms the LLM cache and checks ASR and TTS. Earcons
 are synthesized tones: wake, sleep, cancel, question, error.</p>
 <h2 id="7-history-and-token-budget">7. History and token budget<a class="headerlink" href="#7-history-and-token-budget" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>context_tokens</code> from the setting, else from the server (<code>/props</code> or
-  <code>/v1/models</code>; Gufo has 128000), else 32768.</li>
-<li>Budget: <code>context_tokens</code> minus <code>reply_reserve_tokens</code>, the prompt and
-  the tools. The estimate uses characters per token, learned from the
-  last <code>usage.prompt_tokens</code>; no tokenizer.</li>
+<li><code>context_tokens</code> from the setting, else from the server
+  (<code>context_length</code> in <code>/v1/models</code>; Gufo has 128000), else 32768.</li>
+<li>Budget: <code>context_tokens</code> minus <code>reply_reserve_tokens</code>. The estimate
+  counts the characters of the prompt, the tools and the messages (a
+  picture counts as 4000), divided by the characters per token of the
+  last request: its length over its <code>usage.prompt_tokens</code> (3.0 at the
+  start; requests with a picture teach nothing). No tokenizer.</li>
 <li>Before each request, drop the oldest whole turns until the estimate
-  fits. Old tool texts shrink to <code>old_tool_chars</code>; the last <code>put_asset</code>
-  of each name stays whole.</li>
-<li>The user words of <code>saved_requests</code> turns go to
-  <code>~/.local/state/chora/voice-history.json</code>.</li>
+  fits; the turn in progress stays. Before a new turn, old tool texts
+  shrink to <code>old_tool_chars</code> and lose their pictures, and long arguments
+  of old calls become <code>{"shortened": true}</code>; the last <code>put_asset</code> of
+  each name stays whole.</li>
+<li>The requests of the last <code>saved_requests</code> turns go to
+  <code>$XDG_STATE_HOME/chora/voice-history.json</code> (default
+  <code>~/.local/state</code>), in the format of the Python agent (a list of user
+  messages). At start, they go into the system prompt as quoted lines
+  under "Earlier requests of the user", not as chat messages.</li>
+<li>The system prompt: <code>system_prompt</code>, or the built-in prompt
+  (<code>src/prompt.md</code>, from the Python agent); then the <code>context_docs</code>
+  (<code>FILE</code> or <code>FILE#HEADING</code> for one <code>## HEADING</code> section), or the
+  built-in ones: <code>README.md</code>, <code>docs/glossary.md</code> and ten sections of
+  <code>docs/api.md</code>, compiled into the binary; then <code>prompt_file</code>. A
+  missing document or heading is an error at start.</li>
 </ul>
 <h2 id="8-asr-and-tts-protocol-live-probe-2026-10-30">8. ASR and TTS protocol (live probe, 2026-10-30)<a class="headerlink" href="#8-asr-and-tts-protocol-live-probe-2026-10-30" title="Permanent link">&para;</a></h2>
 <p>ASR (<code>/v1/realtime?intent=transcription</code>, <code>turn_detection: null</code>):</p>
@@ -1853,8 +1874,16 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 <td><code>[choractl]</code>, <code>[]</code></td>
 </tr>
 <tr>
-<td><code>skipped_tools</code></td>
-<td><code>[subscribe_events, wait_events, capture]</code></td>
+<td><code>skipped_tools</code> (globs)</td>
+<td><code>[subscribe_events, wait_events, capture, "voice.*"]</code></td>
+</tr>
+<tr>
+<td><code>playback_buffer_ms</code></td>
+<td><code>1000</code></td>
+</tr>
+<tr>
+<td><code>phrases</code></td>
+<td><code>llm_down</code>, <code>llm_slow</code>, <code>tool_rounds</code>: German sentences</td>
 </tr>
 <tr>
 <td><code>record_dir</code></td>
@@ -1863,7 +1892,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tbody>
 </table>
 <p><code>--target NAME</code> in <code>capture_cmd</code> or <code>playback_cmd</code> picks a PipeWire
-device. The German canned sentences (<code>phrases</code>) come with WP5.</p>
+device.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">confirm</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">apply_commands</span><span class="p p-Indicator">,</span><span class="nt"> commands</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">remove</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">close</span><span class="p p-Indicator">],</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">das</span><span class="nv"> </span><span class="s">entfernen?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">unload_view</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">die</span><span class="nv"> </span><span class="s">Ansicht</span><span class="nv"> </span><span class="s">entfernen?"</span><span class="p p-Indicator">}</span>
@@ -1918,7 +1947,7 @@ two lists, a <code>ptt_key</code> that does not parse, and a rule without a prom
 <td>PTT from another client, for example <code>chora-mc</code></td>
 </tr>
 <tr>
-<td><code>confirm</code> (WP6)</td>
+<td><code>confirm</code> (WP5)</td>
 <td><code>answer: yes\|no</code></td>
 <td>the new state record</td>
 </tr>
@@ -1926,7 +1955,8 @@ two lists, a <code>ptt_key</code> that does not parse, and a rule without a prom
 </table>
 <p>The state record: <code>state</code>, <code>since_ms</code> (time in the state), <code>seq</code> (one
 more per change), <code>awake</code>, <code>muted: {mic, speaker}</code>, <code>turn</code>,
-<code>last_transcript</code>, <code>last_reply</code>. Later packages add <code>confirming</code>,
+<code>last_transcript</code>, <code>last_reply</code>. Later packages add <code>confirming</code> (the
+prompt),
 <code>coder</code> and <code>health</code>.</p>
 <p>HUD: the core will get client-emitted events (a new decision record,
 implemented by another package). Then the agent emits the event
@@ -2004,15 +2034,18 @@ confirm rules; token trimming; settings <code>check()</code>; the 3:2 low-pass.<
 <p>Fake servers for CI (<code>src/fake.rs</code>, WP4): a scripted ASR websocket
 (text, error, silence, a first socket that fails), a TTS websocket
 (silence, 60 ms per character, one sentence per <code>.</code> or <code>?</code>, a wrong
-rate, no answer); WP5 adds an SSE LLM with scripted tool calls. With a
+rate, no answer); WP5 added an LLM (<code>/models</code>, SSE with scripted words,
+tool calls, HTTP errors and silence; a quarter of the request length as
+<code>prompt_tokens</code>) and an in-process MCP server for <code>tools.rs</code>. With a
 fake tool executor, an end-to-end test runs a replay through the whole
 agent and checks the LLM requests and the state sequence.</p>
 <p>Live tests: <code>services/voice/tests/live.py TTS_URL ASR_URL [CLIP]</code> checks
 the TTS events, the ASR at 24 kHz and 16 kHz, and writes the test clip.
 WP4 added the <code>chora-voice</code> subcommands <code>roundtrip [TEXT]</code> (TTS, then
 its sound to the ASR, with the latencies), <code>tts TEXT [--out FILE]</code> and
-<code>asr FILE</code>; WP3 added <code>replay DIR...</code>. WP5 and WP6 add <code>levels</code> and
-<code>tools</code>. The URLs come
+<code>asr FILE</code>; WP3 added <code>replay DIR...</code>; WP5 added <code>ask TEXT [--speak]
+[--yes]</code> (one turn with the LLM and the tools of <code>choractl mcp</code>, with
+the latencies). WP6 adds <code>levels</code>. The URLs come
 from the settings. From the agent sandbox, the servers are at
 <code>192.168.178.195</code>: ASR <code>:8881</code>, TTS <code>:8882</code>, LLM <code>:8888</code> (model <code>gufo</code>,
 context 128000, text and image), reachable only with the sandbox off.
@@ -2023,8 +2056,8 @@ a headless chora session.</p>
 <p>Reused from <code>Cargo.lock</code>: <code>serde</code>, <code>serde_json</code>, <code>schemars</code>,
 <code>serde-saphyr</code>, <code>clap</code>, <code>tracing</code>, <code>tracing-subscriber</code>, <code>chora-kit</code>,
 <code>chora-scene</code>; WP4 added <code>tokio</code> (the workspace features and <code>net</code>),
-<code>futures-util</code> (<code>sink</code>) and <code>base64</code>; WP5 adds <code>rmcp</code> (<code>client</code>,
-<code>transport-child-process</code>) and the <code>tokio</code> features it needs.</p>
+<code>futures-util</code> (<code>sink</code>) and <code>base64</code>; WP5 added <code>rmcp</code> (<code>client</code>,
+<code>transport-child-process</code>) and the <code>tokio</code> feature <code>process</code>.</p>
 <table>
 <thead>
 <tr>
@@ -2042,8 +2075,8 @@ a headless chora session.</p>
 <td>ASR and TTS websockets, fake servers</td>
 </tr>
 <tr>
-<td><code>reqwest</code> (no defaults; <code>json</code>, <code>stream</code>, WP5)</td>
-<td>LLM SSE; chunked HTTP by hand is a bug source</td>
+<td><code>reqwest</code> 0.13 (no defaults; <code>stream</code>; WP5)</td>
+<td>LLM SSE; chunked HTTP by hand is a bug source. It brings <code>hyper</code>, <code>tower</code> and <code>tower-http</code> (MIT); 0.13 is the version of the optional <code>rmcp</code> dependency</td>
 </tr>
 </tbody>
 </table>
@@ -2054,7 +2087,7 @@ a headless chora session.</p>
 binary with <code>include_bytes!</code>. The crate lives in <code>services/voice/</code> (D53)
 as a workspace member. No package and no unit until the agent completes
 full turns; then <code>chora-voice.service</code> replaces <code>voice-agent.service</code>.</p>
-<h2 id="15-results-of-wp0-to-wp4-2026-10-30">15. Results of WP0 to WP4 (2026-10-30)<a class="headerlink" href="#15-results-of-wp0-to-wp4-2026-10-30" title="Permanent link">&para;</a></h2>
+<h2 id="15-results-of-wp0-to-wp5-2026-10-30">15. Results of WP0 to WP5 (2026-10-30)<a class="headerlink" href="#15-results-of-wp0-to-wp5-2026-10-30" title="Permanent link">&para;</a></h2>
 <p>Silero on <code>tract</code>:</p>
 <table>
 <thead>
@@ -2265,6 +2298,93 @@ build, from the agent sandbox):</p>
   sentence in samples. The HUD gets them with the speaking state (WP6)
   and the client events (WP8).</li>
 </ul>
+<p>WP5, the LLM and the tool loop:</p>
+<ul>
+<li>Modules: <code>llm.rs</code> (SSE client), <code>tools.rs</code> (MCP client, confirm
+  rules), <code>chat.rs</code> (prompt, history, budget, tool loop), <code>speech.rs</code>
+  (sentence splitter, speech with playback buffer), and the reply states
+  in <code>core.rs</code>.</li>
+<li>The splitter ends a sentence after <code>.!?:;</code> and a space, or at a line
+  break; not after a number ("3. Oktober") or a short abbreviation ("z.
+  B."). The first piece of a reply may end at a comma after 40
+  characters. It drops the marks of markdown.</li>
+<li>One TTS socket per sentence, one after the other: the next sentence
+  starts when the one before has all its sound, which is while it plays.</li>
+<li>MCP: a call has <code>tool_timeout_s</code>; a dropped call sends
+  <code>notifications/cancelled</code> (rmcp <code>call_tool_once</code>). A lost child answers
+  "the connection to chora was lost; the result is unknown"; the next
+  call or turn connects again (backoff 0.5 s to 5 s) and loads the tools
+  again. Tools reload at the start of each turn, so new plugin methods
+  need no restart. Dots in tool names become <code>__</code> for the LLM.</li>
+<li>Deviations: <code>finish_reason: length</code> only logs. A cancel aborts the
+  reply task: the round in flight does not go into the history, and the
+  note "cancelled by the user; result unknown" comes with WP6. The
+  final round keeps the tools and sends <code>tool_choice: none</code>: without
+  the tools, Gufo read the whole prompt again (21 s instead of 1.4 s).</li>
+</ul>
+<p>Live check, debug build, <code>chora-voice ask</code> in a headless chora session
+with <code>chora-tiling</code> and one <code>foot</code> window, against Gufo (25 tools,
+prompt 22700 tokens, warm cache):</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Tools</th>
+<th>First token</th>
+<th>Total</th>
+<th>Outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"Welche Fenster sind gerade offen? Schau bitte nach."</td>
+<td><code>query_scene</code></td>
+<td>1.31 s</td>
+<td>3.6 s</td>
+<td>answered</td>
+</tr>
+<tr>
+<td>"Wie viele Fenster sind offen, und wie heißt das Layout?" (<code>--speak</code>)</td>
+<td><code>query_scene</code>, <code>tiling.get_layout</code></td>
+<td>1.04 s</td>
+<td>14.7 s</td>
+<td>answered</td>
+</tr>
+<tr>
+<td>"Schließ bitte das Terminal-Fenster." (confirm: no)</td>
+<td><code>query_scene</code>, <code>apply_commands</code> declined</td>
+<td>0.91 s</td>
+<td>5.5 s</td>
+<td>answered</td>
+</tr>
+<tr>
+<td>Layout and plugins with <code>tool_rounds: 1</code></td>
+<td>three in one round</td>
+<td>0.55 s</td>
+<td>4.7 s</td>
+<td>tool_rounds</td>
+</tr>
+<tr>
+<td>The same in English</td>
+<td>three in one round</td>
+<td>0.63 s</td>
+<td>13.5 s</td>
+<td>tool_rounds</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>With <code>--speak</code>: the first sentence came 3.4 s after the request (two
+  rounds), the TTS sent its first sound 0.56 s later, and playback
+  started at 5.9 s, after 1 s of buffer. The TTS needs 3.2 s for the
+  2.4 s of "Es ist ein Fenster offen, der Terminal foot.".</li>
+<li>After the declined <code>apply_commands</code>, the LLM said that the user
+  declined and asked what to do. The final rounds summed up in German
+  and in English.</li>
+<li>The agent itself started in the session, connected the tools as
+  <code>voice-mcp</code>, warmed the cache in 0.4 s and answered <code>voice.confirm</code>
+  and <code>voice.state</code>; a wrong answer gives -32602.</li>
+</ul>
 <h2 id="16-work-packages">16. Work packages<a class="headerlink" href="#16-work-packages" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2302,7 +2422,7 @@ build, from the agent sandbox):</p>
 </tr>
 <tr>
 <td>WP5</td>
-<td>LLM client, tool loop, MCP reconnect and timeouts, token budget</td>
+<td>LLM client, tool loop, MCP reconnect and timeouts, token budget (done)</td>
 <td>L</td>
 </tr>
 <tr>
@@ -2342,9 +2462,19 @@ build, from the agent sandbox):</p>
    agent learns), or keep the rule and trust the echo canceller? A
    recording with the echo canceller on the reference hardware would
    show the real echo level.</li>
-<li>The TTS is slower than real time for longer sentences (section 15,
-   WP4). Start playback only after a buffer (for example 1 s, or the
-   whole first sentence), or accept gaps?</li>
+<li>Answered for now (WP5): playback starts after <code>playback_buffer_ms</code>
+   (1 s) of sound or at the end of the sentence, and again so after it
+   ran dry.</li>
+<li>The tools connect as <code>NAME-mcp</code> (<code>voice-mcp</code>), not as <code>voice</code>: the
+   core refuses a second connection of a name with other <code>hello</code> flags
+   (the runtime has <code>resume</code>, <code>choractl mcp</code> has <code>keep_nodes</code>). So the
+   nodes of the LLM belong to <code>voice-mcp</code>, and the grant for the picture
+   of <code>describe_screen</code> is <code>choractl grant voice-mcp screen.capture</code>.
+   Keep this, or give <code>choractl mcp</code> a flag for the <code>hello</code> of the
+   runtime?</li>
+<li>The built-in prompt and documents are about 22700 tokens. A cold
+   warm-up took 41 s on Gufo; with the cache 0.2 s to 10 s. Fewer
+   sections of <code>docs/api.md</code> would make a cold start faster.</li>
 </ol>
 
 
