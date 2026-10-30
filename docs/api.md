@@ -922,6 +922,17 @@ it in its YAML file in `$XDG_CONFIG_HOME/chora/` and applies it at once.
 $ choractl call tiling settings.set '{"style": {"opacity": 0.9, "effects": []}}'
 ```
 
+`chora-xp` exports `start_menu`, `minimize`, `restore`, `activate`,
+`turn_to` and `restart`, and its settings: the wallpaper, the taskbar, the
+effects, the programs of the start menu and the commands of Log Off and
+Turn Off. [The XP flavor](configuration.md#the-xp-flavor) lists them.
+Its dialogs change the settings in the same way as `settings.set`. The
+method `restart` runs `chora-xp` again, which reads the file again:
+
+```console
+$ choractl call xp settings.set '{"effects": {"wobbly": false, "lamp": true, "cube": true, "sounds": false}}'
+```
+
 ## Plugins
 
 A plugin is a client with a manifest:

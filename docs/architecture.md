@@ -35,7 +35,8 @@ for example to draw window decorations as its own surfaces.
 
 The plugin runtime in `chora-kit` (`runtime.rs`) does what every plugin
 repeats. It connects with `resume`, subscribes to the events and exports
-the methods of the plugin, before the plugin builds its scene. It grabs
+the methods of the plugin, before the plugin builds its scene, or after
+it with `connect` and `announce`. It grabs
 the bindings, answers the method calls and drops the events of outputs
 that `--output` leaves to other window managers. It answers
 `settings.get` and `settings.set` of a plugin with settings (D62): it
@@ -44,7 +45,11 @@ and renames it, and then the plugin applies the change. When the core closes
 the connection, for example at the emergency reset, it connects again
 after 500 ms. It gives up when only failures follow for 30 s. The plugin keeps
 its claim and its restart from `meta`, because each plugin rebuilds
-different things. `chora-tiling` runs on the runtime.
+different things. `chora-tiling` runs on the runtime with `serve`.
+`chora-xp` runs its own loop with a timeout for the clock and the frames
+of its effects, and hands each event to `dispatch`. It announces itself
+after its scene: the removal of the root group of a restart detaches its
+windows, and these events would make new windows of them.
 
 ## Components
 

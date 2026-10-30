@@ -380,8 +380,8 @@ menu.
 `chora-xp` draws no programs into the scene except the dialogs of the XP
 shell (D63): Log Off, Turn Off, Display Properties, Taskbar and Start
 Menu Properties, Date and Time Properties and the Control Panel menu.
-Folders open in the file manager of `--file-manager`, `thunar` by
-default: My Documents, My Pictures and My Music of the start menu
+Folders open in the file manager of the setting `file_manager`, `thunar`
+by default: My Documents, My Pictures and My Music of the start menu
 (`XDG_DOCUMENTS_DIR`, `XDG_PICTURES_DIR` and `XDG_MUSIC_DIR`, else the
 home directory and its folders `Pictures` and `Music`), and My Computer
 as `/`. `chora-xp` adds the folder to the command, for example
@@ -454,12 +454,13 @@ and the Menu key open the menu of the selected icon, or of the desktop.
   among them Delete and Empty Recycle Bin: the file manager does that.
 - **A program or a place of the start menu, or a program of All
   Programs**: Open in bold, and Remove from This List for the programs
-  of the left column, which leave the menu until `chora-xp` ends. Run
-  as, Pin to Start menu, Send To and Rename are gray.
+  of the left column, which removes the program from the setting
+  `programs`. Run as, Pin to Start menu, Send To and Rename are gray.
 
 The Control Panel opens as a menu, as with XP's "Display as a menu". A
 check mark shows the current choice of each entry, and a click on an
-entry applies it and closes the menu:
+entry applies it and closes the menu. Desktop and Effects change the
+settings, as `settings.set` does:
 
 - **Date and Time**: opens Date and Time Properties;
 - **Desktop**: the wallpaper of every output, from the PNG, JPEG and SVG
@@ -468,7 +469,7 @@ entry applies it and closes the menu:
   subdirectories and at most 20 of each directory;
 - **Display**: opens Display Properties;
 - **Effects**: wobbly windows, the magic lamp, the desktop cube and XP's
-  sounds, on or off until `chora-xp` ends;
+  sounds, on or off;
 - **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.
 
 Properties of the taskbar menu, and Control Panel > Taskbar and Start
@@ -480,8 +481,9 @@ and it wobbles as a window does, as do Date and Time, Display
 Properties and the other dialogs that XP lets move; the Log Off and
 Turn Off dialogs stay fixed in the middle. The close button and Cancel close it without a
 change, OK takes the changes and closes it, and Apply takes them and
-keeps it open. The dialog stays above the windows, and the keyboard
-does not work it (D45). The settings last until `chora-xp` ends:
+keeps it open. OK and Apply change the setting `taskbar`, as
+`settings.set` does. The dialog stays above the windows, and the
+keyboard does not work it (D45):
 
 - **Taskbar** shows a preview of the taskbar above its check boxes. Lock
   the taskbar only changes the check mark, as in the context menu.
@@ -519,9 +521,9 @@ Apply stays gray. Internet Time is left out.
 Properties of the desktop menu and Control Panel > Display open XP's
 Display Properties, 404 by 455 pixels, drawn in the same way. It opens on
 the tab that was open when it last closed, Themes the first time. Apply
-and OK show the background on every output and set the scale of the
-output of the dialog; Cancel and the close button close it without them.
-The settings last until `chora-xp` ends:
+and OK change the setting `wallpaper`, as `settings.set` does, and set
+the scale of the output of the dialog with `output.configure` of the
+core. Cancel and the close button close it without a change:
 
 - **Themes** shows the sample of the theme: the wallpaper with an active
   window and the Recycle Bin. Windows XP is the only theme, so the list,
@@ -544,8 +546,8 @@ The settings last until `chora-xp` ends:
   window and a message box on the color of the desktop. The style, the
   color scheme and the font size are gray, as is Advanced. Effects opens
   a small dialog with check boxes for the wobbly windows, the magic lamp,
-  the desktop cube and the sounds, as Control Panel > Effects; OK takes
-  them.
+  the desktop cube and the sounds, as Control Panel > Effects; OK changes
+  the setting `effects`.
 - **Settings** shows the monitor with the desktop and a taskbar, and the
   name of the output. The slider of Screen resolution chooses the scale
   of the output, 200 %, 150 %, 125 % or 100 % from Less to More, and
@@ -553,18 +555,27 @@ The settings last until `chora-xp` ends:
   quality, Troubleshoot and Advanced are gray.
 
 Log Off and Turn Off Computer open XP's dialogs in the middle of the
-output, and the desktop behind them fades to gray in 1.5 seconds. In Log
-Off Windows, Log Off asks every window to close. Switch User is always
-disabled, because chora has no second session to switch to. In Turn off
-computer, Stand By runs `systemctl suspend`. Without `systemctl`, Stand
-By is disabled. Turn Off ends `chora-xp` and shuts nothing down. Restart
-runs `chora-xp` again in the same process, with the same arguments. The
-core keeps the nodes of `chora-xp` for the grace time of `resume` (see
+output, and the desktop behind them fades to gray in 1.5 seconds. Each
+button runs its command of the setting `session` (D63). In Turn off
+computer, Stand By runs `systemctl suspend`, Turn Off `systemctl
+poweroff` and Restart `systemctl reboot` by default. Stand By is disabled
+when the first word of its command is not on the `PATH`. In Log Off
+Windows, Log Off has no command by default, because the core has no
+method that ends the session: it asks every window to close and ends
+`chora-xp`. A command such as `loginctl terminate-session
+$XDG_SESSION_ID` ends a login session. Switch User is always disabled,
+because chora has no second session to switch to. Without a command,
+Turn Off ends `chora-xp` and shuts nothing down, and Restart runs
+`chora-xp` again, as the method `restart` does. Cancel or a click outside
+the dialog closes it. The buttons light up under the pointer; the
+keyboard does not work the dialogs (D45).
+
+The method `restart` runs `chora-xp` again in the same process, with the
+same arguments, and so reads the settings file again. The core keeps
+the nodes of `chora-xp` for the grace time of `resume` (see
 [API](api.md#ipc-methods)). The windows keep their places, desktops,
 maximized state and stacking. The current desktop stays, and its top
-window gets the focus. Cancel or a click outside the dialog closes it.
-The buttons light up under the pointer; the keyboard does not work the
-dialogs (D45).
+window gets the focus.
 
 `chora-xp` serves notifications (`org.freedesktop.Notifications` on the
 session bus), so that `notify-send` and programs show XP's balloon tips:
@@ -623,20 +634,43 @@ these bindings, Super+Ctrl with the arrows stands in.
 | `start_menu` | `open`: whether the menu should be open afterwards | a click on the start button of the first output |
 | `minimize` | `surface` | a click on the task button of the active window |
 | `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
-| `restart` | none | Restart in the Turn Off dialog |
+| `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
 | `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button |
+| `settings.get`, `settings.set` | see [API](api.md#plugin-methods) | the dialogs and an edit of the file with `restart` |
 
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `--theme DIR` | `/usr/share/chora/flavors/xp/theme`, or `CHORA_XP_THEME` | the theme directory |
-| `--terminal CMD` | `foot` | the terminal of the start menu and of Super+e; `CMD -e` runs the programs with `Terminal=true` |
-| `--launcher CMD` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
-| `--file-manager CMD` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
-| `--program TITLE=CMD` | | another program in the start menu; repeat for more |
-| `--clock FORMAT` | `%-I:%M %p` | the clock, in the format of strftime |
-| `--wallpaper FILE` | Bliss if installed, else Bløff | a PNG, JPEG or SVG file |
+| `--config FILE` | `chora/chora-xp.yaml` in `$XDG_CONFIG_HOME` | the settings file |
 | `--slow-motion FACTOR` | `1` | stretch the magic lamp and the cube, to show them slowly |
-| `--no-sounds` | | start without XP's sounds; Control Panel > Effects > Sounds turns them on |
+| `--output NAME` | all outputs | manage only this output; repeat for more |
+
+`chora-xp` reads `chora/chora-xp.yaml` in `$XDG_CONFIG_HOME`, by default
+`~/.config`, or the file of `--config`. Without a file, it uses its
+default, `plugins/chora-xp/xp.yaml` of the source tree. The file holds
+the settings of D62: `settings.set` and the dialogs change them at once
+and write the file again, without its comments. Edits by hand apply with
+the method `restart`. The file lists every option:
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `terminal` | `foot` | the terminal of Super+e; `CMD -e` runs the programs with `Terminal=true` |
+| `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
+| `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
+| `programs` | the terminal | the programs at the top left of the start menu, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
+| `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime |
+| `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |
+| `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
+| `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
+| `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
+
+`settings.set` replaces each key that it gets, so a change of the
+wallpaper names `picture`, `position` and `color`:
+
+```bash
+choractl call xp settings.set \
+  '{"wallpaper": {"picture": {"file": "/usr/share/backgrounds/a.png"}, "position": "fill", "color": [0, 78, 152]}}'
+```
 
 To try the flavor from a source tree, start it nested:
 
