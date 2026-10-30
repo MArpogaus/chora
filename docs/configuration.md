@@ -188,7 +188,7 @@ windows do not exist.
 
 `chora-tiling` exports methods for other clients (see
 [Plugin methods](api.md#plugin-methods)). Every method but `get_layout`
-changes something and answers with the layout info of the current tag,
+and `get_tags` changes something and answers with the layout info of the current tag,
 like `set_layout`. The `gap` of `set_layout` is a live value: the file
 keeps the old gap, and the next `settings.set` or `settings.reload` sets
 the gap of the file again.
@@ -196,6 +196,7 @@ the gap of the file again.
 | Method | Parameters | Does the same as |
 |--------|------------|------------------|
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
+| `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
 | `give` | `to`: a client name | handing the focused window to another client |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
 | `move_to_tag` | `surface`, `tag` | `MOD+Shift+1` to `MOD+Shift+9`, for this window |
@@ -544,7 +545,9 @@ The package installs the tiling flavor (D51):
 ├── chora-tiling-swaybg.service       # the wallpaper, a plain color
 ├── chora-tiling-swayidle.service     # the idle lock with swaylock
 ├── chora-tiling-kanshi.service       # the output profiles of the user
-└── waybar/config.jsonc               # the modules of the panel
+└── waybar/
+    ├── config.jsonc                  # the modules of the panel
+    └── tags.jq                       # the text of the tags module
 ```
 
 Each unit starts only when its program is installed. The packages
@@ -553,10 +556,14 @@ swaylock, kanshi and `xwayland-satellite`. mako starts from the unit of
 its own package and needs no configuration.
 
 - **The panel**: waybar with the configuration of the flavor. It shows only
-  modules that need no IPC of sway: the layout of the current tag, the
-  clock, the volume, the network, the processor, the memory, the battery
-  and the tray. The layout module calls `choractl call tiling get_layout`
-  each second.
+  modules that need no IPC of sway: the tags of the output, the layout of
+  the current tag, the clock, the volume, the network, the processor, the
+  memory, the battery and the tray. The layout module calls
+  `choractl call tiling get_layout` each second. The tags module calls
+  `choractl call tiling get_tags` each second, and `jq` with
+  `waybar/tags.jq` turns the answer into the text: the shown and the
+  occupied tags, shown ones underlined, focused ones bold and urgent ones
+  red.
 - **The launcher**: `MOD+r` starts fuzzel, as the default bindings of
   `chora-tiling` say.
 - **The lock**: swayidle runs `swaylock -f` after 5 minutes without input,

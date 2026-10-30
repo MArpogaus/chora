@@ -933,13 +933,14 @@ unchanged, and `chora-tiling` gives one to each of its methods.
   exporter disconnects. A connection has at most 64 calls in flight, and it
   cannot call its own methods.
 
-`chora-tiling` exports these three; [chora-tiling](configuration.md#chora-tiling)
+`chora-tiling` exports these four; [chora-tiling](configuration.md#chora-tiling)
 lists all of its methods:
 
 | Method | Parameters | Result |
 |--------|------------|--------|
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
+| `get_tags` | none | `outputs`: for each output its `name`, `focused` when it has the focus, and `tags`: for each tag its number `tag`, `shown`, `focused` (shown on the focused output), `occupied` (a window of the output is on it) and `urgent` (such a window asked for attention) |
 | `give` | `to`: a client name | hands the focused window to `to` with a `remove` with `to`, and answers with its surface id |
 
 A plugin with settings exports `settings.get`, `settings.set` and
