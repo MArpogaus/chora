@@ -534,10 +534,16 @@ class Reply:
         return ([message] if self.text or calls else []) + self.results
 
 
+async def _check(r: aiohttp.ClientResponse) -> None:
+    """Raise with the answer of the server, which says why it refused."""
+    if not r.ok:
+        raise ValueError(f"llm: {r.status} {(await r.text())[:500]}")
+
+
 async def _deltas(http: aiohttp.ClientSession, body: dict) -> AsyncIterator[dict]:
     finish, tokens = None, None
     async with http.post(f"{LLM_URL}/chat/completions", json=body) as r:
-        r.raise_for_status()
+        await _check(r)
         async for raw in r.content:
             line = raw.decode().strip()
             if line.startswith("data:") and line != "data: [DONE]":
@@ -901,7 +907,7 @@ async def warm(http: aiohttp.ClientSession, tools: Tools, system: list[dict]) ->
     if tools.specs:
         body["tools"] = tools.specs  # the same start as the requests of answer()
     async with http.post(f"{LLM_URL}/chat/completions", json=body) as r:
-        r.raise_for_status()
+        await _check(r)
     log(f"the LLM read the system prompt in {time.monotonic() - started:.0f} s")
 
 
