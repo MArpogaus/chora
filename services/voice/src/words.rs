@@ -113,7 +113,12 @@ pub fn addressed<'a>(
             return None;
         }
         let head = normalize(&tokens[..n].join(" "));
-        let near_all = head.len() == n && want.iter().zip(&head).all(|(w, h)| near(w, h));
+        // A name word of five letters or more may differ by one edit: so
+        // "oder" is not "coder".
+        let close = |w: &String, h: &String| {
+            w == h || (w.chars().count().min(h.chars().count()) >= 5 && near(w, h))
+        };
+        let near_all = head.len() == n && want.iter().zip(&head).all(|(w, h)| close(w, h));
         (near_all || head.concat() == want.concat()).then(|| (name.clone(), tokens[n..].join(" ")))
     })
 }
@@ -150,6 +155,7 @@ mod tests {
         assert_eq!(to("Coder"), Some(("coder".into(), String::new())));
         assert_eq!(to("Mach weiter, Coder"), None);
         assert_eq!(to("Cola, bitte"), None, "too far");
+        assert_eq!(to("Oder doch nicht"), None, "a short word, one edit");
     }
 
     #[test]
