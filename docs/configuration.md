@@ -796,8 +796,12 @@ core. Cancel and the close button close it without a change:
   quality, Troubleshoot and Advanced are gray.
 
 Log Off and Turn Off Computer open XP's dialogs in the middle of the
-output, and the desktop behind them fades to gray in 1.5 seconds. Each
-button runs its command of the setting `session` (D63):
+output, and the desktop behind them fades to gray in 1.5 seconds. They
+are modal: the start menu, the switcher and the system menu wait until
+they close, and the method `start_menu` fails meanwhile. As on XP,
+they have no default button and take no keys: Return does nothing, a
+click chooses. Each button runs its command of the setting `session`
+(D63):
 
 | Button | Default command | Without a command (`null`) |
 |--------|-----------------|----------------------------|

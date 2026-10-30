@@ -596,6 +596,13 @@ impl Wm {
         let commands = match call {
             Call::StartMenu { open } => {
                 let bar = self.bars.first().map(|bar| bar.output.clone());
+                // Not under the shade of Log Off or Turn Off (W10).
+                if open && self.dialog.is_some() {
+                    return Err(RpcError::new(
+                        RpcError::REJECTED,
+                        "the Log Off or Turn Off dialog is open",
+                    ));
+                }
                 if open == self.menu.is_open() {
                     Vec::new()
                 } else if open {
