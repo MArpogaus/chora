@@ -75,7 +75,15 @@ struct Args {
 }
 
 fn main() -> ExitCode {
-    let args = Args::parse();
+    let args = Args::try_parse().unwrap_or_else(|err| {
+        if err.kind() == clap::error::ErrorKind::UnknownArgument {
+            eprintln!(
+                "chora-xp: --wallpaper, --clock, --terminal, --launcher, --program, \
+                 --no-sounds and --file-manager moved into chora-xp.yaml (D62)"
+            );
+        }
+        err.exit()
+    });
     runtime::run(wm::NAME, || play(&args))
 }
 
