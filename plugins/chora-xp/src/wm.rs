@@ -2117,6 +2117,12 @@ impl Wm {
     fn run(&mut self, action: &Action, output: Option<&str>) -> Vec<Command> {
         match action {
             Action::Run(command) => {
+                // choractl run drops the stderr of the app: say it here.
+                // All Programs without desktop files runs the launcher.
+                let program = command.split_whitespace().next().unwrap_or_default();
+                if !session::on_path(program) {
+                    eprintln!("chora-xp: {program:?} is not on PATH, {command:?} does not run");
+                }
                 chora_kit::run(command);
                 Vec::new()
             }
