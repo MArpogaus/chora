@@ -8,22 +8,27 @@
 
 use std::collections::BTreeMap;
 
-use chora_scene::{Command, Easing, NodeKind, PropsUpdate, ROOT, ToplevelState, ipc::ClientError};
+use chora_scene::{Command, Easing, NodeKind, PropsUpdate, ToplevelState, ipc::ClientError};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    FADE, Mc, NAME,
+    Mc,
     config::{Style, Type},
     create, move_to,
     scene::{MAX_TEXT, Scene, check_name},
     title_of,
 };
 
-/// The group of all regions, over the scenes.
+/// The group of all regions, over the scenes. It holds the parked apps and
+/// the regions of the last two renders, which cross-fade.
 pub const REGIONS: &str = "mc-regions";
-/// A hidden group for the docked apps whose region does not show.
-const PARKED: &str = "mc-parked";
+/// A hidden group for the docked apps whose region does not show, and for
+/// a new docked app until its first size fits. Its empty animation times
+/// the wait for that size.
+pub const PARKED: &str = "mc-parked";
+/// How long a new docked app waits for a size that fits, in milliseconds.
+pub const FIT_MS: f64 = 1000.0;
 /// The most lines that `content.add` keeps.
 pub const MAX_LINES: usize = 12;
 
@@ -326,12 +331,33 @@ struct Boxes {
     window: [f64; 4],
 }
 
-/// The id of the group of a region.
-pub fn region_id(region: Region) -> String {
-    format!("mc-r-{}", region.name())
+/// The group of the regions of a render: 0 or 1, in turns.
+fn set_id(set: u8) -> String {
+    format!("{REGIONS}-{set}")
+}
+
+/// The box of a docked app in a region of a width and a height: under the
+/// text items, if there are any.
+fn dock_box(width: f64, height: f64, items: bool, baseline: f64) -> [f64; 4] {
+    let below = if items { baseline * 2.0 } else { 0.0 };
+    [0.0, below, width, (height - below).max(1.0)]
+}
+
+/// What a region shows, to compare two renders: its box, its items
+/// without their ids, and its docked app.
+fn signature((items, dock): &(Vec<Item>, Option<String>), area: [f64; 4]) -> String {
+    let items: Vec<_> = (items.iter())
+        .map(|i| (i.slot, i.first, &i.props))
+        .collect();
+    format!("{area:?} {items:?} {dock:?}")
 }
 
 impl Mc {
+    /// The id of the group of a region in the current set.
+    pub fn region_id(&self, region: Region) -> String {
+        format!("mc-r{}-{}", self.set, region.name())
+    }
+
     /// The rules of the session first, then those of the preset or of the
     /// settings.
     fn rules(&self) -> Vec<Rule> {
@@ -521,7 +547,7 @@ impl Mc {
             return self.agent_items(region, slot, name, content);
         }
         let (title, text) = self.content_text(name, content, scene);
-        let id = format!("{}-{name}", region_id(region));
+        let id = format!("{}-{name}", self.region_id(region));
         let item = |id: String, is_title: bool, text: &str, first: bool| Item {
             id,
             slot,
@@ -645,30 +671,41 @@ impl Mc {
             .collect()
     }
 
-    /// Draws the regions of the current scene anew. The same regions with
-    /// the same contents only change their text; others fade.
+    /// Draws the regions of the current scene anew.
     pub fn render(&mut self) -> Result<(), ClientError> {
+        let commands = self.regions()?;
+        self.apply(commands)
+    }
+
+    /// The regions of the current scene: what goes into the transaction
+    /// that shows them, so that a scene switch can take them along. The
+    /// same regions with the same contents only change their text. Else
+    /// the new set of regions waits invisible until the core has laid it
+    /// out, and then cross-fades with the old one: a region that changed
+    /// fades in over it, one that stayed the same shows at once.
+    pub fn regions(&mut self) -> Result<Vec<Command>, ClientError> {
         let Some(name) = self.current.clone() else {
-            return Ok(());
+            return Ok(Vec::new());
         };
         if !self.built {
-            return Ok(());
+            return Ok(Vec::new());
         }
         let mut items = self.items(&name);
         let visible = self.visible(&items);
         let Some(boxes) = self.boxes(&name, &visible) else {
-            return Ok(());
+            return Ok(Vec::new());
         };
-        // Nodes exist only for the regions that show or fade out.
-        let drawn = |r: &Region| self.drawn.get(r).copied().unwrap_or(false);
-        items.retain(|r, _| visible.contains(r) || drawn(r));
+        items.retain(|r, _| visible.contains(r));
         let key: Vec<String> = std::iter::once(name.clone())
             .chain(visible.iter().map(|r| r.name().into()))
             .chain(
-                (items.iter().filter(|(r, _)| visible.contains(r))).flat_map(|(_, (i, d))| {
-                    i.iter().map(|i| i.id.clone()).chain(d.iter().cloned())
-                }),
+                items
+                    .values()
+                    .flat_map(|(i, d)| i.iter().map(|i| i.id.clone()).chain(d.iter().cloned())),
             )
+            .collect();
+        let sigs: BTreeMap<Region, String> = (items.iter())
+            .map(|(r, plan)| (*r, signature(plan, boxes.regions[r])))
             .collect();
         if self.rendered.as_ref() == Some(&key) {
             let updates = (items.values().flat_map(|(i, _)| i)).map(|i| Command::Update {
@@ -676,90 +713,167 @@ impl Mc {
                 props: i.props.clone(),
             });
             self.apply(updates.collect())?;
+            self.sigs = sigs;
             return self.arrange(&items, &boxes);
         }
-        let mut commands = self.redraw(&items, &visible, &boxes);
-        self.drawn = visible.iter().map(|r| (*r, true)).collect();
+        let old = self.rendered.is_some().then(|| set_id(self.set));
+        let items = self.prepare(&name, &visible, &boxes, &sigs)?;
+        let (mut commands, placed) = self.switch(&items, &boxes, &sigs)?;
+        // A docked app whose region hides fades out with the old set.
+        let left: Vec<String> = (self.docks.values())
+            .filter(|s| !placed.contains(s))
+            .cloned()
+            .collect();
+        if let Some(old) = &old {
+            commands.push(Command::Animate {
+                id: old.clone(),
+                props: PropsUpdate {
+                    opacity: Some(0.0),
+                    visible: Some(false),
+                    ..PropsUpdate::default()
+                },
+                duration: self.fade,
+                easing: Easing::EaseInOut,
+            });
+        }
+        self.left = old.is_some().then_some(left);
+        self.sigs = sigs;
         self.rendered = Some(key);
         // The window of an app scene leaves the regions free.
         if let Some(surface) = self.windows.get(&name) {
             commands.extend(place(surface, boxes.window, self.output_size()));
         }
-        self.apply(commands)?;
-        self.arrange(&items, &boxes)
+        Ok(commands)
     }
 
-    /// The regions anew: the docked apps wait in a hidden group, and each
-    /// region that shows or showed fades from how it was to how it is.
-    fn redraw(&self, items: &Plan, visible: &[Region], boxes: &Boxes) -> Vec<Command> {
+    /// Creates the new set of the regions, invisible, so that the core
+    /// lays it out; the set before the last one goes, with the docked apps
+    /// that faded out in it. Answers the items of the new set.
+    fn prepare(
+        &mut self,
+        name: &str,
+        visible: &[Region],
+        boxes: &Boxes,
+        sigs: &BTreeMap<Region, String>,
+    ) -> Result<Plan, ClientError> {
+        self.set ^= 1;
+        let mut items = self.items(name);
+        items.retain(|r, _| visible.contains(r));
+        let new = set_id(self.set);
         let mut commands = Vec::new();
-        if self.rendered.is_some() {
-            commands.extend(self.docks.values().map(|s| park(s, ROOT)));
+        if let Some(left) = &self.left {
+            let docks: Vec<&String> = self.docks.values().collect();
+            let parks = (left.iter()).filter(|s| docks.contains(s));
+            commands.extend(parks.map(|s| park(s, PARKED)));
             commands.push(Command::Remove {
-                id: REGIONS.into(),
+                id: new.clone(),
                 to: None,
             });
         }
-        commands.push(create(
-            REGIONS,
-            NodeKind::Group,
-            NAME,
-            PropsUpdate::default(),
-        ));
         let hidden = PropsUpdate {
-            visible: Some(false),
+            opacity: Some(0.0),
             ..PropsUpdate::default()
         };
-        commands.push(create(PARKED, NodeKind::Group, REGIONS, hidden));
-        commands.extend(self.docks.values().map(|s| park(s, PARKED)));
-        for (region, plan) in items {
-            let now = visible.contains(region);
-            let was = self.drawn.get(region).copied().unwrap_or(false);
-            if now || was {
-                commands.extend(self.region(*region, plan, boxes, [was, now]));
+        commands.push(create(&new, NodeKind::Group, REGIONS, hidden));
+        for (region, plan) in &items {
+            let same = self.sigs.get(region) == sigs.get(region);
+            commands.extend(self.region(*region, plan, boxes, same));
+        }
+        // A refused transaction changed nothing: the last set stays.
+        if let Err(err) = self.apply(commands) {
+            self.set ^= 1;
+            return Err(err);
+        }
+        self.left = None;
+        Ok(items)
+    }
+
+    /// Shows the new set, laid out now: the items go to their places, the
+    /// regions that changed fade in and the docked apps move in. Answers
+    /// the commands and the docked apps that it placed.
+    fn switch(
+        &mut self,
+        items: &Plan,
+        boxes: &Boxes,
+        sigs: &BTreeMap<Region, String>,
+    ) -> Result<(Vec<Command>, Vec<String>), ClientError> {
+        let mut commands = self.arrange(items, boxes)?;
+        commands.push(Command::Update {
+            id: set_id(self.set),
+            props: PropsUpdate {
+                opacity: Some(1.0),
+                ..PropsUpdate::default()
+            },
+        });
+        let baseline = self.settings.value.scale.baseline;
+        let mut placed = Vec::new();
+        for (region, (region_items, dock)) in items {
+            let id = self.region_id(*region);
+            if self.sigs.get(region) != sigs.get(region) {
+                commands.push(Command::Animate {
+                    id: id.clone(),
+                    props: PropsUpdate {
+                        opacity: Some(1.0),
+                        ..PropsUpdate::default()
+                    },
+                    duration: self.fade,
+                    easing: Easing::EaseInOut,
+                });
+            }
+            if let Some(surface) = dock.as_ref().and_then(|d| self.docks.get(d)) {
+                let [_, _, width, height] = boxes.regions[region];
+                let window = dock_box(width, height, !region_items.is_empty(), baseline);
+                commands.push(park(surface, &id));
+                commands.extend(place(surface, window, [0, 0]));
+                placed.push(surface.clone());
             }
         }
-        commands
+        Ok((commands, placed))
+    }
+
+    /// The size of a docked app that starts, in its region of the current
+    /// scene, which then shows.
+    pub fn dock_size(&self, content: &str) -> Option<[i32; 2]> {
+        let name = self.current.clone()?;
+        let placed = self.placed(&name);
+        let (region, _) = (placed.iter()).find(|(_, s)| s.iter().any(|(_, c)| c == content))?;
+        let items = self.items(&name);
+        let mut visible = self.visible(&items);
+        visible.push(*region);
+        let boxes = self.boxes(&name, &visible)?;
+        let [_, _, width, height] = boxes.regions[region];
+        let text = items.get(region).is_some_and(|(i, _)| !i.is_empty());
+        let [_, _, w, h] = dock_box(width, height, text, self.settings.value.scale.baseline);
+        #[allow(clippy::cast_possible_truncation)] // pixels of a screen
+        Some([w.round() as i32, h.round() as i32])
     }
 
     fn output_size(&self) -> [i32; 2] {
         self.output.as_ref().map_or([0, 0], |o| o.size)
     }
 
-    /// Creates a region with its items and its docked app; it fades from
-    /// how it was to how it is.
+    /// Creates a region with its items, in the new set: at once when it
+    /// shows the same as in the old set, else transparent until it fades
+    /// in. Its docked app comes with the switch.
     fn region(
         &self,
         region: Region,
-        (items, dock): &(Vec<Item>, Option<String>),
+        (items, _): &(Vec<Item>, Option<String>),
         boxes: &Boxes,
-        [was, now]: [bool; 2],
+        same: bool,
     ) -> Vec<Command> {
         let [left, top, width, height] = boxes.regions[&region];
-        let id = region_id(region);
-        let opacity = |shown| if shown { 1.0 } else { 0.0 };
-        let mut commands = vec![
-            create(
-                &id,
-                NodeKind::Group,
-                REGIONS,
-                PropsUpdate {
-                    transform: Some(crate::translate(left, top)),
-                    opacity: Some(opacity(was)),
-                    ..PropsUpdate::default()
-                },
-            ),
-            Command::Animate {
-                id: id.clone(),
-                props: PropsUpdate {
-                    opacity: Some(opacity(now)),
-                    visible: Some(now),
-                    ..PropsUpdate::default()
-                },
-                duration: FADE,
-                easing: Easing::EaseInOut,
+        let id = self.region_id(region);
+        let mut commands = vec![create(
+            &id,
+            NodeKind::Group,
+            &set_id(self.set),
+            PropsUpdate {
+                transform: Some(crate::translate(left, top)),
+                opacity: Some(if same { 1.0 } else { 0.0 }),
+                ..PropsUpdate::default()
             },
-        ];
+        )];
         let config = &self.settings.value;
         let colors = config.colors();
         if region == Region::Drawer {
@@ -783,22 +897,12 @@ impl Mc {
             };
             commands.push(create(&item.id, NodeKind::Text, &id, props));
         }
-        if let Some(surface) = dock.as_ref().and_then(|d| self.docks.get(d)) {
-            commands.push(park(surface, &id));
-            let below = if items.is_empty() {
-                0.0
-            } else {
-                config.scale.baseline * 2.0
-            };
-            let window = [0.0, below, width, (height - below).max(1.0)];
-            commands.extend(place(surface, window, [0, 0]));
-        }
         commands
     }
 
     /// Moves the items of the regions to their places, as the core lays
     /// them out: side by side in a line, else one under the other.
-    fn arrange(&mut self, items: &Plan, boxes: &Boxes) -> Result<(), ClientError> {
+    fn arrange(&mut self, items: &Plan, boxes: &Boxes) -> Result<Vec<Command>, ClientError> {
         let baseline = self.settings.value.scale.baseline;
         let mut commands = Vec::new();
         for (region, (items, _)) in items {
@@ -817,7 +921,7 @@ impl Mc {
                 y += item_height.max(baseline);
             }
         }
-        self.apply(commands)
+        Ok(commands)
     }
 
     /// Places the items of a line: the end keeps its place, the start ends

@@ -10,7 +10,7 @@ use crate::{
     Mc,
     config::{Color, Style},
     invalid,
-    region::{self, Content, Item, MAX_LINES, Region, region_id},
+    region::{self, Content, Item, MAX_LINES, Region},
     scene::{Panel, check_name},
 };
 
@@ -151,7 +151,7 @@ impl Mc {
         content: &Content,
     ) -> Vec<Item> {
         let config = &self.settings.value;
-        let id = format!("{}-{name}", region_id(region));
+        let id = format!("{}-{name}", self.region_id(region));
         let mut ty = self.content_type(content, false);
         let base = ty.color;
         (self.agents.iter().zip(self.agent_line()).enumerate())

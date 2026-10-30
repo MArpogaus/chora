@@ -33,7 +33,7 @@ use serde_json::{Value, json};
 
 use crate::{
     config::{Action, Config, Layout, Page, Style, Type},
-    region::{Kind, MAX_LINES, REGIONS, Region, Rule},
+    region::{FIT_MS, Kind, MAX_LINES, PARKED, REGIONS, Region, Rule},
     scene::{Panel, Scene},
 };
 
@@ -52,6 +52,8 @@ const WAIT: &str = "mc-wait";
 const WAIT_MS: f64 = 500.0;
 /// The cross-fade between two scenes, in milliseconds.
 const FADE: f64 = 250.0;
+/// The cross-fade of the colors when the theme changes, in milliseconds.
+const THEME_FADE: f64 = 600.0;
 /// The effect that writes new text.
 const WRITE_SHADER: &str = include_str!("../write.frag");
 /// The effect that blurs a panel.
@@ -250,11 +252,24 @@ struct Mc {
     toggled: BTreeMap<Region, bool>,
     /// The window of a docked app, by content.
     docks: HashMap<String, String>,
-    /// The regions that showed at the last render.
-    drawn: BTreeMap<Region, bool>,
+    /// A docked app that waits parked for its first size that fits: its
+    /// content and that size, by surface.
+    fitting: HashMap<String, (String, [i32; 2])>,
     /// The scene, the regions and the items of the last render; `None`
-    /// before the first or after a build.
+    /// before the first or after a build. An empty key draws anew.
     rendered: Option<Vec<String>>,
+    /// The set of the regions of the last render, 0 or 1.
+    set: u8,
+    /// How long the regions cross-fade, in milliseconds.
+    fade: f64,
+    /// The docked apps that faded out with the set before; `None` while
+    /// that set does not exist.
+    left: Option<Vec<String>>,
+    /// What each region of the last render shows.
+    sigs: BTreeMap<Region, String>,
+    /// The settings of the last build without the theme: a change of the
+    /// theme alone fades the colors.
+    shape: Option<Value>,
     /// The surface that the plugin gave the keyboard last.
     focused: Option<String>,
     /// The text of each clock.
@@ -329,7 +344,12 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         put: Vec::new(),
         toggled: BTreeMap::new(),
         docks: HashMap::new(),
-        drawn: BTreeMap::new(),
+        set: 0,
+        fade: FADE,
+        left: None,
+        sigs: BTreeMap::new(),
+        fitting: HashMap::new(),
+        shape: None,
         rendered: None,
         focused: None,
         clocks: BTreeMap::new(),
@@ -342,10 +362,11 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     Ok(runtime::serve(&mut mc)?)
 }
 
-const EVENTS: [&str; 6] = [
+const EVENTS: [&str; 7] = [
     "animation.done",
     "surface.created",
     "surface.destroyed",
+    "surface.changed",
     "surface.detached",
     "output.changed",
     "output.removed",
@@ -518,6 +539,11 @@ impl Plugin for Mc {
             } => self.adopt(&surface, app_id.as_deref(), token.as_deref()),
             Event::SurfaceDetached { surface } => self.reattach(&surface),
             Event::SurfaceDestroyed { surface } => self.forget(&surface),
+            Event::SurfaceChanged {
+                surface,
+                size: Some(size),
+                ..
+            } if self.fitting.get(&surface).is_some_and(|(_, s)| *s == size) => self.fit(&surface),
             Event::OutputChanged { output }
                 if self.output.as_ref().is_none_or(|o| o.name == output.name) =>
             {
@@ -536,17 +562,7 @@ impl Plugin for Mc {
             }
             Event::AnimationDone {
                 node: Some(node), ..
-            } if node == TICK => self.type_next(),
-            Event::AnimationDone {
-                node: Some(node), ..
-            } if node == WAIT => self.look_at_launched(),
-            Event::AnimationDone {
-                node: Some(node), ..
-            } if node == CLOCK => {
-                let tick = self.tick_clocks();
-                self.apply(tick)?;
-                self.render()
-            }
+            } => self.timer(&node),
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
@@ -622,10 +638,16 @@ impl Plugin for Mc {
                 "idle".clone_into(&mut agent.state);
             }
         }
+        let theme_only = self.built && self.shape.as_ref() == Some(&self.shape_of());
         self.rt
             .ungrab_all()
             .and_then(|()| self.grab_all())
-            .and_then(|()| self.build())
+            .and_then(|()| {
+                if theme_only && self.recolor()? {
+                    return Ok(());
+                }
+                self.build()
+            })
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
     }
 }
@@ -817,6 +839,25 @@ fn move_to(id: String, x: f64, y: f64) -> Command {
 }
 
 impl Mc {
+    /// The end of an empty animation of a hidden node that times
+    /// something.
+    fn timer(&mut self, node: &str) -> Result<(), ClientError> {
+        match node {
+            TICK => self.type_next(),
+            WAIT => self.look_at_launched(),
+            CLOCK => {
+                let tick = self.tick_clocks();
+                self.apply(tick)?;
+                self.render()
+            }
+            PARKED => {
+                let late: Vec<String> = self.fitting.keys().cloned().collect();
+                late.iter().try_for_each(|surface| self.fit(surface))
+            }
+            _ => Ok(()),
+        }
+    }
+
     fn start(&mut self, methods: Vec<ExportMethod>) -> Result<(), ClientError> {
         self.output = self.rt.outputs()?.into_iter().next();
         // The nodes that the core kept over a restart: the windows in them
@@ -970,21 +1011,106 @@ impl Mc {
                 ..PropsUpdate::default()
             },
         ));
+        commands.extend(self.parked());
         let scenes = (self.scenes.keys())
             .map(|name| (name.clone(), self.scene_commands(name)))
             .collect();
         self.apply_scenes(commands, scenes)?;
+        self.apply(vec![regions_on_top()])?;
         self.built = true;
         self.rendered = None;
+        self.left = None;
+        self.sigs.clear();
+        self.shape = Some(self.shape_of());
         let names: Vec<String> = self.scenes.keys().cloned().collect();
         names.iter().try_for_each(|name| self.align(name))?;
         self.autostart();
         self.render()
     }
 
+    /// The group of the regions, and the docked apps hidden in it, not on
+    /// the root, until the render.
+    fn parked(&self) -> Vec<Command> {
+        let hidden = PropsUpdate {
+            visible: Some(false),
+            ..PropsUpdate::default()
+        };
+        let mut commands = vec![
+            create(REGIONS, NodeKind::Group, NAME, PropsUpdate::default()),
+            create(PARKED, NodeKind::Group, REGIONS, hidden),
+        ];
+        let docks = self.docks.values().chain(self.fitting.keys());
+        commands.extend(docks.map(|surface| Command::Move {
+            id: surface.clone(),
+            parent: Some(PARKED.into()),
+            index: None,
+        }));
+        commands
+    }
+
+    /// The settings without the theme.
+    fn shape_of(&self) -> Value {
+        let mut shape = serde_json::to_value(&self.settings.value).unwrap_or_default();
+        if let Some(map) = shape.as_object_mut() {
+            map.remove("theme");
+        }
+        shape
+    }
+
+    /// After a change of the theme alone: the nodes fade to their new
+    /// colors and the regions cross-fade, instead of a build. False when
+    /// the core refuses that, for example when a color of a rule is
+    /// missing in one theme: then a build follows.
+    fn recolor(&mut self) -> Result<bool, ClientError> {
+        let background = PropsUpdate {
+            color: Some(self.settings.value.background()),
+            ..PropsUpdate::default()
+        };
+        let mut created = vec![create("mc-bg", NodeKind::Rect, NAME, background)];
+        created.extend(
+            self.scenes
+                .keys()
+                .flat_map(|name| self.scene_commands(name)),
+        );
+        let mut fades: Vec<Command> = (created.into_iter())
+            .filter_map(|command| match command {
+                Command::Create {
+                    id,
+                    props:
+                        PropsUpdate {
+                            color: Some(color), ..
+                        },
+                    ..
+                } => Some(Command::Animate {
+                    id,
+                    props: PropsUpdate {
+                        color: Some(color),
+                        ..PropsUpdate::default()
+                    },
+                    duration: THEME_FADE,
+                    easing: Easing::EaseInOut,
+                }),
+                _ => None,
+            })
+            .collect();
+        // The regions cross-fade in the same transaction, as slowly.
+        self.rendered = Some(Vec::new());
+        self.fade = THEME_FADE;
+        let regions = self.regions();
+        self.fade = FADE;
+        fades.extend(regions?);
+        if let Some(err) = self.rt.conn.try_apply(fades)? {
+            eprintln!("chora-mc: {err}; the theme builds anew");
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
     /// Removes all nodes; the windows wait under the root.
     fn unbuild(&self) -> Vec<Command> {
-        let surfaces = self.windows.values().chain(self.docks.values());
+        let surfaces = (self.windows.values())
+            .chain(self.docks.values())
+            .chain(self.fitting.keys());
         let moves = surfaces.map(|surface| Command::Move {
             id: surface.clone(),
             parent: Some(ROOT.into()),
@@ -1429,17 +1555,15 @@ impl Mc {
         commands.push(Command::Focus {
             surface: window.clone(),
         });
-        self.apply(commands)
-            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         if self.current.as_deref() != Some(name) {
             self.previous = self.current.replace(name.into());
         }
+        // The regions switch in the same transaction as the scene.
+        let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
+        commands.extend(self.regions().map_err(rejected)?);
+        self.apply(commands).map_err(rejected)?;
         // A hidden scene has no layout of the core: its notes align now.
-        self.align(name)
-            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
-        // The regions follow the scene.
-        self.render()
-            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        self.align(name).map_err(rejected)?;
         let waiting = (self.starting.values()).any(|t| *t == Target::Scene(name.into()));
         if let (Some(command), None, false) = (app, window, waiting) {
             self.launch_scene(name, &command)
@@ -1531,7 +1655,9 @@ impl Mc {
         token: Option<&str>,
     ) -> Result<(), ClientError> {
         // The start adopts the free surfaces that events then announce too.
-        let mut known = self.windows.values().chain(self.docks.values());
+        let mut known = (self.windows.values())
+            .chain(self.docks.values())
+            .chain(self.fitting.keys());
         if !self.built || known.any(|s| s == surface) {
             return Ok(());
         }
@@ -1539,15 +1665,7 @@ impl Mc {
         if let Some(Target::Dock(content)) = &started
             && !self.docks.contains_key(content)
         {
-            // Into its region at the render, with the keyboard.
-            self.apply(vec![Command::Attach {
-                surface: surface.into(),
-                parent: REGIONS.into(),
-            }])?;
-            // A new dock changes the items, so the render draws anew.
-            self.docks.insert(content.clone(), surface.into());
-            self.render()?;
-            return self.focus(Some(surface.into()));
+            return self.adopt_dock(surface, content);
         }
         let mut commands = Vec::new();
         let name = match started {
@@ -1581,6 +1699,48 @@ impl Mc {
         Ok(())
     }
 
+    /// Takes the window of a docked app that started. It waits hidden
+    /// until it has the size of its region, so that it never shows at the
+    /// size that it chose itself.
+    fn adopt_dock(&mut self, surface: &str, content: &str) -> Result<(), ClientError> {
+        let mut commands = vec![Command::Attach {
+            surface: surface.into(),
+            parent: PARKED.into(),
+        }];
+        let Some(size) = self.dock_size(content) else {
+            self.apply(commands)?;
+            self.fitting
+                .insert(surface.into(), (content.into(), [0, 0]));
+            return self.fit(surface);
+        };
+        commands.push(Command::Configure {
+            surface: surface.into(),
+            size: Some(size),
+            states: vec![ToplevelState::Tiled],
+        });
+        // A client that takes another size shows after this time.
+        commands.push(Command::Animate {
+            id: PARKED.into(),
+            props: PropsUpdate::default(),
+            duration: FIT_MS,
+            easing: Easing::Linear,
+        });
+        self.apply(commands)?;
+        self.fitting.insert(surface.into(), (content.into(), size));
+        Ok(())
+    }
+
+    /// A docked app that waited parked goes into its region, with the
+    /// keyboard. A new dock changes the items, so the render draws anew.
+    fn fit(&mut self, surface: &str) -> Result<(), ClientError> {
+        let Some((content, _)) = self.fitting.remove(surface) else {
+            return Ok(());
+        };
+        self.docks.insert(content, surface.into());
+        self.render()?;
+        self.focus(Some(surface.into()))
+    }
+
     /// A surface lost its parent and its owner. One of the plugin, for
     /// example after a hotplug, goes back to its scene or region: the
     /// plugin still counts it as its own, and a later move of it failed
@@ -1591,11 +1751,17 @@ impl Mc {
             let commands = self.place_window(&name, surface, true);
             return self.apply(commands);
         }
-        if self.docks.values().any(|s| s == surface) {
-            return self.apply(vec![Command::Attach {
+        let docked = self.docks.values().any(|s| s == surface);
+        if docked || self.fitting.contains_key(surface) {
+            self.apply(vec![Command::Attach {
                 surface: surface.into(),
-                parent: REGIONS.into(),
-            }]);
+                parent: PARKED.into(),
+            }])?;
+            // Back into its region.
+            if docked && self.rendered.is_some() {
+                self.rendered = Some(Vec::new());
+            }
+            return self.render();
         }
         self.adopt(surface, None, None)
     }
@@ -1603,6 +1769,9 @@ impl Mc {
     /// A window closed: a scene that only held it goes, and the default
     /// scene shows instead of a scene without its window.
     fn forget(&mut self, surface: &str) -> Result<(), ClientError> {
+        if self.fitting.remove(surface).is_some() {
+            return Ok(());
+        }
         let dock = (self.docks.iter()).find(|(_, s)| *s == surface);
         if let Some(content) = dock.map(|(c, _)| c.clone()) {
             // A docked app ended: its region hides, the keyboard goes back.
