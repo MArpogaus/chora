@@ -40,5 +40,5 @@ for _ in $(seq 20); do
     sleep 0.5
 done
 grep -qF "\"token\":\"$token\"" "$out/events" ||
-    fail "the surface.created of foot carries not the token of the run"
+    fail "the surface.created of foot carries not the token $token: $(cat "$out/events")"
 ok "choractl run started foot in $ok_kind with the token in surface.created"
