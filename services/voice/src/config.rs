@@ -25,6 +25,28 @@ pub struct Confirm {
     pub prompt: String,
 }
 
+/// The canned sentences of the agent.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[serde(default, deny_unknown_fields)]
+pub struct Phrases {
+    /// The LLM does not answer.
+    pub llm_down: String,
+    /// The LLM is too slow.
+    pub llm_slow: String,
+    /// The final round after `tool_rounds` gave no words.
+    pub tool_rounds: String,
+}
+
+impl Default for Phrases {
+    fn default() -> Self {
+        Self {
+            llm_down: "Das Sprachmodell antwortet nicht.".into(),
+            llm_slow: "Das Sprachmodell braucht zu lange.".into(),
+            tool_rounds: "Ich habe nach zu vielen Werkzeugaufrufen aufgehört.".into(),
+        }
+    }
+}
+
 /// The settings of the agent.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
@@ -47,6 +69,9 @@ pub struct Config {
     pub capture_cmd: Vec<String>,
     /// The command that plays raw mono PCM16 at 24 kHz from stdin.
     pub playback_cmd: Vec<String>,
+    /// The sound that playback holds back before it starts, unless the
+    /// sentence ends first: the TTS can be slower than real time.
+    pub playback_buffer_ms: u32,
     /// The push-to-talk key, for example `Super+v`.
     pub ptt_key: String,
     /// The speech probability from which speech starts.
@@ -95,6 +120,7 @@ pub struct Config {
     pub old_tool_chars: u32,
     pub saved_requests: u32,
     pub reasoning_effort: String,
+    pub phrases: Phrases,
     pub asr_timeout_s: u32,
     pub tts_timeout_s: u32,
     pub tool_timeout_s: u32,
@@ -105,6 +131,8 @@ pub struct Config {
     pub chora_mcp: Vec<String>,
     /// A coding harness; empty turns the coding tools off.
     pub coder_cmd: Vec<String>,
+    /// The tools that the LLM does not get, as globs, for example the
+    /// methods of the agent itself.
     pub skipped_tools: Vec<String>,
     /// A directory for recordings of the sessions; empty turns it off.
     pub record_dir: String,
@@ -178,6 +206,7 @@ impl Default for Config {
             asr_interim_ms: 0,
             capture_cmd: pcm_cmd("pw-record"),
             playback_cmd: pcm_cmd("pw-play"),
+            playback_buffer_ms: 1000,
             ptt_key: "Super+v".into(),
             vad_threshold: 0.5,
             vad_release: 0.35,
@@ -212,6 +241,7 @@ impl Default for Config {
             old_tool_chars: 500,
             saved_requests: 20,
             reasoning_effort: "none".into(),
+            phrases: Phrases::default(),
             asr_timeout_s: 15,
             tts_timeout_s: 10,
             tool_timeout_s: 30,
@@ -220,7 +250,7 @@ impl Default for Config {
             llm_total_s: 120,
             chora_mcp: words(&["choractl"]),
             coder_cmd: Vec::new(),
-            skipped_tools: words(&["subscribe_events", "wait_events", "capture"]),
+            skipped_tools: words(&["subscribe_events", "wait_events", "capture", "voice.*"]),
             record_dir: String::new(),
         }
     }
@@ -272,8 +302,16 @@ impl Config {
                 return Err(format!("{key}: from 32 to 600000"));
             }
         }
-        if self.preroll_ms > 5000 {
-            return Err("preroll_ms: at most 5000".into());
+        for (key, ms) in [
+            ("preroll_ms", self.preroll_ms),
+            ("playback_buffer_ms", self.playback_buffer_ms),
+        ] {
+            if ms > 5000 {
+                return Err(format!("{key}: at most 5000"));
+            }
+        }
+        if self.tool_rounds == 0 || self.tool_timeout_s == 0 {
+            return Err("tool_rounds, tool_timeout_s: at least 1".into());
         }
         for (key, cmd) in [
             ("capture_cmd", &self.capture_cmd),
