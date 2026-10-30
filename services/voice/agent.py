@@ -450,7 +450,11 @@ async def _deltas(http: aiohttp.ClientSession, body: dict) -> AsyncIterator[dict
                 event = json.loads(line[5:])
                 if "error" in event:
                     raise ValueError(f"llm: {event['error']}")
-                yield (event.get("choices") or [{}])[0].get("delta") or {}
+                choice = (event.get("choices") or [{}])[0]
+                # Gufo stops a reply where the context ends.
+                if choice.get("finish_reason") == "length":
+                    log("llm: the reply reached the end of the context")
+                yield choice.get("delta") or {}
 
 
 async def _run_call(tools: Tools, call: dict) -> str:
