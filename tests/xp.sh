@@ -379,8 +379,8 @@ kill "$restart_job" 2>/dev/null || true
 wait_for count_is 2
 grim "$out/after-restart.png"
 
-# A token given before the first map reaches plugins through
-# surface.created.
+# A token given before or with the first commit reaches plugins
+# through surface.created.
 "$bin/choractl" events surface.created >"$out/created.jsonl" 2>/dev/null &
 events_job=$!
 sleep 0.5

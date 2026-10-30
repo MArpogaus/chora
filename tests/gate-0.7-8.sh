@@ -2,8 +2,8 @@
 # Gate check 8 of 0.7: `choractl run foot` starts foot in its own
 # transient systemd unit when a user manager runs, and directly without
 # one. foot reads XDG_ACTIVATION_TOKEN of the run and asks for
-# activation before its first map, so the `surface.created` of its
-# window carries the token. Without foot, the answer is SKIP.
+# activation right after its first commit, in the same batch, so the
+# `surface.created` of its window carries the token. Without foot, the answer is SKIP.
 #
 # Usage: tests/gate-0.7-8.sh   BIN: directory with the binaries
 set -u

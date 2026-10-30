@@ -226,8 +226,8 @@ impl Wayland {
         }
     }
 
-    /// A toplevel that activates with the token before its first map, as
-    /// a program of `choractl run` does; its `surface.created` then carries
+    /// A toplevel that activates with the token before or with its first
+    /// commit, as a program of `choractl run` does; its `surface.created` then carries
     /// the token. The activation comes before the toplevel role, or right
     /// after the first commit in the same batch, as in foot.
     pub fn activated_toplevel(
