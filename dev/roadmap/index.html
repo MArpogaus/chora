@@ -1323,10 +1323,7 @@ differ from the numbered 0.7 checks:</p>
 <li><code>docs/api.md</code> tells agents to remove their own old nodes after a
   restart (D61).</li>
 <li>Bugs of <code>choractl mcp</code>: #53, #54 and #56.</li>
-<li>The release workflow builds the RPM only (D14).</li>
 <li>The hardware checks 5 and 8 of the 0.7 gate.</li>
-<li>Remove <code>dist/arch</code>, <code>dist/build-arch.sh</code> and the Arch install lines of
-  <code>README.md</code>.</li>
 </ul>
 <p>The work removes the XP programs first, then extracts the runtime from
 <code>chora-tiling</code>, and then ports <code>chora-xp</code> to the runtime.</p>
@@ -1364,8 +1361,6 @@ differ from the numbered 0.7 checks:</p>
    systemd unit of its own, and the <code>surface.created</code> event of its window
    carries the activation token. The user runs this check on the
    reference hardware, with a log.</li>
-<li>The release of the next release candidate carries only the RPM and its
-    SHA256 sum (D14).</li>
 <li>CI runs the CI scripts of the earlier gates again. The user runs the
     hardware checks again on the reference hardware, with a log.</li>
 </ol>

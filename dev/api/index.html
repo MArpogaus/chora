@@ -1751,12 +1751,42 @@ it, the events that follow cover every change after it. A number that
 skips tells the client that it missed an event, so it queries again. After
 a reconnect a client works from the new snapshot and forgets the old
 numbers.</p>
-<p>The response of <code>scene.apply</code> reports the result of a transaction: <code>null</code>
-when it applied, an error with the index of the failed command when not.
-<code>choractl apply FILE</code> reads one list of commands as JSON, from standard
-input when the file is <code>-</code>; it prints nothing when it applied and the
-reason when not, so the exit code is the answer. Only the <code>view</code>
-subcommand reads YAML.
+<p>The response of <code>scene.apply</code> reports the result of a transaction. When
+the transaction applied, the result is <code>{"warnings": [...]}</code>. When it did
+not apply, the response is an error with the index of the failed command.
+A warning does not stop the transaction. It tells the client that a
+command applied but does not give the result that the client probably
+expects (D59). Each warning has a stable <code>code</code>, the <code>node</code> and a short
+<code>message</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"warnings"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">"code"</span><span class="p">:</span><span class="w"> </span><span class="s2">"deaf_surface"</span><span class="p">,</span><span class="w"> </span><span class="nt">"node"</span><span class="p">:</span><span class="w"> </span><span class="s2">"s1"</span><span class="p">,</span>
+<span class="w">               </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"an ancestor has input pass or block, so the surface gets no pointer input"</span><span class="p">}]}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>deaf_surface</code></td>
+<td>an <code>attach</code> or a <code>move</code> puts a surface under an ancestor with <code>input: pass</code> or <code>block</code>; the surface gets no pointer input</td>
+</tr>
+<tr>
+<td><code>layer_over_budget</code></td>
+<td>after a <code>create</code>, <code>update</code> or <code>animate</code>, the layer textures of a layer node and its descendants need more pixels than the budget of one frame, at the scale of each output; no frame draws the node</td>
+</tr>
+</tbody>
+</table>
+<p>The pixel budget of a frame is 64 Mi pixels. The layers that do not fit
+into a frame because of other layers are no warning: the event
+<code>layers.dropped</code> tells them when the frame shows.</p>
+<p><code>choractl apply FILE</code> reads one list of commands as JSON, from standard
+input when the file is <code>-</code>. It prints nothing when it applied and the
+reason when not, so the exit code is the answer. It prints each warning
+on standard error and exits with success. Only the <code>view</code> subcommand
+reads YAML.
 A request that a client makes before its <code>surface.created</code> follows
 that event. A taskbar asks through <code>wlr-foreign-toplevel-management</code>.
 The core does not act on a request, also not on <code>close</code>. A plugin answers
@@ -2492,6 +2522,9 @@ as the client <code>agent</code>, or under <code>--name</code>. An MCP client st
 example in the <code>.mcp.json</code> of Claude Code:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"mcpServers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"chora"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"choractl"</span><span class="p">,</span><span class="w"> </span><span class="nt">"args"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"--name"</span><span class="p">,</span><span class="w"> </span><span class="s2">"agent"</span><span class="p">,</span><span class="w"> </span><span class="s2">"mcp"</span><span class="p">]}}}</span>
 </code></pre></div>
+<p><code>choractl mcp</code> connects with <code>keep_nodes</code>, so the nodes of the agent stay
+after the server stops. After a restart, the agent removes its own old
+nodes that it does not need (D61).</p>
 <table>
 <thead>
 <tr>
@@ -2514,7 +2547,7 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tr>
 <tr>
 <td><code>apply_commands</code></td>
-<td>a transaction</td>
+<td>a transaction; the answer is <code>applied</code>, and the warnings of <code>scene.apply</code> as JSON when there are some</td>
 </tr>
 <tr>
 <td><code>list_plugins</code></td>
@@ -2550,7 +2583,7 @@ example in the <code>.mcp.json</code> of Claude Code:</p>
 </tr>
 <tr>
 <td><code>subscribe_events</code></td>
-<td>start to collect events, and grab keys and buttons; <code>events</code> and <code>keys</code> as in <code>events.subscribe</code> and <code>input.grab</code>; replaces the current subscription</td>
+<td>start to collect events, and grab keys and buttons; <code>events</code> and <code>keys</code> as in <code>events.subscribe</code> and <code>input.grab</code>; replaces the current subscription, which stays if the new one fails</td>
 </tr>
 <tr>
 <td><code>wait_events</code></td>
