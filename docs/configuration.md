@@ -145,6 +145,13 @@ stays closed.
 `chora-tiling` connects with the client name `tiling`. Grants and
 `choractl restart` use this name.
 
+| Flag | Meaning |
+|------|---------|
+| `--config FILE` | the settings file instead of `$XDG_CONFIG_HOME/chora/chora-tiling.yaml` |
+| `--print-config` | prints the default settings and exits |
+| `--output NAME` | manages only this output; can come more than once (see below) |
+| `--ignore APP_ID` | leaves the windows with this app id to other clients; can come more than once |
+
 `chora-tiling` reads `chora/chora-tiling.yaml` in `$XDG_CONFIG_HOME`, by
 default `~/.config`, or the file of `--config`. Without a file, it uses its
 default, which `chora-tiling --print-config` prints. The file holds the
@@ -180,7 +187,9 @@ windows do not exist.
 `chora-tiling` exports methods for other clients (see
 [Plugin methods](api.md#plugin-methods)). Every method but `get_layout`
 changes something and answers with the layout info of the current tag,
-like `set_layout`.
+like `set_layout`. The `gap` of `set_layout` is a live value: the file
+keeps the old gap, and the next `settings.set` or `settings.reload` sets
+the gap of the file again.
 
 | Method | Parameters | Does the same as |
 |--------|------------|------------------|
@@ -447,9 +456,7 @@ by default: My Documents, My Pictures and My Music of the start menu
 (`XDG_DOCUMENTS_DIR`, `XDG_PICTURES_DIR` and `XDG_MUSIC_DIR`, else the
 home directory and its folders `Pictures` and `Music`), and My Computer
 as `/`. `chora-xp` adds the folder to the command, for example
-`thunar '/home/user/Music'`. The tag `archive/xp-scene-programs` keeps
-the Explorer, the folder windows, file Properties and the Delete
-confirmation that `chora-xp` drew before 0.8.
+`thunar '/home/user/Music'`.
 
 The desktop of the first output shows XP's icons in its grid of 75 by 75
 pixels: My Documents (`XDG_DOCUMENTS_DIR`, else the home directory) and My
@@ -618,19 +625,20 @@ core. Cancel and the close button close it without a change:
 
 Log Off and Turn Off Computer open XP's dialogs in the middle of the
 output, and the desktop behind them fades to gray in 1.5 seconds. Each
-button runs its command of the setting `session` (D63). In Turn off
-computer, Stand By runs `systemctl suspend`, Turn Off `systemctl
-poweroff` and Restart `systemctl reboot` by default. Stand By is disabled
-when the first word of its command is not on the `PATH`. In Log Off
-Windows, Log Off runs `choractl quit` by default, which ends
-chora through the core method `session.quit`. Without a command
-(`log_off: null`), Log Off asks every window to close and ends
-`chora-xp`. A command such as `loginctl terminate-session
+button runs its command of the setting `session` (D63):
+
+| Button | Default command | Without a command (`null`) |
+|--------|-----------------|----------------------------|
+| Turn Off | `systemctl poweroff` | ends `chora-xp` and shuts nothing down |
+| Restart | `systemctl reboot` | runs `chora-xp` again, as the method `restart` does |
+| Stand By | `systemctl suspend` | disabled |
+| Log Off | `choractl quit`, which ends chora through the core method `session.quit` | asks every window to close and ends `chora-xp` |
+
+Stand By is also disabled when the first word of its command is not on
+the `PATH`. A command such as `loginctl terminate-session
 $XDG_SESSION_ID` ends a login session. Switch User is always disabled,
-because chora has no second session to switch to. Without a command,
-Turn Off ends `chora-xp` and shuts nothing down, and Restart runs
-`chora-xp` again, as the method `restart` does. Cancel or a click outside
-the dialog closes it. The buttons light up under the pointer; the
+because chora has no second session to switch to. Cancel or a click
+outside the dialog closes it. The buttons light up under the pointer; the
 keyboard does not work the dialogs (D45).
 
 The method `restart` runs `chora-xp` again in the same process, with the
@@ -707,7 +715,7 @@ these bindings, Super+Ctrl with the arrows stands in.
 | `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
 | `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
 | `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button |
-| `settings.get`, `settings.set` | see [API](api.md#plugin-methods) | the dialogs and an edit of the file with `restart` |
+| `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | the dialogs and an edit of the file with `restart` |
 
 | Option | Default | Meaning |
 |--------|---------|---------|
