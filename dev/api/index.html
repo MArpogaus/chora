@@ -2242,13 +2242,14 @@ the unit and the token as one JSON line while the program runs.</p>
 <li>This needs systemd 254 or later. When <code>systemd-run</code> fails, for example
   because the unit exists already, <code>run</code> exits 1 with its error and
   starts nothing.</li>
-<li>The unit gets the environment of the user manager, plus the token and
-  the values of the caller for <code>PATH</code>, <code>XDG_RUNTIME_DIR</code>,
-  <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code>. It gets <code>DISPLAY</code> and the other
+<li>The unit gets the environment of the user manager, plus the token.
+  <code>PATH</code>, <code>XDG_RUNTIME_DIR</code>, <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> get
+  the value of the caller, or none when the caller has none. It gets <code>DISPLAY</code> and the other
   host session variables only from the caller, never from the user
   manager. It starts in the directory of the caller.</li>
 <li>Without a running user manager, <code>choractl</code> starts the program itself,
-  with the environment of the caller.
+  with the environment of the caller. The program stays in the process
+  group of the caller.
   Its output goes to <code>/dev/null</code>, and <code>unit</code> is <code>null</code>.</li>
 <li>When the unit starts but its <code>MainPID</code> stays unknown after a short
   wait, for example because the program ended at once, <code>pid</code> is <code>null</code>.
