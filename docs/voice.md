@@ -1,6 +1,6 @@
 # chora-voice: the voice agent in Rust (draft specification)
 
-Status: draft, 2026-10-30. WP0 to WP2 are done. Sources:
+Status: draft, 2026-10-30. WP0 to WP4 are done. Sources:
 `services/voice/agent.py`, D53, D58, D61, D62, `docs/api.md`, the
 `chora-kit` runtime and settings, `choractl mcp`, and live probes of the
 Gufo servers.
@@ -111,8 +111,10 @@ The agent starts in `listening` (awake).
 | any | Sleep word or `voice.sleep` | `sleeping`, earcon |
 | `sleeping` | `voice.wake` | `listening`, earcon |
 
-Until WP4, `recording` ends in `listening` (or `sleeping`), and the log
-shows the utterance.
+Until WP6, `recording` ends in `transcribing` (asleep: `sleeping`), and
+the transcript (or an ASR error with the error earcon) returns to
+`listening`. The log and `last_transcript` show the text. The final
+text of an older turn still counts; a late interim text drops.
 
 Barge-in while `speaking`: speech over the barge-in gate (section 4) for
 `barge_in_ms` stops playback at once. The unplayed sentences stay
@@ -225,6 +227,10 @@ TTS (`/v1/audio/speech/stream`, voice `aiden`):
 - Per sentence: `audio.start` with `sentence_index`, `sentence_text`,
   `format` and `sample_rate` (24000), then binary PCM, then `audio.done`.
   `session.done` ends the session.
+- The server does not split a text: "Eins. Zwei." and a text of three
+  sentences each came as one `audio.start` with `sentence_index` 0 (WP4
+  live check). So the agent splits the reply into sentences itself, one
+  socket per sentence, as section 2 plans.
 - `audio.start` gives the text and the start of its sound. The HUD
   typewriter spreads the words of `sentence_text` over the PCM length of
   the sentence.
@@ -353,6 +359,19 @@ The WAV headers get their lengths at the end; a reader takes a cut file
 up to its last whole sample. `chora-voice gate FILE.wav` runs the speech
 gate of the settings over a file and prints the utterances.
 
+For replay, a recording directory also holds `labels.txt`: one label
+per line, times in s of `mic.wav`, `#` starts a comment.
+
+```text
+turn 1.09 2.83   # the user speaks from 1.09 s to 2.83 s
+barge 2.08       # the user starts to speak over the agent
+```
+
+`chora-voice replay DIR...` runs the gates of the settings over each
+recording and prints the metrics of section 13. It reads only the
+`play` lines of `events.jsonl` (the agent's sound) and not
+`played.wav`; a plain clip needs only `mic.wav` and `labels.txt`.
+
 ## 13. Test plan
 
 Unit tests: every transition of `step()`, also cancel in each busy
@@ -362,26 +381,41 @@ confirm rules; token trimming; settings `check()`; the 3:2 low-pass.
 
 Replay tests:
 
-- A recording: the files of section 12, plus YAML labels (utterances,
-  expected words, barge-ins).
-- The harness feeds the frames at full speed.
-- Metrics against the labels: turn boundary precision and recall (200 ms
-  tolerance), onset error, false barge-ins per minute of agent speech,
-  barge-in latency, word accuracy. Each metric has a threshold in the
-  test.
-- A small synthetic corpus (TTS voices, noise, echo) is in the repo for
-  CI. WP2 has one clip: `services/voice/tests/data/hallo-chora.wav`.
-  Recordings from `record_dir` stay outside the repo.
+- A recording: the files of section 12, plus `labels.txt` (turns and
+  barge-ins). Expected words come with the word matcher (WP6).
+- The harness feeds the frames at full speed. While the agent plays,
+  only the barge-in gate listens; a barge-in stops the playback for the
+  rest of the recording's piece and starts an utterance with 100 ms of
+  pre-roll.
+- Metrics against the labels: missed and false turns (a detected turn
+  matches the first unmatched labelled turn that it overlaps), onset
+  and offset error (detected speech start and last speech frame minus
+  the label), missed and false barge-ins (a match lies from 0.1 s
+  before to 1 s after the label), false barge-ins per minute of agent
+  sound, and barge-in latency. The test `the_corpus_meets_the_thresholds`
+  holds them to thresholds.
+- The CI corpus is `services/voice/tests/data/corpus/` (648 KB of new
+  clips): `hallo-chora` (the clip of WP2), `turns-noise` and
+  `echo-barge`. `tests/corpus.py TTS_URL` writes the last two again
+  with the live TTS (user voices `vivian` and `ryan`, agent voice
+  `aiden`; noise from a fixed seed): `uv run tests/corpus.py
+  ws://HOST:8882/v1/audio/speech/stream` in `services/voice`. The TTS
+  output changes a little from run to run, so check the metrics after a
+  new run. Recordings from `record_dir` stay outside the repo.
 
-Fake servers for CI: a scripted ASR websocket, a TTS websocket (silence,
-60 ms per character) and an SSE LLM with scripted tool calls. With a
+Fake servers for CI (`src/fake.rs`, WP4): a scripted ASR websocket
+(text, error, silence, a first socket that fails), a TTS websocket
+(silence, 60 ms per character, one sentence per `.` or `?`, a wrong
+rate, no answer); WP5 adds an SSE LLM with scripted tool calls. With a
 fake tool executor, an end-to-end test runs a replay through the whole
 agent and checks the LLM requests and the state sequence.
 
 Live tests: `services/voice/tests/live.py TTS_URL ASR_URL [CLIP]` checks
 the TTS events, the ASR at 24 kHz and 16 kHz, and writes the test clip.
-WP4 to WP6 add `chora-voice` subcommands (`roundtrip`, `tts`, `asr
-FILE`, `levels`, `tools`, `replay DIR`) and ignored tests. The URLs come
+WP4 added the `chora-voice` subcommands `roundtrip [TEXT]` (TTS, then
+its sound to the ASR, with the latencies), `tts TEXT [--out FILE]` and
+`asr FILE`; WP3 added `replay DIR...`. WP5 and WP6 add `levels` and
+`tools`. The URLs come
 from the settings. From the agent sandbox, the servers are at
 `192.168.178.195`: ASR `:8881`, TTS `:8882`, LLM `:8888` (model `gufo`,
 context 128000, text and image), reachable only with the sandbox off.
@@ -393,14 +427,14 @@ a headless chora session.
 
 Reused from `Cargo.lock`: `serde`, `serde_json`, `schemars`,
 `serde-saphyr`, `clap`, `tracing`, `tracing-subscriber`, `chora-kit`,
-`chora-scene`; WP4 adds `tokio` (`process`, `io-util`, `net`, `time`),
-`futures-util`, `base64`, and `rmcp` (`client`,
-`transport-child-process`).
+`chora-scene`; WP4 added `tokio` (the workspace features and `net`),
+`futures-util` (`sink`) and `base64`; WP5 adds `rmcp` (`client`,
+`transport-child-process`) and the `tokio` features it needs.
 
 | New crate | Why |
 |---|---|
 | `tract-onnx` 0.22 | Silero VAD in pure Rust. 0.23 needs Rust 1.91; the workspace has 1.89 |
-| `tokio-tungstenite` (no TLS, WP4) | ASR and TTS websockets, fake servers |
+| `tokio-tungstenite` 0.28 (default features: no TLS; WP4) | ASR and TTS websockets, fake servers |
 | `reqwest` (no defaults; `json`, `stream`, WP5) | LLM SSE; chunked HTTP by hand is a bug source |
 
 `tract-linalg` builds its kernels with `cc` and needs `ar` at build time.
@@ -413,7 +447,7 @@ binary with `include_bytes!`. The crate lives in `services/voice/` (D53)
 as a workspace member. No package and no unit until the agent completes
 full turns; then `chora-voice.service` replaces `voice-agent.service`.
 
-## 15. Results of WP0 to WP2 (2026-10-30)
+## 15. Results of WP0 to WP4 (2026-10-30)
 
 Silero on `tract`:
 
@@ -467,6 +501,64 @@ the test clip in real time as the capture command):
   `events.jsonl`. After a kill, the files hold everything up to the last
   second.
 
+WP3, the CI corpus with the default settings (`chora-voice replay`):
+
+| Recording | Turns | Missed | False | Onset error | Offset error | Barge-ins | Missed | False | Latency |
+|---|---|---|---|---|---|---|---|---|---|
+| `hallo-chora` | 1 | 0 | 0 | 2 ms | 62 ms | 0 | | | |
+| `turns-noise` | 2 | 0 | 0 | 26 ms (max 50) | 50 ms (max 82) | 0 | | | |
+| `echo-barge` | 1 | 0 | 1 | 160 ms | 82 ms | 1 | 0 | 1 | 416 ms |
+
+- The fan noise (RMS 120) and the keyboard clicks start no turn; the
+  short "Stopp." (0.48 s) is a turn.
+- Echo of RMS 150 starts no barge-in. The barge-in comes 416 ms after
+  the first sound of the user: 256 ms of `barge_in_ms` plus the rise of
+  Silero over 0.7.
+- Echo of RMS 600 without the user is a false barge-in (15 per minute of
+  agent sound in this corpus) and then a false turn. Silero gives the
+  echo of the agent's voice a high probability, so the rule of section
+  4 never learns the echo level from it, and RMS 600 is over
+  `barge_in_min_rms`. See open question 4. The test allows this one
+  false barge-in and false turn; the other thresholds are 0 missed
+  turns and barge-ins, 200 ms onset and offset error, 450 ms barge-in
+  latency.
+- The harness implements the barge-in gate of section 4 (`BargeIn` in
+  `gate.rs`; the echo level is a running mean over about 0.5 s) and
+  `Gate::open` for the utterance that a barge-in starts. WP6 uses both.
+
+WP4, live check against the servers (`chora-voice roundtrip`, debug
+build, from the agent sandbox):
+
+| Text | Audio | TTS first audio | TTS total | ASR final after commit |
+|---|---|---|---|---|
+| "Stopp." | 0.56 s | 466 to 472 ms | 0.80 to 0.83 s | 195 to 207 ms |
+| "Hallo Chora. Zeig mir bitte die Agenda für heute." | 3.04 s | 401 to 490 ms | 4.07 s | 513 to 545 ms |
+| Three sentences | 6.96 s | 444 ms | | 1309 ms |
+| `echo-barge/mic.wav` (`asr FILE`) | 7.6 s | | | 666 ms |
+
+- The ASR heard "Hallo Cora" for "Hallo Chora" each time, and
+  "Vardamal" for "warte mal" over echo.
+- The TTS is slower than real time for this text: 3.04 s of sound took
+  4.07 s. Playback that starts at the first PCM runs dry. See open
+  question 5.
+- The time to the final text grows with the length of the utterance
+  (0.2 s for 0.6 s, 1.3 s for 7 s). Interim texts do not shorten it: the
+  server transcribes the whole buffer again at the commit.
+- The agent with `asr_interim_ms: 1000` and a capture command that feeds
+  `echo-barge/mic.wav` in real time: interim texts came every second
+  (189 to 410 ms each), and the final text 346 to 416 ms after the end
+  of the utterance.
+- Deviation: the TTS client takes one text per socket and reports the
+  sentences of the server; the split into sentences and one sentence
+  ahead come with the reply pipeline (WP5, WP6). Timeouts: the ASR has
+  `asr_timeout_s` for each whole try, the TTS has `tts_timeout_s` for
+  each message. "Reconnect" is a new socket per request; the ASR retries
+  once.
+- For the HUD typewriter, `tts::Event::Sentence` comes before the PCM of
+  its sentence; `tts::collect` gives the start and length of each
+  sentence in samples. The HUD gets them with the speaking state (WP6)
+  and the client events (WP8).
+
 ## 16. Work packages
 
 | # | Package | Size |
@@ -474,8 +566,8 @@ the test clip in real time as the capture command):
 | WP0 | Spikes: Silero on tract, ASR at 16 kHz, `pw-record --raw` (done) | S |
 | WP1 | Crate, settings, `chora` thread, methods, PTT grab, logging (done) | M |
 | WP2 | `audio_in` with Silero, `audio_out`, earcons, `record_dir` (done) | M |
-| WP3 | Replay harness, labels, metrics with thresholds, CI corpus | M |
-| WP4 | ASR and TTS clients, interim text, fake servers | M |
+| WP3 | Replay harness, labels, metrics with thresholds, CI corpus (done) | M |
+| WP4 | ASR and TTS clients, interim text, fake servers (done) | M |
 | WP5 | LLM client, tool loop, MCP reconnect and timeouts, token budget | L |
 | WP6 | State machine, word matcher, barge-in, cancel, sleep/wake, confirmation; first full voice turn; remove `agent.py` and `voice-agent.service` | L |
 | WP7 | Coder port | S |
@@ -491,3 +583,13 @@ S: up to 1 day. M: 2 to 3 days. L: about 1 week.
 2. Mic mute: is "PTT still records" correct (section 3)?
 3. `pw-record --raw` on the host: does the PipeWire of the host have
    1.4 or later? `pw-record --version` shows it.
+4. Barge-in over loud echo (section 15, WP3): the echo level of section
+   4 learns only from frames that Silero calls quiet, and the echo of a
+   voice is speech for Silero. Take the echo level from the played sound
+   instead (the RMS of the played frames times a coupling that the
+   agent learns), or keep the rule and trust the echo canceller? A
+   recording with the echo canceller on the reference hardware would
+   show the real echo level.
+5. The TTS is slower than real time for longer sentences (section 15,
+   WP4). Start playback only after a buffer (for example 1 s, or the
+   whole first sentence), or accept gaps?
