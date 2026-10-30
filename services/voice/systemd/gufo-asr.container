@@ -2,7 +2,7 @@
 Description=Gufo asr server (port 8881)
 
 [Container]
-Image=ghcr.io/gufo-org/toolboxes/gufo-runtime:latest
+Image=ghcr.io/gufo-org/toolboxes/gufo-runtime:latest@sha256:af997f31d5a825ad02fd44cbb6744e71a21df6149c02c5ed3bb0bb843b3f0013
 ContainerName=gufo-asr
 Network=ai-net-intern.network
 Network=ai-net-offline.network

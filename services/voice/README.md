@@ -58,7 +58,8 @@ uvx --from huggingface_hub hf download Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
 uvx --from huggingface_hub hf download <repo> <model>.gguf \
     --revision <revision> --local-dir /var/models/<dir>
 ln -s /var/models/<dir>/<model>.gguf /var/models/gufo-llm
-podman pull ghcr.io/gufo-org/toolboxes/gufo-runtime:latest  # GBs, once
+# GBs, once; the digest of the image in the quadlets
+podman pull ghcr.io/gufo-org/toolboxes/gufo-runtime:latest@sha256:af997f31d5a825ad02fd44cbb6744e71a21df6149c02c5ed3bb0bb843b3f0013
 mkdir -p ~/.config/containers/systemd
 ln -s "$PWD"/services/voice/systemd/*.{container,network} ~/.config/containers/systemd/
 systemctl --user link "$PWD/services/voice/systemd/voice-agent.service"
@@ -66,7 +67,8 @@ systemctl --user daemon-reload
 systemctl --user start gufo-asr gufo-tts gufo-llm
 ```
 
-The models load for some minutes. A model is ready when its log, for
+The quadlets pin the image by its digest. For a newer runtime, change
+the digest in the three quadlets. The models load for some minutes. A model is ready when its log, for
 example `journalctl --user -u gufo-tts`, shows `event=listening`. Then
 check the models and the mic:
 
