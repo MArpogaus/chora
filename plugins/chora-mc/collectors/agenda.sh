@@ -16,6 +16,11 @@ if [ "${1-}" = --print ]; then
     shift
 fi
 [ $# -gt 0 ] || set -- "$HOME/Notes/agenda/gtd.org"
+command -v emacs >/dev/null || {
+    echo "agenda.sh: no emacs on PATH" >&2
+    exit 1
+}
+# Emacs talks on stderr even when it works: only its status counts.
 params=$(ORG_TODO="${ORG_TODO-PROJ TODO NEXT WAIT | DONE KILL}" emacs -Q --batch --eval '
 (progn
   (require (quote org-agenda))
@@ -56,7 +61,10 @@ params=$(ORG_TODO="${ORG_TODO-PROJ TODO NEXT WAIT | DONE KILL}" emacs -Q --batch
                   (cons "title" (format-time-string "%A, %e %B"))
                   (cons "lines" (vconcat
                                  (mapcar (lambda (i) (concat (car i) "\t" (cdr i)))
-                                         items))))))))' "$@" 2>/dev/null)
+                                         items))))))))' "$@" 2>/dev/null) || {
+    echo "agenda.sh: emacs failed with status $?" >&2
+    exit 1
+}
 if [ -n "$print" ]; then
     printf '%s\n' "$params"
 else
