@@ -1517,6 +1517,13 @@ the text, flush right, and the text wraps under it. A panel names the
 styles of its lines, its title and its notes with <code>style</code>, <code>title_style</code>
 and <code>note_style</code>; each takes a <code>base</code> (by default <code>body</code>, <code>heading</code> and
 <code>margin</code>) and changes single fields.</p>
+<p>A scene may set its own <code>page</code> (<code>measure</code>, <code>margin</code> and <code>gap</code>, as in the
+settings), for example narrow columns side by side on a wide screen, and
+<code>chapter.layout</code>, also <code>none</code> for a scene without a head. Columns of a
+grid leave room for the margin of the column to their right. A panel may
+set a <code>rule</code>, a color of the theme for a hairline left of it, an
+<code>opacity</code> from 0 to 1 and a <code>blur</code> radius in pixels up to 16, for
+context that steps back (<code>plugins/chora-mc/blur.frag</code>).</p>
 <table>
 <thead>
 <tr>
@@ -1599,8 +1606,8 @@ hand apply with <code>settings.reload</code>:</p>
   must be in <code>CHORA_FONT_DIRS</code>, and Inter with tabular figures for the
   running head, the notes and the HUD.</li>
 <li><code>chapter.layout</code>: <code>number</code> (a large light number, the title in spaced
-  small caps below), <code>caps</code> (the title only) or <code>large</code> (one large light
-  title).</li>
+  small caps below), <code>caps</code> (the title only), <code>large</code> (one large light
+  title) or <code>none</code>.</li>
 <li><code>page</code>: the <code>measure</code> of a column of text, the <code>margin</code> column and the
   <code>gap</code>, in em of <code>scale.base</code>.</li>
 <li><code>write</code>: <code>enabled</code> (default <code>true</code>) and <code>duration_ms</code> (default 900).</li>
