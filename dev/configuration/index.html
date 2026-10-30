@@ -1299,16 +1299,21 @@ font in <code>~/.local/share/fonts</code> needs no setting at all.</p>
 <span class="w">  </span><span class="nt">props</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">100</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">30</span><span class="p p-Indicator">]</span>
 <span class="w">    </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">]</span>
+<span class="nt">input</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">keyboard</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">repeat_rate</span><span class="p">:</span><span class="w"> </span><span class="nv">30</span><span class="p p-Indicator">,</span><span class="nt"> repeat_delay</span><span class="p">:</span><span class="w"> </span><span class="nv">250</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">touchpad</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tap</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> natural_scroll</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">mouse</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">accel_profile</span><span class="p">:</span><span class="w"> </span><span class="nv">flat</span><span class="p p-Indicator">,</span><span class="nt"> accel_speed</span><span class="p">:</span><span class="w"> </span><span class="nv">-0.2</span><span class="p p-Indicator">}</span>
 </code></pre></div>
 <ul>
-<li><code>choractl view load work</code> starts each plugin of the view that does not
+<li><code>choractl view load work</code> first sends <code>input</code> to the core method
+  <code>input.configure</code>, if the view has it. Then it starts each plugin of the view that does not
   run yet, with the <code>exec</code> of its manifest, and waits up to 10 s until it
   connects. It passes each <code>config</code> to the method that the manifest names
   in <code>configure</code>. Then it applies the nodes of the view as one transaction.</li>
 <li>The client <code>view-work</code> owns the nodes. A second load replaces them,
   <code>choractl view unload work</code> removes them.</li>
 <li><code>choractl view save work</code> writes the nodes of <code>view-work</code> as they are
-  now, with the plugins of the file that was there, to
+  now, with the plugins and the <code>input</code> of the file that was there, to
   <code>~/.config/chora/views/work.yaml</code>, or to <code>--file PATH</code>. A plugin or an
   agent changes the nodes as <code>view-work</code>, for example
   <code>choractl --name view-work apply</code>.</li>
@@ -1321,6 +1326,17 @@ font in <code>~/.local/share/fonts</code> needs no setting at all.</p>
   <code>NAME.yaml</code> must name the same view.</li>
 <li><code>choractl view load</code> also takes the path of a YAML file; the MCP tools
   take names only.</li>
+<li><code>input</code> sets the input devices of the whole session, so the core reads
+  no file for them (D35). <code>keyboard</code> has <code>repeat_rate</code> (repeats per
+  second, 0 to 100, 0 for no repeat) and <code>repeat_delay</code> (100 to 5000
+  ms). <code>touchpad</code> holds the libinput settings of every device that can
+  tap, and <code>mouse</code> those of the other pointer devices: <code>tap</code>,
+  <code>natural_scroll</code>, <code>left_handed</code>, <code>accel_profile</code> (<code>flat</code> or
+  <code>adaptive</code>) and <code>accel_speed</code> (-1 to 1). A missing key keeps its
+  value; a device that lacks a setting skips it. The settings stay until
+  the next <code>input.configure</code> or the end of the session, and new devices
+  get them too. On a client socket, <code>input</code> needs the capability
+  <code>methods.privileged</code>. See <a href="../api/#ipc-methods">IPC methods</a>.</li>
 <li>A plugin that a view starts gets no stdin and no stdout of <code>choractl</code>,
   which carry MCP under <code>choractl mcp</code>.</li>
 </ul>
@@ -1384,7 +1400,8 @@ drives the window manager needs <code>methods.call</code>, and one that starts a
 needs <code>activation.token</code>. Both let it take the keyboard focus. A name
 that may end chora needs <code>session.quit</code>. A name that may change the
 settings of a plugin, or call a plugin method that starts programs, such
-as <code>app.open</code> of <code>chora-mc</code>, also needs <code>methods.privileged</code>.</p>
+as <code>app.open</code> of <code>chora-mc</code>, also needs <code>methods.privileged</code>. So does
+a name that sets the input devices with <code>input.configure</code>.</p>
 <p>The names follow the rules of <code>hello</code>. <code>clients up</code> opens the socket of
 every name with exactly the capabilities of its list. A socket that
 already has the equal capabilities stays with its connections and gets
