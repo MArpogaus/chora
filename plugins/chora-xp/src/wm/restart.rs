@@ -87,7 +87,7 @@ impl Wm {
     /// Removes the nodes of the plugin that sit on nodes of others, the
     /// roots of its trees.
     fn remove_scene(&mut self) -> Result<Vec<Command>, ClientError> {
-        let nodes = self.conn.query(&format!("owner:{NAME}"))?;
+        let nodes = self.rt.conn.query(&format!("owner:{NAME}"))?;
         let owned = |id: &str| nodes.iter().any(|n| n.id == id);
         Ok(nodes
             .iter()
@@ -106,7 +106,7 @@ impl Wm {
     /// claim of the plugin, so it goes only with the creation of the new
     /// one.
     pub(super) fn take_kept(&mut self) -> Result<bool, ClientError> {
-        let nodes = self.conn.query(&format!("owner:{NAME}"))?;
+        let nodes = self.rt.conn.query(&format!("owner:{NAME}"))?;
         if let Some(desktop) = nodes.iter().find(|n| n.id == NAME).and_then(read) {
             self.desktop = desktop;
         }

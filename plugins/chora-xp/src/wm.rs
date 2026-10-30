@@ -15,13 +15,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::{conn::Conn, icons::Icons};
+use chora_kit::{
+    icons::Icons,
+    runtime::{Plugin, Runtime},
+};
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
     SurfaceRequest, Transform, Uniform,
-    ipc::{
-        ClientError, Export, ExportMethod, Grab, OutputConfigure, PressState, RpcError, Subscribe,
-    },
+    ipc::{ClientError, ExportMethod, Grab, OutputConfigure, PressState, RpcError},
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -91,8 +92,6 @@ pub struct Config {
     pub slow: f64,
     /// The effects and sounds that are on at the start.
     pub toggles: Toggles,
-    /// The outputs that the plugin manages, by name; all when empty.
-    pub outputs: Vec<String>,
 }
 
 /// The window manager that a window dragged out of the work areas of
@@ -134,7 +133,7 @@ const METHODS: [&str; 6] = [
 
 /// What a key binding does.
 #[derive(Clone, Copy)]
-enum Key {
+pub enum Key {
     Close,
     Terminal,
     /// Turns the cube by quarter turns.
@@ -205,7 +204,7 @@ struct Resize {
 
 /// The state of the window manager.
 pub struct Wm {
-    conn: Conn,
+    rt: Runtime<Key>,
     theme: Theme,
     icons: Icons,
     config: Config,
@@ -219,7 +218,6 @@ pub struct Wm {
     drag: Option<Drag>,
     resize: Option<Resize>,
     last_title: Option<(String, Instant)>,
-    keys: Vec<(String, Key)>,
     cascade: i32,
     clock: String,
     /// The desktop that shows.
@@ -277,18 +275,35 @@ pub struct Wm {
     kept: HashMap<String, restart::KeptWindow>,
 }
 
+impl Plugin for Wm {
+    type Action = Key;
+
+    fn runtime(&mut self) -> &mut Runtime<Key> {
+        &mut self.rt
+    }
+
+    fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        self.handle(event)
+    }
+
+    fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        parse_call(method, params).and_then(|call| self.call(call))
+    }
+}
+
 impl Wm {
-    /// Creates the scene of the plugin and adopts the windows that have
-    /// no owner.
+    /// Connects, creates the scene of the plugin and adopts the windows
+    /// that have no owner. `outputs` are the names of `--output`.
     pub fn start(
-        conn: Conn,
+        outputs: Vec<String>,
         theme: Theme,
         menu: Menu,
         icons: Icons,
         config: Config,
     ) -> Result<Self, ClientError> {
+        let methods = METHODS.map(ExportMethod::from).to_vec();
         let mut wm = Self {
-            conn,
+            rt: Runtime::start(NAME, outputs, &EVENTS, methods)?,
             theme,
             icons,
             clock: String::new(),
@@ -303,7 +318,6 @@ impl Wm {
             drag: None,
             resize: None,
             last_title: None,
-            keys: Vec::new(),
             cascade: 0,
             desktop: 0,
             hover: None,
@@ -335,28 +349,8 @@ impl Wm {
         let old_root = wm.take_kept()?;
         wm.create_scene(old_root)?;
         wm.grab()?;
-        wm.announce()?;
         wm.adopt_all()?;
         Ok(wm)
-    }
-
-    /// Subscribes to the events of the core and exports the methods of
-    /// the plugin.
-    fn announce(&mut self) -> Result<(), ClientError> {
-        self.conn.call::<_, Value>(
-            "events.subscribe",
-            Subscribe {
-                events: EVENTS.map(String::from).to_vec(),
-            },
-        )?;
-        self.conn
-            .call::<_, Value>(
-                "methods.export",
-                Export {
-                    names: METHODS.map(ExportMethod::from).to_vec(),
-                },
-            )
-            .map(drop)
     }
 
     /// Adopts the surfaces without an owner, as at a start, in their order
@@ -364,6 +358,7 @@ impl Wm {
     /// focus.
     fn adopt_all(&mut self) -> Result<(), ClientError> {
         let mut nodes: Vec<chora_scene::Node> = self
+            .rt
             .conn
             .query("kind:surface")?
             .into_iter()
@@ -397,7 +392,7 @@ impl Wm {
     /// same transaction, so that the plugin holds a claim throughout and
     /// the surfaces reserved for it stay so (D55).
     fn create_scene(&mut self, old_root: bool) -> Result<(), ClientError> {
-        let outputs: Vec<OutputInfo> = self.conn.call("output.list", Value::Null)?;
+        let outputs = self.rt.outputs()?;
         self.theme.set_scale(max_scale(&outputs));
         let group = |id: &str, parent: &str| Command::Create {
             id: id.into(),
@@ -436,9 +431,7 @@ impl Wm {
             }
         }
         for output in &outputs {
-            if self.manages(&output.name) {
-                commands.extend(self.add_output(output));
-            }
+            commands.extend(self.add_output(output));
         }
         commands.extend(self.claim());
         commands.extend(self.menu.create(&mut self.theme, MENUS));
@@ -466,14 +459,8 @@ impl Wm {
         for (binding, fallback, key) in KEYS {
             for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
                 let binding: Binding = binding.parse().expect("valid bindings");
-                match self.conn.call::<_, String>("input.grab", Grab { binding }) {
-                    Ok(normal) => {
-                        self.keys.push((normal, key));
-                        break;
-                    }
-                    // Another client may own the binding.
-                    Err(ClientError::Rpc(err)) => eprintln!("chora-xp: {err}"),
-                    Err(err) => return Err(err),
+                if self.rt.grab(binding, key)? {
+                    break;
                 }
             }
         }
@@ -483,14 +470,14 @@ impl Wm {
     /// Applies a transaction, with the logical sizes of the pictures.
     fn apply(&mut self, mut commands: Vec<Command>) -> Result<(), ClientError> {
         self.theme.size_images(&mut commands);
-        self.conn.apply(commands)
+        self.rt.conn.apply(commands)
     }
 
     /// Applies a transaction, as [`Self::apply`], and returns the error of
     /// the core.
     fn try_apply(&mut self, mut commands: Vec<Command>) -> Result<Option<RpcError>, ClientError> {
         self.theme.size_images(&mut commands);
-        self.conn.try_apply(commands)
+        self.rt.conn.try_apply(commands)
     }
 
     /// Renders the shown pictures again when the largest scale of the
@@ -502,7 +489,7 @@ impl Wm {
             return Ok(Vec::new());
         }
         let mut commands = Vec::new();
-        for node in self.conn.query(&format!("owner:{NAME} kind:image"))? {
+        for node in self.rt.conn.query(&format!("owner:{NAME} kind:image"))? {
             let props = &node.props;
             let Some((image, size)) = props.image.as_deref().and_then(|p| self.theme.rerender(p))
             else {
@@ -522,12 +509,12 @@ impl Wm {
 
     /// The next event, or `None` after a timeout.
     pub fn conn_event(&mut self, timeout: Duration) -> Result<Option<Event>, ClientError> {
-        self.conn.next_event_timeout(timeout)
+        self.rt.conn.next_event_timeout(timeout)
     }
 
     /// Handles one event of the core.
     #[allow(clippy::too_many_lines)] // one arm per event
-    pub fn handle(&mut self, event: Event) -> Result<(), ClientError> {
+    fn handle(&mut self, event: Event) -> Result<(), ClientError> {
         let commands = match event {
             Event::SurfaceCreated {
                 surface,
@@ -580,34 +567,14 @@ impl Wm {
             Event::FocusChanged {
                 surface: Some(surface),
             } => self.focus_moved(&surface),
-            Event::MethodCalled {
-                call,
-                method,
-                params,
-                ..
-            } => return self.answer_call(call, &method, params),
             _ => Vec::new(),
         };
         self.apply(commands)
     }
 
-    /// Answers a call of an exported method. The call may have ended
-    /// before the answer, for example when its caller left; that is no
-    /// reason to exit.
-    fn answer_call(&mut self, call: u64, method: &str, params: Value) -> Result<(), ClientError> {
-        let result = parse_call(method, params).and_then(|call| self.method(call));
-        match self.conn.answer(call, result) {
-            Err(ClientError::Rpc(err)) => {
-                eprintln!("chora-xp: {err}");
-                Ok(())
-            }
-            other => other,
-        }
-    }
-
     /// Runs an exported method, as the matching click does, and answers
     /// with nothing.
-    fn method(&mut self, call: Call) -> Result<Value, RpcError> {
+    fn call(&mut self, call: Call) -> Result<Value, RpcError> {
         let commands = match call {
             Call::StartMenu { open } => {
                 let bar = self.bars.first().map(|bar| bar.output.clone());
@@ -732,7 +699,7 @@ impl Wm {
         // The transaction waited for the client to commit its size, or the
         // size follows with surface.changed. The title of a surface that
         // another client gave up comes with the query too.
-        let Some(node) = self.conn.query(&format!("id:{surface}"))?.pop() else {
+        let Some(node) = self.rt.conn.query(&format!("id:{surface}"))?.pop() else {
             return Ok(());
         };
         let info = node.surface.unwrap_or_default();
@@ -1114,15 +1081,7 @@ impl Wm {
         })
     }
 
-    /// Whether the plugin manages an output.
-    fn manages(&self, output: &str) -> bool {
-        self.config.outputs.is_empty() || self.config.outputs.iter().any(|o| o == output)
-    }
-
     fn output_changed(&mut self, output: &OutputInfo) -> Vec<Command> {
-        if !self.manages(&output.name) {
-            return Vec::new();
-        }
         let Some(i) = self.bars.iter().position(|b| b.output == output.name) else {
             let mut commands = self.add_output(output);
             commands.extend(self.sync_tasks());
@@ -1272,12 +1231,7 @@ impl Wm {
         if self.switch_escape.as_deref() == Some(binding) {
             return self.cancel_switch();
         }
-        match self
-            .keys
-            .iter()
-            .find(|(b, _)| b == binding)
-            .map(|(_, k)| *k)
-        {
+        match self.rt.action(binding).copied() {
             Some(Key::Close) => self.focused.as_deref().map(close).unwrap_or_default(),
             Some(Key::Terminal) => {
                 chora_kit::run(&self.config.terminal);
@@ -1433,11 +1387,19 @@ impl Wm {
             None => "Alt+space".parse().expect("a valid binding"),
         };
         if on {
-            match self.conn.call::<_, String>("input.grab", Grab { binding }) {
+            match self
+                .rt
+                .conn
+                .call::<_, String>("input.grab", Grab { binding })
+            {
                 Ok(normal) => self.system_key = Some(normal),
                 Err(err) => eprintln!("chora-xp: {err}"),
             }
-        } else if let Err(err) = self.conn.call::<_, Value>("input.ungrab", Grab { binding }) {
+        } else if let Err(err) = self
+            .rt
+            .conn
+            .call::<_, Value>("input.ungrab", Grab { binding })
+        {
             eprintln!("chora-xp: {err}");
         }
     }
@@ -1471,7 +1433,11 @@ impl Wm {
     /// so that it cancels the switch.
     fn grab_switch_escape(&mut self) {
         let binding = "Alt+Escape".parse().expect("a valid binding");
-        match self.conn.call::<_, String>("input.grab", Grab { binding }) {
+        match self
+            .rt
+            .conn
+            .call::<_, String>("input.grab", Grab { binding })
+        {
             Ok(normal) => self.switch_escape = Some(normal),
             Err(err) => eprintln!("chora-xp: {err}"),
         }
@@ -1481,7 +1447,11 @@ impl Wm {
     fn end_switch(&mut self) -> Option<Switcher> {
         if let Some(binding) = self.switch_escape.take() {
             let binding = binding.parse().expect("the binding of the grab");
-            if let Err(err) = self.conn.call::<_, Value>("input.ungrab", Grab { binding }) {
+            if let Err(err) = self
+                .rt
+                .conn
+                .call::<_, Value>("input.ungrab", Grab { binding })
+            {
                 eprintln!("chora-xp: {err}");
             }
         }
@@ -2603,14 +2573,12 @@ impl Wm {
 
     // The Control Panel of the start menu
 
-    /// The outputs as the core has them.
+    /// The outputs of the plugin as the core has them.
     fn outputs(&mut self) -> Vec<OutputInfo> {
-        self.conn
-            .call("output.list", Value::Null)
-            .unwrap_or_else(|err| {
-                eprintln!("chora-xp: {err}");
-                Vec::new()
-            })
+        self.rt.outputs().unwrap_or_else(|err| {
+            eprintln!("chora-xp: {err}");
+            Vec::new()
+        })
     }
 
     /// The Control Panel for an output, with the current choices.
@@ -2632,7 +2600,7 @@ impl Wm {
                 };
                 // The core answers with output.changed, which fits the
                 // taskbar and the wallpaper.
-                if let Err(err) = self.conn.call::<_, Value>("output.configure", params) {
+                if let Err(err) = self.rt.conn.call::<_, Value>("output.configure", params) {
                     eprintln!("chora-xp: {err}");
                 }
                 Vec::new()
