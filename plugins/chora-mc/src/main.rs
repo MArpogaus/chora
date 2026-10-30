@@ -45,6 +45,11 @@ const HUD: &str = "mc-hud";
 const TICK: &str = "mc-tick";
 /// The id of a hidden node whose empty animations time the clocks.
 const CLOCK: &str = "mc-clock";
+/// The id of a hidden node whose empty animations time the look at the
+/// apps that started without a window yet.
+const WAIT: &str = "mc-wait";
+/// How often the plugin looks at those apps, in milliseconds.
+const WAIT_MS: f64 = 500.0;
 /// The cross-fade between two scenes, in milliseconds.
 const FADE: f64 = 250.0;
 /// The effect that writes new text.
@@ -224,7 +229,12 @@ struct Mc {
     windows: HashMap<String, String>,
     /// Where an app that starts goes, by its activation token.
     starting: HashMap<String, Target>,
+    /// The app scenes that wait for their window, with the process of
+    /// the app; `None` for one that ended before its pid was known.
+    launched: Vec<(String, Option<u32>)>,
     current: Option<String>,
+    /// The scene before the current one.
+    previous: Option<String>,
     /// The one output that the plugin fills.
     output: Option<OutputInfo>,
     /// Whether the nodes exist.
@@ -266,6 +276,7 @@ fn main() -> ExitCode {
     runtime::run(NAME, || play(&args))
 }
 
+#[allow(clippy::too_many_lines)] // one line per field of the plugin
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = settings::File::<Config>::path(args.config.clone(), "chora-mc")?;
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
@@ -303,7 +314,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         dir,
         windows: HashMap::new(),
         starting: HashMap::new(),
+        launched: Vec::new(),
         current: None,
+        previous: None,
         output: None,
         built: false,
         hud: SetHud {
@@ -503,7 +516,7 @@ impl Plugin for Mc {
                 token,
                 ..
             } => self.adopt(&surface, app_id.as_deref(), token.as_deref()),
-            Event::SurfaceDetached { surface } => self.adopt(&surface, None, None),
+            Event::SurfaceDetached { surface } => self.reattach(&surface),
             Event::SurfaceDestroyed { surface } => self.forget(&surface),
             Event::OutputChanged { output }
                 if self.output.as_ref().is_none_or(|o| o.name == output.name) =>
@@ -514,12 +527,19 @@ impl Plugin for Mc {
             Event::OutputRemoved { name }
                 if self.output.as_ref().is_some_and(|o| o.name == name) =>
             {
-                self.output = None;
+                // The next output that stays takes the scenes (W11).
+                self.output = (self.rt.outputs()?.into_iter()).find(|o| o.name != name);
+                if self.output.is_some() {
+                    self.build()?;
+                }
                 Ok(())
             }
             Event::AnimationDone {
                 node: Some(node), ..
             } if node == TICK => self.type_next(),
+            Event::AnimationDone {
+                node: Some(node), ..
+            } if node == WAIT => self.look_at_launched(),
             Event::AnimationDone {
                 node: Some(node), ..
             } if node == CLOCK => {
@@ -839,6 +859,26 @@ impl Mc {
         self.rt.conn.apply(commands)
     }
 
+    /// Creates the group of a scene with its panels and its window.
+    fn scene_commands(&self, name: &str) -> Vec<Command> {
+        let shown = self.current.as_deref() == Some(name);
+        let mut commands = vec![create(
+            &scene_id(name),
+            NodeKind::Group,
+            NAME,
+            PropsUpdate {
+                visible: Some(shown),
+                opacity: Some(if shown { 1.0 } else { 0.0 }),
+                ..PropsUpdate::default()
+            },
+        )];
+        commands.extend(self.panels(name));
+        if let Some(surface) = self.windows.get(name) {
+            commands.extend(self.place_window(name, surface, false));
+        }
+        commands
+    }
+
     /// Applies the base of the plugin and its scenes in one transaction.
     /// One scene that the core refuses must not blank the others: then
     /// each goes on its own, and a refused one is left out with a log line
@@ -852,19 +892,16 @@ impl Mc {
             .chain(scenes.iter().flat_map(|(_, c)| c))
             .cloned()
             .collect();
-        match self.apply(all) {
-            Err(ClientError::Rpc(err)) => eprintln!("chora-mc: {err}; the scenes go one by one"),
-            other => return other,
-        }
+        let Some(err) = self.rt.conn.try_apply(all)? else {
+            return Ok(());
+        };
+        eprintln!("chora-mc: {err}; the scenes go one by one");
         self.apply(base)?;
         for (name, commands) in scenes {
-            match self.apply(commands) {
-                Err(ClientError::Rpc(err)) => {
-                    eprintln!("chora-mc: scene {name}: {err}; left out");
-                    self.scenes.remove(&name);
-                    self.windows.remove(&name);
-                }
-                other => other?,
+            if let Some(err) = self.rt.conn.try_apply(commands)? {
+                eprintln!("chora-mc: scene {name}: {err}; left out");
+                self.scenes.remove(&name);
+                self.windows.remove(&name);
             }
         }
         Ok(())
@@ -897,6 +934,7 @@ impl Mc {
         ));
         commands.push(create(TICK, NodeKind::Group, NAME, PropsUpdate::default()));
         commands.push(create(CLOCK, NodeKind::Group, NAME, PropsUpdate::default()));
+        commands.push(create(WAIT, NodeKind::Group, NAME, PropsUpdate::default()));
         commands.extend(self.tick_clocks());
         commands.push(create(
             "mc-bg",
@@ -908,25 +946,9 @@ impl Mc {
                 ..PropsUpdate::default()
             },
         ));
-        let mut scenes = Vec::new();
-        for name in self.scenes.keys() {
-            let shown = self.current.as_ref() == Some(name);
-            let mut commands = vec![create(
-                &scene_id(name),
-                NodeKind::Group,
-                NAME,
-                PropsUpdate {
-                    visible: Some(shown),
-                    opacity: Some(if shown { 1.0 } else { 0.0 }),
-                    ..PropsUpdate::default()
-                },
-            )];
-            commands.extend(self.panels(name));
-            if let Some(surface) = self.windows.get(name) {
-                commands.extend(self.place_window(name, surface, false));
-            }
-            scenes.push((name.clone(), commands));
-        }
+        let scenes = (self.scenes.keys())
+            .map(|name| (name.clone(), self.scene_commands(name)))
+            .collect();
         self.apply_scenes(commands, scenes)?;
         self.built = true;
         self.rendered = None;
@@ -1385,7 +1407,9 @@ impl Mc {
         });
         self.apply(commands)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
-        self.current = Some(name.into());
+        if self.current.as_deref() != Some(name) {
+            self.previous = self.current.replace(name.into());
+        }
         // A hidden scene has no layout of the core: its notes align now.
         self.align(name)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
@@ -1393,12 +1417,55 @@ impl Mc {
         self.render()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         let waiting = (self.starting.values()).any(|t| *t == Target::Scene(name.into()));
-        if let (Some(command), None, false) = (app, window, waiting)
-            && let Some(token) = launch(&command)
-        {
-            self.starting.insert(token, Target::Scene(name.into()));
+        if let (Some(command), None, false) = (app, window, waiting) {
+            self.launch_scene(name, &command)
+                .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
         Ok(())
+    }
+
+    /// Starts the app of a scene, whose window then fills it.
+    fn launch_scene(&mut self, name: &str, command: &str) -> Result<(), ClientError> {
+        let Some((token, pid)) = launch(command) else {
+            return Ok(());
+        };
+        self.starting.insert(token, Target::Scene(name.into()));
+        if self.launched.is_empty() {
+            self.apply(vec![wait()])?;
+        }
+        self.launched.push((name.into(), pid));
+        Ok(())
+    }
+
+    /// An app of a scene that ended without a window leaves its scene
+    /// empty: the scene before it shows again (W11).
+    fn look_at_launched(&mut self) -> Result<(), ClientError> {
+        let windows = &self.windows;
+        self.launched
+            .retain(|(name, _)| !windows.contains_key(name));
+        let (ended, running) = std::mem::take(&mut self.launched)
+            .into_iter()
+            .partition(|(_, pid)| !pid.is_some_and(alive));
+        self.launched = running;
+        let ended: Vec<(String, Option<u32>)> = ended;
+        for (name, _) in ended {
+            // The next show of the scene starts the app again.
+            let target = Target::Scene(name.clone());
+            self.starting.retain(|_, t| *t != target);
+            if self.current.as_deref() != Some(&name) || self.windows.contains_key(&name) {
+                continue;
+            }
+            let back = (self.previous.clone())
+                .filter(|p| *p != name && self.scenes.contains_key(p))
+                .unwrap_or_else(|| self.settings.value.default_scene.clone());
+            if let Err(err) = self.show(&back) {
+                eprintln!("chora-mc: {back}: {}", err.message);
+            }
+        }
+        if self.launched.is_empty() {
+            return Ok(());
+        }
+        self.apply(vec![wait()])
     }
 
     /// The scene of `app.open`, named after the program.
@@ -1491,6 +1558,25 @@ impl Mc {
             eprintln!("chora-mc: {name}: {}", err.message);
         }
         Ok(())
+    }
+
+    /// A surface lost its parent and its owner. One of the plugin, for
+    /// example after a hotplug, goes back to its scene or region: the
+    /// plugin still counts it as its own, and a later move of it failed
+    /// with "belongs to nobody" (W11).
+    fn reattach(&mut self, surface: &str) -> Result<(), ClientError> {
+        let scene = (self.windows.iter()).find(|(_, s)| *s == surface);
+        if let Some(name) = scene.map(|(n, _)| n.clone()) {
+            let commands = self.place_window(&name, surface, true);
+            return self.apply(commands);
+        }
+        if self.docks.values().any(|s| s == surface) {
+            return self.apply(vec![Command::Attach {
+                surface: surface.into(),
+                parent: REGIONS.into(),
+            }]);
+        }
+        self.adopt(surface, None, None)
     }
 
     /// A window closed: a scene that only held it goes, and the default
@@ -1739,9 +1825,29 @@ fn regions_on_top() -> Command {
     }
 }
 
+/// The empty animation after which the plugin looks at the apps that wait
+/// for their window.
+fn wait() -> Command {
+    Command::Animate {
+        id: WAIT.into(),
+        props: PropsUpdate::default(),
+        duration: WAIT_MS,
+        easing: Easing::Linear,
+    }
+}
+
+/// Whether a process runs, not ended and not a zombie.
+fn alive(pid: u32) -> bool {
+    let stat = chora_kit::read_text(std::path::Path::new(&format!("/proc/{pid}/stat")), 4096);
+    // The state follows the name in parentheses, which may hold any byte.
+    stat.ok()
+        .and_then(|s| Some(s[s.rfind(')')? + 1..].trim_start().starts_with('Z')))
+        .is_some_and(|zombie| !zombie)
+}
+
 /// Starts a shell command with `choractl run`, and answers the activation
-/// token that finds its window again.
-fn launch(command: &str) -> Option<String> {
+/// token that finds its window again, and the process, if it is known.
+fn launch(command: &str) -> Option<(String, Option<u32>)> {
     let run = std::process::Command::new("choractl")
         .args(["run", "--", "sh", "-c", command])
         .stdin(std::process::Stdio::null())
@@ -1759,11 +1865,18 @@ fn launch(command: &str) -> Option<String> {
         }
     };
     let answer: Value = serde_json::from_slice(&line).unwrap_or_default();
-    answer["token"].as_str().map(Into::into)
+    let pid = answer["pid"].as_u64().and_then(|p| u32::try_from(p).ok());
+    Some((answer["token"].as_str()?.into(), pid))
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_running_process_is_alive_and_a_missing_one_not() {
+        assert!(super::alive(std::process::id()));
+        assert!(!super::alive(u32::MAX));
+    }
+
     /// A client with `methods.call` alone ran commands through app.open and
     /// scene.save (W12).
     #[test]

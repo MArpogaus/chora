@@ -939,7 +939,7 @@ impl Mc {
         }
         let config = &self.settings.value;
         let command = command(&config.contents[app].command, config.colors());
-        if let Some(token) = crate::launch(&command) {
+        if let Some((token, _)) = crate::launch(&command) {
             self.starting.insert(token, crate::Target::Dock(app.into()));
         }
     }
