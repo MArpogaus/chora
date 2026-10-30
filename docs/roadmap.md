@@ -7,6 +7,7 @@ with a stable, versioned API (D3).
 
 - Each milestone is a minor release: 0.6, 0.7 and so on.
 - Each milestone has a goal, a scope, an estimate and a **gate**.
+- A milestone gets its estimate when its scope is fixed.
 - The gate is a list of checks. A check is a CI job or a step on the
   reference hardware with a log as evidence (D46).
 - A milestone is done when every check of its gate holds. The next
@@ -44,7 +45,7 @@ tests and the review rounds.
 
 The basis is this repository: about 26,000 lines of Rust in 54 hours of
 calendar time. A rework of existing code costs more than new code. The
-table uses about 140 to 200 lines per agent hour for 0.6 to 0.8 and for
+table uses about 140 to 200 lines per agent hour for 0.6, 0.7 and
 0.10. The milestones 0.9 and 1.0 have hardware work and use about 80 to
 125.
 
@@ -224,42 +225,39 @@ The checks of the delivered scope, named by their scripts:
 
 ## 0.8: Lean plugins and the agent API
 
-**Goal:** a lean core with generic plugins that every flavor can reuse.
-The XP flavor is a gimmick on top. An agent changes the look of windows
-through their window manager and gets warnings from the core.
+**Goal:** lean plugins on a shared runtime, and the agent API gaps.
 
 Scope:
 
-- A shared plugin runtime in `chora-kit`: the reconnect loop, the startup
-  with `output.list`, `events.subscribe` and `methods.export`, grabs, the
-  export and dispatch of methods, the `--output` filter, claims, and the
-  resume from `meta`.
-- `chora-tiling` is the lean reference window manager on the runtime.
-  `chora-xp` moves onto it.
-- The wallpaper is a plugin of its own. Every flavor can use it.
 - `chora-xp` draws no programs into the scene: no Explorer and folder
   windows, no Control Panel, Display Properties, Date and Time and file
   properties, and no session dialogs. The git tag
   `archive/xp-scene-programs` keeps this code.
+- A shared plugin runtime in `chora-kit`: the reconnect loop, the startup
+  with `output.list`, `events.subscribe` and `methods.export`, grabs, the
+  export and dispatch of methods, and the `--output` filter. Claims and the resume from `meta` go into the
+  runtime only where both plugins use them in the same way.
+- `chora-tiling` is the lean reference window manager on the runtime.
+  `chora-xp` moves onto it.
 - The start menu and double clicks of `chora-xp` start installed
-  programs. Its configuration chooses them, for example Thunar as the file
-  manager. The explorer of xfce-winxp-tc is one optional choice. chora
-  takes no code from that project.
+  programs. Its configuration chooses them, for example a file manager
+  such as Thunar.
 - `chora-xp` keeps the XP look: frames, taskbar, start menu, the XP
-  notification balloons, wallpaper, sounds and the cube. Apart from this
-  milestone, it gets fixes only (D39).
+  notification balloons, wallpaper, sounds and the cube (D39).
 - The action `update` of `node.requested` changes opacity, effects and
   `meta` of a node through its owner (D58). The window manager keeps the
   change across layouts (#97).
 - `chora-tiling` has a default style for new windows (#99).
 - The answer of `scene.apply` carries `warnings` (D59): a surface attached
-  under a group with `input: pass` (#98), and a layer over the pixel
-  budget (#100).
-- An open question, decided in this milestone: the nodes of an agent stay
-  after its restart (#101). One option: `choractl mcp` connects with
-  `resume` instead of `keep_nodes`. The other option: `choractl mcp` keeps
-  `keep_nodes`, and the agent removes its old nodes.
+  under a group with `input: pass` (#98), and a layer that alone is larger
+  than the pixel budget of every output (#100).
+- `choractl mcp` keeps `keep_nodes`, and an agent removes its own old
+  nodes after a restart (D61, #101).
 - Bugs of `choractl mcp`: #53, #54 and #56.
+- The release workflow builds the RPM only (D14).
+
+The work removes the XP programs first, then extracts the runtime from
+`chora-tiling`, and then ports `chora-xp` to the runtime.
 
 Gate:
 
@@ -296,8 +294,8 @@ Gate:
 Scope:
 
 - The session starts through uwsm (D50). A flavor is a systemd target.
-- The tiling flavor: `chora-tiling` with waybar, fuzzel, mako, swaylock,
-  swayidle and kanshi (D51).
+- The tiling flavor: `chora-tiling` with waybar, fuzzel, mako, swaybg,
+  swaylock, swayidle and kanshi (D51).
 - Input device settings through the API: tap, acceleration, natural
   scroll, key repeat. A view sets them, so the core reads no file (D35).
 - Output hotplug, suspend and resume, lid switch, and the VT switch on the
