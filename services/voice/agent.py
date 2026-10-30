@@ -58,6 +58,7 @@ BARGE_MS = int(ENV("BARGE_MS", "300"))
 # While the agent works without sound, only longer speech stops it: a
 # sentence, not a "yes" to what it does.
 WORKING_BARGE_MS = 1000
+MAX_DIP_MS = 100  # a dip of the voice that the count of a barge-in bridges
 PTT_KEY = ENV("PTT_KEY", "Super+v")  # chora reports its release with the modifier
 CHORA_NAME = ENV("CHORA_NAME", "voice")  # the client name of the agent
 # The command of choractl; its tools, also run_program, run where it runs,
@@ -839,18 +840,21 @@ async def talk(
         return []
     reply = asyncio.create_task(speak(http, sentences(words)))
     recent: collections.deque[bytes] = collections.deque(maxlen=PREROLL_FRAMES)
-    loud, peak = 0, 0.0  # loud in ms
+    loud, dip, peak = 0, 0, 0.0  # loud and dip in ms
     mic.flush()  # the ASR time is not a barge-in
     while not reply.done():  # the mic gives a frame every 20 ms
         recent.append(await mic.frame())
         level = rms(recent[-1])
         peak = max(peak, level)
-        # The echo canceller damps the voice in bursts: a dip down to half
-        # the level of speech keeps the count, only quiet resets it.
+        # The echo canceller damps the voice in bursts: a short dip down to
+        # half the level of speech keeps the count, quiet or a long dip,
+        # such as between two echo peaks, resets it.
         if level >= mic.barge_in:
-            loud += FRAME_MS
-        elif level < mic.hold:
-            loud = 0
+            loud, dip = loud + FRAME_MS, 0
+        else:
+            dip += FRAME_MS
+            if level < mic.hold or dip > MAX_DIP_MS:
+                loud = 0
         by_key = ptt.is_set()
         heard = time.monotonic() < SOUND["end"] + 0.5  # and its echo
         if loud >= (BARGE_MS if heard else WORKING_BARGE_MS) or by_key:
@@ -995,7 +999,9 @@ async def turn(
     said = await transcribe(http, pcm) if len(pcm) >= RATE * 2 // 10 else ""
     log(f"you: {said}")
     pending = history[-1]["role"] == "user"
-    if said and pending:
+    if said and pending and history[-1]["content"] == GO_ON:
+        history[-1]["content"] = said  # the user speaks after all
+    elif said and pending:
         history[-1]["content"] += " " + said
     elif said:
         history.append({"role": "user", "content": said})
@@ -1061,12 +1067,12 @@ async def run_loop(
     async with Mic() as mic:
         while True:
             # A failed server or tool costs one turn, not the conversation.
+            start = len(history)
             try:
                 preroll = await turn(mic, tools, history, ptt, preroll)
             except TURN_ERRORS as err:
                 log(f"turn failed, the history drops it: {err!r}")
-                users = [i for i, m in enumerate(history) if m["role"] == "user"]
-                del history[users[-1] if users else 1 :]
+                del history[start:]
                 preroll = []
             trim(history)
             save(past, history)
