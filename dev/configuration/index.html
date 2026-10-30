@@ -1252,8 +1252,11 @@ stays closed.</p>
 <code>choractl restart</code> use this name.</p>
 <p><code>chora-tiling</code> reads <code>chora/chora-tiling.yaml</code> in <code>$XDG_CONFIG_HOME</code>, by
 default <code>~/.config</code>, or the file of <code>--config</code>. Without a file, it uses its
-default, which <code>chora-tiling --print-config</code> prints. The file lists every
-option:</p>
+default, which <code>chora-tiling --print-config</code> prints. The file holds the
+settings of D62: <code>settings.set</code> changes them at once and writes the file
+again, without its comments (see <a href="../api/#plugin-methods">API</a>). Edits by
+hand apply at the next start of the plugin or with <code>MOD+Ctrl+r</code>. The file
+lists every option:</p>
 <table>
 <thead>
 <tr>
@@ -1289,6 +1292,10 @@ option:</p>
 <tr>
 <td><code>focus</code></td>
 <td><code>click</code> or <code>follow_mouse</code></td>
+</tr>
+<tr>
+<td><code>style</code></td>
+<td>how a new window looks: <code>opacity</code> from 0 to 1, and <code>effects</code>, a list of shaders as in <code>scene.apply</code> (#99); <code>chora-tiling</code> sets it once, when it takes the window</td>
 </tr>
 <tr>
 <td><code>bindings</code></td>
@@ -1351,6 +1358,11 @@ like <code>set_layout</code>.</p>
 <td><code>swap_master</code></td>
 <td><code>surface</code></td>
 <td><code>MOD+Ctrl+Return</code>, for this window</td>
+</tr>
+<tr>
+<td><code>settings.get</code>, <code>settings.set</code></td>
+<td>see <a href="../api/#plugin-methods">API</a></td>
+<td>an edit of the file and <code>MOD+Ctrl+r</code></td>
 </tr>
 </tbody>
 </table>

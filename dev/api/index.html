@@ -2266,8 +2266,8 @@ name or give itself capabilities.</p>
 plugins running.</p>
 <p><code>choractl run [--] CMD ARGS...</code> starts a program outside the core. It
 asks the core for an activation token with <code>activation.token</code> and
-passes it to the program in <code>XDG_ACTIVATION_TOKEN</code>. It prints the pid,
-the unit and the token as one JSON line while the program runs.</p>
+passes it to the program in <code>XDG_ACTIVATION_TOKEN</code>, and in
+<code>DESKTOP_STARTUP_ID</code> for GTK 3. It prints the pid, the unit and the token as one JSON line while the program runs.</p>
 <ul>
 <li>When <code>systemctl --user is-system-running</code> shows a state other than
   <code>offline</code>, a user manager runs. <code>systemd-run --user</code> then starts the
@@ -2497,6 +2497,16 @@ lists all of its methods:</p>
 </tr>
 </tbody>
 </table>
+<p>A plugin with settings exports <code>settings.get</code> and <code>settings.set</code> through
+the runtime of <code>chora-kit</code> (D62). <code>settings.get</code> answers all settings.
+<code>settings.set</code> takes an object. Each key replaces the value of that
+setting, and the other settings stay. The plugin checks the result, saves
+it in its YAML file in <code>$XDG_CONFIG_HOME/chora/</code> and applies it at once.
+<code>settings.set</code> answers all settings. A wrong value gets the error
+<code>-32602</code> and changes nothing. In <code>methods.list</code>, the schema of
+<code>settings.set</code> lists every setting.</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"style": {"opacity": 0.9, "effects": []}}'</span>
+</code></pre></div>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
 <p>A plugin is a client with a manifest:</p>
 <!-- parses: manifest -->

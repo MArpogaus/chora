@@ -1289,7 +1289,10 @@ for example to draw window decorations as its own surfaces.</p>
 repeats. It connects with <code>resume</code>, subscribes to the events and exports
 the methods of the plugin, before the plugin builds its scene. It grabs
 the bindings, answers the method calls and drops the events of outputs
-that <code>--output</code> leaves to other window managers. When the core closes
+that <code>--output</code> leaves to other window managers. It answers
+<code>settings.get</code> and <code>settings.set</code> of a plugin with settings (D62): it
+checks a change, writes the YAML file of the plugin to a temporary file
+and renames it, and then the plugin applies the change. When the core closes
 the connection, for example at the emergency reset, it connects again
 after 500 ms. It gives up when only failures follow for 30 s. The plugin keeps
 its claim and its restart from <code>meta</code>, because each plugin rebuilds
