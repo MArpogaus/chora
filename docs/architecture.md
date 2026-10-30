@@ -74,9 +74,10 @@ The compositor binary `chora`. Its tasks, and nothing more:
   `WAYLAND_DISPLAY` and `CHORA_SOCKET` set. The command does not get the
   variables that reach a host compositor, for example `WAYLAND_SOCKET` and
   `SWAYSOCK`. Without a command, the core shows a black screen. When the
-  command fails and no client said hello, the core logs an error and
-  exits with a failure, so a window manager that cannot start leaves no
-  black screen.
+  command fails while no client said hello and no window is open, the
+  core logs an error and exits with a failure, so a window manager that
+  cannot start leaves no black screen. A window manager that crashes in a
+  session with windows leaves the core running.
 
 The core places popups, subsurfaces and layer surfaces itself, because the
 protocols define their position. Smithay's `PopupManager` and `LayerMap` do
