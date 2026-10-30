@@ -98,9 +98,9 @@ How chora works:
 
 Where to look:
 - describe_screen: the windows, the outputs and the plugins with their
-  methods, as text. You do not see the picture: you cannot tell colors,
-  shapes or how a shader looks. Never describe what the screen shows
-  beyond these facts; ask the user how it looks.
+  methods, as text, and a picture of the screen when you read images.
+  Without the picture you cannot tell colors, shapes or how a shader
+  looks; then never describe more than these facts, and ask the user.
 - query_scene: the nodes and their properties.
 - list_plugins: the methods of each plugin, with their parameters.
 - The error of a tool says why it refused. Read it before you try again.
@@ -453,10 +453,17 @@ class Tools:
         self.http = http
         self.specs: list[dict] = []
         self.names: dict[str, str] = {}  # OpenAI function name -> MCP tool name
+        self.vision = False  # whether the LLM reads the picture of describe_screen
         self.job: asyncio.Task | None = None  # asyncio keeps only weak references
 
     async def load(self) -> None:
-        """Ask chora for its tools and add `delegate`."""
+        """Ask chora for its tools, add `delegate`, and ask the LLM for images."""
+        with contextlib.suppress(aiohttp.ClientError, ValueError, TimeoutError):
+            async with self.http.get(f"{LLM_URL}/models") as r:
+                models = (await r.json()).get("data") or [{}]
+            modalities = models[0].get("architecture", {}).get("input_modalities", [])
+            self.vision = "image" in modalities
+        log(f"the LLM {'sees' if self.vision else 'does not see'} the pictures of describe_screen")
         if self.session:
             for tool in (await self.session.list_tools()).tools:
                 if tool.name in SKIPPED_TOOLS:
@@ -474,16 +481,21 @@ class Tools:
             )
             self.specs.append(function("delegate", description, parameters))
 
-    async def call(self, name: str, arguments: dict) -> str:
-        """Run a tool and return its text for the LLM."""
+    async def call(self, name: str, arguments: dict) -> str | list[dict]:
+        """Run a tool and return its content for the LLM: text, and images if it sees them."""
         if name == "delegate" and CODER_CMD:  # else the task text would run as the program
             return self.delegate(arguments["task"])
         if name not in self.names:
             return f"no tool {name}"
         result = await self.session.call_tool(self.names[name], arguments)
-        # The LLM reads text only, so the image of describe_screen stays out.
         text = "\n".join(c.text for c in result.content if c.type == "text")
-        return ("error: " if result.is_error else "") + (text or "done")
+        text = ("error: " if result.is_error else "") + (text or "done")
+        images = [
+            {"type": "image_url", "image_url": {"url": f"data:{c.mimeType};base64,{c.data}"}}
+            for c in result.content
+            if c.type == "image" and self.vision
+        ]
+        return [{"type": "text", "text": text}, *images] if images else text
 
     def delegate(self, task: str) -> str:
         """Start CODER_CMD with a task in the background, one at a time."""
@@ -595,14 +607,21 @@ async def _deltas(http: aiohttp.ClientSession, body: dict) -> AsyncIterator[dict
     log(f"llm: {finish}, prompt of {tokens} tokens")
 
 
-async def _run_call(tools: Tools, call: dict) -> str:
+def text_of(content: str | list[dict]) -> str:
+    """Return the text of a message content, without its images."""
+    if isinstance(content, str):
+        return content
+    return " ".join(p.get("text", "[picture]") for p in content)
+
+
+async def _run_call(tools: Tools, call: dict) -> str | list[dict]:
     try:
         arguments = json.loads(call["args"] or "{}")
         log(f"tool {call['name']} {arguments}")
         result = await tools.call(call["name"], arguments)
     except (*TURN_ERRORS, TypeError) as err:  # the LLM reads the error and goes on
         result = f"error: {err}"
-    log(f"  -> {' '.join(result.split())[:300]}")
+    log(f"  -> {' '.join(text_of(result).split())[:300]}")
     return result
 
 
@@ -920,8 +939,12 @@ def trim(history: list[dict]) -> None:
                     assets[json.loads(call["function"]["arguments"]).get("name")] = call
     last = [id(call) for call in assets.values()]
     for message in history[1 : users[-1] if users else 1]:
-        if message["role"] == "tool" and len(message["content"]) > OLD_TOOL_TEXT:
-            message["content"] = message["content"][:OLD_TOOL_TEXT] + " [shortened]"
+        if message["role"] == "tool":
+            # A picture is the screen of its turn only.
+            text = text_of(message["content"])
+            if len(text) > OLD_TOOL_TEXT:
+                text = text[:OLD_TOOL_TEXT] + " [shortened]"
+            message["content"] = text
         for call in message.get("tool_calls", []):
             if len(call["function"]["arguments"]) > OLD_TOOL_TEXT and id(call) not in last:
                 # Arguments stay JSON, which the chat template of the LLM reads.

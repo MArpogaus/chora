@@ -180,7 +180,10 @@ speech, so that you can talk over a reply at a normal level.
 The LLM gets the tools of `choractl --name voice mcp`, except the event
 tools and `capture`. `CHORA_MCP` is the command of `choractl`, so
 that the tools run in another place, for example `podman exec -i NAME
-choractl` in a container. Its programs then start in the container. The unit finds chora through
+choractl` in a container. Its programs then start in the container. When the LLM reads images, which
+`/v1/models` of Gufo says with `input_modalities`, `describe_screen` gives
+it the screenshot too; the log says so at the start. A text-only LLM gets
+the windows and nodes as text only. The unit finds chora through
 `CHORA_SOCKET`, which a chora flavor gives the user manager.
 `CODER_CMD`, for example `claude -p --permission-mode acceptEdits`, adds
 the tool `delegate`. It runs bigger tasks in the background, in the
