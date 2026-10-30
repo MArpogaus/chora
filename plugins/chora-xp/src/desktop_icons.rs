@@ -872,7 +872,7 @@ fn parse_user_dir(text: &str, var: &str, home: &str) -> Option<PathBuf> {
 }
 
 /// The files of the trash: `Trash/files` of `$XDG_DATA_HOME`.
-fn trash_dir() -> PathBuf {
+pub fn trash_dir() -> PathBuf {
     crate::folder::trash_root().join("files")
 }
 
@@ -882,7 +882,12 @@ fn trash_full(dir: &Path) -> bool {
 
 /// The shell command that opens a file with the program of its type.
 pub fn xdg_open(path: &Path) -> String {
-    format!("xdg-open {}", quote(&path.to_string_lossy()))
+    open_with("xdg-open", path)
+}
+
+/// The shell command that runs a command on a path.
+pub fn open_with(command: &str, path: &Path) -> String {
+    format!("{command} {}", quote(&path.to_string_lossy()))
 }
 
 /// Quotes a word for the shell.

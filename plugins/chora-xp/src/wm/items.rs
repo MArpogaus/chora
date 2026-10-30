@@ -11,7 +11,7 @@ use crate::{
     confirm::ConfirmDialog,
     context::{self, Item},
     desktop_icons::{DesktopIcons, Open},
-    folder::{self, Place},
+    folder,
     properties::{self, PropertiesDialog},
     startmenu::{Action, Menu},
     taskbar::Bar,
@@ -24,12 +24,7 @@ impl Wm {
     pub(super) fn open_item_menu(&mut self, node: &str, point: [i32; 2]) -> Option<Vec<Command>> {
         let (target, kind, mut commands) = if Menu::owns(node) {
             let item = self.menu.item(node, &mut self.icons)?;
-            let kind = match (&item.action, item.program) {
-                (_, Some(_)) => context::Target::Program(true),
-                (Action::Explore(Place::Folder(_)), _) => context::Target::Place(true),
-                (Action::Run(_), _) => context::Target::Program(false),
-                _ => context::Target::Place(false),
-            };
+            let kind = context::Target::Program(item.program.is_some());
             let held = self.menu.hold(&mut self.theme, Some(node));
             (Target::Start(item), kind, held)
         } else if DesktopIcons::owns(node) {
@@ -72,7 +67,7 @@ impl Wm {
                 let output = self.menu.output().map(String::from);
                 let mut commands = self.close_menu();
                 match act {
-                    Item::Open | Item::Explore => {
+                    Item::Open => {
                         commands.extend(self.run(&item.action, output.as_deref()));
                     }
                     Item::Remove => {
@@ -86,9 +81,7 @@ impl Wm {
                     }
                     Item::Properties => {
                         let lines = match &item.action {
-                            Action::Explore(Place::Folder(path)) => properties::of_path(path),
                             Action::Run(command) => properties::of_shortcut(command),
-                            Action::Explore(place) => properties::of_shortcut(&place.title()),
                             _ => Vec::new(),
                         };
                         commands.extend(self.open_properties(&item.title, item.icon, lines));
@@ -99,12 +92,6 @@ impl Wm {
             }
             Some(Target::Icon(item)) => match act {
                 Item::Open => self.open_icon(item.open),
-                Item::Explore => match item.open {
-                    Open::Folder(path) => self.open_explorer(Place::Folder(path)),
-                    Open::Computer => self.open_explorer(Place::Computer),
-                    Open::Trash => self.open_explorer(Place::Trash),
-                    _ => Vec::new(),
-                },
                 Item::Delete => self.confirm_trash(vec![PathBuf::from(&item.key)]),
                 Item::EmptyTrash => {
                     let names: Vec<String> = folder::trash(&folder::trash_root())

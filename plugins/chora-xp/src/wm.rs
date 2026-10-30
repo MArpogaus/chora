@@ -95,6 +95,8 @@ const FADE: Duration = Duration::from_millis(1500);
 pub struct Config {
     /// The shell command of the terminal.
     pub terminal: String,
+    /// The shell command of the file manager.
+    pub file_manager: String,
     /// The strftime format of the clock.
     pub clock: String,
     /// The background of the desktop.
@@ -2330,7 +2332,6 @@ impl Wm {
             Action::LogOff => self.open_dialog(Mode::LogOff, output),
             Action::TurnOff => self.open_dialog(Mode::TurnOff, output),
             Action::Set(setting) => self.set(setting, output),
-            Action::Explore(place) => self.open_explorer(place.clone()),
         }
     }
 
@@ -2813,23 +2814,18 @@ impl Wm {
         commands
     }
 
-    /// Opens what an icon stands for: a place in Explorer, a program or
-    /// a file with the program of its type.
+    /// Opens what an icon stands for: a folder in the file manager, a
+    /// program or a file with the program of its type.
     fn open_icon(&mut self, open: desktop_icons::Open) -> Vec<Command> {
-        let place = match open {
-            desktop_icons::Open::Folder(path) => Place::Folder(path),
-            desktop_icons::Open::Computer => Place::Computer,
-            desktop_icons::Open::Trash => Place::Trash,
-            desktop_icons::Open::Run(command) => {
-                chora_kit::run(&command);
-                return Vec::new();
-            }
-            desktop_icons::Open::File(path) => {
-                chora_kit::run(&desktop_icons::xdg_open(&path));
-                return Vec::new();
-            }
-        };
-        self.open_explorer(place)
+        let fm = &self.config.file_manager;
+        chora_kit::run(&match open {
+            desktop_icons::Open::Folder(path) => desktop_icons::open_with(fm, &path),
+            desktop_icons::Open::Computer => desktop_icons::open_with(fm, Path::new("/")),
+            desktop_icons::Open::Trash => desktop_icons::open_with(fm, &desktop_icons::trash_dir()),
+            desktop_icons::Open::Run(command) => command,
+            desktop_icons::Open::File(path) => desktop_icons::xdg_open(&path),
+        });
+        Vec::new()
     }
 
     // The Control Panel of the start menu

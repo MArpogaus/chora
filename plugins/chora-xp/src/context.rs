@@ -79,8 +79,6 @@ pub enum Act {
 pub enum Item {
     /// Open, as a double click does.
     Open,
-    /// Explore: opens a folder in Explorer.
-    Explore,
     /// Delete: moves the file to the Recycle Bin.
     Delete,
     /// Empty Recycle Bin.
@@ -104,10 +102,9 @@ pub enum Target {
     Computer,
     /// The Recycle Bin, empty or not.
     Trash(bool),
-    /// A program of the start menu; one of its left column can leave it.
+    /// A program or a place of the start menu; a program of its left
+    /// column can leave it.
     Program(bool),
-    /// A place of the start menu; a folder can be explored.
-    Place(bool),
 }
 
 /// What a row of XP's system menu does to its window.
@@ -321,18 +318,16 @@ pub fn desktop() -> Vec<Entry> {
 pub fn item(target: Target) -> Vec<Entry> {
     let row = |title: &str, item: Item| Entry::item(title, Act::Item(item));
     let open = row("Open", Item::Open).bold();
-    let explore = row("Explore", Item::Explore);
     let send_to = Entry::sub("Send To", Vec::new()).enabled(false);
     let properties = row("Properties", Item::Properties);
     let sep = Entry::separator;
     let gray = Entry::gray;
     match target {
         Target::Folder | Target::File | Target::Documents => {
-            file_rows(target, open, explore, send_to, properties)
+            file_rows(target, open, send_to, properties)
         }
         Target::Computer => vec![
             open,
-            explore,
             gray("Search..."),
             gray("Manage"),
             sep(),
@@ -347,7 +342,6 @@ pub fn item(target: Target) -> Vec<Entry> {
         ],
         Target::Trash(full) => vec![
             open,
-            explore,
             row("Empty Recycle Bin", Item::EmptyTrash).enabled(full),
             sep(),
             gray("Create Shortcut"),
@@ -366,31 +360,17 @@ pub fn item(target: Target) -> Vec<Entry> {
             sep(),
             properties,
         ],
-        Target::Place(folder) => {
-            let mut rows = vec![open];
-            if folder {
-                rows.extend([explore, gray("Search...")]);
-            }
-            rows.extend([sep(), send_to, sep(), gray("Rename"), sep(), properties]);
-            rows
-        }
     }
 }
 
 /// The rows of a folder, a file or My Documents.
-fn file_rows(
-    target: Target,
-    open: Entry,
-    explore: Entry,
-    send_to: Entry,
-    properties: Entry,
-) -> Vec<Entry> {
+fn file_rows(target: Target, open: Entry, send_to: Entry, properties: Entry) -> Vec<Entry> {
     let (sep, gray) = (Entry::separator, Entry::gray);
     let mut rows = vec![open];
     if target == Target::File {
         rows.push(Entry::sub("Open With", Vec::new()).enabled(false));
     } else {
-        rows.extend([explore, gray("Search...")]);
+        rows.push(gray("Search..."));
     }
     rows.extend([sep(), send_to, sep(), gray("Cut"), gray("Copy"), sep()]);
     rows.extend([
@@ -1171,29 +1151,19 @@ mod tests {
                 .map(|(t, _)| t)
                 .collect()
         };
-        assert_eq!(
-            enabled(Target::Folder),
-            ["Open", "Explore", "Delete", "Properties"]
-        );
+        assert_eq!(enabled(Target::Folder), ["Open", "Delete", "Properties"]);
         assert_eq!(enabled(Target::File), ["Open", "Delete", "Properties"]);
-        assert_eq!(
-            enabled(Target::Documents),
-            ["Open", "Explore", "Properties"]
-        );
-        assert_eq!(enabled(Target::Computer), ["Open", "Explore"]);
+        assert_eq!(enabled(Target::Documents), ["Open", "Properties"]);
+        assert_eq!(enabled(Target::Computer), ["Open"]);
         assert_eq!(
             enabled(Target::Trash(true)),
-            ["Open", "Explore", "Empty Recycle Bin", "Properties"]
+            ["Open", "Empty Recycle Bin", "Properties"]
         );
-        assert_eq!(
-            enabled(Target::Trash(false)),
-            ["Open", "Explore", "Properties"]
-        );
+        assert_eq!(enabled(Target::Trash(false)), ["Open", "Properties"]);
         assert_eq!(
             enabled(Target::Program(true)),
             ["Open", "Remove from This List", "Properties"]
         );
-        assert_eq!(enabled(Target::Place(false)), ["Open", "Properties"]);
     }
 
     #[test]

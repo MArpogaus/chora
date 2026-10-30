@@ -16,8 +16,7 @@ use crate::{
     cascade::{self, Cascade, Margins, Row},
     context::{Key, wrap},
     control::Setting,
-    desktop_icons, explorer,
-    folder::Place,
+    desktop_icons,
     text::{Font, Text},
     theme::{Picture, Rect, Sheet, Theme},
 };
@@ -52,8 +51,6 @@ pub enum Action {
     TurnOff,
     /// Changes a setting of the Control Panel.
     Set(Setting),
-    /// Opens a place in XP's Explorer.
-    Explore(Place),
 }
 
 /// The column or the footer of an entry.
@@ -88,6 +85,8 @@ pub struct Config {
     pub programs: Vec<(String, String, String)>,
     /// The command of Run, and of All Programs without programs.
     pub launcher: String,
+    /// The command of the file manager, for the places.
+    pub file_manager: String,
     /// The contents of All Programs.
     pub apps: Vec<Node>,
 }
@@ -887,16 +886,16 @@ fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
 fn places(config: &Config, icons: &mut Icons) -> Vec<Entry> {
     // The user directories, else the folders of XP's names in the home
     // directory.
+    let open = |dir: &Path| Action::Run(desktop_icons::open_with(&config.file_manager, dir));
     let folder = |var: &str, name: &str| {
         let home = std::env::var_os("HOME").map_or_else(|| "/".into(), PathBuf::from);
-        let dir = desktop_icons::user_dir(var).unwrap_or_else(|| home.join(name));
-        Action::Explore(Place::Folder(dir))
+        open(&desktop_icons::user_dir(var).unwrap_or_else(|| home.join(name)))
     };
     let run = |command: &str| Action::Run(command.into());
     let list = [
         (
             "My Documents",
-            Action::Explore(Place::Folder(explorer::documents())),
+            folder("DOCUMENTS", ""),
             "folder-documents",
             true,
         ),
@@ -907,12 +906,7 @@ fn places(config: &Config, icons: &mut Icons) -> Vec<Entry> {
             true,
         ),
         ("My Music", folder("MUSIC", "Music"), "folder-music", true),
-        (
-            "My Computer",
-            Action::Explore(Place::Computer),
-            "computer",
-            true,
-        ),
+        ("My Computer", open(Path::new("/")), "computer", true),
         ("", run(""), "", false),
         // A cascade, as with XP's "Display as a menu".
         (CONTROL_PANEL, run(""), "preferences-system", false),
@@ -1131,6 +1125,7 @@ mod tests {
                 "utilities-terminal".into(),
             )],
             launcher: "fuzzel".into(),
+            file_manager: "thunar".into(),
             apps: Vec::new(),
         }
     }

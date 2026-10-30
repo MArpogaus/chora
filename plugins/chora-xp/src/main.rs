@@ -71,6 +71,10 @@ struct Args {
     /// lists a program.
     #[arg(long, default_value = "fuzzel")]
     launcher: String,
+    /// The shell command of the file manager, for the places of the start
+    /// menu and the folders of the desktop; the folder follows it.
+    #[arg(long, default_value = "thunar")]
+    file_manager: String,
     /// More programs for the start menu, as TITLE=COMMAND.
     #[arg(long = "program", value_name = "TITLE=COMMAND")]
     programs: Vec<String>,
@@ -140,6 +144,7 @@ fn run(args: &Args) -> Result<(), String> {
     let menu = Menu::new(&menu_config(args), &theme, &mut icons);
     let config = wm::Config {
         terminal: args.terminal.clone(),
+        file_manager: args.file_manager.clone(),
         clock: args.clock.clone(),
         wallpaper: wallpaper::Style::new(
             args.wallpaper
@@ -246,6 +251,7 @@ fn menu_config(args: &Args) -> startmenu::Config {
             .unwrap_or_else(|_| "User".into()),
         programs,
         launcher: args.launcher.clone(),
+        file_manager: args.file_manager.clone(),
         apps: apps::load(&args.terminal),
     }
 }
