@@ -20,6 +20,10 @@ themes:
 font:
   family: Inter
   size: 20
+# New text writes itself: first its outline line by line, then its fill.
+write:
+  enabled: true
+  duration_ms: 900
 # The scene at the start.
 default_scene: agenda
 # A binding and its action: next_scene, previous_scene, {scene: NAME}, or

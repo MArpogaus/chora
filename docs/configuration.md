@@ -240,22 +240,33 @@ panels:
 | `scene.show` | `name`; the scene fades in, the old one fades out |
 | `scene.list` | none; answers `scenes` and `current` |
 | `scene.save` | `name`, `grid`, `panels` or `app`; writes the file |
-| `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start |
+| `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab makes two columns: the part before the first tab, and the rest, which does not wrap |
 | `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line |
+| `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it |
 | `app.open` | `command`: a shell command that starts in a scene of its own |
+
+New text writes itself, as Write of manim: a soft front draws the
+outlines line by line, and the fill follows. This happens when a scene
+shows and when `panel.set` changes the text of a panel; the same text
+again changes nothing. The effect is `plugins/chora-mc/write.frag`, and
+the `animate` of the core moves its uniform `progress` from 0 to 1.
 
 A window that no scene started, for example from a launcher, gets a scene
 of its own. The settings of D62 are in `chora/chora-mc.yaml`:
-`theme` (`light` or `dark`), the colors of each theme, the `font` (Inter by default, from the Fedora
-package `rsms-inter-fonts`; a system font shows without it), the
-`default_scene` and the `bindings` with the actions `next_scene`,
-`previous_scene`, `scene: NAME` and `run: COMMAND`. `chora-mc
---print-config` prints the default. The collector
+
+- `theme` (`light` or `dark`) and the colors of each theme.
+- `font`: Inter by default, from the Fedora package `rsms-inter-fonts`;
+  a system font shows without it.
+- `write`: `enabled` (default `true`) and `duration_ms` (default 900).
+- `default_scene`, and the `bindings` with the actions `next_scene`,
+  `previous_scene`, `scene: NAME` and `run: COMMAND`.
+
+`chora-mc --print-config` prints the default. The collector
 `plugins/chora-mc/collectors/agenda.sh` puts the org agenda of today into
 the scene `agenda`, with `emacs --batch`: the entries with a time, and the
-tasks scheduled or due today, as `TIME  TEXT`. It leaves out overdue,
-upcoming and done tasks. `ORG_TODO` sets the TODO keywords, by default
-`PROJ TODO NEXT WAIT | DONE KILL`.
+tasks scheduled or due today, each as a time and a text in two columns.
+It leaves out overdue, upcoming and done tasks. `ORG_TODO` sets the TODO
+keywords, by default `PROJ TODO NEXT WAIT | DONE KILL`.
 
 ## Flavors
 

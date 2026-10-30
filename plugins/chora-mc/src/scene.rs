@@ -98,6 +98,22 @@ impl Panel {
         self.lines.join("\n")
     }
 
+    /// With a tab in a line, the parts before and after the first tab
+    /// of each line, as two columns.
+    pub fn columns(&self) -> Option<(String, String)> {
+        if !self.lines.iter().any(|l| l.contains('\t')) {
+            return None;
+        }
+        let split = self
+            .lines
+            .iter()
+            .map(|l| l.split_once('\t').unwrap_or(("", l)));
+        let (times, texts): (Vec<&str>, Vec<&str>) = split.unzip();
+        // A text node needs a text.
+        let first = Some(times.join("\n")).filter(|t| !t.is_empty());
+        Some((first.unwrap_or_else(|| " ".into()), texts.join("\n")))
+    }
+
     /// A text node of the core takes at most 4 KiB.
     pub fn check_text(&self) -> Result<(), String> {
         if self.title.len() > MAX_TEXT || self.text().len() > MAX_TEXT {
@@ -256,6 +272,22 @@ mod tests {
             lines: vec!["x".repeat(MAX_TEXT + 1)],
         };
         assert!(long.check_text().is_err());
+    }
+
+    #[test]
+    fn a_tab_makes_two_columns() {
+        let mut panel = Panel {
+            id: "a".into(),
+            cell: [0, 0, 1, 1],
+            title: String::new(),
+            lines: vec!["9:00\tStandup".into(), "\tMail".into(), "Lunch".into()],
+        };
+        let columns = ("9:00\n\n".into(), "Standup\nMail\nLunch".into());
+        assert_eq!(panel.columns(), Some(columns));
+        panel.lines = vec!["\tMail".into()];
+        assert_eq!(panel.columns(), Some((" ".into(), "Mail".into())));
+        panel.lines = vec!["Mail".into()];
+        assert_eq!(panel.columns(), None);
     }
 
     #[test]
