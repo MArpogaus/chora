@@ -147,7 +147,9 @@ reply.
 
 The agent keeps the last `HISTORY` (20) turns in
 `~/.local/state/chora/voice-history.json` and takes them up at its next
-start. Delete the file to start a new conversation. The push-to-talk key
+start, its words only: the tool calls and results of an earlier session
+describe a scene that may be gone. Delete the file to start a new
+conversation. The push-to-talk key
 does the same. The mic also hears the speaker, so use headphones or the
 echo cancellation below. After each full reply, the log line `mic peak
 during the reply` shows the level that the barge-in level must stay above.

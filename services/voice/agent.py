@@ -862,6 +862,18 @@ def system_prompt() -> str:
     return "\n\n".join(parts)
 
 
+def spoken(messages: list[dict]) -> list[dict]:
+    """Return the words of a past session, without tool calls and results.
+
+    The node ids and places in them describe a scene that may be gone.
+    """
+    return [
+        {"role": m["role"], "content": m["content"]}
+        for m in messages
+        if m["role"] in ("user", "assistant") and m.get("content")
+    ]
+
+
 def save(history: list[dict]) -> None:
     """Write the conversation without the system prompt to HISTORY_FILE."""
     HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -973,7 +985,7 @@ async def run_loop(
     history = [{"role": "system", "content": system_prompt()}]
     log(f"system prompt: {len(history[0]['content'])} characters")
     if HISTORY_FILE.is_file():
-        history += json.loads(HISTORY_FILE.read_text())
+        history += spoken(json.loads(HISTORY_FILE.read_text()))
         log(f"{len(history) - 1} messages from {HISTORY_FILE}")
     warming = asyncio.create_task(warm(http, tools, history[:1]), name="warm-up")
     warming.add_done_callback(report)
