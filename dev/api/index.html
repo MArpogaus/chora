@@ -2507,6 +2507,14 @@ it in its YAML file in <code>$XDG_CONFIG_HOME/chora/</code> and applies it at on
 <code>settings.set</code> lists every setting.</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"style": {"opacity": 0.9, "effects": []}}'</span>
 </code></pre></div>
+<p><code>chora-xp</code> exports <code>start_menu</code>, <code>minimize</code>, <code>restore</code>, <code>activate</code>,
+<code>turn_to</code> and <code>restart</code>, and its settings: the wallpaper, the taskbar, the
+effects, the programs of the start menu and the commands of Log Off and
+Turn Off. <a href="../configuration/#the-xp-flavor">The XP flavor</a> lists them.
+Its dialogs change the settings in the same way as <code>settings.set</code>. The
+method <code>restart</code> runs <code>chora-xp</code> again, which reads the file again:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>xp<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"effects": {"wobbly": false, "lamp": true, "cube": true, "sounds": false}}'</span>
+</code></pre></div>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
 <p>A plugin is a client with a manifest:</p>
 <!-- parses: manifest -->
