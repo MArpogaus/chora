@@ -1,0 +1,12 @@
+[Unit]
+Description=waybar, the panel of the tiling flavor
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionPathExists=/usr/bin/waybar
+
+[Service]
+# chora-flavor sets CHORA_FLAVOR_DIR. The style is the one of waybar.
+ExecStart=/usr/bin/waybar --config ${CHORA_FLAVOR_DIR}/waybar/config.jsonc
+ExecReload=/bin/kill -SIGUSR2 $MAINPID
+Restart=on-failure
+RestartSec=1

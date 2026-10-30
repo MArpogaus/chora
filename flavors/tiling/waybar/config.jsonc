@@ -1,0 +1,43 @@
+// The panel of the tiling flavor. Only modules that need no IPC of sway;
+// custom/layout asks chora-tiling for the layout of the current tag.
+{
+  "layer": "top",
+  "position": "top",
+  "height": 26,
+  "modules-left": ["custom/layout"],
+  "modules-center": ["clock"],
+  "modules-right": ["pulseaudio", "network", "cpu", "memory", "battery", "tray"],
+  "custom/layout": {
+    "exec": "choractl call tiling get_layout 2>/dev/null | sed -n 's/^ *\"layout\": \"\\(.*\\)\",*$/\\1/p'",
+    "interval": 1,
+    "format": "[{}]",
+    "tooltip": false
+  },
+  "clock": {
+    "format": "{:%a %d %b %H:%M}",
+    "tooltip-format": "<tt>{calendar}</tt>"
+  },
+  "pulseaudio": {
+    "format": "vol {volume}%",
+    "format-muted": "vol muted"
+  },
+  "network": {
+    "format-wifi": "{essid} {signalStrength}%",
+    "format-ethernet": "{ipaddr}",
+    "format-disconnected": "offline",
+    "tooltip-format": "{ifname} {ipaddr}/{cidr}"
+  },
+  "cpu": {
+    "format": "cpu {usage}%"
+  },
+  "memory": {
+    "format": "mem {percentage}%"
+  },
+  "battery": {
+    "format": "bat {capacity}%",
+    "states": {"warning": 20, "critical": 10}
+  },
+  "tray": {
+    "spacing": 8
+  }
+}

@@ -1,0 +1,14 @@
+[Unit]
+Description=kanshi, the output profiles of the tiling flavor
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionPathExists=/usr/bin/kanshi
+# kanshi fails without profiles, so it starts only when the user has a
+# file (see the docs, Flavors).
+ConditionPathExists=%E/kanshi/config
+
+[Service]
+ExecStart=/usr/bin/kanshi
+ExecReload=/usr/bin/kanshictl reload
+Restart=on-failure
+RestartSec=1
