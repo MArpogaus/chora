@@ -1,50 +1,65 @@
 # chora-voice: the voice agent in Rust (draft specification)
 
-Status: draft, 2026-10-30. Sources: `services/voice/agent.py`, D53, D58,
-D61, D62, `docs/api.md`, the `chora-kit` runtime and settings,
-`choractl mcp`.
+Status: draft, 2026-10-30. WP0 is done. Sources:
+`services/voice/agent.py`, D53, D58, D61, D62, `docs/api.md`, the
+`chora-kit` runtime and settings, `choractl mcp`, and live probes of the
+Gufo servers.
+
+`chora-voice` is the first voice agent of chora for real use. The Python
+agent `services/voice/agent.py` is not in production use. It is only a
+reference for the protocols of the servers and for the lessons of its
+turns. When `chora-voice` completes a full voice turn (end of WP6), the
+Python agent and `voice-agent.service` go.
 
 ## 1. Goals and non-goals
 
 Goals:
 
-- One binary `chora-voice`: a chora client on the `chora-kit` runtime,
-  with D62 settings in place of `voice.env`.
-- Silero VAD (ONNX) as the speech gate.
+- One binary `chora-voice` in the crate `services/voice`: a chora client
+  on the `chora-kit` runtime, with D62 settings.
+- Silero VAD on `tract` (pure Rust, no C library) as the speech gate.
 - Always listening, with the local words "Schlaf" and "Hör zu", plus the
-  push-to-talk (PTT) key.
-- Voice cancel at any time, also while the agent speaks or works.
+  push-to-talk (PTT) key. The wake word goes through the ASR.
+- A cancel word stops the current turn at any time, also while the
+  agent speaks or works.
 - Spoken yes/no confirmation before the tools of a configurable list.
+- Separate mute switches for the mic and the speaker.
 - No silent failure; a latency per stage for each turn; a state for the
   HUD.
-- Replay tests from recorded audio that measure speech detection and
-  barge-in.
+- Replay tests that measure speech detection and barge-in against
+  labelled recordings.
 
 Non-goals: new ASR, TTS or LLM servers; a keyword-spotting model; an own
-echo canceller (the PipeWire one stays); a GUI; features beyond the
-Python agent and the known weaknesses.
+echo canceller (the PipeWire one stays); a GUI; a package before the
+agent completes full turns.
 
 ## 2. Architecture
 
-One tokio process. Each actor is one task, and actors talk through
-channels. The core holds the state machine as a pure function
-`step(state, event) -> (state, effects)`, so unit tests need no IO.
+One process. The `core` is one thread that reads one input channel. All
+other actors send their inputs into that channel, and the core sends
+effects back to them. The core holds the state machine as a pure
+function `step(state, input) -> (state, effects)`, so unit tests need no
+IO. WP4 adds a tokio runtime for the network actors; they send into the
+same channel.
 
 | Actor | Job |
 |---|---|
-| `audio_in` | `pw-record --raw` at 16 kHz mono, 32 ms frames (512 samples), Silero probability and RMS per frame |
-| `audio_out` | `pw-play --raw` at 24 kHz for TTS and earcons; reports `played_until`; stops at once |
+| `audio_in` | A thread: the capture command at 24 kHz mono, 32 ms frames (768 samples), Silero probability and RMS per frame |
+| `audio_out` | The playback command at 24 kHz for TTS and earcons; knows when the written sound ends; stops at once |
 | `asr` | One websocket per utterance to Qwen3-ASR realtime, PCM in 1 s pieces |
 | `tts` | One websocket per sentence to Qwen3-TTS, one sentence ahead |
 | `llm` | `/chat/completions` with SSE and tools |
 | `tools` | MCP client of `choractl --name voice mcp`, the coder tools, the confirmation gate |
 | `coder` | One background coding task, as in Python |
-| `chora` | A std thread with the `chora-kit` runtime: methods, settings, PTT grab, indicator node |
-| `core` | State machine, history, word matcher, turn metrics |
+| `chora` | A thread with the `chora-kit` runtime: methods, settings, PTT grab, later the indicator node |
+| `core` | State machine, speech gate, history, word matcher, turn metrics |
 
-Audio: Silero needs 16 kHz, and the ASR gets the same PCM, so no
-resampler is necessary. Subprocesses replace the `pipewire` crate, which
-needs bindgen and C headers. Fallback: `arecord`/`aplay`.
+Audio: the ASR takes 24 kHz only (WP0), and the TTS sends 24 kHz. So the
+mic records at 24 kHz, and the ASR gets that PCM unchanged. Only the VAD
+gets a 16 kHz copy: a 33-tap windowed-sinc low-pass at 7 kHz, then two
+samples out of each three. Subprocesses replace the `pipewire` crate,
+which needs bindgen and C headers. The commands are settings, so
+`arecord`/`aplay` are a fallback without code. Tests feed WAV files.
 
 Tool layer: LLM tools go through MCP (`rmcp` client). The tool schemas
 and the plugin tools stay in one place, and `chora_mcp` can still run
@@ -52,10 +67,11 @@ tools in a container. The agent's own needs (PTT grab, methods,
 settings, indicator) go through the runtime connection. This replaces
 the PTT polling through `wait_events`.
 
-`runtime::serve()` blocks on `next_event()`. The `chora` thread loops on
-`next_event_timeout(50 ms)` to also take commands from the core, so WP1
-makes `runtime::dispatch` public. Methods answer from a shared snapshot
-and send commands to the core through a channel.
+The `chora` thread runs `runtime::run` and `runtime::serve` of
+`chora-kit`; `runtime::dispatch` is public already. Methods send an
+input with a reply channel to the core and wait up to 1 s for the new
+state. When the runtime gives up after 30 s without chora, the agent
+exits with 1.
 
 ## 3. State machine
 
@@ -71,7 +87,9 @@ and send commands to the core through a channel.
 | `speaking` | Plays the reply |
 | `working` | Listening while a coding task runs |
 
-| From | Event | To |
+The agent starts in `listening` (awake).
+
+| From | Input | To |
 |---|---|---|
 | `sleeping` | Short utterance with a wake word | `listening`, earcon |
 | `sleeping` | PTT down | `recording`, then back to `sleeping` |
@@ -80,6 +98,7 @@ and send commands to the core through a channel.
 | `recording` | Less than `min_speech_ms` speech | previous state |
 | `transcribing` | Sleep word | `sleeping`, earcon |
 | `transcribing` | Cancel word, empty text or echo | previous state |
+| `transcribing` | Code cancel word | previous state; the coding task stops |
 | `transcribing` | Other text | `thinking` |
 | `thinking` | First sentence | `speaking`; tools run in parallel |
 | `thinking` | Tool call on the confirm list | `confirming` |
@@ -89,7 +108,11 @@ and send commands to the core through a channel.
 | `confirming` | No, two unclear answers, or timeout | `thinking`; result "declined by the user" |
 | `speaking` | Audio and LLM done | `listening` or `working` |
 | busy states | Cancel word, `voice.cancel`, PTT down | `listening`, earcon |
-| any | Sleep word or `voice.sleep` | `sleeping` |
+| any | Sleep word or `voice.sleep` | `sleeping`, earcon |
+| `sleeping` | `voice.wake` | `listening`, earcon |
+
+Until WP4, `recording` ends in `listening` (or `sleeping`), and the log
+shows the utterance.
 
 Barge-in while `speaking`: speech over the barge-in gate (section 4) for
 `barge_in_ms` stops playback at once. The unplayed sentences stay
@@ -102,16 +125,23 @@ ASR at once. A cancel word cancels. Other text waits in a queue and goes
 into the history before the next LLM round, or starts the next turn. No
 speech is dropped.
 
-Cancel aborts the SSE request, sends `notifications/cancelled` for the
-MCP call in flight, records "cancelled by the user; result unknown" and
-stops playback. It does not stop a coding task. Coding results wait for
-`listening` or `working`, and also go into the history.
+Cancel stops only the current turn: it aborts the SSE request, sends
+`notifications/cancelled` for the MCP call in flight, records "cancelled
+by the user; result unknown" and stops playback. A cancel word does not
+stop a coding task. A code cancel word ("Coding-Aufgabe abbrechen")
+stops it. Coding results wait for `listening` or `working`, and also go
+into the history.
+
+Mute: `voice.mute` has two separate switches. A muted mic starts no turn
+by VAD, and no barge-in; PTT still records, because the key is an
+explicit request. A muted speaker plays no TTS and no earcons; the reply
+text still goes to `last_reply` and to the HUD.
 
 ## 4. Speech gate, echo, word matcher
 
 Onset: probability over `vad_threshold` for `onset_ms`. End: under
-`vad_release` for `silence_ms`. An utterance keeps `preroll_ms` before
-its onset.
+`vad_release` for `silence_ms`. An utterance keeps at most `preroll_ms`
+before the first frame of its onset.
 
 Echo: during playback, frames without speech update an echo level (a
 running mean of RMS). Barge-in needs probability over
@@ -127,21 +157,24 @@ Word matcher (no LLM):
 3. Remove `filler_words`.
 4. The rest must equal a phrase. Words of four letters or more may
    differ by one edit.
-5. Order: cancel, sleep, wake, yes, no. Yes and no count only in
-   `confirming`.
+5. Order: code cancel, cancel, sleep, wake, yes, no. Yes and no count
+   only in `confirming`.
+
+While asleep, each short utterance goes to the ASR to find a wake word.
+A keyword-spotting model can replace this later.
 
 ## 5. Confirmation
 
 A rule matches by `tool` (glob), and optionally by the command kinds of
-`apply_commands` or by `argv0` of `run_program`. The agent speaks the
-`prompt` of the rule and waits for yes or no. The method `confirm`
-answers from a key or the HUD.
+`apply_commands`, by `argv0` of `run_program`, or by `method` (glob) of
+`call_method`. The agent speaks the `prompt` of the rule and waits for
+yes or no. The method `confirm` answers from a key or the HUD.
 
 ## 6. Error handling
 
 | Component | Failure | Reaction |
 |---|---|---|
-| Mic | `pw-record` exits | Restart, backoff 0.5 s to 5 s, error earcon once |
+| Mic | Capture command exits | Restart, backoff 0.5 s to 5 s, error earcon once |
 | VAD | Model does not load | Exit 1; systemd restarts |
 | ASR | Error or timeout | One retry with the same audio, then earcon and "Ich habe dich nicht verstanden." |
 | TTS | Error or timeout | Earcon; the text stays in the history and in `last_reply`; the tool loop goes on |
@@ -152,7 +185,7 @@ answers from a key or the HUD.
 | MCP | Child exits | Restart with backoff; call in flight gets "connection lost, result unknown"; tools reload |
 | MCP | `tool_timeout_s` | Cancel the call; result "timeout, result unknown" |
 | chora | Connection closed | Runtime reconnects and grabs PTT again; after 30 s, exit 1 |
-| Any task | Panic or end | Exit 1; the unit has `Restart=always` |
+| Any thread | Panic or end | Exit 1; the unit has `Restart=always` |
 
 The history commits per LLM round; an audio failure never rolls it back.
 `state.health` shows `asr`, `tts`, `llm` and `chora` as `ok` or `down`.
@@ -169,15 +202,39 @@ are synthesized tones: wake, sleep, cancel, question, error.
 - Before each request, drop the oldest whole turns until the estimate
   fits. Old tool texts shrink to `old_tool_chars`; the last `put_asset`
   of each name stays whole.
-- Persistence as in Python: user words of `saved_requests` turns in
-  `~/.local/state/chora/voice-history.json`. Both agents share the file.
+- The user words of `saved_requests` turns go to
+  `~/.local/state/chora/voice-history.json`.
 
-## 8. Settings (D62)
+## 8. ASR and TTS protocol (live probe, 2026-10-30)
 
-File `$XDG_CONFIG_HOME/chora/chora-voice.yaml`. `settings.set` applies
-at once (a new `source` restarts capture, a new `ptt_key` grabs again, a
+ASR (`/v1/realtime?intent=transcription`, `turn_detection: null`):
+
+- The server takes only mono PCM16 at 24000 Hz. At 16000 Hz it answers
+  `invalid_audio_event`: "realtime input requires mono PCM16 at 24000
+  Hz".
+- It sends `conversation.item.input_audio_transcription.delta` events
+  only after `input_audio_buffer.commit`, all within about 0.4 s, then
+  `...completed`. A 3 s sentence took 0.44 s to 0.57 s after the commit.
+- So text while the user speaks needs a new transcription of the growing
+  buffer. The setting `asr_interim_ms` sets the interval; 0 turns it off.
+
+TTS (`/v1/audio/speech/stream`, voice `aiden`):
+
+- Per sentence: `audio.start` with `sentence_index`, `sentence_text`,
+  `format` and `sample_rate` (24000), then binary PCM, then `audio.done`.
+  `session.done` ends the session.
+- `audio.start` gives the text and the start of its sound. The HUD
+  typewriter spreads the words of `sentence_text` over the PCM length of
+  the sentence.
+
+## 9. Settings (D62)
+
+File `$XDG_CONFIG_HOME/chora/chora-voice.yaml`. A missing key takes its
+default, so an empty file is valid. `settings.set` applies at once (a
+new `capture_cmd` restarts capture, a new `ptt_key` grabs again; WP5: a
 new prompt warms the cache). Edits by hand apply on `voice.restart`. The
-client name is the flag `--name` (default `voice`).
+client name is the flag `--name` (default `voice`). `chora-voice
+--print-config` prints all defaults.
 
 | Key | Default |
 |---|---|
@@ -186,8 +243,9 @@ client name is the flag `--name` (default `voice`).
 | `llm_url` | `http://127.0.0.1:8888/v1` |
 | `model`, `voice` | `gufo`, `aiden` |
 | `language`, `tts_language` | `de`, `auto` |
-| `source`, `sink` | `""` (defaults) |
-| `start_awake` | `true` |
+| `asr_interim_ms` | `0` (off) |
+| `capture_cmd` | `[pw-record, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]` |
+| `playback_cmd` | `[pw-play, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]` |
 | `ptt_key` | `Super+v` |
 | `vad_threshold`, `vad_release`, `onset_ms` | `0.5`, `0.35`, `96` |
 | `silence_ms`, `min_speech_ms`, `max_turn_ms` | `800`, `200`, `30000` |
@@ -197,22 +255,25 @@ client name is the flag `--name` (default `voice`).
 | `word_max_ms` | `2000` |
 | `sleep_words`, `wake_words` | `[schlaf, schlaf jetzt]`, `[hör zu]` |
 | `cancel_words` | `[stopp, stop, abbrechen, halt, vergiss es]` |
+| `code_cancel_words` | `[coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
 | `yes_words`, `no_words` | `[ja, okay, genau, mach das]`, `[nein, nicht, lieber nicht]` |
 | `filler_words` | `[bitte, jetzt, mal]` |
 | `confirm`, `confirm_timeout_ms` | rules below, `8000` |
 | `earcons`, `earcon_volume` | `true`, `0.3` |
 | `indicator` | `true` (state dot under `screen:OUTPUT`) |
-| `system_prompt`, `context_docs` | the Python `SYSTEM` and `CONTEXT_DOCS` |
+| `system_prompt`, `context_docs` | `""`: the built-in prompt and documents |
 | `prompt_file` | `~/.config/chora/voice-prompt.md` |
 | `context_tokens`, `reply_reserve_tokens` | `0` (ask the server), `1024` |
 | `tool_rounds`, `old_tool_chars`, `saved_requests` | `10`, `500`, `20` |
 | `reasoning_effort` | `none` |
 | `asr_timeout_s`, `tts_timeout_s`, `tool_timeout_s` | `15`, `10`, `30` |
 | `llm_first_token_s`, `llm_idle_s`, `llm_total_s` | `30`, `20`, `120` |
-| `chora_mcp`, `coder_cmd` | `choractl`, `""` |
+| `chora_mcp`, `coder_cmd` | `[choractl]`, `[]` |
 | `skipped_tools` | `[subscribe_events, wait_events, capture]` |
-| `phrases` | German canned sentences by key |
 | `record_dir` | `""` (off; else records sessions for replay) |
+
+`--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
+device. The German canned sentences (`phrases`) come with WP5.
 
 ```yaml
 confirm:
@@ -222,139 +283,188 @@ confirm:
   - {tool: code_task, prompt: "Soll ich die Programmieraufgabe starten?"}
   - {tool: run_program, argv0: [systemctl, loginctl, shutdown, reboot, poweroff],
      prompt: "Soll ich den Sitzungsbefehl ausführen?"}
+  - {tool: configure_output, prompt: "Soll ich den Bildschirm ändern?"}
+  - {tool: "*.restart", prompt: "Soll ich das Plugin neu starten?"}
+  - {tool: call_method, method: "*.restart", prompt: "Soll ich das Plugin neu starten?"}
 ```
 
-`check()` rejects wrong ranges, empty lists and a word in two lists.
+`check()` rejects wrong ranges, empty commands and word lists, a word in
+two lists, a `ptt_key` that does not parse, and a rule without a prompt.
 
-## 9. Methods and events
+## 10. Methods and events
 
 | Method of `voice` | Parameters | Result |
 |---|---|---|
-| `state` | none | `state`, `since_ms`, `seq`, `awake`, `muted`, `turn`, `last_transcript`, `last_reply`, `confirming`, `coder`, `health` |
-| `cancel`, `sleep`, `wake` | none | new state |
-| `talk` | `down: bool` | PTT from another client, for example `chora-mc` |
-| `confirm` | `answer: yes\|no` | new state |
-| `mute` | `mic: bool`, `speaker: bool` | new state |
+| `state` | none | the state record below |
+| `cancel`, `sleep`, `wake` | none | the new state record |
+| `mute` | `mic: bool`, `speaker: bool`, each optional | the new state record |
 | `restart` | none | reads the settings file again |
 | `settings.get`, `settings.set` | D62 | D62 |
+| `talk` (WP6) | `down: bool` | PTT from another client, for example `chora-mc` |
+| `confirm` (WP6) | `answer: yes\|no` | the new state record |
 
-The core has no client events. The HUD polls `state` (4 Hz; `seq` shows
-a change). The indicator node signals without a HUD.
+The state record: `state`, `since_ms` (time in the state), `seq` (one
+more per change), `awake`, `muted: {mic, speaker}`, `turn`,
+`last_transcript`, `last_reply`. Later packages add `confirming`,
+`coder` and `health`.
 
-## 10. Logging and latency
+HUD: the core will get client-emitted events (a new decision record,
+implemented by another package). Then the agent emits the event
+`voice.state` with the state record on each change of `seq`. Until then,
+a HUD polls the method `state` (4 Hz; `seq` shows a change). The
+indicator node signals without a HUD.
 
-`tracing` with timestamps to stderr (journald). Each stage logs start
-and end with the turn number. One summary per turn:
+## 11. Logging and latency
+
+`tracing` with timestamps to stderr (journald); `RUST_LOG` filters. Each
+stage logs start and end with the turn number. One summary per turn:
 
 ```
 turn=17 speech=2.1s asr=380ms llm_first=650ms tts_first=310ms
 first_sound=1.43s tools=2/3.4s barge_ins=0 outcome=answered
 ```
 
-`first_sound` (end of speech to first sound) is the main metric. The
-same record goes to `~/.local/state/chora/voice-turns.jsonl`.
+`first_sound` (end of speech to first sound) is the main metric. WP2
+logs `speech`, `end_wait` (last speech frame to the end of the turn)
+and the VAD time per frame when it is slower than real time. WP8 writes
+the same record to `~/.local/state/chora/voice-turns.jsonl`.
 
-## 11. Test plan
+## 12. Recording for replay
+
+With `record_dir`, each run writes a directory `DIR/YYYYMMDD-HHMMSS/`:
+
+- `mic.wav`: all mic frames, 24 kHz, without gaps.
+- `played.wav`: all played sound, one piece after the other.
+- `events.jsonl`: one line per gate event and per played piece, with
+  the mic sample at which it happened, for example
+  `{"at": 48000, "event": "onset"}` and
+  `{"at": 96000, "event": "play", "from": 0, "len": 4800}`.
+
+The WAV headers get their lengths at the end; a reader takes a cut file
+up to its last whole sample. `chora-voice gate FILE.wav` runs the speech
+gate of the settings over a file and prints the utterances.
+
+## 13. Test plan
 
 Unit tests: every transition of `step()`, also cancel in each busy
 state; word matcher table with ASR variants and near misses ("schlafen
 gehen"); echo filter; sentence splitter; SSE parser; tool call deltas;
-confirm rules; token trimming; settings `check()`.
+confirm rules; token trimming; settings `check()`; the 3:2 low-pass.
 
 Replay tests:
 
-- A recording: a 16 kHz WAV of the mic, a WAV of the played audio, and
-  YAML labels (utterances, expected words, barge-ins, playback spans).
-- The harness feeds the frames at full speed under a paused tokio clock.
-- Metrics: turn boundary precision and recall (200 ms tolerance), onset
-  error, false barge-ins per minute of agent speech, barge-in latency,
-  word accuracy.
-- A port of the Python RMS gate is the baseline. Silero must match or
-  beat it on each metric.
+- A recording: the files of section 12, plus YAML labels (utterances,
+  expected words, barge-ins).
+- The harness feeds the frames at full speed.
+- Metrics against the labels: turn boundary precision and recall (200 ms
+  tolerance), onset error, false barge-ins per minute of agent speech,
+  barge-in latency, word accuracy. Each metric has a threshold in the
+  test.
 - A small synthetic corpus (TTS voices, noise, echo) is in the repo for
-  CI. Recordings from `record_dir` stay outside the repo.
+  CI. WP2 has one clip: `services/voice/tests/data/hallo-chora.wav`.
+  Recordings from `record_dir` stay outside the repo.
 
 Fake servers for CI: a scripted ASR websocket, a TTS websocket (silence,
 60 ms per character) and an SSE LLM with scripted tool calls. With a
 fake tool executor, an end-to-end test runs a replay through the whole
 agent and checks the LLM requests and the state sequence.
 
-Live tests: the subcommands of Python (`roundtrip`, `tts`, `asr FILE`,
-`levels`, `tools`) plus `replay DIR`. The URLs come from the settings.
-From the agent sandbox, the servers are at `192.168.178.195`: ASR
-`:8881`, TTS `:8882`, LLM `:8888` (context 128000, text and image). The
-live tests also check that `context_tokens: 0` reads 128000 and that
+Live tests: `services/voice/tests/live.py TTS_URL ASR_URL [CLIP]` checks
+the TTS events, the ASR at 24 kHz and 16 kHz, and writes the test clip.
+WP4 to WP6 add `chora-voice` subcommands (`roundtrip`, `tts`, `asr
+FILE`, `levels`, `tools`, `replay DIR`) and ignored tests. The URLs come
+from the settings. From the agent sandbox, the servers are at
+`192.168.178.195`: ASR `:8881`, TTS `:8882`, LLM `:8888` (model `gufo`,
+context 128000, text and image), reachable only with the sandbox off.
+The live tests also check that `context_tokens: 0` reads 128000 and that
 `describe_screen` sends the picture. `tests/gate-voice.sh` runs them in
 a headless chora session.
 
-## 12. Dependencies and packaging
+## 14. Dependencies and packaging
 
-Reused from `Cargo.lock`: `tokio` (add `process`, `io-util`, `net`,
-`signal`; `test-util` for tests), `rmcp` (add `client`,
-`transport-child-process`), `futures-util`, `serde`, `serde_json`,
-`schemars`, `serde-saphyr`, `base64`, `clap`, `tracing`,
-`tracing-subscriber`, `chora-kit`, `chora-scene`.
+Reused from `Cargo.lock`: `serde`, `serde_json`, `schemars`,
+`serde-saphyr`, `clap`, `tracing`, `tracing-subscriber`, `chora-kit`,
+`chora-scene`; WP4 adds `tokio` (`process`, `io-util`, `net`, `time`),
+`futures-util`, `base64`, and `rmcp` (`client`,
+`transport-child-process`).
 
 | New crate | Why |
 |---|---|
-| `tokio-tungstenite` (no TLS) | ASR and TTS websockets, fake servers |
-| `reqwest` (no defaults; `json`, `stream`) | LLM SSE; chunked HTTP by hand is a bug source |
-| `ort` (`load-dynamic`) | Silero with the system `libonnxruntime` |
+| `tract-onnx` 0.22 | Silero VAD in pure Rust. 0.23 needs Rust 1.91; the workspace has 1.89 |
+| `tokio-tungstenite` (no TLS, WP4) | ASR and TTS websockets, fake servers |
+| `reqwest` (no defaults; `json`, `stream`, WP5) | LLM SSE; chunked HTTP by hand is a bug source |
 
-Not added: `pipewire`, a resampler, a tokenizer, `regex`, `hound`,
-`strsim`. A few lines replace each.
+`tract-linalg` builds its kernels with `cc` and needs `ar` at build time.
 
-The Silero model (MIT, about 2 MB) goes into the binary with
-`include_bytes!`. The crate lives in `services/voice/` (D53) as a
-workspace member. `chora-voice.service` has
-`Conflicts=voice-agent.service`. No package until the switch.
+Not added: `pipewire`, `ort`, a resampler crate, a tokenizer, `regex`,
+`hound`, `strsim`. A few lines replace each.
 
-## 13. Migration
+The Silero model (MIT, `LICENSES/MIT-silero-vad.txt`) goes into the
+binary with `include_bytes!`. The crate lives in `services/voice/` (D53)
+as a workspace member. No package and no unit until the agent completes
+full turns; then `chora-voice.service` replaces `voice-agent.service`.
 
-1. Both units exist. The Python agent stays the default.
-2. `chora-voice import-env` converts `voice.env` to YAML and reports the
-   variables without an equivalent (`RMS_*`, `SPEECH_RATIO`,
-   `SETTLE_MS`, `BARGE_MS`).
-3. Both agents share the history file.
-4. Switch criteria: replay metrics at least as good as the baseline;
-   `first_sound` p50 not worse than Python; one week of daily use
-   without a crash restart.
-5. After the switch: a decision record, a new README, and removal of
-   `agent.py` and `voice-agent.service` in the next release.
+## 15. WP0 results (2026-10-30)
 
-## 14. Work packages
+Silero on `tract`:
+
+| Model | tract 0.22.5 | tract 0.23.9 |
+|---|---|---|
+| v5.1.2 `silero_vad.onnx` | fails | fails |
+| v4.0 `silero_vad.onnx` | fails | not tried |
+| v6.2.3 `silero_vad_op18_ifless.onnx` | works | not tried |
+
+- v5: the export holds nested `If` nodes on the rate and on shapes (the
+  LSTM squeezes an axis when it is 1). tract analyses both branches of
+  each `If`, and the 8 kHz branch fails: "Attempt to squeeze an axis
+  which dimension is not one". A fixed rate, fixed shapes or a symbolic
+  length do not help. `onnxsim` and the onnxruntime optimizer cannot
+  inline the branches either, because the branches use names from outer
+  scopes.
+- v4: the same pattern fails at the typing step ("then" and "else"
+  branches give different ranks).
+- v6 `op18_ifless`: Silero publishes this export for runtimes without
+  `If` support. Only the rate check stays an `If`, and both of its
+  branches analyse once the batch axis is the symbol `batch`. The model
+  takes 576 samples (64 of the frame before, then 512) and a state of
+  `[2, 1, 128]`. On the test clip, it finds the speech (more than 70 %
+  of the frames over 0.5) and no speech in the quiet room. One frame
+  takes about 5 ms in a debug build.
+- `chora-voice` uses v6 `op18_ifless`. This is not one of the two
+  versions of the decision (v5, else v4); see open question 1.
+
+ASR at 16 kHz: refused (section 8). The agent keeps 24 kHz end to end;
+only the VAD gets a 16 kHz copy.
+
+`pw-record --raw`: the agent sandbox has no PipeWire and no ALSA tools,
+so the spike could not run them. The option `-a, --raw` exists in
+`pw-cat` since PipeWire 1.4.0 (not in 1.2.7). The Python agent noted
+that `pw-record` without `--raw` "sniffs headers and chokes on raw
+pipes". The capture and playback commands are settings: on a host
+without `--raw`, set them to `arecord`/`aplay` with `-t raw`. Tests use
+WAV files.
+
+## 16. Work packages
 
 | # | Package | Size |
 |---|---|---|
-| WP0 | Spikes: `pw-record --raw`, Gufo ASR at 16 kHz, `ort` loads Silero | S |
-| WP1 | Crate, settings, `chora` thread, methods, PTT grab, tracing | M |
+| WP0 | Spikes: Silero on tract, ASR at 16 kHz, `pw-record --raw` (done) | S |
+| WP1 | Crate, settings, `chora` thread, methods, PTT grab, logging | M |
 | WP2 | `audio_in` with Silero, `audio_out`, earcons, `record_dir` | M |
-| WP3 | Replay harness, labels, RMS baseline, CI corpus | M |
-| WP4 | ASR and TTS clients, fake servers | M |
+| WP3 | Replay harness, labels, metrics with thresholds, CI corpus | M |
+| WP4 | ASR and TTS clients, interim text, fake servers | M |
 | WP5 | LLM client, tool loop, MCP reconnect and timeouts, token budget | L |
-| WP6 | State machine, word matcher, barge-in, cancel, sleep/wake, confirmation | L |
+| WP6 | State machine, word matcher, barge-in, cancel, sleep/wake, confirmation; first full voice turn; remove `agent.py` and `voice-agent.service` | L |
 | WP7 | Coder port | S |
-| WP8 | Error paths, health, indicator, live gate | M |
-| WP9 | `import-env`, unit, docs, side-by-side week | S |
+| WP8 | Error paths, health, indicator, client events for the HUD, live gate | M |
+| WP9 | Unit, README, package | S |
 
 S: up to 1 day. M: 2 to 3 days. L: about 1 week.
 
-## 15. Open questions
+## 17. Open questions
 
-1. Silero runtime: `ort` with the system `libonnxruntime`, or pure-Rust
-   `tract` (no C library, longer build, Silero v5 support to verify)?
-2. HUD signal: is polling `voice.state` enough, or should the core get a
-   way for a client to emit its own events?
-3. Mute: mic only (deaf except PTT), speaker only (text on the HUD), or
-   both as separate switches as proposed?
-4. Session commands: is the proposed rule (`run_program` with
-   `systemctl`, `loginctl`, `shutdown`, `reboot`, `poweroff`) correct?
-   Should `configure_output` and plugin `restart` methods also ask?
-5. While asleep, each short utterance goes to the ASR server to find the
-   wake word. Is that acceptable, or is a keyword-spotting model
-   necessary later?
-6. Does a cancel word also stop a running coding task, or only the
-   current turn (proposed)?
-7. After login, should the agent start awake (as now) or asleep?
-8. Location and name: `services/voice/` with the binary `chora-voice`,
-   unpackaged until the switch?
+1. Silero version: v5 and v4 do not load in tract (section 15); v6
+   `op18_ifless` does. Keep v6 on tract, or use `ort` with v5?
+2. Mic mute: is "PTT still records" correct (section 3)?
+3. `pw-record --raw` on the host: does the PipeWire of the host have
+   1.4 or later? `pw-record --version` shows it.
