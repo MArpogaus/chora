@@ -1,16 +1,20 @@
 #!/bin/bash
 # Shared helpers for the battle workflows. Source this, then call
 # session_start, health, session_stop. Run files: $RUN set by the driver.
-repo=/home/marcel/Projekte/chora
+repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$repo" || exit 1
-bin=$repo/target/debug
+bin=${BIN:-$repo/target/debug}
 findings=$repo/tests/battle/findings.md
-export PATH=/home/agent/.local/share/mamba/envs/chora/bin:$PATH
+mamba=$HOME/.local/share/mamba/envs/chora/bin
+[ -d "$mamba" ] && export PATH=$mamba:$PATH
 # no user manager of the host: run starts children that the session ends
 unset DBUS_SESSION_BUS_ADDRESS
-# software EGL for the headless backend (system libEGL is not installed)
-export LD_LIBRARY_PATH=/home/agent/.local/opt/mesa-egl/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-export __EGL_VENDOR_LIBRARY_FILENAMES=/home/agent/.local/opt/mesa-egl/usr/share/glvnd/egl_vendor.d/50_mesa.json
+# software EGL for the headless backend where the system has no libEGL
+egl=$HOME/.local/opt/mesa-egl
+if [ -d "$egl" ]; then
+  export LD_LIBRARY_PATH=$egl/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+  export __EGL_VENDOR_LIBRARY_FILENAMES=$egl/usr/share/glvnd/egl_vendor.d/50_mesa.json
+fi
 export GALLIUM_DRIVER=llvmpipe LIBGL_ALWAYS_SOFTWARE=1
 
 step() { echo "-- $*" >> "$RUN"; }
