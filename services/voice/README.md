@@ -262,16 +262,17 @@ chora-voice` stops the agent.
 An empty `coder_cmd` (the default) turns the coding tools off. With a
 harness in `coder_cmd`, the LLM gets the tools `code_task`,
 `code_status`, `code_cancel` and `list_projects`. The harness is any
-command that takes the task as its last argument. Make it a sandbox
-wrapper, such as `agent-sandbox.sh` (a podman container, read-only,
-without capabilities), around the coding agent:
+command that takes the task as its last argument. The agent starts it
+in `sandbox_cmd` (default `[agent-sandbox.sh]`: a podman container,
+read-only, without capabilities), in the directory of the task:
 
 ```yaml
-coder_cmd: [agent-sandbox.sh, claude, -p, --output-format, stream-json, --verbose]
+coder_cmd: [claude, -p, --output-format, stream-json, --verbose]
 ```
 
-Do not give a bare command such as `[claude, -p, ...]`. The task comes
-from the LLM, and so from any voice or text that steers it. A bare
+`unsandboxed: true` starts `coder_cmd` and `agent_cmd` without the
+sandbox. Do not set it on your host. The task comes from the LLM, and
+so from any voice or text that steers it. Without the sandbox, the
 harness runs that task as you, with access to all your files and keys.
 The clone below does not protect your home directory.
 
@@ -289,6 +290,75 @@ the agent `coder` with its last step. When it ends, the agent says the
 result once you and its reply are done, and keeps it in the history.
 `code_status` repeats the last result. "Coding-Aufgabe abbrechen" stops
 the task and all processes of its process group.
+
+## Agents
+
+Agents are long-lived coding agents that speak the Agent Client
+Protocol (ACP), one per project, each with a name and a voice of its
+own. An empty `agent_cmd` (the default) turns them off. Set the ACP
+command of your agent; the voice agent starts it in `sandbox_cmd`, in
+the directory of the project:
+
+```yaml
+agent_cmd: [opencode, acp]
+agent_projects: {chora: ~/Projekte/chora, notes: ~/Notes}
+agent_voices: [ryan, vivian, serena, eric]
+```
+
+So the command line of an agent is `agent-sandbox.sh opencode acp`,
+started in `~/Projekte/chora`. `agent-sandbox.sh` mounts the current
+directory into its container, keeps ACP on stdin and stdout without a
+tty, and has its own home in `~/.config/sandbox-agent-home`. Configure
+the agent there, for example the model of opencode. Note: the version
+of `agent-sandbox.sh` of 2026-10-31 drops the arguments after the
+command (its option loop never fills `ARGS`), so `acp` and the task of
+`coder_cmd` do not reach the container. Its `case` needs a last branch
+`*) ARGS+=("$1") ;;`. `{dir}` and
+`{project}` in `agent_cmd` are replaced by the project. The projects
+are those of `agent_projects` and the directories of
+`~/.local/share/chora/inventory`.
+
+Use it like this:
+
+- "Starte einen Agenten für chora mit dem Namen Atlas." The LLM calls
+  `agent_start` (it asks first, the `confirm` rule of `agent_start`).
+- "Atlas, schreib Tests für den Parser." An utterance that starts with
+  the name of an agent goes to that agent at once, without the LLM.
+  The LLM can also send work with `agent_say`.
+- "Atlas, stopp." cancels the request of Atlas and the requests that
+  wait. Requests to a busy agent wait for its turn.
+- The answer of an agent is spoken in its voice when you and the voice
+  agent are quiet. A long answer speaks its first sentence and
+  `phrases.details` ("Details auf dem Bildschirm."); chora-mc shows all
+  of it.
+- A permission request of an agent is spoken as "Atlas möchte
+  notes.txt ändern. Erlauben?". Say yes or no (or "Atlas, ja"), or call
+  `voice.confirm`. No answer within `agent_permission_s` (120 s) is a no.
+- "Was macht Atlas?" The LLM calls `agent_status`: state, task, plan,
+  question and last words. `agent_stop` ends the agent.
+
+Pick names that the ASR hears well and that are not wake words or
+common first words: a name of five letters or more may differ by one
+letter, a shorter one must be exact. If the ASR mishears a name, the
+utterance goes to the LLM, which can still route it with `agent_say`.
+
+Each agent logs its stderr and all ACP messages (`>` sent, `<`
+received) to `~/.local/share/chora/agents/NAME.log`. The agents end
+with the voice agent: a stop, `SIGTERM` or `SIGINT` sends `TERM` to
+the process group of each agent (`podman run --rm` then removes its
+container), and `KILL` after 5 s. They do not survive a restart of the
+voice agent; start them again.
+
+chora-mc shows each agent in the status line and in the `agents` scene:
+its state, its question, its task, its plan and its last words.
+`mc agent.focus {name: atlas}` shows one agent with its transcript.
+The method `voice.agent {tool, ...}` runs the agent tools without the
+LLM, for example from a key binding:
+
+```bash
+choractl call voice agent '{"tool": "agent_start", "project": "chora", "name": "atlas"}'
+choractl call voice agent '{"tool": "agent_say", "name": "atlas", "text": "Lies das README."}'
+```
 
 ## Tests
 

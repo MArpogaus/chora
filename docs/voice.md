@@ -322,9 +322,12 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `asr_timeout_s`, `tts_timeout_s`, `tool_timeout_s` | `15`, `10`, `30` |
 | `llm_first_token_s`, `llm_idle_s`, `llm_total_s` | `30`, `20`, `120` |
 | `chora_mcp`, `coder_cmd` | `[choractl]`, `[]` (no coding tools; the task is the last argument) |
+| `sandbox_cmd`, `unsandboxed` | `[agent-sandbox.sh]`, `false` (`coder_cmd` and `agent_cmd` run in the sandbox) |
+| `agent_cmd`, `agent_projects` | `[]` (no agents; else an ACP command, `{dir}` and `{project}` replaced), `{}` (name: directory, besides the inventory) |
+| `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]` |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`: German sentences |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`: German sentences |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
@@ -336,6 +339,7 @@ confirm:
   - {tool: unload_view, prompt: "Soll ich die Ansicht entfernen?"}
   - {tool: inject_input, prompt: "Soll ich tippen oder klicken?"}
   - {tool: code_task, prompt: "Soll ich die Programmieraufgabe starten?"}
+  - {tool: agent_start, prompt: "Soll ich den Agenten starten?"}
   - {tool: run_program, prompt: "Soll ich das Programm {program} starten?"}
   - {tool: configure_output, prompt: "Soll ich den Bildschirm ändern?"}
   - {tool: "*.restart", prompt: "Soll ich das Plugin neu starten?"}
@@ -357,12 +361,14 @@ two lists, a `ptt_key` that does not parse, and a rule without a prompt.
 | `talk` | `down: bool` | PTT from another client, for example `chora-mc` |
 | `confirm` (WP5) | `answer: yes\|no` | the new state record |
 | `health` (WP8) | none | the health record of section 6 |
+| `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
 
 The state record: `state`, `since_ms` (time in the state), `seq` (one
 more per change), `awake`, `muted: {mic, speaker}`, `turn`,
 `last_transcript`, `last_reply`, `queued` (texts that wait), `coder`
 (the parameters of `agent.set` for the coder, or null before the first
-task) and `health` (section 6).
+task), `agents` (the parameters of `agent.set` of each ACP agent) and
+`health` (section 6).
 
 HUD: the agent emits client events (D65) on its connection `NAME`, so
 a HUD subscribes to `voice.*` and needs no polling. The method `state`
@@ -382,6 +388,9 @@ sentence gets the rest of its length). The data are the parameters of
 A coding task is a sub-agent: `voice.state {name: coder, state, task,
 said}` with `state` `working`, then `done` or `blocked` (failed or
 cancelled), `task` the task, and `said` its last step, then its result.
+An ACP agent (section 18) is a sub-agent too: `voice.state {name,
+state, task, said, voice, plan, question, log}`, and `voice.remove
+{name}` when it stops.
 The `hud` thread waits for the sound of a sentence and hands the events
 to the `chora` thread, which emits them on the connection of the
 methods: only that connection has the name `voice`. The `chora` thread
@@ -809,6 +818,7 @@ WP8, error paths, health, indicator and the live gate:
 | WP7 | Coder port (done) | S |
 | WP8 | Error paths, health, indicator, live gate, client events for the HUD (D65) (done) | M |
 | WP9 | Unit, README, package | S |
+| WP10 | ACP sub-agents, one per project, with mc (section 18) (done) | M |
 
 S: up to 1 day. M: 2 to 3 days. L: about 1 week.
 
@@ -853,3 +863,97 @@ S: up to 1 day. M: 2 to 3 days. L: about 1 week.
 12. Decided (D65): the agent emits `voice.state` and `voice.say`, and
     chora-mc subscribes to `voice.*` (section 10). `tests/voice-events.sh`
     checks it in a headless session.
+13. Sub-agents (section 18): should agents start with the voice agent
+    (a list of projects and names in the settings), and should they
+    survive its restart (a detached supervisor that keeps the ACP
+    pipes)? Now they end with it.
+14. `agent-sandbox.sh` drops the arguments after the command, so
+    `agent-sandbox.sh opencode acp` runs `opencode` without `acp`. Fix
+    the script (`*) ARGS+=("$1") ;;`), or give `sandbox_cmd` a wrapper?
+15. An ACP agent (opencode 1.19) calls `fs/write_text_file` although
+    the client offers no file system; the client answers "method not
+    found", and opencode writes the file itself. Offer the file system
+    and the terminal of ACP, so that the voice agent sees each write?
+
+## 18. ACP sub-agents (WP10, 2026-10-31)
+
+The voice agent manages coding agents that speak the Agent Client
+Protocol (ACP, <https://agentclientprotocol.com>): JSON-RPC 2.0 over the
+stdin and stdout of the agent, one message per line. Module `agents.rs`.
+
+- Spawn: one long-lived agent per project, by name. Its command line is
+  `sandbox_cmd` and `agent_cmd`, with `{dir}` and `{project}` replaced,
+  in the directory of the project, in its own process group. Without
+  `unsandboxed: true`, `coder_cmd` and `agent_cmd` always run in
+  `sandbox_cmd` (default `agent-sandbox.sh`: podman per start, project
+  directory mounted, own home, read-only root, all capabilities
+  dropped, network `ai-net`, ACP on stdio without a tty). The projects:
+  `agent_projects` and the directories of the inventory; a name matches
+  in any case.
+- Protocol: `initialize` (protocol version 1, no file system, no
+  terminal), `session/new {cwd, mcpServers: []}`, `session/prompt`
+  with one text block, `session/update` notifications
+  (`agent_message_chunk`, `tool_call`, `plan`; thoughts and the rest
+  are ignored), the request `session/request_permission`, and the
+  notification `session/cancel`. Other requests of the agent get
+  "method not found". Prompts to a busy agent wait in a queue.
+- States for mc: starting `thinking`, ready `idle`, prompt `working`,
+  question `question`, end of turn `done`, cancelled `idle`, an error or
+  a stop reason other than `end_turn` `blocked`; the end of its process
+  `blocked` and the phrase `agent_ended`.
+- Speech: at the end of a turn, its last message is spoken in the voice
+  of the agent (`agent_voices` in turn, or the `voice` of
+  `agent_start`), queued as the coder results: never over the user.
+  More than `agent_said_chars` characters speak the first sentence and
+  `phrases.details`. The history of the LLM gets the spoken text.
+- Questions: a permission request is spoken as `agent_asks` ("Atlas
+  möchte notes.txt ändern. Erlauben?": the file name of a path title
+  and a verb for the kind). It waits from when it is spoken; the state
+  is `confirming`. Yes and no words, `voice.confirm`, or "NAME, ja"
+  answer it; two unclear answers or `agent_permission_s` without one
+  are a no. Yes picks an `allow_once` option (else `allow_always`), no
+  a `reject_once` one; without a fitting option the outcome is
+  `cancelled`.
+- Routing: the LLM gets `agent_list`, `agent_start {project, name?,
+  voice?}`, `agent_say {name, text}`, `agent_stop {name}` and
+  `agent_status {name?}`, and a part of the prompt. `agent_start` asks
+  first (its `confirm` rule). An utterance whose first words are the
+  name of an agent goes to it without the LLM: the rest is the prompt,
+  a cancel word cancels its prompt and its queue, a yes or no answers
+  its question. A name word of five letters or more may differ by one
+  edit, a shorter one must be exact ("oder" is not "coder").
+- Events: each change of an agent is `voice.state {name, state, task,
+  said, voice, plan, question, log}` (`log`: the last 20 lines of its
+  transcript, `›` for the user, `⚙` for a tool call, `?` for a
+  question); `voice.remove {name}` when it stops. chora-mc shows the
+  agents in the status line and the `agents` scene; `mc agent.focus`
+  shows one agent with its transcript.
+- Logs: `$XDG_DATA_HOME/chora/agents/NAME.log`, the stderr of the agent
+  and every message (`>` sent, `<` received).
+- Lifetime: `agent_stop` and the end of the voice agent (an error,
+  `SIGTERM`, `SIGINT`) send `TERM` to the process group of each agent
+  and `KILL` after 5 s. The agents do not survive a restart.
+
+Tests: `tests/fake-acp.sh` is a fake agent (plan, tool call, question,
+long answer); the unit test of `agents.rs` runs it through a prompt, a
+yes, the short spoken answer and a stop. Core tests cover the question
+in the voice of the agent and the address by name.
+
+Live (2026-10-31, headless session with chora-mc, Gufo servers,
+`unsandboxed: true` with opencode 1.19 `acp --pure` and Gufo as an
+OpenAI-compatible provider, `permission.edit: ask`):
+
+- With `voice.agent` calls: start to `idle` in about 5 s; the prompt
+  "Schreib eine Datei notes.txt mit einer Zeile Hallo Welt" gave a
+  permission request, spoken "Coder möchte notes.txt ändern. Erlauben?"
+  in the voice `ryan`; `voice.confirm yes`; the file was written and
+  "Die Datei notes.txt wurde mit der Zeile „Hallo Welt" geschrieben."
+  was spoken; `agent_stop` removed the agent from mc.
+- Spoken, with TTS clips into a fake mic: "Starte bitte einen Agenten
+  für das Projekt demo mit dem Namen Atlas." made the LLM call
+  `agent_start` (first with "Demo", now found in any case); "Atlas,
+  schreib eine Datei ..." went to Atlas without the LLM; the spoken
+  "Ja." answered its question. Its second question (a shell command)
+  got no answer and was a no after 120 s. The ASR heard "Coder" as
+  "Coda"; that utterance went to the LLM, which sent it on with
+  `agent_say`.
