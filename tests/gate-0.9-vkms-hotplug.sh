@@ -56,10 +56,10 @@ on() {
 }
 # window R G B: runs a window of that color; its surface id goes to $id
 window() {
-    local pid
-    pid=$(ctl run "$bin/chora-probe" window "$@" | jq -r .pid)
-    [ -n "$pid" ] || fail "the run of chora-probe $*"
-    run_pid "$pid"
+    # Started here, not by `choractl run`: root under sudo has no user
+    # manager for its transient units.
+    "$bin/chora-probe" window "$@" >>"$shots/probe.log" 2>&1 &
+    run_pid $!
     for _ in $(seq 50); do
         id=$(ctl query "app_id:chora-probe kind:surface" | jq -r '.[].id' |
             grep -vxF -e "${red:-none}" | head -n 1)
@@ -112,7 +112,7 @@ vkms)
         rmdir "$dev"/*/* "$dev"
     }
     trap cleanup EXIT
-    export CHORA_SOCKET=$rt/chora/wayland-1.sock
+    export CHORA_SOCKET=$rt/chora/wayland-1.sock XDG_RUNTIME_DIR=$rt WAYLAND_DISPLAY=wayland-1
     wait_for test -S "$CHORA_SOCKET"
     sleep 2 # chora-tiling takes the outputs
     if test -d "$cfg"; then
