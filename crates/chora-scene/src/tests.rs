@@ -58,6 +58,16 @@ fn only_the_owner_changes_a_node() {
         err.error,
         SceneError::NotOwner("work".into(), "view".into())
     );
+    // An empty update is no request of the look (D58).
+    let empty = Command::Update {
+        id: "work".into(),
+        props: PropsUpdate::default(),
+    };
+    let err = scene.apply("agent", &[empty]).unwrap_err();
+    assert_eq!(
+        err.error,
+        SceneError::NotOwner("work".into(), "view".into())
+    );
     scene.apply("view", &[update]).unwrap();
 }
 

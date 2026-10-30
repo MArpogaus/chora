@@ -953,8 +953,10 @@ impl Scene {
             meta: props.meta.clone(),
             ..PropsUpdate::default()
         };
+        // An empty update asks for nothing and stays refused.
         if timing.is_none()
             && *props == look
+            && look != PropsUpdate::default()
             && let Some(other) = self.other_owner(owner, id)
         {
             let node = &self.nodes[id];
