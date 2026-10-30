@@ -78,6 +78,15 @@ pub fn samples(bytes: &[u8]) -> Vec<i16> {
         .collect()
 }
 
+/// The root mean square of samples; 0 for none.
+#[must_use]
+pub fn rms(samples: &[i16]) -> f64 {
+    let sum: f64 = samples.iter().map(|&s| f64::from(s).powi(2)).sum();
+    #[allow(clippy::cast_precision_loss)]
+    let n = samples.len().max(1) as f64;
+    (sum / n).sqrt()
+}
+
 /// Samples to little-endian bytes.
 #[must_use]
 pub fn bytes(samples: &[i16]) -> Vec<u8> {

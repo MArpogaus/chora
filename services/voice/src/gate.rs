@@ -99,6 +99,22 @@ impl Gate {
         self.run = 0;
     }
 
+    /// Starts an utterance now, for example on a barge-in, with at most
+    /// `preroll_ms` of the frames before.
+    pub fn open(&mut self, preroll_ms: u32) {
+        let take = (preroll_ms.div_ceil(FRAME_MS) as usize).min(self.before.len());
+        let pcm = self.before.iter().skip(self.before.len() - take).flatten();
+        self.utterance = Some(Utterance {
+            pcm: pcm.copied().collect(),
+            frames: 1,
+            speech: 1,
+            quiet: 0,
+            by_key: false,
+        });
+        self.before.clear();
+        self.run = 0;
+    }
+
     /// Takes the next frame. `listen` lets speech start an utterance; it
     /// is false, for example, while the mic is muted. `key` is the
     /// push-to-talk key: down starts an utterance at once, and up ends
@@ -166,6 +182,54 @@ impl Gate {
             speech_ms,
             end_wait_ms: u.quiet * FRAME_MS,
         })
+    }
+}
+
+/// The barge-in gate (docs/voice.md section 4): speech over the agent's
+/// own sound. Frames without speech during playback learn the echo
+/// level.
+pub struct BargeIn {
+    threshold: f64,
+    ratio: f64,
+    min_rms: f64,
+    frames: u32,
+    /// The running mean of the RMS of the echo.
+    echo: f64,
+    run: u32,
+}
+
+impl BargeIn {
+    pub fn new(c: &Config) -> Self {
+        Self {
+            threshold: c.barge_in_vad_threshold,
+            ratio: c.barge_in_echo_ratio,
+            min_rms: c.barge_in_min_rms,
+            frames: c.barge_in_ms.div_ceil(FRAME_MS).max(1),
+            echo: 0.0,
+            run: 0,
+        }
+    }
+
+    /// Takes a frame during playback; true once the speech over the gate
+    /// lasted `barge_in_ms`.
+    pub fn push(&mut self, frame: &Frame) -> bool {
+        let rms = crate::pcm::rms(&frame.samples);
+        let prob = f64::from(frame.prob);
+        if prob <= self.threshold {
+            // About 0.5 s of memory.
+            self.echo += (rms - self.echo) / 16.0;
+        }
+        if prob > self.threshold && rms > self.min_rms.max(self.echo * self.ratio) {
+            self.run += 1;
+        } else {
+            self.run = 0;
+        }
+        self.run == self.frames
+    }
+
+    /// The playback ended: a new one counts from zero.
+    pub fn reset(&mut self) {
+        self.run = 0;
     }
 }
 
@@ -283,6 +347,33 @@ mod tests {
         };
         assert_eq!(*at, 7, "the end comes with the key");
         assert_eq!(values(pcm), (0..=7).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn open_starts_an_utterance_with_a_short_preroll() {
+        let mut gate = Gate::new(&config());
+        run(&mut gate, &[0.0; 4], &[]);
+        gate.open(64);
+        let events = run(&mut gate, &[0.9, 0.0, 0.0, 0.0], &[]);
+        let (_, Event::Noise { speech_ms }) = events[0] else {
+            panic!("{events:?}");
+        };
+        assert_eq!(speech_ms, 64, "the open frame and one of speech");
+    }
+
+    #[test]
+    fn barge_in_needs_loud_speech_for_barge_in_ms() {
+        let mut barge = BargeIn::new(&Config {
+            barge_in_ms: 96,
+            ..Config::default()
+        });
+        let mut fires = |prob, level, n| (0..n).filter(|_| barge.push(&frame(prob, level))).count();
+        assert_eq!(fires(0.9, 200, 10), 0, "under barge_in_min_rms");
+        assert_eq!(fires(0.9, 1000, 10), 1, "once, after 3 frames");
+        // Quiet echo of RMS 400 raises the level to near 400.
+        assert_eq!(fires(0.1, 400, 64), 0);
+        assert_eq!(fires(0.9, 700, 10), 0, "under twice the echo");
+        assert_eq!(fires(0.9, 900, 10), 1);
     }
 
     #[test]

@@ -11,6 +11,7 @@ mod gate;
 mod log;
 mod pcm;
 mod record;
+mod replay;
 mod vad;
 
 use std::{
@@ -55,6 +56,13 @@ enum Command {
     /// Run the speech gate of the settings over a WAV file (24 kHz mono
     /// PCM16) and print the utterances.
     Gate { file: PathBuf },
+    /// Replay recordings (`mic.wav`, `events.jsonl`, `labels.txt`)
+    /// through the speech and barge-in gates and print the metrics
+    /// against the labels.
+    Replay {
+        #[arg(required = true)]
+        dirs: Vec<PathBuf>,
+    },
 }
 
 fn main() -> ExitCode {
@@ -79,6 +87,12 @@ fn main() -> ExitCode {
         .and_then(|path| settings::File::load(path, "{}"))
         .and_then(|settings| match &args.command {
             Some(Command::Gate { file }) => gate(&settings.value, file),
+            Some(Command::Replay { dirs }) => {
+                let dirs: Vec<&Path> = dirs.iter().map(AsRef::as_ref).collect();
+                let (lines, _) = replay::run(&settings.value, &dirs)?;
+                println!("{}", lines.join("\n"));
+                Ok(())
+            }
             None => run(args.name, settings),
         });
     match result {
