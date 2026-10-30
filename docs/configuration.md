@@ -69,8 +69,9 @@ input:
 - The client `view-work` owns the nodes. A second load replaces them,
   `choractl view unload work` removes them.
 - `choractl view save work` writes the nodes of `view-work` as they are
-  now, with the plugins and the `input` of the file that was there, to
-  `~/.config/chora/views/work.yaml`, or to `--file PATH`. A plugin or an
+  now to `~/.config/chora/views/work.yaml`, or to `--file PATH`. It keeps
+  the plugins and the `input` of the file that was there, not the live
+  settings of the core. A plugin or an
   agent changes the nodes as `view-work`, for example
   `choractl --name view-work apply`.
 - A node has an `id`, a `kind` (`group`, `rect`, `image`, `shader` or
@@ -519,8 +520,8 @@ systemd user target `chora-<name>.target`. `chora-flavor <name>` looks for
 the directory in `~/.config/chora/flavors/` first and then in
 `/usr/share/chora/flavors/`. It imports `WAYLAND_DISPLAY`, `CHORA_SOCKET`,
 `CHORA_FLAVOR_DIR` (the directory that it found) and the X11 `DISPLAY` of
-`xwayland-satellite` into the systemd user manager, so that every unit of
-the flavor starts with them. It links the units of the directory, tells
+`xwayland-satellite` into the systemd user manager. So every unit of the
+flavor starts with them. It links the units of the directory, tells
 systemd that chora is ready, and starts the target. The target starts the
 services and the plugins. systemd handles start, restart and order, so
 chora needs no service manager. `chora-flavor` is not for nested use:
@@ -560,7 +561,7 @@ which hands the work to `xdg-desktop-portal-wlr` (D37). Both sessions set
 `XDG_CURRENT_DESKTOP=chora`, and `chora-flavor` gives it and
 `WAYLAND_DISPLAY` to systemd and D-Bus, so that the portals start with
 them. `chora-flavor` also stops a portal that an earlier session in the
-same user manager started, and the next call starts it again with the
+same user manager started. The next call starts it again with the
 variables of chora. While another graphical session of the user is
 open, the portal stays. The packages install two files:
 
@@ -578,7 +579,7 @@ through `wlr-screencopy` on older versions. It shares outputs, and
 windows of `ext-foreign-toplevel-list`. The core copies through shm, so
 each frame takes a copy on the CPU, and the shared picture has no
 cursor. The portal runs on the Wayland socket of the session, which has
-every capture protocol; a client of a client socket needs the grant
+every capture protocol. A client of a client socket needs the grant
 `screen.capture` (see [API](api.md)).
 
 ### X11 programs
