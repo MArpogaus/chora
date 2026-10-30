@@ -330,7 +330,7 @@ expects (D59). Each warning has a stable `code`, the `node` and a short
 | Code | Cause |
 |------|-------|
 | `deaf_surface` | an `attach` or a `move` puts a surface under an ancestor with `input: pass` or `block`; the surface gets no pointer input |
-| `layer_over_budget` | after a `create`, `update` or `animate`, the layer textures of a layer node and its descendants need more pixels than the budget of one frame, at the scale of each output; no frame draws the node |
+| `layer_over_budget` | after a `create`, `update`, `animate`, `attach` or `move`, the layer textures of a layer node and its descendants need more pixels than the budget of one frame on every output; the core counts them at the smallest scale of the outputs. The node is the named node or its outermost layer ancestor that passes the budget, so a child added under a big layer warns for that layer. No frame draws the node |
 
 The pixel budget of a frame is 64 Mi pixels. The layers that do not fit
 into a frame because of other layers are no warning: the event

@@ -457,35 +457,56 @@ impl State {
             .map(|o| o.current_scale().fractional_scale())
             .reduce(f64::min);
         let scene = &self.scene;
-        let warning =
-            |code, id: &str, message| Some(json!({"code": code, "node": id, "message": message}));
-        let check = |command: &Command| match command {
-            Command::Attach { surface: id, .. } | Command::Move { id, .. } => {
-                let surface = scene.node(id)?.kind == NodeKind::Surface;
-                let mut ancestors = scene.ancestors(id).skip(1).filter_map(|a| scene.node(a));
-                if surface && ancestors.any(|n| n.props.input != InputMode::Accept) {
-                    return warning(
-                        "deaf_surface",
-                        id,
-                        "an ancestor has input pass or block, so the surface gets no pointer input",
-                    );
-                }
-                None
+        let mut warnings = Vec::new();
+        let mut warn = |code: &str, id: &str, message: &str| {
+            let warning = json!({"code": code, "node": id, "message": message});
+            if !warnings.contains(&warning) {
+                warnings.push(warning);
             }
-            Command::Create { id, .. }
-            | Command::Update { id, .. }
-            | Command::Animate { id, .. }
-                if scene.node(id)?.is_layer() && crate::mesh::over_budget(scene, id, scale?) =>
-            {
-                warning(
-                    "layer_over_budget",
-                    id,
-                    "the layers of this node need more pixels than a frame of any output has, so no frame draws it",
-                )
-            }
-            _ => None,
         };
-        commands.iter().filter_map(check).collect()
+        for command in commands {
+            let (Command::Attach { surface: id, .. }
+            | Command::Move { id, .. }
+            | Command::Create { id, .. }
+            | Command::Update { id, .. }
+            | Command::Animate { id, .. }) = command
+            else {
+                continue;
+            };
+            let Some(node) = scene.node(id) else {
+                continue;
+            };
+            let placed = matches!(command, Command::Attach { .. } | Command::Move { .. });
+            let mut ancestors = scene.ancestors(id).skip(1).filter_map(|a| scene.node(a));
+            if placed
+                && node.kind == NodeKind::Surface
+                && ancestors.any(|n| n.props.input != InputMode::Accept)
+            {
+                warn(
+                    "deaf_surface",
+                    id,
+                    "an ancestor has input pass or block, so the surface gets no pointer input",
+                );
+            }
+            // The node and its layer ancestors: a node under a big layer
+            // can push that layer over the budget. The outermost layer
+            // over it is the one that no frame draws.
+            let over = scale.and_then(|scale| {
+                scene
+                    .ancestors(id)
+                    .filter(|a| scene.node(a).is_some_and(chora_scene::Node::is_layer))
+                    .filter(|a| crate::mesh::over_budget(scene, a, scale))
+                    .last()
+            });
+            if let Some(layer) = over {
+                warn(
+                    "layer_over_budget",
+                    layer,
+                    "the layers of this node need more pixels than a frame of any output has, so no frame draws it",
+                );
+            }
+        }
+        warnings
     }
 }
 
@@ -749,6 +770,27 @@ mod tests {
                             "props": {"size": side, "clip": {"radius": 0},
                                       "effects": [{"shader": "/glow.frag"}]}}},
                 {"create": {"id": "inner", "kind": "group", "parent": "big",
+                            "props": {"size": side, "clip": {"radius": 0}}}}
+            ]}),
+        );
+        assert_eq!(warned(&answer), [("layer_over_budget", "big")]);
+        // A child added later under the big layer warns for that layer:
+        // first one under the budget, then one more that passes it.
+        let answer = wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"remove": {"id": "inner"}},
+                {"create": {"id": "child", "kind": "group", "parent": "big",
+                            "props": {"size": [1, 1]}}}
+            ]}),
+        );
+        assert_eq!(warned(&answer), []);
+        let answer = wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "inner", "kind": "group", "parent": "child",
                             "props": {"size": side, "clip": {"radius": 0}}}}
             ]}),
         );
