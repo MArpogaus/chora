@@ -157,13 +157,9 @@ impl Settings for Config {
         }
         // Checked here, so that settings.set refuses it, and not at every
         // new window.
-        if let Some(effect) = self
-            .style
-            .effects
-            .iter()
-            .find(|e| !Path::new(&e.shader).is_file())
-        {
-            return Err(format!("style.effects: no shader file {}", effect.shader));
+        for effect in &self.style.effects {
+            chora_kit::check_file(Path::new(&effect.shader))
+                .map_err(|e| format!("style.effects: no shader file {e}"))?;
         }
         let mut keys = BTreeMap::new();
         for (binding, action) in &self.bindings {
@@ -260,6 +256,9 @@ mod tests {
         );
         let err = parse::<Config>(&missing).unwrap_err();
         assert!(err.contains("/nonexistent/chora-test.frag"), "{err}");
+        let proc = DEFAULT.replace("effects: []", "effects: [{shader: /proc/self/mem}]");
+        let err = parse::<Config>(&proc).unwrap_err();
+        assert!(err.contains("not a regular file"), "{err}");
         let modifier = DEFAULT.replace("modifier: Super", "modifier: Shift");
         assert!(parse::<Config>(&modifier).is_err());
     }

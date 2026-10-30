@@ -158,6 +158,13 @@ impl Settings for Config {
                 file.display()
             ));
         }
+        // A missing file may come back, for example with a disk; a device
+        // or a FIFO never is a picture.
+        if let Picture::File(file) = &self.wallpaper.picture
+            && file.exists()
+        {
+            chora_kit::check_file(file).map_err(|e| format!("wallpaper.picture: {e}"))?;
+        }
         Ok(())
     }
 }
@@ -197,6 +204,10 @@ mod tests {
             (
                 "wallpaper",
                 json!({"picture": {"file": "bliss.jpg"}, "position": "fill", "color": [0, 78, 152]}),
+            ),
+            (
+                "wallpaper",
+                json!({"picture": {"file": "/dev/zero"}, "position": "fill", "color": [0, 78, 152]}),
             ),
             (
                 "wallpaper",
