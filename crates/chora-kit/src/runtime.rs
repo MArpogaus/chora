@@ -1,7 +1,7 @@
 //! The runtime that every plugin repeats: it connects, subscribes to the
 //! events, exports the methods, grabs bindings, answers method calls,
-//! keeps to the outputs of `--output`, and comes back after the core
-//! closed the connection.
+//! answers `settings.get` and `settings.set`, keeps to the outputs of
+//! `--output`, and comes back after the core closed the connection.
 
 use std::{
     process::ExitCode,
@@ -16,7 +16,7 @@ use chora_scene::{
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
-use crate::conn::Conn;
+use crate::{conn::Conn, settings::Store};
 
 /// A plugin on the runtime: it handles the events and the calls of its
 /// exported methods.
@@ -41,6 +41,21 @@ pub trait Plugin {
     ///
     /// The method fails; the caller gets the error.
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError>;
+
+    /// The settings behind `settings.get` and `settings.set`; none by
+    /// default. The plugin exports the methods of its settings file.
+    fn settings(&mut self) -> Option<&mut dyn Store> {
+        None
+    }
+
+    /// Applies the settings after a `settings.set`.
+    ///
+    /// # Errors
+    ///
+    /// The change cannot be applied; the caller gets the error.
+    fn settings_changed(&mut self) -> Result<(), RpcError> {
+        Ok(())
+    }
 }
 
 /// The connection of a plugin, with its outputs and grabs.
@@ -180,7 +195,13 @@ fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientError> 
             params,
             ..
         } => {
-            let result = plugin.method(&method, params);
+            let result = match (method.as_str(), plugin.settings()) {
+                ("settings.get", Some(settings)) => Ok(settings.get()),
+                ("settings.set", Some(settings)) => settings
+                    .set(params)
+                    .and_then(|answer| plugin.settings_changed().map(|()| answer)),
+                _ => plugin.method(&method, params),
+            };
             let rt = plugin.runtime();
             match rt.conn.answer(call, result) {
                 Err(ClientError::Rpc(err)) => {
