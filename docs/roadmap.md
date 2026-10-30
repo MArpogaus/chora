@@ -25,7 +25,7 @@ with a stable, versioned API (D3).
 
 - The core runs nested and as a login session. It has no long run on real
   hardware.
-- The scene has five node kinds, 4x4 transforms, cameras, overlay roots,
+- The scene has six node kinds, 4x4 transforms, cameras, overlay roots,
   meshes, effects and animations.
 - The API covers scene changes, events, grabs, plugin methods, captures,
   input injection, grants, programs, assets and output configuration.
@@ -126,9 +126,13 @@ Gate:
 
 ## 0.7: Identity, processes and the basics of the read model
 
+The release candidate `v0.7.0-rc.3` is tagged. The open gate checks are
+5, 8 with a user systemd, and 11. They run on the reference hardware.
+
 **Goal:** a client cannot take another name or give itself capabilities,
 the core starts no programs, and an agent can see focus and geometry
-without guessing.
+without guessing. An agent can ask the window manager for changes, and it
+can label what it shows.
 
 Scope:
 
@@ -149,6 +153,24 @@ Scope:
   applying it.
 - `chora-tiling` exports methods for tags, focus and moves. `chora-xp`
   exports methods for the start menu, minimize, restore and Restart.
+- JSON filters next to the selector strings (D32). They can match focus
+  and visibility.
+- `events.subscribe` starts with a snapshot of the state, and every event
+  has a sequence number `seq`.
+- `input.inject` takes a node and a point inside it.
+- A client that does not own a node can request a change: focus, move,
+  resize or close. The core sends the request to the owner as the event
+  `node.requested`, and the owner decides (D31). `chora-tiling` handles
+  the requests.
+- Plugin methods carry a description and a JSON schema. `choractl mcp`
+  makes one tool from each method (D34).
+- `choractl mcp` uses rmcp, answers requests in parallel and supports
+  cancellation.
+- Text injection commits a text into the text input of the focused
+  surface, also characters that the current keymap does not have.
+- A visible indicator while a client injects input, and a binding of the
+  safety layer that revokes the capabilities of all clients (D23).
+- The text node on cosmic-text (D18).
 - Small fixes from the battle test: compact JSON from `choractl run`,
   a clear error from `clients create` for a taken name,
   `chora-probe --exit-on-close`, and `tests/ipc-bench.sh` on the headless
