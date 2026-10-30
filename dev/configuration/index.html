@@ -1290,11 +1290,13 @@ their grants (see <a href="../api/#client-sockets">API</a>):</p>
 <span class="nt">showroom</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">grants</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
 </code></pre></div>
-<p>The grants are the six capabilities of <code>choractl grant</code> (see
+<p>The grants are the seven capabilities of <code>choractl grant</code> (see
 <a href="../api/#client-sockets">API</a>). An agent that
 drives the window manager needs <code>methods.call</code>, and one that starts apps
 needs <code>activation.token</code>. Both let it take the keyboard focus. A name
-that may end chora needs <code>session.quit</code>.</p>
+that may end chora needs <code>session.quit</code>. A name that may change the
+settings of a plugin, or call a plugin method that starts programs, such
+as <code>app.open</code> of <code>chora-mc</code>, also needs <code>methods.privileged</code>.</p>
 <p>The names follow the rules of <code>hello</code>. <code>clients up</code> opens the socket of
 every name with exactly the capabilities of its list. A socket that
 already has the equal capabilities stays with its connections and gets
@@ -1493,7 +1495,9 @@ scenes through methods; the plugin reads no sources itself.</p>
 with a title and lines, or one app whose window fills the screen without
 a frame. The plugin has the built-in scenes <code>agenda</code>, <code>agents</code>, <code>mission</code>
 (Mission Control), <code>morning</code> (the morning paper) and <code>terminal</code>. A file of
-the same name replaces a built-in scene.</p>
+the same name replaces a built-in scene. A grid has 1 to 24 columns and
+rows. A wrong file, or a scene that the core refuses, is left out with a
+line in the log; the other scenes stay.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/mc/scenes/day.yaml</span>
 <span class="nt">grid</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">]</span><span class="w">          </span><span class="c1"># columns and rows</span>
 <span class="nt">chapter</span><span class="p">:</span><span class="w">              </span><span class="c1"># all optional: the place, the name, the date</span>
@@ -1525,6 +1529,8 @@ grid leave room for the margin of the column to their right. A panel may
 set a <code>rule</code>, a color of the theme for a hairline left of it, an
 <code>opacity</code> from 0 to 1 and a <code>blur</code> radius in pixels up to 16, for
 context that steps back (<code>plugins/chora-mc/blur.frag</code>).</p>
+<p>The methods marked privileged start programs: a caller on a client
+socket needs <code>methods.privileged</code> besides <code>methods.call</code>.</p>
 <table>
 <thead>
 <tr>
@@ -1543,7 +1549,7 @@ context that steps back (<code>plugins/chora-mc/blur.frag</code>).</p>
 </tr>
 <tr>
 <td><code>scene.save</code></td>
-<td><code>name</code>, <code>grid</code>, <code>panels</code> or <code>app</code>; writes the file</td>
+<td>privileged. <code>name</code>, <code>grid</code>, <code>panels</code> or <code>app</code>; writes the file</td>
 </tr>
 <tr>
 <td><code>panel.set</code></td>
@@ -1551,15 +1557,15 @@ context that steps back (<code>plugins/chora-mc/blur.frag</code>).</p>
 </tr>
 <tr>
 <td><code>hud.set</code></td>
-<td><code>state</code>, for example <code>listening</code>, <code>thinking</code> or <code>working</code>, and <code>text</code>; both empty hide the line</td>
+<td><code>state</code>, for example <code>listening</code>, <code>thinking</code> or <code>working</code>, and <code>text</code>; both empty hide the line. The line shows the last 160 characters of the text, from a word on</td>
 </tr>
 <tr>
 <td><code>hud.say</code></td>
-<td><code>text</code>, <code>duration_ms</code> and an optional <code>state</code>: the text shows word by word over the duration, the time that the voice takes to speak it</td>
+<td><code>text</code>, <code>duration_ms</code> and an optional <code>state</code>: the text shows word by word over the duration, the time that the voice takes to speak it; past 160 characters the first words leave the line</td>
 </tr>
 <tr>
 <td><code>app.open</code></td>
-<td><code>command</code>: a shell command that starts in a scene of its own</td>
+<td>privileged. <code>command</code>: a shell command that starts in a scene of its own</td>
 </tr>
 <tr>
 <td><code>region.list</code></td>
@@ -1567,11 +1573,11 @@ context that steps back (<code>plugins/chora-mc/blur.frag</code>).</p>
 </tr>
 <tr>
 <td><code>region.toggle</code></td>
-<td><code>region</code> and an optional <code>shown</code>; without it the region flips. Answers <code>shown</code></td>
+<td>privileged, because a docked app starts. <code>region</code> and an optional <code>shown</code>; without it the region flips. Answers <code>shown</code></td>
 </tr>
 <tr>
 <td><code>region.put</code></td>
-<td><code>content</code>, <code>region</code> and an optional <code>slot</code>: the content goes there over the rules, until the next start. Without <code>region</code> the content follows the rules again</td>
+<td>privileged. <code>content</code>, <code>region</code> and an optional <code>slot</code>: the content goes there over the rules, until the next start. Without <code>region</code> the content follows the rules again</td>
 </tr>
 <tr>
 <td><code>content.set</code></td>
@@ -1583,7 +1589,7 @@ context that steps back (<code>plugins/chora-mc/blur.frag</code>).</p>
 </tr>
 <tr>
 <td><code>region.solo</code></td>
-<td><code>content</code>, <code>region</code> and an optional <code>shown</code>: the content shows alone in the region over any scene, such as the test overlay in the drawer; without <code>shown</code> it flips. Hidden again, the region shows as before. Answers <code>shown</code></td>
+<td>privileged. <code>content</code>, <code>region</code> and an optional <code>shown</code>: the content shows alone in the region over any scene, such as the test overlay in the drawer; without <code>shown</code> it flips. Hidden again, the region shows as before. Answers <code>shown</code></td>
 </tr>
 <tr>
 <td><code>agent.set</code></td>
@@ -2122,8 +2128,12 @@ core. Cancel and the close button close it without a change:</p>
   quality, Troubleshoot and Advanced are gray.</li>
 </ul>
 <p>Log Off and Turn Off Computer open XP's dialogs in the middle of the
-output, and the desktop behind them fades to gray in 1.5 seconds. Each
-button runs its command of the setting <code>session</code> (D63):</p>
+output, and the desktop behind them fades to gray in 1.5 seconds. They
+are modal: the start menu, the switcher and the system menu wait until
+they close, and the method <code>start_menu</code> fails meanwhile. As on XP,
+they have no default button and take no keys: Return does nothing, a
+click chooses. Each button runs its command of the setting <code>session</code>
+(D63):</p>
 <table>
 <thead>
 <tr>
@@ -2367,7 +2377,7 @@ that the file leaves out takes its default:</p>
 <tr>
 <td><code>clock_format</code></td>
 <td><code>%-I:%M %p</code></td>
-<td>the clock of the taskbar, in the format of strftime</td>
+<td>the clock of the taskbar, in the format of strftime, at most 64 characters</td>
 </tr>
 <tr>
 <td><code>wallpaper</code></td>

@@ -1315,7 +1315,10 @@ are errors, so a typo never passes silently.</p>
 has a second root, <code>screen:NAME</code>, for example <code>screen:DP-1</code> (D43). Its
 nodes stay fixed to the screen: they sit in the logical coordinates of the
 output, without its camera, above the scene and below the top and overlay
-layers of layer shell. A HUD or a progress bar goes there, also during an
+layers of layer shell. The tree is at most 64 levels deep below a root:
+a <code>create</code>, <code>attach</code> or <code>move</code> that puts a node, or the subtree of a
+moved node, deeper fails with code 6 and the transaction changes
+nothing. A HUD or a progress bar goes there, also during an
 animated camera move. The nodes under <code>screen:NAME</code> work as all others,
 with input, effects and ownership. The overlay root stays when its output
 goes, with its nodes, for the return of the output; the emergency reset
@@ -1875,7 +1878,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>input.grab(binding)</code></td>
-<td>get the events of a key or a pointer button with modifiers, for example <code>Super+Return</code> or <code>Super+BTN_LEFT</code>; a binding needs Ctrl, Alt or Super unless the client has the capability <code>input.grab-any</code>; <code>Ctrl+Alt</code> with a key of the safety layer stays refused either way; returns the binding as <code>input.key</code> and <code>input.button</code> name it</td>
+<td>get the events of a key or a pointer button with modifiers, for example <code>Super+Return</code> or <code>Super+BTN_LEFT</code>; a binding needs Ctrl, Alt or Super unless the client has the capability <code>input.grab-any</code>; <code>Ctrl+Alt</code> with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as <code>input.key</code> and <code>input.button</code> name it</td>
 </tr>
 <tr>
 <td><code>input.ungrab(binding)</code></td>
@@ -1895,7 +1898,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>grants.set(client, capabilities)</code>, <code>grants.revoke(client, capabilities)</code>, <code>grants.list</code></td>
-<td>grant or revoke capabilities for a client name. <code>choractl grant</code> and <code>choractl revoke</code> call them. <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket. A name with a client socket answers code 9, because <code>clients.yaml</code> holds its capabilities. For a name of the main socket, <code>methods.call</code>, <code>session.quit</code> and <code>settings.write</code> change nothing, and <code>activation.token</code> only opens the MCP tool <code>run_program</code>.</td>
+<td>grant or revoke capabilities for a client name. <code>choractl grant</code> and <code>choractl revoke</code> call them. <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket. A name with a client socket answers code 9, because <code>clients.yaml</code> holds its capabilities. For a name of the main socket, <code>methods.call</code>, <code>session.quit</code> and <code>methods.privileged</code> change nothing, and <code>activation.token</code> only opens the MCP tool <code>run_program</code>.</td>
 </tr>
 <tr>
 <td><code>clients.create(name, capabilities)</code></td>
@@ -1931,7 +1934,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>methods.call(client, method, params)</code></td>
-<td>call a method of another client; the answer is the result of the method; a client socket needs the capability <code>methods.call</code>, and for a method <code>settings.set</code> or <code>settings.reload</code> also <code>settings.write</code></td>
+<td>call a method of another client; the answer is the result of the method; a client socket needs the capability <code>methods.call</code>, and for a privileged method, such as <code>settings.set</code>, <code>settings.reload</code> or one that the export marks <code>privileged</code>, also <code>methods.privileged</code></td>
 </tr>
 <tr>
 <td><code>methods.return(call, result, error)</code></td>
@@ -2173,7 +2176,7 @@ grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that <a href="#client-sockets">Client sockets</a> lists.
 <code>choractl mcp</code> offers no tool for grants. On the main socket,
 <code>activation.token</code> opens the MCP tool <code>run_program</code>, and <code>methods.call</code>,
-<code>session.quit</code> and <code>settings.write</code> change nothing.</p>
+<code>session.quit</code> and <code>methods.privileged</code> change nothing.</p>
 <h2 id="client-sockets">Client sockets<a class="headerlink" href="#client-sockets" title="Permanent link">&para;</a></h2>
 <p>A client socket fixes the name of its clients (D33). <code>clients.create</code>
 on the admin socket opens <code>clients/NAME/ipc.sock</code> below the directory of
@@ -2215,9 +2218,10 @@ in. <code>choractl clients create agent</code> prints its path:</p>
 <li><code>methods.call</code> needs the capability <code>methods.call</code>,
   <code>activation.token</code> the capability <code>activation.token</code> and
   <code>session.quit</code> the capability <code>session.quit</code>. A <code>methods.call</code> of a
-  method <code>settings.set</code> or <code>settings.reload</code>, of any client, also needs
-  <code>settings.write</code>: plugin settings hold commands that the plugin runs
-  and paths that it reads. Without them they answer code 4. The main
+  privileged method also needs <code>methods.privileged</code>: <code>settings.set</code> and
+  <code>settings.reload</code> of any client, because plugin settings hold commands
+  that the plugin runs and paths that it reads, and each method that its
+  export marks <code>"privileged": true</code>, such as <code>app.open</code> of <code>chora-mc</code>. Without them they answer code 4. The main
   socket needs none of them. So a confined agent cannot end chora or
   change the settings of a plugin by default. A token of
   <code>activation.token</code> belongs to no client. Any window that activates
@@ -2484,9 +2488,13 @@ plugin answers with <code>methods.return</code>: the same <code>call</code> and 
 <code>error</code> with a <code>code</code> and a <code>message</code>. The core passes the answer to the
 caller. The <code>Client</code> of <code>chora-scene</code> answers with <code>Client::answer</code>.</p>
 <p>Each entry of <code>methods.export</code> is a plain name, or an object with <code>name</code>,
-<code>description</code> and <code>input_schema</code>. <code>methods.list</code> answers every exported
+<code>description</code>, <code>input_schema</code> and <code>privileged</code>. A method that runs a
+command or writes a file sets <code>"privileged": true</code>: a caller on a client
+socket then needs the capability <code>methods.privileged</code> besides
+<code>methods.call</code>. <code>settings.set</code> and <code>settings.reload</code> are always
+privileged. <code>methods.list</code> answers every exported
 method as <code>{"client", "name", "description", "input_schema"}</code>, with <code>null</code>
-for a plain export. The core passes description and schema through
+for a plain export, and <code>"privileged": true</code> for a privileged one. The core passes description and schema through
 unchanged, and <code>chora-tiling</code> gives one to each of its methods.</p>
 <ul>
 <li>A method name has at most 64 characters: lowercase letters, digits, <code>_</code>,
@@ -2547,7 +2555,7 @@ plugin cannot apply is taken back and not saved, also by <code>settings.reload</
 stays applied until the next start, and the caller gets the error.
 In <code>methods.list</code>, the schema of <code>settings.set</code> lists every setting.
 On a client socket, <code>settings.set</code> and <code>settings.reload</code> need the
-capability <code>settings.write</code> besides <code>methods.call</code>.</p>
+capability <code>methods.privileged</code> besides <code>methods.call</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"style": {"opacity": 0.9}}'</span>
 <span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.set<span class="w"> </span><span class="s1">'{"bindings": {"MOD+u": null}}'</span>
 <span class="gp">$ </span>choractl<span class="w"> </span>call<span class="w"> </span>tiling<span class="w"> </span>settings.reload
@@ -2664,8 +2672,8 @@ the grants of the client name, for example
 <code>choractl grant agent screen.capture</code>. Without a grant, <code>describe_screen</code>
 still describes the scene. No tool grants anything (D40). On a client
 socket, <code>call_method</code> and the tools of plugin methods need the capability
-<code>methods.call</code>, and <code>settings.set</code> and <code>settings.reload</code> also
-<code>settings.write</code>. <code>run_program</code> needs the grant <code>activation.token</code> on
+<code>methods.call</code>, and privileged methods, such as <code>settings.set</code> and
+<code>settings.reload</code>, also <code>methods.privileged</code>. <code>run_program</code> needs the grant <code>activation.token</code> on
 every socket, because a started program can do all that the user can.
 On the main socket, <code>choractl grant agent activation.token</code> gives it; a
 client socket lists it in <code>clients.yaml</code>. The program starts where the
