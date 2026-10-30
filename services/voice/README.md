@@ -20,9 +20,9 @@ agent, `voice-agent.service`.
 
 All three models serve the name `gufo` and listen on `127.0.0.1` only.
 Their internal networks keep them off the internet. Any program and any
-web page on this machine can still use them. A program that takes a
-port while its model is down answers in place of the model, so its tool
-calls run with the grants of the agent. A drop-in such as
+web page on this machine can still use them. A program can also take a
+port while its model is down. It then answers in place of the model, and
+its tool calls run with the grants of the agent. A drop-in such as
 `~/.config/containers/systemd/gufo-tts.container.d/model.conf` changes a
 model: a `[Container]` section with a copy of the `Exec=` line of the
 quadlet and another model path. Then run `systemctl --user
