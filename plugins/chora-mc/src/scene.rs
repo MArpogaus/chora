@@ -291,8 +291,9 @@ pub fn place(cell: [u32; 4], grid: [u32; 2], area: [f64; 4], gap: [f64; 2]) -> [
     [
         area[0] + x * (cell_w + gap[0]),
         area[1] + y * (cell_h + gap[1]),
-        w * cell_w + (w - 1.0) * gap[0],
-        h * cell_h + (h - 1.0) * gap[1],
+        // A small output leaves no room for the gaps.
+        (w * cell_w + (w - 1.0) * gap[0]).max(0.0),
+        (h * cell_h + (h - 1.0) * gap[1]).max(0.0),
     ]
 }
 
