@@ -195,8 +195,6 @@ pub struct Wm {
     icons: Icons,
     /// The settings as the plugin applies them.
     settings: settings::File<Config>,
-    /// The background of the desktop that shows.
-    wallpaper: Wallpaper,
     /// Stretches the time of the magic lamp and of the cube, for tests
     /// and demos; 1 is the normal speed.
     slow: f64,
@@ -313,7 +311,6 @@ impl Wm {
             desk: DesktopIcons::new(&config.terminal),
             effects: Effects::new(config.effects),
             taskbar: config.taskbar,
-            wallpaper: config.wallpaper.clone(),
             theme,
             icons,
             settings,
@@ -460,7 +457,12 @@ impl Wm {
     }
 
     fn add_output(&mut self, output: &OutputInfo) -> Vec<Command> {
-        let mut commands = wallpaper::create(&mut self.theme, &self.wallpaper, output, WALLPAPERS);
+        let mut commands = wallpaper::create(
+            &mut self.theme,
+            &self.settings.value.wallpaper,
+            output,
+            WALLPAPERS,
+        );
         let mut bar = Bar::new(output);
         bar.configure(self.taskbar);
         commands.extend(bar.create(&mut self.theme, BARS, &self.clock, self.desktop));
@@ -1155,7 +1157,11 @@ impl Wm {
         let mine: Vec<usize> = (0..self.windows.len())
             .filter(|&w| self.bars[i].contains(self.windows[w].pos))
             .collect();
-        let mut commands = vec![wallpaper::update(&mut self.theme, &self.wallpaper, output)];
+        let mut commands = vec![wallpaper::update(
+            &mut self.theme,
+            &self.settings.value.wallpaper,
+            output,
+        )];
         commands.extend(self.bars[i].resize(&mut self.theme, output, &self.clock));
         commands.extend(self.pagers());
         let area = self.bars[i].usable();
@@ -2265,7 +2271,7 @@ impl Wm {
                 .first_sized(&["user-trash-full", "user-trash"], 32),
             walls,
         };
-        let style = self.wallpaper.resolved(&self.theme);
+        let style = self.settings.value.wallpaper.resolved(&self.theme);
         let mut panel = DisplayDialog::new(style, screen, self.display_tab, area, art);
         let page = panel.page(&mut self.theme);
         let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
@@ -2326,7 +2332,7 @@ impl Wm {
                 } else {
                     self.redraw_panel(i)
                 };
-                if style != self.wallpaper.resolved(&self.theme) {
+                if style != self.settings.value.wallpaper.resolved(&self.theme) {
                     commands.extend(self.change(json!({ "wallpaper": style })));
                 }
                 let current = self
@@ -2412,39 +2418,22 @@ impl Wm {
         commands
     }
 
-    /// Applies the settings where they differ from what shows.
+    /// Applies the settings: draws the wallpaper, the taskbar and the
+    /// menu again.
     fn configure(&mut self) -> Vec<Command> {
         let config = self.settings.value.clone();
-        let mut commands = Vec::new();
-        let style = config.wallpaper.clone();
-        if style != self.wallpaper {
-            commands.extend(self.set_wallpaper(style));
-        }
-        if config.taskbar != self.taskbar {
-            commands.extend(self.set_taskbar(config.taskbar));
-        }
-        self.effects.toggles = config.effects;
-        let menu = self.menu.config();
-        if menu.programs != config.programs
-            || menu.launcher != config.launcher
-            || menu.file_manager != config.file_manager
-            || self.desk.terminal != config.terminal
-        {
-            self.desk.terminal.clone_from(&config.terminal);
-            commands.extend(self.close_menu());
-            let menu = config.menu();
-            commands.extend(self.menu.rebuild(&menu, &mut self.theme, &mut self.icons));
-        }
-        commands
-    }
-
-    /// Shows a background on every output.
-    fn set_wallpaper(&mut self, style: Wallpaper) -> Vec<Command> {
-        self.wallpaper = style;
-        self.outputs()
+        let mut commands: Vec<Command> = self
+            .outputs()
             .iter()
-            .map(|o| wallpaper::update(&mut self.theme, &self.wallpaper, o))
-            .collect()
+            .map(|o| wallpaper::update(&mut self.theme, &config.wallpaper, o))
+            .collect();
+        commands.extend(self.set_taskbar(config.taskbar));
+        self.effects.toggles = config.effects;
+        self.desk.terminal.clone_from(&config.terminal);
+        commands.extend(self.close_menu());
+        let menu = config.menu();
+        commands.extend(self.menu.rebuild(&menu, &mut self.theme, &mut self.icons));
+        commands
     }
 
     /// A double click on the clock of a taskbar opens Date and Time.
@@ -2700,7 +2689,7 @@ impl Wm {
     /// The Control Panel for an output, with the current choices.
     fn control_panel(&mut self) -> Vec<apps::Node> {
         let walls = control::wallpapers(&wallpaper::dirs(&self.theme));
-        let current = self.wallpaper.file(&self.theme);
+        let current = self.settings.value.wallpaper.file(&self.theme);
         control::menu(current.as_deref(), &walls, self.effects.toggles)
     }
 
@@ -2724,7 +2713,7 @@ impl Wm {
             Setting::Wallpaper(file) => {
                 let style = Wallpaper {
                     picture: Picture::File(file.clone()),
-                    ..self.wallpaper.clone()
+                    ..self.settings.value.wallpaper.clone()
                 };
                 self.change(json!({ "wallpaper": style }))
             }

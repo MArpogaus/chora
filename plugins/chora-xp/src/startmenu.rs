@@ -120,8 +120,6 @@ pub struct Item {
 /// The start menu, one for all outputs, with the cascades of All
 /// Programs.
 pub struct Menu {
-    /// What the menu was made of, to make it again without a program.
-    config: Config,
     user: String,
     entries: Vec<Entry>,
     /// The left column ends with a separator and All Programs.
@@ -190,7 +188,6 @@ impl Menu {
             .position(|e| e.kind == Kind::AllPrograms)
             .unwrap_or(0);
         Self {
-            config: config.clone(),
             user: config.user.clone(),
             entries,
             separators,
@@ -403,11 +400,6 @@ impl Menu {
                 })
             }
         }
-    }
-
-    /// What the menu is made of.
-    pub fn config(&self) -> &Config {
-        &self.config
     }
 
     /// The menu of other programs and places, made again under its node.
