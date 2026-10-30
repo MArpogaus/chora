@@ -279,10 +279,7 @@ impl Ipc {
                 .and_then(window_client)
         });
         for conn in self.conns.values_mut() {
-            let wanted = conn
-                .events
-                .as_ref()
-                .is_some_and(|e| e.is_empty() || e.iter().any(|n| name == Some(n.as_str())));
+            let wanted = name.is_some_and(|n| conn.wants(n));
             let foreign = window
                 .as_ref()
                 .is_some_and(|w| conn.fixed().is_some_and(|f| w.as_deref() != Some(f)));
@@ -387,6 +384,13 @@ impl Ipc {
             .collect()
     }
 
+    /// Whether a connection of a client name subscribes to an event.
+    pub fn subscribes(&self, client: &str, event: &str) -> bool {
+        self.conns
+            .values()
+            .any(|c| c.name.as_deref() == Some(client) && c.wants(event))
+    }
+
     /// Whether a client name has a connection.
     pub fn has_client(&self, name: &str) -> bool {
         self.conns.values().any(|c| c.name.as_deref() == Some(name))
@@ -476,6 +480,12 @@ impl Socket {
 }
 
 impl Conn {
+    /// Whether the connection subscribes to an event; an empty list
+    /// subscribes to all.
+    fn wants(&self, event: &str) -> bool {
+        (self.events.as_ref()).is_some_and(|e| e.is_empty() || e.iter().any(|n| n == event))
+    }
+
     /// The name of the client socket of the connection (D33).
     fn fixed(&self) -> Option<&str> {
         self.socket.name()
@@ -2568,6 +2578,14 @@ mod tests {
         );
         assert!(message.contains("belongs to"), "{message}");
         assert_eq!(wm.events_now(&mut core), Vec::<Value>::new());
+        // An owner that does not listen would lose the change.
+        wm.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["surface.created"]}),
+        );
+        let (_, message) = b.fails(&mut core, "scene.apply", update(props));
+        assert!(message.contains("belongs to"), "{message}");
     }
 
     /// Whether one of the events is a `node.requested` of `s1` by `by`.

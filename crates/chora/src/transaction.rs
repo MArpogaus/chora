@@ -290,6 +290,7 @@ impl State {
             });
         }
         self.check_effects(&head.commands).map_err(rejected)?;
+        self.check_requests(&head.commands, &effects)?;
         for effect in &effects {
             if let Effect::Configure {
                 surface,
@@ -307,6 +308,30 @@ impl State {
         if !head.waiting.is_empty() {
             // A missing timer is logged; the clients still end the wait.
             let _ = self.expire_at(deadline);
+        }
+        Ok(())
+    }
+
+    /// An `update` of the look of another client's node goes to its owner
+    /// as `node.requested` (D58), so the owner must subscribe to it;
+    /// otherwise the change would be lost while the caller sees success.
+    fn check_requests(&self, commands: &[Command], effects: &[Effect]) -> Result<(), RpcError> {
+        for effect in effects {
+            if let Effect::Requested {
+                node,
+                owner,
+                action: "update",
+                ..
+            } = effect
+                && !self.ipc.subscribes(owner, "node.requested")
+            {
+                let update = |c: &Command| matches!(c, Command::Update { id, .. } if id == node);
+                let error = TransactionError {
+                    index: commands.iter().position(update).unwrap_or_default(),
+                    error: SceneError::NotOwner(node.clone(), owner.clone()),
+                };
+                return Err(transaction_error(&error));
+            }
         }
         Ok(())
     }
