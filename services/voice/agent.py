@@ -93,10 +93,16 @@ Where to look:
 
 Limits:
 - run_program starts a graphical program. Its output never comes back,
-  only whether it started, or the error. When it fails, do not start the
-  same program again; say what failed.
-- You cannot read files or the output of commands, and you cannot store
-  shaders or images. Do not write files to inspect them.
+  only whether it started, or the error. It answers when the program
+  starts, not when it ends. When it fails, do not start the same program
+  again; say what failed.
+- Store a shader or a PNG with put_asset; it answers the path for the
+  node, and a second put of the name replaces the file. A shader that
+  runs too long hangs the whole of chora: use loops with a fixed, small
+  number of steps only, at most 64. If a shader does not compile, the
+  error names the line; fix that line.
+- You cannot read files or the output of commands. Do not write files
+  to inspect them.
 - Look once, act, then check once. When a task fails twice, stop and say
   what failed.""",
 )
@@ -116,6 +122,7 @@ PREROLL_FRAMES = int(ENV("PREROLL_MS", "1000")) // FRAME_MS
 NO_QUIET_MS = 2000  # when the agent says that the room stays loud
 CALIBRATE_MS = 750  # the mic at the start, which sets the level of the quiet room
 FLOOR_MS = 5000  # the quiet frames between turns that the level follows
+MIN_SPEECH_MS = 300  # a turn with less speech is a noise, such as a breath
 MAX_TURN_MS = 30000  # a turn that music or a TV keeps loud ends here
 HISTORY = int(ENV("HISTORY", "20"))  # turns kept, each with its tool calls
 TOOL_ROUNDS = 10  # LLM calls per turn while it asks for tools
@@ -123,8 +130,7 @@ FIRST_PIECE = 40  # characters before the comma that may end the first piece
 SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
 # The agent uses the event tools itself; the LLM reads text only, and the
 # picture is the point of capture.
-# put_asset could store a shader that never returns and so hang chora.
-SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture", "put_asset"}
+SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
 TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
 
 SPEAKING = asyncio.Lock()  # one voice at a time: replies and delegate results
@@ -175,13 +181,23 @@ class Mic:
         return max(RMS_SPEECH, SPEECH_RATIO * self.floor)
 
     @property
+    def hold(self) -> float:
+        """The level that keeps a turn going: soft word ends are speech too."""
+        return max(self.floor, self.speech / 2)
+
+    @property
     def barge_in(self) -> float:
         """The level from which speech stops a reply."""
         return max(RMS_BARGE_IN, self.speech)
 
     def learn(self, level: float) -> None:
-        """Move the level of the quiet room toward a quiet frame."""
-        self.floor += (level - self.floor) * FRAME_MS / FLOOR_MS
+        """Move the level of the quiet room toward a quiet frame.
+
+        It falls 25 times faster than it rises, so that a voice during
+        the start leaves the level high for a moment only.
+        """
+        span = FLOOR_MS if level > self.floor else FLOOR_MS / 25
+        self.floor += (level - self.floor) * FRAME_MS / span
 
     async def __aenter__(self) -> "Mic":
         """Start arecord and the reader task."""
@@ -234,7 +250,10 @@ async def play(pcm_chunks: AsyncIterator[bytes]) -> None:
     pcm_chunks : AsyncIterator[bytes]
         16 bit mono samples at RATE.
     """
-    player = await asyncio.create_subprocess_exec("aplay", *PCM, stdin=asyncio.subprocess.PIPE)
+    # aplay reports each gap between two sentences as an underrun.
+    player = await asyncio.create_subprocess_exec(
+        "aplay", *PCM, stdin=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL
+    )
     end = time.monotonic()  # when the sound written so far ends
     try:
         async for chunk in pcm_chunks:
@@ -527,9 +546,11 @@ async def _run_call(tools: Tools, call: dict) -> str:
     try:
         arguments = json.loads(call["args"] or "{}")
         log(f"tool {call['name']} {arguments}")
-        return await tools.call(call["name"], arguments)
+        result = await tools.call(call["name"], arguments)
     except (*TURN_ERRORS, TypeError) as err:  # the LLM reads the error and goes on
-        return f"error: {err}"
+        result = f"error: {err}"
+    log(f"  -> {' '.join(result.split())[:300]}")
+    return result
 
 
 async def answer(
@@ -685,6 +706,7 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
     if not preroll:
         await settle(mic, ptt)
     frames, quiet, pushed = list(preroll), 0, False  # quiet in ms
+    voiced = MIN_SPEECH_MS if preroll else 0  # a barge-in was speech already
     # The start of a word is quieter than speech; the turn keeps it.
     before: collections.deque[bytes] = collections.deque(maxlen=PREROLL_FRAMES)
     while True:
@@ -706,7 +728,13 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
             continue
         if pushed:  # the key went up
             return b"".join(frames)
-        quiet = 0 if loud else quiet + FRAME_MS
+        voiced += FRAME_MS if loud else 0
+        quiet = 0 if level >= mic.hold else quiet + FRAME_MS
+        if quiet >= SILENCE_MS and voiced < MIN_SPEECH_MS:
+            log(f"noise of {voiced} ms, no turn")
+            frames, quiet, voiced = [], 0, 0
+            before.clear()
+            continue
         if quiet >= SILENCE_MS or len(frames) * FRAME_MS >= MAX_TURN_MS:
             return b"".join(frames)
 

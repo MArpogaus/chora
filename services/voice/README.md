@@ -121,7 +121,9 @@ and at least `RMS_SPEECH` (5). The agent follows that level with a
 running mean of the quiet mic between turns. The line `speak now` shows
 the level of speech. A turn starts when the mic level passes it after
 `SETTLE_MS` of quiet. It ends after `SILENCE_MS` (1000) of quiet or after
-30 s. Under
+30 s. During a turn, half the level of speech still counts as speech,
+so soft word ends keep it going. A turn with less than 300 ms of speech
+is a noise, such as a breath, and the agent drops it. Under
 chora, holding `PTT_KEY` (`Super+v`) also records, whatever the level.
 The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
 up, because chora reports the release with it. After a pause of
@@ -166,7 +168,7 @@ right after a reply.
 ## Tools
 
 The LLM gets the tools of `choractl --name voice mcp`, except the event
-tools, `capture` and `put_asset`. `CHORA_MCP` is the command of `choractl`, so
+tools and `capture`. `CHORA_MCP` is the command of `choractl`, so
 that the tools run in another place, for example `podman exec -i NAME
 choractl` in a container. Its programs then start in the container. The unit finds chora through
 `CHORA_SOCKET`, which a chora flavor gives the user manager.
