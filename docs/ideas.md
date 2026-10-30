@@ -41,6 +41,11 @@ All ideas that are not decisions yet. An idea moves to
 
 ## Agents and the ecosystem around chora
 
+- Managed sub-agents of the voice agent, in place of the single coding
+  task: the coordinating agent starts, lists and stops them. Speech is a
+  service that the sub-agents use too, possibly through MCP. The
+  coordinating agent routes speech: the user addresses one or more agents
+  by name, and each agent answers in a voice of its own.
 - An inventory: a local, git-versioned store of reusable elements. Code for
   one-time use goes away, useful code stays.
 - Agent memory in the home directory.
