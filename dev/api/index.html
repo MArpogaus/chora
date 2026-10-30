@@ -1655,7 +1655,7 @@ by default; a timeout exits 1 with the reason on stderr.</p>
 <tbody>
 <tr>
 <td><code>surface.created</code></td>
-<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title, and <code>decoration</code>: <code>server</code> when the client asked for a frame of the plugins through <code>xdg-decoration</code>, <code>client</code> when it draws its own. <code>to</code> names the window manager that the core reserved it for (see <a href="#window-managers">Window managers</a>). <code>pid</code> is the process of the client as the socket reports it, a hint that a pid namespace can hide; <code>token</code> is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before its first commit, or in the same batch of requests, as foot does. The core sends the event at the end of that batch.</td>
+<td>a toplevel waits for a plugin: surface id, <code>app_id</code>, title, and <code>decoration</code>: <code>server</code> when the client asked for a frame of the plugins through <code>xdg-decoration</code>, <code>client</code> when it draws its own. <code>to</code> names the window manager that the core reserved it for (see <a href="#window-managers">Window managers</a>). <code>pid</code> is the process of the client as the socket reports it, a hint that a pid namespace can hide; <code>token</code> is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before its first commit. An activation in the same batch of requests counts too, as in foot. The core sends the event at the end of that batch.</td>
 </tr>
 <tr>
 <td><code>surface.changed</code></td>

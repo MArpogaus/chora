@@ -1172,7 +1172,8 @@ font in <code>~/.local/share/fonts</code> needs no setting at all.</p>
   <code>text</code>), a <code>parent</code>
   (the root by default) and its <code>props</code> as in a <code>create</code> command.</li>
 <li>A name has lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, and starts
-  with a letter, so that its file stays in its directory. The file
+  with a letter, so that its file stays in its directory. A name does
+  not end in <code>.yaml</code>, because such a name is a path. The file
   <code>NAME.yaml</code> must name the same view.</li>
 <li><code>choractl view load</code> also takes the path of a YAML file; the MCP tools
   take names only.</li>
