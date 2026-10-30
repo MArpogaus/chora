@@ -27,6 +27,7 @@ import os
 import pathlib
 import re
 import shlex
+import signal
 import sys
 import time
 from collections.abc import AsyncIterator
@@ -64,7 +65,9 @@ CHORA_NAME = ENV("CHORA_NAME", "voice")  # the client name of the agent
 # The command of choractl; its tools, also run_program, run where it runs,
 # for example "podman exec -i chora-sandbox choractl" for a container.
 CHORA_MCP = ENV("CHORA_MCP", "choractl")
-CODER_CMD = ENV("CODER_CMD", "")  # for example "claude -p --permission-mode acceptEdits"
+# A coding harness, the task as its last argument, for example "claude -p
+# --dangerously-skip-permissions --output-format stream-json --verbose".
+CODER_CMD = ENV("CODER_CMD", "")
 SYSTEM = ENV(
     "SYSTEM",
     """You are the voice assistant of chora, a Wayland compositor on Linux.
@@ -142,12 +145,23 @@ CONTEXT_DOCS = ENV(
     "docs/api.md#Plugins, docs/api.md#MCP tools",
 )
 REPO = pathlib.Path(__file__).resolve().parents[2]
+# The projects that coding tasks clone, which the user keeps, and the
+# clones in which the tasks work.
+DATA = pathlib.Path(ENV("XDG_DATA_HOME", "") or pathlib.Path.home() / ".local/share") / "chora"
+INVENTORY, WORKTREES = DATA / "inventory", DATA / "worktrees"
 # The conversation without the system prompt, kept for the next start;
 # delete the file to start anew.
 STATE = pathlib.Path(ENV("XDG_STATE_HOME", "") or pathlib.Path.home() / ".local/state")
 HISTORY_FILE = STATE / "chora/voice-history.json"
 if CODER_CMD:
-    SYSTEM += " Hand a task that needs code or many steps to delegate, then say that it runs."
+    SYSTEM += """
+
+Coding tasks:
+- Hand a task that needs code, a program or many steps to code_task. It
+  runs in the background in a clone of a project of list_projects, or in
+  an empty repository, and you hear its result when it ends.
+- Say the task in full: the coder hears nothing else. One task runs at a
+  time; code_status says how far it is, code_cancel stops it."""
 
 RATE = 24000
 FRAME_MS = 20
@@ -172,7 +186,7 @@ SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
 GO_ON = "(A noise cut your answer; that was not me. Go on where you stopped.)"
 TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
 
-SPEAKING = asyncio.Lock()  # one voice at a time: replies and delegate results
+SPEAKING = asyncio.Lock()  # one voice at a time: replies and coding results
 
 
 # %% private helpers
@@ -439,14 +453,14 @@ async def transcribe(http: aiohttp.ClientSession, pcm: bytes) -> str:
 
 # %% llm and tools
 class Tools:
-    """The tools of the LLM: those of `choractl mcp` and `delegate`.
+    """The tools of the LLM: those of `choractl mcp` and of the coder.
 
     Parameters
     ----------
     session : ClientSession | None
         The MCP session of chora; None gives no chora tools.
     http : aiohttp.ClientSession
-        The session for speaking the results of `delegate`.
+        The session for the LLM and for speaking the results of the coder.
     """
 
     def __init__(self, session: ClientSession | None, http: aiohttp.ClientSession) -> None:
@@ -455,10 +469,10 @@ class Tools:
         self.specs: list[dict] = []
         self.names: dict[str, str] = {}  # OpenAI function name -> MCP tool name
         self.vision = False  # whether the LLM reads the picture of describe_screen
-        self.job: asyncio.Task | None = None  # asyncio keeps only weak references
+        self.coder = Coder(http) if CODER_CMD else None
 
     async def load(self) -> None:
-        """Ask chora for its tools, add `delegate`, and ask the LLM for images."""
+        """Ask chora for its tools, add those of the coder, and ask the LLM for images."""
         with contextlib.suppress(aiohttp.ClientError, ValueError, TimeoutError):
             async with self.http.get(f"{LLM_URL}/models") as r:
                 models = (await r.json()).get("data") or [{}]
@@ -473,19 +487,13 @@ class Tools:
                 name = tool.name.replace(".", "__")
                 self.names[name] = tool.name
                 self.specs.append(function(name, tool.description, tool.input_schema))
-        if CODER_CMD:
-            task = {"type": "string", "description": "the task in full"}
-            parameters = {"type": "object", "required": ["task"], "properties": {"task": task}}
-            description = (
-                "Hand a bigger task, such as code changes, to a coding agent. "
-                "It runs in the background and the result is spoken when it ends."
-            )
-            self.specs.append(function("delegate", description, parameters))
+        if self.coder:
+            self.specs += Coder.SPECS
 
     async def call(self, name: str, arguments: dict) -> str | list[dict]:
         """Run a tool and return its content for the LLM: text, and images if it sees them."""
-        if name == "delegate" and CODER_CMD:  # else the task text would run as the program
-            return self.delegate(arguments["task"])
+        if self.coder and name in self.coder.TOOLS:  # else the task text would go to chora
+            return self.coder.call(name, arguments)
         if name not in self.names:
             return f"no tool {name}"
         result = await self.session.call_tool(self.names[name], arguments)
@@ -498,31 +506,150 @@ class Tools:
         ]
         return [{"type": "text", "text": text}, *images] if images else text
 
-    def delegate(self, task: str) -> str:
-        """Start CODER_CMD with a task in the background, one at a time."""
-        if self.job and not self.job.done():
-            return "a coding task still runs; wait for its result"
-        self.job = asyncio.create_task(self._run_coder(task), name="delegate")
-        self.job.add_done_callback(report)
-        return "the coding agent started"
 
-    async def _run_coder(self, task: str) -> None:
-        log(f"delegate: {task}")
+class Coder:
+    """Coding tasks of CODER_CMD in clones of the projects in INVENTORY.
+
+    One task runs at a time, in the background, in WORKTREES/NAME on the
+    branch voice/N. Its output goes to coder.log there. A line of JSON,
+    as the stream-json of Claude Code, gives the steps and the result;
+    plain lines count as steps.
+    """
+
+    TOOLS = ("code_task", "code_status", "code_cancel", "list_projects")
+    SPECS = [  # noqa: RUF012 - one list for all instances
+        function(
+            "code_task",
+            "Start a coding task in the background, in a clone of a project, or in an empty "
+            "repository without one. Its result is spoken when it ends.",
+            {
+                "type": "object",
+                "required": ["task"],
+                "properties": {
+                    "task": {"type": "string", "description": "the task in full"},
+                    "project": {"type": "string", "description": "a name of list_projects"},
+                },
+            },
+        ),
+        function("code_status", "Whether a coding task runs, for how long, and its last step.", {}),
+        function("code_cancel", "Stop the running coding task.", {}),
+        function("list_projects", "The projects that code_task can clone.", {}),
+    ]
+
+    def __init__(self, http: aiohttp.ClientSession) -> None:
+        self.http = http
+        self.job: asyncio.Task | None = None  # asyncio keeps only weak references
+        self.proc: asyncio.subprocess.Process | None = None
+        self.workdir: pathlib.Path | None = None
+        self.started = 0.0
+        self.step = ""
+        self.reports: list[str] = []  # results for the history, between two turns
+
+    def call(self, name: str, arguments: dict) -> str:
+        """Run one of TOOLS and return its answer for the LLM."""
+        if name == "code_task":
+            return self.start(arguments["task"], arguments.get("project"))
+        if name == "list_projects":
+            return ", ".join(sorted(p.name for p in INVENTORY.glob("*") if p.is_dir())) or (
+                f"no projects in {INVENTORY}"
+            )
+        running = self.job is not None and not self.job.done()
+        if name == "code_cancel" and running:
+            self.job.cancel()
+            return "the coding task stops"
+        if not running:
+            return "no coding task runs"
+        minutes = (time.monotonic() - self.started) / 60
+        return f"it runs for {minutes:.0f} min in {self.workdir}; last step: {self.step}"
+
+    def start(self, task: str, project: str | None) -> str:
+        """Start a task in a new clone of `project`, or in an empty repository."""
+        if self.job and not self.job.done():
+            return "a coding task runs already; ask for its status or cancel it"
+        if project and not (INVENTORY / project).is_dir():
+            return f"no project {project}; list_projects names them"
+        WORKTREES.mkdir(parents=True, exist_ok=True)
+        number = 1 + max(
+            (
+                int(p.name.rsplit("-", 1)[-1])
+                for p in WORKTREES.glob("*")
+                if p.name.rsplit("-", 1)[-1].isdigit()
+            ),
+            default=0,
+        )
+        self.workdir = WORKTREES / (f"{project}-{number}" if project else str(number))
+        self.job = asyncio.create_task(self._run(task, project, number), name="coding task")
+        self.job.add_done_callback(report)
+        return f"the coding task started in {self.workdir}"
+
+    async def _run(self, task: str, project: str | None, number: int) -> None:
+        log(f"coding task in {self.workdir}: {task}")
+        self.started, self.step, result, state = time.monotonic(), "starting", "", "failed"
         try:
-            proc = await asyncio.create_subprocess_exec(
+            if project:
+                await _git(
+                    "clone", "--quiet", "--local", str(INVENTORY / project), str(self.workdir)
+                )
+                await _git("-C", str(self.workdir), "switch", "--quiet", "-c", f"voice/{number}")
+            else:
+                await _git("init", "--quiet", "-b", f"voice/{number}", str(self.workdir))
+            # Its own process group, so that a cancel ends what it started too.
+            self.proc = await asyncio.create_subprocess_exec(
                 *shlex.split(CODER_CMD),
                 task,
+                cwd=self.workdir,
+                start_new_session=True,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
-            out, _ = await proc.communicate()
-            log(out.decode(errors="replace"))  # what the coder did, for later
-            lines = [line for line in out.decode(errors="replace").splitlines() if line.strip()]
-            last = lines[-1][:200] if lines else "no output"
-            state = "is done" if proc.returncode == 0 else "failed"
+            with (self.workdir / "coder.log").open("wb") as out:
+                async for line in self.proc.stdout:
+                    out.write(line)
+                    step, result = _step(line.decode(errors="replace"), result)
+                    self.step = step or self.step
+            state = "is done" if await self.proc.wait() == 0 else "failed"
+        except asyncio.CancelledError:
+            if self.proc and self.proc.returncode is None:
+                os.killpg(self.proc.pid, signal.SIGTERM)
+            state = "was cancelled"
         except OSError as err:
-            last, state = str(err), "did not start"
-        await speak(self.http, one(f"The coding task {state}. {last}"))
+            result = str(err)
+        text = f"The coding task in {self.workdir} {state}. {(result or self.step)[:400]}"
+        self.reports.append(text)
+        await speak(self.http, one(text))
+
+
+async def _git(*args: str) -> None:
+    """Run git and raise its error."""
+    proc = await asyncio.create_subprocess_exec(
+        "git", *args, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE
+    )
+    _, err = await proc.communicate()
+    if proc.returncode:
+        raise OSError(f"git {args[0]}: {err.decode(errors='replace').strip()}")
+
+
+def _step(line: str, result: str) -> tuple[str, str]:
+    """Return the step that a line of coder output shows, and the result so far.
+
+    A JSON line of stream-json shows a tool call or a text, or the result;
+    any other line is a step as it is.
+    """
+    try:
+        event = json.loads(line)
+    except ValueError:
+        return line.strip()[:200], result
+    if not isinstance(event, dict):
+        return line.strip()[:200], result
+    if event.get("type") == "result":
+        return "", str(event.get("result") or result)
+    for part in (event.get("message") or {}).get("content") or []:
+        if isinstance(part, dict) and part.get("type") == "tool_use":
+            target = next(iter((part.get("input") or {}).values()), "")
+            return f"{part.get('name')} {target}"[:200], result
+        if isinstance(part, dict) and part.get("type") == "text":
+            return part.get("text", "")[:200], result
+    return "", result
 
 
 @dataclass
@@ -743,7 +870,7 @@ async def settle(mic: Mic, ptt: asyncio.Event) -> None:
     push-to-talk key holds them. The quiet keeps the loud start of the mic
     and the end of a reply out.
     """
-    # A held key keeps what it recorded, but not a spoken delegate result.
+    # A held key keeps what it recorded, but not a spoken coding result.
     echo = SPEAKING.locked()
     async with SPEAKING:
         if echo or not ptt.is_set():
@@ -785,7 +912,7 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
     before: collections.deque[bytes] = collections.deque(maxlen=PREROLL_FRAMES)
     while True:
         frame = await mic.frame()
-        if SPEAKING.locked():  # a delegate result: wait for its end and for quiet
+        if SPEAKING.locked():  # a coding result: wait for its end and for quiet
             return await record(mic, ptt, [])
         level, down = rms(frame), ptt.is_set()
         loud = level >= mic.speech
@@ -1074,6 +1201,9 @@ async def run_loop(
                 log(f"turn failed, the history drops it: {err!r}")
                 del history[start:]
                 preroll = []
+            if tools.coder:  # the results that the user heard, for questions about them
+                history += [{"role": "assistant", "content": r} for r in tools.coder.reports]
+                tools.coder.reports.clear()
             trim(history)
             save(past, history)
 

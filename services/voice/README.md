@@ -181,17 +181,8 @@ choractl` in a container. Its programs then start in the container.
 When the LLM reads images, `describe_screen` gives it the screenshot
 too. Gufo says so in `input_modalities` of `/v1/models`, and the log at
 the start. A text-only LLM gets the windows and nodes as text only. The
-unit finds chora through
-`CHORA_SOCKET`, which a chora flavor gives the user manager.
-`CODER_CMD`, for example `claude -p --permission-mode acceptEdits`, adds
-the tool `delegate`. It runs bigger tasks in the background, in the
-working directory of the agent, and speaks the result. The unit runs in
-your home directory. There the coder of the example changes and deletes
-files without asking, and runs what your Claude settings allow. Its
-changes stay after a stop, also changes to the settings or the code of
-the agent. It also sends the task and the files that it reads to
-Anthropic. The journal keeps its whole output. A drop-in with
-`WorkingDirectory=` gives the coder a smaller directory.
+unit finds chora through `CHORA_SOCKET`, which a chora flavor gives the
+user manager.
 
 To type and to start programs, the client name `voice` (`CHORA_NAME`)
 needs grants. A grant lasts until the session ends, until `choractl
@@ -202,8 +193,8 @@ choractl grant voice input.inject activation.token
 ```
 
 Each of these grants alone, and `CODER_CMD`, lets the LLM run commands
-as you. `delegate` needs no grant, so `choractl revoke` does not stop
-it. Without grants, the LLM still closes windows and changes the
+as you. A coding task needs no grant, so `choractl revoke` does not stop
+it; `code_cancel` does. Without grants, the LLM still closes windows and changes the
 outputs, the scene and the plugins, and overwrites the saved views. It
 also starts the plugins of installed views. Any voice that the mic hears
 can start a turn, also from a video, and also while the screen is
@@ -216,3 +207,31 @@ returns with the next tool call; `wlr-randr` resets the outputs. The
 emergency reset and the revoke binding do not stop the agent; after the
 reset, it connects again. Only `systemctl --user stop voice-agent` stops
 it and a running coder.
+
+## Coding tasks
+
+`CODER_CMD` names a coding harness, which gets the task as its last
+argument, for example:
+
+```bash
+CODER_CMD="claude -p --dangerously-skip-permissions --output-format stream-json --verbose"
+```
+
+It adds the tools `code_task`, `code_status`, `code_cancel` and
+`list_projects`. A task runs in the background, one at a time:
+
+- `code_task` with a project clones `~/.local/share/chora/inventory/NAME`
+  to `~/.local/share/chora/worktrees/NAME-N`, on the branch `voice/N`.
+  Without a project, it starts an empty repository `worktrees/N`.
+- The harness runs in that clone and writes its output to `coder.log`
+  there. The agent speaks the result and keeps it in the history.
+- The inventory holds the projects that you keep, as directories or
+  links, for example `ln -s ~/Projekte/chora
+  ~/.local/share/chora/inventory/chora`. Take a good result into a
+  project with `git fetch` from its clone.
+
+JSON lines such as the `stream-json` of Claude Code give the steps and
+the result; other harnesses give plain lines. Without a sandbox of its
+own, the harness of the example changes and deletes files without
+asking, also outside the clone, and runs any command as you. The task
+and the files that it reads go to the provider of the model.
