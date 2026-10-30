@@ -302,7 +302,8 @@ keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
 
 step "13. My Documents of the start menu starts the file manager"
-# Its window comes with the activation token of choractl run (D42).
+# Only its window is checked here. tests/gate-0.8-xp-token.sh checks the
+# activation token of its surface.created (gate check 3 of 0.8).
 "$bin/choractl" events surface.created >"$out/fm-created.jsonl" 2>/dev/null &
 fm_job=$!
 sleep 0.5
@@ -315,9 +316,6 @@ wait_for count_is 3
 kill "$fm_job" 2>/dev/null || true
 app=$(query "kind:surface owner:xp" | jq -r '[.[] | .surface.app_id // ""] | join(" ")')
 grep -qiw "${file_manager%% *}" <<<"$app" || fail "no ${file_manager%% *} window: $app"
-jq -e 'select(.event == "surface.created" and (.token // "") != "")' \
-    "$out/fm-created.jsonl" >/dev/null ||
-    fail "no surface.created with a token: $out/fm-created.jsonl"
 grim "$out/file-manager.png"
 
 step "14. the exported methods do what the clicks do"
