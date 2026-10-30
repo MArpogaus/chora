@@ -2574,9 +2574,12 @@ mod tests {
         let (_, message) = b.fails(
             &mut core,
             "scene.apply",
-            update(json!({"opacity": 0.5, "visible": false})),
+            update(json!({"opacity": 0.5, "visible": false, "size": [1, 1]})),
         );
-        assert!(message.contains("belongs to"), "{message}");
+        assert!(
+            message.contains("belongs to") && message.ends_with("not size, visible"),
+            "the owner-only props: {message}"
+        );
         assert_eq!(wm.events_now(&mut core), Vec::<Value>::new());
         // An owner that does not listen would lose the change.
         wm.ok(

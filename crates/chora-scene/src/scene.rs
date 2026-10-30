@@ -964,10 +964,12 @@ impl Scene {
         };
         // An empty update asks for nothing and stays refused.
         if timing.is_none()
-            && *props == look
             && look != PropsUpdate::default()
             && let Some(other) = self.other_owner(owner, id)
         {
+            if *props != look {
+                return Err(mixed_request(id, &other, props));
+            }
             let node = &self.nodes[id];
             check_props(id, node.kind, props)?;
             check_meta(id, &node.props.meta, props)?;
@@ -1669,6 +1671,20 @@ fn configure(surface: &str, size: Option<[i32; 2]>, states: Vec<ToplevelState>) 
 }
 
 /// The effect of a command that another client's node would need (D31).
+/// The error of an `update` of a foreign node that mixes the look, which
+/// the owner gets as a request, with props that only the owner changes.
+fn mixed_request(id: &str, owner: &str, props: &PropsUpdate) -> SceneError {
+    let props = serde_json::to_value(props).expect("props serialize");
+    let owner_only: Vec<&str> = (props.as_object().into_iter().flatten())
+        .map(|(key, _)| key.as_str())
+        .filter(|key| !["opacity", "effects", "meta"].contains(key))
+        .collect();
+    SceneError::Invalid(format!(
+        "node {id:?} belongs to {owner:?}: a request takes only opacity, effects and meta, not {}",
+        owner_only.join(", ")
+    ))
+}
+
 fn request(
     by: &str,
     node: &str,

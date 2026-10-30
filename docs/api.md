@@ -139,7 +139,7 @@ path.
 |---------|---------|
 | `create` | create a group, rect, image, shader or text node under a parent |
 | `attach` | put a surface without an owner under a parent; the caller becomes its owner |
-| `update` | change node properties. An update of only opacity, effects and meta of a node of another client answers with `node.requested` to its owner (D58), if the owner subscribes to `node.requested`; else it fails as other changes of a foreign node do, so the change is not lost unseen. |
+| `update` | change node properties. An update of only opacity, effects and meta of a node of another client answers with `node.requested` to its owner (D58), if the owner subscribes to `node.requested`; else it fails as other changes of a foreign node do, so the change is not lost unseen. An update that mixes other props with them fails with an error that names the other props. |
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
 | `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection (D55). |
