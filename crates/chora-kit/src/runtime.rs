@@ -185,8 +185,13 @@ pub fn serve<P: Plugin>(plugin: &mut P) -> Result<(), ClientError> {
 
 /// Answers a method call, drops the events of outputs of others and hands
 /// the rest to the plugin. The call may have ended before the answer, for
-/// example when its caller left; that is no reason to exit.
-fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientError> {
+/// example when its caller left; that is no reason to exit. A plugin with
+/// a loop of its own, for example for animations, calls it per event.
+///
+/// # Errors
+///
+/// The socket fails.
+pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientError> {
     let rt = plugin.runtime();
     match event {
         Event::MethodCalled {
