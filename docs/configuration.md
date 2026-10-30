@@ -235,8 +235,9 @@ tiling needs `modifier: Super`: with `Alt`, tiling grabs Alt+Space for
 
 `chora-mc` connects with the client name `mc`. It is a voice-first
 desktop without window management: the whole screen shows one scene at a
-time on the first output, and a quiet HUD line at the bottom shows what the
-voice agent does. The voice agent and small collector scripts fill the
+time on the first output, and quiet regions around it show the context:
+the running head and the clock, what the voice agent does, notes and a
+docked terminal. The voice agent and small collector scripts fill the
 scenes through methods; the plugin reads no sources itself.
 
 A scene of `chora-mc` is not a view of D35. It is a YAML file
@@ -263,8 +264,8 @@ panels:
 ```
 
 Each scene of panels has a head in the style of the LaTeX package
-classicthesis: a running head top right, by default the date, and the
-number and the title of the scene as `chapter.layout` sets. The panels
+classicthesis: the running head in the header (see the regions below),
+and the number and the title of the scene as `chapter.layout` sets. The panels
 share the text block, one column of `page.measure` per column of the
 grid. A line `TIME<tab>TEXT` puts the time in the margin column left of
 the text, flush right, and the text wraps under it. A panel names the
@@ -281,6 +282,11 @@ and `note_style`; each takes a `base` (by default `body`, `heading` and
 | `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line |
 | `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it |
 | `app.open` | `command`: a shell command that starts in a scene of its own |
+| `region.list` | none; answers the current `scene`, each region with `shown`, `visible` and its `contents`, and each content with its `kind`, `title`, `text` and whether its app runs |
+| `region.toggle` | `region` and an optional `shown`; without it the region flips. Answers `shown` |
+| `region.put` | `content`, `region` and an optional `slot`: the content goes there over the rules, until the next start. Without `region` the content follows the rules again |
+| `content.set` | `content`, `lines` and an optional `title` of a text content |
+| `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines |
 
 New text writes itself, as Write of manim: a soft front draws the
 outlines line by line, and the fill follows. This happens when a scene
@@ -313,9 +319,115 @@ hand apply with `settings.reload`:
   `gap`, in em of `scale.base`.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
 - `default_scene`, and the `bindings` with the actions `next_scene`,
-  `previous_scene`, `scene: NAME` and `run: COMMAND`.
+  `previous_scene`, `scene: NAME`, `run: COMMAND` and `toggle: REGION`.
+- `regions`, `contents`, `rules`, `preset` and `presets`: see below.
 
-The HUD hides over an app unless its `state` is set.
+### Regions
+
+The regions around the page follow the Emacs package
+[auto-side-windows](https://github.com/MArpogaus/auto-side-windows): rules
+put each content into a region and a slot, and a key shows or hides a
+region. The page itself never moves when a region shows.
+
+```text
+ ______________________________________________________
+|  header:  1  AGENDA       LISTENING   FRIDAY 16:08   |
+|        |                                  |          |
+|  left  |  margin   the page of the scene  |  right:  |
+|        |                                  |  NOTES   |
+|      __|__________________________________|__        |
+|     |  drawer: a docked terminal (foot)     |       |
+|     |_______________________________________|       |
+|  footer:  words of the agent          15:15 Call    |
+|______________________________________________________|
+```
+
+- `header` and `footer` are lines over and under the text block, each
+  `size` lines of the baseline grid high. Their contents stand side by
+  side: a slot below 0 goes left, 0 in the middle, above 0 right. The
+  right end keeps its place, the left end comes next, and a text that
+  does not fit ends in an ellipsis.
+- `left` and `right` are columns beside the page, `size` em wide, their
+  contents one under the other with a title in the style `running_head`.
+  The page leaves room for a side that has contents, so that its text
+  never moves; where both sides would leave the text less than three
+  quarters of its measure, the sides do not show.
+- `drawer` is a sheet of `size` lines over the bottom of the page, with a
+  hairline above it, for a docked app.
+
+A region shows only with something in it. Whether it shows comes from a
+toggle, else from the `regions` of the scene file (for example
+`regions: {right: false}`), else from the preset, else from `shown` in
+`regions`. Over an app, the left and the right side show only after a
+toggle, and the app window leaves the header, the footer, the drawer and
+a shown side free. A toggle stays for all scenes.
+
+The `contents` are named. Their `kind` is one of:
+
+| Kind | Shows |
+|------|-------|
+| `head` | the running head of the scene: `chapter.running_head`, else its number and title; the name of an app |
+| `clock` | the time as `date` formats it with `format`, each minute anew |
+| `state` | the `state` of `hud.set` and `hud.say`, in the accent color |
+| `hud` | the `text` of `hud.set` and `hud.say` |
+| `text` | a `title` and `lines` that `content.set` and `content.add` change |
+| `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
+
+Each content may set a `style`. The `rules` are a list, and the first
+rule that matches a content wins. A rule names a `content` or a `kind`,
+optionally the `scenes` by name or `@app` and `@page`, and the `region`
+and `slot`. A rule cannot put an app into a line.
+
+`toggle: REGION` as a binding shows or hides a region. A region with a
+docked app works as a quake terminal: the first press starts the app and
+gives it the keyboard, a press while the app has no keyboard gives it
+back to it, and the next press hides the region and gives the keyboard
+back to the scene. When the app ends, its region hides. A drawer that a
+preset or a scene shows starts its app when the settings load.
+
+The default bindings are `Super+Return` for the drawer, `Super+n` for the
+right side, and `Super+Up` and `Super+Down` for the header and the
+footer.
+
+The default `desk` setup: the header shows the running head left, and
+the state of the agent and the clock right; the footer shows the words
+of the agent left and the next entry of the agenda right (the collector
+fills the content `next`); the right side shows the notes, which an agent
+fills with `content.add`; `Super+Return` opens `foot` in the drawer in the
+colors of the theme. Over an app, the words of the agent move into the
+middle of the header.
+
+`preset` picks an arrangement of `presets`. A preset sets which regions
+show in `shown` and has its own `rules`; without rules, those of the
+settings apply:
+
+| Preset | Arrangement |
+|--------|-------------|
+| `quiet` | only the header: the running head, the words and the state of the agent, the time |
+| `desk` | the default described above |
+| `studio` | an outline and the notes in the left side, a terminal in the drawer that starts at once |
+| `book` | the running head and the date above, the words of the agent, the time as a folio and the state below, the notes in the margin |
+
+```yaml
+# ~/.config/chora/chora-mc.yaml
+preset: desk              # desk has no rules of its own
+contents:
+  todo: {kind: text, title: Today}
+rules:                    # the list replaces the default rules
+- {content: head, region: header, slot: -1}
+- {content: clock, region: header, slot: 1}
+- {content: hud, region: footer, slot: -1}
+- {content: todo, scenes: ['@page'], region: left}
+- {content: notes, region: right}
+- {kind: app, region: drawer}
+```
+
+```sh
+choractl call mc content.add '{"content": "notes", "line": "Call Lena"}'
+choractl call mc region.toggle '{"region": "drawer"}'
+choractl call mc region.put '{"content": "notes", "region": "left"}'
+```
+
 `chora-mc --print-config` prints the default. An option that the file
 leaves out takes its default. The collector
 `plugins/chora-mc/collectors/agenda.sh` puts the org agenda of today into
