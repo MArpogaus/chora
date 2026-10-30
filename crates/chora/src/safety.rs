@@ -252,8 +252,9 @@ impl State {
     }
 
     /// The revoke binding (D23): takes the capabilities away from every
-    /// client, as a full `grants.revoke` does. It also drops the unused
-    /// activation tokens of no client. The connections stay.
+    /// client and ends only the Wayland clients that a capability gave a
+    /// protocol. It also drops the unused activation tokens of no client.
+    /// The IPC connections stay.
     pub fn revoke_all(&mut self) {
         self.forget_unused_tokens(std::time::Duration::ZERO);
         let names = self.grants.revoke_all();
