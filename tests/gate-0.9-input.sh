@@ -9,10 +9,9 @@
 # Usage: tests/gate-0.9-input.sh   BIN: directory with the binaries
 set -u
 . "$(dirname "$0")/gate-lib.sh"
-for what in chora choractl chora-probe; do
-    test -x "$bin/$what" || fail "no $bin/$what; build it first"
-done
-work=$(mktemp -d /tmp/gate-0.9-input.XXXXXX)
+need_bins chora choractl chora-probe
+temp_config
+work=$XDG_CONFIG_HOME
 cat >"$work/input.yaml" <<'YAML'
 name: input
 input:
@@ -36,4 +35,3 @@ settings=$(python3 -I -c 'import json, sys; print(json.dumps(json.load(sys.stdin
 [ "$settings" = '{"keyboard": {"repeat_delay": 300, "repeat_rate": 40}, "touchpad": {"tap": true}}' ] ||
     fail "the settings: $settings"
 ok "the core holds tap for touchpads: $settings"
-rm -rf "$work"

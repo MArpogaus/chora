@@ -8,11 +8,8 @@
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need jq
-for what in chora choractl chora-tiling chora-probe; do
-    test -x "$bin/$what" || fail "no $bin/$what; build it first"
-done
-XDG_CONFIG_HOME=$(mktemp -d /tmp/gate-tags.XXXXXX)
-export XDG_CONFIG_HOME
+need_bins chora choractl chora-tiling chora-probe
+temp_config
 session_start 640x480,640x480+640+0 -- "$bin/chora-tiling"
 tags() {
     ctl call tiling get_tags | WAYBAR_OUTPUT_NAME=$1 \

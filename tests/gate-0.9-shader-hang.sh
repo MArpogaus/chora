@@ -8,11 +8,10 @@
 # Usage: tests/gate-0.9-shader-hang.sh   BIN: directory with the binaries
 set -u
 . "$(dirname "$0")/gate-lib.sh"
-for what in chora choractl; do
-    test -x "$bin/$what" || fail "no $bin/$what; build it first"
-done
+need_bins chora choractl
 ulimit -c 0 # the abort leaves no core file here
-work=$(mktemp -d /tmp/gate-0.9-hang.XXXXXX)
+temp_config
+work=$XDG_CONFIG_HOME
 shader=$work/hang.frag
 # x only grows, and depends on a uniform, so no compiler drops the loop.
 cat >"$shader" <<'GLSL'
@@ -59,4 +58,3 @@ grep -q "the main loop hangs; the watchdog aborts chora with a core dump" "$log"
     fail "no abort line: $(tail -n 5 "$log")"
 grep -q "chora: SIGABRT" "$log" || fail "no SIGABRT: $(tail -n 5 "$log")"
 ok "the watchdog aborted the hung core after CHORA_HANG_ABORT_S"
-rm -rf "$work"

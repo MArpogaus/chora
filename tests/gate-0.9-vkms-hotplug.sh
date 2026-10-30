@@ -21,12 +21,9 @@
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need jq
-for what in chora choractl chora-tiling chora-probe; do
-    test -x "$bin/$what" || fail "no $bin/$what; build it first"
-done
+need_bins chora choractl chora-tiling chora-probe
 mode=${HOTPLUG:-vkms}
-XDG_CONFIG_HOME=$(mktemp -d /tmp/gate-hotplug.XXXXXX)
-export XDG_CONFIG_HOME
+temp_config
 shots=${SHOTS:-$XDG_CONFIG_HOME}
 mkdir -p "$shots"
 log=$shots/chora.log
@@ -104,14 +101,13 @@ vkms)
         "$bin/chora" -- "$bin/chora-tiling" >"$log" 2>&1 &
     pids+=($!)
     cleanup() {
-        kill "${pids[@]}" "${run_pids[@]}" 2>/dev/null
-        wait 2>/dev/null
+        gate_cleanup "$1"
         test -d "$dev" || return 0
         echo 0 >"$dev/enabled"
         rm -f "$dev"/*/*/possible_*/*
         rmdir "$dev"/*/* "$dev"
     }
-    trap cleanup EXIT
+    trap 'cleanup $?' EXIT
     export CHORA_SOCKET=$rt/chora/wayland-1.sock XDG_RUNTIME_DIR=$rt WAYLAND_DISPLAY=wayland-1
     wait_for test -S "$CHORA_SOCKET"
     sleep 2 # chora-tiling takes the outputs

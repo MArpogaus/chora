@@ -18,20 +18,19 @@ need pipewire
 test -x "$libexec/xdg-desktop-portal-wlr" || skip "xdg-desktop-portal-wlr is not installed here"
 test -x "$libexec/xdg-desktop-portal" || skip "xdg-desktop-portal is not installed here"
 python3 -c 'import gi' 2>/dev/null || skip "PyGObject is not installed here"
-for what in chora choractl; do
-    test -x "$bin/$what" || fail "no $bin/$what; build it first"
-done
+need_bins chora choractl
 session_start 640x480
 
 # The portal files of the tree in directories of their own; a private
 # runtime dir keeps PipeWire away from the host. With
 # XDG_DESKTOP_PORTAL_DIR, the portal reads its .conf from there too.
-work=$(mktemp -d /tmp/gate-cast.XXXXXX)
-mkdir -p "$work/config/xdg-desktop-portal-wlr" "$work/portals" "$work/run"
+temp_config
+work=$XDG_CONFIG_HOME
+mkdir -p "$work/xdg-desktop-portal-wlr" "$work/portals" "$work/run"
 chmod 700 "$work/run"
 cp "$repo/dist/portal/chora-portals.conf" "$work/portals/"
 sed 's/^chooser_cmd=.*/chooser_cmd=head -n 1/' "$repo/dist/portal/xdg-desktop-portal-wlr" \
-    >"$work/config/xdg-desktop-portal-wlr/chora"
+    >"$work/xdg-desktop-portal-wlr/chora"
 # A second backend that also implements ScreenCast and Screenshot and
 # names chora in UseIn: a fallback without chora-portals.conf picks it,
 # so the log check below proves that the portal reads the file. It needs
@@ -40,7 +39,7 @@ cp "$portals/wlr.portal" "$work/portals/"
 printf '%s\n' '[portal]' 'DBusName=org.freedesktop.impl.portal.desktop.gtk' \
     'Interfaces=org.freedesktop.impl.portal.ScreenCast;org.freedesktop.impl.portal.Screenshot;' \
     'UseIn=chora' >"$work/portals/gtk.portal"
-export XDG_CONFIG_HOME=$work/config XDG_DESKTOP_PORTAL_DIR=$work/portals \
+export XDG_DESKTOP_PORTAL_DIR=$work/portals \
     XDG_CURRENT_DESKTOP=chora PIPEWIRE_RUNTIME_DIR=$work/run LIBEXEC=$libexec
 
 # shellcheck disable=SC2016 # expands in the inner shell
@@ -64,5 +63,4 @@ for line in "Using portal configuration file '$work/portals/chora-portals.conf' 
     grep -qF "$line" "$work/portal.log" ||
         fail "the portal log has no line \"$line\": $(grep -i 'using' "$work/portal.log")"
 done
-rm -rf "$work"
 ok "the portal read chora-portals.conf, picked wlr over gtk and gave the stream of an output as PipeWire $answer"

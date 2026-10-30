@@ -9,11 +9,8 @@ set -u
 need xwayland-satellite
 need Xwayland
 need xeyes
-for what in chora choractl chora-tiling; do
-    test -x "$bin/$what" || fail "no $bin/$what; build it first"
-done
-XDG_CONFIG_HOME=$(mktemp -d /tmp/gate-x11.XXXXXX)
-export XDG_CONFIG_HOME
+need_bins chora choractl chora-tiling
+temp_config
 session_start 640x480 -- "$bin/chora-tiling"
 # xwayland-satellite needs a runtime dir; the one of the session serves.
 XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$GATE_ENV")
