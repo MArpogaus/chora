@@ -19,13 +19,13 @@ themes:
 font:
   family: Noto Sans
   size: 20
-# The view at the start.
-default_view: agenda
-# A binding and its action: next_view, previous_view, {view: NAME}, or
-# {run: COMMAND}, which starts a shell command; its window gets a view of
+# The scene at the start.
+default_scene: agenda
+# A binding and its action: next_scene, previous_scene, {scene: NAME}, or
+# {run: COMMAND}, which starts a shell command; its window gets a scene of
 # its own.
 bindings:
-  Super+Right: next_view
-  Super+Left: previous_view
-  Super+a: {view: agenda}
+  Super+Right: next_scene
+  Super+Left: previous_scene
+  Super+a: {scene: agenda}
   Super+space: {run: fuzzel}

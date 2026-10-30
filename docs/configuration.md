@@ -212,19 +212,19 @@ tiling needs `modifier: Super`: with `Alt`, tiling grabs Alt+Space for
     methods and files change without notice.
 
 `chora-mc` connects with the client name `mc`. It is a voice-first
-desktop without window management: the whole screen shows one view at a
+desktop without window management: the whole screen shows one scene at a
 time on the first output, and a quiet HUD line at the bottom shows what the
 voice agent does. The voice agent and small collector scripts fill the
-views through methods; the plugin reads no sources itself.
+scenes through methods; the plugin reads no sources itself.
 
-A view of `chora-mc` is not a view of D35. It is a YAML file
-`NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/views/`: a grid of panels, each
+A scene of `chora-mc` is not a view of D35. It is a YAML file
+`NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/scenes/`: a grid of panels, each
 with a title and lines, or one app whose window fills the screen without
-a frame. The plugin has the built-in views `agenda` and `terminal`. A file
-of the same name replaces a built-in view.
+a frame. The plugin has the built-in scenes `agenda` and `terminal`. A file
+of the same name replaces a built-in scene.
 
 ```yaml
-# ~/.config/chora/mc/views/day.yaml
+# ~/.config/chora/mc/scenes/day.yaml
 grid: [2, 2]          # columns and rows
 panels:
 - id: mail
@@ -237,21 +237,21 @@ panels:
 
 | Method | Parameters |
 |--------|------------|
-| `view.show` | `name`; the view fades in, the old one fades out |
-| `view.list` | none; answers `views` and `current` |
-| `view.save` | `name`, `grid`, `panels` or `app`; writes the file |
-| `panel.set` | `view`, `panel`, `lines` and an optional `title`; until the next start |
+| `scene.show` | `name`; the scene fades in, the old one fades out |
+| `scene.list` | none; answers `scenes` and `current` |
+| `scene.save` | `name`, `grid`, `panels` or `app`; writes the file |
+| `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start |
 | `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line |
-| `app.open` | `command`: a shell command that starts in a view of its own |
+| `app.open` | `command`: a shell command that starts in a scene of its own |
 
-A window that no view started, for example from a launcher, gets a view
+A window that no scene started, for example from a launcher, gets a scene
 of its own. The settings of D62 are in `chora/chora-mc.yaml`:
 `theme` (`light` or `dark`), the colors of each theme, the `font`, the
-`default_view` and the `bindings` with the actions `next_view`,
-`previous_view`, `view: NAME` and `run: COMMAND`. `chora-mc
+`default_scene` and the `bindings` with the actions `next_scene`,
+`previous_scene`, `scene: NAME` and `run: COMMAND`. `chora-mc
 --print-config` prints the default. The collector
 `plugins/chora-mc/collectors/agenda.sh` puts the org agenda of today into
-the view `agenda`, with `emacs --batch`.
+the scene `agenda`, with `emacs --batch`.
 
 ## Flavors
 

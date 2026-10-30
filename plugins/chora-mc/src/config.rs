@@ -15,11 +15,11 @@ pub const DEFAULT: &str = include_str!("../mc.yaml");
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
-    NextView,
-    PreviousView,
-    /// Shows a view by its name.
-    View(String),
-    /// Runs a shell command as an app; its window gets a view of its own.
+    NextScene,
+    PreviousScene,
+    /// Shows a scene by its name.
+    Scene(String),
+    /// Runs a shell command as an app; its window gets a scene of its own.
     Run(String),
 }
 
@@ -64,8 +64,8 @@ pub struct Config {
     pub theme: Theme,
     pub themes: Themes,
     pub font: Font,
-    /// The view at the start.
-    pub default_view: String,
+    /// The scene at the start.
+    pub default_scene: String,
     /// A binding and its action.
     pub bindings: BTreeMap<String, Action>,
 }
@@ -114,10 +114,10 @@ mod tests {
     fn the_default_is_valid_and_mistakes_fail() {
         let config = parse::<Config>(DEFAULT).unwrap();
         assert_eq!(config.theme, Theme::Dark);
-        assert_eq!(config.bindings["Super+a"], Action::View("agenda".into()));
+        assert_eq!(config.bindings["Super+a"], Action::Scene("agenda".into()));
         let color = DEFAULT.replace("[0.07, 0.07, 0.07, 1.0]", "[2, 0, 0, 1]");
         assert!(parse::<Config>(&color).unwrap_err().contains("themes.dark"));
-        let twice = format!("{DEFAULT}  super+a: next_view\n");
+        let twice = format!("{DEFAULT}  super+a: next_scene\n");
         assert!(parse::<Config>(&twice).is_err());
     }
 }

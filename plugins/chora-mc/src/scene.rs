@@ -1,25 +1,25 @@
-//! Views: what the whole screen shows for one task. A view is a grid of
-//! panels, or one app whose window fills the screen. Each view is a YAML
-//! file `NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/views/`.
+//! Scenes: what the whole screen shows for one task. A scene is a grid of
+//! panels, or one app whose window fills the screen. Each scene is a YAML
+//! file `NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/scenes/`.
 
 use std::{collections::BTreeMap, io::Write as _, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-/// The views that ship with the plugin; a file of the same name replaces
+/// The scenes that ship with the plugin; a file of the same name replaces
 /// one.
 pub const BUILT_IN: [(&str, &str); 2] = [
-    ("agenda", include_str!("../views/agenda.yaml")),
-    ("terminal", include_str!("../views/terminal.yaml")),
+    ("agenda", include_str!("../scenes/agenda.yaml")),
+    ("terminal", include_str!("../scenes/terminal.yaml")),
 ];
 
 /// The most bytes of a text node of the core.
 const MAX_TEXT: usize = 4096;
 
-/// A view as its file has it.
+/// A scene as its file has it.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct View {
+pub struct Scene {
     /// Columns and rows of the grid of the panels.
     #[serde(default = "one_cell")]
     pub grid: [u32; 2],
@@ -47,8 +47,8 @@ fn one_cell() -> [u32; 2] {
     [1, 1]
 }
 
-/// An empty view: the view of a window that no view started.
-impl Default for View {
+/// An empty scene: the scene of a window that no scene started.
+impl Default for Scene {
     fn default() -> Self {
         Self {
             grid: one_cell(),
@@ -58,8 +58,8 @@ impl Default for View {
     }
 }
 
-impl View {
-    /// A view of one app.
+impl Scene {
+    /// A scene of one app.
     pub fn app(command: &str) -> Self {
         Self {
             app: Some(command.into()),
@@ -107,7 +107,7 @@ impl Panel {
     }
 }
 
-/// A name of a view or a panel is a file name and part of a node id.
+/// A name of a scene or a panel is a file name and part of a node id.
 pub fn check_name(name: &str) -> Result<(), String> {
     let ok = (1..=64).contains(&name.len())
         && !name.starts_with('.')
@@ -121,30 +121,30 @@ pub fn check_name(name: &str) -> Result<(), String> {
     }
 }
 
-/// Parses and checks a view.
-pub fn parse(text: &str) -> Result<View, String> {
+/// Parses and checks a scene.
+pub fn parse(text: &str) -> Result<Scene, String> {
     let mut options = serde_saphyr::Options::default();
     options.strict_booleans = true;
     options.reject_unsupported_tags = true;
-    let view: View =
+    let scene: Scene =
         serde_saphyr::from_str_with_options(text, options).map_err(|e| e.to_string())?;
-    view.check()?;
-    Ok(view)
+    scene.check()?;
+    Ok(scene)
 }
 
-/// The built-in views and the files in `dir`. A wrong file only logs.
-pub fn load(dir: &Path) -> BTreeMap<String, View> {
-    let mut views: BTreeMap<String, View> = BUILT_IN
+/// The built-in scenes and the files in `dir`. A wrong file only logs.
+pub fn load(dir: &Path) -> BTreeMap<String, Scene> {
+    let mut scenes: BTreeMap<String, Scene> = BUILT_IN
         .iter()
         .map(|(name, text)| {
             (
                 (*name).into(),
-                parse(text).expect("built-in views are valid"),
+                parse(text).expect("built-in scenes are valid"),
             )
         })
         .collect();
     let Ok(entries) = std::fs::read_dir(dir) else {
-        return views;
+        return scenes;
     };
     for path in entries.flatten().map(|e| e.path()) {
         let Some(name) = path
@@ -156,22 +156,22 @@ pub fn load(dir: &Path) -> BTreeMap<String, View> {
         };
         let read = std::fs::read_to_string(&path).map_err(|e| e.to_string());
         match read.and_then(|text| parse(&text)) {
-            Ok(view) if check_name(name).is_ok() => {
-                views.insert(name.into(), view);
+            Ok(scene) if check_name(name).is_ok() => {
+                scenes.insert(name.into(), scene);
             }
             Ok(_) => eprintln!("chora-mc: {}: a wrong name", path.display()),
             Err(err) => eprintln!("chora-mc: {}: {err}", path.display()),
         }
     }
-    views
+    scenes
 }
 
 /// Writes `NAME.yaml` in `dir` through a temporary file, so that a crash
 /// leaves the old file or the new one.
-pub fn save(dir: &Path, name: &str, view: &View) -> Result<(), String> {
+pub fn save(dir: &Path, name: &str, scene: &Scene) -> Result<(), String> {
     check_name(name)?;
-    view.check()?;
-    let text = serde_saphyr::to_string(view).map_err(|e| e.to_string())?;
+    scene.check()?;
+    let text = serde_saphyr::to_string(scene).map_err(|e| e.to_string())?;
     let path = dir.join(format!("{name}.yaml"));
     let tmp = dir.join(format!(".{name}.yaml.tmp"));
     let write = || -> std::io::Result<()> {
@@ -210,9 +210,9 @@ mod tests {
     }
 
     #[test]
-    fn a_saved_view_loads_and_replaces_a_built_in_one() {
+    fn a_saved_scene_loads_and_replaces_a_built_in_one() {
         let dir = dir("save");
-        let view = View {
+        let scene = Scene {
             grid: [2, 1],
             panels: vec![Panel {
                 id: "mail".into(),
@@ -222,14 +222,14 @@ mod tests {
             }],
             app: None,
         };
-        save(&dir, "agenda", &view).unwrap();
-        save(&dir, "news", &View::app("foot")).unwrap();
+        save(&dir, "agenda", &scene).unwrap();
+        save(&dir, "news", &Scene::app("foot")).unwrap();
         std::fs::write(dir.join("broken.yaml"), "grid: [0, 1]\n").unwrap();
-        let views = load(&dir);
-        assert_eq!(views["agenda"], view);
-        assert_eq!(views["news"].app.as_deref(), Some("foot"));
-        assert!(views.contains_key("terminal"), "the built-in views stay");
-        assert!(!views.contains_key("broken"));
+        let scenes = load(&dir);
+        assert_eq!(scenes["agenda"], scene);
+        assert_eq!(scenes["news"].app.as_deref(), Some("foot"));
+        assert!(scenes.contains_key("terminal"), "the built-in scenes stay");
+        assert!(!scenes.contains_key("broken"));
         assert!(!dir.join(".agenda.yaml.tmp").exists());
         std::fs::remove_dir_all(dir).unwrap();
     }
@@ -237,8 +237,8 @@ mod tests {
     #[test]
     fn mistakes_fail() {
         let dir = dir("wrong");
-        assert!(save(&dir, "../evil", &View::app("foot")).is_err());
-        assert!(!dir.exists(), "a wrong view writes nothing");
+        assert!(save(&dir, "../evil", &Scene::app("foot")).is_err());
+        assert!(!dir.exists(), "a wrong scene writes nothing");
         for wrong in [
             "grid: [0, 1]\n",
             "panels: [{id: a, cell: [0, 0, 2, 1]}]\n",

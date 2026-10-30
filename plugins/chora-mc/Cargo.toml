@@ -11,7 +11,7 @@ serde_json.workspace = true
 workspace = true
 
 [package]
-description = "Experimental voice-first desktop for chora: one full-screen view at a time"
+description = "Experimental voice-first desktop for chora: one full-screen scene at a time"
 edition.workspace = true
 license.workspace = true
 name = "chora-mc"

@@ -1,11 +1,11 @@
 //! chora-mc, experimental: a voice-first desktop without window
-//! management. The whole screen shows one view, a grid of text panels or
+//! management. The whole screen shows one scene, a grid of text panels or
 //! one app, and a quiet HUD line shows what the voice agent does. The
 //! agent and small collector scripts fill the panels through the exported
 //! methods; the plugin reads no sources itself.
 
 mod config;
-mod view;
+mod scene;
 
 use std::{
     collections::{BTreeMap, HashMap},
@@ -27,17 +27,17 @@ use serde_json::{Value, json};
 
 use crate::{
     config::{Action, Config},
-    view::{Panel, View},
+    scene::{Panel, Scene},
 };
 
-/// The client name, and the id of the group that holds the views.
+/// The client name, and the id of the group that holds the scenes.
 const NAME: &str = "mc";
 /// The id of the line of the HUD.
 const HUD: &str = "mc-hud";
-/// The cross-fade between two views, in milliseconds.
+/// The cross-fade between two scenes, in milliseconds.
 const FADE: f64 = 250.0;
 
-/// One view at a time on the whole screen, driven by voice.
+/// One scene at a time on the whole screen, driven by voice.
 #[derive(Parser)]
 #[command(version)]
 struct Args {
@@ -48,33 +48,33 @@ struct Args {
     /// Print the default settings and exit.
     #[arg(long)]
     print_config: bool,
-    /// The directory of the views; `$XDG_CONFIG_HOME/chora/mc/views`
+    /// The directory of the scenes; `$XDG_CONFIG_HOME/chora/mc/scenes`
     /// without it.
     #[arg(long)]
-    views: Option<PathBuf>,
+    scenes: Option<PathBuf>,
 }
 
-/// Parameters of `view.show`.
+/// Parameters of `scene.show`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Show {
     name: String,
 }
 
-/// Parameters of `view.save`.
+/// Parameters of `scene.save`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Save {
     name: String,
     #[serde(flatten)]
-    view: View,
+    scene: Scene,
 }
 
 /// Parameters of `panel.set`; a missing title keeps the title.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SetPanel {
-    view: String,
+    scene: String,
     panel: String,
     title: Option<String>,
     lines: Vec<String>,
@@ -100,12 +100,12 @@ struct Open {
 struct Mc {
     rt: Runtime<Action>,
     settings: settings::File<Config>,
-    /// The directory of the view files.
+    /// The directory of the scene files.
     dir: PathBuf,
-    views: BTreeMap<String, View>,
-    /// The window of an app view, by view.
+    scenes: BTreeMap<String, Scene>,
+    /// The window of an app scene, by scene.
     windows: HashMap<String, String>,
-    /// The view of an app that starts, by its activation token.
+    /// The scene of an app that starts, by its activation token.
     starting: HashMap<String, String>,
     current: Option<String>,
     /// The one output that the plugin fills.
@@ -128,9 +128,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = settings::File::<Config>::path(args.config.clone(), "chora-mc")?;
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
     let dir = args
-        .views
+        .scenes
         .clone()
-        .or_else(|| chora_kit::xdg::config_home().map(|d| d.join("chora/mc/views")))
+        .or_else(|| chora_kit::xdg::config_home().map(|d| d.join("chora/mc/scenes")))
         .ok_or("no $XDG_CONFIG_HOME or $HOME")?;
     let mut methods = exported_methods();
     methods.extend(settings::File::<Config>::methods());
@@ -138,7 +138,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let mut mc = Mc {
         rt,
         settings,
-        views: view::load(&dir),
+        scenes: scene::load(&dir),
         dir,
         windows: HashMap::new(),
         starting: HashMap::new(),
@@ -168,20 +168,20 @@ fn exported_methods() -> Vec<ExportMethod> {
         "each with id, cell [column, row, width, height], title and lines"});
     vec![
         runtime::method(
-            "view.show",
-            "Shows a view with a short cross-fade.",
+            "scene.show",
+            "Shows a scene with a short cross-fade.",
             json!({"name": {"type": "string"}}),
             &["name"],
         ),
         runtime::method(
-            "view.list",
-            "Answers the views and the one that shows.",
+            "scene.list",
+            "Answers the scenes and the one that shows.",
             json!({}),
             &[],
         ),
         runtime::method(
-            "view.save",
-            "Saves a view in its file and shows the change: a grid of panels, or an app.",
+            "scene.save",
+            "Saves a scene in its file and shows the change: a grid of panels, or an app.",
             json!({
                 "name": {"type": "string"},
                 "grid": {"type": "array", "items": {"type": "integer"}, "description": "columns and rows"},
@@ -192,14 +192,14 @@ fn exported_methods() -> Vec<ExportMethod> {
         ),
         runtime::method(
             "panel.set",
-            "Sets the title and the lines of a panel of a view, until the next start.",
+            "Sets the title and the lines of a panel of a scene, until the next start.",
             json!({
-                "view": {"type": "string"},
+                "scene": {"type": "string"},
                 "panel": {"type": "string"},
                 "title": {"type": "string"},
                 "lines": lines,
             }),
-            &["view", "panel", "lines"],
+            &["scene", "panel", "lines"],
         ),
         runtime::method(
             "hud.set",
@@ -210,7 +210,7 @@ fn exported_methods() -> Vec<ExportMethod> {
         ),
         runtime::method(
             "app.open",
-            "Starts a shell command as an app in a full-screen view of its own.",
+            "Starts a shell command as an app in a full-screen scene of its own.",
             json!({"command": {"type": "string"}}),
             &["command"],
         ),
@@ -261,19 +261,19 @@ impl Plugin for Mc {
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         match method {
-            "view.show" => {
+            "scene.show" => {
                 let Show { name } = runtime::params(params)?;
                 self.show(&name)?;
                 Ok(Value::Null)
             }
-            "view.list" => Ok(json!({
-                "views": self.views.keys().collect::<Vec<_>>(),
+            "scene.list" => Ok(json!({
+                "scenes": self.scenes.keys().collect::<Vec<_>>(),
                 "current": self.current,
             })),
-            "view.save" => {
-                let Save { name, view } = runtime::params(params)?;
-                view::save(&self.dir, &name, &view).map_err(invalid)?;
-                self.views.insert(name.clone(), view);
+            "scene.save" => {
+                let Save { name, scene } = runtime::params(params)?;
+                scene::save(&self.dir, &name, &scene).map_err(invalid)?;
+                self.scenes.insert(name.clone(), scene);
                 self.build().map_err(rejected)?;
                 Ok(Value::Null)
             }
@@ -290,9 +290,9 @@ impl Plugin for Mc {
             }
             "app.open" => {
                 let Open { command } = runtime::params(params)?;
-                let name = self.app_view(&command)?;
+                let name = self.app_scene(&command)?;
                 self.show(&name)?;
-                Ok(json!({"view": name}))
+                Ok(json!({"scene": name}))
             }
             _ => Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method)),
         }
@@ -315,17 +315,17 @@ fn invalid(message: String) -> RpcError {
     RpcError::new(RpcError::INVALID_PARAMS, message)
 }
 
-/// The id of the group of a view.
-fn view_id(name: &str) -> String {
-    format!("mc-v-{name}")
+/// The id of the group of a scene.
+fn scene_id(name: &str) -> String {
+    format!("mc-s-{name}")
 }
 
-/// The id of the group of the panels of a view.
+/// The id of the group of the panels of a scene.
 fn panels_id(name: &str) -> String {
-    format!("mc-v-{name}-panels")
+    format!("mc-s-{name}-panels")
 }
 
-/// A name for a view from an app id or a command: its last path part,
+/// A name for a scene from an app id or a command: its last path part,
 /// with the characters that a name cannot have as `-`.
 fn name_of(word: &str) -> String {
     let base = word.rsplit('/').next().unwrap_or(word);
@@ -365,7 +365,7 @@ impl Mc {
     fn start(&mut self) -> Result<(), ClientError> {
         self.output = self.rt.outputs()?.into_iter().next();
         // The nodes that the core kept over a restart: the windows in them
-        // become free and come back as views of their own.
+        // become free and come back as scenes of their own.
         let kept: Vec<Value> = self
             .rt
             .conn
@@ -382,9 +382,9 @@ impl Mc {
         self.apply(old)?;
         self.grab_all()?;
         self.build()?;
-        let first = self.views.keys().next().cloned();
-        let default = Some(self.settings.value.default_view.clone())
-            .filter(|v| self.views.contains_key(v))
+        let first = self.scenes.keys().next().cloned();
+        let default = Some(self.settings.value.default_scene.clone())
+            .filter(|v| self.scenes.contains_key(v))
             .or(first);
         if let Some(name) = default
             && let Err(err) = self.show(&name)
@@ -456,10 +456,10 @@ impl Mc {
                 ..PropsUpdate::default()
             },
         ));
-        for name in self.views.keys() {
+        for name in self.scenes.keys() {
             let shown = self.current.as_ref() == Some(name);
             commands.push(create(
-                &view_id(name),
+                &scene_id(name),
                 NodeKind::Group,
                 NAME,
                 PropsUpdate {
@@ -498,10 +498,10 @@ impl Mc {
         moves.chain(removes).collect()
     }
 
-    /// Creates the panels of a view, under a group of their own that the
+    /// Creates the panels of a scene, under a group of their own that the
     /// next call replaces.
     fn panels(&self, name: &str) -> Vec<Command> {
-        let (Some(output), Some(view)) = (&self.output, self.views.get(name)) else {
+        let (Some(output), Some(scene)) = (&self.output, self.scenes.get(name)) else {
             return Vec::new();
         };
         let config = &self.settings.value;
@@ -512,12 +512,12 @@ impl Mc {
         let mut commands = vec![create(
             &group,
             NodeKind::Group,
-            &view_id(name),
+            &scene_id(name),
             PropsUpdate::default(),
         )];
-        for panel in &view.panels {
+        for panel in &scene.panels {
             let [x, y, w, h] =
-                view::place(panel.cell, view.grid, output.size.map(f64::from), margin);
+                scene::place(panel.cell, scene.grid, output.size.map(f64::from), margin);
             let id = format!("{group}-{}", panel.id);
             commands.push(create(
                 &id,
@@ -552,13 +552,13 @@ impl Mc {
         commands
     }
 
-    /// Puts a window into its view at the size of the screen, without a
+    /// Puts a window into its scene at the size of the screen, without a
     /// frame.
     fn place_window(&self, name: &str, surface: &str, attach: bool) -> Vec<Command> {
         let Some(output) = &self.output else {
             return Vec::new();
         };
-        let parent = view_id(name);
+        let parent = scene_id(name);
         let put = if attach {
             Command::Attach {
                 surface: surface.into(),
@@ -615,15 +615,15 @@ impl Mc {
     }
 
     fn show(&mut self, name: &str) -> Result<(), RpcError> {
-        let Some(view) = self.views.get(name) else {
-            return Err(invalid(format!("no view {name}")));
+        let Some(scene) = self.scenes.get(name) else {
+            return Err(invalid(format!("no scene {name}")));
         };
-        let app = view.app.clone();
+        let app = scene.app.clone();
         let mut commands = Vec::new();
         if self.current.as_deref() != Some(name) {
             if let Some(old) = &self.current {
                 commands.push(Command::Animate {
-                    id: view_id(old),
+                    id: scene_id(old),
                     props: PropsUpdate {
                         opacity: Some(0.0),
                         visible: Some(false),
@@ -634,14 +634,14 @@ impl Mc {
                 });
             }
             commands.push(Command::Update {
-                id: view_id(name),
+                id: scene_id(name),
                 props: PropsUpdate {
                     visible: Some(true),
                     ..PropsUpdate::default()
                 },
             });
             commands.push(Command::Animate {
-                id: view_id(name),
+                id: scene_id(name),
                 props: PropsUpdate {
                     opacity: Some(1.0),
                     ..PropsUpdate::default()
@@ -664,7 +664,7 @@ impl Mc {
         Ok(())
     }
 
-    /// Starts the app of a view with `choractl run`, whose activation
+    /// Starts the app of a scene with `choractl run`, whose activation
     /// token finds its window again.
     fn launch(&mut self, name: &str, command: &str) {
         let run = std::process::Command::new("choractl")
@@ -689,21 +689,21 @@ impl Mc {
         }
     }
 
-    /// The view of `app.open`, named after the program.
-    fn app_view(&mut self, command: &str) -> Result<String, RpcError> {
+    /// The scene of `app.open`, named after the program.
+    fn app_scene(&mut self, command: &str) -> Result<String, RpcError> {
         let word = command
             .split_whitespace()
             .next()
             .ok_or_else(|| invalid("an empty command".into()))?;
         let name = name_of(word);
-        match self.views.get(&name) {
-            Some(view) if view.app.as_deref() == Some(command) => return Ok(name),
-            Some(_) => return Err(invalid(format!("a view {name} exists already"))),
+        match self.scenes.get(&name) {
+            Some(scene) if scene.app.as_deref() == Some(command) => return Ok(name),
+            Some(_) => return Err(invalid(format!("a scene {name} exists already"))),
             None => {}
         }
-        self.views.insert(name.clone(), View::app(command));
+        self.scenes.insert(name.clone(), Scene::app(command));
         let group = create(
-            &view_id(&name),
+            &scene_id(&name),
             NodeKind::Group,
             NAME,
             PropsUpdate {
@@ -717,8 +717,8 @@ impl Mc {
         Ok(name)
     }
 
-    /// Takes a new window into the view that started it, or into a new
-    /// view of its own, and shows it.
+    /// Takes a new window into the scene that started it, or into a new
+    /// scene of its own, and shows it.
     fn adopt(
         &mut self,
         surface: &str,
@@ -734,12 +734,12 @@ impl Mc {
             Some(name) if !self.windows.contains_key(&name) => name,
             _ => {
                 let mut name = name_of(app_id.unwrap_or("app"));
-                if self.views.contains_key(&name) {
+                if self.scenes.contains_key(&name) {
                     name = format!("{name}-{surface}");
                 }
-                self.views.insert(name.clone(), View::default());
+                self.scenes.insert(name.clone(), Scene::default());
                 commands.push(create(
-                    &view_id(&name),
+                    &scene_id(&name),
                     NodeKind::Group,
                     NAME,
                     PropsUpdate {
@@ -760,8 +760,8 @@ impl Mc {
         Ok(())
     }
 
-    /// A window closed: a view that only held it goes, and the default
-    /// view shows instead of a view without its window.
+    /// A window closed: a scene that only held it goes, and the default
+    /// scene shows instead of a scene without its window.
     fn forget(&mut self, surface: &str) -> Result<(), ClientError> {
         let Some(name) = self
             .windows
@@ -773,15 +773,15 @@ impl Mc {
         };
         self.windows.remove(&name);
         if self.current.as_deref() == Some(&name) {
-            let default = self.settings.value.default_view.clone();
+            let default = self.settings.value.default_scene.clone();
             if let Err(err) = self.show(&default) {
                 eprintln!("chora-mc: {default}: {}", err.message);
             }
         }
-        if self.views[&name].app.is_none() && self.views[&name].panels.is_empty() {
-            self.views.remove(&name);
+        if self.scenes[&name].app.is_none() && self.scenes[&name].panels.is_empty() {
+            self.scenes.remove(&name);
             self.apply(vec![Command::Remove {
-                id: view_id(&name),
+                id: scene_id(&name),
                 to: None,
             }])?;
         }
@@ -790,16 +790,16 @@ impl Mc {
 
     fn set_panel(&mut self, set: SetPanel) -> Result<(), RpcError> {
         let SetPanel {
-            view,
+            scene,
             panel,
             title,
             lines,
         } = set;
         let found = self
-            .views
-            .get_mut(&view)
+            .scenes
+            .get_mut(&scene)
             .and_then(|v| v.panels.iter_mut().find(|p| p.id == panel))
-            .ok_or_else(|| invalid(format!("no panel {panel} in view {view}")))?;
+            .ok_or_else(|| invalid(format!("no panel {panel} in scene {scene}")))?;
         let new = Panel {
             title: title.unwrap_or_else(|| found.title.clone()),
             lines,
@@ -808,10 +808,10 @@ impl Mc {
         new.check_text().map_err(invalid)?;
         *found = new;
         let mut commands = vec![Command::Remove {
-            id: panels_id(&view),
+            id: panels_id(&scene),
             to: None,
         }];
-        commands.extend(self.panels(&view));
+        commands.extend(self.panels(&scene));
         self.apply(commands)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
     }
@@ -820,16 +820,16 @@ impl Mc {
         let Some(action) = self.rt.action(binding).cloned() else {
             return;
         };
-        let names: Vec<String> = self.views.keys().cloned().collect();
+        let names: Vec<String> = self.scenes.keys().cloned().collect();
         let at = self
             .current
             .as_ref()
             .and_then(|c| names.iter().position(|n| n == c))
             .unwrap_or(0);
         let next = match action {
-            Action::NextView => names[(at + 1) % names.len()].clone(),
-            Action::PreviousView => names[(at + names.len() - 1) % names.len()].clone(),
-            Action::View(name) => name,
+            Action::NextScene => names[(at + 1) % names.len()].clone(),
+            Action::PreviousScene => names[(at + names.len() - 1) % names.len()].clone(),
+            Action::Scene(name) => name,
             Action::Run(command) => {
                 chora_kit::run(&command);
                 return;

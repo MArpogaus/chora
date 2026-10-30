@@ -1,5 +1,5 @@
 #!/bin/sh
-# Puts the org agenda of today into the panel `today` of the view `agenda`
+# Puts the org agenda of today into the panel `today` of the scene `agenda`
 # of chora-mc. Emacs builds the agenda, so repeats, warnings and overdue
 # entries come out as in Emacs; the files are only read.
 #
@@ -27,7 +27,7 @@ params=$(emacs -Q --batch --eval '
   (let ((lines (cddr (split-string (buffer-substring-no-properties (point-min) (point-max))
                                   "\n" t "[ \t]+"))))
     (princ (json-encode
-            (list (cons "view" "agenda") (cons "panel" "today")
+            (list (cons "scene" "agenda") (cons "panel" "today")
                   (cons "title" (format-time-string "%A, %e %B"))
                   (cons "lines" (vconcat lines)))))))' "$@" 2>/dev/null)
 if [ -n "$print" ]; then
