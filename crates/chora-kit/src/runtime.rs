@@ -155,13 +155,17 @@ impl<A> Runtime<A> {
     ///
     /// # Errors
     ///
-    /// The socket fails.
+    /// The socket fails, or the core knows no such key, so that a
+    /// `settings.set` with it fails.
     pub fn grab(&mut self, binding: Binding, action: A) -> Result<bool, ClientError> {
         let text = binding.to_string();
         match self.conn.call::<_, String>("input.grab", Grab { binding }) {
             Ok(normal) => {
                 self.grabs.push((normal, action));
                 Ok(true)
+            }
+            Err(ClientError::Rpc(err)) if err.code == RpcError::INVALID_PARAMS => {
+                Err(RpcError::new(err.code, format!("{text}: {}", err.message)).into())
             }
             Err(ClientError::Rpc(err)) => {
                 eprintln!("chora-{}: {text}: {err}", self.name);
@@ -312,11 +316,16 @@ pub fn reload_settings<P: Plugin>(plugin: &mut P) -> Result<Value, RpcError> {
     Ok(answer)
 }
 
-/// Has the plugin apply its settings; takes them back when it fails.
+/// Has the plugin apply its settings; takes them back when it fails, and
+/// has the plugin apply the old ones again, since it may have applied a
+/// part, for example ungrabbed its bindings before a new one failed.
 fn apply<P: Plugin>(plugin: &mut P) -> Result<(), RpcError> {
     plugin.settings_changed().inspect_err(|_| {
         if let Some(settings) = plugin.settings() {
             settings.undo();
+            if let Err(err) = plugin.settings_changed() {
+                eprintln!("the old settings failed to apply again: {err}");
+            }
         }
     })
 }
@@ -416,7 +425,8 @@ mod tests {
     /// A plugin whose apply of settings fails on demand.
     struct Fake {
         settings: File<Demo>,
-        fail: bool,
+        /// The gap whose apply fails.
+        fail: Option<u16>,
         applied: u16,
     }
 
@@ -439,11 +449,13 @@ mod tests {
             Some(&mut self.settings)
         }
 
+        /// Applies a part before it fails, as a plugin that ungrabs its
+        /// bindings and then fails to grab a new one.
         fn settings_changed(&mut self) -> Result<(), RpcError> {
-            if self.fail {
+            self.applied = self.settings.value.gap;
+            if self.fail == Some(self.applied) {
                 return Err(RpcError::new(RpcError::REJECTED, "cannot apply"));
             }
-            self.applied = self.settings.value.gap;
             Ok(())
         }
     }
@@ -457,13 +469,14 @@ mod tests {
         let settings = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
         let mut plugin = Fake {
             settings,
-            fail: true,
+            fail: Some(8),
             applied: 0,
         };
         assert!(set_settings(&mut plugin, json!({"gap": 8})).is_err());
         assert!(!path.exists(), "a change that fails to apply is not saved");
         assert_eq!(plugin.settings.value.gap, 4, "and taken back");
-        plugin.fail = false;
+        assert_eq!(plugin.applied, 4, "the old settings apply again");
+        plugin.fail = None;
         set_settings(&mut plugin, json!({"gap": 9})).unwrap();
         assert_eq!(plugin.applied, 9);
         assert!(std::fs::read_to_string(&path).unwrap().contains("gap: 9"));
@@ -488,7 +501,7 @@ mod tests {
         let settings = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
         let mut plugin = Fake {
             settings,
-            fail: false,
+            fail: None,
             applied: 0,
         };
         std::fs::write(&path, "gap: 6\n").unwrap();
@@ -499,9 +512,10 @@ mod tests {
         assert_eq!(err.code, RpcError::INVALID_PARAMS);
         assert_eq!(plugin.settings.value.gap, 6);
         std::fs::write(&path, "gap: 7\n").unwrap();
-        plugin.fail = true;
+        plugin.fail = Some(7);
         assert!(reload_settings(&mut plugin).is_err());
         assert_eq!(plugin.settings.value.gap, 6, "a failed apply is taken back");
+        assert_eq!(plugin.applied, 6, "and the old settings apply again");
         std::fs::remove_dir_all(dir).unwrap();
     }
 
