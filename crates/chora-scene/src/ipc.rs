@@ -630,8 +630,9 @@ pub enum Capability {
     SessionQuit,
     /// `methods.privileged`: call a privileged method of a plugin, one
     /// that can run commands, such as `settings.set`, `settings.reload`
-    /// and the methods that the export marks `privileged`. Checked only
-    /// for a client socket, on top of `methods.call`.
+    /// and the methods that the export marks `privileged`, on top of
+    /// `methods.call`; also the core method `input.configure`. Checked
+    /// only for a client socket.
     #[serde(rename = "methods.privileged")]
     MethodsPrivileged,
 }

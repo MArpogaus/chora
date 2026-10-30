@@ -52,16 +52,21 @@ scene:
   props:
     size: [100, 30]
     color: [0.2, 0.5, 1.0, 1.0]
+input:
+  keyboard: {repeat_rate: 30, repeat_delay: 250}
+  touchpad: {tap: true, natural_scroll: true}
+  mouse: {accel_profile: flat, accel_speed: -0.2}
 ```
 
-- `choractl view load work` starts each plugin of the view that does not
+- `choractl view load work` first sends `input` to the core method
+  `input.configure`, if the view has it. Then it starts each plugin of the view that does not
   run yet, with the `exec` of its manifest, and waits up to 10 s until it
   connects. It passes each `config` to the method that the manifest names
   in `configure`. Then it applies the nodes of the view as one transaction.
 - The client `view-work` owns the nodes. A second load replaces them,
   `choractl view unload work` removes them.
 - `choractl view save work` writes the nodes of `view-work` as they are
-  now, with the plugins of the file that was there, to
+  now, with the plugins and the `input` of the file that was there, to
   `~/.config/chora/views/work.yaml`, or to `--file PATH`. A plugin or an
   agent changes the nodes as `view-work`, for example
   `choractl --name view-work apply`.
@@ -74,6 +79,17 @@ scene:
   `NAME.yaml` must name the same view.
 - `choractl view load` also takes the path of a YAML file; the MCP tools
   take names only.
+- `input` sets the input devices of the whole session, so the core reads
+  no file for them (D35). `keyboard` has `repeat_rate` (repeats per
+  second, 0 to 100, 0 for no repeat) and `repeat_delay` (100 to 5000
+  ms). `touchpad` holds the libinput settings of every device that can
+  tap, and `mouse` those of the other pointer devices: `tap`,
+  `natural_scroll`, `left_handed`, `accel_profile` (`flat` or
+  `adaptive`) and `accel_speed` (-1 to 1). A missing key keeps its
+  value; a device that lacks a setting skips it. The settings stay until
+  the next `input.configure` or the end of the session, and new devices
+  get them too. On a client socket, `input` needs the capability
+  `methods.privileged`. See [IPC methods](api.md#ipc-methods).
 - A plugin that a view starts gets no stdin and no stdout of `choractl`,
   which carry MCP under `choractl mcp`.
 
@@ -130,7 +146,8 @@ drives the window manager needs `methods.call`, and one that starts apps
 needs `activation.token`. Both let it take the keyboard focus. A name
 that may end chora needs `session.quit`. A name that may change the
 settings of a plugin, or call a plugin method that starts programs, such
-as `app.open` of `chora-mc`, also needs `methods.privileged`.
+as `app.open` of `chora-mc`, also needs `methods.privileged`. So does
+a name that sets the input devices with `input.configure`.
 
 The names follow the rules of `hello`. `clients up` opens the socket of
 every name with exactly the capabilities of its list. A socket that
