@@ -18,7 +18,7 @@ use crate::{
     chat,
     config::Config,
     earcon::Earcon,
-    gate::{self, BARGE_PREROLL_MS, BargeIn, ECHO_WINDOW, FRAME_MS, Frame, Gate},
+    gate::{self, BargeIn, ECHO_WINDOW, FRAME_MS, Frame, Gate},
     speech::Control,
     words::{self, Word},
 };
@@ -177,6 +177,10 @@ struct Key {
     used: bool,
 }
 
+/// A pause of the reply's sound up to this long, while the TTS catches
+/// up between sentences, still counts as speaking.
+const SOUND_GAP: Duration = Duration::from_millis(1500);
+
 /// Words that played within this time count for the echo filter.
 const ECHO_MEMORY: Duration = Duration::from_secs(3);
 
@@ -213,8 +217,9 @@ pub struct Core {
     paused: bool,
     /// The level of each played frame, by its time.
     levels: VecDeque<(Instant, f64)>,
-    /// When the played sound ends.
-    sound_end: Instant,
+    /// When the played sound of the reply ends; none before its first
+    /// sound.
+    sound_end: Option<Instant>,
     /// The sentences that played, with the end of their sound.
     said: VecDeque<(Instant, String)>,
     /// The words of the reply that played.
@@ -255,7 +260,7 @@ impl Core {
             pending: Vec::new(),
             paused: false,
             levels: VecDeque::new(),
-            sound_end: now,
+            sound_end: None,
             said: VecDeque::new(),
             played: String::new(),
             queue: Vec::new(),
@@ -316,7 +321,7 @@ impl Core {
         } else if self.asking.is_some() {
             if self.confirm.is_some() {
                 State::Confirming
-            } else if self.paused || Instant::now() < self.sound_end {
+            } else if self.paused || self.sounding(Instant::now()) {
                 State::Speaking
             } else {
                 self.doing
@@ -398,7 +403,7 @@ impl Core {
         self.confirm = None;
         self.paused = false;
         self.queue.clear();
-        self.sound_end = Instant::now();
+        self.sound_end = None;
         std::iter::once(Effect::Stop(std::mem::take(&mut self.played)))
             .chain(earcon.and_then(|e| self.earcon(e)))
             .collect()
@@ -416,6 +421,7 @@ impl Core {
         self.doing = State::Thinking;
         self.unclear = 0;
         self.played.clear();
+        self.sound_end = None;
         vec![Effect::Ask {
             reply: self.replies,
             text,
@@ -469,7 +475,8 @@ impl Core {
                 let levels = pcm.chunks(crate::audio::FRAME).map(crate::pcm::rms);
                 for (k, level) in (0u32..).zip(levels) {
                     self.levels.push_back((at + frame * k, level));
-                    self.sound_end = self.sound_end.max(at + frame * (k + 1));
+                    let end = at + frame * (k + 1);
+                    self.sound_end = Some(self.sound_end.map_or(end, |e| e.max(end)));
                 }
             }
             Reply::Said { text, at, len } => {
@@ -671,9 +678,16 @@ impl Core {
             .fold(0.0, |max, (_, level)| f64::max(max, *level))
     }
 
+    /// Whether the reply speaks: its sound plays, or ran dry between
+    /// two sentences a moment ago.
+    fn sounding(&self, now: Instant) -> bool {
+        // ponytail: a fixed gap; the speech could report its queue.
+        self.sound_end.is_some_and(|end| now < end + SOUND_GAP)
+    }
+
     fn frame(&mut self, frame: &Frame) -> Vec<Effect> {
         let now = Instant::now();
-        let playing = self.asking.is_some() && !self.paused && now < self.sound_end;
+        let playing = self.asking.is_some() && !self.paused && self.sounding(now);
         if playing && self.gate.pcm().is_none() && !self.key.down {
             // Only the barge-in gate listens over the agent's sound.
             let level = self.played_level(now);
@@ -683,8 +697,10 @@ impl Core {
                     self.barge.coupling()
                 ));
                 self.paused = true;
-                self.sound_end = now;
-                self.gate.open(BARGE_PREROLL_MS);
+                self.sound_end = Some(now);
+                // The speech that made the barge-in, and the pre-roll before it.
+                self.gate
+                    .open(self.config.barge_in_ms + self.config.preroll_ms);
                 self.recorded = 0;
                 return vec![Effect::Speech(Control::Pause), Effect::Mark("barge")];
             }
@@ -987,7 +1003,7 @@ mod tests {
         assert_eq!(core.state(), State::Transcribing);
         let effects = core.handle(text(2, false, Ok("")));
         assert_eq!(effects, [Effect::Speech(Control::Resume { skip: false })]);
-        assert_eq!(core.state(), State::Thinking, "until the sound comes again");
+        assert_eq!(core.state(), State::Speaking, "the speech goes on");
         // New words: the reply ends and they start the next one.
         core.handle(sound(1, 5000));
         (0..11).for_each(|_| drop(core.handle(loud())));

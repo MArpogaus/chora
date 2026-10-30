@@ -18,7 +18,7 @@ use std::{fmt, ops::Range, path::Path};
 use crate::{
     audio::{Analyzer, FRAME},
     config::Config,
-    gate::{self, BARGE_PREROLL_MS, BargeIn, ECHO_WINDOW, FRAME_MS, Gate},
+    gate::{self, BargeIn, ECHO_WINDOW, FRAME_MS, Gate},
     pcm::{self, RATE},
     vad::Vad,
 };
@@ -166,7 +166,7 @@ pub fn detect(config: &Config, rec: &Recording) -> Result<Marks, String> {
             found.barges.push(now);
             stopped = play;
             gate.reset();
-            gate.open(BARGE_PREROLL_MS);
+            gate.open(config.barge_in_ms + config.preroll_ms);
             start = Some(now - barge_s);
             continue;
         }

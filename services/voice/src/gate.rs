@@ -42,6 +42,8 @@ struct Limits {
     min_speech: u32,
     max_turn: u32,
     preroll: usize,
+    /// The speech that starts a barge-in.
+    barge: usize,
 }
 
 impl From<&Config> for Limits {
@@ -55,6 +57,7 @@ impl From<&Config> for Limits {
             min_speech: frames(c.min_speech_ms),
             max_turn: frames(c.max_turn_ms).max(1),
             preroll: frames(c.preroll_ms) as usize,
+            barge: frames(c.barge_in_ms) as usize,
         }
     }
 }
@@ -128,7 +131,7 @@ impl Gate {
         let l = &self.limits;
         let Some(u) = &mut self.utterance else {
             self.before.push_back(frame.samples.clone());
-            let keep = l.onset as usize + l.preroll;
+            let keep = (l.onset as usize).max(l.barge) + l.preroll;
             while self.before.len() > keep {
                 self.before.pop_front();
             }
@@ -194,10 +197,6 @@ impl Gate {
 /// loudest one is the reference of the echo: the sound reaches the mic
 /// a little later than it is written.
 pub const ECHO_WINDOW: usize = 5;
-
-/// The pre-roll of an utterance that a barge-in starts: it keeps the
-/// agent's own words out.
-pub const BARGE_PREROLL_MS: u32 = 100;
 
 /// Played sound under this level teaches the coupling nothing.
 const LEARN_FROM: f64 = 200.0;
