@@ -1,3 +1,15 @@
+## v0.7.0 (2026-10-30)
+
+### Fix
+
+- **voice**: a coding task ends before its result waits to be spoken
+- **voice**: a null task or an odd JSON line does not stop the agent
+- **voice**: a coding result is spoken only, code_status repeats it
+
+### Refactor
+
+- **voice**: the coder derives its tool names and next clone
+
 ## v0.7.0-rc.3 (2026-10-30)
 
 ### Feat

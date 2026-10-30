@@ -69,8 +69,8 @@ systemctl --user start gufo-asr gufo-tts gufo-llm
 
 The quadlets pin the image by its digest. For a newer runtime, change
 the digest in the three quadlets. The models load for some minutes. A
-model is ready when its log, for example `journalctl --user -u gufo-tts`, shows `event=listening`. Then
-check the models and the mic:
+model is ready when its log, for example `journalctl --user -u
+gufo-tts`, shows `event=listening`. Then check the models and the mic:
 
 ```bash
 services/voice/agent.py roundtrip   # the three models, without a mic
@@ -125,36 +125,35 @@ as a breath, and the agent drops it.
 
 Under chora, holding `PTT_KEY` (`Super+v`) also records, whatever the
 level. The key needs Ctrl, Alt or Super. The turn ends when the modifier
-goes up, because chora reports the release with it. After a pause of
-`SILENCE_MS`, the agent loses the words until its first sound. To add
-words, hold the key during the transcription, or raise `SILENCE_MS`. A
-turn by level or by barge-in keeps the last `PREROLL_MS` (1000) of the
-mic before its start. A key press after the transcription stops the
+goes up, because chora reports the release with it. The agent loses
+short words that you say during the transcription and before the first
+sound of the reply. To add words, hold the key during the transcription.
+For longer pauses inside a turn, raise `SILENCE_MS`. A turn by level or
+by barge-in keeps the last `PREROLL_MS` (1000) of the mic before its
+start. A key press after the transcription stops the
 reply. Before the first words of the LLM, it also withdraws the request.
 After them, the request and the words and tool calls so far stay in the
 history.
 
 While the agent speaks, speech above `RMS_BARGE_IN` (twice
-`RMS_SPEECH`) and the level
-of speech for `BARGE_MS` (300) stops the reply, and a turn starts. While
-the agent works without sound, the speech must last 1 s, so that a short
-"yes" does not stop it. Dips down to half the level of speech, for at
-most 100 ms, do not reset the count, since the echo canceller damps the
-voice in bursts.
-When that turn has no words, it was a noise: the LLM answers the request
-again, or goes on with the cut reply. The push-to-talk key also stops a
-reply. The mic also hears the speaker, so use headphones or the echo
-cancellation below. After each full reply, the log line `mic peak during
-the reply` shows the level that the barge-in level must stay above. When
-the reply stops itself, the line `barge-in at level` shows the level of
-the echo.
+`RMS_SPEECH`) and the level of speech for `BARGE_MS` (300) stops the
+reply, and a turn starts. While the agent works without sound, the
+speech must last 1 s, so that a short "yes" does not stop it. The echo
+canceller damps the voice in bursts. So dips down to half the level of
+speech, for at most 100 ms, do not reset the count. When that turn has
+no words, it was a noise: the LLM answers the request again, or goes on
+with the cut reply. The push-to-talk key also stops a reply. The mic
+also hears the speaker, so use headphones or the echo cancellation
+below. After each full reply, the log line `mic peak during the reply`
+shows the level that the barge-in level must stay above. When the reply
+stops itself, the line `barge-in at level` shows the level of the echo.
 
 The agent keeps your requests of the last `HISTORY` (20) turns in
 `~/.local/state/chora/voice-history.json`. At its next start, they go
 into the system prompt as a quoted note. Replies, tool calls and results
-stay out: a reply can repeat text from the screen or from a coder, and
-node ids describe a scene that may be gone. Delete the file to start a
-new conversation.
+stay out. A reply can repeat text from the screen or from a coder. Node
+ids describe a scene that may be gone. Delete the file to start a new
+conversation.
 
 ## Echo cancellation
 
@@ -182,10 +181,11 @@ tools and `capture`. `CHORA_MCP` is the command of `choractl`, so
 that the tools run in another place, for example `podman exec -i NAME
 choractl` in a container. Its programs then start in the container.
 When the LLM reads images and `voice` has the grant `screen.capture`,
-`describe_screen` gives it the screenshot too. Gufo says so in `input_modalities` of `/v1/models`, and the log at
-the start. A text-only LLM gets the windows and nodes as text only. The
-unit finds chora through `CHORA_SOCKET`, which a chora flavor gives the
-user manager.
+`describe_screen` gives it the screenshot too. Gufo says so in
+`input_modalities` of `/v1/models`, and the log at the start. A
+text-only LLM gets the windows and nodes as text only. The unit finds
+chora through `CHORA_SOCKET`, which a chora flavor gives the user
+manager.
 
 To type and to start programs, the client name `voice` (`CHORA_NAME`)
 needs grants. A grant lasts until the session ends, until `choractl
@@ -196,20 +196,19 @@ choractl grant voice input.inject activation.token
 ```
 
 Each of these grants alone, and `CODER_CMD`, lets the LLM run commands
-as you. A coding task needs no grant, so `choractl revoke` does not stop
-it; `code_cancel` does. Without grants, the LLM still closes windows and changes the
+as you. Without grants, the LLM still closes windows and changes the
 outputs, the scene and the plugins, and overwrites the saved views. It
 also starts the plugins of installed views. Any voice that the mic hears
 can start a turn, also from a video, and also while the screen is
 locked. Text on the screen that a tool reads can also steer the LLM. So
 can the plugins, which write the descriptions and results of their
 tools. The journal keeps each transcript and each tool call, and the
-history file your requests. The emergency reset does not
-undo output changes, and the reserved space
-returns with the next tool call; `wlr-randr` resets the outputs. The
-emergency reset and the revoke binding do not stop the agent; after the
-reset, it connects again. Only `systemctl --user stop voice-agent` stops
-the agent; it and `code_cancel` stop a running coding task.
+history file your requests. The emergency reset does not undo output
+changes, and the reserved space returns with the next tool call;
+`wlr-randr` resets the outputs. The emergency reset and the revoke
+binding do not stop the agent; after the reset, it connects again. Only
+`systemctl --user stop voice-agent` stops the agent. A coding task needs
+no grant, so only this command and `code_cancel` stop it.
 
 ## Coding tasks
 
@@ -228,15 +227,16 @@ It adds the tools `code_task`, `code_status`, `code_cancel` and
   Without a project, it starts an empty repository `worktrees/N`.
 - The harness runs in that clone. Its output goes to the file of the
   clone with `.log` after its name, such as `worktrees/chora-3.log`. The
-  agent speaks the result and keeps it in the history.
+  agent speaks the result, and `code_status` repeats the last one.
 - The inventory holds the projects that you keep, as git repositories
   or links to them, for example `ln -s ~/Projekte/chora
-  ~/.local/share/chora/inventory/chora`. The clone has no remote. A result reaches the branch
-  `voice/N` only when the harness commits it; the agent asks for that.
+  ~/.local/share/chora/inventory/chora`. The clone has no remote. A
+  result reaches the branch `voice/N` only when the harness commits it;
+  the agent asks for that.
   Take a good result into a project with `git fetch` from its clone.
 
 JSON lines such as the `stream-json` of Claude Code give the steps and
-the result; other harnesses give plain lines. Without a sandbox of its
-own, the harness of the example changes and deletes files without
-asking, also outside the clone, and runs any command as you. The task
-and the files that it reads go to the provider of the model.
+the result; other harnesses give plain lines. The harness of the example
+has no sandbox of its own. It changes and deletes files without asking,
+also outside the clone, and runs any command as you. The task and the
+files that it reads go to the provider of the model.

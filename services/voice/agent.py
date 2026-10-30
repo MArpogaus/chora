@@ -171,7 +171,8 @@ Coding tasks:
   an empty repository, and you hear its result when it ends.
 - Say the task in full: the coder hears nothing else. Ask it to commit
   its work, or the clone keeps it uncommitted. One task runs at a time;
-  code_status says how far it is, code_cancel stops it."""
+  code_status says how far it is, code_cancel stops it.
+- When the user asks about a spoken coding result, call code_status."""
 
 RATE = 24000
 FRAME_MS = 20
@@ -528,7 +529,6 @@ class Coder:
     plain lines count as steps.
     """
 
-    TOOLS = ("code_task", "code_status", "code_cancel", "list_projects")
     SPECS = [  # noqa: RUF012 - one list for all instances
         function(
             "code_task",
@@ -543,10 +543,15 @@ class Coder:
                 },
             },
         ),
-        function("code_status", "Whether a coding task runs, for how long, and its last step.", {}),
+        function(
+            "code_status",
+            "Whether a coding task runs, for how long, and its last step; else the last result.",
+            {},
+        ),
         function("code_cancel", "Stop the running coding task.", {}),
         function("list_projects", "The projects that code_task can clone.", {}),
     ]
+    TOOLS = tuple(spec["function"]["name"] for spec in SPECS)
 
     def __init__(self, http: aiohttp.ClientSession) -> None:
         self.http = http
@@ -555,34 +560,20 @@ class Coder:
         self.workdir: pathlib.Path | None = None
         self.started = 0.0
         self.step = ""
-        self.reports: list[str] = []  # results for the history, between two turns
-
-    def messages(self) -> list[dict]:
-        """Return the reports as results of code_status calls, for the history."""
-        out = []
-        for report in self.reports:
-            call = {"id": f"report-{abs(hash(report))}", "type": "function"}
-            call["function"] = {"name": "code_status", "arguments": "{}"}
-            out += [
-                {"role": "assistant", "content": "", "tool_calls": [call]},
-                {"role": "tool", "tool_call_id": call["id"], "content": report},
-            ]
-        return out
+        self.last = ""  # the spoken result of the last task
 
     def call(self, name: str, arguments: dict) -> str:
         """Run one of TOOLS and return its answer for the LLM."""
         if name == "code_task":
             return self.start(arguments["task"], arguments.get("project"))
         if name == "list_projects":
-            return ", ".join(sorted(p.name for p in INVENTORY.glob("*") if p.is_dir())) or (
-                f"no projects in {INVENTORY}"
-            )
+            return ", ".join(_projects()) or f"no projects in {INVENTORY}"
         running = self.job is not None and not self.job.done()
         if name == "code_cancel" and running:
             self.job.cancel()
             return "the coding task stops"
         if not running:
-            return "no coding task runs"
+            return "no coding task runs" + (f"; the last one: {self.last}" if self.last else "")
         minutes = (time.monotonic() - self.started) / 60
         return f"it runs for {minutes:.0f} min in {self.workdir}; last step: {self.step}"
 
@@ -590,20 +581,14 @@ class Coder:
         """Start a task in a new clone of `project`, or in an empty repository."""
         if self.job and not self.job.done():
             return "a coding task runs already; ask for its status or cancel it"
-        if project and project not in {p.name for p in INVENTORY.glob("*") if p.is_dir()}:
+        if project and project not in _projects():
             return f"no project {project}; list_projects names them"
         if task.lstrip().startswith("-"):  # it would be an option of the harness
             return "a task must not start with -"
-        WORKTREES.mkdir(parents=True, exist_ok=True)
-        number = 1 + max(
-            (
-                int(p.name.rsplit("-", 1)[-1])
-                for p in WORKTREES.glob("*")
-                if p.name.rsplit("-", 1)[-1].isdigit()
-            ),
-            default=0,
-        )
-        self.workdir = WORKTREES / (f"{project}-{number}" if project else str(number))
+        stem, number = f"{project}-" if project else "", 1
+        while (WORKTREES / f"{stem}{number}").exists():
+            number += 1
+        self.workdir = WORKTREES / f"{stem}{number}"
         self.job = asyncio.create_task(self._run(task, project, number), name="coding task")
         self.job.add_done_callback(report)
         return f"the coding task started in {self.workdir}"
@@ -650,9 +635,16 @@ class Coder:
                 except TimeoutError:
                     os.killpg(self.proc.pid, signal.SIGKILL)
                     await self.proc.wait()
-        text = f"The coding task in {self.workdir.name} {state}. {(result or self.step)[:400]}"
-        self.reports.append(text)
-        await speak(self.http, one(text))
+        self.last = f"The coding task in {self.workdir.name} {state}. {(result or self.step)[:400]}"
+        # The task is over while its result waits for a reply to end; the
+        # waiter of SPEAKING keeps a reference to it.
+        self.job = None
+        await speak(self.http, one(self.last))
+
+
+def _projects() -> list[str]:
+    """Return the names of the projects in INVENTORY."""
+    return sorted(p.name for p in INVENTORY.glob("*") if p.is_dir())
 
 
 async def _git(*args: str) -> None:
@@ -668,23 +660,22 @@ async def _git(*args: str) -> None:
 def _step(line: str, result: str) -> tuple[str, str]:
     """Return the step that a line of coder output shows, and the result so far.
 
-    A JSON line of stream-json shows a tool call or a text, or the result;
-    any other line is a step as it is.
+    A stream-json event of a tool call or a text gives a step, the result
+    event the result, and other stream-json events no step. A line that is
+    not stream-json, such as plain text, is a step as it is.
     """
     try:
         event = json.loads(line)
-    except ValueError:
+        if event.get("type") == "result":
+            return "", str(event.get("result") or result)
+        for part in (event.get("message") or {}).get("content") or []:
+            if part.get("type") == "tool_use":
+                target = next(iter((part.get("input") or {}).values()), "")
+                return f"{part.get('name')} {target}"[:200], result
+            if part.get("type") == "text":
+                return part.get("text", "")[:200], result
+    except Exception:  # also a RecursionError of deep JSON: one line never ends the task
         return line.strip()[:200], result
-    if not isinstance(event, dict):
-        return line.strip()[:200], result
-    if event.get("type") == "result":
-        return "", str(event.get("result") or result)
-    for part in (event.get("message") or {}).get("content") or []:
-        if isinstance(part, dict) and part.get("type") == "tool_use":
-            target = next(iter((part.get("input") or {}).values()), "")
-            return f"{part.get('name')} {target}"[:200], result
-        if isinstance(part, dict) and part.get("type") == "text":
-            return part.get("text", "")[:200], result
     return "", result
 
 
@@ -783,8 +774,8 @@ async def _run_call(tools: Tools, call: dict) -> str | list[dict]:
         arguments = json.loads(call["args"] or "{}")
         log(f"tool {call['name']} {arguments}")
         result = await tools.call(call["name"], arguments)
-    except (*TURN_ERRORS, TypeError) as err:  # the LLM reads the error and goes on
-        result = f"error: {err}"
+    except (*TURN_ERRORS, TypeError, AttributeError) as err:  # also arguments of a wrong type
+        result = f"error: {err}"  # the LLM reads the error and goes on
     log(f"  -> {' '.join(text_of(result).split())[:300]}")
     return result
 
@@ -1158,11 +1149,6 @@ async def turn(
     """
     barged, http = bool(preroll), tools.http
     pcm = await record(mic, ptt, preroll)
-    if tools.coder and tools.coder.reports:  # before questions about them
-        # As tool results they are output of the coder, not words of the
-        # agent; an open request stays last, so that new words join it.
-        at = len(history) - (history[-1]["role"] == "user")
-        history[at:at] = tools.coder.messages()
     # Gufo refuses less than 100 ms, such as the rest of a key tap.
     said = await transcribe(http, pcm) if len(pcm) >= RATE * 2 // 10 else ""
     log(f"you: {said}")
@@ -1238,8 +1224,6 @@ async def run_loop(
             start = len(history)
             try:
                 preroll = await turn(mic, tools, history, ptt, preroll)
-                if tools.coder:  # a failed turn keeps them for the next one
-                    tools.coder.reports.clear()
             except TURN_ERRORS as err:
                 log(f"turn failed, the history drops it: {err!r}")
                 del history[start:]

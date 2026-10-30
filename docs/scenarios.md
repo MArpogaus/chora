@@ -72,9 +72,9 @@ injection. The agent needs screenshots to see the result of its changes.
 
 ## Conclusions
 
-- The five node kinds cover all three scenarios.
+- The six node kinds cover all three scenarios.
 - Widgets and rich content do not need to live in the core. Existing
   shells, wallpaper tools and a browser in app mode supply them. Short
-  labels come from the text node of milestone 0.8 (D18).
+  labels come from the text node of milestone 0.7 (D18).
 - Two core features decide the success. The protocol coverage lets existing
   tools work. The API lets plugins and agents arrange everything.

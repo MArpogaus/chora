@@ -47,7 +47,7 @@ All ideas that are not decisions yet. An idea moves to
 - A portal backend of its own, so that screen sharing can share a group or a
   canvas instead of a whole output or window.
 - A private Wayland protocol for plugins, if the measurement of milestone
-  0.9 shows the need (D54).
+  0.10 shows the need (D54).
 
 ## Services
 

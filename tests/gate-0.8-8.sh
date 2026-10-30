@@ -6,8 +6,8 @@
 # Usage: tests/gate-0.8-8.sh
 set -u
 . "$(dirname "$0")/gate-lib.sh"
-command -v micromamba >/dev/null 2>&1 || skip "micromamba is not installed here"
-out=$(cd "$repo" && micromamba run -n chora cargo test -p chora --lib --locked \
+need cargo
+out=$(cd "$repo" && cargo test -p chora --lib --locked \
     -- the_revoke_binding_takes_the_capabilities_of_all_clients 2>&1) ||
     fail "the revoke test: $(tail -n 15 <<<"$out")"
 grep -q "test result: ok. 1 passed" <<<"$out" || fail "$(tail -n 15 <<<"$out")"

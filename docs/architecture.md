@@ -175,7 +175,7 @@ only where its transform is a plain 2D one.
 The core asks each output for a frame once per refresh. It renders only
 when the damage tracker of Smithay reports damage. A layer counts as
 changed in every frame, so a scene with a layer renders in every frame.
-There is no direct scanout. Milestone 0.9 replaces this with a renderer
+There is no direct scanout. Milestone 0.10 replaces this with a renderer
 of chora that renders only on damage (D17, D24).
 
 A text node lays out and draws inside the core. cosmic-text shapes the
@@ -188,7 +188,7 @@ layout size and the raster of each physical scale.
 The cost of a frame grows with the number of visible nodes: a node is a
 draw call with its own texture, and software GL spends roughly 60 to
 140 µs on one. A headless session at 1280x800 on llvmpipe holds about
-250 animated nodes at 60 fps; the 0.9 renderer is what moves the
+250 animated nodes at 60 fps; the renderer of 0.10 moves the
 ceiling.
 
 ### IPC socket
@@ -365,12 +365,10 @@ that connection deaf instead of answered with a protocol error, and the
 core has no frame of its own to reject. Correct clients send no such
 message. The caps of the IPC socket (16 connections per process, 128
 in total) and of the client sockets (16) bound the harm; the main
-Wayland socket has no cap. Milestone 0.7 replaces the
-grants with client sockets that fix the name and the capabilities of a
-client (D33, D40). In: a client socket fixes the name of
-its clients, and a Wayland socket next to it offers the privileged
-protocols only with grants. Only the admin socket of `choractl` changes
-grants and makes client sockets (see [API](api.md#client-sockets)).
+Wayland socket has no cap. Client sockets fix the name and the
+capabilities of a client (D33, D40). The Wayland socket of a client
+socket offers the privileged protocols only with grants. Only the admin
+socket of `choractl` changes grants and makes client sockets (see [API](api.md#client-sockets)).
 
 - Unsandboxed Wayland clients get all protocols, as in sway. So any client
   can, for example, take the keyboard as an input method, or configure the

@@ -10,7 +10,9 @@ set -u
 . "$(dirname "$0")/gate-lib.sh"
 need sway
 need foot
-test -x "$bin/chora" || fail "no $bin/chora; build it first"
+for what in chora choractl chora-tiling; do
+    test -x "$bin/$what" || fail "no $bin/$what; build it first"
+done
 out=$(mktemp -d /tmp/gate4.XXXXXX)
 runtime=$(mktemp -d /tmp/gate4-rt.XXXXXX)
 trap 'kill "${pids[@]}" 2>/dev/null; rm -rf "$out" "$runtime"' EXIT
@@ -25,8 +27,16 @@ for _ in $(seq 50); do
 done
 test -S "$XDG_RUNTIME_DIR/wayland-1" || fail "no host sway: $(cat "$out/sway.log")"
 export WAYLAND_DISPLAY=wayland-1
-"$bin/chora" >"$out/chora.log" 2>&1 &
+# chora-tiling gives foot the focus, which the text input needs.
+"$bin/chora" -- "$bin/chora-tiling" >"$out/chora.log" 2>&1 &
 pids+=($!)
+for _ in $(seq 50); do
+    compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock" >/dev/null && break
+    sleep 0.2
+done
+CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock") ||
+    fail "no chora socket: $(cat "$out/chora.log")"
+export CHORA_SOCKET WAYLAND_DISPLAY=$(basename "$CHORA_SOCKET" .sock)
 foot --title=gate4 sh -c "read line; printf %s \"\$line\" >$out/typed.txt" &
 pids+=($!)
 sleep 3
