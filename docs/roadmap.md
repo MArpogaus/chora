@@ -7,7 +7,7 @@ with a stable, versioned API (D3).
 
 - Each milestone is a minor release: 0.6, 0.7 and so on.
 - Each milestone has a goal, a scope, an estimate and a **gate**.
-- A milestone gets its estimate when its scope is fixed.
+- A milestone gets its estimate when the agents start it.
 - The gate is a list of checks. A check is a CI job or a step on the
   reference hardware with a log as evidence (D46).
 - A milestone is done when every check of its gate holds. The next
@@ -70,6 +70,8 @@ add one to two weeks.
 Released as `v0.6.0` on 2026-10-19 without the gate checks 1, 2 and 5.
 These checks moved to the gate of 0.7. Check 1 then moved to the time
 after 1.0, with the organization (D36).
+
+The organization and the protected `main` moved to after 1.0 (D36, D47).
 
 **Goal:** the project works with gates in the GitHub organization
 `chora-desktop`. Unit tests check the core in process.
@@ -199,7 +201,8 @@ Gate:
     focus and the rectangles of queries and the plugin methods, without
     pixel clicks.
 
-The checks of the delivered scope, named by their scripts:
+The scripts `tests/gate-0.8-N.sh` below are checks of the 0.7 gate. They
+check the delivered scope:
 
 - `tests/gate-0.8-1.sh`: An MCP client in CI calls the tools to focus the
   second terminal and to request a move to the right. `chora-tiling`
@@ -253,18 +256,21 @@ Scope:
 - The answer of `scene.apply` carries `warnings` (D59): a surface attached
   under a group with `input: pass` (#98), and a layer that alone is larger
   than the pixel budget of every output (#100).
-- `choractl mcp` keeps `keep_nodes`, and an agent removes its own old
-  nodes after a restart (D61, #101).
+- `docs/api.md` tells agents to remove their own old nodes after a
+  restart (D61).
 - Bugs of `choractl mcp`: #53, #54 and #56.
 - The release workflow builds the RPM only (D14).
+- The hardware checks 5 and 8 that moved from 0.7.
 
 The work removes the XP programs first, then extracts the runtime from
 `chora-tiling`, and then ports `chora-xp` to the runtime.
 
 Gate:
 
-1. `chora-tiling` and `chora-xp` both use the shared plugin runtime, and
-   the battle workflows in `tests/battle/` pass.
+1. No crate other than `chora-kit` has a reconnect loop or calls
+   `methods.export`, `output.list` or `events.subscribe`. CI checks this
+   with a grep. The battle workflows in `tests/battle/` and `tests/xp.sh`
+   pass.
 2. The program modules of `chora-xp` are gone: `explorer.rs`,
    `explorer/view.rs`, `folder.rs`, `wm/explorers.rs`, `control.rs`,
    `display.rs`, `datetime.rs`, `properties.rs`, `confirm.rs`,
@@ -272,21 +278,30 @@ Gate:
    `archive/xp-scene-programs` exists.
 3. The start menu of `chora-xp` starts the configured file manager, and
    the `surface.created` event of its window carries the activation token.
+   The check runs in CI in the e2e container, without a user manager. The
+   container installs Thunar from Fedora 44 as the file manager.
 4. A client sets the opacity of a tiling window to 0.5 with the action
    `update` of `node.requested` (D58). After a relayout, a query or a
    capture in CI shows the opacity 0.5.
-5. `scene.apply` answers with a warning code for a surface attached under
-   a group with `input: pass` (D59). A unit test checks it.
-6. #53, #54 and #56 each have a test (D48).
-7. A Quadlet unit from `dist/` connects through its client directory
+5. A new window of `chora-tiling` gets the default style (#99). A CI job
+   checks this.
+6. `scene.apply` answers with a warning code for a surface attached under
+   a group with `input: pass` (D59). It also answers with a warning code
+   for a layer that alone is larger than the pixel budget of every output
+   (#100). Unit tests check both.
+7. #53, #54 and #56 each have a test (D48).
+8. A Quadlet unit from `dist/` connects through its client directory
    after a restart of chora, without a change to the unit. The user runs
    this check on the reference hardware, with a log.
-8. With a user manager, `choractl run foot` starts foot in a transient
+9. With a user manager, `choractl run foot` starts foot in a transient
    systemd unit of its own, and the `surface.created` event of its window
    carries the activation token. The user runs this check on the
    reference hardware, with a log.
-9. CI runs the CI scripts of the earlier gates again; the user runs the
-   hardware checks again on the reference hardware, with a log.
+10. The release of the next release candidate carries only the RPM and its
+    SHA256 sum (D14).
+11. CI runs the CI scripts of the earlier gates again. The user runs the
+    hardware checks again on the reference hardware, with a log, except the
+    daily-use checks (0.9 gate 1, 1.0 gate 1).
 
 ## 0.9: Daily driver
 
@@ -315,8 +330,9 @@ Gate:
    hardware. `coredumpctl list chora` shows no entry, and the log shows no
    emergency reset that the user did not start.
 2. A shader node with an endless loop on llvmpipe in CI: the watchdog
-   thread detects the stall and logs it within 6 s. What it does then is
-   decided at the start of 0.9.
+   thread detects the stall and logs it within 6 s, and acts as D23 and D57
+   say. D23 and D57 do not say what the watchdog does when the main loop
+   itself hangs. This one point is decided at the start of 0.9.
 3. A main loop that blocks for 5 s triggers the watchdog. A test with a
    debug hook checks it.
 4. A checklist on the reference hardware passes, with the log of each
@@ -327,8 +343,9 @@ Gate:
 5. The `vkms` job covers hotplug of a second output.
 6. A view sets tap and key repeat, and a test shows that the core applies
    them.
-7. CI runs the CI scripts of the earlier gates again; the user runs the
-   hardware checks again on the reference hardware, with a log.
+7. CI runs the CI scripts of the earlier gates again. The user runs the
+   hardware checks again on the reference hardware, with a log, except the
+   daily-use checks (0.9 gate 1, 1.0 gate 1).
 8. chora installs from the release RPM, layered on secureblue with
    `rpm-ostree`, and starts as a uwsm session with the tiling flavor. The
    log of the reference hardware shows both steps.
@@ -357,7 +374,7 @@ Scope:
   translation, rotation and scale apart, run per property, and support
   springs.
 - Transactions on disjoint surfaces do not wait for each other (D22).
-- A render thread (D23, #35).
+- A render thread (#35).
 - Shader compile and capture encode run on worker threads, as the image
   decode does.
 - Debug counters for rendered frames and texture allocations, readable
@@ -382,13 +399,14 @@ Gate:
    first frame. A counter of the texture pool shows it.
 5. A client that delays its commit for 150 ms delays no transaction of
    another client. A unit test checks it.
-6. The wobbly window and magic lamp code of `chora-kit` runs on frame
-   events, with one animation of `chora-tiling`. At 60 Hz and at 120 Hz in
-   CI, 99 percent of its frames are on time over 30 s.
+6. A test client runs the wobbly window and magic lamp code of
+   `chora-kit` on frame events. At 60 Hz and at 120 Hz in CI, 99 percent of
+   its frames are on time over 30 s.
 7. The decision on the plugin protocol is in the decision log, with the
    measurement.
-8. CI runs the CI scripts of the earlier gates again; the user runs the
-   hardware checks again on the reference hardware, with a log.
+8. CI runs the CI scripts of the earlier gates again. The user runs the
+   hardware checks again on the reference hardware, with a log, except the
+   daily-use checks (0.9 gate 1, 1.0 gate 1).
 
 ## 1.0: Stable API
 
@@ -425,8 +443,9 @@ Gate:
 6. The secureblue image builds with chora from COPR. `rpm-ostree upgrade`
    on the reference hardware updates chora, and the login screen offers the
    session.
-7. CI runs the CI scripts of the earlier gates again; the user runs the
-   hardware checks again on the reference hardware, with a log.
+7. CI runs the CI scripts of the earlier gates again. The user runs the
+   hardware checks again on the reference hardware, with a log, except the
+   daily-use checks (0.9 gate 1, 1.0 gate 1).
 
 ## Track: XP showroom
 
