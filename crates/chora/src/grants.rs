@@ -1,8 +1,9 @@
 //! Grants of the user for the IPC methods that see or drive the whole
 //! session: `input.inject`, `screen.capture` and `input.grab-any`. A
-//! client socket also needs `methods.call` to call plugin methods, and
-//! `activation.token` to start programs with `choractl run`. The main
-//! socket may always do both.
+//! client socket also needs `methods.call` to call plugin methods,
+//! `settings.write` to call their `settings.set` and `settings.reload`,
+//! `activation.token` to start programs with `choractl run` and
+//! `session.quit` to end chora. The main socket may always do these.
 //!
 //! `choractl grant NAME CAPABILITY` grants a capability to a client name,
 //! until `choractl revoke` or the end of the session, through the admin

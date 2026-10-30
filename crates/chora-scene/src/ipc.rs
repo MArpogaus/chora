@@ -523,17 +523,23 @@ pub enum Capability {
     /// `session.quit`: end chora. Checked only for a client socket.
     #[serde(rename = "session.quit")]
     SessionQuit,
+    /// `settings.write`: call `settings.set` and `settings.reload` of a
+    /// plugin, whose settings hold commands and paths. Checked only for a
+    /// client socket, on top of `methods.call`.
+    #[serde(rename = "settings.write")]
+    SettingsWrite,
 }
 
 impl Capability {
     /// Every capability.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::InputInject,
         Self::ScreenCapture,
         Self::GrabAny,
         Self::MethodsCall,
         Self::ActivationToken,
         Self::SessionQuit,
+        Self::SettingsWrite,
     ];
 
     /// The name, which is also the name of the method.
@@ -546,6 +552,7 @@ impl Capability {
             Self::MethodsCall => "methods.call",
             Self::ActivationToken => "activation.token",
             Self::SessionQuit => "session.quit",
+            Self::SettingsWrite => "settings.write",
         }
     }
 }

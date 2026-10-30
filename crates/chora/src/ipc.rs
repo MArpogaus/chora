@@ -2176,6 +2176,48 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// Plugin settings hold commands that the plugin runs: a client socket
+    /// with `methods.call` alone cannot write them.
+    #[test]
+    fn a_client_socket_writes_settings_only_with_the_capability() {
+        let (mut core, dir) = socket_dir("settings");
+        let mut admin = core.admin();
+        let create = json!({"name": "caller", "capabilities": ["methods.call"]});
+        admin.ok(&mut core, "clients.create", create);
+        let mut caller = core.connect_to(&dir.join("clients/caller/ipc.sock"));
+        caller.ok(&mut core, "hello", json!({"name": "caller"}));
+        for method in ["settings.set", "settings.reload"] {
+            let call = json!({"client": "wm", "method": method, "params": {}});
+            let (error_code, message) = caller.fails(&mut core, "methods.call", call);
+            assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{method}");
+            assert!(message.contains("settings.write"), "{message}");
+        }
+        let get = json!({"client": "wm", "method": "settings.get"});
+        let (error_code, _) = caller.fails(&mut core, "methods.call", get);
+        assert_eq!(
+            error_code,
+            RpcError::REJECTED,
+            "settings.get needs no grant"
+        );
+        let create = json!({"name": "writer", "capabilities": ["methods.call", "settings.write"]});
+        admin.ok(&mut core, "clients.create", create);
+        let mut writer = core.connect_to(&dir.join("clients/writer/ipc.sock"));
+        writer.ok(&mut core, "hello", json!({"name": "writer"}));
+        let call = json!({"client": "wm", "method": "settings.set", "params": {}});
+        let (error_code, message) = writer.fails(&mut core, "methods.call", call.clone());
+        assert_eq!(
+            error_code,
+            RpcError::REJECTED,
+            "the grant lets the call pass"
+        );
+        assert_eq!(message, "wm.settings.set is no exported method");
+        let mut main = core.named("main");
+        let (error_code, _) = main.fails(&mut core, "methods.call", call);
+        assert_eq!(error_code, RpcError::REJECTED, "the main socket may always");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn a_name_connects_with_its_first_and_disconnects_with_its_last_connection() {
         let mut core = Core::new();

@@ -406,7 +406,7 @@ answers every request.
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke capabilities for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. For a name of the main socket, `methods.call` changes nothing, and `activation.token` only opens the MCP tool `run_program`. |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke capabilities for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. For a name of the main socket, `methods.call`, `session.quit` and `settings.write` change nothing, and `activation.token` only opens the MCP tool `run_program`. |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
@@ -415,7 +415,7 @@ answers every request.
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.list` | list the methods that clients exported, each with its description and input schema |
-| `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call` |
+| `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call`, and for a method `settings.set` or `settings.reload` also `settings.write` |
 | `methods.return(call, result, error)` | answer a `method.called` event |
 | `session.quit` | end chora as Ctrl+Alt+Backspace does, after the answer; a client socket needs the capability `session.quit`, the main socket may always; `choractl quit` calls it |
 | `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability `activation.token` |
@@ -610,8 +610,8 @@ socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that [Client sockets](#client-sockets) lists.
 `choractl mcp` offers no tool for grants. On the main socket,
-`activation.token` opens the MCP tool `run_program`, and `methods.call`
-changes nothing.
+`activation.token` opens the MCP tool `run_program`, and `methods.call`,
+`session.quit` and `settings.write` change nothing.
 
 ## Client sockets
 
@@ -656,9 +656,12 @@ in. `choractl clients create agent` prints its path:
   `clients.yaml` and run `choractl clients up`.
 - `methods.call` needs the capability `methods.call`,
   `activation.token` the capability `activation.token` and
-  `session.quit` the capability `session.quit`. Without them they
-  answer code 4. The main socket needs none of them. So a confined agent
-  cannot end chora by default. A token of
+  `session.quit` the capability `session.quit`. A `methods.call` of a
+  method `settings.set` or `settings.reload`, of any client, also needs
+  `settings.write`: plugin settings hold commands that the plugin runs
+  and paths that it reads. Without them they answer code 4. The main
+  socket needs none of them. So a confined agent cannot end chora or
+  change the settings of a plugin by default. A token of
   `activation.token` belongs to no client. Any window that activates
   with it takes the focus without a press, also a window of the client
   itself. With `methods.call`, a client can also ask a window manager for
@@ -944,6 +947,8 @@ wrong value gets the error `-32602` and changes nothing. A change that the
 plugin cannot apply is not saved. A change that the plugin cannot save
 stays applied until the next start, and the caller gets the error.
 In `methods.list`, the schema of `settings.set` lists every setting.
+On a client socket, `settings.set` and `settings.reload` need the
+capability `settings.write` besides `methods.call`.
 
 ```console
 $ choractl call tiling settings.set '{"style": {"opacity": 0.9}}'
@@ -1028,7 +1033,8 @@ the grants of the client name, for example
 `choractl grant agent screen.capture`. Without a grant, `describe_screen`
 still describes the scene. No tool grants anything (D40). On a client
 socket, `call_method` and the tools of plugin methods need the capability
-`methods.call`. `run_program` needs the grant `activation.token` on
+`methods.call`, and `settings.set` and `settings.reload` also
+`settings.write`. `run_program` needs the grant `activation.token` on
 every socket, because a started program can do all that the user can.
 On the main socket, `choractl grant agent activation.token` gives it; a
 client socket lists it in `clients.yaml`. The program starts where the

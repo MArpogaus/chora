@@ -80,10 +80,16 @@ impl State {
                 if let Err(e) = self.check_socket_grant(conn, Capability::MethodsCall) {
                     return Some(Err(e));
                 }
-                let call = match params_of(params) {
+                let call: MethodCall = match params_of(params) {
                     Ok(c) => c,
                     Err(e) => return Some(Err(e)),
                 };
+                // Plugin settings hold commands that the plugin runs.
+                if matches!(call.method.as_str(), "settings.set" | "settings.reload")
+                    && let Err(e) = self.check_socket_grant(conn, Capability::SettingsWrite)
+                {
+                    return Some(Err(e));
+                }
                 return self.call_method(conn, id, call).err().map(Err);
             }
             _ => params_of(params).and_then(|r| self.return_method(conn, r)),
