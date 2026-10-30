@@ -1640,6 +1640,12 @@ set a <code>rule</code>, a color of the theme for a hairline left of it, an
 context that steps back (<code>plugins/chora-mc/blur.frag</code>).</p>
 <p>The methods marked privileged start programs: a caller on a client
 socket needs <code>methods.privileged</code> besides <code>methods.call</code>.</p>
+<p>mc also follows the events of the voice agent (D65); it subscribes to
+<code>voice.*</code>. <code>voice.state</code> sets the agent <code>voice</code> as <code>agent.set</code> does, or
+the sub-agent that the <code>name</code> of its data names, such as <code>coder</code>.
+<code>voice.say</code> shows a sentence as <code>hud.say</code> does. Data that mc does not
+take only goes to its log, since the emitter gets no answer. Other
+clients use <code>agent.set</code> and <code>hud.say</code>.</p>
 <table>
 <thead>
 <tr>
@@ -1947,7 +1953,8 @@ show the JSON without chora:</p>
 </table>
 <p>Run <code>morning.py</code> from a timer in the morning, and <code>system.py</code> while the
 session runs, for example as a user unit. The agents scene needs no
-collector: <code>agent.set</code> fills the panel <code>agent-N</code> with the N-th agent (its
+collector: <code>agent.set</code> and the event <code>voice.state</code> fill the panel
+<code>agent-N</code> with the N-th agent (its
 title in the color of its state, the sign and the state, its task and
 its last words) and <code>band-N</code> below it with its voice and its start; a
 scene file with more columns shows more agents.</p>

@@ -1759,6 +1759,10 @@ by default; a timeout exits 1 with the reason on stderr.</p>
 <td><code>method.called</code></td>
 <td>another client calls a method that this connection exported: <code>call</code> id, <code>caller</code>, <code>method</code> and <code>params</code>; only the exporting connection gets it, subscribed or not</td>
 </tr>
+<tr>
+<td><code>NAME.something</code></td>
+<td>a client emitted it with <code>events.emit</code>, for example <code>voice.state</code>: <code>client</code>, the name of the emitter, and its <code>data</code>; only to the connections that name the event or a pattern of it (D65)</td>
+</tr>
 </tbody>
 </table>
 <p>Every event carries <code>seq</code>, the count of its connection (D32). Every event
@@ -1770,6 +1774,38 @@ it, the events that follow cover every change after it. A number that
 skips tells the client that it missed an event, so it queries again. After
 a reconnect a client works from the new snapshot and forgets the old
 numbers.</p>
+<p>A client emits events of its own with <code>events.emit</code> (D65), for example a
+voice agent that tells a HUD its state:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="nt">"method"</span><span class="p">:</span><span class="w"> </span><span class="s2">"events.emit"</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"voice.state"</span><span class="p">,</span><span class="w"> </span><span class="nt">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"listening"</span><span class="p">}}}</span>
+<span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"method"</span><span class="p">:</span><span class="w"> </span><span class="s2">"event"</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"voice.state"</span><span class="p">,</span><span class="w"> </span><span class="nt">"client"</span><span class="p">:</span><span class="w"> </span><span class="s2">"voice"</span><span class="p">,</span><span class="w"> </span><span class="nt">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"listening"</span><span class="p">},</span><span class="w"> </span><span class="nt">"seq"</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="p">}}</span>
+</code></pre></div>
+<ul>
+<li>The name starts with the client name and a dot. The rest has lowercase
+  letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, from a letter, at most 64 bytes. So
+  no client sends a core event or the event of another name. A client
+  whose name starts as a core namespace, such as <code>surface</code> or <code>output</code>,
+  cannot emit.</li>
+<li>A connection subscribes to the name, for example <code>voice.state</code>, or to
+  a pattern <code>PREFIX.*</code>, for example <code>voice.*</code>. A pattern also works for
+  core events, for example <code>surface.*</code>. An empty list means every core
+  event, not the events of clients. In <code>events.subscribe</code>, a name outside
+  the core namespaces is the event of a client, so a typo there is no
+  error; a typo in a core name, such as <code>surface.creatd</code>, is.</li>
+<li><code>data</code> is any JSON value of at most 64 KiB; <code>null</code> when it is missing.</li>
+<li>A client name emits at most 32 events per second, over all its
+  connections. The core refuses the rest with code 6 and sends nothing.
+  It does not coalesce: after a burst, the client sends its last state
+  again.</li>
+<li>Any named client may emit, also through a client socket without
+  capabilities: an event reaches only subscribers. Any connection may
+  subscribe to the events of other clients, also a client socket; it
+  gets them as it gets core events. The emitter gets its own event when
+  it subscribed to it.</li>
+<li>Only the main socket lets a client take a free name. A name of a client
+  socket is safe from emitters on other sockets (D33).</li>
+</ul>
 <p>The response of <code>scene.apply</code> reports the result of a transaction. When
 the transaction applied, the result is <code>{"warnings": [...]}</code>. When it did
 not apply, the response is an error with the index of the failed command.
@@ -1874,7 +1910,11 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>events.subscribe(events)</code></td>
-<td>stream the named events, or all events for an empty list, as notifications; answers with a snapshot of the scene first (see <a href="#events">Events</a>); each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused</td>
+<td>stream the named events, or all core events for an empty list, as notifications; a name can be the event of a client, such as <code>voice.state</code>, or a pattern such as <code>voice.*</code> (D65); answers with a snapshot of the scene first (see <a href="#events">Events</a>); each subscribed connection gets each event, also when several connections share a client name; an unknown core name is refused</td>
+</tr>
+<tr>
+<td><code>events.emit(event, data)</code></td>
+<td>send an event of this client, named <code>NAME.something</code> after its client name, with <code>data</code> of at most 64 KiB to its subscribers; at most 32 per second per client name, the rest fails with code 6 (see <a href="#events">Events</a>, D65)</td>
 </tr>
 <tr>
 <td><code>input.grab(binding)</code></td>

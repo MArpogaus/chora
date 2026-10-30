@@ -1344,7 +1344,7 @@ same channel.</p>
 </tr>
 <tr>
 <td><code>hud</code></td>
-<td>A thread with its own connection <code>NAME-hud</code>: reports to chora-mc, the indicator node (WP8)</td>
+<td>A thread: times the events of the HUD for the <code>chora</code> thread; the indicator node on its own connection <code>NAME-hud</code> (WP8)</td>
 </tr>
 <tr>
 <td><code>core</code></td>
@@ -1964,25 +1964,28 @@ more per change), <code>awake</code>, <code>muted: {mic, speaker}</code>, <code>
 <code>last_transcript</code>, <code>last_reply</code>, <code>queued</code> (texts that wait), <code>coder</code>
 (the parameters of <code>agent.set</code> for the coder, or null before the first
 task) and <code>health</code> (section 6).</p>
-<p>HUD: the core will get client-emitted events (a new decision record,
-implemented by another package). Then the agent emits the event
-<code>voice.state</code> with the state record on each change of <code>seq</code>. Until then,
-a HUD polls the method <code>state</code> (4 Hz; <code>seq</code> shows a change). The
+<p>HUD: the agent emits client events (D65) on its connection <code>NAME</code>, so
+a HUD subscribes to <code>voice.*</code> and needs no polling. The method <code>state</code>
+stays for a full state record. The
 indicator node signals without a HUD: with <code>indicator</code>, a dot of 12
 pixels at the bottom right of the first output, under <code>screen:OUTPUT</code>,
 in the color of the state (input <code>pass</code>). The <code>hud</code> thread places it
 once per connection.</p>
-<p>chora-mc (WP6): when <code>mc</code> runs, the agent calls <code>mc agent.set {name,
-state, task, said}</code> on each change (<code>state</code> mapped to the states of mc:
-<code>asleep</code>, <code>listening</code>, <code>thinking</code>, <code>working</code>, <code>question</code>, <code>speaking</code>;
-<code>task</code> the request, <code>said</code> the last reply) and <code>mc hud.say {state:
-speaking, text, duration_ms}</code> for each sentence when its sound starts,
-with the length of its PCM (a late sentence gets the rest of its
-length). A thread with its own connection <code>NAME-hud</code> calls them through
-<code>methods.call</code>; errors only log at debug level, so mc may be absent.
-A coding task is a sub-agent: <code>mc agent.set {name: coder, state, task,
+<p>The events (D65): <code>voice.state {state, task, said}</code> on each change
+(<code>state</code> mapped to the states of mc: <code>asleep</code>, <code>listening</code>, <code>thinking</code>,
+<code>working</code>, <code>question</code>, <code>speaking</code>; <code>task</code> the request, <code>said</code> the last
+reply), and <code>voice.say {state: speaking, text, duration_ms}</code> for each
+sentence when its sound starts, with the length of its PCM (a late
+sentence gets the rest of its length). The data are the parameters of
+<code>mc agent.set</code> and <code>mc hud.say</code>, and chora-mc subscribes to <code>voice.*</code>.
+A coding task is a sub-agent: <code>voice.state {name: coder, state, task,
 said}</code> with <code>state</code> <code>working</code>, then <code>done</code> or <code>blocked</code> (failed or
-cancelled), <code>task</code> the task, and <code>said</code> its last step, then its result.</p>
+cancelled), <code>task</code> the task, and <code>said</code> its last step, then its result.
+The <code>hud</code> thread waits for the sound of a sentence and hands the events
+to the <code>chora</code> thread, which emits them on the connection of the
+methods: only that connection has the name <code>voice</code>. The <code>chora</code> thread
+looks for them every 50 ms between the events of chora. A refused event,
+for example over the rate limit of the core, logs at debug level.</p>
 <h2 id="11-logging-and-latency">11. Logging and latency<a class="headerlink" href="#11-logging-and-latency" title="Permanent link">&para;</a></h2>
 <p><code>tracing</code> with timestamps to stderr (journald), without colors when
 stderr is no terminal. <code>RUST_LOG</code> filters; the default is
@@ -2701,7 +2704,7 @@ prompt 22700 tokens, warm cache):</p>
 </tr>
 <tr>
 <td>WP8</td>
-<td>Error paths, health, indicator, live gate (done); client events for the HUD wait for the core</td>
+<td>Error paths, health, indicator, live gate, client events for the HUD (D65) (done)</td>
 <td>M</td>
 </tr>
 <tr>
@@ -2750,8 +2753,9 @@ prompt 22700 tokens, warm cache):</p>
     done."), as the Python agent did, with the result of the harness in
     its own language. Make it a German phrase, or let the LLM sum it
     up (one more LLM round per task)?</li>
-<li>Client events for the HUD (<code>voice.state</code> as an event) need a core
-    feature (section 10); until then, chora-mc gets <code>agent.set</code>.</li>
+<li>Decided (D65): the agent emits <code>voice.state</code> and <code>voice.say</code>, and
+    chora-mc subscribes to <code>voice.*</code> (section 10). <code>tests/voice-events.sh</code>
+    checks it in a headless session.</li>
 </ol>
 
 
