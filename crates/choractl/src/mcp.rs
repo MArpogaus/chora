@@ -151,10 +151,13 @@ impl Mcp {
         }
         let mut core = self.locked();
         match run_tool(&mut core, name, args) {
-            Err(Failure::UnknownTool(unknown)) => match plugin_method(name) {
-                Some((client, method)) => call_plugin(&mut core, client, method, args),
-                None => Err(Failure::UnknownTool(unknown)),
-            },
+            Err(Failure::UnknownTool(unknown)) => {
+                let methods: Vec<Value> = core.call("methods.list", Value::Null)?;
+                match plugin_method(name, &methods) {
+                    Some((client, method)) => call_plugin(&mut core, client, method, args),
+                    None => Err(Failure::UnknownTool(unknown)),
+                }
+            }
             other => other,
         }
     }
@@ -417,12 +420,16 @@ fn plugin_tools(methods: &[Value]) -> Vec<Tool> {
         .collect()
 }
 
-/// The tool name of an exported method: `tiling.set_layout` is the method
-/// `set_layout` of the client `tiling`. None for a name with no dot or
-/// with more than one.
-fn plugin_method(name: &str) -> Option<(&str, &str)> {
-    let (client, method) = name.split_once('.')?;
-    (!client.is_empty() && !method.is_empty() && !method.contains('.')).then_some((client, method))
+/// The exported method of a tool name `client.method` in the answer of
+/// `methods.list`: `tiling.settings.set` is the method `settings.set` of
+/// the client `tiling`. Client and method names may both have dots, so
+/// the list decides where the client ends.
+fn plugin_method<'a>(name: &str, methods: &'a [Value]) -> Option<(&'a str, &'a str)> {
+    methods.iter().find_map(|m| {
+        let (client, method) = (m["client"].as_str()?, m["name"].as_str()?);
+        let rest = name.strip_prefix(client)?.strip_prefix('.')?;
+        (rest == method).then_some((client, method))
+    })
 }
 
 /// The built-in tools.
@@ -1021,13 +1028,20 @@ mod tests {
 
     #[test]
     fn a_dotted_tool_name_routes_to_the_plugin() {
+        let methods = [
+            json!({"client": "tiling", "name": "set_layout"}),
+            json!({"client": "tiling", "name": "settings.set"}),
+            json!({"client": "a.b", "name": "c"}),
+        ];
+        let find = |name| plugin_method(name, &methods);
+        assert_eq!(find("tiling.set_layout"), Some(("tiling", "set_layout")));
         assert_eq!(
-            plugin_method("tiling.set_layout"),
-            Some(("tiling", "set_layout"))
+            find("tiling.settings.set"),
+            Some(("tiling", "settings.set"))
         );
-        assert_eq!(plugin_method("describe_screen"), None);
-        assert_eq!(plugin_method("a.b.c"), None);
-        assert_eq!(plugin_method(".x"), None);
-        assert_eq!(plugin_method("x."), None);
+        assert_eq!(find("a.b.c"), Some(("a.b", "c")));
+        assert_eq!(find("describe_screen"), None);
+        assert_eq!(find("tiling.settings"), None);
+        assert_eq!(find(".x"), None);
     }
 }
