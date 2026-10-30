@@ -84,8 +84,8 @@ pub struct Session {
     pub restart: Option<String>,
     /// Without it, Stand By is disabled.
     pub stand_by: Option<String>,
-    /// Without it, Log Off closes the windows and ends chora-xp: the core
-    /// has no method that ends the session.
+    /// Without it, Log Off closes the windows and ends chora-xp. The
+    /// default `choractl quit` ends chora.
     pub log_off: Option<String>,
 }
 
@@ -190,7 +190,7 @@ mod tests {
         assert_eq!(session.turn_off.as_deref(), Some("systemctl poweroff"));
         assert_eq!(session.restart.as_deref(), Some("systemctl reboot"));
         assert_eq!(session.stand_by.as_deref(), Some("systemctl suspend"));
-        assert_eq!(session.log_off, None);
+        assert_eq!(session.log_off.as_deref(), Some("choractl quit"));
     }
 
     #[test]
@@ -233,13 +233,30 @@ mod tests {
         let mut file = File::<Config>::load(path.clone(), DEFAULT).unwrap();
         let red = json!({"picture": {"file": "/tmp/red.jpg"}, "position": "center", "color": [255, 0, 0]});
         file.set(json!({"wallpaper": red})).unwrap();
-        let saved = File::<Config>::load(path, "").unwrap();
+        let saved = File::<Config>::load(path, DEFAULT).unwrap();
         assert_eq!(
             saved.value.wallpaper.picture,
             Picture::File("/tmp/red.jpg".into())
         );
         assert_eq!(saved.value.wallpaper.position, wallpaper::Position::Center);
         assert_eq!(saved.value.terminal, "foot", "the other keys stay");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A file that names a few keys keeps the defaults of the others, and
+    /// `log_off: null` keeps the fallback of chora-xp.
+    #[test]
+    fn a_file_with_a_few_keys_takes_the_defaults() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-partial-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("chora-xp.yaml");
+        std::fs::write(&path, "terminal: kitty\nsession:\n  log_off: null\n").unwrap();
+        let file = File::<Config>::load(path, DEFAULT).unwrap();
+        assert_eq!(file.value.terminal, "kitty");
+        assert_eq!(file.value.file_manager, "thunar");
+        let session = &file.value.session;
+        assert_eq!(session.turn_off.as_deref(), Some("systemctl poweroff"));
+        assert_eq!(session.log_off, None);
         std::fs::remove_dir_all(dir).unwrap();
     }
 

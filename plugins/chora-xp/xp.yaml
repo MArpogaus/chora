@@ -43,9 +43,9 @@ effects:
   sounds: true
 # The shell commands of the buttons of Turn Off and Log Off. Without a
 # command (null), Turn Off and Log Off end chora-xp, Restart starts it
-# again, and Stand By is disabled.
+# again, and Stand By is disabled. choractl quit ends chora.
 session:
   turn_off: systemctl poweroff
   restart: systemctl reboot
   stand_by: systemctl suspend
-  log_off: null
+  log_off: choractl quit
