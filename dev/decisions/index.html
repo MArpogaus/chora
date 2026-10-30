@@ -1333,8 +1333,8 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D64</td>
-<td>A watchdog thread watches a heartbeat that the main loop bumps after each dispatch; the loop wakes at least once a second. After 3 s without a beat, the thread logs the stall with the action that follows. After <code>CHORA_HANG_ABORT_S</code> seconds without a beat, 30 by default, it aborts chora with SIGABRT and a core dump, so that the session can start again; 0 means never abort. The frame watchdog of D57 stays on the main loop</td>
-<td>A hung shader or driver blocks the main loop, so the frame watchdog and SIGUSR1 cannot act. Only another thread sees the hang. An abort ends the session, so the user can start it again, and leaves a core dump for the bug. 3 s is above the idle wake-up of 1 s and below the 5 s of gate check 3 of 0.9. A hang of 30 s is longer than any slow frame of llvmpipe, and the user waits no longer than that.</td>
+<td>A watchdog thread watches a heartbeat that the main loop bumps after each dispatch; the loop wakes at least once a second. After 3 s without a beat, the thread logs the stall with the action that follows. After <code>CHORA_HANG_ABORT_S</code> seconds without a beat, 30 by default, it aborts chora with SIGABRT and a core dump, so that the session can start again; 0 means never abort. The stall and the abort lines go to fd 2 with a raw <code>write(2)</code>, without the lock of tracing or of <code>std::io::stderr</code>. The SIGABRT handler then prints the backtrace of the watchdog thread, not that of the main loop; the core dump has all threads. The frame watchdog of D57 stays on the main loop</td>
+<td>A hung shader or driver blocks the main loop, so the frame watchdog and SIGUSR1 cannot act. Only another thread sees the hang. An abort ends the session, so the user can start it again, and leaves a core dump for the bug. 3 s is above the idle wake-up of 1 s and below the 5 s of the 0.9 gate. A main loop that hangs inside a log write holds the log lock, and the watchdog must not wait for it. A hang of 30 s is longer than any slow frame of llvmpipe, and the user waits no longer than that.</td>
 </tr>
 </tbody>
 </table>
@@ -1509,7 +1509,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D50</td>
-<td>The session starts through uwsm; a flavor is a systemd target</td>
+<td>The session starts through uwsm; a flavor is a systemd target. While uwsm is not in Fedora 44, the sessions without uwsm (<code>chora-session</code>) are the fallback</td>
 <td>uwsm handles the environment and the graphical session target.</td>
 </tr>
 <tr>

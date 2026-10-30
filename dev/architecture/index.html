@@ -1323,10 +1323,10 @@ windows, and these events would make new windows of them.</p>
   <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> set. The command does not get the
   variables that reach a host compositor, for example <code>WAYLAND_SOCKET</code> and
   <code>SWAYSOCK</code>. Without a command, the core shows a black screen. When the
-  command fails while no client said hello and no window is open, the
-  core logs an error and exits with a failure, so a window manager that
-  cannot start leaves no black screen. A window manager that crashes in a
-  session with windows leaves the core running.</li>
+  command fails while no window is open and no client said hello since
+  the core started, the core logs an error and exits with a failure. So a
+  window manager that cannot start leaves no black screen. A window
+  manager that said hello and then crashes leaves the core running.</li>
 </ul>
 <p>The core places popups, subsurfaces and layer surfaces itself, because the
 protocols define their position. Smithay's <code>PopupManager</code> and <code>LayerMap</code> do
@@ -1632,18 +1632,10 @@ opens on F10 when the key goes up.</p>
   time. When no client alone reaches the budget, the watchdog drops the
   effects of all clients and disconnects none. The watchdog never starts
   the emergency reset; only the binding and SIGUSR1 do.</li>
-<li><strong>Hang watchdog</strong> (D64). A thread of its own watches a heartbeat that
-  the main loop bumps after each dispatch; the loop wakes at least once a
-  second, also without events. A shader that never returns blocks the
-  loop, for every backend renders on it, and with the loop the frame
-  watchdog and SIGUSR1. After 3 s without a beat, the thread logs
-  <code>the main loop stalls</code> with the action that follows. After
-  <code>CHORA_HANG_ABORT_S</code> seconds without a beat, 30 by default, it logs
-  <code>the main loop hangs</code> and aborts chora with SIGABRT and a core dump, so
-  that the session can start again. With <code>CHORA_HANG_ABORT_S=0</code> it only logs.
-  When the loop runs again before the abort, the thread logs
-  <code>the main loop runs again</code>. <code>tests/gate-0.9-shader-hang.sh</code> checks both
-  on llvmpipe.</li>
+<li><strong>Hang watchdog</strong> (<a href="../decisions/">D64</a>). A thread of its own logs a
+  stall of the main loop and aborts chora when the loop hangs, for
+  example in a shader that never returns.
+  <code>tests/gate-0.9-shader-hang.sh</code> checks it on llvmpipe.</li>
 </ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
 <p>chora trusts every client of the same user. One gap comes with the Rust
@@ -1679,33 +1671,10 @@ socket of <code>choractl</code> changes grants and makes client sockets (see <a 
   only after a press of the user on it (see <a href="../api/#client-sockets">API</a>).</li>
 </ul>
 <h2 id="sessions-and-flavors">Sessions and flavors<a class="headerlink" href="#sessions-and-flavors" title="Permanent link">&para;</a></h2>
-<ul>
-<li>The session file <code>chora.desktop</code> runs <code>chora-session tiling</code>. The script
-  imports the environment of the login into the systemd user manager and
-  starts the user service <code>chora@tiling.service</code>. It waits until chora
-  ends, and then stops the units of the graphical session.</li>
-<li>Without <code>XKB_DEFAULT_LAYOUT</code>, <code>chora-session</code> takes the keyboard layout of
-  the system from <code>localectl</code>.</li>
-<li><code>chora@.service</code> runs <code>chora -- chora-flavor &lt;name&gt;</code> as part of
-  <code>graphical-session.target</code>. It drops <code>WAYLAND_DISPLAY</code> and <code>DISPLAY</code> that
-  another session left in the user manager, which would make chora run
-  nested.</li>
-<li><code>chora-flavor &lt;name&gt;</code> imports <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> into the
-  systemd user manager, and <code>DISPLAY</code> when <code>xwayland-satellite</code> is
-  installed. It links the units of the flavor until the next boot,
-  tells systemd that chora is ready, and starts the target of the flavor.
-  Units of the flavor then find the compositor and the IPC socket. The
-  script is not for nested use: the variables would reach the units of the
-  host session.</li>
-<li>The session file <code>chora-uwsm.desktop</code> runs <code>uwsm start -e -D chora -N
-  chora -- chora -- chora-flavor tiling</code> (D50). uwsm runs chora as
-  <code>wayland-wm@chora.service</code>, and <code>chora-flavor</code> calls <code>uwsm finalize</code>
-  instead of the import and the notification.</li>
-<li>The tiling flavor starts <code>chora-tiling</code>, waybar, mako, swaybg, swayidle
-  and kanshi if they are installed (D51), and <code>xwayland-satellite</code> on a
-  free X11 display for X11 programs (D26).</li>
-<li>A derived secureblue image installs the package (D10, D14).</li>
-</ul>
+<p>A login session runs chora as a systemd user unit, through uwsm or
+through <code>chora-session</code>, and chora starts the systemd target of a
+flavor. See <a href="../configuration/#sessions">Sessions</a> and
+<a href="../configuration/#flavors">Flavors</a>.</p>
 
 
 

@@ -1380,7 +1380,9 @@ the settings from <code>chora-tiling</code>, and then ports <code>chora-xp</code
 (D60).</p>
 <p>Scope:</p>
 <ul>
-<li>The session starts through uwsm (D50). A flavor is a systemd target.</li>
+<li>The session starts through uwsm (D50). A flavor is a systemd target.
+  uwsm is not in Fedora 44, so the sessions without uwsm
+  (<code>chora-session</code>) are the fallback.</li>
 <li>The tiling flavor: <code>chora-tiling</code> with waybar, fuzzel, mako, swaybg,
   swaylock, swayidle and kanshi (D51).</li>
 <li>Input device settings through the API: tap, acceleration, natural
@@ -1401,8 +1403,7 @@ the settings from <code>chora-tiling</code>, and then ports <code>chora-xp</code
    emergency reset that the user did not start.</li>
 <li>A shader node with an endless loop runs on llvmpipe in CI. The watchdog
    thread logs the stall within 6 s. The log line names the action, and a
-   test checks it. The action for a hung main loop is decided at the start
-   of 0.9.</li>
+   test checks it.</li>
 <li>A main loop that blocks for 5 s triggers the watchdog. A test with a
    debug hook checks it.</li>
 <li>A checklist on the reference hardware passes, with the log of each

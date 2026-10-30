@@ -1306,15 +1306,19 @@ font in <code>~/.local/share/fonts</code> needs no setting at all.</p>
 </code></pre></div>
 <ul>
 <li><code>choractl view load work</code> first sends <code>input</code> to the core method
-  <code>input.configure</code>, if the view has it. Then it starts each plugin of the view that does not
-  run yet, with the <code>exec</code> of its manifest, and waits up to 10 s until it
-  connects. It passes each <code>config</code> to the method that the manifest names
-  in <code>configure</code>. Then it applies the nodes of the view as one transaction.</li>
+  <code>input.configure</code>, if the view has it. Then it starts each plugin of
+  the view that does not run yet, with the <code>exec</code> of its manifest. It
+  waits up to 10 s until the plugin connects. It passes each <code>config</code> to
+  the method that the manifest names in <code>configure</code>. Then it applies the
+  nodes of the view as one transaction.
+  It prints the started plugins, the count of nodes and, as <code>input</code>, the
+  answer of <code>input.configure</code>.</li>
 <li>The client <code>view-work</code> owns the nodes. A second load replaces them,
   <code>choractl view unload work</code> removes them.</li>
 <li><code>choractl view save work</code> writes the nodes of <code>view-work</code> as they are
-  now, with the plugins and the <code>input</code> of the file that was there, to
-  <code>~/.config/chora/views/work.yaml</code>, or to <code>--file PATH</code>. A plugin or an
+  now to <code>~/.config/chora/views/work.yaml</code>, or to <code>--file PATH</code>. It keeps
+  the plugins and the <code>input</code> of the file that was there, not the live
+  settings of the core. A plugin or an
   agent changes the nodes as <code>view-work</code>, for example
   <code>choractl --name view-work apply</code>.</li>
 <li>A node has an <code>id</code>, a <code>kind</code> (<code>group</code>, <code>rect</code>, <code>image</code>, <code>shader</code> or
@@ -1326,17 +1330,12 @@ font in <code>~/.local/share/fonts</code> needs no setting at all.</p>
   <code>NAME.yaml</code> must name the same view.</li>
 <li><code>choractl view load</code> also takes the path of a YAML file; the MCP tools
   take names only.</li>
-<li><code>input</code> sets the input devices of the whole session, so the core reads
-  no file for them (D35). <code>keyboard</code> has <code>repeat_rate</code> (repeats per
-  second, 0 to 100, 0 for no repeat) and <code>repeat_delay</code> (100 to 5000
-  ms). <code>touchpad</code> holds the libinput settings of every device that can
-  tap, and <code>mouse</code> those of the other pointer devices: <code>tap</code>,
-  <code>natural_scroll</code>, <code>left_handed</code>, <code>accel_profile</code> (<code>flat</code> or
-  <code>adaptive</code>) and <code>accel_speed</code> (-1 to 1). A missing key keeps its
-  value; a device that lacks a setting skips it. The settings stay until
-  the next <code>input.configure</code> or the end of the session, and new devices
-  get them too. On a client socket, <code>input</code> needs the capability
-  <code>methods.privileged</code>. See <a href="../api/#ipc-methods">IPC methods</a>.</li>
+<li><code>input</code> sets the input devices of the whole session through
+  <code>input.configure</code>, so the core reads no file for them (D35).
+  <code>keyboard</code> has <code>repeat_rate</code> and <code>repeat_delay</code>. <code>touchpad</code> and
+  <code>mouse</code> have <code>tap</code>, <code>natural_scroll</code>, <code>left_handed</code>, <code>accel_profile</code>
+  and <code>accel_speed</code>. <a href="../api/#ipc-methods">IPC methods</a> gives the ranges
+  and the rules.</li>
 <li>A plugin that a view starts gets no stdin and no stdout of <code>choractl</code>,
   which carry MCP under <code>choractl mcp</code>.</li>
 </ul>
@@ -1962,11 +1961,12 @@ systemd user target <code>chora-&lt;name&gt;.target</code>. <code>chora-flavor &
 the directory in <code>~/.config/chora/flavors/</code> first and then in
 <code>/usr/share/chora/flavors/</code>. It imports <code>WAYLAND_DISPLAY</code>, <code>CHORA_SOCKET</code>,
 <code>CHORA_FLAVOR_DIR</code> (the directory that it found) and the X11 <code>DISPLAY</code> of
-<code>xwayland-satellite</code> into the systemd user manager, so that every unit of
-the flavor starts with them. It links the units of the directory, tells
+<code>xwayland-satellite</code> into the systemd user manager. So every unit of the
+flavor starts with them. It links the units of the directory, tells
 systemd that chora is ready, and starts the target. The target starts the
 services and the plugins. systemd handles start, restart and order, so
-chora needs no service manager.</p>
+chora needs no service manager. <code>chora-flavor</code> is not for nested use:
+its variables would reach the units of the host session.</p>
 <h3 id="sessions">Sessions<a class="headerlink" href="#sessions" title="Permanent link">&para;</a></h3>
 <p>The login screen shows a session per flavor, twice:</p>
 <table>
@@ -1987,25 +1987,31 @@ chora needs no service manager.</p>
 </tr>
 </tbody>
 </table>
-<p>The uwsm sessions show only when uwsm is installed. uwsm runs chora as
+<p>The uwsm sessions show only when uwsm is installed. uwsm is not in
+Fedora 44, so there the sessions without uwsm are the fallback (D50).
+uwsm runs chora as
 the user unit <code>wayland-wm@chora.service</code> and binds it to
 <code>graphical-session.target</code>. Under uwsm, <code>chora-flavor</code> calls <code>uwsm
 finalize</code> with its variables: uwsm exports them, marks chora as ready and
 removes the variables again when the session ends. Before chora starts,
-uwsm sources <code>/etc/xdg/uwsm/env-chora</code>: without <code>XKB_DEFAULT_LAYOUT</code>, it
-takes the keyboard layout of the system from <code>localectl</code>.
+uwsm sources <code>/etc/xdg/uwsm/env-chora</code>. Without <code>XKB_DEFAULT_LAYOUT</code>,
+this file takes the keyboard layout of the system from <code>localectl</code>.
 <code>~/.config/uwsm/env-chora</code> adds variables of the user.</p>
-<p><code>chora-session</code> does the same without uwsm: it runs chora as
-<code>chora@&lt;name&gt;.service</code>, and stops the units of the graphical session when
-chora ends.</p>
+<p><code>chora-session</code> does the same without uwsm. It sources
+<code>/etc/xdg/uwsm/env-chora</code>, imports the environment of the login into the
+systemd user manager and runs chora as <code>chora@&lt;name&gt;.service</code>. The unit
+drops a <code>WAYLAND_DISPLAY</code> and a <code>DISPLAY</code> that another session left in
+the user manager, because chora would then run nested. When chora ends,
+<code>chora-session</code> stops the units of the graphical session.</p>
 <h3 id="screen-sharing">Screen sharing<a class="headerlink" href="#screen-sharing" title="Permanent link">&para;</a></h3>
 <p>Browsers and video calls share the screen through <code>xdg-desktop-portal</code>,
 which hands the work to <code>xdg-desktop-portal-wlr</code> (D37). Both sessions set
 <code>XDG_CURRENT_DESKTOP=chora</code>, and <code>chora-flavor</code> gives it and
 <code>WAYLAND_DISPLAY</code> to systemd and D-Bus, so that the portals start with
 them. <code>chora-flavor</code> also stops a portal that an earlier session in the
-same user manager started; the next call starts it again with the
-variables of chora. The packages install two files:</p>
+same user manager started. The next call starts it again with the
+variables of chora. While another graphical session of the user is
+open, the portal stays. The packages install two files:</p>
 <ul>
 <li><code>/usr/share/xdg-desktop-portal/chora-portals.conf</code>: for
   <code>XDG_CURRENT_DESKTOP=chora</code>, screen sharing and screenshots go through
@@ -2021,7 +2027,7 @@ through <code>wlr-screencopy</code> on older versions. It shares outputs, and
 windows of <code>ext-foreign-toplevel-list</code>. The core copies through shm, so
 each frame takes a copy on the CPU, and the shared picture has no
 cursor. The portal runs on the Wayland socket of the session, which has
-every capture protocol; a client of a client socket needs the grant
+every capture protocol. A client of a client socket needs the grant
 <code>screen.capture</code> (see <a href="../api/">API</a>).</p>
 <h3 id="x11-programs">X11 programs<a class="headerlink" href="#x11-programs" title="Permanent link">&para;</a></h3>
 <p><code>xwayland-satellite</code> runs X11 programs as Wayland windows. When it is

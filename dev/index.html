@@ -1116,11 +1116,9 @@ systemctl<span class="w"> </span>reboot
 </code></pre></div>
 <p>The layer takes effect after the reboot. To start chora as a uwsm session
 with the tiling flavor, choose "chora (uwsm)" on the login screen.</p>
-<p>Open item: uwsm is not in Fedora 44. The "chora (uwsm)" session shows
-only when uwsm is installed, so the host needs it from a COPR repository
-or as a layered package, or it must be built locally. The decision is
-open. Until then, the session "chora" starts the tiling flavor without
-uwsm.</p>
+<p>uwsm is not in Fedora 44, and the "chora (uwsm)" session shows only when
+uwsm is installed. Without it, the session "chora" starts the tiling
+flavor (<a href="https://marpogaus.github.io/chora/configuration/#sessions">Sessions</a>).</p>
 <h2 id="try-it">Try it<a class="headerlink" href="#try-it" title="Permanent link">&para;</a></h2>
 <p>Start chora with the tiling plugin inside a Wayland session:</p>
 <div class="highlight"><pre><span></span><code>chora<span class="w"> </span>--<span class="w"> </span>chora-tiling
