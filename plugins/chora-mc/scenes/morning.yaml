@@ -1,0 +1,16 @@
+# The morning briefing, set as the front page of a paper: the lead, the
+# weather, the day, the mail, what the agents did overnight and what to
+# read. The collector collectors/morning.py fills the panels.
+grid: [4, 3]
+page: {measure: 24, margin: 0, gap: 1.5}
+chapter: {title: The Morning, layout: large}
+panels:
+- id: lead
+  cell: [0, 0, 2, 2]
+  title_style: {base: heading, step: 1}
+  style: {step: 2, line_height: 1.3}
+- {id: weather, cell: [2, 0, 1, 1], rule: faint}
+- {id: day, cell: [3, 0, 1, 2], rule: faint}
+- {id: mail, cell: [2, 1, 1, 1], rule: faint, style: {step: -1}}
+- {id: overnight, cell: [0, 2, 2, 1], style: {step: -1}}
+- {id: reading, cell: [2, 2, 2, 1], rule: faint, style: {step: -1}}
