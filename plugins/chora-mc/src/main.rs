@@ -879,11 +879,16 @@ impl Mc {
             .split_whitespace()
             .next()
             .ok_or_else(|| invalid("an empty command".into()))?;
-        let name = name_of(word);
-        match self.scenes.get(&name) {
-            Some(scene) if scene.app.as_deref() == Some(command) => return Ok(name),
-            Some(_) => return Err(invalid(format!("a scene {name} exists already"))),
-            None => {}
+        // The scene of the same command again, or the first free name of
+        // the program: foot, foot-2, foot-3 ...
+        let base = name_of(word);
+        let mut name = base.clone();
+        for n in 2.. {
+            match self.scenes.get(&name) {
+                Some(scene) if scene.app.as_deref() == Some(command) => return Ok(name),
+                Some(_) => name = format!("{base}-{n}"),
+                None => break,
+            }
         }
         self.scenes.insert(name.clone(), Scene::app(command));
         let group = create(
