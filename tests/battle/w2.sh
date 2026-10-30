@@ -71,13 +71,15 @@ places() { ctl query "app_id:chora-probe kind:surface" | python3 -c 'import json
 for n in sorted(json.load(sys.stdin), key=lambda n: n["id"]):
     r = n["rects"].get("HEADLESS-1")
     print(n["id"], f"{int(r[0])},{int(r[1])}" if r else "-")'; }
-# the xp lamp animates the mesh of a window for about a second; while
-# it flies, the clipped query of 77550e5 legitimately has no resting
-# rect, so take the baseline only once every window has a place again
+# the xp lamp flies the mesh of a restored window for 400 ms. While it
+# flies, the clipped query of 77550e5 has no rect or one on the way, so
+# take the baseline only when two reads 0.5 s apart agree on every place
+before=$(places)
 for _ in $(seq 30); do
-    before=$(places)
-    grep -q ' -$' <<<"$before" || break
-    sleep 0.2
+    sleep 0.5
+    now=$(places)
+    [ "$now" = "$before" ] && ! grep -q ' -$' <<<"$now" && break
+    before=$now
 done
 
 # the Restart method of T11 five times, then five restarts from the outside
