@@ -124,11 +124,13 @@ showroom:
   grants: []
 ```
 
-The grants are the six capabilities of `choractl grant` (see
+The grants are the seven capabilities of `choractl grant` (see
 [API](api.md#client-sockets)). An agent that
 drives the window manager needs `methods.call`, and one that starts apps
 needs `activation.token`. Both let it take the keyboard focus. A name
-that may end chora needs `session.quit`.
+that may end chora needs `session.quit`. A name that may change the
+settings of a plugin, or call a plugin method that starts programs, such
+as `app.open` of `chora-mc`, also needs `methods.privileged`.
 
 The names follow the rules of `hello`. `clients up` opens the socket of
 every name with exactly the capabilities of its list. A socket that
@@ -282,21 +284,24 @@ set a `rule`, a color of the theme for a hairline left of it, an
 `opacity` from 0 to 1 and a `blur` radius in pixels up to 16, for
 context that steps back (`plugins/chora-mc/blur.frag`).
 
+The methods marked privileged start programs: a caller on a client
+socket needs `methods.privileged` besides `methods.call`.
+
 | Method | Parameters |
 |--------|------------|
 | `scene.show` | `name`; the scene fades in, the old one fades out |
 | `scene.list` | none; answers `scenes` and `current` |
-| `scene.save` | `name`, `grid`, `panels` or `app`; writes the file |
+| `scene.save` | privileged. `name`, `grid`, `panels` or `app`; writes the file |
 | `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab puts the part before the first tab in the margin |
 | `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line |
 | `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it |
-| `app.open` | `command`: a shell command that starts in a scene of its own |
+| `app.open` | privileged. `command`: a shell command that starts in a scene of its own |
 | `region.list` | none; answers the current `scene`, each region with `shown`, `visible` and its `contents`, and each content with its `kind`, `title`, `text` and whether its app runs |
-| `region.toggle` | `region` and an optional `shown`; without it the region flips. Answers `shown` |
-| `region.put` | `content`, `region` and an optional `slot`: the content goes there over the rules, until the next start. Without `region` the content follows the rules again |
+| `region.toggle` | privileged, because a docked app starts. `region` and an optional `shown`; without it the region flips. Answers `shown` |
+| `region.put` | privileged. `content`, `region` and an optional `slot`: the content goes there over the rules, until the next start. Without `region` the content follows the rules again |
 | `content.set` | `content`, `lines` and an optional `title` of a text content |
 | `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines |
-| `region.solo` | `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
+| `region.solo` | privileged. `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
 | `agent.set` | `name` and optional `state`, `task`, `said` and `voice`: adds an agent or changes it; a missing field stays. The `state` is a name of `states` |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice` and `since` (the time of its first report) |
