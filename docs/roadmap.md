@@ -253,8 +253,9 @@ Scope:
 - `chora-tiling` is the lean reference window manager on the runtime.
   Its default style for new windows is a setting (#99).
 - `chora-xp` moves onto the runtime and the settings. The settings file
-  replaces its command-line flags except `--theme`, `--config` and
-  `--slow-motion`. Its dialogs change the settings with `settings.set`.
+  replaces most of its command-line flags;
+  [Configuration](configuration.md#the-xp-flavor) lists the others. Its
+  dialogs change the settings with `settings.set`.
 - The start menu and double clicks of `chora-xp` start installed
   programs. My Documents, My Computer, folder icons and the Recycle Bin
   open the file manager of the settings, by default Thunar.
