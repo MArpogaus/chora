@@ -138,7 +138,7 @@ path.
 |---------|---------|
 | `create` | create a group, rect, image, shader or text node under a parent |
 | `attach` | put a surface without an owner under a parent; the caller becomes its owner |
-| `update` | change node properties |
+| `update` | change node properties. An update of only opacity, effects and meta of a node of another client answers with `node.requested` to its owner (D58). |
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
 | `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection (D55). |
@@ -273,7 +273,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`. When `to` disconnects, the surface is free again, and all clients get `surface.detached`. With `resume`, this occurs at the end of the grace time. |
 | `focus.changed` | the focused surface changed, by a `focus` of a client or by the core: `surface`, or `null`. Window managers draw their frames from it (D55). |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
-| `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize` and `close`, with the arguments of the command. Only the owner of the node gets it, and decides by doing the change or not (D31). Other changes of a foreign node stay refused. |
+| `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize`, `close` and `update`, with the arguments of the command; the arguments of `update` are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). Other changes of a foreign node stay refused. |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up (see [IPC methods](#ipc-methods)) |
 | `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; only to the connection of the grab |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
