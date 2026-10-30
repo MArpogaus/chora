@@ -8,6 +8,8 @@ use chora_scene::{Binding, FontStyle, PropsUpdate};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::region::{self, Content, Preset, Region, Regions, Rule};
+
 /// The default settings.
 pub const DEFAULT: &str = include_str!("../mc.yaml");
 
@@ -35,6 +37,8 @@ pub enum Action {
     Scene(String),
     /// Runs a shell command as an app; its window gets a scene of its own.
     Run(String),
+    /// Shows or hides a region; a docked app takes the focus first.
+    Toggle(Region),
 }
 
 /// Light or dark.
@@ -226,6 +230,16 @@ pub struct Config {
     pub default_scene: String,
     /// A binding and its action.
     pub bindings: BTreeMap<String, Action>,
+    /// The regions around the page.
+    pub regions: Regions,
+    /// What the regions can show, by name.
+    pub contents: BTreeMap<String, Content>,
+    /// Which content goes to which region; the first rule that matches.
+    pub rules: Vec<Rule>,
+    /// The arrangement of the regions, a name of `presets`.
+    pub preset: String,
+    /// Arrangements of the regions by name.
+    pub presets: BTreeMap<String, Preset>,
 }
 
 impl Config {
@@ -353,6 +367,14 @@ impl Settings for Config {
         }
         if !(0.0..=10_000.0).contains(&self.write.duration_ms) {
             return Err("write.duration_ms: from 0 to 10000".into());
+        }
+        region::check(&self.regions, &self.contents, &self.rules)?;
+        if !self.presets.contains_key(&self.preset) {
+            return Err(format!("preset: no preset {}", self.preset));
+        }
+        for (name, preset) in &self.presets {
+            region::check(&self.regions, &self.contents, &preset.rules)
+                .map_err(|e| format!("presets.{name}: {e}"))?;
         }
         let mut keys = BTreeMap::new();
         for binding in self.bindings.keys() {

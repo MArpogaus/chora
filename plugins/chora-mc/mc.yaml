@@ -95,11 +95,94 @@ write:
   duration_ms: 900
 # The scene at the start.
 default_scene: agenda
-# A binding and its action: next_scene, previous_scene, {scene: NAME}, or
-# {run: COMMAND}, which starts a shell command; its window gets a scene of
-# its own.
+# A binding and its action: next_scene, previous_scene, {scene: NAME},
+# {run: COMMAND}, which starts a shell command whose window gets a scene
+# of its own, or {toggle: REGION}, which shows or hides a region; a
+# docked app in it takes the focus first, the next press hides it.
 bindings:
   Super+Right: next_scene
   Super+Left: previous_scene
   Super+a: {scene: agenda}
   Super+space: {run: fuzzel}
+  Super+Return: {toggle: drawer}
+  Super+n: {toggle: right}
+  Super+Up: {toggle: header}
+  Super+Down: {toggle: footer}
+# The regions around the page, as in the Emacs package auto-side-windows:
+# a header and a footer line, sizes in lines of the baseline grid; a left
+# and a right side, sizes in em; a drawer at the bottom, size in lines. A
+# region shows only with something in it, and a scene file can show or
+# hide one with `regions: {right: false}`.
+regions:
+  header: {shown: true, size: 2}
+  footer: {shown: true, size: 2}
+  left: {shown: false, size: 12}
+  right: {shown: true, size: 13}
+  drawer: {shown: false, size: 14}
+# What the regions show, by name. Kinds: head (the running head of the
+# scene), clock (a format of `date`), state and hud (the state and the
+# words of the agent), text (lines of content.set and content.add, with a
+# title), app (a command docked in a side or the drawer; {NAME} is the
+# color NAME of the theme as RRGGBB). Each may set a style.
+contents:
+  head: {kind: head}
+  clock: {kind: clock, format: '%A %-d %B  %H:%M'}
+  date: {kind: clock, format: '%A %-d %B'}
+  time: {kind: clock, format: '%H:%M'}
+  state: {kind: state}
+  hud: {kind: hud}
+  next: {kind: text}
+  notes: {kind: text, title: Notes}
+  outline: {kind: text, title: Outline}
+  shell:
+    kind: app
+    command: foot -o pad=0x0 -o colors-dark.background={background} -o colors-dark.foreground={text}
+# Which content goes where: the first rule that matches wins. A rule names
+# a content or a kind, optionally the scenes (names, @app or @page), a
+# region and a slot. In a line a slot below 0 goes left, 0 in the middle,
+# above 0 right; elsewhere the lowest slot is on top.
+rules:
+- {content: head, region: header, slot: -1}
+- {content: hud, scenes: ['@app'], region: header, slot: 0}
+- {content: state, region: header, slot: 1}
+- {content: clock, region: header, slot: 2}
+- {content: hud, region: footer, slot: -1}
+- {content: next, scenes: ['@page'], region: footer, slot: 1}
+- {content: notes, region: right}
+- {content: shell, region: drawer}
+# The arrangement of the regions: a name of presets. A preset sets which
+# regions show and its own rules; without rules, those above apply.
+#   quiet:  the header alone, the words of the agent in its middle
+#   desk:   header, footer with the HUD and the next entry, notes right
+#   studio: an outline and the notes left, a terminal in the drawer
+#   book:   running head and date above, the time as a folio below
+preset: desk
+presets:
+  quiet:
+    shown: {footer: false, right: false}
+    rules:
+    - {content: head, region: header, slot: -1}
+    - {content: hud, region: header, slot: 0}
+    - {content: state, region: header, slot: 1}
+    - {content: time, region: header, slot: 2}
+  desk: {}
+  studio:
+    shown: {left: true, right: false, drawer: true}
+    rules:
+    - {content: head, region: header, slot: -1}
+    - {content: hud, scenes: ['@app'], region: header, slot: 0}
+    - {content: state, region: header, slot: 1}
+    - {content: clock, region: header, slot: 2}
+    - {content: hud, region: footer, slot: -1}
+    - {content: next, scenes: ['@page'], region: footer, slot: 1}
+    - {content: outline, region: left, slot: 0}
+    - {content: notes, region: left, slot: 1}
+    - {content: shell, region: drawer}
+  book:
+    rules:
+    - {content: head, region: header, slot: -1}
+    - {content: date, region: header, slot: 1}
+    - {content: hud, region: footer, slot: -1}
+    - {content: time, region: footer, slot: 0}
+    - {content: state, region: footer, slot: 1}
+    - {content: notes, region: right}

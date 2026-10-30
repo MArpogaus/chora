@@ -6,7 +6,7 @@ use std::{collections::BTreeMap, io::Write as _, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::Style;
+use crate::{config::Style, region::Region};
 
 /// The scenes that ship with the plugin; a file of the same name replaces
 /// one.
@@ -16,7 +16,7 @@ pub const BUILT_IN: [(&str, &str); 2] = [
 ];
 
 /// The most bytes of a text node of the core.
-const MAX_TEXT: usize = 4096;
+pub const MAX_TEXT: usize = 4096;
 
 /// A scene as its file has it.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -33,6 +33,9 @@ pub struct Scene {
     /// The head of the scene; a scene of an app has none.
     #[serde(default, skip_serializing_if = "Chapter::is_empty")]
     pub chapter: Chapter,
+    /// Whether a region shows in this scene, over the settings.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub regions: BTreeMap<Region, bool>,
 }
 
 /// The head of a scene. Without them, the number is the place of the
@@ -88,6 +91,7 @@ impl Default for Scene {
             panels: Vec::new(),
             app: None,
             chapter: Chapter::default(),
+            regions: BTreeMap::new(),
         }
     }
 }
@@ -288,6 +292,7 @@ mod tests {
                 number: Some("IV".into()),
                 ..Chapter::default()
             },
+            regions: [(Region::Right, true)].into(),
         };
         save(&dir, "agenda", &scene).unwrap();
         save(&dir, "news", &Scene::app("foot")).unwrap();

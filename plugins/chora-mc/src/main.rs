@@ -1,10 +1,14 @@
 //! chora-mc, experimental: a voice-first desktop without window
 //! management. The whole screen shows one scene, a grid of text panels or
-//! one app, and a quiet HUD line shows what the voice agent does. The
-//! agent and small collector scripts fill the panels through the exported
-//! methods; the plugin reads no sources itself.
+//! one app, and quiet regions around it show the context: a header with
+//! the running head, the state of the agent and the clock, a footer with
+//! the words of the agent, notes in the margin and a drawer with a docked
+//! terminal. The agent and small collector scripts fill the panels and
+//! the regions through the exported methods; the plugin reads no sources
+//! itself.
 
 mod config;
+mod region;
 mod scene;
 
 use std::{
@@ -28,23 +32,24 @@ use serde_json::{Value, json};
 
 use crate::{
     config::{Action, Config, Layout, Style, Type},
+    region::{Kind, MAX_LINES, REGIONS, Region, Rule},
     scene::{Panel, Scene},
 };
 
 /// The client name, and the id of the group that holds the scenes.
 const NAME: &str = "mc";
-/// The id of the line of the HUD.
+/// The id of the line of the HUD before the regions; a start removes it.
 const HUD: &str = "mc-hud";
 /// The id of a hidden node whose empty animations time the typewriter.
 const TICK: &str = "mc-tick";
+/// The id of a hidden node whose empty animations time the clocks.
+const CLOCK: &str = "mc-clock";
 /// The cross-fade between two scenes, in milliseconds.
 const FADE: f64 = 250.0;
 /// The effect that writes new text.
 const WRITE_SHADER: &str = include_str!("../write.frag");
 /// The lines of the baseline grid above the head of a scene.
 const HEAD: f64 = 3.0;
-/// The line of the baseline grid of the running head.
-const RUNNING: f64 = 1.0;
 
 /// One scene at a time on the whole screen, driven by voice.
 #[derive(Parser)]
@@ -136,6 +141,51 @@ struct Open {
     command: String,
 }
 
+/// Parameters of `region.toggle`; without `shown` it flips.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Toggle {
+    region: Region,
+    shown: Option<bool>,
+}
+
+/// Parameters of `region.put`; without a region the content follows the
+/// rules of the settings again.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Put {
+    content: String,
+    region: Option<Region>,
+    #[serde(default)]
+    slot: i32,
+}
+
+/// Parameters of `content.set`; a missing title keeps the title.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SetContent {
+    content: String,
+    title: Option<String>,
+    lines: Vec<String>,
+}
+
+/// Parameters of `content.add`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AddLine {
+    content: String,
+    line: String,
+}
+
+/// What an app that starts goes to.
+#[derive(Clone, Debug, PartialEq)]
+enum Target {
+    /// A scene of its own, by name.
+    Scene(String),
+    /// A region, as the content of this name.
+    Dock(String),
+}
+
 struct Mc {
     rt: Runtime<Action>,
     settings: settings::File<Config>,
@@ -144,8 +194,8 @@ struct Mc {
     scenes: BTreeMap<String, Scene>,
     /// The window of an app scene, by scene.
     windows: HashMap<String, String>,
-    /// The scene of an app that starts, by its activation token.
-    starting: HashMap<String, String>,
+    /// Where an app that starts goes, by its activation token.
+    starting: HashMap<String, Target>,
     current: Option<String>,
     /// The one output that the plugin fills.
     output: Option<OutputInfo>,
@@ -155,6 +205,23 @@ struct Mc {
     typing: Option<Typing>,
     /// The file of the effect that writes new text.
     shader: PathBuf,
+    /// The rules of `region.put`, before those of the settings.
+    put: Vec<Rule>,
+    /// The regions that a key or `region.toggle` showed or hid.
+    toggled: BTreeMap<Region, bool>,
+    /// The window of a docked app, by content.
+    docks: HashMap<String, String>,
+    /// The regions that showed at the last render.
+    drawn: BTreeMap<Region, bool>,
+    /// The scene, the regions and the items of the last render; `None`
+    /// before the first or after a build.
+    rendered: Option<Vec<String>>,
+    /// The surface that the plugin gave the keyboard last.
+    focused: Option<String>,
+    /// The text of each clock.
+    clocks: BTreeMap<String, String>,
+    /// The title and the lines of each text content.
+    texts: BTreeMap<String, (String, Vec<String>)>,
 }
 
 fn main() -> ExitCode {
@@ -201,7 +268,16 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         },
         typing: None,
         shader,
+        put: Vec::new(),
+        toggled: BTreeMap::new(),
+        docks: HashMap::new(),
+        drawn: BTreeMap::new(),
+        rendered: None,
+        focused: None,
+        clocks: BTreeMap::new(),
+        texts: BTreeMap::new(),
     };
+    mc.keep_texts();
     mc.start(methods)?;
     Ok(runtime::serve(&mut mc)?)
 }
@@ -279,6 +355,42 @@ fn exported_methods() -> Vec<ExportMethod> {
             json!({"command": {"type": "string"}}),
             &["command"],
         ),
+        runtime::method(
+            "region.list",
+            "Answers the regions around the page with what each shows, and the contents.",
+            json!({}),
+            &[],
+        ),
+        runtime::method(
+            "region.toggle",
+            "Shows or hides a region: header, footer, left, right or drawer; without shown \
+             it flips. A docked app in it starts and takes the keyboard.",
+            json!({"region": {"type": "string"}, "shown": {"type": "boolean"}}),
+            &["region"],
+        ),
+        runtime::method(
+            "region.put",
+            "Puts a content into a region and slot over the rules, until the next start; \
+             without a region the content follows the rules again.",
+            json!({
+                "content": {"type": "string"},
+                "region": {"type": "string"},
+                "slot": {"type": "integer"},
+            }),
+            &["content"],
+        ),
+        runtime::method(
+            "content.set",
+            "Sets the lines and the title of a text content, such as the notes.",
+            json!({"content": {"type": "string"}, "title": {"type": "string"}, "lines": lines}),
+            &["content", "lines"],
+        ),
+        runtime::method(
+            "content.add",
+            "Adds a line to a text content, such as a note; the oldest go after 12 lines.",
+            json!({"content": {"type": "string"}, "line": {"type": "string"}}),
+            &["content", "line"],
+        ),
     ]
 }
 
@@ -315,6 +427,13 @@ impl Plugin for Mc {
             Event::AnimationDone {
                 node: Some(node), ..
             } if node == TICK => self.type_next(),
+            Event::AnimationDone {
+                node: Some(node), ..
+            } if node == CLOCK => {
+                let tick = self.tick_clocks();
+                self.apply(tick)?;
+                self.render()
+            }
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
@@ -353,8 +472,7 @@ impl Plugin for Mc {
             "hud.set" => {
                 self.hud = runtime::params(params)?;
                 self.typing = None;
-                let update = self.hud_update();
-                self.apply(vec![update]).map_err(rejected)?;
+                self.render().map_err(rejected)?;
                 Ok(Value::Null)
             }
             "hud.say" => {
@@ -368,6 +486,36 @@ impl Plugin for Mc {
                 self.show(&name)?;
                 Ok(json!({"scene": name}))
             }
+            "region.list" => Ok(self.list()),
+            "region.toggle" => {
+                let Toggle { region, shown } = runtime::params(params)?;
+                let shown = self.toggle(region, shown).map_err(rejected)?;
+                Ok(json!({"shown": shown}))
+            }
+            "region.put" => {
+                let put: Put = runtime::params(params)?;
+                self.put_content(put)?;
+                self.render().map_err(rejected)?;
+                Ok(Value::Null)
+            }
+            "content.set" => {
+                let SetContent {
+                    content,
+                    title,
+                    lines,
+                } = runtime::params(params)?;
+                self.set_text(&content, title, |_| lines)?;
+                Ok(Value::Null)
+            }
+            "content.add" => {
+                let AddLine { content, line } = runtime::params(params)?;
+                self.set_text(&content, None, |mut lines| {
+                    lines.push(line);
+                    let extra = lines.len().saturating_sub(MAX_LINES);
+                    lines.split_off(extra)
+                })?;
+                Ok(Value::Null)
+            }
             _ => Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method)),
         }
     }
@@ -377,6 +525,9 @@ impl Plugin for Mc {
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
+        self.keep_texts();
+        let contents = &self.settings.value.contents;
+        (self.put).retain(|r| (r.content.as_ref()).is_some_and(|c| contents.contains_key(c)));
         self.rt
             .ungrab_all()
             .and_then(|()| self.grab_all())
@@ -410,20 +561,6 @@ fn title_of(name: &str) -> String {
     chars.next().map_or_else(String::new, |first| {
         first.to_uppercase().chain(chars).collect()
     })
-}
-
-/// The date of today as `date` writes it in the locale, for example
-/// "Friday, 30 October 2026"; empty when `date` fails.
-// ponytail: the date of the last build; a scene shows a new day after
-// the next build or a running head that a collector sets.
-fn today() -> String {
-    std::process::Command::new("date")
-        .arg("+%A, %-d %B %Y")
-        .output()
-        .ok()
-        .filter(|out| out.status.success())
-        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
-        .unwrap_or_default()
 }
 
 /// How far a note sits below the top of its line, so that its baseline
@@ -528,6 +665,7 @@ impl Mc {
         {
             eprintln!("chora-mc: {name}: {}", err.message);
         }
+        self.autostart();
         let free: Vec<Value> = self
             .rt
             .conn
@@ -585,6 +723,8 @@ impl Mc {
             },
         ));
         commands.push(create(TICK, NodeKind::Group, NAME, PropsUpdate::default()));
+        commands.push(create(CLOCK, NodeKind::Group, NAME, PropsUpdate::default()));
+        commands.extend(self.tick_clocks());
         commands.push(create(
             "mc-bg",
             NodeKind::Rect,
@@ -612,26 +752,24 @@ impl Mc {
                 commands.extend(self.place_window(name, surface, false));
             }
         }
-        commands.push(create(
-            HUD,
-            NodeKind::Text,
-            &format!("screen:{}", output.name),
-            self.hud_props(),
-        ));
         self.apply(commands)?;
         self.built = true;
+        self.rendered = None;
         let names: Vec<String> = self.scenes.keys().cloned().collect();
-        names.iter().try_for_each(|name| self.align(name))
+        names.iter().try_for_each(|name| self.align(name))?;
+        self.autostart();
+        self.render()
     }
 
     /// Removes all nodes; the windows wait under the root.
     fn unbuild(&self) -> Vec<Command> {
-        let moves = self.windows.values().map(|surface| Command::Move {
+        let surfaces = self.windows.values().chain(self.docks.values());
+        let moves = surfaces.map(|surface| Command::Move {
             id: surface.clone(),
             parent: Some(ROOT.into()),
             index: None,
         });
-        let removes = [NAME, HUD].map(|id| Command::Remove {
+        let removes = [NAME].map(|id| Command::Remove {
             id: id.into(),
             to: None,
         });
@@ -685,7 +823,13 @@ impl Mc {
     }
 
     /// Where the parts of the page of a scene go on the output.
-    fn geometry(&self, scene: &Scene) -> Option<Geometry> {
+    fn geometry(&self, name: &str) -> Option<Geometry> {
+        self.geometry_of(name, self.scenes.get(name)?)
+    }
+
+    /// Where the parts of a page go on the output, with the sides of the
+    /// scene `name` beside it.
+    fn geometry_of(&self, name: &str, scene: &Scene) -> Option<Geometry> {
         let output = self.output.as_ref()?;
         let [w, h] = output.size.map(f64::from);
         let config = &self.settings.value;
@@ -693,9 +837,18 @@ impl Mc {
         let (note, gap) = (config.page.margin * em, config.page.gap * em);
         let cols = f64::from(scene.grid[0]);
         let want = cols * config.page.measure * em + (cols - 1.0) * gap;
-        // A margin column on both sides, so that the text stays centered.
-        let width = want.min(w - 2.0 * (note + gap + 2.0 * b)).max(b);
-        let x = ((w - width) / 2.0).round();
+        // A margin column on both sides, so that the text stays centered,
+        // and room for the sides, so that the text never moves when one
+        // shows: centered where it fits, else beside the sides.
+        let [left, right] = self.side_widths(name, scene);
+        let need = |side: f64| if side > 0.0 { side + gap } else { 0.0 };
+        let (lneed, rneed) = (note + gap + need(left), (note + gap).max(need(right)));
+        let width = want.min(w - lneed - rneed - 4.0 * b).max(b);
+        let centered = ((w - width) / 2.0).round();
+        let x = centered
+            .min(w - 2.0 * b - rneed - width)
+            .max(2.0 * b + lneed)
+            .round();
         let top = if Self::has_chapter(scene) {
             HEAD * b + self.chapter_height() + b
         } else {
@@ -713,19 +866,14 @@ impl Mc {
     /// The head of a scene: its number, its title and the running head,
     /// as `chapter.layout` sets.
     fn chapter(&self, name: &str, scene: &Scene) -> Vec<Command> {
-        let Some(geo) = self.geometry(scene).filter(|_| Self::has_chapter(scene)) else {
+        let Some(geo) = self.geometry(name).filter(|_| Self::has_chapter(scene)) else {
             return Vec::new();
         };
         let [x, _, _, _] = geo.text;
         let b = geo.baseline;
         let chapter = &scene.chapter;
-        let number = chapter.number.clone().unwrap_or_else(|| {
-            let numbered = self.scenes.iter().filter(|(_, s)| Self::has_chapter(s));
-            let at = numbered.take_while(|(n, _)| *n != name).count();
-            (at + 1).to_string()
-        });
+        let number = self.number(name, scene);
         let title = chapter.title.clone().unwrap_or_else(|| title_of(name));
-        let head = chapter.running_head.clone().unwrap_or_else(today);
         let node = |part: &str, ty: &Type, text: &str, y: f64| {
             let props = PropsUpdate {
                 transform: Some(translate(x, y)),
@@ -739,8 +887,7 @@ impl Mc {
             )
         };
         let top = HEAD * b;
-        let running = self.ty("running_head", None);
-        let mut commands = vec![node("running-head", &running, &head, RUNNING * b)];
+        let mut commands = Vec::new();
         match self.settings.value.chapter.layout {
             Layout::Number => {
                 let big = self.ty("chapter_number", None);
@@ -757,9 +904,20 @@ impl Mc {
         commands
     }
 
+    /// The number of a scene: its own, or its place among the scenes of
+    /// panels.
+    fn number(&self, name: &str, scene: &Scene) -> String {
+        scene.chapter.number.clone().unwrap_or_else(|| {
+            let numbered = self.scenes.iter().filter(|(_, s)| Self::has_chapter(s));
+            let at = numbered.take_while(|(n, _)| *n != name).count();
+            (at + 1).to_string()
+        })
+    }
+
     /// The box of a panel on the screen, without its margin.
-    fn place(&self, scene: &Scene, panel: &Panel) -> Option<[f64; 4]> {
-        let geo = self.geometry(scene)?;
+    fn place(&self, name: &str, panel: &Panel) -> Option<[f64; 4]> {
+        let scene = self.scenes.get(name)?;
+        let geo = self.geometry(name)?;
         Some(scene::place(
             panel.cell,
             scene.grid,
@@ -780,11 +938,7 @@ impl Mc {
     /// Creates one panel: a group with a clip, its title and its lines,
     /// and the notes in the margin left of it.
     fn panel(&self, name: &str, panel: &Panel) -> Vec<Command> {
-        let Some(scene) = self.scenes.get(name) else {
-            return Vec::new();
-        };
-        let (Some([x, y, w, h]), Some(geo)) = (self.place(scene, panel), self.geometry(scene))
-        else {
+        let (Some([x, y, w, h]), Some(geo)) = (self.place(name, panel), self.geometry(name)) else {
             return Vec::new();
         };
         let indent = geo.note + geo.gap;
@@ -839,13 +993,12 @@ impl Mc {
     }
 
     /// Moves what the core lays out to its place: the notes of the panels
-    /// of a scene flush right to the margin, and the running head flush
-    /// right to the text block.
+    /// of a scene flush right to the margin.
     fn align(&mut self, name: &str) -> Result<(), ClientError> {
         let Some(scene) = self.scenes.get(name).cloned() else {
             return Ok(());
         };
-        let Some(geo) = self.geometry(&scene) else {
+        let Some(geo) = self.geometry(name) else {
             return Ok(());
         };
         let indent = geo.note + geo.gap;
@@ -873,14 +1026,6 @@ impl Mc {
                 y += height.max(body.line);
             }
         }
-        let id = chapter_id(name, "running-head");
-        if Self::has_chapter(&scene)
-            && let Some([_, _, width, _]) = self.rect(&id)?
-        {
-            let [x, _, w, _] = geo.text;
-            let b = geo.baseline;
-            commands.push(move_to(id, x + w - width, RUNNING * b));
-        }
         self.apply(commands)
     }
 
@@ -901,9 +1046,9 @@ impl Mc {
     #[allow(clippy::cast_precision_loss)] // at most 4 KiB of lines
     fn write(&self, name: &str, panels: &[&Panel]) -> Vec<Command> {
         let config = &self.settings.value;
-        let Some(scene) = self.scenes.get(name).filter(|_| config.write.enabled) else {
+        if !config.write.enabled {
             return Vec::new();
-        };
+        }
         let effect = |rows: [f64; 3], progress: f64| {
             Some(vec![ShaderEffect {
                 shader: self.shader.to_string_lossy().into_owned(),
@@ -916,7 +1061,7 @@ impl Mc {
         };
         let mut commands = Vec::new();
         for panel in panels {
-            let Some([_, _, _, h]) = self.place(scene, panel) else {
+            let Some([_, _, _, h]) = self.place(name, panel) else {
                 continue;
             };
             // ponytail: a line that wraps writes with the last line; the
@@ -977,38 +1122,6 @@ impl Mc {
         ]
     }
 
-    fn hud_text(&self) -> String {
-        let SetHud { state, text } = &self.hud;
-        match (state.is_empty(), text.is_empty()) {
-            (false, false) => format!("{state} · {text}"),
-            (false, true) => state.clone(),
-            _ => text.clone(),
-        }
-    }
-
-    fn hud_props(&self) -> PropsUpdate {
-        let text = self.hud_text();
-        let b = self.settings.value.scale.baseline;
-        let height = self.output.as_ref().map_or(0.0, |o| f64::from(o.size[1]));
-        let scene = (self.current.as_ref()).and_then(|name| self.scenes.get(name));
-        // Under the text block of the scene that shows.
-        let x = (scene.and_then(|scene| self.geometry(scene))).map_or(2.0 * b, |geo| geo.text[0]);
-        // Over an app it shows only while the agent is active.
-        let page = scene.is_none_or(Self::has_chapter);
-        PropsUpdate {
-            visible: Some(!text.is_empty() && (page || !self.hud.state.is_empty())),
-            transform: Some(translate(x, height - 3.0 * b)),
-            ..self.ty("hud", None).props(&text)
-        }
-    }
-
-    fn hud_update(&self) -> Command {
-        Command::Update {
-            id: HUD.into(),
-            props: self.hud_props(),
-        }
-    }
-
     fn show(&mut self, name: &str) -> Result<(), RpcError> {
         let Some(scene) = self.scenes.get(name) else {
             return Err(invalid(format!("no scene {name}")));
@@ -1048,46 +1161,23 @@ impl Mc {
             commands.extend(self.write(name, &panels));
         }
         let window = self.windows.get(name).cloned();
+        self.focused.clone_from(&window);
         commands.push(Command::Focus {
             surface: window.clone(),
         });
         self.apply(commands)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         self.current = Some(name.into());
-        // The HUD follows the text block, and hides over an app.
-        let hud = self.hud_update();
-        self.apply(vec![hud])
+        // The regions follow the scene.
+        self.render()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
-        let waiting = self.starting.values().any(|v| v == name);
-        if let (Some(command), None, false) = (app, window, waiting) {
-            self.launch(name, &command);
+        let waiting = (self.starting.values()).any(|t| *t == Target::Scene(name.into()));
+        if let (Some(command), None, false) = (app, window, waiting)
+            && let Some(token) = launch(&command)
+        {
+            self.starting.insert(token, Target::Scene(name.into()));
         }
         Ok(())
-    }
-
-    /// Starts the app of a scene with `choractl run`, whose activation
-    /// token finds its window again.
-    fn launch(&mut self, name: &str, command: &str) {
-        let run = std::process::Command::new("choractl")
-            .args(["run", "--", "sh", "-c", command])
-            .stdin(std::process::Stdio::null())
-            .output();
-        let line = match run {
-            Ok(out) if out.status.success() => out.stdout,
-            Ok(out) => {
-                let err = String::from_utf8_lossy(&out.stderr);
-                eprintln!("chora-mc: {command}: {}", err.trim());
-                return;
-            }
-            Err(err) => {
-                eprintln!("chora-mc: choractl run: {err}");
-                return;
-            }
-        };
-        let answer: Value = serde_json::from_slice(&line).unwrap_or_default();
-        if let Some(token) = answer["token"].as_str() {
-            self.starting.insert(token.into(), name.into());
-        }
     }
 
     /// The scene of `app.open`, named after the program.
@@ -1118,7 +1208,7 @@ impl Mc {
                 ..PropsUpdate::default()
             },
         );
-        self.apply(vec![group])
+        self.apply(vec![group, regions_on_top()])
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         Ok(name)
     }
@@ -1132,13 +1222,27 @@ impl Mc {
         token: Option<&str>,
     ) -> Result<(), ClientError> {
         // The start adopts the free surfaces that events then announce too.
-        if !self.built || self.windows.values().any(|s| s == surface) {
+        let mut known = self.windows.values().chain(self.docks.values());
+        if !self.built || known.any(|s| s == surface) {
             return Ok(());
         }
         let started = token.and_then(|t| self.starting.remove(t));
+        if let Some(Target::Dock(content)) = &started
+            && !self.docks.contains_key(content)
+        {
+            // Into its region at the render, with the keyboard.
+            self.apply(vec![Command::Attach {
+                surface: surface.into(),
+                parent: REGIONS.into(),
+            }])?;
+            // A new dock changes the items, so the render draws anew.
+            self.docks.insert(content.clone(), surface.into());
+            self.render()?;
+            return self.focus(Some(surface.into()));
+        }
         let mut commands = Vec::new();
         let name = match started {
-            Some(name) if !self.windows.contains_key(&name) => name,
+            Some(Target::Scene(name)) if !self.windows.contains_key(&name) => name,
             _ => {
                 let mut name = name_of(app_id.unwrap_or("app"));
                 if self.scenes.contains_key(&name) {
@@ -1155,6 +1259,7 @@ impl Mc {
                         ..PropsUpdate::default()
                     },
                 ));
+                commands.push(regions_on_top());
                 name
             }
         };
@@ -1170,6 +1275,23 @@ impl Mc {
     /// A window closed: a scene that only held it goes, and the default
     /// scene shows instead of a scene without its window.
     fn forget(&mut self, surface: &str) -> Result<(), ClientError> {
+        let dock = (self.docks.iter()).find(|(_, s)| *s == surface);
+        if let Some(content) = dock.map(|(c, _)| c.clone()) {
+            // A docked app ended: its region hides, the keyboard goes back.
+            self.docks.remove(&content);
+            let name = self.current.clone().unwrap_or_default();
+            if let Some(region) = (self.placed(&name).into_iter())
+                .find(|(_, slots)| slots.iter().any(|(_, c)| *c == content))
+                .map(|(r, _)| r)
+            {
+                self.toggled.insert(region, false);
+            }
+            if self.focused.as_deref() == Some(surface) {
+                let window = self.windows.get(&name).cloned();
+                self.focus(window)?;
+            }
+            return self.render();
+        }
         let Some(name) = self
             .windows
             .iter()
@@ -1191,6 +1313,67 @@ impl Mc {
                 id: scene_id(&name),
                 to: None,
             }])?;
+        }
+        Ok(())
+    }
+
+    /// Keeps the lines of the text contents that stay, and takes those of
+    /// the settings for new ones.
+    fn keep_texts(&mut self) {
+        let contents = &self.settings.value.contents;
+        let old = std::mem::take(&mut self.texts);
+        self.texts = (contents.iter())
+            .filter(|(_, c)| c.kind == Kind::Text)
+            .map(|(name, c)| {
+                let text = old
+                    .get(name)
+                    .cloned()
+                    .unwrap_or_else(|| (c.title.clone(), c.lines.clone()));
+                (name.clone(), text)
+            })
+            .collect();
+    }
+
+    /// Changes the lines of a text content, and its title.
+    fn set_text(
+        &mut self,
+        content: &str,
+        title: Option<String>,
+        change: impl FnOnce(Vec<String>) -> Vec<String>,
+    ) -> Result<(), RpcError> {
+        let (old_title, lines) = (self.texts.get(content).cloned())
+            .ok_or_else(|| invalid(format!("no text content {content}")))?;
+        let new = (title.unwrap_or(old_title), change(lines));
+        if new.0.len() + new.1.join("\n").len() > scene::MAX_TEXT {
+            return Err(invalid(format!("{content}: more than 4 KiB of text")));
+        }
+        self.texts.insert(content.into(), new);
+        self.render()
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
+    }
+
+    /// Puts a content into a region over the rules, or back to them.
+    fn put_content(&mut self, put: Put) -> Result<(), RpcError> {
+        let Put {
+            content,
+            region,
+            slot,
+        } = put;
+        let found = (self.settings.value.contents.get(&content))
+            .ok_or_else(|| invalid(format!("no content {content}")))?;
+        if let Some(region) = region {
+            region::put_check(found, region).map_err(invalid)?;
+        }
+        self.put.retain(|r| r.content.as_ref() != Some(&content));
+        if let Some(region) = region {
+            let rule = Rule {
+                content: Some(content),
+                kind: None,
+                scenes: Vec::new(),
+                region,
+                slot,
+            };
+            self.put.insert(0, rule);
         }
         Ok(())
     }
@@ -1277,8 +1460,8 @@ impl Mc {
             duration: ms,
             easing: Easing::Linear,
         };
-        let update = self.hud_update();
-        self.apply(vec![update, tick])
+        self.apply(vec![tick])?;
+        self.render()
     }
 
     fn act(&mut self, binding: &str) {
@@ -1299,9 +1482,47 @@ impl Mc {
                 chora_kit::run(&command);
                 return;
             }
+            Action::Toggle(region) => {
+                if let Err(err) = self.toggle(region, None) {
+                    eprintln!("chora-mc: toggle {}: {err}", region.name());
+                }
+                return;
+            }
         };
         if let Err(err) = self.show(&next) {
             eprintln!("chora-mc: {next}: {}", err.message);
         }
     }
+}
+
+/// Keeps the regions over a scene group that was just created.
+fn regions_on_top() -> Command {
+    Command::Move {
+        id: REGIONS.into(),
+        parent: None,
+        index: None,
+    }
+}
+
+/// Starts a shell command with `choractl run`, and answers the activation
+/// token that finds its window again.
+fn launch(command: &str) -> Option<String> {
+    let run = std::process::Command::new("choractl")
+        .args(["run", "--", "sh", "-c", command])
+        .stdin(std::process::Stdio::null())
+        .output();
+    let line = match run {
+        Ok(out) if out.status.success() => out.stdout,
+        Ok(out) => {
+            let err = String::from_utf8_lossy(&out.stderr);
+            eprintln!("chora-mc: {command}: {}", err.trim());
+            return None;
+        }
+        Err(err) => {
+            eprintln!("chora-mc: choractl run: {err}");
+            return None;
+        }
+    };
+    let answer: Value = serde_json::from_slice(&line).unwrap_or_default();
+    answer["token"].as_str().map(Into::into)
 }
