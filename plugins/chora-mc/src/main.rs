@@ -362,7 +362,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     Ok(runtime::serve(&mut mc)?)
 }
 
-const EVENTS: [&str; 7] = [
+/// The events; `voice.*` are those of the voice agent (D65).
+const EVENTS: [&str; 8] = [
+    "voice.*",
     "animation.done",
     "surface.created",
     "surface.destroyed",
@@ -570,6 +572,11 @@ impl Plugin for Mc {
                 self.act(&binding);
                 Ok(())
             }
+            Event::Emitted {
+                event,
+                client,
+                data,
+            } => self.follow(&event, &client, data),
             _ => Ok(()),
         }
     }
@@ -701,6 +708,31 @@ impl Mc {
             }
             _ => self.agent_method(method, params),
         }
+    }
+
+    /// An event of a client (D65): `NAME.state` sets the agent `NAME` as
+    /// `agent.set` does, or the sub-agent that `name` in the data names;
+    /// `NAME.say` shows a sentence as `hud.say` does. Wrong data only
+    /// logs, since the emitter gets no answer; other events do nothing.
+    fn follow(&mut self, event: &str, client: &str, mut data: Value) -> Result<(), ClientError> {
+        let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
+        let done = match kind {
+            Some("state") => {
+                if let Some(object) = data.as_object_mut() {
+                    object.entry("name").or_insert_with(|| client.into());
+                }
+                runtime::params(data).and_then(|set| self.set_agent(set))
+            }
+            Some("say") => match runtime::params(data) {
+                Ok(say) => return self.say(say),
+                Err(e) => Err(e),
+            },
+            _ => Ok(()),
+        };
+        if let Err(e) = done {
+            eprintln!("chora-mc: {event}: {e}");
+        }
+        Ok(())
     }
 
     /// The methods of the agents and the notifications.
