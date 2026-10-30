@@ -899,16 +899,24 @@ def system_prompt() -> str:
     return "\n\n".join(parts)
 
 
-def spoken(messages: list[dict]) -> list[dict]:
-    """Return the words of a past session, without tool calls and results.
+def earlier(messages: list[dict]) -> str:
+    """Return the words of a past session as a note for the system prompt.
 
-    The node ids and places in them describe a scene that may be gone.
+    Tool calls and results stay out: their node ids and places describe a
+    scene that may be gone. As chat messages, replies without their tool
+    calls would teach the LLM to talk about tools instead of calling them.
     """
-    return [
-        {"role": m["role"], "content": m["content"]}
+    lines = [
+        f"{'User' if m['role'] == 'user' else 'You'}: {text_of(m['content'])}"
         for m in messages
         if m["role"] in ("user", "assistant") and m.get("content")
     ]
+    if not lines:
+        return ""
+    return (
+        "# Earlier conversation\n\nFor context only. The scene may have changed "
+        "since; look before you act.\n\n" + "\n".join(lines)
+    )
 
 
 def save(history: list[dict]) -> None:
@@ -1033,9 +1041,9 @@ async def run_loop(
     log(f"RMS_SPEECH {RMS_SPEECH}, RMS_BARGE_IN {RMS_BARGE_IN}, PTT_KEY {key}")
     history = [{"role": "system", "content": system_prompt()}]
     log(f"system prompt: {len(history[0]['content'])} characters")
-    if HISTORY_FILE.is_file():
-        history += spoken(json.loads(HISTORY_FILE.read_text()))
-        log(f"{len(history) - 1} messages from {HISTORY_FILE}")
+    if HISTORY_FILE.is_file() and (note := earlier(json.loads(HISTORY_FILE.read_text()))):
+        history[0]["content"] += "\n\n" + note
+        log(f"the earlier conversation of {HISTORY_FILE}: {len(note)} characters")
     warming = asyncio.create_task(warm(http, tools, history[:1]), name="warm-up")
     warming.add_done_callback(report)
     preroll: list[bytes] = []

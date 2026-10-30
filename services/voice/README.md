@@ -147,8 +147,9 @@ reply.
 
 The agent keeps the last `HISTORY` (20) turns in
 `~/.local/state/chora/voice-history.json` and takes them up at its next
-start, its words only: the tool calls and results of an earlier session
-describe a scene that may be gone. Delete the file to start a new
+start: its words go into the system prompt as a note. The tool calls
+and results of an earlier session stay out, since they describe a scene
+that may be gone. Delete the file to start a new
 conversation. The push-to-talk key
 does the same. The mic also hears the speaker, so use headphones or the
 echo cancellation below. After each full reply, the log line `mic peak
