@@ -187,8 +187,8 @@ like `set_layout`.
 `chora-tiling` connects with `resume` (see [API](api.md#ipc-methods)). It
 keeps the tags and the layouts of each output, and the tags, the states
 and the stacking of each window, in the `meta` of its nodes. A restart
-within the grace time rebuilds them from there, for example `choractl
-restart tiling` after a rebuild.
+within the grace time rebuilds them from there. In a flavor or a view,
+`choractl restart tiling` does that after a rebuild.
 
 `chora-tiling` claims the box around the work areas of its outputs
 (D55). `--output NAME` limits it to some outputs, as for `chora-xp`, and
