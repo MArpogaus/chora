@@ -4,7 +4,8 @@
 # activation token of `choractl run` (D42). Not tests/gate-0.8-3.sh, which
 # is a check of the 0.7 gate. CI runs it after tests/xp.sh.
 #
-# Step 13 of tests/xp.sh records the events of the file manager in
+# The step "My Documents of the start menu starts the file manager" of
+# tests/xp.sh records the events of the file manager in
 # OUT_DIR/fm-created.jsonl. This script reads that file, and runs
 # tests/xp.sh into OUT_DIR first when the file does not exist.
 #
