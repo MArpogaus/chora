@@ -5,22 +5,90 @@
 
 # The colors of the theme: light or dark.
 theme: dark
-# Each color is RGBA from 0 to 1.
+# Each color is RGBA from 0 to 1. A style names a color of the theme;
+# each theme needs a background.
 themes:
   light:
-    background: [0.95, 0.94, 0.91, 1.0]
-    text: [0.13, 0.13, 0.13, 1.0]
-    accent: [0.45, 0.45, 0.45, 1.0]
+    background: [0.97, 0.96, 0.93, 1.0]
+    text: [0.16, 0.15, 0.14, 1.0]
+    muted: [0.50, 0.48, 0.45, 1.0]
+    faint: [0.83, 0.81, 0.77, 1.0]
+    accent: [0.55, 0.14, 0.12, 1.0]
   dark:
-    background: [0.07, 0.07, 0.07, 1.0]
-    text: [0.86, 0.85, 0.82, 1.0]
-    accent: [0.55, 0.55, 0.53, 1.0]
-# The font of all text; the size of the lines in logical pixels. Titles
-# are 1.5 times as large. Inter is in the Fedora package rsms-inter-fonts;
-# without it, a system font shows.
-font:
-  family: Inter
-  size: 20
+    background: [0.11, 0.11, 0.11, 1.0]
+    text: [0.85, 0.83, 0.79, 1.0]
+    muted: [0.55, 0.54, 0.51, 1.0]
+    faint: [0.26, 0.26, 0.25, 1.0]
+    accent: [0.80, 0.47, 0.40, 1.0]
+# The font sizes are steps of a modular scale: base times ratio to the
+# power of the step. Each line of text is whole lines of the baseline grid.
+scale:
+  base: 18
+  ratio: 1.333
+  baseline: 27
+# The styles of text. Each has a family, a weight (300 light, 400 normal,
+# 700 bold), a style (normal or italic), a size in pixels or a step of the
+# scale, a color, a line_height, a letter_spacing in em, OpenType features
+# (smcp small caps, c2sc capitals as small caps, onum old-style figures,
+# tnum tabular figures) and uppercase. A style with a base changes it.
+# TeX Gyre Pagella is in the Fedora package texlive-tex-gyre, outside the
+# font directories: add its directory to CHORA_FONT_DIRS of chora, for
+# example /usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre.
+# Inter is in the package rsms-inter-fonts. Without a family, a system
+# font shows.
+styles:
+  body:
+    family: TeX Gyre Pagella
+    line_height: 1.5
+    features: {onum: 1}
+  heading:
+    base: body
+    color: accent
+    letter_spacing: 0.08
+    features: {smcp: 1, c2sc: 1, onum: 1}
+  chapter:
+    base: heading
+    step: 1
+    letter_spacing: 0.14
+  chapter_number:
+    family: TeX Gyre Pagella
+    step: 5
+    line_height: 1.0
+    color: faint
+  chapter_large:
+    family: Inter
+    weight: 200
+    step: 5
+    line_height: 1.25
+    letter_spacing: -0.02
+  running_head:
+    family: Inter
+    weight: 500
+    size: 11
+    color: muted
+    letter_spacing: 0.2
+    uppercase: true
+  margin:
+    family: Inter
+    step: -1
+    color: muted
+    features: {tnum: 1}
+  hud:
+    base: margin
+  mono:
+    family: DejaVu Sans Mono
+    step: -1
+# The head of each scene: number (a large number, the title in small caps
+# below it), caps (the title in small caps) or large (one large title).
+chapter:
+  layout: number
+# The text block: the width of a column of text, about 65 letters, the
+# margin column left of it for notes such as times, and the space between
+# them, all in em of scale.base.
+page:
+  measure: 30
+  margin: 6
+  gap: 1.5
 # New text writes itself: first its outline line by line, then its fill.
 write:
   enabled: true

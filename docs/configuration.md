@@ -230,21 +230,36 @@ of the same name replaces a built-in scene.
 ```yaml
 # ~/.config/chora/mc/scenes/day.yaml
 grid: [2, 2]          # columns and rows
+chapter:              # all optional: the place, the name, the date
+  number: "2"
+  title: Day
+  running_head: Week 44
 panels:
 - id: mail
   cell: [0, 0, 1, 1]  # column, row, width and height in cells
   title: Mail
+  style: {base: body, color: accent}   # a style of the settings, changed
 - id: agents
   cell: [1, 0, 1, 2]
   title: Agents
 ```
+
+Each scene of panels has a head in the style of the LaTeX package
+classicthesis: a running head top right, by default the date, and the
+number and the title of the scene as `chapter.layout` sets. The panels
+share the text block, one column of `page.measure` per column of the
+grid. A line `TIME<tab>TEXT` puts the time in the margin column left of
+the text, flush right, and the text wraps under it. A panel names the
+styles of its lines, its title and its notes with `style`, `title_style`
+and `note_style`; each takes a `base` (by default `body`, `heading` and
+`margin`) and changes single fields.
 
 | Method | Parameters |
 |--------|------------|
 | `scene.show` | `name`; the scene fades in, the old one fades out |
 | `scene.list` | none; answers `scenes` and `current` |
 | `scene.save` | `name`, `grid`, `panels` or `app`; writes the file |
-| `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab makes two columns: the part before the first tab, and the rest, which does not wrap |
+| `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab puts the part before the first tab in the margin |
 | `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line |
 | `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it |
 | `app.open` | `command`: a shell command that starts in a scene of its own |
@@ -259,18 +274,35 @@ A window that no scene started, for example from a launcher, gets a scene
 of its own. The settings of D62 are in `chora/chora-mc.yaml`; edits by
 hand apply with `settings.reload`:
 
-- `theme` (`light` or `dark`) and the colors of each theme.
-- `font`: Inter by default, from the Fedora package `rsms-inter-fonts`;
-  a system font shows without it.
+- `theme` (`light` or `dark`) and the colors of each theme by name, at
+  least a `background`.
+- `scale`: the font sizes as steps of a modular scale (`base`, `ratio`),
+  and the `baseline` grid; each line of text is whole lines of the grid.
+- `styles`: named styles with `base`, `family`, `weight`, `style`
+  (`normal` or `italic`), `size` or `step`, `color` (a name of the theme
+  or RGBA), `line_height`, `letter_spacing` in em, OpenType `features` and
+  `uppercase`. The plugin uses `chapter_number`, `chapter`,
+  `chapter_large`, `running_head`, `heading`, `body`, `margin` and `hud`.
+  The default sets TeX Gyre Pagella with small caps and old-style figures
+  for the text, from the Fedora package `texlive-tex-gyre`, whose
+  directory `/usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre`
+  must be in `CHORA_FONT_DIRS`, and Inter with tabular figures for the
+  running head, the notes and the HUD.
+- `chapter.layout`: `number` (a large light number, the title in spaced
+  small caps below), `caps` (the title only) or `large` (one large light
+  title).
+- `page`: the `measure` of a column of text, the `margin` column and the
+  `gap`, in em of `scale.base`.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME` and `run: COMMAND`.
 
+The HUD hides over an app unless its `state` is set.
 `chora-mc --print-config` prints the default. An option that the file
 leaves out takes its default. The collector
 `plugins/chora-mc/collectors/agenda.sh` puts the org agenda of today into
 the scene `agenda`, with `emacs --batch`: the entries with a time, and the
-tasks scheduled or due today, each as a time and a text in two columns.
+tasks scheduled or due today, each as a time in the margin and a text.
 It leaves out overdue, upcoming and done tasks. `ORG_TODO` sets the TODO
 keywords, by default `PROJ TODO NEXT WAIT | DONE KILL`.
 

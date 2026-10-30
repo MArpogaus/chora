@@ -6,6 +6,8 @@ use std::{collections::BTreeMap, io::Write as _, path::Path};
 
 use serde::{Deserialize, Serialize};
 
+use crate::config::Style;
+
 /// The scenes that ship with the plugin; a file of the same name replaces
 /// one.
 pub const BUILT_IN: [(&str, &str); 2] = [
@@ -28,10 +30,32 @@ pub struct Scene {
     /// A shell command whose window fills the screen.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app: Option<String>,
+    /// The head of the scene; a scene of an app has none.
+    #[serde(default, skip_serializing_if = "Chapter::is_empty")]
+    pub chapter: Chapter,
+}
+
+/// The head of a scene. Without them, the number is the place of the
+/// scene, the title its name, and the running head the date.
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Chapter {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub number: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub running_head: Option<String>,
+}
+
+impl Chapter {
+    fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 /// A title and lines of text.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Panel {
     pub id: String,
@@ -41,6 +65,15 @@ pub struct Panel {
     pub title: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub lines: Vec<String>,
+    /// The style of the lines, `body` without a base.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<Style>,
+    /// The style of the title, `heading` without a base.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title_style: Option<Style>,
+    /// The style of the notes in the margin, `margin` without a base.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note_style: Option<Style>,
 }
 
 fn one_cell() -> [u32; 2] {
@@ -54,6 +87,7 @@ impl Default for Scene {
             grid: one_cell(),
             panels: Vec::new(),
             app: None,
+            chapter: Chapter::default(),
         }
     }
 }
@@ -88,6 +122,15 @@ impl Scene {
             }
             panel.check_text()?;
         }
+        let chapter = &self.chapter;
+        let texts = [&chapter.number, &chapter.title, &chapter.running_head];
+        if texts
+            .iter()
+            .flat_map(|t| t.iter())
+            .any(|t| t.len() > MAX_TEXT)
+        {
+            return Err("chapter: more than 4 KiB of text".into());
+        }
         Ok(())
     }
 }
@@ -99,19 +142,17 @@ impl Panel {
     }
 
     /// With a tab in a line, the parts before and after the first tab
-    /// of each line, as two columns.
-    pub fn columns(&self) -> Option<(String, String)> {
+    /// of each line: a note in the margin and its line.
+    pub fn columns(&self) -> Option<Vec<(&str, &str)>> {
         if !self.lines.iter().any(|l| l.contains('\t')) {
             return None;
         }
-        let split = self
-            .lines
-            .iter()
-            .map(|l| l.split_once('\t').unwrap_or(("", l)));
-        let (times, texts): (Vec<&str>, Vec<&str>) = split.unzip();
-        // A text node needs a text.
-        let first = Some(times.join("\n")).filter(|t| !t.is_empty());
-        Some((first.unwrap_or_else(|| " ".into()), texts.join("\n")))
+        let split = self.lines.iter();
+        Some(
+            split
+                .map(|l| l.split_once('\t').unwrap_or(("", l)))
+                .collect(),
+        )
     }
 
     /// A text node of the core takes at most 4 KiB.
@@ -200,18 +241,18 @@ pub fn save(dir: &Path, name: &str, scene: &Scene) -> Result<(), String> {
     write().map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// The box `[x, y, w, h]` of a cell on a screen of `size`, with `margin`
-/// around the grid and between the cells.
-pub fn place(cell: [u32; 4], grid: [u32; 2], size: [f64; 2], margin: f64) -> [f64; 4] {
+/// The box `[x, y, w, h]` of a cell in the `area` `[x, y, w, h]`, with
+/// `gap` between the columns and between the rows.
+pub fn place(cell: [u32; 4], grid: [u32; 2], area: [f64; 4], gap: [f64; 2]) -> [f64; 4] {
     let [x, y, w, h] = cell.map(f64::from);
     let [cols, rows] = grid.map(f64::from);
-    let cell_w = (size[0] - margin * (cols + 1.0)) / cols;
-    let cell_h = (size[1] - margin * (rows + 1.0)) / rows;
+    let cell_w = (area[2] - gap[0] * (cols - 1.0)) / cols;
+    let cell_h = (area[3] - gap[1] * (rows - 1.0)) / rows;
     [
-        margin + x * (cell_w + margin),
-        margin + y * (cell_h + margin),
-        w * cell_w + (w - 1.0) * margin,
-        h * cell_h + (h - 1.0) * margin,
+        area[0] + x * (cell_w + gap[0]),
+        area[1] + y * (cell_h + gap[1]),
+        w * cell_w + (w - 1.0) * gap[0],
+        h * cell_h + (h - 1.0) * gap[1],
     ]
 }
 
@@ -235,8 +276,18 @@ mod tests {
                 cell: [1, 0, 1, 1],
                 title: "Mail".into(),
                 lines: vec!["one".into(), "two".into()],
+                style: Some(Style {
+                    base: Some("margin".into()),
+                    size: Some(12.0),
+                    ..Style::default()
+                }),
+                ..Panel::default()
             }],
             app: None,
+            chapter: Chapter {
+                number: Some("IV".into()),
+                ..Chapter::default()
+            },
         };
         save(&dir, "agenda", &scene).unwrap();
         save(&dir, "news", &Scene::app("foot")).unwrap();
@@ -266,10 +317,8 @@ mod tests {
             assert!(parse(wrong).is_err(), "{wrong}");
         }
         let long = Panel {
-            id: "a".into(),
-            cell: [0, 0, 1, 1],
-            title: String::new(),
             lines: vec!["x".repeat(MAX_TEXT + 1)],
+            ..Panel::default()
         };
         assert!(long.check_text().is_err());
     }
@@ -277,33 +326,26 @@ mod tests {
     #[test]
     fn a_tab_makes_two_columns() {
         let mut panel = Panel {
-            id: "a".into(),
-            cell: [0, 0, 1, 1],
-            title: String::new(),
             lines: vec!["9:00\tStandup".into(), "\tMail".into(), "Lunch".into()],
+            ..Panel::default()
         };
-        let columns = ("9:00\n\n".into(), "Standup\nMail\nLunch".into());
-        assert_eq!(panel.columns(), Some(columns));
-        panel.lines = vec!["\tMail".into()];
-        assert_eq!(panel.columns(), Some((" ".into(), "Mail".into())));
+        let rows = vec![("9:00", "Standup"), ("", "Mail"), ("", "Lunch")];
+        assert_eq!(panel.columns(), Some(rows));
         panel.lines = vec!["Mail".into()];
         assert_eq!(panel.columns(), None);
     }
 
     #[test]
-    fn cells_share_the_screen_with_margins() {
-        let size = [1000.0, 500.0];
+    fn cells_share_the_area_with_gaps() {
+        let area = [20.0, 20.0, 960.0, 460.0];
+        assert_eq!(place([0, 0, 1, 1], [1, 1], area, [20.0, 20.0]), area);
+        // Four columns of 225 with three gaps of 20.
         assert_eq!(
-            place([0, 0, 1, 1], [1, 1], size, 20.0),
-            [20.0, 20.0, 960.0, 460.0]
-        );
-        // Four columns of 225 with five margins of 20.
-        assert_eq!(
-            place([1, 0, 2, 1], [4, 1], size, 20.0),
+            place([1, 0, 2, 1], [4, 1], area, [20.0, 20.0]),
             [265.0, 20.0, 470.0, 460.0]
         );
         assert_eq!(
-            place([0, 1, 1, 1], [1, 2], size, 20.0),
+            place([0, 1, 1, 1], [1, 2], area, [20.0, 20.0]),
             [20.0, 260.0, 960.0, 220.0]
         );
     }

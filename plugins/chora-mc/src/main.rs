@@ -27,7 +27,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{
-    config::{Action, Config},
+    config::{Action, Config, Layout, Style, Type},
     scene::{Panel, Scene},
 };
 
@@ -41,8 +41,10 @@ const TICK: &str = "mc-tick";
 const FADE: f64 = 250.0;
 /// The effect that writes new text.
 const WRITE_SHADER: &str = include_str!("../write.frag");
-/// The height of a line of a text node of the core, by its font size.
-const LINE_HEIGHT: f64 = 1.2;
+/// The lines of the baseline grid above the head of a scene.
+const HEAD: f64 = 3.0;
+/// The line of the baseline grid of the running head.
+const RUNNING: f64 = 1.0;
 
 /// One scene at a time on the whole screen, driven by voice.
 #[derive(Parser)]
@@ -59,6 +61,18 @@ struct Args {
     /// without it.
     #[arg(long)]
     scenes: Option<PathBuf>,
+}
+
+/// Where the parts of the page of a scene go, in logical pixels.
+struct Geometry {
+    /// The text block: x, y, width and height.
+    text: [f64; 4],
+    /// The width of the margin column left of the text.
+    note: f64,
+    /// The space between the margin and the text, and between columns.
+    gap: f64,
+    /// The distance of the lines of the grid.
+    baseline: f64,
 }
 
 /// Parameters of `scene.show`.
@@ -385,6 +399,42 @@ fn panels_id(name: &str) -> String {
     format!("mc-s-{name}-panels")
 }
 
+/// The id of a part of the head of a scene.
+fn chapter_id(scene: &str, part: &str) -> String {
+    format!("{}-chapter-{part}", scene_id(scene))
+}
+
+/// A title from a scene name: its first letter in capitals.
+fn title_of(name: &str) -> String {
+    let mut chars = name.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(chars).collect()
+    })
+}
+
+/// The date of today as `date` writes it in the locale, for example
+/// "Friday, 30 October 2026"; empty when `date` fails.
+// ponytail: the date of the last build; a scene shows a new day after
+// the next build or a running head that a collector sets.
+fn today() -> String {
+    std::process::Command::new("date")
+        .arg("+%A, %-d %B %Y")
+        .output()
+        .ok()
+        .filter(|out| out.status.success())
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
+        .unwrap_or_default()
+}
+
+/// How far a note sits below the top of its line, so that its baseline
+/// meets the baseline of the body: both have the same line, and the core
+/// centers the glyphs in it.
+// ponytail: tuned by eye for TeX Gyre Pagella in the body and Inter in
+// the notes; read the ascent and descent of the fonts when this is off.
+fn baseline_shift(body: &Type, note: &Type) -> f64 {
+    (-0.2 * (body.size - note.size)).round()
+}
+
 /// Adds a word to a text, with a space after other words.
 fn push_word(text: &mut String, word: &str) {
     if !text.is_empty() {
@@ -432,6 +482,17 @@ fn create(id: &str, kind: NodeKind, parent: &str, props: PropsUpdate) -> Command
 
 fn translate(x: f64, y: f64) -> Transform {
     Transform::translate(x, y, 0.0)
+}
+
+/// Moves a node to `x`, `y` in its parent.
+fn move_to(id: String, x: f64, y: f64) -> Command {
+    Command::Update {
+        id,
+        props: PropsUpdate {
+            transform: Some(translate(x, y)),
+            ..PropsUpdate::default()
+        },
+    }
 }
 
 impl Mc {
@@ -513,7 +574,7 @@ impl Mc {
         self.finish_typing();
         let [w, h] = output.size.map(f64::from);
         let [x, y] = output.position.map(f64::from);
-        let colors = self.settings.value.colors().clone();
+        let background = self.settings.value.background();
         commands.push(create(
             NAME,
             NodeKind::Group,
@@ -530,7 +591,7 @@ impl Mc {
             NAME,
             PropsUpdate {
                 size: Some([w, h]),
-                color: Some(colors.background),
+                color: Some(background),
                 ..PropsUpdate::default()
             },
         ));
@@ -577,8 +638,8 @@ impl Mc {
         moves.chain(removes).collect()
     }
 
-    /// Creates the panels of a scene, under a group of their own that the
-    /// next call replaces.
+    /// Creates the head and the panels of a scene, under a group of their
+    /// own that the next call replaces.
     fn panels(&self, name: &str) -> Vec<Command> {
         let Some(scene) = self.scenes.get(name) else {
             return Vec::new();
@@ -589,103 +650,250 @@ impl Mc {
             &scene_id(name),
             PropsUpdate::default(),
         )];
+        commands.extend(self.chapter(name, scene));
         for panel in &scene.panels {
             commands.extend(self.panel(name, panel));
         }
         commands
     }
 
-    /// The box of a panel on the screen.
-    fn place(&self, scene: &Scene, panel: &Panel) -> Option<[f64; 4]> {
-        let output = self.output.as_ref()?;
-        let margin = self.settings.value.font.size * 3.0;
-        let size = output.size.map(f64::from);
-        Some(scene::place(panel.cell, scene.grid, size, margin))
+    /// A style of the settings, changed by a scene; a change that fails
+    /// logs and leaves the style as it is.
+    fn ty(&self, name: &str, local: Option<&Style>) -> Type {
+        let config = &self.settings.value;
+        config
+            .resolve(name, local)
+            .or_else(|err| {
+                eprintln!("chora-mc: {err}");
+                config.resolve(name, None)
+            })
+            .expect("the settings check their styles")
     }
 
-    /// Creates one panel: a group with a clip, its title and its lines.
-    fn panel(&self, name: &str, panel: &Panel) -> Vec<Command> {
-        let Some([x, y, w, h]) = self.scenes.get(name).and_then(|s| self.place(s, panel)) else {
+    /// Whether a scene has a head: a scene of panels has one.
+    fn has_chapter(scene: &Scene) -> bool {
+        scene.app.is_none() && !scene.panels.is_empty()
+    }
+
+    /// The height of the head of a chapter.
+    fn chapter_height(&self) -> f64 {
+        match self.settings.value.chapter.layout {
+            Layout::Number => self.ty("chapter_number", None).line + self.ty("chapter", None).line,
+            Layout::Caps => self.ty("chapter", None).line,
+            Layout::Large => self.ty("chapter_large", None).line,
+        }
+    }
+
+    /// Where the parts of the page of a scene go on the output.
+    fn geometry(&self, scene: &Scene) -> Option<Geometry> {
+        let output = self.output.as_ref()?;
+        let [w, h] = output.size.map(f64::from);
+        let config = &self.settings.value;
+        let (em, b) = (config.scale.base, config.scale.baseline);
+        let (note, gap) = (config.page.margin * em, config.page.gap * em);
+        let cols = f64::from(scene.grid[0]);
+        let want = cols * config.page.measure * em + (cols - 1.0) * gap;
+        // A margin column on both sides, so that the text stays centered.
+        let width = want.min(w - 2.0 * (note + gap + 2.0 * b)).max(b);
+        let x = ((w - width) / 2.0).round();
+        let top = if Self::has_chapter(scene) {
+            HEAD * b + self.chapter_height() + b
+        } else {
+            HEAD * b
+        };
+        let bottom = h - 4.0 * b;
+        Some(Geometry {
+            text: [x, top, width, (bottom - top).max(b)],
+            note,
+            gap,
+            baseline: b,
+        })
+    }
+
+    /// The head of a scene: its number, its title and the running head,
+    /// as `chapter.layout` sets.
+    fn chapter(&self, name: &str, scene: &Scene) -> Vec<Command> {
+        let Some(geo) = self.geometry(scene).filter(|_| Self::has_chapter(scene)) else {
             return Vec::new();
         };
-        let config = &self.settings.value;
-        let colors = config.colors();
-        let size = config.font.size;
+        let [x, _, _, _] = geo.text;
+        let b = geo.baseline;
+        let chapter = &scene.chapter;
+        let number = chapter.number.clone().unwrap_or_else(|| {
+            let numbered = self.scenes.iter().filter(|(_, s)| Self::has_chapter(s));
+            let at = numbered.take_while(|(n, _)| *n != name).count();
+            (at + 1).to_string()
+        });
+        let title = chapter.title.clone().unwrap_or_else(|| title_of(name));
+        let head = chapter.running_head.clone().unwrap_or_else(today);
+        let node = |part: &str, ty: &Type, text: &str, y: f64| {
+            let props = PropsUpdate {
+                transform: Some(translate(x, y)),
+                ..ty.props(text)
+            };
+            create(
+                &chapter_id(name, part),
+                NodeKind::Text,
+                &panels_id(name),
+                props,
+            )
+        };
+        let top = HEAD * b;
+        let running = self.ty("running_head", None);
+        let mut commands = vec![node("running-head", &running, &head, RUNNING * b)];
+        match self.settings.value.chapter.layout {
+            Layout::Number => {
+                let big = self.ty("chapter_number", None);
+                commands.push(node("number", &big, &number, top));
+                let caps = self.ty("chapter", None);
+                commands.push(node("title", &caps, &title, top + big.line));
+            }
+            Layout::Caps => commands.push(node("title", &self.ty("chapter", None), &title, top)),
+            Layout::Large => {
+                let large = self.ty("chapter_large", None);
+                commands.push(node("title", &large, &title, top));
+            }
+        }
+        commands
+    }
+
+    /// The box of a panel on the screen, without its margin.
+    fn place(&self, scene: &Scene, panel: &Panel) -> Option<[f64; 4]> {
+        let geo = self.geometry(scene)?;
+        Some(scene::place(
+            panel.cell,
+            scene.grid,
+            geo.text,
+            [geo.gap, geo.baseline],
+        ))
+    }
+
+    /// The top of the lines of a panel, below its title.
+    fn lines_top(&self, panel: &Panel) -> f64 {
+        if panel.title.is_empty() {
+            return 0.0;
+        }
+        let title = self.ty("heading", panel.title_style.as_ref()).line;
+        title + self.settings.value.scale.baseline
+    }
+
+    /// Creates one panel: a group with a clip, its title and its lines,
+    /// and the notes in the margin left of it.
+    fn panel(&self, name: &str, panel: &Panel) -> Vec<Command> {
+        let Some(scene) = self.scenes.get(name) else {
+            return Vec::new();
+        };
+        let (Some([x, y, w, h]), Some(geo)) = (self.place(scene, panel), self.geometry(scene))
+        else {
+            return Vec::new();
+        };
+        let indent = geo.note + geo.gap;
         let id = panel_id(name, &panel.id);
         let mut commands = vec![create(
             &id,
             NodeKind::Group,
             &panels_id(name),
             PropsUpdate {
-                transform: Some(translate(x, y)),
-                size: Some([w, h]),
+                transform: Some(translate(x - indent, y)),
+                size: Some([w + indent, h]),
                 clip: Some(Some(chora_scene::Clip { radius: 0.0 })),
                 ..PropsUpdate::default()
             },
         )];
-        let text = |text: String, font_size: f64, color: [f64; 4], top: f64| PropsUpdate {
-            text: Some(text),
-            family: Some(config.font.family.clone()),
-            font_size: Some(font_size),
-            max_width: Some(w),
-            color: Some(color),
-            transform: Some(translate(0.0, top)),
-            ..PropsUpdate::default()
+        let text = |ty: &Type, text: &str, x: f64, y: f64, wrap: bool| PropsUpdate {
+            transform: Some(translate(x, y)),
+            max_width: wrap.then_some(w),
+            ..ty.props(text)
         };
-        let title_size = size * 1.5;
+        let add = |part: &str, props| create(&format!("{id}-{part}"), NodeKind::Text, &id, props);
         if !panel.title.is_empty() {
-            let props = text(panel.title.clone(), title_size, colors.accent, 0.0);
-            commands.push(create(&format!("{id}-title"), NodeKind::Text, &id, props));
+            let title = self.ty("heading", panel.title_style.as_ref());
+            commands.push(add("title", text(&title, &panel.title, indent, 0.0, true)));
         }
-        if let Some((times, texts)) = panel.columns() {
-            // Two columns that do not wrap, so that their rows match;
-            // `align` moves the second one next to the first.
-            let top = title_size * 2.0;
-            let times = PropsUpdate {
-                max_width: None,
-                ..text(times, size, colors.text, top)
-            };
-            let texts = PropsUpdate {
-                max_width: None,
-                ..text(texts, size, colors.text, top)
-            };
-            commands.push(create(&format!("{id}-times"), NodeKind::Text, &id, times));
-            commands.push(create(&format!("{id}-lines"), NodeKind::Text, &id, texts));
+        let top = self.lines_top(panel);
+        let body = self.ty("body", panel.style.as_ref());
+        if let Some(rows) = panel.columns() {
+            // One node per row, so that a row wraps and its note stays on
+            // its first line; `align` stacks the rows as the core lays
+            // them out, and moves the notes flush right to the margin.
+            let note = self.ty("margin", panel.note_style.as_ref());
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let shown = ((h - top) / body.line).ceil().max(0.0) as usize;
+            for (i, (time, line)) in rows.iter().take(shown).enumerate() {
+                #[allow(clippy::cast_precision_loss)] // rows of one screen
+                let y = top + i as f64 * body.line;
+                commands.push(add(
+                    &format!("line-{i}"),
+                    text(&body, line, indent, y, true),
+                ));
+                if !time.is_empty() {
+                    let props = text(&note, time, 0.0, y + baseline_shift(&body, &note), false);
+                    commands.push(add(&format!("note-{i}"), props));
+                }
+            }
         } else if !panel.lines.is_empty() {
-            let props = text(panel.text(), size, colors.text, title_size * 2.0);
-            commands.push(create(&format!("{id}-lines"), NodeKind::Text, &id, props));
+            let props = text(&body, &panel.text(), indent, top, true);
+            commands.push(add("lines", props));
         }
         commands
     }
 
-    /// Puts the second column of the panels of a scene next to the
-    /// first, as wide as the core draws the first.
+    /// Moves what the core lays out to its place: the notes of the panels
+    /// of a scene flush right to the margin, and the running head flush
+    /// right to the text block.
     fn align(&mut self, name: &str) -> Result<(), ClientError> {
-        let Some(scene) = self.scenes.get(name) else {
+        let Some(scene) = self.scenes.get(name).cloned() else {
             return Ok(());
         };
-        let size = self.settings.value.font.size;
-        let ids: Vec<String> = (scene.panels.iter())
-            .filter(|p| p.columns().is_some())
-            .map(|p| panel_id(name, &p.id))
-            .collect();
+        let Some(geo) = self.geometry(&scene) else {
+            return Ok(());
+        };
+        let indent = geo.note + geo.gap;
         let mut commands = Vec::new();
-        for id in ids {
-            let nodes: Vec<Value> =
-                (self.rt.conn).call("scene.query", Query::new(format!("id:{id}-times")))?;
-            let width = nodes
-                .first()
-                .and_then(|n| n["rects"].as_object()?.values().next()?.get(2)?.as_f64())
-                .unwrap_or(size * 6.0);
-            commands.push(Command::Update {
-                id: format!("{id}-lines"),
-                props: PropsUpdate {
-                    transform: Some(translate(width + size, size * 3.0)),
-                    ..PropsUpdate::default()
-                },
-            });
+        for panel in &scene.panels {
+            let Some(rows) = panel.columns() else {
+                continue;
+            };
+            let id = panel_id(name, &panel.id);
+            let body = self.ty("body", panel.style.as_ref());
+            let note = self.ty("margin", panel.note_style.as_ref());
+            let mut y = self.lines_top(panel);
+            for (i, (time, _)) in rows.iter().enumerate() {
+                let Some([_, _, _, height]) = self.rect(&format!("{id}-line-{i}"))? else {
+                    break; // below the panel
+                };
+                commands.push(move_to(format!("{id}-line-{i}"), indent, y));
+                let note_id = format!("{id}-note-{i}");
+                if !time.is_empty()
+                    && let Some([_, _, width, _]) = self.rect(&note_id)?
+                {
+                    let x = (geo.note - width).max(0.0);
+                    commands.push(move_to(note_id, x, y + baseline_shift(&body, &note)));
+                }
+                y += height.max(body.line);
+            }
+        }
+        let id = chapter_id(name, "running-head");
+        if Self::has_chapter(&scene)
+            && let Some([_, _, width, _]) = self.rect(&id)?
+        {
+            let [x, _, w, _] = geo.text;
+            let b = geo.baseline;
+            commands.push(move_to(id, x + w - width, RUNNING * b));
         }
         self.apply(commands)
+    }
+
+    /// The rect that the core lays out a node at: x, y, width, height.
+    fn rect(&mut self, id: &str) -> Result<Option<[f64; 4]>, ClientError> {
+        let nodes: Vec<Value> =
+            (self.rt.conn).call("scene.query", Query::new(format!("id:{id}")))?;
+        let rect = nodes.first().and_then(|n| {
+            let r = n["rects"].as_object()?.values().next()?.as_array()?;
+            let v: Vec<f64> = r.iter().filter_map(Value::as_f64).collect();
+            <[f64; 4]>::try_from(v).ok()
+        });
+        Ok(rect)
     }
 
     /// Writes the text of the panels of a scene anew: the effect starts at
@@ -696,7 +904,6 @@ impl Mc {
         let Some(scene) = self.scenes.get(name).filter(|_| config.write.enabled) else {
             return Vec::new();
         };
-        let size = config.font.size;
         let effect = |rows: [f64; 3], progress: f64| {
             Some(vec![ShaderEffect {
                 shader: self.shader.to_string_lossy().into_owned(),
@@ -714,9 +921,10 @@ impl Mc {
             };
             // ponytail: a line that wraps writes with the last line; the
             // plugin does not know the layout of the core.
+            let line = self.ty("body", panel.style.as_ref()).line;
             let rows = [
-                3.0 * size / h,
-                LINE_HEIGHT * size / h,
+                self.lines_top(panel).max(line) / h,
+                line / h,
                 1.0 + panel.lines.len() as f64,
             ];
             let id = panel_id(name, &panel.id);
@@ -779,19 +987,18 @@ impl Mc {
     }
 
     fn hud_props(&self) -> PropsUpdate {
-        let config = &self.settings.value;
         let text = self.hud_text();
-        let size = config.font.size;
+        let b = self.settings.value.scale.baseline;
         let height = self.output.as_ref().map_or(0.0, |o| f64::from(o.size[1]));
+        let scene = (self.current.as_ref()).and_then(|name| self.scenes.get(name));
+        // Under the text block of the scene that shows.
+        let x = (scene.and_then(|scene| self.geometry(scene))).map_or(2.0 * b, |geo| geo.text[0]);
+        // Over an app it shows only while the agent is active.
+        let page = scene.is_none_or(Self::has_chapter);
         PropsUpdate {
-            visible: Some(!text.is_empty()),
-            // A text node needs a text.
-            text: Some(if text.is_empty() { " ".into() } else { text }),
-            family: Some(config.font.family.clone()),
-            font_size: Some(size * 0.8),
-            color: Some(config.colors().accent),
-            transform: Some(translate(size * 3.0, height - size * 2.0)),
-            ..PropsUpdate::default()
+            visible: Some(!text.is_empty() && (page || !self.hud.state.is_empty())),
+            transform: Some(translate(x, height - 3.0 * b)),
+            ..self.ty("hud", None).props(&text)
         }
     }
 
@@ -847,6 +1054,10 @@ impl Mc {
         self.apply(commands)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         self.current = Some(name.into());
+        // The HUD follows the text block, and hides over an app.
+        let hud = self.hud_update();
+        self.apply(vec![hud])
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         let waiting = self.starting.values().any(|v| v == name);
         if let (Some(command), None, false) = (app, window, waiting) {
             self.launch(name, &command);
