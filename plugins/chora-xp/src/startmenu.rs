@@ -14,7 +14,7 @@ use chora_scene::{Command, NodeKind, PropsUpdate, Transform};
 use crate::{
     apps::{self, Node},
     cascade::{self, Cascade, Margins, Row},
-    config::Program,
+    config::{Config, Program},
     context::{Key, wrap},
     control::Setting,
     desktop_icons,
@@ -75,23 +75,6 @@ struct Entry {
     cascade: bool,
     /// The rectangle in the menu.
     rect: Rect,
-}
-
-/// The programs and the places of the menu.
-#[derive(Clone)]
-pub struct Config {
-    /// The user name for the header.
-    pub user: String,
-    /// The command of the terminal, the first program of the left column.
-    pub terminal: String,
-    /// The programs of the left column below the terminal.
-    pub programs: Vec<Program>,
-    /// The command of Run, and of All Programs without programs.
-    pub launcher: String,
-    /// The command of the file manager, for the places.
-    pub file_manager: String,
-    /// The contents of All Programs.
-    pub apps: Vec<Node>,
 }
 
 /// What went down.
@@ -155,7 +138,7 @@ pub struct Menu {
 
 impl Menu {
     /// Lays out the menu.
-    pub fn new(config: &Config, theme: &Theme, icons: &mut Icons) -> Self {
+    pub fn new(config: &Config, apps: Vec<Node>, theme: &Theme, icons: &mut Icons) -> Self {
         let mut entries = programs(config, icons);
         let places = places(config, icons);
         let body = body_height(&entries, &places);
@@ -178,7 +161,7 @@ impl Menu {
             kind: Kind::AllPrograms,
             // Without desktop files, All Programs runs the launcher.
             action: Action::Run(config.launcher.clone()),
-            cascade: !config.apps.is_empty(),
+            cascade: !apps.is_empty(),
             rect: all,
         });
         entries.extend(places);
@@ -188,7 +171,9 @@ impl Menu {
             .position(|e| e.kind == Kind::AllPrograms)
             .unwrap_or(0);
         Self {
-            user: config.user.clone(),
+            user: std::env::var("USER")
+                .or_else(|_| std::env::var("LOGNAME"))
+                .unwrap_or_else(|_| "User".into()),
             entries,
             separators,
             height,
@@ -198,7 +183,7 @@ impl Menu {
             origin: [0, 0],
             area: [0, 0, 1280, 770],
             parent: String::new(),
-            programs: config.apps.clone(),
+            programs: apps,
             control: Vec::new(),
             root,
             cascades: Vec::new(),
@@ -406,11 +391,12 @@ impl Menu {
     pub fn rebuild(
         &mut self,
         config: &Config,
+        apps: Vec<Node>,
         theme: &mut Theme,
         icons: &mut Icons,
     ) -> Vec<Command> {
         let parent = self.parent.clone();
-        *self = Self::new(config, theme, icons);
+        *self = Self::new(config, apps, theme, icons);
         let mut commands = vec![Command::Remove {
             id: GROUP.into(),
             to: None,
@@ -1099,15 +1085,12 @@ fn at(x: i32, y: i32) -> PropsUpdate {
 mod tests {
     use super::*;
 
+    /// The default settings with kitty and no programs.
     fn config() -> Config {
-        Config {
-            user: "tester".into(),
-            terminal: "kitty".into(),
-            programs: Vec::new(),
-            launcher: "fuzzel".into(),
-            file_manager: "thunar".into(),
-            apps: Vec::new(),
-        }
+        let mut config: Config = chora_kit::settings::parse(crate::config::DEFAULT).unwrap();
+        config.terminal = "kitty".into();
+        config.programs.clear();
+        config
     }
 
     #[test]
@@ -1142,15 +1125,12 @@ mod tests {
             icon: String::new(),
             kind: apps::Kind::Run(title.into()),
         };
-        let config = Config {
-            apps: vec![Node {
-                title: "Accessories".into(),
-                icon: String::new(),
-                kind: apps::Kind::Group(vec![run("calc")]),
-            }],
-            ..config()
-        };
-        let mut menu = Menu::new(&config, &theme, &mut icons);
+        let apps = vec![Node {
+            title: "Accessories".into(),
+            icon: String::new(),
+            kind: apps::Kind::Group(vec![run("calc")]),
+        }];
+        let mut menu = Menu::new(&config(), apps, &theme, &mut icons);
         let mut key = |menu: &mut Menu, k: &str| menu.key(&mut theme, &mut icons, k);
         key(&mut menu, "Down");
         assert_eq!(menu.entries[menu.hovered.unwrap()].title, "Terminal");
@@ -1173,7 +1153,7 @@ mod tests {
     fn the_keys_leave_out_log_off_and_turn_off() {
         let (mut theme, cache) = crate::dialog::tests::theme("startfooter");
         let mut icons = Icons::new(crate::icons::THEMES);
-        let mut menu = Menu::new(&config(), &theme, &mut icons);
+        let mut menu = Menu::new(&config(), Vec::new(), &theme, &mut icons);
         for key in [
             "Down", "Down", "Down", "Right", "Down", "Down", "Left", "Up",
         ] {

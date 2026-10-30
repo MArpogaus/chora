@@ -7,7 +7,7 @@ use chora_kit::settings::Settings;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{apps, control::Toggles, startmenu, taskbar, theme::Theme, wallpaper};
+use crate::{control::Toggles, taskbar, theme::Theme, wallpaper};
 
 /// The default settings.
 pub const DEFAULT: &str = include_str!("../xp.yaml");
@@ -115,22 +115,6 @@ pub struct Config {
     pub taskbar: taskbar::Settings,
     pub effects: Toggles,
     pub session: Session,
-}
-
-impl Config {
-    /// The programs and places of the start menu.
-    pub fn menu(&self) -> startmenu::Config {
-        startmenu::Config {
-            user: std::env::var("USER")
-                .or_else(|_| std::env::var("LOGNAME"))
-                .unwrap_or_else(|_| "User".into()),
-            terminal: self.terminal.clone(),
-            programs: self.programs.clone(),
-            launcher: self.launcher.clone(),
-            file_manager: self.file_manager.clone(),
-            apps: apps::load(&self.terminal),
-        }
-    }
 }
 
 impl Settings for Config {
