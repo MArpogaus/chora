@@ -993,7 +993,12 @@ fn udev_event(state: &mut State, event: UdevEvent) {
             }
         }
         UdevEvent::Removed { device_id } => {
-            if let Ok(node) = DrmNode::from_dev_id(device_id) {
+            // The sysfs entry of a removed device is gone, and
+            // `DrmNode::from_dev_id` fails without it: the open devices
+            // know their node.
+            let node = tty(state)
+                .and_then(|t| t.devices.keys().find(|n| n.dev_id() == device_id).copied());
+            if let Some(node) = node {
                 remove_device(state, node);
             }
         }
