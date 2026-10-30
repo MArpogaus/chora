@@ -1897,8 +1897,8 @@ answers every request.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>hello(name, keep_nodes, resume, protocol, features)</code></td>
-<td>name the client (lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, from a letter, at most 64 bytes); <code>keep_nodes</code> keeps its nodes and cameras after the disconnect, <code>resume</code> keeps them for a grace time (see below); <code>protocol</code> and <code>features</code> say what the client speaks (see <a href="#protocol-versions">Protocol versions</a>); returns <code>{"version": ..., "protocol": ..., "features": [...]}</code></td>
+<td><code>hello(name, keep_nodes, resume, protocol, features, confined)</code></td>
+<td>name the client (lowercase letters, digits, <code>_</code>, <code>-</code> and <code>.</code>, from a letter, at most 64 bytes); <code>keep_nodes</code> keeps its nodes and cameras after the disconnect, <code>resume</code> keeps them for a grace time (see below); <code>protocol</code> and <code>features</code> say what the client speaks (see <a href="#protocol-versions">Protocol versions</a>); <code>confined: true</code> gives this connection the capability rules of a client socket also on the main socket (see <a href="#client-sockets">Client sockets</a>), and <code>choractl mcp</code> sends it; returns <code>{"version": ..., "protocol": ..., "features": [...]}</code></td>
 </tr>
 <tr>
 <td><code>scene.query(selector, filter)</code></td>
@@ -1942,7 +1942,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>grants.set(client, capabilities)</code>, <code>grants.revoke(client, capabilities)</code>, <code>grants.list</code></td>
-<td>grant or revoke capabilities for a client name. <code>choractl grant</code> and <code>choractl revoke</code> call them. <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket. A name with a client socket answers code 9, because <code>clients.yaml</code> holds its capabilities. For a name of the main socket, <code>methods.call</code>, <code>session.quit</code> and <code>methods.privileged</code> change nothing, and <code>activation.token</code> only opens the MCP tool <code>run_program</code>.</td>
+<td>grant or revoke capabilities for a client name. <code>choractl grant</code> and <code>choractl revoke</code> call them. <code>grants.set</code> and <code>grants.revoke</code> work only on the admin socket. A name with a client socket answers code 9, because <code>clients.yaml</code> holds its capabilities. For a name of the main socket, <code>methods.call</code>, <code>session.quit</code>, <code>methods.privileged</code> and <code>activation.token</code> count only on connections with <code>confined: true</code> in their <code>hello</code>, such as <code>choractl mcp</code>.</td>
 </tr>
 <tr>
 <td><code>clients.create(name, capabilities)</code></td>
@@ -2219,8 +2219,12 @@ socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that <a href="#client-sockets">Client sockets</a> lists.
 <code>choractl mcp</code> offers no tool for grants. On the main socket,
-<code>activation.token</code> opens the MCP tool <code>run_program</code>, and <code>methods.call</code>,
-<code>session.quit</code> and <code>methods.privileged</code> change nothing.</p>
+<code>methods.call</code>, <code>activation.token</code>, <code>session.quit</code> and
+<code>methods.privileged</code> change nothing, except for a connection whose
+<code>hello</code> has <code>confined: true</code>. <code>choractl mcp</code> confines its connection,
+so its client name, <code>agent</code> by default, needs <code>methods.call</code> for
+<code>call_method</code> and the plugin tools, <code>methods.privileged</code> for
+privileged methods and <code>activation.token</code> for <code>run_program</code>.</p>
 <h2 id="client-sockets">Client sockets<a class="headerlink" href="#client-sockets" title="Permanent link">&para;</a></h2>
 <p>A client socket fixes the name of its clients (D33). <code>clients.create</code>
 on the admin socket opens <code>clients/NAME/ipc.sock</code> below the directory of
@@ -2267,7 +2271,10 @@ in. <code>choractl clients create agent</code> prints its path:</p>
   <code>settings.reload</code> of any client, because plugin settings hold commands
   that the plugin runs and paths that it reads, and each method that its
   export marks <code>"privileged": true</code>, such as <code>app.open</code> of <code>chora-mc</code>. Without them they answer code 4. The main
-  socket needs none of them. So a confined agent cannot end chora or
+  socket needs none of them, unless the <code>hello</code> of the connection has
+  <code>confined: true</code>: then these rules hold for it too, with the grants
+  of its name. A connection can confine itself, never free itself;
+  other connections of the name stay free. So a confined agent cannot end chora or
   change the settings of a plugin by default. A token of
   <code>activation.token</code> belongs to no client. Any window that activates
   with it takes the focus without a press, also a window of the client
