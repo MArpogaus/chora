@@ -218,6 +218,7 @@ fn default_confirm() -> Vec<Confirm> {
         rule("unload_view", "Soll ich die Ansicht entfernen?"),
         rule("inject_input", "Soll ich tippen oder klicken?"),
         rule("code_task", "Soll ich die Programmieraufgabe starten?"),
+        rule("agent_start", "Soll ich den Agenten starten?"),
         // A program can do all that the user can (D42).
         rule("run_program", "Soll ich das Programm {program} starten?"),
         rule("configure_output", "Soll ich den Bildschirm ändern?"),
