@@ -2,11 +2,12 @@
 //! core: the IPC and event connection to the scene, effects that a window
 //! manager computes itself, such as wobbly windows and the magic lamp,
 //! the freedesktop files that a shell reads, such as icon themes and
-//! desktop entries, and the start of apps.
+//! desktop entries, the start of apps, and the runtime of a plugin.
 pub mod conn;
 pub mod desktop_entry;
 pub mod icons;
 pub mod lamp;
+pub mod runtime;
 pub mod wobbly;
 pub mod xdg;
 
