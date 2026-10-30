@@ -1,0 +1,3 @@
+# One sentence in a quiet room; written by tests/live.py.
+# Times in s of mic.wav.
+turn 1.090 3.970

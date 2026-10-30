@@ -1,0 +1,4 @@
+# Two turns, a fan and keyboard clicks; no playback.
+# Written by tests/corpus.py; times in s of mic.wav.
+turn 1.090 2.830
+turn 4.110 4.590

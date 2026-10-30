@@ -256,7 +256,8 @@ mod tests {
 
     #[test]
     fn the_gate_finds_the_one_utterance_of_the_tts_clip() {
-        let clip = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/hallo-chora.wav");
+        let clip =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/corpus/hallo-chora/mic.wav");
         let lines = utterances(&Config::default(), &clip).unwrap();
         assert_eq!(lines.len(), 2, "{lines:?}");
         // Speech from 1.00 s to 4.04 s; onset after 96 ms of speech.

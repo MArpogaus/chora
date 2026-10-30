@@ -103,7 +103,7 @@ mod tests {
         // 1 s of quiet room, speech from 1.0 s to 4.04 s, 1.5 s quiet.
         let p = replay(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/tests/data/hallo-chora.wav"
+            "/tests/data/corpus/hallo-chora/mic.wav"
         ));
         let at = |ms: usize| ms / 32;
         let loud = p[..at(900)]
