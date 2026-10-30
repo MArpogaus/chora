@@ -639,10 +639,17 @@ fn start_child(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
 /// an FNV-1a hash of `CHORA_SOCKET`, the one path that no two cores
 /// share; every build of choractl gives the same hash.
 fn view_unit(name: &str) -> String {
-    let socket = std::env::var(SOCKET_ENV).unwrap_or_default();
-    let hash = socket.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
-        (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
-    });
+    session_unit(name, &std::env::var_os(SOCKET_ENV).unwrap_or_default())
+}
+
+/// The unit of `view_unit` for the socket `socket`. A symlink to the
+/// socket gives the unit of the socket itself.
+fn session_unit(name: &str, socket: &std::ffi::OsStr) -> String {
+    let socket = std::fs::canonicalize(socket).unwrap_or_else(|_| socket.into());
+    let hash = (socket.as_os_str().as_encoded_bytes().iter())
+        .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
+            (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3)
+        });
     format!("chora-{name}-{:08x}.service", hash >> 32)
 }
 
@@ -1266,5 +1273,22 @@ mod tests {
         assert!(
             matches!(args.command, Cmd::Asset { action: AssetCmd::Put { asset, .. } } if asset == "x.frag")
         );
+    }
+
+    /// A view loaded through a symlink to the socket and a restart through
+    /// the socket itself name the same unit.
+    #[test]
+    fn a_symlink_to_the_socket_names_the_same_unit() {
+        let dir = std::env::temp_dir().join(format!("choractl-unit-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let socket = dir.join("ipc.sock");
+        std::fs::write(&socket, "").unwrap();
+        let link = dir.join("link.sock");
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink(&socket, &link).unwrap();
+        let unit = super::session_unit("p", socket.as_os_str());
+        assert_eq!(super::session_unit("p", link.as_os_str()), unit);
+        assert_ne!(super::session_unit("q", socket.as_os_str()), unit);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
