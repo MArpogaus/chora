@@ -1,0 +1,7 @@
+# The day plan: one list in the middle of the screen. The collector
+# collectors/agenda.sh fills the panel today with panel.set.
+grid: [4, 1]
+panels:
+- id: today
+  cell: [1, 0, 2, 1]
+  title: Today

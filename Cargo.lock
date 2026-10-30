@@ -477,6 +477,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "chora-mc"
+version = "0.7.0"
+dependencies = [
+ "chora-kit",
+ "chora-scene",
+ "clap",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "chora-probe"
 version = "0.7.0"
 dependencies = [

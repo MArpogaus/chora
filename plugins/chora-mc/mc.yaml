@@ -1,0 +1,31 @@
+# The settings of chora-mc. `chora-mc --print-config` prints this file.
+# Copy it to ~/.config/chora/chora-mc.yaml and change it there, or change
+# it with the method settings.set, which rewrites the file.
+
+# The colors of the theme: light or dark.
+theme: dark
+# Each color is RGBA from 0 to 1.
+themes:
+  light:
+    background: [0.95, 0.94, 0.91, 1.0]
+    text: [0.13, 0.13, 0.13, 1.0]
+    accent: [0.45, 0.45, 0.45, 1.0]
+  dark:
+    background: [0.07, 0.07, 0.07, 1.0]
+    text: [0.86, 0.85, 0.82, 1.0]
+    accent: [0.55, 0.55, 0.53, 1.0]
+# The font of all text; the size of the lines in logical pixels. Titles
+# are 1.5 times as large.
+font:
+  family: Noto Sans
+  size: 20
+# The view at the start.
+default_view: agenda
+# A binding and its action: next_view, previous_view, {view: NAME}, or
+# {run: COMMAND}, which starts a shell command; its window gets a view of
+# its own.
+bindings:
+  Super+Right: next_view
+  Super+Left: previous_view
+  Super+a: {view: agenda}
+  Super+space: {run: fuzzel}
