@@ -1,3 +1,126 @@
+## v0.8.0-rc.1 (2026-10-30)
+
+### Feat
+
+- **voice**: levels subcommand for the mic and echo check
+- **voice**: state machine with barge-in, queue and mc reports
+- **voice**: note of a stopped turn in the history
+- **voice**: local word matcher with fuzzy phrases
+- **voice**: barge-in level from the played sound
+- **core**: privileged methods need methods.privileged
+- **mc**: tests collector for the test overlay
+- **mc**: system collector for Mission Control
+- **mc**: morning collector for the morning paper
+- **mc**: morning paper and Mission Control as built-in scenes
+- **mc**: agents scene, status line, notify.push and region.solo
+- **mc**: scene pages, panel rules, opacity and blur
+- **mc**: agenda collector fills the next entry for the footer
+- **mc**: regions around the page with rules, toggles and presets
+- **voice**: spoken replies, the confirm method and ask
+- **voice**: tool loop with history, token budget and prompt
+- **voice**: sentence splitter and speech with a playback buffer
+- **voice**: MCP tools with reconnect, timeouts and confirm rules
+- **voice**: LLM client with SSE, tool calls and a fake server
+- **xp**: apply a requested look to the window group (D58)
+- **tiling**: apply a requested look of a window (D58)
+- **voice**: transcribe each utterance, interim text
+- **voice**: ASR and TTS clients with fake servers
+- **voice**: replay harness with labels and metrics
+- **mc**: agenda collector leaves the date to the running head
+- **mc**: book typography with styles, chapter heads and margins
+- **core**: line height, weight, style, tracking, features of text
+- **kit**: settings.reload applies hand edits in every plugin
+- **voice**: core loop, chora client, methods and PTT grab
+- **voice**: mic and speaker commands, earcons, recordings
+- **voice**: speech gate with onset, pre-roll limit and PTT
+- **voice**: settings with a default for each key (D62)
+- **voice**: Silero VAD v6 on tract, 24 to 16 kHz step
+- **xp**: Log Off ends chora with choractl quit (D63)
+- **kit**: settings.set merges a patch, a file takes defaults (D62)
+- **core**: session.quit ends chora, choractl quit calls it
+- **mc**: agenda collector puts the time in a column
+- **mc**: write effect for new text, hud.say and two columns
+- **mc**: Inter as the default font
+- **mc**: agenda collector shows only what is due today
+- **scene**: animate the numeric uniforms of effects
+- **xp**: settings in chora-xp.yaml in place of the flags (D62, D63)
+- **kit**: a public dispatch for plugins with a loop of their own
+- **mc**: collector for the org agenda of today
+- **mc**: experimental full-screen views with panels and a HUD
+- **tiling**: settings and a default style for new windows (#99)
+- **kit**: plugin settings with settings.get and settings.set
+- **xp**: open folders with the file manager of --file-manager
+- **mcp**: apply_commands tells of requests to the owner
+- node.requested action update for the look of a node (D58)
+- warnings with stable codes in the answer of scene.apply
+
+### Fix
+
+- **voice**: barge-in between sentences and with its first words
+- **mc**: wait anew for ended apps after each launch and build
+- **xp**: keep the start menu closed under a session dialog
+- **xp**: cap the clock format at 64 characters
+- **tiling**: compile style shaders at settings time
+- **tiling**: refuse a run binding without a command
+- **kit**: refuse unknown keys and apply old settings again
+- **core**: answer an unknown key of input.grab with -32602
+- **mc**: keep the HUD line to its last 160 characters
+- **scene**: limit the tree to 64 levels below a root
+- **mc**: keep windows and outputs, leave scenes of ended apps
+- **mc**: clamp panel sizes on a small output
+- **probe**: destroy the shm pool after each paint
+- **mc**: leave out a scene that the core refuses, keep the rest
+- **mc**: bound the scene grid to 24 and check cells without overflow
+- **mc**: mark the methods that start programs privileged
+- **kit**: cut error messages of methods to 512 bytes
+- **plugins**: refuse devices and /proc files in settings
+- **kit**: read user-named files capped and regular only
+- **mc**: regions touch only nodes that exist, smaller functions
+- **core**: layer_over_budget also checks the layer ancestors
+- **scene**: a mixed look request names the owner-only props
+- **core**: refuse a look request that its owner would not get
+- **choractl**: MCP tools of dotted methods reach the plugin
+- **kit**: take settings back when the plugin cannot apply them
+- **kit**: save settings in a new 0600 file, through a symlink
+- **core**: settings.set and settings.reload need settings.write
+- **tiling**: drop MOD+p, MOD+r runs the launcher
+- **xp**: log a session command that fails
+- **xp**: the Recycle Bin makes a missing trash or opens the home
+- **scene**: refuse an empty update of a node of another client
+- **mc**: keep the write effect at one path in the runtime dir
+- **mc**: subscribe after the kept scene goes, adopt a surface once
+- **xp**: the Terminal of the start menu runs the terminal setting
+- **kit**: apply settings before the save, keep them when it fails
+- **kit**: a settings patch replaces a map entry that is no struct
+- **kit**: a settings file without an Option key takes its default
+- **xp**: give Date and Time the calendar icon of the theme
+- **xp**: log a start menu command that is not on PATH
+- **mc**: agenda collector says why emacs did not run
+- **mc**: give a second app.open of a program its own scene
+- **xp**: say that the old flags live in chora-xp.yaml
+- **core**: log the exit status of the startup command
+- **tiling**: refuse a style effect whose shader file is missing
+- **xp**: announce after the scene, so kept windows keep their place
+- **choractl**: pass the activation token to GTK 3 programs
+- **mcp**: call_method shows a layout that exists (#56)
+- **mcp**: a failed subscribe_events keeps the old subscription (#53)
+- **mcp**: describe_screen hides windows of hidden groups (#54)
+
+### Refactor
+
+- **voice**: remove the Python agent and its unit
+- **kit**: settings.set private, one settings() per call
+- **tiling**: always send the style when taking a window
+- **xp**: no Default impls that repeat xp.yaml
+- **xp**: the start menu reads the settings, no copy
+- **xp**: rebuild wallpaper, taskbar and menu on each change
+- **xp**: one wallpaper type, resolve the default where used
+- **mc**: rename views to scenes
+- **xp**: move onto the plugin runtime of chora-kit
+- **xp**: remove the Explorer, folder windows and file dialogs
+- **tiling**: use the plugin runtime of chora-kit
+- move the plugin runtime into chora-kit
+
 ## v0.7.0 (2026-10-30)
 
 ### Fix
