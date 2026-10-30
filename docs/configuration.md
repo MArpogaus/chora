@@ -59,10 +59,11 @@ input:
 ```
 
 - `choractl view load work` first sends `input` to the core method
-  `input.configure`, if the view has it. Then it starts each plugin of the view that does not
-  run yet, with the `exec` of its manifest, and waits up to 10 s until it
-  connects. It passes each `config` to the method that the manifest names
-  in `configure`. Then it applies the nodes of the view as one transaction.
+  `input.configure`, if the view has it. Then it starts each plugin of
+  the view that does not run yet, with the `exec` of its manifest. It
+  waits up to 10 s until the plugin connects. It passes each `config` to
+  the method that the manifest names in `configure`. Then it applies the
+  nodes of the view as one transaction.
   It prints the started plugins, the count of nodes and, as `input`, the
   answer of `input.configure`.
 - The client `view-work` owns the nodes. A second load replaces them,
@@ -81,17 +82,12 @@ input:
   `NAME.yaml` must name the same view.
 - `choractl view load` also takes the path of a YAML file; the MCP tools
   take names only.
-- `input` sets the input devices of the whole session, so the core reads
-  no file for them (D35). `keyboard` has `repeat_rate` (repeats per
-  second, 0 to 100, 0 for no repeat) and `repeat_delay` (100 to 5000
-  ms). `touchpad` holds the libinput settings of every device that can
-  tap, and `mouse` those of the other pointer devices: `tap`,
-  `natural_scroll`, `left_handed`, `accel_profile` (`flat` or
-  `adaptive`) and `accel_speed` (-1 to 1). A missing key keeps its
-  value; a device that lacks a setting skips it. The settings stay until
-  the next `input.configure` or the end of the session, and new devices
-  get them too. On a client socket, `input` needs the capability
-  `methods.privileged`. See [IPC methods](api.md#ipc-methods).
+- `input` sets the input devices of the whole session through
+  `input.configure`, so the core reads no file for them (D35).
+  `keyboard` has `repeat_rate` and `repeat_delay`. `touchpad` and
+  `mouse` have `tap`, `natural_scroll`, `left_handed`, `accel_profile`
+  and `accel_speed`. [IPC methods](api.md#ipc-methods) gives the ranges
+  and the rules.
 - A plugin that a view starts gets no stdin and no stdout of `choractl`,
   which carry MCP under `choractl mcp`.
 

@@ -352,7 +352,7 @@ mod tests {
         (core, dir)
     }
 
-    /// Gate check 6 of 0.9: `input.configure`, as `choractl view load`
+    /// `input.configure`, as `choractl view load`
     /// calls it, sets tap and key repeat. A Wayland client gets the new
     /// `repeat_info`, and a touchpad of before and one that comes later
     /// get tap.
