@@ -64,4 +64,9 @@ else
         systemd-notify --ready
     fi
 fi
+# A portal of an earlier session in the same user manager chose its
+# backends for another XDG_CURRENT_DESKTOP; the next call starts it anew
+# with the variables of chora, so screen sharing goes through
+# chora-portals.conf (D37).
+systemctl --user stop xdg-desktop-portal.service 2>/dev/null || true
 exec systemctl --user start --no-block "chora-$name.target"
