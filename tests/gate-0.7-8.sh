@@ -31,9 +31,9 @@ if [ -n "$state" ] && [ "$state" != offline ]; then
     # run starts the transient unit chora-run-<pid>-<nanos>.service.
     grep -qE 'chora-run-.*\.service' "/proc/$pid/cgroup" ||
         fail "foot runs in no systemd unit of its own"
-    ok_kind=its own transient unit
+    ok_kind="its own transient unit"
 else
-    ok_kind=the direct fallback without a user manager
+    ok_kind="the direct fallback without a user manager"
 fi
 for _ in $(seq 20); do
     grep -qF "\"token\":\"$token\"" "$out/events" && break
