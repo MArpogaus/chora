@@ -66,20 +66,12 @@ impl<S: Settings> File<S> {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => default.into(),
             Err(e) => return Err(format!("{}: {e}", path.display())),
         };
-        // The strict parse first, for its line numbers.
-        let value = parse(&text)
-            .or_else(|strict| {
-                let partial = serde_saphyr::from_str_with_options(&text, options())
-                    .map_err(|e| e.to_string())
-                    .and_then(|v| complete(v, default));
-                partial.map_err(|e| {
-                    if strict.contains("missing field") {
-                        e
-                    } else {
-                        strict
-                    }
-                })
-            })
+        // One path for every file, so that a key it leaves out takes its
+        // default also where the type has an `Option`. A wrong value then
+        // has no line number; a wrong YAML still has one.
+        let value = serde_saphyr::from_str_with_options(&text, options())
+            .map_err(|e| e.to_string())
+            .and_then(|v| complete(v, default))
             .map_err(|e| format!("{}: {e}", path.display()))?;
         Ok(Self {
             value,
@@ -416,6 +408,23 @@ mod tests {
         assert_eq!(file.value.opacity, 1.0);
         assert_eq!(file.value.bindings.len(), 1);
         assert_eq!(file.value.frame.width, 2);
+        assert_eq!(file.value.frame.title.as_deref(), Some("demo"));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A file with every key that serde needs still takes the default of
+    /// an `Option` that it leaves out.
+    #[test]
+    fn a_file_without_an_option_takes_its_default() {
+        let dir = dir("option");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("demo.yaml");
+        std::fs::write(
+            &path,
+            "gap: 7\nopacity: 1.0\nbindings: {}\nframe: {width: 2}\n",
+        )
+        .unwrap();
+        let file = File::<Demo>::load(path, DEFAULT).unwrap();
         assert_eq!(file.value.frame.title.as_deref(), Some("demo"));
         std::fs::remove_dir_all(dir).unwrap();
     }
