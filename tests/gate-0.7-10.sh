@@ -9,7 +9,7 @@
 # Usage: tests/gate-0.7-10.sh   BIN: directory with the binaries
 set -u
 . "$(dirname "$0")/gate-lib.sh"
-for what in chora choractl chora-tiling chora-probe; do
+for what in chora choractl chora-tiling chora-xp chora-probe; do
     test -x "$bin/$what" || fail "no $bin/$what; build it first"
 done
 cd "$repo" || fail "no repo"
