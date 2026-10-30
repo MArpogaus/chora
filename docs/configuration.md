@@ -165,7 +165,7 @@ default map:
 | `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
 | `new_window` | `master` or `stack`: where a new window goes |
 | `focus` | `click` or `follow_mouse` |
-| `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window |
+| `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window; a look that another client asks for wins (see below) |
 | `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run` |
 
 The layouts and the default bindings follow the awesome window manager.
@@ -198,6 +198,15 @@ keeps the tags and the layouts of each output, and the tags, the states
 and the stacking of each window, in the `meta` of its nodes. A restart
 within the grace time rebuilds them from there. In a flavor or a view,
 `choractl restart tiling` does that after a rebuild.
+
+Another client changes the opacity, the effects or the meta of a tiling
+window with an `update` of the window (D58). The core asks
+`chora-tiling` with `node.requested`, and `chora-tiling` applies it,
+except the meta key `window`, which holds its own state. A layout or a
+tag never changes the opacity or the effects, so the requested look
+stays across relayouts, layout changes, tag moves and restarts with
+`resume`. The `style` applies only when `chora-tiling` takes a new
+window, so a requested value wins over the style for that window.
 
 `chora-tiling` claims the box around the work areas of its outputs
 (D55). `--output NAME` limits it to some outputs, as for `chora-xp`, and
@@ -628,8 +637,16 @@ The method `restart` runs `chora-xp` again in the same process, with the
 same arguments, and so reads the settings file again. The core keeps
 the nodes of `chora-xp` for the grace time of `resume` (see
 [API](api.md#ipc-methods)). The windows keep their places, desktops,
-maximized state and stacking. The current desktop stays, and its top
+maximized state and stacking, and the opacity and effects that other
+clients asked for. The current desktop stays, and its top
 window gets the focus.
+
+Another client changes the opacity, the effects or the meta of an XP
+window with an `update` of the surface or of its group `xp-win-ID`
+(D58). `chora-xp` puts the opacity and the effects on the group, so the
+frame looks the same as the window, and the meta on the node that the
+client named, except the key `xp`. The meta of a surface does not stay
+over a restart.
 
 `chora-xp` serves notifications (`org.freedesktop.Notifications` on the
 session bus), so that `notify-send` and programs show XP's balloon tips:
