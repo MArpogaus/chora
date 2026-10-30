@@ -109,7 +109,10 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     }
     let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
     if sym.raw() == 0 {
-        return Err(rejected(format!("unknown key {:?}", binding.key)));
+        return Err(RpcError::new(
+            RpcError::INVALID_PARAMS,
+            format!("unknown key {:?}", binding.key),
+        ));
     }
     Ok(Trigger::Key(sym))
 }
@@ -279,10 +282,7 @@ impl Ipc {
                 .and_then(window_client)
         });
         for conn in self.conns.values_mut() {
-            let wanted = conn
-                .events
-                .as_ref()
-                .is_some_and(|e| e.is_empty() || e.iter().any(|n| name == Some(n.as_str())));
+            let wanted = name.is_some_and(|n| conn.wants(n));
             let foreign = window
                 .as_ref()
                 .is_some_and(|w| conn.fixed().is_some_and(|f| w.as_deref() != Some(f)));
@@ -387,6 +387,13 @@ impl Ipc {
             .collect()
     }
 
+    /// Whether a connection of a client name subscribes to an event.
+    pub fn subscribes(&self, client: &str, event: &str) -> bool {
+        self.conns
+            .values()
+            .any(|c| c.name.as_deref() == Some(client) && c.wants(event))
+    }
+
     /// Whether a client name has a connection.
     pub fn has_client(&self, name: &str) -> bool {
         self.conns.values().any(|c| c.name.as_deref() == Some(name))
@@ -476,6 +483,12 @@ impl Socket {
 }
 
 impl Conn {
+    /// Whether the connection subscribes to an event; an empty list
+    /// subscribes to all.
+    fn wants(&self, event: &str) -> bool {
+        (self.events.as_ref()).is_some_and(|e| e.is_empty() || e.iter().any(|n| n == event))
+    }
+
     /// The name of the client socket of the connection (D33).
     fn fixed(&self) -> Option<&str> {
         self.socket.name()
@@ -769,6 +782,7 @@ impl State {
             "input.inject" => self.ipc_inject(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
             "activation.token" => self.ipc_activation_token(conn),
+            "session.quit" => self.ipc_quit(conn),
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
             }
@@ -792,6 +806,19 @@ impl State {
         let token = token.as_str().to_owned();
         let _ = self.expire_at(self.time.now() + crate::protocols::MAX_TOKEN_AGE);
         Ok(serde_json::json!({"token": token}))
+    }
+
+    /// Ends chora as Ctrl+Alt+Backspace does, after the answer. A client
+    /// socket needs the capability `session.quit`.
+    fn ipc_quit(&mut self, conn: u64) -> Result<Value, RpcError> {
+        let name = self
+            .ipc
+            .name(conn)
+            .ok_or_else(|| rejected("send hello first"))?;
+        self.check_socket_grant(conn, Capability::SessionQuit)?;
+        tracing::info!(client = name, "session.quit");
+        self.loop_signal.stop();
+        Ok(Value::Null)
     }
 
     /// Streams the named events, or all of them for an empty list. An
@@ -2105,6 +2132,38 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// `session.quit` ends the main loop after its answer; a client socket
+    /// needs the capability, so an agent cannot end the session.
+    #[test]
+    fn session_quit_stops_the_loop_and_needs_the_capability_on_a_client_socket() {
+        let (mut core, dir) = socket_dir("quit");
+        let mut admin = core.admin();
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let (error_code, _) = agent.fails(&mut core, "session.quit", Value::Null);
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+        let mut plugin = core.connect();
+        let (error_code, _) = plugin.fails(&mut core, "session.quit", Value::Null);
+        assert_eq!(error_code, RpcError::REJECTED, "hello first");
+        plugin.ok(&mut core, "hello", json!({"name": "xp"}));
+        let id = plugin.send("session.quit", Value::Null);
+        let mut turns = 0;
+        core.event_loop
+            .run(Duration::from_millis(10), &mut core.state, |state| {
+                state.after_events();
+                turns += 1;
+                if turns == 50 {
+                    state.loop_signal.stop();
+                }
+            })
+            .unwrap();
+        assert!(turns < 50, "session.quit stops the loop");
+        let answer = plugin.responses();
+        assert_eq!(answer[0]["id"], id);
+        assert_eq!(answer[0]["result"], Value::Null, "{answer:?}");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     /// A confined agent calls no plugin method without the capability, so
     /// it cannot ask a window manager for the focus.
     #[test]
@@ -2126,6 +2185,63 @@ mod tests {
             "the grant lets the call pass"
         );
         assert_eq!(message, "wm.focus is no exported method");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Plugin settings hold commands that the plugin runs: a client socket
+    /// with `methods.call` alone cannot write them, nor call a method that
+    /// the export marks privileged (W12).
+    #[test]
+    fn a_client_socket_writes_settings_only_with_the_capability() {
+        let (mut core, dir) = socket_dir("settings");
+        let mut admin = core.admin();
+        let create = json!({"name": "caller", "capabilities": ["methods.call"]});
+        admin.ok(&mut core, "clients.create", create);
+        let mut caller = core.connect_to(&dir.join("clients/caller/ipc.sock"));
+        caller.ok(&mut core, "hello", json!({"name": "caller"}));
+        let mut mc = core.named("mc");
+        let names = json!({"names": ["look", {"name": "app.open", "privileged": true}]});
+        mc.ok(&mut core, "methods.export", names);
+        let open = json!({"client": "mc", "method": "app.open", "params": {}});
+        let (error_code, message) = caller.fails(&mut core, "methods.call", open);
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{message}");
+        let look = json!({"client": "mc", "method": "look", "params": {}});
+        caller.send("methods.call", look);
+        assert_eq!(
+            mc.event_names(&mut core),
+            ["method.called"],
+            "a plain method passes"
+        );
+        for method in ["settings.set", "settings.reload"] {
+            let call = json!({"client": "wm", "method": method, "params": {}});
+            let (error_code, message) = caller.fails(&mut core, "methods.call", call);
+            assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{method}");
+            assert!(message.contains("methods.privileged"), "{message}");
+        }
+        let get = json!({"client": "wm", "method": "settings.get"});
+        let (error_code, _) = caller.fails(&mut core, "methods.call", get);
+        assert_eq!(
+            error_code,
+            RpcError::REJECTED,
+            "settings.get needs no grant"
+        );
+        let create =
+            json!({"name": "writer", "capabilities": ["methods.call", "methods.privileged"]});
+        admin.ok(&mut core, "clients.create", create);
+        let mut writer = core.connect_to(&dir.join("clients/writer/ipc.sock"));
+        writer.ok(&mut core, "hello", json!({"name": "writer"}));
+        let call = json!({"client": "wm", "method": "settings.set", "params": {}});
+        let (error_code, message) = writer.fails(&mut core, "methods.call", call.clone());
+        assert_eq!(
+            error_code,
+            RpcError::REJECTED,
+            "the grant lets the call pass"
+        );
+        assert_eq!(message, "wm.settings.set is no exported method");
+        let mut main = core.named("main");
+        let (error_code, _) = main.fails(&mut core, "methods.call", call);
+        assert_eq!(error_code, RpcError::REJECTED, "the main socket may always");
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -2451,6 +2567,46 @@ mod tests {
                 {"close": {"surface": "s1"}}
             ]}),
         );
+    }
+
+    /// An update of the look of a foreign node reaches its owner after the
+    /// core checked it (D58).
+    #[test]
+    fn an_update_of_a_foreign_node_reaches_its_owner_as_a_request() {
+        let mut core = Core::new();
+        let (mut wm, _wayland) = resumable(&mut core);
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut b = core.named("b");
+        let update = |props: Value| json!({"commands": [{"update": {"id": "s1", "props": props}}]});
+        let props = json!({"opacity": 0.5, "meta": {"k": "v"}});
+        b.ok(&mut core, "scene.apply", update(props.clone()));
+        let events = wm.events_now(&mut core);
+        assert!(node_requested(&events, "b", "update", &props), "{events:?}");
+        assert_eq!(core.state.scene.node("s1").unwrap().props.opacity, 1.0);
+        let (_, message) = b.fails(
+            &mut core,
+            "scene.apply",
+            update(json!({"meta": {"k": "v".repeat(2000)}})),
+        );
+        assert!(message.contains("meta data"), "{message}");
+        let (_, message) = b.fails(
+            &mut core,
+            "scene.apply",
+            update(json!({"opacity": 0.5, "visible": false, "size": [1, 1]})),
+        );
+        assert!(
+            message.contains("belongs to") && message.ends_with("not size, visible"),
+            "the owner-only props: {message}"
+        );
+        assert_eq!(wm.events_now(&mut core), Vec::<Value>::new());
+        // An owner that does not listen would lose the change.
+        wm.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["surface.created"]}),
+        );
+        let (_, message) = b.fails(&mut core, "scene.apply", update(props));
+        assert!(message.contains("belongs to"), "{message}");
     }
 
     /// Whether one of the events is a `node.requested` of `s1` by `by`.
@@ -3037,7 +3193,11 @@ mod tests {
                 REJECTED,
                 "Ctrl+Alt+F3 belongs to the safety layer",
             ),
-            ("Super+NoSuchKey", REJECTED, "unknown key \"NoSuchKey\""),
+            (
+                "Super+NoSuchKey",
+                RpcError::INVALID_PARAMS,
+                "unknown key \"NoSuchKey\"",
+            ),
         ] {
             let (error_code, got) = wm.fails(&mut core, "input.grab", grab(binding));
             assert_eq!((error_code, got.as_str()), (code, message));

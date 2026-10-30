@@ -73,7 +73,6 @@ impl TaskbarDialog {
         Page {
             body: Some(body),
             controls,
-            ..Page::default()
         }
     }
 
@@ -258,14 +257,14 @@ mod tests {
 
     #[test]
     fn check_boxes_change_the_settings_on_apply() {
-        let mut panel = TaskbarDialog::new(Settings::default(), [0, 0, 1280, 770]);
+        let mut panel = TaskbarDialog::new(crate::config::defaults().taskbar, [0, 0, 1280, 770]);
         let click = |p: &mut TaskbarDialog, name: &str| p.click(&Hit::Control(name.into(), [1, 1]));
         assert_eq!(click(&mut panel, "auto_hide"), Outcome::Redraw);
         assert_eq!(click(&mut panel, "clock"), Outcome::Redraw);
         let changed = Settings {
             auto_hide: true,
             clock: false,
-            ..Settings::default()
+            ..crate::config::defaults().taskbar
         };
         assert_eq!(click(&mut panel, "apply"), Outcome::Apply(changed, false));
         assert_eq!(click(&mut panel, "ok"), Outcome::Apply(changed, true));
@@ -275,7 +274,7 @@ mod tests {
     #[test]
     fn the_tabs_look_like_xp() {
         let (mut theme, cache) = theme("taskbar-dialog");
-        let mut panel = TaskbarDialog::new(Settings::default(), [0, 0, 1280, 770]);
+        let mut panel = TaskbarDialog::new(crate::config::defaults().taskbar, [0, 0, 1280, 770]);
         for (tab, name) in [(0, "taskbar"), (1, "startmenu")] {
             panel.tab = tab;
             let page = panel.page(&mut theme, "4:09 PM");

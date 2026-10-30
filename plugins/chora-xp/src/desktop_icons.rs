@@ -20,7 +20,7 @@ use chora_kit::{desktop_entry, icons::Icons};
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
-    balloon, folder,
+    balloon,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };
@@ -109,7 +109,8 @@ const BAND_BORDER: [f64; 4] = [49.0 / 255.0, 106.0 / 255.0, 197.0 / 255.0, 1.0];
 
 /// The icons on the desktop of the first output.
 pub struct DesktopIcons {
-    terminal: String,
+    /// Runs the desktop files that need a terminal.
+    pub terminal: String,
     items: Vec<Item>,
     /// The work area above the taskbar.
     area: Rect,
@@ -511,22 +512,13 @@ impl DesktopIcons {
     /// dragged icons snap to the nearest cells. If a cell is taken by an
     /// icon that stays, or by two of them, they all go back. A click
     /// without a drag on one of several selected icons selects it alone.
-    /// The icons of a drag end outside the desktop, as on a folder of
-    /// Explorer: the files and folders that they stand for, and the
+    /// The icons of a drag end on a window or on the Recycle Bin: the
     /// commands that put the icons back. `None` without a drag.
-    pub fn drop_out(&mut self) -> Option<(Vec<PathBuf>, Vec<Command>)> {
+    pub fn drop_out(&mut self) -> Option<Vec<Command>> {
         let press = self.press.take_if(|p| p.moving)?;
-        let mut paths = Vec::new();
         let mut commands = Vec::new();
         for (key, _) in &press.origins {
             let Some(i) = self.find(key) else { continue };
-            let item = &self.items[i];
-            // My Documents, My Computer and the Recycle Bin stay.
-            if matches!(item.open, Open::File(_) | Open::Run(_))
-                || (matches!(item.open, Open::Folder(_)) && item.title != "My Documents")
-            {
-                paths.push(PathBuf::from(key));
-            }
             let [x, y] = self.places[i].map(f64::from);
             commands.push(Command::Update {
                 id: Self::id(i),
@@ -536,7 +528,7 @@ impl DesktopIcons {
                 },
             });
         }
-        Some((paths, commands))
+        Some(commands)
     }
 
     pub fn release(
@@ -769,7 +761,7 @@ fn items(terminal: &str, icons: &mut Icons) -> Vec<Item> {
     if desktop != home {
         items.extend(scan(&desktop, terminal, icons));
     }
-    let full = trash_full(&trash_dir());
+    let full = trash_dir().is_some_and(|d| trash_full(&d));
     items.push(Item {
         key: "trash".into(),
         title: "Recycle Bin".into(),
@@ -788,7 +780,7 @@ fn items(terminal: &str, icons: &mut Icons) -> Vec<Item> {
 /// ones: folders first, then by name. A desktop file with the executable
 /// bit shows its name and icon, or XP's icon of a program, and runs its
 /// program; without the bit it is a plain file. A file shows the icon of
-/// its type, as Explorer gives it, found here once.
+/// its type, found here once.
 fn scan(dir: &Path, terminal: &str, icons: &mut Icons) -> Vec<Item> {
     let mut paths: Vec<PathBuf> = fs::read_dir(dir)
         .into_iter()
@@ -829,16 +821,52 @@ fn scan(dir: &Path, terminal: &str, icons: &mut Icons) -> Vec<Item> {
                     open: Open::Run(launcher.command),
                 };
             }
-            let kind = folder::Kind::of(&name, false, executable);
             Item {
                 key,
+                icon: found(icons.first_sized(file_icons(&name, executable), SIZE)),
                 title: name,
-                icon: found(icons.first_sized(kind.icons(), SIZE)),
                 open: Open::File(path),
             }
         })
         .collect()
 }
+
+/// The icon names of a file by its extension, the most fitting first;
+/// `executable` for a file with the mode bits to run it.
+fn file_icons(name: &str, executable: bool) -> &'static [&'static str] {
+    let ext = match name.rsplit_once('.') {
+        Some((stem, ext)) if !stem.is_empty() => ext.to_lowercase(),
+        _ => String::new(),
+    };
+    match ext.as_str() {
+        "txt" | "md" | "log" | "rs" | "py" | "c" | "h" | "cpp" | "toml" | "yaml" | "yml"
+        | "json" | "xml" | "html" | "css" | "js" | "ini" | "conf" | "cfg" | "csv" | "org"
+        | "tex" => &["text-x-generic"],
+        "png" | "jpg" | "jpeg" | "gif" | "bmp" | "svg" | "webp" | "tif" | "tiff" | "ico" => {
+            &["image-x-generic", "text-x-generic"]
+        }
+        "mp3" | "wav" | "ogg" | "oga" | "flac" | "opus" | "m4a" | "wma" | "mid" => {
+            &["audio-x-generic", "text-x-generic"]
+        }
+        "mp4" | "mkv" | "avi" | "webm" | "mov" | "mpg" | "mpeg" | "wmv" | "ogv" => {
+            &["video-x-generic", "text-x-generic"]
+        }
+        "zip" | "tar" | "gz" | "tgz" | "bz2" | "xz" | "zst" | "7z" | "rar" | "rpm" | "deb" => &[
+            "package-x-generic",
+            "application-x-archive",
+            "text-x-generic",
+        ],
+        "exe" | "sh" | "appimage" | "run" | "bin" => EXECUTABLE,
+        _ if executable => EXECUTABLE,
+        _ => &["application-x-generic", "unknown", "text-x-generic"],
+    }
+}
+
+const EXECUTABLE: &[&str] = &[
+    "application-x-executable",
+    "application-x-generic",
+    "text-x-generic",
+];
 
 /// The size of the icons in pixels.
 const SIZE: u32 = ICON.unsigned_abs();
@@ -858,7 +886,8 @@ pub fn user_dir(name: &str) -> Option<PathBuf> {
     }
     let home = std::env::var("HOME").ok()?;
     let config = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| format!("{home}/.config"));
-    let text = fs::read_to_string(Path::new(&config).join("user-dirs.dirs")).ok()?;
+    let file = Path::new(&config).join("user-dirs.dirs");
+    let text = chora_kit::read_text(&file, chora_kit::MAX_TEXT).ok()?;
     parse_user_dir(&text, &var, &home)
 }
 
@@ -871,9 +900,19 @@ fn parse_user_dir(text: &str, var: &str, home: &str) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-/// The files of the trash: `Trash/files` of `$XDG_DATA_HOME`.
-fn trash_dir() -> PathBuf {
-    crate::folder::trash_root().join("files")
+/// The files of the trash: `Trash/files` of `$XDG_DATA_HOME`; none
+/// without a data home.
+fn trash_dir() -> Option<PathBuf> {
+    chora_kit::xdg::data_home().map(|d| d.join("Trash/files"))
+}
+
+/// The folder that the Recycle Bin opens: the trash, made when it is
+/// missing, else the home directory.
+pub fn trash_to_open() -> PathBuf {
+    trash_dir()
+        .filter(|d| fs::create_dir_all(d).is_ok())
+        .or_else(|| std::env::var_os("HOME").map(PathBuf::from))
+        .unwrap_or_else(|| "/".into())
 }
 
 fn trash_full(dir: &Path) -> bool {
@@ -882,7 +921,12 @@ fn trash_full(dir: &Path) -> bool {
 
 /// The shell command that opens a file with the program of its type.
 pub fn xdg_open(path: &Path) -> String {
-    format!("xdg-open {}", quote(&path.to_string_lossy()))
+    open_with("xdg-open", path)
+}
+
+/// The shell command that runs a command on a path.
+pub fn open_with(command: &str, path: &Path) -> String {
+    format!("{command} {}", quote(&path.to_string_lossy()))
 }
 
 /// Quotes a word for the shell.

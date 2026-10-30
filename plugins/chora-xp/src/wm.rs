@@ -5,7 +5,6 @@
 
 mod desktops;
 mod effects;
-mod explorers;
 mod items;
 mod resize;
 mod restart;
@@ -16,34 +15,33 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::{conn::Conn, icons::Icons};
+use chora_kit::{
+    icons::Icons,
+    runtime::{Plugin, Runtime},
+    settings::{self, Store},
+};
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
     SurfaceRequest, Transform, Uniform,
-    ipc::{
-        ClientError, Export, ExportMethod, Grab, OutputConfigure, PressState, RpcError, Subscribe,
-    },
+    ipc::{ClientError, ExportMethod, Grab, OutputConfigure, PressState, RpcError},
 };
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use self::{desktops::desk_id, effects::Effects};
 use crate::{
     apps,
     balloon::{self, Balloon, Queue},
-    confirm::{ConfirmDialog, Then},
+    config::{Config, Picture, Wallpaper},
     context::{self, Act},
-    control::{self, Setting, Toggles},
+    control::{self, Setting},
     cube::DESKTOPS,
     datetime::{Click, DateDialog},
     decoration::{self, Button, Part},
     desktop_icons::{self, DesktopIcons},
     dialog::{self, Hit},
     display::{self, DisplayDialog, EffectsDialog},
-    explorer::{DropAt, Explorer},
-    folder::{self, Place},
     notify::{Bus, Note, Reason, Request, Signal},
-    properties::PropertiesDialog,
     session::{self, Choice, Dialog, Mode},
     sound::{self, Sound},
     startmenu::{self, Action, Menu},
@@ -63,16 +61,6 @@ const BARS: &str = "xp-bars";
 /// The settings dialogs, above the taskbar and below the menus.
 const DIALOGS: &str = "xp-dialogs";
 const MENUS: &str = "xp-menus";
-/// Where desktop icons drop.
-enum Drop {
-    /// Into a folder, shown in an Explorer window.
-    Folder(String, PathBuf),
-    /// Into the Recycle Bin.
-    Trash,
-    /// On an item that takes no drop, as a file: the icons go back, as
-    /// XP shows "not allowed" there.
-    Nowhere,
-}
 
 /// The key that Shift+F10 and the Menu key stand for.
 const MENU_KEY: &str = "ContextMenu";
@@ -91,23 +79,6 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 /// the Session Fade effect of the reference.
 const FADE: Duration = Duration::from_millis(1500);
 
-/// The settings of the window manager.
-pub struct Config {
-    /// The shell command of the terminal.
-    pub terminal: String,
-    /// The strftime format of the clock.
-    pub clock: String,
-    /// The background of the desktop.
-    pub wallpaper: wallpaper::Style,
-    /// Stretches the time of the magic lamp and of the cube, for tests
-    /// and demos; 1 is the normal speed.
-    pub slow: f64,
-    /// The effects and sounds that are on at the start.
-    pub toggles: Toggles,
-    /// The outputs that the plugin manages, by name; all when empty.
-    pub outputs: Vec<String>,
-}
-
 /// The window manager that a window dragged out of the work areas of
 /// `chora-xp` goes to (D55).
 const HANDOVER: &str = "tiling";
@@ -124,7 +95,6 @@ const EVENTS: [&str; 19] = [
     "pointer.released",
     "pointer.entered",
     "pointer.left",
-    "pointer.scroll",
     "output.changed",
     "output.removed",
     "input.key",
@@ -133,6 +103,7 @@ const EVENTS: [&str; 19] = [
     "input.button",
     "input.moved",
     "effects.dropped",
+    "node.requested",
 ];
 
 /// The methods that other clients call with the client name, as
@@ -148,7 +119,7 @@ const METHODS: [&str; 6] = [
 
 /// What a key binding does.
 #[derive(Clone, Copy)]
-enum Key {
+pub enum Key {
     Close,
     Terminal,
     /// Turns the cube by quarter turns.
@@ -219,10 +190,14 @@ struct Resize {
 
 /// The state of the window manager.
 pub struct Wm {
-    conn: Conn,
+    rt: Runtime<Key>,
     theme: Theme,
     icons: Icons,
-    config: Config,
+    /// The settings as the plugin applies them.
+    settings: settings::File<Config>,
+    /// Stretches the time of the magic lamp and of the cube, for tests
+    /// and demos; 1 is the normal speed.
+    slow: f64,
     /// The windows, bottom first.
     windows: Vec<Window>,
     /// The surfaces in the order they opened, for the taskbar.
@@ -233,7 +208,6 @@ pub struct Wm {
     drag: Option<Drag>,
     resize: Option<Resize>,
     last_title: Option<(String, Instant)>,
-    keys: Vec<(String, Key)>,
     cascade: i32,
     clock: String,
     /// The desktop that shows.
@@ -269,10 +243,6 @@ pub struct Wm {
     hide_at: Option<Instant>,
     /// The last press on a clock, for the double click.
     last_clock: Option<Instant>,
-    /// The Explorer windows, drawn by the plugin.
-    explorers: Vec<Explorer>,
-    /// The number of Explorer windows so far, for their ids.
-    explorer_count: u32,
     /// The tab of Display Properties when it last closed, as XP keeps it.
     display_tab: usize,
     /// The icon or the start menu entry of the open context menu.
@@ -285,13 +255,8 @@ pub struct Wm {
     switcher: Option<Switcher>,
     /// Alt+Escape, while the switcher holds it.
     switch_escape: Option<String>,
-    /// The question of Confirm File Delete or Replace that has the
-    /// keyboard.
-    asking: Option<Then>,
     /// Alt+Space, while a window of `chora-xp` has the focus.
     system_key: Option<String>,
-    /// The Explorer window whose menu bar opened the open context menu.
-    bar_menu: Option<String>,
     /// Where the pointer took the cube, while Super and the left button
     /// are down.
     cube_grab: Option<f64>,
@@ -300,24 +265,56 @@ pub struct Wm {
     kept: HashMap<String, restart::KeptWindow>,
 }
 
+impl Plugin for Wm {
+    type Action = Key;
+
+    fn runtime(&mut self) -> &mut Runtime<Key> {
+        &mut self.rt
+    }
+
+    fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        self.handle(event)
+    }
+
+    fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        parse_call(method, params).and_then(|call| self.call(call))
+    }
+
+    fn settings(&mut self) -> Option<&mut dyn Store> {
+        Some(&mut self.settings)
+    }
+
+    fn settings_changed(&mut self) -> Result<(), RpcError> {
+        let commands = self.configure();
+        self.apply(commands)
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
+    }
+}
+
 impl Wm {
-    /// Creates the scene of the plugin and adopts the windows that have
-    /// no owner.
+    /// Connects, creates the scene of the plugin and adopts the windows
+    /// that have no owner. `outputs` are the names of `--output`.
     pub fn start(
-        conn: Conn,
+        outputs: Vec<String>,
         theme: Theme,
-        menu: Menu,
-        icons: Icons,
-        config: Config,
+        settings: settings::File<Config>,
+        slow: f64,
     ) -> Result<Self, ClientError> {
+        let mut methods = METHODS.map(ExportMethod::from).to_vec();
+        methods.extend(settings::File::<Config>::methods());
+        let config = &settings.value;
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let menu = Menu::new(config, apps::load(&config.terminal), &theme, &mut icons);
         let mut wm = Self {
-            conn,
-            theme,
-            icons,
+            rt: Runtime::connect(NAME, outputs)?,
             clock: String::new(),
             desk: DesktopIcons::new(&config.terminal),
-            effects: Effects::new(config.toggles),
-            config,
+            effects: Effects::new(config.effects),
+            taskbar: config.taskbar,
+            theme,
+            icons,
+            settings,
+            slow,
             windows: Vec::new(),
             opened: Vec::new(),
             focused: None,
@@ -326,7 +323,6 @@ impl Wm {
             drag: None,
             resize: None,
             last_title: None,
-            keys: Vec::new(),
             cascade: 0,
             desktop: 0,
             hover: None,
@@ -339,95 +335,51 @@ impl Wm {
             context: None,
             sys_window: None,
             last_icon: None,
-            taskbar: taskbar::Settings::default(),
             panels: Vec::new(),
             hide_at: None,
             last_clock: None,
-            explorers: Vec::new(),
-            explorer_count: 0,
             display_tab: 0,
             item: None,
             done: false,
             restart: false,
             switcher: None,
             switch_escape: None,
-            asking: None,
             system_key: None,
-            bar_menu: None,
             cube_grab: None,
             kept: HashMap::new(),
         };
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
-        let (kept, old_root) = wm.take_kept()?;
+        let old_root = wm.take_kept()?;
         wm.create_scene(old_root)?;
         wm.grab()?;
-        wm.announce()?;
-        wm.adopt_all(kept)?;
+        // After the scene: the removal of the kept root detaches the
+        // windows, and those events would make them new windows.
+        wm.rt.announce(&EVENTS, methods)?;
+        wm.adopt_all()?;
         Ok(wm)
     }
 
-    /// Subscribes to the events of the core and exports the methods of
-    /// the plugin.
-    fn announce(&mut self) -> Result<(), ClientError> {
-        self.conn.call::<_, Value>(
-            "events.subscribe",
-            Subscribe {
-                events: EVENTS.map(String::from).to_vec(),
-            },
-        )?;
-        self.conn
-            .call::<_, Value>(
-                "methods.export",
-                Export {
-                    names: METHODS.map(ExportMethod::from).to_vec(),
-                },
-            )
-            .map(drop)
-    }
-
-    /// Adopts the surfaces without an owner, as at a start, and opens the
-    /// Explorer windows of a restart again, all in their order before the
-    /// restart. Only a window of the current desktop gets the focus.
-    fn adopt_all(&mut self, explorers: Vec<restart::KeptWindow>) -> Result<(), ClientError> {
-        enum Next {
-            Surface(Box<chora_scene::Node>),
-            Explorer(restart::KeptWindow),
-        }
-        let mut next: Vec<(usize, Next)> = self
+    /// Adopts the surfaces without an owner, as at a start, in their order
+    /// before a restart. Only a window of the current desktop gets the
+    /// focus.
+    fn adopt_all(&mut self) -> Result<(), ClientError> {
+        let mut nodes: Vec<chora_scene::Node> = self
+            .rt
             .conn
             .query("kind:surface")?
             .into_iter()
             .filter(|n| n.owner.is_none())
-            .map(|n| {
-                (
-                    self.kept.get(&n.id).map_or(usize::MAX, |k| k.z),
-                    Next::Surface(Box::new(n)),
-                )
-            })
-            .chain(explorers.into_iter().map(|k| (k.z, Next::Explorer(k))))
             .collect();
-        next.sort_by_key(|(z, _)| *z);
+        nodes.sort_by_key(|n| self.kept.get(&n.id).map_or(usize::MAX, |k| k.z));
         // The places on the taskbar before the restart, by window.
         let mut opened = Vec::new();
-        for (_, next) in next {
-            match next {
-                Next::Surface(node) => {
-                    if let Some(k) = self.kept.get(&node.id) {
-                        opened.push((k.opened, node.id.clone()));
-                    }
-                    let info = node.surface.unwrap_or_default();
-                    self.adopt(&node.id, info.app_id, info.title.as_deref(), None)?;
-                }
-                Next::Explorer(k) => {
-                    let place = k.opened;
-                    let commands = self.reopen(k);
-                    self.apply(commands)?;
-                    if let Some(e) = self.explorers.last() {
-                        opened.push((place, e.id.clone()));
-                    }
-                }
+        for node in nodes {
+            if let Some(k) = self.kept.get(&node.id) {
+                opened.push((k.opened, node.id.clone()));
             }
+            let info = node.surface.unwrap_or_default();
+            self.adopt(&node.id, info.app_id, info.title.as_deref(), None)?;
         }
         // The kept windows first, in their old order on the taskbar.
         opened.sort_by_key(|(place, _)| *place);
@@ -437,7 +389,6 @@ impl Wm {
         let top = self.topmost_except("");
         let mut commands = self.focus(top.as_deref());
         commands.extend(self.sync_tasks());
-        commands.extend(self.relayout_explorers());
         self.apply(commands)
     }
 
@@ -448,7 +399,7 @@ impl Wm {
     /// same transaction, so that the plugin holds a claim throughout and
     /// the surfaces reserved for it stay so (D55).
     fn create_scene(&mut self, old_root: bool) -> Result<(), ClientError> {
-        let outputs: Vec<OutputInfo> = self.conn.call("output.list", Value::Null)?;
+        let outputs = self.rt.outputs()?;
         self.theme.set_scale(max_scale(&outputs));
         let group = |id: &str, parent: &str| Command::Create {
             id: id.into(),
@@ -464,14 +415,18 @@ impl Wm {
             .into_iter()
             .collect();
         commands.push(group(NAME, ROOT));
-        for id in [
+        let mut ids = [
             WALLPAPERS,
             desktop_icons::GROUP,
             WINDOWS,
             BARS,
             DIALOGS,
             MENUS,
-        ] {
+        ];
+        if !self.taskbar.on_top {
+            ids.swap(2, 3);
+        }
+        for id in ids {
             commands.push(group(id, NAME));
         }
         for desktop in 0..DESKTOPS {
@@ -487,9 +442,7 @@ impl Wm {
             }
         }
         for output in &outputs {
-            if self.manages(&output.name) {
-                commands.extend(self.add_output(output));
-            }
+            commands.extend(self.add_output(output));
         }
         commands.extend(self.claim());
         commands.extend(self.menu.create(&mut self.theme, MENUS));
@@ -504,8 +457,12 @@ impl Wm {
     }
 
     fn add_output(&mut self, output: &OutputInfo) -> Vec<Command> {
-        let mut commands =
-            wallpaper::create(&mut self.theme, &self.config.wallpaper, output, WALLPAPERS);
+        let mut commands = wallpaper::create(
+            &mut self.theme,
+            &self.settings.value.wallpaper,
+            output,
+            WALLPAPERS,
+        );
         let mut bar = Bar::new(output);
         bar.configure(self.taskbar);
         commands.extend(bar.create(&mut self.theme, BARS, &self.clock, self.desktop));
@@ -517,14 +474,8 @@ impl Wm {
         for (binding, fallback, key) in KEYS {
             for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
                 let binding: Binding = binding.parse().expect("valid bindings");
-                match self.conn.call::<_, String>("input.grab", Grab { binding }) {
-                    Ok(normal) => {
-                        self.keys.push((normal, key));
-                        break;
-                    }
-                    // Another client may own the binding.
-                    Err(ClientError::Rpc(err)) => eprintln!("chora-xp: {err}"),
-                    Err(err) => return Err(err),
+                if self.rt.grab(binding, key)? {
+                    break;
                 }
             }
         }
@@ -534,14 +485,14 @@ impl Wm {
     /// Applies a transaction, with the logical sizes of the pictures.
     fn apply(&mut self, mut commands: Vec<Command>) -> Result<(), ClientError> {
         self.theme.size_images(&mut commands);
-        self.conn.apply(commands)
+        self.rt.conn.apply(commands)
     }
 
     /// Applies a transaction, as [`Self::apply`], and returns the error of
     /// the core.
     fn try_apply(&mut self, mut commands: Vec<Command>) -> Result<Option<RpcError>, ClientError> {
         self.theme.size_images(&mut commands);
-        self.conn.try_apply(commands)
+        self.rt.conn.try_apply(commands)
     }
 
     /// Renders the shown pictures again when the largest scale of the
@@ -553,7 +504,7 @@ impl Wm {
             return Ok(Vec::new());
         }
         let mut commands = Vec::new();
-        for node in self.conn.query(&format!("owner:{NAME} kind:image"))? {
+        for node in self.rt.conn.query(&format!("owner:{NAME} kind:image"))? {
             let props = &node.props;
             let Some((image, size)) = props.image.as_deref().and_then(|p| self.theme.rerender(p))
             else {
@@ -573,12 +524,12 @@ impl Wm {
 
     /// The next event, or `None` after a timeout.
     pub fn conn_event(&mut self, timeout: Duration) -> Result<Option<Event>, ClientError> {
-        self.conn.next_event_timeout(timeout)
+        self.rt.conn.next_event_timeout(timeout)
     }
 
     /// Handles one event of the core.
     #[allow(clippy::too_many_lines)] // one arm per event
-    pub fn handle(&mut self, event: Event) -> Result<(), ClientError> {
+    fn handle(&mut self, event: Event) -> Result<(), ClientError> {
         let commands = match event {
             Event::SurfaceCreated {
                 surface,
@@ -609,6 +560,9 @@ impl Wm {
                 commands
             }
             Event::SurfaceRequested { surface, request } => self.request(&surface, request),
+            Event::NodeRequested {
+                node, action, args, ..
+            } if action == "update" => self.requested_look(&node, &args),
             Event::PointerPressed {
                 node,
                 button,
@@ -617,9 +571,6 @@ impl Wm {
             } => self.pressed(&node, button, position),
             Event::PointerMoved { position, .. } => self.dragged(position),
             Event::PointerReleased { node, position, .. } => self.released(&node, position),
-            Event::PointerScroll {
-                node, dy, discrete, ..
-            } => self.scroll_explorer(&node, dy, discrete[1]),
             Event::OutputChanged { output } => {
                 [self.rescale()?, self.output_changed(&output)].concat()
             }
@@ -634,40 +585,24 @@ impl Wm {
             Event::FocusChanged {
                 surface: Some(surface),
             } => self.focus_moved(&surface),
-            Event::MethodCalled {
-                call,
-                method,
-                params,
-                ..
-            } => return self.answer_call(call, &method, params),
             _ => Vec::new(),
         };
-        let mut commands = commands;
-        commands.extend(self.relayout_explorers());
-        commands.extend(self.sync_question_keys());
         self.apply(commands)
-    }
-
-    /// Answers a call of an exported method. The call may have ended
-    /// before the answer, for example when its caller left; that is no
-    /// reason to exit.
-    fn answer_call(&mut self, call: u64, method: &str, params: Value) -> Result<(), ClientError> {
-        let result = parse_call(method, params).and_then(|call| self.method(call));
-        match self.conn.answer(call, result) {
-            Err(ClientError::Rpc(err)) => {
-                eprintln!("chora-xp: {err}");
-                Ok(())
-            }
-            other => other,
-        }
     }
 
     /// Runs an exported method, as the matching click does, and answers
     /// with nothing.
-    fn method(&mut self, call: Call) -> Result<Value, RpcError> {
+    fn call(&mut self, call: Call) -> Result<Value, RpcError> {
         let commands = match call {
             Call::StartMenu { open } => {
                 let bar = self.bars.first().map(|bar| bar.output.clone());
+                // Not under the shade of Log Off or Turn Off (W10).
+                if open && self.dialog.is_some() {
+                    return Err(RpcError::new(
+                        RpcError::REJECTED,
+                        "the Log Off or Turn Off dialog is open",
+                    ));
+                }
                 if open == self.menu.is_open() {
                     Vec::new()
                 } else if open {
@@ -741,7 +676,9 @@ impl Wm {
     }
 
     fn now(&self) -> String {
-        chrono::Local::now().format(&self.config.clock).to_string()
+        chrono::Local::now()
+            .format(&self.settings.value.clock_format)
+            .to_string()
     }
 
     // Windows
@@ -777,6 +714,12 @@ impl Wm {
         self.windows.push(window);
         self.opened.push(surface.into());
         let mut commands = decoration::create(surface, &desk, false);
+        if let Some(look) = self.kept.get(surface).map(|k| k.look.clone()) {
+            commands.push(Command::Update {
+                id: decoration::group_id(surface),
+                props: look,
+            });
+        }
         commands.extend(self.focus(Some(surface)));
         if let Some(err) = self.try_apply(commands)? {
             // Another client took it first.
@@ -789,7 +732,7 @@ impl Wm {
         // The transaction waited for the client to commit its size, or the
         // size follows with surface.changed. The title of a surface that
         // another client gave up comes with the query too.
-        let Some(node) = self.conn.query(&format!("id:{surface}"))?.pop() else {
+        let Some(node) = self.rt.conn.query(&format!("id:{surface}"))?.pop() else {
             return Ok(());
         };
         let info = node.surface.unwrap_or_default();
@@ -825,7 +768,7 @@ impl Wm {
             if let Some(restore) = k.restore {
                 w.restore = Some(restore);
                 w.maximize(area);
-                commands.extend(w.configure(active));
+                commands.push(w.configure(active));
             }
             w.minimized = k.minimized;
         } else if first && !self.windows[i].maximized() {
@@ -861,10 +804,8 @@ impl Wm {
                 commands.extend(self.restyle(surface));
             }
         }
-        // A window of the plugin takes the focus from the clients.
-        let client = target.filter(|t| !self.is_explorer(t));
         commands.push(Command::Focus {
-            surface: client.map(String::from),
+            surface: target.map(String::from),
         });
         commands.push(self.desktop_keys());
         commands
@@ -876,7 +817,7 @@ impl Wm {
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
-        let mut commands: Vec<Command> = self.windows[i].configure(active).into_iter().collect();
+        let mut commands = vec![self.windows[i].configure(active)];
         commands.extend(self.windows[i].style(&mut self.theme, active));
         commands
     }
@@ -956,7 +897,7 @@ impl Wm {
                 .bar_at(self.windows[i].rect())
                 .map_or([0, 0, 1280, 770], Bar::usable);
             self.windows[i].maximize(area);
-            commands.extend(self.windows[i].configure(active));
+            commands.push(self.windows[i].configure(active));
         }
         commands.extend(self.windows[i].style(&mut self.theme, active));
         commands
@@ -1039,6 +980,46 @@ impl Wm {
             SurfaceRequest::Unmaximize if maximized => self.toggle_maximize(surface),
             _ => Vec::new(),
         }
+    }
+
+    /// Applies the look that another client asks for a window or its
+    /// group (D58): opacity and effects on the group, so that the frame
+    /// looks the same, and meta on the asked node without the key of
+    /// chora-xp. The plugin sends no opacity or effects to the groups
+    /// otherwise, so the look stays; a restart keeps it too.
+    fn requested_look(&self, node: &str, args: &Value) -> Vec<Command> {
+        let surface = decoration::surface_of(node).unwrap_or(node);
+        let Ok(asked) = serde_json::from_value::<PropsUpdate>(args.clone()) else {
+            return Vec::new();
+        };
+        if self.index(surface).is_none() {
+            return Vec::new();
+        }
+        let mut commands = Vec::new();
+        if asked.opacity.is_some() || asked.effects.is_some() {
+            commands.push(Command::Update {
+                id: decoration::group_id(surface),
+                props: PropsUpdate {
+                    opacity: asked.opacity,
+                    effects: asked.effects,
+                    ..PropsUpdate::default()
+                },
+            });
+        }
+        let meta = asked.meta.map(|mut meta| {
+            meta.remove(restart::KEY);
+            meta
+        });
+        if let Some(meta) = meta.filter(|m| !m.is_empty()) {
+            commands.push(Command::Update {
+                id: node.into(),
+                props: PropsUpdate {
+                    meta: Some(meta),
+                    ..PropsUpdate::default()
+                },
+            });
+        }
+        commands
     }
 
     // Taskbars
@@ -1128,10 +1109,6 @@ impl Wm {
             commands.extend(panel.window().hover(&mut self.theme, node, on));
             return commands;
         }
-        if let Some(i) = self.explorer_of(node) {
-            commands.extend(self.explorers[i].hover(&mut self.theme, node, on));
-            return commands;
-        }
         commands.extend(self.hovered_node(node, on));
         commands
     }
@@ -1177,15 +1154,7 @@ impl Wm {
         })
     }
 
-    /// Whether the plugin manages an output.
-    fn manages(&self, output: &str) -> bool {
-        self.config.outputs.is_empty() || self.config.outputs.iter().any(|o| o == output)
-    }
-
     fn output_changed(&mut self, output: &OutputInfo) -> Vec<Command> {
-        if !self.manages(&output.name) {
-            return Vec::new();
-        }
         let Some(i) = self.bars.iter().position(|b| b.output == output.name) else {
             let mut commands = self.add_output(output);
             commands.extend(self.sync_tasks());
@@ -1197,7 +1166,7 @@ impl Wm {
             .collect();
         let mut commands = vec![wallpaper::update(
             &mut self.theme,
-            &self.config.wallpaper,
+            &self.settings.value.wallpaper,
             output,
         )];
         commands.extend(self.bars[i].resize(&mut self.theme, output, &self.clock));
@@ -1220,7 +1189,7 @@ impl Wm {
             let w = &mut self.windows[i];
             if w.maximized() {
                 w.maximize(area);
-                commands.extend(w.configure(active));
+                commands.push(w.configure(active));
                 commands.extend(w.style(&mut self.theme, active));
                 continue;
             }
@@ -1229,7 +1198,7 @@ impl Wm {
             }
             let [x, y, fw, fh] = window::inside(w.rect(), area);
             if [fw, fh] != w.outer() {
-                commands.extend(w.fit([x, y, fw, fh], active));
+                commands.push(w.fit([x, y, fw, fh], active));
                 commands.extend(w.style(&mut self.theme, active));
             } else if [x, y] != w.pos {
                 w.pos = [x, y];
@@ -1279,7 +1248,7 @@ impl Wm {
             });
             if w.maximized() {
                 w.maximize(target);
-                commands.extend(w.configure(active));
+                commands.push(w.configure(active));
                 commands.extend(w.style(&mut self.theme, active));
             } else {
                 w.pos = moved(w.pos, from, target);
@@ -1335,18 +1304,10 @@ impl Wm {
         if self.switch_escape.as_deref() == Some(binding) {
             return self.cancel_switch();
         }
-        match self
-            .keys
-            .iter()
-            .find(|(b, _)| b == binding)
-            .map(|(_, k)| *k)
-        {
-            Some(Key::Close) => match self.focused.clone() {
-                Some(surface) => self.close_window(&surface),
-                None => Vec::new(),
-            },
+        match self.rt.action(binding).copied() {
+            Some(Key::Close) => self.focused.as_deref().map(close).unwrap_or_default(),
             Some(Key::Terminal) => {
-                chora_kit::run(&self.config.terminal);
+                chora_kit::run(&self.settings.value.terminal);
                 Vec::new()
             }
             Some(Key::Turn(steps)) => self.turn(steps),
@@ -1392,12 +1353,9 @@ impl Wm {
                 .map(|w| switcher::Entry {
                     surface: w.surface.clone(),
                     title: w.title.clone(),
-                    icon: match self.explorers.iter().find(|e| e.id == w.surface) {
-                        Some(e) => e.icon_sized(&mut self.icons, 32),
-                        None => self
-                            .icons
-                            .program_sized(w.app_id.as_deref().unwrap_or_default(), 32),
-                    },
+                    icon: self
+                        .icons
+                        .program_sized(w.app_id.as_deref().unwrap_or_default(), 32),
                 })
                 .collect::<Vec<_>>();
             let Some(switcher) = Switcher::new(entries, step) else {
@@ -1502,11 +1460,19 @@ impl Wm {
             None => "Alt+space".parse().expect("a valid binding"),
         };
         if on {
-            match self.conn.call::<_, String>("input.grab", Grab { binding }) {
+            match self
+                .rt
+                .conn
+                .call::<_, String>("input.grab", Grab { binding })
+            {
                 Ok(normal) => self.system_key = Some(normal),
                 Err(err) => eprintln!("chora-xp: {err}"),
             }
-        } else if let Err(err) = self.conn.call::<_, Value>("input.ungrab", Grab { binding }) {
+        } else if let Err(err) = self
+            .rt
+            .conn
+            .call::<_, Value>("input.ungrab", Grab { binding })
+        {
             eprintln!("chora-xp: {err}");
         }
     }
@@ -1540,39 +1506,25 @@ impl Wm {
     /// so that it cancels the switch.
     fn grab_switch_escape(&mut self) {
         let binding = "Alt+Escape".parse().expect("a valid binding");
-        match self.conn.call::<_, String>("input.grab", Grab { binding }) {
+        match self
+            .rt
+            .conn
+            .call::<_, String>("input.grab", Grab { binding })
+        {
             Ok(normal) => self.switch_escape = Some(normal),
             Err(err) => eprintln!("chora-xp: {err}"),
         }
-    }
-
-    /// A question of Confirm File Delete or Replace takes the keyboard
-    /// while it shows, so that Escape answers No, as on XP; after it, the
-    /// keyboard goes back.
-    fn sync_question_keys(&mut self) -> Option<Command> {
-        let asks = self.question().and_then(|i| match &self.panels[i] {
-            Panel::Confirm(confirm) => Some(confirm.then.clone()),
-            _ => None,
-        });
-        if asks == self.asking {
-            return None;
-        }
-        self.asking = asks;
-        Some(self.desktop_keys())
-    }
-
-    /// The open question, if any.
-    fn question(&self) -> Option<usize> {
-        self.panels
-            .iter()
-            .position(|p| matches!(p, Panel::Confirm(_)))
     }
 
     /// Closes the switcher and gives Alt+Escape back.
     fn end_switch(&mut self) -> Option<Switcher> {
         if let Some(binding) = self.switch_escape.take() {
             let binding = binding.parse().expect("the binding of the grab");
-            if let Err(err) = self.conn.call::<_, Value>("input.ungrab", Grab { binding }) {
+            if let Err(err) = self
+                .rt
+                .conn
+                .call::<_, Value>("input.ungrab", Grab { binding })
+            {
                 eprintln!("chora-xp: {err}");
             }
         }
@@ -1607,9 +1559,7 @@ impl Wm {
         if self.menu.is_open() && !Menu::owns(node) && !start {
             commands.extend(self.close_menu());
         }
-        if let Some(i) = self.explorer_of(node) {
-            commands.extend(self.press_explorer(i, node, position));
-        } else if self.index(node).is_some() {
+        if self.index(node).is_some() {
             commands.extend(self.activate(node));
         } else if let Some(part) = Part::of(node) {
             commands.extend(self.press_decoration(&part, button, position));
@@ -1716,7 +1666,7 @@ impl Wm {
                 commands
             }
             context::Sys::Minimize => self.minimize(&surface),
-            context::Sys::Close => self.close_window(&surface),
+            context::Sys::Close => close(&surface),
         }
     }
 
@@ -1733,12 +1683,6 @@ impl Wm {
     /// A key while a node of the plugin has the keyboard: a context menu
     /// or the start menu.
     fn node_key(&mut self, key: &str) -> Vec<Command> {
-        if let (Some(i), "Escape") = (self.question(), key) {
-            return self.answer(i, &Hit::Close).unwrap_or_default();
-        }
-        if let Some(commands) = self.bar_key(key) {
-            return commands;
-        }
         if let Some((menu, area)) = &mut self.context {
             let area = *area;
             return match menu.key(&mut self.theme, MENUS, key) {
@@ -1780,15 +1724,10 @@ impl Wm {
         commands
     }
 
-    /// The keyboard of the plugin's nodes: an open question's; else the
-    /// desktop's while no window has the focus, for Shift+F10 and the
-    /// Menu key; else none, so that the focused window gets it.
+    /// The keyboard of the plugin's nodes: the desktop's while no window
+    /// has the focus, for Shift+F10 and the Menu key; else none, so that
+    /// the focused window gets it.
     fn desktop_keys(&self) -> Command {
-        if let Some(Panel::Confirm(confirm)) = self.question().map(|i| &self.panels[i]) {
-            return Command::FocusNode {
-                node: Some(confirm.dialog.node().into()),
-            };
-        }
         Command::FocusNode {
             node: self.focused.is_none().then(|| desktop_icons::GROUP.into()),
         }
@@ -1810,50 +1749,11 @@ impl Wm {
         commands
     }
 
-    /// Left and Right in a menu of the menu bar of Explorer go to the
-    /// menu beside it, as on XP. `None` for other keys and menus.
-    fn bar_key(&mut self, key: &str) -> Option<Vec<Command>> {
-        let right = match key {
-            "Right" => true,
-            "Left" => false,
-            _ => return None,
-        };
-        let id = self.bar_menu.clone()?;
-        let (menu, _) = self.context.as_ref()?;
-        if !menu.goes_beside(right) {
-            return None;
-        }
-        let outcome = self
-            .explorers
-            .iter_mut()
-            .find(|e| e.id == id)?
-            .bar_beside(right)?;
-        // The menu goes, and the title of the next one lights up.
-        self.bar_menu = None;
-        let mut commands = self
-            .context
-            .take()
-            .map(|(menu, _)| menu.remove())
-            .unwrap_or_default();
-        commands.extend(self.explorer_outcome(&id, outcome));
-        // The menu beside opens on its first row.
-        commands.extend(self.node_key("Home"));
-        Some(commands)
-    }
-
     fn close_context(&mut self) -> Vec<Command> {
-        let mut commands = Vec::new();
-        // The title of a menu of the menu bar goes dark.
-        if let Some(id) = self.bar_menu.take()
-            && let Some(e) = self.explorers.iter_mut().find(|e| e.id == id)
-        {
-            e.bar_closed();
-            commands.extend(self.redraw_explorer(&id));
-        }
         let Some((menu, _)) = self.context.take() else {
-            return commands;
+            return Vec::new();
         };
-        commands.extend(menu.remove());
+        let mut commands = menu.remove();
         commands.extend(self.menu.hold(&mut self.theme, None));
         // The keyboard goes back to the desktop, when it had it.
         commands.push(self.desktop_keys());
@@ -1875,10 +1775,13 @@ impl Wm {
                     .collect();
                 shown.iter().flat_map(|s| self.minimize(s)).collect()
             }
-            Act::Lock => self.set_taskbar(taskbar::Settings {
-                locked: !self.taskbar.locked,
-                ..self.taskbar
-            }),
+            Act::Lock => {
+                let taskbar = taskbar::Settings {
+                    locked: !self.taskbar.locked,
+                    ..self.taskbar
+                };
+                self.change(json!({ "taskbar": taskbar }))
+            }
             Act::ArrangeByName | Act::ArrangeByType => {
                 self.desk
                     .arrange(&mut self.theme, &mut self.icons, act == Act::ArrangeByType)
@@ -1887,7 +1790,6 @@ impl Wm {
             Act::DesktopProperties => self.open_display_dialog(area),
             Act::TaskbarProperties => self.open_taskbar_dialog(area),
             Act::DateTime => self.open_date_dialog(area),
-            Act::Explore(cmd) => self.explore(cmd),
             Act::Window(sys) => self.act_window(sys),
             Act::Item(item) => self.act_item(item),
             Act::Position(index) => self.with_display(|d| d.set_position(index)),
@@ -1929,7 +1831,7 @@ impl Wm {
             let active = self.is_active(&self.windows[i].surface);
             let w = &mut self.windows[i];
             if let Some(tiles) = &tiles {
-                commands.extend(w.fit(tiles[n], active));
+                commands.push(w.fit(tiles[n], active));
             } else {
                 commands.extend(w.unmaximize(active));
                 w.pos = window::cascade(&mut step, w.outer(), area);
@@ -2008,7 +1910,7 @@ impl Wm {
             .take()
             .is_some_and(|(s, at)| s == surface && now.duration_since(at) < DOUBLE_CLICK);
         if double {
-            return self.close_window(surface);
+            return close(surface);
         }
         self.last_icon = Some((surface.into(), now));
         self.system_below_icon(surface)
@@ -2096,9 +1998,6 @@ impl Wm {
         if self.desk.pressed() {
             return self.desk.drag(&mut self.theme, &mut self.icons, [px, py]);
         }
-        if let Some(commands) = self.drag_explorer([px, py]) {
-            return commands;
-        }
         if let Some(r) = self.resize.as_ref().filter(|r| !r.released) {
             let target = self.resize_target(r, [px, py]);
             if let Some(r) = self.resize.as_mut().filter(|r| r.target != target) {
@@ -2146,7 +2045,7 @@ impl Wm {
             self.release_wobble(&drag.surface);
             #[allow(clippy::cast_possible_truncation)]
             let point = position.map(|p| p.floor() as i32);
-            if !self.bars.iter().any(|b| b.contains(point)) && !self.is_explorer(&drag.surface) {
+            if !self.bars.iter().any(|b| b.contains(point)) {
                 return self.hand_over(&drag.surface);
             }
         }
@@ -2164,9 +2063,6 @@ impl Wm {
         }
         if dialog::Dialog::any_owns(node) {
             return self.release_panel(position);
-        }
-        if let Some(i) = self.explorer_of(node) {
-            return self.release_explorer(i, position);
         }
         if self.desk.pressed() {
             return self.release_icons(position);
@@ -2193,67 +2089,27 @@ impl Wm {
         commands
     }
 
-    /// The release after a press on the desktop: the icons drop on an
-    /// Explorer window or on the Recycle Bin, or into their cells.
+    /// The release after a press on the desktop: icons dropped on a window
+    /// or on the Recycle Bin go back to their places, as XP shows "not
+    /// allowed" there; else they go into their cells.
     fn release_icons(&mut self, position: [f64; 2]) -> Vec<Command> {
         #[allow(clippy::cast_possible_truncation)]
-        let point = position.map(|p| p.floor() as i32);
-        if let Some(commands) = self.drop_target(point).and_then(|t| self.drop_icons(t)) {
+        let [x, y] = position.map(|p| p.floor() as i32);
+        let on_window = self
+            .windows
+            .iter()
+            .filter(|w| w.desktop == self.desktop && w.shown && !w.minimized)
+            .any(|w| {
+                let [wx, wy, ww, wh] = w.rect();
+                (wx..wx + ww).contains(&x) && (wy..wy + wh).contains(&y)
+            });
+        if (on_window || self.desk.on_trash([x, y]))
+            && let Some(commands) = self.desk.drop_out()
+        {
             return commands;
         }
         self.desk
             .release(&mut self.theme, &mut self.icons, position)
-    }
-
-    /// Where a drag of desktop icons that ends at a point drops them: the
-    /// Explorer window there, a folder in it, or the Recycle Bin, on the
-    /// desktop or in a window. `None` for the desktop itself.
-    fn drop_target(&self, [x, y]: [i32; 2]) -> Option<Drop> {
-        let window = self
-            .windows
-            .iter()
-            .rev()
-            .filter(|w| w.desktop == self.desktop && w.shown && !w.minimized)
-            .find(|w| {
-                let [wx, wy, ww, wh] = w.rect();
-                (wx..wx + ww).contains(&x) && (wy..wy + wh).contains(&y)
-            });
-        let Some(window) = window else {
-            return self.desk.on_trash([x, y]).then_some(Drop::Trash);
-        };
-        let id = window.surface.clone();
-        let explorer = self.explorers.iter().find(|e| e.id == id);
-        let [ox, oy] = self.client_origin(&id);
-        Some(drop_on_window(
-            explorer.map(|e| &e.history.current),
-            id,
-            || explorer.map_or(DropAt::Nowhere, |e| e.drop_at([x - ox, y - oy])),
-        ))
-    }
-
-    /// Drops the dragged desktop icons: their files and folders go into a
-    /// folder, moved on the same file system and copied to another one,
-    /// or to the Recycle Bin, as on XP. `None` without a drag.
-    fn drop_icons(&mut self, target: Drop) -> Option<Vec<Command>> {
-        let (paths, mut commands) = self.desk.drop_out()?;
-        match target {
-            // XP asks first, as for Delete.
-            Drop::Trash => commands.extend(self.confirm_trash(paths)),
-            Drop::Nowhere => {}
-            Drop::Folder(id, dir) => {
-                let clashes = drop_files(paths, &dir);
-                // XP asks before it replaces a file, for each file in turn.
-                commands.extend(self.confirm_replace(clashes, dir.clone()));
-                // The window of the folder, and the desktop, show the change.
-                if let Some(e) = self.explorers.iter_mut().find(|e| e.id == id) {
-                    e.command(crate::explorer::Cmd::Refresh);
-                }
-                commands.extend(self.redraw_explorer(&id));
-                commands.extend(self.refresh_icons());
-                commands.extend(self.activate(&id));
-            }
-        }
-        Some(commands)
     }
 
     /// A window dragged out of the work areas of `chora-xp` goes to the
@@ -2302,7 +2158,7 @@ impl Wm {
         let mut commands = window.style(&mut self.theme, active);
         if inside {
             commands.extend(match button {
-                Button::Close => self.close_window(surface),
+                Button::Close => close(surface),
                 Button::Maximize => self.toggle_maximize(surface),
                 Button::Minimize => self.minimize(surface),
             });
@@ -2324,13 +2180,18 @@ impl Wm {
     fn run(&mut self, action: &Action, output: Option<&str>) -> Vec<Command> {
         match action {
             Action::Run(command) => {
+                // choractl run drops the stderr of the app: say it here.
+                // All Programs without desktop files runs the launcher.
+                let program = command.split_whitespace().next().unwrap_or_default();
+                if !session::on_path(program) {
+                    eprintln!("chora-xp: {program:?} is not on PATH, {command:?} does not run");
+                }
                 chora_kit::run(command);
                 Vec::new()
             }
             Action::LogOff => self.open_dialog(Mode::LogOff, output),
             Action::TurnOff => self.open_dialog(Mode::TurnOff, output),
             Action::Set(setting) => self.set(setting, output),
-            Action::Explore(place) => self.open_explorer(place.clone()),
         }
     }
 
@@ -2417,7 +2278,7 @@ impl Wm {
                 .first_sized(&["user-trash-full", "user-trash"], 32),
             walls,
         };
-        let style = self.config.wallpaper.clone();
+        let style = self.settings.value.wallpaper.resolved(&self.theme);
         let mut panel = DisplayDialog::new(style, screen, self.display_tab, area, art);
         let page = panel.page(&mut self.theme);
         let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
@@ -2449,7 +2310,11 @@ impl Wm {
                         let page = panel.page();
                         return panel.dialog.show(&mut self.theme, page);
                     }
-                    display::Effects::Take(toggles) => self.effects.toggles = toggles,
+                    display::Effects::Take(toggles) => {
+                        let mut commands = self.close_panel(i);
+                        commands.extend(self.change(json!({ "effects": toggles })));
+                        return commands;
+                    }
                     display::Effects::Close => {}
                 }
                 return self.close_panel(i);
@@ -2474,8 +2339,8 @@ impl Wm {
                 } else {
                     self.redraw_panel(i)
                 };
-                if style != self.config.wallpaper {
-                    commands.extend(self.set_wallpaper(style));
+                if style != self.settings.value.wallpaper.resolved(&self.theme) {
+                    commands.extend(self.change(json!({ "wallpaper": style })));
                 }
                 let current = self
                     .outputs()
@@ -2545,13 +2410,41 @@ impl Wm {
         commands
     }
 
-    /// Shows a background on every output.
-    fn set_wallpaper(&mut self, style: wallpaper::Style) -> Vec<Command> {
-        self.config.wallpaper = style;
-        self.outputs()
+    /// Changes settings as `settings.set` does: checks them, applies them
+    /// and saves the file. A change that cannot be saved stays applied,
+    /// with a warning.
+    fn change(&mut self, changes: Value) -> Vec<Command> {
+        if let Err(err) = self.settings.set(changes) {
+            eprintln!("chora-xp: {err}");
+            return Vec::new();
+        }
+        let commands = self.configure();
+        if let Err(err) = self.settings.save() {
+            eprintln!("chora-xp: the change applies but is not saved: {err}");
+        }
+        commands
+    }
+
+    /// Applies the settings: draws the wallpaper, the taskbar and the
+    /// menu again.
+    fn configure(&mut self) -> Vec<Command> {
+        let config = self.settings.value.clone();
+        let mut commands: Vec<Command> = self
+            .outputs()
             .iter()
-            .map(|o| wallpaper::update(&mut self.theme, &self.config.wallpaper, o))
-            .collect()
+            .map(|o| wallpaper::update(&mut self.theme, &config.wallpaper, o))
+            .collect();
+        commands.extend(self.set_taskbar(config.taskbar));
+        self.effects.toggles = config.effects;
+        self.desk.terminal.clone_from(&config.terminal);
+        commands.extend(self.close_menu());
+        commands.extend(self.menu.rebuild(
+            &config,
+            apps::load(&config.terminal),
+            &mut self.theme,
+            &mut self.icons,
+        ));
+        commands
     }
 
     /// A double click on the clock of a taskbar opens Date and Time.
@@ -2590,20 +2483,12 @@ impl Wm {
         let Some((i, hit)) = hit else {
             return commands;
         };
-        if let Some(more) = self.answer(i, &hit) {
-            commands.extend(more);
-            return commands;
-        }
         if matches!(self.panels[i], Panel::Display(_) | Panel::Effects(_)) {
             commands.extend(self.click_display(i, &hit));
             return commands;
         }
         let outcome = match (&mut self.panels[i], &hit) {
-            (_, Hit::Close)
-            | (
-                Panel::Confirm(_) | Panel::Display(_) | Panel::Effects(_) | Panel::Properties(_),
-                _,
-            ) => Outcome::Close,
+            (_, Hit::Close) | (Panel::Display(_) | Panel::Effects(_), _) => Outcome::Close,
             (Panel::Taskbar(panel), hit) => panel.click(hit),
             (Panel::Clock(panel), hit) => match panel.click(hit) {
                 Click::Redraw => Outcome::Redraw,
@@ -2629,37 +2514,10 @@ impl Wm {
                 if close {
                     commands.extend(self.close_panel(i));
                 }
-                commands.extend(self.set_taskbar(settings));
+                commands.extend(self.change(json!({ "taskbar": settings })));
             }
         }
         commands
-    }
-
-    /// A click on a question or on Properties: Yes deletes or empties,
-    /// the buttons close. `None` for the other dialogs.
-    fn answer(&mut self, i: usize, hit: &Hit) -> Option<Vec<Command>> {
-        let mut commands = Vec::new();
-        match &self.panels[i] {
-            Panel::Confirm(confirm) => {
-                let then = confirm.then.clone();
-                commands.extend(self.close_panel(i));
-                let yes = ConfirmDialog::yes(hit);
-                commands.extend(match then {
-                    Then::Trash(paths) if yes => self.trash(&paths),
-                    Then::Empty if yes => self.empty_trash(),
-                    Then::Trash(_) | Then::Empty => Vec::new(),
-                    Then::Replace(paths, dir) => self.replace_next(&paths, dir, yes),
-                });
-            }
-            Panel::Properties(_) => {
-                let button = matches!(hit, Hit::Control(n, _) if n == "ok" || n == "cancel");
-                if button || *hit == Hit::Close {
-                    commands.extend(self.close_panel(i));
-                }
-            }
-            _ => return None,
-        }
-        Some(commands)
     }
 
     /// Shows the page of a dialog again.
@@ -2677,7 +2535,7 @@ impl Wm {
                 let page = panel.page(&mut self.theme);
                 panel.dialog.show(&mut self.theme, page)
             }
-            Panel::Confirm(_) | Panel::Effects(_) | Panel::Properties(_) => Vec::new(),
+            Panel::Effects(_) => Vec::new(),
         }
     }
 
@@ -2727,7 +2585,7 @@ impl Wm {
         {
             w.maximize(area);
             let active = self.focused.as_deref() == Some(w.surface.as_str());
-            commands.extend(w.configure(active));
+            commands.push(w.configure(active));
             commands.extend(w.style(&mut self.theme, active));
         }
         commands
@@ -2813,42 +2671,37 @@ impl Wm {
         commands
     }
 
-    /// Opens what an icon stands for: a place in Explorer, a program or
-    /// a file with the program of its type.
+    /// Opens what an icon stands for: a folder in the file manager, a
+    /// program or a file with the program of its type.
     fn open_icon(&mut self, open: desktop_icons::Open) -> Vec<Command> {
-        let place = match open {
-            desktop_icons::Open::Folder(path) => Place::Folder(path),
-            desktop_icons::Open::Computer => Place::Computer,
-            desktop_icons::Open::Trash => Place::Trash,
-            desktop_icons::Open::Run(command) => {
-                chora_kit::run(&command);
-                return Vec::new();
+        let fm = &self.settings.value.file_manager;
+        chora_kit::run(&match open {
+            desktop_icons::Open::Folder(path) => desktop_icons::open_with(fm, &path),
+            desktop_icons::Open::Computer => desktop_icons::open_with(fm, Path::new("/")),
+            desktop_icons::Open::Trash => {
+                desktop_icons::open_with(fm, &desktop_icons::trash_to_open())
             }
-            desktop_icons::Open::File(path) => {
-                chora_kit::run(&desktop_icons::xdg_open(&path));
-                return Vec::new();
-            }
-        };
-        self.open_explorer(place)
+            desktop_icons::Open::Run(command) => command,
+            desktop_icons::Open::File(path) => desktop_icons::xdg_open(&path),
+        });
+        Vec::new()
     }
 
     // The Control Panel of the start menu
 
-    /// The outputs as the core has them.
+    /// The outputs of the plugin as the core has them.
     fn outputs(&mut self) -> Vec<OutputInfo> {
-        self.conn
-            .call("output.list", Value::Null)
-            .unwrap_or_else(|err| {
-                eprintln!("chora-xp: {err}");
-                Vec::new()
-            })
+        self.rt.outputs().unwrap_or_else(|err| {
+            eprintln!("chora-xp: {err}");
+            Vec::new()
+        })
     }
 
     /// The Control Panel for an output, with the current choices.
     fn control_panel(&mut self) -> Vec<apps::Node> {
         let walls = control::wallpapers(&wallpaper::dirs(&self.theme));
-        let current = self.config.wallpaper.file.as_deref();
-        control::menu(current, &walls, self.effects.toggles)
+        let current = self.settings.value.wallpaper.file(&self.theme);
+        control::menu(current.as_deref(), &walls, self.effects.toggles)
     }
 
     /// Changes a setting: the scale of the output of the menu through the
@@ -2863,21 +2716,22 @@ impl Wm {
                 };
                 // The core answers with output.changed, which fits the
                 // taskbar and the wallpaper.
-                if let Err(err) = self.conn.call::<_, Value>("output.configure", params) {
+                if let Err(err) = self.rt.conn.call::<_, Value>("output.configure", params) {
                     eprintln!("chora-xp: {err}");
                 }
                 Vec::new()
             }
             Setting::Wallpaper(file) => {
-                let style = wallpaper::Style {
-                    file: Some(file.clone()),
-                    ..self.config.wallpaper.clone()
+                let style = Wallpaper {
+                    picture: Picture::File(file.clone()),
+                    ..self.settings.value.wallpaper.clone()
                 };
-                self.set_wallpaper(style)
+                self.change(json!({ "wallpaper": style }))
             }
             Setting::Effect(effect) => {
-                self.effects.toggles.flip(*effect);
-                Vec::new()
+                let mut toggles = self.effects.toggles;
+                toggles.flip(*effect);
+                self.change(json!({ "effects": toggles }))
             }
             Setting::Taskbar | Setting::DateTime | Setting::Display => {
                 let area = output
@@ -2905,7 +2759,9 @@ impl Wm {
             return Vec::new();
         };
         let [.., w, h] = bar.area();
-        let suspend = session::on_path("systemctl");
+        let suspend = (self.settings.value.session.stand_by.as_deref())
+            .and_then(|c| c.split_whitespace().next())
+            .is_some_and(session::on_path);
         let dialog = Dialog::new(mode, &bar.output, [w, h], suspend);
         let mut commands = dialog.create(&mut self.theme);
         self.dialog = Some(dialog);
@@ -2993,35 +2849,41 @@ impl Wm {
         }
     }
 
-    /// Does what a button of a dialog says.
+    /// Does what a button of a dialog says: runs the command of the
+    /// settings, or acts on chora-xp without one.
     fn choose(&mut self, choice: Choice) -> Vec<Command> {
         let mut commands = self.close_dialog();
+        let session = self.settings.value.session.clone();
         match choice {
             Choice::LogOff => {
                 self.play(Sound::LogOff);
+                if let Some(command) = session.log_off {
+                    session::run(command);
+                    return commands;
+                }
                 let surfaces: Vec<String> =
                     self.windows.iter().map(|w| w.surface.clone()).collect();
                 for surface in surfaces {
-                    commands.extend(self.close_window(&surface));
+                    commands.extend(close(&surface));
                 }
+                self.done = true;
             }
-            // A thread, since polkit may ask first and the loop must go on.
-            Choice::StandBy => drop(std::thread::spawn(|| {
-                if let Err(err) = std::process::Command::new("systemctl")
-                    .arg("suspend")
-                    .status()
-                {
-                    eprintln!("chora-xp: cannot suspend: {err}");
-                }
-            })),
+            Choice::StandBy => session.stand_by.into_iter().for_each(session::run),
             Choice::TurnOff => {
                 self.play(Sound::ShutDown);
-                self.done = true;
+                match session.turn_off {
+                    Some(command) => session::run(command),
+                    None => self.done = true,
+                }
             }
             Choice::Restart => {
-                commands.extend(self.keep_for_restart());
-                self.done = true;
-                self.restart = true;
+                if let Some(command) = session.restart {
+                    session::run(command);
+                } else {
+                    commands.extend(self.keep_for_restart());
+                    self.done = true;
+                    self.restart = true;
+                }
             }
             Choice::SwitchUser | Choice::Cancel => {}
         }
@@ -3130,20 +2992,16 @@ impl Wm {
     }
 }
 
-/// A settings dialog, or a question.
+/// A settings dialog.
 enum Panel {
     /// Taskbar and Start Menu Properties.
     Taskbar(TaskbarDialog),
     /// Date and Time Properties.
     Clock(DateDialog),
-    /// Confirm File Delete before Empty the Recycle Bin.
-    Confirm(ConfirmDialog),
     /// Display Properties.
     Display(DisplayDialog),
     /// Effects of Display Properties.
     Effects(EffectsDialog),
-    /// Properties of an icon or an entry of the start menu.
-    Properties(PropertiesDialog),
 }
 
 /// What a context menu of an icon or of the start menu acts on.
@@ -3159,10 +3017,8 @@ impl Panel {
         match self {
             Self::Taskbar(panel) => &mut panel.dialog,
             Self::Clock(panel) => &mut panel.dialog,
-            Self::Confirm(panel) => &mut panel.dialog,
             Self::Display(panel) => &mut panel.dialog,
             Self::Effects(panel) => &mut panel.dialog,
-            Self::Properties(panel) => &mut panel.dialog,
         }
     }
 
@@ -3177,21 +3033,8 @@ impl Panel {
         match self {
             Self::Taskbar(panel) => &panel.dialog,
             Self::Clock(panel) => &panel.dialog,
-            Self::Confirm(panel) => &panel.dialog,
             Self::Display(panel) => &panel.dialog,
             Self::Effects(panel) => &panel.dialog,
-            Self::Properties(panel) => &panel.dialog,
-        }
-    }
-}
-
-impl Wm {
-    /// Asks a client to close its window, or closes an Explorer window.
-    fn close_window(&mut self, surface: &str) -> Vec<Command> {
-        if self.is_explorer(surface) {
-            self.close_explorer(surface)
-        } else {
-            close(surface)
         }
     }
 }
@@ -3330,48 +3173,6 @@ fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32
     ]
 }
 
-/// Where a drop of desktop icons on a window goes: into the folder of an
-/// Explorer window, or a folder item in it, or to the Recycle Bin. Any
-/// other window, as a client or My Computer, takes nothing, and the
-/// icons go back to their places, so that none hides under the window.
-fn drop_on_window(place: Option<&Place>, id: String, at: impl FnOnce() -> DropAt) -> Drop {
-    match place {
-        Some(Place::Trash) => Drop::Trash,
-        Some(Place::Folder(dir)) => match at() {
-            DropAt::Window => Drop::Folder(id, dir.clone()),
-            DropAt::Folder(dir) => Drop::Folder(id, dir),
-            DropAt::Nowhere => Drop::Nowhere,
-        },
-        Some(Place::Computer) | None => Drop::Nowhere,
-    }
-}
-
-/// Drops files and folders into a folder. Returns the files whose name
-/// the folder has as a file already, for Confirm File Replace; a folder
-/// on either side of a name stays, with a line in the log.
-fn drop_files(paths: Vec<PathBuf>, dir: &Path) -> Vec<PathBuf> {
-    let mut clashes = Vec::new();
-    for path in paths {
-        match folder::drop_into(&path, dir) {
-            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
-                let there = dir.join(path.file_name().unwrap_or_default());
-                if path.is_dir() || there.is_dir() {
-                    eprintln!(
-                        "chora-xp: drop {}: {} has a folder or file of the name; both stay",
-                        path.display(),
-                        dir.display()
-                    );
-                } else {
-                    clashes.push(path);
-                }
-            }
-            Err(err) => eprintln!("chora-xp: drop {}: {err}", path.display()),
-            Ok(_) => {}
-        }
-    }
-    clashes
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3433,29 +3234,6 @@ mod tests {
         assert!(takes(None));
         assert!(takes(Some("xp")));
         assert!(!takes(Some("tiling")));
-    }
-
-    #[test]
-    fn icons_dropped_on_a_window_without_a_folder_go_back() {
-        let at = || DropAt::Window;
-        assert!(matches!(
-            drop_on_window(None, "s1".into(), at),
-            Drop::Nowhere
-        ));
-        let computer = Place::Computer;
-        assert!(matches!(
-            drop_on_window(Some(&computer), "e".into(), at),
-            Drop::Nowhere
-        ));
-        assert!(matches!(
-            drop_on_window(Some(&Place::Trash), "e".into(), at),
-            Drop::Trash
-        ));
-        let docs = Place::Folder("/d".into());
-        assert!(matches!(
-            drop_on_window(Some(&docs), "e".into(), at),
-            Drop::Folder(id, dir) if id == "e" && dir == Path::new("/d")
-        ));
     }
 
     #[test]

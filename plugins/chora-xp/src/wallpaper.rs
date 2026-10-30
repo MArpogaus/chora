@@ -6,7 +6,10 @@ use std::path::{Path, PathBuf};
 
 use chora_scene::{Command, InputMode, NodeKind, OutputInfo, PropsUpdate, Transform};
 
-use crate::theme::{Fit, Picture, Rect, Theme};
+use crate::{
+    config::Wallpaper,
+    theme::{Fit, Picture, Rect, Theme},
+};
 
 /// XP's blue of the desktop, behind a centered picture or without one.
 pub const DESKTOP_BLUE: [u8; 3] = [0x00, 0x4E, 0x98];
@@ -14,7 +17,18 @@ pub const DESKTOP_BLUE: [u8; 3] = [0x00, 0x4E, 0x98];
 /// How the picture fills the screen: XP's Center, Tile and Stretch, and
 /// Fill of later Windows, which covers the screen without distortion and
 /// cuts the overflow.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum Position {
     /// At its own size in the middle, on the color of the desktop.
     Center,
@@ -38,29 +52,6 @@ impl Position {
             Self::Tile => "Tile",
             Self::Stretch => "Stretch",
             Self::Fill => "Fill",
-        }
-    }
-}
-
-/// The background of the desktop.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Style {
-    /// The picture, or none: XP's (None).
-    pub file: Option<PathBuf>,
-    /// How it fills the screen.
-    pub position: Position,
-    /// The color around a centered picture, and of the desktop without
-    /// one.
-    pub color: [u8; 3],
-}
-
-impl Style {
-    /// A picture filling the screen, on XP's blue.
-    pub fn new(file: PathBuf) -> Self {
-        Self {
-            file: Some(file),
-            position: Position::default(),
-            color: DESKTOP_BLUE,
         }
     }
 }
@@ -94,12 +85,12 @@ fn scale(n: i32, by: i32, of: i32) -> i32 {
 /// The desktop of a screen of a size, drawn into a picture of another
 /// size: the wallpaper itself, or its preview in Display Properties.
 #[allow(clippy::many_single_char_names)] // coordinates and colors
-pub fn picture(theme: &Theme, style: &Style, screen: [i32; 2], [w, h]: [i32; 2]) -> Picture {
+pub fn picture(theme: &Theme, style: &Wallpaper, screen: [i32; 2], [w, h]: [i32; 2]) -> Picture {
     let [r, g, b] = style.color;
     let picture = Picture::new(w, h).svg(format!(
         r#"<rect width="{w}" height="{h}" fill="rgb({r},{g},{b})"/>"#
     ));
-    let Some(file) = &style.file else {
+    let Some(file) = &style.file(theme) else {
         return picture;
     };
     let Some(size) = theme.image_size(file) else {
@@ -128,7 +119,12 @@ pub fn owns(node: &str) -> bool {
 }
 
 /// Creates the wallpaper of an output.
-pub fn create(theme: &mut Theme, style: &Style, output: &OutputInfo, parent: &str) -> Vec<Command> {
+pub fn create(
+    theme: &mut Theme,
+    style: &Wallpaper,
+    output: &OutputInfo,
+    parent: &str,
+) -> Vec<Command> {
     vec![
         Command::Create {
             id: id(&output.name),
@@ -144,7 +140,7 @@ pub fn create(theme: &mut Theme, style: &Style, output: &OutputInfo, parent: &st
 }
 
 /// Draws the desktop over the work area of its output.
-pub fn update(theme: &mut Theme, style: &Style, output: &OutputInfo) -> Command {
+pub fn update(theme: &mut Theme, style: &Wallpaper, output: &OutputInfo) -> Command {
     // Where the default camera shows it, so that a camera move keeps it
     // in place in the scene.
     let [x, y, w, h] = output.layout_area();

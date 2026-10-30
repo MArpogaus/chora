@@ -67,9 +67,16 @@ impl Cursors {
     }
 }
 
+/// The most bytes of a cursor file: a theme in the home directory may
+/// name any file.
+const MAX_FILE: u64 = 16 << 20;
+
 /// The first image of the nearest size; animations show their first frame.
 fn load(theme: &CursorTheme, name: &str, size: u32) -> Option<CursorImage> {
-    let data = std::fs::read(theme.load_icon(name)?).ok()?;
+    let path = theme.load_icon(name)?;
+    let (file, _) = crate::images::open_file(path.to_str()?, MAX_FILE).ok()?;
+    let mut data = Vec::new();
+    std::io::Read::read_to_end(&mut std::io::Read::take(file, MAX_FILE), &mut data).ok()?;
     let images = parse_xcursor(&data)?;
     let image = images.iter().min_by_key(|i| i.size.abs_diff(size))?;
     let int = |v: u32| i32::try_from(v).ok();

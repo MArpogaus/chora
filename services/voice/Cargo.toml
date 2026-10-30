@@ -1,0 +1,36 @@
+[[bin]]
+name = "chora-voice"
+path = "src/main.rs"
+
+[dependencies]
+base64.workspace = true
+chora-kit.workspace = true
+chora-scene.workspace = true
+clap.workspace = true
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+# No TLS: the LLM is on the local network.
+reqwest = { version = "0.13", default-features = false, features = ["stream"] }
+rmcp = { workspace = true, features = ["client", "transport-child-process"] }
+schemars.workspace = true
+serde.workspace = true
+serde-saphyr.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["net", "process"] }
+# No TLS: the servers are on the local network.
+tokio-tungstenite = "0.28"
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tract-onnx = "0.22"
+
+[lints]
+workspace = true
+
+[package]
+description = "The voice agent of chora: microphone, speech gate, ASR, LLM with tools, TTS"
+edition.workspace = true
+license.workspace = true
+name = "chora-voice"
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true

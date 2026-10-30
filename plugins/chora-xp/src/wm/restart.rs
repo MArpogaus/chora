@@ -2,7 +2,8 @@
 //! grace time. Before Restart, `chora-xp` writes its model into the
 //! `meta` of its nodes. The root group keeps the current desktop. The
 //! group of each window keeps its frame, desktop, frame before
-//! maximizing, stacking and Explorer place. The new instance reads it,
+//! maximizing and stacking, and its opacity and effects stay in its
+//! props. The new instance reads it,
 //! removes the kept nodes, builds its scene again and puts the windows
 //! back.
 
@@ -11,11 +12,11 @@ use std::collections::BTreeMap;
 use chora_scene::{Command, Node, NodeKind, PropsUpdate, ipc::ClientError};
 use serde::{Deserialize, Serialize};
 
-use super::{Bar, NAME, Wm};
-use crate::{decoration, folder::Place, theme::Rect};
+use super::{NAME, Wm};
+use crate::{decoration, theme::Rect};
 
 /// The key of the meta.
-const KEY: &str = "xp";
+pub(super) const KEY: &str = "xp";
 
 /// A window before the restart.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -32,8 +33,10 @@ pub(super) struct KeptWindow {
     pub opened: usize,
     /// The window is minimized.
     pub minimized: bool,
-    /// The place of an Explorer window.
-    pub place: Option<Place>,
+    /// The opacity and the effects of the group, from its props: what
+    /// other clients asked for (D58).
+    #[serde(skip)]
+    pub look: PropsUpdate,
 }
 
 /// A value as the meta of a node.
@@ -70,11 +73,7 @@ impl Wm {
                     .position(|s| *s == w.surface)
                     .unwrap_or(usize::MAX),
                 minimized: w.minimized,
-                place: self
-                    .explorers
-                    .iter()
-                    .find(|e| e.id == w.surface)
-                    .map(|e| e.history.current.clone()),
+                look: PropsUpdate::default(),
             };
             commands.push(Command::Update {
                 id: decoration::group_id(&w.surface),
@@ -94,7 +93,7 @@ impl Wm {
     /// Removes the nodes of the plugin that sit on nodes of others, the
     /// roots of its trees.
     fn remove_scene(&mut self) -> Result<Vec<Command>, ClientError> {
-        let nodes = self.conn.query(&format!("owner:{NAME}"))?;
+        let nodes = self.rt.conn.query(&format!("owner:{NAME}"))?;
         let owned = |id: &str| nodes.iter().any(|n| n.id == id);
         Ok(nodes
             .iter()
@@ -109,24 +108,24 @@ impl Wm {
     /// Reads the windows that a restart kept into `kept`, and removes the
     /// kept nodes, whose surfaces the new scene adopts. Sets the current
     /// desktop. Nodes without the meta of Restart, as after a crash, go
-    /// too. Returns the Explorer windows to open again, and whether the
-    /// root group is still there: it holds the claim of the plugin, so
-    /// it goes only with the creation of the new one.
-    pub(super) fn take_kept(&mut self) -> Result<(Vec<KeptWindow>, bool), ClientError> {
-        let nodes = self.conn.query(&format!("owner:{NAME}"))?;
+    /// too. Returns whether the root group is still there: it holds the
+    /// claim of the plugin, so it goes only with the creation of the new
+    /// one.
+    pub(super) fn take_kept(&mut self) -> Result<bool, ClientError> {
+        let nodes = self.rt.conn.query(&format!("owner:{NAME}"))?;
         if let Some(desktop) = nodes.iter().find(|n| n.id == NAME).and_then(read) {
             self.desktop = desktop;
         }
-        let mut explorers = Vec::new();
         for node in &nodes {
-            let (Some(surface), Some(kept)) = (decoration::surface_of(&node.id), read(node)) else {
-                continue;
-            };
-            match kept {
-                KeptWindow { place: Some(_), .. } => explorers.push(kept),
-                kept => {
-                    self.kept.insert(surface.into(), kept);
-                }
+            if let (Some(surface), Some(mut kept)) =
+                (decoration::surface_of(&node.id), read::<KeptWindow>(node))
+            {
+                kept.look = PropsUpdate {
+                    opacity: Some(node.props.opacity),
+                    effects: Some(node.props.effects.clone()),
+                    ..PropsUpdate::default()
+                };
+                self.kept.insert(surface.into(), kept);
             }
         }
         // The surfaces stay reserved for chora-xp, so that no other window
@@ -146,35 +145,7 @@ impl Wm {
                 .filter(|c| !matches!(c, Command::Remove { id, .. } if id == NAME)),
         );
         self.apply(commands)?;
-        Ok((explorers, old_root))
-    }
-
-    /// Opens a kept Explorer window again where it was: its frame, its
-    /// desktop, its maximized state.
-    pub(super) fn reopen(&mut self, k: KeptWindow) -> Vec<Command> {
-        let Some(place) = k.place else {
-            return Vec::new();
-        };
-        let current = std::mem::replace(&mut self.desktop, k.desktop);
-        let mut commands = self.open_explorer(place);
-        self.desktop = current;
-        let Some(i) = self.explorers.last().and_then(|e| self.index(&e.id)) else {
-            return commands;
-        };
-        let active = self.is_active(&self.windows[i].surface);
-        let area = self.bars.first().map(Bar::usable);
-        let w = &mut self.windows[i];
-        match (k.restore, area) {
-            (Some(restore), Some(area)) => {
-                w.restore = Some(restore);
-                w.maximize(area);
-            }
-            _ => commands.extend(w.fit(k.frame, active)),
-        }
-        w.minimized = k.minimized;
-        commands.extend(w.style(&mut self.theme, active));
-        commands.push(w.place());
-        commands
+        Ok(old_root)
     }
 }
 
@@ -191,7 +162,7 @@ mod tests {
             z: 2,
             opened: 1,
             minimized: true,
-            place: Some(Place::Trash),
+            look: PropsUpdate::default(),
         };
         let meta = meta(&kept).meta.expect("meta");
         assert_eq!(

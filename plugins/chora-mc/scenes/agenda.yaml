@@ -1,0 +1,7 @@
+# The day plan: one column of text, the times in the margin. The
+# collector collectors/agenda.sh fills the panel today with panel.set.
+chapter:
+  title: Agenda
+panels:
+- id: today
+  cell: [0, 0, 1, 1]

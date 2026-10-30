@@ -31,7 +31,10 @@ The nodes form a tree under `root`, which the cameras show. Each output
 has a second root, `screen:NAME`, for example `screen:DP-1` (D43). Its
 nodes stay fixed to the screen: they sit in the logical coordinates of the
 output, without its camera, above the scene and below the top and overlay
-layers of layer shell. A HUD or a progress bar goes there, also during an
+layers of layer shell. The tree is at most 64 levels deep below a root:
+a `create`, `attach` or `move` that puts a node, or the subtree of a
+moved node, deeper fails with code 6 and the transaction changes
+nothing. A HUD or a progress bar goes there, also during an
 animated camera move. The nodes under `screen:NAME` work as all others,
 with input, effects and ownership. The overlay root stays when its output
 goes, with its nodes, for the return of the output; the emergency reset
@@ -62,6 +65,7 @@ This table is the one list of node properties.
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch |
 | `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, at most 4 |
 | `text`, `family`, `font_size`, `max_width` | text | `text`: UTF-8, needed at `create`, at most 4 KiB; `family`: a font family, at most 4 KiB, a system font without it; `font_size`: logical pixels, from 1 to 1024; `max_width`: the width at which lines wrap, and nothing else; a text node has no `size`, it sizes itself by its layout, so it is never a layer: rotated, mirrored or projected outside a layer, it draws nothing, so put it in a group with a `size` and a `clip`; the core draws it in `color`, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale, and 256 MiB for all text nodes together; a raster beyond the second limit draws nothing until its node changes; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale |
+| `line_height`, `weight`, `style`, `letter_spacing`, `features` | text | `line_height`: the distance of the lines as a multiple of the font size, from 0.5 to 10, 1.2 by default; `weight`: from 1 to 1000, 400 normal, 700 bold, the nearest face of the family; `style`: `normal` or `italic`, slanted when the family has no italic; `letter_spacing`: extra space after each character in em, from -1 to 1, also after the last one; `features`: at most 32 OpenType features by their tag of four ASCII characters and their value, for example `{"smcp": 1, "onum": 1}` for small caps and old-style figures; a feature that the font lacks changes nothing; an update of `features` replaces all |
 
 A surface node gets its size from its client. The `configure` command asks
 the client for a new size.
@@ -138,7 +142,7 @@ path.
 |---------|---------|
 | `create` | create a group, rect, image, shader or text node under a parent |
 | `attach` | put a surface without an owner under a parent; the caller becomes its owner |
-| `update` | change node properties |
+| `update` | change node properties. An update of only opacity, effects and meta of a node of another client answers with `node.requested` to its owner (D58), if the owner subscribes to `node.requested`; else it fails as other changes of a foreign node do, so the change is not lost unseen. An update that mixes other props with them fails with an error that names the other props. A confined client socket may send this request too. |
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
 | `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection (D55). |
@@ -159,7 +163,22 @@ path.
 The core moves `transform`, `opacity`, `size` and `color` toward the
 targets along the curve: `linear` (the default), `ease_in`, `ease_out` or
 `ease_in_out`. The other properties change at the end, so this example
-fades the node out and then hides it. The duration is in milliseconds, at
+fades the node out and then hides it.
+
+`effects` in `animate` is the full list of the end. An effect of the
+list that has the same index and the same `shader` as the effect of the
+node now moves its numeric uniforms, a number or 2 to 4 numbers, toward
+the targets. All other changes, a new shader, a new uniform or a list of
+another length, come at the end. So a shader with a uniform `progress`
+runs from 0 to 1:
+
+<!-- parses: commands -->
+```yaml
+- update: {id: title, props: {effects: [{shader: /home/me/write.frag, uniforms: {progress: 0}}]}}
+- animate: {id: title, props: {effects: [{shader: /home/me/write.frag, uniforms: {progress: 1}}]}, duration: 900}
+```
+
+The duration is in milliseconds, at
 most one minute. A later `animate` or `update` of the node ends the
 animation where it is. The end sends `animation.done`.
 
@@ -273,7 +292,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`. When `to` disconnects, the surface is free again, and all clients get `surface.detached`. With `resume`, this occurs at the end of the grace time. |
 | `focus.changed` | the focused surface changed, by a `focus` of a client or by the core: `surface`, or `null`. Window managers draw their frames from it (D55). |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
-| `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize` and `close`, with the arguments of the command. Only the owner of the node gets it, and decides by doing the change or not (D31). Other changes of a foreign node stay refused. |
+| `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize`, `close` and `update`, with the arguments of the command; the arguments of `update` are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An `update` of an owner that does not subscribe to `node.requested` fails with the error `belongs to`. Other changes of a foreign node stay refused. |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up (see [IPC methods](#ipc-methods)) |
 | `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; only to the connection of the grab |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
@@ -300,12 +319,33 @@ skips tells the client that it missed an event, so it queries again. After
 a reconnect a client works from the new snapshot and forgets the old
 numbers.
 
-The response of `scene.apply` reports the result of a transaction: `null`
-when it applied, an error with the index of the failed command when not.
+The response of `scene.apply` reports the result of a transaction. When
+the transaction applied, the result is `{"warnings": [...]}`. When it did
+not apply, the response is an error with the index of the failed command.
+A warning does not stop the transaction. It tells the client that a
+command applied but does not give the result that the client probably
+expects (D59). Each warning has a stable `code`, the `node` and a short
+`message`:
+
+```json
+{"warnings": [{"code": "deaf_surface", "node": "s1",
+               "message": "an ancestor has input pass or block, so the surface gets no pointer input"}]}
+```
+
+| Code | Cause |
+|------|-------|
+| `deaf_surface` | an `attach` or a `move` puts a surface under an ancestor with `input: pass` or `block`; the surface gets no pointer input |
+| `layer_over_budget` | after a `create`, `update`, `animate`, `attach` or `move`, the layer textures of a layer node and its descendants need more pixels than the budget of one frame on every output; the core counts them at the smallest scale of the outputs. The node is the named node or its outermost layer ancestor that passes the budget, so a child added under a big layer warns for that layer. No frame draws the node |
+
+The pixel budget of a frame is 64 Mi pixels. The layers that do not fit
+into a frame because of other layers are no warning: the event
+`layers.dropped` tells them when the frame shows.
+
 `choractl apply FILE` reads one list of commands as JSON, from standard
-input when the file is `-`; it prints nothing when it applied and the
-reason when not, so the exit code is the answer. Only the `view`
-subcommand reads YAML.
+input when the file is `-`. It prints nothing when it applied and the
+reason when not, so the exit code is the answer. It prints each warning
+on standard error and exits with success. Only the `view` subcommand
+reads YAML.
 A request that a client makes before its `surface.created` follows
 that event. A taskbar asks through `wlr-foreign-toplevel-management`.
 The core does not act on a request, also not on `close`. A plugin answers
@@ -366,12 +406,12 @@ answers every request.
 | `scene.query(selector, filter)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused |
-| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; `Ctrl+Alt` with a key of the safety layer stays refused either way; returns the binding as `input.key` and `input.button` name it |
+| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke capabilities for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. For a name of the main socket, `methods.call` changes nothing, and `activation.token` only opens the MCP tool `run_program`. |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke capabilities for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. For a name of the main socket, `methods.call`, `session.quit` and `methods.privileged` change nothing, and `activation.token` only opens the MCP tool `run_program`. |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
@@ -380,8 +420,9 @@ answers every request.
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.list` | list the methods that clients exported, each with its description and input schema |
-| `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call` |
+| `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call`, and for a privileged method, such as `settings.set`, `settings.reload` or one that the export marks `privileged`, also `methods.privileged` |
 | `methods.return(call, result, error)` | answer a `method.called` event |
+| `session.quit` | end chora as Ctrl+Alt+Backspace does, after the answer; a client socket needs the capability `session.quit`, the main socket may always; `choractl quit` calls it |
 | `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability `activation.token` |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
@@ -574,8 +615,8 @@ socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that [Client sockets](#client-sockets) lists.
 `choractl mcp` offers no tool for grants. On the main socket,
-`activation.token` opens the MCP tool `run_program`, and `methods.call`
-changes nothing.
+`activation.token` opens the MCP tool `run_program`, and `methods.call`,
+`session.quit` and `methods.privileged` change nothing.
 
 ## Client sockets
 
@@ -618,9 +659,15 @@ in. `choractl clients create agent` prints its path:
   drives the session as far as they reach.
 - `grants.set` and `grants.revoke` answer code 9 for the name: change
   `clients.yaml` and run `choractl clients up`.
-- `methods.call` needs the capability `methods.call`, and
-  `activation.token` the capability `activation.token`. Without them
-  both answer code 4. The main socket needs neither. A token of
+- `methods.call` needs the capability `methods.call`,
+  `activation.token` the capability `activation.token` and
+  `session.quit` the capability `session.quit`. A `methods.call` of a
+  privileged method also needs `methods.privileged`: `settings.set` and
+  `settings.reload` of any client, because plugin settings hold commands
+  that the plugin runs and paths that it reads, and each method that its
+  export marks `"privileged": true`, such as `app.open` of `chora-mc`. Without them they answer code 4. The main
+  socket needs none of them. So a confined agent cannot end chora or
+  change the settings of a plugin by default. A token of
   `activation.token` belongs to no client. Any window that activates
   with it takes the focus without a press, also a window of the client
   itself. With `methods.call`, a client can also ask a window manager for
@@ -699,8 +746,11 @@ plugins running.
 
 `choractl run [--] CMD ARGS...` starts a program outside the core. It
 asks the core for an activation token with `activation.token` and
-passes it to the program in `XDG_ACTIVATION_TOKEN`. It prints the pid,
-the unit and the token as one JSON line while the program runs.
+passes it to the program in `XDG_ACTIVATION_TOKEN`, and in
+`DESKTOP_STARTUP_ID` for GTK 3. The children of the program inherit
+both variables unless the program removes them, as GTK does after it
+read the token. It prints the pid, the unit and the token as one
+JSON line while the program runs.
 
 - When `systemctl --user is-system-running` shows a state other than
   `offline`, a user manager runs. `systemd-run --user` then starts the
@@ -866,9 +916,13 @@ plugin answers with `methods.return`: the same `call` and a `result`, or an
 caller. The `Client` of `chora-scene` answers with `Client::answer`.
 
 Each entry of `methods.export` is a plain name, or an object with `name`,
-`description` and `input_schema`. `methods.list` answers every exported
+`description`, `input_schema` and `privileged`. A method that runs a
+command or writes a file sets `"privileged": true`: a caller on a client
+socket then needs the capability `methods.privileged` besides
+`methods.call`. `settings.set` and `settings.reload` are always
+privileged. `methods.list` answers every exported
 method as `{"client", "name", "description", "input_schema"}`, with `null`
-for a plain export. The core passes description and schema through
+for a plain export, and `"privileged": true` for a privileged one. The core passes description and schema through
 unchanged, and `chora-tiling` gives one to each of its methods.
 
 - A method name has at most 64 characters: lowercase letters, digits, `_`,
@@ -887,6 +941,47 @@ lists all of its methods:
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
 | `give` | `to`: a client name | hands the focused window to `to` with a `remove` with `to`, and answers with its surface id |
+
+A plugin with settings exports `settings.get`, `settings.set` and
+`settings.reload` through the runtime of `chora-kit` (D62). `settings.get`
+answers all settings. `settings.reload` reads the file again after an
+edit by hand, applies it and answers all settings; a wrong file gets the
+error `-32602` and changes nothing.
+`settings.set` takes a JSON merge patch (RFC 7386) of the settings: an
+object merges into the current settings key by key, also in nested
+structs and maps, and a list or another value replaces its value, also an
+enum such as the action of a binding. The other
+settings stay. `null` removes the key: a map such as `bindings` loses that
+entry, and a fixed setting takes its default again. So `null` cannot set an
+optional setting such as `session.log_off` to none; the file can. The
+plugin checks the result, applies it at once and then saves it in its YAML
+file in `$XDG_CONFIG_HOME/chora/`: it writes a new file of mode 0600
+next to it and renames it over the old one. A symlink there stays, and
+the file that it points to gets the settings. `settings.set` answers all
+settings. A
+wrong value gets the error `-32602` and changes nothing. A change that the
+plugin cannot apply is taken back and not saved, also by `settings.reload`. A change that the plugin cannot save
+stays applied until the next start, and the caller gets the error.
+In `methods.list`, the schema of `settings.set` lists every setting.
+On a client socket, `settings.set` and `settings.reload` need the
+capability `methods.privileged` besides `methods.call`.
+
+```console
+$ choractl call tiling settings.set '{"style": {"opacity": 0.9}}'
+$ choractl call tiling settings.set '{"bindings": {"MOD+u": null}}'
+$ choractl call tiling settings.reload
+```
+
+`chora-xp` exports `start_menu`, `minimize`, `restore`, `activate`,
+`turn_to` and `restart`, and its settings: the wallpaper, the taskbar, the
+effects, the programs of the start menu and the commands of Log Off and
+Turn Off. [The XP flavor](configuration.md#the-xp-flavor) lists them.
+Its dialogs change the settings in the same way as `settings.set`. The
+method `restart` runs `chora-xp` again, which also reads the file again:
+
+```console
+$ choractl call xp settings.set '{"effects": {"wobbly": false, "sounds": false}}'
+```
 
 ## Plugins
 
@@ -922,12 +1017,16 @@ example in the `.mcp.json` of Claude Code:
 {"mcpServers": {"chora": {"command": "choractl", "args": ["--name", "agent", "mcp"]}}}
 ```
 
+`choractl mcp` connects with `keep_nodes`, so the nodes of the agent stay
+after the server stops. After a restart, the agent removes its own old
+nodes that it does not need (D61).
+
 | Tool | Purpose |
 |------|---------|
 | `describe_screen` | a screenshot of an output, at most 1280 pixels a side by default, and in words: the outputs, the windows with their positions in scene coordinates and sizes, and the plugins with their methods |
 | `capture` | a picture of an output or of a node, as `screen.capture`, at most 1920 pixels a side by default |
 | `query_scene` | the nodes of a selector |
-| `apply_commands` | a transaction |
+| `apply_commands` | a transaction; the answer is `applied`, and the warnings of `scene.apply` as JSON when there are some |
 | `list_plugins` | the connected clients and their methods |
 | `call_method` | a method of a plugin, for example `tiling.set_layout` |
 | `inject_input` | synthetic input, as `input.inject` |
@@ -936,7 +1035,7 @@ example in the `.mcp.json` of Claude Code:
 | `reserve_space` | space at the edges of an output, as `output.reserve`, while the server runs |
 | `configure_output` | the scale or the transform of an output, as `output.configure` |
 | `put_asset` | a file for image nodes, shader nodes and effects, as `assets.put`: `name`, and `text` for a shader or `base64` for a PNG; returns the path |
-| `subscribe_events` | start to collect events, and grab keys and buttons; `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the current subscription |
+| `subscribe_events` | start to collect events, and grab keys and buttons; `events` and `keys` as in `events.subscribe` and `input.grab`; replaces the current subscription, which stays if the new one fails |
 | `wait_events` | the collected events: waits up to `timeout_ms` (5000 by default, at most 30000) for the first one, and returns at most `max` (50 by default, at most 500, 0 takes nothing) |
 
 The input schemas of `apply_commands` and `inject_input` come from the
@@ -950,7 +1049,8 @@ the grants of the client name, for example
 `choractl grant agent screen.capture`. Without a grant, `describe_screen`
 still describes the scene. No tool grants anything (D40). On a client
 socket, `call_method` and the tools of plugin methods need the capability
-`methods.call`. `run_program` needs the grant `activation.token` on
+`methods.call`, and privileged methods, such as `settings.set` and
+`settings.reload`, also `methods.privileged`. `run_program` needs the grant `activation.token` on
 every socket, because a started program can do all that the user can.
 On the main socket, `choractl grant agent activation.token` gives it; a
 client socket lists it in `clients.yaml`. The program starts where the

@@ -5,12 +5,16 @@
 //! the layout size and, per physical scale, the raster. A changed prop
 //! lays out again; a new scale rasterizes again.
 
-use std::{collections::HashMap, sync::Mutex, thread::JoinHandle};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Mutex,
+    thread::JoinHandle,
+};
 
-use chora_scene::Node;
+use chora_scene::{FontStyle, Node};
 use cosmic_text::{
-    Attrs, Buffer, CacheKey, CacheKeyFlags, Family, FontSystem, Metrics, Shaping, SwashCache,
-    SwashContent, SwashImage, fallback::FontFallbackIter,
+    Attrs, Buffer, CacheKey, CacheKeyFlags, Family, FeatureTag, FontFeatures, FontSystem, Metrics,
+    Shaping, Style, SwashCache, SwashContent, SwashImage, Weight, fallback::FontFallbackIter,
 };
 use smithay::{
     backend::{
@@ -29,7 +33,7 @@ use crate::{images::Placement, mesh::MeshRenderer, render::SceneElement};
 /// The font size of a text node without `font_size`, in logical pixels.
 const FONT_SIZE: f64 = 16.0;
 /// The line height as a multiple of the font size.
-const LINE_HEIGHT: f32 = 1.2;
+const LINE_HEIGHT: f64 = 1.2;
 /// The largest raster of a text node, in bytes, per physical scale;
 /// a raster beyond it yields no size and no draw at that scale.
 const MAX_RASTER_BYTES: usize = 16 * 1024 * 1024;
@@ -40,7 +44,19 @@ const MAX_TOTAL_BYTES: usize = 256 * 1024 * 1024;
 const MAX_SCALES: usize = 4;
 
 /// The props a layout depends on.
-type Key = (String, Option<String>, f64, Option<f64>, Option<[f64; 4]>);
+#[derive(Clone, PartialEq)]
+struct Key {
+    text: String,
+    family: Option<String>,
+    font_size: f64,
+    max_width: Option<f64>,
+    color: Option<[f64; 4]>,
+    line_height: f64,
+    weight: Option<u16>,
+    style: Option<FontStyle>,
+    letter_spacing: Option<f64>,
+    features: BTreeMap<String, u32>,
+}
 
 /// The layouts and rasters of the text nodes, by node id.
 #[derive(Default)]
@@ -186,13 +202,47 @@ impl Texts {
 /// The props a layout depends on; `None` for a node without text.
 fn props_key(node: &Node) -> Option<Key> {
     let props = &node.props;
-    Some((
-        props.text.clone()?,
-        props.family.clone(),
-        props.font_size.unwrap_or(FONT_SIZE),
-        props.max_width,
-        props.color,
-    ))
+    Some(Key {
+        text: props.text.clone()?,
+        family: props.family.clone(),
+        font_size: props.font_size.unwrap_or(FONT_SIZE),
+        max_width: props.max_width,
+        color: props.color,
+        line_height: props.line_height.unwrap_or(LINE_HEIGHT),
+        weight: props.weight,
+        style: props.style,
+        letter_spacing: props.letter_spacing,
+        features: props.features.clone(),
+    })
+}
+
+/// The attributes cosmic-text shapes a key with.
+#[allow(clippy::cast_possible_truncation)] // a letter spacing within 1 em
+fn attrs(key: &Key) -> Attrs<'_> {
+    let mut features = FontFeatures::new();
+    for (tag, value) in &key.features {
+        // The scene checks for four bytes.
+        if let Ok(tag) = <&[u8; 4]>::try_from(tag.as_bytes()) {
+            features.set(FeatureTag::new(tag), *value);
+        }
+    }
+    let style = match key.style {
+        Some(FontStyle::Italic) => Style::Italic,
+        _ => Style::Normal,
+    };
+    let family = key
+        .family
+        .as_deref()
+        .map_or(Family::SansSerif, Family::Name);
+    let attrs = Attrs::new()
+        .family(family)
+        .weight(key.weight.map_or(Weight::NORMAL, Weight))
+        .style(style)
+        .font_features(features);
+    match key.letter_spacing {
+        Some(spacing) => attrs.letter_spacing(spacing as f32),
+        None => attrs,
+    }
 }
 
 impl Fonts {
@@ -225,16 +275,15 @@ fn within_limit(w: usize, h: usize) -> bool {
 /// buffer, the layout size in logical pixels and the raster size.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn layout(fonts: &mut Fonts, key: &Key, scale: f32) -> Option<(Buffer, [f64; 2], [f32; 2])> {
-    let (text, family, font_size, max_width, _) = key;
     // Without any font, cosmic-text panics in the shaping.
     if fonts.system.db().is_empty() {
         return None;
     }
-    let size = *font_size as f32 * scale;
-    let attrs = Attrs::new().family(family.as_deref().map_or(Family::SansSerif, Family::Name));
-    let mut buffer = Buffer::new(&mut fonts.system, Metrics::relative(size, LINE_HEIGHT));
-    buffer.set_size(max_width.map(|w| w as f32 * scale), None);
-    buffer.set_text(text, &attrs, Shaping::Advanced, None);
+    let size = key.font_size as f32 * scale;
+    let metrics = Metrics::relative(size, key.line_height as f32);
+    let mut buffer = Buffer::new(&mut fonts.system, metrics);
+    buffer.set_size(key.max_width.map(|w| w as f32 * scale), None);
+    buffer.set_text(&key.text, &attrs(key), Shaping::Advanced, None);
     buffer.shape_until_scroll(&mut fonts.system, false);
     let mut width = 0.0f32;
     let mut height = 0.0f32;
@@ -284,13 +333,20 @@ fn rasterize(
 /// the raster size.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn paint(fonts: &mut Fonts, key: &Key, scale: f64) -> Option<([f64; 2], [f32; 2], Vec<u8>)> {
-    let color = straight(key.4.as_ref());
+    let color = straight(key.color.as_ref());
     let (buffer, size, [width, height]) = layout(fonts, key, scale as f32)?;
     let (w, h) = (width as usize, height as usize);
     let mut rgba = vec![0; w * h * 4];
-    let blank = paint_runs(fonts, &mut rgba, &buffer, (w, h), key.1.as_deref(), color);
+    let blank = paint_runs(
+        fonts,
+        &mut rgba,
+        &buffer,
+        (w, h),
+        key.family.as_deref(),
+        color,
+    );
     if blank > 0 {
-        tracing::warn!(text = %key.0, blank, "glyphs laid out but drawn by no font");
+        tracing::warn!(text = %key.text, blank, "glyphs laid out but drawn by no font");
     }
     Some((size, [width, height], rgba))
 }
@@ -647,6 +703,54 @@ mod tests {
 
     fn layout_of(node: &chora_scene::Node) -> [f64; 2] {
         Texts::default().size(node).expect("a layout")
+    }
+
+    #[test]
+    fn the_type_props_reach_the_shaping() {
+        let node = text_node(Props {
+            text: Some("Hi".into()),
+            weight: Some(700),
+            style: Some(chora_scene::FontStyle::Italic),
+            letter_spacing: Some(0.1),
+            features: [("smcp".into(), 1)].into(),
+            ..Props::default()
+        });
+        let key = super::props_key(&node).expect("the props of a text node");
+        let attrs = super::attrs(&key);
+        assert_eq!(attrs.weight, cosmic_text::Weight(700));
+        assert_eq!(attrs.style, cosmic_text::Style::Italic);
+        assert_eq!(
+            attrs.letter_spacing_opt,
+            Some(cosmic_text::LetterSpacing(0.1))
+        );
+        let smcp = cosmic_text::Feature {
+            tag: cosmic_text::FeatureTag::SMALL_CAPS,
+            value: 1,
+        };
+        assert_eq!(attrs.font_features.features, vec![smcp]);
+    }
+
+    #[test]
+    fn letter_spacing_and_line_height_grow_the_layout() {
+        if !fonts_present() {
+            println!("SKIP: no fonts for the layout");
+            return;
+        }
+        let plain = text_node(Props {
+            text: Some("one\ntwo".into()),
+            font_size: Some(20.0),
+            ..Props::default()
+        });
+        let [w1, h1] = layout_of(&plain);
+        let spaced = text_node(Props {
+            letter_spacing: Some(0.2),
+            line_height: Some(2.4),
+            ..plain.props.clone()
+        });
+        let [w2, h2] = layout_of(&spaced);
+        // Three letters of 0.2 em of 20 px each.
+        assert!(w2 >= w1 + 11.0, "{w1} to {w2}");
+        assert!((h2 - 2.0 * h1).abs() <= 1.0, "{h1} to {h2}");
     }
 
     #[test]

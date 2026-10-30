@@ -73,8 +73,8 @@ impl Wm {
         self.resize.as_ref().is_some_and(|r| r.pending.is_some())
     }
 
-    /// Asks for the frame that the pointer wants: a configure to a
-    /// client, or the new layout of an Explorer window.
+    /// Asks for the frame that the pointer wants: a configure to the
+    /// client.
     pub(super) fn resize_frame(&mut self) -> Vec<Command> {
         let Some(r) = &mut self.resize else {
             return Vec::new();
@@ -86,22 +86,15 @@ impl Wm {
             return Vec::new();
         };
         let active = self.is_active(&surface);
-        let mut commands = Vec::new();
         match self.windows[i].resize_to(rect, active) {
-            Some(Command::Configure { size, .. }) if size == self.resize_asked() => {}
-            Some(configure) => {
+            Command::Configure { size, .. } if size == self.resize_asked() => Vec::new(),
+            configure => {
                 if let (Some(r), Command::Configure { size, .. }) = (&mut self.resize, &configure) {
                     r.asked = *size;
                 }
-                commands.push(configure);
-            }
-            // A window of the plugin takes its frame at once.
-            None => {
-                commands.extend(self.windows[i].style(&mut self.theme, active));
-                commands.extend(self.relayout_explorers());
+                vec![configure]
             }
         }
-        commands
     }
 
     fn resize_asked(&self) -> Option<[i32; 2]> {

@@ -1,13 +1,16 @@
 [dependencies]
 chora-scene.workspace = true
+libc = "0.2"
+schemars.workspace = true
 serde.workspace = true
+serde-saphyr.workspace = true
 serde_json.workspace = true
 
 [lints]
 workspace = true
 
 [package]
-description = "Building blocks for chora plugins: window effects, desktop entries, icons"
+description = "Building blocks for chora plugins: window effects, desktop entries, icons, settings"
 edition.workspace = true
 license.workspace = true
 name = "chora-kit"

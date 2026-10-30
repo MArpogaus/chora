@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """check_grid.py EXPECTED -> exit 1 unless exactly EXPECTED surfaces sit on distinct places."""
-import json, subprocess, sys
-B = "/home/marcel/Projekte/chora/target/debug/choractl"
+import json, os, subprocess, sys
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+B = os.path.join(os.environ.get("BIN", os.path.join(REPO, "target/debug")), "choractl")
 out = subprocess.run([B, "--name", "agent", "query", "app_id:chora-probe kind:surface"],
                      capture_output=True, text=True, timeout=10).stdout
 nodes = json.loads(out[out.index("["):])

@@ -2,13 +2,14 @@
 //! targets over a duration, frame by frame, so that a plugin sends one
 //! command and not one transaction per frame.
 //!
-//! The transform, the opacity, the size, the color and a mesh of the same
-//! grid move along an easing curve. The other properties, for example `visible`, change at the end,
+//! The transform, the opacity, the size, the color, a mesh of the same
+//! grid and the numeric uniforms of effects move along an easing curve.
+//! The other properties, for example `visible`, change at the end,
 //! so that a node can fade out and then hide.
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Mesh, Props, PropsUpdate, Transform};
+use crate::{Mesh, Props, PropsUpdate, ShaderEffect, Transform, Uniform};
 
 /// The longest animation, in milliseconds.
 pub const MAX_DURATION: f64 = 60_000.0;
@@ -93,6 +94,9 @@ impl Animation {
         if let Some(to) = self.to.radius {
             props.radius = lerp(self.from.radius, to);
         }
+        if let Some(to) = &self.to.effects {
+            lerp_uniforms(&mut props.effects, to, e);
+        }
         if let (Some(from), Some(to)) = (&self.from.mesh, &self.to.mesh)
             && (from.cols, from.rows) == (to.cols, to.rows)
             && from.points.len() == to.points.len()
@@ -113,6 +117,27 @@ impl Animation {
             });
         }
         props
+    }
+}
+
+/// Moves the numeric uniforms of each effect toward the target of the
+/// same index and shader; the list itself and the other uniforms change at
+/// the end.
+fn lerp_uniforms(effects: &mut [ShaderEffect], to: &[ShaderEffect], t: f64) {
+    let lerp = |a: &mut f64, b: f64| *a += (b - *a) * t;
+    for (effect, to) in effects.iter_mut().zip(to) {
+        if effect.shader != to.shader {
+            continue;
+        }
+        for (name, value) in &mut effect.uniforms {
+            match (value, to.uniforms.get(name)) {
+                (Uniform::Float(a), Some(Uniform::Float(b))) => lerp(a, *b),
+                (Uniform::Vector(a), Some(Uniform::Vector(b))) if a.len() == b.len() => {
+                    a.iter_mut().zip(b).for_each(|(a, b)| lerp(a, *b));
+                }
+                _ => {}
+            }
+        }
     }
 }
 
@@ -198,5 +223,44 @@ mod tests {
         let end = animation.props();
         assert_eq!(end.transform.translation_2d(), (100.0, 0.0));
         assert!(!end.visible);
+    }
+
+    #[test]
+    fn numeric_uniforms_of_effects_move_and_the_rest_changes_at_the_end() {
+        let effect = |shader: &str, p: f64, tint: f64| ShaderEffect {
+            shader: shader.into(),
+            uniforms: [
+                ("progress".into(), Uniform::Float(p)),
+                ("tint".into(), Uniform::Vector(vec![tint, tint])),
+            ]
+            .into(),
+        };
+        let mut animation = Animation {
+            from: Props {
+                effects: vec![effect("/a.frag", 0.0, 0.0), effect("/b.frag", 0.0, 0.0)],
+                ..Props::default()
+            },
+            to: PropsUpdate {
+                effects: Some(vec![
+                    effect("/a.frag", 1.0, 2.0),
+                    effect("/c.frag", 1.0, 2.0),
+                    effect("/d.frag", 1.0, 2.0),
+                ]),
+                ..PropsUpdate::default()
+            },
+            duration: 200.0,
+            elapsed: 100.0,
+            easing: Easing::Linear,
+        };
+        let half = animation.props().effects;
+        assert_eq!(
+            half[0],
+            effect("/a.frag", 0.5, 1.0),
+            "same index and shader"
+        );
+        assert_eq!(half[1], effect("/b.frag", 0.0, 0.0), "another shader waits");
+        assert_eq!(half.len(), 2, "the list changes at the end");
+        animation.elapsed = 200.0;
+        assert_eq!(animation.props().effects, animation.to.effects.unwrap());
     }
 }

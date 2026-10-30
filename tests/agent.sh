@@ -355,7 +355,8 @@ ctl query id:work-badge | jq -e '.[0].color == [1, 1, 0, 1]' >/dev/null ||
     fail "the saved color is gone: $(ctl query id:work-badge)"
 view unload work >/dev/null || fail "the unload failed"
 ctl query owner:view-work | jq -e 'length == 0' >/dev/null || fail "the unload left nodes"
-pkill -x chora-tiling
+# Only the plugin of this core: other sessions may run on the host.
+pkill -P "$chora_pid" -x chora-tiling
 wait_for count_is 0 '.owner == "tiling"'
 view load work >"$out/view-start.json" || fail "the view did not start its plugin"
 jq -e '.started == ["tiling"]' "$out/view-start.json" >/dev/null ||
@@ -365,7 +366,10 @@ wait_for xs_are "0 0 0"
 
 step "18. exit: an MCP client describes the screen, sets the layout, sees it, and waits for events"
 # Two windows in one color each instead of the terminals.
-pkill -x foot
+# Every foot of this core: the steps started some through choractl run.
+for p in $(pgrep -x foot); do
+    grep -qzx "WAYLAND_DISPLAY=$inner" "/proc/$p/environ" 2>/dev/null && kill "$p"
+done
 wait_for count_is 0 'true'
 WAYLAND_DISPLAY=$inner "$bin/chora-probe" window 255 0 0 >>"$out/windows.log" 2>&1 &
 pids+=($!)

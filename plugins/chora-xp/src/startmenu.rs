@@ -14,10 +14,10 @@ use chora_scene::{Command, NodeKind, PropsUpdate, Transform};
 use crate::{
     apps::{self, Node},
     cascade::{self, Cascade, Margins, Row},
+    config::{Config, Program},
     context::{Key, wrap},
     control::Setting,
-    desktop_icons, explorer,
-    folder::Place,
+    desktop_icons,
     text::{Font, Text},
     theme::{Picture, Rect, Sheet, Theme},
 };
@@ -52,8 +52,6 @@ pub enum Action {
     TurnOff,
     /// Changes a setting of the Control Panel.
     Set(Setting),
-    /// Opens a place in XP's Explorer.
-    Explore(Place),
 }
 
 /// The column or the footer of an entry.
@@ -77,19 +75,6 @@ struct Entry {
     cascade: bool,
     /// The rectangle in the menu.
     rect: Rect,
-}
-
-/// The programs and the places of the menu.
-#[derive(Clone)]
-pub struct Config {
-    /// The user name for the header.
-    pub user: String,
-    /// The programs of the left column: title, command and icon name.
-    pub programs: Vec<(String, String, String)>,
-    /// The command of Run, and of All Programs without programs.
-    pub launcher: String,
-    /// The contents of All Programs.
-    pub apps: Vec<Node>,
 }
 
 /// What went down.
@@ -118,8 +103,6 @@ pub struct Item {
 /// The start menu, one for all outputs, with the cascades of All
 /// Programs.
 pub struct Menu {
-    /// What the menu was made of, to make it again without a program.
-    config: Config,
     user: String,
     entries: Vec<Entry>,
     /// The left column ends with a separator and All Programs.
@@ -155,7 +138,7 @@ pub struct Menu {
 
 impl Menu {
     /// Lays out the menu.
-    pub fn new(config: &Config, theme: &Theme, icons: &mut Icons) -> Self {
+    pub fn new(config: &Config, apps: Vec<Node>, theme: &Theme, icons: &mut Icons) -> Self {
         let mut entries = programs(config, icons);
         let places = places(config, icons);
         let body = body_height(&entries, &places);
@@ -178,7 +161,7 @@ impl Menu {
             kind: Kind::AllPrograms,
             // Without desktop files, All Programs runs the launcher.
             action: Action::Run(config.launcher.clone()),
-            cascade: !config.apps.is_empty(),
+            cascade: !apps.is_empty(),
             rect: all,
         });
         entries.extend(places);
@@ -188,8 +171,9 @@ impl Menu {
             .position(|e| e.kind == Kind::AllPrograms)
             .unwrap_or(0);
         Self {
-            config: config.clone(),
-            user: config.user.clone(),
+            user: std::env::var("USER")
+                .or_else(|_| std::env::var("LOGNAME"))
+                .unwrap_or_else(|_| "User".into()),
             entries,
             separators,
             height,
@@ -199,7 +183,7 @@ impl Menu {
             origin: [0, 0],
             area: [0, 0, 1280, 770],
             parent: String::new(),
-            programs: config.apps.clone(),
+            programs: apps,
             control: Vec::new(),
             root,
             cascades: Vec::new(),
@@ -327,24 +311,6 @@ impl Menu {
         ]
     }
 
-    /// Opens the cascade of the Control Panel, and in it the group at an
-    /// index, as clicks on them would.
-    pub fn open_control(
-        &mut self,
-        theme: &mut Theme,
-        icons: &mut Icons,
-        group: usize,
-    ) -> Vec<Command> {
-        let Some(index) = self.entries.iter().position(|e| e.title == CONTROL_PANEL) else {
-            return Vec::new();
-        };
-        let mut commands = self.open_root(theme, icons, index);
-        if !self.cascades.is_empty() && group < self.nodes(0).len() {
-            commands.extend(self.open_row(theme, icons, 0, group));
-        }
-        commands
-    }
-
     /// Hides the menu and closes its cascades.
     pub fn close(&mut self, theme: &mut Theme) -> Vec<Command> {
         if self.open.take().is_none() {
@@ -393,7 +359,9 @@ impl Menu {
             Press::Entry(i) => {
                 let e = &self.entries[i];
                 let program = match e.kind {
-                    Kind::Program => Some(i),
+                    // The terminal comes first and is no program of the
+                    // settings.
+                    Kind::Program => i.checked_sub(1),
                     Kind::Place if !e.cascade => None,
                     _ => return None,
                 };
@@ -419,21 +387,16 @@ impl Menu {
         }
     }
 
-    /// Remove from This List: the menu without a program of its left
-    /// column, made again under its node, until `chora-xp` ends.
-    pub fn remove_program(
+    /// The menu of other programs and places, made again under its node.
+    pub fn rebuild(
         &mut self,
-        index: usize,
+        config: &Config,
+        apps: Vec<Node>,
         theme: &mut Theme,
         icons: &mut Icons,
     ) -> Vec<Command> {
-        let mut config = self.config.clone();
-        if index >= config.programs.len() {
-            return Vec::new();
-        }
-        config.programs.remove(index);
         let parent = self.parent.clone();
-        *self = Self::new(&config, theme, icons);
+        *self = Self::new(config, apps, theme, icons);
         let mut commands = vec![Command::Remove {
             id: GROUP.into(),
             to: None,
@@ -863,20 +826,25 @@ fn inside([x, y, w, h]: Rect, [px, py]: [f64; 2]) -> bool {
     (f64::from(x)..f64::from(x + w)).contains(&px) && (f64::from(y)..f64::from(y + h)).contains(&py)
 }
 
-/// The programs of the left column, below each other.
+/// The programs of the left column, below each other: the terminal of
+/// the settings first.
 fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
     let top = HEADER + 1 + 5;
-    config
-        .programs
-        .iter()
+    let terminal = Program {
+        title: "Terminal".into(),
+        command: config.terminal.clone(),
+        icon: "utilities-terminal".into(),
+    };
+    std::iter::once(&terminal)
+        .chain(&config.programs)
         .zip(0..)
-        .map(|((title, command, icon), i)| Entry {
-            title: title.clone(),
-            subtitle: Some(command.clone()),
-            icon: icons.program(icon),
+        .map(|(program, i)| Entry {
+            title: program.title.clone(),
+            subtitle: Some(program.command.clone()),
+            icon: icons.program(&program.icon),
             bold: true,
             kind: Kind::Program,
-            action: Action::Run(command.clone()),
+            action: Action::Run(program.command.clone()),
             cascade: false,
             rect: [FRAME + 2, top + i * PROGRAM_ROW, LEFT - 4, PROGRAM_ROW],
         })
@@ -887,16 +855,16 @@ fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
 fn places(config: &Config, icons: &mut Icons) -> Vec<Entry> {
     // The user directories, else the folders of XP's names in the home
     // directory.
+    let open = |dir: &Path| Action::Run(desktop_icons::open_with(&config.file_manager, dir));
     let folder = |var: &str, name: &str| {
         let home = std::env::var_os("HOME").map_or_else(|| "/".into(), PathBuf::from);
-        let dir = desktop_icons::user_dir(var).unwrap_or_else(|| home.join(name));
-        Action::Explore(Place::Folder(dir))
+        open(&desktop_icons::user_dir(var).unwrap_or_else(|| home.join(name)))
     };
     let run = |command: &str| Action::Run(command.into());
     let list = [
         (
             "My Documents",
-            Action::Explore(Place::Folder(explorer::documents())),
+            folder("DOCUMENTS", ""),
             "folder-documents",
             true,
         ),
@@ -907,12 +875,7 @@ fn places(config: &Config, icons: &mut Icons) -> Vec<Entry> {
             true,
         ),
         ("My Music", folder("MUSIC", "Music"), "folder-music", true),
-        (
-            "My Computer",
-            Action::Explore(Place::Computer),
-            "computer",
-            true,
-        ),
+        ("My Computer", open(Path::new("/")), "computer", true),
         ("", run(""), "", false),
         // A cascade, as with XP's "Display as a menu".
         (CONTROL_PANEL, run(""), "preferences-system", false),
@@ -1122,23 +1085,19 @@ fn at(x: i32, y: i32) -> PropsUpdate {
 mod tests {
     use super::*;
 
+    /// The default settings with kitty and no programs.
     fn config() -> Config {
-        Config {
-            user: "tester".into(),
-            programs: vec![(
-                "Terminal".into(),
-                "foot".into(),
-                "utilities-terminal".into(),
-            )],
-            launcher: "fuzzel".into(),
-            apps: Vec::new(),
-        }
+        let mut config = crate::config::defaults();
+        config.terminal = "kitty".into();
+        config.programs.clear();
+        config
     }
 
     #[test]
     fn the_columns_have_the_height_of_xp() {
         let mut icons = Icons::new(crate::icons::THEMES);
         let programs = programs(&config(), &mut icons);
+        assert_eq!(programs[0].action, Action::Run("kitty".into()));
         let places = places(&config(), &mut icons);
         assert_eq!(body_height(&programs, &places), MIN_BODY);
         assert_eq!(place_separators(&places, HEADER + 1).len(), 2);
@@ -1166,15 +1125,12 @@ mod tests {
             icon: String::new(),
             kind: apps::Kind::Run(title.into()),
         };
-        let config = Config {
-            apps: vec![Node {
-                title: "Accessories".into(),
-                icon: String::new(),
-                kind: apps::Kind::Group(vec![run("calc")]),
-            }],
-            ..config()
-        };
-        let mut menu = Menu::new(&config, &theme, &mut icons);
+        let apps = vec![Node {
+            title: "Accessories".into(),
+            icon: String::new(),
+            kind: apps::Kind::Group(vec![run("calc")]),
+        }];
+        let mut menu = Menu::new(&config(), apps, &theme, &mut icons);
         let mut key = |menu: &mut Menu, k: &str| menu.key(&mut theme, &mut icons, k);
         key(&mut menu, "Down");
         assert_eq!(menu.entries[menu.hovered.unwrap()].title, "Terminal");
@@ -1197,7 +1153,7 @@ mod tests {
     fn the_keys_leave_out_log_off_and_turn_off() {
         let (mut theme, cache) = crate::dialog::tests::theme("startfooter");
         let mut icons = Icons::new(crate::icons::THEMES);
-        let mut menu = Menu::new(&config(), &theme, &mut icons);
+        let mut menu = Menu::new(&config(), Vec::new(), &theme, &mut icons);
         for key in [
             "Down", "Down", "Down", "Right", "Down", "Down", "Left", "Up",
         ] {

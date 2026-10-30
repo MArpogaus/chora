@@ -1,7 +1,8 @@
 [dependencies]
 chora-kit.workspace = true
-chora-scene.workspace = true
+chora-scene = { workspace = true, features = ["schema"] }
 clap.workspace = true
+schemars.workspace = true
 serde.workspace = true
 serde-saphyr.workspace = true
 serde_json.workspace = true

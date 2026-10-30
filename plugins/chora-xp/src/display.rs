@@ -17,14 +17,14 @@
 use std::{fmt::Write as _, path::PathBuf};
 
 use crate::{
+    config::{self, Wallpaper},
     context::{Act, Entry},
     control::{self, SCALES, Toggles},
     decoration::{self, BORDER, TITLE},
     dialog::{self, BLACK, Control, Dialog, Hit, Page},
-    explorer::view,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
-    wallpaper::{self, Position, Style},
+    wallpaper::{self, Position},
 };
 
 /// The client area: XP's dialog is 404 by 455 pixels with its frame.
@@ -43,7 +43,8 @@ const SCREEN: Rect = [122, 62, 152, 112];
 /// The list of the backgrounds and the height of its rows.
 const LIST: Rect = [21, 235, 272, 114];
 const ROW: i32 = 17;
-const SCROLL: i32 = view::SCROLL_W;
+/// The width of a scroll bar.
+const SCROLL: i32 = 17;
 const POSITION: Rect = [303, 286, 75, 21];
 const COLOR: Rect = [303, 333, 74, 21];
 /// The slider of the screen resolution.
@@ -92,7 +93,7 @@ pub enum Click {
     /// dialog or not.
     Apply {
         /// The background of the desktop.
-        style: Style,
+        style: Wallpaper,
         /// The scale in percent.
         scale: u32,
         /// OK closes the dialog, Apply keeps it.
@@ -122,8 +123,8 @@ pub struct DisplayDialog {
     /// The tab that shows.
     pub tab: usize,
     walls: Vec<PathBuf>,
-    applied: Style,
-    shown: Style,
+    applied: Wallpaper,
+    shown: Wallpaper,
     screen: Screen,
     /// The scale that the slider shows.
     scale: u32,
@@ -132,13 +133,21 @@ pub struct DisplayDialog {
     art: Art,
 }
 
+/// The file of a resolved wallpaper.
+fn file(wallpaper: &Wallpaper) -> Option<&PathBuf> {
+    match &wallpaper.picture {
+        config::Picture::File(file) => Some(file),
+        _ => None,
+    }
+}
+
 impl DisplayDialog {
     /// The dialog for the background of the session and an output, on a
     /// tab, in the middle of a work area. A wallpaper that is not in the
-    /// list joins it.
-    pub fn new(style: Style, screen: Screen, tab: usize, area: Rect, mut art: Art) -> Self {
+    /// list joins it. The caller resolves the default picture.
+    pub fn new(style: Wallpaper, screen: Screen, tab: usize, area: Rect, mut art: Art) -> Self {
         let mut walls = std::mem::take(&mut art.walls);
-        if let Some(file) = style.file.as_ref().filter(|f| !walls.contains(f)) {
+        if let Some(file) = file(&style).filter(|f| !walls.contains(f)) {
             walls.push(file.clone());
         }
         let mut panel = Self {
@@ -169,9 +178,7 @@ impl DisplayDialog {
 
     /// The row of the chosen background.
     fn chosen(&self) -> usize {
-        self.shown
-            .file
-            .as_ref()
+        file(&self.shown)
             .and_then(|f| self.walls.iter().position(|w| w == f))
             .map_or(0, |i| i + 1)
     }
@@ -225,7 +232,6 @@ impl DisplayDialog {
         Page {
             body: Some(body),
             controls,
-            ..Page::default()
         }
     }
 
@@ -287,7 +293,7 @@ impl DisplayDialog {
     ) -> Picture {
         let mut body = monitor(theme, body, &self.screen_picture(theme));
         body = dialog::label(body, "Background:", [21, 217, 200, 13], true);
-        let has_picture = self.shown.file.is_some();
+        let has_picture = file(&self.shown).is_some();
         body = dialog::label(body, "Position:", [303, 270, 75, 13], has_picture);
         body = dialog::label(body, "Color:", [303, 317, 75, 13], true);
         let [.., cw, ch] = COLOR;
@@ -358,8 +364,8 @@ impl DisplayDialog {
         let rows = i32::try_from(names.len()).unwrap_or(0);
         let top = i32::try_from(self.top).unwrap_or(0);
         let track = h - 2 - 2 * SCROLL;
-        let thumb = view::thumb(track, h - 2, rows * ROW, top * ROW);
-        for (rect, part) in view::scroll_bar([SCROLL, h - 2], thumb) {
+        let thumb = thumb(track, h - 2, rows * ROW, top * ROW);
+        for (rect, part) in scroll_bar([SCROLL, h - 2], thumb) {
             picture = picture.layers_of(part, [w - 1 - SCROLL + rect[0], 1 + rect[1]]);
         }
         picture.svg(format!(
@@ -558,7 +564,7 @@ impl DisplayDialog {
         if x >= w - 1 - SCROLL {
             let rows = i32::try_from(self.walls.len() + 1).unwrap_or(0);
             let top = i32::try_from(self.top).unwrap_or(0);
-            let (thumb, size) = view::thumb(h - 2 - 2 * SCROLL, h - 2, rows * ROW, top * ROW);
+            let (thumb, size) = thumb(h - 2 - 2 * SCROLL, h - 2, rows * ROW, top * ROW);
             let y = y - 1 - SCROLL;
             self.top = if y < 0 {
                 self.top.saturating_sub(1)
@@ -576,9 +582,9 @@ impl DisplayDialog {
         }
         let row = self.top + usize::try_from((y - 1).max(0) / ROW).unwrap_or(0);
         if row == 0 {
-            self.shown.file = None;
+            self.shown.picture = config::Picture::None;
         } else if let Some(wall) = self.walls.get(row - 1) {
-            self.shown.file = Some(wall.clone());
+            self.shown.picture = config::Picture::File(wall.clone());
         }
     }
 
@@ -745,7 +751,7 @@ fn window_sample(_theme: &Theme, title: &str, [w, h]: [i32; 2], active: bool) ->
             BLACK,
             [BORDER + 2, TITLE + 1, cw - SCROLL - 4, 13],
         ));
-        for (rect, part) in view::scroll_bar([SCROLL, ch], (0, (ch - 2 * SCROLL) / 4)) {
+        for (rect, part) in scroll_bar([SCROLL, ch], (0, (ch - 2 * SCROLL) / 4)) {
             picture = picture.layers_of(part, [w - BORDER - SCROLL + rect[0], TITLE + rect[1]]);
         }
     }
@@ -853,7 +859,6 @@ impl EffectsDialog {
                 Control::push("ok", "OK", [w - 2 * 73 - 6 - 11, h - 32]).default(),
                 Control::push("cancel", "Cancel", [w - 73 - 11, h - 32]),
             ],
-            ..Page::default()
         }
     }
 
@@ -877,6 +882,74 @@ impl EffectsDialog {
     }
 }
 
+/// The farthest the view scrolls: what does not fit.
+fn max_scroll(height: i32, view: i32) -> i32 {
+    (height - view).max(0)
+}
+
+/// The thumb of a scroll bar in a track of a height, for a view of a
+/// height over content of a height, scrolled by an offset: its top in
+/// the track and its height, at least 8 pixels.
+fn thumb(track: i32, view: i32, height: i32, offset: i32) -> (i32, i32) {
+    let max = max_scroll(height, view);
+    if max == 0 || track <= 0 {
+        return (0, track.max(0));
+    }
+    let size = (i64::from(track) * i64::from(view) / i64::from(height.max(1))).max(8);
+    let size = i32::try_from(size).unwrap_or(track).min(track);
+    let top = i64::from(track - size) * i64::from(offset.clamp(0, max)) / i64::from(max);
+    (i32::try_from(top).unwrap_or(0), size)
+}
+
+/// The parts of XP's Luna scroll bar in a rectangle: the arrows at the
+/// ends, the pale track and the blue thumb, as pictures with their
+/// rectangles in the bar.
+fn scroll_bar([w, h]: [i32; 2], (top, size): (i32, i32)) -> [(Rect, Picture); 4] {
+    let track = Picture::new(w, h - 2 * w).svg(format!(
+        r##"<rect width="{w}" height="{}" fill="#FEFEFB"/><rect width="1" height="{}" fill="#F3F1EC"/>"##,
+        h - 2 * w,
+        h - 2 * w
+    ));
+    let arrow = |down: bool| {
+        let mut svg = dialog::arrow_button([0, 0, w, w], false);
+        if !down {
+            svg = format!(
+                r#"<g transform="rotate(180 {c} {c})">{svg}</g>"#,
+                c = f64::from(w) / 2.0
+            );
+        }
+        Picture::new(w, w).svg(svg)
+    };
+    let thumb = Picture::new(w, size).svg(thumb_svg(w, size));
+    [
+        ([0, w, w, h - 2 * w], track),
+        ([0, w + top, w, size], thumb),
+        ([0, 0, w, w], arrow(false)),
+        ([0, h - w, w, w], arrow(true)),
+    ]
+}
+
+/// The blue thumb with its grip of four lines in the middle.
+fn thumb_svg(w: i32, h: i32) -> String {
+    let mut svg = format!(
+        r##"<defs><linearGradient id="t" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#C9DAFC"/><stop offset="1" stop-color="#B1C8FA"/></linearGradient></defs><rect x="0.5" y="0.5" width="{}" height="{}" rx="2" fill="url(#t)" stroke="#9CB6F2"/>"##,
+        w - 1,
+        h - 1
+    );
+    if h > 14 {
+        let mid = h / 2 - 4;
+        for i in 0..4 {
+            let _ = write!(
+                svg,
+                r##"<rect x="5" y="{}" width="7" height="1" fill="#EEF4FE"/><rect x="6" y="{}" width="7" height="1" fill="#8CB0F8"/>"##,
+                mid + 2 * i,
+                mid + 2 * i + 1
+            );
+        }
+    }
+    svg
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -891,7 +964,7 @@ mod tests {
             physical: [1600, 1000],
             scale: 125,
         };
-        let style = Style::new("/w/wall3.png".into());
+        let style = Wallpaper::new("/w/wall3.png".into());
         let art = Art {
             walls,
             ..Art::default()
@@ -904,15 +977,25 @@ mod tests {
     }
 
     #[test]
+    fn the_thumb_follows_the_offset() {
+        // Content of twice the view: the thumb is half the track.
+        assert_eq!(thumb(400, 200, 400, 0), (0, 200));
+        assert_eq!(thumb(400, 200, 400, 200), (200, 200));
+        assert_eq!(thumb(400, 200, 400, 100), (100, 200));
+        // Nothing to scroll: the thumb fills the track.
+        assert_eq!(thumb(400, 500, 400, 0), (0, 400));
+    }
+
+    #[test]
     fn the_list_chooses_the_background_and_apply_takes_it() {
         let mut p = panel(1);
         assert_eq!(p.chosen(), 4);
         // (None) is the first row.
         assert_eq!(click(&mut p, "list", [40, 3]), Click::Redraw);
-        assert_eq!(p.shown.file, None);
+        assert_eq!(file(&p.shown), None);
         // The second row is the first wallpaper.
         click(&mut p, "list", [40, 1 + ROW + 3]);
-        assert_eq!(p.shown.file, Some("/w/wall0.png".into()));
+        assert_eq!(file(&p.shown), Some(&"/w/wall0.png".into()));
         p.set_position(0);
         p.set_color([0, 0, 0]);
         let Click::Apply {
@@ -962,7 +1045,7 @@ mod tests {
 
     #[test]
     fn the_effects_change_on_ok() {
-        let mut e = EffectsDialog::new(Toggles::default(), [0, 0, 800, 600]);
+        let mut e = EffectsDialog::new(crate::config::defaults().effects, [0, 0, 800, 600]);
         let hit = |n: &str| Hit::Control(n.into(), [1, 1]);
         assert_eq!(e.click(&hit("cube")), Effects::Redraw);
         let Effects::Take(t) = e.click(&hit("ok")) else {
@@ -984,7 +1067,7 @@ mod tests {
             physical: [800, 600],
             scale: 100,
         };
-        let mut style = Style::new(bliss);
+        let mut style = Wallpaper::new(bliss);
         style.position = Position::Stretch;
         let art = Art {
             walls,
@@ -1001,7 +1084,7 @@ mod tests {
                 &format!("display-{}", name.replace(' ', "")),
             );
         }
-        let mut e = EffectsDialog::new(Toggles::default(), [0, 0, 800, 600]);
+        let mut e = EffectsDialog::new(crate::config::defaults().effects, [0, 0, 800, 600]);
         let page = e.page();
         e.dialog.create(&mut theme, "root", page);
         preview(&mut theme, &e.dialog, "effects");

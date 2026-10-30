@@ -38,7 +38,7 @@ pub fn applications() -> Vec<Entry> {
         let dir = dir.join("applications");
         for (id, path) in desktop_files(&dir, &dir) {
             entries.entry(id).or_insert_with(|| {
-                fs::read_to_string(path)
+                crate::read_text(&path, crate::MAX_TEXT)
                     .ok()
                     .and_then(|text| parse(&text, &desktops))
             });
@@ -183,7 +183,7 @@ pub struct Launcher {
 pub fn launcher(path: &Path, terminal: &str) -> Option<Launcher> {
     let desktops = current_desktops();
     let desktops: Vec<&str> = desktops.iter().map(String::as_str).collect();
-    let entry = parse(&fs::read_to_string(path).ok()?, &desktops)?;
+    let entry = parse(&crate::read_text(path, crate::MAX_TEXT).ok()?, &desktops)?;
     (!entry.hidden && !entry.exec.is_empty()).then(|| {
         let command = command(entry.exec, entry.terminal, terminal);
         Launcher {

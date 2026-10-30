@@ -9,6 +9,7 @@
 
 use std::{
     collections::HashMap,
+    path::PathBuf,
     sync::{Arc, Mutex, MutexGuard, PoisonError},
     time::Duration,
 };
@@ -18,7 +19,7 @@ use chora_scene::{
     Node, NodeKind, OutputInfo, Transform,
     ipc::{
         Apply, AssetPut, Capture, Client, ClientError, Hello, Inject, MethodCall, OutputConfigure,
-        Picture, Query, Reserve, RpcError,
+        Picture, Query, Reserve, RpcError, SOCKET_ENV,
     },
 };
 use rmcp::{
@@ -130,6 +131,8 @@ impl Core {
 /// parallel. No lock is held across an await.
 pub struct Mcp {
     name: String,
+    /// The path of the core socket.
+    socket: PathBuf,
     core: Mutex<Core>,
     /// The subscription of `wait_events`, on a connection of its own.
     subscription: Mutex<Option<Arc<Subscription>>>,
@@ -148,10 +151,13 @@ impl Mcp {
         }
         let mut core = self.locked();
         match run_tool(&mut core, name, args) {
-            Err(Failure::UnknownTool(unknown)) => match plugin_method(name) {
-                Some((client, method)) => call_plugin(&mut core, client, method, args),
-                None => Err(Failure::UnknownTool(unknown)),
-            },
+            Err(Failure::UnknownTool(unknown)) => {
+                let methods: Vec<Value> = core.call("methods.list", Value::Null)?;
+                match plugin_method(name, &methods) {
+                    Some((client, method)) => call_plugin(&mut core, client, method, args),
+                    None => Err(Failure::UnknownTool(unknown)),
+                }
+            }
             other => other,
         }
     }
@@ -180,14 +186,34 @@ impl Mcp {
                     .map_err(|e| Failure::Tool(e.to_string()))
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let replacing = self
+        // The old subscription ends first, since its grabs block the new
+        // ones; its events and keys bring it back if the new one fails.
+        let old = self
             .subscription
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .take()
-            .is_some();
-        let (subscription, grabbed) =
-            Subscription::start(&self.name, events.clone(), keys, replacing)?;
+            .map(|old| (old.events.clone(), old.keys.clone()));
+        let started = Subscription::start(
+            &self.socket,
+            &self.name,
+            events.clone(),
+            keys,
+            old.is_some(),
+        );
+        let (subscription, grabbed) = match started {
+            Ok(started) => started,
+            Err(e) => {
+                let back = old.and_then(|(events, keys)| {
+                    Subscription::start(&self.socket, &self.name, events, keys, true).ok()
+                });
+                *self
+                    .subscription
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner) = back.map(|(s, _)| Arc::new(s));
+                return Err(e.into());
+            }
+        };
         *self
             .subscription
             .lock()
@@ -324,9 +350,11 @@ pub fn serve(name: String) -> Result<(), String> {
         keep_nodes: true,
         ..Hello::default()
     };
-    let client = Client::from_env(&hello).map_err(|e| e.to_string())?;
+    let socket = PathBuf::from(std::env::var_os(SOCKET_ENV).ok_or("CHORA_SOCKET is not set")?);
+    let client = Client::connect(&socket, &hello).map_err(|e| e.to_string())?;
     let server = Mcp {
         name: name.clone(),
+        socket,
         core: Mutex::new(Core {
             name,
             client: Some(client),
@@ -392,12 +420,16 @@ fn plugin_tools(methods: &[Value]) -> Vec<Tool> {
         .collect()
 }
 
-/// The tool name of an exported method: `tiling.set_layout` is the method
-/// `set_layout` of the client `tiling`. None for a name with no dot or
-/// with more than one.
-fn plugin_method(name: &str) -> Option<(&str, &str)> {
-    let (client, method) = name.split_once('.')?;
-    (!client.is_empty() && !method.is_empty() && !method.contains('.')).then_some((client, method))
+/// The exported method of a tool name `client.method` in the answer of
+/// `methods.list`: `tiling.settings.set` is the method `settings.set` of
+/// the client `tiling`. Client and method names may both have dots, so
+/// the list decides where the client ends.
+fn plugin_method<'a>(name: &str, methods: &'a [Value]) -> Option<(&'a str, &'a str)> {
+    methods.iter().find_map(|m| {
+        let (client, method) = (m["client"].as_str()?, m["name"].as_str()?);
+        let rest = name.strip_prefix(client)?.strip_prefix('.')?;
+        (rest == method).then_some((client, method))
+    })
 }
 
 /// The built-in tools.
@@ -415,7 +447,7 @@ fn event_tools() -> Vec<Tool> {
     vec![
         tool(
             "subscribe_events",
-            "Start to collect events for wait_events, and grab keys and buttons, which then arrive as input.key events, or as input.button and input.moved events for a button such as Super+BTN_LEFT. Replaces the earlier subscription. Events: surface.created, surface.changed, surface.destroyed, surface.requested, pointer.pressed, pointer.moved, pointer.released, pointer.scroll, pointer.entered, pointer.left, input.key, node.key, animation.done, output.changed and others.",
+            "Start to collect events for wait_events, and grab keys and buttons, which then arrive as input.key events, or as input.button and input.moved events for a button such as Super+BTN_LEFT. Replaces the earlier subscription; if it fails, the earlier one stays. Events: surface.created, surface.changed, surface.destroyed, surface.requested, pointer.pressed, pointer.moved, pointer.released, pointer.scroll, pointer.entered, pointer.left, input.key, node.key, animation.done, output.changed and others.",
             &json!({
                 "events": {"type": "array", "items": {"type": "string"}, "description": "event names; every event if empty or missing"},
                 "keys": {"type": "array", "items": {"type": "string"}, "description": "bindings to grab, for example Super+F1 or Super+BTN_LEFT; they need Ctrl, Alt or Super"},
@@ -467,7 +499,7 @@ fn scene_tools() -> Vec<Tool> {
         ),
         typed_tool::<Apply>(
             "apply_commands",
-            "Apply a transaction of scene commands: create, attach, update, animate, move, remove, configure, focus, focus_node, close, camera. All commands apply, or none.",
+            "Apply a transaction of scene commands: create, attach, update, animate, move, remove, configure, focus, focus_node, close, camera. All commands apply, or none. Warnings in the answer tell what applied but does not work as expected, for example a surface without input. On a window of a window manager, focus, move, configure, close and an update of only opacity, effects and meta go to the window manager as a request, and it decides.",
         ),
         tool(
             "list_plugins",
@@ -477,7 +509,7 @@ fn scene_tools() -> Vec<Tool> {
         ),
         tool(
             "call_method",
-            "Call a method that a plugin exported, for example client tiling, method set_layout, params {\"layout\": \"rows\"}. Every export also has its own tool named client.method.",
+            "Call a method that a plugin exported, for example client tiling, method set_layout, params {\"layout\": \"fair\"}. Every export also has its own tool named client.method.",
             &json!({"client": {"type": "string"}, "method": {"type": "string"}, "params": {"description": "any JSON value"}}),
             &["client", "method"],
         ),
@@ -620,7 +652,10 @@ fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBloc
         }
         "apply_commands" => {
             let apply: Apply = arg(args)?;
-            core.call::<_, Value>("scene.apply", apply)?;
+            let answer: Value = core.call("scene.apply", apply)?;
+            if answer["warnings"].as_array().is_some_and(|w| !w.is_empty()) {
+                return Ok(vec![ContentBlock::text("applied"), json_text(&answer)]);
+            }
             Ok(vec![ContentBlock::text("applied")])
         }
         "list_plugins" => {
@@ -805,7 +840,7 @@ fn describe_scene(core: &mut Core) -> Result<Value, Failure> {
                 "app_id": surface.and_then(|s| s.app_id.clone()),
                 "title": surface.and_then(|s| s.title.clone()),
                 "owner": n.owner,
-                "visible": n.props.visible && n.parent.is_some(),
+                "visible": shown(n, &by_id),
                 "position": [x, y],
                 "size": surface.and_then(|s| s.size),
             })
@@ -824,6 +859,15 @@ fn describe_scene(core: &mut Core) -> Result<Value, Failure> {
         })
         .collect();
     Ok(json!({"outputs": outputs, "windows": windows, "plugins": clients}))
+}
+
+/// Whether a node is in the scene and it and all its ancestors are visible.
+fn shown(node: &Node, by_id: &HashMap<&str, &Node>) -> bool {
+    node.parent.is_some()
+        && std::iter::successors(Some(node), |n| {
+            n.parent.as_deref().and_then(|id| by_id.get(id).copied())
+        })
+        .all(|n| n.props.visible)
 }
 
 /// The transform of a node to scene coordinates, through its parents.
@@ -890,14 +934,114 @@ mod tests {
     }
 
     #[test]
+    fn a_window_in_a_hidden_group_is_not_visible() {
+        let node = |id: &str, parent: Option<&str>, visible: bool| Node {
+            id: id.into(),
+            kind: NodeKind::Group,
+            owner: None,
+            parent: parent.map(String::from),
+            children: Vec::new(),
+            props: chora_scene::Props {
+                visible,
+                ..chora_scene::Props::default()
+            },
+            surface: None,
+            to: None,
+        };
+        let nodes = [
+            node("root", None, true),
+            node("group", Some("root"), false),
+            node("window", Some("group"), true),
+            node("shown", Some("root"), true),
+        ];
+        let by_id: HashMap<&str, &Node> = nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+        assert!(!shown(&nodes[2], &by_id));
+        assert!(shown(&nodes[3], &by_id));
+    }
+
+    /// A core on a socket that grants every grab but `Super+k`.
+    fn fake_core() -> PathBuf {
+        let path = std::env::temp_dir().join(format!("choractl-test-{}.sock", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let listener = std::os::unix::net::UnixListener::bind(&path).expect("bind");
+        std::thread::spawn(move || {
+            for stream in listener.incoming().flatten() {
+                std::thread::spawn(move || serve_fake(stream));
+            }
+        });
+        path
+    }
+
+    fn serve_fake(stream: std::os::unix::net::UnixStream) {
+        use std::io::{BufRead, BufReader, Write};
+        let mut writer = stream.try_clone().expect("clone");
+        for line in BufReader::new(stream).lines().map_while(Result::ok) {
+            let request: Value = serde_json::from_str(&line).expect("json");
+            let mut answer = if request["params"]["binding"] == "Super+k" {
+                json!({"error": {"code": -32000, "message": "Super+k is taken"}})
+            } else {
+                json!({"result": request["params"]["binding"]})
+            };
+            answer["jsonrpc"] = json!("2.0");
+            answer["id"] = request["id"].clone();
+            let _ = writeln!(writer, "{answer}");
+        }
+    }
+
+    #[test]
+    fn a_failed_subscription_keeps_the_old_one() {
+        let mcp = Mcp {
+            name: "agent".into(),
+            socket: fake_core(),
+            core: Mutex::new(Core {
+                name: "agent".into(),
+                client: None,
+                reserves: HashMap::new(),
+            }),
+            subscription: Mutex::new(None),
+        };
+        assert!(mcp.subscribe(&json!({"keys": ["Super+a"]})).is_ok());
+        assert!(mcp.subscribe(&json!({"keys": ["Super+k"]})).is_err());
+        assert!(mcp.subscription.lock().expect("lock").is_some());
+        let _ = std::fs::remove_file(&mcp.socket);
+    }
+
+    #[test]
+    fn the_layout_of_the_call_method_example_exists() {
+        let call = tools()
+            .into_iter()
+            .find(|t| t.name == "call_method")
+            .expect("call_method");
+        let description = call.description.as_deref().unwrap_or_default();
+        let layout = description
+            .split("\"layout\": \"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .expect("an example layout");
+        let api = include_str!("../../../docs/api.md");
+        let row = api
+            .lines()
+            .find(|l| l.starts_with("| `set_layout`"))
+            .expect("the set_layout row");
+        assert!(row.contains(&format!("`{layout}`")), "{layout}");
+    }
+
+    #[test]
     fn a_dotted_tool_name_routes_to_the_plugin() {
+        let methods = [
+            json!({"client": "tiling", "name": "set_layout"}),
+            json!({"client": "tiling", "name": "settings.set"}),
+            json!({"client": "a.b", "name": "c"}),
+        ];
+        let find = |name| plugin_method(name, &methods);
+        assert_eq!(find("tiling.set_layout"), Some(("tiling", "set_layout")));
         assert_eq!(
-            plugin_method("tiling.set_layout"),
-            Some(("tiling", "set_layout"))
+            find("tiling.settings.set"),
+            Some(("tiling", "settings.set"))
         );
-        assert_eq!(plugin_method("describe_screen"), None);
-        assert_eq!(plugin_method("a.b.c"), None);
-        assert_eq!(plugin_method(".x"), None);
-        assert_eq!(plugin_method("x."), None);
+        assert_eq!(find("a.b.c"), Some(("a.b", "c")));
+        assert_eq!(find("describe_screen"), None);
+        assert_eq!(find("tiling.settings"), None);
+        assert_eq!(find(".x"), None);
     }
 }

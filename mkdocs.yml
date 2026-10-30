@@ -28,12 +28,12 @@ nav:
   - API: api.md
   - Configuration: configuration.md
   - Project structure: project-structure.md
+  - Voice agent (draft): voice.md
 - Context:
   - Dependencies: dependencies.md
   - Alternatives: alternatives.md
   - Decisions: decisions.md
   - Roadmap: roadmap.md
-  - Idea backlog: ideas.md
 
 markdown_extensions:
 - admonition

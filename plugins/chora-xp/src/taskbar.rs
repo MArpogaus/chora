@@ -47,9 +47,12 @@ const PAGER_GAP: i32 = 2;
 const PAGER_WIDTH: i32 = DESKTOPS as i32 * PAGER_BUTTON + (DESKTOPS as i32 - 1) * PAGER_GAP + 6;
 const WHITE: [u8; 4] = [255, 255, 255, 255];
 
-/// The settings of Taskbar and Start Menu Properties, for the session.
+/// The settings of Taskbar and Start Menu Properties.
 #[allow(clippy::struct_excessive_bools)] // independent check boxes
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
 pub struct Settings {
     /// Lock the taskbar: only a check mark, since chora-xp neither moves
     /// nor sizes the taskbar.
@@ -60,17 +63,6 @@ pub struct Settings {
     pub on_top: bool,
     /// The clock in the notification area.
     pub clock: bool,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            locked: true,
-            auto_hide: false,
-            on_top: true,
-            clock: true,
-        }
-    }
 }
 
 /// A window as its task button shows it.
@@ -679,7 +671,7 @@ mod tests {
         assert_eq!(bar.usable(), [0, 0, 1280, 770]);
         bar.configure(Settings {
             auto_hide: true,
-            ..Settings::default()
+            ..crate::config::defaults().taskbar
         });
         assert_eq!(bar.usable(), [0, 0, 1280, 798]);
         // It slides down until its strip of 2 pixels shows, in 0.15 s.
@@ -701,7 +693,7 @@ mod tests {
         assert!(bar.clock_rect().is_some());
         bar.configure(Settings {
             clock: false,
-            ..Settings::default()
+            ..crate::config::defaults().taskbar
         });
         assert_eq!(bar.tray_width(), TRAY_EMPTY);
         assert_eq!(bar.clock_rect(), None);

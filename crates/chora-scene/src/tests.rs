@@ -1,9 +1,11 @@
 //! Tests of the scene rules.
 
+use std::collections::BTreeMap;
+
 use crate::{
-    Command, Easing, Effect, Event, INJECTION, MAX_CAMERAS, MAX_DURATION, MAX_NODES, NodeKind,
-    PropsUpdate, ROOT, Scene, SceneError, Selector, SurfaceInfo, SurfaceRequest, Transform,
-    overlay_id,
+    Command, Easing, Effect, Event, FontStyle, INJECTION, MAX_CAMERAS, MAX_DEPTH, MAX_DURATION,
+    MAX_NODES, NodeKind, PropsUpdate, ROOT, Scene, SceneError, Selector, SurfaceInfo,
+    SurfaceRequest, Transform, overlay_id,
 };
 
 fn group(id: &str, parent: &str) -> Command {
@@ -47,13 +49,23 @@ fn only_the_owner_changes_a_node() {
     let update = Command::Update {
         id: "work".into(),
         props: PropsUpdate {
-            opacity: Some(0.5),
+            visible: Some(false),
             ..PropsUpdate::default()
         },
     };
     let err = scene
         .apply("agent", std::slice::from_ref(&update))
         .unwrap_err();
+    assert_eq!(
+        err.error,
+        SceneError::NotOwner("work".into(), "view".into())
+    );
+    // An empty update is no request of the look (D58).
+    let empty = Command::Update {
+        id: "work".into(),
+        props: PropsUpdate::default(),
+    };
+    let err = scene.apply("agent", &[empty]).unwrap_err();
     assert_eq!(
         err.error,
         SceneError::NotOwner("work".into(), "view".into())
@@ -227,8 +239,8 @@ fn commands_reject_unknown_fields() {
 #[test]
 fn deep_trees_do_not_overflow_the_stack() {
     let mut scene = Scene::default();
-    // As deep as the node limit allows.
-    let commands: Vec<Command> = (0..MAX_NODES - 1)
+    // As deep as the depth limit allows.
+    let commands: Vec<Command> = (0..MAX_DEPTH)
         .map(|i| {
             let parent = if i == 0 {
                 ROOT.to_owned()
@@ -239,7 +251,7 @@ fn deep_trees_do_not_overflow_the_stack() {
         })
         .collect();
     scene.apply("wm", &commands).unwrap();
-    assert_eq!(scene.draw_list().len(), MAX_NODES - 1);
+    assert_eq!(scene.draw_list().len(), MAX_DEPTH);
 }
 
 #[test]
@@ -530,6 +542,107 @@ fn a_font_size_stays_between_1_and_1024() {
     }
 }
 
+/// A text node with these props, as a create.
+fn create_styled(props: PropsUpdate) -> Command {
+    Command::Create {
+        id: "t".into(),
+        kind: NodeKind::Text,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            text: Some("Hi".into()),
+            ..props
+        },
+    }
+}
+
+#[test]
+fn an_update_sets_the_type_of_a_text_node() {
+    let mut scene = Scene::default();
+    scene.apply("wm", &[create_text("t", "hi")]).unwrap();
+    let features: BTreeMap<String, u32> = [("smcp".into(), 1), ("onum".into(), 1)].into();
+    let update = PropsUpdate {
+        line_height: Some(1.5),
+        weight: Some(300),
+        style: Some(FontStyle::Italic),
+        letter_spacing: Some(0.1),
+        features: Some(features.clone()),
+        ..PropsUpdate::default()
+    };
+    let update = Command::Update {
+        id: "t".into(),
+        props: update,
+    };
+    scene.apply("wm", &[update]).unwrap();
+    let props = &scene.node("t").unwrap().props;
+    assert_eq!(
+        (props.line_height, props.weight, props.style),
+        (Some(1.5), Some(300), Some(FontStyle::Italic))
+    );
+    assert_eq!(props.letter_spacing, Some(0.1));
+    assert_eq!(props.features, features);
+}
+
+#[test]
+fn the_type_of_text_stays_within_its_ranges() {
+    let feature = |tag: &str| Some([(tag.to_owned(), 1)].into());
+    let many = Some((0..33).map(|i| (format!("ss{i:02}"), 1)).collect());
+    let wrong = [
+        PropsUpdate {
+            line_height: Some(0.0),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            line_height: Some(11.0),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            weight: Some(0),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            weight: Some(1001),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            letter_spacing: Some(-1.5),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            letter_spacing: Some(f64::NAN),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            features: feature("smallcaps"),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            features: feature("sm\u{e9}"),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            features: many,
+            ..PropsUpdate::default()
+        },
+    ];
+    for props in wrong {
+        let err = Scene::default()
+            .apply("wm", &[create_styled(props.clone())])
+            .unwrap_err();
+        assert!(matches!(err.error, SceneError::Invalid(_)), "{props:?}");
+    }
+    let rect = Command::Create {
+        id: "r".into(),
+        kind: NodeKind::Rect,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            weight: Some(700),
+            ..PropsUpdate::default()
+        },
+    };
+    let err = Scene::default().apply("wm", &[rect]).unwrap_err();
+    assert_eq!(err.error, SceneError::WrongKind("r".into(), "text"));
+}
+
 #[test]
 fn selector_values_can_hold_spaces_in_quotes() {
     let mut scene = Scene::default();
@@ -599,6 +712,44 @@ fn the_scene_has_a_node_limit() {
         .apply("wm", &groups(MAX_NODES..MAX_NODES + 1))
         .unwrap_err();
     assert!(matches!(err.error, SceneError::Limit(_)), "{err}");
+}
+
+/// A chain of 5000 nested groups stalled the core for 10 s (W12).
+#[test]
+fn the_scene_has_a_depth_limit() {
+    let mut scene = Scene::default();
+    let chain: Vec<Command> = (0..MAX_DEPTH)
+        .map(|i| {
+            group(
+                &format!("g{i}"),
+                &if i == 0 {
+                    ROOT.into()
+                } else {
+                    format!("g{}", i - 1)
+                },
+            )
+        })
+        .collect();
+    scene.apply("wm", &chain).unwrap();
+    let last = format!("g{}", MAX_DEPTH - 1);
+    let err = scene.apply("wm", &[group("deep", &last)]).unwrap_err();
+    assert!(matches!(err.error, SceneError::Limit(_)), "{err}");
+    // A subtree moves only where all of it fits.
+    scene
+        .apply("wm", &[group("a", ROOT), group("b", "a")])
+        .unwrap();
+    let deep = Command::Move {
+        id: "a".into(),
+        parent: Some(format!("g{}", MAX_DEPTH - 2)),
+        index: None,
+    };
+    assert!(scene.apply("wm", &[deep]).is_err());
+    let fits = Command::Move {
+        id: "a".into(),
+        parent: Some(format!("g{}", MAX_DEPTH - 3)),
+        index: None,
+    };
+    scene.apply("wm", &[fits]).unwrap();
 }
 
 fn camera(output: &str, transform: Option<Transform>) -> Command {

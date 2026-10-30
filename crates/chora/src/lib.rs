@@ -146,7 +146,7 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         });
     safety::reset_on_signal(&event_loop.handle())?;
     if let Some(child) = child {
-        process::reap(child);
+        process::reap(child, command);
     }
     backend::init(&mut state, headless.as_deref())?;
     input::log_layout(&mut state);

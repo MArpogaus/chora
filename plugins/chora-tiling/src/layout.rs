@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub type Rect = [i32; 4];
 
 /// How the tiled windows share the work area.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Layout {
     /// The masters on the left, the stack in columns on the right.

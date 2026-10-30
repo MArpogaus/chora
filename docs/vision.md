@@ -74,6 +74,6 @@ possible.
 - A usable desktop out of the box. A flavor can supply one. The core never
   does.
 - Agent memory and a local inventory of reusable elements. These form a
-  separate, opinionated layer on top of chora (see [Idea backlog](ideas.md)).
-- Distributions other than Fedora and secureblue (D14, D49), and NVIDIA
+  separate, opinionated layer on top of chora.
+- Distributions other than Fedora, secureblue and Arch Linux (D14, D49), and NVIDIA
   GPUs (D11).

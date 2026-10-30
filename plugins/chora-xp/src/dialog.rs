@@ -51,8 +51,6 @@ pub enum Kind {
     Tab(bool),
     /// A picture of the owner that takes clicks, such as a calendar.
     Area(Picture),
-    /// A picture of the owner, and another one under the pointer.
-    Hover(Picture, Picture),
 }
 
 /// A control of a page.
@@ -68,9 +66,6 @@ pub struct Control {
     pub rect: Rect,
     /// A disabled control is gray and takes no click.
     pub enabled: bool,
-    /// The control lies in the scrolled area of its page, and its
-    /// rectangle counts from the top of that area without scrolling.
-    pub scrolled: bool,
 }
 
 impl Control {
@@ -81,7 +76,6 @@ impl Control {
             label: label.into(),
             rect,
             enabled: true,
-            scrolled: false,
         }
     }
 
@@ -115,11 +109,6 @@ impl Control {
         Self::new(name, Kind::Area(picture), "", rect)
     }
 
-    /// A picture that takes clicks and changes under the pointer.
-    pub fn hover(name: &str, rect: Rect, normal: Picture, hot: Picture) -> Self {
-        Self::new(name, Kind::Hover(normal, hot), "", rect)
-    }
-
     /// The default button.
     pub fn default(mut self) -> Self {
         if let Kind::Push { default } = &mut self.kind {
@@ -131,12 +120,6 @@ impl Control {
     /// Enabled or disabled.
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
-        self
-    }
-
-    /// In the scrolled area of the page.
-    pub fn scrolled(mut self) -> Self {
-        self.scrolled = true;
         self
     }
 
@@ -196,13 +179,6 @@ impl Control {
                 )
             }
             Kind::Area(picture) => picture.clone(),
-            Kind::Hover(normal, hot_picture) => {
-                if hot {
-                    hot_picture.clone()
-                } else {
-                    normal.clone()
-                }
-            }
         }
     }
 }
@@ -226,26 +202,6 @@ pub struct Page {
     pub body: Option<Picture>,
     /// The controls, the lowest first.
     pub controls: Vec<Control>,
-    /// Where the scrolled controls start in the client area, as the view
-    /// of an Explorer window: the top-left corner of the view, moved up
-    /// by the offset of the scroll. The scrolled controls lie in one
-    /// group above the other controls, and a scroll moves only this
-    /// group. Only the controls that come, go or change get new nodes.
-    /// The owner leaves out or cuts the controls at the edges of the
-    /// view, without a clip, because a node with a clip is a layer that
-    /// the core draws again in every frame.
-    pub scroll: Option<[i32; 2]>,
-}
-
-impl Page {
-    /// Where a control shows in the client area.
-    pub fn place_of(&self, control: &Control) -> [i32; 2] {
-        let [x, y, ..] = control.rect;
-        match self.scroll.filter(|_| control.scrolled) {
-            Some([sx, sy]) => [x + sx, y + sy],
-            None => [x, y],
-        }
-    }
 }
 
 /// A row of tabs from the left edge of a page at `x`, `y` the top of the
@@ -602,8 +558,7 @@ pub enum Hit {
 }
 
 /// The nodes of a page in a group of their own: the body and one image
-/// node per control, by its name. A dialog shows its page in one, and so
-/// does an Explorer window, whose view scrolls in a group of its own.
+/// node per control, by its name. A dialog shows its page in one.
 pub struct Content {
     /// The id of the group, and the first part of the ids of its nodes.
     prefix: String,
@@ -629,12 +584,6 @@ impl Content {
             hovered: None,
             down: None,
         }
-    }
-
-    /// Whether a node is the group or one of its nodes.
-    pub fn owns(&self, node: &str) -> bool {
-        node.strip_prefix(&self.prefix)
-            .is_some_and(|rest| rest.is_empty() || rest.starts_with('-'))
     }
 
     fn id(&self, part: &str) -> String {
@@ -674,20 +623,7 @@ impl Content {
                 },
             });
         }
-        let count = self.page.controls.len();
-        for i in (0..count).filter(|&i| !self.page.controls[i].scrolled) {
-            commands.extend(self.create_control(theme, i));
-        }
-        // The scrolled controls lie above the others.
-        if let Some(scroll) = self.page.scroll {
-            commands.push(Command::Create {
-                id: self.id("scroll"),
-                kind: NodeKind::Group,
-                parent: self.prefix.clone(),
-                props: at(scroll),
-            });
-        }
-        for i in (0..count).filter(|&i| self.page.controls[i].scrolled) {
+        for i in 0..self.page.controls.len() {
             commands.extend(self.create_control(theme, i));
         }
         commands
@@ -696,16 +632,11 @@ impl Content {
     /// The nodes of a new control.
     fn create_control(&self, theme: &mut Theme, i: usize) -> [Command; 2] {
         let control = &self.page.controls[i];
-        let parent = if control.scrolled {
-            self.id("scroll")
-        } else {
-            self.prefix.clone()
-        };
         [
             Command::Create {
                 id: self.node(control),
                 kind: NodeKind::Image,
-                parent,
+                parent: self.prefix.clone(),
                 props: PropsUpdate {
                     input: Some(InputMode::Accept),
                     ..at([control.rect[0], control.rect[1]])
@@ -715,22 +646,14 @@ impl Content {
         ]
     }
 
-    /// Shows a page: only the parts that changed. The fixed controls keep
-    /// their nodes while their names stay the same, and the scrolled
-    /// ones by name, so that a scroll moves their group and creates and
-    /// removes only the controls that come and go. Else the whole group
-    /// shows again.
+    /// Shows a page: only the parts that changed. The controls keep their
+    /// nodes while their names stay the same. Else the whole group shows
+    /// again.
     pub fn show(&mut self, theme: &mut Theme, page: Page) -> Vec<Command> {
-        let fixed = |p: &Page| -> Vec<String> {
-            p.controls
-                .iter()
-                .filter(|c| !c.scrolled)
-                .map(|c| c.name.clone())
-                .collect()
-        };
-        let same = fixed(&page) == fixed(&self.page)
-            && page.body.is_some() == self.page.body.is_some()
-            && page.scroll.is_some() == self.page.scroll.is_some();
+        let names =
+            |p: &Page| -> Vec<String> { p.controls.iter().map(|c| c.name.clone()).collect() };
+        let same =
+            names(&page) == names(&self.page) && page.body.is_some() == self.page.body.is_some();
         if !same {
             let mut commands = vec![Command::Remove {
                 id: self.prefix.clone(),
@@ -746,32 +669,15 @@ impl Content {
         {
             commands.push(update(self.id("body"), theme.render(body)));
         }
-        if let Some(scroll) = self.page.scroll.filter(|s| old.scroll != Some(*s)) {
-            commands.push(Command::Update {
-                id: self.id("scroll"),
-                props: at(scroll),
-            });
-        }
         commands.extend(self.control_changes(theme, &old.controls));
         commands
     }
 
-    /// The controls that went, came, moved or changed since the old ones.
+    /// The controls that moved or changed since the old ones, of the same
+    /// names.
     fn control_changes(&self, theme: &mut Theme, old: &[Control]) -> Vec<Command> {
-        let mut commands: Vec<Command> = old
-            .iter()
-            .filter(|c| !self.page.controls.iter().any(|n| n.name == c.name))
-            .map(|c| Command::Remove {
-                id: self.node(c),
-                to: None,
-            })
-            .collect();
-        for i in 0..self.page.controls.len() {
-            let control = &self.page.controls[i];
-            let Some(was) = old.iter().find(|c| c.name == control.name) else {
-                commands.extend(self.create_control(theme, i));
-                continue;
-            };
+        let mut commands = Vec::new();
+        for (i, (was, control)) in old.iter().zip(&self.page.controls).enumerate() {
             if was.rect[..2] != control.rect[..2] {
                 commands.push(Command::Update {
                     id: self.node(control),
@@ -848,8 +754,7 @@ impl Content {
             .iter()
             .find(|c| c.name == name)
             .and_then(|c| {
-                let [x, y] = self.page.place_of(c);
-                let [w, h] = [c.rect[2], c.rect[3]];
+                let [x, y, w, h] = c.rect;
                 let [px, py] = [point[0] - x, point[1] - y];
                 ((0..w).contains(&px) && (0..h).contains(&py))
                     .then(|| Hit::Control(name.clone(), [px, py]))
@@ -912,11 +817,6 @@ impl Dialog {
     pub fn owns(&self, node: &str) -> bool {
         node.strip_prefix(&self.prefix)
             .is_some_and(|rest| rest.is_empty() || rest.starts_with('-'))
-    }
-
-    /// The root node of the dialog, which can take the keyboard.
-    pub fn node(&self) -> &str {
-        &self.prefix
     }
 
     /// Whether any dialog owns a node.
@@ -1180,7 +1080,7 @@ pub mod tests {
         for c in &page.controls {
             let hovered = dialog.content.hovered() == Some(c.name.as_str());
             let p = c.picture(hovered, false);
-            layers.push((theme.render(&p), page.place_of(c), p.size));
+            layers.push((theme.render(&p), [c.rect[0], c.rect[1]], p.size));
         }
         for (file, [x, y], [w, h]) in layers {
             picture = picture.file(Path::new(&file), [x + BORDER, y + TITLE, w, h]);
@@ -1213,7 +1113,6 @@ pub mod tests {
                 Control::push("ok", "OK", [156, 287]).default(),
                 Control::push("apply", "Apply", [318, 287]).enabled(false),
             ],
-            ..Page::default()
         };
         dialog.create(&mut theme, "root", page);
         let [ox, oy] = dialog.origin;
@@ -1307,7 +1206,6 @@ pub mod tests {
             Page {
                 body: Some(body),
                 controls,
-                ..Page::default()
             },
         );
         dialog.content.hovered = Some("hot".into());

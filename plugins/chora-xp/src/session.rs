@@ -53,13 +53,14 @@ pub enum Mode {
 pub enum Choice {
     /// Always disabled: chora has no second session to switch to.
     SwitchUser,
-    /// Asks every window to close.
+    /// Runs the command of the settings; by default it asks every window
+    /// to close and ends chora-xp.
     LogOff,
-    /// Suspends the machine with `systemctl suspend`.
+    /// Runs the command of the settings, by default `systemctl suspend`.
     StandBy,
-    /// Ends chora-xp.
+    /// Runs the command of the settings, by default `systemctl poweroff`.
     TurnOff,
-    /// Starts chora-xp again.
+    /// Runs the command of the settings, by default `systemctl reboot`.
     Restart,
     /// Closes the dialog.
     Cancel,
@@ -80,8 +81,8 @@ pub struct Button {
     pub rect: Rect,
 }
 
-/// The buttons of a dialog, Cancel last. Stand By is enabled only when the
-/// machine can suspend.
+/// The buttons of a dialog, Cancel last. Stand By is enabled only when its
+/// command is on `$PATH`.
 pub fn buttons(mode: Mode, suspend: bool) -> Vec<Button> {
     // The left edges of the icons in XP's screenshots.
     let list: &[(Choice, &str, &str, bool, i32)] = match mode {
@@ -354,6 +355,21 @@ fn at([x, y]: [i32; 2]) -> PropsUpdate {
         transform: Some(Transform::translate(f64::from(x), f64::from(y), 0.0)),
         ..PropsUpdate::default()
     }
+}
+
+/// Runs a shell command of the settings in a thread, since polkit may ask
+/// first and the loop must go on. A failure only logs.
+pub fn run(command: String) {
+    drop(std::thread::spawn(
+        move || match std::process::Command::new("sh")
+            .args(["-c", &command])
+            .status()
+        {
+            Ok(status) if !status.success() => eprintln!("chora-xp: {command}: {status}"),
+            Ok(_) => {}
+            Err(err) => eprintln!("chora-xp: {command}: {err}"),
+        },
+    ));
 }
 
 /// Whether a program is on `$PATH`.

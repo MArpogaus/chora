@@ -235,39 +235,45 @@ differ from the numbered 0.7 checks:
 
 Scope:
 
-- `chora-xp` draws no programs into the scene: no Explorer and folder
-  windows, no Control Panel, Display Properties, Date and Time and file
-  properties, and no session dialogs. The git tag
-  `archive/xp-scene-programs` keeps this code.
+- `chora-xp` draws no programs into the scene (D63). The Explorer, the
+  folder windows, file Properties and the Delete confirmation leave the
+  plugin. The git tag `archive/xp-scene-programs` keeps this code.
+- `chora-xp` keeps the dialogs of the XP shell, pixel-perfect (D63): Log
+  Off, Turn Off, Display Properties, Taskbar and Start Menu Properties,
+  Date and Time Properties and the Control Panel menu. The buttons of Log
+  Off and Turn Off run the commands of the settings.
 - A shared plugin runtime in `chora-kit`: the reconnect loop, the startup
   with `output.list`, `events.subscribe` and `methods.export`, grabs, the
   export and dispatch of methods, and the `--output` filter. Claims and
   the resume from `meta` go into the runtime only where both plugins use
   them in the same way.
+- The settings interface of D62 for both plugins: `settings.get` and
+  `settings.set` through the runtime, with a schema in `methods.export`,
+  and the YAML file of the plugin.
 - `chora-tiling` is the lean reference window manager on the runtime.
-  `chora-xp` moves onto it.
+  Its default style for new windows is a setting (#99).
+- `chora-xp` moves onto the runtime and the settings. The settings file
+  replaces most of its command-line flags;
+  [Configuration](configuration.md#the-xp-flavor) lists the others. Its
+  dialogs change the settings with `settings.set`.
 - The start menu and double clicks of `chora-xp` start installed
-  programs. Its configuration chooses them, for example a file manager
-  such as Thunar.
+  programs. My Documents, My Computer, folder icons and the Recycle Bin
+  open the file manager of the settings, by default Thunar.
 - `chora-xp` keeps the XP look: frames, taskbar, start menu, the XP
   notification balloons, wallpaper, sounds and the cube (D39).
 - The action `update` of `node.requested` changes opacity, effects and
   `meta` of a node through its owner (D58). The window manager keeps the
   change across layouts (#97).
-- `chora-tiling` has a default style for new windows (#99).
 - The answer of `scene.apply` carries `warnings` (D59): a surface attached
-  under a group with `input: pass` (#98), and a layer that alone is larger
-  than the pixel budget of every output (#100).
+  under a group with `input: pass` (#98), and a layer whose subtree needs more
+  pixels than the budget of every output (#100).
 - `docs/api.md` tells agents to remove their own old nodes after a
   restart (D61).
 - Bugs of `choractl mcp`: #53, #54 and #56.
-- The release workflow builds the RPM only (D14).
 - The hardware checks 5 and 8 of the 0.7 gate.
-- Remove `dist/arch`, `dist/build-arch.sh` and the Arch install lines of
-  `README.md`.
 
-The work removes the XP programs first, then extracts the runtime from
-`chora-tiling`, and then ports `chora-xp` to the runtime.
+The work removes the XP programs first, then extracts the runtime and
+the settings from `chora-tiling`, and then ports `chora-xp` to both.
 
 Gate:
 
@@ -276,33 +282,35 @@ Gate:
    this with a grep over `plugins/`. The battle workflows in
    `tests/battle/` and `tests/xp.sh` pass.
 2. The program modules of `chora-xp` are gone: `explorer.rs`,
-   `explorer/view.rs`, `folder.rs`, `wm/explorers.rs`, `control.rs`,
-   `display.rs`, `datetime.rs`, `properties.rs`, `confirm.rs`,
-   `session.rs` and `taskbar_dialog.rs`. The tag
-   `archive/xp-scene-programs` exists.
-3. The start menu of `chora-xp` starts the configured file manager, and
-   the `surface.created` event of its window carries the activation token.
-   The check runs in CI in the e2e container, without a user manager. The
-   container installs Thunar from Fedora 44 as the file manager.
-4. A client sets the opacity of a tiling window to 0.5 with the action
+   `explorer/view.rs`, `folder.rs`, `wm/explorers.rs`, `properties.rs`
+   and `confirm.rs`. The tag `archive/xp-scene-programs` exists.
+3. The start menu of `chora-xp` starts the file manager of its settings,
+   and the `surface.created` event of its window carries the activation
+   token. The check runs in CI in the e2e container, without a user
+   manager. The container installs Thunar from Fedora 44 as the file
+   manager.
+4. `choractl` sets a setting of `chora-xp`, for example the wallpaper,
+   with `settings.set` (D62). A capture shows the change at once. After a
+   restart of the plugin, the YAML file holds the value. A wrong value
+   gets an error. A CI job checks this.
+5. A client sets the opacity of a tiling window to 0.5 with the action
    `update` of `node.requested` (D58). After a relayout, a query or a
    capture in CI shows the opacity 0.5.
-5. A new window of `chora-tiling` gets the default style (#99). A CI job
-   checks this.
-6. `scene.apply` answers with a warning code for a surface attached under
+6. `settings.set` changes the default style of `chora-tiling`, and a new
+   window gets this style (#99). A CI job checks this.
+7. `scene.apply` answers with a warning code for a surface attached under
    a group with `input: pass` (D59). It also answers with a warning code
-   for a layer that alone is larger than the pixel budget of every output
-   (#100). Unit tests check both.
-7. #53, #54 and #56 each have a test (D48).
-8. A Quadlet unit from `dist/` connects through its client directory
+   for a layer whose subtree (the layer and every layer under it) needs
+   more pixels than the budget of every output (#100). Unit tests check
+   both.
+8. #53, #54 and #56 each have a test (D48).
+9. A Quadlet unit from `dist/` connects through its client directory
    after a restart of chora, without a change to the unit. The user runs
    this check on the reference hardware, with a log.
-9. With a user manager, `choractl run foot` starts foot in a transient
-   systemd unit of its own, and the `surface.created` event of its window
-   carries the activation token. The user runs this check on the
-   reference hardware, with a log.
-10. The release of the next release candidate carries only the RPM and its
-    SHA256 sum (D14).
+10. With a user manager, `choractl run foot` starts foot in a transient
+    systemd unit of its own, and the `surface.created` event of its window
+    carries the activation token. The user runs this check on the
+    reference hardware, with a log.
 11. CI runs the CI scripts of the earlier gates again. The user runs the
     hardware checks again on the reference hardware, with a log.
 
@@ -484,4 +492,3 @@ speech to text, a language model and text to speech, served by
   the notifications, and a launcher (D51). Until then, shared code lives
   in `chora-kit`.
 - Conformance tests with wlcs.
-- Items from the [Idea backlog](ideas.md).

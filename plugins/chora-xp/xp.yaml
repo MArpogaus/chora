@@ -1,0 +1,48 @@
+# The settings of chora-xp. It lists every option. Copy it to
+# ~/.config/chora/chora-xp.yaml and change it there, or change it with the
+# method settings.set or the dialogs of chora-xp, which rewrite the file.
+# Edits by hand apply on the method settings.reload or restart.
+
+# The shell command of the terminal, for Super+e, the Terminal of the
+# start menu and the desktop files that need a terminal.
+terminal: foot
+# The shell command of Run, and of All Programs when no desktop file
+# lists a program.
+launcher: fuzzel
+# The shell command of the file manager, for the places of the start menu
+# and the folders of the desktop; the folder follows it.
+file_manager: thunar
+# The programs of the start menu, at its top left below Terminal: the
+# title, the shell command and the name of the icon.
+programs: []
+# The format of the clock of the taskbar, as in strftime.
+clock_format: '%-I:%M %p'
+# The background of the desktop, as Display Properties chooses it.
+# picture: default (XP's Bliss when it is installed, else Bløff of the
+# theme), none (the color only) or {file: /an/absolute/path}, a PNG, JPEG
+# or SVG file. position: center, tile, stretch or fill. color: red, green
+# and blue around a centered picture and without one.
+wallpaper:
+  picture: default
+  position: fill
+  color: [0, 78, 152]
+# Taskbar and Start Menu Properties.
+taskbar:
+  locked: true
+  auto_hide: false
+  on_top: true
+  clock: true
+# The effects and sounds of Control Panel > Effects.
+effects:
+  wobbly: true
+  lamp: true
+  cube: true
+  sounds: true
+# The shell commands of the buttons of Turn Off and Log Off. Without a
+# command (null), Turn Off ends chora-xp, Restart starts it again, Stand
+# By is disabled, and Log Off closes the windows and ends chora-xp.
+session:
+  turn_off: systemctl poweroff
+  restart: systemctl reboot
+  stand_by: systemctl suspend
+  log_off: choractl quit

@@ -116,6 +116,9 @@ enum Cmd {
     },
     /// Serve the API as MCP tools over stdio, for an agent.
     Mcp,
+    /// End chora, as Ctrl+Alt+Backspace does. Through a client socket it
+    /// needs the capability `session.quit`.
+    Quit,
     /// Start a program outside the core (D42), with an activation token
     /// of the core in `XDG_ACTIVATION_TOKEN`: in its own transient unit
     /// when a user manager runs, as its own child otherwise. Prints pid,
@@ -309,6 +312,20 @@ fn main() -> ExitCode {
     }
 }
 
+/// Prints the warnings of an applied transaction on stderr; they do not
+/// change the exit code.
+fn print_warnings(answer: &Value) {
+    for w in answer["warnings"].as_array().into_iter().flatten() {
+        let field = |key: &str| w[key].as_str().unwrap_or_default().to_owned();
+        eprintln!(
+            "choractl: warning {} on {}: {}",
+            field("code"),
+            field("node"),
+            field("message")
+        );
+    }
+}
+
 fn run(args: Args) -> Result<(), String> {
     match &args.command {
         Cmd::View { action } => return view_command(action),
@@ -327,9 +344,12 @@ fn run(args: Args) -> Result<(), String> {
         command @ Cmd::Wait { .. } => return wait(&mut client, &command),
         Cmd::Apply { .. } => client
             .call::<_, Value>("scene.apply", Apply { commands })
-            .map(drop),
+            .map(|answer| print_warnings(&answer)),
         Cmd::Events { names } => events(&mut client, names),
         Cmd::Outputs => show(&mut client, "output.list", Value::Null),
+        Cmd::Quit => client
+            .call::<_, Value>("session.quit", Value::Null)
+            .map(drop),
         command @ (Cmd::Run { .. }
         | Cmd::ConfigureOutput { .. }
         | Cmd::AddOutput { .. }
@@ -584,6 +604,7 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
             unit,
         ])
         .env("XDG_ACTIVATION_TOKEN", token)
+        .env("DESKTOP_STARTUP_ID", token)
         .args(unit_env());
     if restart {
         started.arg("-pRestart=on-failure");
@@ -626,6 +647,7 @@ fn start_child(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
     let mut child = std::process::Command::new(&argv[0])
         .args(&argv[1..])
         .env("XDG_ACTIVATION_TOKEN", token)
+        .env("DESKTOP_STARTUP_ID", token)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -721,7 +743,11 @@ fn restart_program(name: &str) -> Result<(), String> {
 /// the host of a nested chora, so each host variable gets this session's
 /// value or none. All other variables come from the user manager.
 fn unit_env() -> Vec<String> {
-    let mut options = vec!["--setenv=XDG_ACTIVATION_TOKEN".to_owned()];
+    // GTK 3 reads the token only from DESKTOP_STARTUP_ID.
+    let mut options = vec![
+        "--setenv=XDG_ACTIVATION_TOKEN".to_owned(),
+        "--setenv=DESKTOP_STARTUP_ID".to_owned(),
+    ];
     for key in ["PATH", "XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"]
         .into_iter()
         .chain(chora_scene::ipc::HOST_VARIABLES)

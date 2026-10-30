@@ -99,7 +99,8 @@ jq -e '
 test "$(colors "$out/tiled.png")" -gt 3 || fail "the screenshot is empty"
 
 step "3. a crash of chora-tiling leaves chora running and detaches the surfaces"
-pkill -KILL -x chora-tiling
+# Only the plugin of this core: other sessions may run on the host.
+pkill -KILL -P "$chora_pid" -x chora-tiling
 # chora-tiling connects with resume: the core keeps its nodes for the
 # grace time of 10 s, then detaches the surfaces.
 sleep 10
@@ -200,14 +201,15 @@ step "10. a panel reserves its zone of the work area until it exits"
 echo '{"layer": "top", "position": "top", "height": 30, "modules-center": ["clock"]}' \
     >"$out/waybar.json"
 WAYLAND_DISPLAY=$inner dbus-run-session waybar -c "$out/waybar.json" >"$out/waybar.log" 2>&1 &
-pids+=($!)
+waybar_pid=$!
+pids+=("$waybar_pid")
 work_area_is() { test "$(work_area)" = "$1"; }
 wait_for work_area_is "[0,30,1280,770]"
 "$bin/choractl" events output.changed >"$out/panel-events.jsonl" &
 events_pid=$!
 pids+=("$events_pid")
 sleep 0.3
-pkill -x waybar
+pkill -P "$waybar_pid" -x waybar
 wait_for grep -q '"work_area":\[0,0,1280,800\]' "$out/panel-events.jsonl"
 kill "$events_pid"
 

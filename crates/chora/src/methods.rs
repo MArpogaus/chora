@@ -80,10 +80,21 @@ impl State {
                 if let Err(e) = self.check_socket_grant(conn, Capability::MethodsCall) {
                     return Some(Err(e));
                 }
-                let call = match params_of(params) {
+                let call: MethodCall = match params_of(params) {
                     Ok(c) => c,
                     Err(e) => return Some(Err(e)),
                 };
+                // Plugin settings and some methods run commands.
+                let privileged = ExportMethod::from(call.method.as_str()).privileged()
+                    || self
+                        .exporter(&call.client, &call.method)
+                        .and_then(|c| self.methods.exports[&c].get(&call.method))
+                        .is_some_and(ExportMethod::privileged);
+                if privileged
+                    && let Err(e) = self.check_socket_grant(conn, Capability::MethodsPrivileged)
+                {
+                    return Some(Err(e));
+                }
                 return self.call_method(conn, id, call).err().map(Err);
             }
             _ => params_of(params).and_then(|r| self.return_method(conn, r)),

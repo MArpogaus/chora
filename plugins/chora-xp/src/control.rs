@@ -42,9 +42,12 @@ pub enum Effect {
     Sounds,
 }
 
-/// Which effects are on, for the session.
+/// Which effects are on.
 #[allow(clippy::struct_excessive_bools)] // independent switches
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
 pub struct Toggles {
     /// Wobbly windows.
     pub wobbly: bool,
@@ -54,17 +57,6 @@ pub struct Toggles {
     pub cube: bool,
     /// XP's sounds.
     pub sounds: bool,
-}
-
-impl Default for Toggles {
-    fn default() -> Self {
-        Self {
-            wobbly: true,
-            lamp: true,
-            cube: true,
-            sounds: true,
-        }
-    }
 }
 
 impl Toggles {
@@ -150,7 +142,9 @@ pub fn menu(wallpaper: Option<&Path>, walls: &[PathBuf], toggles: Toggles) -> Ve
     vec![
         Node {
             title: "Date and Time".into(),
-            icon: "preferences-system-time".into(),
+            // XP draws a calendar; the WindowsXP theme has no
+            // preferences-system-time.
+            icon: "x-office-calendar".into(),
             kind: Kind::Pick(Setting::DateTime, false),
         },
         group("Desktop", "preferences-desktop-wallpaper", walls),
@@ -210,7 +204,7 @@ mod tests {
     #[test]
     fn the_current_choices_have_check_marks() {
         let walls = [PathBuf::from("/w/a.png"), PathBuf::from("/w/b.svg")];
-        let mut toggles = Toggles::default();
+        let mut toggles = crate::config::defaults().effects;
         toggles.flip(Effect::Lamp);
         let menu = menu(Some(Path::new("/w/b.svg")), &walls, toggles);
         assert_eq!(picks(&menu[1]), [("A", false), ("B", true)]);

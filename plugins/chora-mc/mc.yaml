@@ -1,0 +1,230 @@
+# The settings of chora-mc. `chora-mc --print-config` prints this file.
+# Copy it to ~/.config/chora/chora-mc.yaml and change it there, or change
+# it with the method settings.set, which rewrites the file. Edits by
+# hand apply on the method settings.reload.
+
+# The colors of the theme: light or dark.
+theme: dark
+# Each color is RGBA from 0 to 1. A style names a color of the theme;
+# each theme needs a background.
+themes:
+  light:
+    background: [0.97, 0.96, 0.93, 1.0]
+    text: [0.16, 0.15, 0.14, 1.0]
+    muted: [0.50, 0.48, 0.45, 1.0]
+    faint: [0.83, 0.81, 0.77, 1.0]
+    accent: [0.55, 0.14, 0.12, 1.0]
+    green: [0.25, 0.46, 0.33, 1.0]
+    amber: [0.72, 0.47, 0.08, 1.0]
+    blue: [0.22, 0.38, 0.58, 1.0]
+    red: [0.70, 0.13, 0.12, 1.0]
+  dark:
+    background: [0.11, 0.11, 0.11, 1.0]
+    text: [0.85, 0.83, 0.79, 1.0]
+    muted: [0.55, 0.54, 0.51, 1.0]
+    faint: [0.26, 0.26, 0.25, 1.0]
+    accent: [0.80, 0.47, 0.40, 1.0]
+    green: [0.52, 0.72, 0.56, 1.0]
+    amber: [0.88, 0.70, 0.38, 1.0]
+    blue: [0.55, 0.69, 0.86, 1.0]
+    red: [0.92, 0.42, 0.38, 1.0]
+# The font sizes are steps of a modular scale: base times ratio to the
+# power of the step. Each line of text is whole lines of the baseline grid.
+scale:
+  base: 18
+  ratio: 1.333
+  baseline: 27
+# The styles of text. Each has a family, a weight (300 light, 400 normal,
+# 700 bold), a style (normal or italic), a size in pixels or a step of the
+# scale, a color, a line_height, a letter_spacing in em, OpenType features
+# (smcp small caps, c2sc capitals as small caps, onum old-style figures,
+# tnum tabular figures) and uppercase. A style with a base changes it.
+# TeX Gyre Pagella is in the Fedora package texlive-tex-gyre, outside the
+# font directories: add its directory to CHORA_FONT_DIRS of chora, for
+# example /usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre.
+# Inter is in the package rsms-inter-fonts. Without a family, a system
+# font shows.
+styles:
+  body:
+    family: TeX Gyre Pagella
+    line_height: 1.5
+    features: {onum: 1}
+  heading:
+    base: body
+    color: accent
+    letter_spacing: 0.08
+    features: {smcp: 1, c2sc: 1, onum: 1}
+  chapter:
+    base: heading
+    step: 1
+    letter_spacing: 0.14
+  chapter_number:
+    family: TeX Gyre Pagella
+    step: 5
+    line_height: 1.0
+    color: faint
+  chapter_large:
+    family: Inter
+    weight: 200
+    step: 5
+    line_height: 1.25
+    letter_spacing: -0.02
+  running_head:
+    family: Inter
+    weight: 500
+    size: 11
+    color: muted
+    letter_spacing: 0.2
+    uppercase: true
+  margin:
+    family: Inter
+    step: -1
+    color: muted
+    features: {tnum: 1}
+  hud:
+    base: margin
+  mono:
+    family: DejaVu Sans Mono
+    step: -1
+# The head of each scene: number (a large number, the title in small caps
+# below it), caps (the title in small caps), large (one large title) or
+# none.
+chapter:
+  layout: number
+# The text block: the width of a column of text, about 65 letters, the
+# margin column left of it for notes such as times, and the space between
+# them, all in em of scale.base.
+page:
+  measure: 30
+  margin: 6
+  gap: 1.5
+# New text writes itself: first its outline line by line, then its fill.
+write:
+  enabled: true
+  duration_ms: 900
+# The scene at the start.
+default_scene: agenda
+# A binding and its action: next_scene, previous_scene, {scene: NAME},
+# {run: COMMAND}, which starts a shell command whose window gets a scene
+# of its own, {toggle: REGION}, which shows or hides a region; a docked
+# app in it takes the focus first, the next press hides it, or
+# {solo: {content: NAME, region: REGION}}, which shows the content alone
+# in the region over any scene; the next press hides it again.
+bindings:
+  Super+Right: next_scene
+  Super+Left: previous_scene
+  Super+a: {scene: agenda}
+  Super+space: {run: fuzzel}
+  Super+Return: {toggle: drawer}
+  Super+n: {toggle: right}
+  Super+Up: {toggle: header}
+  Super+Down: {toggle: footer}
+  Super+F12: {solo: {content: overlay, region: drawer}}
+# The states of an agent of agent.set: the sign and the color of each,
+# and a label for the agents scene; without a label, the name.
+states:
+  idle: {sign: ○, color: faint}
+  listening: {sign: ◉, color: blue}
+  thinking: {sign: ◌, color: blue}
+  working: {sign: ●, color: green}
+  speaking: {sign: ◐, color: accent}
+  question: {sign: '?', color: amber, label: has a question}
+  blocked: {sign: ✕, color: red}
+  done: {sign: ✓, color: green}
+  asleep: {sign: ☾, color: faint}
+# The regions around the page, as in the Emacs package auto-side-windows:
+# a header and a footer line, sizes in lines of the baseline grid; a left
+# and a right side, sizes in em; a drawer at the bottom, size in lines. A
+# region shows only with something in it, and a scene file can show or
+# hide one with `regions: {right: false}`.
+regions:
+  header: {shown: true, size: 2}
+  footer: {shown: true, size: 2}
+  left: {shown: false, size: 12}
+  right: {shown: true, size: 13}
+  drawer: {shown: false, size: 14}
+# What the regions show, by name. Kinds: head (the running head of the
+# scene), clock (a format of `date`), state and hud (the state and the
+# words of the agent), agents (the sign and the name of each agent of
+# agent.set, in the color of its state), text (lines of content.set and
+# content.add, with a title), app (a command docked in a side or the
+# drawer; {NAME} is the color NAME of the theme as RRGGBB). Each may set a
+# style. notify.push fills the texts notify and urgent; urgent shows
+# in the middle of the footer, where the header has no room left.
+contents:
+  head: {kind: head}
+  clock: {kind: clock, format: '%A %-d %B  %H:%M'}
+  date: {kind: clock, format: '%A %-d %B'}
+  time: {kind: clock, format: '%H:%M'}
+  state: {kind: state}
+  hud: {kind: hud}
+  agents: {kind: agents}
+  notify: {kind: text, title: Notifications}
+  urgent: {kind: text, style: {base: running_head, color: red}}
+  overlay: {kind: text, title: Tests, style: {base: mono, color: muted}}
+  next: {kind: text}
+  notes: {kind: text, title: Notes}
+  outline: {kind: text, title: Outline}
+  shell:
+    kind: app
+    command: foot -o pad=0x0 -o colors-dark.background={background} -o colors-dark.foreground={text}
+# Which content goes where: the first rule that matches wins. A rule names
+# a content or a kind, optionally the scenes (names, @app or @page), a
+# region and a slot. In a line a slot below 0 goes left, 0 in the middle,
+# above 0 right; elsewhere the lowest slot is on top.
+rules:
+- {content: head, region: header, slot: -1}
+- {content: hud, scenes: ['@app'], region: header, slot: 0}
+- {content: urgent, region: footer, slot: 0}
+- {content: agents, region: header, slot: 1}
+- {content: state, region: header, slot: 2}
+- {content: clock, region: header, slot: 3}
+- {content: hud, region: footer, slot: -1}
+- {content: next, scenes: ['@page'], region: footer, slot: 1}
+- {content: notes, region: right}
+- {content: notify, region: right, slot: 1}
+- {content: shell, region: drawer}
+# The arrangement of the regions: a name of presets. A preset sets which
+# regions show and its own rules; without rules, those above apply.
+#   quiet:  the header alone, the words of the agent in its middle
+#   desk:   header, footer with the HUD and the next entry, notes right
+#   studio: an outline and the notes left, a terminal in the drawer
+#   book:   running head and date above, the time as a folio below
+preset: desk
+presets:
+  quiet:
+    shown: {footer: false, right: false}
+    rules:
+    - {content: head, region: header, slot: -1}
+    - {content: hud, region: header, slot: 0}
+    - {content: urgent, region: header, slot: -2}
+    - {content: agents, region: header, slot: 1}
+    - {content: state, region: header, slot: 2}
+    - {content: time, region: header, slot: 3}
+  desk: {}
+  studio:
+    shown: {left: true, right: false, drawer: true}
+    rules:
+    - {content: head, region: header, slot: -1}
+    - {content: hud, scenes: ['@app'], region: header, slot: 0}
+    - {content: urgent, region: footer, slot: 0}
+    - {content: agents, region: header, slot: 1}
+    - {content: state, region: header, slot: 2}
+    - {content: clock, region: header, slot: 3}
+    - {content: hud, region: footer, slot: -1}
+    - {content: next, scenes: ['@page'], region: footer, slot: 1}
+    - {content: outline, region: left, slot: 0}
+    - {content: notes, region: left, slot: 1}
+    - {content: notify, region: left, slot: 2}
+    - {content: shell, region: drawer}
+  book:
+    rules:
+    - {content: head, region: header, slot: -1}
+    - {content: urgent, region: footer, slot: 0}
+    - {content: agents, region: header, slot: 1}
+    - {content: date, region: header, slot: 2}
+    - {content: hud, region: footer, slot: -1}
+    - {content: time, region: footer, slot: 0}
+    - {content: state, region: footer, slot: 1}
+    - {content: notes, region: right}
+    - {content: notify, region: right, slot: 1}

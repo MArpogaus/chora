@@ -1,10 +1,13 @@
-//! The configuration: a YAML file that lists every option. The file
-//! `tiling.yaml` next to the crate is the default and the reference.
+//! The configuration: the settings of the plugin (D62), a YAML file that
+//! lists every option. The file `tiling.yaml` next to the crate is the
+//! default and the reference.
 
 use std::{collections::BTreeMap, path::Path};
 
-use chora_scene::Binding;
-use serde::Deserialize;
+use chora_kit::settings::Settings;
+use chora_scene::{Binding, ShaderEffect};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 use crate::layout::Layout;
 
@@ -22,7 +25,7 @@ pub const SHARE: std::ops::RangeInclusive<f64> = 0.05..=0.95;
 const MODIFIERS: [&str; 2] = ["Super", "Alt"];
 
 /// Where a new window goes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum NewWindow {
     /// First in the list: the new master.
@@ -32,7 +35,7 @@ pub enum NewWindow {
 }
 
 /// How the focus follows the pointer.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Focus {
     /// A click on a window focuses it.
@@ -43,7 +46,7 @@ pub enum Focus {
 }
 
 /// What a binding does.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
     /// Runs a shell command as an app.
@@ -96,8 +99,18 @@ pub enum Action {
     Reload,
 }
 
+/// How a new window looks (#99).
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Style {
+    /// From 0 to 1.
+    pub opacity: f64,
+    /// Shaders on the window, as in `scene.apply`.
+    pub effects: Vec<ShaderEffect>,
+}
+
 /// The configuration of the plugin.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     /// What `MOD` means in the bindings.
@@ -116,28 +129,13 @@ pub struct Config {
     pub columns: usize,
     pub new_window: NewWindow,
     pub focus: Focus,
+    /// How a new window looks.
+    pub style: Style,
     /// Binding with `MOD`, and its action.
     pub bindings: BTreeMap<String, Action>,
 }
 
-impl Config {
-    /// Parses and checks a configuration.
-    pub fn parse(text: &str) -> Result<Self, String> {
-        let mut options = serde_saphyr::Options::default();
-        options.strict_booleans = true;
-        options.reject_unsupported_tags = true;
-        let config: Self =
-            serde_saphyr::from_str_with_options(text, options).map_err(|e| e.to_string())?;
-        config.check()?;
-        Ok(config)
-    }
-
-    /// Reads a configuration file.
-    pub fn read(path: &Path) -> Result<Self, String> {
-        let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
-        Self::parse(&text).map_err(|e| format!("{}: {e}", path.display()))
-    }
-
+impl Settings for Config {
     fn check(&self) -> Result<(), String> {
         if !(1..=MAX_TAGS).contains(&self.tags) {
             return Err(format!("tags: 1 to {MAX_TAGS}"));
@@ -154,11 +152,25 @@ impl Config {
         if self.columns == 0 {
             return Err("columns: at least 1".into());
         }
+        if !(0.0..=1.0).contains(&self.style.opacity) {
+            return Err("style.opacity: from 0 to 1".into());
+        }
+        // Checked here, so that settings.set refuses it, and not at every
+        // new window.
+        for effect in &self.style.effects {
+            chora_kit::check_file(Path::new(&effect.shader))
+                .map_err(|e| format!("style.effects: no shader file {e}"))?;
+        }
         let mut keys = BTreeMap::new();
         for (binding, action) in &self.bindings {
             // Two spellings of one key would lose one grab at runtime.
             if let Some(other) = keys.insert(self.binding(binding)?.to_string(), binding) {
                 return Err(format!("{binding}: the same key as {other}"));
+            }
+            if let Action::Run(command) = action
+                && command.trim().is_empty()
+            {
+                return Err(format!("{binding}: run takes a command"));
             }
             if let Action::IncMasterWidth(step) = action
                 && !step.is_finite()
@@ -176,7 +188,9 @@ impl Config {
         }
         Ok(())
     }
+}
 
+impl Config {
     /// A binding of the file, with `MOD` replaced by the modifier.
     pub fn binding(&self, text: &str) -> Result<Binding, String> {
         let replaced: Vec<&str> = text
@@ -192,13 +206,15 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
+    use chora_kit::settings::parse;
+
     use super::*;
 
     #[test]
     fn a_key_twice_and_a_step_without_a_number_fail() {
         let twice = format!("{DEFAULT}\n  Super+j: close\n");
         assert!(
-            Config::parse(&twice)
+            parse::<Config>(&twice)
                 .unwrap_err()
                 .contains("the same key as MOD+j")
         );
@@ -207,12 +223,16 @@ mod tests {
             "MOD+l: {inc_master_width: .nan}",
         );
         assert_ne!(nan, DEFAULT);
-        assert!(Config::parse(&nan).unwrap_err().contains("takes a number"));
+        assert!(
+            parse::<Config>(&nan)
+                .unwrap_err()
+                .contains("takes a number")
+        );
     }
 
     #[test]
     fn the_default_is_valid() {
-        let config = Config::parse(DEFAULT).unwrap();
+        let config = parse::<Config>(DEFAULT).unwrap();
         assert_eq!(config.tags, 9);
         assert_eq!(config.layouts[0], Layout::Tile);
         assert_eq!(config.bindings["MOD+Return"], Action::Run("foot".into()));
@@ -222,17 +242,38 @@ mod tests {
         );
     }
 
+    /// W9: settings.set took {"run": ""}.
+    #[test]
+    fn a_run_without_a_command_fails() {
+        let run = DEFAULT.replace("MOD+Return: {run: foot}", "MOD+Return: {run: ' '}");
+        assert_ne!(run, DEFAULT);
+        let err = parse::<Config>(&run).unwrap_err();
+        assert!(err.contains("run takes a command"), "{err}");
+    }
+
     #[test]
     fn mistakes_fail() {
         let wrong = DEFAULT.replace("master_width: 0.5", "master_width: 2");
-        assert!(Config::parse(&wrong).is_err());
+        assert!(parse::<Config>(&wrong).is_err());
         let unknown = DEFAULT.replace("gap: 4", "gap: 4\nborder: 2");
-        assert!(Config::parse(&unknown).is_err());
+        assert!(parse::<Config>(&unknown).is_err());
         let tag = DEFAULT.replace("{view_tag: 9}", "{view_tag: 10}");
-        assert!(Config::parse(&tag).unwrap_err().contains("no tag 10"));
+        assert!(parse::<Config>(&tag).unwrap_err().contains("no tag 10"));
         let key = DEFAULT.replace("MOD+j:", "MOD+Hyper+j:");
-        assert!(Config::parse(&key).is_err());
+        assert!(parse::<Config>(&key).is_err());
+        let opacity = DEFAULT.replace("opacity: 1.0", "opacity: 1.5");
+        let err = parse::<Config>(&opacity).unwrap_err();
+        assert!(err.contains("style.opacity"), "{err}");
+        let missing = DEFAULT.replace(
+            "effects: []",
+            "effects: [{shader: /nonexistent/chora-test.frag}]",
+        );
+        let err = parse::<Config>(&missing).unwrap_err();
+        assert!(err.contains("/nonexistent/chora-test.frag"), "{err}");
+        let proc = DEFAULT.replace("effects: []", "effects: [{shader: /proc/self/mem}]");
+        let err = parse::<Config>(&proc).unwrap_err();
+        assert!(err.contains("not a regular file"), "{err}");
         let modifier = DEFAULT.replace("modifier: Super", "modifier: Shift");
-        assert!(Config::parse(&modifier).is_err());
+        assert!(parse::<Config>(&modifier).is_err());
     }
 }

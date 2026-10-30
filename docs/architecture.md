@@ -33,6 +33,24 @@ changes the scene in another way.
 Plugins are separate processes (D28). A plugin can also be a Wayland client,
 for example to draw window decorations as its own surfaces.
 
+The plugin runtime in `chora-kit` (`runtime.rs`) does what every plugin
+repeats. It connects with `resume`, subscribes to the events and exports
+the methods of the plugin, before the plugin builds its scene, or after
+it with `connect` and `announce`. It grabs
+the bindings, answers the method calls and drops the events of outputs
+that `--output` leaves to other window managers. It answers
+`settings.get`, `settings.set` and `settings.reload` of a plugin with
+settings (D62): it checks a change, the plugin applies it, and then the
+runtime saves the YAML file of the plugin. When the core closes
+the connection, for example at the emergency reset, it connects again
+after 500 ms. It gives up when only failures follow for 30 s. The plugin keeps
+its claim and its restart from `meta`, because each plugin rebuilds
+different things. `chora-tiling` runs on the runtime with `serve`.
+`chora-xp` runs its own loop with a timeout for the clock and the frames
+of its effects, and hands each event to `dispatch`. It announces itself
+after its scene: the removal of the root group of a restart detaches its
+windows, and these events would make new windows of them.
+
 ## Components
 
 ### Core
@@ -214,6 +232,7 @@ Limits keep a buggy client from exhausting the core:
 | output buffer of a connection | 8 MiB | the core closes the connection; an answer that does not fit becomes an error |
 | waiting transactions of a connection | 16 | the core rejects the transaction |
 | nodes other than surfaces | 16,384 | the core rejects the `create` |
+| levels of nodes below the root | 64 | the core rejects the `create`, `attach` or `move` |
 | cameras | 64 | the core rejects the `camera` |
 | `meta` of a node | 32 keys, 1 KiB per key or value, 4 KiB in all | the core rejects the command |
 

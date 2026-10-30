@@ -7,8 +7,7 @@
 mod apps;
 mod balloon;
 mod cascade;
-mod confirm;
-
+mod config;
 mod context;
 mod control;
 mod cube;
@@ -17,11 +16,8 @@ mod decoration;
 mod desktop_icons;
 mod dialog;
 mod display;
-mod explorer;
-mod folder;
 mod icons;
 mod notify;
-mod properties;
 mod session;
 mod sound;
 mod startmenu;
@@ -37,15 +33,14 @@ mod wm;
 use std::{
     path::PathBuf,
     process::ExitCode,
-    thread::sleep,
     time::{Duration, Instant},
 };
 
-use chora_kit::{conn::Conn, icons::Icons};
+use chora_kit::{runtime, settings};
 use chora_scene::{Event, ipc::ClientError};
 use clap::Parser;
 
-use crate::{startmenu::Menu, theme::Theme, wm::Wm};
+use crate::{config::Config, theme::Theme, wm::Wm};
 
 /// How often the plugin checks the clock.
 const TICK: Duration = Duration::from_secs(1);
@@ -64,30 +59,15 @@ struct Args {
         default_value = "/usr/share/chora/flavors/xp/theme"
     )]
     theme: PathBuf,
-    /// The shell command of the terminal, for the start menu and Super+e.
-    #[arg(long, default_value = "foot")]
-    terminal: String,
-    /// The shell command of Run, and of All Programs when no desktop file
-    /// lists a program.
-    #[arg(long, default_value = "fuzzel")]
-    launcher: String,
-    /// More programs for the start menu, as TITLE=COMMAND.
-    #[arg(long = "program", value_name = "TITLE=COMMAND")]
-    programs: Vec<String>,
-    /// The format of the clock, as in strftime.
-    #[arg(long, default_value = "%-I:%M %p")]
-    clock: String,
-    /// The wallpaper, a PNG, JPEG or SVG file; XP's Bliss when it is
-    /// installed, else Bløff of the theme.
+    /// The settings file. Without it, chora-xp reads
+    /// $XDG_CONFIG_HOME/chora/chora-xp.yaml, by default in ~/.config, if
+    /// it exists, or the default.
     #[arg(long)]
-    wallpaper: Option<PathBuf>,
+    config: Option<PathBuf>,
     /// Stretches the time of the magic lamp and of the cube by a factor,
     /// to show them slowly.
     #[arg(long, value_name = "FACTOR", default_value_t = 1.0)]
     slow_motion: f64,
-    /// Plays no sounds; Control Panel > Effects > Sounds turns them on.
-    #[arg(long)]
-    no_sounds: bool,
     /// Manages only this output, by name, and leaves the others to other
     /// window managers; all outputs without it. Repeat it for more.
     #[arg(long = "output", value_name = "NAME")]
@@ -95,73 +75,31 @@ struct Args {
 }
 
 fn main() -> ExitCode {
-    let args = Args::parse();
-    // The core may close the connection and stay: the emergency reset
-    // revokes grants and disconnects, and the scene survives it. Come back
-    // in that case; give up when only failures follow within the episode.
-    let mut failing = Duration::ZERO;
-    loop {
-        let start = Instant::now();
-        match run(&args) {
-            Ok(()) => return ExitCode::SUCCESS,
-            Err(err) => {
-                failing = next_failing(start.elapsed(), failing);
-                if failing >= COME_BACK {
-                    eprintln!("chora-xp: {err}");
-                    return ExitCode::FAILURE;
-                }
-                eprintln!("chora-xp: {err}; I come back");
-                sleep(TRY_AGAIN);
-            }
+    let args = Args::try_parse().unwrap_or_else(|err| {
+        if err.kind() == clap::error::ErrorKind::UnknownArgument {
+            eprintln!(
+                "chora-xp: --wallpaper, --clock, --terminal, --launcher, --program, \
+                 --no-sounds and --file-manager moved into chora-xp.yaml (D62)"
+            );
         }
-    }
+        err.exit()
+    });
+    runtime::run(wm::NAME, || play(&args))
 }
 
-/// How long a served session must last to start a new episode of errors.
-const SERVED: Duration = Duration::from_millis(500);
-/// How long one episode of failures may last before the plugin gives up.
-const COME_BACK: Duration = Duration::from_secs(30);
-/// The wait between two attempts.
-const TRY_AGAIN: Duration = Duration::from_millis(500);
-
-/// The failures of the current episode after a session of `served`.
-fn next_failing(served: Duration, failing: Duration) -> Duration {
-    if served >= SERVED {
-        TRY_AGAIN
-    } else {
-        failing + served + TRY_AGAIN
-    }
-}
-
-fn run(args: &Args) -> Result<(), String> {
-    let conn = Conn::connect(wm::NAME).map_err(|e| e.to_string())?;
+/// One connection to the core: window management until Turn Off.
+fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
+    let path = settings::File::<Config>::path(args.config.clone(), "chora-xp")?;
+    let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
     let theme = Theme::load(&args.theme, &cache_dir()).map_err(|e| format!("theme: {e}"))?;
-    let mut icons = Icons::new(crate::icons::THEMES);
-    let menu = Menu::new(&menu_config(args), &theme, &mut icons);
-    let config = wm::Config {
-        terminal: args.terminal.clone(),
-        clock: args.clock.clone(),
-        wallpaper: wallpaper::Style::new(
-            args.wallpaper
-                .clone()
-                .or_else(|| chora_kit::xdg::data_file("wallpapers/WindowsXP/bliss.jpg"))
-                .unwrap_or_else(|| theme.path("wallpaper/bloff.png")),
-        ),
-        slow: args.slow_motion,
-        outputs: args.outputs.clone(),
-        toggles: control::Toggles {
-            sounds: !args.no_sounds,
-            ..control::Toggles::default()
-        },
-    };
-    let mut wm = Wm::start(conn, theme, menu, icons, config).map_err(|e| e.to_string())?;
-    event_loop(&mut wm).map_err(|e| e.to_string())?;
+    let mut wm = Wm::start(args.outputs.clone(), theme, settings, args.slow_motion)?;
+    event_loop(&mut wm)?;
     if wm.restart {
         drop(wm);
-        return Err(restart());
+        return Err(restart().into());
     }
     // Nodes of a plugin with resume outlive it for the grace time.
-    wm.leave().map_err(|e| e.to_string())
+    Ok(wm.leave()?)
 }
 
 /// Restart of the Turn Off dialog: the plugin runs itself again with the
@@ -195,9 +133,9 @@ fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
             .map_or(until, |due| until.min(due));
         if let Some(event) = wm.conn_event(until.saturating_duration_since(Instant::now()))? {
             let (event, next) = last_move(wm, event)?;
-            wm.handle(event)?;
+            runtime::dispatch(wm, event)?;
             if let Some(next) = next {
-                wm.handle(next)?;
+                runtime::dispatch(wm, next)?;
             }
         }
         let now = Instant::now();
@@ -228,28 +166,6 @@ fn last_move(wm: &mut Wm, mut event: Event) -> Result<(Event, Option<Event>), Cl
     Ok((event, None))
 }
 
-/// The programs of the start menu: the terminal, then the extra ones.
-fn menu_config(args: &Args) -> startmenu::Config {
-    let mut programs = vec![(
-        "Terminal".to_string(),
-        args.terminal.clone(),
-        "utilities-terminal".to_string(),
-    )];
-    for program in &args.programs {
-        let (title, command) = program.split_once('=').unwrap_or((program, program));
-        let icon = command.split_whitespace().next().unwrap_or_default();
-        programs.push((title.into(), command.into(), icon.into()));
-    }
-    startmenu::Config {
-        user: std::env::var("USER")
-            .or_else(|_| std::env::var("LOGNAME"))
-            .unwrap_or_else(|_| "User".into()),
-        programs,
-        launcher: args.launcher.clone(),
-        apps: apps::load(&args.terminal),
-    }
-}
-
 /// The directory of the rendered files: one per chora instance, below
 /// `$XDG_RUNTIME_DIR/chora-xp`, which the core can read.
 fn cache_dir() -> PathBuf {
@@ -260,27 +176,4 @@ fn cache_dir() -> PathBuf {
         .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().into_owned()))
         .unwrap_or_else(|| "default".into());
     runtime.join("chora-xp").join(instance)
-}
-
-#[cfg(test)]
-mod supervision_tests {
-    use super::{COME_BACK, SERVED, TRY_AGAIN, next_failing};
-    use std::time::Duration;
-
-    #[test]
-    fn a_served_session_starts_a_new_episode_of_failures() {
-        assert_eq!(next_failing(SERVED * 2, COME_BACK / 2), TRY_AGAIN);
-    }
-
-    #[test]
-    fn an_episode_of_pure_failures_gives_up_after_come_back() {
-        let mut failing = Duration::ZERO;
-        for _ in 0..1000 {
-            failing = next_failing(Duration::ZERO, failing);
-            if failing >= COME_BACK {
-                return;
-            }
-        }
-        panic!("the plugin never gave up");
-    }
 }

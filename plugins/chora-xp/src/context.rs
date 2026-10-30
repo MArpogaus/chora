@@ -65,8 +65,6 @@ pub enum Act {
     Position(usize),
     /// A color of the desktop in Display Properties.
     Color([u8; 3]),
-    /// A row of a menu of the Explorer window that has the focus.
-    Explore(crate::explorer::Cmd),
     /// A row of the system menu of a window.
     Window(Sys),
     /// A row of the menu of a desktop icon or a start menu entry.
@@ -79,16 +77,8 @@ pub enum Act {
 pub enum Item {
     /// Open, as a double click does.
     Open,
-    /// Explore: opens a folder in Explorer.
-    Explore,
-    /// Delete: moves the file to the Recycle Bin.
-    Delete,
-    /// Empty Recycle Bin.
-    EmptyTrash,
     /// Remove from This List: the program leaves the start menu.
     Remove,
-    /// Properties.
-    Properties,
 }
 
 /// What an icon or an entry is, for its menu.
@@ -98,16 +88,13 @@ pub enum Target {
     Folder,
     /// A file or a desktop file of the Desktop folder.
     File,
-    /// My Documents.
-    Documents,
     /// My Computer.
     Computer,
-    /// The Recycle Bin, empty or not.
-    Trash(bool),
-    /// A program of the start menu; one of its left column can leave it.
+    /// The Recycle Bin.
+    Trash,
+    /// A program or a place of the start menu; a program of its left
+    /// column can leave it.
     Program(bool),
-    /// A place of the start menu; a folder can be explored.
-    Place(bool),
 }
 
 /// What a row of XP's system menu does to its window.
@@ -321,18 +308,13 @@ pub fn desktop() -> Vec<Entry> {
 pub fn item(target: Target) -> Vec<Entry> {
     let row = |title: &str, item: Item| Entry::item(title, Act::Item(item));
     let open = row("Open", Item::Open).bold();
-    let explore = row("Explore", Item::Explore);
     let send_to = Entry::sub("Send To", Vec::new()).enabled(false);
-    let properties = row("Properties", Item::Properties);
     let sep = Entry::separator;
     let gray = Entry::gray;
     match target {
-        Target::Folder | Target::File | Target::Documents => {
-            file_rows(target, open, explore, send_to, properties)
-        }
+        Target::Folder | Target::File => file_rows(target, open, send_to),
         Target::Computer => vec![
             open,
-            explore,
             gray("Search..."),
             gray("Manage"),
             sep(),
@@ -345,14 +327,11 @@ pub fn item(target: Target) -> Vec<Entry> {
             sep(),
             gray("Properties"),
         ],
-        Target::Trash(full) => vec![
+        Target::Trash => vec![
             open,
-            explore,
-            row("Empty Recycle Bin", Item::EmptyTrash).enabled(full),
+            gray("Empty Recycle Bin"),
             sep(),
             gray("Create Shortcut"),
-            sep(),
-            properties,
         ],
         Target::Program(removable) => vec![
             open,
@@ -363,43 +342,21 @@ pub fn item(target: Target) -> Vec<Entry> {
             sep(),
             row("Remove from This List", Item::Remove).enabled(removable),
             gray("Rename"),
-            sep(),
-            properties,
         ],
-        Target::Place(folder) => {
-            let mut rows = vec![open];
-            if folder {
-                rows.extend([explore, gray("Search...")]);
-            }
-            rows.extend([sep(), send_to, sep(), gray("Rename"), sep(), properties]);
-            rows
-        }
     }
 }
 
-/// The rows of a folder, a file or My Documents.
-fn file_rows(
-    target: Target,
-    open: Entry,
-    explore: Entry,
-    send_to: Entry,
-    properties: Entry,
-) -> Vec<Entry> {
+/// The rows of a folder or a file.
+fn file_rows(target: Target, open: Entry, send_to: Entry) -> Vec<Entry> {
     let (sep, gray) = (Entry::separator, Entry::gray);
     let mut rows = vec![open];
     if target == Target::File {
         rows.push(Entry::sub("Open With", Vec::new()).enabled(false));
     } else {
-        rows.extend([explore, gray("Search...")]);
+        rows.push(gray("Search..."));
     }
     rows.extend([sep(), send_to, sep(), gray("Cut"), gray("Copy"), sep()]);
-    rows.extend([
-        gray("Create Shortcut"),
-        Entry::item("Delete", Act::Item(Item::Delete)).enabled(target != Target::Documents),
-        gray("Rename"),
-        sep(),
-        properties,
-    ]);
+    rows.extend([gray("Create Shortcut"), gray("Delete"), gray("Rename")]);
     rows
 }
 
@@ -508,11 +465,8 @@ fn underline(
 /// The access keys of XP's menus: the title of a row and the place of
 /// its underlined letter.
 const ACCESS: &[(&str, usize)] = &[
-    ("About Windows", 0),
-    ("Add to Favorites...", 0),
     ("Adjust Date/Time", 0),
     ("Arrange Icons By", 8),
-    ("Back", 0),
     ("Cascade Windows", 2),
     ("Close", 0),
     ("Copy", 0),
@@ -520,28 +474,16 @@ const ACCESS: &[(&str, usize)] = &[
     ("Customize Notifications...", 0),
     ("Cut", 2),
     ("Delete", 0),
-    ("Details", 0),
     ("Disconnect Network Drive...", 0),
     ("Empty Recycle Bin", 14),
-    ("Explore", 0),
-    ("Explorer Bar", 0),
-    ("Folder Options...", 7),
-    ("Forward", 0),
-    ("Go To", 0),
-    ("Help and Support Center", 0),
-    ("Icons", 3),
-    ("Invert Selection", 0),
-    ("List", 0),
     ("Lock the Taskbar", 0),
     ("Map Network Drive...", 0),
     ("Maximize", 2),
     ("Minimize", 2),
     ("Move", 0),
     ("Name", 0),
-    ("New", 2),
     ("Open", 0),
     ("Open With", 7),
-    ("Organize Favorites...", 0),
     ("Paste", 0),
     ("Paste Shortcut", 6),
     ("Properties", 1),
@@ -549,21 +491,14 @@ const ACCESS: &[(&str, usize)] = &[
     ("Remove from This List", 17),
     ("Rename", 4),
     ("Restore", 0),
-    ("Select All", 7),
     ("Send To", 2),
     ("Show the Desktop", 0),
     ("Size", 0),
-    ("Status Bar", 7),
-    ("Synchronize...", 0),
     ("Task Manager", 3),
-    ("Thumbnails", 1),
     ("Tile Windows Horizontally", 13),
     ("Tile Windows Vertically", 14),
-    ("Tiles", 4),
     ("Toolbars", 0),
     ("Type", 0),
-    ("Undo", 0),
-    ("Up One Level", 0),
 ];
 
 /// What a key does in a menu, a context menu or the start menu.
@@ -856,21 +791,6 @@ impl Menu {
                 }
             }
             _ => Key::Commands(Vec::new()),
-        }
-    }
-
-    /// Whether Left or Right would go beside the menu instead of into or
-    /// out of a submenu: no submenu is open, and for Right the lit row
-    /// opens none.
-    pub fn goes_beside(&self, right: bool) -> bool {
-        let level = &self.levels[self.levels.len() - 1];
-        let opens = level
-            .hovered
-            .is_some_and(|i| level.entries[i].enabled && !level.entries[i].sub.is_empty());
-        if right {
-            !opens
-        } else {
-            self.levels.len() == 1
         }
     }
 
@@ -1171,29 +1091,18 @@ mod tests {
                 .map(|(t, _)| t)
                 .collect()
         };
-        assert_eq!(
-            enabled(Target::Folder),
-            ["Open", "Explore", "Delete", "Properties"]
-        );
-        assert_eq!(enabled(Target::File), ["Open", "Delete", "Properties"]);
-        assert_eq!(
-            enabled(Target::Documents),
-            ["Open", "Explore", "Properties"]
-        );
-        assert_eq!(enabled(Target::Computer), ["Open", "Explore"]);
-        assert_eq!(
-            enabled(Target::Trash(true)),
-            ["Open", "Explore", "Empty Recycle Bin", "Properties"]
-        );
-        assert_eq!(
-            enabled(Target::Trash(false)),
-            ["Open", "Explore", "Properties"]
-        );
+        for t in [
+            Target::Folder,
+            Target::File,
+            Target::Computer,
+            Target::Trash,
+        ] {
+            assert_eq!(enabled(t), ["Open"]);
+        }
         assert_eq!(
             enabled(Target::Program(true)),
-            ["Open", "Remove from This List", "Properties"]
+            ["Open", "Remove from This List"]
         );
-        assert_eq!(enabled(Target::Place(false)), ["Open", "Properties"]);
     }
 
     #[test]

@@ -520,16 +520,27 @@ pub enum Capability {
     /// needs it on the main socket for `run_program`.
     #[serde(rename = "activation.token")]
     ActivationToken,
+    /// `session.quit`: end chora. Checked only for a client socket.
+    #[serde(rename = "session.quit")]
+    SessionQuit,
+    /// `methods.privileged`: call a privileged method of a plugin, one
+    /// that can run commands, such as `settings.set`, `settings.reload`
+    /// and the methods that the export marks `privileged`. Checked only
+    /// for a client socket, on top of `methods.call`.
+    #[serde(rename = "methods.privileged")]
+    MethodsPrivileged,
 }
 
 impl Capability {
     /// Every capability.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 7] = [
         Self::InputInject,
         Self::ScreenCapture,
         Self::GrabAny,
         Self::MethodsCall,
         Self::ActivationToken,
+        Self::SessionQuit,
+        Self::MethodsPrivileged,
     ];
 
     /// The name, which is also the name of the method.
@@ -541,6 +552,8 @@ impl Capability {
             Self::GrabAny => "input.grab-any",
             Self::MethodsCall => "methods.call",
             Self::ActivationToken => "activation.token",
+            Self::SessionQuit => "session.quit",
+            Self::MethodsPrivileged => "methods.privileged",
         }
     }
 }
@@ -609,6 +622,10 @@ pub struct DescribedMethod {
     /// A JSON schema of the parameters.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input_schema: Option<Value>,
+    /// A caller on a client socket needs the capability
+    /// `methods.privileged`, for example for a method that runs a command.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub privileged: bool,
 }
 
 impl ExportMethod {
@@ -636,6 +653,14 @@ impl ExportMethod {
             Self::Plain(_) => None,
             Self::Described(d) => d.input_schema.as_ref(),
         }
+    }
+
+    /// Whether a caller on a client socket needs `methods.privileged`.
+    /// `settings.set` and `settings.reload` always do.
+    #[must_use]
+    pub fn privileged(&self) -> bool {
+        matches!(self.name(), "settings.set" | "settings.reload")
+            || matches!(self, Self::Described(d) if d.privileged)
     }
 }
 

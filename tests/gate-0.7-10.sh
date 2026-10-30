@@ -1,8 +1,9 @@
 #!/bin/bash
 # Gate check 10 of 0.7: the battle workflows drive the session with
 # choractl wait, focus, the rectangles of queries and plugin methods,
-# and without pixel clicks. The guard greps the workflows; W3 is exempt
-# because dragging pointers is its subject. The run replays the two
+# and without pixel clicks. The guard greps the workflows W1 to W8; W3 is
+# exempt because dragging pointers is its subject. The stress workflows
+# from W9 on inject real pointer input on purpose and are not in its scope. The run replays the two
 # window workflows W1 and W2 headless and fails on new findings. The
 # full round W1 to W8 stays with the battle driver.
 #
@@ -14,7 +15,7 @@ for what in chora choractl chora-tiling chora-xp chora-probe; do
 done
 cd "$repo" || fail "no repo"
 findings=tests/battle/findings.md
-hits=$(grep -lE 'pointer_move|\bclick\b' tests/battle/w*.sh |
+hits=$(grep -lE 'pointer_move|\bclick\b' tests/battle/w[1-8].sh |
     grep -v 'w3\.sh' || :)
 test -z "$hits" || fail "these workflows still click at pixels: $hits"
 touch "$findings" # ignored by git, so CI starts without it

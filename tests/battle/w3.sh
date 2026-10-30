@@ -2,8 +2,9 @@
 # W3: two window managers on two outputs, drag windows from XP (output 1)
 # across the edge into the tiling output, restart each WM.
 WF=w3; . "$(dirname "$0")/lib.sh"
+xp_settings
 # one keep.sh per plugin, so that restart_plugin finds them
-session_start "1280x800,1280x800+1280+0" sh -c "tests/battle/keep.sh /tmp/bt-$WF-xp.pid $bin/chora-xp --output HEADLESS-1 --theme flavors/xp/theme --no-sounds & tests/battle/keep.sh /tmp/bt-$WF-tiling.pid $bin/chora-tiling --output HEADLESS-2 & wait" || exit 1
+session_start "1280x800,1280x800+1280+0" sh -c "tests/battle/keep.sh /tmp/bt-$WF-xp.pid $bin/chora-xp --output HEADLESS-1 --theme flavors/xp/theme --config /tmp/bt-$WF-xp.yaml & tests/battle/keep.sh /tmp/bt-$WF-tiling.pid $bin/chora-tiling --output HEADLESS-2 & wait" || exit 1
 
 for i in $(seq 5); do open $((i*30)) 120 $((255-i*30)) --server-deco; done
 wait_count "app_id:chora-probe kind:surface" 5 \

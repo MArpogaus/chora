@@ -102,6 +102,15 @@ const MAX_ZOOM: f64 = 64.0;
 /// The range of `font_size`, in logical pixels. A size of 0 gives a line
 /// height of 0, on which the layout of the core panics.
 const FONT_SIZES: std::ops::RangeInclusive<f64> = 1.0..=1024.0;
+/// The range of `line_height`, as a multiple of the font size; 0 would
+/// panic like a font size of 0.
+const LINE_HEIGHTS: std::ops::RangeInclusive<f64> = 0.5..=10.0;
+/// The range of `weight`, as in CSS.
+const WEIGHTS: std::ops::RangeInclusive<u16> = 1..=1000;
+/// The range of `letter_spacing`, in em.
+const LETTER_SPACINGS: std::ops::RangeInclusive<f64> = -1.0..=1.0;
+/// The most OpenType features of a text node.
+const MAX_FEATURES: usize = 32;
 
 /// A transform without its z axis: a camera works in 2D, so the z of a
 /// uniform scale such as `{"scale": 1.5}`, or of a translation, does not
@@ -130,6 +139,11 @@ fn valid_camera(t: &Transform) -> bool {
 /// keeps a buggy client from growing the scene, and with it each frame,
 /// without bound.
 pub const MAX_NODES: usize = 16_384;
+
+/// The most levels of nodes below the root. Each frame, layout and query
+/// walks the tree; a chain of 5000 groups in one transaction stalled the
+/// core for 10 s (W12).
+pub const MAX_DEPTH: usize = 64;
 
 /// The scene tree.
 #[derive(Debug, Clone, PartialEq)]
@@ -387,7 +401,9 @@ impl Scene {
                 self.create(owned_node(owner, id, *kind, props), parent)
             }
             Command::Attach { surface, parent } => self.attach(owner, surface, parent),
-            Command::Update { .. } | Command::Animate { .. } => self.change_props(owner, command),
+            Command::Update { .. } | Command::Animate { .. } => {
+                self.change_props(owner, command, effects)
+            }
             Command::Move { .. } => self.move_command(owner, command, effects),
             Command::Remove { id, to: None } => {
                 self.owned_mut(owner, id)?;
@@ -601,6 +617,7 @@ impl Scene {
             return Err(SceneError::WrongKind(id, "group, rect or image"));
         }
         self.group(parent)?;
+        self.check_depth(&id, parent, 1)?;
         self.nodes.insert(id.clone(), node);
         self.link(&id, parent, None);
         Ok(())
@@ -619,6 +636,7 @@ impl Scene {
             Some(other) => return Err(SceneError::NotOwner(surface.into(), other.into())),
         }
         self.group(parent)?;
+        self.check_depth(surface, parent, 1)?;
         self.unlink(surface);
         self.link(surface, parent, None);
         let node = self.node_mut(surface)?;
@@ -643,6 +661,7 @@ impl Scene {
         if self.ancestors(&parent).any(|a| a == id) {
             return Err(SceneError::Cycle(id.into()));
         }
+        self.check_depth(id, &parent, self.height(id))?;
         self.unlink(id);
         self.link(id, &parent, index);
         Ok(())
@@ -922,8 +941,14 @@ impl Scene {
     }
 
     /// Runs `update` and `animate`. Either ends a running animation of the
-    /// node where it is.
-    fn change_props(&mut self, owner: &str, command: &Command) -> Result<(), SceneError> {
+    /// node where it is. An `update` of opacity, effects or meta of a node
+    /// of another client answers with a request (D58).
+    fn change_props(
+        &mut self,
+        owner: &str,
+        command: &Command,
+        effects: &mut Vec<Effect>,
+    ) -> Result<(), SceneError> {
         let (id, props, timing) = match command {
             Command::Update { id, props } => (id, props, None),
             Command::Animate {
@@ -938,6 +963,27 @@ impl Scene {
             return Err(SceneError::Invalid(format!(
                 "the duration of {id:?} is not from 0 to {MAX_DURATION} ms"
             )));
+        }
+        let look = PropsUpdate {
+            opacity: props.opacity,
+            effects: props.effects.clone(),
+            meta: props.meta.clone(),
+            ..PropsUpdate::default()
+        };
+        // An empty update asks for nothing and stays refused.
+        if timing.is_none()
+            && look != PropsUpdate::default()
+            && let Some(other) = self.other_owner(owner, id)
+        {
+            if *props != look {
+                return Err(mixed_request(id, &other, props));
+            }
+            let node = &self.nodes[id];
+            check_props(id, node.kind, props)?;
+            check_meta(id, &node.props.meta, props)?;
+            let args = serde_json::to_value(props).expect("props serialize");
+            effects.push(request(owner, id, other, "update", args));
+            return Ok(());
         }
         let node = self.owned_mut(owner, id)?;
         check_props(id, node.kind, props)?;
@@ -1106,7 +1152,30 @@ impl Scene {
         }
     }
 
-    fn ancestors<'a>(&'a self, id: &'a str) -> impl Iterator<Item = &'a str> {
+    /// Refuses `levels` levels of nodes, `id` on top, under `parent`
+    /// when they pass [`MAX_DEPTH`].
+    fn check_depth(&self, id: &str, parent: &str, levels: usize) -> Result<(), SceneError> {
+        // The ancestors of the parent count the parent and the root.
+        if self.ancestors(parent).count() - 1 + levels > MAX_DEPTH {
+            return Err(SceneError::Limit(format!(
+                "{id:?}: the scene is at most {MAX_DEPTH} levels deep"
+            )));
+        }
+        Ok(())
+    }
+
+    /// The levels of a node and its subtree, 1 for a node without
+    /// children.
+    fn height(&self, id: &str) -> usize {
+        let children = self.nodes.get(id).map(|n| n.children.as_slice());
+        1 + (children.unwrap_or_default().iter())
+            .map(|c| self.height(c))
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// The id and the ids of the ancestors of a node, from the node up.
+    pub fn ancestors<'a>(&'a self, id: &'a str) -> impl Iterator<Item = &'a str> {
         std::iter::successors(Some(id), |current| {
             self.nodes.get(*current)?.parent.as_deref()
         })
@@ -1409,7 +1478,12 @@ fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
         && (props.text.is_some()
             || props.family.is_some()
             || props.font_size.is_some()
-            || props.max_width.is_some())
+            || props.max_width.is_some()
+            || props.line_height.is_some()
+            || props.weight.is_some()
+            || props.style.is_some()
+            || props.letter_spacing.is_some()
+            || props.features.is_some())
     {
         return wrong("text");
     }
@@ -1477,6 +1551,8 @@ fn check_numbers(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
         .chain(props.radius.iter())
         .chain(props.font_size.iter())
         .chain(props.max_width.iter())
+        .chain(props.line_height.iter())
+        .chain(props.letter_spacing.iter())
         .chain(
             props
                 .border
@@ -1510,6 +1586,38 @@ fn check_numbers(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
         return Err(SceneError::Invalid(format!(
             "the font_size of {id:?} is not between 1 and 1024"
         )));
+    }
+    check_type(id, props)
+}
+
+/// The line height, the weight, the letter spacing and the features of a
+/// text node: each within its range; a feature tag has four ASCII
+/// characters.
+fn check_type(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
+    let invalid = |what: &str| Err(SceneError::Invalid(format!("{id:?}: {what}")));
+    if props
+        .line_height
+        .is_some_and(|l| !LINE_HEIGHTS.contains(&l))
+    {
+        return invalid("a line_height from 0.5 to 10");
+    }
+    if props.weight.is_some_and(|w| !WEIGHTS.contains(&w)) {
+        return invalid("a weight from 1 to 1000");
+    }
+    if (props.letter_spacing).is_some_and(|l| !LETTER_SPACINGS.contains(&l)) {
+        return invalid("a letter_spacing from -1 to 1");
+    }
+    let features = props.features.iter().flatten();
+    if props
+        .features
+        .as_ref()
+        .is_some_and(|f| f.len() > MAX_FEATURES)
+    {
+        return invalid(&format!("at most {MAX_FEATURES} features"));
+    }
+    let tag = |t: &str| t.len() == 4 && t.bytes().all(|b| (b' '..=b'~').contains(&b));
+    if features.into_iter().any(|(t, _)| !tag(t)) {
+        return invalid("a feature tag has four ASCII characters");
     }
     Ok(())
 }
@@ -1593,6 +1701,20 @@ fn configure(surface: &str, size: Option<[i32; 2]>, states: Vec<ToplevelState>) 
 }
 
 /// The effect of a command that another client's node would need (D31).
+/// The error of an `update` of a foreign node that mixes the look, which
+/// the owner gets as a request, with props that only the owner changes.
+fn mixed_request(id: &str, owner: &str, props: &PropsUpdate) -> SceneError {
+    let props = serde_json::to_value(props).expect("props serialize");
+    let owner_only: Vec<&str> = (props.as_object().into_iter().flatten())
+        .map(|(key, _)| key.as_str())
+        .filter(|key| !["opacity", "effects", "meta"].contains(key))
+        .collect();
+    SceneError::Invalid(format!(
+        "node {id:?} belongs to {owner:?}: a request takes only opacity, effects and meta, not {}",
+        owner_only.join(", ")
+    ))
+}
+
 fn request(
     by: &str,
     node: &str,
