@@ -901,7 +901,8 @@ carries the session, so that every chora on the same user manager
 starts its own plugins. A flavor starts its plugins as its own systemd
 units `chora-NAME.service` instead. A view whose plugin unit runs
 already, for example while the plugin starts, waits for that plugin.
-`choractl view load` can start plugins only from the main socket.
+From a client socket, `choractl view load` starts plugins only with the
+capability `activation.token`.
 
 ## MCP tools
 
