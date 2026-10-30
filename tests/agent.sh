@@ -381,6 +381,8 @@ ctl call tiling set_layout '{"layout": "fair"}' >/dev/null || fail "set_layout f
 wait_for xs_are "0 640"
 "$bin/choractl" grant agent screen.capture || fail "the grant failed"
 "$bin/choractl" grant agent input.inject || fail "the grant failed"
+# choractl mcp is confined: plugin methods need the grant too.
+"$bin/choractl" grant agent methods.call || fail "the grant failed"
 timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" fair_horizontal >"$out/mcp.log" 2>&1 ||
     fail "the MCP client: $(cat "$out/mcp.log")"
 color_at() { png_pixel "$out/$1.png" "$2" "$3" | cut -d' ' -f1-3; }
