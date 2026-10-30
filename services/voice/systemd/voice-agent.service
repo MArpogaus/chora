@@ -15,7 +15,7 @@ ExecStartPre=-/usr/bin/systemctl --user start --no-block gufo-asr gufo-tts gufo-
 # uv in ~/.local/bin, which the user manager does not search by default.
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
 ExecStart=%h/Projekte/chora/services/voice/agent.py
-EnvironmentFile=-%h/.config/gufo/agent.env
+EnvironmentFile=-%h/.config/chora/voice.env
 Restart=on-failure
 RestartSec=5
 

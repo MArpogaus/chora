@@ -97,12 +97,12 @@ turn fails.
 
 The settings are the environment variables in the globals section of
 `agent.py`, such as `ASR_LANGUAGE` (`de`) and `VOICE`. The unit reads
-them from `~/.config/gufo/agent.env`; quote values with spaces, such as
+them from `~/.config/chora/voice.env`; quote values with spaces, such as
 `CODER_CMD`. A `PATH=` line there replaces the PATH of the unit. After a
 change, run `systemctl --user restart voice-agent`. A command in a
 terminal reads them from its environment, for example `SPEECH_RATIO=4
 services/voice/agent.py`. Before such a test, stop the unit, or both
-agents answer. `set -a; . ~/.config/gufo/agent.env; set +a` gives the
+agents answer. `set -a; . ~/.config/chora/voice.env; set +a` gives the
 terminal the settings of the unit. `services/voice/agent.py --help`
 lists the commands. The models keep the GPU memory until `systemctl
 --user stop voice-agent gufo-asr gufo-tts gufo-llm`.
