@@ -1,6 +1,6 @@
 //! The runtime that every plugin repeats: it connects, subscribes to the
 //! events, exports the methods, grabs bindings, answers method calls,
-//! answers `settings.get` and `settings.set`, keeps to the outputs of
+//! answers `settings.get`, `settings.set` and `settings.reload`, keeps to the outputs of
 //! `--output`, and comes back after the core closed the connection.
 
 use std::{
@@ -229,9 +229,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
         } => {
             let result = match (method.as_str(), plugin.settings()) {
                 ("settings.get", Some(settings)) => Ok(settings.get()),
-                ("settings.set", Some(settings)) => settings
-                    .set(params)
-                    .and_then(|answer| plugin.settings_changed().map(|()| answer)),
+                ("settings.set", Some(_)) => set_settings(plugin, params),
                 _ => plugin.method(&method, params),
             };
             let rt = plugin.runtime();
@@ -247,6 +245,26 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
         Event::OutputRemoved { name } if !rt.manages(&name) => Ok(()),
         event => plugin.event(event),
     }
+}
+
+/// `settings.set`: checks the change, has the plugin apply it, then saves
+/// it. A change that the plugin cannot apply is not saved. A change that
+/// cannot be saved stays applied, and the caller gets the error.
+///
+/// # Errors
+///
+/// The plugin has no settings, a change is wrong, the plugin cannot apply
+/// it, or the file cannot be written.
+pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
+    let no_settings = || RpcError::new(RpcError::METHOD_NOT_FOUND, "settings.set");
+    let answer = plugin.settings().ok_or_else(no_settings)?.set(changes)?;
+    plugin.settings_changed()?;
+    plugin
+        .settings()
+        .ok_or_else(no_settings)?
+        .save()
+        .map_err(|e| RpcError::new(e.code, format!("applied, not saved: {}", e.message)))?;
+    Ok(answer)
 }
 
 /// An exported method with its description and the schema of its
@@ -317,6 +335,75 @@ fn next_failing(served: Duration, failing: Duration) -> Duration {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::settings::{
+        File,
+        tests::{DEFAULT, Demo, dir},
+    };
+
+    /// A plugin whose apply of settings fails on demand.
+    struct Fake {
+        settings: File<Demo>,
+        fail: bool,
+        applied: u16,
+    }
+
+    impl Plugin for Fake {
+        type Action = ();
+
+        fn runtime(&mut self) -> &mut Runtime<()> {
+            unreachable!("set_settings needs no connection")
+        }
+
+        fn event(&mut self, _: Event) -> Result<(), ClientError> {
+            Ok(())
+        }
+
+        fn method(&mut self, method: &str, _: Value) -> Result<Value, RpcError> {
+            Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method))
+        }
+
+        fn settings(&mut self) -> Option<&mut dyn Store> {
+            Some(&mut self.settings)
+        }
+
+        fn settings_changed(&mut self) -> Result<(), RpcError> {
+            if self.fail {
+                return Err(RpcError::new(RpcError::REJECTED, "cannot apply"));
+            }
+            self.applied = self.settings.value.gap;
+            Ok(())
+        }
+    }
+
+    /// Check, apply, save: a change that fails to apply leaves the file
+    /// as it was; a change that fails to save stays applied.
+    #[test]
+    fn set_settings_applies_before_it_saves() {
+        let dir = dir("runtime-set");
+        let path = dir.join("demo.yaml");
+        let settings = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+        let mut plugin = Fake {
+            settings,
+            fail: true,
+            applied: 0,
+        };
+        assert!(set_settings(&mut plugin, json!({"gap": 8})).is_err());
+        assert!(!path.exists(), "a change that fails to apply is not saved");
+        plugin.fail = false;
+        set_settings(&mut plugin, json!({"gap": 9})).unwrap();
+        assert_eq!(plugin.applied, 9);
+        assert!(std::fs::read_to_string(&path).unwrap().contains("gap: 9"));
+
+        // A directory where the temporary file should be: the save fails.
+        let blocked = dir.join("blocked.yaml");
+        plugin.settings = File::<Demo>::load(blocked, DEFAULT).unwrap();
+        std::fs::create_dir_all(dir.join("blocked.yaml.tmp")).unwrap();
+        let err = set_settings(&mut plugin, json!({"gap": 10})).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert_eq!(plugin.applied, 10, "the change stays applied");
+        assert_eq!(plugin.settings.value.gap, 10);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn a_served_session_starts_a_new_episode_of_failures() {

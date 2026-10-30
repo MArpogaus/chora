@@ -2347,16 +2347,19 @@ impl Wm {
         commands
     }
 
-    /// Changes settings as `settings.set` does: checks them, saves the
-    /// file and applies them.
+    /// Changes settings as `settings.set` does: checks them, applies them
+    /// and saves the file. A change that cannot be saved stays applied,
+    /// with a warning.
     fn change(&mut self, changes: Value) -> Vec<Command> {
-        match self.settings.set(changes) {
-            Ok(_) => self.configure(),
-            Err(err) => {
-                eprintln!("chora-xp: {err}");
-                Vec::new()
-            }
+        if let Err(err) = self.settings.set(changes) {
+            eprintln!("chora-xp: {err}");
+            return Vec::new();
         }
+        let commands = self.configure();
+        if let Err(err) = self.settings.save() {
+            eprintln!("chora-xp: the change applies but is not saved: {err}");
+        }
+        commands
     }
 
     /// Applies the settings where they differ from what shows.

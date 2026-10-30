@@ -933,9 +933,11 @@ objects, and a list or another value replaces its value. The other
 settings stay. `null` removes the key: a map such as `bindings` loses that
 entry, and a fixed setting takes its default again. So `null` cannot set an
 optional setting such as `session.log_off` to none; the file can. The
-plugin checks the result, saves it in its YAML file in
-`$XDG_CONFIG_HOME/chora/` and applies it at once. `settings.set` answers
-all settings. A wrong value gets the error `-32602` and changes nothing.
+plugin checks the result, applies it at once and then saves it in its YAML
+file in `$XDG_CONFIG_HOME/chora/`. `settings.set` answers all settings. A
+wrong value gets the error `-32602` and changes nothing. A change that the
+plugin cannot apply is not saved. A change that the plugin cannot save
+stays applied until the next start, and the caller gets the error.
 In `methods.list`, the schema of `settings.set` lists every setting.
 
 ```console

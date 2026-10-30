@@ -1,7 +1,9 @@
 //! The settings of a plugin (D62): a serde type that the plugin checks,
 //! kept in a YAML file. The plugin reads the file at its start and is its
-//! only writer: `settings.set` checks a change, writes the file and hands
-//! the change to the plugin. Edits by hand apply at the next start.
+//! only writer: `settings.set` checks a change, hands it to the plugin to
+//! apply and then writes the file. A change that the plugin cannot apply
+//! is not saved; a change that cannot be saved stays applied, and the
+//! caller gets the error. Edits by hand apply at the next start.
 //!
 //! A key of a struct that the file leaves out takes its value of the
 //! default file; a map in the file replaces the default map. A change of
@@ -46,12 +48,19 @@ pub trait Store {
     fn get(&self) -> Value;
 
     /// Merges `changes` as a JSON merge patch, checks the result and
-    /// writes the file; answers the new settings.
+    /// takes it, without a save; answers the new settings.
     ///
     /// # Errors
     ///
-    /// A change is wrong, or the file cannot be written.
+    /// A change is wrong; the settings stay.
     fn set(&mut self, changes: Value) -> Result<Value, RpcError>;
+
+    /// Writes the settings to the file.
+    ///
+    /// # Errors
+    ///
+    /// The file cannot be written.
+    fn save(&self) -> Result<(), RpcError>;
 }
 
 impl<S: Settings> File<S> {
@@ -119,8 +128,8 @@ impl<S: Settings> File<S> {
                 name: "settings.set".into(),
                 description: Some(
                     "Changes the settings at once and saves them, as a JSON merge patch: \
-                     structs and maps merge, other values replace, null resets a key to its default \
-                     or removes a map entry."
+                     structs and maps merge, other values replace, null resets a key to \
+                     its default or removes a map entry."
                         .into(),
                 ),
                 input_schema: Some(schema),
@@ -130,8 +139,8 @@ impl<S: Settings> File<S> {
 
     /// Writes a temporary file and renames it, so that a crash leaves the
     /// old file or the new one, never a part.
-    fn save(&self, value: &S) -> Result<(), String> {
-        let text = serde_saphyr::to_string(value).map_err(|e| e.to_string())?;
+    fn write(&self) -> Result<(), String> {
+        let text = serde_saphyr::to_string(&self.value).map_err(|e| e.to_string())?;
         let mut tmp = self.path.clone().into_os_string();
         tmp.push(".tmp");
         let write = || -> std::io::Result<()> {
@@ -160,11 +169,13 @@ impl<S: Settings> Store for File<S> {
         let mut merged = self.get();
         let schema = schema::<S>();
         merge(&mut merged, Value::Object(changes), &schema, &schema);
-        let value: S = complete(merged, self.default).map_err(invalid)?;
-        self.save(&value)
-            .map_err(|e| RpcError::new(RpcError::REJECTED, e))?;
-        self.value = value;
+        self.value = complete(merged, self.default).map_err(invalid)?;
         Ok(self.get())
+    }
+
+    fn save(&self) -> Result<(), RpcError> {
+        self.write()
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e))
     }
 }
 
@@ -280,7 +291,7 @@ fn merge(target: &mut Value, patch: Value, schema: &Value, root: &Value) {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::collections::BTreeMap;
 
     use serde::Deserialize;
@@ -297,8 +308,8 @@ mod tests {
 
     #[derive(Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
     #[serde(deny_unknown_fields)]
-    struct Demo {
-        gap: u16,
+    pub(crate) struct Demo {
+        pub(crate) gap: u16,
         opacity: f64,
         bindings: BTreeMap<String, Action>,
         frame: Frame,
@@ -320,17 +331,17 @@ mod tests {
         }
     }
 
-    const DEFAULT: &str = "gap: 4\nopacity: 1.0\nbindings:\n  MOD+q: close\n  MOD+r: {run: foot}\n\
+    pub(crate) const DEFAULT: &str = "gap: 4\nopacity: 1.0\nbindings:\n  MOD+q: close\n  MOD+r: {run: foot}\n\
                            frame: {width: 1, title: demo}\n";
 
-    fn dir(name: &str) -> PathBuf {
+    pub(crate) fn dir(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("chora-kit-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         dir
     }
 
     #[test]
-    fn set_checks_saves_and_answers_the_new_settings() {
+    fn set_checks_and_answers_the_new_settings() {
         let dir = dir("set");
         let path = dir.join("chora/demo.yaml");
         let mut file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
@@ -340,6 +351,8 @@ mod tests {
         assert_eq!(answer["gap"], 8);
         assert_eq!(answer["opacity"], 1.0, "the other keys stay");
         assert_eq!(file.value.gap, 8);
+        assert!(!path.exists(), "set saves nothing");
+        file.save().unwrap();
         let saved = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
         assert_eq!(saved.value, file.value, "the file round-trips");
         assert!(!dir.join("chora/demo.yaml.tmp").exists());
@@ -413,7 +426,7 @@ mod tests {
         );
         let err = file.set(json!({"frame": {"width": "wide"}})).unwrap_err();
         assert_eq!(err.code, RpcError::INVALID_PARAMS);
-        std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
     }
 
     /// A key that a file leaves out takes its default, also in a nested

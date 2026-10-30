@@ -233,6 +233,7 @@ mod tests {
         let mut file = File::<Config>::load(path.clone(), DEFAULT).unwrap();
         let red = json!({"picture": {"file": "/tmp/red.jpg"}, "position": "center", "color": [255, 0, 0]});
         file.set(json!({"wallpaper": red})).unwrap();
+        file.save().unwrap();
         let saved = File::<Config>::load(path, DEFAULT).unwrap();
         assert_eq!(
             saved.value.wallpaper.picture,
