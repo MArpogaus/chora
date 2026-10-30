@@ -250,8 +250,9 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
 }
 
 /// `settings.set`: checks the change, has the plugin apply it, then saves
-/// it. A change that the plugin cannot apply is not saved. A change that
-/// cannot be saved stays applied, and the caller gets the error.
+/// it. A change that the plugin cannot apply is taken back and not saved.
+/// A change that cannot be saved stays applied, and the caller gets the
+/// error.
 ///
 /// # Errors
 ///
@@ -260,7 +261,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
 pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
     let no_settings = || RpcError::new(RpcError::METHOD_NOT_FOUND, "settings.set");
     let answer = plugin.settings().ok_or_else(no_settings)?.set(changes)?;
-    plugin.settings_changed()?;
+    apply(plugin)?;
     plugin
         .settings()
         .ok_or_else(no_settings)?
@@ -270,7 +271,8 @@ pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, 
 }
 
 /// `settings.reload`: reads the settings file again, after an edit by
-/// hand, and has the plugin apply it. A wrong file changes nothing.
+/// hand, and has the plugin apply it. A wrong file, or one that the plugin
+/// cannot apply, changes nothing.
 ///
 /// # Errors
 ///
@@ -279,8 +281,17 @@ pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, 
 pub fn reload_settings<P: Plugin>(plugin: &mut P) -> Result<Value, RpcError> {
     let no_settings = || RpcError::new(RpcError::METHOD_NOT_FOUND, "settings.reload");
     let answer = plugin.settings().ok_or_else(no_settings)?.reload()?;
-    plugin.settings_changed()?;
+    apply(plugin)?;
     Ok(answer)
+}
+
+/// Has the plugin apply its settings; takes them back when it fails.
+fn apply<P: Plugin>(plugin: &mut P) -> Result<(), RpcError> {
+    plugin.settings_changed().inspect_err(|_| {
+        if let Some(settings) = plugin.settings() {
+            settings.undo();
+        }
+    })
 }
 
 /// An exported method with its description and the schema of its
@@ -405,6 +416,7 @@ mod tests {
         };
         assert!(set_settings(&mut plugin, json!({"gap": 8})).is_err());
         assert!(!path.exists(), "a change that fails to apply is not saved");
+        assert_eq!(plugin.settings.value.gap, 4, "and taken back");
         plugin.fail = false;
         set_settings(&mut plugin, json!({"gap": 9})).unwrap();
         assert_eq!(plugin.applied, 9);
@@ -440,6 +452,10 @@ mod tests {
         let err = reload_settings(&mut plugin).unwrap_err();
         assert_eq!(err.code, RpcError::INVALID_PARAMS);
         assert_eq!(plugin.settings.value.gap, 6);
+        std::fs::write(&path, "gap: 7\n").unwrap();
+        plugin.fail = true;
+        assert!(reload_settings(&mut plugin).is_err());
+        assert_eq!(plugin.settings.value.gap, 6, "a failed apply is taken back");
         std::fs::remove_dir_all(dir).unwrap();
     }
 

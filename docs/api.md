@@ -947,7 +947,7 @@ next to it and renames it over the old one. A symlink there stays, and
 the file that it points to gets the settings. `settings.set` answers all
 settings. A
 wrong value gets the error `-32602` and changes nothing. A change that the
-plugin cannot apply is not saved. A change that the plugin cannot save
+plugin cannot apply is taken back and not saved, also by `settings.reload`. A change that the plugin cannot save
 stays applied until the next start, and the caller gets the error.
 In `methods.list`, the schema of `settings.set` lists every setting.
 On a client socket, `settings.set` and `settings.reload` need the

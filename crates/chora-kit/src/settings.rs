@@ -43,6 +43,8 @@ pub struct File<S> {
     path: PathBuf,
     /// The default file, for the keys that a change or a file leaves out.
     default: &'static str,
+    /// The settings before the last `set` or `reload`, for `undo`.
+    previous: Option<S>,
 }
 
 /// The settings behind `settings.get` and `settings.set`, for the runtime.
@@ -72,6 +74,10 @@ pub trait Store {
     /// The file cannot be read, or its settings are wrong; the settings
     /// stay.
     fn reload(&mut self) -> Result<Value, RpcError>;
+
+    /// Takes back the last `set` or `reload`, after the plugin failed to
+    /// apply it.
+    fn undo(&mut self);
 }
 
 impl<S: Settings> File<S> {
@@ -98,6 +104,7 @@ impl<S: Settings> File<S> {
             value,
             path,
             default,
+            previous: None,
         })
     }
 
@@ -194,7 +201,8 @@ impl<S: Settings> Store for File<S> {
         let mut merged = self.get();
         let schema = schema::<S>();
         merge(&mut merged, Value::Object(changes), &schema, &schema);
-        self.value = complete(merged, self.default).map_err(invalid)?;
+        let value = complete(merged, self.default).map_err(invalid)?;
+        self.previous = Some(std::mem::replace(&mut self.value, value));
         Ok(self.get())
     }
 
@@ -204,10 +212,17 @@ impl<S: Settings> Store for File<S> {
     }
 
     fn reload(&mut self) -> Result<Value, RpcError> {
-        self.value = Self::load(self.path.clone(), self.default)
+        let value = Self::load(self.path.clone(), self.default)
             .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e))?
             .value;
+        self.previous = Some(std::mem::replace(&mut self.value, value));
         Ok(self.get())
+    }
+
+    fn undo(&mut self) {
+        if let Some(previous) = self.previous.take() {
+            self.value = previous;
+        }
     }
 }
 
