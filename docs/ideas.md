@@ -34,6 +34,10 @@ All ideas that are not decisions yet. An idea moves to
   [xfce-winxp-tc](https://github.com/rozniak/xfce-winxp-tc) instead of the
   Aurorae theme Exposé, so that the frames and its Luna GTK theme come from
   one theme family.
+- XP programs as GTK applications of their own, for example an Explorer,
+  in place of the programs that left `chora-xp` (D63).
+- The KDE server-decoration protocol, so that GTK3 applications such as
+  Thunar get the frame of the window manager.
 
 ## Agents and the ecosystem around chora
 
@@ -57,6 +61,9 @@ All ideas that are not decisions yet. An idea moves to
 
 - A local inference engine (LLM) in a container.
 - Development environments with special configurations (distrobox).
+- A generic settings form that draws its fields from the settings schema
+  of any plugin (D62). It uses GTK4 without libadwaita, so that a GTK
+  theme applies.
 - A dedicated webview host on `gtk4-layer-shell`, if a browser in app mode is
   too slow, too heavy or cannot be transparent.
 
