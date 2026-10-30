@@ -23,7 +23,12 @@ use std::{
     io::IsTerminal,
     path::{Path, PathBuf},
     process::ExitCode,
-    sync::mpsc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    },
+    time::Duration,
 };
 
 use chora_kit::settings;
@@ -138,6 +143,9 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
         speaker: Speaker::new(config.playback_cmd.clone()),
         recorder: start_recording(&config.record_dir),
         core: Core::new(config),
+        net: tokio::runtime::Runtime::new().map_err(|e| format!("tokio: {e}"))?,
+        tx: tx.clone(),
+        interim_busy: Arc::default(),
     };
     client::start(name, settings, tx);
     log::info(&format!("started, {:?}", agent.core.state()));
@@ -156,6 +164,11 @@ struct Agent {
     mic: Mic,
     speaker: Speaker,
     recorder: Option<Recorder>,
+    /// The network actors: ASR, later TTS and LLM.
+    net: tokio::runtime::Runtime,
+    tx: mpsc::Sender<Input>,
+    /// An interim transcription runs; the next interval waits for it.
+    interim_busy: Arc<AtomicBool>,
 }
 
 impl Agent {
@@ -212,10 +225,37 @@ impl Agent {
                     "turn={turn} speech={speech_ms}ms length={length_ms}ms \
                      end_wait={end_wait_ms}ms awake={awake}"
                 ));
+                self.transcribe(turn, false, pcm);
+            }
+            Effect::Interim { turn, pcm } => {
+                if !self.interim_busy.swap(true, Ordering::SeqCst) {
+                    self.transcribe(turn, true, pcm);
+                }
             }
             Effect::Exit => return Err("chora stays away".into()),
         }
         Ok(())
+    }
+}
+
+impl Agent {
+    /// Sends `pcm` to the ASR; the text comes back as an input.
+    fn transcribe(&self, turn: u64, interim: bool, pcm: Vec<i16>) {
+        let config = self.core.config();
+        let (url, language) = (config.asr_url.clone(), config.language.clone());
+        let timeout = Duration::from_secs(config.asr_timeout_s.into());
+        let (tx, busy) = (self.tx.clone(), self.interim_busy.clone());
+        self.net.spawn(async move {
+            let result = asr::transcribe(&url, &language, &pcm, timeout).await;
+            if interim {
+                busy.store(false, Ordering::SeqCst);
+            }
+            let _ = tx.send(Input::Transcript {
+                turn,
+                interim,
+                result,
+            });
+        });
     }
 }
 

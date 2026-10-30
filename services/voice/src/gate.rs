@@ -99,6 +99,11 @@ impl Gate {
         self.run = 0;
     }
 
+    /// The PCM of the utterance in progress.
+    pub fn pcm(&self) -> Option<&[i16]> {
+        self.utterance.as_ref().map(|u| u.pcm.as_slice())
+    }
+
     /// Starts an utterance now, for example on a barge-in, with at most
     /// `preroll_ms` of the frames before.
     pub fn open(&mut self, preroll_ms: u32) {
