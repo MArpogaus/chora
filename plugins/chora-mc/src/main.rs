@@ -957,6 +957,8 @@ impl Mc {
         commands.push(create(TICK, NodeKind::Group, NAME, PropsUpdate::default()));
         commands.push(create(CLOCK, NodeKind::Group, NAME, PropsUpdate::default()));
         commands.push(create(WAIT, NodeKind::Group, NAME, PropsUpdate::default()));
+        // A build ends the wait of the old node.
+        commands.extend((!self.launched.is_empty()).then(wait));
         commands.extend(self.tick_clocks());
         commands.push(create(
             "mc-bg",
@@ -1452,11 +1454,8 @@ impl Mc {
             return Ok(());
         };
         self.starting.insert(token, Target::Scene(name.into()));
-        if self.launched.is_empty() {
-            self.apply(vec![wait()])?;
-        }
         self.launched.push((name.into(), pid));
-        Ok(())
+        self.apply(vec![wait()])
     }
 
     /// An app of a scene that ended without a window leaves its scene
