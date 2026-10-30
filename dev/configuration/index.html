@@ -1409,16 +1409,16 @@ tiling needs <code>modifier: Super</code>: with <code>Alt</code>, tiling grabs A
 methods and files change without notice.</p>
 </div>
 <p><code>chora-mc</code> connects with the client name <code>mc</code>. It is a voice-first
-desktop without window management: the whole screen shows one view at a
+desktop without window management: the whole screen shows one scene at a
 time on the first output, and a quiet HUD line at the bottom shows what the
 voice agent does. The voice agent and small collector scripts fill the
-views through methods; the plugin reads no sources itself.</p>
-<p>A view of <code>chora-mc</code> is not a view of D35. It is a YAML file
-<code>NAME.yaml</code> in <code>$XDG_CONFIG_HOME/chora/mc/views/</code>: a grid of panels, each
+scenes through methods; the plugin reads no sources itself.</p>
+<p>A scene of <code>chora-mc</code> is not a view of D35. It is a YAML file
+<code>NAME.yaml</code> in <code>$XDG_CONFIG_HOME/chora/mc/scenes/</code>: a grid of panels, each
 with a title and lines, or one app whose window fills the screen without
-a frame. The plugin has the built-in views <code>agenda</code> and <code>terminal</code>. A file
-of the same name replaces a built-in view.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/mc/views/day.yaml</span>
+a frame. The plugin has the built-in scenes <code>agenda</code> and <code>terminal</code>. A file
+of the same name replaces a built-in scene.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/mc/scenes/day.yaml</span>
 <span class="nt">grid</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">]</span><span class="w">          </span><span class="c1"># columns and rows</span>
 <span class="nt">panels</span><span class="p">:</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mail</span>
@@ -1437,39 +1437,56 @@ of the same name replaces a built-in view.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>view.show</code></td>
-<td><code>name</code>; the view fades in, the old one fades out</td>
+<td><code>scene.show</code></td>
+<td><code>name</code>; the scene fades in, the old one fades out</td>
 </tr>
 <tr>
-<td><code>view.list</code></td>
-<td>none; answers <code>views</code> and <code>current</code></td>
+<td><code>scene.list</code></td>
+<td>none; answers <code>scenes</code> and <code>current</code></td>
 </tr>
 <tr>
-<td><code>view.save</code></td>
+<td><code>scene.save</code></td>
 <td><code>name</code>, <code>grid</code>, <code>panels</code> or <code>app</code>; writes the file</td>
 </tr>
 <tr>
 <td><code>panel.set</code></td>
-<td><code>view</code>, <code>panel</code>, <code>lines</code> and an optional <code>title</code>; until the next start</td>
+<td><code>scene</code>, <code>panel</code>, <code>lines</code> and an optional <code>title</code>; until the next start. A line with a tab makes two columns: the part before the first tab, and the rest, which does not wrap</td>
 </tr>
 <tr>
 <td><code>hud.set</code></td>
 <td><code>state</code>, for example <code>listening</code>, <code>thinking</code> or <code>working</code>, and <code>text</code>; both empty hide the line</td>
 </tr>
 <tr>
+<td><code>hud.say</code></td>
+<td><code>text</code>, <code>duration_ms</code> and an optional <code>state</code>: the text shows word by word over the duration, the time that the voice takes to speak it</td>
+</tr>
+<tr>
 <td><code>app.open</code></td>
-<td><code>command</code>: a shell command that starts in a view of its own</td>
+<td><code>command</code>: a shell command that starts in a scene of its own</td>
 </tr>
 </tbody>
 </table>
-<p>A window that no view started, for example from a launcher, gets a view
-of its own. The settings of D62 are in <code>chora/chora-mc.yaml</code>:
-<code>theme</code> (<code>light</code> or <code>dark</code>), the colors of each theme, the <code>font</code>, the
-<code>default_view</code> and the <code>bindings</code> with the actions <code>next_view</code>,
-<code>previous_view</code>, <code>view: NAME</code> and <code>run: COMMAND</code>. <code>chora-mc
---print-config</code> prints the default. The collector
+<p>New text writes itself, as Write of manim: a soft front draws the
+outlines line by line, and the fill follows. This happens when a scene
+shows and when <code>panel.set</code> changes the text of a panel; the same text
+again changes nothing. The effect is <code>plugins/chora-mc/write.frag</code>, and
+the <code>animate</code> of the core moves its uniform <code>progress</code> from 0 to 1.</p>
+<p>A window that no scene started, for example from a launcher, gets a scene
+of its own. The settings of D62 are in <code>chora/chora-mc.yaml</code>:</p>
+<ul>
+<li><code>theme</code> (<code>light</code> or <code>dark</code>) and the colors of each theme.</li>
+<li><code>font</code>: Inter by default, from the Fedora package <code>rsms-inter-fonts</code>;
+  a system font shows without it.</li>
+<li><code>write</code>: <code>enabled</code> (default <code>true</code>) and <code>duration_ms</code> (default 900).</li>
+<li><code>default_scene</code>, and the <code>bindings</code> with the actions <code>next_scene</code>,
+  <code>previous_scene</code>, <code>scene: NAME</code> and <code>run: COMMAND</code>.</li>
+</ul>
+<p><code>chora-mc --print-config</code> prints the default. The collector
 <code>plugins/chora-mc/collectors/agenda.sh</code> puts the org agenda of today into
-the view <code>agenda</code>, with <code>emacs --batch</code>.</p>
+the scene <code>agenda</code>, with <code>emacs --batch</code>: the entries with a time, and the
+tasks scheduled or due today, each as a time and a text in two columns.
+It leaves out overdue, upcoming and done tasks. <code>ORG_TODO</code> sets the TODO
+keywords, by default <code>PROJ TODO NEXT WAIT | DONE KILL</code>.</p>
 <h2 id="flavors">Flavors<a class="headerlink" href="#flavors" title="Permanent link">&para;</a></h2>
 <p>A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target <code>chora-&lt;name&gt;.target</code>. <code>chora-flavor &lt;name&gt;</code> looks for

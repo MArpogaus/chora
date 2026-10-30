@@ -1559,15 +1559,28 @@ path.</p>
 <p>The core moves <code>transform</code>, <code>opacity</code>, <code>size</code> and <code>color</code> toward the
 targets along the curve: <code>linear</code> (the default), <code>ease_in</code>, <code>ease_out</code> or
 <code>ease_in_out</code>. The other properties change at the end, so this example
-fades the node out and then hides it. The duration is in milliseconds, at
-most one minute. A later <code>animate</code> or <code>update</code> of the node ends the
-animation where it is. The end sends <code>animation.done</code>.</p>
-<p>A camera moves the same way, with <code>duration</code> and <code>easing</code>. It starts
-where the camera is now, also in the middle of another move, and the end
-sends <code>animation.done</code> with the output and then <code>output.changed</code>:</p>
-<!-- parses: command -->
-<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"camera"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DP-1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"transform"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"scale"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"translate"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">-640</span><span class="p">,</span><span class="w"> </span><span class="mi">-400</span><span class="p">]},</span>
-<span class="w">            </span><span class="nt">"duration"</span><span class="p">:</span><span class="w"> </span><span class="mi">500</span><span class="p">,</span><span class="w"> </span><span class="nt">"easing"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ease_in_out"</span><span class="p">}}</span>
+fades the node out and then hides it.</p>
+<p><code>effects</code> in <code>animate</code> is the full list of the end. An effect of the
+list that has the same index and the same <code>shader</code> as the effect of the
+node now moves its numeric uniforms, a number or 2 to 4 numbers, toward
+the targets. All other changes, a new shader, a new uniform or a list of
+another length, come at the end. So a shader with a uniform <code>progress</code>
+runs from 0 to 1:</p>
+<!-- parses: commands -->
+<div class="highlight"><pre><span></span><code><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">update</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">title</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">effects</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt">shader</span><span class="p">:</span><span class="w"> </span><span class="nv">/home/me/write.frag</span><span class="p p-Indicator">,</span><span class="nt"> uniforms</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">progress</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">}}]}}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">animate</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="nv">title</span><span class="p p-Indicator">,</span><span class="nt"> props</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">effects</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt">shader</span><span class="p">:</span><span class="w"> </span><span class="nv">/home/me/write.frag</span><span class="p p-Indicator">,</span><span class="nt"> uniforms</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">progress</span><span class="p">:</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">}}]},</span><span class="nt"> duration</span><span class="p">:</span><span class="w"> </span><span class="nv">900</span><span class="p p-Indicator">}</span>
+<span class="err">```</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">The duration is in milliseconds, at</span>
+<span class="l l-Scalar l-Scalar-Plain">most one minute. A later `animate` or `update` of the node ends the</span>
+<span class="l l-Scalar l-Scalar-Plain">animation where it is. The end sends `animation.done`.</span>
+
+<span class="l l-Scalar l-Scalar-Plain">A camera moves the same way, with `duration` and `easing`. It starts</span>
+<span class="l l-Scalar l-Scalar-Plain">where the camera is now, also in the middle of another move, and the end</span>
+<span class="nt">sends `animation.done` with the output and then `output.changed`</span><span class="p">:</span>
+
+<span class="nt">&lt;!-- parses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">command --&gt;</span>
+<span class="err">```</span><span class="l l-Scalar l-Scalar-Plain">json</span>
+<span class="p p-Indicator">{</span><span class="s">"camera"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="s">"output"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">"DP-1"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"transform"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="s">"scale"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"translate"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">-640</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">-400</span><span class="p p-Indicator">]},</span>
+<span class="w">            </span><span class="s">"duration"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">500</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"easing"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">"ease_in_out"</span><span class="p p-Indicator">}}</span>
 </code></pre></div>
 <h2 id="keyboard-focus-of-nodes">Keyboard focus of nodes<a class="headerlink" href="#keyboard-focus-of-nodes" title="Permanent link">&para;</a></h2>
 <p>The chrome of a plugin, for example a menu or a dialog, is made of nodes
