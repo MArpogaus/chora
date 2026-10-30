@@ -18,6 +18,11 @@ fi
 export GALLIUM_DRIVER=llvmpipe LIBGL_ALWAYS_SOFTWARE=1
 
 step() { echo "-- $*" >> "$RUN"; }
+# xp_settings writes the settings of chora-xp without sounds to
+# /tmp/bt-$WF-xp.yaml, apart from the settings of the user.
+xp_settings() {
+  sed 's/^  sounds: true/  sounds: false/' plugins/chora-xp/xp.yaml > "/tmp/bt-$WF-xp.yaml"
+}
 ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
 admin() { timeout 10 "$bin/choractl" "$@"; }
 # restart_plugin <name> ends a plugin that keep.sh runs with the pid file

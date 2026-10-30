@@ -2,8 +2,9 @@
 # W2 xp: 5 windows, start menu, 20 Alt+Tab, minimize/restore/activate,
 # XP Restart x5, five outside restarts; windows must keep their place.
 WF=w2; . "$(dirname "$0")/lib.sh"
+xp_settings
 # keep.sh starts xp again after each restart
-session_start "1280x800" tests/battle/keep.sh "/tmp/bt-$WF-xp.pid" "$bin/chora-xp" --theme flavors/xp/theme --no-sounds || exit 1
+session_start "1280x800" tests/battle/keep.sh "/tmp/bt-$WF-xp.pid" "$bin/chora-xp" --theme flavors/xp/theme --config "/tmp/bt-$WF-xp.yaml" || exit 1
 
 for i in $(seq 5); do open $((i*40)) $((200-i*30)) 90 --server-deco; done
 wait_count "app_id:chora-probe kind:surface" 5 \

@@ -74,9 +74,12 @@ else
     file_manager="foot --working-directory"
 fi
 
+sed "s|^file_manager: .*|file_manager: $file_manager|" \
+    "$(dirname "$0")/../plugins/chora-xp/xp.yaml" >"$out/chora-xp.yaml"
+
 step "1. chora -- chora-xp starts nested"
 CHORA_FRAME_BUDGET_US=500000 "$bin/chora" -- "$bin/chora-xp" --theme "$theme" --slow-motion 5 \
-    --file-manager "$file_manager" >"$out/chora.log" 2>&1 &
+    --config "$out/chora-xp.yaml" >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
 wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"
