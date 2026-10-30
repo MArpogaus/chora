@@ -2505,7 +2505,7 @@ unchanged, and <code>chora-tiling</code> gives one to each of its methods.</p>
   exporter disconnects. A connection has at most 64 calls in flight, and it
   cannot call its own methods.</li>
 </ul>
-<p><code>chora-tiling</code> exports these three; <a href="../configuration/#chora-tiling">chora-tiling</a>
+<p><code>chora-tiling</code> exports these four; <a href="../configuration/#chora-tiling">chora-tiling</a>
 lists all of its methods:</p>
 <table>
 <thead>
@@ -2525,6 +2525,11 @@ lists all of its methods:</p>
 <td><code>get_layout</code></td>
 <td>none</td>
 <td>the same</td>
+</tr>
+<tr>
+<td><code>get_tags</code></td>
+<td>none</td>
+<td><code>outputs</code>: for each output its <code>name</code>, <code>focused</code> when it has the focus, and <code>tags</code>: for each tag its number <code>tag</code>, <code>shown</code>, <code>focused</code> (shown on the focused output), <code>occupied</code> (a window of the output is on it) and <code>urgent</code> (such a window asked for attention)</td>
 </tr>
 <tr>
 <td><code>give</code></td>

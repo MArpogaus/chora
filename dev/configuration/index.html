@@ -727,6 +727,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#screen-sharing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screen sharing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#x11-programs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        X11 programs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-tiling-flavor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1157,6 +1179,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#screen-sharing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screen sharing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#x11-programs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        X11 programs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-tiling-flavor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1445,7 +1489,7 @@ pointer raises nothing. The binding
 windows do not exist.</p>
 <p><code>chora-tiling</code> exports methods for other clients (see
 <a href="../api/#plugin-methods">Plugin methods</a>). Every method but <code>get_layout</code>
-changes something and answers with the layout info of the current tag,
+and <code>get_tags</code> changes something and answers with the layout info of the current tag,
 like <code>set_layout</code>. The <code>gap</code> of <code>set_layout</code> is a live value: the file
 keeps the old gap, and the next <code>settings.set</code> or <code>settings.reload</code> sets
 the gap of the file again.</p>
@@ -1462,6 +1506,11 @@ the gap of the file again.</p>
 <td><code>set_layout</code>, <code>get_layout</code></td>
 <td>see <a href="../api/#plugin-methods">API</a></td>
 <td>the layout of the current tag</td>
+</tr>
+<tr>
+<td><code>get_tags</code></td>
+<td>none, see <a href="../api/#plugin-methods">API</a></td>
+<td>the tags of each output, for a panel</td>
 </tr>
 <tr>
 <td><code>give</code></td>
@@ -1932,6 +1981,38 @@ takes the keyboard layout of the system from <code>localectl</code>.
 <p><code>chora-session</code> does the same without uwsm: it runs chora as
 <code>chora@&lt;name&gt;.service</code>, and stops the units of the graphical session when
 chora ends.</p>
+<h3 id="screen-sharing">Screen sharing<a class="headerlink" href="#screen-sharing" title="Permanent link">&para;</a></h3>
+<p>Browsers and video calls share the screen through <code>xdg-desktop-portal</code>,
+which hands the work to <code>xdg-desktop-portal-wlr</code> (D37). Both sessions set
+<code>XDG_CURRENT_DESKTOP=chora</code>, and <code>chora-flavor</code> gives it and
+<code>WAYLAND_DISPLAY</code> to systemd and D-Bus, so that the portals start with
+them. <code>chora-flavor</code> also stops a portal that an earlier session in the
+same user manager started; the next call starts it again with the
+variables of chora. The packages install two files:</p>
+<ul>
+<li><code>/usr/share/xdg-desktop-portal/chora-portals.conf</code>: for
+  <code>XDG_CURRENT_DESKTOP=chora</code>, screen sharing and screenshots go through
+  <code>xdg-desktop-portal-wlr</code>, the other portals through
+  <code>xdg-desktop-portal-gtk</code>.</li>
+<li><code>/etc/xdg/xdg-desktop-portal-wlr/chora</code>: fuzzel asks which output or
+  window to share. <code>~/.config/xdg-desktop-portal-wlr/chora</code> replaces it,
+  for example with <code>chooser_type=none</code> and <code>output_name=eDP-1</code> to share
+  that output without a question.</li>
+</ul>
+<p><code>xdg-desktop-portal-wlr</code> captures through <code>ext-image-copy-capture</code>, and
+through <code>wlr-screencopy</code> on older versions. It shares outputs, and
+windows of <code>ext-foreign-toplevel-list</code>. The core copies through shm, so
+each frame takes a copy on the CPU, and the shared picture has no
+cursor. The portal runs on the Wayland socket of the session, which has
+every capture protocol; a client of a client socket needs the grant
+<code>screen.capture</code> (see <a href="../api/">API</a>).</p>
+<h3 id="x11-programs">X11 programs<a class="headerlink" href="#x11-programs" title="Permanent link">&para;</a></h3>
+<p><code>xwayland-satellite</code> runs X11 programs as Wayland windows. When it is
+installed, <code>chora-flavor</code> picks a free display, for example <code>:0</code>, and
+gives <code>DISPLAY</code> to systemd and D-Bus. The unit
+<code>chora-&lt;flavor&gt;-xwayland.service</code> of each flavor then starts
+<code>xwayland-satellite</code> on this display. The X11 windows are toplevels like
+all others, so <code>chora-tiling</code> tiles them.</p>
 <h3 id="the-tiling-flavor">The tiling flavor<a class="headerlink" href="#the-tiling-flavor" title="Permanent link">&para;</a></h3>
 <p>The package installs the tiling flavor (D51):</p>
 <div class="highlight"><pre><span></span><code>/usr/share/chora/flavors/tiling/
@@ -1942,18 +2023,25 @@ chora ends.</p>
 ├── chora-tiling-swaybg.service       # the wallpaper, a plain color
 ├── chora-tiling-swayidle.service     # the idle lock with swaylock
 ├── chora-tiling-kanshi.service       # the output profiles of the user
-└── waybar/config.jsonc               # the modules of the panel
+└── waybar/
+    ├── config.jsonc                  # the modules of the panel
+    └── tags.jq                       # the text of the tags module
 </code></pre></div>
 <p>Each unit starts only when its program is installed. The packages
-recommend them: uwsm, foot, fuzzel, waybar, mako, swaybg, swayidle,
-swaylock, kanshi and <code>xwayland-satellite</code>. mako starts from the unit of
+recommend them: uwsm, foot, fuzzel, waybar, jq, mako, swaybg, swayidle,
+swaylock, kanshi, <code>xwayland-satellite</code>, <code>xdg-desktop-portal-wlr</code> and
+<code>xdg-desktop-portal-gtk</code>. mako starts from the unit of
 its own package and needs no configuration.</p>
 <ul>
 <li><strong>The panel</strong>: waybar with the configuration of the flavor. It shows only
-  modules that need no IPC of sway: the layout of the current tag, the
-  clock, the volume, the network, the processor, the memory, the battery
-  and the tray. The layout module calls <code>choractl call tiling get_layout</code>
-  each second.</li>
+  modules that need no IPC of sway: the tags of the output, the layout of
+  the current tag, the clock, the volume, the network, the processor, the
+  memory, the battery and the tray. The layout module calls
+  <code>choractl call tiling get_layout</code> each second. The tags module calls
+  <code>choractl call tiling get_tags</code> each second, and <code>jq</code> with
+  <code>waybar/tags.jq</code> turns the answer into the text: the shown and the
+  occupied tags, shown ones underlined, focused ones bold and urgent ones
+  red.</li>
 <li><strong>The launcher</strong>: <code>MOD+r</code> starts fuzzel, as the default bindings of
   <code>chora-tiling</code> say.</li>
 <li><strong>The lock</strong>: swayidle runs <code>swaylock -f</code> after 5 minutes without input,
