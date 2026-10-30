@@ -2,7 +2,7 @@
 # Puts the org agenda of today into the panel `today` of the scene
 # `agenda` of chora-mc: the entries with a time of today, and the tasks
 # scheduled or due today. Nothing overdue, nothing upcoming, nothing done.
-# Each line is "TIME  TEXT"; an entry without a time has an empty time.
+# Each line is "TIME<tab>TEXT"; an entry without a time has an empty time.
 # Emacs builds the agenda, so repeats come out as in Emacs; the files are
 # only read.
 #
@@ -40,9 +40,8 @@ params=$(ORG_TODO="${ORG_TODO-PROJ TODO NEXT WAIT | DONE KILL}" emacs -Q --batch
                    (member type (quote ("timestamp" "block" "scheduled" "deadline")))
                    (or (member type (quote ("timestamp" "block"))) (eql due today))
                    (not (member state org-done-keywords-for-agenda)))
-          (let ((time (replace-regexp-in-string
-                       "^ " "\u2007" (string-trim-right (replace-regexp-in-string
-                                          "\\.+$" "" (or (get-text-property p (quote time)) "")))))
+          (let ((time (string-trim (replace-regexp-in-string
+                                    "\\.+$" "" (or (get-text-property p (quote time)) ""))))
                 (text (substring-no-properties txt)))
             (when (and state (string-prefix-p (concat state " ") text))
               (setq text (substring text (1+ (length state)))))
@@ -51,17 +50,13 @@ params=$(ORG_TODO="${ORG_TODO-PROJ TODO NEXT WAIT | DONE KILL}" emacs -Q --batch
             (push (cons time text) items))))
       (forward-line 1))
     (setq items (nreverse items))
-    ;; Figure spaces as wide as digits keep the texts in one column.
-    (let ((width (apply (function max) 0 (mapcar (lambda (i) (length (car i))) items))))
-      (princ (json-encode
-              (list (cons "scene" "agenda") (cons "panel" "today")
-                    (cons "title" (format-time-string "%A, %e %B"))
-                    (cons "lines" (vconcat
-                                   (mapcar (lambda (i)
-                                             (concat (car i)
-                                                     (make-string (- width (length (car i))) ? )
-                                                     "  " (cdr i)))
-                                           items)))))))))' "$@" 2>/dev/null)
+    ;; chora-mc shows the part before the tab as a column of its own.
+    (princ (json-encode
+            (list (cons "scene" "agenda") (cons "panel" "today")
+                  (cons "title" (format-time-string "%A, %e %B"))
+                  (cons "lines" (vconcat
+                                 (mapcar (lambda (i) (concat (car i) "\t" (cdr i)))
+                                         items))))))))' "$@" 2>/dev/null)
 if [ -n "$print" ]; then
     printf '%s\n' "$params"
 else
