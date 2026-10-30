@@ -135,6 +135,11 @@ through `tests/mcp-client.py`. It needs swaylock and python3 in addition.
 tests/agent.sh target/debug
 ```
 
+`tests/gate-0.9-session-units.sh` checks the units of the session and of
+the flavors with `systemd-analyze --user verify`, and the session entries
+with `desktop-file-validate`. It needs systemd, desktop-file-utils, waybar,
+mako, swaybg, swayidle and kanshi.
+
 Each bug fix comes with a test that fails without the fix (D48).
 
 CI runs `cargo clippy`, `cargo test` and the end-to-end test with `--locked`
