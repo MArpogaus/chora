@@ -338,6 +338,8 @@ const EVENTS: [&str; 6] = [
     "output.removed",
 ];
 
+/// The methods; those that start programs or write files are privileged
+/// (D62), because a caller with `methods.call` alone must not run commands.
 #[allow(clippy::too_many_lines)] // one entry per method
 fn exported_methods() -> Vec<ExportMethod> {
     let lines = json!({"type": "array", "items": {"type": "string"}});
@@ -356,7 +358,7 @@ fn exported_methods() -> Vec<ExportMethod> {
             json!({}),
             &[],
         ),
-        runtime::method(
+        runtime::privileged(runtime::method(
             "scene.save",
             "Saves a scene in its file and shows the change: a grid of panels, or an app.",
             json!({
@@ -366,7 +368,7 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "app": {"type": "string", "description": "a shell command whose window fills the screen"},
             }),
             &["name"],
-        ),
+        )),
         runtime::method(
             "panel.set",
             "Sets the title and the lines of a panel of a scene, until the next start.",
@@ -396,26 +398,26 @@ fn exported_methods() -> Vec<ExportMethod> {
             }),
             &["text", "duration_ms"],
         ),
-        runtime::method(
+        runtime::privileged(runtime::method(
             "app.open",
             "Starts a shell command as an app in a full-screen scene of its own.",
             json!({"command": {"type": "string"}}),
             &["command"],
-        ),
+        )),
         runtime::method(
             "region.list",
             "Answers the regions around the page with what each shows, and the contents.",
             json!({}),
             &[],
         ),
-        runtime::method(
+        runtime::privileged(runtime::method(
             "region.toggle",
             "Shows or hides a region: header, footer, left, right or drawer; without shown \
              it flips. A docked app in it starts and takes the keyboard.",
             json!({"region": {"type": "string"}, "shown": {"type": "boolean"}}),
             &["region"],
-        ),
-        runtime::method(
+        )),
+        runtime::privileged(runtime::method(
             "region.put",
             "Puts a content into a region and slot over the rules, until the next start; \
              without a region the content follows the rules again.",
@@ -425,7 +427,7 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "slot": {"type": "integer"},
             }),
             &["content"],
-        ),
+        )),
         runtime::method(
             "content.set",
             "Sets the lines and the title of a text content, such as the notes.",
@@ -438,7 +440,7 @@ fn exported_methods() -> Vec<ExportMethod> {
             json!({"content": {"type": "string"}, "line": {"type": "string"}}),
             &["content", "line"],
         ),
-        runtime::method(
+        runtime::privileged(runtime::method(
             "region.solo",
             "Shows a content alone in a region over any scene, such as the test overlay in \
              the drawer; without shown it flips. Answers shown.",
@@ -448,7 +450,7 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "shown": {"type": "boolean"},
             }),
             &["content", "region"],
-        ),
+        )),
         runtime::method(
             "agent.set",
             "Adds or changes an agent: its state (idle, listening, thinking, working, \
@@ -1725,4 +1727,28 @@ fn launch(command: &str) -> Option<String> {
     };
     let answer: Value = serde_json::from_slice(&line).unwrap_or_default();
     answer["token"].as_str().map(Into::into)
+}
+
+#[cfg(test)]
+mod tests {
+    /// A client with `methods.call` alone ran commands through app.open and
+    /// scene.save (W12).
+    #[test]
+    fn the_methods_that_start_programs_are_privileged() {
+        let privileged: Vec<String> = super::exported_methods()
+            .iter()
+            .filter(|m| m.privileged())
+            .map(|m| m.name().to_owned())
+            .collect();
+        assert_eq!(
+            privileged,
+            [
+                "scene.save",
+                "app.open",
+                "region.toggle",
+                "region.put",
+                "region.solo"
+            ]
+        );
+    }
 }
