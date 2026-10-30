@@ -520,16 +520,20 @@ pub enum Capability {
     /// needs it on the main socket for `run_program`.
     #[serde(rename = "activation.token")]
     ActivationToken,
+    /// `session.quit`: end chora. Checked only for a client socket.
+    #[serde(rename = "session.quit")]
+    SessionQuit,
 }
 
 impl Capability {
     /// Every capability.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::InputInject,
         Self::ScreenCapture,
         Self::GrabAny,
         Self::MethodsCall,
         Self::ActivationToken,
+        Self::SessionQuit,
     ];
 
     /// The name, which is also the name of the method.
@@ -541,6 +545,7 @@ impl Capability {
             Self::GrabAny => "input.grab-any",
             Self::MethodsCall => "methods.call",
             Self::ActivationToken => "activation.token",
+            Self::SessionQuit => "session.quit",
         }
     }
 }

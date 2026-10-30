@@ -769,6 +769,7 @@ impl State {
             "input.inject" => self.ipc_inject(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
             "activation.token" => self.ipc_activation_token(conn),
+            "session.quit" => self.ipc_quit(conn),
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
             }
@@ -792,6 +793,19 @@ impl State {
         let token = token.as_str().to_owned();
         let _ = self.expire_at(self.time.now() + crate::protocols::MAX_TOKEN_AGE);
         Ok(serde_json::json!({"token": token}))
+    }
+
+    /// Ends chora as Ctrl+Alt+Backspace does, after the answer. A client
+    /// socket needs the capability `session.quit`.
+    fn ipc_quit(&mut self, conn: u64) -> Result<Value, RpcError> {
+        let name = self
+            .ipc
+            .name(conn)
+            .ok_or_else(|| rejected("send hello first"))?;
+        self.check_socket_grant(conn, Capability::SessionQuit)?;
+        tracing::info!(client = name, "session.quit");
+        self.loop_signal.stop();
+        Ok(Value::Null)
     }
 
     /// Streams the named events, or all of them for an empty list. An
@@ -2101,6 +2115,38 @@ mod tests {
         runner.ok(&mut core, "hello", json!({"name": "runner"}));
         let answer = runner.ok(&mut core, "activation.token", Value::Null);
         assert!(answer["token"].is_string(), "{answer}");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// `session.quit` ends the main loop after its answer; a client socket
+    /// needs the capability, so an agent cannot end the session.
+    #[test]
+    fn session_quit_stops_the_loop_and_needs_the_capability_on_a_client_socket() {
+        let (mut core, dir) = socket_dir("quit");
+        let mut admin = core.admin();
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let (error_code, _) = agent.fails(&mut core, "session.quit", Value::Null);
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+        let mut plugin = core.connect();
+        let (error_code, _) = plugin.fails(&mut core, "session.quit", Value::Null);
+        assert_eq!(error_code, RpcError::REJECTED, "hello first");
+        plugin.ok(&mut core, "hello", json!({"name": "xp"}));
+        let id = plugin.send("session.quit", Value::Null);
+        let mut turns = 0;
+        core.event_loop
+            .run(Duration::from_millis(10), &mut core.state, |state| {
+                state.after_events();
+                turns += 1;
+                if turns == 50 {
+                    state.loop_signal.stop();
+                }
+            })
+            .unwrap();
+        assert!(turns < 50, "session.quit stops the loop");
+        let answer = plugin.responses();
+        assert_eq!(answer[0]["id"], id);
+        assert_eq!(answer[0]["result"], Value::Null, "{answer:?}");
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
     }

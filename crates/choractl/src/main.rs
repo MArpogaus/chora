@@ -116,6 +116,9 @@ enum Cmd {
     },
     /// Serve the API as MCP tools over stdio, for an agent.
     Mcp,
+    /// End chora, as Ctrl+Alt+Backspace does. Through a client socket it
+    /// needs the capability `session.quit`.
+    Quit,
     /// Start a program outside the core (D42), with an activation token
     /// of the core in `XDG_ACTIVATION_TOKEN`: in its own transient unit
     /// when a user manager runs, as its own child otherwise. Prints pid,
@@ -344,6 +347,9 @@ fn run(args: Args) -> Result<(), String> {
             .map(|answer| print_warnings(&answer)),
         Cmd::Events { names } => events(&mut client, names),
         Cmd::Outputs => show(&mut client, "output.list", Value::Null),
+        Cmd::Quit => client
+            .call::<_, Value>("session.quit", Value::Null)
+            .map(drop),
         command @ (Cmd::Run { .. }
         | Cmd::ConfigureOutput { .. }
         | Cmd::AddOutput { .. }
