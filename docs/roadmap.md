@@ -7,7 +7,8 @@ with a stable, versioned API (D3).
 
 - Each milestone is a minor release: 0.6, 0.7 and so on.
 - Each milestone has a goal, a scope, an estimate and a **gate**.
-- A milestone gets its estimate when the agents start it.
+- A milestone gets a firm estimate when its scope is fixed. The table holds
+  a first guess.
 - The gate is a list of checks. A check is a CI job or a step on the
   reference hardware with a log as evidence (D46).
 - A milestone is done when every check of its gate holds. The next
@@ -202,7 +203,8 @@ Gate:
     pixel clicks.
 
 The scripts `tests/gate-0.8-N.sh` below are checks of the 0.7 gate. They
-check the delivered scope:
+check the delivered scope. The scripts keep their own numbers, which
+differ from the numbered 0.7 checks:
 
 - `tests/gate-0.8-1.sh`: An MCP client in CI calls the tools to focus the
   second terminal and to request a move to the right. `chora-tiling`
@@ -260,17 +262,19 @@ Scope:
   restart (D61).
 - Bugs of `choractl mcp`: #53, #54 and #56.
 - The release workflow builds the RPM only (D14).
-- The hardware checks 5 and 8 that moved from 0.7.
+- The hardware checks 5 and 8 of the 0.7 gate.
+- Remove `dist/arch`, `dist/build-arch.sh` and the Arch install lines of
+  `README.md`.
 
 The work removes the XP programs first, then extracts the runtime from
 `chora-tiling`, and then ports `chora-xp` to the runtime.
 
 Gate:
 
-1. No crate other than `chora-kit` has a reconnect loop or calls
-   `methods.export`, `output.list` or `events.subscribe`. CI checks this
-   with a grep. The battle workflows in `tests/battle/` and `tests/xp.sh`
-   pass.
+1. No plugin crate (`chora-tiling`, `chora-xp`) has a reconnect loop or
+   calls `methods.export`, `output.list` or `events.subscribe`. CI checks
+   this with a grep over `plugins/`. The battle workflows in
+   `tests/battle/` and `tests/xp.sh` pass.
 2. The program modules of `chora-xp` are gone: `explorer.rs`,
    `explorer/view.rs`, `folder.rs`, `wm/explorers.rs`, `control.rs`,
    `display.rs`, `datetime.rs`, `properties.rs`, `confirm.rs`,
@@ -300,8 +304,7 @@ Gate:
 10. The release of the next release candidate carries only the RPM and its
     SHA256 sum (D14).
 11. CI runs the CI scripts of the earlier gates again. The user runs the
-    hardware checks again on the reference hardware, with a log, except the
-    daily-use checks (0.9 gate 1, 1.0 gate 1).
+    hardware checks again on the reference hardware, with a log.
 
 ## 0.9: Daily driver
 
@@ -329,10 +332,10 @@ Gate:
 1. The user works 10 working days in a row only in chora on the reference
    hardware. `coredumpctl list chora` shows no entry, and the log shows no
    emergency reset that the user did not start.
-2. A shader node with an endless loop on llvmpipe in CI: the watchdog
-   thread detects the stall and logs it within 6 s, and acts as D23 and D57
-   say. D23 and D57 do not say what the watchdog does when the main loop
-   itself hangs. This one point is decided at the start of 0.9.
+2. A shader node with an endless loop runs on llvmpipe in CI. The watchdog
+   thread logs the stall within 6 s. The log line names the action, and a
+   test checks it. The action for a hung main loop is decided at the start
+   of 0.9.
 3. A main loop that blocks for 5 s triggers the watchdog. A test with a
    debug hook checks it.
 4. A checklist on the reference hardware passes, with the log of each
@@ -345,7 +348,7 @@ Gate:
    them.
 7. CI runs the CI scripts of the earlier gates again. The user runs the
    hardware checks again on the reference hardware, with a log, except the
-   daily-use checks (0.9 gate 1, 1.0 gate 1).
+   daily-use checks (0.9 gate 1).
 8. chora installs from the release RPM, layered on secureblue with
    `rpm-ostree`, and starts as a uwsm session with the tiling flavor. The
    log of the reference hardware shows both steps.
@@ -406,7 +409,7 @@ Gate:
    measurement.
 8. CI runs the CI scripts of the earlier gates again. The user runs the
    hardware checks again on the reference hardware, with a log, except the
-   daily-use checks (0.9 gate 1, 1.0 gate 1).
+   daily-use checks (0.9 gate 1).
 
 ## 1.0: Stable API
 
