@@ -44,12 +44,18 @@ assets = [
   { source = "../../LICENSES/MIT-Smithay.txt", dest = "/usr/share/licenses/chora/MIT-Smithay.txt", mode = "644" },
   { source = "../../dist/session/chora.desktop", dest = "/usr/share/wayland-sessions/chora.desktop", mode = "644" },
   { source = "../../dist/session/chora-xp.desktop", dest = "/usr/share/wayland-sessions/chora-xp.desktop", mode = "644" },
+  { source = "../../dist/session/chora-uwsm.desktop", dest = "/usr/share/wayland-sessions/chora-uwsm.desktop", mode = "644" },
+  { source = "../../dist/session/chora-xp-uwsm.desktop", dest = "/usr/share/wayland-sessions/chora-xp-uwsm.desktop", mode = "644" },
+  { source = "../../dist/session/env-chora", dest = "/etc/xdg/uwsm/env-chora", mode = "644", config = "noreplace" },
+  { source = "../../dist/portal/chora-portals.conf", dest = "/usr/share/xdg-desktop-portal/chora-portals.conf", mode = "644" },
+  { source = "../../dist/portal/xdg-desktop-portal-wlr", dest = "/etc/xdg/xdg-desktop-portal-wlr/chora", mode = "644", config = "noreplace" },
   { source = "../../dist/session/chora-session", dest = "/usr/bin/chora-session", mode = "755" },
   { source = "../../dist/session/chora-flavor", dest = "/usr/bin/chora-flavor", mode = "755" },
   { source = "../../dist/session/chora-xwayland", dest = "/usr/libexec/chora/chora-xwayland", mode = "755" },
   { source = "../../dist/session/chora@.service", dest = "/usr/lib/systemd/user/chora@.service", mode = "644" },
   { source = "../../dist/session/chora-shutdown.target", dest = "/usr/lib/systemd/user/chora-shutdown.target", mode = "644" },
   { source = "../../flavors/tiling/*", dest = "/usr/share/chora/flavors/tiling/", mode = "644" },
+  { source = "../../flavors/tiling/waybar/*", dest = "/usr/share/chora/flavors/tiling/waybar/", mode = "644" },
   { source = "../../dist/shaders/*", dest = "/usr/share/chora/shaders/", mode = "644" },
   { source = "../../dist/plugins/*", dest = "/usr/share/chora/plugins/", mode = "644" },
   { source = "../../flavors/xp/chora-xp*", dest = "/usr/share/chora/flavors/xp/", mode = "644" },
@@ -65,9 +71,10 @@ auto-req = "auto"
 # The code is GPL-3.0-or-later; the theme of the XP flavor adds artwork,
 # fonts and a wallpaper under their own licenses (flavors/xp/theme/README.md).
 license = "GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND OFL-1.1 AND CC-BY-SA-4.0"
-# The terminal, the launcher and the panel of the tiling flavor, and X11
-# programs.
-recommends = { foot = "*", fuzzel = "*", waybar = "*", xwayland-satellite = "*" }
+# uwsm for the sessions it manages (D50; not in Fedora 44 yet), the tools
+# of the tiling flavor (D51), X11 programs, and the portals for screen
+# sharing (D37) and the rest.
+recommends = { uwsm = "*", foot = "*", fuzzel = "*", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*" }
 # Smithay loads libEGL at runtime, so auto-req does not see it.
 requires = { mesa-libEGL = "*" }
 summary = "Wayland compositor without policy, programmable by plugins and agents"

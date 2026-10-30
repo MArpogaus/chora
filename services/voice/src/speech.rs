@@ -116,6 +116,8 @@ pub enum Out {
     },
     /// Stops the sound at once: a barge-in.
     Stop,
+    /// The TTS failed for a sentence.
+    Failed,
 }
 
 /// A barge-in pauses the speech; the agent then resumes it from the cut
@@ -130,6 +132,7 @@ pub enum Control {
 enum Piece {
     Start(String),
     Pcm(Vec<i16>),
+    Failed,
     Done,
 }
 
@@ -152,7 +155,8 @@ fn duration(samples: usize) -> Duration {
 }
 
 /// Asks the TTS for each sentence, one socket after the other; a TTS
-/// error skips its sentence.
+/// error skips its sentence. While the TTS is down, a sentence before
+/// the end of its backoff skips without a try.
 async fn fetch(
     config: &Config,
     mut sentences: UnboundedReceiver<String>,
@@ -174,16 +178,29 @@ async fn fetch(
             }
             first
         };
-        let (result, first) = tokio::join!(tts::speak(config, &sentence, events), feed);
+        let tried = crate::health::ready("tts");
+        let speak = async {
+            if !tried {
+                return Err("down, waiting for the backoff".to_owned());
+            }
+            tts::speak(config, &sentence, events).await
+        };
+        let (result, first) = tokio::join!(speak, feed);
+        if let Err(e) = &result {
+            crate::log::error(&format!("tts: {e}"));
+            if tried {
+                crate::health::down("tts", e);
+            }
+            spoken.errors += 1;
+            let _ = tx.send(Piece::Failed);
+        } else {
+            crate::health::ok("tts");
+        }
         let _ = tx.send(Piece::Done);
         if spoken.sentences == 0 {
             spoken.tts_first = first;
         }
         spoken.sentences += 1;
-        if let Err(e) = result {
-            crate::log::error(&format!("tts: {e}"));
-            spoken.errors += 1;
-        }
     }
 }
 
@@ -222,6 +239,7 @@ impl<F: FnMut(Out)> Player<F> {
                     s.done = true;
                 }
             }
+            Piece::Failed => (self.out)(Out::Failed),
         }
     }
 
@@ -350,11 +368,12 @@ pub async fn speak(
 /// Runs a turn of `chat` and speaks its sentences and confirmation
 /// prompts through the speaker of `voice`, none without it; the control
 /// of `voice` pauses and resumes the speech. `on` gets the events for
-/// the core.
+/// the core. With `say`, the turn says `text` without the LLM, and the
+/// history gets it as an answer.
 pub async fn reply(
     chat: &mut Chat,
     config: &Config,
-    text: &str,
+    (text, only_say): (&str, bool),
     voice: Option<(&Speaker, UnboundedReceiver<Control>)>,
     on: &(impl Fn(Reply) + Sync),
 ) -> (Report, Spoken) {
@@ -370,6 +389,9 @@ pub async fn reply(
                 let _ = tx.send(sentence);
             }
         };
+        if only_say {
+            return chat.said(text, say);
+        }
         chat.turn(text, &|event| match event {
             Event::Sentence(sentence) => say(sentence),
             Event::Confirm { prompt, answer } => {
@@ -402,6 +424,7 @@ pub async fn reply(
                 }
             }
             Out::Said { text, at, len } => on(Reply::Said { text, at, len }),
+            Out::Failed => on(Reply::Failed),
             Out::Stop => {
                 player = None;
                 speaker.stop();
@@ -512,6 +535,7 @@ mod tests {
                 Out::Pcm { pcm, .. } => format!("pcm {}", pcm.len()),
                 Out::Said { text, len, .. } => format!("said {text} {}", len.as_millis()),
                 Out::Stop => "stop".into(),
+                Out::Failed => "failed".into(),
             });
         })
         .await;
@@ -581,13 +605,20 @@ mod tests {
                 Reply::Chat(event) => format!("{event:?}"),
                 Reply::Played { .. } => "sound".into(),
                 Reply::Said { text, .. } => format!("said {text}"),
+                Reply::Failed => "failed".into(),
                 Reply::Done(_) => unreachable!(),
             };
             events.lock().unwrap().push(line);
         };
         let (_control, nothing) = tokio::sync::mpsc::unbounded_channel();
-        let (report, spoken) =
-            reply(&mut chat, &config, "Echo.", Some((&speaker, nothing)), &on).await;
+        let (report, spoken) = reply(
+            &mut chat,
+            &config,
+            ("Echo.", false),
+            Some((&speaker, nothing)),
+            &on,
+        )
+        .await;
         assert_eq!(report.reply, "Gut. Fertig.");
         assert_eq!((spoken.sentences, spoken.errors), (3, 0));
         let texts: Vec<_> = tts

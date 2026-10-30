@@ -20,13 +20,38 @@ fail() {
     exit 1
 }
 need() { command -v "$1" >/dev/null 2>&1 || skip "$1 is not installed here"; }
+# need_bins NAME...: the binaries of the build in $bin.
+need_bins() {
+    local b
+    for b in "$@"; do
+        test -x "$bin/$b" || fail "no $bin/$b; build it first"
+    done
+}
 pids=()
+tmp_dirs=()
+# gate_cleanup [STATUS]: the EXIT trap. It ends the session and the
+# programs, and removes the temporary directories when the gate did not
+# fail; a failed gate keeps them for its logs.
+gate_cleanup() {
+    local status=${1:-$?}
+    kill "${pids[@]}" "${run_pids[@]}" 2>/dev/null
+    wait 2>/dev/null
+    [ "$status" != 0 ] || rm -rf "${tmp_dirs[@]}"
+}
+# temp_config: a new empty XDG_CONFIG_HOME, so that no file of the user
+# reaches the gate; gate_cleanup removes it.
+temp_config() {
+    XDG_CONFIG_HOME=$(mktemp -d /tmp/gate-config.XXXXXX)
+    export XDG_CONFIG_HOME
+    tmp_dirs+=("$XDG_CONFIG_HOME")
+    trap gate_cleanup EXIT
+}
 session_start() {
     local env_file=${env_file:-$(mktemp /tmp/gate-env.XXXXXX)}
     GATE_ENV=$env_file
     "$repo/tests/headless-session.sh" "$@" >"$env_file" 2>&1 &
     pids+=($!)
-    trap 'kill "${pids[@]}" "${run_pids[@]}" 2>/dev/null; wait 2>/dev/null' EXIT
+    trap gate_cleanup EXIT
     for _ in $(seq 60); do
         grep -q CHORA_SOCKET "$env_file" && break
         sleep 0.5
@@ -39,12 +64,18 @@ session_start() {
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }
 ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
 # run_pid <pid> remembers a program of `choractl run` (D42): it lives in
-# a unit or outside the group of the core, so the EXIT trap of
-# session_start must end it.
+# a unit or outside the group of the core, so gate_cleanup must end it.
 run_pids=()
 run_pid() { run_pids+=("$1"); }
 pixel() { python3 -I "$repo/tests/png-pixel.py" "$@"; }
-# mcp_py runs one python MCP check with tests/gate-mcp.py importable.
+# crash_lines SINCE: the journal lines of the chora units since a time
+# that show a crash, a hang or a failed start. secureblue disables core
+# dumps, so coredumpctl alone sees nothing there.
+crash_lines() {
+    journalctl --user -u 'chora@*' -u 'wayland-wm@*' --since "$1" --no-pager 2>/dev/null |
+        grep -E 'the watchdog aborts|chora: SIG|the main loop stalls|the startup command failed'
+}
+# mcp_py runs one python MCP check with tests/gate_mcp.py importable.
 mcp_py() {
     PYTHONPATH=$repo/tests python3 - "$@"
 }

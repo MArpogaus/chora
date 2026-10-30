@@ -4,7 +4,8 @@
 //! `methods.privileged` to call privileged methods, such as
 //! `settings.set`, `settings.reload` and methods that run commands,
 //! `activation.token` to start programs with `choractl run` and
-//! `session.quit` to end chora. The main socket may always do these.
+//! `session.quit` to end chora. The main socket may always do these,
+//! unless its `hello` confined it, as `choractl mcp` does.
 //!
 //! `choractl grant NAME CAPABILITY` grants a capability to a client name,
 //! until `choractl revoke` or the end of the session, through the admin
@@ -109,9 +110,9 @@ impl State {
     }
 
     /// Checks a capability that only a client socket needs: the main
-    /// socket may always use it.
+    /// socket may always use it, unless its `hello` confined it.
     pub fn check_socket_grant(&self, conn: u64, capability: Capability) -> Result<(), RpcError> {
-        if self.ipc.fixed(conn).is_some() {
+        if self.ipc.confined(conn) {
             self.check_grant(conn, capability)
         } else {
             Ok(())

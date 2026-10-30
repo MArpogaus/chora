@@ -17,7 +17,7 @@ use rmcp::{
 };
 use serde_json::{Value, json};
 
-use crate::config::Confirm;
+use crate::{coder::Coder, config::Confirm};
 
 pub type Service = RunningService<RoleClient, ()>;
 type Connecting = Pin<Box<dyn Future<Output = Result<Service, String>> + Send>>;
@@ -41,6 +41,8 @@ pub struct Tools {
     pub vision: bool,
     backoff: Duration,
     retry_at: Instant,
+    /// The coding tools, when `coder_cmd` has a harness.
+    pub coder: Option<Coder>,
 }
 
 /// `CMD --name NAME mcp` as a child process; its stderr goes to ours.
@@ -81,6 +83,7 @@ impl Tools {
             vision: false,
             backoff: Duration::ZERO,
             retry_at: Instant::now(),
+            coder: None,
         }
     }
 
@@ -90,18 +93,36 @@ impl Tools {
 
     /// Connects again after the child ended, at most once per backoff
     /// (0.5 s to 5 s), and loads the tools. The tools of the last session
-    /// stay while chora is away.
+    /// stay while chora is away. The coding tools come last.
     pub async fn refresh(&mut self) {
+        self.load().await;
+        let coder = self.coder.as_ref().map(Coder::specs).unwrap_or_default();
+        self.specs.retain(|s| {
+            !crate::coder::TOOLS.contains(&s["function"]["name"].as_str().unwrap_or_default())
+        });
+        for spec in coder {
+            let name = spec["function"]["name"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned();
+            self.names.insert(name.clone(), name);
+            self.specs.push(spec);
+        }
+    }
+
+    async fn load(&mut self) {
         if self.connected().is_none() {
             if Instant::now() < self.retry_at {
                 return;
             }
             match (self.connect)().await {
                 Ok(service) => {
+                    crate::health::ok("mcp");
                     self.service = Some(service);
                     self.backoff = Duration::ZERO;
                 }
                 Err(e) => {
+                    crate::health::down("mcp", &e);
                     self.service = None;
                     self.backoff =
                         (self.backoff * 2).clamp(Duration::from_millis(500), MAX_BACKOFF);
@@ -153,6 +174,11 @@ impl Tools {
         let Value::Object(args) = args.clone() else {
             return "error: the arguments are no JSON object".into();
         };
+        if let Some(coder) = &self.coder
+            && crate::coder::TOOLS.contains(&name.as_str())
+        {
+            return coder.call(&name, &Value::Object(args));
+        }
         self.refresh().await;
         let Some(service) = self.connected() else {
             return "error: chora is not connected".into();
@@ -166,6 +192,7 @@ impl Tools {
             )
             .into(),
             Ok(Err(_)) if service.is_transport_closed() => {
+                crate::health::down("mcp", "the connection was lost");
                 "error: the connection to chora was lost; the result is unknown".into()
             }
             Ok(Err(e)) => format!("error: {e}").into(),
@@ -241,11 +268,7 @@ pub fn rule<'a>(rules: &'a [Confirm], tool: &str, args: &Value) -> Option<&'a Co
                 .filter_map(Value::as_object)
                 .flat_map(|c| c.keys())
         };
-        let program = args["argv"][0].as_str().map(|p| {
-            Path::new(p)
-                .file_name()
-                .map_or(p, |n| n.to_str().unwrap_or(p))
-        });
+        let program = program(args);
         glob(&r.tool, tool)
             && (r.commands.is_empty() || kinds().any(|k| r.commands.contains(k)))
             && (r.argv0.is_empty() || program.is_some_and(|p| r.argv0.iter().any(|a| a == p)))
@@ -254,6 +277,15 @@ pub fn rule<'a>(rules: &'a [Confirm], tool: &str, args: &Value) -> Option<&'a Co
                     .as_str()
                     .is_some_and(|method| glob(m, method))
             })
+    })
+}
+
+/// The file name of the program of `run_program`.
+pub fn program(args: &Value) -> Option<&str> {
+    args["argv"][0].as_str().map(|p| {
+        Path::new(p)
+            .file_name()
+            .map_or(p, |n| n.to_str().unwrap_or(p))
     })
 }
 
@@ -402,6 +434,33 @@ pub mod tests {
     }
 
     #[tokio::test]
+    async fn the_coding_tools_come_with_a_harness_and_ask_by_their_rule() {
+        let (mut tools, _) = fake(0);
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let coder = Coder::new(
+            Vec::new(),
+            std::env::temp_dir().join("chora-voice-none"),
+            tx,
+        );
+        tools.coder = Some(coder.clone());
+        tools.refresh().await;
+        assert_eq!(tools.specs.len(), 5, "no harness, no coding tools");
+        coder.set_cmd(vec!["true".into()]);
+        tools.refresh().await;
+        tools.refresh().await;
+        let names: Vec<_> = tools.specs[5..]
+            .iter()
+            .map(|s| s["function"]["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(names, crate::coder::TOOLS, "once each, after the others");
+        let status = tools.call("code_status", &json!({})).await;
+        assert_eq!(status, "no coding task runs");
+        let rules = Config::default().confirm;
+        let name = tools.mcp_name("code_task").unwrap();
+        assert!(rule(&rules, name, &json!({"task": "x"})).is_some());
+    }
+
+    #[tokio::test]
     async fn a_slow_call_times_out_and_pictures_go_only_to_an_llm_that_sees() {
         let (mut tools, _) = fake(0);
         tools.refresh().await;
@@ -453,14 +512,12 @@ pub mod tests {
             prompt("apply_commands", json!({"commands": [{"create": {}}]})),
             None
         );
-        assert_eq!(
-            prompt(
-                "run_program",
-                json!({"argv": ["/usr/bin/systemctl", "poweroff"]})
-            ),
-            Some("Soll ich den Sitzungsbefehl ausführen?")
-        );
-        assert_eq!(prompt("run_program", json!({"argv": ["foot"]})), None);
+        for argv in [json!(["/usr/bin/systemctl", "poweroff"]), json!(["foot"])] {
+            assert_eq!(
+                prompt("run_program", json!({ "argv": argv })),
+                Some("Soll ich das Programm {program} starten?")
+            );
+        }
         assert_eq!(
             prompt("tiling.restart", json!({})),
             Some("Soll ich das Plugin neu starten?")

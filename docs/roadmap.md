@@ -322,6 +322,8 @@ Gate:
 Scope:
 
 - The session starts through uwsm (D50). A flavor is a systemd target.
+  uwsm is not in Fedora 44, so the sessions without uwsm
+  (`chora-session`) are the fallback.
 - The tiling flavor: `chora-tiling` with waybar, fuzzel, mako, swaybg,
   swaylock, swayidle and kanshi (D51).
 - Input device settings through the API: tap, acceleration, natural
@@ -342,8 +344,7 @@ Gate:
    emergency reset that the user did not start.
 2. A shader node with an endless loop runs on llvmpipe in CI. The watchdog
    thread logs the stall within 6 s. The log line names the action, and a
-   test checks it. The action for a hung main loop is decided at the start
-   of 0.9.
+   test checks it.
 3. A main loop that blocks for 5 s triggers the watchdog. A test with a
    debug hook checks it.
 4. A checklist on the reference hardware passes, with the log of each

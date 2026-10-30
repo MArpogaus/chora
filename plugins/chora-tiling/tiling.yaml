@@ -116,5 +116,7 @@ bindings:
   # Programs
   MOD+Return: {run: foot}
   MOD+r: {run: fuzzel}
+  # swayidle of the tiling flavor runs swaylock on this request
+  MOD+Shift+Escape: {run: loginctl lock-session}
   # The plugin
   MOD+Ctrl+r: reload

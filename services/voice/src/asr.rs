@@ -30,13 +30,18 @@ pub async fn transcribe(
     pcm: &[i16],
     timeout: Duration,
 ) -> Result<Transcript, String> {
-    match once(url, language, pcm, timeout).await {
+    let result = match once(url, language, pcm, timeout).await {
         Ok(t) => Ok(t),
         Err(first) => {
             crate::log::warn(&format!("asr: {first}; one retry"));
             once(url, language, pcm, timeout).await
         }
+    };
+    match &result {
+        Ok(_) => crate::health::ok("asr"),
+        Err(e) => drop(crate::health::down("asr", e)),
     }
+    result
 }
 
 async fn once(

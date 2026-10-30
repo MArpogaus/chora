@@ -28,10 +28,7 @@ use smithay::{
 use crate::{
     output::{Spot, output_area},
     render,
-    state::{
-        ButtonGrab, ClientState, HeldGrab, NodeGrab, REPEAT_DELAY, REPEAT_RATE, Repeat, State,
-        Suppressed,
-    },
+    state::{ButtonGrab, ClientState, HeldGrab, NodeGrab, Repeat, State, Suppressed},
 };
 
 /// What a key press does besides reaching a client.
@@ -207,8 +204,9 @@ fn pressed_key(
         (action, Suppressed::Swallow)
     } else if let Some((node, owner)) = state.key_node() {
         let event = node_key(node.clone(), mods, handle, PressState::Pressed);
-        if !handle.modified_sym().is_modifier_key() {
-            let next = state.time.now() + Duration::from_millis(REPEAT_DELAY);
+        let (rate, delay) = state.repeat();
+        if rate > 0 && !handle.modified_sym().is_modifier_key() {
+            let next = state.time.now() + Duration::from_millis(delay.into());
             let _ = state.expire_at(next);
             state.held.repeat = Some(Repeat {
                 code,
@@ -298,7 +296,11 @@ impl State {
             return;
         }
         self.ipc.send_to_client(&repeat.owner, &repeat.event);
-        let next = repeat.next + Duration::from_millis(1000 / REPEAT_RATE);
+        let (rate, _) = self.repeat();
+        if rate == 0 {
+            return;
+        }
+        let next = repeat.next + Duration::from_millis(1000 / u64::from(rate));
         let _ = self.expire_at(next);
         self.held.repeat = Some(Repeat { next, ..repeat });
     }

@@ -1,6 +1,11 @@
-# The tiling flavor: chora-tiling, a panel and X11 programs.
+# The tiling flavor: chora-tiling, the panel, notifications, the
+# wallpaper, the idle lock, output profiles and X11 programs (D51).
 [Unit]
 Description=The tiling flavor of chora
 BindsTo=graphical-session.target
 After=graphical-session.target
-Wants=chora-tiling.service chora-tiling-xwayland.service waybar.service
+Wants=chora-tiling.service chora-tiling-xwayland.service
+Wants=chora-tiling-waybar.service chora-tiling-swaybg.service
+Wants=chora-tiling-swayidle.service chora-tiling-kanshi.service
+# The unit of the mako package; mako needs no configuration.
+Wants=mako.service

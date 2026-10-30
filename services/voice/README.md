@@ -147,7 +147,7 @@ fine, so the ASR's "Hallo Cora" is "Hallo Chora".
 | `schlaf`, `schlaf jetzt` | The agent sleeps: it hears only its wake words and the key |
 | `hör zu`, `hallo chora` | The agent wakes up |
 | `ja`, `okay`, `genau`, `mach das` / `nein`, `nicht`, `lieber nicht` | The answer to a question before a tool call |
-| `coding-aufgabe abbrechen` | Stops a coding task (comes with the coder port) |
+| `coding-aufgabe abbrechen` | Stops the coding task |
 
 While the agent speaks, you can talk over it (barge-in): the sound
 pauses, and your words decide. A stop word ends the reply. Echo of the
@@ -163,11 +163,24 @@ confirm '{"answer": "yes"}'`. No answer within 8 s, or two unclear
 answers, is a no.
 
 `choractl call voice state` shows the state: `sleeping`, `listening`,
-`recording`, `transcribing`, `thinking`, `tool`, `confirming` or
-`speaking`. When `chora-mc` runs, the agent reports its state with `mc
-agent.set` and each spoken sentence with `mc hud.say`, so the agents
-scene and the HUD show it. The log has one line per stage with its
-latency and one summary per reply.
+`recording`, `transcribing`, `thinking`, `tool`, `confirming`,
+`speaking` or `working` (listening while a coding task runs). A dot at
+the bottom right of the first output shows it too (`indicator`): blue
+listens, red records, amber thinks, violet asks, green speaks, teal
+works, gray sleeps. The agent emits its state as the event `voice.state`
+and each spoken sentence as `voice.say` (D65); `chora-mc` follows
+them, so its agents scene and its HUD show it, and
+`choractl events voice.*` prints them. The log has one line per stage with
+its latency and one summary per reply.
+
+`choractl call voice health` shows each server (`asr`, `tts`, `llm`,
+`mcp` and `chora`) as `ok`, `down` or `unknown`, with its last error.
+The agent probes the websockets of the ASR and the TTS every 30 s, and
+sooner while one is down. When a server fails, you hear it: the ASR
+sounds the error earcon and says "Ich habe dich nicht verstanden.", the
+LLM says that it does not answer, and the TTS sounds the error earcon;
+its text still goes to the HUD. A TTS that is down gets no request for
+1 s to 30 s.
 
 The agent keeps your requests of the last `saved_requests` (20) turns in
 `~/.local/state/chora/voice-history.json`. At its next start, they go
@@ -207,17 +220,32 @@ When the LLM reads images and `voice-mcp` has the grant
 unit finds chora through `CHORA_SOCKET`, which a chora flavor gives the
 user manager.
 
-To type and to start programs, the client name `voice-mcp` needs
-grants. A grant lasts until the session ends, until `choractl revoke
-voice-mcp`, the revoke binding or the emergency reset:
+`choractl mcp` confines its connection: although it uses the main
+socket, it has the capability rules of a client socket (D33). Each
+power of the LLM beyond the scene needs a grant of the client name
+`voice-mcp`. A grant lasts until the session ends, until `choractl
+revoke voice-mcp`, the revoke binding or the emergency reset:
+
+| grant | what the LLM can do with it |
+|---|---|
+| `methods.call` | call the methods of the plugins: `call_method` and the tools `client.method`, for example the focus of chora-tiling |
+| `methods.privileged` | with `methods.call`, call privileged methods: `settings.set`, `settings.reload` and methods that run commands, such as `app.open` of chora-mc |
+| `activation.token` | start any program with `run_program` |
+| `input.inject` | type and click with `inject_input` |
+| `screen.capture` | see the screenshot in `describe_screen` |
 
 ```bash
-choractl grant voice-mcp input.inject activation.token
+choractl grant voice-mcp methods.call
 ```
 
-Each of these grants alone lets the LLM run commands as you. Without
-grants, the LLM still closes windows and changes the outputs, the scene
-and the plugins, and overwrites the saved views. It also starts the
+`methods.call` alone keeps the plugins at their plain methods. Each of
+`methods.privileged`, `activation.token` and `input.inject` lets the
+LLM run commands as you: a setting such as the terminal of chora-xp or
+a binding with `run:` holds a command, and typing reaches a terminal.
+The agent asks for a spoken yes before each `run_program` and each
+`inject_input` (the `confirm` rules), not before a privileged method.
+Without grants, the LLM still closes windows and changes the outputs
+and the scene, and overwrites the saved views. It also starts the
 plugins of installed views. Any voice that the mic hears can start a
 turn, also from a video, and also while the screen is locked. Text on
 the screen that a tool reads can also steer the LLM. So can the plugins,
@@ -229,8 +257,38 @@ outputs. The emergency reset and the revoke binding do not stop the
 agent; after the reset, it connects again. Only `systemctl --user stop
 chora-voice` stops the agent.
 
-Coding tasks (`coder_cmd`) come with the port of the coder (WP7 of
-`docs/voice.md`).
+## Coding tasks
+
+An empty `coder_cmd` (the default) turns the coding tools off. With a
+harness in `coder_cmd`, the LLM gets the tools `code_task`,
+`code_status`, `code_cancel` and `list_projects`. The harness is any
+command that takes the task as its last argument. Make it a sandbox
+wrapper, such as `agent-sandbox.sh` (a podman container, read-only,
+without capabilities), around the coding agent:
+
+```yaml
+coder_cmd: [agent-sandbox.sh, claude, -p, --output-format, stream-json, --verbose]
+```
+
+Do not give a bare command such as `[claude, -p, ...]`. The task comes
+from the LLM, and so from any voice or text that steers it. A bare
+harness runs that task as you, with access to all your files and keys.
+The clone below does not protect your home directory.
+
+A task runs in the background, one at a time, in a clone of a project
+of `~/.local/share/chora/inventory/NAME` (a git repository), in
+`~/.local/share/chora/worktrees/NAME-N` on the branch `voice/N`. The
+clone has no hardlinks and no `origin`, so a push does not reach the
+project. Without a project, the task gets an empty repository. Its
+output goes to `worktrees/NAME-N.log`. Lines of stream-json give the
+steps and the result; other lines are steps. Before a task starts, the
+agent asks (the `confirm` rule of `code_task`).
+
+While the task runs, the state is `working`, and chora-mc shows it as
+the agent `coder` with its last step. When it ends, the agent says the
+result once you and its reply are done, and keeps it in the history.
+`code_status` repeats the last result. "Coding-Aufgabe abbrechen" stops
+the task and all processes of its process group.
 
 ## Tests
 
@@ -239,3 +297,13 @@ corpus in `tests/data/corpus` and an end-to-end replay through the whole
 agent with fake servers. `chora-voice replay DIR...` replays recordings
 of `record_dir`. `tests/corpus.py TTS_URL` writes the corpus again with
 the live TTS, and `tests/live.py TTS_URL ASR_URL` checks the servers.
+
+`tests/live-gate.sh [TEXT]` runs one voice turn through the whole agent
+in the running chora session, against the servers of your settings,
+and prints the latency of each stage. The question is a TTS clip, which
+a capture command plays into the agent `voice-gate`; the agent `voice`
+goes on as it is. `GATE_PLAYBACK=1` plays the reply on the speakers.
+
+```bash
+services/voice/tests/live-gate.sh "Welche Fenster sind gerade offen?"
+```

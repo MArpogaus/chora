@@ -253,6 +253,12 @@ pub struct Hello {
     /// own list.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub features: Vec<String>,
+    /// Confines a connection of the main socket to the capability rules
+    /// of a client socket (D33): `choractl mcp` says so, and then needs
+    /// grants for privileged methods, `methods.call`, `activation.token`
+    /// and `session.quit`. A connection can only give up rights.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub confined: bool,
 }
 
 /// The `hello` the client library sends: `protocol` and `features` filled
@@ -357,11 +363,24 @@ pub struct Apply {
     pub commands: Vec<Command>,
 }
 
+/// Parameters of `events.emit` (D65).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Emit {
+    /// The name: the client name, a dot and a name of the client, for
+    /// example `voice.state`.
+    pub event: String,
+    /// The data that the subscribers get.
+    #[serde(default)]
+    pub data: Value,
+}
+
 /// Parameters of `events.subscribe`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Subscribe {
-    /// Event names, for example `surface.created`; every event if empty.
+    /// Event names, for example `surface.created` or `voice.state`, or
+    /// patterns such as `voice.*`; every core event if empty (D65).
     #[serde(default)]
     pub events: Vec<String>,
 }
@@ -441,6 +460,111 @@ pub struct OutputConfigure {
     pub transform: Option<OutputTransform>,
 }
 
+/// Parameters and answer of `input.configure`, and the `input` of a view
+/// (D35): the settings of the keyboard, the touchpads and the mice. A
+/// missing field keeps its value.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InputSettings {
+    /// The key repeat.
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub keyboard: KeyboardSettings,
+    /// Devices that can tap, by libinput.
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub touchpad: PointerSettings,
+    /// The other pointer devices, such as mice and trackpoints.
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub mouse: PointerSettings,
+}
+
+/// The key repeat, for `wl_keyboard.repeat_info` and for the keys of
+/// nodes.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KeyboardSettings {
+    /// Repeats per second, 0 to 100; 0 turns the repeat off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repeat_rate: Option<u32>,
+    /// Milliseconds before a held key repeats, 100 to 5000.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repeat_delay: Option<u32>,
+}
+
+/// The libinput settings of a class of pointer devices.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PointerSettings {
+    /// Tap to click.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tap: Option<bool>,
+    /// Content follows the fingers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub natural_scroll: Option<bool>,
+    /// Swaps the left and the right button.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub left_handed: Option<bool>,
+    /// The acceleration profile.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accel_profile: Option<AccelProfile>,
+    /// The pointer speed, -1 to 1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accel_speed: Option<f64>,
+}
+
+/// The acceleration profile of libinput.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AccelProfile {
+    /// A constant factor.
+    Flat,
+    /// Faster with the speed of the motion.
+    Adaptive,
+}
+
+fn is_default<T: Default + PartialEq>(value: &T) -> bool {
+    *value == T::default()
+}
+
+impl InputSettings {
+    /// Checks the ranges.
+    ///
+    /// # Errors
+    ///
+    /// Names the first value out of its range.
+    pub fn check(&self) -> Result<(), String> {
+        let k = &self.keyboard;
+        if k.repeat_rate.is_some_and(|r| r > 100) {
+            return Err("keyboard.repeat_rate must be 0 to 100".into());
+        }
+        if k.repeat_delay.is_some_and(|d| !(100..=5000).contains(&d)) {
+            return Err("keyboard.repeat_delay must be 100 to 5000".into());
+        }
+        for (class, p) in [("touchpad", &self.touchpad), ("mouse", &self.mouse)] {
+            if p.accel_speed.is_some_and(|s| !(-1.0..=1.0).contains(&s)) {
+                return Err(format!("{class}.accel_speed must be -1 to 1"));
+            }
+        }
+        Ok(())
+    }
+
+    /// Takes the fields that `new` sets.
+    pub fn merge(&mut self, new: &Self) {
+        let (k, n) = (&mut self.keyboard, &new.keyboard);
+        k.repeat_rate = n.repeat_rate.or(k.repeat_rate);
+        k.repeat_delay = n.repeat_delay.or(k.repeat_delay);
+        for (p, n) in [
+            (&mut self.touchpad, &new.touchpad),
+            (&mut self.mouse, &new.mouse),
+        ] {
+            p.tap = n.tap.or(p.tap);
+            p.natural_scroll = n.natural_scroll.or(p.natural_scroll);
+            p.left_handed = n.left_handed.or(p.left_handed);
+            p.accel_profile = n.accel_profile.or(p.accel_profile);
+            p.accel_speed = n.accel_speed.or(p.accel_speed);
+        }
+    }
+}
+
 /// The transform of an output, with the names of `wlr-randr`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OutputTransform {
@@ -512,21 +636,23 @@ pub enum Capability {
     #[serde(rename = "input.grab-any")]
     GrabAny,
     /// `methods.call`: call the methods of plugins. Checked only for a
-    /// client socket; the main socket may always call.
+    /// client socket or a confined connection ([`Hello::confined`]).
     #[serde(rename = "methods.call")]
     MethodsCall,
     /// `activation.token`: get activation tokens for `choractl run`.
-    /// The core checks it only for a client socket; `choractl mcp` also
-    /// needs it on the main socket for `run_program`.
+    /// Checked only for a client socket or a confined connection, such
+    /// as the one of `choractl mcp`.
     #[serde(rename = "activation.token")]
     ActivationToken,
-    /// `session.quit`: end chora. Checked only for a client socket.
+    /// `session.quit`: end chora. Checked only for a client socket or a
+    /// confined connection.
     #[serde(rename = "session.quit")]
     SessionQuit,
     /// `methods.privileged`: call a privileged method of a plugin, one
     /// that can run commands, such as `settings.set`, `settings.reload`
-    /// and the methods that the export marks `privileged`. Checked only
-    /// for a client socket, on top of `methods.call`.
+    /// and the methods that the export marks `privileged`, on top of
+    /// `methods.call`; also the core method `input.configure`. Checked
+    /// only for a client socket or a confined connection.
     #[serde(rename = "methods.privileged")]
     MethodsPrivileged,
 }

@@ -73,7 +73,11 @@ The compositor binary `chora`. Its tasks, and nothing more:
 - The startup command: `chora -- <command>` runs one command with
   `WAYLAND_DISPLAY` and `CHORA_SOCKET` set. The command does not get the
   variables that reach a host compositor, for example `WAYLAND_SOCKET` and
-  `SWAYSOCK`. Without a command, the core shows a black screen.
+  `SWAYSOCK`. Without a command, the core shows a black screen. When the
+  command fails while no window is open and no client said hello since
+  the core started, the core logs an error and exits with a failure. So a
+  window manager that cannot start leaves no black screen. A window
+  manager that said hello and then crashes leaves the core running.
 
 The core places popups, subsurfaces and layer surfaces itself, because the
 protocols define their position. Smithay's `PopupManager` and `LayerMap` do
@@ -369,12 +373,10 @@ The safety layer is the only built-in behavior (see
   time. When no client alone reaches the budget, the watchdog drops the
   effects of all clients and disconnects none. The watchdog never starts
   the emergency reset; only the binding and SIGUSR1 do.
-- **Shader hangs.** A shader that never returns blocks the loop, for
-  every backend renders on it. Neither the watchdog, which measures
-  between frames, nor SIGUSR1, whose source the loop dispatches, can
-  end it: on llvmpipe the core hangs, on a GPU until the driver resets
-  the context. The way out is to kill the core from another TTY or
-  over SSH.
+- **Hang watchdog** ([D64](decisions.md)). A thread of its own logs a
+  stall of the main loop and aborts chora when the loop hangs, for
+  example in a shader that never returns.
+  `tests/gate-0.9-shader-hang.sh` checks it on llvmpipe.
 
 ## Permissions
 
@@ -412,23 +414,7 @@ socket of `choractl` changes grants and makes client sockets (see [API](api.md#c
 
 ## Sessions and flavors
 
-- The session file `chora.desktop` runs `chora-session tiling`. The script
-  imports the environment of the login into the systemd user manager and
-  starts the user service `chora@tiling.service`. It waits until chora
-  ends, and then stops the units of the graphical session.
-- Without `XKB_DEFAULT_LAYOUT`, `chora-session` takes the keyboard layout of
-  the system from `localectl`.
-- `chora@.service` runs `chora -- chora-flavor <name>` as part of
-  `graphical-session.target`. It drops `WAYLAND_DISPLAY` and `DISPLAY` that
-  another session left in the user manager, which would make chora run
-  nested.
-- `chora-flavor <name>` imports `WAYLAND_DISPLAY` and `CHORA_SOCKET` into the
-  systemd user manager, and `DISPLAY` when `xwayland-satellite` is
-  installed. It links the units of the flavor until the next boot,
-  tells systemd that chora is ready, and starts the target of the flavor.
-  Units of the flavor then find the compositor and the IPC socket. The
-  script is not for nested use: the variables would reach the units of the
-  host session.
-- The tiling flavor starts `chora-tiling`, waybar if it is installed, and
-  `xwayland-satellite` on a free X11 display for X11 programs (D26).
-- A derived secureblue image installs the package (D10, D14).
+A login session runs chora as a systemd user unit, through uwsm or
+through `chora-session`, and chora starts the systemd target of a
+flavor. See [Sessions](configuration.md#sessions) and
+[Flavors](configuration.md#flavors).

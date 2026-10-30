@@ -308,6 +308,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
 | `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`; only the exporting connection gets it, subscribed or not |
+| `NAME.something` | a client emitted it with `events.emit`, for example `voice.state`: `client`, the name of the emitter, and its `data`; only to the connections that name the event or a pattern of it (D65) |
 
 Every event carries `seq`, the count of its connection (D32). Every event
 that the core pushes to a connection carries the next number of that
@@ -318,6 +319,40 @@ it, the events that follow cover every change after it. A number that
 skips tells the client that it missed an event, so it queries again. After
 a reconnect a client works from the new snapshot and forgets the old
 numbers.
+
+A client emits events of its own with `events.emit` (D65), for example a
+voice agent that tells a HUD its state:
+
+```json
+{"jsonrpc": "2.0", "id": 7, "method": "events.emit",
+ "params": {"event": "voice.state", "data": {"state": "listening"}}}
+{"jsonrpc": "2.0", "method": "event",
+ "params": {"event": "voice.state", "client": "voice", "data": {"state": "listening"}, "seq": 12}}
+```
+
+- The name starts with the client name and a dot. The rest has lowercase
+  letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes. So
+  no client sends a core event or the event of another name. A client
+  whose name starts as a core namespace, such as `surface` or `output`,
+  cannot emit.
+- A connection subscribes to the name, for example `voice.state`, or to
+  a pattern `PREFIX.*`, for example `voice.*`. A pattern also works for
+  core events, for example `surface.*`. An empty list means every core
+  event, not the events of clients. In `events.subscribe`, a name outside
+  the core namespaces is the event of a client, so a typo there is no
+  error; a typo in a core name, such as `surface.creatd`, is.
+- `data` is any JSON value of at most 64 KiB; `null` when it is missing.
+- A client name emits at most 32 events per second, over all its
+  connections. The core refuses the rest with code 6 and sends nothing.
+  It does not coalesce: after a burst, the client sends its last state
+  again.
+- Any named client may emit, also through a client socket without
+  capabilities: an event reaches only subscribers. Any connection may
+  subscribe to the events of other clients, also a client socket; it
+  gets them as it gets core events. The emitter gets its own event when
+  it subscribed to it.
+- Only the main socket lets a client take a free name. A name of a client
+  socket is safe from emitters on other sockets (D33).
 
 The response of `scene.apply` reports the result of a transaction. When
 the transaction applied, the result is `{"warnings": [...]}`. When it did
@@ -402,16 +437,18 @@ answers every request.
 
 | Method | Purpose |
 |--------|---------|
-| `hello(name, keep_nodes, resume, protocol, features)` | name the client (lowercase letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes); `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); `protocol` and `features` say what the client speaks (see [Protocol versions](#protocol-versions)); returns `{"version": ..., "protocol": ..., "features": [...]}` |
+| `hello(name, keep_nodes, resume, protocol, features, confined)` | name the client (lowercase letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes); `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); `protocol` and `features` say what the client speaks (see [Protocol versions](#protocol-versions)); `confined: true` gives this connection the capability rules of a client socket also on the main socket (see [Client sockets](#client-sockets)), and `choractl mcp` sends it; returns `{"version": ..., "protocol": ..., "features": [...]}` |
 | `scene.query(selector, filter)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
-| `events.subscribe(events)` | stream the named events, or all events for an empty list, as notifications; answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown name is refused |
+| `events.subscribe(events)` | stream the named events, or all core events for an empty list, as notifications; a name can be the event of a client, such as `voice.state`, or a pattern such as `voice.*` (D65); answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown core name is refused |
+| `events.emit(event, data)` | send an event of this client, named `NAME.something` after its client name, with `data` of at most 64 KiB to its subscribers; at most 32 per second per client name, the rest fails with code 6 (see [Events](#events), D65) |
 | `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
+| `input.configure(keyboard, touchpad, mouse)` | set the input devices of the session (D35): `keyboard` has `repeat_rate` (0 to 100 per second, 0 for no repeat) and `repeat_delay` (100 to 5000 ms), which every `wl_keyboard` gets as `repeat_info` and which the keys of nodes follow; `touchpad` (devices that can tap) and `mouse` (the other pointer devices) have `tap`, `natural_scroll`, `left_handed`, `accel_profile` (`flat` or `adaptive`) and `accel_speed` (-1 to 1), which the core sets through libinput on the tty backend, also on devices that come later; the settings last until the session ends; a device that lacks a setting skips it; a missing field keeps its value, so empty params only read; `null` resets a field, the key repeat to the 25 per second and 200 ms of the core, a libinput setting to the default of each device; returns all settings that are set; a value out of range fails with code -32602; a client socket needs the capability `methods.privileged`; the `input` of a view calls it ([Views](configuration.md#views)) |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
-| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke capabilities for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. For a name of the main socket, `methods.call`, `session.quit` and `methods.privileged` change nothing, and `activation.token` only opens the MCP tool `run_program`. |
+| `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke capabilities for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. For a name of the main socket, `methods.call`, `session.quit`, `methods.privileged` and `activation.token` count only on connections with `confined: true` in their `hello`, such as `choractl mcp`. |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
@@ -615,8 +652,12 @@ socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that [Client sockets](#client-sockets) lists.
 `choractl mcp` offers no tool for grants. On the main socket,
-`activation.token` opens the MCP tool `run_program`, and `methods.call`,
-`session.quit` and `methods.privileged` change nothing.
+`methods.call`, `activation.token`, `session.quit` and
+`methods.privileged` change nothing, except for a connection whose
+`hello` has `confined: true`. `choractl mcp` confines its connection,
+so its client name, `agent` by default, needs `methods.call` for
+`call_method` and the plugin tools, `methods.privileged` for
+privileged methods and `activation.token` for `run_program`.
 
 ## Client sockets
 
@@ -660,13 +701,17 @@ in. `choractl clients create agent` prints its path:
 - `grants.set` and `grants.revoke` answer code 9 for the name: change
   `clients.yaml` and run `choractl clients up`.
 - `methods.call` needs the capability `methods.call`,
-  `activation.token` the capability `activation.token` and
-  `session.quit` the capability `session.quit`. A `methods.call` of a
+  `activation.token` the capability `activation.token`,
+  `session.quit` the capability `session.quit` and `input.configure`
+  the capability `methods.privileged`. A `methods.call` of a
   privileged method also needs `methods.privileged`: `settings.set` and
   `settings.reload` of any client, because plugin settings hold commands
   that the plugin runs and paths that it reads, and each method that its
   export marks `"privileged": true`, such as `app.open` of `chora-mc`. Without them they answer code 4. The main
-  socket needs none of them. So a confined agent cannot end chora or
+  socket needs none of them, unless the `hello` of the connection has
+  `confined: true`: then these rules hold for it too, with the grants
+  of its name. A connection can confine itself, never free itself;
+  other connections of the name stay free. So a confined agent cannot end chora or
   change the settings of a plugin by default. A token of
   `activation.token` belongs to no client. Any window that activates
   with it takes the focus without a press, also a window of the client
@@ -933,13 +978,14 @@ unchanged, and `chora-tiling` gives one to each of its methods.
   exporter disconnects. A connection has at most 64 calls in flight, and it
   cannot call its own methods.
 
-`chora-tiling` exports these three; [chora-tiling](configuration.md#chora-tiling)
+`chora-tiling` exports these four; [chora-tiling](configuration.md#chora-tiling)
 lists all of its methods:
 
 | Method | Parameters | Result |
 |--------|------------|--------|
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
+| `get_tags` | none | `outputs`: for each output its `name`, `focused` when it has the focus, and `tags`: for each tag its number `tag`, `shown`, `focused` (shown on the focused output), `occupied` (a window of the output is on it) and `urgent` (such a window asked for attention) |
 | `give` | `to`: a client name | hands the focused window to `to` with a `remove` with `to`, and answers with its surface id |
 
 A plugin with settings exports `settings.get`, `settings.set` and

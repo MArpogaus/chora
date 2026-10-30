@@ -14,7 +14,7 @@ use std::{
 
 use chora_scene::{
     Command, Node, NodeKind, Props, PropsUpdate, ROOT,
-    ipc::{Apply, Client, Hello, MethodCall, Query},
+    ipc::{Apply, Client, Hello, InputSettings, MethodCall, Query},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
@@ -34,6 +34,9 @@ pub struct View {
     /// The nodes, parents before their children, bottom first.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub scene: Vec<ViewNode>,
+    /// The input device settings, for `input.configure`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input: Option<InputSettings>,
 }
 
 /// A plugin of a view and its configuration.
@@ -173,7 +176,8 @@ fn connect(view: &str) -> Result<Client, String> {
         .map_err(|e| format!("the view {view:?} connects as {}: {e}", owner(view)))
 }
 
-/// Loads a view and returns what it did.
+/// Loads a view and returns what it did, with the answer of
+/// `input.configure`: the input settings of the core.
 /// A path loads the file; a name loads `NAME.yaml`, which must name the
 /// same view.
 pub fn load(name: &str) -> Result<Value, String> {
@@ -183,6 +187,12 @@ pub fn load(name: &str) -> Result<Value, String> {
     }
     check(&view)?;
     let mut client = connect(&view.name)?;
+    let input = match &view.input {
+        Some(input) => client
+            .call::<_, Value>("input.configure", input)
+            .map_err(|e| format!("input: {e}"))?,
+        None => Value::Null,
+    };
     let started = start_plugins(&mut client, &view.plugins)?;
     let mut commands = removals(&mut client, &view.name)?;
     commands.extend(view.scene.iter().map(|n| Command::Create {
@@ -198,6 +208,7 @@ pub fn load(name: &str) -> Result<Value, String> {
         "view": view.name,
         "started": started,
         "nodes": view.scene.len(),
+        "input": input,
     }))
 }
 
@@ -223,10 +234,10 @@ pub fn save(name: &str, file: Option<&str>) -> Result<Value, String> {
         Some(f) => PathBuf::from(f),
         None => dirs("views")[0].join(format!("{name}.yaml")),
     };
-    let plugins = find("views", name)
+    let (plugins, input) = find("views", name)
         .ok()
         .and_then(|p| read_yaml::<View>(&p).ok())
-        .map(|v| v.plugins)
+        .map(|v| (v.plugins, v.input))
         .unwrap_or_default();
     let mut client = connect(name)?;
     let nodes = owned(&mut client, name)?;
@@ -237,6 +248,7 @@ pub fn save(name: &str, file: Option<&str>) -> Result<Value, String> {
             .into_iter()
             .map(view_node)
             .collect::<Result<_, _>>()?,
+        input,
     };
     let text = to_yaml(&view)?;
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
@@ -503,6 +515,17 @@ mod tests {
             parse_yaml::<View>("name: work\ncolor: red\n").is_err(),
             "an unknown key"
         );
+        let view: View = parse_yaml(
+            "name: work\ninput:\n  keyboard: {repeat_rate: 30, repeat_delay: 250}\n  touchpad: {tap: true, natural_scroll: true}\n  mouse: {accel_profile: flat, accel_speed: -0.3}\n",
+        )
+        .unwrap();
+        let input = view.input.unwrap();
+        assert_eq!(input.touchpad.tap, Some(true));
+        assert_eq!(input.keyboard.repeat_delay, Some(250));
+        assert!(
+            parse_yaml::<View>("name: work\ninput: {touchpad: {tap: yes}}\n").is_err(),
+            "a YAML 1.1 boolean"
+        );
         assert!(
             parse_yaml::<View>("name: a\nname: b\n").is_err(),
             "a duplicate key"
@@ -535,6 +558,9 @@ mod tests {
                     ..PropsUpdate::default()
                 },
             }],
+            input: Some(
+                parse_yaml("touchpad: {tap: true}\nkeyboard: {repeat_rate: 30}\n").unwrap(),
+            ),
         };
         let text = to_yaml(&view).unwrap();
         assert_eq!(parse_yaml::<View>(&text).unwrap(), view, "{text}");

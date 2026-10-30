@@ -21,7 +21,8 @@ pub struct Confirm {
     pub argv0: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
-    /// What the agent asks.
+    /// What the agent asks; `{program}` stands for the program of
+    /// `run_program`.
     pub prompt: String,
 }
 
@@ -35,6 +36,8 @@ pub struct Phrases {
     pub llm_slow: String,
     /// The final round after `tool_rounds` gave no words.
     pub tool_rounds: String,
+    /// The ASR failed for a request.
+    pub asr_failed: String,
 }
 
 impl Default for Phrases {
@@ -43,6 +46,7 @@ impl Default for Phrases {
             llm_down: "Das Sprachmodell antwortet nicht.".into(),
             llm_slow: "Das Sprachmodell braucht zu lange.".into(),
             tool_rounds: "Ich habe nach zu vielen Werkzeugaufrufen aufgehört.".into(),
+            asr_failed: "Ich habe dich nicht verstanden.".into(),
         }
     }
 }
@@ -60,7 +64,8 @@ pub struct Config {
     pub voice: String,
     /// The language of the ASR.
     pub language: String,
-    /// The language of the TTS; `auto` lets the model choose.
+    /// The language of the TTS, for example `German`; `auto` lets the
+    /// model choose; empty follows `language`.
     pub tts_language: String,
     /// The interval of the interim transcripts while the user speaks, in
     /// ms; 0 turns them off.
@@ -184,10 +189,8 @@ fn default_confirm() -> Vec<Confirm> {
         rule("unload_view", "Soll ich die Ansicht entfernen?"),
         rule("inject_input", "Soll ich tippen oder klicken?"),
         rule("code_task", "Soll ich die Programmieraufgabe starten?"),
-        Confirm {
-            argv0: words(&["systemctl", "loginctl", "shutdown", "reboot", "poweroff"]),
-            ..rule("run_program", "Soll ich den Sitzungsbefehl ausführen?")
-        },
+        // A program can do all that the user can (D42).
+        rule("run_program", "Soll ich das Programm {program} starten?"),
         rule("configure_output", "Soll ich den Bildschirm ändern?"),
         rule("*.restart", restart),
         Confirm {
@@ -195,6 +198,30 @@ fn default_confirm() -> Vec<Confirm> {
             ..rule("call_method", restart)
         },
     ]
+}
+
+impl Config {
+    /// The language of the TTS: `tts_language`, else the one of
+    /// `language`. With `auto`, the TTS made short German clips hard to
+    /// understand (WP6).
+    pub fn tts_language(&self) -> &str {
+        if !self.tts_language.is_empty() {
+            return &self.tts_language;
+        }
+        match self.language.as_str() {
+            "de" => "German",
+            "en" => "English",
+            "fr" => "French",
+            "it" => "Italian",
+            "es" => "Spanish",
+            "pt" => "Portuguese",
+            "ru" => "Russian",
+            "zh" => "Chinese",
+            "ja" => "Japanese",
+            "ko" => "Korean",
+            _ => "auto",
+        }
+    }
 }
 
 impl Default for Config {
@@ -206,7 +233,7 @@ impl Default for Config {
             model: "gufo".into(),
             voice: "aiden".into(),
             language: "de".into(),
-            tts_language: "auto".into(),
+            tts_language: String::new(),
             asr_interim_ms: 0,
             capture_cmd: pcm_cmd("pw-record"),
             playback_cmd: pcm_cmd("pw-play"),
@@ -392,6 +419,16 @@ mod tests {
     fn the_defaults_round_trip() {
         let text = serde_saphyr::to_string(&Config::default()).unwrap();
         assert_eq!(parse::<Config>(&text).unwrap(), Config::default());
+    }
+
+    #[test]
+    fn the_tts_language_follows_the_language() {
+        let mut config = Config::default();
+        assert_eq!(config.tts_language(), "German");
+        config.language = "xx".into();
+        assert_eq!(config.tts_language(), "auto");
+        config.tts_language = "English".into();
+        assert_eq!(config.tts_language(), "English");
     }
 
     #[test]

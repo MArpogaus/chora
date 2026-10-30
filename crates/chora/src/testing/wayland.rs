@@ -68,6 +68,8 @@ struct App {
     shm: Option<WlShm>,
     /// The serials of the key events, press and release, in order.
     key_serials: Vec<u32>,
+    /// The newest `repeat_info`: rate and delay.
+    repeat_info: Option<(i32, i32)>,
     /// The commit strings that the core sent to the text input.
     commits: Vec<String>,
     /// The interfaces of all globals that the core offered.
@@ -90,6 +92,8 @@ pub struct Configures {
     pub count: usize,
     /// Whether the core closed the popup.
     pub done: bool,
+    /// How many frame callbacks the core sent.
+    pub frames: usize,
 }
 
 /// A toplevel of the client.
@@ -309,6 +313,11 @@ impl Wayland {
         self.app.surfaces[popup.index].done
     }
 
+    /// The newest key repeat that the core sent: rate and delay.
+    pub fn repeat_info(&self) -> Option<(i32, i32)> {
+        self.app.repeat_info
+    }
+
     /// The serials of the key events that the client got.
     pub fn key_serials(&self) -> &[u32] {
         &self.app.key_serials
@@ -394,6 +403,12 @@ impl Wayland {
         toplevel.surface.damage(0, 0, w, h);
         toplevel.surface.commit();
         self.roundtrip(core);
+    }
+
+    /// Asks for a frame callback of a toplevel and commits.
+    pub fn frame(&mut self, core: &mut Core, toplevel: &Toplevel) {
+        toplevel.surface.frame(&self.queue.handle(), toplevel.index);
+        self.commit(core, toplevel);
     }
 
     /// Unmaps a toplevel with a commit without a buffer.
@@ -518,6 +533,22 @@ impl Dispatch<WlCallback, ()> for App {
     ) {
         if let wl_callback::Event::Done { .. } = event {
             app.synced = true;
+        }
+    }
+}
+
+/// A frame callback of the surface with this index.
+impl Dispatch<WlCallback, usize> for App {
+    fn event(
+        app: &mut Self,
+        _: &WlCallback,
+        event: wl_callback::Event,
+        index: &usize,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_callback::Event::Done { .. } = event {
+            app.surfaces[*index].frames += 1;
         }
     }
 }
@@ -670,8 +701,10 @@ impl Dispatch<WlKeyboard, ()> for App {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        if let wl_keyboard::Event::Key { serial, .. } = event {
-            app.key_serials.push(serial);
+        match event {
+            wl_keyboard::Event::Key { serial, .. } => app.key_serials.push(serial),
+            wl_keyboard::Event::RepeatInfo { rate, delay } => app.repeat_info = Some((rate, delay)),
+            _ => {}
         }
     }
 }

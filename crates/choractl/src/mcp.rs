@@ -5,7 +5,10 @@
 //! cancelled call through `notifications/cancelled`. The server holds one
 //! connection to the core under its client name, `agent` by default, which
 //! also names the grants that `capture`, `describe_screen` and
-//! `inject_input` need. No tool grants anything (D40).
+//! `inject_input` need. Its `hello` confines the connection to the rules
+//! of a client socket, so `call_method` and the plugin tools need
+//! `methods.call`, privileged methods `methods.privileged` and
+//! `run_program` `activation.token`. No tool grants anything (D40).
 
 use std::{
     collections::HashMap,
@@ -105,6 +108,7 @@ impl Core {
             let hello = Hello {
                 name: self.name.clone(),
                 keep_nodes: true,
+                confined: true,
                 ..Hello::default()
             };
             let mut client = Client::from_env(&hello)?;
@@ -348,6 +352,7 @@ pub fn serve(name: String) -> Result<(), String> {
     let hello = Hello {
         name: name.clone(),
         keep_nodes: true,
+        confined: true,
         ..Hello::default()
     };
     let socket = PathBuf::from(std::env::var_os(SOCKET_ENV).ok_or("CHORA_SOCKET is not set")?);
@@ -447,7 +452,7 @@ fn event_tools() -> Vec<Tool> {
     vec![
         tool(
             "subscribe_events",
-            "Start to collect events for wait_events, and grab keys and buttons, which then arrive as input.key events, or as input.button and input.moved events for a button such as Super+BTN_LEFT. Replaces the earlier subscription; if it fails, the earlier one stays. Events: surface.created, surface.changed, surface.destroyed, surface.requested, pointer.pressed, pointer.moved, pointer.released, pointer.scroll, pointer.entered, pointer.left, input.key, node.key, animation.done, output.changed and others.",
+            "Start to collect events for wait_events, and grab keys and buttons, which then arrive as input.key events, or as input.button and input.moved events for a button such as Super+BTN_LEFT. Replaces the earlier subscription; if it fails, the earlier one stays. Events: surface.created, surface.changed, surface.destroyed, surface.requested, pointer.pressed, pointer.moved, pointer.released, pointer.scroll, pointer.entered, pointer.left, input.key, node.key, animation.done, output.changed and others, and events of clients such as voice.state or the pattern voice.*.",
             &json!({
                 "events": {"type": "array", "items": {"type": "string"}, "description": "event names; every event if empty or missing"},
                 "keys": {"type": "array", "items": {"type": "string"}, "description": "bindings to grab, for example Super+F1 or Super+BTN_LEFT; they need Ctrl, Alt or Super"},
@@ -689,18 +694,8 @@ fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBloc
 }
 
 /// `run_program`. A started program can do all the user can, also grant
-/// itself, so the tool needs the grant on every socket.
+/// itself: the confined connection needs the grant `activation.token`.
 fn run_program(core: &mut Core, args: &Value) -> Result<Vec<ContentBlock>, Failure> {
-    let grants: Value = core.call("grants.list", Value::Null)?;
-    let held = grants[&core.name]
-        .as_array()
-        .is_some_and(|held| held.iter().any(|c| c == "activation.token"));
-    if !held {
-        return Err(Failure::Tool(format!(
-            "run_program needs the grant activation.token for {}",
-            core.name
-        )));
-    }
     let program: Vec<String> = arg(&args["argv"])?;
     let line = crate::run_program(core.connected()?, &program, None)?;
     Ok(vec![json_text(&line)])

@@ -19,7 +19,9 @@ use std::{
 
 use chora_scene::{
     Binding, Event, Node, NodeKind, Placed, Selector, Transform,
-    ipc::{Apply, Capability, Edges, Grab, Hello, Message, Query, Request, RpcError, Subscribe},
+    ipc::{
+        Apply, Capability, Edges, Emit, Grab, Hello, Message, Query, Request, RpcError, Subscribe,
+    },
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -61,11 +63,16 @@ const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
 /// How long the core keeps the nodes of a client with `resume` after its
 /// last connection closed, so that a restart gets them back.
 const GRACE: Duration = Duration::from_secs(10);
+/// The most bytes of the data of one emitted event (D65).
+const MAX_EMIT: usize = 64 << 10;
+/// The most events that one client name emits per `EMIT_WINDOW` (D65).
+const MAX_EMITS: u32 = 32;
+const EMIT_WINDOW: Duration = Duration::from_secs(1);
 
 /// The connections of the IPC socket.
 #[derive(Default)]
 pub struct Ipc {
-    path: Option<PathBuf>,
+    pub(crate) path: Option<PathBuf>,
     /// The files of `assets.put`.
     pub uploads: Uploads,
     listener: Option<RegistrationToken>,
@@ -79,6 +86,11 @@ pub struct Ipc {
     graces: HashMap<String, Instant>,
     /// The client sockets by name: the source of the listener and the path.
     clients: HashMap<String, clients::ClientSocket>,
+    /// A client said hello since the core started.
+    pub greeted: bool,
+    /// The emitted events per client name in the current window: its start
+    /// and the count (D65).
+    emits: HashMap<String, (Instant, u32)>,
 }
 
 /// What a grab waits for: a key or a pointer button.
@@ -135,6 +147,8 @@ struct Conn {
     hello_by: Instant,
     keep_nodes: bool,
     resume: bool,
+    /// The `hello` asked for the capability rules of a client socket.
+    confined: bool,
     /// The socket that the connection came through.
     socket: Socket,
     events: Option<Vec<String>>,
@@ -274,6 +288,7 @@ impl Ipc {
         window_client: impl Fn(&str) -> Option<String>,
     ) {
         let message = Message::event(event);
+        let core = !matches!(event, Event::Emitted { .. });
         let params = message.params.as_ref();
         let name = params.and_then(|p| p["event"].as_str());
         let window = name.filter(|n| n.starts_with("surface.")).map(|_| {
@@ -282,7 +297,7 @@ impl Ipc {
                 .and_then(window_client)
         });
         for conn in self.conns.values_mut() {
-            let wanted = name.is_some_and(|n| conn.wants(n));
+            let wanted = name.is_some_and(|n| conn.wants(n, core));
             let foreign = window
                 .as_ref()
                 .is_some_and(|w| conn.fixed().is_some_and(|f| w.as_deref() != Some(f)));
@@ -391,7 +406,7 @@ impl Ipc {
     pub fn subscribes(&self, client: &str, event: &str) -> bool {
         self.conns
             .values()
-            .any(|c| c.name.as_deref() == Some(client) && c.wants(event))
+            .any(|c| c.name.as_deref() == Some(client) && c.wants(event, true))
     }
 
     /// Whether a client name has a connection.
@@ -419,6 +434,14 @@ impl Ipc {
     /// The name of the client socket of a connection.
     pub(crate) fn fixed(&self, conn: u64) -> Option<&str> {
         self.conns.get(&conn)?.fixed()
+    }
+
+    /// Whether a connection follows the capability rules of a client
+    /// socket: it came through one, or its `hello` confined it.
+    pub(crate) fn confined(&self, conn: u64) -> bool {
+        self.conns
+            .get(&conn)
+            .is_some_and(|c| c.confined || c.fixed().is_some())
     }
 
     /// The client name of a connection.
@@ -485,8 +508,18 @@ impl Socket {
 impl Conn {
     /// Whether the connection subscribes to an event; an empty list
     /// subscribes to all.
-    fn wants(&self, event: &str) -> bool {
-        (self.events.as_ref()).is_some_and(|e| e.is_empty() || e.iter().any(|n| n == event))
+    /// Whether the connection subscribed to an event. An empty list means
+    /// every core event; an emitted event needs its name or a pattern such
+    /// as `voice.*` (D65).
+    fn wants(&self, event: &str, core: bool) -> bool {
+        (self.events.as_ref()).is_some_and(|e| {
+            (core && e.is_empty())
+                || e.iter().any(|n| {
+                    n == event
+                        || n.strip_suffix('*')
+                            .is_some_and(|p| p.ends_with('.') && event.starts_with(p))
+                })
+        })
     }
 
     /// The name of the client socket of the connection (D33).
@@ -554,6 +587,29 @@ fn line(message: &Message) -> Vec<u8> {
 
 /// The line of an event notification with the sequence number of the
 /// connection (D32): every connection numbers its events from 1.
+/// Whether the first part of a name is that of core events, such as
+/// `surface` or `output`.
+fn core_namespace(name: &str) -> bool {
+    let first = |n: &str| n.split('.').next().unwrap_or_default().to_owned();
+    let head = first(name);
+    chora_scene::EVENT_NAMES.iter().any(|e| first(e) == head)
+}
+
+/// Whether `events.subscribe` takes a name: a core event, the event of a
+/// client, `NAME.something`, or a pattern `PREFIX.*` (D65). A typo in the
+/// name of a core event is refused.
+fn subscribable(name: &str) -> bool {
+    use chora_scene::ipc::valid_name;
+    if chora_scene::EVENT_NAMES.contains(&name) {
+        return true;
+    }
+    if let Some(prefix) = name.strip_suffix(".*") {
+        return valid_name(prefix);
+    }
+    !core_namespace(name)
+        && (name.split_once('.')).is_some_and(|(head, rest)| valid_name(head) && valid_name(rest))
+}
+
 fn stamped(message: &Message, seq: u64) -> Vec<u8> {
     let mut message = message.clone();
     if let Some(Value::Object(params)) = message.params.as_mut() {
@@ -658,6 +714,7 @@ impl State {
             hello_by,
             keep_nodes: false,
             resume: false,
+            confined: false,
             socket,
             events: None,
             seq: 0,
@@ -760,6 +817,7 @@ impl State {
             "events.subscribe" => {
                 params_of::<Subscribe>(params).and_then(|s| self.ipc_subscribe(conn, s))
             }
+            "events.emit" => params_of::<Emit>(params).and_then(|e| self.ipc_emit(conn, e)),
             "input.grab" => params_of::<Grab>(params).and_then(|g| self.ipc_grab(conn, g.binding)),
             "input.ungrab" => {
                 params_of::<Grab>(params).and_then(|g| self.ipc_ungrab(conn, &g.binding))
@@ -780,6 +838,7 @@ impl State {
             }
             "screen.capture" => self.ipc_capture(conn, params),
             "input.inject" => self.ipc_inject(conn, params),
+            "input.configure" => self.ipc_input_configure(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
             "activation.token" => self.ipc_activation_token(conn),
             "session.quit" => self.ipc_quit(conn),
@@ -826,17 +885,70 @@ impl State {
     /// a snapshot of the scene as `scene.query` gives it (D32), so that no
     /// change between the snapshot and the first event is lost.
     fn ipc_subscribe(&mut self, conn: u64, subscription: Subscribe) -> Result<Value, RpcError> {
-        if let Some(unknown) = subscription
-            .events
-            .iter()
-            .find(|n| !chora_scene::EVENT_NAMES.contains(&n.as_str()))
-        {
+        if let Some(unknown) = subscription.events.iter().find(|n| !subscribable(n)) {
             return Err(rejected(format!("there is no event {unknown:?}")));
         }
         if let Some(c) = self.ipc.conns.get_mut(&conn) {
             c.events = Some(subscription.events);
         }
         self.query(conn, &Query::new(""))
+    }
+
+    /// Sends an event of the client to the connections that subscribed to
+    /// its name or a pattern of it (D65). The name starts with the client
+    /// name and a dot, so no client sends a core event or one of another
+    /// name. The data has at most `MAX_EMIT` bytes, and a name emits at most
+    /// `MAX_EMITS` events per second; the core refuses the rest with code 6.
+    fn ipc_emit(&mut self, conn: u64, emit: Emit) -> Result<Value, RpcError> {
+        let client = self
+            .ipc
+            .name(conn)
+            .ok_or_else(|| rejected("send hello first"))?
+            .to_owned();
+        if core_namespace(&client) {
+            return Err(rejected(format!(
+                "the events of {client:?} would look like core events; \
+                 emit as a client whose name starts otherwise"
+            )));
+        }
+        let own = (emit.event.strip_prefix(client.as_str()))
+            .and_then(|rest| rest.strip_prefix('.'))
+            .is_some_and(chora_scene::ipc::valid_name);
+        if !own {
+            return Err(rejected(format!(
+                "an event of {client:?} is named {client}.NAME, with NAME in lowercase \
+                 letters, digits, _, - and ., from a letter, not {:?}",
+                emit.event
+            )));
+        }
+        let size = serde_json::to_vec(&emit.data).map_or(usize::MAX, |d| d.len());
+        if size > MAX_EMIT {
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("the data has {size} bytes, more than {MAX_EMIT}"),
+            ));
+        }
+        let now = self.time.now();
+        let emits = &mut self.ipc.emits;
+        emits.retain(|_, (start, _)| now.duration_since(*start) < EMIT_WINDOW);
+        let (_, count) = emits.entry(client.clone()).or_insert((now, 0));
+        if *count >= MAX_EMITS {
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!(
+                    "{client:?} emitted {MAX_EMITS} events in this second; the core drops \
+                     this one, so send only the last state of a burst"
+                ),
+            ));
+        }
+        *count += 1;
+        let event = Event::Emitted {
+            event: emit.event,
+            client,
+            data: emit.data,
+        };
+        self.ipc.send_subscribed(None, &event, |_| None);
+        Ok(Value::Null)
     }
 
     /// The methods of grants and client sockets. Only the admin socket of
@@ -922,9 +1034,10 @@ impl State {
         }
         if let Some(c) = self.ipc.conns.get_mut(&conn) {
             c.name = Some(hello.name.clone());
-            c.keep_nodes = hello.keep_nodes;
-            c.resume = hello.resume;
+            (c.keep_nodes, c.resume) = (hello.keep_nodes, hello.resume);
+            c.confined = hello.confined;
         }
+        self.ipc.greeted = true;
         if !known {
             self.emit(&Event::ClientConnected { name: hello.name });
         }
@@ -2189,6 +2302,46 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// `choractl mcp` confines its connection of the main socket: the
+    /// rules of a client socket hold until a grant of its name opens them.
+    #[test]
+    fn a_confined_main_socket_connection_needs_the_grants_of_a_client_socket() {
+        let mut core = Core::new();
+        let mut admin = core.admin();
+        let mut mc = core.named("mc");
+        let names = json!({"names": [{"name": "app.open", "privileged": true}]});
+        mc.ok(&mut core, "methods.export", names);
+        let mut mcp = core.connect();
+        mcp.ok(
+            &mut core,
+            "hello",
+            json!({"name": "voice-mcp", "confined": true}),
+        );
+        let open = json!({"client": "mc", "method": "app.open", "params": {}});
+        for (method, params) in [
+            ("methods.call", open.clone()),
+            ("activation.token", Value::Null),
+            ("session.quit", Value::Null),
+        ] {
+            let (error_code, message) = mcp.fails(&mut core, method, params);
+            assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{method}");
+            assert!(message.contains("choractl grant voice-mcp"), "{message}");
+        }
+        let grant = json!({"client": "voice-mcp", "capabilities": ["methods.call"]});
+        admin.ok(&mut core, "grants.set", grant);
+        let (error_code, message) = mcp.fails(&mut core, "methods.call", open.clone());
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+        assert!(message.contains("methods.privileged"), "{message}");
+        let grant = json!({"client": "voice-mcp", "capabilities": ["methods.privileged"]});
+        admin.ok(&mut core, "grants.set", grant);
+        mcp.send("methods.call", open);
+        assert_eq!(mc.event_names(&mut core), ["method.called"]);
+        // Another connection of the name without the flag stays free.
+        let mut free = core.connect();
+        free.ok(&mut core, "hello", json!({"name": "other"}));
+        free.ok(&mut core, "activation.token", Value::Null);
+    }
+
     /// Plugin settings hold commands that the plugin runs: a client socket
     /// with `methods.call` alone cannot write them, nor call a method that
     /// the export marks privileged (W12).
@@ -2275,9 +2428,118 @@ mod tests {
         let (_, message) = client.fails(
             &mut core,
             "events.subscribe",
-            json!({"events": ["surface.created", "surfae.created"]}),
+            json!({"events": ["surface.created", "surface.creatd"]}),
         );
-        assert!(message.contains("no event \"surfae.created\""), "{message}");
+        assert!(message.contains("no event \"surface.creatd\""), "{message}");
+        // Outside the core names, a name is the event of a client (D65).
+        let clients = json!({"events": ["voice.state", "voice.*", "surface.*"]});
+        client.ok(&mut core, "events.subscribe", clients);
+        for bad in ["voice", "Voice.state", ".*", "output.state"] {
+            let events = json!({"events": [bad]});
+            client.fails(&mut core, "events.subscribe", events);
+        }
+    }
+
+    /// D65: a client emits only under its own name, and the core events
+    /// stay the core's.
+    #[test]
+    fn a_client_emits_events_of_its_own_name_only() {
+        let mut core = Core::new();
+        let mut voice = core.named("voice");
+        let state = json!({"event": "voice.state", "data": {"state": "listening"}});
+        voice.ok(&mut core, "events.emit", state);
+        for event in ["mc.state", "voice", "voice.", "voicex.state", "voice.State"] {
+            let (error_code, message) =
+                voice.fails(&mut core, "events.emit", json!({"event": event}));
+            assert_eq!(error_code, RpcError::REJECTED, "{event}: {message}");
+        }
+        let mut impostor = core.named("surface");
+        let created = json!({"event": "surface.created", "data": {"surface": "s1"}});
+        let (_, message) = impostor.fails(&mut core, "events.emit", created);
+        assert!(message.contains("core events"), "{message}");
+        let mut silent = core.connect();
+        silent.fails(&mut core, "events.emit", json!({"event": "voice.state"}));
+    }
+
+    /// D65: an emitted event reaches the connections that named it or a
+    /// pattern of it, not those of every core event; it carries the
+    /// emitter and the data.
+    #[test]
+    fn an_emitted_event_reaches_its_subscribers_only() {
+        let mut core = Core::new();
+        let mut exact = core.named("exact");
+        exact.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["voice.state"]}),
+        );
+        let mut pattern = core.named("pattern");
+        pattern.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["voice.*"]}),
+        );
+        let mut all = core.named("all");
+        all.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut other = core.named("other");
+        other.ok(&mut core, "events.subscribe", json!({"events": ["mc.*"]}));
+        let mut voice = core.named("voice");
+        let state = json!({"event": "voice.state", "data": {"state": "speaking"}});
+        voice.ok(&mut core, "events.emit", state);
+        voice.ok(&mut core, "events.emit", json!({"event": "voice.say"}));
+        let got = exact.events_now(&mut core);
+        assert_eq!(got.len(), 1, "{got:?}");
+        let params = &got[0]["params"];
+        assert_eq!(params["event"], "voice.state");
+        assert_eq!(params["client"], "voice");
+        assert_eq!(params["data"]["state"], "speaking");
+        assert!(params["seq"].is_u64());
+        assert_eq!(pattern.event_names(&mut core), ["voice.state", "voice.say"]);
+        let core_only = all.event_names(&mut core);
+        assert!(
+            core_only.iter().all(|e| e == "client.connected"),
+            "{core_only:?}"
+        );
+        assert_eq!(other.event_names(&mut core), Vec::<String>::new());
+    }
+
+    /// D65: the data has at most 64 KiB, and a name emits at most 32
+    /// events per second; the rest is refused with code 6.
+    #[test]
+    fn emitted_events_have_a_size_and_a_rate_limit() {
+        let mut core = Core::new();
+        core.state.time.stop();
+        let mut watcher = core.named("watcher");
+        watcher.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["voice.*"]}),
+        );
+        let mut voice = core.named("voice");
+        let big = json!({"event": "voice.big", "data": "x".repeat(MAX_EMIT)});
+        // The line is longer than one read of the core.
+        let id = voice.send("events.emit", big);
+        let answer = std::iter::repeat_with(|| voice.answer(&mut core, id))
+            .flatten()
+            .next()
+            .expect("an answer");
+        assert_eq!(answer.unwrap_err()["code"], RpcError::LIMIT_REACHED);
+        for _ in 0..MAX_EMITS {
+            voice.ok(&mut core, "events.emit", json!({"event": "voice.tick"}));
+        }
+        let mut twin = core.named("voice");
+        let tick = json!({"event": "voice.tick"});
+        let (error_code, message) = twin.fails(&mut core, "events.emit", tick.clone());
+        assert_eq!(error_code, RpcError::LIMIT_REACHED, "the limit is per name");
+        assert!(message.contains("last state"), "{message}");
+        core.advance(EMIT_WINDOW);
+        voice.ok(&mut core, "events.emit", tick);
+        let ticks = watcher.event_names(&mut core);
+        assert_eq!(
+            ticks.len(),
+            MAX_EMITS as usize + 1,
+            "refused events never arrive"
+        );
     }
 
     /// Gate check 5 of 0.8: a subscription that starts while transactions

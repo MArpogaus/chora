@@ -428,13 +428,16 @@ impl Tiling {
         self.relayout()
     }
 
-    /// Runs an exported method. Everything but `get_layout` changes
+    /// Runs an exported method. Everything but `get_layout` and `get_tags` changes
     /// something, relayouts like the matching binding, and answers with
     /// the layout info of the current tag. A failed relayout fails the
     /// method.
     fn run(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         if method == "give" {
             return self.give(params);
+        }
+        if method == "get_tags" {
+            return Ok(json!({"outputs": self.wm.tags()}));
         }
         if method != "get_layout" {
             let before = self.wm.focused().map(String::from);
@@ -978,6 +981,12 @@ fn exported_methods() -> Vec<ExportMethod> {
         runtime::method(
             "get_layout",
             "Answers the layout of the current tag.",
+            json!({}),
+            &[],
+        ),
+        runtime::method(
+            "get_tags",
+            "Answers the tags of each output: shown, focused, occupied and urgent.",
             json!({}),
             &[],
         ),

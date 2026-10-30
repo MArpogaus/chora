@@ -1,0 +1,12 @@
+[Unit]
+Description=swaybg, the wallpaper of the tiling flavor
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionPathExists=/usr/bin/swaybg
+
+[Service]
+# For a picture, `systemctl --user edit chora-tiling-swaybg.service` with
+# an empty ExecStart= and ExecStart=/usr/bin/swaybg --image FILE --mode fill
+ExecStart=/usr/bin/swaybg --color #2e3440
+Restart=on-failure
+RestartSec=1

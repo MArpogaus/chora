@@ -28,6 +28,8 @@
 //!   the number of colors.
 //! - `sandbox`: connects through a new `wp-security-context-v1` socket and
 //!   checks that the sandboxed client sees no privileged global.
+//! - `repeat-info`: prints the rate and the delay of the key repeat that
+//!   the keyboard gets.
 //! - `window R G B`: shows a toplevel `chora-probe` in one color, in the
 //!   size of each configure, until it is killed. With `--exit-on-close`,
 //!   it exits with 0 when the compositor asks it to close.
@@ -51,8 +53,11 @@ use rustix::{
 use wayland_client::{
     Connection, Dispatch, EventQueue, QueueHandle, delegate_noop,
     protocol::{
-        wl_buffer::WlBuffer, wl_compositor::WlCompositor, wl_keyboard, wl_pointer, wl_registry,
-        wl_seat, wl_shm, wl_shm_pool::WlShmPool, wl_surface::WlSurface,
+        wl_buffer::{self, WlBuffer},
+        wl_compositor::WlCompositor,
+        wl_keyboard, wl_pointer, wl_registry, wl_seat, wl_shm,
+        wl_shm_pool::WlShmPool,
+        wl_surface::WlSurface,
     },
 };
 use wayland_protocols::wp::security_context::v1::client::wp_security_context_manager_v1 as sandbox_manager;
@@ -124,6 +129,8 @@ struct Probe {
     sizes: Vec<[i32; 2]>,
     /// Whether one of the surfaces of the probe got the keyboard.
     keyboard: bool,
+    /// The newest `repeat_info` of the keyboard: rate and delay.
+    repeat: Option<(i32, i32)>,
     /// Whether the compositor asked the toplevel to close.
     closed: bool,
     /// The clock of presentation times.
@@ -171,6 +178,7 @@ fn main() -> ExitCode {
         "sandbox" => sandbox::sandbox(&mut queue, &mut probe),
         "window" => window(&mut queue, &mut probe),
         "activated" => activated(&mut queue, &mut probe),
+        "repeat-info" => repeat_info(&mut queue, &mut probe),
         "held-commit" => match size_args() {
             Some(size) => held_commit(&mut queue, &mut probe, size),
             None => Err("usage: held-commit W H".into()),
@@ -257,6 +265,15 @@ fn lock(queue: &mut Queue, probe: &mut Probe) -> Result<ExtSessionLockV1, String
         return Err("no answer to the lock".into());
     }
     Ok(lock)
+}
+
+/// Prints the key repeat that the keyboard gets: rate and delay.
+fn repeat_info(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
+    let seat = probe.seat.clone().ok_or("no seat")?;
+    seat.get_keyboard(&queue.handle(), ());
+    queue.roundtrip(probe).map_err(|e| e.to_string())?;
+    let (rate, delay) = probe.repeat.ok_or("no repeat_info")?;
+    Ok(format!("{rate} {delay}"))
 }
 
 /// Maps a toplevel and a popup that asks for a grab, and watches the
@@ -681,7 +698,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
         qh: &QueueHandle<Self>,
     ) {
         let wl_registry::Event::Global {
-            name, interface, ..
+            name,
+            interface,
+            version,
         } = event
         else {
             return;
@@ -694,7 +713,8 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
             "wl_compositor" => probe.compositor = Some(registry.bind(name, 4, qh, ())),
             "wl_shm" => probe.shm = Some(registry.bind(name, 1, qh, ())),
             "xdg_wm_base" => probe.wm_base = Some(registry.bind(name, 1, qh, ())),
-            "wl_seat" => probe.seat = Some(registry.bind(name, 1, qh, ())),
+            // Version 4 for `repeat_info`.
+            "wl_seat" => probe.seat = Some(registry.bind(name, version.min(4), qh, ())),
             "ext_session_lock_manager_v1" => {
                 probe.lock_manager = Some(registry.bind(name, 1, qh, ()));
             }
@@ -825,8 +845,10 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Probe {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        if let wl_keyboard::Event::Enter { .. } = event {
-            probe.keyboard = true;
+        match event {
+            wl_keyboard::Event::Enter { .. } => probe.keyboard = true,
+            wl_keyboard::Event::RepeatInfo { rate, delay } => probe.repeat = Some((rate, delay)),
+            _ => {}
         }
     }
 }
@@ -873,11 +895,27 @@ impl Dispatch<WpPresentationFeedback, ()> for Probe {
     }
 }
 
+/// A released buffer goes: the core keeps the memory of each live
+/// buffer mapped, and a window paints a new one on each configure.
+impl Dispatch<WlBuffer, ()> for Probe {
+    fn event(
+        _: &mut Self,
+        buffer: &WlBuffer,
+        event: wl_buffer::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_buffer::Event::Release = event {
+            buffer.destroy();
+        }
+    }
+}
+
 delegate_noop!(Probe: ignore WlCompositor);
 delegate_noop!(Probe: ignore WlSurface);
 delegate_noop!(Probe: ignore wl_shm::WlShm);
 delegate_noop!(Probe: ignore WlShmPool);
-delegate_noop!(Probe: ignore WlBuffer);
 delegate_noop!(Probe: ignore XdgActivationV1);
 delegate_noop!(Probe: ignore wl_seat::WlSeat);
 delegate_noop!(Probe: ignore XdgPopup);

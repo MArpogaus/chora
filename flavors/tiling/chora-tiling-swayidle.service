@@ -1,0 +1,12 @@
+[Unit]
+Description=swayidle, the idle lock of the tiling flavor
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionPathExists=/usr/bin/swayidle
+
+[Service]
+# swaylock locks through the session lock of the core: after 5 minutes
+# without input, before sleep, and on `loginctl lock-session`.
+ExecStart=/usr/bin/swayidle -w timeout 300 'swaylock -f' before-sleep 'swaylock -f' lock 'swaylock -f'
+Restart=on-failure
+RestartSec=1

@@ -52,17 +52,26 @@ scene:
   props:
     size: [100, 30]
     color: [0.2, 0.5, 1.0, 1.0]
+input:
+  keyboard: {repeat_rate: 30, repeat_delay: 250}
+  touchpad: {tap: true, natural_scroll: true}
+  mouse: {accel_profile: flat, accel_speed: -0.2}
 ```
 
-- `choractl view load work` starts each plugin of the view that does not
-  run yet, with the `exec` of its manifest, and waits up to 10 s until it
-  connects. It passes each `config` to the method that the manifest names
-  in `configure`. Then it applies the nodes of the view as one transaction.
+- `choractl view load work` first sends `input` to the core method
+  `input.configure`, if the view has it. Then it starts each plugin of
+  the view that does not run yet, with the `exec` of its manifest. It
+  waits up to 10 s until the plugin connects. It passes each `config` to
+  the method that the manifest names in `configure`. Then it applies the
+  nodes of the view as one transaction.
+  It prints the started plugins, the count of nodes and, as `input`, the
+  answer of `input.configure`.
 - The client `view-work` owns the nodes. A second load replaces them,
   `choractl view unload work` removes them.
 - `choractl view save work` writes the nodes of `view-work` as they are
-  now, with the plugins of the file that was there, to
-  `~/.config/chora/views/work.yaml`, or to `--file PATH`. A plugin or an
+  now to `~/.config/chora/views/work.yaml`, or to `--file PATH`. It keeps
+  the plugins and the `input` of the file that was there, not the live
+  settings of the core. A plugin or an
   agent changes the nodes as `view-work`, for example
   `choractl --name view-work apply`.
 - A node has an `id`, a `kind` (`group`, `rect`, `image`, `shader` or
@@ -74,6 +83,12 @@ scene:
   `NAME.yaml` must name the same view.
 - `choractl view load` also takes the path of a YAML file; the MCP tools
   take names only.
+- `input` sets the input devices of the whole session through
+  `input.configure`, so the core reads no file for them (D35).
+  `keyboard` has `repeat_rate` and `repeat_delay`. `touchpad` and
+  `mouse` have `tap`, `natural_scroll`, `left_handed`, `accel_profile`
+  and `accel_speed`. [IPC methods](api.md#ipc-methods) gives the ranges
+  and the rules.
 - A plugin that a view starts gets no stdin and no stdout of `choractl`,
   which carry MCP under `choractl mcp`.
 
@@ -130,7 +145,8 @@ drives the window manager needs `methods.call`, and one that starts apps
 needs `activation.token`. Both let it take the keyboard focus. A name
 that may end chora needs `session.quit`. A name that may change the
 settings of a plugin, or call a plugin method that starts programs, such
-as `app.open` of `chora-mc`, also needs `methods.privileged`.
+as `app.open` of `chora-mc`, also needs `methods.privileged`. So does
+a name that sets the input devices with `input.configure`.
 
 The names follow the rules of `hello`. `clients up` opens the socket of
 every name with exactly the capabilities of its list. A socket that
@@ -188,7 +204,7 @@ windows do not exist.
 
 `chora-tiling` exports methods for other clients (see
 [Plugin methods](api.md#plugin-methods)). Every method but `get_layout`
-changes something and answers with the layout info of the current tag,
+and `get_tags` changes something and answers with the layout info of the current tag,
 like `set_layout`. The `gap` of `set_layout` is a live value: the file
 keeps the old gap, and the next `settings.set` or `settings.reload` sets
 the gap of the file again.
@@ -196,6 +212,7 @@ the gap of the file again.
 | Method | Parameters | Does the same as |
 |--------|------------|------------------|
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
+| `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
 | `give` | `to`: a client name | handing the focused window to another client |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
 | `move_to_tag` | `surface`, `tag` | `MOD+Shift+1` to `MOD+Shift+9`, for this window |
@@ -288,6 +305,13 @@ context that steps back (`plugins/chora-mc/blur.frag`).
 
 The methods marked privileged start programs: a caller on a client
 socket needs `methods.privileged` besides `methods.call`.
+
+mc also follows the events of the voice agent (D65); it subscribes to
+`voice.*`. `voice.state` sets the agent `voice` as `agent.set` does, or
+the sub-agent that the `name` of its data names, such as `coder`.
+`voice.say` shows a sentence as `hud.say` does. Data that mc does not
+take only goes to its log, since the emitter gets no answer. Other
+clients use `agent.set` and `hud.say`.
 
 | Method | Parameters |
 |--------|------------|
@@ -485,7 +509,8 @@ show the JSON without chora:
 
 Run `morning.py` from a timer in the morning, and `system.py` while the
 session runs, for example as a user unit. The agents scene needs no
-collector: `agent.set` fills the panel `agent-N` with the N-th agent (its
+collector: `agent.set` and the event `voice.state` fill the panel
+`agent-N` with the N-th agent (its
 title in the color of its state, the sign and the state, its task and
 its last words) and `band-N` below it with its voice and its start; a
 scene file with more columns shows more agents.
@@ -501,24 +526,147 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target `chora-<name>.target`. `chora-flavor <name>` looks for
 the directory in `~/.config/chora/flavors/` first and then in
-`/usr/share/chora/flavors/`. It imports `WAYLAND_DISPLAY`, `CHORA_SOCKET` and
-the X11 `DISPLAY` of `xwayland-satellite` into the systemd user manager, so
-that every unit of the flavor starts with them. It links the units of the
-directory, and starts
-the target. The target starts the services and the plugins. systemd handles
-start, restart and order, so chora needs no service manager.
+`/usr/share/chora/flavors/`. It imports `WAYLAND_DISPLAY`, `CHORA_SOCKET`,
+`CHORA_FLAVOR_DIR` (the directory that it found) and the X11 `DISPLAY` of
+`xwayland-satellite` into the systemd user manager. So every unit of the
+flavor starts with them. It links the units of the directory, tells
+systemd that chora is ready, and starts the target. The target starts the
+services and the plugins. systemd handles start, restart and order, so
+chora needs no service manager. `chora-flavor` is not for nested use:
+its variables would reach the units of the host session.
 
-The package installs the tiling flavor:
+### Sessions
+
+The login screen shows a session per flavor, twice:
+
+| Session | Starts |
+|---------|--------|
+| chora (uwsm), chora (Windows XP, uwsm) | `uwsm start -e -D chora -N chora -- chora -- chora-flavor <name>` (D50) |
+| chora, chora (Windows XP) | `chora-session <name>`, without uwsm |
+
+The uwsm sessions show only when uwsm is installed. uwsm is not in
+Fedora 44, so there the sessions without uwsm are the fallback (D50).
+uwsm runs chora as
+the user unit `wayland-wm@chora.service` and binds it to
+`graphical-session.target`. Under uwsm, `chora-flavor` calls `uwsm
+finalize` with its variables: uwsm exports them, marks chora as ready and
+removes the variables again when the session ends. Before chora starts,
+uwsm sources `/etc/xdg/uwsm/env-chora`. Without `XKB_DEFAULT_LAYOUT`,
+this file takes the keyboard layout of the system from `localectl`.
+`~/.config/uwsm/env-chora` adds variables of the user.
+
+`chora-session` does the same without uwsm. It sources
+`/etc/xdg/uwsm/env-chora`, imports the environment of the login into the
+systemd user manager and runs chora as `chora@<name>.service`. The unit
+drops a `WAYLAND_DISPLAY` and a `DISPLAY` that another session left in
+the user manager, because chora would then run nested. When chora ends,
+`chora-session` stops the units of the graphical session.
+
+### Screen sharing
+
+Browsers and video calls share the screen through `xdg-desktop-portal`,
+which hands the work to `xdg-desktop-portal-wlr` (D37). Both sessions set
+`XDG_CURRENT_DESKTOP=chora`, and `chora-flavor` gives it and
+`WAYLAND_DISPLAY` to systemd and D-Bus, so that the portals start with
+them. `chora-flavor` also stops a portal that an earlier session in the
+same user manager started. The next call starts it again with the
+variables of chora. While another graphical session of the user is
+open, the portal stays. The packages install two files:
+
+- `/usr/share/xdg-desktop-portal/chora-portals.conf`: for
+  `XDG_CURRENT_DESKTOP=chora`, screen sharing and screenshots go through
+  `xdg-desktop-portal-wlr`, the other portals through
+  `xdg-desktop-portal-gtk`.
+- `/etc/xdg/xdg-desktop-portal-wlr/chora`: fuzzel asks which output or
+  window to share. `~/.config/xdg-desktop-portal-wlr/chora` replaces it,
+  for example with `chooser_type=none` and `output_name=eDP-1` to share
+  that output without a question.
+
+`xdg-desktop-portal-wlr` captures through `ext-image-copy-capture`, and
+through `wlr-screencopy` on older versions. It shares outputs, and
+windows of `ext-foreign-toplevel-list`. The core copies through shm, so
+each frame takes a copy on the CPU, and the shared picture has no
+cursor. The portal runs on the Wayland socket of the session, which has
+every capture protocol. A client of a client socket needs the grant
+`screen.capture` (see [API](api.md)).
+
+### X11 programs
+
+`xwayland-satellite` runs X11 programs as Wayland windows. When it is
+installed, `chora-flavor` picks a free display, for example `:0`, and
+gives `DISPLAY` to systemd and D-Bus. The unit
+`chora-<flavor>-xwayland.service` of each flavor then starts
+`xwayland-satellite` on this display. The X11 windows are toplevels like
+all others, so `chora-tiling` tiles them.
+
+### The tiling flavor
+
+The package installs the tiling flavor (D51):
 
 ```text
 /usr/share/chora/flavors/tiling/
-├── chora-tiling.target              # wants the two units below
-├── chora-tiling.service             # chora-tiling
-└── chora-tiling-xwayland.service    # xwayland-satellite, if installed
+├── chora-tiling.target               # wants the units below and mako.service
+├── chora-tiling.service              # chora-tiling
+├── chora-tiling-xwayland.service     # xwayland-satellite
+├── chora-tiling-waybar.service       # the panel
+├── chora-tiling-swaybg.service       # the wallpaper, a plain color
+├── chora-tiling-swayidle.service     # the idle lock with swaylock
+├── chora-tiling-kanshi.service       # the output profiles of the user
+└── waybar/
+    ├── config.jsonc                  # the modules of the panel
+    └── tags.jq                       # the text of the tags module
 ```
 
-The target also wants `waybar.service`, which the waybar package installs.
-A copy of the directory in `~/.config/chora/flavors/tiling/` replaces it.
+Each unit starts only when its program is installed. The packages
+recommend them: uwsm, foot, fuzzel, waybar, jq, mako, swaybg, swayidle,
+swaylock, kanshi, `xwayland-satellite`, `xdg-desktop-portal-wlr` and
+`xdg-desktop-portal-gtk`. mako starts from the unit of
+its own package and needs no configuration.
+
+- **The panel**: waybar with the configuration of the flavor. It shows only
+  modules that need no IPC of sway: the tags of the output, the layout of
+  the current tag, the clock, the volume, the network, the processor, the
+  memory, the battery and the tray. The layout module calls
+  `choractl call tiling get_layout` each second. The tags module calls
+  `choractl call tiling get_tags` each second, and `jq` with
+  `waybar/tags.jq` turns the answer into the text: the shown and the
+  occupied tags, shown ones underlined, focused ones bold and urgent ones
+  red.
+- **The launcher**: `MOD+r` starts fuzzel, as the default bindings of
+  `chora-tiling` say.
+- **The lock**: swayidle runs `swaylock -f` after 5 minutes without input,
+  before sleep, and on `loginctl lock-session`, which `MOD+Shift+Escape`
+  runs. swaylock locks through the session lock protocol of the core.
+  The core has no protocol to turn outputs off yet, so the screens stay on.
+- **The wallpaper**: swaybg with a plain color. For a picture, override
+  the command:
+
+  ```bash
+  systemctl --user edit chora-tiling-swaybg.service
+  # [Service]
+  # ExecStart=
+  # ExecStart=/usr/bin/swaybg --image %h/Pictures/wall.png --mode fill
+  ```
+
+- **The outputs**: kanshi starts only when `~/.config/kanshi/config`
+  exists, because it fails without profiles. The core takes the
+  configuration through `wlr-output-management`. An example with the
+  names that `wlr-randr` prints:
+
+  ```text
+  profile docked {
+    output eDP-1 disable
+    output "Dell Inc. DELL U2720Q *" mode 3840x2160 scale 1.5
+  }
+  profile mobile {
+    output eDP-1 enable scale 1.25
+  }
+  ```
+
+A copy of the directory in `~/.config/chora/flavors/tiling/` replaces it,
+also the configuration of waybar. `systemctl --user edit UNIT` changes a
+single unit. A user who enabled `waybar.service` of the waybar package
+gets a second panel; `systemctl --user disable waybar.service` ends it.
 
 ### The XP flavor
 

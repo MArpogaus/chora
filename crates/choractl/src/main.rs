@@ -65,7 +65,8 @@ enum Cmd {
     },
     /// Print events as JSON lines until the core closes the socket.
     Events {
-        /// Event names, for example `surface.created`; every event if none.
+        /// Event names, for example `surface.created`, `voice.state` or
+        /// `voice.*`; every core event if none.
         names: Vec<String>,
     },
     /// Print the outputs.

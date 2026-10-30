@@ -55,7 +55,7 @@ pub async fn speak(config: &Config, text: &str, tx: UnboundedSender<Event>) -> R
             "voice": config.voice,
             "response_format": "pcm",
             "stream_audio": true,
-            "language": config.tts_language,
+            "language": config.tts_language(),
         }),
         json!({"type": "input.text", "text": text}),
         json!({"type": "input.done"}),

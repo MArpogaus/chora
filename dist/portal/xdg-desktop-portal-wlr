@@ -1,0 +1,9 @@
+# The screen sharing of a chora session (D37). xdg-desktop-portal-wlr reads
+# /etc/xdg/xdg-desktop-portal-wlr/chora when XDG_CURRENT_DESKTOP is chora;
+# ~/.config/xdg-desktop-portal-wlr/chora comes first.
+#
+# fuzzel asks which output or window to share. Without fuzzel, set
+# chooser_type=none: it shares the output in output_name, else any output.
+[screencast]
+chooser_type=dmenu
+chooser_cmd=fuzzel --dmenu --prompt "Share: "

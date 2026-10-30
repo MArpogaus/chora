@@ -1,0 +1,50 @@
+// The panel of the tiling flavor. Only modules that need no IPC of sway;
+// custom/tags and custom/layout ask chora-tiling each second for the tags
+// of the output and the layout of the current tag.
+{
+  "layer": "top",
+  "position": "top",
+  "height": 26,
+  "modules-left": ["custom/tags", "custom/layout"],
+  "modules-center": ["clock"],
+  "modules-right": ["pulseaudio", "network", "cpu", "memory", "battery", "tray"],
+  "custom/tags": {
+    "exec": "choractl call tiling get_tags 2>/dev/null | jq -c -f \"$CHORA_FLAVOR_DIR/waybar/tags.jq\"",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": false
+  },
+  "custom/layout": {
+    "exec": "choractl call tiling get_layout 2>/dev/null | jq -r .layout",
+    "interval": 1,
+    "format": "[{}]",
+    "tooltip": false
+  },
+  "clock": {
+    "format": "{:%a %d %b %H:%M}",
+    "tooltip-format": "<tt>{calendar}</tt>"
+  },
+  "pulseaudio": {
+    "format": "vol {volume}%",
+    "format-muted": "vol muted"
+  },
+  "network": {
+    "format-wifi": "{essid} {signalStrength}%",
+    "format-ethernet": "{ipaddr}",
+    "format-disconnected": "offline",
+    "tooltip-format": "{ifname} {ipaddr}/{cidr}"
+  },
+  "cpu": {
+    "format": "cpu {usage}%"
+  },
+  "memory": {
+    "format": "mem {percentage}%"
+  },
+  "battery": {
+    "format": "bat {capacity}%",
+    "states": {"warning": 20, "critical": 10}
+  },
+  "tray": {
+    "spacing": 8
+  }
+}

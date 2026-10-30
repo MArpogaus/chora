@@ -10,6 +10,8 @@ use std::{
     process::{Child, Command, ExitStatus},
 };
 
+use crate::state::State;
+
 /// Starts the startup command with the environment of this compositor.
 pub fn start(argv: &[String], wayland: &OsStr, socket: &Path) -> std::io::Result<Child> {
     let (program, rest) = argv
@@ -27,11 +29,14 @@ pub fn start(argv: &[String], wayland: &OsStr, socket: &Path) -> std::io::Result
 }
 
 /// Waits for the started child in a thread, so that it never stays a
-/// zombie, and logs how it ended: a startup command that exits early
-/// otherwise leaves only a black screen.
-pub fn reap(child: Child, argv: &[String]) {
+/// zombie, logs how it ended, and hands the status to the event loop.
+pub fn reap(child: Child, argv: &[String], ended: calloop::channel::Sender<ExitStatus>) {
     let argv = argv.to_vec();
-    std::thread::spawn(move || wait(child, &argv));
+    std::thread::spawn(move || {
+        if let Ok(status) = wait(child, &argv) {
+            let _ = ended.send(status);
+        }
+    });
 }
 
 /// Waits for the child and logs its exit status or signal with its
@@ -46,9 +51,64 @@ fn wait(mut child: Child, argv: &[String]) -> std::io::Result<ExitStatus> {
     status
 }
 
+/// Whether the core quits after its startup command ended: it failed, no
+/// client said hello since the core started and no window is open. A
+/// window manager that does not start, for example on an unknown flag,
+/// otherwise leaves a black screen with no hint (#57). A window manager
+/// that said hello and then crashes leaves the core running.
+pub fn quits_after(state: &State, status: ExitStatus) -> bool {
+    !status.success() && !state.ipc.greeted && state.windows.is_empty()
+}
+
 #[cfg(test)]
 mod tests {
-    use std::{fs, os::unix::process::ExitStatusExt as _, path::Path};
+    use std::{fs, os::unix::process::ExitStatusExt as _, path::Path, process::ExitStatus};
+
+    use crate::testing::Core;
+
+    /// A failed startup command ends the core while no client said hello,
+    /// and only then (#57).
+    #[test]
+    fn a_failed_start_without_clients_quits() {
+        let mut core = Core::new();
+        let failed = ExitStatus::from_raw(2 << 8);
+        assert!(super::quits_after(&core.state, failed));
+        assert!(!super::quits_after(&core.state, ExitStatus::from_raw(0)));
+        let _anonymous = core.connect();
+        assert!(super::quits_after(&core.state, failed));
+        let _wm = core.named("wm");
+        assert!(!super::quits_after(&core.state, failed));
+    }
+
+    /// A window manager that said hello and then crashes keeps the core,
+    /// also with no window open (only a bar runs).
+    #[test]
+    fn a_crash_after_hello_keeps_the_core() {
+        let mut core = Core::new();
+        let wm = core.named("wm");
+        drop(wm);
+        core.dispatch();
+        core.dispatch();
+        assert_eq!(core.state.ipc.conn_ids(), [] as [u64; 0]);
+        assert!(!super::quits_after(
+            &core.state,
+            ExitStatus::from_raw(2 << 8)
+        ));
+    }
+
+    /// A window manager that crashes in a session with windows leaves the
+    /// core running, also when no other client said hello.
+    #[test]
+    fn a_failed_start_with_windows_keeps_the_core() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = crate::testing::wayland::Wayland::connect(&mut core);
+        let _window = wayland.toplevel(&mut core, "foot");
+        assert!(!super::quits_after(
+            &core.state,
+            ExitStatus::from_raw(2 << 8)
+        ));
+    }
 
     /// The status of a startup command that ends reaches the log.
     #[test]

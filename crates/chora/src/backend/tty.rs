@@ -29,6 +29,7 @@ use smithay::{
             output::{DrmOutput, DrmOutputManager, DrmOutputRenderElements},
         },
         egl::context::ContextPriority,
+        input::InputEvent,
         libinput::{LibinputInputBackend, LibinputSessionInterface},
         renderer::{
             ImportDma, ImportMemWl, RendererSuper,
@@ -188,6 +189,11 @@ pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
     let handle = state.loop_handle.clone();
     handle
         .insert_source(LibinputInputBackend::new(libinput), |event, (), state| {
+            match &event {
+                InputEvent::DeviceAdded { device } => state.device_added(Box::new(device.clone())),
+                InputEvent::DeviceRemoved { device } => state.device_removed(device.sysname()),
+                _ => {}
+            }
             crate::input::process(state, event);
         })
         .map_err(|e| e.error)?;
@@ -987,7 +993,12 @@ fn udev_event(state: &mut State, event: UdevEvent) {
             }
         }
         UdevEvent::Removed { device_id } => {
-            if let Ok(node) = DrmNode::from_dev_id(device_id) {
+            // The sysfs entry of a removed device is gone, and
+            // `DrmNode::from_dev_id` fails without it: the open devices
+            // know their node.
+            let node = tty(state)
+                .and_then(|t| t.devices.keys().find(|n| n.dev_id() == device_id).copied());
+            if let Some(node) = node {
                 remove_device(state, node);
             }
         }

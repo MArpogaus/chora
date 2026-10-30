@@ -315,6 +315,20 @@ pub enum Event {
         #[serde(default)]
         params: serde_json::Value,
     },
+    /// An event that a client emitted with `events.emit` (D65). Its name
+    /// starts with the name of the client and a dot, for example
+    /// `voice.state`; no core event has that form, so it is not in
+    /// `NAMES`. Any event name that no other variant has lands here.
+    #[serde(untagged)]
+    Emitted {
+        /// The name, for example `voice.state`.
+        event: String,
+        /// The client name of the emitter.
+        client: String,
+        /// The data of the emitter.
+        #[serde(default)]
+        data: serde_json::Value,
+    },
 }
 
 /// The source of scrolling.
@@ -436,5 +450,22 @@ mod tests {
             .filter_map(|l| l.strip_suffix("\")]"))
             .collect();
         assert_eq!(found, NAMES);
+    }
+
+    #[test]
+    fn an_emitted_event_keeps_its_form() {
+        use super::Event;
+        let params = serde_json::json!({"event": "voice.state", "client": "voice",
+            "data": {"state": "listening"}});
+        let event: Event = serde_json::from_value(params.clone()).expect("an emitted event");
+        assert!(matches!(&event, Event::Emitted { client, .. } if client == "voice"));
+        assert_eq!(serde_json::to_value(&event).unwrap(), params);
+        let core = serde_json::json!({"event": "output.removed", "name": "DP-1"});
+        assert_eq!(
+            serde_json::from_value::<Event>(core).unwrap(),
+            Event::OutputRemoved {
+                name: "DP-1".into()
+            }
+        );
     }
 }
