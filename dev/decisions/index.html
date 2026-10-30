@@ -1390,18 +1390,23 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D58</td>
-<td>A client changes how a node of another client looks, its opacity, effects or meta, only through the owner: <code>node.requested</code> has the action <code>update</code> (D31). The window manager applies the change and keeps it across layouts</td>
+<td>A client changes how a node of another client looks, its opacity, effects or meta, only through the owner: <code>node.requested</code> has the action <code>update</code> (D31). The window manager applies the change and keeps it across layouts. Clients on a confined client socket can send the request <code>update</code>, as <code>move</code>. An <code>update</code> that mixes owner-only props with opacity, effects or meta fails with an error that names the owner-only props. Requests for <code>animate</code> are not part of D58</td>
 <td>The owner stays the only client that changes its nodes. A look that a new layout drops does not hold.</td>
 </tr>
 <tr>
 <td>D59</td>
-<td>The answer of <code>scene.apply</code> carries <code>warnings</code> with stable codes, for example for a surface attached under a group with <code>input: pass</code>, or for a layer that alone is larger than the pixel budget of every output; a drop at render time stays the event <code>layers.dropped</code></td>
+<td>The answer of <code>scene.apply</code> carries <code>warnings</code> with stable codes, for example for a surface attached under a group with <code>input: pass</code>, or for a layer whose subtree (the layer and every layer under it) needs more pixels than the budget of every output; a drop at render time stays the event <code>layers.dropped</code></td>
 <td>Some transactions succeed but do not give the result that the client expects. A warning tells the client without a capture.</td>
 </tr>
 <tr>
 <td>D61</td>
 <td><code>choractl mcp</code> keeps <code>keep_nodes</code>; after a restart, an agent removes its own old nodes (#101)</td>
 <td>No change in the core or in <code>choractl</code>. An agent knows which of its nodes still matter.</td>
+</tr>
+<tr>
+<td>D62</td>
+<td>Each plugin exports <code>settings.get</code> and <code>settings.set</code> through the plugin runtime of <code>chora-kit</code>, with a schema in <code>methods.export</code>. The plugin checks the values, applies them at once and saves them in its YAML file in <code>$XDG_CONFIG_HOME/chora/</code>, for example <code>chora-tiling.yaml</code> and <code>chora-xp.yaml</code>. The plugin is the only writer of its file. Edits by hand apply on the method <code>restart</code> of the plugin. The file replaces the command-line flags of <code>chora-xp</code> except <code>--theme</code>, <code>--config</code> and <code>--slow-motion</code>. A generic settings form is not part of 0.8</td>
+<td>One interface serves <code>choractl</code>, MCP agents and the dialogs of the plugin. The file keeps the settings.</td>
 </tr>
 </tbody>
 </table>
@@ -1427,7 +1432,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D39</td>
-<td>The XP showroom is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it lives in the core repository (D36); it is a demo on top of the generic plugins, not a daily driver; it starts installed programs, draws no programs into the scene, and draws its own wallpaper, one per cube face; after its rework in 0.8, it gets fixes and the API ports of the core only, and no release per milestone</td>
+<td>The XP showroom is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it lives in the core repository (D36); it is a demo on top of the generic plugins, not a daily driver; it starts installed programs, draws no programs into the scene except the dialogs of D63, and draws its own wallpaper, one per cube face; after its rework in 0.8, it gets fixes and the API ports of the core only, and no release per milestone</td>
 <td>It proves that the scene model carries classic desktops and their effects, and it tests every API change. The assets come from <code>kde-plasma-winxp-launcher</code> and keep their licenses; the GPL-3.0-only artwork of Exposé and modernXP is data of the flavor, not code of the core (D8).</td>
 </tr>
 <tr>
@@ -1459,6 +1464,11 @@ that the code does not implement yet.</p>
 <td>D45</td>
 <td>Grabs need Ctrl, Alt or Super, except for a client with the capability <code>input.grab-any</code>; <code>input.ungrab</code> ends a grab; a key grab tells when the first of its modifiers goes up, except Shift; there is no exclusive keyboard grab</td>
 <td>Typing works unless the user gives a capability, for example for push-to-talk. Games and 3D clients get every key through Wayland.</td>
+</tr>
+<tr>
+<td>D63</td>
+<td><code>chora-xp</code> keeps the dialogs of the XP shell, pixel-perfect: Log Off, Turn Off, Display Properties, Taskbar and Start Menu Properties, Date and Time Properties and the Control Panel menu. Each button of Log Off and Turn Off runs a command from the settings (D62). The defaults are <code>systemctl poweroff</code>, <code>systemctl reboot</code> and <code>systemctl suspend</code>, and Log Off ends the chora session. The dialogs change the settings through <code>settings.set</code>. The Explorer, the folder windows, file Properties and the Delete confirmation leave the plugin. My Documents, My Computer, folder icons and the Recycle Bin open the file manager of the settings, by default <code>thunar</code>. The tag <code>archive/xp-scene-programs</code> keeps the removed code. D63 refines D39</td>
+<td>The dialogs are the showcase and the safeguard before a poweroff. A file manager drawn in the scene cannot match real file operations.</td>
 </tr>
 </tbody>
 </table>
@@ -1524,7 +1534,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D56</td>
-<td>The UI is hybrid. Plugins draw shell chrome and effects as scene nodes. Real applications, such as a file manager or a control panel, run as Wayland clients. Scene nodes take the keyboard through <code>focus_node</code>. In 0.8, <code>chora-xp</code> stops drawing programs into the scene and starts installed programs instead (D39). The git tag <code>archive/xp-scene-programs</code> keeps the removed code</td>
+<td>The UI is hybrid. Plugins draw shell chrome and effects as scene nodes. Real applications, such as a file manager or a control panel, run as Wayland clients. Scene nodes take the keyboard through <code>focus_node</code>. In 0.8, <code>chora-xp</code> stops drawing programs into the scene, except its dialogs, and starts installed programs instead (D39, D63). The git tag <code>archive/xp-scene-programs</code> keeps the removed code</td>
 <td>Chrome and effects need the scene: transforms, shaders, wobble. Applications need text input, accessibility and toolkits, which clients bring.</td>
 </tr>
 <tr>

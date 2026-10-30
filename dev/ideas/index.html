@@ -1052,6 +1052,14 @@
 <li>Pixel-perfect copies of existing desktops as flavors, for example KDE
   Plasma, next to the XP showroom (D39). They prove the flexibility. They
   are not a goal.</li>
+<li>The XP window frames from the xfwm4 theme of
+  <a href="https://github.com/rozniak/xfce-winxp-tc">xfce-winxp-tc</a> instead of the
+  Aurorae theme Exposé, so that the frames and its Luna GTK theme come from
+  one theme family.</li>
+<li>XP programs as GTK applications of their own, for example an Explorer,
+  in place of the programs that left <code>chora-xp</code> (D63).</li>
+<li>The KDE server-decoration protocol, so that GTK3 applications such as
+  Thunar get the frame of the window manager.</li>
 </ul>
 <h2 id="agents-and-the-ecosystem-around-chora">Agents and the ecosystem around chora<a class="headerlink" href="#agents-and-the-ecosystem-around-chora" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1075,6 +1083,9 @@
 <ul>
 <li>A local inference engine (LLM) in a container.</li>
 <li>Development environments with special configurations (distrobox).</li>
+<li>A generic settings form that draws its fields from the settings schema
+  of any plugin (D62). It uses GTK4 without libadwaita, so that a GTK
+  theme applies.</li>
 <li>A dedicated webview host on <code>gtk4-layer-shell</code>, if a browser in app mode is
   too slow, too heavy or cannot be transparent.</li>
 </ul>
