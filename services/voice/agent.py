@@ -106,9 +106,16 @@ Limits:
 - Look once, act, then check once. When a task fails twice, stop and say
   what failed.""",
 )
-# Documents that follow the system prompt, relative to the checkout, and
-# the facts of this machine in ~/.config/chora/voice-prompt.md.
-CONTEXT_DOCS = ENV("CONTEXT_DOCS", "README.md docs/glossary.md docs/api.md docs/configuration.md")
+# Documents that follow the system prompt, relative to the checkout and
+# separated by commas; FILE#HEADING takes one "## HEADING" section. The
+# facts of this machine in ~/.config/chora/voice-prompt.md follow them.
+CONTEXT_DOCS = ENV(
+    "CONTEXT_DOCS",
+    "README.md, docs/glossary.md, docs/api.md#Model, docs/api.md#Nodes, "
+    "docs/api.md#Commands, docs/api.md#Window managers, docs/api.md#Selectors, "
+    "docs/api.md#Programs, docs/api.md#Input injection, docs/api.md#Plugin methods, "
+    "docs/api.md#Plugins, docs/api.md#MCP tools",
+)
 REPO = pathlib.Path(__file__).resolve().parents[2]
 if CODER_CMD:
     SYSTEM += " Hand a task that needs code or many steps to delegate, then say that it runs."
@@ -805,10 +812,19 @@ async def chora(stack: contextlib.AsyncExitStack) -> ClientSession | None:
 
 def system_prompt() -> str:
     """Return SYSTEM with the CONTEXT_DOCS and voice-prompt.md after it."""
-    files = [REPO / name for name in CONTEXT_DOCS.split()]
-    files.append(pathlib.Path.home() / ".config/chora/voice-prompt.md")
-    docs = (f"\n\n# File {f.name}\n\n{f.read_text()}" for f in files if f.is_file())
-    return SYSTEM + "".join(docs)
+    parts = [SYSTEM]
+    for entry in filter(None, (e.strip() for e in CONTEXT_DOCS.split(","))):
+        name, _, heading = entry.partition("#")
+        text = (REPO / name).read_text()
+        if heading:
+            start = text.index(f"\n## {heading}\n")  # a typo fails at the start
+            end = text.find("\n## ", start + 1)
+            text = text[start : end if end > 0 else None]
+        parts.append(f"# File {name}\n\n{text.strip()}")
+    machine = pathlib.Path.home() / ".config/chora/voice-prompt.md"
+    if machine.is_file():
+        parts.append(machine.read_text())
+    return "\n\n".join(parts)
 
 
 def trim(history: list[dict]) -> None:

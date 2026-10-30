@@ -96,9 +96,11 @@ After a login, the agent starts the models itself; until they are up, a
 turn fails.
 
 The system prompt of the LLM, `SYSTEM`, explains chora and the limits of
-the tools. The documents of `CONTEXT_DOCS` follow it: the README, the
-glossary, the API and the configuration, about 30,000 tokens. The context
-of the LLM must hold them and the turns of `HISTORY`. Facts of your
+the tools. The documents of `CONTEXT_DOCS` follow it: the
+README, the glossary and the sections of the API on the scene, the
+commands, window managers, programs and MCP tools, about 10,000 tokens.
+`FILE#HEADING` picks one section of a file. The agent sends them to the
+LLM once at its start, so that the server keeps them in its cache. Facts of your
 machine, such as the installed programs, go into
 `~/.config/chora/voice-prompt.md`, which follows them too.
 
