@@ -112,6 +112,8 @@ jobs:
       run: tests/gate-0.8-tiling-style.sh
     - name: a requested opacity of a tiling window stays
       run: tests/gate-0.8-tiling-look.sh
+    - name: get_tags and the tags module of waybar follow a window
+      run: tests/gate-0.9-tiling-tags.sh
     - name: the file manager of the XP start menu gets its activation token
       run: tests/gate-0.8-xp-token.sh e2e/xp
     - name: settings.set changes the XP wallpaper and saves it
