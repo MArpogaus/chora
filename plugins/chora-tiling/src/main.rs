@@ -653,10 +653,7 @@ impl Tiling {
     /// Gives a new window the style of the settings. A shader that fails
     /// only logs, and the window stays.
     fn style(&mut self, surface: &str) -> Result<(), ClientError> {
-        match styled(&self.wm.config.style, surface) {
-            Some(update) => self.apply(vec![update]),
-            None => Ok(()),
-        }
+        self.apply(vec![styled(&self.wm.config.style, surface)])
     }
 
     /// Sends what changed since the last transaction: sizes and states,
@@ -829,16 +826,16 @@ fn looked(node: &str, args: &Value) -> Option<Command> {
     })
 }
 
-/// The update that gives a new window a style; none for the default.
-fn styled(style: &config::Style, surface: &str) -> Option<Command> {
-    (*style != config::Style::default()).then(|| Command::Update {
+/// The update that gives a new window a style.
+fn styled(style: &config::Style, surface: &str) -> Command {
+    Command::Update {
         id: surface.into(),
         props: PropsUpdate {
             opacity: Some(style.opacity),
             effects: Some(style.effects.clone()),
             ..PropsUpdate::default()
         },
-    })
+    }
 }
 
 /// The commands that bring a window from what was sent to its placement.
@@ -1158,12 +1155,11 @@ mod tests {
 
     #[test]
     fn a_new_window_gets_the_style_of_the_settings() {
-        let mut style = config::Style::default();
-        assert_eq!(styled(&style, "s1"), None, "the default sends nothing");
+        let mut style = settings::parse::<Config>(config::DEFAULT).unwrap().style;
         style.opacity = 0.5;
         assert!(matches!(
             styled(&style, "s1"),
-            Some(Command::Update { id, props })
+            Command::Update { id, props }
                 if id == "s1" && props.opacity == Some(0.5) && props.effects == Some(Vec::new())
         ));
     }

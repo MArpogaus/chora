@@ -109,16 +109,6 @@ pub struct Style {
     pub effects: Vec<ShaderEffect>,
 }
 
-/// The look of a window without a style.
-impl Default for Style {
-    fn default() -> Self {
-        Self {
-            opacity: 1.0,
-            effects: Vec::new(),
-        }
-    }
-}
-
 /// The configuration of the plugin.
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
