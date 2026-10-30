@@ -51,8 +51,11 @@ use rustix::{
 use wayland_client::{
     Connection, Dispatch, EventQueue, QueueHandle, delegate_noop,
     protocol::{
-        wl_buffer::WlBuffer, wl_compositor::WlCompositor, wl_keyboard, wl_pointer, wl_registry,
-        wl_seat, wl_shm, wl_shm_pool::WlShmPool, wl_surface::WlSurface,
+        wl_buffer::{self, WlBuffer},
+        wl_compositor::WlCompositor,
+        wl_keyboard, wl_pointer, wl_registry, wl_seat, wl_shm,
+        wl_shm_pool::WlShmPool,
+        wl_surface::WlSurface,
     },
 };
 use wayland_protocols::wp::security_context::v1::client::wp_security_context_manager_v1 as sandbox_manager;
@@ -873,11 +876,27 @@ impl Dispatch<WpPresentationFeedback, ()> for Probe {
     }
 }
 
+/// A released buffer goes: the core keeps the memory of each live
+/// buffer mapped, and a window paints a new one on each configure.
+impl Dispatch<WlBuffer, ()> for Probe {
+    fn event(
+        _: &mut Self,
+        buffer: &WlBuffer,
+        event: wl_buffer::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_buffer::Event::Release = event {
+            buffer.destroy();
+        }
+    }
+}
+
 delegate_noop!(Probe: ignore WlCompositor);
 delegate_noop!(Probe: ignore WlSurface);
 delegate_noop!(Probe: ignore wl_shm::WlShm);
 delegate_noop!(Probe: ignore WlShmPool);
-delegate_noop!(Probe: ignore WlBuffer);
 delegate_noop!(Probe: ignore XdgActivationV1);
 delegate_noop!(Probe: ignore wl_seat::WlSeat);
 delegate_noop!(Probe: ignore XdgPopup);
