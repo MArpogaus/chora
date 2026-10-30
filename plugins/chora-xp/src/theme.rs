@@ -273,7 +273,8 @@ impl Theme {
         let fonts = Fonts::load(dir);
         for sheet in Sheet::ALL {
             let path = dir.join(sheet.file());
-            let data = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            let data = chora_kit::read_file(&path, chora_kit::MAX_PICTURE)
+                .map_err(|e| format!("{}: {e}", path.display()))?;
             let tree = usvg::Tree::from_data(&data, fonts.options())
                 .map_err(|e| format!("{}: {e}", path.display()))?;
             sheets.insert(sheet, tree);
@@ -604,7 +605,7 @@ impl Theme {
     ) -> Result<(), String> {
         let error = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
         let image = if is_svg(path) {
-            let data = fs::read(path).map_err(|e| error(&e))?;
+            let data = chora_kit::read_file(path, chora_kit::MAX_PICTURE).map_err(|e| error(&e))?;
             let tree = usvg::Tree::from_data(&data, self.fonts.options()).map_err(|e| error(&e))?;
             let size = tree.size();
             if !matches!(fit, Fit::Tile(_)) {
@@ -667,10 +668,11 @@ impl Theme {
     pub fn image_size(&self, path: &Path) -> Option<[i32; 2]> {
         #[allow(clippy::cast_possible_truncation)]
         let size = if is_svg(path) {
-            let tree = usvg::Tree::from_data(&fs::read(path).ok()?, self.fonts.options()).ok()?;
+            let data = chora_kit::read_file(path, chora_kit::MAX_PICTURE).ok()?;
+            let tree = usvg::Tree::from_data(&data, self.fonts.options()).ok()?;
             [tree.size().width(), tree.size().height()].map(|n| n.round() as i32)
         } else if is_jpeg(path) {
-            let file = std::io::BufReader::new(fs::File::open(path).ok()?);
+            let file = std::io::BufReader::new(chora_kit::open_file(path).ok()?);
             let mut decoder = JpegDecoder::new(file);
             decoder.decode_headers().ok()?;
             let (w, h) = decoder.dimensions()?;
@@ -678,7 +680,7 @@ impl Theme {
         } else {
             // The IHDR chunk of a PNG file: width and height at 16 and 20.
             let mut head = [0; 24];
-            std::io::Read::read_exact(&mut fs::File::open(path).ok()?, &mut head).ok()?;
+            std::io::Read::read_exact(&mut chora_kit::open_file(path).ok()?, &mut head).ok()?;
             let word = |at: usize| {
                 u32::from_be_bytes([head[at], head[at + 1], head[at + 2], head[at + 3]])
             };
@@ -696,12 +698,16 @@ fn is_svg(path: &Path) -> bool {
 
 /// A PNG or JPEG file as a pixmap.
 fn load_raster(path: &Path) -> Result<Pixmap, String> {
+    let data = chora_kit::read_file(path, chora_kit::MAX_PICTURE).map_err(|e| e.to_string())?;
     if !is_jpeg(path) {
-        return Pixmap::load_png(path).map_err(|e| e.to_string());
+        return Pixmap::decode_png(&data).map_err(|e| e.to_string());
     }
-    let file = std::io::BufReader::new(fs::File::open(path).map_err(|e| e.to_string())?);
-    let options = DecoderOptions::default().jpeg_set_out_colorspace(ColorSpace::RGBA);
-    let mut decoder = JpegDecoder::new_with_options(file, options);
+    // At most 256 MiB of pixels.
+    let options = DecoderOptions::default()
+        .jpeg_set_out_colorspace(ColorSpace::RGBA)
+        .set_max_width(8192)
+        .set_max_height(8192);
+    let mut decoder = JpegDecoder::new_with_options(std::io::Cursor::new(data), options);
     // Opaque pixels are premultiplied already.
     let pixels = decoder.decode().map_err(|e| e.to_string())?;
     let info = decoder.info().ok_or("no JPEG header")?;

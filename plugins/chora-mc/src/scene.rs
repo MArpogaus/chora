@@ -247,7 +247,7 @@ pub fn load(dir: &Path) -> BTreeMap<String, Scene> {
         else {
             continue;
         };
-        let read = std::fs::read_to_string(&path).map_err(|e| e.to_string());
+        let read = chora_kit::read_text(&path, chora_kit::MAX_TEXT).map_err(|e| e.to_string());
         match read.and_then(|text| parse(&text)) {
             Ok(scene) if check_name(name).is_ok() => {
                 scenes.insert(name.into(), scene);

@@ -530,6 +530,7 @@ name = "chora-kit"
 version = "0.7.0"
 dependencies = [
  "chora-scene",
+ "libc",
  "schemars",
  "serde",
  "serde-saphyr",

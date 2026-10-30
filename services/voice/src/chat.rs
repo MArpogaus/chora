@@ -210,13 +210,15 @@ impl Chat {
             let (name, heading) = entry.split_once('#').unwrap_or((entry, ""));
             let text = match FILES.iter().find(|(file, _)| *file == name) {
                 Some((_, text)) => (*text).to_owned(),
-                None => std::fs::read_to_string(crate::expand(name))
+                None => chora_kit::read_text(&crate::expand(name), chora_kit::MAX_TEXT)
                     .map_err(|e| format!("context_docs: {name}: {e}"))?,
             };
             let text = section(&text, heading).ok_or(format!("context_docs: no {entry}"))?;
             parts.push(format!("# File {name}\n\n{}", text.trim()));
         }
-        if let Ok(text) = std::fs::read_to_string(crate::expand(&config.prompt_file)) {
+        if let Ok(text) =
+            chora_kit::read_text(&crate::expand(&config.prompt_file), chora_kit::MAX_TEXT)
+        {
             parts.push(text);
         }
         if !self.earlier.is_empty() {

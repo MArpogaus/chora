@@ -282,7 +282,11 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let [shader, blur] = [("write", WRITE_SHADER), ("blur", BLUR_SHADER)].map(|(name, text)| {
         let path = runtime.join(format!("chora-mc/{name}.frag"));
         let write = || -> std::io::Result<()> {
-            if std::fs::read_to_string(&path).ok().as_deref() != Some(text) {
+            if chora_kit::read_text(&path, chora_kit::MAX_TEXT)
+                .ok()
+                .as_deref()
+                != Some(text)
+            {
                 std::fs::create_dir_all(path.parent().expect("a file in a directory"))?;
                 std::fs::write(&path, text)?;
             }

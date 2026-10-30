@@ -80,7 +80,7 @@ impl Recording {
         if rate != RATE {
             return Err(format!("{}: {rate} Hz; replay takes 24000", dir.display()));
         }
-        let text = |name: &str| std::fs::read_to_string(dir.join(name));
+        let text = |name: &str| chora_kit::read_text(&dir.join(name), 64 << 20);
         let labels = text("labels.txt")
             .map_err(|e| format!("{}/labels.txt: {e}", dir.display()))
             .and_then(|t| labels(&t).map_err(|e| format!("{}/labels.txt: {e}", dir.display())))?;

@@ -99,7 +99,8 @@ pub fn bytes(samples: &[i16]) -> Vec<u8> {
 ///
 /// The file cannot be read, or it is not 16 bit mono PCM.
 pub fn read_wav(path: &Path) -> io::Result<(u32, Vec<i16>)> {
-    let data = std::fs::read(path)?;
+    // Three hours at 24 kHz; a device such as /dev/zero never ends.
+    let data = chora_kit::read_file(path, 512 << 20)?;
     let bad = |what: &str| {
         io::Error::new(
             io::ErrorKind::InvalidData,

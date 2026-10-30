@@ -88,7 +88,7 @@ impl<S: Settings> File<S> {
     ///
     /// The file cannot be read, or its settings are wrong.
     pub fn load(path: PathBuf, default: &'static str) -> Result<Self, String> {
-        let text = match std::fs::read_to_string(&path) {
+        let text = match crate::read_text(&path, crate::MAX_TEXT) {
             Ok(text) => text,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => default.into(),
             Err(e) => return Err(format!("{}: {e}", path.display())),

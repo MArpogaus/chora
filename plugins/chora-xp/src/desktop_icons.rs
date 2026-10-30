@@ -886,7 +886,8 @@ pub fn user_dir(name: &str) -> Option<PathBuf> {
     }
     let home = std::env::var("HOME").ok()?;
     let config = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| format!("{home}/.config"));
-    let text = fs::read_to_string(Path::new(&config).join("user-dirs.dirs")).ok()?;
+    let file = Path::new(&config).join("user-dirs.dirs");
+    let text = chora_kit::read_text(&file, chora_kit::MAX_TEXT).ok()?;
     parse_user_dir(&text, &var, &home)
 }
 

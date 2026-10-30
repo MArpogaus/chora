@@ -1,5 +1,6 @@
 [dependencies]
 chora-scene.workspace = true
+libc = "0.2"
 schemars.workspace = true
 serde.workspace = true
 serde-saphyr.workspace = true
