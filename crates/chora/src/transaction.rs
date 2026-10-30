@@ -24,10 +24,10 @@ use std::{
 };
 
 use chora_scene::{
-    Command, Effect, SceneError, TransactionError,
+    Command, Effect, InputMode, NodeKind, SceneError, TransactionError,
     ipc::{Message, RpcError},
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 use smithay::{
     reexports::wayland_server::{Resource, protocol::wl_surface::WlSurface},
     utils::Serial,
@@ -408,9 +408,10 @@ impl State {
         self.prune_images();
         let message = match applied {
             Ok(effects) => {
+                let warnings = self.warnings(&head.commands);
                 self.execute(effects);
                 self.refresh_pointer();
-                Message::result(head.id, Value::Null)
+                Message::result(head.id, json!({ "warnings": warnings }))
             }
             Err(error) => Message::error(head.id, error),
         };
@@ -418,6 +419,48 @@ impl State {
         head.barrier.signal();
         let surfaces = std::mem::take(&mut head.held);
         self.release(&surfaces);
+    }
+
+    /// The warnings of a transaction that applied (D59): what will not
+    /// work as the client probably expects.
+    fn warnings(&self, commands: &[Command]) -> Vec<Value> {
+        // The cost of a layer grows with the scale: the smallest scale
+        // decides whether any output can draw it.
+        let scale = self
+            .outputs
+            .iter()
+            .map(|o| o.current_scale().fractional_scale())
+            .reduce(f64::min);
+        let scene = &self.scene;
+        let warning =
+            |code, id: &str, message| Some(json!({"code": code, "node": id, "message": message}));
+        let check = |command: &Command| match command {
+            Command::Attach { surface: id, .. } | Command::Move { id, .. } => {
+                let surface = scene.node(id)?.kind == NodeKind::Surface;
+                let mut ancestors = scene.ancestors(id).skip(1).filter_map(|a| scene.node(a));
+                if surface && ancestors.any(|n| n.props.input != InputMode::Accept) {
+                    return warning(
+                        "deaf_surface",
+                        id,
+                        "an ancestor has input pass or block, so the surface gets no pointer input",
+                    );
+                }
+                None
+            }
+            Command::Create { id, .. }
+            | Command::Update { id, .. }
+            | Command::Animate { id, .. }
+                if scene.node(id)?.is_layer() && crate::mesh::over_budget(scene, id, scale?) =>
+            {
+                warning(
+                    "layer_over_budget",
+                    id,
+                    "the layers of this node need more pixels than a frame of any output has, so no frame draws it",
+                )
+            }
+            _ => None,
+        };
+        commands.iter().filter_map(check).collect()
     }
 }
 
@@ -545,13 +588,18 @@ mod tests {
         let first = loader.send("scene.apply", image("picture", &path));
         let second = loader.send("scene.apply", rect("after"));
         let other = panel.send("scene.apply", rect("p"));
-        assert_eq!(panel.answer(&mut core, other), Some(Ok(Value::Null)));
+        assert_eq!(
+            panel.answer(&mut core, other),
+            Some(Ok(json!({"warnings": []})))
+        );
         assert_eq!(loader.responses(), Vec::<Value>::new(), "both wait");
         let responses = decoded(&mut core, &mut loader, 2);
         let ids: Vec<Value> = responses.iter().map(|r| r["id"].clone()).collect();
         assert_eq!(ids, [json!(first), json!(second)], "in order");
         assert!(
-            responses.iter().all(|r| r["result"].is_null()),
+            responses
+                .iter()
+                .all(|r| r["result"]["warnings"] == json!([])),
             "{responses:?}"
         );
         assert_eq!(core.state.assets.images.get(&path).unwrap().size, [2048; 2]);
@@ -619,6 +667,73 @@ mod tests {
             (node.to.as_deref(), node.owner.as_deref()),
             (None, Some("wm"))
         );
+    }
+
+    /// The codes and nodes of the warnings in the answer of a transaction.
+    fn warned(answer: &Value) -> Vec<(&str, &str)> {
+        let warnings = answer["warnings"].as_array().expect("a list of warnings");
+        warnings
+            .iter()
+            .map(|w| (w["code"].as_str().unwrap(), w["node"].as_str().unwrap()))
+            .collect()
+    }
+
+    #[test]
+    fn a_clean_transaction_has_no_warnings() {
+        let mut core = Core::new();
+        core.add_output("DP-1", (1920, 1080));
+        let mut wm = core.named("wm");
+        let answer = wm.ok(&mut core, "scene.apply", rect("a"));
+        assert_eq!(answer, json!({"warnings": []}));
+    }
+
+    #[test]
+    fn a_surface_under_a_group_that_passes_input_is_deaf() {
+        let mut core = Core::new();
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "foot");
+        let mut wm = core.named("wm");
+        let answer = wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "g", "kind": "group", "parent": "root",
+                            "props": {"input": "pass"}}},
+                {"attach": {"surface": "s1", "parent": "g"}}
+            ]}),
+        );
+        assert_eq!(warned(&answer), [("deaf_surface", "s1")]);
+        let moved = json!({"commands": [{"move": {"id": "s1", "parent": "root"}}]});
+        let answer = wm.ok(&mut core, "scene.apply", moved);
+        assert_eq!(warned(&answer), [], "the root accepts input");
+    }
+
+    #[test]
+    fn a_layer_over_the_pixel_budget_of_every_output_warns() {
+        let mut core = Core::new();
+        core.add_output("DP-1", (1920, 1080));
+        let mut wm = core.named("wm");
+        // 3 textures of 4096 x 4096 for the clip and the effect, and 2
+        // for the clip of the inner layer: 5 x 16 Mi pixels, over 64 Mi.
+        let side = json!([4096, 4096]);
+        let answer = wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "big", "kind": "group", "parent": "root",
+                            "props": {"size": side, "clip": {"radius": 0},
+                                      "effects": [{"shader": "/glow.frag"}]}}},
+                {"create": {"id": "inner", "kind": "group", "parent": "big",
+                            "props": {"size": side, "clip": {"radius": 0}}}}
+            ]}),
+        );
+        assert_eq!(warned(&answer), [("layer_over_budget", "big")]);
+        let node = core
+            .state
+            .scene
+            .node("big")
+            .expect("a warning still applies");
+        assert!(node.is_layer());
     }
 
     #[test]
@@ -703,7 +818,10 @@ mod tests {
         core.dispatch();
         let ids: Vec<Value> = wm.responses().iter().map(|r| r["id"].clone()).collect();
         assert_eq!(ids, [json!(99), json!(first), json!(third)]);
-        assert_eq!(panel.answer(&mut core, second), Some(Ok(Value::Null)));
+        assert_eq!(
+            panel.answer(&mut core, second),
+            Some(Ok(json!({"warnings": []})))
+        );
     }
 
     #[test]
@@ -749,7 +867,10 @@ mod tests {
         assert!(core.state.transactions.waits_for(0));
         core.state.ipc_close(0);
         assert!(!core.state.transactions.waits_for(0));
-        assert_eq!(panel.answer(&mut core, id), Some(Ok(Value::Null)));
+        assert_eq!(
+            panel.answer(&mut core, id),
+            Some(Ok(json!({"warnings": []})))
+        );
     }
 
     #[test]

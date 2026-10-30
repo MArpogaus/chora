@@ -1006,7 +1006,7 @@ mod tests {
         wayland.roundtrip(&mut core);
         wayland.answer(&mut core, &first);
         core.dispatch();
-        assert_eq!(wm.answer(&mut core, id), Some(Ok(Value::Null)));
+        assert_eq!(wm.answer(&mut core, id), Some(Ok(json!({"warnings": []}))));
         wayland.attach(&mut core, &first, (400, 300));
         wayland.unmap(&mut core, &first);
         wayland.commit(&mut core, &first);
@@ -1060,7 +1060,7 @@ mod tests {
         assert_eq!(configures.states, [Xdg::Activated]);
         wayland.answer(&mut core, &first);
         core.dispatch();
-        assert_eq!(wm.answer(&mut core, id), Some(Ok(Value::Null)));
+        assert_eq!(wm.answer(&mut core, id), Some(Ok(json!({"warnings": []}))));
     }
 
     #[test]
@@ -1070,11 +1070,11 @@ mod tests {
         let id = wm.send("scene.apply", size(400));
         assert_eq!(wm.answer(&mut core, id), None);
         core.advance(crate::transaction::DEADLINE);
-        assert_eq!(wm.answer(&mut core, id), Some(Ok(Value::Null)));
+        assert_eq!(wm.answer(&mut core, id), Some(Ok(json!({"warnings": []}))));
         let id = wm.send("scene.apply", size(500));
         assert_eq!(
             wm.answer(&mut core, id),
-            Some(Ok(Value::Null)),
+            Some(Ok(json!({"warnings": []}))),
             "a late surface"
         );
         wayland.roundtrip(&mut core);

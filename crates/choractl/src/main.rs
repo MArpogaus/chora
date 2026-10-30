@@ -309,6 +309,20 @@ fn main() -> ExitCode {
     }
 }
 
+/// Prints the warnings of an applied transaction on stderr; they do not
+/// change the exit code.
+fn print_warnings(answer: &Value) {
+    for w in answer["warnings"].as_array().into_iter().flatten() {
+        let field = |key: &str| w[key].as_str().unwrap_or_default().to_owned();
+        eprintln!(
+            "choractl: warning {} on {}: {}",
+            field("code"),
+            field("node"),
+            field("message")
+        );
+    }
+}
+
 fn run(args: Args) -> Result<(), String> {
     match &args.command {
         Cmd::View { action } => return view_command(action),
@@ -327,7 +341,7 @@ fn run(args: Args) -> Result<(), String> {
         command @ Cmd::Wait { .. } => return wait(&mut client, &command),
         Cmd::Apply { .. } => client
             .call::<_, Value>("scene.apply", Apply { commands })
-            .map(drop),
+            .map(|answer| print_warnings(&answer)),
         Cmd::Events { names } => events(&mut client, names),
         Cmd::Outputs => show(&mut client, "output.list", Value::Null),
         command @ (Cmd::Run { .. }

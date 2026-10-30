@@ -1106,7 +1106,8 @@ impl Scene {
         }
     }
 
-    fn ancestors<'a>(&'a self, id: &'a str) -> impl Iterator<Item = &'a str> {
+    /// The id and the ids of the ancestors of a node, from the node up.
+    pub fn ancestors<'a>(&'a self, id: &'a str) -> impl Iterator<Item = &'a str> {
         std::iter::successors(Some(id), |current| {
             self.nodes.get(*current)?.parent.as_deref()
         })

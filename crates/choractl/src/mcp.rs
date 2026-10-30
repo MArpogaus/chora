@@ -492,7 +492,7 @@ fn scene_tools() -> Vec<Tool> {
         ),
         typed_tool::<Apply>(
             "apply_commands",
-            "Apply a transaction of scene commands: create, attach, update, animate, move, remove, configure, focus, focus_node, close, camera. All commands apply, or none.",
+            "Apply a transaction of scene commands: create, attach, update, animate, move, remove, configure, focus, focus_node, close, camera. All commands apply, or none. Warnings in the answer tell what applied but does not work as expected, for example a surface without input.",
         ),
         tool(
             "list_plugins",
@@ -645,7 +645,10 @@ fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBloc
         }
         "apply_commands" => {
             let apply: Apply = arg(args)?;
-            core.call::<_, Value>("scene.apply", apply)?;
+            let answer: Value = core.call("scene.apply", apply)?;
+            if answer["warnings"].as_array().is_some_and(|w| !w.is_empty()) {
+                return Ok(vec![ContentBlock::text("applied"), json_text(&answer)]);
+            }
             Ok(vec![ContentBlock::text("applied")])
         }
         "list_plugins" => {

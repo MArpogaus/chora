@@ -23,7 +23,7 @@ use std::{
 
 use crate::gl;
 
-use chora_scene::{Mesh, Node, NodeKind, Transform, Uniform};
+use chora_scene::{Mesh, Node, NodeKind, Scene, Transform, Uniform};
 use smithay::{
     backend::{
         allocator::Fourcc,
@@ -169,6 +169,30 @@ impl Layers {
         entry.1.increment();
         entry.clone()
     }
+}
+
+/// Whether the layers of a node and its descendants need more pixels at a
+/// scale than the budget of a frame, as [`Layers::spend`] counts them.
+pub fn over_budget(scene: &Scene, id: &str, scale: f64) -> bool {
+    subtree_pixels(scene, id, scale) > FRAME_PIXELS
+}
+
+fn subtree_pixels(scene: &Scene, id: &str, scale: f64) -> u64 {
+    let Some(node) = scene.node(id) else {
+        return 0;
+    };
+    let own = match texture_size(node, scale) {
+        Some(size) if node.is_layer() => {
+            let textures = 1 + passes(node, scale).len().min(2);
+            u64::try_from(size.w * size.h).unwrap_or(u64::MAX) * textures as u64
+        }
+        _ => 0,
+    };
+    let children = node
+        .children
+        .iter()
+        .map(|c| subtree_pixels(scene, c, scale));
+    own + children.sum::<u64>()
 }
 
 /// The pixel size of the texture of a layer node at an output scale.
