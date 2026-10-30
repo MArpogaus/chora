@@ -306,6 +306,13 @@ context that steps back (`plugins/chora-mc/blur.frag`).
 The methods marked privileged start programs: a caller on a client
 socket needs `methods.privileged` besides `methods.call`.
 
+mc also follows the events of the voice agent (D65); it subscribes to
+`voice.*`. `voice.state` sets the agent `voice` as `agent.set` does, or
+the sub-agent that the `name` of its data names, such as `coder`.
+`voice.say` shows a sentence as `hud.say` does. Data that mc does not
+take only goes to its log, since the emitter gets no answer. Other
+clients use `agent.set` and `hud.say`.
+
 | Method | Parameters |
 |--------|------------|
 | `scene.show` | `name`; the scene fades in, the old one fades out |
@@ -502,7 +509,8 @@ show the JSON without chora:
 
 Run `morning.py` from a timer in the morning, and `system.py` while the
 session runs, for example as a user unit. The agents scene needs no
-collector: `agent.set` fills the panel `agent-N` with the N-th agent (its
+collector: `agent.set` and the event `voice.state` fill the panel
+`agent-N` with the N-th agent (its
 title in the color of its state, the sign and the state, its task and
 its last words) and `band-N` below it with its voice and its start; a
 scene file with more columns shows more agents.
