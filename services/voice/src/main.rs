@@ -17,6 +17,7 @@ mod log;
 mod pcm;
 mod record;
 mod replay;
+mod tools;
 mod tts;
 mod vad;
 
