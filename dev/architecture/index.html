@@ -1322,7 +1322,10 @@ windows, and these events would make new windows of them.</p>
 <li>The startup command: <code>chora -- &lt;command&gt;</code> runs one command with
   <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code> set. The command does not get the
   variables that reach a host compositor, for example <code>WAYLAND_SOCKET</code> and
-  <code>SWAYSOCK</code>. Without a command, the core shows a black screen.</li>
+  <code>SWAYSOCK</code>. Without a command, the core shows a black screen. When the
+  command fails and no client said hello, the core logs an error and
+  exits with a failure, so a window manager that cannot start leaves no
+  black screen.</li>
 </ul>
 <p>The core places popups, subsurfaces and layer surfaces itself, because the
 protocols define their position. Smithay's <code>PopupManager</code> and <code>LayerMap</code> do
