@@ -684,6 +684,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="chora-mc (experimental)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#regions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Regions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1075,6 +1092,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="chora-mc (experimental)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#regions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Regions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1450,8 +1484,9 @@ methods and files change without notice.</p>
 </div>
 <p><code>chora-mc</code> connects with the client name <code>mc</code>. It is a voice-first
 desktop without window management: the whole screen shows one scene at a
-time on the first output, and a quiet HUD line at the bottom shows what the
-voice agent does. The voice agent and small collector scripts fill the
+time on the first output, and quiet regions around it show the context:
+the running head and the clock, what the voice agent does, notes and a
+docked terminal. The voice agent and small collector scripts fill the
 scenes through methods; the plugin reads no sources itself.</p>
 <p>A scene of <code>chora-mc</code> is not a view of D35. It is a YAML file
 <code>NAME.yaml</code> in <code>$XDG_CONFIG_HOME/chora/mc/scenes/</code>: a grid of panels, each
@@ -1474,8 +1509,8 @@ of the same name replaces a built-in scene.</p>
 <span class="w">  </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Agents</span>
 </code></pre></div>
 <p>Each scene of panels has a head in the style of the LaTeX package
-classicthesis: a running head top right, by default the date, and the
-number and the title of the scene as <code>chapter.layout</code> sets. The panels
+classicthesis: the running head in the header (see the regions below),
+and the number and the title of the scene as <code>chapter.layout</code> sets. The panels
 share the text block, one column of <code>page.measure</code> per column of the
 grid. A line <code>TIME&lt;tab&gt;TEXT</code> puts the time in the margin column left of
 the text, flush right, and the text wraps under it. A panel names the
@@ -1518,6 +1553,26 @@ and <code>note_style</code>; each takes a <code>base</code> (by default <code>bo
 <td><code>app.open</code></td>
 <td><code>command</code>: a shell command that starts in a scene of its own</td>
 </tr>
+<tr>
+<td><code>region.list</code></td>
+<td>none; answers the current <code>scene</code>, each region with <code>shown</code>, <code>visible</code> and its <code>contents</code>, and each content with its <code>kind</code>, <code>title</code>, <code>text</code> and whether its app runs</td>
+</tr>
+<tr>
+<td><code>region.toggle</code></td>
+<td><code>region</code> and an optional <code>shown</code>; without it the region flips. Answers <code>shown</code></td>
+</tr>
+<tr>
+<td><code>region.put</code></td>
+<td><code>content</code>, <code>region</code> and an optional <code>slot</code>: the content goes there over the rules, until the next start. Without <code>region</code> the content follows the rules again</td>
+</tr>
+<tr>
+<td><code>content.set</code></td>
+<td><code>content</code>, <code>lines</code> and an optional <code>title</code> of a text content</td>
+</tr>
+<tr>
+<td><code>content.add</code></td>
+<td><code>content</code> and <code>line</code>: adds a line to a text content, such as a note; the oldest go after 12 lines</td>
+</tr>
 </tbody>
 </table>
 <p>New text writes itself, as Write of manim: a soft front draws the
@@ -1550,10 +1605,146 @@ hand apply with <code>settings.reload</code>:</p>
   <code>gap</code>, in em of <code>scale.base</code>.</li>
 <li><code>write</code>: <code>enabled</code> (default <code>true</code>) and <code>duration_ms</code> (default 900).</li>
 <li><code>default_scene</code>, and the <code>bindings</code> with the actions <code>next_scene</code>,
-  <code>previous_scene</code>, <code>scene: NAME</code> and <code>run: COMMAND</code>.</li>
+  <code>previous_scene</code>, <code>scene: NAME</code>, <code>run: COMMAND</code> and <code>toggle: REGION</code>.</li>
+<li><code>regions</code>, <code>contents</code>, <code>rules</code>, <code>preset</code> and <code>presets</code>: see below.</li>
 </ul>
-<p>The HUD hides over an app unless its <code>state</code> is set.
-<code>chora-mc --print-config</code> prints the default. An option that the file
+<h3 id="regions">Regions<a class="headerlink" href="#regions" title="Permanent link">&para;</a></h3>
+<p>The regions around the page follow the Emacs package
+<a href="https://github.com/MArpogaus/auto-side-windows">auto-side-windows</a>: rules
+put each content into a region and a slot, and a key shows or hides a
+region. The page itself never moves when a region shows.</p>
+<div class="highlight"><pre><span></span><code> ______________________________________________________
+|  header:  1  AGENDA       LISTENING   FRIDAY 16:08   |
+|        |                                  |          |
+|  left  |  margin   the page of the scene  |  right:  |
+|        |                                  |  NOTES   |
+|      __|__________________________________|__        |
+|     |  drawer: a docked terminal (foot)     |       |
+|     |_______________________________________|       |
+|  footer:  words of the agent          15:15 Call    |
+|______________________________________________________|
+</code></pre></div>
+<ul>
+<li><code>header</code> and <code>footer</code> are lines over and under the text block, each
+  <code>size</code> lines of the baseline grid high. Their contents stand side by
+  side: a slot below 0 goes left, 0 in the middle, above 0 right. The
+  right end keeps its place, the left end comes next, and a text that
+  does not fit ends in an ellipsis.</li>
+<li><code>left</code> and <code>right</code> are columns beside the page, <code>size</code> em wide, their
+  contents one under the other with a title in the style <code>running_head</code>.
+  The page leaves room for a side that has contents, so that its text
+  never moves; where both sides would leave the text less than three
+  quarters of its measure, the sides do not show.</li>
+<li><code>drawer</code> is a sheet of <code>size</code> lines over the bottom of the page, with a
+  hairline above it, for a docked app.</li>
+</ul>
+<p>A region shows only with something in it. Whether it shows comes from a
+toggle, else from the <code>regions</code> of the scene file (for example
+<code>regions: {right: false}</code>), else from the preset, else from <code>shown</code> in
+<code>regions</code>. Over an app, the left and the right side show only after a
+toggle, and the app window leaves the header, the footer, the drawer and
+a shown side free. A toggle stays for all scenes.</p>
+<p>The <code>contents</code> are named. Their <code>kind</code> is one of:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>head</code></td>
+<td>the running head of the scene: <code>chapter.running_head</code>, else its number and title; the name of an app</td>
+</tr>
+<tr>
+<td><code>clock</code></td>
+<td>the time as <code>date</code> formats it with <code>format</code>, each minute anew</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td>the <code>state</code> of <code>hud.set</code> and <code>hud.say</code>, in the accent color</td>
+</tr>
+<tr>
+<td><code>hud</code></td>
+<td>the <code>text</code> of <code>hud.set</code> and <code>hud.say</code></td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td>a <code>title</code> and <code>lines</code> that <code>content.set</code> and <code>content.add</code> change</td>
+</tr>
+<tr>
+<td><code>app</code></td>
+<td>a docked <code>command</code>; <code>{NAME}</code> in it is the color NAME of the theme as RRGGBB</td>
+</tr>
+</tbody>
+</table>
+<p>Each content may set a <code>style</code>. The <code>rules</code> are a list, and the first
+rule that matches a content wins. A rule names a <code>content</code> or a <code>kind</code>,
+optionally the <code>scenes</code> by name or <code>@app</code> and <code>@page</code>, and the <code>region</code>
+and <code>slot</code>. A rule cannot put an app into a line.</p>
+<p><code>toggle: REGION</code> as a binding shows or hides a region. A region with a
+docked app works as a quake terminal: the first press starts the app and
+gives it the keyboard, a press while the app has no keyboard gives it
+back to it, and the next press hides the region and gives the keyboard
+back to the scene. When the app ends, its region hides. A drawer that a
+preset or a scene shows starts its app when the settings load.</p>
+<p>The default bindings are <code>Super+Return</code> for the drawer, <code>Super+n</code> for the
+right side, and <code>Super+Up</code> and <code>Super+Down</code> for the header and the
+footer.</p>
+<p>The default <code>desk</code> setup: the header shows the running head left, and
+the state of the agent and the clock right; the footer shows the words
+of the agent left and the next entry of the agenda right (the collector
+fills the content <code>next</code>); the right side shows the notes, which an agent
+fills with <code>content.add</code>; <code>Super+Return</code> opens <code>foot</code> in the drawer in the
+colors of the theme. Over an app, the words of the agent move into the
+middle of the header.</p>
+<p><code>preset</code> picks an arrangement of <code>presets</code>. A preset sets which regions
+show in <code>shown</code> and has its own <code>rules</code>; without rules, those of the
+settings apply:</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Arrangement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>quiet</code></td>
+<td>only the header: the running head, the words and the state of the agent, the time</td>
+</tr>
+<tr>
+<td><code>desk</code></td>
+<td>the default described above</td>
+</tr>
+<tr>
+<td><code>studio</code></td>
+<td>an outline and the notes in the left side, a terminal in the drawer that starts at once</td>
+</tr>
+<tr>
+<td><code>book</code></td>
+<td>the running head and the date above, the words of the agent, the time as a folio and the state below, the notes in the margin</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/chora-mc.yaml</span>
+<span class="nt">preset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">desk</span><span class="w">              </span><span class="c1"># desk has no rules of its own</span>
+<span class="nt">contents</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">todo</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="nv">text</span><span class="p p-Indicator">,</span><span class="nt"> title</span><span class="p">:</span><span class="w"> </span><span class="nv">Today</span><span class="p p-Indicator">}</span>
+<span class="nt">rules</span><span class="p">:</span><span class="w">                    </span><span class="c1"># the list replaces the default rules</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">content</span><span class="p">:</span><span class="w"> </span><span class="nv">head</span><span class="p p-Indicator">,</span><span class="nt"> region</span><span class="p">:</span><span class="w"> </span><span class="nv">header</span><span class="p p-Indicator">,</span><span class="nt"> slot</span><span class="p">:</span><span class="w"> </span><span class="nv">-1</span><span class="p p-Indicator">}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">content</span><span class="p">:</span><span class="w"> </span><span class="nv">clock</span><span class="p p-Indicator">,</span><span class="nt"> region</span><span class="p">:</span><span class="w"> </span><span class="nv">header</span><span class="p p-Indicator">,</span><span class="nt"> slot</span><span class="p">:</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">content</span><span class="p">:</span><span class="w"> </span><span class="nv">hud</span><span class="p p-Indicator">,</span><span class="nt"> region</span><span class="p">:</span><span class="w"> </span><span class="nv">footer</span><span class="p p-Indicator">,</span><span class="nt"> slot</span><span class="p">:</span><span class="w"> </span><span class="nv">-1</span><span class="p p-Indicator">}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">content</span><span class="p">:</span><span class="w"> </span><span class="nv">todo</span><span class="p p-Indicator">,</span><span class="nt"> scenes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">'@page'</span><span class="p p-Indicator">],</span><span class="nt"> region</span><span class="p">:</span><span class="w"> </span><span class="nv">left</span><span class="p p-Indicator">}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">content</span><span class="p">:</span><span class="w"> </span><span class="nv">notes</span><span class="p p-Indicator">,</span><span class="nt"> region</span><span class="p">:</span><span class="w"> </span><span class="nv">right</span><span class="p p-Indicator">}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="nv">app</span><span class="p p-Indicator">,</span><span class="nt"> region</span><span class="p">:</span><span class="w"> </span><span class="nv">drawer</span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>choractl<span class="w"> </span>call<span class="w"> </span>mc<span class="w"> </span>content.add<span class="w"> </span><span class="s1">'{"content": "notes", "line": "Call Lena"}'</span>
+choractl<span class="w"> </span>call<span class="w"> </span>mc<span class="w"> </span>region.toggle<span class="w"> </span><span class="s1">'{"region": "drawer"}'</span>
+choractl<span class="w"> </span>call<span class="w"> </span>mc<span class="w"> </span>region.put<span class="w"> </span><span class="s1">'{"content": "notes", "region": "left"}'</span>
+</code></pre></div>
+<p><code>chora-mc --print-config</code> prints the default. An option that the file
 leaves out takes its default. The collector
 <code>plugins/chora-mc/collectors/agenda.sh</code> puts the org agenda of today into
 the scene <code>agenda</code>, with <code>emacs --batch</code>: the entries with a time, and the
