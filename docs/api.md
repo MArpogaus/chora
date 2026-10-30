@@ -922,6 +922,10 @@ example in the `.mcp.json` of Claude Code:
 {"mcpServers": {"chora": {"command": "choractl", "args": ["--name", "agent", "mcp"]}}}
 ```
 
+`choractl mcp` connects with `keep_nodes`, so the nodes of the agent stay
+after the server stops. After a restart, the agent removes its own old
+nodes that it does not need (D61).
+
 | Tool | Purpose |
 |------|---------|
 | `describe_screen` | a screenshot of an output, at most 1280 pixels a side by default, and in words: the outputs, the windows with their positions in scene coordinates and sizes, and the plugins with their methods |
