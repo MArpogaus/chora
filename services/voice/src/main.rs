@@ -6,6 +6,7 @@ mod asr;
 mod audio;
 mod chat;
 mod client;
+mod coder;
 mod config;
 mod core;
 mod earcon;
@@ -172,16 +173,19 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     log::info(&format!("settings: {}", settings.file().display()));
     let vad = Vad::new().map_err(|e| format!("the VAD model: {e}"))?;
     let net = tokio::runtime::Runtime::new().map_err(|e| format!("tokio: {e}"))?;
+    let (tx, rx) = mpsc::channel();
     let mcp = mcp_name(&name);
-    let tools = Tools::chora(&config, &mcp);
+    let mut tools = Tools::chora(&config, &mcp);
+    let coder = coder::Coder::new(config.coder_cmd.clone(), coder::data_dir(), tx.clone());
+    tools.coder = Some(coder.clone());
     let chat = net.block_on(Chat::start(
         config.clone(),
         mcp,
         tools,
         chat::history_file(),
     ))?;
-    let (tx, rx) = mpsc::channel();
     let mut agent = Agent::new(config.clone(), chat, net, tx.clone());
+    agent.coder = Some(coder);
     agent.warm();
     agent.mic = Some(Mic::start(
         config.capture_cmd,
@@ -212,9 +216,11 @@ struct Agent {
     /// The reply in progress: the control of its speech, and its stop
     /// with the words that played.
     reply: Option<(UnboundedSender<Control>, oneshot::Sender<String>)>,
-    /// The reports to chora-mc, and the last agent report.
+    /// The reports to chora-mc, and the last reports of the agent and
+    /// of its coder.
     mc: Option<mpsc::Sender<mc::Report>>,
-    reported: serde_json::Value,
+    reported: [Option<serde_json::Value>; 2],
+    coder: Option<coder::Coder>,
 }
 
 impl Agent {
@@ -235,7 +241,8 @@ impl Agent {
             chat: Arc::new(tokio::sync::Mutex::new(chat)),
             reply: None,
             mc: None,
-            reported: serde_json::Value::Null,
+            reported: [None, None],
+            coder: None,
         }
     }
 
@@ -253,10 +260,14 @@ impl Agent {
             self.effect(effect)?;
         }
         if let Some(mc) = &self.mc {
-            let report = self.core.agent();
-            if report != self.reported {
-                let _ = mc.send(mc::Report::Agent(report.clone()));
-                self.reported = report;
+            let reports = [Some(self.core.agent()), self.core.coder()];
+            for (report, reported) in reports.into_iter().zip(&mut self.reported) {
+                if let Some(report) = report
+                    && Some(&report) != reported.as_ref()
+                {
+                    let _ = mc.send(mc::Report::Agent(report.clone()));
+                    *reported = Some(report);
+                }
             }
         }
         Ok(())
@@ -340,12 +351,7 @@ impl Agent {
                     self.transcribe(turn, true, pcm);
                 }
             }
-            Effect::Ask {
-                reply,
-                text,
-                speak,
-                ended,
-            } => self.ask(reply, text, speak, ended),
+            ask @ Effect::Ask { .. } => self.ask(ask),
             Effect::Stop(played) => {
                 if let Some((_, stop)) = self.reply.take() {
                     let _ = stop.send(played);
@@ -357,7 +363,7 @@ impl Agent {
                     let _ = speech.send(control);
                 }
             }
-            Effect::StopCode => {}
+            Effect::StopCode => self.stop_code(),
             Effect::Say { text, at, len } => {
                 if let Some(mc) = &self.mc {
                     let _ = mc.send(mc::Report::Say { text, at, len });
@@ -370,9 +376,19 @@ impl Agent {
 }
 
 impl Agent {
-    /// Starts reply `id` to `text`; its events go to the core. A stop
-    /// ends the turn with the note of the words that played.
-    fn ask(&mut self, id: u64, text: String, speak: bool, ended: std::time::Instant) {
+    /// Starts the reply of an `Ask` effect; its events go to the core. A
+    /// stop ends the turn with the note of the words that played.
+    fn ask(&mut self, ask: Effect) {
+        let Effect::Ask {
+            reply: id,
+            text,
+            speak,
+            ended,
+            say,
+        } = ask
+        else {
+            return;
+        };
         let (chat, tx) = (self.chat.clone(), self.tx.clone());
         let config = self.core.config().clone();
         let speaker = speak.then(|| self.speaker.clone());
@@ -387,7 +403,7 @@ impl Agent {
             let reply = speech::reply(
                 &mut chat,
                 &config,
-                &text,
+                (&text, say),
                 speaker.as_ref().map(|s| (s, control)),
                 &on,
             );
@@ -417,6 +433,14 @@ impl Agent {
             on(Reply::Done(report.reply));
         });
         self.reply = Some((speech, stop));
+    }
+
+    fn stop_code(&self) {
+        let said = self.coder.as_ref().map(coder::Coder::cancel);
+        log::info(&format!(
+            "code cancel: {}",
+            said.as_deref().unwrap_or("no coder")
+        ));
     }
 
     /// Sends `pcm` to the ASR; the text comes back as an input.

@@ -20,7 +20,7 @@ const MC: &str = "mc";
 const RETRY: Duration = Duration::from_secs(5);
 
 pub enum Report {
-    /// The parameters of `agent.set` without the name.
+    /// The parameters of `agent.set`; without a name, those of the agent.
     Agent(Value),
     /// A sentence that plays from `at` for `len`.
     Say {
@@ -78,7 +78,10 @@ impl Reporter {
             };
             match report {
                 Some(Report::Agent(mut params)) => {
-                    params["name"] = self.agent.clone().into();
+                    // A sub-agent, such as the coder, has its own name.
+                    if params.get("name").is_none() {
+                        params["name"] = self.agent.clone().into();
+                    }
                     self.call("agent.set", params);
                 }
                 Some(Report::Say { text, at, len }) => says.push_back((at, text, len)),

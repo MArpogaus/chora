@@ -17,7 +17,7 @@ use rmcp::{
 };
 use serde_json::{Value, json};
 
-use crate::config::Confirm;
+use crate::{coder::Coder, config::Confirm};
 
 pub type Service = RunningService<RoleClient, ()>;
 type Connecting = Pin<Box<dyn Future<Output = Result<Service, String>> + Send>>;
@@ -41,6 +41,8 @@ pub struct Tools {
     pub vision: bool,
     backoff: Duration,
     retry_at: Instant,
+    /// The coding tools, when `coder_cmd` has a harness.
+    pub coder: Option<Coder>,
 }
 
 /// `CMD --name NAME mcp` as a child process; its stderr goes to ours.
@@ -81,6 +83,7 @@ impl Tools {
             vision: false,
             backoff: Duration::ZERO,
             retry_at: Instant::now(),
+            coder: None,
         }
     }
 
@@ -90,8 +93,24 @@ impl Tools {
 
     /// Connects again after the child ended, at most once per backoff
     /// (0.5 s to 5 s), and loads the tools. The tools of the last session
-    /// stay while chora is away.
+    /// stay while chora is away. The coding tools come last.
     pub async fn refresh(&mut self) {
+        self.load().await;
+        let coder = self.coder.as_ref().map(Coder::specs).unwrap_or_default();
+        self.specs.retain(|s| {
+            !crate::coder::TOOLS.contains(&s["function"]["name"].as_str().unwrap_or_default())
+        });
+        for spec in coder {
+            let name = spec["function"]["name"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned();
+            self.names.insert(name.clone(), name);
+            self.specs.push(spec);
+        }
+    }
+
+    async fn load(&mut self) {
         if self.connected().is_none() {
             if Instant::now() < self.retry_at {
                 return;
@@ -153,6 +172,11 @@ impl Tools {
         let Value::Object(args) = args.clone() else {
             return "error: the arguments are no JSON object".into();
         };
+        if let Some(coder) = &self.coder
+            && crate::coder::TOOLS.contains(&name.as_str())
+        {
+            return coder.call(&name, &Value::Object(args));
+        }
         self.refresh().await;
         let Some(service) = self.connected() else {
             return "error: chora is not connected".into();
@@ -399,6 +423,33 @@ pub mod tests {
             .await;
         assert_eq!(answer, r#"{"layout":"stack"}"#);
         assert_eq!(tools.call("nope", &json!({})).await, "error: no tool nope");
+    }
+
+    #[tokio::test]
+    async fn the_coding_tools_come_with_a_harness_and_ask_by_their_rule() {
+        let (mut tools, _) = fake(0);
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let coder = Coder::new(
+            Vec::new(),
+            std::env::temp_dir().join("chora-voice-none"),
+            tx,
+        );
+        tools.coder = Some(coder.clone());
+        tools.refresh().await;
+        assert_eq!(tools.specs.len(), 5, "no harness, no coding tools");
+        coder.set_cmd(vec!["true".into()]);
+        tools.refresh().await;
+        tools.refresh().await;
+        let names: Vec<_> = tools.specs[5..]
+            .iter()
+            .map(|s| s["function"]["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(names, crate::coder::TOOLS, "once each, after the others");
+        let status = tools.call("code_status", &json!({})).await;
+        assert_eq!(status, "no coding task runs");
+        let rules = Config::default().confirm;
+        let name = tools.mcp_name("code_task").unwrap();
+        assert!(rule(&rules, name, &json!({"task": "x"})).is_some());
     }
 
     #[tokio::test]

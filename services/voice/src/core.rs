@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 
 use crate::{
     asr::Transcript,
-    chat,
+    chat, coder,
     config::Config,
     earcon::Earcon,
     gate::{self, BargeIn, ECHO_WINDOW, FRAME_MS, Frame, Gate},
@@ -23,8 +23,7 @@ use crate::{
     words::{self, Word},
 };
 
-/// The states of docs/voice.md section 3; `working` comes with the
-/// coder (WP7).
+/// The states of docs/voice.md section 3.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum State {
@@ -36,6 +35,8 @@ pub enum State {
     Tool,
     Confirming,
     Speaking,
+    /// Listening while a coding task runs.
+    Working,
 }
 
 impl State {
@@ -43,7 +44,7 @@ impl State {
     pub fn agent(self) -> &'static str {
         match self {
             Self::Sleeping => "asleep",
-            Self::Listening | Self::Recording => "listening",
+            Self::Listening | Self::Recording | Self::Working => "listening",
             Self::Transcribing | Self::Thinking => "thinking",
             Self::Tool => "working",
             Self::Confirming => "question",
@@ -109,6 +110,8 @@ pub enum Input {
     },
     /// The reply with this number.
     Reply(u64, Reply),
+    /// The coding task.
+    Code(coder::Event),
 }
 
 /// What the core asks the other actors to do.
@@ -132,11 +135,14 @@ pub enum Effect {
         awake: bool,
     },
     /// Starts reply `reply` to a text; `ended` is the end of the speech.
+    /// With `say`, the reply is the text itself, without the LLM: the
+    /// result of a coding task.
     Ask {
         reply: u64,
         text: String,
         speak: bool,
         ended: Instant,
+        say: bool,
     },
     /// Stops the reply in progress and its sound; the words that played
     /// go into its note in the history.
@@ -232,6 +238,12 @@ pub struct Core {
     recorded: u32,
     /// The mic failed; the error earcon sounds once until it works again.
     mic_down: bool,
+    /// The coding task: its text, its state for chora-mc (`working`,
+    /// `done` or `blocked`; empty before the first task) and its last
+    /// step or result.
+    code: (String, &'static str, String),
+    /// Texts to say when the agent listens: the coding results.
+    notes: VecDeque<String>,
 }
 
 impl Core {
@@ -267,6 +279,8 @@ impl Core {
             ended: now,
             recorded: 0,
             mic_down: false,
+            code: (String::new(), "", String::new()),
+            notes: VecDeque::new(),
         }
     }
 
@@ -288,6 +302,14 @@ impl Core {
         })
     }
 
+    /// The parameters of `mc agent.set` for the coding task as the
+    /// sub-agent `coder`; none before the first task.
+    pub fn coder(&self) -> Option<Value> {
+        let (task, state, said) = &self.code;
+        (!state.is_empty())
+            .then(|| json!({"name": "coder", "state": state, "task": task, "said": said}))
+    }
+
     /// The state record of `voice.state` (docs/voice.md section 10).
     pub fn record(&self) -> Value {
         json!({
@@ -300,6 +322,7 @@ impl Core {
             "last_transcript": self.last_transcript,
             "last_reply": self.last_reply,
             "queued": self.queue.len(),
+            "coder": self.coder(),
         })
     }
 
@@ -326,6 +349,8 @@ impl Core {
             } else {
                 self.doing
             }
+        } else if self.awake && self.code.1 == "working" {
+            State::Working
         } else if self.awake {
             State::Listening
         } else {
@@ -373,6 +398,7 @@ impl Core {
                 result,
             } => self.transcript(turn, interim, result),
             Input::Reply(reply, event) => self.reply(reply, event),
+            Input::Code(event) => self.code(event),
         };
         // A barge-in that came to nothing: the speech goes on.
         if self.paused && self.gate.pcm().is_none() && self.pending.is_empty() {
@@ -380,7 +406,29 @@ impl Core {
             effects.push(Effect::Speech(Control::Resume { skip: false }));
         }
         self.refresh();
+        // A coding result waits for the agent to listen: it cuts no
+        // speech of the user.
+        if matches!(self.state, State::Listening | State::Working)
+            && let Some(note) = self.notes.pop_front()
+        {
+            effects.extend(self.ask(note, true));
+            self.refresh();
+        }
         effects
+    }
+
+    fn code(&mut self, event: coder::Event) -> Vec<Effect> {
+        match event {
+            coder::Event::Started(task) => self.code = (task, "working", String::new()),
+            coder::Event::Step(step) => self.code.2 = step,
+            coder::Event::Done { ok, said } => {
+                self.code.1 = if ok { "done" } else { "blocked" };
+                self.code.2.clone_from(&said);
+                self.notes.push_back(said);
+            }
+        }
+        self.seq += 1;
+        Vec::new()
     }
 
     /// The push-to-talk key: down stops a reply and records.
@@ -409,15 +457,22 @@ impl Core {
             .collect()
     }
 
-    /// Starts a reply to the queued texts and `text`.
-    fn ask(&mut self, text: String) -> Vec<Effect> {
-        if !text.is_empty() {
-            self.queue.push(text);
-        }
-        let text = std::mem::take(&mut self.queue).join(" ");
+    /// Starts a reply to the queued texts and `text`; with `say`, a
+    /// reply that says `text`.
+    fn ask(&mut self, text: String, say: bool) -> Vec<Effect> {
+        let text = if say {
+            text
+        } else {
+            if !text.is_empty() {
+                self.queue.push(text);
+            }
+            std::mem::take(&mut self.queue).join(" ")
+        };
         self.replies += 1;
         self.asking = Some(self.replies);
-        self.request.clone_from(&text);
+        if !say {
+            self.request.clone_from(&text);
+        }
         self.doing = State::Thinking;
         self.unclear = 0;
         self.played.clear();
@@ -427,6 +482,7 @@ impl Core {
             text,
             speak: !self.muted.speaker,
             ended: self.ended,
+            say,
         }]
     }
 
@@ -493,7 +549,7 @@ impl Core {
                 self.played.clear();
                 self.seq += 1;
                 if !self.queue.is_empty() {
-                    return self.ask(String::new());
+                    return self.ask(String::new(), false);
                 }
             }
         }
@@ -579,13 +635,9 @@ impl Core {
             };
         }
         match word {
-            Some(Word::CodeCancel) => {
-                // ponytail: no coder before WP7; the word only logs.
-                crate::log::info("no coding task runs");
-                std::iter::once(Effect::StopCode)
-                    .chain(self.earcon(Earcon::Cancel))
-                    .collect()
-            }
+            Some(Word::CodeCancel) => std::iter::once(Effect::StopCode)
+                .chain(self.earcon(Earcon::Cancel))
+                .collect(),
             Some(Word::Cancel) if self.asking.is_some() => self.stop(Some(Earcon::Cancel)),
             Some(Word::Cancel) => {
                 self.queue.clear();
@@ -623,13 +675,13 @@ impl Core {
             return Vec::new();
         }
         if self.asking.is_none() {
-            return self.ask(text);
+            return self.ask(text, false);
         }
         if self.paused {
             // A barge-in with new words: the reply ends, the words start
             // the next one.
             let mut effects = self.stop(None);
-            effects.extend(self.ask(text));
+            effects.extend(self.ask(text, false));
             return effects;
         }
         crate::log::info(&format!("queued: {text:?}"));
@@ -863,6 +915,45 @@ mod tests {
         let effects = say(&mut core, "hallo");
         assert_eq!(asks(&effects), [(1, "hallo")]);
         core
+    }
+
+    /// docs/voice.md section 3: `working` while a coding task runs.
+    #[test]
+    fn a_coding_task_shows_as_working_and_as_the_agent_coder() {
+        let mut core = Core::new(Config::default());
+        assert_eq!(core.coder(), None);
+        core.handle(Input::Code(coder::Event::Started("Baue es.".into())));
+        assert_eq!(core.state(), State::Working);
+        core.handle(Input::Code(coder::Event::Step("Edit a.rs".into())));
+        assert_eq!(
+            core.record()["coder"],
+            json!({"name": "coder", "state": "working", "task": "Baue es.", "said": "Edit a.rs"})
+        );
+    }
+
+    /// The result of a coding task waits until the user and the reply
+    /// are done, then is said.
+    #[test]
+    fn a_coding_result_waits_for_the_agent_to_listen() {
+        let mut core = Core::new(Config::default());
+        speak(&mut core, 10);
+        let done = coder::Event::Done {
+            ok: true,
+            said: "Fertig.".into(),
+        };
+        assert!(no_ask(&core.handle(Input::Code(done))), "no cut speech");
+        quiet(&mut core, 26);
+        let effects = core.handle(text(1, false, Ok("Wie spät ist es?")));
+        assert_eq!(asks(&effects), [(1, "Wie spät ist es?")]);
+        let effects = core.handle(Input::Reply(1, Reply::Done("Zehn.".into())));
+        assert!(
+            matches!(&effects[..], [Effect::Ask { reply: 2, text, say: true, .. }] if text == "Fertig."),
+            "{effects:?}"
+        );
+        assert_eq!(core.coder().unwrap()["state"], "done");
+        core.handle(Input::Reply(2, Reply::Done("Fertig.".into())));
+        assert_eq!(core.state(), State::Listening);
+        assert_eq!(core.record()["last_reply"], "Fertig.");
     }
 
     #[test]

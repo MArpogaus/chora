@@ -130,7 +130,7 @@ pub fn ask(config: &Config, name: &str, text: &str, speak: bool, yes: bool) -> R
             Reply::Said { text, .. } => println!("{:>6}ms say {text:?}", at()),
             _ => {}
         };
-        let (report, spoken) = speech::reply(&mut chat, config, text, speaker.as_ref().map(|s| (s, control)), &on).await;
+        let (report, spoken) = speech::reply(&mut chat, config, (text, false), speaker.as_ref().map(|s| (s, control)), &on).await;
         let ms = |d: Option<Duration>| d.map_or("-".into(), |d| format!("{}ms", d.as_millis()));
         println!("reply={:?}", report.reply);
         println!(

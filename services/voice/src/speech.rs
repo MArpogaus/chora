@@ -350,11 +350,12 @@ pub async fn speak(
 /// Runs a turn of `chat` and speaks its sentences and confirmation
 /// prompts through the speaker of `voice`, none without it; the control
 /// of `voice` pauses and resumes the speech. `on` gets the events for
-/// the core.
+/// the core. With `say`, the turn says `text` without the LLM, and the
+/// history gets it as an answer.
 pub async fn reply(
     chat: &mut Chat,
     config: &Config,
-    text: &str,
+    (text, only_say): (&str, bool),
     voice: Option<(&Speaker, UnboundedReceiver<Control>)>,
     on: &(impl Fn(Reply) + Sync),
 ) -> (Report, Spoken) {
@@ -370,6 +371,9 @@ pub async fn reply(
                 let _ = tx.send(sentence);
             }
         };
+        if only_say {
+            return chat.said(text, say);
+        }
         chat.turn(text, &|event| match event {
             Event::Sentence(sentence) => say(sentence),
             Event::Confirm { prompt, answer } => {
@@ -586,8 +590,14 @@ mod tests {
             events.lock().unwrap().push(line);
         };
         let (_control, nothing) = tokio::sync::mpsc::unbounded_channel();
-        let (report, spoken) =
-            reply(&mut chat, &config, "Echo.", Some((&speaker, nothing)), &on).await;
+        let (report, spoken) = reply(
+            &mut chat,
+            &config,
+            ("Echo.", false),
+            Some((&speaker, nothing)),
+            &on,
+        )
+        .await;
         assert_eq!(report.reply, "Gut. Fertig.");
         assert_eq!((spoken.sentences, spoken.errors), (3, 0));
         let texts: Vec<_> = tts

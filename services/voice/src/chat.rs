@@ -55,6 +55,16 @@ const LAST_ROUND: &str = "(The agent: you reached the limit of tool calls for th
     Call no tool. In the language of the user, say in one or two short sentences what you did \
     and what is left.)";
 
+/// The part of the prompt for the coding tools, with a `coder_cmd`.
+const CODING: &str = "# Coding tasks\n\n\
+- Hand a task that needs code, a program or many steps to code_task. It runs in the \
+  background in a clone of a project of list_projects, or in an empty repository, and you \
+  hear its result when it ends.\n\
+- Say the task in full: the coder hears nothing else. Ask it to commit its work, or the \
+  clone keeps it uncommitted. One task runs at a time; code_status says how far it is, \
+  code_cancel stops it.\n\
+- When the user asks about a spoken coding result, call code_status.";
+
 /// The characters that a picture counts for in the estimate, instead of
 /// its base64 text.
 const PICTURE_CHARS: usize = 4000;
@@ -183,6 +193,9 @@ impl Chat {
             }
         };
         self.llm = Llm::new(&self.config);
+        if let Some(coder) = &self.tools.coder {
+            coder.set_cmd(self.config.coder_cmd.clone());
+        }
         self.tools.timeout = Duration::from_secs(self.config.tool_timeout_s.into());
         self.tools.skipped.clone_from(&self.config.skipped_tools);
         if self.config.context_tokens > 0 {
@@ -225,6 +238,9 @@ impl Chat {
             };
             let text = section(&text, heading).ok_or(format!("context_docs: no {entry}"))?;
             parts.push(format!("# File {name}\n\n{}", text.trim()));
+        }
+        if !config.coder_cmd.is_empty() {
+            parts.push(CODING.into());
         }
         if let Ok(text) =
             chora_kit::read_text(&crate::expand(&config.prompt_file), chora_kit::MAX_TEXT)
@@ -292,6 +308,26 @@ impl Chat {
         }
         self.open = None;
         report
+    }
+
+    /// Says a text of the agent's own, such as the result of a coding
+    /// task, sentence by sentence through `say`, and puts it into the
+    /// history as an answer.
+    pub fn said(&mut self, text: &str, say: impl FnMut(String)) -> Report {
+        let mut splitter = Splitter::default();
+        let sentences = splitter.push(text);
+        sentences.into_iter().chain(splitter.finish()).for_each(say);
+        if self.open.is_some() {
+            self.cancelled("");
+        }
+        self.answer = Some(self.history.len());
+        self.history
+            .push(json!({"role": "assistant", "content": text}));
+        Report {
+            reply: text.to_owned(),
+            outcome: "said",
+            ..Report::default()
+        }
     }
 
     /// Closes the last turn, which the user stopped: the words that
