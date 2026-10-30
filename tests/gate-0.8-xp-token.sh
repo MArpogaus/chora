@@ -2,7 +2,7 @@
 # Gate check 3 of the 0.8 milestone: the start menu of chora-xp starts
 # Thunar, and the `surface.created` event of its window carries the
 # activation token of `choractl run` (D42). Not tests/gate-0.8-3.sh, which
-# is a check of the 0.7 gate. CI does not run this script yet.
+# is a check of the 0.7 gate. CI runs it after tests/xp.sh.
 #
 # Step 13 of tests/xp.sh records the events of the file manager in
 # OUT_DIR/fm-created.jsonl. This script reads that file, and runs
