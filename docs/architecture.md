@@ -175,7 +175,7 @@ only where its transform is a plain 2D one.
 The core asks each output for a frame once per refresh. It renders only
 when the damage tracker of Smithay reports damage. A layer counts as
 changed in every frame, so a scene with a layer renders in every frame.
-There is no direct scanout. Milestone 0.9 replaces this with a renderer
+There is no direct scanout. Milestone 0.10 replaces this with a renderer
 of chora that renders only on damage (D17, D24).
 
 A text node lays out and draws inside the core. cosmic-text shapes the
@@ -188,7 +188,7 @@ layout size and the raster of each physical scale.
 The cost of a frame grows with the number of visible nodes: a node is a
 draw call with its own texture, and software GL spends roughly 60 to
 140 µs on one. A headless session at 1280x800 on llvmpipe holds about
-250 animated nodes at 60 fps; the 0.9 renderer is what moves the
+250 animated nodes at 60 fps; the renderer of 0.10 moves the
 ceiling.
 
 ### IPC socket

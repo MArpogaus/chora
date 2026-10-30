@@ -45,21 +45,22 @@ tests and the review rounds.
 
 The basis is this repository: about 26,000 lines of Rust in 54 hours of
 calendar time. A rework of existing code costs more than new code. The
-table uses about 140 to 200 lines per agent hour for 0.6 to 0.9. The
-milestones 0.10 and 1.0 have hardware work and use about 80 to 125.
+table uses about 140 to 200 lines per agent hour for 0.6 to 0.8 and for
+0.10. The milestones 0.9 and 1.0 have hardware work and use about 80 to
+125.
 
-The user uses chora as the daily session from milestone 0.10. The
-gates of 0.10 and 1.0 measure that use, so they set the calendar time.
+The user uses chora as the daily session from milestone 0.9. The gates
+of 0.9 and 1.0 measure that use, so they set the calendar time.
 
 | Milestone | Rust lines | Agent hours | User hours | Calendar |
 |-----------|-----------:|------------:|-----------:|---------:|
 | 0.6 Foundation | 2,500 | 14 to 18 | 3 | 1 week |
 | 0.7 Identity, processes and read model basics | 3,000 | 16 to 20 | 3 | 1 to 2 weeks |
 | 0.8 Lean plugins and the agent API | open | open | open | open |
-| 0.9 Renderer | 7,000 | 40 to 50 | 6 | 3 weeks |
-| 0.10 Daily driver | 2,500 | 20 to 30 | 8 plus daily use | 3 weeks |
+| 0.9 Daily driver | 2,500 | 20 to 30 | 8 plus daily use | 3 weeks |
+| 0.10 Renderer | 7,000 | 40 to 50 | 6 | 3 weeks |
 | 1.0 Stable API | 1,500 | 12 to 16 | 4 plus daily use | 5 to 6 weeks |
-| **Total** | **21,100** | **125 to 164** | **27** | **15 to 17 weeks** |
+| **Total without 0.8** | **16,500** | **102 to 134** | **24** | **13 to 15 weeks** |
 
 The renderer has the largest risk. A fault on real hardware in 0.10 can
 add one to two weeks.
@@ -270,7 +271,48 @@ Gate:
     `v0.7.0-rc.3`.
 14. The voice milestone V2 succeeds in 18 of 20 tries.
 
-## 0.9: Renderer
+## 0.9: Daily driver
+
+**Goal:** the user works in chora every day on the reference hardware
+(D60).
+
+Scope:
+
+- The session starts through uwsm (D50). A flavor is a systemd target.
+- The tiling flavor: `chora-tiling` with waybar, fuzzel, mako, swaylock,
+  swayidle and kanshi (D51).
+- Input device settings through the API: tap, acceleration, natural
+  scroll, key repeat. A view sets them, so the core reads no file (D35).
+- Output hotplug, suspend and resume, lid switch, and the VT switch on the
+  reference hardware.
+- Screen sharing through `xdg-desktop-portal-wlr`, and X11 apps through
+  `xwayland-satellite`.
+- The install from the release RPM, layered on secureblue (D10, D14).
+- The stability bugs #14, #31, #32, #50, #57 and #60.
+- From the renderer: a render thread, and the watchdog in its own thread
+  with a heartbeat of the main loop (D23, #89, #35).
+
+Gate:
+
+1. The user works 10 working days in a row only in chora on the reference
+   hardware. `coredumpctl list chora` shows no entry, and the log shows no
+   emergency reset that the user did not start.
+2. A shader that never returns leaves the core answering on the IPC
+   socket.
+3. A main loop that blocks for 5 s triggers the watchdog. A test with a
+   debug hook checks it.
+4. A checklist on the reference hardware passes, with the log of each
+   step. An external monitor goes in and out 10 times, and the laptop
+   suspends and resumes 10 times. The user closes and opens the lid,
+   switches the VT, and locks and unlocks the session. A screen share in a
+   browser and an X11 app work.
+5. The `vkms` job covers hotplug of a second output.
+6. A view sets tap and key repeat, and a test shows that the core applies
+   them.
+7. The gate checks of the earlier milestones still hold, and the showroom CI
+   is green against the release candidate.
+
+## 0.10: Renderer
 
 **Goal:** the core renders only what changed, draws the full 4x4 model,
 and drives plugins with the frame clock (D17, D24).
@@ -296,13 +338,13 @@ Scope:
 - Transactions on disjoint surfaces do not wait for each other (D22).
 - Shader compile and capture encode run on worker threads, as the image
   decode does.
-- The watchdog runs in its own thread with a heartbeat of the main loop
-  (D23).
 - Debug counters for rendered frames and texture allocations, readable
   through the API.
 - fd passing for images and captures over the IPC socket (D54).
 - A measurement of the plugin round trip at 120 Hz decides on a private
   Wayland protocol for plugins (D54).
+- The bugs of the render quality: #34, #36, #37, #38, #46, #47, #48, #74,
+  #75, #76, #78 and #79.
 
 Gate:
 
@@ -318,54 +360,12 @@ Gate:
    first frame. A counter of the texture pool shows it.
 5. A client that delays its commit for 150 ms delays no transaction of
    another client. A unit test checks it.
-6. A main loop that blocks for 5 s triggers the watchdog. A test with a
-   debug hook checks it.
-7. The wobbly windows, the magic lamp and the cube of the showroom run on
+6. The wobbly windows, the magic lamp and the cube of the showroom run on
    frame events. At 60 Hz and at 120 Hz in CI, 99 percent of their frames
    are on time over 30 s.
-8. The decision on the plugin protocol is in the decision log, with the
+7. The decision on the plugin protocol is in the decision log, with the
    measurement.
-9. The gate checks of the earlier milestones still hold, and the showroom CI
-   is green against the release candidate.
-
-## 0.10: Daily driver
-
-**Goal:** the user works in chora every day on the reference hardware,
-and installs it from a package repository.
-
-Scope:
-
-- Packages through COPR with Packit and subpackages per plugin, and
-  PKGBUILDs in the AUR (D49). The release keeps its assets.
-- The image of `secureblue-images` installs chora from COPR.
-- The session starts through uwsm (D50). A flavor is a systemd target.
-- The tiling flavor: `chora-tiling` with waybar, fuzzel, mako, swaylock,
-  swayidle and kanshi (D51).
-- Input device settings through the API: tap, acceleration, natural
-  scroll, key repeat. A view sets them, so the core reads no file (D35).
-- Output hotplug, suspend and resume, lid switch, and the VT switch on the
-  reference hardware.
-- Screen sharing through `xdg-desktop-portal-wlr`, and X11 apps through
-  `xwayland-satellite`.
-
-Gate:
-
-1. The secureblue image builds with chora from COPR. `rpm-ostree upgrade`
-   on the reference hardware updates chora, and the login screen offers the
-   session.
-2. The user works 10 working days in a row only in chora on the reference
-   hardware. `coredumpctl list chora` shows no entry, and the log shows no
-   emergency reset that the user did not start.
-3. A checklist on the reference hardware passes, with the log of each
-   step. An external monitor goes in and out 10 times, and the laptop
-   suspends and resumes 10 times. The user closes and opens the lid,
-   switches the VT, and locks and unlocks the session. A screen share in a
-   browser and an X11 app work.
-4. The `vkms` job covers hotplug of a second output.
-5. The AUR packages build in CI.
-6. A view sets tap and key repeat, and a test shows that the core applies
-   them.
-7. The gate checks of the earlier milestones still hold, and the showroom CI
+8. The gate checks of the earlier milestones still hold, and the showroom CI
    is green against the release candidate.
 
 ## 1.0: Stable API
