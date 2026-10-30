@@ -38,6 +38,9 @@ jobs:
     # and of the revoke binding.
     - run: tests/gate-0.8-5.sh
     - run: tests/gate-0.8-8.sh
+    # The grep of gate check 1 of 0.8: plugins leave the connection to
+    # the runtime of chora-kit.
+    - run: tests/gate-0.8-plugin-runtime.sh
 
   # The minimum Rust version of Cargo.toml builds the workspace.
   msrv:
