@@ -115,8 +115,8 @@ chora, holding `PTT_KEY` (`Super+v`) also records, whatever the level.
 The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
 up, because chora reports the release with it. After a pause of
 `SILENCE_MS`, the agent loses the words until its first sound. A turn
-keeps the last `PREROLL_MS` (1000) of the mic before its start, also
-after a barge-in. To add
+by level or by barge-in keeps the last `PREROLL_MS` (1000) of the mic
+before its start. To add
 words, hold the key during the transcription, or raise `SILENCE_MS`. A
 key press after the transcription stops the reply. Before the first
 words of the LLM, it also withdraws the request. After them, the request
