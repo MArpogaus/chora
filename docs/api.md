@@ -139,7 +139,7 @@ path.
 |---------|---------|
 | `create` | create a group, rect, image, shader or text node under a parent |
 | `attach` | put a surface without an owner under a parent; the caller becomes its owner |
-| `update` | change node properties. An update of only opacity, effects and meta of a node of another client answers with `node.requested` to its owner (D58), if the owner subscribes to `node.requested`; else it fails as other changes of a foreign node do, so the change is not lost unseen. An update that mixes other props with them fails with an error that names the other props. |
+| `update` | change node properties. An update of only opacity, effects and meta of a node of another client answers with `node.requested` to its owner (D58), if the owner subscribes to `node.requested`; else it fails as other changes of a foreign node do, so the change is not lost unseen. An update that mixes other props with them fails with an error that names the other props. A confined client socket may send this request too. |
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
 | `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection (D55). |
@@ -173,7 +173,9 @@ runs from 0 to 1:
 ```yaml
 - update: {id: title, props: {effects: [{shader: /home/me/write.frag, uniforms: {progress: 0}}]}}
 - animate: {id: title, props: {effects: [{shader: /home/me/write.frag, uniforms: {progress: 1}}]}, duration: 900}
-``` The duration is in milliseconds, at
+```
+
+The duration is in milliseconds, at
 most one minute. A later `animate` or `update` of the node ends the
 animation where it is. The end sends `animation.done`.
 
@@ -741,7 +743,10 @@ plugins running.
 `choractl run [--] CMD ARGS...` starts a program outside the core. It
 asks the core for an activation token with `activation.token` and
 passes it to the program in `XDG_ACTIVATION_TOKEN`, and in
-`DESKTOP_STARTUP_ID` for GTK 3. It prints the pid, the unit and the token as one JSON line while the program runs.
+`DESKTOP_STARTUP_ID` for GTK 3. The children of the program inherit
+both variables unless the program removes them, as GTK does after it
+read the token. It prints the pid, the unit and the token as one
+JSON line while the program runs.
 
 - When `systemctl --user is-system-running` shows a state other than
   `offline`, a user manager runs. `systemd-run --user` then starts the
