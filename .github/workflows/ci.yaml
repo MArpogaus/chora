@@ -92,6 +92,8 @@ jobs:
     - run: tests/gate-0.8-7.sh
     - run: tests/gate-0.8-9.sh
     - run: tests/gate-0.8-10.sh
+    # Gate check 6 of the 0.8 gate itself (D62, #99).
+    - run: tests/gate-0.8-tiling-style.sh
     - if: failure()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
       with:
