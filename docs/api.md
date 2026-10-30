@@ -159,7 +159,20 @@ path.
 The core moves `transform`, `opacity`, `size` and `color` toward the
 targets along the curve: `linear` (the default), `ease_in`, `ease_out` or
 `ease_in_out`. The other properties change at the end, so this example
-fades the node out and then hides it. The duration is in milliseconds, at
+fades the node out and then hides it.
+
+`effects` in `animate` is the full list of the end. An effect of the
+list that has the same index and the same `shader` as the effect of the
+node now moves its numeric uniforms, a number or 2 to 4 numbers, toward
+the targets. All other changes, a new shader, a new uniform or a list of
+another length, come at the end. So a shader with a uniform `progress`
+runs from 0 to 1:
+
+<!-- parses: commands -->
+```yaml
+- update: {id: title, props: {effects: [{shader: /home/me/write.frag, uniforms: {progress: 0}}]}}
+- animate: {id: title, props: {effects: [{shader: /home/me/write.frag, uniforms: {progress: 1}}]}, duration: 900}
+``` The duration is in milliseconds, at
 most one minute. A later `animate` or `update` of the node ends the
 animation where it is. The end sends `animation.done`.
 
