@@ -39,6 +39,23 @@ pub enum Action {
     Run(String),
     /// Shows or hides a region; a docked app takes the focus first.
     Toggle(Region),
+    /// Shows a content alone in a region over any scene, or hides it.
+    Solo {
+        content: String,
+        region: Region,
+    },
+}
+
+/// How an agent of `agent.set` shows in a state.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct State {
+    pub sign: String,
+    /// A color of the theme by name.
+    pub color: String,
+    /// The words for the state in the agents scene; the name without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
 /// Light or dark.
@@ -247,6 +264,8 @@ pub struct Config {
     pub write: Write,
     /// The scene at the start.
     pub default_scene: String,
+    /// The states of the agents of `agent.set`, by name.
+    pub states: BTreeMap<String, State>,
     /// A binding and its action.
     pub bindings: BTreeMap<String, Action>,
     /// The regions around the page.
@@ -377,6 +396,12 @@ impl Settings for Config {
         if !(0.0..=10_000.0).contains(&self.write.duration_ms) {
             return Err("write.duration_ms: from 0 to 10000".into());
         }
+        for (name, state) in &self.states {
+            let colors = [&self.themes.light, &self.themes.dark];
+            if colors.iter().any(|c| !c.contains_key(&state.color)) {
+                return Err(format!("states.{name}: no color {}", state.color));
+            }
+        }
         let presets = (self.preset.as_str(), &self.presets);
         region::check(&self.regions, &self.contents, &self.rules, presets)?;
         let mut keys = BTreeMap::new();
@@ -385,6 +410,11 @@ impl Settings for Config {
             // Two spellings of one key would lose one grab at runtime.
             if let Some(other) = keys.insert(parsed.to_string(), binding) {
                 return Err(format!("{binding}: the same key as {other}"));
+            }
+            if let Action::Solo { content, region } = &self.bindings[binding] {
+                let found = (self.contents.get(content))
+                    .ok_or_else(|| format!("{binding}: no content {content}"))?;
+                region::put_check(found, *region).map_err(|e| format!("{binding}: {e}"))?;
             }
         }
         Ok(())
@@ -414,11 +444,11 @@ mod tests {
         assert!(parse::<Config>(&color).unwrap_err().contains("themes.dark"));
         let twice = format!("{DEFAULT}  super+a: next_scene\n");
         assert!(parse::<Config>(&twice).is_err());
-        let gone = DEFAULT.replace("color: accent", "color: blue");
+        let gone = DEFAULT.replace("color: accent", "color: purple");
         assert!(
             parse::<Config>(&gone)
                 .unwrap_err()
-                .contains("no color blue")
+                .contains("no color purple")
         );
     }
 

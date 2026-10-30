@@ -14,12 +14,20 @@ themes:
     muted: [0.50, 0.48, 0.45, 1.0]
     faint: [0.83, 0.81, 0.77, 1.0]
     accent: [0.55, 0.14, 0.12, 1.0]
+    green: [0.25, 0.46, 0.33, 1.0]
+    amber: [0.72, 0.47, 0.08, 1.0]
+    blue: [0.22, 0.38, 0.58, 1.0]
+    red: [0.70, 0.13, 0.12, 1.0]
   dark:
     background: [0.11, 0.11, 0.11, 1.0]
     text: [0.85, 0.83, 0.79, 1.0]
     muted: [0.55, 0.54, 0.51, 1.0]
     faint: [0.26, 0.26, 0.25, 1.0]
     accent: [0.80, 0.47, 0.40, 1.0]
+    green: [0.52, 0.72, 0.56, 1.0]
+    amber: [0.88, 0.70, 0.38, 1.0]
+    blue: [0.55, 0.69, 0.86, 1.0]
+    red: [0.92, 0.42, 0.38, 1.0]
 # The font sizes are steps of a modular scale: base times ratio to the
 # power of the step. Each line of text is whole lines of the baseline grid.
 scale:
@@ -98,8 +106,10 @@ write:
 default_scene: agenda
 # A binding and its action: next_scene, previous_scene, {scene: NAME},
 # {run: COMMAND}, which starts a shell command whose window gets a scene
-# of its own, or {toggle: REGION}, which shows or hides a region; a
-# docked app in it takes the focus first, the next press hides it.
+# of its own, {toggle: REGION}, which shows or hides a region; a docked
+# app in it takes the focus first, the next press hides it, or
+# {solo: {content: NAME, region: REGION}}, which shows the content alone
+# in the region over any scene; the next press hides it again.
 bindings:
   Super+Right: next_scene
   Super+Left: previous_scene
@@ -109,6 +119,19 @@ bindings:
   Super+n: {toggle: right}
   Super+Up: {toggle: header}
   Super+Down: {toggle: footer}
+  Super+F12: {solo: {content: overlay, region: drawer}}
+# The states of an agent of agent.set: the sign and the color of each,
+# and a label for the agents scene; without a label, the name.
+states:
+  idle: {sign: ○, color: faint}
+  listening: {sign: ◉, color: blue}
+  thinking: {sign: ◌, color: blue}
+  working: {sign: ●, color: green}
+  speaking: {sign: ◐, color: accent}
+  question: {sign: '?', color: amber, label: has a question}
+  blocked: {sign: ✕, color: red}
+  done: {sign: ✓, color: green}
+  asleep: {sign: ☾, color: faint}
 # The regions around the page, as in the Emacs package auto-side-windows:
 # a header and a footer line, sizes in lines of the baseline grid; a left
 # and a right side, sizes in em; a drawer at the bottom, size in lines. A
@@ -122,9 +145,12 @@ regions:
   drawer: {shown: false, size: 14}
 # What the regions show, by name. Kinds: head (the running head of the
 # scene), clock (a format of `date`), state and hud (the state and the
-# words of the agent), text (lines of content.set and content.add, with a
-# title), app (a command docked in a side or the drawer; {NAME} is the
-# color NAME of the theme as RRGGBB). Each may set a style.
+# words of the agent), agents (the sign and the name of each agent of
+# agent.set, in the color of its state), text (lines of content.set and
+# content.add, with a title), app (a command docked in a side or the
+# drawer; {NAME} is the color NAME of the theme as RRGGBB). Each may set a
+# style. notify.push fills the texts notify and urgent; urgent shows
+# in the middle of the footer, where the header has no room left.
 contents:
   head: {kind: head}
   clock: {kind: clock, format: '%A %-d %B  %H:%M'}
@@ -132,6 +158,10 @@ contents:
   time: {kind: clock, format: '%H:%M'}
   state: {kind: state}
   hud: {kind: hud}
+  agents: {kind: agents}
+  notify: {kind: text, title: Notifications}
+  urgent: {kind: text, style: {base: running_head, color: red}}
+  overlay: {kind: text, title: Tests, style: {base: mono, color: muted}}
   next: {kind: text}
   notes: {kind: text, title: Notes}
   outline: {kind: text, title: Outline}
@@ -145,11 +175,14 @@ contents:
 rules:
 - {content: head, region: header, slot: -1}
 - {content: hud, scenes: ['@app'], region: header, slot: 0}
-- {content: state, region: header, slot: 1}
-- {content: clock, region: header, slot: 2}
+- {content: urgent, region: footer, slot: 0}
+- {content: agents, region: header, slot: 1}
+- {content: state, region: header, slot: 2}
+- {content: clock, region: header, slot: 3}
 - {content: hud, region: footer, slot: -1}
 - {content: next, scenes: ['@page'], region: footer, slot: 1}
 - {content: notes, region: right}
+- {content: notify, region: right, slot: 1}
 - {content: shell, region: drawer}
 # The arrangement of the regions: a name of presets. A preset sets which
 # regions show and its own rules; without rules, those above apply.
@@ -164,26 +197,34 @@ presets:
     rules:
     - {content: head, region: header, slot: -1}
     - {content: hud, region: header, slot: 0}
-    - {content: state, region: header, slot: 1}
-    - {content: time, region: header, slot: 2}
+    - {content: urgent, region: header, slot: -2}
+    - {content: agents, region: header, slot: 1}
+    - {content: state, region: header, slot: 2}
+    - {content: time, region: header, slot: 3}
   desk: {}
   studio:
     shown: {left: true, right: false, drawer: true}
     rules:
     - {content: head, region: header, slot: -1}
     - {content: hud, scenes: ['@app'], region: header, slot: 0}
-    - {content: state, region: header, slot: 1}
-    - {content: clock, region: header, slot: 2}
+    - {content: urgent, region: footer, slot: 0}
+    - {content: agents, region: header, slot: 1}
+    - {content: state, region: header, slot: 2}
+    - {content: clock, region: header, slot: 3}
     - {content: hud, region: footer, slot: -1}
     - {content: next, scenes: ['@page'], region: footer, slot: 1}
     - {content: outline, region: left, slot: 0}
     - {content: notes, region: left, slot: 1}
+    - {content: notify, region: left, slot: 2}
     - {content: shell, region: drawer}
   book:
     rules:
     - {content: head, region: header, slot: -1}
-    - {content: date, region: header, slot: 1}
+    - {content: urgent, region: footer, slot: 0}
+    - {content: agents, region: header, slot: 1}
+    - {content: date, region: header, slot: 2}
     - {content: hud, region: footer, slot: -1}
     - {content: time, region: footer, slot: 0}
     - {content: state, region: footer, slot: 1}
     - {content: notes, region: right}
+    - {content: notify, region: right, slot: 1}

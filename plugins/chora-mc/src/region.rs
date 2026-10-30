@@ -111,6 +111,9 @@ pub enum Kind {
     State,
     /// The words of the agent, from `hud.set` and `hud.say`.
     Hud,
+    /// The sign and the name of each agent of `agent.set`, in the color
+    /// of its state.
+    Agents,
     /// Lines that `content.set` and `content.add` change, such as notes.
     Text,
     /// An app docked in a side or the drawer; it starts when its region
@@ -304,13 +307,13 @@ pub fn to_next_minute() -> f64 {
 }
 
 /// One text node of a region.
-struct Item {
-    id: String,
-    slot: i32,
+pub struct Item {
+    pub id: String,
+    pub slot: i32,
     /// The props, without the place.
-    props: PropsUpdate,
+    pub props: PropsUpdate,
     /// Where a stack in a side puts space before it: a new content.
-    first: bool,
+    pub first: bool,
 }
 
 /// The items and the docked app of each region.
@@ -324,7 +327,7 @@ struct Boxes {
 }
 
 /// The id of the group of a region.
-fn region_id(region: Region) -> String {
+pub fn region_id(region: Region) -> String {
     format!("mc-r-{}", region.name())
 }
 
@@ -345,21 +348,70 @@ impl Mc {
         self.scenes.get(name).is_none_or(|s| !Self::has_chapter(s))
     }
 
-    /// The contents of each region of a scene, by slot.
+    /// The contents of each region of a scene, by slot; a solo content
+    /// is alone in its region.
     pub fn placed(&self, name: &str) -> BTreeMap<Region, Vec<(i32, String)>> {
         let contents = &self.settings.value.contents;
-        layout(&self.rules(), contents, name, self.is_app(name))
-            .into_iter()
-            .map(|(r, v)| (r, v.into_iter().map(|(s, n)| (s, n.into())).collect()))
-            .collect()
+        let mut placed: BTreeMap<Region, Vec<(i32, String)>> =
+            layout(&self.rules(), contents, name, self.is_app(name))
+                .into_iter()
+                .map(|(r, v)| (r, v.into_iter().map(|(s, n)| (s, n.into())).collect()))
+                .collect();
+        if let Some(solo) = &self.solo {
+            for slots in placed.values_mut() {
+                slots.retain(|(_, c)| *c != solo.content);
+            }
+            placed.insert(solo.region, vec![(0, solo.content.clone())]);
+            placed.retain(|_, slots| !slots.is_empty());
+        }
+        placed
+    }
+
+    /// Shows a content alone in a region, or hides it again: the region
+    /// then shows as before. Answers whether it shows.
+    pub fn solo(
+        &mut self,
+        content: &str,
+        region: Region,
+        shown: Option<bool>,
+    ) -> Result<bool, ClientError> {
+        let on = (self.solo.as_ref()).is_some_and(|s| s.content == content && s.region == region);
+        let new = shown.unwrap_or(!on);
+        if let Some(old) = self.solo.take() {
+            match old.before {
+                Some(before) => self.toggled.insert(old.region, before),
+                None => self.toggled.remove(&old.region),
+            };
+        }
+        if new {
+            self.solo = Some(crate::Solo {
+                content: content.into(),
+                region,
+                before: self.toggled.get(&region).copied(),
+            });
+            self.toggled.insert(region, true);
+            // A docked app of the region waits hidden: the keyboard goes
+            // back to the scene.
+            if self
+                .focused
+                .as_ref()
+                .is_some_and(|f| self.docks.values().any(|d| d == f))
+            {
+                let name = self.current.clone().unwrap_or_default();
+                let window = self.windows.get(&name).cloned();
+                self.focus(window)?;
+            }
+        }
+        self.render()?;
+        Ok(new)
     }
 
     /// The type of a content: its own style on the base of its kind.
-    fn content_type(&self, content: &Content, title: bool) -> Type {
+    pub fn content_type(&self, content: &Content, title: bool) -> Type {
         let base = match content.kind {
             _ if title => "running_head",
             Kind::Head | Kind::Clock | Kind::State => "running_head",
-            Kind::Hud => "hud",
+            Kind::Hud | Kind::Agents => "hud",
             Kind::Text | Kind::App => "margin",
         };
         let style = content.style.as_ref().filter(|_| !title);
@@ -386,6 +438,7 @@ impl Mc {
             ),
             Kind::State => (String::new(), self.hud.state.clone()),
             Kind::Hud => (String::new(), self.hud.text.clone()),
+            Kind::Agents => (String::new(), self.agent_line().join("  ")),
             Kind::Text => self
                 .texts
                 .get(name)
@@ -463,6 +516,9 @@ impl Mc {
         let content = &self.settings.value.contents[name];
         if content.kind == Kind::App {
             return Vec::new();
+        }
+        if content.kind == Kind::Agents {
+            return self.agent_items(region, slot, name, content);
         }
         let (title, text) = self.content_text(name, content, scene);
         let id = format!("{}-{name}", region_id(region));
@@ -1040,16 +1096,19 @@ mod tests {
         let config = parse::<Config>(DEFAULT).unwrap();
         let page = layout(&config.rules, &config.contents, "agenda", false);
         let app = layout(&config.rules, &config.contents, "foot", true);
-        assert_eq!(names(&page, Region::Header), ["head", "state", "clock"]);
-        assert_eq!(names(&page, Region::Footer), ["hud", "next"]);
-        assert_eq!(names(&page, Region::Right), ["notes"]);
+        assert_eq!(
+            names(&page, Region::Header),
+            ["head", "agents", "state", "clock"]
+        );
+        assert_eq!(names(&page, Region::Footer), ["hud", "urgent", "next"]);
+        assert_eq!(names(&page, Region::Right), ["notes", "notify"]);
         assert_eq!(names(&page, Region::Drawer), ["shell"]);
         // Over an app, the words of the agent go to the header.
         assert_eq!(
             names(&app, Region::Header),
-            ["head", "hud", "state", "clock"]
+            ["head", "hud", "agents", "state", "clock"]
         );
-        assert!(!app.contains_key(&Region::Footer));
+        assert_eq!(names(&app, Region::Footer), ["urgent"]);
         // A rule of the session goes first; one by kind catches the rest.
         let mut rules = vec![Rule {
             content: None,
@@ -1060,10 +1119,13 @@ mod tests {
         }];
         rules.extend(config.rules.clone());
         let moved = layout(&rules, &config.contents, "agenda", false);
-        assert_eq!(names(&moved, Region::Left), ["next", "notes", "outline"]);
+        assert_eq!(
+            names(&moved, Region::Left),
+            ["next", "notes", "notify", "outline", "overlay", "urgent"]
+        );
         assert!(!moved.contains_key(&Region::Right));
         let other = layout(&rules, &config.contents, "mail", false);
-        assert_eq!(names(&other, Region::Right), ["notes"]);
+        assert_eq!(names(&other, Region::Right), ["notes", "notify"]);
     }
 
     #[test]

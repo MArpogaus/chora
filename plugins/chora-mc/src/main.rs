@@ -7,6 +7,7 @@
 //! the regions through the exported methods; the plugin reads no sources
 //! itself.
 
+mod agent;
 mod config;
 mod region;
 mod scene;
@@ -187,6 +188,23 @@ struct AddLine {
     line: String,
 }
 
+/// Parameters of `region.solo`; without `shown` it flips.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SoloParams {
+    content: String,
+    region: Region,
+    shown: Option<bool>,
+}
+
+/// A content alone in a region, and whether the region showed by a
+/// toggle before it.
+pub struct Solo {
+    content: String,
+    region: Region,
+    before: Option<bool>,
+}
+
 /// What an app that starts goes to.
 #[derive(Clone, Debug, PartialEq)]
 enum Target {
@@ -233,6 +251,10 @@ struct Mc {
     clocks: BTreeMap<String, String>,
     /// The title and the lines of each text content.
     texts: BTreeMap<String, (String, Vec<String>)>,
+    /// The agents of `agent.set`, in the order of their first report.
+    agents: Vec<agent::Agent>,
+    /// The content of `region.solo` that shows alone in its region.
+    solo: Option<Solo>,
 }
 
 fn main() -> ExitCode {
@@ -295,6 +317,8 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         focused: None,
         clocks: BTreeMap::new(),
         texts: BTreeMap::new(),
+        agents: Vec::new(),
+        solo: None,
     };
     mc.keep_texts();
     mc.start(methods)?;
@@ -410,6 +434,50 @@ fn exported_methods() -> Vec<ExportMethod> {
             json!({"content": {"type": "string"}, "line": {"type": "string"}}),
             &["content", "line"],
         ),
+        runtime::method(
+            "region.solo",
+            "Shows a content alone in a region over any scene, such as the test overlay in \
+             the drawer; without shown it flips. Answers shown.",
+            json!({
+                "content": {"type": "string"},
+                "region": {"type": "string"},
+                "shown": {"type": "boolean"},
+            }),
+            &["content", "region"],
+        ),
+        runtime::method(
+            "agent.set",
+            "Adds or changes an agent: its state (idle, listening, thinking, working, \
+             speaking, question, blocked, done or asleep), its task, its last words and \
+             its voice; a missing field stays.",
+            json!({
+                "name": {"type": "string"},
+                "state": {"type": "string"},
+                "task": {"type": "string"},
+                "said": {"type": "string"},
+                "voice": {"type": "string"},
+            }),
+            &["name"],
+        ),
+        runtime::method(
+            "agent.remove",
+            "Removes an agent.",
+            json!({"name": {"type": "string"}}),
+            &["name"],
+        ),
+        runtime::method("agent.list", "Answers the agents.", json!({}), &[]),
+        runtime::method(
+            "notify.push",
+            "Shows a notification on top of the stack of notify; a critical one also in \
+             red in urgent.",
+            json!({
+                "title": {"type": "string"},
+                "body": {"type": "string"},
+                "urgency": {"type": "string", "enum": ["low", "normal", "critical"]},
+            }),
+            &["title"],
+        ),
+        runtime::method("notify.clear", "Empties the notifications.", json!({}), &[]),
     ]
 }
 
@@ -517,6 +585,15 @@ impl Plugin for Mc {
         self.keep_texts();
         let contents = &self.settings.value.contents;
         (self.put).retain(|r| (r.content.as_ref()).is_some_and(|c| contents.contains_key(c)));
+        if (self.solo.as_ref()).is_some_and(|s| !contents.contains_key(&s.content)) {
+            self.solo = None;
+        }
+        let states = &self.settings.value.states;
+        for agent in &mut self.agents {
+            if !states.contains_key(&agent.state) {
+                "idle".clone_into(&mut agent.state);
+            }
+        }
         self.rt
             .ungrab_all()
             .and_then(|()| self.grab_all())
@@ -560,13 +637,43 @@ impl Mc {
                 })?;
                 Ok(Value::Null)
             }
+            "region.solo" => {
+                let SoloParams {
+                    content,
+                    region,
+                    shown,
+                } = runtime::params(params)?;
+                let found = (self.settings.value.contents.get(&content))
+                    .ok_or_else(|| invalid(format!("no content {content}")))?;
+                region::put_check(found, region).map_err(invalid)?;
+                let shown = self.solo(&content, region, shown).map_err(rejected)?;
+                Ok(json!({"shown": shown}))
+            }
+            _ => self.agent_method(method, params),
+        }
+    }
+
+    /// The methods of the agents and the notifications.
+    fn agent_method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        match method {
+            "agent.set" => self.set_agent(runtime::params(params)?),
+            "agent.remove" => self.remove_agent(&runtime::params(params)?),
+            "agent.list" => return Ok(self.list_agents()),
+            "notify.push" => self.push(runtime::params(params)?),
+            "notify.clear" => self.clear_notifications(),
             _ => Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method)),
         }
+        .map(|()| Value::Null)
     }
 }
 
 fn invalid(message: String) -> RpcError {
     RpcError::new(RpcError::INVALID_PARAMS, message)
+}
+
+#[allow(clippy::needless_pass_by_value)] // for map_err
+fn rejected(err: ClientError) -> RpcError {
+    RpcError::new(RpcError::REJECTED, err.to_string())
 }
 
 /// The id of the group of a scene.
@@ -1460,29 +1567,37 @@ impl Mc {
             title,
             lines,
         } = set;
-        let found = self
-            .scenes
-            .get_mut(&scene)
-            .and_then(|v| v.panels.iter_mut().find(|p| p.id == panel))
+        let found = (self.scenes.get(&scene))
+            .and_then(|v| v.panels.iter().find(|p| p.id == panel))
             .ok_or_else(|| invalid(format!("no panel {panel} in scene {scene}")))?;
         let new = Panel {
             title: title.unwrap_or_else(|| found.title.clone()),
             lines,
             ..found.clone()
         };
+        self.replace_panel(&scene, &new)
+    }
+
+    /// Puts a changed panel into its scene, by its id; it writes itself
+    /// when the scene shows.
+    fn replace_panel(&mut self, scene: &str, new: &Panel) -> Result<(), RpcError> {
         new.check_text().map_err(invalid)?;
+        let found = (self.scenes.get_mut(scene))
+            .and_then(|v| v.panels.iter_mut().find(|p| p.id == new.id))
+            .ok_or_else(|| invalid(format!("no panel {} in scene {scene}", new.id)))?;
         // The same text again neither writes nor builds anything.
-        if *found == new {
+        if found == new {
             return Ok(());
         }
         *found = new.clone();
+        let scene = scene.to_owned();
         let mut commands = vec![Command::Remove {
-            id: panel_id(&scene, &panel),
+            id: panel_id(&scene, &new.id),
             to: None,
         }];
-        commands.extend(self.panel(&scene, &new));
+        commands.extend(self.panel(&scene, new));
         if self.current.as_deref() == Some(&scene) {
-            commands.extend(self.write(&scene, &[&new]));
+            commands.extend(self.write(&scene, &[new]));
         }
         self.apply(commands)
             .and_then(|()| self.align(&scene))
@@ -1560,6 +1675,12 @@ impl Mc {
             Action::Toggle(region) => {
                 if let Err(err) = self.toggle(region, None) {
                     eprintln!("chora-mc: toggle {}: {err}", region.name());
+                }
+                return;
+            }
+            Action::Solo { content, region } => {
+                if let Err(err) = self.solo(&content, region, None) {
+                    eprintln!("chora-mc: solo {content}: {err}");
                 }
                 return;
             }

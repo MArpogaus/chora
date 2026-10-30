@@ -13,8 +13,9 @@ use crate::{
 
 /// The scenes that ship with the plugin; a file of the same name replaces
 /// one.
-pub const BUILT_IN: [(&str, &str); 2] = [
+pub const BUILT_IN: [(&str, &str); 3] = [
     ("agenda", include_str!("../scenes/agenda.yaml")),
+    ("agents", include_str!("../scenes/agents.yaml")),
     ("terminal", include_str!("../scenes/terminal.yaml")),
 ];
 
