@@ -858,76 +858,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#08-agent-read-model" class="md-nav__link">
+  <a href="#08-lean-plugins-and-the-agent-api" class="md-nav__link">
     <span class="md-ellipsis">
       
-        0.8: Agent read model
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#09-renderer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        0.9: Renderer
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#010-daily-driver" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        0.10: Daily driver
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#10-stable-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.0: Stable API
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#track-xp-showroom" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Track: XP showroom
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#track-voice-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Track: voice pipeline
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#after-10" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        After 1.0
+        0.8: Lean plugins and the agent API
       
     </span>
   </a>
@@ -1060,76 +994,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#08-agent-read-model" class="md-nav__link">
+  <a href="#08-lean-plugins-and-the-agent-api" class="md-nav__link">
     <span class="md-ellipsis">
       
-        0.8: Agent read model
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#09-renderer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        0.9: Renderer
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#010-daily-driver" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        0.10: Daily driver
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#10-stable-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.0: Stable API
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#track-xp-showroom" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Track: XP showroom
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#track-voice-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Track: voice pipeline
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#after-10" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        After 1.0
+        0.8: Lean plugins and the agent API
       
     </span>
   </a>
@@ -1163,6 +1031,8 @@ with a stable, versioned API (D3).</p>
 <ul>
 <li>Each milestone is a minor release: 0.6, 0.7 and so on.</li>
 <li>Each milestone has a goal, a scope, an estimate and a <strong>gate</strong>.</li>
+<li>A milestone gets a firm estimate when its scope is fixed. The table holds
+  a first guess.</li>
 <li>The gate is a list of checks. A check is a CI job or a step on the
   reference hardware with a log as evidence (D46).</li>
 <li>A milestone is done when every check of its gate holds. The next
@@ -1172,16 +1042,15 @@ with a stable, versioned API (D3).</p>
   milestone closes the issue.</li>
 <li>Two tracks run in parallel to the core: the XP showroom and the voice
   pipeline.</li>
-<li>The showroom track has no milestones of its own. Its CI must be green
-  against each release candidate of the core, so every core gate has that
-  check.</li>
+<li>The showroom track has no milestones of its own (see
+  <a href="#track-xp-showroom">Track: XP showroom</a>).</li>
 <li>The voice track has milestones of its own. It never blocks the core.</li>
 </ul>
 <h2 id="current-state">Current state<a class="headerlink" href="#current-state" title="Permanent link">&para;</a></h2>
 <ul>
 <li>The core runs nested and as a login session. It has no long run on real
   hardware.</li>
-<li>The scene has five node kinds, 4x4 transforms, cameras, overlay roots,
+<li>The scene has six node kinds, 4x4 transforms, cameras, overlay roots,
   meshes, effects and animations.</li>
 <li>The API covers scene changes, events, grabs, plugin methods, captures,
   input injection, grants, programs, assets and output configuration.</li>
@@ -1199,10 +1068,11 @@ the user. The calendar time includes the gate. Agent hours include the
 tests and the review rounds.</p>
 <p>The basis is this repository: about 26,000 lines of Rust in 54 hours of
 calendar time. A rework of existing code costs more than new code. The
-table uses about 140 to 200 lines per agent hour for 0.6 to 0.9. The
-milestones 0.10 and 1.0 have hardware work and use about 80 to 125.</p>
-<p>The user uses chora as the daily session from milestone 0.10. The
-gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
+table uses about 140 to 200 lines per agent hour for 0.6, 0.7 and
+0.10. The milestones 0.9 and 1.0 have hardware work and use about 80 to
+125.</p>
+<p>The user uses chora as the daily session from milestone 0.9. The gates
+of 0.9 and 1.0 measure that use, so they set the calendar time.</p>
 <table>
 <thead>
 <tr>
@@ -1229,24 +1099,24 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
 <td style="text-align: right;">1 to 2 weeks</td>
 </tr>
 <tr>
-<td>0.8 Agent read model</td>
-<td style="text-align: right;">4,600</td>
-<td style="text-align: right;">23 to 30</td>
-<td style="text-align: right;">3</td>
-<td style="text-align: right;">2 weeks</td>
+<td>0.8 Lean plugins and the agent API</td>
+<td style="text-align: right;">open</td>
+<td style="text-align: right;">open</td>
+<td style="text-align: right;">open</td>
+<td style="text-align: right;">open</td>
 </tr>
 <tr>
-<td>0.9 Renderer</td>
-<td style="text-align: right;">7,000</td>
-<td style="text-align: right;">40 to 50</td>
-<td style="text-align: right;">6</td>
-<td style="text-align: right;">3 weeks</td>
-</tr>
-<tr>
-<td>0.10 Daily driver</td>
+<td>0.9 Daily driver</td>
 <td style="text-align: right;">2,500</td>
 <td style="text-align: right;">20 to 30</td>
 <td style="text-align: right;">8 plus daily use</td>
+<td style="text-align: right;">3 weeks</td>
+</tr>
+<tr>
+<td>0.10 Renderer</td>
+<td style="text-align: right;">7,000</td>
+<td style="text-align: right;">40 to 50</td>
+<td style="text-align: right;">6</td>
 <td style="text-align: right;">3 weeks</td>
 </tr>
 <tr>
@@ -1257,11 +1127,11 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
 <td style="text-align: right;">5 to 6 weeks</td>
 </tr>
 <tr>
-<td><strong>Total</strong></td>
-<td style="text-align: right;"><strong>21,100</strong></td>
-<td style="text-align: right;"><strong>125 to 164</strong></td>
-<td style="text-align: right;"><strong>27</strong></td>
-<td style="text-align: right;"><strong>15 to 17 weeks</strong></td>
+<td><strong>Total without 0.8</strong></td>
+<td style="text-align: right;"><strong>16,500</strong></td>
+<td style="text-align: right;"><strong>102 to 134</strong></td>
+<td style="text-align: right;"><strong>24</strong></td>
+<td style="text-align: right;"><strong>13 to 15 weeks</strong></td>
 </tr>
 </tbody>
 </table>
@@ -1269,8 +1139,9 @@ gates of 0.10 and 1.0 measure that use, so they set the calendar time.</p>
 add one to two weeks.</p>
 <h2 id="06-foundation">0.6: Foundation<a class="headerlink" href="#06-foundation" title="Permanent link">&para;</a></h2>
 <p>Released as <code>v0.6.0</code> on 2026-10-19 without the gate checks 1, 2 and 5.
-These checks moved to the gate of 0.7. Check 1 then moved to the gate of
-1.0: the repository stays one monorepo until then.</p>
+These checks moved to the gate of 0.7. Check 1 then moved to the time
+after 1.0, with the organization (D36).</p>
+<p>The organization and the protected <code>main</code> moved to after 1.0 (D36, D47).</p>
 <p><strong>Goal:</strong> the project works with gates in the GitHub organization
 <code>chora-desktop</code>. Unit tests check the core in process.</p>
 <p>Scope:</p>
@@ -1325,9 +1196,12 @@ These checks moved to the gate of 0.7. Check 1 then moved to the gate of
 <li>Every container image in the workflows has a digest.</li>
 </ol>
 <h2 id="07-identity-processes-and-the-basics-of-the-read-model">0.7: Identity, processes and the basics of the read model<a class="headerlink" href="#07-identity-processes-and-the-basics-of-the-read-model" title="Permanent link">&para;</a></h2>
+<p>The release candidate <code>v0.7.0-rc.3</code> is tagged. No check of the 0.7 gate is
+open.</p>
 <p><strong>Goal:</strong> a client cannot take another name or give itself capabilities,
 the core starts no programs, and an agent can see focus and geometry
-without guessing.</p>
+without guessing. An agent can ask the window manager for changes, and it
+can label what it shows.</p>
 <p>Scope:</p>
 <ul>
 <li>The client socket also fixes the capabilities of its clients: the
@@ -1347,6 +1221,24 @@ without guessing.</p>
   applying it.</li>
 <li><code>chora-tiling</code> exports methods for tags, focus and moves. <code>chora-xp</code>
   exports methods for the start menu, minimize, restore and Restart.</li>
+<li>JSON filters next to the selector strings (D32). They can match focus
+  and visibility.</li>
+<li><code>events.subscribe</code> starts with a snapshot of the state, and every event
+  has a sequence number <code>seq</code>.</li>
+<li><code>input.inject</code> takes a node and a point inside it.</li>
+<li>A client that does not own a node can request a change: focus, move,
+  resize or close. The core sends the request to the owner as the event
+  <code>node.requested</code>, and the owner decides (D31). <code>chora-tiling</code> handles
+  the requests.</li>
+<li>Plugin methods carry a description and a JSON schema. <code>choractl mcp</code>
+  makes one tool from each method (D34).</li>
+<li><code>choractl mcp</code> uses rmcp, answers requests in parallel and supports
+  cancellation.</li>
+<li>Text injection commits a text into the text input of the focused
+  surface, also characters that the current keymap does not have.</li>
+<li>A visible indicator while a client injects input, and a binding of the
+  safety layer that revokes the capabilities of all clients (D23).</li>
+<li>The text node on cosmic-text (D18).</li>
 <li>Small fixes from the battle test: compact JSON from <code>choractl run</code>,
   a clear error from <code>clients create</code> for a taken name,
   <code>chora-probe --exit-on-close</code>, and <code>tests/ipc-bench.sh</code> on the headless
@@ -1354,81 +1246,175 @@ without guessing.</p>
 </ul>
 <p>Gate:</p>
 <ol>
-<li>Moved to the gate of 1.0: the organization and the protected <code>main</code>.</li>
+<li>Moved to the time after 1.0: the organization and the protected
+   <code>main</code> (D36).</li>
 <li>A test release <code>v0.7.0-rc.1</code> comes from a tag on a merge commit. A
    tag on a commit with red CI starts no release (from 0.6).</li>
 <li>The <code>vkms</code> job is green in 10 runs in a row (from 0.6).</li>
 <li>A Podman container that mounts only <code>clients/agent/</code> queries the scene
    and draws a node. Its <code>grants.set</code> and its <code>hello</code> with another name
    fail. A CI job checks this.</li>
-<li>A Quadlet unit from <code>dist/</code> connects through its client directory
-   after a restart of chora, without a change to the unit.</li>
+<li>Moved to the gate of 0.8: the Quadlet unit after a restart of chora.</li>
 <li>A client with <code>input.grab-any</code> grabs F13 and a letter key. A client
    without it gets the error code for a missing capability.</li>
 <li>The core has no code that forks a process except the startup command.</li>
-<li><code>choractl run foot</code> starts foot in a transient systemd unit of its
-   own, and the <code>surface.created</code> event of its window carries the
-   activation token. Without a user manager, the same command starts foot
-   directly.</li>
+<li>Without a user manager, <code>choractl run foot</code> starts foot directly, and
+   the <code>surface.created</code> event of its window carries the activation token.
+   The case with a user manager moved to the gate of 0.8.</li>
 <li>Each error code of the API has a test that provokes it.</li>
 <li>The battle workflows in <code>tests/battle/</code> pass with <code>choractl wait</code>, the
     focus and the rectangles of queries and the plugin methods, without
     pixel clicks.</li>
-<li>The gate checks of the earlier milestones still hold, and the showroom
-    CI is green against the release candidate.</li>
 </ol>
-<h2 id="08-agent-read-model">0.8: Agent read model<a class="headerlink" href="#08-agent-read-model" title="Permanent link">&para;</a></h2>
-<p><strong>Goal:</strong> an agent sees what the user sees, it can ask the window manager
-for changes, and it can label what it shows.</p>
+<p>The scripts <code>tests/gate-0.8-N.sh</code> below are checks of the 0.7 gate. They
+check the delivered scope. The scripts keep their own numbers, which
+differ from the numbered 0.7 checks:</p>
+<ul>
+<li><code>tests/gate-0.8-1.sh</code>: An MCP client in CI calls the tools to focus the
+  second terminal and to request a move to the right. <code>chora-tiling</code>
+  performs both, and a capture shows them.</li>
+<li><code>tests/gate-0.8-2.sh</code>: Under a camera with pan and zoom, a click on a node
+  through the MCP tools hits that node in 20 of 20 tries.</li>
+<li><code>tests/gate-0.8-3.sh</code>: <code>wait_events</code> returns while another tool call runs,
+  and a cancelled call ends within 100 ms.</li>
+<li><code>tests/gate-0.8-4.sh</code>: Injected text <code>Grüße äöüß</code> appears unchanged in
+  foot on a US layout. A CI job checks this.</li>
+<li><code>tests/gate-0.8-5.sh</code>: A subscription that starts during a transaction
+  misses no event and sees no event twice: a test with 1,000 transactions
+  checks the sequence numbers.</li>
+<li><code>tests/gate-0.8-6.sh</code>: The tool list of <code>choractl mcp</code> matches the
+  exported methods of the plugins after each <code>methods.export</code>.</li>
+<li><code>tests/gate-0.8-7.sh</code>: A capture shows the indicator while a client
+  injects input.</li>
+<li><code>tests/gate-0.8-8.sh</code>: A test shows that the revoke binding removes the
+  capabilities of all clients.</li>
+<li><code>tests/gate-0.8-9.sh</code>: A text node shows <code>Grüße 你好 🙂</code> with fallback fonts,
+  and a pixel test against a reference capture passes.</li>
+<li><code>tests/gate-0.8-10.sh</code>: An MCP client puts a text node under
+  <code>screen:NAME</code>, and a capture shows it.</li>
+</ul>
+<h2 id="08-lean-plugins-and-the-agent-api">0.8: Lean plugins and the agent API<a class="headerlink" href="#08-lean-plugins-and-the-agent-api" title="Permanent link">&para;</a></h2>
+<p><strong>Goal:</strong> lean plugins on a shared runtime, and the agent API gaps.</p>
 <p>Scope:</p>
 <ul>
-<li>JSON filters replace the selector strings (D32). They can match focus
-  and visibility.</li>
-<li><code>events.subscribe</code> starts with a snapshot of the state, and every event
-  has a sequence number.</li>
-<li><code>input.inject</code> takes a node and a point inside it.</li>
-<li>A client that does not own a node can request a change: focus, move,
-  resize or close. The core sends the request to the owner as an event,
-  and the owner decides (D31). <code>chora-tiling</code> handles the requests.</li>
-<li>Plugin methods carry a description and a JSON schema. <code>choractl mcp</code>
-  makes one tool from each method (D34).</li>
-<li><code>choractl mcp</code> uses rmcp, answers requests in parallel and supports
-  cancellation.</li>
-<li>Text injection types every character of the text, also characters that
-  the current keymap does not have, for example German umlauts on a US
-  layout.</li>
-<li>A visible indicator while a client injects input, and a binding of the
-  safety layer that revokes the capabilities of all clients (D23).</li>
-<li>A text node (D18): text with a font family, a size, a color and a
-  maximum width. cosmic-text shapes it and finds fallback fonts. The
-  indicator, plugins and agents use it for labels without a client.</li>
+<li><code>chora-xp</code> draws no programs into the scene: no Explorer and folder
+  windows, no Control Panel, Display Properties, Date and Time and file
+  properties, and no session dialogs. The git tag
+  <code>archive/xp-scene-programs</code> keeps this code.</li>
+<li>A shared plugin runtime in <code>chora-kit</code>: the reconnect loop, the startup
+  with <code>output.list</code>, <code>events.subscribe</code> and <code>methods.export</code>, grabs, the
+  export and dispatch of methods, and the <code>--output</code> filter. Claims and
+  the resume from <code>meta</code> go into the runtime only where both plugins use
+  them in the same way.</li>
+<li><code>chora-tiling</code> is the lean reference window manager on the runtime.
+  <code>chora-xp</code> moves onto it.</li>
+<li>The start menu and double clicks of <code>chora-xp</code> start installed
+  programs. Its configuration chooses them, for example a file manager
+  such as Thunar.</li>
+<li><code>chora-xp</code> keeps the XP look: frames, taskbar, start menu, the XP
+  notification balloons, wallpaper, sounds and the cube (D39).</li>
+<li>The action <code>update</code> of <code>node.requested</code> changes opacity, effects and
+  <code>meta</code> of a node through its owner (D58). The window manager keeps the
+  change across layouts (#97).</li>
+<li><code>chora-tiling</code> has a default style for new windows (#99).</li>
+<li>The answer of <code>scene.apply</code> carries <code>warnings</code> (D59): a surface attached
+  under a group with <code>input: pass</code> (#98), and a layer that alone is larger
+  than the pixel budget of every output (#100).</li>
+<li><code>docs/api.md</code> tells agents to remove their own old nodes after a
+  restart (D61).</li>
+<li>Bugs of <code>choractl mcp</code>: #53, #54 and #56.</li>
+<li>The release workflow builds the RPM only (D14).</li>
+<li>The hardware checks 5 and 8 of the 0.7 gate.</li>
+<li>Remove <code>dist/arch</code>, <code>dist/build-arch.sh</code> and the Arch install lines of
+  <code>README.md</code>.</li>
+</ul>
+<p>The work removes the XP programs first, then extracts the runtime from
+<code>chora-tiling</code>, and then ports <code>chora-xp</code> to the runtime.</p>
+<p>Gate:</p>
+<ol>
+<li>No plugin crate (<code>chora-tiling</code>, <code>chora-xp</code>) has a reconnect loop or
+   calls <code>methods.export</code>, <code>output.list</code> or <code>events.subscribe</code>. CI checks
+   this with a grep over <code>plugins/</code>. The battle workflows in
+   <code>tests/battle/</code> and <code>tests/xp.sh</code> pass.</li>
+<li>The program modules of <code>chora-xp</code> are gone: <code>explorer.rs</code>,
+   <code>explorer/view.rs</code>, <code>folder.rs</code>, <code>wm/explorers.rs</code>, <code>control.rs</code>,
+   <code>display.rs</code>, <code>datetime.rs</code>, <code>properties.rs</code>, <code>confirm.rs</code>,
+   <code>session.rs</code> and <code>taskbar_dialog.rs</code>. The tag
+   <code>archive/xp-scene-programs</code> exists.</li>
+<li>The start menu of <code>chora-xp</code> starts the configured file manager, and
+   the <code>surface.created</code> event of its window carries the activation token.
+   The check runs in CI in the e2e container, without a user manager. The
+   container installs Thunar from Fedora 44 as the file manager.</li>
+<li>A client sets the opacity of a tiling window to 0.5 with the action
+   <code>update</code> of <code>node.requested</code> (D58). After a relayout, a query or a
+   capture in CI shows the opacity 0.5.</li>
+<li>A new window of <code>chora-tiling</code> gets the default style (#99). A CI job
+   checks this.</li>
+<li><code>scene.apply</code> answers with a warning code for a surface attached under
+   a group with <code>input: pass</code> (D59). It also answers with a warning code
+   for a layer that alone is larger than the pixel budget of every output
+   (#100). Unit tests check both.</li>
+<li>
+<h1 id="53-54-and-56-each-have-a-test-d48">53, #54 and #56 each have a test (D48).<a class="headerlink" href="#53-54-and-56-each-have-a-test-d48" title="Permanent link">&para;</a></h1>
+</li>
+<li>A Quadlet unit from <code>dist/</code> connects through its client directory
+   after a restart of chora, without a change to the unit. The user runs
+   this check on the reference hardware, with a log.</li>
+<li>With a user manager, <code>choractl run foot</code> starts foot in a transient
+   systemd unit of its own, and the <code>surface.created</code> event of its window
+   carries the activation token. The user runs this check on the
+   reference hardware, with a log.</li>
+<li>The release of the next release candidate carries only the RPM and its
+    SHA256 sum (D14).</li>
+<li>CI runs the CI scripts of the earlier gates again. The user runs the
+    hardware checks again on the reference hardware, with a log.</li>
+</ol>
+<h2 id="09-daily-driver">0.9: Daily driver<a class="headerlink" href="#09-daily-driver" title="Permanent link">&para;</a></h2>
+<p><strong>Goal:</strong> the user works in chora every day on the reference hardware
+(D60).</p>
+<p>Scope:</p>
+<ul>
+<li>The session starts through uwsm (D50). A flavor is a systemd target.</li>
+<li>The tiling flavor: <code>chora-tiling</code> with waybar, fuzzel, mako, swaybg,
+  swaylock, swayidle and kanshi (D51).</li>
+<li>Input device settings through the API: tap, acceleration, natural
+  scroll, key repeat. A view sets them, so the core reads no file (D35).</li>
+<li>Output hotplug, suspend and resume, lid switch, and the VT switch on the
+  reference hardware.</li>
+<li>Screen sharing through <code>xdg-desktop-portal-wlr</code>, and X11 apps through
+  <code>xwayland-satellite</code>.</li>
+<li>The install from the release RPM, layered on secureblue (D10, D14).</li>
+<li>The stability bugs #14, #31, #32, #50, #57 and #60.</li>
+<li>From the renderer: the watchdog in its own thread with a heartbeat of
+  the main loop (D23, #89).</li>
 </ul>
 <p>Gate:</p>
 <ol>
-<li>An MCP client in CI calls the tools to focus the second terminal and to
-   request a move to the right. <code>chora-tiling</code> performs both, and a capture
-   shows them.</li>
-<li>Under a camera with pan and zoom, a click on a node through the MCP
-   tools hits that node in 20 of 20 tries.</li>
-<li><code>wait_events</code> returns while another tool call runs, and a cancelled
-   call ends within 100 ms.</li>
-<li>Injected text <code>Grüße äöüß</code> appears unchanged in foot on a US layout.</li>
-<li>A subscription that starts during a transaction misses no event and
-   sees no event twice: a test with 1,000 transactions checks the
-   sequence numbers.</li>
-<li>The tool list of <code>choractl mcp</code> matches the exported methods of the
-   plugins after each <code>methods.export</code>.</li>
-<li>A capture shows the indicator while a client injects input.</li>
-<li>A test shows that the revoke binding removes the capabilities of all
-   clients.</li>
-<li>A text node shows <code>Grüße 你好 🙂</code> with fallback fonts, and a pixel test
-   against a reference capture passes.</li>
-<li>An MCP client puts a text node under <code>screen:NAME</code>, and a capture shows
-    it.</li>
-<li>The gate checks of the earlier milestones still hold, and the showroom
-    CI is green against the release candidate.</li>
+<li>The user works 10 working days in a row only in chora on the reference
+   hardware. <code>coredumpctl list chora</code> shows no entry, and the log shows no
+   emergency reset that the user did not start.</li>
+<li>A shader node with an endless loop runs on llvmpipe in CI. The watchdog
+   thread logs the stall within 6 s. The log line names the action, and a
+   test checks it. The action for a hung main loop is decided at the start
+   of 0.9.</li>
+<li>A main loop that blocks for 5 s triggers the watchdog. A test with a
+   debug hook checks it.</li>
+<li>A checklist on the reference hardware passes, with the log of each
+   step. An external monitor goes in and out 10 times, and the laptop
+   suspends and resumes 10 times. The user closes and opens the lid,
+   switches the VT, and locks and unlocks the session. A screen share in a
+   browser and an X11 app work.</li>
+<li>The <code>vkms</code> job covers hotplug of a second output.</li>
+<li>A view sets tap and key repeat, and a test shows that the core applies
+   them.</li>
+<li>CI runs the CI scripts of the earlier gates again. The user runs the
+   hardware checks again on the reference hardware, with a log, except the
+   daily-use checks (0.9 gate 1).</li>
+<li>chora installs from the release RPM, layered on secureblue with
+   <code>rpm-ostree</code>, and starts as a uwsm session with the tiling flavor. The
+   log of the reference hardware shows both steps.</li>
 </ol>
-<h2 id="09-renderer">0.9: Renderer<a class="headerlink" href="#09-renderer" title="Permanent link">&para;</a></h2>
+<h2 id="010-renderer">0.10: Renderer<a class="headerlink" href="#010-renderer" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the core renders only what changed, draws the full 4x4 model,
 and drives plugins with the frame clock (D17, D24).</p>
 <p>Scope:</p>
@@ -1450,15 +1436,16 @@ and drives plugins with the frame clock (D17, D24).</p>
   translation, rotation and scale apart, run per property, and support
   springs.</li>
 <li>Transactions on disjoint surfaces do not wait for each other (D22).</li>
+<li>A render thread (#35).</li>
 <li>Shader compile and capture encode run on worker threads, as the image
   decode does.</li>
-<li>The watchdog runs in its own thread with a heartbeat of the main loop
-  (D23).</li>
 <li>Debug counters for rendered frames and texture allocations, readable
   through the API.</li>
 <li>fd passing for images and captures over the IPC socket (D54).</li>
 <li>A measurement of the plugin round trip at 120 Hz decides on a private
   Wayland protocol for plugins (D54).</li>
+<li>The bugs of the render quality: #34, #36, #37, #38, #46, #47, #48, #74,
+  #75, #76, #78 and #79.</li>
 </ul>
 <p>Gate:</p>
 <ol>
@@ -1474,53 +1461,14 @@ and drives plugins with the frame clock (D17, D24).</p>
    first frame. A counter of the texture pool shows it.</li>
 <li>A client that delays its commit for 150 ms delays no transaction of
    another client. A unit test checks it.</li>
-<li>A main loop that blocks for 5 s triggers the watchdog. A test with a
-   debug hook checks it.</li>
-<li>The wobbly windows, the magic lamp and the cube of the showroom run on
-   frame events. At 60 Hz and at 120 Hz in CI, 99 percent of their frames
-   are on time over 30 s.</li>
+<li>A test client runs the wobbly window and magic lamp code of
+   <code>chora-kit</code> on frame events. At 60 Hz and at 120 Hz in CI, 99 percent of
+   its frames are on time over 30 s.</li>
 <li>The decision on the plugin protocol is in the decision log, with the
    measurement.</li>
-<li>The gate checks of the earlier milestones still hold, and the showroom CI
-   is green against the release candidate.</li>
-</ol>
-<h2 id="010-daily-driver">0.10: Daily driver<a class="headerlink" href="#010-daily-driver" title="Permanent link">&para;</a></h2>
-<p><strong>Goal:</strong> the user works in chora every day on the reference hardware,
-and installs it from a package repository.</p>
-<p>Scope:</p>
-<ul>
-<li>Packages through COPR with Packit and subpackages per plugin, and
-  PKGBUILDs in the AUR (D49). The release keeps its assets.</li>
-<li>The image of <code>secureblue-images</code> installs chora from COPR.</li>
-<li>The session starts through uwsm (D50). A flavor is a systemd target.</li>
-<li>The tiling flavor: <code>chora-tiling</code> with waybar, fuzzel, mako, swaylock,
-  swayidle and kanshi (D51).</li>
-<li>Input device settings through the API: tap, acceleration, natural
-  scroll, key repeat. A view sets them, so the core reads no file (D35).</li>
-<li>Output hotplug, suspend and resume, lid switch, and the VT switch on the
-  reference hardware.</li>
-<li>Screen sharing through <code>xdg-desktop-portal-wlr</code>, and X11 apps through
-  <code>xwayland-satellite</code>.</li>
-</ul>
-<p>Gate:</p>
-<ol>
-<li>The secureblue image builds with chora from COPR. <code>rpm-ostree upgrade</code>
-   on the reference hardware updates chora, and the login screen offers the
-   session.</li>
-<li>The user works 10 working days in a row only in chora on the reference
-   hardware. <code>coredumpctl list chora</code> shows no entry, and the log shows no
-   emergency reset that the user did not start.</li>
-<li>A checklist on the reference hardware passes, with the log of each
-   step. An external monitor goes in and out 10 times, and the laptop
-   suspends and resumes 10 times. The user closes and opens the lid,
-   switches the VT, and locks and unlocks the session. A screen share in a
-   browser and an X11 app work.</li>
-<li>The <code>vkms</code> job covers hotplug of a second output.</li>
-<li>The AUR packages build in CI.</li>
-<li>A view sets tap and key repeat, and a test shows that the core applies
-   them.</li>
-<li>The gate checks of the earlier milestones still hold, and the showroom CI
-   is green against the release candidate.</li>
+<li>CI runs the CI scripts of the earlier gates again. The user runs the
+   hardware checks again on the reference hardware, with a log, except the
+   daily-use checks (0.9 gate 1).</li>
 </ol>
 <h2 id="10-stable-api">1.0: Stable API<a class="headerlink" href="#10-stable-api" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the API is version 1 and stays compatible until 2.0.</p>
@@ -1531,12 +1479,16 @@ and installs it from a package repository.</p>
   change of the schema without a change of the protocol version.</li>
 <li>The reference documentation comes from the schema. A test checks every
   example of the documentation against it.</li>
+<li>A client socket (D33) moves the keyboard focus only after a press of
+  the user. The window manager that owns a surface, and requests through
+  <code>node.requested</code>, stay exempt (#102).</li>
+<li>A failed grab names the client that holds the binding (#63).</li>
+<li>Packages through COPR with Packit and subpackages per plugin (D49). The
+  release keeps its assets.</li>
+<li>The image of <code>secureblue-images</code> installs chora from COPR.</li>
 <li>A final review loop over the whole code base until a round finds
   nothing that matters (D47).</li>
-<li>The organization <code>chora-desktop</code> (D36). The core repository moves
-  there, and <code>main</code> accepts pull requests only. The plugins, the XP
-  showroom and the voice pipeline move into repositories of their own.</li>
-<li>All plugins of the organization use the protocol version 1.</li>
+<li>All plugins of the core repository use the protocol version 1.</li>
 </ul>
 <p>Gate:</p>
 <ol>
@@ -1546,27 +1498,28 @@ and installs it from a package repository.</p>
 <li>The last review round leaves no open finding of high or medium
    severity.</li>
 <li>The schema job and the documentation test are green.</li>
-<li>Every plugin repository of the organization pins protocol version 1,
-   and a CI job checks it.</li>
-<li>The organization <code>chora-desktop</code> and its repositories exist, and
-   <code>main</code> of each accepts pull requests only (from 0.6).</li>
-<li>The gate checks of the earlier milestones still hold, and the showroom CI
-   is green against the release candidate.</li>
+<li>Every plugin of the core repository uses protocol version 1, and a CI
+   job checks it.</li>
+<li>The secureblue image builds with chora from COPR. <code>rpm-ostree upgrade</code>
+   on the reference hardware updates chora, and the login screen offers the
+   session.</li>
+<li>CI runs the CI scripts of the earlier gates again. The user runs the
+   hardware checks again on the reference hardware, with a log, except the
+   daily-use checks (0.9 gate 1, 1.0 gate 1).</li>
 </ol>
 <h2 id="track-xp-showroom">Track: XP showroom<a class="headerlink" href="#track-xp-showroom" title="Permanent link">&para;</a></h2>
-<p>The showroom grows in the core repository and moves to
-<code>chora-desktop/chora-xp</code> with the split at 1.0 (D36, D39). It shows
+<p>The showroom lives in the core repository (D39) and moves to
+<code>chora-desktop/chora-xp</code> with the split after 1.0 (D36). It shows
 the effects of the scene and serves as their test.</p>
 <ul>
-<li>Each core milestone ends with a showroom release that uses its API. The
-  core gate checks that the showroom CI is green against the release
-  candidate.</li>
-<li>Scope and order of new effects are the decision of the user. Each new
-  effect gets a pixel test in <code>tests/xp.sh</code>.</li>
+<li>The showroom has no release per milestone. <code>tests/xp.sh</code> runs in the CI
+  of the core.</li>
+<li>After its rework in 0.8, the showroom gets fixes and the API ports of
+  the core only (D39).</li>
 </ul>
 <h2 id="track-voice-pipeline">Track: voice pipeline<a class="headerlink" href="#track-voice-pipeline" title="Permanent link">&para;</a></h2>
 <p>The voice pipeline lives in <code>services/voice/</code> of the core repository and
-moves to <code>chora-desktop/chora-voice</code> with the split at 1.0. It started with
+moves to <code>chora-desktop/chora-voice</code> with the split after 1.0. It started with
 milestone 0.6 (D53). The models run as Quadlet units on the reference hardware:
 speech to text, a language model and text to speech, served by
 <a href="https://github.com/gufo-org/gufo">Gufo</a>.</p>
@@ -1590,20 +1543,24 @@ speech to text, a language model and text to speech, served by
 <td>V2 Control</td>
 <td>the voice agent drives chora through MCP</td>
 <td>"move the terminal to the right" works in 18 of 20 tries</td>
-<td>0.8 (read model, text injection)</td>
+<td>0.7 (read model, text injection)</td>
 </tr>
 <tr>
 <td>V3 Views</td>
 <td>a morning view and task views</td>
 <td>"show my tasks for today" opens a view with the tasks of an MCP source; "open a view for the first task" opens a view with two surfaces</td>
-<td>0.8</td>
+<td>0.7</td>
 </tr>
 </tbody>
 </table>
 <h2 id="after-10">After 1.0<a class="headerlink" href="#after-10" title="Permanent link">&para;</a></h2>
 <ul>
+<li>The organization <code>chora-desktop</code> (D36). The core repository moves
+  there, and <code>main</code> accepts pull requests only (D47). The plugins, the XP
+  showroom and the voice pipeline move into repositories of their own.</li>
 <li>Small plugins that window managers share: a panel with a task list and
-  the notifications. Until then, shared code lives in <code>chora-kit</code>.</li>
+  the notifications, and a launcher (D51). Until then, shared code lives
+  in <code>chora-kit</code>.</li>
 <li>Conformance tests with wlcs.</li>
 <li>Items from the <a href="../ideas/">Idea backlog</a>.</li>
 </ul>

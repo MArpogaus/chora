@@ -1251,8 +1251,8 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D14</td>
-<td>Releases build an RPM and an Arch package, attached with SHA256 sums to a GitHub release; versions below 1.0 and release candidates are pre-releases</td>
-<td>One build for the release assets and the package repositories of D49.</td>
+<td>Releases build an RPM only, attached with its SHA256 sum to a GitHub release; versions below 1.0 and release candidates are pre-releases</td>
+<td>One build for the release assets and the package repository of D49.</td>
 </tr>
 </tbody>
 </table>
@@ -1283,7 +1283,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D18</td>
-<td>Six node kinds: group, surface, rect, image, shader and text; the text node comes in milestone 0.8</td>
+<td>Six node kinds: group, surface, rect, image, shader and text</td>
 <td>Widgets come from Wayland clients. An image node shows a PNG asset, for example a window border, without a client per window. A shader can read another node as a texture. A text node lets plugins and agents label a HUD without a client or a rendered PNG. cosmic-text does the shaping and the font fallback, so the node stays small: text, font family, size, color and maximum width; no editing and no rich text.</td>
 </tr>
 <tr>
@@ -1385,8 +1385,23 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D36</td>
-<td>The GitHub organization is <code>chora-desktop</code> (<code>chora</code> is taken). It holds <code>chora</code> (the core, <code>chora-scene</code>, <code>choractl</code>, the plugins, the reference documentation) and later <code>chora-website</code>, <code>chora-packaging</code>, <code>chora-voice</code> and <code>.github</code>. The organization and the split of the plugins into repositories of their own are postponed to 1.0; until then they live in the core repository and build with it</td>
-<td>Plugins and services get their own owners and releases once the API of <code>chora-scene</code> has settled. The core keeps the definition of the API.</td>
+<td>The GitHub organization is <code>chora-desktop</code> (<code>chora</code> is taken). It holds <code>chora</code> (the core, <code>chora-scene</code>, <code>choractl</code>, the reference documentation), the plugins in repositories of their own, <code>chora-website</code>, <code>chora-packaging</code>, <code>chora-voice</code> and <code>.github</code>. The organization and this split come after 1.0; until the split, the core repository holds the core, the plugins and the services, and they build with it</td>
+<td>Plugins and services get their own owners and releases once the API of <code>chora-scene</code> is frozen at 1.0. The core keeps the definition of the API.</td>
+</tr>
+<tr>
+<td>D58</td>
+<td>A client changes how a node of another client looks, its opacity, effects or meta, only through the owner: <code>node.requested</code> has the action <code>update</code> (D31). The window manager applies the change and keeps it across layouts</td>
+<td>The owner stays the only client that changes its nodes. A look that a new layout drops does not hold.</td>
+</tr>
+<tr>
+<td>D59</td>
+<td>The answer of <code>scene.apply</code> carries <code>warnings</code> with stable codes, for example for a surface attached under a group with <code>input: pass</code>, or for a layer that alone is larger than the pixel budget of every output; a drop at render time stays the event <code>layers.dropped</code></td>
+<td>Some transactions succeed but do not give the result that the client expects. A warning tells the client without a capture.</td>
+</tr>
+<tr>
+<td>D61</td>
+<td><code>choractl mcp</code> keeps <code>keep_nodes</code>; after a restart, an agent removes its own old nodes (#101)</td>
+<td>No change in the core or in <code>choractl</code>. An agent knows which of its nodes still matter.</td>
 </tr>
 </tbody>
 </table>
@@ -1412,7 +1427,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D39</td>
-<td>The XP showroom is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube, in its own repository, in active development; it is a demo, not a daily driver</td>
+<td>The XP showroom is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it lives in the core repository (D36); it is a demo on top of the generic plugins, not a daily driver; it starts installed programs, draws no programs into the scene, and draws its own wallpaper, one per cube face; after its rework in 0.8, it gets fixes and the API ports of the core only, and no release per milestone</td>
 <td>It proves that the scene model carries classic desktops and their effects, and it tests every API change. The assets come from <code>kde-plasma-winxp-launcher</code> and keep their licenses; the GPL-3.0-only artwork of Exposé and modernXP is data of the flavor, not code of the core (D8).</td>
 </tr>
 <tr>
@@ -1464,7 +1479,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D47</td>
-<td>The git flow of the project conventions: <code>main</code> holds <code>chore: init</code> and merge commits; work happens on <code>dev</code>, and each contributor of a shared repository has <code>dev-NAME</code>; a release is a merge into <code>main</code> and an annotated tag on the merge commit; the tag starts the release, which needs green CI of the same commit; commitizen writes the changelog; a review loop runs until a round finds nothing that matters</td>
+<td>The git flow of the project conventions: <code>main</code> holds <code>chore: init</code> and merge commits; work happens on <code>dev</code>, and each contributor of a shared repository has <code>dev-NAME</code>; a release is a merge into <code>main</code> and an annotated tag on the merge commit; the tag starts the release, which needs green CI of the same commit; commitizen writes the changelog; a review loop runs until a round finds nothing that matters; <code>main</code> accepts pull requests only from the move to the organization after 1.0 (D36)</td>
 <td>One flow in every repository. A release never ships a red commit.</td>
 </tr>
 <tr>
@@ -1474,7 +1489,7 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D49</td>
-<td>Packages through COPR with Packit, with a subpackage per plugin, and PKGBUILDs in the AUR</td>
+<td>Packages through COPR with Packit, with a subpackage per plugin; no AUR packages</td>
 <td>The image build and updates need a package repository.</td>
 </tr>
 <tr>
@@ -1484,8 +1499,8 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D51</td>
-<td>The daily driver of 1.0 is <code>chora-tiling</code> with waybar, fuzzel, mako, swaylock, swayidle and kanshi; panel and launcher plugins of chora grow in parallel in their own repositories</td>
-<td>Existing tools cover the shell. Own plugins are no condition for 1.0.</td>
+<td>The daily driver of milestone 0.9 (D60) is <code>chora-tiling</code> with waybar, fuzzel, mako, swaybg, swaylock, swayidle and kanshi; panel and launcher plugins of chora come after 1.0</td>
+<td>Existing tools cover the shell. Own plugins are no condition for 0.9 or 1.0.</td>
 </tr>
 <tr>
 <td>D52</td>
@@ -1494,12 +1509,12 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D53</td>
-<td>The voice pipeline lives in <code>chora-voice</code>, until 1.0 in <code>services/voice/</code> of the core repository (D36), and runs in parallel to the core; the core supplies push-to-talk grabs, text injection, the read model and an agent indicator</td>
+<td>The voice pipeline lives in <code>chora-voice</code>, until the split after 1.0 in <code>services/voice/</code> of the core repository (D36), and runs in parallel to the core; the core supplies push-to-talk grabs, text injection, the read model and an agent indicator</td>
 <td>The pipeline is a product of its own. It needs only the API of the core.</td>
 </tr>
 <tr>
 <td>D54</td>
-<td>Plugins use the JSON-RPC API with frame events and fd passing; a private Wayland protocol for plugins comes only if a measurement at 120 Hz in milestone 0.9 shows the need</td>
+<td>Plugins use the JSON-RPC API with frame events and fd passing; a private Wayland protocol for plugins comes only if a measurement at 120 Hz in milestone 0.10 shows the need</td>
 <td>One API to maintain. The measurement decides.</td>
 </tr>
 <tr>
@@ -1509,13 +1524,18 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D56</td>
-<td>The UI is hybrid. Plugins draw shell chrome and effects as scene nodes. Real applications, such as a file manager or a control panel, run as Wayland clients. Scene nodes take the keyboard through <code>focus_node</code>. The Explorer of <code>chora-xp</code>, drawn from scene nodes, is a stopgap</td>
+<td>The UI is hybrid. Plugins draw shell chrome and effects as scene nodes. Real applications, such as a file manager or a control panel, run as Wayland clients. Scene nodes take the keyboard through <code>focus_node</code>. In 0.8, <code>chora-xp</code> stops drawing programs into the scene and starts installed programs instead (D39). The git tag <code>archive/xp-scene-programs</code> keeps the removed code</td>
 <td>Chrome and effects need the scene: transforms, shaders, wobble. Applications need text input, accessibility and toolkits, which clients bring.</td>
 </tr>
 <tr>
 <td>D57</td>
 <td>The watchdog disconnects a client for slow frames only when its own visible load reaches the owner budget, <code>CHORA_OWNER_LOAD_BUDGET</code> with a default of 4000. Below it the slowdown is shared: the watchdog removes the effects of all clients and disconnects none</td>
 <td>The W5 battle disconnected a playing snake while a budget probe churned its nodes. The largest single load was not the fault. Two clients that are each half the fault should keep their connections, and the frame still gets cheap; a client alone over its budget is the clear culprit.</td>
+</tr>
+<tr>
+<td>D60</td>
+<td>The daily driver comes before the renderer: milestone 0.9 is the daily driver and 0.10 the renderer</td>
+<td>Daily use needs a stable session more than a faster renderer. 0.9 takes from the renderer only the watchdog thread, which detects a hung main loop.</td>
 </tr>
 </tbody>
 </table>
