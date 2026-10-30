@@ -94,7 +94,7 @@ pub struct Config {
     pub barge_in_min_rms: f64,
     /// The echo level over the played level at the start; the agent
     /// learns it while it speaks. The default assumes the echo canceller
-    /// of PipeWire.
+    /// of `PipeWire`.
     pub barge_in_coupling: f64,
     /// The longest utterance that can be a command word.
     pub word_max_ms: u32,
@@ -226,7 +226,7 @@ impl Default for Config {
             barge_in_coupling: 0.1,
             word_max_ms: 2000,
             sleep_words: words(&["schlaf", "schlaf jetzt"]),
-            wake_words: words(&["hör zu"]),
+            wake_words: words(&["hör zu", "hallo chora"]),
             cancel_words: words(&["stopp", "stop", "abbrechen", "halt", "vergiss es"]),
             code_cancel_words: words(&["coding-aufgabe abbrechen", "programmieraufgabe abbrechen"]),
             yes_words: words(&["ja", "okay", "genau", "mach das"]),

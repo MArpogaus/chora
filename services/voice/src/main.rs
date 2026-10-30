@@ -22,6 +22,7 @@ mod speech;
 mod tools;
 mod tts;
 mod vad;
+mod words;
 
 use std::{
     io::IsTerminal,
