@@ -2162,8 +2162,9 @@ in. <code>choractl clients create agent</code> prints its path:</p>
 <li><code>methods.call</code> needs the capability <code>methods.call</code>, and
   <code>activation.token</code> the capability <code>activation.token</code>. Without them
   both answer code 4. The main socket needs neither. A token of
-  <code>activation.token</code> belongs to no client, so the window of a program
-  started with it takes the focus without a press. A window of its
+  <code>activation.token</code> belongs to no client, so any window that activates
+  with it takes the focus without a press, also a window of the client
+  itself. So the capability lets a client take the keyboard. A window of its
   <code>wayland.sock</code> asks for tokens through <code>xdg-activation</code>, under the
   focus rules above.</li>
 <li>Its <code>image</code>, <code>shader</code> and effect paths name only its own files of
