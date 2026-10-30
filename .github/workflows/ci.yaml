@@ -97,6 +97,8 @@ jobs:
     - run: tests/gate-0.8-10.sh
     # Gate check 6 of the 0.8 gate itself (D62, #99).
     - run: tests/gate-0.8-tiling-style.sh
+    # Gate check 5 of the 0.8 gate itself (D58).
+    - run: tests/gate-0.8-tiling-look.sh
     - run: tests/gate-0.8-xp-token.sh e2e/xp
     # Gate check 4 of the 0.8 gate itself (D62).
     - run: tests/gate-0.8-xp-settings.sh
