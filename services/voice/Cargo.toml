@@ -3,13 +3,18 @@ name = "chora-voice"
 path = "src/main.rs"
 
 [dependencies]
+base64.workspace = true
 chora-kit.workspace = true
 chora-scene.workspace = true
 clap.workspace = true
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 schemars.workspace = true
 serde.workspace = true
 serde-saphyr.workspace = true
 serde_json.workspace = true
+tokio = { workspace = true, features = ["net"] }
+# No TLS: the servers are on the local network.
+tokio-tungstenite = "0.28"
 tracing.workspace = true
 tracing-subscriber.workspace = true
 tract-onnx = "0.22"

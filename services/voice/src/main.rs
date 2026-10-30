@@ -2,16 +2,21 @@
 //! through a speech gate with Silero VAD; the agent is a chora client
 //! with methods, settings and a push-to-talk key.
 
+mod asr;
 mod audio;
 mod client;
 mod config;
 mod core;
 mod earcon;
+#[cfg(test)]
+mod fake;
 mod gate;
+mod live;
 mod log;
 mod pcm;
 mod record;
 mod replay;
+mod tts;
 mod vad;
 
 use std::{
@@ -63,6 +68,21 @@ enum Command {
         #[arg(required = true)]
         dirs: Vec<PathBuf>,
     },
+    /// Transcribe a WAV file (24 kHz mono PCM16) with the ASR.
+    Asr { file: PathBuf },
+    /// Speak a text with the TTS and print the timing of its sentences.
+    Tts {
+        text: String,
+        /// Write the sound to this WAV file instead of playing it.
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+    /// Speak a text with the TTS, transcribe its sound with the ASR, and
+    /// print the latencies.
+    Roundtrip {
+        #[arg(default_value = "Hallo Chora. Zeig mir bitte die Agenda für heute.")]
+        text: String,
+    },
 }
 
 fn main() -> ExitCode {
@@ -93,6 +113,9 @@ fn main() -> ExitCode {
                 println!("{}", lines.join("\n"));
                 Ok(())
             }
+            Some(Command::Asr { file }) => live::asr(&settings.value, file),
+            Some(Command::Tts { text, out }) => live::tts(&settings.value, text, out.as_deref()),
+            Some(Command::Roundtrip { text }) => live::roundtrip(&settings.value, text),
             None => run(args.name, settings),
         });
     match result {
