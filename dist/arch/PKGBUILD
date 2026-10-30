@@ -22,9 +22,12 @@ optdepends=(
   'swayidle: the idle lock of the tiling flavor'
   'swaylock: the lock screen of the tiling flavor'
   'kanshi: the output profiles of the tiling flavor'
+  'jq: the tags module in the panel of the tiling flavor'
   'xwayland-satellite: X11 programs'
+  'xdg-desktop-portal-wlr: screen sharing'
+  'xdg-desktop-portal-gtk: the other portals, such as the file chooser'
 )
-backup=(etc/xdg/uwsm/env-chora)
+backup=(etc/xdg/uwsm/env-chora etc/xdg/xdg-desktop-portal-wlr/chora)
 options=(!lto !debug)
 
 build() {
@@ -43,6 +46,10 @@ package() {
   install -Dm755 dist/session/chora-xwayland -t "$pkgdir/usr/libexec/chora/"
   install -Dm644 dist/session/*.desktop -t "$pkgdir/usr/share/wayland-sessions/"
   install -Dm644 dist/session/env-chora -t "$pkgdir/etc/xdg/uwsm/"
+  # Screen sharing through xdg-desktop-portal-wlr (D37).
+  install -Dm644 dist/portal/chora-portals.conf -t "$pkgdir/usr/share/xdg-desktop-portal/"
+  install -Dm644 dist/portal/xdg-desktop-portal-wlr \
+    "$pkgdir/etc/xdg/xdg-desktop-portal-wlr/chora"
   install -Dm644 dist/session/chora@.service dist/session/chora-shutdown.target \
     -t "$pkgdir/usr/lib/systemd/user/"
   install -Dm644 LICENSE LICENSES/MIT-Smithay.txt -t "$pkgdir/usr/share/licenses/chora/"
