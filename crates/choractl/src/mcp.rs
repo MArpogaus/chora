@@ -502,7 +502,7 @@ fn scene_tools() -> Vec<Tool> {
         ),
         tool(
             "call_method",
-            "Call a method that a plugin exported, for example client tiling, method set_layout, params {\"layout\": \"rows\"}. Every export also has its own tool named client.method.",
+            "Call a method that a plugin exported, for example client tiling, method set_layout, params {\"layout\": \"fair\"}. Every export also has its own tool named client.method.",
             &json!({"client": {"type": "string"}, "method": {"type": "string"}, "params": {"description": "any JSON value"}}),
             &["client", "method"],
         ),
@@ -994,6 +994,26 @@ mod tests {
         assert!(mcp.subscribe(&json!({"keys": ["Super+k"]})).is_err());
         assert!(mcp.subscription.lock().expect("lock").is_some());
         let _ = std::fs::remove_file(&mcp.socket);
+    }
+
+    #[test]
+    fn the_layout_of_the_call_method_example_exists() {
+        let call = tools()
+            .into_iter()
+            .find(|t| t.name == "call_method")
+            .expect("call_method");
+        let description = call.description.as_deref().unwrap_or_default();
+        let layout = description
+            .split("\"layout\": \"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .expect("an example layout");
+        let api = include_str!("../../../docs/api.md");
+        let row = api
+            .lines()
+            .find(|l| l.starts_with("| `set_layout`"))
+            .expect("the set_layout row");
+        assert!(row.contains(&format!("`{layout}`")), "{layout}");
     }
 
     #[test]
