@@ -32,7 +32,7 @@ use self::{desktops::desk_id, effects::Effects};
 use crate::{
     apps,
     balloon::{self, Balloon, Queue},
-    config::{Config, Wallpaper},
+    config::{Config, Picture, Wallpaper},
     context::{self, Act},
     control::{self, Setting},
     cube::DESKTOPS,
@@ -196,7 +196,7 @@ pub struct Wm {
     /// The settings as the plugin applies them.
     settings: settings::File<Config>,
     /// The background of the desktop that shows.
-    wallpaper: wallpaper::Style,
+    wallpaper: Wallpaper,
     /// Stretches the time of the magic lamp and of the cube, for tests
     /// and demos; 1 is the normal speed.
     slow: f64,
@@ -313,7 +313,7 @@ impl Wm {
             desk: DesktopIcons::new(&config.terminal),
             effects: Effects::new(config.effects),
             taskbar: config.taskbar,
-            wallpaper: config.wallpaper.style(&theme),
+            wallpaper: config.wallpaper.clone(),
             theme,
             icons,
             settings,
@@ -2265,7 +2265,7 @@ impl Wm {
                 .first_sized(&["user-trash-full", "user-trash"], 32),
             walls,
         };
-        let style = self.wallpaper.clone();
+        let style = self.wallpaper.resolved(&self.theme);
         let mut panel = DisplayDialog::new(style, screen, self.display_tab, area, art);
         let page = panel.page(&mut self.theme);
         let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
@@ -2326,8 +2326,8 @@ impl Wm {
                 } else {
                     self.redraw_panel(i)
                 };
-                if style != self.wallpaper {
-                    commands.extend(self.change(json!({ "wallpaper": Wallpaper::of(&style) })));
+                if style != self.wallpaper.resolved(&self.theme) {
+                    commands.extend(self.change(json!({ "wallpaper": style })));
                 }
                 let current = self
                     .outputs()
@@ -2416,7 +2416,7 @@ impl Wm {
     fn configure(&mut self) -> Vec<Command> {
         let config = self.settings.value.clone();
         let mut commands = Vec::new();
-        let style = config.wallpaper.style(&self.theme);
+        let style = config.wallpaper.clone();
         if style != self.wallpaper {
             commands.extend(self.set_wallpaper(style));
         }
@@ -2439,7 +2439,7 @@ impl Wm {
     }
 
     /// Shows a background on every output.
-    fn set_wallpaper(&mut self, style: wallpaper::Style) -> Vec<Command> {
+    fn set_wallpaper(&mut self, style: Wallpaper) -> Vec<Command> {
         self.wallpaper = style;
         self.outputs()
             .iter()
@@ -2700,8 +2700,8 @@ impl Wm {
     /// The Control Panel for an output, with the current choices.
     fn control_panel(&mut self) -> Vec<apps::Node> {
         let walls = control::wallpapers(&wallpaper::dirs(&self.theme));
-        let current = self.wallpaper.file.as_deref();
-        control::menu(current, &walls, self.effects.toggles)
+        let current = self.wallpaper.file(&self.theme);
+        control::menu(current.as_deref(), &walls, self.effects.toggles)
     }
 
     /// Changes a setting: the scale of the output of the menu through the
@@ -2722,11 +2722,11 @@ impl Wm {
                 Vec::new()
             }
             Setting::Wallpaper(file) => {
-                let style = wallpaper::Style {
-                    file: Some(file.clone()),
+                let style = Wallpaper {
+                    picture: Picture::File(file.clone()),
                     ..self.wallpaper.clone()
                 };
-                self.change(json!({ "wallpaper": Wallpaper::of(&style) }))
+                self.change(json!({ "wallpaper": style }))
             }
             Setting::Effect(effect) => {
                 let mut toggles = self.effects.toggles;

@@ -46,30 +46,35 @@ pub struct Wallpaper {
 }
 
 impl Wallpaper {
-    /// The style that the wallpaper nodes draw, with Bløff of the theme
-    /// as the default without Bliss.
-    pub fn style(&self, theme: &Theme) -> wallpaper::Style {
-        let file = match &self.picture {
+    /// The file of the picture, with XP's Bliss when it is installed, else
+    /// Bløff of the theme, as the default.
+    pub fn file(&self, theme: &Theme) -> Option<PathBuf> {
+        match &self.picture {
             Picture::Default => Some(
                 chora_kit::xdg::data_file("wallpapers/WindowsXP/bliss.jpg")
                     .unwrap_or_else(|| theme.path("wallpaper/bloff.png")),
             ),
             Picture::None => None,
             Picture::File(file) => Some(file.clone()),
-        };
-        wallpaper::Style {
-            file,
-            position: self.position,
-            color: self.color,
         }
     }
 
-    /// The wallpaper of a style that a dialog chose.
-    pub fn of(style: &wallpaper::Style) -> Self {
+    /// The wallpaper with the file of the default, as Display Properties
+    /// lists it.
+    pub fn resolved(&self, theme: &Theme) -> Self {
         Self {
-            picture: style.file.clone().map_or(Picture::None, Picture::File),
-            position: style.position,
-            color: style.color,
+            picture: self.file(theme).map_or(Picture::None, Picture::File),
+            ..self.clone()
+        }
+    }
+
+    /// A picture filling the screen, on XP's blue.
+    #[cfg(test)]
+    pub fn new(file: PathBuf) -> Self {
+        Self {
+            picture: Picture::File(file),
+            position: wallpaper::Position::default(),
+            color: wallpaper::DESKTOP_BLUE,
         }
     }
 }
@@ -261,19 +266,5 @@ mod tests {
         assert_eq!(session.turn_off.as_deref(), Some("systemctl poweroff"));
         assert_eq!(session.log_off, None);
         std::fs::remove_dir_all(dir).unwrap();
-    }
-
-    #[test]
-    fn a_style_of_a_dialog_is_a_wallpaper_again() {
-        let style = wallpaper::Style {
-            file: None,
-            position: wallpaper::Position::Tile,
-            color: [1, 2, 3],
-        };
-        let wallpaper = Wallpaper::of(&style);
-        assert_eq!(wallpaper.picture, Picture::None);
-        let (theme, cache) = crate::theme::tests::theme("config");
-        assert_eq!(wallpaper.style(&theme), style);
-        let _ = std::fs::remove_dir_all(cache);
     }
 }

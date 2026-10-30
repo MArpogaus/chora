@@ -17,13 +17,14 @@
 use std::{fmt::Write as _, path::PathBuf};
 
 use crate::{
+    config::{self, Wallpaper},
     context::{Act, Entry},
     control::{self, SCALES, Toggles},
     decoration::{self, BORDER, TITLE},
     dialog::{self, BLACK, Control, Dialog, Hit, Page},
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
-    wallpaper::{self, Position, Style},
+    wallpaper::{self, Position},
 };
 
 /// The client area: XP's dialog is 404 by 455 pixels with its frame.
@@ -92,7 +93,7 @@ pub enum Click {
     /// dialog or not.
     Apply {
         /// The background of the desktop.
-        style: Style,
+        style: Wallpaper,
         /// The scale in percent.
         scale: u32,
         /// OK closes the dialog, Apply keeps it.
@@ -122,8 +123,8 @@ pub struct DisplayDialog {
     /// The tab that shows.
     pub tab: usize,
     walls: Vec<PathBuf>,
-    applied: Style,
-    shown: Style,
+    applied: Wallpaper,
+    shown: Wallpaper,
     screen: Screen,
     /// The scale that the slider shows.
     scale: u32,
@@ -132,13 +133,21 @@ pub struct DisplayDialog {
     art: Art,
 }
 
+/// The file of a resolved wallpaper.
+fn file(wallpaper: &Wallpaper) -> Option<&PathBuf> {
+    match &wallpaper.picture {
+        config::Picture::File(file) => Some(file),
+        _ => None,
+    }
+}
+
 impl DisplayDialog {
     /// The dialog for the background of the session and an output, on a
     /// tab, in the middle of a work area. A wallpaper that is not in the
-    /// list joins it.
-    pub fn new(style: Style, screen: Screen, tab: usize, area: Rect, mut art: Art) -> Self {
+    /// list joins it. The caller resolves the default picture.
+    pub fn new(style: Wallpaper, screen: Screen, tab: usize, area: Rect, mut art: Art) -> Self {
         let mut walls = std::mem::take(&mut art.walls);
-        if let Some(file) = style.file.as_ref().filter(|f| !walls.contains(f)) {
+        if let Some(file) = file(&style).filter(|f| !walls.contains(f)) {
             walls.push(file.clone());
         }
         let mut panel = Self {
@@ -169,9 +178,7 @@ impl DisplayDialog {
 
     /// The row of the chosen background.
     fn chosen(&self) -> usize {
-        self.shown
-            .file
-            .as_ref()
+        file(&self.shown)
             .and_then(|f| self.walls.iter().position(|w| w == f))
             .map_or(0, |i| i + 1)
     }
@@ -286,7 +293,7 @@ impl DisplayDialog {
     ) -> Picture {
         let mut body = monitor(theme, body, &self.screen_picture(theme));
         body = dialog::label(body, "Background:", [21, 217, 200, 13], true);
-        let has_picture = self.shown.file.is_some();
+        let has_picture = file(&self.shown).is_some();
         body = dialog::label(body, "Position:", [303, 270, 75, 13], has_picture);
         body = dialog::label(body, "Color:", [303, 317, 75, 13], true);
         let [.., cw, ch] = COLOR;
@@ -575,9 +582,9 @@ impl DisplayDialog {
         }
         let row = self.top + usize::try_from((y - 1).max(0) / ROW).unwrap_or(0);
         if row == 0 {
-            self.shown.file = None;
+            self.shown.picture = config::Picture::None;
         } else if let Some(wall) = self.walls.get(row - 1) {
-            self.shown.file = Some(wall.clone());
+            self.shown.picture = config::Picture::File(wall.clone());
         }
     }
 
@@ -957,7 +964,7 @@ mod tests {
             physical: [1600, 1000],
             scale: 125,
         };
-        let style = Style::new("/w/wall3.png".into());
+        let style = Wallpaper::new("/w/wall3.png".into());
         let art = Art {
             walls,
             ..Art::default()
@@ -985,10 +992,10 @@ mod tests {
         assert_eq!(p.chosen(), 4);
         // (None) is the first row.
         assert_eq!(click(&mut p, "list", [40, 3]), Click::Redraw);
-        assert_eq!(p.shown.file, None);
+        assert_eq!(file(&p.shown), None);
         // The second row is the first wallpaper.
         click(&mut p, "list", [40, 1 + ROW + 3]);
-        assert_eq!(p.shown.file, Some("/w/wall0.png".into()));
+        assert_eq!(file(&p.shown), Some(&"/w/wall0.png".into()));
         p.set_position(0);
         p.set_color([0, 0, 0]);
         let Click::Apply {
@@ -1060,7 +1067,7 @@ mod tests {
             physical: [800, 600],
             scale: 100,
         };
-        let mut style = Style::new(bliss);
+        let mut style = Wallpaper::new(bliss);
         style.position = Position::Stretch;
         let art = Art {
             walls,
