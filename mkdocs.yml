@@ -34,7 +34,6 @@ nav:
   - Alternatives: alternatives.md
   - Decisions: decisions.md
   - Roadmap: roadmap.md
-  - Idea backlog: ideas.md
 
 markdown_extensions:
 - admonition

@@ -36,7 +36,7 @@ that the code does not implement yet.
 | D16 | Pin a Smithay git revision | No Smithay release since 0.7.0. All major users track git. |
 | D17 | A scene renderer of chora on GLES 3, on the GL context of Smithay's `GlesRenderer`; GLSL shaders | Smithay's render elements are axis-aligned rectangles. A renderer of its own draws the full 4x4 model and keeps textures between frames. wgpu has no usable dmabuf path for a compositor. |
 | D18 | Six node kinds: group, surface, rect, image, shader and text | Widgets come from Wayland clients. An image node shows a PNG asset, for example a window border, without a client per window. A shader can read another node as a texture. A text node lets plugins and agents label a HUD without a client or a rendered PNG. cosmic-text does the shaping and the font fallback, so the node stays small: text, font family, size, color and maximum width; no editing and no rich text. |
-| D19 | Transforms are 4x4 matrices; the scene is 2.5D: planes in perspective, meshes and fragment shaders, without a depth test | 3D effects need no API change. Complex 3D scenes belong in clients (see [Idea backlog](ideas.md#visuals)). |
+| D19 | Transforms are 4x4 matrices; the scene is 2.5D: planes in perspective, meshes and fragment shaders, without a depth test | 3D effects need no API change. Complex 3D scenes belong in clients. |
 | D20 | One logical scene; each output shows it through a camera | Pan, zoom and the infinite canvas need no extra mechanism. |
 | D21 | The core places popups, subsurfaces and layer surfaces; toplevels wait for a plugin | The protocols define these positions. Smithay implements them. |
 | D22 | A transaction completes when all affected clients commit, or after a deadline; transactions on disjoint surfaces do not wait for each other | A resize needs a client round trip. One slow client must not stop the others. |
@@ -68,7 +68,7 @@ that the code does not implement yet.
 
 | # | Decision | Reason |
 |---|----------|--------|
-| D37 | Screen sharing through `xdg-desktop-portal-wlr` | No code. A portal backend of its own is in the [Idea backlog](ideas.md). |
+| D37 | Screen sharing through `xdg-desktop-portal-wlr` | No code. A portal backend of its own can come later. |
 | D38 | HTML content from agents runs in a browser in app mode, as a service | No code. chora places toplevels anywhere. |
 | D39 | The XP showroom is a flavor in the style of Windows XP with wobbly windows, a magic lamp minimize and a 3D desktop cube; it lives in the core repository (D36); it is a demo on top of the generic plugins, not a daily driver; it starts installed programs, draws no programs into the scene except the dialogs of D63, and draws its own wallpaper, one per cube face; after its rework in 0.8, it gets fixes and the API ports of the core only, and no release per milestone | It proves that the scene model carries classic desktops and their effects, and it tests every API change. The assets come from `kde-plasma-winxp-launcher` and keep their licenses; the GPL-3.0-only artwork of Exposé and modernXP is data of the flavor, not code of the core (D8). |
 | D40 | The user gives capabilities in `~/.config/chora/clients.yaml`; `choractl clients up` creates the client sockets through an admin socket that only `choractl` uses; the emergency reset removes all client sockets; `choractl mcp` has no tool for capabilities | The core draws no text, so a dialog is no option. Only the user changes the capabilities. |

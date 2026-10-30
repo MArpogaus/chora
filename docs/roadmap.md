@@ -492,4 +492,3 @@ speech to text, a language model and text to speech, served by
   the notifications, and a launcher (D51). Until then, shared code lives
   in `chora-kit`.
 - Conformance tests with wlcs.
-- Items from the [Idea backlog](ideas.md).
