@@ -720,8 +720,8 @@ plugins running.
 
 `choractl run [--] CMD ARGS...` starts a program outside the core. It
 asks the core for an activation token with `activation.token` and
-passes it to the program in `XDG_ACTIVATION_TOKEN`. It prints the pid,
-the unit and the token as one JSON line while the program runs.
+passes it to the program in `XDG_ACTIVATION_TOKEN`, and in
+`DESKTOP_STARTUP_ID` for GTK 3. It prints the pid, the unit and the token as one JSON line while the program runs.
 
 - When `systemctl --user is-system-running` shows a state other than
   `offline`, a user manager runs. `systemd-run --user` then starts the

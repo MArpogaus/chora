@@ -598,6 +598,7 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
             unit,
         ])
         .env("XDG_ACTIVATION_TOKEN", token)
+        .env("DESKTOP_STARTUP_ID", token)
         .args(unit_env());
     if restart {
         started.arg("-pRestart=on-failure");
@@ -640,6 +641,7 @@ fn start_child(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
     let mut child = std::process::Command::new(&argv[0])
         .args(&argv[1..])
         .env("XDG_ACTIVATION_TOKEN", token)
+        .env("DESKTOP_STARTUP_ID", token)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -735,7 +737,11 @@ fn restart_program(name: &str) -> Result<(), String> {
 /// the host of a nested chora, so each host variable gets this session's
 /// value or none. All other variables come from the user manager.
 fn unit_env() -> Vec<String> {
-    let mut options = vec!["--setenv=XDG_ACTIVATION_TOKEN".to_owned()];
+    // GTK 3 reads the token only from DESKTOP_STARTUP_ID.
+    let mut options = vec![
+        "--setenv=XDG_ACTIVATION_TOKEN".to_owned(),
+        "--setenv=DESKTOP_STARTUP_ID".to_owned(),
+    ];
     for key in ["PATH", "XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"]
         .into_iter()
         .chain(chora_scene::ipc::HOST_VARIABLES)
