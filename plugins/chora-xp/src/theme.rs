@@ -17,8 +17,8 @@ use std::{
 
 use resvg::{
     tiny_skia::{
-        self, FilterQuality, IntSize, Paint, Pattern, Pixmap, PixmapMut, PixmapPaint,
-        PremultipliedColorU8, SpreadMode, Transform,
+        self, FilterQuality, IntSize, Paint, Pattern, Pixmap, PixmapMut, PixmapPaint, SpreadMode,
+        Transform,
     },
     usvg,
 };
@@ -109,14 +109,6 @@ pub enum Layer {
         /// How the file fills the rectangle.
         fit: Fit,
     },
-    /// A file as [`Layer::File`], in light gray, as XP shows the icon of
-    /// a disabled button.
-    Gray {
-        /// The file.
-        path: PathBuf,
-        /// The rectangle.
-        rect: Rect,
-    },
     /// A line of text.
     Text(Text),
     /// SVG elements in the coordinates of the picture, such as the
@@ -182,15 +174,6 @@ impl Picture {
         self
     }
 
-    /// Adds an SVG or PNG file in light gray.
-    pub fn gray(mut self, path: &Path, rect: Rect) -> Self {
-        self.layers.push(Layer::Gray {
-            path: path.into(),
-            rect,
-        });
-        self
-    }
-
     /// Adds a line of text.
     pub fn text(mut self, text: Text) -> Self {
         self.layers.push(Layer::Text(text));
@@ -220,10 +203,6 @@ impl Picture {
                     path,
                     rect: shift(rect),
                     fit,
-                },
-                Layer::Gray { path, rect } => Layer::Gray {
-                    path,
-                    rect: shift(rect),
                 },
                 Layer::Text(mut text) => {
                     text.rect = shift(text.rect);
@@ -537,7 +516,6 @@ impl Theme {
                 Ok(())
             }
             Layer::File { path, rect, fit } => self.draw_file(path, *rect, *fit, (base, pixmap)),
-            Layer::Gray { path, rect } => self.draw_gray(path, *rect, (base, pixmap)),
             Layer::Text(text) => self.fonts.draw(text, base, pixmap),
             Layer::Svg(body) => {
                 let svg = format!(
@@ -617,31 +595,6 @@ impl Theme {
     }
 
     /// Draws an SVG, PNG or JPEG file scaled to a rectangle.
-    /// A file in light gray: drawn alone, then each pixel turns to its
-    /// luma, halfway to white.
-    fn draw_gray(
-        &self,
-        path: &Path,
-        rect: Rect,
-        (base, pixmap): (Transform, &mut PixmapMut<'_>),
-    ) -> Result<(), String> {
-        let mut temp = Pixmap::new(pixmap.width(), pixmap.height()).ok_or("no pixels")?;
-        self.draw_file(path, rect, Fit::Inside, (base, &mut temp.as_mut()))?;
-        for pixel in temp.pixels_mut() {
-            let [red, green, blue] = [pixel.red(), pixel.green(), pixel.blue()].map(u32::from);
-            let alpha = pixel.alpha();
-            // Premultiplied, white is the alpha.
-            let luma = (red * 30 + green * 59 + blue * 11) / 100;
-            let light = u8::try_from(u32::midpoint(luma, u32::from(alpha))).unwrap_or(u8::MAX);
-            if let Some(gray) = PremultipliedColorU8::from_rgba(light, light, light, alpha) {
-                *pixel = gray;
-            }
-        }
-        let paint = PixmapPaint::default();
-        pixmap.draw_pixmap(0, 0, temp.as_ref(), &paint, Transform::identity(), None);
-        Ok(())
-    }
-
     fn draw_file(
         &self,
         path: &Path,

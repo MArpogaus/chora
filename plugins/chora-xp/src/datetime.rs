@@ -192,7 +192,6 @@ impl DateDialog {
         Page {
             body: Some(body),
             controls,
-            ..Page::default()
         }
     }
 

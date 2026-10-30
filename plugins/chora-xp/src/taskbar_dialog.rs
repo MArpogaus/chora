@@ -73,7 +73,6 @@ impl TaskbarDialog {
         Page {
             body: Some(body),
             controls,
-            ..Page::default()
         }
     }
 

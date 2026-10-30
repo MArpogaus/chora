@@ -7,7 +7,6 @@
 mod apps;
 mod balloon;
 mod cascade;
-mod confirm;
 
 mod context;
 mod control;
@@ -17,11 +16,8 @@ mod decoration;
 mod desktop_icons;
 mod dialog;
 mod display;
-mod explorer;
-mod folder;
 mod icons;
 mod notify;
-mod properties;
 mod session;
 mod sound;
 mod startmenu;

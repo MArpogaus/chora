@@ -111,9 +111,6 @@ pub struct Window {
     pub pressed: Option<Button>,
     /// The button of the title bar under the pointer.
     pub hovered: Option<Button>,
-    /// The plugin draws the client, too, as for an Explorer window: no
-    /// client gets a configure or the focus.
-    pub own: bool,
 }
 
 impl Window {
@@ -134,7 +131,6 @@ impl Window {
             shown: false,
             pressed: None,
             hovered: None,
-            own: false,
         }
     }
 
@@ -174,12 +170,8 @@ impl Window {
     }
 
     /// The configure command: the focus and the maximized state, and the
-    /// size of a maximized window. Other windows choose their size. None
-    /// for a window of the plugin.
-    pub fn configure(&self, active: bool) -> Option<Command> {
-        if self.own {
-            return None;
-        }
+    /// size of a maximized window. Other windows choose their size.
+    pub fn configure(&self, active: bool) -> Command {
         let mut states = Vec::new();
         if active {
             states.push(ToplevelState::Activated);
@@ -190,11 +182,11 @@ impl Window {
         } else {
             None
         };
-        Some(Command::Configure {
+        Command::Configure {
             surface: self.surface.clone(),
             size,
             states,
-        })
+        }
     }
 
     /// The decoration in its look and the group at its place. Nothing for
@@ -287,9 +279,6 @@ impl Window {
         self.pos = [x, y];
         let size = (w > 0 && h > 0).then_some([w, h]);
         self.size = size;
-        if self.own {
-            return None;
-        }
         let states = if active {
             vec![ToplevelState::Activated]
         } else {
@@ -304,7 +293,7 @@ impl Window {
 
     /// Puts the frame into a rectangle, unmaximized: the configure with
     /// the new client size.
-    pub fn fit(&mut self, [x, y, w, h]: Rect, active: bool) -> Option<Command> {
+    pub fn fit(&mut self, [x, y, w, h]: Rect, active: bool) -> Command {
         self.restore = None;
         self.pos = [x, y];
         let size = if self.framed {
@@ -313,19 +302,16 @@ impl Window {
             [w, h]
         };
         self.size = Some(size);
-        if self.own {
-            return None;
-        }
         let states = if active {
             vec![ToplevelState::Activated]
         } else {
             Vec::new()
         };
-        Some(Command::Configure {
+        Command::Configure {
             surface: self.surface.clone(),
             size: Some(size),
             states,
-        })
+        }
     }
 
     /// Whether a point in scene coordinates is on the icon of the title
@@ -364,38 +350,27 @@ impl Window {
         if !self.framed {
             return [1, 1];
         }
-        let [w, h] = if self.own {
-            decoration::outer(crate::explorer::MIN_SIZE, false)
-        } else {
-            MIN_FRAME
-        };
-        [w.max(MIN_FRAME[0]), h.max(MIN_FRAME[1])]
+        MIN_FRAME
     }
 
-    /// Asks for a new frame during a resize: a window of the plugin takes
-    /// it at once; a client gets a configure and its frame follows its
-    /// commit.
-    pub fn resize_to(&mut self, [x, y, w, h]: Rect, active: bool) -> Option<Command> {
+    /// Asks for a new frame during a resize: the client gets a configure
+    /// and its frame follows its commit.
+    pub fn resize_to(&self, [_, _, w, h]: Rect, active: bool) -> Command {
         let size = if self.framed {
             decoration::inner([w, h], false)
         } else {
             [w, h]
         };
-        if self.own {
-            self.pos = [x, y];
-            self.size = Some(size);
-            return None;
-        }
         let states = if active {
             vec![ToplevelState::Activated]
         } else {
             Vec::new()
         };
-        Some(Command::Configure {
+        Command::Configure {
             surface: self.surface.clone(),
             size: Some(size),
             states,
-        })
+        }
     }
 }
 
