@@ -583,7 +583,9 @@ impl Plugin for Mc {
                 Ok(Value::Null)
             }
             "hud.set" => {
-                self.hud = runtime::params(params)?;
+                let SetHud { state, text } = runtime::params(params)?;
+                let text = hud_tail(&text).into();
+                self.hud = SetHud { state, text };
                 self.typing = None;
                 self.render().map_err(rejected)?;
                 Ok(Value::Null)
@@ -740,6 +742,26 @@ fn push_word(text: &mut String, word: &str) {
         text.push(' ');
     }
     text.push_str(word);
+    *text = hud_tail(text).into();
+}
+
+/// The most characters of the HUD line.
+const HUD_CHARS: usize = 160;
+
+/// The end of a HUD text that fits one line, from a word on: the HUD
+/// moves on as a ticker. 1200 words made a texture of 29953 pixels
+/// that the GPU refused (W11).
+fn hud_tail(text: &str) -> &str {
+    let count = text.chars().count();
+    if count <= HUD_CHARS {
+        return text;
+    }
+    let (cut, _) = text
+        .char_indices()
+        .nth(count - HUD_CHARS)
+        .unwrap_or_default();
+    let rest = &text[cut..];
+    rest.split_once(' ').map_or(rest, |(_, words)| words)
 }
 
 /// The id of the group of a panel.
@@ -1871,6 +1893,17 @@ fn launch(command: &str) -> Option<(String, Option<u32>)> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_hud_keeps_the_end_of_a_long_text() {
+        let mut text = String::new();
+        for i in 0..1200 {
+            super::push_word(&mut text, &format!("wordy{i}"));
+        }
+        assert!(text.chars().count() <= super::HUD_CHARS, "{}", text.len());
+        assert!(text.ends_with("wordy1199") && text.starts_with("wordy"));
+        assert_eq!(super::hud_tail("short"), "short");
+    }
+
     #[test]
     fn a_running_process_is_alive_and_a_missing_one_not() {
         assert!(super::alive(std::process::id()));

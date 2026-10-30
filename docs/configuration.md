@@ -295,8 +295,8 @@ socket needs `methods.privileged` besides `methods.call`.
 | `scene.list` | none; answers `scenes` and `current` |
 | `scene.save` | privileged. `name`, `grid`, `panels` or `app`; writes the file |
 | `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab puts the part before the first tab in the margin |
-| `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line |
-| `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it |
+| `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line. The line shows the last 160 characters of the text, from a word on |
+| `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it; past 160 characters the first words leave the line |
 | `app.open` | privileged. `command`: a shell command that starts in a scene of its own |
 | `region.list` | none; answers the current `scene`, each region with `shown`, `visible` and its `contents`, and each content with its `kind`, `title`, `text` and whether its app runs |
 | `region.toggle` | privileged, because a docked app starts. `region` and an optional `shown`; without it the region flips. Answers `shown` |
