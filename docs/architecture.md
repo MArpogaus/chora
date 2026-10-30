@@ -39,9 +39,9 @@ the methods of the plugin, before the plugin builds its scene, or after
 it with `connect` and `announce`. It grabs
 the bindings, answers the method calls and drops the events of outputs
 that `--output` leaves to other window managers. It answers
-`settings.get` and `settings.set` of a plugin with settings (D62): it
-checks a change, writes the YAML file of the plugin to a temporary file
-and renames it, and then the plugin applies the change. When the core closes
+`settings.get`, `settings.set` and `settings.reload` of a plugin with
+settings (D62): it checks a change, the plugin applies it, and then the
+runtime saves the YAML file of the plugin. When the core closes
 the connection, for example at the emergency reset, it connects again
 after 500 ms. It gives up when only failures follow for 30 s. The plugin keeps
 its claim and its restart from `meta`, because each plugin rebuilds
