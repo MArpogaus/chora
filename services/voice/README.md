@@ -228,7 +228,7 @@ It adds the tools `code_task`, `code_status`, `code_cancel` and
   Without a project, it starts an empty repository `worktrees/N`.
 - The harness runs in that clone. Its output goes to the file of the
   clone with `.log` after its name, such as `worktrees/chora-3.log`. The
-  agent speaks the result and keeps it in the history.
+  agent speaks the result, and `code_status` repeats the last one.
 - The inventory holds the projects that you keep, as git repositories
   or links to them, for example `ln -s ~/Projekte/chora
   ~/.local/share/chora/inventory/chora`. The clone has no remote. A result reaches the branch

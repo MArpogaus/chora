@@ -171,7 +171,8 @@ Coding tasks:
   an empty repository, and you hear its result when it ends.
 - Say the task in full: the coder hears nothing else. Ask it to commit
   its work, or the clone keeps it uncommitted. One task runs at a time;
-  code_status says how far it is, code_cancel stops it."""
+  code_status says how far it is, code_cancel stops it.
+- When the user asks about a spoken coding result, call code_status."""
 
 RATE = 24000
 FRAME_MS = 20
@@ -543,7 +544,11 @@ class Coder:
                 },
             },
         ),
-        function("code_status", "Whether a coding task runs, for how long, and its last step.", {}),
+        function(
+            "code_status",
+            "Whether a coding task runs, for how long, and its last step; else the last result.",
+            {},
+        ),
         function("code_cancel", "Stop the running coding task.", {}),
         function("list_projects", "The projects that code_task can clone.", {}),
     ]
@@ -555,19 +560,7 @@ class Coder:
         self.workdir: pathlib.Path | None = None
         self.started = 0.0
         self.step = ""
-        self.reports: list[str] = []  # results for the history, between two turns
-
-    def messages(self) -> list[dict]:
-        """Return the reports as results of code_status calls, for the history."""
-        out = []
-        for report in self.reports:
-            call = {"id": f"report-{abs(hash(report))}", "type": "function"}
-            call["function"] = {"name": "code_status", "arguments": "{}"}
-            out += [
-                {"role": "assistant", "content": "", "tool_calls": [call]},
-                {"role": "tool", "tool_call_id": call["id"], "content": report},
-            ]
-        return out
+        self.last = ""  # the spoken result of the last task
 
     def call(self, name: str, arguments: dict) -> str:
         """Run one of TOOLS and return its answer for the LLM."""
@@ -582,7 +575,7 @@ class Coder:
             self.job.cancel()
             return "the coding task stops"
         if not running:
-            return "no coding task runs"
+            return "no coding task runs" + (f"; the last one: {self.last}" if self.last else "")
         minutes = (time.monotonic() - self.started) / 60
         return f"it runs for {minutes:.0f} min in {self.workdir}; last step: {self.step}"
 
@@ -650,9 +643,8 @@ class Coder:
                 except TimeoutError:
                     os.killpg(self.proc.pid, signal.SIGKILL)
                     await self.proc.wait()
-        text = f"The coding task in {self.workdir.name} {state}. {(result or self.step)[:400]}"
-        self.reports.append(text)
-        await speak(self.http, one(text))
+        self.last = f"The coding task in {self.workdir.name} {state}. {(result or self.step)[:400]}"
+        await speak(self.http, one(self.last))
 
 
 async def _git(*args: str) -> None:
@@ -1158,11 +1150,6 @@ async def turn(
     """
     barged, http = bool(preroll), tools.http
     pcm = await record(mic, ptt, preroll)
-    if tools.coder and tools.coder.reports:  # before questions about them
-        # As tool results they are output of the coder, not words of the
-        # agent; an open request stays last, so that new words join it.
-        at = len(history) - (history[-1]["role"] == "user")
-        history[at:at] = tools.coder.messages()
     # Gufo refuses less than 100 ms, such as the rest of a key tap.
     said = await transcribe(http, pcm) if len(pcm) >= RATE * 2 // 10 else ""
     log(f"you: {said}")
@@ -1238,8 +1225,6 @@ async def run_loop(
             start = len(history)
             try:
                 preroll = await turn(mic, tools, history, ptt, preroll)
-                if tools.coder:  # a failed turn keeps them for the next one
-                    tools.coder.reports.clear()
             except TURN_ERRORS as err:
                 log(f"turn failed, the history drops it: {err!r}")
                 del history[start:]
