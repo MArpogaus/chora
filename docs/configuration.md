@@ -273,6 +273,14 @@ styles of its lines, its title and its notes with `style`, `title_style`
 and `note_style`; each takes a `base` (by default `body`, `heading` and
 `margin`) and changes single fields.
 
+A scene may set its own `page` (`measure`, `margin` and `gap`, as in the
+settings), for example narrow columns side by side on a wide screen, and
+`chapter.layout`, also `none` for a scene without a head. Columns of a
+grid leave room for the margin of the column to their right. A panel may
+set a `rule`, a color of the theme for a hairline left of it, an
+`opacity` from 0 to 1 and a `blur` radius in pixels up to 16, for
+context that steps back (`plugins/chora-mc/blur.frag`).
+
 | Method | Parameters |
 |--------|------------|
 | `scene.show` | `name`; the scene fades in, the old one fades out |
@@ -313,8 +321,8 @@ hand apply with `settings.reload`:
   must be in `CHORA_FONT_DIRS`, and Inter with tabular figures for the
   running head, the notes and the HUD.
 - `chapter.layout`: `number` (a large light number, the title in spaced
-  small caps below), `caps` (the title only) or `large` (one large light
-  title).
+  small caps below), `caps` (the title only), `large` (one large light
+  title) or `none`.
 - `page`: the `measure` of a column of text, the `margin` column and the
   `gap`, in em of `scale.base`.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
