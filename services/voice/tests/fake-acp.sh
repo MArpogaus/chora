@@ -21,7 +21,7 @@ while read -r prompt; do
     say '{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Ich lese den Code."}}'
     say '{"sessionUpdate":"tool_call","toolCallId":"t1","title":"Read src/main.rs","kind":"read","status":"pending"}'
     step
-    echo '{"jsonrpc":"2.0","id":"p1","method":"session/request_permission","params":{"sessionId":"s1","toolCall":{"toolCallId":"t2","title":"Write notes.txt","kind":"edit"},"options":[{"optionId":"yes","name":"Allow","kind":"allow_once"},{"optionId":"no","name":"Reject","kind":"reject_once"}]}}'
+    echo '{"jsonrpc":"2.0","id":"p1","method":"session/request_permission","params":{"sessionId":"s1","toolCall":{"toolCallId":"t2","title":"/project/notes.txt","kind":"edit"},"options":[{"optionId":"yes","name":"Allow","kind":"allow_once"},{"optionId":"no","name":"Reject","kind":"reject_once"}]}}'
     read -r answer || exit 0
     case "$answer" in
     *'"yes"'*) word="Erlaubt" ;;

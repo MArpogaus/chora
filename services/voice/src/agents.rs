@@ -584,6 +584,37 @@ fn outcome(options: &[Value], yes: bool) -> Value {
         )
 }
 
+/// What a permission request asks, short enough to speak: the title of
+/// its tool call, a path as its file name, and the kind as a verb.
+fn asked(tool: &Value) -> String {
+    let title = tool["title"].as_str().unwrap_or_default().trim();
+    let title = if title.starts_with('/') {
+        Path::new(title)
+            .file_name()
+            .map_or(title.into(), |f| f.to_string_lossy())
+    } else {
+        title.into()
+    };
+    let title: String = title.chars().take(80).collect();
+    // ponytail: German verbs, as the default phrases; a phrase per kind
+    // in the settings when another language needs it.
+    let verb = match tool["kind"].as_str() {
+        Some("edit") => "ändern",
+        Some("delete") => "löschen",
+        Some("move") => "verschieben",
+        Some("execute") => "ausführen",
+        Some("fetch") => "abrufen",
+        Some("read") => "lesen",
+        _ => "",
+    };
+    match (title.is_empty(), verb.is_empty()) {
+        (true, true) => "etwas tun".into(),
+        (true, false) => verb.into(),
+        (false, true) => title,
+        (false, false) => format!("{title} {verb}"),
+    }
+}
+
 /// A plan entry as a line: done, in progress or waiting.
 fn plan_line(entry: &Value) -> String {
     let sign = match entry["status"].as_str() {
@@ -845,12 +876,7 @@ impl Actor {
             rpc.respond(old.id, json!({"outcome": {"outcome": "cancelled"}}))
                 .await?;
         }
-        let tool = &params["toolCall"];
-        let what = tool["title"]
-            .as_str()
-            .or_else(|| tool["kind"].as_str())
-            .unwrap_or("etwas tun")
-            .to_owned();
+        let what = asked(&params["toolCall"]);
         let (answer, rx) = oneshot::channel();
         session.question = Some(Permission {
             id: rpc_id,
@@ -1009,6 +1035,20 @@ mod tests {
     }
 
     #[test]
+    fn a_question_is_short_to_speak() {
+        let ask = |tool| asked(&tool);
+        assert_eq!(
+            ask(json!({"title": "/a/b/notes.txt", "kind": "edit"})),
+            "notes.txt ändern"
+        );
+        assert_eq!(
+            ask(json!({"title": "cargo test", "kind": "execute"})),
+            "cargo test ausführen"
+        );
+        assert_eq!(ask(json!({"kind": "think"})), "etwas tun");
+    }
+
+    #[test]
     fn a_yes_allows_once_and_a_no_rejects() {
         let options = [
             json!({"optionId": "a", "kind": "allow_always"}),
@@ -1099,13 +1139,13 @@ mod tests {
             unreachable!()
         };
         assert_eq!((name.as_str(), voice.as_str()), ("coder", "ryan"));
-        assert_eq!(prompt, "Coder fragt: Write notes.txt. Erlauben?");
+        assert_eq!(prompt, "Coder fragt: notes.txt ändern. Erlauben?");
         let status = agents.call("agent_status", &json!({"name": "coder"}));
         assert!(
             status
                 .as_str()
                 .unwrap()
-                .contains("question: Write notes.txt"),
+                .contains("question: notes.txt ändern"),
             "{status}"
         );
         answer.send(true).unwrap();
@@ -1125,7 +1165,7 @@ mod tests {
                 "› Schreib notes.txt",
                 "Ich lese den Code.",
                 "⚙ Read src/main.rs",
-                "? Write notes.txt",
+                "? notes.txt ändern",
                 "ja"
             ]
         );
