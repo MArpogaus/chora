@@ -501,24 +501,97 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target `chora-<name>.target`. `chora-flavor <name>` looks for
 the directory in `~/.config/chora/flavors/` first and then in
-`/usr/share/chora/flavors/`. It imports `WAYLAND_DISPLAY`, `CHORA_SOCKET` and
-the X11 `DISPLAY` of `xwayland-satellite` into the systemd user manager, so
-that every unit of the flavor starts with them. It links the units of the
-directory, and starts
-the target. The target starts the services and the plugins. systemd handles
-start, restart and order, so chora needs no service manager.
+`/usr/share/chora/flavors/`. It imports `WAYLAND_DISPLAY`, `CHORA_SOCKET`,
+`CHORA_FLAVOR_DIR` (the directory that it found) and the X11 `DISPLAY` of
+`xwayland-satellite` into the systemd user manager, so that every unit of
+the flavor starts with them. It links the units of the directory, tells
+systemd that chora is ready, and starts the target. The target starts the
+services and the plugins. systemd handles start, restart and order, so
+chora needs no service manager.
 
-The package installs the tiling flavor:
+### Sessions
+
+The login screen shows a session per flavor, twice:
+
+| Session | Starts |
+|---------|--------|
+| chora (uwsm), chora (Windows XP, uwsm) | `uwsm start -e -D chora -N chora -- chora -- chora-flavor <name>` (D50) |
+| chora, chora (Windows XP) | `chora-session <name>`, without uwsm |
+
+The uwsm sessions show only when uwsm is installed. uwsm runs chora as
+the user unit `wayland-wm@chora.service` and binds it to
+`graphical-session.target`. Under uwsm, `chora-flavor` calls `uwsm
+finalize` with its variables: uwsm exports them, marks chora as ready and
+removes the variables again when the session ends. Before chora starts,
+uwsm sources `/etc/xdg/uwsm/env-chora`: without `XKB_DEFAULT_LAYOUT`, it
+takes the keyboard layout of the system from `localectl`.
+`~/.config/uwsm/env-chora` adds variables of the user.
+
+`chora-session` does the same without uwsm: it runs chora as
+`chora@<name>.service`, and stops the units of the graphical session when
+chora ends.
+
+### The tiling flavor
+
+The package installs the tiling flavor (D51):
 
 ```text
 /usr/share/chora/flavors/tiling/
-├── chora-tiling.target              # wants the two units below
-├── chora-tiling.service             # chora-tiling
-└── chora-tiling-xwayland.service    # xwayland-satellite, if installed
+├── chora-tiling.target               # wants the units below and mako.service
+├── chora-tiling.service              # chora-tiling
+├── chora-tiling-xwayland.service     # xwayland-satellite
+├── chora-tiling-waybar.service       # the panel
+├── chora-tiling-swaybg.service       # the wallpaper, a plain color
+├── chora-tiling-swayidle.service     # the idle lock with swaylock
+├── chora-tiling-kanshi.service       # the output profiles of the user
+└── waybar/config.jsonc               # the modules of the panel
 ```
 
-The target also wants `waybar.service`, which the waybar package installs.
-A copy of the directory in `~/.config/chora/flavors/tiling/` replaces it.
+Each unit starts only when its program is installed. The packages
+recommend them: uwsm, foot, fuzzel, waybar, mako, swaybg, swayidle,
+swaylock, kanshi and `xwayland-satellite`. mako starts from the unit of
+its own package and needs no configuration.
+
+- **The panel**: waybar with the configuration of the flavor. It shows only
+  modules that need no IPC of sway: the layout of the current tag, the
+  clock, the volume, the network, the processor, the memory, the battery
+  and the tray. The layout module calls `choractl call tiling get_layout`
+  each second.
+- **The launcher**: `MOD+r` starts fuzzel, as the default bindings of
+  `chora-tiling` say.
+- **The lock**: swayidle runs `swaylock -f` after 5 minutes without input,
+  before sleep, and on `loginctl lock-session`, which `MOD+Shift+Escape`
+  runs. swaylock locks through the session lock protocol of the core.
+  The core has no protocol to turn outputs off yet, so the screens stay on.
+- **The wallpaper**: swaybg with a plain color. For a picture, override
+  the command:
+
+  ```bash
+  systemctl --user edit chora-tiling-swaybg.service
+  # [Service]
+  # ExecStart=
+  # ExecStart=/usr/bin/swaybg --image %h/Pictures/wall.png --mode fill
+  ```
+
+- **The outputs**: kanshi starts only when `~/.config/kanshi/config`
+  exists, because it fails without profiles. The core takes the
+  configuration through `wlr-output-management`. An example with the
+  names that `wlr-randr` prints:
+
+  ```text
+  profile docked {
+    output eDP-1 disable
+    output "Dell Inc. DELL U2720Q *" mode 3840x2160 scale 1.5
+  }
+  profile mobile {
+    output eDP-1 enable scale 1.25
+  }
+  ```
+
+A copy of the directory in `~/.config/chora/flavors/tiling/` replaces it,
+also the configuration of waybar. `systemctl --user edit UNIT` changes a
+single unit. A user who enabled `waybar.service` of the waybar package
+gets a second panel; `systemctl --user disable waybar.service` ends it.
 
 ### The XP flavor
 

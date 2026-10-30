@@ -429,6 +429,11 @@ socket of `choractl` changes grants and makes client sockets (see [API](api.md#c
   Units of the flavor then find the compositor and the IPC socket. The
   script is not for nested use: the variables would reach the units of the
   host session.
-- The tiling flavor starts `chora-tiling`, waybar if it is installed, and
-  `xwayland-satellite` on a free X11 display for X11 programs (D26).
+- The session file `chora-uwsm.desktop` runs `uwsm start -e -D chora -N
+  chora -- chora -- chora-flavor tiling` (D50). uwsm runs chora as
+  `wayland-wm@chora.service`, and `chora-flavor` calls `uwsm finalize`
+  instead of the import and the notification.
+- The tiling flavor starts `chora-tiling`, waybar, mako, swaybg, swayidle
+  and kanshi if they are installed (D51), and `xwayland-satellite` on a
+  free X11 display for X11 programs (D26).
 - A derived secureblue image installs the package (D10, D14).
