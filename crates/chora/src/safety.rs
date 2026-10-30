@@ -26,7 +26,7 @@ use crate::state::State;
 
 /// SIGUSR1 starts the emergency reset, for example from a text console.
 /// It works while the event loop dispatches: a hung shader blocks the
-/// loop and needs a kill.
+/// loop, and the hang watchdog aborts chora (D64).
 pub fn reset_on_signal(
     handle: &LoopHandle<'static, State>,
 ) -> Result<(), Box<dyn std::error::Error>> {

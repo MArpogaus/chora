@@ -9,6 +9,7 @@ mod foreign_toplevel;
 mod gl;
 mod grants;
 mod handlers;
+mod hang;
 mod image_capture;
 mod images;
 mod inject;
@@ -168,7 +169,7 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     backend::init(&mut state, headless.as_deref())?;
     input::log_layout(&mut state);
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
-    event_loop.run(None, &mut state, State::after_events)?;
+    hang::run(&mut event_loop, &mut state, State::after_events)?;
     if failed.get() {
         return Err("the startup command failed".into());
     }
