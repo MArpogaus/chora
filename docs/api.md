@@ -570,7 +570,9 @@ changes grants. A process of the user on the host reaches the admin
 socket too. So a
 grant protects against hostile code only when that code sees its client
 socket alone, with the gaps that [Client sockets](#client-sockets) lists.
-`choractl mcp` offers no tool for grants.
+`choractl mcp` offers no tool for grants. On the main socket,
+`activation.token` opens the MCP tool `run_program`, and `methods.call`
+changes nothing.
 
 ## Client sockets
 
@@ -730,7 +732,7 @@ $ choractl run -- foot
 
 `choractl restart NAME` restarts a plugin with `systemctl --user restart`.
 The unit is `chora-NAME-SESSION.service` of a view in this session,
-where SESSION is a short hash of `CHORA_SOCKET`, or else
+where SESSION is a short hash of `CHORA_SOCKET`. Else it is
 `chora-NAME.service` of a flavor (see [Plugins](#plugins)). The flavor
 unit counts only in the session whose `WAYLAND_DISPLAY` the user
 manager holds, so a nested chora never restarts a plugin of its host.
