@@ -32,8 +32,14 @@ chmod 700 "$work/run"
 cp "$repo/dist/portal/chora-portals.conf" "$work/portals/"
 sed 's/^chooser_cmd=.*/chooser_cmd=head -n 1/' "$repo/dist/portal/xdg-desktop-portal-wlr" \
     >"$work/config/xdg-desktop-portal-wlr/chora"
-# Only the wlr backend, so that the choice comes from chora-portals.conf.
+# A second backend that also implements ScreenCast and Screenshot and
+# names chora in UseIn: a fallback without chora-portals.conf picks it,
+# so the log check below proves that the portal reads the file. It needs
+# no process: the portal never asks it for a screencast.
 cp "$portals/wlr.portal" "$work/portals/"
+printf '%s\n' '[portal]' 'DBusName=org.freedesktop.impl.portal.desktop.gtk' \
+    'Interfaces=org.freedesktop.impl.portal.ScreenCast;org.freedesktop.impl.portal.Screenshot;' \
+    'UseIn=chora' >"$work/portals/gtk.portal"
 export XDG_CONFIG_HOME=$work/config XDG_DESKTOP_PORTAL_DIR=$work/portals \
     XDG_CURRENT_DESKTOP=chora PIPEWIRE_RUNTIME_DIR=$work/run LIBEXEC=$libexec
 
@@ -53,5 +59,10 @@ status=$?
 xdpw: $(tail -n 20 "$work/xdpw.log")
 portal: $(tail -n 5 "$work/portal.log")
 pipewire: $(tail -n 5 "$work/pipewire.log")"
+for line in "Using portal configuration file '$work/portals/chora-portals.conf' for desktop 'chora'" \
+    "Using wlr.portal for org.freedesktop.impl.portal.ScreenCast (interface specific config)"; do
+    grep -qF "$line" "$work/portal.log" ||
+        fail "the portal log has no line \"$line\": $(grep -i 'using' "$work/portal.log")"
+done
 rm -rf "$work"
-ok "the portal gave the stream of an output as PipeWire $answer"
+ok "the portal read chora-portals.conf, picked wlr over gtk and gave the stream of an output as PipeWire $answer"
