@@ -59,6 +59,9 @@ const LAST_ROUND: &str = "(The agent: you reached the limit of tool calls for th
 /// its base64 text.
 const PICTURE_CHARS: usize = 4000;
 
+/// The note in the history for a turn that the user stopped.
+pub const CANCELLED: &str = "cancelled by the user; result unknown";
+
 /// What a turn tells the agent while it runs.
 #[derive(Debug)]
 pub enum Event {
@@ -105,6 +108,11 @@ pub struct Chat {
     requests: Vec<String>,
     /// The requests of earlier sessions, for the prompt.
     earlier: Vec<String>,
+    /// A turn in progress, with the tool calls of the round in flight; a
+    /// stopped turn keeps it.
+    open: Option<Vec<Value>>,
+    /// The answer of the last turn in the history, until the next turn.
+    answer: Option<usize>,
 }
 
 impl Chat {
@@ -152,6 +160,8 @@ impl Chat {
             earlier: requests.clone(),
             requests,
             config,
+            open: None,
+            answer: None,
         };
         chat.system = chat.prompt()?;
         Ok(chat)
@@ -243,9 +253,14 @@ impl Chat {
     /// tools. `out` gets the events. The history commits per round.
     pub async fn turn(&mut self, text: &str, out: &(impl Fn(Event) + Sync)) -> Report {
         let start = Instant::now();
-        self.tools.refresh().await;
+        if self.open.is_some() {
+            self.cancelled("");
+        }
+        self.answer = None;
         self.shrink();
+        self.open = Some(Vec::new());
         self.history.push(json!({"role": "user", "content": text}));
+        self.tools.refresh().await;
         self.requests.push(text.to_owned());
         self.save();
         let mut report = Report::default();
@@ -275,7 +290,40 @@ impl Chat {
             report.tools += self.run(r.round, out).await;
             report.tools_time += tools_start.elapsed();
         }
+        self.open = None;
         report
+    }
+
+    /// Closes the last turn, which the user stopped: the words that
+    /// played and the note `CANCELLED`, also as the result of each tool
+    /// call in flight. A turn whose words were all there but did not all
+    /// play keeps only the played words.
+    pub fn cancelled(&mut self, played: &str) {
+        let played = played.trim();
+        let note = if played.is_empty() {
+            format!("({CANCELLED})")
+        } else {
+            format!("{played} ({CANCELLED})")
+        };
+        let calls = match (self.open.take(), self.answer.take()) {
+            (Some(calls), _) if !calls.is_empty() => calls,
+            (None, Some(i)) => {
+                self.history[i]["content"] = note.into();
+                return;
+            }
+            _ => {
+                self.history
+                    .push(json!({"role": "assistant", "content": note}));
+                return;
+            }
+        };
+        let ids: Vec<Value> = calls.iter().map(|c| c["id"].clone()).collect();
+        self.history
+            .push(json!({"role": "assistant", "content": played, "tool_calls": calls}));
+        for id in ids {
+            self.history
+                .push(json!({"role": "tool", "tool_call_id": id, "content": CANCELLED}));
+        }
     }
 
     /// Says that the LLM failed.
@@ -301,6 +349,7 @@ impl Chat {
     ) -> &'static str {
         crate::log::info(&format!("llm: {} {:?}", round.finish, round.text));
         if !round.text.is_empty() {
+            self.answer = Some(self.history.len());
             self.history
                 .push(json!({"role": "assistant", "content": round.text}));
         }
@@ -316,7 +365,6 @@ impl Chat {
     /// Runs the calls of a round and commits it with the results;
     /// answers the number of calls.
     async fn run(&mut self, round: Round, out: &(impl Fn(Event) + Sync)) -> u32 {
-        let results = self.calls(&round.calls, out).await;
         let calls: Vec<Value> = round
             .calls
             .iter()
@@ -325,6 +373,9 @@ impl Chat {
                     "function": {"name": c.name, "arguments": c.args}})
             })
             .collect();
+        self.open = Some(calls.clone());
+        let results = self.calls(&round.calls, out).await;
+        self.open = Some(Vec::new());
         self.history.push(json!({"role": "assistant",
             "content": round.text, "tool_calls": calls}));
         self.history.extend(results);
@@ -692,6 +743,39 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_stopped_turn_leaves_the_note_in_the_history() {
+        let script = vec![
+            Reply::Tool("sleep", "{}"),
+            Reply::Silent,
+            Reply::Text("Gut."),
+        ];
+        let (mut chat, server) = chat(script, Config::default()).await;
+        let stop = Duration::from_millis(150);
+        for text in ["Schlaf ein.", "Warte."] {
+            let cut = tokio::time::timeout(stop, turn(&mut chat, text, true)).await;
+            assert!(cut.is_err(), "the turn hangs in the tool, then in the LLM");
+        }
+        chat.cancelled("Ich warte");
+        turn(&mut chat, "Und?", true).await;
+        let seen = server.seen.lock().unwrap();
+        let messages = &seen.last().unwrap()["messages"].as_array().unwrap()[1..];
+        let roles: Vec<_> = messages
+            .iter()
+            .map(|m| m["role"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            roles,
+            ["user", "assistant", "tool", "user", "assistant", "user"]
+        );
+        assert_eq!(messages[1]["tool_calls"][0]["function"]["name"], "sleep");
+        assert_eq!(messages[2]["content"], CANCELLED);
+        assert_eq!(
+            messages[4]["content"],
+            "Ich warte (cancelled by the user; result unknown)"
+        );
+    }
+
+    #[tokio::test]
     async fn a_turn_runs_the_tool_calls_and_speaks_the_answer() {
         let script = vec![
             Reply::Tool("echo", r#"{"a": 1}"#),
@@ -886,6 +970,8 @@ mod tests {
             file: None,
             requests: Vec::new(),
             earlier: Vec::new(),
+            open: None,
+            answer: None,
         };
         chat.shrink();
         let args =
