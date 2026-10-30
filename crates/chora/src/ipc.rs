@@ -3132,7 +3132,7 @@ mod tests {
     }
 
     /// `choractl run` asks the core for a token (D42). A toplevel that
-    /// activates with it before its first commit shows it in
+    /// activates with it before or with its first commit shows it in
     /// `surface.created`, and its use ends the token.
     #[test]
     fn the_issued_token_reaches_the_surface_created_of_its_window() {
