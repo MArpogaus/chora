@@ -839,6 +839,37 @@ impl Mc {
         self.rt.conn.apply(commands)
     }
 
+    /// Applies the base of the plugin and its scenes in one transaction.
+    /// One scene that the core refuses must not blank the others: then
+    /// each goes on its own, and a refused one is left out with a log line
+    /// until its file changes.
+    fn apply_scenes(
+        &mut self,
+        base: Vec<Command>,
+        scenes: Vec<(String, Vec<Command>)>,
+    ) -> Result<(), ClientError> {
+        let all = (base.iter())
+            .chain(scenes.iter().flat_map(|(_, c)| c))
+            .cloned()
+            .collect();
+        match self.apply(all) {
+            Err(ClientError::Rpc(err)) => eprintln!("chora-mc: {err}; the scenes go one by one"),
+            other => return other,
+        }
+        self.apply(base)?;
+        for (name, commands) in scenes {
+            match self.apply(commands) {
+                Err(ClientError::Rpc(err)) => {
+                    eprintln!("chora-mc: scene {name}: {err}; left out");
+                    self.scenes.remove(&name);
+                    self.windows.remove(&name);
+                }
+                other => other?,
+            }
+        }
+        Ok(())
+    }
+
     /// Builds all nodes again, for example after a change of the theme or
     /// of the output. The windows wait under the root meanwhile, all in one
     /// transaction, so nothing flickers.
@@ -877,9 +908,10 @@ impl Mc {
                 ..PropsUpdate::default()
             },
         ));
+        let mut scenes = Vec::new();
         for name in self.scenes.keys() {
             let shown = self.current.as_ref() == Some(name);
-            commands.push(create(
+            let mut commands = vec![create(
                 &scene_id(name),
                 NodeKind::Group,
                 NAME,
@@ -888,13 +920,14 @@ impl Mc {
                     opacity: Some(if shown { 1.0 } else { 0.0 }),
                     ..PropsUpdate::default()
                 },
-            ));
+            )];
             commands.extend(self.panels(name));
             if let Some(surface) = self.windows.get(name) {
                 commands.extend(self.place_window(name, surface, false));
             }
+            scenes.push((name.clone(), commands));
         }
-        self.apply(commands)?;
+        self.apply_scenes(commands, scenes)?;
         self.built = true;
         self.rendered = None;
         let names: Vec<String> = self.scenes.keys().cloned().collect();
