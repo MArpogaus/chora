@@ -142,6 +142,11 @@ impl Settings for Config {
         {
             return Err("programs: a program without a title or a command".into());
         }
+        // The clock fits the tray of the taskbar; a long format such as
+        // 600 times %A made a text of kilobytes each minute (W10).
+        if self.clock_format.chars().count() > 64 {
+            return Err("clock_format: at most 64 characters".into());
+        }
         if chrono::format::StrftimeItems::new(&self.clock_format)
             .any(|item| item == chrono::format::Item::Error)
         {
@@ -201,6 +206,7 @@ mod tests {
         let wrong = [
             ("terminal", json!("")),
             ("clock_format", json!("%Q")),
+            ("clock_format", json!("%A ".repeat(22))),
             (
                 "wallpaper",
                 json!({"picture": {"file": "bliss.jpg"}, "position": "fill", "color": [0, 78, 152]}),

@@ -910,7 +910,7 @@ that the file leaves out takes its default:
 | `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
 | `programs` | none | the programs at the top left of the start menu below Terminal, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
-| `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime |
+| `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime, at most 64 characters |
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
