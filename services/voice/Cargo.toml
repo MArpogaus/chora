@@ -1,0 +1,19 @@
+[[bin]]
+name = "chora-voice"
+path = "src/main.rs"
+
+[dependencies]
+tract-onnx = "0.22"
+
+[lints]
+workspace = true
+
+[package]
+description = "The voice agent of chora: microphone, speech gate, ASR, LLM with tools, TTS"
+edition.workspace = true
+license.workspace = true
+name = "chora-voice"
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
