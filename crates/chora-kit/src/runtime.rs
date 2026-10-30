@@ -237,7 +237,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
                 _ => plugin.method(&method, params),
             };
             let rt = plugin.runtime();
-            match rt.conn.answer(call, result) {
+            match rt.conn.answer(call, result.map_err(capped)) {
                 Err(ClientError::Rpc(err)) => {
                     eprintln!("chora-{}: {err}", rt.name);
                     Ok(())
@@ -270,6 +270,24 @@ fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcE
         .save()
         .map_err(|e| RpcError::new(e.code, format!("applied, not saved: {}", e.message)))?;
     Ok(answer)
+}
+
+/// The most bytes of the message of an error that a method answers.
+const MAX_MESSAGE: usize = 512;
+
+/// An error with its message cut to [`MAX_MESSAGE`] bytes. A parser may
+/// quote a whole broken file, and an answer past the line limit of the
+/// core costs the plugin its connection.
+fn capped(mut err: RpcError) -> RpcError {
+    if err.message.len() > MAX_MESSAGE {
+        let mut end = MAX_MESSAGE;
+        while !err.message.is_char_boundary(end) {
+            end -= 1;
+        }
+        err.message.truncate(end);
+        err.message.push('…');
+    }
+    err
 }
 
 /// The error of a settings method of a plugin without settings.
@@ -466,6 +484,21 @@ mod tests {
         assert!(reload_settings(&mut plugin).is_err());
         assert_eq!(plugin.settings.value.gap, 6, "a failed apply is taken back");
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A broken file of 1 MiB made an error of 1 MiB, past the line limit
+    /// of the core (W9).
+    #[test]
+    fn a_long_error_is_cut() {
+        let long = RpcError::new(RpcError::INVALID_PARAMS, "ä".repeat(1 << 19));
+        let message = capped(long).message;
+        assert!(
+            message.len() <= MAX_MESSAGE + '…'.len_utf8(),
+            "{}",
+            message.len()
+        );
+        assert!(message.ends_with('…'));
+        assert_eq!(capped(RpcError::new(1, "short")).message, "short");
     }
 
     #[test]
