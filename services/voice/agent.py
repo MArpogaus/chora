@@ -132,6 +132,7 @@ FLOOR_MS = 5000  # the quiet frames between turns that the level follows
 MIN_SPEECH_MS = 300  # a turn with less speech is a noise, such as a breath
 MAX_TURN_MS = 30000  # a turn that music or a TV keeps loud ends here
 HISTORY = int(ENV("HISTORY", "20"))  # turns kept, each with its tool calls
+OLD_TOOL_TEXT = 500  # characters of a tool result or call of an earlier turn
 TOOL_ROUNDS = 10  # LLM calls per turn while it asks for tools
 FIRST_PIECE = 40  # characters before the comma that may end the first piece
 SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
@@ -534,6 +535,7 @@ class Reply:
 
 
 async def _deltas(http: aiohttp.ClientSession, body: dict) -> AsyncIterator[dict]:
+    finish, tokens = None, None
     async with http.post(f"{LLM_URL}/chat/completions", json=body) as r:
         r.raise_for_status()
         async for raw in r.content:
@@ -542,11 +544,12 @@ async def _deltas(http: aiohttp.ClientSession, body: dict) -> AsyncIterator[dict
                 event = json.loads(line[5:])
                 if "error" in event:
                     raise ValueError(f"llm: {event['error']}")
+                tokens = (event.get("usage") or {}).get("prompt_tokens", tokens)
                 choice = (event.get("choices") or [{}])[0]
-                # Gufo stops a reply where the context ends.
-                if choice.get("finish_reason") == "length":
-                    log("llm: the reply reached the end of the context")
+                finish = choice.get("finish_reason") or finish
                 yield choice.get("delta") or {}
+    # Gufo stops a reply with length where the context ends.
+    log(f"llm: {finish}, prompt of {tokens} tokens")
 
 
 async def _run_call(tools: Tools, call: dict) -> str:
@@ -581,6 +584,7 @@ async def answer(
             "model": MODEL,
             "messages": history,
             "stream": True,
+            "stream_options": {"include_usage": True},
             "reasoning_effort": "none",
         }
         if tools.specs:
@@ -830,11 +834,21 @@ def system_prompt() -> str:
 def trim(history: list[dict]) -> None:
     """Keep the last HISTORY turns, each from its user message on.
 
-    This keeps each tool result with the call that it answers.
+    This keeps each tool result with the call that it answers. Before the
+    last turn, a long tool result or long arguments of a call, such as a
+    shader of put_asset, keep their start only.
     """
     users = [i for i, m in enumerate(history) if m["role"] == "user"]
     if len(users) > HISTORY:
         del history[1 : users[-HISTORY]]
+        users = [i for i, m in enumerate(history) if m["role"] == "user"]
+    for message in history[1 : users[-1] if users else 1]:
+        if message["role"] == "tool" and len(message["content"]) > OLD_TOOL_TEXT:
+            message["content"] = message["content"][:OLD_TOOL_TEXT] + " [shortened]"
+        for call in message.get("tool_calls", []):
+            if len(call["function"]["arguments"]) > OLD_TOOL_TEXT:
+                # Arguments stay JSON, which the chat template of the LLM reads.
+                call["function"]["arguments"] = json.dumps({"shortened": True})
 
 
 async def turn(
