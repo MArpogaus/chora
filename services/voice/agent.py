@@ -114,7 +114,11 @@ Limits:
 - You cannot read files or the output of commands. Do not write files
   to inspect them.
 - Look once, act, then check once. When a task fails twice, stop and say
-  what failed.""",
+  what failed.
+- Never end a reply with a promise such as "I check that now": a reply
+  without a tool call ends your turn, and nothing happens until the user
+  speaks again. Call the tool in the same reply, or say that you are done
+  and what is left.""",
 )
 # Documents that follow the system prompt, relative to the checkout and
 # separated by commas; FILE#HEADING takes one "## HEADING" section. The
@@ -150,6 +154,7 @@ SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
 # The agent uses the event tools itself; the LLM reads text only, and the
 # picture is the point of capture.
 SKIPPED_TOOLS = {"subscribe_events", "wait_events", "capture"}
+GO_ON = "(A noise cut your answer; that was not me. Go on where you stopped.)"
 TURN_ERRORS = (aiohttp.ClientError, TimeoutError, KeyError, ValueError, OSError, MCPError)
 
 SPEAKING = asyncio.Lock()  # one voice at a time: replies and delegate results
@@ -883,9 +888,10 @@ async def turn(
     """Record one turn, transcribe it and speak the answer.
 
     A request without an answer, after a cut or a key held during the ASR,
-    merges with the next words. A stop by key, or a barge-in without words,
-    withdraws it while the LLM has written no words; after them, the words
-    and tool calls so far stay in the history.
+    merges with the next words. A stop by key withdraws it while the LLM
+    has written no words; after them, the words and tool calls so far stay
+    in the history. A barge-in without words was a noise: the LLM answers
+    the request again, or goes on with the reply that the noise cut.
 
     Returns
     -------
@@ -902,10 +908,14 @@ async def turn(
         history[-1]["content"] += " " + said
     elif said:
         history.append({"role": "user", "content": said})
+    elif barged and not pending:
+        log("a noise cut the reply; the LLM goes on")
+        history.append({"role": "user", "content": GO_ON})
     preroll = []
-    if said or (pending and not barged):  # a held key leaves its request to answer
+    # A held key leaves its request to answer, and a noise the cut reply.
+    if said or pending or barged:
         preroll = await talk(http, mic, answer(http, tools, history), ptt)
-    if preroll is None or (barged and not said):
+    if preroll is None:  # a stop by key
         if history[-1]["role"] == "user":
             history.pop()
         return []

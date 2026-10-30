@@ -141,7 +141,9 @@ and the words and tool calls so far stay in the history.
 When the mic level stays above the level of speech and above
 `RMS_BARGE_IN` (10) for `BARGE_MS` (300) while the agent answers, the
 reply stops and a turn starts. Dips down to half the level of speech do
-not reset the count, since the echo canceller damps the voice in bursts. The push-to-talk key
+not reset the count, since the echo canceller damps the voice in bursts. When that turn has no words, it
+was a noise: the LLM answers the request again, or goes on with the cut
+reply. The push-to-talk key
 does the same. The mic also hears the speaker, so use headphones or the
 echo cancellation below. After each full reply, the log line `mic peak
 during the reply` shows the level that the barge-in level must stay above.
