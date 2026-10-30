@@ -139,7 +139,11 @@ Each bug fix comes with a test that fails without the fix (D48).
 
 CI runs `cargo clippy`, `cargo test` and the end-to-end test with `--locked`
 in a Fedora 44 container, and `cargo deny` in a separate job. A further job
-checks the build with the minimum Rust version.
+checks the build with the minimum Rust version. The gate scripts
+`tests/gate-<milestone>-<n>.sh` of the next release run in these jobs. Two
+jobs on an Ubuntu runner run the gate checks that need root or podman:
+`vkms` starts chora on the tty backend, and `podman` runs a client in a
+container.
 
 ## Releases
 
