@@ -31,11 +31,11 @@ the concrete runs are in `tests/battle/reviews/`.
   shortcuts and depends on which surface has focus at that moment — racy in a
   headless loop. *API candidate:* export these tiling methods (awesome does:
   `awesome.client.tags`).
-- **chora-xp exports no methods at all** (only the scrollbar thing in
-  explorer.rs). Start menu, minimize/restore, Alt+Tab and "XP Restart" must
-  be driven by pixel clicks derived from `query` — brittle across theme and
-  title-bar changes. *API candidate:* export `xp.<action>` methods like tiling
-  does, at least for testing.
+- **chora-xp exported no methods.** Start menu, minimize/restore, Alt+Tab
+  and "XP Restart" had to be driven by pixel clicks derived from `query` —
+  brittle across theme and title-bar changes. *Fixed:* chora-xp exports
+  `xp.start_menu`, `minimize`, `restore`, `activate`, `restart`, `turn_to`
+  and the `settings.*` methods (docs/configuration.md).
 - `choractl restart <name>` needs the plugin to have been started through the
   core (view/startup command), fine via `headless-session.sh -- <plugin>`,
   but the error when not is only in the log, not in a code. Minor.
