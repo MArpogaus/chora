@@ -379,6 +379,12 @@ Scope:
   change of the schema without a change of the protocol version.
 - The reference documentation comes from the schema. A test checks every
   example of the documentation against it.
+- On every path, the keyboard focus moves only after a press of the user
+  (#102).
+- A failed grab names the client that holds the binding (#63).
+- Packages through COPR with Packit and subpackages per plugin (D49). The
+  release keeps its assets.
+- The image of `secureblue-images` installs chora from COPR.
 - A final review loop over the whole code base until a round finds
   nothing that matters (D47).
 - The organization `chora-desktop` (D36). The core repository moves
@@ -398,7 +404,10 @@ Gate:
    and a CI job checks it.
 6. The organization `chora-desktop` and its repositories exist, and
    `main` of each accepts pull requests only (from 0.6).
-7. The gate checks of the earlier milestones still hold, and the showroom CI
+7. The secureblue image builds with chora from COPR. `rpm-ostree upgrade`
+   on the reference hardware updates chora, and the login screen offers the
+   session.
+8. The gate checks of the earlier milestones still hold, and the showroom CI
    is green against the release candidate.
 
 ## Track: XP showroom
