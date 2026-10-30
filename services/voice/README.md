@@ -81,28 +81,26 @@ services/voice/agent.py tools       # the connection to chora
 The unit finds `choractl` only in the three directories above, also
 when the check in a terminal finds it elsewhere.
 
-Set `RMS_SPEECH` above the level of the quiet room and below the level
-of your voice. Then start the agent, which runs only in a chora
+The agent measures the level of the quiet room for 750 ms at its start,
+so keep quiet then. Then start the agent, which runs only in a chora
 session:
 
 ```bash
-mkdir -p ~/.config/gufo
-echo RMS_SPEECH=<level> >>~/.config/gufo/agent.env
 systemctl --user enable --now voice-agent
 journalctl --user -u voice-agent -f
 ```
 
-If the log says `no quiet below RMS_SPEECH`, or `turn at level` with an
-empty `you:` after it, the value is too low. If the agent does not react
-to your voice, the value is too high. After a login, the agent starts
-the models itself; until they are up, a turn fails.
+If the log says `turn at level` with an empty `you:` after it, raise
+`SPEECH_RATIO` (3). If the agent does not react to your voice, lower it.
+After a login, the agent starts the models itself; until they are up, a
+turn fails.
 
 The settings are the environment variables in the globals section of
 `agent.py`, such as `ASR_LANGUAGE` (`de`) and `VOICE`. The unit reads
 them from `~/.config/gufo/agent.env`; quote values with spaces, such as
 `CODER_CMD`. A `PATH=` line there replaces the PATH of the unit. After a
 change, run `systemctl --user restart voice-agent`. A command in a
-terminal reads them from its environment, for example `RMS_SPEECH=3000
+terminal reads them from its environment, for example `SPEECH_RATIO=4
 services/voice/agent.py`. Before such a test, stop the unit, or both
 agents answer. `set -a; . ~/.config/gufo/agent.env; set +a` gives the
 terminal the settings of the unit. `services/voice/agent.py --help`
@@ -111,8 +109,12 @@ lists the commands. The models keep the GPU memory until `systemctl
 
 ## Turns
 
-A turn starts when the mic level passes `RMS_SPEECH` after `SETTLE_MS`
-of quiet, and ends after `SILENCE_MS` of quiet or after 30 s. Under
+Speech is louder than `SPEECH_RATIO` times the level of the quiet room,
+and at least `RMS_SPEECH` (5). The agent follows that level with a
+running mean of the quiet mic between turns. The line `speak now` shows
+the level of speech. A turn starts when the mic level passes it after
+`SETTLE_MS` of quiet. It ends after `SILENCE_MS` (1000) of quiet or after
+30 s. Under
 chora, holding `PTT_KEY` (`Super+v`) also records, whatever the level.
 The key needs Ctrl, Alt or Super. The turn ends when the modifier goes
 up, because chora reports the release with it. After a pause of
@@ -124,11 +126,12 @@ key press after the transcription stops the reply. Before the first
 words of the LLM, it also withdraws the request. After them, the request
 and the words and tool calls so far stay in the history.
 
-When the mic level stays above `RMS_BARGE_IN` for `BARGE_MS` while the
-agent answers, the reply stops and a turn starts. The push-to-talk key
+When the mic level stays above the level of speech and above
+`RMS_BARGE_IN` (10) for `BARGE_MS` while the agent answers, the reply
+stops and a turn starts. The push-to-talk key
 does the same. The mic also hears the speaker, so use headphones or the
 echo cancellation below. After each full reply, the log line `mic peak
-during the reply` shows the level that `RMS_BARGE_IN` must stay above.
+during the reply` shows the level that the barge-in level must stay above.
 When the reply stops itself, the line `barge-in at level` shows the
 level of the echo.
 
@@ -147,8 +150,8 @@ pactl set-default-source echo-cancel-source
 
 To check it, run `services/voice/agent.py levels` while music plays from
 the speakers. The level must stay near the level of the quiet room, and
-rise when you speak. Then set `RMS_BARGE_IN` close to `RMS_SPEECH`, so
-that you can talk over a reply at a normal level. The canceller also
+rise when you speak. Then set `RMS_BARGE_IN` close to the level of
+speech, so that you can talk over a reply at a normal level. The canceller also
 damps your voice while the agent speaks, so a shorter `BARGE_MS` such as
 100 stops a reply sooner. `SETTLE_MS=0` keeps the words that you say
 right after a reply.

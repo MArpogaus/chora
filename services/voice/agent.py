@@ -44,11 +44,14 @@ MODEL = ENV("MODEL", "gufo")  # the served name of all three models
 VOICE = ENV("VOICE", "aiden")  # a voice of the TTS server
 # Not LANGUAGE, which gettext reads.
 ASR_LANGUAGE = ENV("ASR_LANGUAGE", "de")
-RMS_SPEECH = int(ENV("RMS_SPEECH", "5000"))
-SILENCE_MS = int(ENV("SILENCE_MS", "700"))
+# Speech is louder than SPEECH_RATIO times the level of the quiet room,
+# and at least RMS_SPEECH.
+RMS_SPEECH = int(ENV("RMS_SPEECH", "5"))
+SPEECH_RATIO = float(ENV("SPEECH_RATIO", "3"))
+SILENCE_MS = int(ENV("SILENCE_MS", "1000"))
 SETTLE_MS = int(ENV("SETTLE_MS", "300"))  # quiet before a turn may start
-# Speech that stops the reply: louder than RMS_SPEECH, since the mic also
-# hears the speaker, and for BARGE_MS.
+# Speech that stops the reply: also at least RMS_BARGE_IN, since the mic
+# also hears the speaker, and for BARGE_MS.
 RMS_BARGE_IN = int(ENV("RMS_BARGE_IN", str(2 * RMS_SPEECH)))
 BARGE_MS = int(ENV("BARGE_MS", "300"))
 PTT_KEY = ENV("PTT_KEY", "Super+v")  # chora reports its release with the modifier
@@ -70,6 +73,8 @@ PCM = ("-q", "-r", str(RATE), "-c", "1", "-f", "S16_LE", "-t", "raw", "-")  # ap
 # The mic before a turn starts, which the turn keeps.
 PREROLL_FRAMES = int(ENV("PREROLL_MS", "1000")) // FRAME_MS
 NO_QUIET_MS = 2000  # when the agent says that the room stays loud
+CALIBRATE_MS = 750  # the mic at the start, which sets the level of the quiet room
+FLOOR_MS = 5000  # the quiet frames between turns that the level follows
 MAX_TURN_MS = 30000  # a turn that music or a TV keeps loud ends here
 HISTORY = 12  # messages kept besides the system prompt
 TOOL_ROUNDS = 5  # LLM calls per turn while it asks for tools
@@ -115,11 +120,27 @@ class Mic:
 
     A task reads arecord into a queue, so arecord never waits on a full
     pipe while the agent speaks or thinks. Use it as an async context
-    manager.
+    manager. It also keeps the level of the quiet room, from which the
+    thresholds of speech follow.
     """
 
     def __init__(self) -> None:
         self.queue: asyncio.Queue[bytes | Exception] = asyncio.Queue()
+        self.floor = 0.0  # the level of the quiet room
+
+    @property
+    def speech(self) -> float:
+        """The level from which the mic hears speech."""
+        return max(RMS_SPEECH, SPEECH_RATIO * self.floor)
+
+    @property
+    def barge_in(self) -> float:
+        """The level from which speech stops a reply."""
+        return max(RMS_BARGE_IN, self.speech)
+
+    def learn(self, level: float) -> None:
+        """Move the level of the quiet room toward a quiet frame."""
+        self.floor += (level - self.floor) * FRAME_MS / FLOOR_MS
 
     async def __aenter__(self) -> "Mic":
         """Start arecord and the reader task."""
@@ -129,6 +150,10 @@ class Mic:
             "arecord", *PCM, stdout=asyncio.subprocess.PIPE
         )
         self.reader = asyncio.create_task(self._read())
+        # A voice during the start raises the level; the running mean of
+        # the quiet frames brings it down again.
+        levels = [rms(await self.frame()) for _ in range(CALIBRATE_MS // FRAME_MS)]
+        self.floor = sum(levels) / len(levels)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -576,7 +601,7 @@ async def _follow_key(session: ClientSession, down: asyncio.Event) -> None:
 
 
 async def settle(mic: Mic, ptt: asyncio.Event) -> None:
-    """Wait for SETTLE_MS below RMS_SPEECH, or for the push-to-talk key.
+    """Wait for SETTLE_MS of quiet, or for the push-to-talk key.
 
     The frames that came while the agent was busy go first, unless the
     push-to-talk key holds them. The quiet keeps the loud start of the mic
@@ -591,11 +616,11 @@ async def settle(mic: Mic, ptt: asyncio.Event) -> None:
     quiet, waited = 0, 0  # in ms
     while quiet < SETTLE_MS and not ptt.is_set():
         level = rms(await mic.frame())
-        quiet = 0 if level >= RMS_SPEECH else quiet + FRAME_MS
+        quiet = 0 if level >= mic.speech else quiet + FRAME_MS
         waited += FRAME_MS
         if waited == NO_QUIET_MS:
-            log(f"no quiet below RMS_SPEECH {RMS_SPEECH}, level {level:.0f}")
-    log("speak now")
+            log(f"no quiet below {mic.speech:.0f}, level {level:.0f}")
+    log(f"speak now, speech from level {mic.speech:.0f}")
 
 
 async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
@@ -619,17 +644,18 @@ async def record(mic: Mic, ptt: asyncio.Event, preroll: list[bytes]) -> bytes:
     if not preroll:
         await settle(mic, ptt)
     frames, quiet, pushed = list(preroll), 0, False  # quiet in ms
-    # The start of a word is quieter than RMS_SPEECH; the turn keeps it.
+    # The start of a word is quieter than speech; the turn keeps it.
     before: collections.deque[bytes] = collections.deque(maxlen=PREROLL_FRAMES)
     while True:
         frame = await mic.frame()
         if SPEAKING.locked():  # a delegate result: wait for its end and for quiet
             return await record(mic, ptt, [])
         level, down = rms(frame), ptt.is_set()
-        loud = level >= RMS_SPEECH
+        loud = level >= mic.speech
         pushed = pushed or down
         if not (frames or loud or down):
             before.append(frame)
+            mic.learn(level)
             continue
         if not frames:
             log("turn by key" if down else f"turn at level {level:.0f}")
@@ -677,7 +703,7 @@ async def talk(
         recent.append(await mic.frame())
         level = rms(recent[-1])
         peak = max(peak, level)
-        loud = loud + FRAME_MS if level >= RMS_BARGE_IN else 0
+        loud = loud + FRAME_MS if level >= mic.barge_in else 0
         by_key = ptt.is_set()
         if loud >= BARGE_MS or by_key:
             log("barge-in by key" if by_key else f"barge-in at level {level:.0f}")
@@ -686,7 +712,7 @@ async def talk(
                 await reply
             # By key, the recent frames hold the reply, not the user.
             return None if by_key else list(recent)
-    log(f"mic peak during the reply: {peak:.0f}, barge-in at {RMS_BARGE_IN}")
+    log(f"mic peak during the reply: {peak:.0f}, barge-in at {mic.barge_in:.0f}")
     await reply  # its errors belong to the turn
     return []
 
@@ -827,15 +853,21 @@ async def run_levels(
     http: aiohttp.ClientSession, stack: contextlib.AsyncExitStack, args: argparse.Namespace
 ) -> None:
     """Show the live mic level until Ctrl-C."""
-    log(f"RMS_SPEECH {RMS_SPEECH}, RMS_BARGE_IN {RMS_BARGE_IN}")
+    log(f"RMS_SPEECH {RMS_SPEECH}, RMS_BARGE_IN {RMS_BARGE_IN}, SPEECH_RATIO {SPEECH_RATIO}")
     peak = 0.0
     async with Mic() as mic:
         try:
             while True:
                 level = rms(await mic.frame())
                 peak = max(peak, level)
-                bar = "#" * min(40, int(level / 500))
-                print(f"\rlevel {level:7.0f} peak {peak:7.0f} {bar:40}", end="", flush=True)
+                if level < mic.speech:
+                    mic.learn(level)
+                print(
+                    f"\rlevel {level:7.0f} peak {peak:7.0f} quiet {mic.floor:6.1f}"
+                    f" speech {mic.speech:6.0f}",
+                    end="",
+                    flush=True,
+                )
         finally:
             print()  # the prompt after Ctrl-C goes on a new line
 
