@@ -140,6 +140,11 @@ fn valid_camera(t: &Transform) -> bool {
 /// without bound.
 pub const MAX_NODES: usize = 16_384;
 
+/// The most levels of nodes below the root. Each frame, layout and query
+/// walks the tree; a chain of 5000 groups in one transaction stalled the
+/// core for 10 s (W12).
+pub const MAX_DEPTH: usize = 64;
+
 /// The scene tree.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scene {
@@ -612,6 +617,7 @@ impl Scene {
             return Err(SceneError::WrongKind(id, "group, rect or image"));
         }
         self.group(parent)?;
+        self.check_depth(&id, parent, 1)?;
         self.nodes.insert(id.clone(), node);
         self.link(&id, parent, None);
         Ok(())
@@ -630,6 +636,7 @@ impl Scene {
             Some(other) => return Err(SceneError::NotOwner(surface.into(), other.into())),
         }
         self.group(parent)?;
+        self.check_depth(surface, parent, 1)?;
         self.unlink(surface);
         self.link(surface, parent, None);
         let node = self.node_mut(surface)?;
@@ -654,6 +661,7 @@ impl Scene {
         if self.ancestors(&parent).any(|a| a == id) {
             return Err(SceneError::Cycle(id.into()));
         }
+        self.check_depth(id, &parent, self.height(id))?;
         self.unlink(id);
         self.link(id, &parent, index);
         Ok(())
@@ -1142,6 +1150,28 @@ impl Scene {
         if let Some(p) = self.nodes.get_mut(&parent) {
             p.children.retain(|c| c != id);
         }
+    }
+
+    /// Refuses `levels` levels of nodes, `id` on top, under `parent`
+    /// when they pass [`MAX_DEPTH`].
+    fn check_depth(&self, id: &str, parent: &str, levels: usize) -> Result<(), SceneError> {
+        // The ancestors of the parent count the parent and the root.
+        if self.ancestors(parent).count() - 1 + levels > MAX_DEPTH {
+            return Err(SceneError::Limit(format!(
+                "{id:?}: the scene is at most {MAX_DEPTH} levels deep"
+            )));
+        }
+        Ok(())
+    }
+
+    /// The levels of a node and its subtree, 1 for a node without
+    /// children.
+    fn height(&self, id: &str) -> usize {
+        let children = self.nodes.get(id).map(|n| n.children.as_slice());
+        1 + (children.unwrap_or_default().iter())
+            .map(|c| self.height(c))
+            .max()
+            .unwrap_or(0)
     }
 
     /// The id and the ids of the ancestors of a node, from the node up.

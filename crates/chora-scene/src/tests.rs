@@ -3,9 +3,9 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    Command, Easing, Effect, Event, FontStyle, INJECTION, MAX_CAMERAS, MAX_DURATION, MAX_NODES,
-    NodeKind, PropsUpdate, ROOT, Scene, SceneError, Selector, SurfaceInfo, SurfaceRequest,
-    Transform, overlay_id,
+    Command, Easing, Effect, Event, FontStyle, INJECTION, MAX_CAMERAS, MAX_DEPTH, MAX_DURATION,
+    MAX_NODES, NodeKind, PropsUpdate, ROOT, Scene, SceneError, Selector, SurfaceInfo,
+    SurfaceRequest, Transform, overlay_id,
 };
 
 fn group(id: &str, parent: &str) -> Command {
@@ -239,8 +239,8 @@ fn commands_reject_unknown_fields() {
 #[test]
 fn deep_trees_do_not_overflow_the_stack() {
     let mut scene = Scene::default();
-    // As deep as the node limit allows.
-    let commands: Vec<Command> = (0..MAX_NODES - 1)
+    // As deep as the depth limit allows.
+    let commands: Vec<Command> = (0..MAX_DEPTH)
         .map(|i| {
             let parent = if i == 0 {
                 ROOT.to_owned()
@@ -251,7 +251,7 @@ fn deep_trees_do_not_overflow_the_stack() {
         })
         .collect();
     scene.apply("wm", &commands).unwrap();
-    assert_eq!(scene.draw_list().len(), MAX_NODES - 1);
+    assert_eq!(scene.draw_list().len(), MAX_DEPTH);
 }
 
 #[test]
@@ -712,6 +712,44 @@ fn the_scene_has_a_node_limit() {
         .apply("wm", &groups(MAX_NODES..MAX_NODES + 1))
         .unwrap_err();
     assert!(matches!(err.error, SceneError::Limit(_)), "{err}");
+}
+
+/// A chain of 5000 nested groups stalled the core for 10 s (W12).
+#[test]
+fn the_scene_has_a_depth_limit() {
+    let mut scene = Scene::default();
+    let chain: Vec<Command> = (0..MAX_DEPTH)
+        .map(|i| {
+            group(
+                &format!("g{i}"),
+                &if i == 0 {
+                    ROOT.into()
+                } else {
+                    format!("g{}", i - 1)
+                },
+            )
+        })
+        .collect();
+    scene.apply("wm", &chain).unwrap();
+    let last = format!("g{}", MAX_DEPTH - 1);
+    let err = scene.apply("wm", &[group("deep", &last)]).unwrap_err();
+    assert!(matches!(err.error, SceneError::Limit(_)), "{err}");
+    // A subtree moves only where all of it fits.
+    scene
+        .apply("wm", &[group("a", ROOT), group("b", "a")])
+        .unwrap();
+    let deep = Command::Move {
+        id: "a".into(),
+        parent: Some(format!("g{}", MAX_DEPTH - 2)),
+        index: None,
+    };
+    assert!(scene.apply("wm", &[deep]).is_err());
+    let fits = Command::Move {
+        id: "a".into(),
+        parent: Some(format!("g{}", MAX_DEPTH - 3)),
+        index: None,
+    };
+    scene.apply("wm", &[fits]).unwrap();
 }
 
 fn camera(output: &str, transform: Option<Transform>) -> Command {

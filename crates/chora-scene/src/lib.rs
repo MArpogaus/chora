@@ -23,8 +23,8 @@ pub use node::{
     SurfaceInfo, Uniform,
 };
 pub use scene::{
-    INJECTION, MAX_CAMERAS, MAX_NODES, OVERLAY, Placed, Scene, SceneError, TransactionError,
-    overlay_id,
+    INJECTION, MAX_CAMERAS, MAX_DEPTH, MAX_NODES, OVERLAY, Placed, Scene, SceneError,
+    TransactionError, overlay_id,
 };
 pub use selector::{Selector, SelectorError};
 pub use transform::Transform;

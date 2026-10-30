@@ -31,7 +31,10 @@ The nodes form a tree under `root`, which the cameras show. Each output
 has a second root, `screen:NAME`, for example `screen:DP-1` (D43). Its
 nodes stay fixed to the screen: they sit in the logical coordinates of the
 output, without its camera, above the scene and below the top and overlay
-layers of layer shell. A HUD or a progress bar goes there, also during an
+layers of layer shell. The tree is at most 64 levels deep below a root:
+a `create`, `attach` or `move` that puts a node, or the subtree of a
+moved node, deeper fails with code 6 and the transaction changes
+nothing. A HUD or a progress bar goes there, also during an
 animated camera move. The nodes under `screen:NAME` work as all others,
 with input, effects and ownership. The overlay root stays when its output
 goes, with its nodes, for the return of the output; the emergency reset

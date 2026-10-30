@@ -232,6 +232,7 @@ Limits keep a buggy client from exhausting the core:
 | output buffer of a connection | 8 MiB | the core closes the connection; an answer that does not fit becomes an error |
 | waiting transactions of a connection | 16 | the core rejects the transaction |
 | nodes other than surfaces | 16,384 | the core rejects the `create` |
+| levels of nodes below the root | 64 | the core rejects the `create`, `attach` or `move` |
 | cameras | 64 | the core rejects the `camera` |
 | `meta` of a node | 32 keys, 1 KiB per key or value, 4 KiB in all | the core rejects the command |
 
