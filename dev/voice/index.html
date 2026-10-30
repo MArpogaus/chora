@@ -1,0 +1,2231 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="chora is the space where forms appear. A Wayland compositor without policy.">
+      
+      
+      
+        <link rel="canonical" href="https://marpogaus.github.io/chora/dev/voice/">
+      
+      
+        <link rel="prev" href="../project-structure/">
+      
+      
+        <link rel="next" href="../dependencies/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Voice agent (draft) - chora</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#chora-voice-the-voice-agent-in-rust-draft-specification" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="chora" class="md-header__button md-logo" aria-label="chora" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            chora
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Voice agent (draft)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MArpogaus/chora" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="chora" class="md-nav__button md-logo" aria-label="chora" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    chora
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MArpogaus/chora" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concept
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concept
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision and principles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenarios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../project-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice agent (draft)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice agent (draft)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-goals-and-non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Goals and non-goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. State machine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-speech-gate-echo-word-matcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Speech gate, echo, word matcher
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-confirmation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Confirmation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Error handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-history-and-token-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. History and token budget
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-asr-and-tts-protocol-live-probe-2026-10-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. ASR and TTS protocol (live probe, 2026-10-30)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-settings-d62" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Settings (D62)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-methods-and-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Methods and events
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-logging-and-latency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Logging and latency
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-recording-for-replay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Recording for replay
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-test-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Test plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-dependencies-and-packaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Dependencies and packaging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-results-of-wp0-to-wp2-2026-10-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Results of WP0 to WP2 (2026-10-30)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-work-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Work packages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#17-open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Context
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Context
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../alternatives/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alternatives
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../decisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ideas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Idea backlog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-goals-and-non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Goals and non-goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. State machine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-speech-gate-echo-word-matcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Speech gate, echo, word matcher
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-confirmation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Confirmation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Error handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-history-and-token-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. History and token budget
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-asr-and-tts-protocol-live-probe-2026-10-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. ASR and TTS protocol (live probe, 2026-10-30)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-settings-d62" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Settings (D62)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-methods-and-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Methods and events
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-logging-and-latency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Logging and latency
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-recording-for-replay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Recording for replay
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-test-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Test plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-dependencies-and-packaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Dependencies and packaging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-results-of-wp0-to-wp2-2026-10-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Results of WP0 to WP2 (2026-10-30)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-work-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Work packages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#17-open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="chora-voice-the-voice-agent-in-rust-draft-specification">chora-voice: the voice agent in Rust (draft specification)<a class="headerlink" href="#chora-voice-the-voice-agent-in-rust-draft-specification" title="Permanent link">&para;</a></h1>
+<p>Status: draft, 2026-10-30. WP0 to WP2 are done. Sources:
+<code>services/voice/agent.py</code>, D53, D58, D61, D62, <code>docs/api.md</code>, the
+<code>chora-kit</code> runtime and settings, <code>choractl mcp</code>, and live probes of the
+Gufo servers.</p>
+<p><code>chora-voice</code> is the first voice agent of chora for real use. The Python
+agent <code>services/voice/agent.py</code> is not in production use. It is only a
+reference for the protocols of the servers and for the lessons of its
+turns. When <code>chora-voice</code> completes a full voice turn (end of WP6), the
+Python agent and <code>voice-agent.service</code> go.</p>
+<h2 id="1-goals-and-non-goals">1. Goals and non-goals<a class="headerlink" href="#1-goals-and-non-goals" title="Permanent link">&para;</a></h2>
+<p>Goals:</p>
+<ul>
+<li>One binary <code>chora-voice</code> in the crate <code>services/voice</code>: a chora client
+  on the <code>chora-kit</code> runtime, with D62 settings.</li>
+<li>Silero VAD on <code>tract</code> (pure Rust, no C library) as the speech gate.</li>
+<li>Always listening, with the local words "Schlaf" and "Hör zu", plus the
+  push-to-talk (PTT) key. The wake word goes through the ASR.</li>
+<li>A cancel word stops the current turn at any time, also while the
+  agent speaks or works.</li>
+<li>Spoken yes/no confirmation before the tools of a configurable list.</li>
+<li>Separate mute switches for the mic and the speaker.</li>
+<li>No silent failure; a latency per stage for each turn; a state for the
+  HUD.</li>
+<li>Replay tests that measure speech detection and barge-in against
+  labelled recordings.</li>
+</ul>
+<p>Non-goals: new ASR, TTS or LLM servers; a keyword-spotting model; an own
+echo canceller (the PipeWire one stays); a GUI; a package before the
+agent completes full turns.</p>
+<h2 id="2-architecture">2. Architecture<a class="headerlink" href="#2-architecture" title="Permanent link">&para;</a></h2>
+<p>One process. The <code>core</code> is one thread that reads one input channel. All
+other actors send their inputs into that channel, and the core sends
+effects back to them. The core holds the state machine as a pure
+function <code>step(state, input) -&gt; (state, effects)</code>, so unit tests need no
+IO. WP4 adds a tokio runtime for the network actors; they send into the
+same channel.</p>
+<table>
+<thead>
+<tr>
+<th>Actor</th>
+<th>Job</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>audio_in</code></td>
+<td>A thread: the capture command at 24 kHz mono, 32 ms frames (768 samples), Silero probability and RMS per frame</td>
+</tr>
+<tr>
+<td><code>audio_out</code></td>
+<td>The playback command at 24 kHz for TTS and earcons; knows when the written sound ends; stops at once</td>
+</tr>
+<tr>
+<td><code>asr</code></td>
+<td>One websocket per utterance to Qwen3-ASR realtime, PCM in 1 s pieces</td>
+</tr>
+<tr>
+<td><code>tts</code></td>
+<td>One websocket per sentence to Qwen3-TTS, one sentence ahead</td>
+</tr>
+<tr>
+<td><code>llm</code></td>
+<td><code>/chat/completions</code> with SSE and tools</td>
+</tr>
+<tr>
+<td><code>tools</code></td>
+<td>MCP client of <code>choractl --name voice mcp</code>, the coder tools, the confirmation gate</td>
+</tr>
+<tr>
+<td><code>coder</code></td>
+<td>One background coding task, as in Python</td>
+</tr>
+<tr>
+<td><code>chora</code></td>
+<td>A thread with the <code>chora-kit</code> runtime: methods, settings, PTT grab, later the indicator node</td>
+</tr>
+<tr>
+<td><code>core</code></td>
+<td>State machine, speech gate, history, word matcher, turn metrics</td>
+</tr>
+</tbody>
+</table>
+<p>Audio: the ASR takes 24 kHz only (WP0), and the TTS sends 24 kHz. So the
+mic records at 24 kHz, and the ASR gets that PCM unchanged. Only the VAD
+gets a 16 kHz copy: a 33-tap windowed-sinc low-pass at 7 kHz, then two
+samples out of each three. Subprocesses replace the <code>pipewire</code> crate,
+which needs bindgen and C headers. The commands are settings, so
+<code>arecord</code>/<code>aplay</code> are a fallback without code. Tests feed WAV files.</p>
+<p>Tool layer: LLM tools go through MCP (<code>rmcp</code> client). The tool schemas
+and the plugin tools stay in one place, and <code>chora_mcp</code> can still run
+tools in a container. The agent's own needs (PTT grab, methods,
+settings, indicator) go through the runtime connection. This replaces
+the PTT polling through <code>wait_events</code>.</p>
+<p>The <code>chora</code> thread runs <code>runtime::run</code> and <code>runtime::serve</code> of
+<code>chora-kit</code>; <code>runtime::dispatch</code> is public already. Methods send an
+input with a reply channel to the core and wait up to 1 s for the new
+state. When the runtime gives up after 30 s without chora, the agent
+exits with 1.</p>
+<h2 id="3-state-machine">3. State machine<a class="headerlink" href="#3-state-machine" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sleeping</code></td>
+<td>Hears only wake words and PTT</td>
+</tr>
+<tr>
+<td><code>listening</code></td>
+<td>Waits for speech</td>
+</tr>
+<tr>
+<td><code>recording</code></td>
+<td>Collects an utterance</td>
+</tr>
+<tr>
+<td><code>transcribing</code></td>
+<td>Waits for the ASR</td>
+</tr>
+<tr>
+<td><code>thinking</code></td>
+<td>Waits for the LLM, no sound</td>
+</tr>
+<tr>
+<td><code>tool</code></td>
+<td>A tool call runs</td>
+</tr>
+<tr>
+<td><code>confirming</code></td>
+<td>Waits for yes or no</td>
+</tr>
+<tr>
+<td><code>speaking</code></td>
+<td>Plays the reply</td>
+</tr>
+<tr>
+<td><code>working</code></td>
+<td>Listening while a coding task runs</td>
+</tr>
+</tbody>
+</table>
+<p>The agent starts in <code>listening</code> (awake).</p>
+<table>
+<thead>
+<tr>
+<th>From</th>
+<th>Input</th>
+<th>To</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sleeping</code></td>
+<td>Short utterance with a wake word</td>
+<td><code>listening</code>, earcon</td>
+</tr>
+<tr>
+<td><code>sleeping</code></td>
+<td>PTT down</td>
+<td><code>recording</code>, then back to <code>sleeping</code></td>
+</tr>
+<tr>
+<td><code>listening</code>, <code>working</code></td>
+<td>VAD onset or PTT down</td>
+<td><code>recording</code></td>
+</tr>
+<tr>
+<td><code>recording</code></td>
+<td><code>silence_ms</code> quiet, PTT up, or <code>max_turn_ms</code></td>
+<td><code>transcribing</code></td>
+</tr>
+<tr>
+<td><code>recording</code></td>
+<td>Less than <code>min_speech_ms</code> speech</td>
+<td>previous state</td>
+</tr>
+<tr>
+<td><code>transcribing</code></td>
+<td>Sleep word</td>
+<td><code>sleeping</code>, earcon</td>
+</tr>
+<tr>
+<td><code>transcribing</code></td>
+<td>Cancel word, empty text or echo</td>
+<td>previous state</td>
+</tr>
+<tr>
+<td><code>transcribing</code></td>
+<td>Code cancel word</td>
+<td>previous state; the coding task stops</td>
+</tr>
+<tr>
+<td><code>transcribing</code></td>
+<td>Other text</td>
+<td><code>thinking</code></td>
+</tr>
+<tr>
+<td><code>thinking</code></td>
+<td>First sentence</td>
+<td><code>speaking</code>; tools run in parallel</td>
+</tr>
+<tr>
+<td><code>thinking</code></td>
+<td>Tool call on the confirm list</td>
+<td><code>confirming</code></td>
+</tr>
+<tr>
+<td><code>thinking</code></td>
+<td>Other tool call</td>
+<td><code>tool</code></td>
+</tr>
+<tr>
+<td><code>tool</code></td>
+<td>Result or timeout</td>
+<td><code>thinking</code></td>
+</tr>
+<tr>
+<td><code>confirming</code></td>
+<td>Yes</td>
+<td><code>tool</code></td>
+</tr>
+<tr>
+<td><code>confirming</code></td>
+<td>No, two unclear answers, or timeout</td>
+<td><code>thinking</code>; result "declined by the user"</td>
+</tr>
+<tr>
+<td><code>speaking</code></td>
+<td>Audio and LLM done</td>
+<td><code>listening</code> or <code>working</code></td>
+</tr>
+<tr>
+<td>busy states</td>
+<td>Cancel word, <code>voice.cancel</code>, PTT down</td>
+<td><code>listening</code>, earcon</td>
+</tr>
+<tr>
+<td>any</td>
+<td>Sleep word or <code>voice.sleep</code></td>
+<td><code>sleeping</code>, earcon</td>
+</tr>
+<tr>
+<td><code>sleeping</code></td>
+<td><code>voice.wake</code></td>
+<td><code>listening</code>, earcon</td>
+</tr>
+</tbody>
+</table>
+<p>Until WP4, <code>recording</code> ends in <code>listening</code> (or <code>sleeping</code>), and the log
+shows the utterance.</p>
+<p>Barge-in while <code>speaking</code>: speech over the barge-in gate (section 4) for
+<code>barge_in_ms</code> stops playback at once. The unplayed sentences stay
+queued. A cancel word drops them and cancels the turn. Empty text or
+echo plays them from the cut sentence. Other text ends the reply; the
+history keeps only the played text, and the new text starts a turn.</p>
+<p>Speech while <code>thinking</code>, <code>tool</code> or <code>working</code>: each utterance goes to the
+ASR at once. A cancel word cancels. Other text waits in a queue and goes
+into the history before the next LLM round, or starts the next turn. No
+speech is dropped.</p>
+<p>Cancel stops only the current turn: it aborts the SSE request, sends
+<code>notifications/cancelled</code> for the MCP call in flight, records "cancelled
+by the user; result unknown" and stops playback. A cancel word does not
+stop a coding task. A code cancel word ("Coding-Aufgabe abbrechen")
+stops it. Coding results wait for <code>listening</code> or <code>working</code>, and also go
+into the history.</p>
+<p>Mute: <code>voice.mute</code> has two separate switches. A muted mic starts no turn
+by VAD, and no barge-in; PTT still records, because the key is an
+explicit request. A muted speaker plays no TTS and no earcons; the reply
+text still goes to <code>last_reply</code> and to the HUD.</p>
+<h2 id="4-speech-gate-echo-word-matcher">4. Speech gate, echo, word matcher<a class="headerlink" href="#4-speech-gate-echo-word-matcher" title="Permanent link">&para;</a></h2>
+<p>Onset: probability over <code>vad_threshold</code> for <code>onset_ms</code>. End: under
+<code>vad_release</code> for <code>silence_ms</code>. An utterance keeps at most <code>preroll_ms</code>
+before the first frame of its onset. The PTT key starts an utterance at
+once; while the key is down, each frame counts as speech, and only the
+release ends the utterance.</p>
+<p>Echo: during playback, frames without speech update an echo level (a
+running mean of RMS). Barge-in needs probability over
+<code>barge_in_vad_threshold</code> and RMS over <code>max(barge_in_min_rms, echo level ×
+barge_in_echo_ratio)</code>. Its pre-roll is at most 100 ms, which keeps the
+agent's own words ("Ich" fragments) out. A transcript whose words match
+more than 80 % of the words spoken in the last 3 s is echo.</p>
+<p>Word matcher (no LLM):</p>
+<ol>
+<li>Only utterances up to <code>word_max_ms</code> and four words count.</li>
+<li>Normalize: lowercase, no punctuation, <code>ä→ae</code>, <code>ö→oe</code>, <code>ü→ue</code>, <code>ß→ss</code>.</li>
+<li>Remove <code>filler_words</code>.</li>
+<li>The rest must equal a phrase. Words of four letters or more may
+   differ by one edit.</li>
+<li>Order: code cancel, cancel, sleep, wake, yes, no. Yes and no count
+   only in <code>confirming</code>.</li>
+</ol>
+<p>While asleep, each short utterance goes to the ASR to find a wake word.
+A keyword-spotting model can replace this later.</p>
+<h2 id="5-confirmation">5. Confirmation<a class="headerlink" href="#5-confirmation" title="Permanent link">&para;</a></h2>
+<p>A rule matches by <code>tool</code> (glob), and optionally by the command kinds of
+<code>apply_commands</code>, by <code>argv0</code> of <code>run_program</code>, or by <code>method</code> (glob) of
+<code>call_method</code>. The agent speaks the <code>prompt</code> of the rule and waits for
+yes or no. The method <code>confirm</code> answers from a key or the HUD.</p>
+<h2 id="6-error-handling">6. Error handling<a class="headerlink" href="#6-error-handling" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Failure</th>
+<th>Reaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mic</td>
+<td>Capture command exits</td>
+<td>Restart, backoff 0.5 s to 5 s, error earcon once</td>
+</tr>
+<tr>
+<td>VAD</td>
+<td>Model does not load</td>
+<td>Exit 1; systemd restarts</td>
+</tr>
+<tr>
+<td>ASR</td>
+<td>Error or timeout</td>
+<td>One retry with the same audio, then earcon and "Ich habe dich nicht verstanden."</td>
+</tr>
+<tr>
+<td>TTS</td>
+<td>Error or timeout</td>
+<td>Earcon; the text stays in the history and in <code>last_reply</code>; the tool loop goes on</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td>Connect error</td>
+<td>One retry, then "Das Sprachmodell antwortet nicht."</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td>First token, idle or total timeout</td>
+<td>Abort, keep the rounds so far, say so</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td>Context error or <code>finish_reason: length</code></td>
+<td>Trim the history to half the budget, one retry</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td><code>tool_rounds</code> reached</td>
+<td>German phrase from <code>phrases</code>; history stays</td>
+</tr>
+<tr>
+<td>MCP</td>
+<td>Child exits</td>
+<td>Restart with backoff; call in flight gets "connection lost, result unknown"; tools reload</td>
+</tr>
+<tr>
+<td>MCP</td>
+<td><code>tool_timeout_s</code></td>
+<td>Cancel the call; result "timeout, result unknown"</td>
+</tr>
+<tr>
+<td>chora</td>
+<td>Connection closed</td>
+<td>Runtime reconnects and grabs PTT again; after 30 s, exit 1</td>
+</tr>
+<tr>
+<td>Any thread</td>
+<td>Panic or end</td>
+<td>Exit 1; the unit has <code>Restart=always</code></td>
+</tr>
+</tbody>
+</table>
+<p>The history commits per LLM round; an audio failure never rolls it back.
+<code>state.health</code> shows <code>asr</code>, <code>tts</code>, <code>llm</code> and <code>chora</code> as <code>ok</code> or <code>down</code>.
+At start, the agent warms the LLM cache and checks ASR and TTS. Earcons
+are synthesized tones: wake, sleep, cancel, question, error.</p>
+<h2 id="7-history-and-token-budget">7. History and token budget<a class="headerlink" href="#7-history-and-token-budget" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>context_tokens</code> from the setting, else from the server (<code>/props</code> or
+  <code>/v1/models</code>; Gufo has 128000), else 32768.</li>
+<li>Budget: <code>context_tokens</code> minus <code>reply_reserve_tokens</code>, the prompt and
+  the tools. The estimate uses characters per token, learned from the
+  last <code>usage.prompt_tokens</code>; no tokenizer.</li>
+<li>Before each request, drop the oldest whole turns until the estimate
+  fits. Old tool texts shrink to <code>old_tool_chars</code>; the last <code>put_asset</code>
+  of each name stays whole.</li>
+<li>The user words of <code>saved_requests</code> turns go to
+  <code>~/.local/state/chora/voice-history.json</code>.</li>
+</ul>
+<h2 id="8-asr-and-tts-protocol-live-probe-2026-10-30">8. ASR and TTS protocol (live probe, 2026-10-30)<a class="headerlink" href="#8-asr-and-tts-protocol-live-probe-2026-10-30" title="Permanent link">&para;</a></h2>
+<p>ASR (<code>/v1/realtime?intent=transcription</code>, <code>turn_detection: null</code>):</p>
+<ul>
+<li>The server takes only mono PCM16 at 24000 Hz. At 16000 Hz it answers
+  <code>invalid_audio_event</code>: "realtime input requires mono PCM16 at 24000
+  Hz".</li>
+<li>It sends <code>conversation.item.input_audio_transcription.delta</code> events
+  only after <code>input_audio_buffer.commit</code>, all within about 0.4 s, then
+  <code>...completed</code>. A 3 s sentence took 0.44 s to 0.57 s after the commit.</li>
+<li>So text while the user speaks needs a new transcription of the growing
+  buffer. The setting <code>asr_interim_ms</code> sets the interval; 0 turns it off.</li>
+</ul>
+<p>TTS (<code>/v1/audio/speech/stream</code>, voice <code>aiden</code>):</p>
+<ul>
+<li>Per sentence: <code>audio.start</code> with <code>sentence_index</code>, <code>sentence_text</code>,
+  <code>format</code> and <code>sample_rate</code> (24000), then binary PCM, then <code>audio.done</code>.
+  <code>session.done</code> ends the session.</li>
+<li><code>audio.start</code> gives the text and the start of its sound. The HUD
+  typewriter spreads the words of <code>sentence_text</code> over the PCM length of
+  the sentence.</li>
+</ul>
+<h2 id="9-settings-d62">9. Settings (D62)<a class="headerlink" href="#9-settings-d62" title="Permanent link">&para;</a></h2>
+<p>File <code>$XDG_CONFIG_HOME/chora/chora-voice.yaml</code>. A missing key takes its
+default, so an empty file is valid. <code>settings.set</code> applies at once (a
+new <code>capture_cmd</code> restarts capture, a new <code>ptt_key</code> grabs again; WP5: a
+new prompt warms the cache). Edits by hand apply on <code>voice.restart</code>. The
+client name is the flag <code>--name</code> (default <code>voice</code>). <code>chora-voice
+--print-config</code> prints all defaults.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>asr_url</code></td>
+<td><code>ws://127.0.0.1:8881/v1/realtime?intent=transcription</code></td>
+</tr>
+<tr>
+<td><code>tts_url</code></td>
+<td><code>ws://127.0.0.1:8882/v1/audio/speech/stream</code></td>
+</tr>
+<tr>
+<td><code>llm_url</code></td>
+<td><code>http://127.0.0.1:8888/v1</code></td>
+</tr>
+<tr>
+<td><code>model</code>, <code>voice</code></td>
+<td><code>gufo</code>, <code>aiden</code></td>
+</tr>
+<tr>
+<td><code>language</code>, <code>tts_language</code></td>
+<td><code>de</code>, <code>auto</code></td>
+</tr>
+<tr>
+<td><code>asr_interim_ms</code></td>
+<td><code>0</code> (off)</td>
+</tr>
+<tr>
+<td><code>capture_cmd</code></td>
+<td><code>[pw-record, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]</code></td>
+</tr>
+<tr>
+<td><code>playback_cmd</code></td>
+<td><code>[pw-play, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]</code></td>
+</tr>
+<tr>
+<td><code>ptt_key</code></td>
+<td><code>Super+v</code></td>
+</tr>
+<tr>
+<td><code>vad_threshold</code>, <code>vad_release</code>, <code>onset_ms</code></td>
+<td><code>0.5</code>, <code>0.35</code>, <code>96</code></td>
+</tr>
+<tr>
+<td><code>silence_ms</code>, <code>min_speech_ms</code>, <code>max_turn_ms</code></td>
+<td><code>800</code>, <code>200</code>, <code>30000</code></td>
+</tr>
+<tr>
+<td><code>preroll_ms</code></td>
+<td><code>300</code></td>
+</tr>
+<tr>
+<td><code>barge_in_vad_threshold</code>, <code>barge_in_ms</code></td>
+<td><code>0.7</code>, <code>250</code></td>
+</tr>
+<tr>
+<td><code>barge_in_echo_ratio</code>, <code>barge_in_min_rms</code></td>
+<td><code>2.0</code>, <code>300</code></td>
+</tr>
+<tr>
+<td><code>word_max_ms</code></td>
+<td><code>2000</code></td>
+</tr>
+<tr>
+<td><code>sleep_words</code>, <code>wake_words</code></td>
+<td><code>[schlaf, schlaf jetzt]</code>, <code>[hör zu]</code></td>
+</tr>
+<tr>
+<td><code>cancel_words</code></td>
+<td><code>[stopp, stop, abbrechen, halt, vergiss es]</code></td>
+</tr>
+<tr>
+<td><code>code_cancel_words</code></td>
+<td><code>[coding-aufgabe abbrechen, programmieraufgabe abbrechen]</code></td>
+</tr>
+<tr>
+<td><code>yes_words</code>, <code>no_words</code></td>
+<td><code>[ja, okay, genau, mach das]</code>, <code>[nein, nicht, lieber nicht]</code></td>
+</tr>
+<tr>
+<td><code>filler_words</code></td>
+<td><code>[bitte, jetzt, mal]</code></td>
+</tr>
+<tr>
+<td><code>confirm</code>, <code>confirm_timeout_ms</code></td>
+<td>rules below, <code>8000</code></td>
+</tr>
+<tr>
+<td><code>earcons</code>, <code>earcon_volume</code></td>
+<td><code>true</code>, <code>0.3</code></td>
+</tr>
+<tr>
+<td><code>indicator</code></td>
+<td><code>true</code> (state dot under <code>screen:OUTPUT</code>)</td>
+</tr>
+<tr>
+<td><code>system_prompt</code>, <code>context_docs</code></td>
+<td><code>""</code>: the built-in prompt and documents</td>
+</tr>
+<tr>
+<td><code>prompt_file</code></td>
+<td><code>~/.config/chora/voice-prompt.md</code></td>
+</tr>
+<tr>
+<td><code>context_tokens</code>, <code>reply_reserve_tokens</code></td>
+<td><code>0</code> (ask the server), <code>1024</code></td>
+</tr>
+<tr>
+<td><code>tool_rounds</code>, <code>old_tool_chars</code>, <code>saved_requests</code></td>
+<td><code>10</code>, <code>500</code>, <code>20</code></td>
+</tr>
+<tr>
+<td><code>reasoning_effort</code></td>
+<td><code>none</code></td>
+</tr>
+<tr>
+<td><code>asr_timeout_s</code>, <code>tts_timeout_s</code>, <code>tool_timeout_s</code></td>
+<td><code>15</code>, <code>10</code>, <code>30</code></td>
+</tr>
+<tr>
+<td><code>llm_first_token_s</code>, <code>llm_idle_s</code>, <code>llm_total_s</code></td>
+<td><code>30</code>, <code>20</code>, <code>120</code></td>
+</tr>
+<tr>
+<td><code>chora_mcp</code>, <code>coder_cmd</code></td>
+<td><code>[choractl]</code>, <code>[]</code></td>
+</tr>
+<tr>
+<td><code>skipped_tools</code></td>
+<td><code>[subscribe_events, wait_events, capture]</code></td>
+</tr>
+<tr>
+<td><code>record_dir</code></td>
+<td><code>""</code> (off; else records sessions for replay)</td>
+</tr>
+</tbody>
+</table>
+<p><code>--target NAME</code> in <code>capture_cmd</code> or <code>playback_cmd</code> picks a PipeWire
+device. The German canned sentences (<code>phrases</code>) come with WP5.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">confirm</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">apply_commands</span><span class="p p-Indicator">,</span><span class="nt"> commands</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">remove</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">close</span><span class="p p-Indicator">],</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">das</span><span class="nv"> </span><span class="s">entfernen?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">unload_view</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">die</span><span class="nv"> </span><span class="s">Ansicht</span><span class="nv"> </span><span class="s">entfernen?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">inject_input</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">tippen</span><span class="nv"> </span><span class="s">oder</span><span class="nv"> </span><span class="s">klicken?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">code_task</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">die</span><span class="nv"> </span><span class="s">Programmieraufgabe</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">run_program</span><span class="p p-Indicator">,</span><span class="nt"> argv0</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">systemctl</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">loginctl</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">shutdown</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">reboot</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">poweroff</span><span class="p p-Indicator">],</span>
+<span class="nt">     prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">den</span><span class="nv"> </span><span class="s">Sitzungsbefehl</span><span class="nv"> </span><span class="s">ausführen?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">configure_output</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">den</span><span class="nv"> </span><span class="s">Bildschirm</span><span class="nv"> </span><span class="s">ändern?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="s">"*.restart"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">das</span><span class="nv"> </span><span class="s">Plugin</span><span class="nv"> </span><span class="s">neu</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">call_method</span><span class="p p-Indicator">,</span><span class="nt"> method</span><span class="p">:</span><span class="w"> </span><span class="s">"*.restart"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">das</span><span class="nv"> </span><span class="s">Plugin</span><span class="nv"> </span><span class="s">neu</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<p><code>check()</code> rejects wrong ranges, empty commands and word lists, a word in
+two lists, a <code>ptt_key</code> that does not parse, and a rule without a prompt.</p>
+<h2 id="10-methods-and-events">10. Methods and events<a class="headerlink" href="#10-methods-and-events" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Method of <code>voice</code></th>
+<th>Parameters</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>state</code></td>
+<td>none</td>
+<td>the state record below</td>
+</tr>
+<tr>
+<td><code>cancel</code>, <code>sleep</code>, <code>wake</code></td>
+<td>none</td>
+<td>the new state record</td>
+</tr>
+<tr>
+<td><code>mute</code></td>
+<td><code>mic: bool</code>, <code>speaker: bool</code>, each optional</td>
+<td>the new state record</td>
+</tr>
+<tr>
+<td><code>restart</code></td>
+<td>none</td>
+<td>reads the settings file again</td>
+</tr>
+<tr>
+<td><code>settings.get</code>, <code>settings.set</code></td>
+<td>D62</td>
+<td>D62</td>
+</tr>
+<tr>
+<td><code>talk</code> (WP6)</td>
+<td><code>down: bool</code></td>
+<td>PTT from another client, for example <code>chora-mc</code></td>
+</tr>
+<tr>
+<td><code>confirm</code> (WP6)</td>
+<td><code>answer: yes\|no</code></td>
+<td>the new state record</td>
+</tr>
+</tbody>
+</table>
+<p>The state record: <code>state</code>, <code>since_ms</code> (time in the state), <code>seq</code> (one
+more per change), <code>awake</code>, <code>muted: {mic, speaker}</code>, <code>turn</code>,
+<code>last_transcript</code>, <code>last_reply</code>. Later packages add <code>confirming</code>,
+<code>coder</code> and <code>health</code>.</p>
+<p>HUD: the core will get client-emitted events (a new decision record,
+implemented by another package). Then the agent emits the event
+<code>voice.state</code> with the state record on each change of <code>seq</code>. Until then,
+a HUD polls the method <code>state</code> (4 Hz; <code>seq</code> shows a change). The
+indicator node signals without a HUD.</p>
+<h2 id="11-logging-and-latency">11. Logging and latency<a class="headerlink" href="#11-logging-and-latency" title="Permanent link">&para;</a></h2>
+<p><code>tracing</code> with timestamps to stderr (journald), without colors when
+stderr is no terminal. <code>RUST_LOG</code> filters; the default is
+<code>info,tract_linalg=warn</code>. The lines are plain text in the form
+<code>key=value</code>: one call site per level in <code>log.rs</code> keeps the <code>tracing</code>
+macros out of the other functions, because clippy counts their expansion
+into the cognitive complexity. Each stage logs start and end with the
+turn number. One summary per turn:</p>
+<div class="highlight"><pre><span></span><code>turn=17 speech=2.1s asr=380ms llm_first=650ms tts_first=310ms
+first_sound=1.43s tools=2/3.4s barge_ins=0 outcome=answered
+</code></pre></div>
+<p><code>first_sound</code> (end of speech to first sound) is the main metric. WP2
+logs <code>turn</code>, <code>speech</code>, <code>length</code>, <code>end_wait</code> (last speech frame to the
+end of the turn) and <code>awake</code> per utterance, for example
+<code>turn=2 speech=2816ms length=3872ms end_wait=608ms awake=true</code>, and a
+warning when the VAD is slower than real time. WP8 writes the same
+record to <code>~/.local/state/chora/voice-turns.jsonl</code>.</p>
+<h2 id="12-recording-for-replay">12. Recording for replay<a class="headerlink" href="#12-recording-for-replay" title="Permanent link">&para;</a></h2>
+<p>With <code>record_dir</code>, each run writes a directory <code>DIR/YYYYMMDD-HHMMSS/</code>:</p>
+<ul>
+<li><code>mic.wav</code>: all mic frames, 24 kHz, without gaps.</li>
+<li><code>played.wav</code>: all played sound, one piece after the other.</li>
+<li><code>events.jsonl</code>: one line per gate event and per played piece, with
+  the mic sample at which it happened, for example
+  <code>{"at": 48000, "event": "onset"}</code> and
+  <code>{"at": 96000, "event": "play", "from": 0, "len": 4800}</code>.</li>
+</ul>
+<p>The WAV headers get their lengths at the end; a reader takes a cut file
+up to its last whole sample. <code>chora-voice gate FILE.wav</code> runs the speech
+gate of the settings over a file and prints the utterances.</p>
+<h2 id="13-test-plan">13. Test plan<a class="headerlink" href="#13-test-plan" title="Permanent link">&para;</a></h2>
+<p>Unit tests: every transition of <code>step()</code>, also cancel in each busy
+state; word matcher table with ASR variants and near misses ("schlafen
+gehen"); echo filter; sentence splitter; SSE parser; tool call deltas;
+confirm rules; token trimming; settings <code>check()</code>; the 3:2 low-pass.</p>
+<p>Replay tests:</p>
+<ul>
+<li>A recording: the files of section 12, plus YAML labels (utterances,
+  expected words, barge-ins).</li>
+<li>The harness feeds the frames at full speed.</li>
+<li>Metrics against the labels: turn boundary precision and recall (200 ms
+  tolerance), onset error, false barge-ins per minute of agent speech,
+  barge-in latency, word accuracy. Each metric has a threshold in the
+  test.</li>
+<li>A small synthetic corpus (TTS voices, noise, echo) is in the repo for
+  CI. WP2 has one clip: <code>services/voice/tests/data/hallo-chora.wav</code>.
+  Recordings from <code>record_dir</code> stay outside the repo.</li>
+</ul>
+<p>Fake servers for CI: a scripted ASR websocket, a TTS websocket (silence,
+60 ms per character) and an SSE LLM with scripted tool calls. With a
+fake tool executor, an end-to-end test runs a replay through the whole
+agent and checks the LLM requests and the state sequence.</p>
+<p>Live tests: <code>services/voice/tests/live.py TTS_URL ASR_URL [CLIP]</code> checks
+the TTS events, the ASR at 24 kHz and 16 kHz, and writes the test clip.
+WP4 to WP6 add <code>chora-voice</code> subcommands (<code>roundtrip</code>, <code>tts</code>, <code>asr
+FILE</code>, <code>levels</code>, <code>tools</code>, <code>replay DIR</code>) and ignored tests. The URLs come
+from the settings. From the agent sandbox, the servers are at
+<code>192.168.178.195</code>: ASR <code>:8881</code>, TTS <code>:8882</code>, LLM <code>:8888</code> (model <code>gufo</code>,
+context 128000, text and image), reachable only with the sandbox off.
+The live tests also check that <code>context_tokens: 0</code> reads 128000 and that
+<code>describe_screen</code> sends the picture. <code>tests/gate-voice.sh</code> runs them in
+a headless chora session.</p>
+<h2 id="14-dependencies-and-packaging">14. Dependencies and packaging<a class="headerlink" href="#14-dependencies-and-packaging" title="Permanent link">&para;</a></h2>
+<p>Reused from <code>Cargo.lock</code>: <code>serde</code>, <code>serde_json</code>, <code>schemars</code>,
+<code>serde-saphyr</code>, <code>clap</code>, <code>tracing</code>, <code>tracing-subscriber</code>, <code>chora-kit</code>,
+<code>chora-scene</code>; WP4 adds <code>tokio</code> (<code>process</code>, <code>io-util</code>, <code>net</code>, <code>time</code>),
+<code>futures-util</code>, <code>base64</code>, and <code>rmcp</code> (<code>client</code>,
+<code>transport-child-process</code>).</p>
+<table>
+<thead>
+<tr>
+<th>New crate</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tract-onnx</code> 0.22</td>
+<td>Silero VAD in pure Rust. 0.23 needs Rust 1.91; the workspace has 1.89</td>
+</tr>
+<tr>
+<td><code>tokio-tungstenite</code> (no TLS, WP4)</td>
+<td>ASR and TTS websockets, fake servers</td>
+</tr>
+<tr>
+<td><code>reqwest</code> (no defaults; <code>json</code>, <code>stream</code>, WP5)</td>
+<td>LLM SSE; chunked HTTP by hand is a bug source</td>
+</tr>
+</tbody>
+</table>
+<p><code>tract-linalg</code> builds its kernels with <code>cc</code> and needs <code>ar</code> at build time.</p>
+<p>Not added: <code>pipewire</code>, <code>ort</code>, a resampler crate, a tokenizer, <code>regex</code>,
+<code>hound</code>, <code>strsim</code>. A few lines replace each.</p>
+<p>The Silero model (MIT, <code>LICENSES/MIT-silero-vad.txt</code>) goes into the
+binary with <code>include_bytes!</code>. The crate lives in <code>services/voice/</code> (D53)
+as a workspace member. No package and no unit until the agent completes
+full turns; then <code>chora-voice.service</code> replaces <code>voice-agent.service</code>.</p>
+<h2 id="15-results-of-wp0-to-wp2-2026-10-30">15. Results of WP0 to WP2 (2026-10-30)<a class="headerlink" href="#15-results-of-wp0-to-wp2-2026-10-30" title="Permanent link">&para;</a></h2>
+<p>Silero on <code>tract</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>tract 0.22.5</th>
+<th>tract 0.23.9</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v5.1.2 <code>silero_vad.onnx</code></td>
+<td>fails</td>
+<td>fails</td>
+</tr>
+<tr>
+<td>v4.0 <code>silero_vad.onnx</code></td>
+<td>fails</td>
+<td>not tried</td>
+</tr>
+<tr>
+<td>v6.2.3 <code>silero_vad_op18_ifless.onnx</code></td>
+<td>works</td>
+<td>not tried</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>v5: the export holds nested <code>If</code> nodes on the rate and on shapes (the
+  LSTM squeezes an axis when it is 1). tract analyses both branches of
+  each <code>If</code>, and the 8 kHz branch fails: "Attempt to squeeze an axis
+  which dimension is not one". A fixed rate, fixed shapes or a symbolic
+  length do not help. <code>onnxsim</code> and the onnxruntime optimizer cannot
+  inline the branches either, because the branches use names from outer
+  scopes.</li>
+<li>v4: the same pattern fails at the typing step ("then" and "else"
+  branches give different ranks).</li>
+<li>v6 <code>op18_ifless</code>: Silero publishes this export for runtimes without
+  <code>If</code> support. Only the rate check stays an <code>If</code>, and both of its
+  branches analyse once the batch axis is the symbol <code>batch</code>. The model
+  takes 576 samples (64 of the frame before, then 512) and a state of
+  <code>[2, 1, 128]</code>. On the test clip, it finds the speech (more than 70 %
+  of the frames over 0.5) and no speech in the quiet room. One frame
+  takes about 5 ms in a debug build.</li>
+<li><code>chora-voice</code> uses v6 <code>op18_ifless</code>. This is not one of the two
+  versions of the decision (v5, else v4); see open question 1.</li>
+</ul>
+<p>ASR at 16 kHz: refused (section 8). The agent keeps 24 kHz end to end;
+only the VAD gets a 16 kHz copy.</p>
+<p><code>pw-record --raw</code>: the agent sandbox has no PipeWire and no ALSA tools,
+so the spike could not run them. The option <code>-a, --raw</code> exists in
+<code>pw-cat</code> since PipeWire 1.4.0 (not in 1.2.7). The Python agent noted
+that <code>pw-record</code> without <code>--raw</code> "sniffs headers and chokes on raw
+pipes". The capture and playback commands are settings: on a host
+without <code>--raw</code>, set them to <code>arecord</code>/<code>aplay</code> with <code>-t raw</code>. Tests use
+WAV files.</p>
+<p>WP1 and WP2, live check in a headless chora session (a script feeds
+the test clip in real time as the capture command):</p>
+<ul>
+<li><code>voice.state</code>, <code>mute</code>, <code>sleep</code>, <code>wake</code> and <code>settings.set</code> answer;
+  a wrong value answers code -32602 and changes nothing.</li>
+<li>The PTT grab works, and a new <code>ptt_key</code> by <code>settings.set</code> grabs
+  again. A key press and release within one frame (32 ms) records
+  nothing.</li>
+<li>The gate finds each pass of the clip: about 2.8 s of speech, the end
+  600 ms after the last speech frame with <code>silence_ms: 600</code>.</li>
+<li><code>record_dir</code> writes <code>mic.wav</code>, <code>played.wav</code> (the earcons) and
+  <code>events.jsonl</code>. After a kill, the files hold everything up to the last
+  second.</li>
+</ul>
+<h2 id="16-work-packages">16. Work packages<a class="headerlink" href="#16-work-packages" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Package</th>
+<th>Size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WP0</td>
+<td>Spikes: Silero on tract, ASR at 16 kHz, <code>pw-record --raw</code> (done)</td>
+<td>S</td>
+</tr>
+<tr>
+<td>WP1</td>
+<td>Crate, settings, <code>chora</code> thread, methods, PTT grab, logging (done)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>WP2</td>
+<td><code>audio_in</code> with Silero, <code>audio_out</code>, earcons, <code>record_dir</code> (done)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>WP3</td>
+<td>Replay harness, labels, metrics with thresholds, CI corpus</td>
+<td>M</td>
+</tr>
+<tr>
+<td>WP4</td>
+<td>ASR and TTS clients, interim text, fake servers</td>
+<td>M</td>
+</tr>
+<tr>
+<td>WP5</td>
+<td>LLM client, tool loop, MCP reconnect and timeouts, token budget</td>
+<td>L</td>
+</tr>
+<tr>
+<td>WP6</td>
+<td>State machine, word matcher, barge-in, cancel, sleep/wake, confirmation; first full voice turn; remove <code>agent.py</code> and <code>voice-agent.service</code></td>
+<td>L</td>
+</tr>
+<tr>
+<td>WP7</td>
+<td>Coder port</td>
+<td>S</td>
+</tr>
+<tr>
+<td>WP8</td>
+<td>Error paths, health, indicator, client events for the HUD, live gate</td>
+<td>M</td>
+</tr>
+<tr>
+<td>WP9</td>
+<td>Unit, README, package</td>
+<td>S</td>
+</tr>
+</tbody>
+</table>
+<p>S: up to 1 day. M: 2 to 3 days. L: about 1 week.</p>
+<h2 id="17-open-questions">17. Open questions<a class="headerlink" href="#17-open-questions" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Silero version: v5 and v4 do not load in tract (section 15); v6
+   <code>op18_ifless</code> does. Keep v6 on tract, or use <code>ort</code> with v5?</li>
+<li>Mic mute: is "PTT still records" correct (section 3)?</li>
+<li><code>pw-record --raw</code> on the host: does the PipeWire of the host have
+   1.4 or later? <code>pw-record --version</code> shows it.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>
