@@ -60,7 +60,8 @@ pub struct Config {
     pub voice: String,
     /// The language of the ASR.
     pub language: String,
-    /// The language of the TTS; `auto` lets the model choose.
+    /// The language of the TTS, for example `German`; `auto` lets the
+    /// model choose; empty follows `language`.
     pub tts_language: String,
     /// The interval of the interim transcripts while the user speaks, in
     /// ms; 0 turns them off.
@@ -197,6 +198,30 @@ fn default_confirm() -> Vec<Confirm> {
     ]
 }
 
+impl Config {
+    /// The language of the TTS: `tts_language`, else the one of
+    /// `language`. With `auto`, the TTS made short German clips hard to
+    /// understand (WP6).
+    pub fn tts_language(&self) -> &str {
+        if !self.tts_language.is_empty() {
+            return &self.tts_language;
+        }
+        match self.language.as_str() {
+            "de" => "German",
+            "en" => "English",
+            "fr" => "French",
+            "it" => "Italian",
+            "es" => "Spanish",
+            "pt" => "Portuguese",
+            "ru" => "Russian",
+            "zh" => "Chinese",
+            "ja" => "Japanese",
+            "ko" => "Korean",
+            _ => "auto",
+        }
+    }
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -206,7 +231,7 @@ impl Default for Config {
             model: "gufo".into(),
             voice: "aiden".into(),
             language: "de".into(),
-            tts_language: "auto".into(),
+            tts_language: String::new(),
             asr_interim_ms: 0,
             capture_cmd: pcm_cmd("pw-record"),
             playback_cmd: pcm_cmd("pw-play"),
@@ -392,6 +417,16 @@ mod tests {
     fn the_defaults_round_trip() {
         let text = serde_saphyr::to_string(&Config::default()).unwrap();
         assert_eq!(parse::<Config>(&text).unwrap(), Config::default());
+    }
+
+    #[test]
+    fn the_tts_language_follows_the_language() {
+        let mut config = Config::default();
+        assert_eq!(config.tts_language(), "German");
+        config.language = "xx".into();
+        assert_eq!(config.tts_language(), "auto");
+        config.tts_language = "English".into();
+        assert_eq!(config.tts_language(), "English");
     }
 
     #[test]

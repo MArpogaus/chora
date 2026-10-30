@@ -286,7 +286,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `tts_url` | `ws://127.0.0.1:8882/v1/audio/speech/stream` |
 | `llm_url` | `http://127.0.0.1:8888/v1` |
 | `model`, `voice` | `gufo`, `aiden` |
-| `language`, `tts_language` | `de`, `auto` |
+| `language`, `tts_language` | `de`, `""` (follows `language`: `de` gives `German`) |
 | `asr_interim_ms` | `0` (off) |
 | `capture_cmd` | `[pw-record, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]` |
 | `playback_cmd` | `[pw-play, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]` |
