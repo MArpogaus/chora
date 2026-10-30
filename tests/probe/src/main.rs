@@ -619,6 +619,9 @@ fn paint(
         .map_err(|e| e.to_string())?;
     let pool = shm.create_pool(file.as_fd(), w * h * 4, qh, ());
     let buffer = pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Xrgb8888, qh, ());
+    // The buffer keeps the memory; a pool per paint would pile up in the
+    // core.
+    pool.destroy();
     surface.attach(Some(&buffer), 0, 0);
     surface.damage_buffer(0, 0, w, h);
     surface.commit();
