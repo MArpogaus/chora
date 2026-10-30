@@ -1,7 +1,8 @@
 //! Grants of the user for the IPC methods that see or drive the whole
 //! session: `input.inject`, `screen.capture` and `input.grab-any`. A
 //! client socket also needs `methods.call` to call plugin methods,
-//! `settings.write` to call their `settings.set` and `settings.reload`,
+//! `methods.privileged` to call privileged methods, such as
+//! `settings.set`, `settings.reload` and methods that run commands,
 //! `activation.token` to start programs with `choractl run` and
 //! `session.quit` to end chora. The main socket may always do these.
 //!

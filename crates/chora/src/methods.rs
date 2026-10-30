@@ -84,9 +84,14 @@ impl State {
                     Ok(c) => c,
                     Err(e) => return Some(Err(e)),
                 };
-                // Plugin settings hold commands that the plugin runs.
-                if matches!(call.method.as_str(), "settings.set" | "settings.reload")
-                    && let Err(e) = self.check_socket_grant(conn, Capability::SettingsWrite)
+                // Plugin settings and some methods run commands.
+                let privileged = ExportMethod::from(call.method.as_str()).privileged()
+                    || self
+                        .exporter(&call.client, &call.method)
+                        .and_then(|c| self.methods.exports[&c].get(&call.method))
+                        .is_some_and(ExportMethod::privileged);
+                if privileged
+                    && let Err(e) = self.check_socket_grant(conn, Capability::MethodsPrivileged)
                 {
                     return Some(Err(e));
                 }

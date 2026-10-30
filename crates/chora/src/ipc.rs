@@ -2187,7 +2187,8 @@ mod tests {
     }
 
     /// Plugin settings hold commands that the plugin runs: a client socket
-    /// with `methods.call` alone cannot write them.
+    /// with `methods.call` alone cannot write them, nor call a method that
+    /// the export marks privileged (W12).
     #[test]
     fn a_client_socket_writes_settings_only_with_the_capability() {
         let (mut core, dir) = socket_dir("settings");
@@ -2196,11 +2197,24 @@ mod tests {
         admin.ok(&mut core, "clients.create", create);
         let mut caller = core.connect_to(&dir.join("clients/caller/ipc.sock"));
         caller.ok(&mut core, "hello", json!({"name": "caller"}));
+        let mut mc = core.named("mc");
+        let names = json!({"names": ["look", {"name": "app.open", "privileged": true}]});
+        mc.ok(&mut core, "methods.export", names);
+        let open = json!({"client": "mc", "method": "app.open", "params": {}});
+        let (error_code, message) = caller.fails(&mut core, "methods.call", open);
+        assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{message}");
+        let look = json!({"client": "mc", "method": "look", "params": {}});
+        caller.send("methods.call", look);
+        assert_eq!(
+            mc.event_names(&mut core),
+            ["method.called"],
+            "a plain method passes"
+        );
         for method in ["settings.set", "settings.reload"] {
             let call = json!({"client": "wm", "method": method, "params": {}});
             let (error_code, message) = caller.fails(&mut core, "methods.call", call);
             assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{method}");
-            assert!(message.contains("settings.write"), "{message}");
+            assert!(message.contains("methods.privileged"), "{message}");
         }
         let get = json!({"client": "wm", "method": "settings.get"});
         let (error_code, _) = caller.fails(&mut core, "methods.call", get);
@@ -2209,7 +2223,8 @@ mod tests {
             RpcError::REJECTED,
             "settings.get needs no grant"
         );
-        let create = json!({"name": "writer", "capabilities": ["methods.call", "settings.write"]});
+        let create =
+            json!({"name": "writer", "capabilities": ["methods.call", "methods.privileged"]});
         admin.ok(&mut core, "clients.create", create);
         let mut writer = core.connect_to(&dir.join("clients/writer/ipc.sock"));
         writer.ok(&mut core, "hello", json!({"name": "writer"}));

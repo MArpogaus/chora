@@ -331,7 +331,26 @@ pub fn method(name: &str, description: &str, properties: Value, required: &[&str
         name: name.into(),
         description: Some(description.into()),
         input_schema: Some(schema),
+        privileged: false,
     })
+}
+
+/// A [`method`] that a caller on a client socket may call only with the
+/// capability `methods.privileged`: one that runs a command.
+#[must_use]
+pub fn privileged(method: ExportMethod) -> ExportMethod {
+    match method {
+        ExportMethod::Described(d) => ExportMethod::Described(DescribedMethod {
+            privileged: true,
+            ..d
+        }),
+        ExportMethod::Plain(name) => ExportMethod::Described(DescribedMethod {
+            name,
+            description: None,
+            input_schema: None,
+            privileged: true,
+        }),
+    }
 }
 
 /// Parses the parameters of an exported method.

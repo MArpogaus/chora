@@ -523,11 +523,12 @@ pub enum Capability {
     /// `session.quit`: end chora. Checked only for a client socket.
     #[serde(rename = "session.quit")]
     SessionQuit,
-    /// `settings.write`: call `settings.set` and `settings.reload` of a
-    /// plugin, whose settings hold commands and paths. Checked only for a
-    /// client socket, on top of `methods.call`.
-    #[serde(rename = "settings.write")]
-    SettingsWrite,
+    /// `methods.privileged`: call a privileged method of a plugin, one
+    /// that can run commands, such as `settings.set`, `settings.reload`
+    /// and the methods that the export marks `privileged`. Checked only
+    /// for a client socket, on top of `methods.call`.
+    #[serde(rename = "methods.privileged")]
+    MethodsPrivileged,
 }
 
 impl Capability {
@@ -539,7 +540,7 @@ impl Capability {
         Self::MethodsCall,
         Self::ActivationToken,
         Self::SessionQuit,
-        Self::SettingsWrite,
+        Self::MethodsPrivileged,
     ];
 
     /// The name, which is also the name of the method.
@@ -552,7 +553,7 @@ impl Capability {
             Self::MethodsCall => "methods.call",
             Self::ActivationToken => "activation.token",
             Self::SessionQuit => "session.quit",
-            Self::SettingsWrite => "settings.write",
+            Self::MethodsPrivileged => "methods.privileged",
         }
     }
 }
@@ -621,6 +622,10 @@ pub struct DescribedMethod {
     /// A JSON schema of the parameters.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input_schema: Option<Value>,
+    /// A caller on a client socket needs the capability
+    /// `methods.privileged`, for example for a method that runs a command.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub privileged: bool,
 }
 
 impl ExportMethod {
@@ -648,6 +653,14 @@ impl ExportMethod {
             Self::Plain(_) => None,
             Self::Described(d) => d.input_schema.as_ref(),
         }
+    }
+
+    /// Whether a caller on a client socket needs `methods.privileged`.
+    /// `settings.set` and `settings.reload` always do.
+    #[must_use]
+    pub fn privileged(&self) -> bool {
+        matches!(self.name(), "settings.set" | "settings.reload")
+            || matches!(self, Self::Described(d) if d.privileged)
     }
 }
 

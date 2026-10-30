@@ -142,12 +142,12 @@ impl<S: Settings> File<S> {
         }
         vec![
             runtime::method("settings.get", "Answers the settings.", json!({}), &[]),
-            runtime::method(
+            runtime::privileged(runtime::method(
                 "settings.reload",
                 "Reads the settings file again, after an edit by hand, and applies it.",
                 json!({}),
                 &[],
-            ),
+            )),
             ExportMethod::Described(DescribedMethod {
                 name: "settings.set".into(),
                 description: Some(
@@ -157,6 +157,7 @@ impl<S: Settings> File<S> {
                         .into(),
                 ),
                 input_schema: Some(schema),
+                privileged: true,
             }),
         ]
     }
