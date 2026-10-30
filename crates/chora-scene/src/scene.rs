@@ -102,6 +102,15 @@ const MAX_ZOOM: f64 = 64.0;
 /// The range of `font_size`, in logical pixels. A size of 0 gives a line
 /// height of 0, on which the layout of the core panics.
 const FONT_SIZES: std::ops::RangeInclusive<f64> = 1.0..=1024.0;
+/// The range of `line_height`, as a multiple of the font size; 0 would
+/// panic like a font size of 0.
+const LINE_HEIGHTS: std::ops::RangeInclusive<f64> = 0.5..=10.0;
+/// The range of `weight`, as in CSS.
+const WEIGHTS: std::ops::RangeInclusive<u16> = 1..=1000;
+/// The range of `letter_spacing`, in em.
+const LETTER_SPACINGS: std::ops::RangeInclusive<f64> = -1.0..=1.0;
+/// The most OpenType features of a text node.
+const MAX_FEATURES: usize = 32;
 
 /// A transform without its z axis: a camera works in 2D, so the z of a
 /// uniform scale such as `{"scale": 1.5}`, or of a translation, does not
@@ -1437,7 +1446,12 @@ fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
         && (props.text.is_some()
             || props.family.is_some()
             || props.font_size.is_some()
-            || props.max_width.is_some())
+            || props.max_width.is_some()
+            || props.line_height.is_some()
+            || props.weight.is_some()
+            || props.style.is_some()
+            || props.letter_spacing.is_some()
+            || props.features.is_some())
     {
         return wrong("text");
     }
@@ -1505,6 +1519,8 @@ fn check_numbers(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
         .chain(props.radius.iter())
         .chain(props.font_size.iter())
         .chain(props.max_width.iter())
+        .chain(props.line_height.iter())
+        .chain(props.letter_spacing.iter())
         .chain(
             props
                 .border
@@ -1538,6 +1554,38 @@ fn check_numbers(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
         return Err(SceneError::Invalid(format!(
             "the font_size of {id:?} is not between 1 and 1024"
         )));
+    }
+    check_type(id, props)
+}
+
+/// The line height, the weight, the letter spacing and the features of a
+/// text node: each within its range; a feature tag has four ASCII
+/// characters.
+fn check_type(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
+    let invalid = |what: &str| Err(SceneError::Invalid(format!("{id:?}: {what}")));
+    if props
+        .line_height
+        .is_some_and(|l| !LINE_HEIGHTS.contains(&l))
+    {
+        return invalid("a line_height from 0.5 to 10");
+    }
+    if props.weight.is_some_and(|w| !WEIGHTS.contains(&w)) {
+        return invalid("a weight from 1 to 1000");
+    }
+    if (props.letter_spacing).is_some_and(|l| !LETTER_SPACINGS.contains(&l)) {
+        return invalid("a letter_spacing from -1 to 1");
+    }
+    let features = props.features.iter().flatten();
+    if props
+        .features
+        .as_ref()
+        .is_some_and(|f| f.len() > MAX_FEATURES)
+    {
+        return invalid(&format!("at most {MAX_FEATURES} features"));
+    }
+    let tag = |t: &str| t.len() == 4 && t.bytes().all(|b| (b' '..=b'~').contains(&b));
+    if features.into_iter().any(|(t, _)| !tag(t)) {
+        return invalid("a feature tag has four ASCII characters");
     }
     Ok(())
 }

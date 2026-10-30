@@ -18,7 +18,7 @@ pub use binding::{Binding, BindingError, Modifiers};
 pub use command::{Command, Effect, ToplevelState};
 pub use event::{Event, NAMES as EVENT_NAMES, OutputInfo, ScrollSource, SurfaceRequest};
 pub use node::{
-    Border, Clip, Decoration, InputMode, MAX_EFFECTS, MAX_MESH_CELLS, MAX_NODE_TEXTURES,
+    Border, Clip, Decoration, FontStyle, InputMode, MAX_EFFECTS, MAX_MESH_CELLS, MAX_NODE_TEXTURES,
     MAX_UNIFORMS, Mesh, Node, NodeKind, NodeTexture, Props, PropsUpdate, ROOT, ShaderEffect,
     SurfaceInfo, Uniform,
 };

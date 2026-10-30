@@ -322,6 +322,33 @@ pub struct Props {
     /// The width at which a text node wraps lines; it only wraps.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_width: Option<f64>,
+    /// The line height of a text node, as a multiple of its font size.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line_height: Option<f64>,
+    /// The font weight of a text node, from 1 to 1000: 400 is normal,
+    /// 700 bold.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight: Option<u16>,
+    /// The font style of a text node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<FontStyle>,
+    /// Extra space after each character of a text node, in em.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub letter_spacing: Option<f64>,
+    /// OpenType features of a text node by tag, for example `smcp: 1`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub features: BTreeMap<String, u32>,
+}
+
+/// The style of a font.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum FontStyle {
+    /// Upright.
+    Normal,
+    /// Italic, or slanted when the family has no italic.
+    Italic,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde passes a reference
@@ -364,6 +391,11 @@ impl Default for Props {
             family: None,
             font_size: None,
             max_width: None,
+            line_height: None,
+            weight: None,
+            style: None,
+            letter_spacing: None,
+            features: BTreeMap::new(),
         }
     }
 }
@@ -461,6 +493,21 @@ pub struct PropsUpdate {
     /// The width at which a text node wraps lines; it only wraps.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_width: Option<f64>,
+    /// The line height of a text node, as a multiple of its font size.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_height: Option<f64>,
+    /// The font weight of a text node, from 1 to 1000.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub weight: Option<u16>,
+    /// The font style of a text node.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub style: Option<FontStyle>,
+    /// Extra space after each character of a text node, in em.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub letter_spacing: Option<f64>,
+    /// OpenType features of a text node by tag; replaces all features.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub features: Option<BTreeMap<String, u32>>,
 }
 
 /// Sets the keys of an update of `meta`; an empty value removes its key.
@@ -512,6 +559,21 @@ impl Props {
         }
         if update.max_width.is_some() {
             self.max_width = update.max_width;
+        }
+        if update.line_height.is_some() {
+            self.line_height = update.line_height;
+        }
+        if update.weight.is_some() {
+            self.weight = update.weight;
+        }
+        if update.style.is_some() {
+            self.style = update.style;
+        }
+        if update.letter_spacing.is_some() {
+            self.letter_spacing = update.letter_spacing;
+        }
+        if let Some(features) = &update.features {
+            self.features.clone_from(features);
         }
     }
 

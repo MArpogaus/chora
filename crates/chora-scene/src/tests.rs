@@ -1,9 +1,11 @@
 //! Tests of the scene rules.
 
+use std::collections::BTreeMap;
+
 use crate::{
-    Command, Easing, Effect, Event, INJECTION, MAX_CAMERAS, MAX_DURATION, MAX_NODES, NodeKind,
-    PropsUpdate, ROOT, Scene, SceneError, Selector, SurfaceInfo, SurfaceRequest, Transform,
-    overlay_id,
+    Command, Easing, Effect, Event, FontStyle, INJECTION, MAX_CAMERAS, MAX_DURATION, MAX_NODES,
+    NodeKind, PropsUpdate, ROOT, Scene, SceneError, Selector, SurfaceInfo, SurfaceRequest,
+    Transform, overlay_id,
 };
 
 fn group(id: &str, parent: &str) -> Command {
@@ -538,6 +540,107 @@ fn a_font_size_stays_between_1_and_1024() {
             .unwrap_err();
         assert!(matches!(err.error, SceneError::Invalid(_)), "{font_size}");
     }
+}
+
+/// A text node with these props, as a create.
+fn create_styled(props: PropsUpdate) -> Command {
+    Command::Create {
+        id: "t".into(),
+        kind: NodeKind::Text,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            text: Some("Hi".into()),
+            ..props
+        },
+    }
+}
+
+#[test]
+fn an_update_sets_the_type_of_a_text_node() {
+    let mut scene = Scene::default();
+    scene.apply("wm", &[create_text("t", "hi")]).unwrap();
+    let features: BTreeMap<String, u32> = [("smcp".into(), 1), ("onum".into(), 1)].into();
+    let update = PropsUpdate {
+        line_height: Some(1.5),
+        weight: Some(300),
+        style: Some(FontStyle::Italic),
+        letter_spacing: Some(0.1),
+        features: Some(features.clone()),
+        ..PropsUpdate::default()
+    };
+    let update = Command::Update {
+        id: "t".into(),
+        props: update,
+    };
+    scene.apply("wm", &[update]).unwrap();
+    let props = &scene.node("t").unwrap().props;
+    assert_eq!(
+        (props.line_height, props.weight, props.style),
+        (Some(1.5), Some(300), Some(FontStyle::Italic))
+    );
+    assert_eq!(props.letter_spacing, Some(0.1));
+    assert_eq!(props.features, features);
+}
+
+#[test]
+fn the_type_of_text_stays_within_its_ranges() {
+    let feature = |tag: &str| Some([(tag.to_owned(), 1)].into());
+    let many = Some((0..33).map(|i| (format!("ss{i:02}"), 1)).collect());
+    let wrong = [
+        PropsUpdate {
+            line_height: Some(0.0),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            line_height: Some(11.0),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            weight: Some(0),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            weight: Some(1001),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            letter_spacing: Some(-1.5),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            letter_spacing: Some(f64::NAN),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            features: feature("smallcaps"),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            features: feature("sm\u{e9}"),
+            ..PropsUpdate::default()
+        },
+        PropsUpdate {
+            features: many,
+            ..PropsUpdate::default()
+        },
+    ];
+    for props in wrong {
+        let err = Scene::default()
+            .apply("wm", &[create_styled(props.clone())])
+            .unwrap_err();
+        assert!(matches!(err.error, SceneError::Invalid(_)), "{props:?}");
+    }
+    let rect = Command::Create {
+        id: "r".into(),
+        kind: NodeKind::Rect,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            weight: Some(700),
+            ..PropsUpdate::default()
+        },
+    };
+    let err = Scene::default().apply("wm", &[rect]).unwrap_err();
+    assert_eq!(err.error, SceneError::WrongKind("r".into(), "text"));
 }
 
 #[test]
