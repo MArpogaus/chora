@@ -76,7 +76,7 @@ NO_QUIET_MS = 2000  # when the agent says that the room stays loud
 CALIBRATE_MS = 750  # the mic at the start, which sets the level of the quiet room
 FLOOR_MS = 5000  # the quiet frames between turns that the level follows
 MAX_TURN_MS = 30000  # a turn that music or a TV keeps loud ends here
-HISTORY = 12  # messages kept besides the system prompt
+HISTORY = int(ENV("HISTORY", "20"))  # turns kept, each with its tool calls
 TOOL_ROUNDS = 10  # LLM calls per turn while it asks for tools
 FIRST_PIECE = 40  # characters before the comma that may end the first piece
 SENTENCE_END = re.compile(r"(?<=[.!?:;])\s+|\n+")
@@ -735,13 +735,13 @@ async def chora(stack: contextlib.AsyncExitStack) -> ClientSession | None:
 
 
 def trim(history: list[dict]) -> None:
-    """Keep the last turns, from a user message on, and at least the last turn.
+    """Keep the last HISTORY turns, each from its user message on.
 
     This keeps each tool result with the call that it answers.
     """
     users = [i for i, m in enumerate(history) if m["role"] == "user"]
-    start = next((i for i in users if i >= len(history) - HISTORY), users[-1] if users else 1)
-    del history[1:start]
+    if len(users) > HISTORY:
+        del history[1 : users[-HISTORY]]
 
 
 async def turn(
@@ -810,10 +810,9 @@ async def run_loop(
             try:
                 preroll = await turn(mic, tools, history, ptt, preroll)
             except TURN_ERRORS as err:
-                # The history may be what the LLM refuses, such as a context
-                # that grew too long, so the next turn starts anew.
-                log(f"turn failed, the conversation starts anew: {err!r}")
-                del history[1:]
+                log(f"turn failed, the history drops it: {err!r}")
+                users = [i for i, m in enumerate(history) if m["role"] == "user"]
+                del history[users[-1] if users else 1 :]
                 preroll = []
             trim(history)
 
