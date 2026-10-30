@@ -307,7 +307,7 @@ impl Wm {
         let mut icons = Icons::new(crate::icons::THEMES);
         let menu = Menu::new(&config.menu(), &theme, &mut icons);
         let mut wm = Self {
-            rt: Runtime::start(NAME, outputs, &EVENTS, methods)?,
+            rt: Runtime::connect(NAME, outputs)?,
             clock: String::new(),
             desk: DesktopIcons::new(&config.terminal),
             effects: Effects::new(config.effects),
@@ -355,6 +355,9 @@ impl Wm {
         let old_root = wm.take_kept()?;
         wm.create_scene(old_root)?;
         wm.grab()?;
+        // After the scene: the removal of the kept root detaches the
+        // windows, and those events would make them new windows.
+        wm.rt.announce(&EVENTS, methods)?;
         wm.adopt_all()?;
         Ok(wm)
     }

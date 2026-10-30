@@ -83,20 +83,47 @@ impl<A> Runtime<A> {
         events: &[&str],
         methods: Vec<ExportMethod>,
     ) -> Result<Self, ClientError> {
-        let mut conn = Conn::connect(name)?;
-        conn.call::<_, Value>(
+        let mut rt = Self::connect(name, outputs)?;
+        rt.announce(events, methods)?;
+        Ok(rt)
+    }
+
+    /// Connects as `name` without events and methods, for a plugin that
+    /// builds its scene before it calls [`Self::announce`].
+    ///
+    /// # Errors
+    ///
+    /// The socket fails, or the core refuses the `hello`.
+    pub fn connect(name: &str, outputs: Vec<String>) -> Result<Self, ClientError> {
+        Ok(Self {
+            conn: Conn::connect(name)?,
+            name: name.into(),
+            outputs,
+            grabs: Vec::new(),
+        })
+    }
+
+    /// Subscribes to `events` and exports `methods`. The events of the
+    /// changes before, such as the detach of the surfaces of a removed
+    /// group, do not come.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails, or another instance exports the methods.
+    pub fn announce(
+        &mut self,
+        events: &[&str],
+        methods: Vec<ExportMethod>,
+    ) -> Result<(), ClientError> {
+        self.conn.call::<_, Value>(
             "events.subscribe",
             Subscribe {
                 events: events.iter().map(|&e| e.into()).collect(),
             },
         )?;
-        conn.call::<_, Value>("methods.export", Export { names: methods })?;
-        Ok(Self {
-            conn,
-            name: name.into(),
-            outputs,
-            grabs: Vec::new(),
-        })
+        self.conn
+            .call::<_, Value>("methods.export", Export { names: methods })
+            .map(drop)
     }
 
     /// Whether `--output` leaves an output to the plugin.
