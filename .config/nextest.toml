@@ -1,0 +1,17 @@
+# cargo-nextest settings. Run with: cargo nextest run --workspace --locked
+# Doctests need cargo test --doc, nextest does not run them.
+
+[profile.default]
+# A hung test ends after 4 periods of 30 s (2 min). The watchdog test
+# needs about 9 s.
+slow-timeout = { period = "30s", terminate-after = 4 }
+# A flake must fail the run. Do not hide it.
+retries = 0
+final-status-level = "fail"
+
+# CI writes JUnit to target/nextest/ci/junit.xml.
+[profile.ci]
+fail-fast = false
+
+[profile.ci.junit]
+path = "junit.xml"
