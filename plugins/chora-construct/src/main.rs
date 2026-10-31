@@ -366,6 +366,8 @@ struct Construct {
     current: Option<String>,
     radius: Option<f64>,
     waiting: Vec<Waiting>,
+    /// Windows that found no room: attached and hidden, with no pane yet.
+    hidden: Vec<String>,
     moving: Option<Moving>,
     fog_shader: String,
     pane_shader: String,
@@ -462,6 +464,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         current: None,
         radius: None,
         waiting: Vec::new(),
+        hidden: Vec::new(),
         moving: None,
         fog_shader: shader("fog.frag", FOG_SHADER)?,
         pane_shader: shader("pane.frag", PANE_SHADER)?,
@@ -704,7 +707,10 @@ impl Plugin for Construct {
                     node: Some(LOOK.into()),
                 }])
             }
-            Event::SurfaceDestroyed { surface } => self.forget(&surface),
+            Event::SurfaceDestroyed { surface } => {
+                self.hidden.retain(|s| *s != surface);
+                self.forget(&surface)
+            }
             Event::SurfaceChanged {
                 surface,
                 size: Some([w, h]),
@@ -1441,6 +1447,8 @@ impl Construct {
             .try_apply(vec![attach, update(surface, hidden)])?
         {
             eprintln!("chora-construct: {surface}: {err}");
+        } else {
+            self.hidden.push(surface.into());
         }
         Ok(())
     }
@@ -1486,6 +1494,9 @@ impl Construct {
         };
         let mut commands = Vec::new();
         if pane.attached {
+            // A window hidden since it found no room is attached already.
+            let fresh = !self.hidden.contains(&surface.to_string());
+            self.hidden.retain(|s| s != surface);
             commands = vec![
                 Command::Attach {
                     surface: surface.into(),
@@ -1500,6 +1511,9 @@ impl Construct {
                 ),
                 configure(surface, size),
             ];
+            if !fresh {
+                commands.remove(0);
+            }
         }
         commands.extend(self.pane_nodes(&pane));
         // The surface may have closed in between; the frame then fixes
@@ -2405,8 +2419,10 @@ impl Construct {
             };
             // A free window, such as one that found no room, becomes the
             // flavor's own.
-            let hold = match entry.owner {
+            // One that the construct holds hidden already is its own too.
+            let hold = match entry.owner.as_deref() {
                 None if !self.overlay => Hold::Own,
+                Some(NAME) => Hold::Own,
                 _ => Hold::Taken,
             };
             self.adopt(&entry.surface, &entry.name, Some(&file), hold, true)?;
@@ -2559,6 +2575,11 @@ impl Construct {
         let Some(node) = node else {
             return Ok(());
         };
+        // A window that has its pane is no news; dropping the pane here
+        // lost it when the view had no room to take it again.
+        if (self.panes.iter()).any(|p| p.window() == Some(surface)) {
+            return Ok(());
+        }
         if self.overlay && node.to.as_deref() != Some(NAME) {
             return Ok(());
         }

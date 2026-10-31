@@ -325,7 +325,7 @@ until_ok 'test "$(panes)" = "f1 f2 f3 f4 f5 f6"' 80 || fail "flav: the panes are
 # The probe comes without the token of the file, as a free window; the
 # view is full, so it waits in the window list (C7) until a choice.
 until_ok 'test "$(state chora-probe)" = none' || fail "the probe is $(state chora-probe), not in the list"
-call window.show '{"name": "chora-probe"}' >/dev/null || fail "window.show chora-probe"
+call window.show '{"name": "chora-probe"}' 2>"$work/err.txt" >/dev/null || fail "window.show chora-probe: $(cat "$work/err.txt")"
 sleep 1.5
 key Alt+Escape
 until_ok 'test "$(panes)" = "chora-probe f1 f2 f3 f4 f5 f6"' || fail "flav: the panes are $(panes)"
@@ -359,7 +359,7 @@ until_ok '! panes | grep -qw f2' || fail "f2 did not close"
 no_lost "flavor remove f2"
 call pane.remove '{"name": "chora-probe"}' >/dev/null || fail "pane.remove chora-probe"
 sleep 1
-panes | grep -qw chora-probe || fail "the probe that refuses lost its pane"
+panes | grep -qw chora-probe || fail "the probe that refuses lost its pane: $(panes | tr "\n" " ") surfaces: $(ctl query kind:surface | python3 -I -c "import json,sys; print([(n[\"id\"], n.get(\"owner\")) for n in json.load(sys.stdin)])") log: $(tail -n 3 "$work/construct-flavor.log" 2>&1)"
 no_lost "flavor remove probe"
 kill9 f3
 until_ok '! panes | grep -qw f3' || fail "the pane of the killed f3 stays"
@@ -474,7 +474,7 @@ construct drop
 ctl wait --timeout 10 id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$work/construct-drop.log")"
 ctl add-output 1280x800+1280+0 >/dev/null || fail "add-output"
 mapfile -t outs < <(ctl outputs | python3 -I -c 'import json, sys; print(*[o["name"] for o in sorted(json.load(sys.stdin), key=lambda o: o["position"][0])], sep="\n")')
-"$bin/chora-mc" --output "${outs[0]}" >"$work/mc.log" 2>&1 &
+"$bin/chora-mc" --manage-windows --output "${outs[0]}" >"$work/mc.log" 2>&1 &
 pids+=($!)
 "$bin/chora-tiling" --output "${outs[1]}" >"$work/tiling.log" 2>&1 &
 pids+=($!)
