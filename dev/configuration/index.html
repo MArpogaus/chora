@@ -1846,6 +1846,11 @@ time on the first output, and quiet regions around it show the context:
 the running head and the clock, what the voice agent does, notes and a
 docked terminal. The voice agent and small collector scripts fill the
 scenes through methods; the plugin reads no sources itself.</p>
+<p>By default mc claims no windows: it shows its scenes, for example as the
+source of a plugin pane beside chora-construct or chora-tiling. With
+<code>--manage-windows</code> it is a window manager: it claims the work area of its
+output, below the header and above the footer, and the core gives it the
+new windows there.</p>
 <p>A scene of <code>chora-mc</code> is not a view of D35. It is a YAML file
 <code>NAME.yaml</code> in <code>$XDG_CONFIG_HOME/chora/mc/scenes/</code>: a grid of panels, each
 with a title and lines, or one app (a shell command, or a content of kind <code>app</code>) whose window
@@ -2013,7 +2018,12 @@ the <code>animate</code> of the core moves its uniform <code>progress</code> fro
 <p>The page of each scene, with its head and its panels, carries the tag
 <code>meta:pane=NAME</code>, also while the scene is hidden. Another plugin finds it
 with the selector <code>owner:mc meta:pane=NAME</code> and shows it through its node
-texture; chora-construct does so for a plugin pane.</p>
+texture; chora-construct does so for a plugin pane. The root group <code>mc</code>
+carries the same tag with the scene that shows: it holds the regions and
+the background too, so a pane of it shows the whole output of mc, and the
+construct prefers it. While such a pane is flown into, the construct calls
+<code>pane.focus</code> of mc, which gives the keyboard to the app of the scene, else
+to its page.</p>
 <p>A window that no scene started, for example from a launcher, gets a scene
 of its own without a head, which goes with the window. So does a window
 that another window manager gives to <code>mc</code> (D55): mc claims its whole
@@ -2537,6 +2547,10 @@ own IPC socket next to it. It gives its window manager its own
 <code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code>, so the variables of the outer
 session do not reach it. A fly-in gives the nested session the keyboard;
 the programs that its window manager shows get the keys.</p>
+<p>The title of the nested window is <code>chora: &lt;program&gt; (&lt;socket&gt;)</code>, such as
+<code>chora: chora-tiling (wayland-2)</code>. A window belongs to one session and
+never moves to another; to open a program in a nested session, start it
+with that <code>WAYLAND_DISPLAY</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">radius</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5000</span>
 <span class="nt">panes</span><span class="p">:</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">program</span>
@@ -2774,7 +2788,9 @@ connects with the client name <code>xp</code>.</p>
 <p>The session "chora (Windows XP)" on the login screen starts it with the XP
 cursors, which the package installs to <code>/usr/share/icons/ModernXP</code>.
 <code>theme/README.md</code> lists the source and the license of every file of the
-theme.</p>
+theme. Without <code>--theme</code> or <code>CHORA_XP_THEME</code>, <code>chora-xp</code> uses this installed
+theme, else the <code>flavors/xp/theme</code> of the source tree when the binary runs
+from <code>target/&lt;profile&gt;/</code>.</p>
 <p>When the files of Windows XP are installed in the XDG data directory, as
 <code>get-microsoft-files.sh</code> of <code>kde-plasma-winxp-launcher</code> does, <code>chora-xp</code>
 uses them instead of the free files of the theme:</p>

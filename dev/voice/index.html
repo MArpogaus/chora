@@ -1774,11 +1774,14 @@ other built-in tools, each <code>settings.set</code> and <code>settings.reload</
 each change of the agent's own settings. A question of a sub-agent
 takes an always word as a yes.</p>
 <p>Two settings list the actions that never ask. <code>allow_programs</code> lists
-bare program names, such as <code>foot</code>. An entry matches only an argv[0]
-that is exactly this name, so <code>/home/u/proj/foot</code> asks. <code>allow_methods</code>
+programs. A bare name, such as <code>foot</code>, allows only the argv <code>["foot"]</code>
+with no argument: <code>foot -e sh -c ...</code> asks, as <code>foot -e</code> runs any
+command. An entry with arguments, such as <code>foot -e htop</code>, matches the
+whole argv exactly, split by single spaces. The name must be exactly
+the argv[0], so <code>/home/u/proj/foot</code> asks. <code>allow_methods</code>
 lists methods <code>CLIENT.METHOD</code>, such as <code>mc.scene.show</code>, matched
 exactly. At load, the agent refuses an empty entry, an entry with a
-space, a glob (<code>*</code>, <code>?</code>, <code>[</code>), a program with a <code>/</code>, and a method
+leading or trailing space, a glob (<code>*</code>, <code>?</code>, <code>[</code>), a double space, a program with a <code>/</code>, and a method
 without a <code>.</code>. So <code>*.settings.set</code> cannot go in. Neither list applies
 to the agent's own settings, which always ask.</p>
 <p>Each question also goes out as the event <code>voice.confirm {prompt,
@@ -1848,13 +1851,24 @@ the user agrees:</p>
 <li>The event <code>voice.confirm</code> has <code>physical: true</code> and <code>keys: {yes, no}</code>,
   so a HUD shows "Alt+y = yes, Alt+n = no". The agent's own HUD text
   shows that line too.</li>
+<li>A holder of <code>indicator.claim</code> is trusted like the keyboard: its
+  <code>confirm.answer</code> counts as a physical answer (review rc3 round 3,
+  2.6). A confined client with <code>methods.privileged</code> can claim the
+  indicator and then answer every key question. So grant
+  <code>methods.privileged</code>, and with it the claim, only to a HUD that the
+  user trusts as the keyboard.</li>
 <li>An injected key could answer the question. So the agent refuses
   <code>inject_input</code> while such a question waits. Besides, <code>inject_input</code>
   always asks by the default rules and never takes an always word.</li>
 </ul>
 <p>The client <code>NAME-mcp</code>
 needs <code>methods.privileged</code> for <code>settings.set</code> and <code>settings.reload</code>.
-Its own <code>settings.reload</code> asks with the rule of <code>*.settings.reload</code>.</p>
+Its own <code>settings.reload</code> asks with the rule of <code>*.settings.reload</code>.
+A reload can also apply a file that the LLM wrote (review rc3 round 3,
+2.4). So the agent reads the file before it asks and compares each
+security key with the running settings. When one differs, or the file
+cannot be read, the question is physical (key or button), as for
+<code>settings.set</code>, and neither <code>allow_methods</code> nor an always word skips it.</p>
 <p>Reading files: the built-in tool <code>read {path, line?}</code> lists a folder
 (sorted names, a folder with a trailing <code>/</code>, at most 200) or answers
 the text of a file, without a confirmation. The roots are the project
@@ -1978,10 +1992,17 @@ are synthesized tones: wake, sleep, cancel, error.</p>
   picture counts as 4000), divided by the characters per token of the
   last request: its length over its <code>usage.prompt_tokens</code> (3.0 at the
   start; requests with a picture teach nothing). No tokenizer.</li>
-<li><code>history_tokens</code> (default 12000) bounds the messages after the
+<li><code>history_tokens</code> (default 24000) bounds the messages after the
   system prompt, estimated as characters / 4; <code>0</code> keeps only the
   context budget. A long session (dump 2026-10-31: 221 messages, 33k
   tokens, full of cut answers) made the LLM copy its old answers.</li>
+<li>The dropped turns stay as one system note after the system prompt: a
+  line each for the requests of the user and the final answers, cut to
+  160 characters, 3000 characters in all (oldest first out). Only the
+  latest picture of a tool stays in the history; older ones become
+  <code>[image dropped]</code>. The text of a tool answer is cut to 6000
+  characters, and <code>query_scene</code> keeps the useful fields of at most 60
+  nodes.</li>
 <li>Before each request, drop the oldest whole turns until the estimate
   fits the budget and <code>history_tokens</code>; the last turn stays. A turn
   starts at a user message, so a tool call and its results go
@@ -2094,6 +2115,10 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 <td><code>[pw-play, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]</code></td>
 </tr>
 <tr>
+<td><code>listen</code></td>
+<td><code>always</code> (the agent hears speech at any time, and the ptt key adds a way to talk); <code>push_to_talk</code>: the gate opens only while the ptt key is held, with no wake word, no VAD start and no barge-in without the key. No security key: a spoken yes changes it</td>
+</tr>
+<tr>
 <td><code>ptt_key</code></td>
 <td><code>Super+v</code></td>
 </tr>
@@ -2139,7 +2164,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>allow_programs</code>, <code>allow_methods</code></td>
-<td><code>[]</code>, <code>[]</code> (bare program names and <code>CLIENT.METHOD</code> that never ask; section 5)</td>
+<td><code>[]</code>, <code>[]</code> (whole argvs, such as <code>foot</code> or <code>foot -e htop</code>, and <code>CLIENT.METHOD</code> that never ask; section 5)</td>
 </tr>
 <tr>
 <td><code>always_words</code></td>
@@ -2183,7 +2208,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>tool_rounds</code>, <code>old_tool_chars</code>, <code>history_tokens</code>, <code>saved_requests</code></td>
-<td><code>10</code>, <code>500</code>, <code>12000</code>, <code>20</code></td>
+<td><code>10</code>, <code>500</code>, <code>24000</code>, <code>20</code></td>
 </tr>
 <tr>
 <td><code>reasoning_effort</code></td>
@@ -2355,7 +2380,7 @@ them. The export flag cannot depend on <code>mic</code>, so muting needs it too.
 The plugins chora-mc, chora-xp and chora-construct connect to the main
 socket, which may call privileged methods.</p>
 <p>The state record: <code>state</code>, <code>since_ms</code> (time in the state), <code>seq</code> (one
-more per change), <code>awake</code>, <code>muted: {mic, speaker}</code>, <code>turn</code>,
+more per change), <code>awake</code>, <code>listen</code> (<code>always</code> or <code>push_to_talk</code>), <code>muted: {mic, speaker}</code>, <code>turn</code>,
 <code>last_transcript</code>, <code>last_reply</code>, <code>queued</code> (texts that wait), <code>coder</code>
 (the parameters of <code>agent.set</code> for the coder, or null before the first
 task), <code>agents</code> (the parameters of <code>agent.set</code> of each ACP agent) and
@@ -2383,7 +2408,7 @@ name <code>voice</code>, or when it gets its first <code>voice.*</code> event.</
 <p>The events (D65): <code>voice.state {state, task, said}</code> on each change
 (<code>state</code> mapped to the states of mc: <code>asleep</code>, <code>listening</code>, <code>thinking</code>,
 <code>working</code>, <code>question</code>, <code>speaking</code>; <code>task</code> the request, <code>said</code> the last
-reply), and <code>voice.say {state: speaking, text, duration_ms}</code> for each
+reply), <code>voice.listen {listen}</code> when the mode changes and once at the start (not a field of <code>voice.state</code>, whose data go to <code>agent.set</code> of chora-mc, which refuses unknown fields), and <code>voice.say {state: speaking, text, duration_ms}</code> for each
 sentence when its sound starts, with the length of its PCM (a late
 sentence gets the rest of its length). The data are the parameters of
 <code>mc agent.set</code> and <code>mc hud.say</code>, and chora-mc subscribes to <code>voice.*</code>.
