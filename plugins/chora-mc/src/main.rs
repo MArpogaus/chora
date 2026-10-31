@@ -1436,6 +1436,13 @@ impl Mc {
         title + self.settings.value.scale.baseline
     }
 
+    /// The height of a panel cut to whole lines of its text, so that its
+    /// clip never cuts through a line.
+    fn whole_lines(&self, panel: &Panel, h: f64) -> f64 {
+        let (top, line) = (self.lines_top(panel), self.ty("body", panel.style.as_ref()).line);
+        (top + ((h - top) / line).floor() * line).clamp(0.0, h)
+    }
+
     /// Creates one panel: a group with a clip, its title and its lines,
     /// and the notes in the margin left of it.
     fn panel(&self, name: &str, panel: &Panel) -> Vec<Command> {
@@ -1450,7 +1457,7 @@ impl Mc {
             &panels_id(name),
             PropsUpdate {
                 transform: Some(translate(x - indent, y)),
-                size: Some([w + indent, h]),
+                size: Some([w + indent, self.whole_lines(panel, h)]),
                 clip: Some(Some(chora_scene::Clip { radius: 0.0 })),
                 opacity: panel.opacity,
                 effects: self.blur_effect(panel).map(|e| vec![e]),
@@ -1518,13 +1525,23 @@ impl Mc {
             commands.push(move_to(chapter_id(name, "title"), x, HEAD * geo.baseline));
         }
         for panel in &scene.panels {
+            let id = panel_id(name, &panel.id);
+            // A title that wraps pushes the lines down by its extra lines.
+            let mut y = self.lines_top(panel);
+            if !panel.title.is_empty()
+                && let Some([_, _, _, height]) = self.rect(&format!("{id}-title"))?
+            {
+                let line = self.ty("heading", panel.title_style.as_ref()).line;
+                y += (height - line).max(0.0);
+            }
             let Some(rows) = panel.columns() else {
+                if !panel.lines.is_empty() && y > self.lines_top(panel) {
+                    commands.push(move_to(format!("{id}-lines"), indent, y));
+                }
                 continue;
             };
-            let id = panel_id(name, &panel.id);
             let body = self.ty("body", panel.style.as_ref());
             let note = self.ty("margin", panel.note_style.as_ref());
-            let mut y = self.lines_top(panel);
             for (i, (time, _)) in rows.iter().enumerate() {
                 let Some([_, _, _, height]) = self.rect(&format!("{id}-line-{i}"))? else {
                     break; // below the panel
@@ -1599,7 +1616,7 @@ impl Mc {
                         .collect(),
                 )
             };
-            let Some([_, _, _, h]) = self.place(name, panel) else {
+            let Some(h) = self.place(name, panel).map(|r| self.whole_lines(panel, r[3])) else {
                 continue;
             };
             // ponytail: a line that wraps writes with the last line; the
