@@ -662,7 +662,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
-| `modifier` | `Ctrl` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
+| `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
 
 While the camera is in a pane, the window has the keyboard, so `fly_out`
 is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
@@ -673,7 +673,23 @@ The key of the setting `modifier` with a drag on a pane moves the pane.
 It moves sideways along its face, and away or nearer as the pointer goes
 up or down. The same key with the wheel over a pane resizes it. A window
 of the flavor gets the new size, so that it stays at 1:1. Other panes
-stretch.
+stretch. The default `Super` is the drag modifier of tiling and chora-xp.
+
+The flavor grabs the modifier with the left button, so that it shares
+the binding with the window managers on other outputs (D55). A drop of
+a window pane hands the window over:
+
+- On a plugin pane, for example an mc scene, the window goes to that
+  plugin. mc shows it as a scene of its own.
+- Off the output of the construct, the window goes to the window
+  manager whose claim holds the drop point. The pane goes back to where
+  it was if no window manager is there.
+- On empty space, the pane only moves.
+
+A window of another client, which the window list took as a pane, goes
+back to its owner on such a drop. If the target refuses the window, the
+pane stays. An overlay does not hand over windows.
+`tests/gate-construct-windows.sh` checks the drops.
 
 ### Constructs
 
@@ -731,7 +747,7 @@ windows of the other flavor.
 | `pane.fly` | `name`: flies into the pane |
 | `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
 | `window.show` | `name`, a label or a surface of `window.list`: flies to the pane of the window; a window without a pane becomes one first |
-| `window.give` | `to`, a window manager, and `surface`, else the window flown into or ahead: gives an own window to `to` (D55); its pane goes |
+| `window.give` | `to`, a window manager or a plugin such as mc, and `surface`, else the window flown into or ahead: gives an own window to `to` (D55); its pane goes |
 
 The name of a pane is a short label for voice: the app id or the title of
 the window, or the scene of a plugin pane, with `-2`, `-3` for a second
