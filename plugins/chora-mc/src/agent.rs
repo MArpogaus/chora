@@ -77,6 +77,20 @@ pub struct Push {
     urgency: Urgency,
 }
 
+/// The event `voice.confirm`: the voice agent asks for a spoken
+/// confirmation, or with `done` the question ended.
+#[derive(Deserialize)]
+pub struct Confirm {
+    id: String,
+    #[serde(default)]
+    prompt: String,
+    /// The whole command or value, uncut.
+    #[serde(default)]
+    detail: String,
+    #[serde(default)]
+    done: bool,
+}
+
 /// As in the freedesktop notifications: critical breaks through in red.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -91,6 +105,9 @@ enum Urgency {
 const NOTIFY: &str = "notify";
 /// The content of the last critical notification.
 const URGENT: &str = "urgent";
+/// The content of a spoken confirmation: its prompt as the title, its
+/// detail in mono.
+const CONFIRM: &str = "confirm";
 
 impl Mc {
     /// Adds an agent or changes it.
@@ -368,6 +385,39 @@ impl Mc {
         })
     }
 
+    /// Shows a spoken confirmation alone in the drawer over any scene,
+    /// with its whole detail, until the event `done` of its id.
+    pub fn confirm(&mut self, confirm: Confirm) -> Result<(), RpcError> {
+        let Confirm {
+            id,
+            prompt,
+            detail,
+            done,
+        } = confirm;
+        let rejected =
+            |e: chora_scene::ipc::ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
+        if done {
+            if self.confirming.as_deref() != Some(&id) {
+                return Ok(());
+            }
+            self.confirming = None;
+            self.set_text(CONFIRM, None, |_| Vec::new())?;
+            if self.solo.as_ref().is_some_and(|s| s.content == CONFIRM) {
+                self.solo(CONFIRM, Region::Drawer, Some(false), false)
+                    .map_err(rejected)?;
+            }
+            return Ok(());
+        }
+        let lines = detail.lines().map(Into::into).collect();
+        self.set_text(CONFIRM, Some(prompt), |_| lines)?;
+        self.confirming = Some(id);
+        // ponytail: it takes the place of a solo of the user, which does
+        // not come back after the answer.
+        self.solo(CONFIRM, Region::Drawer, Some(true), false)
+            .map_err(rejected)?;
+        Ok(())
+    }
+
     /// Empties the notifications.
     pub fn clear_notifications(&mut self) -> Result<(), RpcError> {
         for content in [NOTIFY, URGENT] {
@@ -428,6 +478,26 @@ mod tests {
         assert_eq!(super::agent_cell(cell, 2, 2, 4), [2, 0, 2, 2]);
         assert_eq!(super::agent_cell(cell, 3, 3, 4), [2, 0, 1, 2]);
         assert_eq!(super::agent_cell(cell, 4, 4, 4), [3, 0, 1, 2]);
+    }
+
+    /// voice.confirm shows its prompt and its whole detail alone in the
+    /// drawer; the done event of its id removes it, of another id not.
+    #[test]
+    fn a_confirmation_shows_until_its_answer() {
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("confirm", [1920, 1080]);
+        let detail = format!("rm -r build\n{}", "x".repeat(400));
+        let ask = json!({"id": "c1", "prompt": "Run it?", "detail": detail});
+        mc.follow("voice.confirm", "voice", ask).unwrap();
+        let (title, lines) = mc.texts["confirm"].clone();
+        assert_eq!(title, "Run it?");
+        assert_eq!(lines.join("\n"), detail, "never cut");
+        assert!(mc.solo.as_ref().is_some_and(|s| s.content == "confirm"));
+        let done = |id| json!({"id": id, "done": true});
+        mc.follow("voice.confirm", "voice", done("c0")).unwrap();
+        assert!(mc.solo.is_some(), "another id");
+        mc.follow("voice.confirm", "voice", done("c1")).unwrap();
+        assert!(mc.texts["confirm"].1.is_empty() && mc.solo.is_none());
     }
 
     #[test]

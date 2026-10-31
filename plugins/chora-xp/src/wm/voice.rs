@@ -27,8 +27,9 @@ impl Wm {
         Ok(())
     }
 
-    /// An event of the voice agent: `NAME.state` sets the pose, and
-    /// `NAME.say` shows a sentence. The events of sub-agents, which carry
+    /// An event of the voice agent: `NAME.state` sets the pose,
+    /// `NAME.say` shows a sentence, and `NAME.confirm` shows a question
+    /// with its full detail until its answer. The events of sub-agents, which carry
     /// a name of their own, leave the paperclip alone.
     pub(super) fn voice_event(&mut self, event: &str, client: &str, data: &Value) -> Vec<Command> {
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
@@ -48,10 +49,23 @@ impl Wm {
                 let mut commands = self.sync_assistant(now);
                 let text = data.get("text").and_then(Value::as_str).unwrap_or("");
                 let time = Duration::from_millis(data["duration_ms"].as_u64().unwrap_or(0));
-                if let Some(a) = self.assistant.as_mut().filter(|_| !text.is_empty()) {
+                // A confirmation keeps the balloon until its answer.
+                let assistant = self.assistant.as_mut().filter(|a| !a.asking());
+                if let Some(a) = assistant.filter(|_| !text.is_empty()) {
                     commands.extend(a.say(&mut self.theme, text, time, now));
                 }
                 commands
+            }
+            Some("confirm") => {
+                let Some(a) = self.assistant.as_mut() else {
+                    return Vec::new();
+                };
+                let id = data.get("id").and_then(Value::as_str).unwrap_or("");
+                if let Some(text) = confirm_text(data) {
+                    return a.ask(&mut self.theme, id, &text, now);
+                }
+                a.answered(id, now);
+                Vec::new()
             }
             _ => Vec::new(),
         }
@@ -138,6 +152,20 @@ impl Wm {
     }
 }
 
+/// The text of `voice.confirm` for the balloon: the prompt and the whole
+/// detail; `None` for the event `done`.
+fn confirm_text(data: &Value) -> Option<String> {
+    if data.get("done").and_then(Value::as_bool).unwrap_or(false) {
+        return None;
+    }
+    let field = |key| data.get(key).and_then(Value::as_str).unwrap_or("");
+    Some(
+        format!("{}\n{}", field("prompt"), field("detail"))
+            .trim()
+            .into(),
+    )
+}
+
 /// What the balloon says after a click on the paperclip: the new state
 /// of the mic, or `None` when the state or mute call failed.
 fn mic_text(mute: Option<bool>) -> &'static str {
@@ -150,6 +178,16 @@ fn mic_text(mute: Option<bool>) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_confirmation_shows_the_prompt_and_the_whole_detail() {
+        let long = "x".repeat(500);
+        let ask = serde_json::json!({"id": "c1", "prompt": "Run it?", "detail": long});
+        let text = super::confirm_text(&ask).unwrap();
+        assert_eq!(text, format!("Run it?\n{long}"));
+        let done = serde_json::json!({"id": "c1", "done": true});
+        assert_eq!(super::confirm_text(&done), None);
+    }
+
     #[test]
     fn a_failed_call_says_so_in_the_balloon() {
         assert_eq!(super::mic_text(None), "I could not switch the microphone.");

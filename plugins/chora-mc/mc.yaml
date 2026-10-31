@@ -201,6 +201,8 @@ contents:
   agents: {kind: agents}
   notify: {kind: text, title: Notifications}
   urgent: {kind: text, style: {base: running_head, color: red}}
+  # A spoken confirmation of voice.confirm, alone in the drawer.
+  confirm: {kind: text, style: {base: mono}}
   overlay: {kind: text, title: Tests, style: {base: mono, color: muted}}
   next: {kind: text}
   notes: {kind: text, title: Notes}

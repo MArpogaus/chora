@@ -338,7 +338,9 @@ mc also follows the events of the voice agent (D65); it subscribes to
 the sub-agent that the `name` of its data names, such as `coder` or an
 ACP agent of the voice agent; `voice.remove {name}` removes such a
 sub-agent.
-`voice.say` shows a sentence as `hud.say` does. Data that mc does not
+`voice.say` shows a sentence as `hud.say` does. `voice.confirm` shows its
+`prompt` and its whole `detail` in mono alone in the drawer until the
+event with `done` and the same `id`. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
 clients use `agent.set` and `hud.say`.
 
@@ -1201,7 +1203,9 @@ eyebrows stands above the right end of the taskbar of the first output.
 agent is idle, leans in while it listens, looks up and sways while it
 thinks, bounces while it speaks and raises its eyebrows when it asks. Each
 sentence of `voice.say` shows in a balloon above it, which fades out three
-seconds after the sentence ends. A click on the paperclip mutes the mic of
+seconds after the sentence ends. The balloon shows the `prompt` and the
+`detail` of `voice.confirm` until the event with `done` and the same `id`.
+A click on the paperclip mutes the mic of
 the agent through its method `mute`, and a second click unmutes it. The
 paperclip goes when the agent sleeps or disconnects, and `assistant:
 {enabled: false}` turns it off.

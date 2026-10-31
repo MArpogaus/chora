@@ -306,6 +306,8 @@ struct Mc {
     agent_focus: Option<String>,
     /// The content of `region.solo` that shows alone in its region.
     solo: Option<Solo>,
+    /// The id of the spoken confirmation that shows, until its answer.
+    confirming: Option<String>,
     /// How far the page of a scene scrolled down, by scene.
     scroll: BTreeMap<String, f64>,
 }
@@ -418,6 +420,7 @@ impl Mc {
             agents: Vec::new(),
             agent_focus: None,
             solo: None,
+            confirming: None,
             scroll: BTreeMap::new(),
         };
         mc.keep_texts();
@@ -827,6 +830,7 @@ impl Mc {
                 runtime::params(data).and_then(|set| self.set_agent(set))
             }
             Some("remove") => runtime::params(data).and_then(|r| self.remove_agent(&r)),
+            Some("confirm") => runtime::params(data).and_then(|c| self.confirm(c)),
             Some("say") => match runtime::params(data) {
                 Ok(say) => return self.say(say),
                 Err(e) => Err(e),

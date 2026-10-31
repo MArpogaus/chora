@@ -1294,7 +1294,9 @@ mod tests {
         let moved = layout(&rules, &config.contents, "agenda", false);
         assert_eq!(
             names(&moved, Region::Left),
-            ["next", "notes", "notify", "outline", "overlay", "urgent"]
+            [
+                "confirm", "next", "notes", "notify", "outline", "overlay", "urgent"
+            ]
         );
         assert!(!moved.contains_key(&Region::Right));
         let other = layout(&rules, &config.contents, "mail", false);

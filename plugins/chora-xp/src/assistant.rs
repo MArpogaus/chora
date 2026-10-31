@@ -207,6 +207,9 @@ pub struct Assistant {
     speech: bool,
     /// When the balloon fades out.
     fades_at: Option<Instant>,
+    /// The id of the spoken confirmation that the balloon shows until
+    /// its answer.
+    asking: Option<String>,
 }
 
 impl Assistant {
@@ -229,6 +232,7 @@ impl Assistant {
             blinks_at: now + blink_gap(0),
             speech: false,
             fades_at: None,
+            asking: None,
         };
         let group = |id: &str, parent: String, transform| Command::Create {
             id: id.into(),
@@ -333,6 +337,28 @@ impl Assistant {
         }]
     }
 
+    /// Shows the question of a spoken confirmation in the balloon until
+    /// [`Self::answered`] with the same id.
+    pub fn ask(&mut self, theme: &mut Theme, id: &str, text: &str, now: Instant) -> Vec<Command> {
+        let commands = self.say(theme, text, Duration::ZERO, now);
+        self.fades_at = None;
+        self.asking = Some(id.into());
+        commands
+    }
+
+    /// The confirmation `id` is answered or timed out: its balloon fades.
+    pub fn answered(&mut self, id: &str, now: Instant) {
+        if self.asking.as_deref() == Some(id) {
+            self.asking = None;
+            self.fades_at = Some(now);
+        }
+    }
+
+    /// Whether the balloon shows a confirmation.
+    pub fn asking(&self) -> bool {
+        self.asking.is_some()
+    }
+
     /// When the next move, blink or fade is due.
     pub fn due(&self) -> Instant {
         [self.moves_at, self.fades_at]
@@ -422,6 +448,35 @@ mod tests {
                 "{pose:?}"
             );
         }
+    }
+
+    /// A confirmation stays until its own answer, then fades.
+    #[test]
+    fn a_confirmation_stays_until_its_answer() {
+        let (mut theme, _) = crate::theme::tests::theme("confirm");
+        let now = Instant::now();
+        let mut a = Assistant {
+            origin: [800, 500],
+            screen: 1024,
+            pose: Pose::Asking,
+            shut: false,
+            step: 0,
+            blinks: 0,
+            moves_at: None,
+            blinks_at: now,
+            speech: false,
+            fades_at: None,
+            asking: None,
+        };
+        assert_eq!(
+            a.ask(&mut theme, "c1", "Run it?\nrm -r build", now).len(),
+            1
+        );
+        assert!(a.asking() && a.fades_at.is_none());
+        a.answered("c2", now);
+        assert!(a.asking(), "another id");
+        a.answered("c1", now);
+        assert!(!a.asking() && a.fades_at == Some(now));
     }
 
     #[test]
