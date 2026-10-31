@@ -49,6 +49,8 @@ impl Theme {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    /// The construct of the flavor's start; empty for an empty space.
+    pub start: String,
     pub theme: Theme,
     /// The leash radius R in logical pixels.
     pub radius: f64,
@@ -58,6 +60,9 @@ pub struct Config {
     pub keys: BTreeMap<String, Action>,
     /// The grabbed binding that flies out of a pane.
     pub fly_out: String,
+    /// The modifier of a drag that moves a pane and of the wheel that
+    /// resizes it.
+    pub modifier: String,
 }
 
 impl Settings for Config {
@@ -70,6 +75,15 @@ impl Settings for Config {
                 "pane_distance: {} is not above 0",
                 self.pane_distance
             ));
+        }
+        if !["Ctrl", "Alt", "Shift", "Super"].contains(&self.modifier.as_str()) {
+            return Err(format!(
+                "modifier: {} is not Ctrl, Alt, Shift or Super",
+                self.modifier
+            ));
+        }
+        if !self.start.is_empty() {
+            crate::file::check_name(&self.start).map_err(|e| format!("start: {e}"))?;
         }
         self.fly_out
             .parse::<Binding>()

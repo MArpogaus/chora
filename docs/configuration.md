@@ -590,8 +590,8 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 ## chora-construct (experimental)
 
 !!! warning "Experimental"
-    `chora-construct` is step K1 of the construct track (D66). The
-    packages install it, but its settings change without notice.
+    `chora-construct` is step K2a of the construct track (D66). The
+    packages install it, but its settings and files change without notice.
 
 `chora-construct` connects with the client name `construct`. It is a
 flavor: `chora -- chora-construct` starts into it, and the directory
@@ -600,7 +600,10 @@ a space without a grid: white with a foggy horizon in the light theme, a
 black void with dark fog in the dark theme. Each new window becomes a
 pane ahead of the camera, at the size of the output. A pane turns to face
 the camera and shows the window through its node texture. A new pane
-moves aside, right first, from the panes in its way.
+moves aside, right first, from the panes in its way. The space lies on
+the screen root of the output (`screen:NAME`), not under `root`, so it
+needs no camera. As the flavor, it claims the output (D55), so that new
+windows come to it also when another window manager runs beside it.
 
 The space has the keyboard, so its keys need no modifier. A drag looks
 around, and the wheel walks. A walk slows down in the outer quarter of
@@ -614,16 +617,82 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 
 | Key | Default | Meaning |
 |-----|---------|---------|
+| `start` | empty | the construct that the flavor starts into; empty for an empty space |
 | `theme` | `light` | `light` or `dark` |
-| `radius` | `6000` | the leash radius R around the start point, in logical pixels |
+| `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
 | `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home` or `fly_in` |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
+| `modifier` | `Ctrl` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
 
 While the camera is in a pane, the window has the keyboard, so `fly_out`
 is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
 after `choractl grant construct input.grab-any`; then the program in the
 pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
+
+Ctrl with a drag on a pane moves it: sideways along its face, and away
+or nearer as the pointer goes up or down. Ctrl with the wheel over a pane
+resizes it. A window of the flavor gets the new size, so that it stays at
+1:1; other panes stretch. The key is the setting `modifier`.
+
+### Constructs
+
+A construct is a file `~/.config/chora/constructs/NAME.yaml` with the
+start pose of the camera, the leash radius R and the panes. A pane has a
+`kind`, its content and its pose. A program pane has a shell `command`,
+which starts with `choractl run`. A plugin pane has a `plugin`, the client
+name, and a `scene`. It shows the node that the plugin tags
+`meta:pane=SCENE` through its node texture, for example the page of an mc
+scene. The pose is `at`, the centre on the ground as `[x, z]`, and
+`size`, in logical pixels. Without `at`, the pane goes ahead of the
+camera; without `size`, a program pane has the size of the output and a
+plugin pane the size of the node.
+
+```yaml
+camera: {x: 0, z: 0, yaw: 0, pitch: 0}
+radius: 5000
+panes:
+- kind: program
+  command: foot
+  at: [-650, 2000]
+  size: [1000, 640]
+- kind: plugin
+  plugin: mc
+  scene: mission
+  at: [700, 2200]
+```
+
+A file in this directory is the user's own, as an mc scene file is: its
+program panes start without a question. So `construct.load` and
+`construct.save` are privileged. The flavor starts into the construct of
+the setting `start`. A plugin pane whose node is missing, for example
+because mc starts later, waits and shows when the node comes.
+
+With `--overlay`, `chora-construct` runs beside another flavor, such as
+tiling or mc, and shows nothing until `construct.load`. Then the space
+covers the first output from its screen root and takes the keyboard. No
+camera changes hands: D40 lets only the admin socket or a reset take a
+camera from its owner, and the screen root needs none. Its program panes
+show the windows that the other flavor takes; a fly-in asks that flavor
+for the keyboard with `focus` (`node.requested`, D31). A click on the
+space takes the keyboard back. `construct.leave` removes the space and
+gives the keyboard back; the programs of the construct keep running as
+windows of the other flavor.
+
+| Method | Parameters |
+|--------|------------|
+| `construct.load` | privileged. `name`: loads the file and starts its programs. An overlay takes the output; the flavor keeps its windows as panes. The panes of the construct before go. Answers as `construct.list` |
+| `construct.save` | privileged. `name`: writes the camera, R and the panes. A window that the construct did not start has no command and stays out |
+| `construct.list` | none; answers `constructs`, the `current` one, `overlay`, `shown`, the `panes` with `name`, `kind`, content, `at` and `size`, and the panes that still wait |
+| `construct.leave` | none; an overlay gives the output and the keyboard back. The flavor refuses it |
+| `pane.move` | `name`, `right` and `ahead` in logical pixels as the camera looks; inside the leash |
+| `pane.resize` | `name` and `scale`, for example 1.25 |
+| `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
+| `pane.fly` | `name`: flies into the pane |
+
+The name of a pane is a short label for voice: the app id or the title of
+the window, or the scene of a plugin pane, with `-2`, `-3` for a second
+and a third. `tests/gate-construct-k2a.sh` checks the step.
 
 ## Flavors
 

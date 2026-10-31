@@ -11,7 +11,8 @@
 type Mat = [[f64; 4]; 4];
 
 /// Where the camera stands and looks.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct Pose {
     pub x: f64,
     pub z: f64,

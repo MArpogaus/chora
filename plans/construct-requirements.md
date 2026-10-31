@@ -120,7 +120,9 @@ The host keymap (#12) stays a limit of v1.
 - **F11** New panes appear as in C7. If the user looks at an existing
   pane, the new pane goes beside it.
 - **F12** Move and resize a pane with the mouse while a modifier key is
-  held, and by voice ("move the terminal to the left").
+  held, and by voice ("move the terminal to the left"). K2a: a drag with
+  the modifier (Ctrl by default) moves the pane sideways along its face
+  and away or nearer; the wheel with it resizes the pane.
 - **F13** Remove a pane: it closes its program or session after a
   confirmation if the program has unsaved state. The rule is the same as
   for windows elsewhere.
@@ -149,8 +151,12 @@ The host keymap (#12) stays a limit of v1.
   named in the settings).
 - **F20** Loaded from mc or voice in a running session, the construct
   takes the outputs as an overlay. Leaving it gives the outputs back to
-  the previous flavor's camera. A camera belongs to one client, so
-  hand-over goes through the core reset (D40).
+  the previous flavor's camera. Decision of K2a: the space lies on the
+  screen root `screen:NAME` of the output, above the scene, so it needs
+  no camera, and no camera changes hands. D40 allows a hand-over only
+  through `camera.release` on the admin socket or a reset, which a plugin
+  must not use. Program panes of an overlay show windows that the other
+  flavor owns, and their keyboard goes through `node.requested` (D31).
 
 ### 5.6 Prompt panes
 
@@ -197,7 +203,9 @@ The host keymap (#12) stays a limit of v1.
 - **N5 Security:** prompt agents run only in the sandbox container,
   with no host home and no host network beyond `ai-net`. Panes from a
   construct file start programs only after the user confirms a file they
-  did not save themselves.
+  did not save themselves. K2a: as for mc scene files, a file in
+  `~/.config/chora/constructs/` counts as the user's own, so it needs no
+  confirmation; `construct.load` and `construct.save` are privileged.
 - **N6 Style:** the colours and type follow the style guide of mc
   (`docs/mc-style.md`) where text shows, such as labels and the strip of
   prompt panes.
@@ -211,7 +219,7 @@ The host keymap (#12) stays a limit of v1.
 | Fog, horizon | shader node over the whole output |
 | Pointer on a pane | pointer events of nodes; the plugin maps them to pane coordinates |
 | Keyboard to a pane | `focus_node` for node panes; `focus` for own windows; `node.requested` to the owner (D31) and the focus return after a clear (#27) in overlay mode |
-| Camera per output | `camera` command, one owner per output (D40) |
+| Camera per output | none: the space lies on `screen:NAME` (F20) |
 | Start programs | `run` / activation tokens, like mc's app contents |
 | Agents | chora-voice ACP agents (sandbox) |
 | Budget | `layers.dropped` event |
@@ -238,7 +246,8 @@ The host keymap (#12) stays a limit of v1.
 |---|---|---|
 | #12 keymap | Nested sessions use the host keymap. | keymap per nested session |
 | Layer budget 64 Mi px | Limits live panes at scale 3. | budget per output, mipmaps |
-| One camera owner (D40) | Overlay mode must reset cameras on exit. | camera hand-over |
+| One camera owner (D40) | None since K2a: the space uses the screen root. It covers the first output only, and layer-shell panels show above it. | none needed |
+| Hidden windows | A program pane of an overlay is empty while its owner hides the window, for example on another tiling tag. | none; the owner decides |
 | Shader limits (#16) | No `fwidth`; `mediump` breaks hashes. | none needed |
 
 ## 10. Risks

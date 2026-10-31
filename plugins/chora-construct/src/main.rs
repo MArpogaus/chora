@@ -1,8 +1,15 @@
-//! chora-construct, step K1 (D66): a white space with a foggy horizon,
-//! a walk on a leash, and the windows of the session as panes that face
-//! the camera. A click or a key flies into a pane until it covers the
-//! output at 1:1; then the window itself shows, sharp, with the keyboard.
-//! A binding flies out again.
+//! chora-construct, steps K1 and K2a (D66): a white space with a foggy
+//! horizon, a walk on a leash, and panes that face the camera: windows,
+//! and node trees of other plugins such as mc scenes. A click or a key
+//! flies into a pane until it covers the output at 1:1; then the window
+//! itself shows, sharp, with the keyboard. A binding flies out again.
+//!
+//! A construct is a file of panes (F17). As the flavor, the plugin owns
+//! its windows. With `--overlay` it waits beside another flavor until
+//! `construct.load`, and then covers the output from its screen root
+//! (`screen:NAME`), so that no camera changes hands (F20); its program
+//! panes show windows of the other flavor, which gets the keyboard
+//! requests for them (D31).
 
 #![allow(
     clippy::print_stderr,
@@ -10,6 +17,7 @@
 )]
 
 mod config;
+mod file;
 mod space;
 
 use std::{
@@ -24,15 +32,18 @@ use chora_kit::{
     settings::{self, Store},
 };
 use chora_scene::{
-    Command, Event, InputMode, NodeKind, NodeTexture, OutputInfo, PropsUpdate, ROOT, ToplevelState,
+    Command, Event, InputMode, NodeKind, NodeTexture, OutputInfo, PropsUpdate, ToplevelState,
     Transform, Uniform,
-    ipc::{ClientError, PressState, RpcError},
+    ipc::{ClientError, ExportMethod, PressState, RpcError},
+    overlay_id,
 };
 use clap::Parser;
-use serde_json::Value;
+use serde::Deserialize;
+use serde_json::{Value, json};
 
 use crate::{
     config::{Action, Config},
+    file::{Kind, PaneFile},
     space::{Lens, Pose},
 };
 
@@ -64,6 +75,11 @@ const STEP_MS: f64 = 160.0;
 const FLY_MS: f64 = 380.0;
 /// The frame time of a glide.
 const FRAME: Duration = Duration::from_millis(16);
+/// How often a plugin pane looks again for the node of its plugin.
+const RETRY: Duration = Duration::from_secs(1);
+/// The smallest and the largest side of a pane, in logical pixels.
+const PANE_MIN: f64 = 100.0;
+const PANE_MAX: f64 = 8192.0;
 
 /// A spatial flavor: walk in a foggy space with program panes.
 #[derive(Parser)]
@@ -77,21 +93,83 @@ struct Args {
     /// Print the default settings and exit.
     #[arg(long)]
     print_config: bool,
+    /// Wait beside another flavor until `construct.load`, and show its
+    /// windows without taking them.
+    #[arg(long)]
+    overlay: bool,
 }
 
-/// A window in the space.
+/// What a pane shows.
+#[derive(Clone)]
+enum Content {
+    /// A window; its command if the construct started it.
+    Window { command: Option<String> },
+    /// The node of a plugin that it tags `meta:pane=SCENE`.
+    Plugin { plugin: String, scene: String },
+}
+
+/// A pane in the space.
 struct Pane {
-    surface: String,
+    /// The short label for voice, unique in the space.
+    name: String,
+    /// The node that the pane shows: the surface of a window, or the
+    /// node of a plugin.
+    source: String,
+    content: Content,
     /// The centre on the ground, (x, z).
     at: [f64; 2],
-    /// The size of the window in logical pixels.
+    /// The size in logical pixels.
     size: [f64; 2],
 }
 
 impl Pane {
     fn node(&self) -> String {
-        format!("construct-pane-{}", self.surface)
+        match self.content {
+            Content::Window { .. } => format!("construct-pane-{}", self.source),
+            Content::Plugin { .. } => format!("construct-plugin-{}", self.name),
+        }
     }
+
+    fn window(&self) -> Option<&str> {
+        matches!(self.content, Content::Window { .. }).then_some(self.source.as_str())
+    }
+
+    /// The pane as a file has it; a window that the construct did not
+    /// start has no command and stays out.
+    fn file(&self) -> Option<PaneFile> {
+        let (kind, command, plugin, scene) = match &self.content {
+            Content::Window { command } => (Kind::Program, Some(command.clone()?), None, None),
+            Content::Plugin { plugin, scene } => (
+                Kind::Plugin,
+                None,
+                Some(plugin.clone()),
+                Some(scene.clone()),
+            ),
+        };
+        Some(PaneFile {
+            kind,
+            command,
+            plugin,
+            scene,
+            at: Some(self.at),
+            size: Some(self.size),
+        })
+    }
+}
+
+/// A pane of a construct file that does not show yet: a program whose
+/// window has not come, with the activation token that finds it, or a
+/// plugin whose node is missing.
+struct Waiting {
+    token: Option<String>,
+    pane: PaneFile,
+}
+
+/// A drag with the modifier: the pane, the press and its centre then.
+struct Moving {
+    name: String,
+    from: [f64; 2],
+    at: [f64; 2],
 }
 
 /// An eased camera move; at its end it may snap into a pane.
@@ -113,6 +191,16 @@ struct Flown {
 struct Construct {
     rt: Runtime<()>,
     settings: settings::File<Config>,
+    /// Beside another flavor: no windows of its own, and a space only
+    /// between `construct.load` and `construct.leave`.
+    overlay: bool,
+    /// Whether the space shows.
+    active: bool,
+    /// The loaded construct and its leash radius.
+    current: Option<String>,
+    radius: f64,
+    waiting: Vec<Waiting>,
+    moving: Option<Moving>,
     fog_shader: String,
     pane_shader: String,
     output: Option<OutputInfo>,
@@ -159,15 +247,17 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = settings::File::<Config>::path(args.config.clone(), "chora-construct")?;
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
     let rt = Runtime::connect(NAME, Vec::new())?;
-    let start = Pose {
-        x: 0.0,
-        z: 0.0,
-        yaw: 0.0,
-        pitch: 0.0,
-    };
+    let start = Pose::default();
+    let radius = settings.value.radius;
     let mut construct = Construct {
         rt,
         settings,
+        overlay: args.overlay,
+        active: false,
+        current: None,
+        radius,
+        waiting: Vec::new(),
+        moving: None,
         fog_shader: shader_file("fog.frag", FOG_SHADER)?,
         pane_shader: shader_file("pane.frag", PANE_SHADER)?,
         output: None,
@@ -219,15 +309,16 @@ fn vec3(c: [f64; 3]) -> Uniform {
     Uniform::Vector(c.to_vec())
 }
 
-/// The nodes of the space, bottom first: the sky, the fog, the panes,
-/// the windows and the look rect, which takes the keys of the walk.
-fn space_nodes(fog_shader: &str) -> Vec<Command> {
+/// The nodes of the space on the screen root of an output, bottom
+/// first: the sky, the fog, the panes, the windows and the look rect,
+/// which takes the keys of the walk.
+fn space_nodes(fog_shader: &str, root: &str) -> Vec<Command> {
     let group = |input| PropsUpdate {
         input,
         ..PropsUpdate::default()
     };
     vec![
-        create(NAME, NodeKind::Group, ROOT, group(None)),
+        create(NAME, NodeKind::Group, root, group(None)),
         create(SKY, NodeKind::Rect, NAME, PropsUpdate::default()),
         create(
             FOG,
@@ -256,10 +347,10 @@ fn space_nodes(fog_shader: &str) -> Vec<Command> {
 }
 
 /// The uniforms of a pane; an update replaces all of them, so each
-/// carries the window.
-fn pane_uniforms(surface: &str, haze: f64, fog: [f64; 3]) -> BTreeMap<String, Uniform> {
+/// carries the node that the pane shows.
+fn pane_uniforms(source: &str, haze: f64, fog: [f64; 3]) -> BTreeMap<String, Uniform> {
     let win = Uniform::Texture(NodeTexture {
-        node: surface.into(),
+        node: source.into(),
     });
     BTreeMap::from([
         ("win".into(), win),
@@ -282,11 +373,28 @@ impl Plugin for Construct {
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
-            Event::SurfaceCreated { to: Some(to), .. } if to != NAME => Ok(()),
-            Event::SurfaceCreated { surface, .. } => self.adopt(&surface),
-            Event::SurfaceDetached { surface } => {
+            Event::SurfaceCreated {
+                surface,
+                app_id,
+                title,
+                to,
+                token,
+                ..
+            } => {
+                let i = (self.waiting.iter()).position(|w| w.token.is_some() && w.token == token);
+                let pane = i.map(|i| self.waiting.remove(i).pane);
+                // A flavor takes the free windows; an overlay only shows
+                // those of its construct, which the other flavor takes.
+                let free = to.as_deref().is_none_or(|t| t == NAME);
+                if pane.is_some() || (free && !self.overlay) {
+                    let label = app_id.or(title).unwrap_or_default();
+                    return self.adopt(&surface, &label, pane.as_ref());
+                }
+                Ok(())
+            }
+            Event::SurfaceDetached { surface } if !self.overlay => {
                 self.forget(&surface)?;
-                self.adopt(&surface)
+                self.adopt(&surface, "", None)
             }
             Event::SurfaceDestroyed { surface } => self.forget(&surface),
             Event::SurfaceChanged {
@@ -317,8 +425,75 @@ impl Plugin for Construct {
         }
     }
 
-    fn method(&mut self, method: &str, _: Value) -> Result<Value, RpcError> {
-        Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method))
+    #[allow(clippy::too_many_lines, reason = "one arm per method")]
+    fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
+        let invalid = |e: String| RpcError::new(RpcError::INVALID_PARAMS, e);
+        match method {
+            "construct.load" => {
+                let Named { name } = runtime::params(params)?;
+                let file = file::dir()
+                    .and_then(|d| file::load(&d, &name))
+                    .map_err(invalid)?;
+                self.load(&name, file).map_err(rejected)?;
+                Ok(self.list())
+            }
+            "construct.save" => {
+                let Named { name } = runtime::params(params)?;
+                let dir = file::dir().map_err(invalid)?;
+                file::save(&dir, &name, &self.snapshot()).map_err(invalid)?;
+                self.current = Some(name);
+                Ok(Value::Null)
+            }
+            "construct.list" => Ok(self.list()),
+            "construct.leave" => {
+                if !self.overlay {
+                    return Err(RpcError::new(
+                        RpcError::REJECTED,
+                        "the construct is the flavor; load another construct instead",
+                    ));
+                }
+                self.leave().map_err(rejected)?;
+                Ok(Value::Null)
+            }
+            "pane.move" => {
+                let MovePane { name, right, ahead } = runtime::params(params)?;
+                let i = self.pane_named(&name)?;
+                let [fx, fz] = self.pose.forward();
+                let at = self.panes[i].at;
+                let to = [
+                    at[0] + fx * ahead + fz * right,
+                    at[1] + fz * ahead - fx * right,
+                ];
+                self.move_pane(i, to).map_err(rejected)?;
+                Ok(Value::Null)
+            }
+            "pane.resize" => {
+                let ResizePane { name, scale } = runtime::params(params)?;
+                if !(scale.is_finite() && scale > 0.0) {
+                    return Err(invalid(format!("scale: {scale} is not above 0")));
+                }
+                let i = self.pane_named(&name)?;
+                self.resize_pane(i, scale).map_err(rejected)?;
+                Ok(Value::Null)
+            }
+            "pane.remove" => {
+                let Named { name } = runtime::params(params)?;
+                let i = self.pane_named(&name)?;
+                self.remove_pane(i).map_err(rejected)?;
+                Ok(Value::Null)
+            }
+            "pane.fly" => {
+                let Named { name } = runtime::params(params)?;
+                let i = self.pane_named(&name)?;
+                if self.flown.is_some() {
+                    self.fly_out().map_err(rejected)?;
+                }
+                self.fly_in(i);
+                Ok(Value::Null)
+            }
+            _ => Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method)),
+        }
     }
 
     fn settings(&mut self) -> Option<&mut dyn Store> {
@@ -337,6 +512,7 @@ impl Plugin for Construct {
 
 impl Construct {
     /// The keys and the pointer of the walk, and the fly-out binding.
+    #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn input(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
             Event::NodeKey {
@@ -353,20 +529,146 @@ impl Construct {
                 state: PressState::Pressed,
                 ..
             } => return self.fly_out(),
-            Event::PointerPressed { node, position, .. } if node == LOOK => {
-                self.drag = Some((self.local(position), self.pose, false));
+            Event::PointerPressed {
+                node,
+                position,
+                modifiers,
+                ..
+            } if node == LOOK => {
+                // A window of an overlay may have taken the keyboard; a
+                // press on the space takes it back.
+                if self.overlay && self.flown.is_none() {
+                    self.rt.conn.apply(vec![Command::FocusNode {
+                        node: Some(LOOK.into()),
+                    }])?;
+                }
+                let held = modifiers.contains(&self.settings.value.modifier);
+                if let Some(i) = self.pane_at(position).filter(|_| held) {
+                    let pane = &self.panes[i];
+                    self.moving = Some(Moving {
+                        name: pane.name.clone(),
+                        from: position,
+                        at: pane.at,
+                    });
+                } else {
+                    self.drag = Some((position, self.pose, false));
+                }
             }
             Event::PointerMoved { node, position, .. } if node == LOOK => {
+                if self.moving.is_some() {
+                    return self.drag_pane(position);
+                }
                 return self.look(position);
             }
             Event::PointerReleased { node, position, .. } if node == LOOK => {
+                if self.moving.take().is_some() {
+                    return Ok(());
+                }
                 let click = self.drag.take().is_some_and(|(_, _, moved)| !moved);
-                if let Some(i) = self.pane_at(self.local(position)).filter(|_| click) {
+                if let Some(i) = self.pane_at(position).filter(|_| click) {
                     self.fly_in(i);
                 }
             }
-            Event::PointerScroll { node, dy, .. } if node == LOOK => self.walk(-dy * WHEEL, 0.0),
+            Event::PointerScroll {
+                node,
+                position,
+                dy,
+                modifiers,
+                ..
+            } if node == LOOK => {
+                let held = modifiers.contains(&self.settings.value.modifier);
+                match self.pane_at(position).filter(|_| held) {
+                    Some(i) => return self.resize_pane(i, (-dy * 0.005).exp()),
+                    None => self.walk(-dy * WHEEL, 0.0),
+                }
+            }
             _ => {}
+        }
+        Ok(())
+    }
+
+    /// A drag with the modifier moves a pane: sideways along its face,
+    /// and up the screen away from the camera, at the pace of the
+    /// pointer at the pane's depth.
+    fn drag_pane(&mut self, position: [f64; 2]) -> Result<(), ClientError> {
+        let Some(moving) = &self.moving else {
+            return Ok(());
+        };
+        let Ok(i) = self.pane_named(&moving.name) else {
+            return Ok(());
+        };
+        let k = space::depth(&self.pose, moving.at).max(self.lens.focal * 0.1) / self.lens.focal;
+        let (dx, dy) = (position[0] - moving.from[0], position[1] - moving.from[1]);
+        let [fx, fz] = self.pose.forward();
+        let (right, ahead) = (dx * k, -dy * k);
+        let at = moving.at;
+        let to = [
+            at[0] + fx * ahead + fz * right,
+            at[1] + fz * ahead - fx * right,
+        ];
+        self.move_pane(i, to)
+    }
+
+    /// The index of the pane with the label `name`.
+    fn pane_named(&self, name: &str) -> Result<usize, RpcError> {
+        (self.panes.iter().position(|p| p.name == name)).ok_or_else(|| {
+            RpcError::new(
+                RpcError::INVALID_PARAMS,
+                format!("no pane {name:?}; construct.list names them"),
+            )
+        })
+    }
+
+    /// Moves a pane to `to`, inside the leash (C4).
+    fn move_pane(&mut self, i: usize, to: [f64; 2]) -> Result<(), ClientError> {
+        let len = to[0].hypot(to[1]);
+        let r = self.radius;
+        self.panes[i].at = if len > r {
+            [to[0] * r / len, to[1] * r / len]
+        } else {
+            to
+        };
+        self.frame()
+    }
+
+    /// Scales a pane. A window of the flavor gets the new size, so that
+    /// its content stays at 1:1; other panes stretch.
+    fn resize_pane(&mut self, i: usize, scale: f64) -> Result<(), ClientError> {
+        let pane = &mut self.panes[i];
+        let size = pane
+            .size
+            .map(|s| (s * scale).round().clamp(PANE_MIN, PANE_MAX));
+        pane.size = size;
+        let node = pane.node();
+        let mut commands = vec![update(
+            &node,
+            PropsUpdate {
+                size: Some(size),
+                ..PropsUpdate::default()
+            },
+        )];
+        if let Some(surface) = pane.window().filter(|_| !self.overlay) {
+            commands.push(configure(surface, size));
+        }
+        self.rt.conn.apply(commands)?;
+        self.frame()
+    }
+
+    /// Removes a pane; its window gets a close request, so a program with
+    /// unsaved state can ask the user first (F13). The window of another
+    /// flavor's owner gets it through `node.requested`.
+    fn remove_pane(&mut self, i: usize) -> Result<(), ClientError> {
+        let Some(surface) = self.panes[i].window().map(String::from) else {
+            let node = self.panes.remove(i).node();
+            self.order.retain(|n| *n != node);
+            self.rt
+                .conn
+                .apply(vec![Command::Remove { id: node, to: None }])?;
+            return self.frame();
+        };
+        self.forget(&surface)?;
+        if let Some(err) = self.rt.conn.try_apply(vec![Command::Close { surface }])? {
+            eprintln!("chora-construct: close: {err}");
         }
         Ok(())
     }
@@ -381,14 +683,27 @@ impl Construct {
             }])?;
         }
         self.output = self.rt.outputs()?.into_iter().next();
-        self.build()?;
-        let mut methods = Vec::new();
+        let mut methods = exported_methods();
         methods.extend(settings::File::<Config>::methods());
         self.rt.announce(&EVENTS, methods)?;
+        if self.overlay {
+            return Ok(());
+        }
+        self.active = true;
+        self.build()?;
         for node in self.rt.conn.query("kind:surface")? {
             let ours = node.to.as_deref().is_none_or(|t| t == NAME);
             if node.owner.is_none() && ours {
-                self.adopt(&node.id)?;
+                let info = node.surface.unwrap_or_default();
+                let label = info.app_id.or(info.title).unwrap_or_default();
+                self.adopt(&node.id, &label, None)?;
+            }
+        }
+        let start = self.settings.value.start.clone();
+        if !start.is_empty() {
+            match file::dir().and_then(|d| file::load(&d, &start)) {
+                Ok(file) => self.load(&start, file)?,
+                Err(err) => eprintln!("chora-construct: start: {err}"),
             }
         }
         Ok(())
@@ -397,13 +712,18 @@ impl Construct {
     /// Handles events; during a glide, frames come every 16 ms.
     fn serve(&mut self) -> Result<(), ClientError> {
         loop {
+            let plugins = self.waiting.iter().any(|w| w.pane.kind == Kind::Plugin);
             let wait = if self.glide.is_some() {
                 FRAME
+            } else if plugins {
+                RETRY
             } else {
                 Duration::from_secs(3600)
             };
-            if let Some(event) = self.rt.conn.next_event_timeout(wait)? {
-                runtime::dispatch(self, event)?;
+            match self.rt.conn.next_event_timeout(wait)? {
+                Some(event) => runtime::dispatch(self, event)?,
+                None if plugins => self.retry_plugins()?,
+                None => {}
             }
             if self.glide.is_some() {
                 self.step_glide()?;
@@ -411,31 +731,39 @@ impl Construct {
         }
     }
 
-    /// The point of the scene in the logical coordinates of the output.
-    fn local(&self, p: [f64; 2]) -> [f64; 2] {
-        let [x, y] = self.output.as_ref().map_or([0, 0], |o| o.position);
-        [p[0] - f64::from(x), p[1] - f64::from(y)]
-    }
-
     /// The group of the space with the fog, the panes and the look rect,
-    /// at the size of the output; the windows stay.
+    /// on the screen root of the output, at its size; the windows stay.
+    /// As a flavor, it claims the output, so that new windows come to it
+    /// also beside another window manager (D55).
     fn build(&mut self) -> Result<(), ClientError> {
         let Some(output) = &self.output else {
             return Ok(());
         };
+        if !self.active {
+            return Ok(());
+        }
         let [w, h] = output.size.map(f64::from);
         let [x, y] = output.position.map(f64::from);
         self.lens = Lens::new(w, h);
-        let place = Some(Transform::translate(x, y, 0.0));
+        let root = overlay_id(&output.name);
         let mut commands = Vec::new();
-        if self.rt.conn.query(&format!("id:{NAME}"))?.is_empty() {
-            commands = space_nodes(&self.fog_shader);
+        match self.rt.conn.query(&format!("id:{NAME}"))?.first() {
+            None => commands = space_nodes(&self.fog_shader, &root),
+            Some(node) if node.parent.as_deref() != Some(root.as_str()) => {
+                commands.push(Command::Move {
+                    id: NAME.into(),
+                    parent: Some(root),
+                    index: None,
+                });
+            }
+            Some(_) => {}
         }
+        let claim = (!self.overlay).then_some([x, y, w, h]);
         commands.extend([
             update(
                 NAME,
                 PropsUpdate {
-                    transform: place,
+                    claim: Some(claim),
                     ..PropsUpdate::default()
                 },
             ),
@@ -463,70 +791,90 @@ impl Construct {
             ),
         ]);
         self.rt.conn.apply(commands)?;
-        // New windows take the size of the output, so that a fly-in
-        // fills it.
-        let configure: Vec<Command> = (self.panes.iter())
-            .map(|p| self.configure(&p.surface))
-            .collect();
-        self.rt.conn.apply(configure)?;
         self.frame()
     }
 
-    fn configure(&self, surface: &str) -> Command {
-        let [w, h] = self.output.as_ref().map_or([1280, 800], |o| o.size);
-        Command::Configure {
-            surface: surface.into(),
-            size: Some([w, h]),
-            states: vec![ToplevelState::Maximized],
+    /// A unique label from `base`: the app id or title of a window, or
+    /// the scene of a plugin pane, with `-2`, `-3` and on after it.
+    fn label(&self, base: &str) -> String {
+        let base: String = base.trim().chars().take(32).collect();
+        let base = if base.is_empty() { "pane".into() } else { base };
+        let taken = |n: &str| self.panes.iter().any(|p| p.name == n);
+        if !taken(&base) {
+            return base;
         }
+        (2..=self.panes.len() + 2)
+            .map(|k| format!("{base}-{k}"))
+            .find(|n| !taken(n))
+            .unwrap_or_default()
     }
 
-    /// A new window becomes a pane ahead of the camera, its window
-    /// hidden under the space; its pane shows it through a node texture.
-    fn adopt(&mut self, surface: &str) -> Result<(), ClientError> {
-        if self.panes.iter().any(|p| p.surface == surface) {
+    /// The place of a new pane of `width` (C7), or the place of its file.
+    fn place(&self, at: Option<[f64; 2]>, width: f64) -> [f64; 2] {
+        at.unwrap_or_else(|| {
+            let others: Vec<_> = self.panes.iter().map(|p| (p.at, p.size[0])).collect();
+            let distance = self.settings.value.pane_distance;
+            space::place(&self.pose, distance, width, &others)
+        })
+    }
+
+    /// The shader node of a new pane.
+    fn pane_node(&self, pane: &Pane) -> Command {
+        let fog = self.settings.value.theme.colors().1;
+        create(
+            &pane.node(),
+            NodeKind::Shader,
+            PANES,
+            PropsUpdate {
+                size: Some(pane.size),
+                shader: Some(self.pane_shader.clone()),
+                uniforms: Some(pane_uniforms(&pane.source, 0.0, fog)),
+                ..PropsUpdate::default()
+            },
+        )
+    }
+
+    /// A new window becomes a pane, ahead of the camera or where its file
+    /// puts it. A flavor hides the window under the space, and its pane
+    /// shows it through a node texture; an overlay only shows the window
+    /// of the other flavor.
+    fn adopt(
+        &mut self,
+        surface: &str,
+        label: &str,
+        file: Option<&PaneFile>,
+    ) -> Result<(), ClientError> {
+        if !self.active || self.panes.iter().any(|p| p.window() == Some(surface)) {
             return Ok(());
         }
-        let size = [self.lens.w, self.lens.h];
-        let others: Vec<_> = self.panes.iter().map(|p| (p.at, p.size[0])).collect();
-        let at = space::place(
-            &self.pose,
-            self.settings.value.pane_distance,
-            size[0],
-            &others,
-        );
+        let size = (file.and_then(|f| f.size)).unwrap_or([self.lens.w, self.lens.h]);
         let pane = Pane {
-            surface: surface.into(),
-            at,
+            name: self.label(label),
+            source: surface.into(),
+            content: Content::Window {
+                command: file.and_then(|f| f.command.clone()),
+            },
+            at: self.place(file.and_then(|f| f.at), size[0]),
             size,
         };
-        let fog = self.settings.value.theme.colors().1;
-        let uniforms = pane_uniforms(surface, 0.0, fog);
-        let commands = vec![
-            Command::Attach {
-                surface: surface.into(),
-                parent: WINDOWS.into(),
-            },
-            update(
-                surface,
-                PropsUpdate {
-                    opacity: Some(0.0),
-                    ..PropsUpdate::default()
+        let mut commands = Vec::new();
+        if !self.overlay {
+            commands = vec![
+                Command::Attach {
+                    surface: surface.into(),
+                    parent: WINDOWS.into(),
                 },
-            ),
-            self.configure(surface),
-            create(
-                &pane.node(),
-                NodeKind::Shader,
-                PANES,
-                PropsUpdate {
-                    size: Some(size),
-                    shader: Some(self.pane_shader.clone()),
-                    uniforms: Some(uniforms),
-                    ..PropsUpdate::default()
-                },
-            ),
-        ];
+                update(
+                    surface,
+                    PropsUpdate {
+                        opacity: Some(0.0),
+                        ..PropsUpdate::default()
+                    },
+                ),
+                configure(surface, size),
+            ];
+        }
+        commands.push(self.pane_node(&pane));
         // The surface may have closed in between; the frame then fixes
         // nothing up, and the destroy event removes the pane.
         if let Some(err) = self.rt.conn.try_apply(commands)? {
@@ -538,7 +886,7 @@ impl Construct {
     }
 
     fn resize(&mut self, surface: &str, size: [f64; 2]) -> Result<(), ClientError> {
-        let Some(pane) = self.panes.iter_mut().find(|p| p.surface == surface) else {
+        let Some(pane) = (self.panes.iter_mut()).find(|p| p.window() == Some(surface)) else {
             return Ok(());
         };
         if pane.size.iter().zip(size).all(|(a, b)| (a - b).abs() < 0.5) {
@@ -553,7 +901,7 @@ impl Construct {
                 ..PropsUpdate::default()
             },
         )];
-        if self.flown.as_ref().is_some_and(|f| f.surface == surface) {
+        if !self.overlay && self.flown.as_ref().is_some_and(|f| f.surface == surface) {
             commands.push(self.snap_place(size, surface));
         }
         self.rt.conn.apply(commands)?;
@@ -563,7 +911,7 @@ impl Construct {
     /// A window closed or left: its pane goes. A pane that the camera
     /// is in flies back out first.
     fn forget(&mut self, surface: &str) -> Result<(), ClientError> {
-        let Some(i) = self.panes.iter().position(|p| p.surface == surface) else {
+        let Some(i) = (self.panes.iter()).position(|p| p.window() == Some(surface)) else {
             return Ok(());
         };
         let pane = self.panes.remove(i);
@@ -641,13 +989,12 @@ impl Construct {
         let mut t = self.target();
         let [fx, fz] = t.forward();
         let step = [fx * ahead + fz * aside, fz * ahead - fx * aside];
-        [t.x, t.z] = space::leash([t.x, t.z], step, self.settings.value.radius);
+        [t.x, t.z] = space::leash([t.x, t.z], step, self.radius);
         self.glide_to(t, STEP_MS, None);
     }
 
     /// A drag looks around: sideways turns, up and down tilts.
-    fn look(&mut self, position: [f64; 2]) -> Result<(), ClientError> {
-        let p = self.local(position);
+    fn look(&mut self, p: [f64; 2]) -> Result<(), ClientError> {
         let Some((from, pose, moved)) = &mut self.drag else {
             return Ok(());
         };
@@ -687,12 +1034,17 @@ impl Construct {
             .map(|(i, _)| i)
     }
 
+    /// Flies in front of a pane. The window of a window pane then takes
+    /// over; a plugin pane stays a pane, at 1:1.
     fn fly_in(&mut self, i: usize) {
         let pane = &self.panes[i];
         let to = space::fly_in(&self.lens, [self.pose.x, self.pose.z], pane.at);
-        let surface = pane.surface.clone();
         let back = self.target();
-        self.glide_to(to, FLY_MS, Some(Flown { surface, back }));
+        let into = (pane.window()).map(|surface| Flown {
+            surface: surface.into(),
+            back,
+        });
+        self.glide_to(to, FLY_MS, into);
     }
 
     fn step_glide(&mut self) -> Result<(), ClientError> {
@@ -729,36 +1081,45 @@ impl Construct {
 
     /// The end of a fly-in: the window itself shows over the space,
     /// takes the pointer and the keyboard, and the fly-out key is grabbed.
+    /// An overlay leaves the window where its owner has it: the pane
+    /// shows it at 1:1, and the owner gets the request for the keyboard
+    /// (D31).
     fn snap(&mut self, flown: Flown) -> Result<(), ClientError> {
         let surface = flown.surface.clone();
-        let Some(pane) = self.panes.iter().find(|p| p.surface == surface) else {
+        let Some(pane) = self.panes.iter().find(|p| p.window() == Some(&surface)) else {
             return Ok(());
         };
-        let commands = vec![
-            self.snap_place(pane.size, &surface),
-            update(
-                &surface,
-                PropsUpdate {
-                    opacity: Some(1.0),
-                    ..PropsUpdate::default()
+        let commands = if self.overlay {
+            vec![Command::Focus {
+                surface: Some(surface),
+            }]
+        } else {
+            vec![
+                self.snap_place(pane.size, &surface),
+                update(
+                    &surface,
+                    PropsUpdate {
+                        opacity: Some(1.0),
+                        ..PropsUpdate::default()
+                    },
+                ),
+                Command::Move {
+                    id: surface.clone(),
+                    parent: None,
+                    index: None,
                 },
-            ),
-            Command::Move {
-                id: surface.clone(),
-                parent: None,
-                index: None,
-            },
-            update(
-                LOOK,
-                PropsUpdate {
-                    visible: Some(false),
-                    ..PropsUpdate::default()
+                update(
+                    LOOK,
+                    PropsUpdate {
+                        visible: Some(false),
+                        ..PropsUpdate::default()
+                    },
+                ),
+                Command::Focus {
+                    surface: Some(surface.clone()),
                 },
-            ),
-            Command::Focus {
-                surface: Some(surface.clone()),
-            },
-        ];
+            ]
+        };
         self.rt.conn.apply(commands)?;
         self.flown = Some(flown);
         self.grab_fly_out()
@@ -806,7 +1167,7 @@ impl Construct {
         let Some(flown) = self.flown.take() else {
             return Ok(());
         };
-        self.unsnap(Some(&flown.surface))?;
+        self.unsnap((!self.overlay).then_some(&flown.surface))?;
         self.glide_to(flown.back, FLY_MS, None);
         self.frame()
     }
@@ -814,7 +1175,7 @@ impl Construct {
     /// The sky and the fog for the pose.
     fn space_frame(&self) -> Vec<Command> {
         let (sky, fog) = self.settings.value.theme.colors();
-        let edge = (self.pose.x.hypot(self.pose.z) / self.settings.value.radius).min(1.0);
+        let edge = (self.pose.x.hypot(self.pose.z) / self.radius).min(1.0);
         let uniforms = BTreeMap::from([
             (
                 "view".into(),
@@ -851,11 +1212,11 @@ impl Construct {
     /// Sends the pose: the matrix and the haze of each pane, back to
     /// front, and the camera of the fog.
     fn frame(&mut self) -> Result<(), ClientError> {
-        if self.output.is_none() {
+        if self.output.is_none() || !self.active {
             return Ok(());
         }
         let fog = self.settings.value.theme.colors().1;
-        let radius = self.settings.value.radius;
+        let radius = self.radius;
         let mut commands = self.space_frame();
         let mut sorted: Vec<(&Pane, f64)> = (self.panes.iter())
             .map(|p| (p, space::depth(&self.pose, p.at)))
@@ -873,7 +1234,7 @@ impl Construct {
                 let far = (depth - self.lens.focal).max(0.0) / radius;
                 let haze = (1.0 - (-far * 1.5).exp()) * 0.9;
                 props.transform = Some(Transform::from_matrix(matrix));
-                props.uniforms = Some(pane_uniforms(&pane.surface, haze, fog));
+                props.uniforms = Some(pane_uniforms(&pane.source, haze, fog));
             }
             commands.push(update(&pane.node(), props));
         }
@@ -887,5 +1248,330 @@ impl Construct {
             self.order = order;
         }
         self.rt.conn.apply(commands)
+    }
+
+    /// Loads a construct (F18). An overlay takes the output now; a
+    /// flavor keeps the windows that it has as panes. The plugin panes
+    /// and the panes of the construct before go.
+    fn load(&mut self, name: &str, file: file::File) -> Result<(), ClientError> {
+        if self.flown.is_some() {
+            self.fly_out()?;
+        }
+        self.glide = None;
+        let gone: Vec<Pane> = if self.overlay {
+            std::mem::take(&mut self.panes)
+        } else {
+            let (plugins, windows) = std::mem::take(&mut self.panes)
+                .into_iter()
+                .partition(|p| p.window().is_none());
+            self.panes = windows;
+            plugins
+        };
+        let commands: Vec<Command> = (gone.iter())
+            .map(|p| Command::Remove {
+                id: p.node(),
+                to: None,
+            })
+            .collect();
+        self.rt.conn.apply(commands)?;
+        self.active = true;
+        self.order.clear();
+        self.waiting.clear();
+        self.build()?;
+        self.radius = file.radius.unwrap_or(self.settings.value.radius);
+        self.pose = file.camera;
+        self.current = Some(name.into());
+        for pane in file.panes {
+            match pane.kind {
+                Kind::Program => {
+                    let token = launch(pane.command.as_deref().unwrap_or_default());
+                    self.waiting.push(Waiting { token, pane });
+                }
+                Kind::Plugin => {
+                    if let Some(pane) = self.show_plugin(pane)? {
+                        self.waiting.push(Waiting { token: None, pane });
+                    }
+                }
+            }
+        }
+        self.frame()
+    }
+
+    /// Gives the output back (F20): the space goes, and the keyboard goes
+    /// back to the window that had it. The windows stay with their owner.
+    fn leave(&mut self) -> Result<(), ClientError> {
+        if !self.active {
+            return Ok(());
+        }
+        self.rt.conn.apply(vec![
+            Command::FocusNode { node: None },
+            Command::Remove {
+                id: NAME.into(),
+                to: None,
+            },
+        ])?;
+        self.rt.ungrab_all()?;
+        self.active = false;
+        self.current = None;
+        self.panes.clear();
+        self.waiting.clear();
+        self.order.clear();
+        self.flown = None;
+        self.glide = None;
+        self.moving = None;
+        self.drag = None;
+        Ok(())
+    }
+
+    /// Shows a plugin pane through the node that its plugin tags
+    /// `meta:pane=SCENE`; answers the pane back when the node is missing.
+    fn show_plugin(&mut self, file: PaneFile) -> Result<Option<PaneFile>, ClientError> {
+        let (Some(plugin), Some(scene)) = (file.plugin.clone(), file.scene.clone()) else {
+            return Ok(None);
+        };
+        let nodes = (self.rt.conn).query(&format!("owner:{plugin} meta:pane={scene}"))?;
+        let Some(node) = nodes.first() else {
+            return Ok(Some(file));
+        };
+        let size = (file.size)
+            .or(node.props.size)
+            .unwrap_or([self.lens.w, self.lens.h]);
+        let pane = Pane {
+            name: self.label(&scene),
+            source: node.id.clone(),
+            content: Content::Plugin { plugin, scene },
+            at: self.place(file.at, size[0]),
+            size,
+        };
+        self.rt.conn.apply(vec![self.pane_node(&pane)])?;
+        self.panes.push(pane);
+        Ok(None)
+    }
+
+    /// Looks again for the nodes of the plugin panes that wait.
+    fn retry_plugins(&mut self) -> Result<(), ClientError> {
+        let (plugins, programs): (Vec<Waiting>, Vec<Waiting>) = std::mem::take(&mut self.waiting)
+            .into_iter()
+            .partition(|w| w.pane.kind == Kind::Plugin);
+        self.waiting = programs;
+        let mut shown = false;
+        for Waiting { token, pane } in plugins {
+            match self.show_plugin(pane)? {
+                Some(pane) => self.waiting.push(Waiting { token, pane }),
+                None => shown = true,
+            }
+        }
+        if shown { self.frame() } else { Ok(()) }
+    }
+
+    /// The construct as a file: the camera, the radius, the panes and the
+    /// panes that wait.
+    fn snapshot(&self) -> file::File {
+        let camera = self
+            .flown
+            .as_ref()
+            .map_or_else(|| self.target(), |f| f.back);
+        let panes = (self.panes.iter().filter_map(Pane::file))
+            .chain(self.waiting.iter().map(|w| w.pane.clone()))
+            .collect();
+        file::File {
+            camera,
+            radius: Some(self.radius),
+            panes,
+        }
+    }
+
+    /// The answer of `construct.list`: the files, the loaded construct
+    /// and its panes with their labels.
+    fn list(&self) -> Value {
+        let panes: Vec<Value> = (self.panes.iter())
+            .map(|p| {
+                let mut v = json!({"name": p.name, "at": p.at, "size": p.size});
+                match &p.content {
+                    Content::Window { command } => {
+                        v["kind"] = json!("program");
+                        v["command"] = json!(command);
+                    }
+                    Content::Plugin { plugin, scene } => {
+                        v["kind"] = json!("plugin");
+                        v["plugin"] = json!(plugin);
+                        v["scene"] = json!(scene);
+                    }
+                }
+                v
+            })
+            .collect();
+        let waiting: Vec<&PaneFile> = self.waiting.iter().map(|w| &w.pane).collect();
+        json!({
+            "constructs": file::dir().map(|d| file::list(&d)).unwrap_or_default(),
+            "current": self.current,
+            "overlay": self.overlay,
+            "shown": self.active,
+            "panes": panes,
+            "waiting": waiting,
+        })
+    }
+}
+
+/// Parameters with a name.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Named {
+    name: String,
+}
+
+/// Parameters of `pane.move`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MovePane {
+    name: String,
+    #[serde(default)]
+    right: f64,
+    #[serde(default)]
+    ahead: f64,
+}
+
+/// Parameters of `pane.resize`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ResizePane {
+    name: String,
+    scale: f64,
+}
+
+/// The methods; those that start programs or write files are privileged
+/// (D62).
+fn exported_methods() -> Vec<ExportMethod> {
+    let name = || json!({"name": {"type": "string"}});
+    vec![
+        runtime::privileged(runtime::method(
+            "construct.load",
+            "Loads the construct NAME from ~/.config/chora/constructs/NAME.yaml and starts \
+             its programs; beside another flavor, the construct takes the output.",
+            name(),
+            &["name"],
+        )),
+        runtime::privileged(runtime::method(
+            "construct.save",
+            "Saves the space as the construct NAME: the camera, the radius and the panes.",
+            name(),
+            &["name"],
+        )),
+        runtime::method(
+            "construct.list",
+            "Answers the constructs, the loaded one, and its panes with their names.",
+            json!({}),
+            &[],
+        ),
+        runtime::method(
+            "construct.leave",
+            "Leaves a construct that was loaded beside another flavor: the output and \
+             the keyboard go back.",
+            json!({}),
+            &[],
+        ),
+        runtime::method(
+            "pane.move",
+            "Moves a pane by its name: right and ahead, in logical pixels, as the camera \
+             looks; negative values move it left or nearer.",
+            json!({
+                "name": {"type": "string"},
+                "right": {"type": "number"},
+                "ahead": {"type": "number"},
+            }),
+            &["name"],
+        ),
+        runtime::method(
+            "pane.resize",
+            "Resizes a pane by its name: scale 1.25 makes it a quarter larger.",
+            json!({"name": {"type": "string"}, "scale": {"type": "number"}}),
+            &["name", "scale"],
+        ),
+        runtime::method(
+            "pane.remove",
+            "Removes a pane by its name; its window gets a close request.",
+            name(),
+            &["name"],
+        ),
+        runtime::method(
+            "pane.fly",
+            "Flies into a pane by its name, until it covers the output at 1:1.",
+            name(),
+            &["name"],
+        ),
+    ]
+}
+
+fn configure(surface: &str, size: [f64; 2]) -> Command {
+    #[allow(clippy::cast_possible_truncation, reason = "clamped to PANE_MAX")]
+    let size = size.map(|s| s.round().clamp(1.0, PANE_MAX) as i32);
+    Command::Configure {
+        surface: surface.into(),
+        size: Some(size),
+        states: vec![ToplevelState::Maximized],
+    }
+}
+
+/// Starts a shell command with `choractl run`, as mc does, and answers
+/// the activation token that finds its window.
+fn launch(command: &str) -> Option<String> {
+    let run = std::process::Command::new("choractl")
+        .args(["run", "--", "sh", "-c", command])
+        .stdin(std::process::Stdio::null())
+        .output();
+    let out = match run {
+        Ok(out) if out.status.success() => out.stdout,
+        Ok(out) => {
+            let err = String::from_utf8_lossy(&out.stderr);
+            eprintln!("chora-construct: {command}: {}", err.trim());
+            return None;
+        }
+        Err(err) => {
+            eprintln!("chora-construct: choractl run: {err}");
+            return None;
+        }
+    };
+    let answer: Value = serde_json::from_slice(&out).unwrap_or_default();
+    answer["token"].as_str().map(String::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A pane keeps its pose in the file, and a construct file gives it
+    /// back unchanged; a window that the construct did not start has no
+    /// command and stays out.
+    #[test]
+    fn a_pane_saves_its_pose() {
+        let pane = |content| Pane {
+            name: "foot".into(),
+            source: "s1".into(),
+            content,
+            at: [-750.125, 2300.5],
+            size: [1200.0, 768.0],
+        };
+        let started = pane(Content::Window {
+            command: Some("foot".into()),
+        });
+        let saved = started.file().unwrap();
+        assert_eq!(saved.kind, Kind::Program);
+        assert_eq!(
+            (saved.at, saved.size),
+            (Some(started.at), Some(started.size))
+        );
+        let text = serde_saphyr::to_string(&file::File {
+            panes: vec![saved.clone()],
+            ..file::File::default()
+        })
+        .unwrap();
+        assert_eq!(file::parse(&text).unwrap().panes, [saved]);
+        assert!(pane(Content::Window { command: None }).file().is_none());
+        let plugin = pane(Content::Plugin {
+            plugin: "mc".into(),
+            scene: "mission".into(),
+        });
+        assert_eq!(plugin.node(), "construct-plugin-foot");
+        assert_eq!(plugin.file().unwrap().scene.as_deref(), Some("mission"));
     }
 }

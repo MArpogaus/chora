@@ -3,6 +3,9 @@
 # change it there, or change it with the method settings.set, which
 # rewrites the file. Edits by hand apply on the method settings.reload.
 
+# The construct that the flavor starts into, a file NAME.yaml in
+# ~/.config/chora/constructs/; empty for an empty space.
+start: ""
 # The space: light (white with a soft horizon) or dark (a black void
 # with dark fog).
 theme: light
@@ -36,3 +39,7 @@ keys:
 # so this key is a grab, and a grab needs Ctrl, Alt or Super. Escape
 # alone works after `choractl grant construct input.grab-any`.
 fly_out: Alt+Escape
+# The modifier that moves a pane: a drag with it held moves the pane
+# under the pointer, and the wheel with it held resizes the pane. Ctrl,
+# Alt, Shift or Super.
+modifier: Ctrl
