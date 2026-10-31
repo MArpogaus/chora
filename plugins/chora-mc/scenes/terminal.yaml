@@ -1,2 +1,3 @@
-# A terminal that fills the screen. The scene starts it when it shows.
-app: foot
+# A terminal that fills the screen. The scene starts it when it shows;
+# shell is the content of mc.yaml: foot in the colors of the theme.
+app: shell

@@ -1638,8 +1638,14 @@ impl Mc {
     }
 
     /// Starts the app of a scene, whose window then fills it.
+    /// A command that names a content of kind app runs that content.
     fn launch_scene(&mut self, name: &str, command: &str) -> Result<(), ClientError> {
-        let Some((token, pid)) = launch(command) else {
+        let config = &self.settings.value;
+        let command = match config.contents.get(command) {
+            Some(app) if app.kind == Kind::App => region::command(&app.command, config.colors()),
+            _ => command.into(),
+        };
+        let Some((token, pid)) = launch(&command) else {
             return Ok(());
         };
         self.starting.insert(token, Target::Scene(name.into()));
