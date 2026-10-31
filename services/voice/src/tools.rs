@@ -377,8 +377,20 @@ pub mod tests {
     use super::*;
     use crate::config::Config;
 
+    /// The scene of the fake: two groups of `voice-mcp`, one with a node
+    /// of `mc` under it, and a region of `mc`.
+    pub const SCENE: &str = r#"[
+        {"id": "root", "owner": null, "parent": null},
+        {"id": "voice-a", "owner": "voice-mcp", "parent": "root"},
+        {"id": "voice-b", "owner": "voice-mcp", "parent": "voice-a"},
+        {"id": "voice-g", "owner": "voice-mcp", "parent": "root"},
+        {"id": "mc-x", "owner": "mc", "parent": "voice-g"},
+        {"id": "mc-r0-drawer", "owner": "mc", "parent": "root"}
+    ]"#;
+
     /// A fake `choractl mcp`: `echo` answers its arguments, `sleep`
     /// never answers, `picture` answers a PNG, `quit` ends the session,
+    /// `query_scene` answers `SCENE`,
     /// `tiling.set_layout` has a dot.
     #[derive(Clone)]
     pub struct Fake {
@@ -404,6 +416,7 @@ pub mod tests {
                 "picture",
                 "quit",
                 "tiling.set_layout",
+                "query_scene",
                 "capture",
                 "voice.state",
                 "voice.settings.set",
@@ -428,6 +441,7 @@ pub mod tests {
                     self.quit.notify_one();
                     std::future::pending().await
                 }
+                "query_scene" => vec![ContentBlock::text(SCENE)],
                 "picture" => vec![
                     ContentBlock::image("UE5H", "image/png"),
                     ContentBlock::text("a screen"),
@@ -544,7 +558,14 @@ pub mod tests {
             .collect();
         assert_eq!(
             names,
-            ["echo", "sleep", "picture", "quit", "tiling__set_layout"]
+            [
+                "echo",
+                "sleep",
+                "picture",
+                "quit",
+                "tiling__set_layout",
+                "query_scene"
+            ]
         );
         assert_eq!(
             tools.mcp_name("tiling__set_layout"),
@@ -568,11 +589,11 @@ pub mod tests {
         );
         tools.coder = Some(coder.clone());
         tools.refresh().await;
-        assert_eq!(tools.specs.len(), 5, "no harness, no coding tools");
+        assert_eq!(tools.specs.len(), 6, "no harness, no coding tools");
         coder.set_cmd(vec!["true".into()]);
         tools.refresh().await;
         tools.refresh().await;
-        let names: Vec<_> = tools.specs[5..]
+        let names: Vec<_> = tools.specs[6..]
             .iter()
             .map(|s| s["function"]["name"].as_str().unwrap())
             .collect();

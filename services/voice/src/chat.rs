@@ -678,7 +678,15 @@ impl Chat {
             self.config.settings_question(patch)
         } else if let Some(rule) = tools::rule(&self.config.confirm, &name, args) {
             let program = tools::program(args).unwrap_or_default();
-            rule.prompt.replace("{program}", program)
+            let (prompt, kinds) = (
+                rule.prompt.replace("{program}", program),
+                rule.commands.clone(),
+            );
+            if name == "apply_commands" && self.removes_own(&kinds, args).await {
+                crate::log::info("confirm apply_commands: own nodes, no question");
+                return Ok(());
+            }
+            prompt
         } else {
             return Ok(());
         };
@@ -711,6 +719,54 @@ impl Chat {
             result.as_ref().map_or_else(String::as_str, |()| "yes")
         ));
         result
+    }
+
+    /// Whether each command of `kinds` (each command when empty) in the
+    /// `apply_commands` of `args` removes a node of the agent's own client
+    /// with only its own nodes under it, by the scene of `query_scene`.
+    /// Any doubt answers false: the question stays.
+    async fn removes_own(&mut self, kinds: &[String], args: &Value) -> bool {
+        let mut targets = Vec::new();
+        for command in args["commands"].as_array().into_iter().flatten() {
+            for (kind, body) in command.as_object().into_iter().flatten() {
+                if !kinds.is_empty() && !kinds.contains(kind) {
+                    continue;
+                }
+                match (kind.as_str(), body["id"].as_str()) {
+                    ("remove", Some(id)) => targets.push(id.to_owned()),
+                    _ => return false,
+                }
+            }
+        }
+        if targets.is_empty() {
+            return false;
+        }
+        let scene = self
+            .tools
+            .call("query_scene", &json!({"selector": ""}))
+            .await;
+        let nodes: Vec<Value> = scene
+            .as_str()
+            .and_then(|s| serde_json::from_str(s).ok())
+            .unwrap_or_default();
+        let node = |id: &str| nodes.iter().find(|n| n["id"] == id);
+        let own = |n: &Value| n["owner"] == self.name.as_str();
+        // ponytail: a walk up from each node, O(nodes × depth); fine for
+        // the scenes of a desktop.
+        let under = |n: &Value, target: &str| {
+            let mut at = n["parent"].as_str();
+            for _ in 0..nodes.len() {
+                match at {
+                    Some(id) if id == target => return true,
+                    Some(id) => at = node(id).and_then(|p| p["parent"].as_str()),
+                    None => return false,
+                }
+            }
+            false
+        };
+        targets
+            .iter()
+            .all(|t| node(t).is_some_and(own) && nodes.iter().all(|n| own(n) || !under(n, t)))
     }
 
     /// Drops the oldest whole turns until the estimate fits `budget`;
@@ -1122,6 +1178,28 @@ mod tests {
         assert_eq!(calls.load(Ordering::SeqCst), 1);
     }
 
+    /// A remove of the agent's own nodes needs no question; one of a
+    /// node of another client, or over one, does.
+    #[tokio::test]
+    async fn the_agent_removes_its_own_nodes_without_a_question() {
+        let (mut chat, _) = chat(vec![], Config::default()).await;
+        let kinds = ["remove".to_owned(), "close".to_owned()];
+        let remove = |id: &str| json!({"remove": {"id": id}});
+        let create = json!({"create": {"id": "voice-c"}});
+        for (commands, own) in [
+            (json!([remove("voice-a")]), true),
+            (json!([create, remove("voice-a")]), true),
+            (json!([remove("voice-g")]), false),
+            (json!([remove("mc-r0-drawer")]), false),
+            (json!([remove("gone")]), false),
+            (json!([{"close": {"surface": "voice-a"}}]), false),
+            (json!([create]), false),
+        ] {
+            let args = json!({ "commands": commands });
+            assert_eq!(chat.removes_own(&kinds, &args).await, own, "{args}");
+        }
+    }
+
     /// An answer that announces a tool but calls none gets one more
     /// round (log 2026-10-31: "let me use `put_asset` instead", then the
     /// turn ended); a plain "let me know" does not.
@@ -1285,7 +1363,7 @@ mod tests {
             Reply::Text("Drei."),
         ];
         let config = Config {
-            context_tokens: 430,
+            context_tokens: 460,
             reply_reserve_tokens: 0,
             ..Config::default()
         };
