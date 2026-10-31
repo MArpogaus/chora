@@ -743,8 +743,14 @@ impl Core {
         self.earcon(Earcon::Wake).into_iter().collect()
     }
 
-    /// The reply asks for a confirmation.
-    fn asked(&mut self, prompt: String, answer: oneshot::Sender<Option<bool>>) {
+    /// The reply asks for a confirmation; the screen shows the full
+    /// command or value (`detail`) while it waits.
+    fn asked(
+        &mut self,
+        prompt: String,
+        detail: String,
+        answer: oneshot::Sender<Option<bool>>,
+    ) -> Vec<Effect> {
         self.confirm = Some(answer);
         self.unclear = 0;
         // The wait starts when the question is said; until then, or
@@ -761,6 +767,11 @@ impl Core {
         // text never does (review 0.9.0-rc.3). Without its sound, the
         // question shows now.
         self.confirm_from = self.muted.speaker.then(Instant::now);
+        vec![Effect::Say {
+            text: detail,
+            at: Instant::now(),
+            len: wait,
+        }]
     }
 
     /// Whether speech that started at `onset` answers the confirmation
@@ -780,7 +791,11 @@ impl Core {
         match event {
             Reply::Chat(chat::Event::Thinking) => self.doing = State::Thinking,
             Reply::Chat(chat::Event::Tool(_)) => self.doing = State::Tool,
-            Reply::Chat(chat::Event::Confirm { prompt, answer }) => self.asked(prompt, answer),
+            Reply::Chat(chat::Event::Confirm {
+                prompt,
+                detail,
+                answer,
+            }) => return self.asked(prompt, detail, answer),
             Reply::Failed if self.tts_failed != Some(reply) => {
                 self.tts_failed = Some(reply);
                 return self.earcon(Earcon::Error).into_iter().collect();
@@ -1454,6 +1469,7 @@ mod tests {
             1,
             chat::Event::Confirm {
                 prompt: "Wirklich?".into(),
+                detail: String::new(),
                 answer,
             },
         ));
@@ -1487,6 +1503,7 @@ mod tests {
                 1,
                 chat::Event::Confirm {
                     prompt: "Wirklich?".into(),
+                    detail: String::new(),
                     answer,
                 },
             ));
@@ -1667,6 +1684,7 @@ mod tests {
         let (answer, rx) = oneshot::channel();
         let event = chat::Event::Confirm {
             prompt: prompt.into(),
+            detail: String::new(),
             answer,
         };
         core.handle(reply(1, event));
@@ -1721,6 +1739,7 @@ mod tests {
         let prompt = "Soll ich das entfernen?";
         let confirm = chat::Event::Confirm {
             prompt: prompt.into(),
+            detail: String::new(),
             answer,
         };
         core.handle(reply(1, confirm));
@@ -1775,6 +1794,7 @@ mod tests {
         let (answer, mut rx) = oneshot::channel();
         let event = chat::Event::Confirm {
             prompt: "Soll ich das Fenster schließen?".into(),
+            detail: String::new(),
             answer,
         };
         core.handle(reply(1, event));

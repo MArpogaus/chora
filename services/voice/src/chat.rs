@@ -108,6 +108,29 @@ fn announces(answer: &str) -> bool {
     })
 }
 
+/// The full command or value of a call that asks, for the screen: the
+/// settings keys and their values, the program and its arguments, the
+/// method and its parameters, or the tool and its arguments.
+fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
+    let text = |v: &Value| v.as_str().map_or_else(|| v.to_string(), str::to_owned);
+    if let Some(patch) = patch {
+        let keys = patch.as_object().into_iter().flatten();
+        return (keys.map(|(k, v)| format!("{k}: {}", text(v))))
+            .collect::<Vec<_>>()
+            .join("\n");
+    }
+    match (tool, args["argv"].as_array()) {
+        ("run_program", Some(argv)) => argv.iter().map(text).collect::<Vec<_>>().join(" "),
+        ("call_method", _) => format!(
+            "{}.{} {}",
+            text(&args["client"]),
+            text(&args["method"]),
+            args["params"]
+        ),
+        _ => format!("{tool} {args}"),
+    }
+}
+
 /// Whether an answer stops mid-sentence: its words do not end with
 /// `.!?…`, also before a closing quote. Gufo 0.27 ended rounds with
 /// `stop` after 3-12 tokens ("I’m setting the", dump 2026-10-31); the
@@ -209,6 +232,8 @@ pub enum Event {
     /// (`None`); the prompt is spoken too. A dropped sender is no answer.
     Confirm {
         prompt: String,
+        /// The full command or value, uncut, for the screen.
+        detail: String,
         answer: oneshot::Sender<Option<bool>>,
     },
     /// A text of the user from the inbox went into the turn.
@@ -812,7 +837,9 @@ impl Chat {
         let Some(name) = self.tools.mcp_name(function).map(str::to_owned) else {
             return Ok(());
         };
-        let prompt = if let Some(patch) = self.tools.own_settings_set(&name, args) {
+        let own = self.tools.own_settings_set(&name, args);
+        let detail = detail(&name, own, args);
+        let prompt = if let Some(patch) = own {
             self.config.settings_question(patch)
         } else if let Some(rule) = tools::rule(&self.config.confirm, &name, args) {
             let (prompt, kinds) = (rule.question(&name, args), rule.commands.clone());
@@ -833,7 +860,11 @@ impl Chat {
             return Err(SAID_NEW.into());
         }
         let (answer, rx) = oneshot::channel();
-        out(Event::Confirm { prompt, answer });
+        out(Event::Confirm {
+            prompt,
+            detail,
+            answer,
+        });
         let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
         // The core times the answer from the end of the spoken question
         // and drops it then; this is only a backstop.
@@ -1121,7 +1152,7 @@ mod tests {
                     Event::Tool(name) => format!("tool {name}"),
                     Event::Sentence(s) => format!("say {s}"),
                     Event::Heard(s) => format!("heard {s}"),
-                    Event::Confirm { prompt, answer } => {
+                    Event::Confirm { prompt, answer, .. } => {
                         let _ = answer.send(Some(yes));
                         format!("confirm {prompt}")
                     }
@@ -1563,7 +1594,7 @@ mod tests {
                 Event::Tool(name) => format!("tool {name}"),
                 Event::Sentence(s) => format!("say {s}"),
                 Event::Heard(s) => format!("heard {s}"),
-                Event::Confirm { prompt, answer } => {
+                Event::Confirm { prompt, answer, .. } => {
                     let _ = answer.send(Some(true));
                     format!("confirm {prompt}")
                 }
@@ -1685,10 +1716,46 @@ mod tests {
             asked,
             [
                 "confirm Shall I set barge in min rms to 15?",
-                "confirm Security setting! Shall I set llm url to http://x/v1?"
+                "confirm Security setting! Shall I set llm url? The full value is on the screen."
             ]
         );
         assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    /// Review 0.9.0-rc.3: a security value is never cut; the question
+    /// names the key, and the screen shows the full value.
+    #[test]
+    fn a_security_value_is_never_cut() {
+        let config = Config::default();
+        let long = "x".repeat(200);
+        for key in [
+            "agent_projects",
+            "yes_words",
+            "no_words",
+            "phrases",
+            "record_dir",
+        ] {
+            let patch = json!({ key: long });
+            let question = config.settings_question(&patch);
+            assert!(question.starts_with("Security setting!"), "{question}");
+            assert!(
+                !question.contains('x') && !question.contains('…'),
+                "{question}"
+            );
+            assert_eq!(
+                detail("voice.settings.set", Some(&patch), &json!({})),
+                format!("{key}: {long}")
+            );
+        }
+        let short = config.settings_question(&json!({"barge_in_min_rms": long}));
+        assert!(short.contains('…'), "a plain value is cut: {short}");
+        let argv = json!({"argv": ["foot", "-e", "sh"]});
+        assert_eq!(detail("run_program", None, &argv), "foot -e sh");
+        let call = json!({"client": "mc", "method": "app.open", "params": {"app": "foot"}});
+        assert_eq!(
+            detail("call_method", None, &call),
+            r#"mc.app.open {"app":"foot"}"#
+        );
     }
 
     #[tokio::test]

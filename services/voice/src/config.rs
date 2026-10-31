@@ -71,7 +71,8 @@ impl Default for Phrases {
             agent_asks: "{name} wants to {what}. Allow?".into(),
             agent_ended: "{name} has ended.".into(),
             settings_set: "Shall I set {key} to {value}?".into(),
-            settings_security: "Security setting! Shall I set {key} to {value}?".into(),
+            settings_security:
+                "Security setting! Shall I set {key}? The full value is on the screen.".into(),
             heard: "Heard: {text}".into(),
             ack: "One moment.".into(),
             ready: "Ready.".into(),
@@ -429,14 +430,23 @@ impl Config {
 
     /// The spoken question before a `settings.set` of the agent itself
     /// with `patch`: its keys and values, as a security setting when one
-    /// key is.
+    /// key is. A security value is never cut: the default question says
+    /// only the key, and the full value is on the screen.
     pub fn settings_question(&self, patch: &serde_json::Value) -> String {
         let empty = serde_json::Map::new();
         let patch = patch.as_object().unwrap_or(&empty);
         // Underscores would go: the TTS hears the words.
         let keys: Vec<String> = patch.keys().map(|k| k.replace('_', " ")).collect();
-        let values: Vec<String> = patch.values().map(spoken).collect();
-        let template = if patch.keys().any(|k| security_key(k)) {
+        let security = patch.keys().any(|k| security_key(k));
+        let value = |v: &serde_json::Value| {
+            if security {
+                v.as_str().map_or_else(|| v.to_string(), str::to_owned)
+            } else {
+                spoken(v)
+            }
+        };
+        let values: Vec<String> = patch.values().map(value).collect();
+        let template = if security {
             &self.phrases.settings_security
         } else {
             &self.phrases.settings_set
@@ -494,8 +504,13 @@ fn spoken(v: &serde_json::Value) -> String {
 /// Whether a settings key decides what the agent may do or run, or
 /// where its data goes.
 fn security_key(key: &str) -> bool {
-    const KEYS: [&str; 12] = [
+    const KEYS: [&str; 17] = [
         "confirm",
+        "agent_projects",
+        "yes_words",
+        "no_words",
+        "phrases",
+        "record_dir",
         "sandbox_cmd",
         "unsandboxed",
         "agent_cmd",
@@ -546,8 +561,8 @@ const GERMAN: [(&str, &str); 22] = [
         "Soll ich {key} auf {value} setzen?",
     ),
     (
-        "Security setting! Shall I set {key} to {value}?",
-        "Sicherheitseinstellung! Soll ich {key} auf {value} setzen?",
+        "Security setting! Shall I set {key}? The full value is on the screen.",
+        "Sicherheitseinstellung! Soll ich {key} setzen? Der volle Wert steht auf dem Bildschirm.",
     ),
     ("Shall I remove that?", "Soll ich das entfernen?"),
     (

@@ -121,7 +121,7 @@ pub fn ask(config: &Config, name: &str, text: &str, speak: bool, yes: bool) -> R
         let at = || start.elapsed().as_millis();
         let on = |reply| match reply {
             Reply::Chat(Event::Tool(name)) => println!("{:>6}ms tool {name}", at()),
-            Reply::Chat(Event::Confirm { prompt, answer }) => {
+            Reply::Chat(Event::Confirm { prompt, answer, .. }) => {
                 println!("{:>6}ms confirm {prompt:?}: {}", at(), if yes { "yes" } else { "no" });
                 let _ = answer.send(Some(yes));
             }

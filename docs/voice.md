@@ -279,6 +279,9 @@ reason as the result:
 "The user declined the spoken confirmation", "The user did not answer
 the spoken confirmation in time (15 s)" or "The answer to the spoken
 confirmation was not understood", each with "; nothing happened".
+When the question is asked, a `say` event shows the full command or
+value: the settings keys and values, the program and its arguments, or
+the method and its parameters. The text is never cut.
 
 The rule of `apply_commands` with `remove` asks only when a target is
 not a node of the agent's own client (`NAME-mcp`), or has a node of
@@ -294,10 +297,15 @@ LLM narrate; the agent hands the patch on and the client checks it.
 Each `settings.set` asks with its keys and values
 (`phrases.settings_set`, "Shall I set barge in min rms to 15?"). A
 security key asks with `phrases.settings_security` ("Security setting!
-..."): `confirm`, `sandbox_cmd`, `unsandboxed`, `agent_cmd`,
+Shall I set llm url? The full value is on the screen."). The security
+keys are `confirm`, `agent_projects`, `yes_words`, `no_words`,
+`phrases`, `record_dir`, `sandbox_cmd`, `unsandboxed`, `agent_cmd`,
 `coder_cmd`, `chora_mcp`, `capture_cmd`, `playback_cmd`,
 `skipped_tools`, `system_prompt`, `prompt_file`, `context_docs`, each
-`*_url`, `*_headers` and key with `api_key`. The client `NAME-mcp`
+`*_url`, `*_headers` and each key with `api_key`. The agent never cuts
+a security value. The question says only the key. The screen shows the
+full value through the `say` event. Only other values are cut to 60
+characters for speech. The client `NAME-mcp`
 needs `methods.privileged` for `settings.set` and `settings.reload`.
 Its own `settings.reload` asks with the rule of `*.settings.reload`.
 
