@@ -4,6 +4,12 @@ use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
+/// The binding of the `input.button` and `input.moved` events of an
+/// interactive move (`xdg_toplevel.move`): a client asked to move its
+/// window, for example from its title bar, and the window manager of the
+/// window gets the drag.
+pub const MOVE: &str = "move";
+
 /// Modifier keys of a binding.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]

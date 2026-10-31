@@ -1433,3 +1433,30 @@ fn the_meta_data_of_a_node_has_limits() {
     };
     assert!(matches!(error(&mut scene, create), SceneError::Invalid(_)));
 }
+
+#[test]
+fn the_smallest_claim_under_a_point_wins() {
+    let mut scene = Scene::default();
+    for (owner, claim) in [
+        ("xp", [0.0, 0.0, 1280.0, 800.0]),
+        ("tiling", [1280.0, 0.0, 1280.0, 800.0]),
+        ("mc", [1280.0, 0.0, 640.0, 400.0]),
+    ] {
+        let create = Command::Create {
+            id: owner.into(),
+            kind: NodeKind::Group,
+            parent: ROOT.into(),
+            props: PropsUpdate {
+                claim: Some(Some(claim)),
+                ..PropsUpdate::default()
+            },
+        };
+        scene.apply(owner, &[create]).unwrap();
+    }
+    let at = |point, me: &str| crate::claimant_at(scene.nodes(), point, |o| o != me);
+    assert_eq!(at([1300.0, 10.0], "xp"), Some("mc"));
+    assert_eq!(at([1300.0, 500.0], "xp"), Some("tiling"));
+    assert_eq!(at([10.0, 10.0], "xp"), None);
+    assert_eq!(at([10.0, 10.0], "tiling"), Some("xp"));
+    assert_eq!(at([3000.0, 10.0], "xp"), None);
+}

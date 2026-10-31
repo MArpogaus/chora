@@ -18,7 +18,7 @@ use std::{
 };
 
 use chora_scene::{
-    Binding, Event, Modifiers, Node, NodeKind, Placed, Scene, Selector, Transform,
+    Binding, Event, MOVE, Modifiers, Node, NodeKind, Placed, Scene, Selector, Transform,
     ipc::{
         Apply, Capability, Edges, Emit, Grab, Hello, Message, Query, Request, RpcError, Subscribe,
     },
@@ -113,29 +113,9 @@ const BUTTONS: [(&str, u32); 7] = [
     ("BTN_BACK", 0x116),
 ];
 
-/// The owner of the smallest claim that contains `[px, py]`, among the
-/// owners that `accept` takes: the rule of `Scene::manager_of_new` for the
-/// pointer (D55).
-fn claimant_at(scene: &Scene, [px, py]: [f64; 2], accept: impl Fn(&str) -> bool) -> Option<&str> {
-    scene
-        .nodes()
-        .filter_map(|n| Some((n.owner.as_deref()?, n.props.claim?)))
-        .filter(|(owner, _)| accept(owner))
-        .filter(|(_, [x, y, w, h])| (*x..x + w).contains(&px) && (*y..y + h).contains(&py))
-        .min_by(|(_, a), (_, b)| (a[2] * a[3]).total_cmp(&(b[2] * b[3])))
-        .map(|(owner, _)| owner)
-}
-
-/// Whether a client name holds a claim.
-fn holds_claim(scene: &Scene, name: &str) -> bool {
-    scene
-        .nodes()
-        .any(|n| n.owner.as_deref() == Some(name) && n.props.claim.is_some())
-}
-
 /// The key or the button of a binding, or the moves of `move`.
 fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
-    if binding.key == crate::input::MOVE && binding.mods == Modifiers::default() {
+    if binding.key == MOVE && binding.mods == Modifiers::default() {
         return Ok(Trigger::Move);
     }
     if let Some((_, code)) = BUTTONS
@@ -412,7 +392,7 @@ impl Ipc {
             .map(|(_, _, conn)| *conn)
             .collect();
         let grabber = |name: &str| grabbers.iter().find(|c| self.name(**c) == Some(name));
-        let conn = claimant_at(scene, pointer, |n| grabber(n).is_some())
+        let conn = chora_scene::claimant_at(scene.nodes(), pointer, |n| grabber(n).is_some())
             .and_then(grabber)
             .map_or(first.0, |c| *c);
         Some((conn, first.1))
@@ -1301,11 +1281,7 @@ impl State {
         }
         // A button binding may have several grabs while each client holds a
         // claim; a press then goes by the claim under the pointer (D55).
-        let claims = |c: u64| {
-            self.ipc
-                .name(c)
-                .is_some_and(|n| holds_claim(&self.scene, n))
-        };
+        let claims = |c: u64| self.ipc.name(c).is_some_and(|n| self.scene.holds_claim(n));
         // Each window manager gets the moves of its own windows.
         let own = trigger == Trigger::Move;
         let mut holders = (self.ipc.grabs.iter())

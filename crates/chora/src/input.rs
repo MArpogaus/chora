@@ -8,7 +8,7 @@
 
 use std::{sync::atomic::Ordering, time::Duration};
 
-use chora_scene::{Binding, Event as SceneEvent, NodeKind, ScrollSource, ipc::PressState};
+use chora_scene::{Binding, Event as SceneEvent, MOVE, NodeKind, ScrollSource, ipc::PressState};
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
@@ -643,9 +643,6 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
     move_pointer(state, state.pointer_layout, time);
     true
 }
-
-/// The binding of the drag that an interactive move of a client starts.
-pub const MOVE: &str = "move";
 
 /// Starts the drag of an interactive move (`xdg_toplevel.move`) while a
 /// button is down on the window: an owner of the window that grabbed

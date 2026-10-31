@@ -195,6 +195,22 @@ impl Default for Scene {
     }
 }
 
+/// The owner of the smallest claim that contains `[px, py]`, among the
+/// owners that `accept` takes (D55): the window manager under a point.
+pub fn claimant_at<'a>(
+    nodes: impl IntoIterator<Item = &'a Node>,
+    [px, py]: [f64; 2],
+    accept: impl Fn(&str) -> bool,
+) -> Option<&'a str> {
+    nodes
+        .into_iter()
+        .filter_map(|n| Some((n.owner.as_deref()?, n.props.claim?)))
+        .filter(|(owner, _)| accept(owner))
+        .filter(|(_, [x, y, w, h])| (*x..x + w).contains(&px) && (*y..y + h).contains(&py))
+        .min_by(|(_, a), (_, b)| (a[2] * a[3]).total_cmp(&(b[2] * b[3])))
+        .map(|(owner, _)| owner)
+}
+
 impl Scene {
     /// The camera that a client set for an output; `None` for the default
     /// camera.
@@ -331,27 +347,16 @@ impl Scene {
         &self,
         parent: Option<&str>,
         focused: Option<&str>,
-        [px, py]: [f64; 2],
+        point: [f64; 2],
         live: impl Fn(&str) -> bool,
     ) -> Option<&str> {
         let owner = |id: Option<&str>| self.nodes.get(id?)?.owner.as_deref();
-        let claims = || {
-            self.nodes
-                .values()
-                .filter_map(|n| Some((n.owner.as_deref()?, n.props.claim?)))
-                .filter(|(owner, _)| live(owner))
-        };
         let focus = || {
             self.focused_node_owner()
                 .or_else(|| owner(focused))
-                .filter(|o| claims().any(|(c, _)| c == *o))
+                .filter(|o| live(o) && self.holds_claim(o))
         };
-        let pointer = || {
-            claims()
-                .filter(|(_, [x, y, w, h])| (*x..x + w).contains(&px) && (*y..y + h).contains(&py))
-                .min_by(|(_, a), (_, b)| (a[2] * a[3]).total_cmp(&(b[2] * b[3])))
-                .map(|(owner, _)| owner)
-        };
+        let pointer = || claimant_at(self.nodes.values(), point, &live);
         owner(parent)
             .filter(|o| live(o))
             .or_else(focus)
@@ -359,7 +364,8 @@ impl Scene {
     }
 
     /// Whether a client name holds a claim.
-    fn holds_claim(&self, name: &str) -> bool {
+    #[must_use]
+    pub fn holds_claim(&self, name: &str) -> bool {
         self.nodes
             .values()
             .any(|n| n.owner.as_deref() == Some(name) && n.props.claim.is_some())
