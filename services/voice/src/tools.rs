@@ -330,6 +330,7 @@ impl Tools {
         let Some(service) = self.connected() else {
             return "error: chora is not connected".into();
         };
+        let tool = name.clone();
         let params = CallToolRequestParams::new(name).with_arguments(args);
         // A dropped call sends notifications/cancelled.
         match tokio::time::timeout(self.timeout, service.call_tool_once(params)).await {
@@ -344,11 +345,78 @@ impl Tools {
             }
             Ok(Err(e)) => format!("error: {e}").into(),
             Ok(Ok(CallToolResponse::Complete(r))) => redacted(
-                content(&r.content, r.is_error == Some(true), self.vision),
+                trimmed(
+                    &tool,
+                    content(&r.content, r.is_error == Some(true), self.vision),
+                ),
                 secret,
             ),
             Ok(Ok(_)) => "error: the tool asked for input, which the agent cannot give".into(),
         }
+    }
+}
+
+/// Most nodes of a `query_scene` answer for the LLM.
+const SCENE_NODES: usize = 60;
+/// Most characters of the text of any other tool answer for the LLM; a
+/// large answer made the next round slow.
+const RESULT_CHARS: usize = 6000;
+/// The fields of a node that the LLM needs.
+const NODE_FIELDS: [&str; 10] = [
+    "id",
+    "kind",
+    "owner",
+    "parent",
+    "size",
+    "transform",
+    "text",
+    "visible",
+    "meta",
+    "surface",
+];
+
+/// The answer of a tool for the history: `query_scene` keeps
+/// `NODE_FIELDS` of at most `SCENE_NODES` nodes; any text, such as that
+/// of `describe_screen`, keeps `RESULT_CHARS`. Pictures stay.
+fn trimmed(tool: &str, answer: Value) -> Value {
+    let cut = |text: &str| -> String {
+        if tool == "query_scene"
+            && let Ok(Value::Array(nodes)) = serde_json::from_str::<Value>(text)
+        {
+            let more = nodes.len().saturating_sub(SCENE_NODES);
+            let kept: Vec<Value> = nodes
+                .into_iter()
+                .take(SCENE_NODES)
+                .map(|n| match n {
+                    Value::Object(o) => Value::Object(
+                        o.into_iter()
+                            .filter(|(k, _)| NODE_FIELDS.contains(&k.as_str()))
+                            .collect(),
+                    ),
+                    other => other,
+                })
+                .collect();
+            let mut out = Value::Array(kept).to_string();
+            if more > 0 {
+                out = format!("{out}\n… {more} more; narrow the selector");
+            }
+            return out;
+        }
+        if text.chars().count() > RESULT_CHARS {
+            let head: String = text.chars().take(RESULT_CHARS).collect();
+            return format!("{head}\n… cut; ask for less");
+        }
+        text.to_owned()
+    };
+    match answer {
+        Value::String(t) => cut(&t).into(),
+        Value::Array(mut parts) => {
+            if let Some(t) = parts.first_mut().and_then(|p| p["text"].as_str().map(cut)) {
+                parts[0]["text"] = t.into();
+            }
+            parts.into()
+        }
+        other => other,
     }
 }
 
@@ -940,6 +1008,29 @@ pub mod tests {
         let answer = answer.as_str().unwrap();
         assert!(!answer.contains("sk-9"), "{answer}");
         assert!(answer.contains("\"a\":1"), "{answer}");
+    }
+
+    #[test]
+    fn large_answers_are_trimmed_for_the_llm() {
+        let nodes: Vec<Value> = (0..100)
+            .map(|i| {
+                json!({"id": format!("n{i}"), "kind": "rect", "children": ["x"],
+                "color": [1, 0, 0, 1], "effects": [1, 2, 3], "size": [4, 5]})
+            })
+            .collect();
+        let scene = trimmed("query_scene", Value::from(Value::Array(nodes).to_string()));
+        let (json, note) = scene.as_str().unwrap().split_once('\n').unwrap();
+        let kept: Vec<Value> = serde_json::from_str(json).unwrap();
+        assert_eq!(kept.len(), SCENE_NODES);
+        assert_eq!(kept[0], json!({"id": "n0", "kind": "rect", "size": [4, 5]}));
+        assert_eq!(note, "… 40 more; narrow the selector");
+        // The text of a picture answer is cut, the picture stays.
+        let long = "w".repeat(RESULT_CHARS + 50);
+        let parts = json!([{"type": "text", "text": long}, {"type": "image_url"}]);
+        let parts = trimmed("describe_screen", parts);
+        assert_eq!(parts[1], json!({"type": "image_url"}));
+        assert!(parts[0]["text"].as_str().unwrap().chars().count() < RESULT_CHARS + 30);
+        assert_eq!(trimmed("echo", "short".into()), "short");
     }
 
     #[tokio::test]
