@@ -396,7 +396,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `sleep_words`, `wake_words` | `[sleep, go to sleep, schlaf, schlaf jetzt]`, `[hey chora, listen, hallo chora, hör zu]` |
 | `cancel_words` | `[stop, cancel, never mind, stopp, abbrechen, halt, vergiss es]` |
 | `code_cancel_words` | `[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
-| `yes_words`, `no_words` | `[yes, okay, ok, do it, please, sure, go ahead, ja, genau, mach, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
+| `yes_words`, `no_words` | `[yes, yeah, yep, yup, okay, ok, do it, please, sure, go ahead, ja, jo, jap, jep, klar, gern, gerne, genau, mach, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
 | `filler_words` | `[please, now, bitte, jetzt, mal]` |
 | `confirm`, `confirm_timeout_ms` | rules below, `15000` (from the end of the question) |
 | `earcons`, `earcon_volume` | `true`, `0.3` |

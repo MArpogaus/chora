@@ -285,6 +285,26 @@ mod tests {
     }
 
     #[test]
+    fn short_forms_of_yes_are_yes_and_near_no_no_word() {
+        let config = Config::default();
+        let short = [
+            "yeah", "yep", "yup", "jo", "jap", "jep", "klar", "gern", "gerne",
+        ];
+        for word in short {
+            for text in [format!("{word}."), format!("{word}, mach das")] {
+                assert_eq!(answer(&config, &text), Answer::Yes, "{text}");
+            }
+            for no in &config.no_words {
+                for no in normalize(no) {
+                    assert!(!close(word, &no) && !near(word, &no), "{word} {no}");
+                }
+            }
+        }
+        assert_eq!(answer(&config, "Yeah."), Answer::Yes);
+        assert_eq!(answer(&config, "Klar, aber nicht"), Answer::Unclear);
+    }
+
+    #[test]
     fn an_answer_with_both_or_none_is_unclear_or_a_request() {
         let config = Config::default();
         let a = |text| answer(&config, text);
