@@ -14,11 +14,12 @@
 Install the hooks once in every fresh clone:
 
 ```bash
-pre-commit install --install-hooks -t pre-commit -t commit-msg
+pre-commit install --install-hooks -t pre-commit -t commit-msg -t pre-push
 ```
 
 Plain `pre-commit install` activates the `pre-commit` stage only. Check that
-`.git/hooks/` contains `pre-commit` and `commit-msg`.
+`.git/hooks/` contains `pre-commit`, `commit-msg` and `pre-push`. CI also
+runs `cargo machete`, which fails on an unused dependency.
 
 The hooks run:
 
@@ -26,7 +27,10 @@ The hooks run:
   complexity guards. Split a function instead of raising a limit.
 - `ruff check` and `ruff format` on `services/voice/`. `ruff.toml`
   selects the rules and the complexity guards.
-- file hygiene, YAML and TOML formatting, and a spell check
+- file hygiene, YAML and TOML formatting, `codespell` and `typos` (allowed
+  words are in `_typos.toml`)
+- `shellcheck` on all shell scripts (`.shellcheckrc` sets the source path).
+  Fix a finding, or add `# shellcheck disable=SCxxxx` with a reason
 - `actionlint` on the workflows
 - `commitizen` on every commit message
 

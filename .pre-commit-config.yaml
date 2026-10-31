@@ -1,5 +1,5 @@
 # Activate in a fresh clone with:
-#   pre-commit install --install-hooks -t pre-commit -t commit-msg
+#   pre-commit install --install-hooks -t pre-commit -t commit-msg  -t pre-push
 repos:
 - repo: local
   hooks:
