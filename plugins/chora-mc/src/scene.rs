@@ -31,9 +31,10 @@ pub const MAX_GRID: u32 = 24;
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Scene {
-    /// Columns and rows of the grid of the panels.
-    #[serde(default = "one_cell")]
-    pub grid: [u32; 2],
+    /// Columns and rows of the grid of the panels, over `grid` of the
+    /// settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grid: Option<[u32; 2]>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub panels: Vec<Panel>,
     /// A shell command whose window fills the screen.
@@ -105,15 +106,11 @@ pub struct Panel {
     pub blur: Option<f64>,
 }
 
-fn one_cell() -> [u32; 2] {
-    [1, 1]
-}
-
 /// An empty scene: the scene of a window that no scene started.
 impl Default for Scene {
     fn default() -> Self {
         Self {
-            grid: one_cell(),
+            grid: None,
             panels: Vec::new(),
             app: None,
             chapter: Chapter::default(),
@@ -134,10 +131,10 @@ impl Scene {
 
     /// Checks what serde cannot.
     pub fn check(&self) -> Result<(), String> {
-        let [cols, rows] = self.grid;
-        if !(1..=MAX_GRID).contains(&cols) || !(1..=MAX_GRID).contains(&rows) {
-            return Err(format!("grid: 1 to {MAX_GRID} columns and rows"));
-        }
+        // Without a grid of its own, the cells fit the largest grid; the
+        // grid of the settings may still leave one off the page.
+        let [cols, rows] = self.grid.unwrap_or([MAX_GRID; 2]);
+        check_grid([cols, rows])?;
         if self.app.as_deref().is_some_and(|a| a.trim().is_empty()) {
             return Err("app: an empty command".into());
         }
@@ -202,6 +199,14 @@ impl Panel {
         }
         Ok(())
     }
+}
+
+/// A grid has 1 to `MAX_GRID` columns and rows.
+pub fn check_grid([cols, rows]: [u32; 2]) -> Result<(), String> {
+    if !(1..=MAX_GRID).contains(&cols) || !(1..=MAX_GRID).contains(&rows) {
+        return Err(format!("grid: 1 to {MAX_GRID} columns and rows"));
+    }
+    Ok(())
 }
 
 /// A name of a scene or a panel is a file name and part of a node id.
@@ -312,7 +317,7 @@ mod tests {
     fn a_saved_scene_loads_and_replaces_a_built_in_one() {
         let dir = dir("save");
         let scene = Scene {
-            grid: [2, 1],
+            grid: Some([2, 1]),
             panels: vec![Panel {
                 id: "mail".into(),
                 cell: [1, 0, 1, 1],
@@ -356,7 +361,7 @@ mod tests {
         assert!(!dir.exists(), "a wrong scene writes nothing");
         for wrong in [
             "grid: [0, 1]\n",
-            "panels: [{id: a, cell: [0, 0, 2, 1]}]\n",
+            "panels: [{id: a, cell: [0, 0, 25, 1]}]\n",
             "panels: [{id: a, cell: [0, 0, 1, 1]}, {id: a, cell: [0, 0, 1, 1]}]\n",
             "panels: [{id: a/b, cell: [0, 0, 1, 1]}]\n",
             "app: ' '\n",

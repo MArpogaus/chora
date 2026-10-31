@@ -262,6 +262,8 @@ pub struct Config {
     pub styles: BTreeMap<String, Style>,
     pub chapter: Chapter,
     pub page: Page,
+    /// Columns and rows of the grid of each scene without its own.
+    pub grid: [u32; 2],
     pub write: Write,
     /// The scene at the start.
     pub default_scene: String,
@@ -380,7 +382,7 @@ impl Settings for Config {
                 "scale: a base from 4 to 128, a ratio from 1 to 3, a baseline from 4 to 256".into(),
             );
         }
-        self.page.check()?;
+        self.page.check().and(crate::scene::check_grid(self.grid))?;
         for name in NEEDED {
             if !self.styles.contains_key(name) {
                 return Err(format!("styles: no {name}"));

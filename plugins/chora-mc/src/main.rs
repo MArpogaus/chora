@@ -410,7 +410,7 @@ fn exported_methods() -> Vec<ExportMethod> {
             "Saves a scene in its file and shows the change: a grid of panels, or an app.",
             json!({
                 "name": {"type": "string"},
-                "grid": {"type": "array", "items": {"type": "integer"}, "description": "columns and rows"},
+                "grid": {"type": "array", "items": {"type": "integer"}, "description": "columns and rows, over grid of the settings"},
                 "panels": panels,
                 "app": {"type": "string", "description": "a shell command whose window fills the screen"},
             }),
@@ -1240,6 +1240,11 @@ impl Mc {
         scene.page.as_ref().unwrap_or(&self.settings.value.page)
     }
 
+    /// The grid of a scene: its own or the one of the settings.
+    pub fn grid(&self, scene: &Scene) -> [u32; 2] {
+        scene.grid.unwrap_or(self.settings.value.grid)
+    }
+
     /// The height of the head of a chapter, with the line under it.
     fn chapter_height(&self, scene: &Scene) -> f64 {
         let b = self.settings.value.scale.baseline;
@@ -1263,7 +1268,7 @@ impl Mc {
         let (em, b) = (config.scale.base, config.scale.baseline);
         let page = self.page(scene);
         let (note, gap) = (page.margin * em, page.gap * em);
-        let cols = f64::from(scene.grid[0]);
+        let cols = f64::from(self.grid(scene)[0]);
         let want = cols * page.measure * em + (cols - 1.0) * (note + 2.0 * gap);
         // A margin column on both sides, so that the text stays centered,
         // and room for the sides, so that the text never moves when one
@@ -1353,7 +1358,7 @@ impl Mc {
         let geo = self.geometry(name)?;
         Some(scene::place(
             panel.cell,
-            scene.grid,
+            self.grid(scene),
             geo.text,
             [geo.columns(), geo.baseline],
         ))

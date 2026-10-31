@@ -83,13 +83,17 @@ styles:
 # right, the title on its baseline in the text column) or none.
 chapter:
   layout: number
-# The text block: the width of a column of text, about 65 letters, the
-# margin column left of it for notes such as times, and the space between
-# them, all in em of scale.base.
+# The text block of every scene: the width of one column of the grid,
+# the margin column left of each column for the number of the scene and
+# notes such as times, and the space between them, all in em of
+# scale.base. On a narrow output the columns get narrower.
 page:
-  measure: 30
-  margin: 6
+  measure: 18
+  margin: 4
   gap: 1.5
+# The columns and rows of the panels of every scene. A scene file can set
+# its own grid and page, but then its text and its number move.
+grid: [4, 3]
 # New text writes itself: first its outline line by line, then its fill.
 write:
   enabled: true

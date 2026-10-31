@@ -267,12 +267,12 @@ with a title and lines, or one app whose window fills the screen without
 a frame. The plugin has the built-in scenes `agenda`, `agents`, `mission`
 (Mission Control), `morning` (the morning paper) and `terminal`. A file of
 the same name replaces a built-in scene. A grid has 1 to 24 columns and
-rows. A wrong file, or a scene that the core refuses, is left out with a
+rows; without `grid`, a scene takes the `grid` of the settings. A wrong file, or a scene that the core refuses, is left out with a
 line in the log; the other scenes stay.
 
 ```yaml
 # ~/.config/chora/mc/scenes/day.yaml
-grid: [2, 2]          # columns and rows
+grid: [2, 2]          # optional: columns and rows, over the settings
 chapter:              # all optional: the place, the name, the date
   number: "2"
   title: Day
@@ -298,8 +298,9 @@ and `note_style`; each takes a `base` (by default `body`, `heading` and
 `margin`) and changes single fields.
 
 A scene may set its own `page` (`measure`, `margin` and `gap`, as in the
-settings), for example narrow columns side by side on a wide screen, and
-`chapter.layout`, also `none` for a scene without a head. Columns of a
+settings) and `grid`, but then its text block and its number move against
+the other scenes; the built-in scenes set neither and only choose their
+cells. A scene may also set `chapter.layout`, also `none` for a scene without a head. Columns of a
 grid leave room for the margin of the column to their right. A panel may
 set a `rule`, a color of the theme for a hairline left of it, an
 `opacity` from 0 to 1 and a `blur` radius in pixels up to 16, for
@@ -367,8 +368,11 @@ hand apply with `settings.reload`:
 - `chapter.layout`: `number` (the number in the margin column, flush
   right, and the title in spaced small caps on the same baseline in the
   text column) or `none`.
-- `page`: the `measure` of a column of text, the `margin` column and the
-  `gap`, in em of `scale.base`.
+- `page`: the `measure` of a column of the grid, the `margin` column and
+  the `gap`, in em of `scale.base`.
+- `grid`: the columns and rows of every scene without its own (default
+  `[4, 3]`). All scenes share it and `page`, so the text block and the
+  number stay in place from scene to scene.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `toggle: REGION` and
