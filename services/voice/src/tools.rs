@@ -8,6 +8,10 @@ use std::{
     os::{fd::AsRawFd, unix::fs::OpenOptionsExt},
     path::{Path, PathBuf},
     pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -67,6 +71,9 @@ pub struct Tools {
     /// `settings.get`, `settings.set` and `settings.reload`, which
     /// `skipped` does not hide.
     pub own: String,
+    /// A question about a security setting waits for a key press:
+    /// `inject_input` could press the key.
+    pub physical: Arc<AtomicBool>,
 }
 
 /// `CMD --name NAME mcp` as a child process; its stderr goes to ours.
@@ -110,6 +117,7 @@ impl Tools {
             coder: None,
             agents: None,
             own: String::new(),
+            physical: Arc::default(),
         }
     }
 
@@ -252,6 +260,10 @@ impl Tools {
         let Value::Object(args) = args.clone() else {
             return "error: the arguments are no JSON object".into();
         };
+        if name == "inject_input" && self.physical.load(Ordering::Relaxed) {
+            return "error: refused: a question waits for a key press, which no tool may give"
+                .into();
+        }
         if self.own_client(&name, &args) {
             return format!(
                 "error: the agent calls no method of its own client {}",
@@ -686,6 +698,26 @@ pub mod tests {
         let config = Config::default();
         let tools = Tools::new(connect, config.skipped_tools, Duration::from_millis(300));
         (tools, calls)
+    }
+
+    /// The user's decision on 4.4: no tool presses the key of a question
+    /// about a security setting.
+    #[tokio::test]
+    async fn inject_input_is_refused_while_a_key_question_waits() {
+        let (mut tools, calls) = fake(0);
+        tools.refresh().await;
+        tools
+            .names
+            .insert("inject_input".into(), "inject_input".into());
+        tools.physical.store(true, Ordering::SeqCst);
+        let answer = tools
+            .call("inject_input", &json!({"keys": ["Alt+y"]}))
+            .await;
+        assert!(answer.as_str().unwrap().contains("refused"), "{answer}");
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        tools.physical.store(false, Ordering::SeqCst);
+        tools.call("inject_input", &json!({})).await;
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
     }
 
     /// The LLM calls no method of the agent itself, also not through
