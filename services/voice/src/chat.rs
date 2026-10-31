@@ -60,34 +60,49 @@ const NUDGE: &str = "(The agent: you announced an action but called no tool, and
     would end here. Call the tool now, or say in one short sentence that you will not.)";
 
 /// Whether the last sentence of an answer announces an action in the
-/// first person: "let me use `put_asset` instead", "Ich starte jetzt den
-/// Loader." (logs 2026-10-31). "Let me know" is no action.
+/// first person: "let me use `put_asset` instead", "Ich schaue kurz, was
+/// mit den Rändern los ist." (logs 2026-10-31). A German clause that
+/// starts with "ich" announces unless its verb states the past or a
+/// state ("Ich habe …", "Ich bin …"), or it says no ("nicht", "kein").
+/// A question, "let me know" and "I won't" announce nothing.
 fn announces(answer: &str) -> bool {
-    // ponytail: English and German markers; a word list in the settings
-    // when another language needs it.
-    const MARKERS: [&str; 16] = [
-        "let me ",
-        "i'll ",
-        "i will ",
-        "i'm going to ",
-        "lass mich ",
-        "ich werde ",
-        "ich versuche ",
-        "ich probiere ",
-        "ich starte ",
-        "ich öffne ",
-        "ich zeige ",
-        "ich trage ",
-        "ich schreibe ",
-        "ich mache ",
-        "ich lege ",
-        "ich speichere ",
+    // ponytail: English and German; the state verbs in the settings when
+    // another language needs them.
+    const ENGLISH: [&str; 4] = ["let me ", "i'll ", "i will ", "i'm going to "];
+    const STATES: [&str; 19] = [
+        "habe", "hab", "hatte", "bin", "war", "wäre", "kann", "konnte", "könnte", "weiß", "sehe",
+        "höre", "glaube", "denke", "finde", "verstehe", "warte", "hoffe", "fürchte",
     ];
     let text = answer.to_lowercase().replace('’', "'");
-    let trimmed = text.trim_end_matches(|c: char| ".!?… ".contains(c));
-    let last = trimmed.rsplit(['.', '!', '?']).next().unwrap_or_default();
-    let last = format!(" {}", last.replace("let me know", ""));
-    MARKERS.iter().any(|m| last.contains(&format!(" {m}")))
+    let text = text.trim_end_matches(|c: char| c.is_whitespace() || ".!…\"»“”".contains(c));
+    if text.ends_with('?') {
+        return false;
+    }
+    let last = text.rsplit(['.', '!', '?']).next().unwrap_or_default();
+    let spaced = format!(" {}", last.replace("let me know", ""));
+    if ENGLISH
+        .iter()
+        .any(|m| spaced.contains(&format!(" {m}")) && !spaced.contains(&format!(" {m}not ")))
+    {
+        return true;
+    }
+    let words = |clause: &str| -> Vec<String> {
+        clause
+            .split_whitespace()
+            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_owned())
+            .collect()
+    };
+    if words(last)
+        .iter()
+        .any(|w| w == "nicht" || w.starts_with("kein"))
+    {
+        return false;
+    }
+    last.split([',', ';', ':', '—', '–']).any(|clause| {
+        let words = words(clause);
+        matches!(words.as_slice(), [ich, verb, ..] if ich == "ich" && !STATES.contains(&verb.as_str()))
+            || clause.trim_start().starts_with("lass mich ")
+    })
 }
 
 /// The part of the prompt for the coding tools, with a `coder_cmd`.
@@ -1316,6 +1331,10 @@ mod tests {
             "Ich zeige dir die Agenda.",
             "Ich schreibe die Notiz.",
             "Ich mache das Fenster größer.",
+            "Ich schaue kurz, was mit den Rändern los ist.",
+            "Ich schaue nach.",
+            "I'll check the margins.",
+            "Okay, ich prüfe die Ränder.",
         ] {
             assert!(announces(text), "{text}");
         }
@@ -1326,6 +1345,16 @@ mod tests {
             "I'll start it. Done, the loader runs.",
             "Willst du, dass ich starte?",
             "Dich starte ich nicht.",
+            "Ich bin bereit.",
+            "Ich habe das erledigt.",
+            "Ich kann das nicht.",
+            "Let me know if the margins come back.",
+            "Ja, ich höre dich.",
+            "Ich schaue nach, ja?",
+            "I can't open it.",
+            "I did open it.",
+            "I will not open it.",
+            "Sag Bescheid, wenn ich weitermachen soll.",
         ] {
             assert!(!announces(text), "{text}");
         }

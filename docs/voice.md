@@ -153,9 +153,13 @@ speech is dropped.
 
 A turn whose first round calls tools without words says `phrases.ack`
 ("One moment.") once. An answer whose last sentence announces an action
-in the first person ("let me ...", "I'll ...", "Ich starte ...", "ich
-werde ..."; not "let me know"), but calls no tool, gets one more round
-per turn with a note to call it or to say that it will not.
+in the first person, but calls no tool, gets one more round per turn
+with a note to call it or to say that it will not. An announcement is
+"let me ...", "I'll ...", "I will ...", "I'm going to ...", or a German
+clause that starts with "ich" ("Ich schaue nach.", "ich werde ...").
+These are no announcement: a question, "let me know", a negation ("I will
+not", "nicht", "kein"), and a German verb of the past or of a state
+("Ich habe ...", "Ich bin ...", "Ich kann ...", "Ich höre ...").
 
 Cancel stops only the current turn: the reply task drops the SSE request
 and the MCP call in flight (rmcp sends `notifications/cancelled`), the
