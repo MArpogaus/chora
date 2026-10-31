@@ -221,15 +221,21 @@ pub fn depth(pose: &Pose, at: [f64; 2]) -> f64 {
     v[2][0] * at[0] + v[2][2] * at[1] + v[2][3]
 }
 
-/// Where a pane at `at` is for the camera: `shown` when its centre is on
+/// Where a pane (`at`, `size`, `yaw`) is for the camera: `shown` when its centre is on
 /// the output, else `behind` the eye, `far` beyond the depth `far`, or
 /// `aside` out of the view (F29).
 #[must_use]
-pub fn sight(lens: &Lens, pose: &Pose, at: [f64; 2], far: f64) -> &'static str {
+pub fn sight(
+    lens: &Lens,
+    pose: &Pose,
+    (at, size, yaw): ([f64; 2], [f64; 2], f64),
+    far: f64,
+) -> &'static str {
     let v = view(pose);
     let cam = |r: usize| v[r][0] * at[0] + v[r][2] * at[1] + v[r][3];
     let d = cam(2);
-    if d <= lens.focal * 0.1 {
+    // As `frame` hides it: a corner at or behind the eye is not shown.
+    if d <= lens.focal * 0.1 || !in_front(lens, pose, at, size, yaw) {
         return "behind";
     }
     if d > far {
@@ -638,12 +644,35 @@ mod tests {
     #[test]
     fn the_sight_tells_where_a_pane_is() {
         let pose = Pose::default();
-        assert_eq!(sight(&LENS, &pose, [0.0, 2000.0], 6000.0), "shown");
-        assert_eq!(sight(&LENS, &pose, [0.0, -2000.0], 6000.0), "behind");
-        assert_eq!(sight(&LENS, &pose, [0.0, 9000.0], 6000.0), "far");
-        assert_eq!(sight(&LENS, &pose, [4000.0, 2000.0], 6000.0), "aside");
+        assert_eq!(
+            sight(&LENS, &pose, ([0.0, 2000.0], [640.0, 400.0], 0.0), 6000.0),
+            "shown"
+        );
+        assert_eq!(
+            sight(&LENS, &pose, ([0.0, -2000.0], [640.0, 400.0], 0.0), 6000.0),
+            "behind"
+        );
+        assert_eq!(
+            sight(&LENS, &pose, ([0.0, 9000.0], [640.0, 400.0], 0.0), 6000.0),
+            "far"
+        );
+        assert_eq!(
+            sight(
+                &LENS,
+                &pose,
+                ([4000.0, 2000.0], [640.0, 400.0], 0.0),
+                6000.0
+            ),
+            "aside"
+        );
         let up = Pose { pitch: 1.0, ..pose };
-        assert_eq!(sight(&LENS, &up, [0.0, 2000.0], 6000.0), "aside");
+        // The centre shows, but a corner of the turned pane is behind the eye.
+        let turned = ([0.0, 400.0], [4000.0, 400.0], std::f64::consts::FRAC_PI_2);
+        assert_eq!(sight(&LENS, &pose, turned, 6000.0), "behind");
+        assert_eq!(
+            sight(&LENS, &up, ([0.0, 2000.0], [640.0, 400.0], 0.0), 6000.0),
+            "aside"
+        );
     }
 
     #[test]

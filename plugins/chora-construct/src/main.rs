@@ -246,6 +246,11 @@ impl Pane {
         self.yaw = space::facing(eye, at);
     }
 
+    /// Where the pane is: centre, size and yaw, as `space::sight` wants.
+    fn spot(&self) -> ([f64; 2], [f64; 2], f64) {
+        (self.at, self.size, self.yaw)
+    }
+
     fn window(&self) -> Option<&str> {
         matches!(self.content, Content::Window { .. }).then_some(self.source.as_str())
     }
@@ -2089,7 +2094,7 @@ impl Construct {
             .or_else(|| self.pane_ahead())
             .filter(|&i| {
                 let far = self.radius();
-                space::sight(&self.lens, &self.pose, self.panes[i].at, far) == "shown"
+                space::sight(&self.lens, &self.pose, self.panes[i].spot(), far) == "shown"
             })
     }
 
@@ -2329,7 +2334,7 @@ impl Construct {
                     name: p.name.clone(),
                     surface: surface.into(),
                     owner: node.and_then(|n| n.owner.clone()),
-                    pane: space::sight(&self.lens, &self.pose, p.at, far),
+                    pane: space::sight(&self.lens, &self.pose, p.spot(), far),
                     size: None,
                 })
             })
@@ -3039,7 +3044,7 @@ fn configure(surface: &str, size: [f64; 2]) -> Command {
 fn ahead(panes: &[Pane], lens: &space::Lens, pose: &Pose, far: f64) -> Option<usize> {
     let [fx, fz] = pose.forward();
     (panes.iter().enumerate())
-        .filter(|(_, p)| space::sight(lens, pose, p.at, far) == "shown")
+        .filter(|(_, p)| space::sight(lens, pose, p.spot(), far) == "shown")
         .filter_map(|(i, p)| {
             let (dx, dz) = (p.at[0] - pose.x, p.at[1] - pose.z);
             let cos = (dx * fx + dz * fz) / dx.hypot(dz).max(f64::EPSILON);
