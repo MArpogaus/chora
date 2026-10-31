@@ -38,6 +38,8 @@ jobs:
     - run: cargo nextest run --workspace --locked --profile ci
     # nextest does not run doctests.
     - run: cargo test --doc --workspace --locked
+    # Clippy does not run the rustdoc lints, such as broken links.
+    - run: cargo doc --workspace --no-deps --locked
     - if: always()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
       with:
@@ -52,6 +54,33 @@ jobs:
       run: tests/gate-0.8-8.sh
     - name: plugins leave the connection to the runtime of chora-kit
       run: tests/gate-0.8-plugin-runtime.sh
+
+  # The line coverage of the unit tests, without a threshold. The job
+  # summary shows it per crate; lcov.info is an artifact.
+  coverage:
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:44@sha256:52740d9b1b9d04f1b325ef9625361b3260e992c84b1fe693365f6a188358e5ca
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+    - run: xargs dnf install -y rustup mesa-dri-drivers git jq < dist/fedora-build-requires.txt
+    - run: rustup-init -y --profile minimal --default-toolchain none
+    - run: echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
+    - run: rustup component add llvm-tools
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
+    - uses: taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68   # v2.88.1
+      with:
+        tool: cargo-llvm-cov@0.8.7,nextest
+    - run: cargo llvm-cov nextest --workspace --locked --profile ci --no-report
+    - run: cargo llvm-cov report --lcov --output-path lcov.info
+    - run: cargo llvm-cov report --json --summary-only --output-path coverage.json
+    - run: tests/coverage-summary.sh coverage.json >>"$GITHUB_STEP_SUMMARY"
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      with:
+        name: lcov
+        path: lcov.info
 
   # The minimum Rust version of Cargo.toml builds the workspace.
   msrv:
