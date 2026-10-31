@@ -60,3 +60,38 @@ fly_out: Alt+Escape
 # Alt, Shift or Super. A drop on a plugin pane gives the window to that
 # plugin, and a drop on another output to its window manager.
 modifier: Super
+# The voice HUD at the bottom of the output (F28): the state of the voice
+# agent, its spoken sentence and its questions. It hides the dot of the
+# voice agent while chora-construct runs.
+voice_hud: true
+# The elements over the space: the voice HUD, the window list, the pane
+# labels and the questions. docs/construct-style.md has the rules; run
+# the contrast test after a change of a colour. Colours are RGB or RGBA,
+# each from 0 to 1.
+style:
+  # The spacing unit, the corner radius of a panel and the reach of its
+  # glow, in logical pixels.
+  unit: 8
+  radius: 12
+  glow: 16
+  # The family of labels and text, and the family of data.
+  font: Inter
+  mono: DejaVu Sans Mono
+  # The one accent of both themes: the state ring, the waveform, the
+  # selection mark and the glow. It never colours text.
+  accent: [0.15, 0.50, 0.71]
+  # Per theme: the fill of a panel, its hairline, the text, the muted
+  # labels and notes, and the alpha of the accent in the glow.
+  themes:
+    light:
+      glass: [1.00, 1.00, 1.00, 0.86]
+      edge: [0.08, 0.09, 0.12, 0.16]
+      text: [0.08, 0.09, 0.12]
+      muted: [0.29, 0.32, 0.38]
+      glow: 0.10
+    dark:
+      glass: [0.04, 0.05, 0.07, 0.86]
+      edge: [1.00, 1.00, 1.00, 0.16]
+      text: [0.93, 0.93, 0.95]
+      muted: [0.64, 0.67, 0.71]
+      glow: 0.22

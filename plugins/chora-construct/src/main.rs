@@ -2179,7 +2179,8 @@ impl Construct {
             l.sel = sel;
             l.give.is_some()
         });
-        let palette = self.settings.value.theme.palette();
+        let style = &self.settings.value.style;
+        let colors = style.colors(self.settings.value.theme);
         let rgba = |c: [f64; 3], a| Some([c[0], c[1], c[2], a]);
         let pad = LIST_LINE;
         // ponytail: a window of 12 rows that follows the selection; a
@@ -2190,7 +2191,7 @@ impl Construct {
         let x = ((self.lens.w - LIST_WIDTH) / 2.0).round();
         let y = ((self.lens.h - h) / 2.0).round();
         let at = |x: f64, y: f64| Some(Transform::translate(x, y, 0.0));
-        let text = |id: &str, text: &str, pos: [f64; 2], size: f64, color: [f64; 3]| {
+        let text = |id: &str, text: &str, pos: [f64; 2], mono: bool, color: [f64; 3]| {
             create(
                 id,
                 NodeKind::Text,
@@ -2198,8 +2199,8 @@ impl Construct {
                 PropsUpdate {
                     transform: at(pos[0], pos[1]),
                     text: Some(text.into()),
-                    family: Some("Inter".into()),
-                    font_size: Some(size),
+                    family: Some(if mono { &style.mono } else { &style.font }.clone()),
+                    font_size: Some(if mono { 12.0 } else { 16.0 }),
                     color: rgba(color, 1.0),
                     ..PropsUpdate::default()
                 },
@@ -2225,7 +2226,7 @@ impl Construct {
                 LIST,
                 PropsUpdate {
                     size: Some([LIST_WIDTH, h]),
-                    color: rgba(palette.paper, 0.96),
+                    color: Some(colors.glass),
                     ..PropsUpdate::default()
                 },
             ),
@@ -2236,11 +2237,11 @@ impl Construct {
                 PropsUpdate {
                     transform: at(pad, pad),
                     text: Some(if giving { "GIVE TO" } else { "WINDOWS" }.into()),
-                    family: Some("Inter".into()),
-                    font_size: Some(10.0),
+                    family: Some(style.font.clone()),
+                    font_size: Some(11.0),
                     weight: Some(500),
-                    letter_spacing: Some(0.2),
-                    color: rgba(palette.muted, 1.0),
+                    letter_spacing: Some(0.16),
+                    color: rgba(colors.muted, 1.0),
                     ..PropsUpdate::default()
                 },
             ),
@@ -2255,8 +2256,8 @@ impl Construct {
                     "every window shows"
                 },
                 pos,
-                15.0,
-                palette.muted,
+                false,
+                colors.muted,
             ));
         }
         for (k, row_of) in rows.iter().enumerate().skip(first).take(LIST_ROWS) {
@@ -2273,24 +2274,20 @@ impl Construct {
                     ..PropsUpdate::default()
                 },
             ));
-            let color = if k == sel {
-                palette.text
-            } else {
-                palette.muted
-            };
+            let color = if k == sel { colors.text } else { colors.muted };
             commands.push(text(
                 &format!("{row}-name"),
                 &row_of.label,
                 [pad, top],
-                15.0,
+                false,
                 color,
             ));
             commands.push(text(
                 &format!("{row}-note"),
                 &row_of.note,
                 [LIST_WIDTH * 0.62, top + 3.0],
-                12.0,
-                palette.muted,
+                true,
+                colors.muted,
             ));
             if k == sel {
                 commands.push(create(
@@ -2300,7 +2297,7 @@ impl Construct {
                     PropsUpdate {
                         transform: at(pad - 10.0, top + 4.0),
                         size: Some([1.0, LIST_LINE - 8.0]),
-                        color: rgba(palette.text, 1.0),
+                        color: rgba(colors.text, 1.0),
                         ..PropsUpdate::default()
                     },
                 ));
