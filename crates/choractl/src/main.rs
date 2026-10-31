@@ -93,6 +93,15 @@ enum Cmd {
         /// The parameters as JSON; `null` if missing.
         params: Option<String>,
     },
+    /// Hand a window to another window manager (D55): calls `window.give`
+    /// of the window manager that owns it, for example `choractl give xp`.
+    Give {
+        /// The client name of the window manager that gets the window.
+        to: String,
+        /// The surface id; the focused window without it.
+        #[arg(long)]
+        surface: Option<String>,
+    },
     /// Grant a client name capabilities until the session ends or a
     /// revoke. Goes through the admin socket.
     Grant {
@@ -374,6 +383,7 @@ fn run(args: Args) -> Result<(), String> {
             method,
             params,
         } => return call(&mut client, callee, method, params.as_deref()),
+        Cmd::Give { to, surface } => return give(&mut client, &to, surface.as_deref()),
         Cmd::Asset { action } => return asset(&mut client, action),
         Cmd::View { .. } | Cmd::Mcp | Cmd::Restart { .. } => {
             unreachable!("handled before the connection")
@@ -1064,6 +1074,27 @@ fn call(
         .map_err(|e| e.to_string())?;
     print(&result);
     Ok(())
+}
+
+/// `give`: calls `window.give` of the owner of the window, the focused
+/// one by default.
+fn give(client: &mut Client, to: &str, surface: Option<&str>) -> Result<(), String> {
+    let query = match surface {
+        Some(id) => serde_json::json!({"selector": format!("id:{id}")}),
+        None => serde_json::json!({"selector": "kind:surface", "filter": {"focused": true}}),
+    };
+    let nodes: Vec<Value> = client
+        .call("scene.query", query)
+        .map_err(|e| e.to_string())?;
+    let node = nodes.first().ok_or_else(|| match surface {
+        Some(id) => format!("no window {id}"),
+        None => "no focused window".into(),
+    })?;
+    let owner = node["owner"]
+        .as_str()
+        .ok_or_else(|| format!("{} has no window manager", node["id"]))?;
+    let params = serde_json::json!({"surface": node["id"], "to": to}).to_string();
+    call(client, owner.into(), "window.give".into(), Some(&params))
 }
 
 /// Writes the PNG file of a capture, and prints the rest of the picture.
