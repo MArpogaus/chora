@@ -1967,9 +1967,9 @@ the settings file, and goes into <code>Authorization: Bearer KEY</code>: over HT
 for the LLM, and in the websocket handshake of the ASR and the TTS, as
 the realtime API of OpenAI takes it. The health probes and the live
 commands use the same settings. The LLM must speak the OpenAI chat
-completions API; other protocols come later. The build has no TLS yet:
-only <code>http://</code> and <code>ws://</code> URLs work, so a provider on <code>https://</code> needs
-a local proxy until TLS comes in.</p>
+completions API; other protocols come later. <code>https://</code> and <code>wss://</code> URLs use TLS
+(rustls with ring, system root certificates); <code>http://</code> and <code>ws://</code> stay
+in plain text.</p>
 <p>The ASR gets no language with <code>asr_language: auto</code>, and <code>asr_prompt</code>
 with the wake, sleep and stop words and the project names as the
 <code>transcription.prompt</code> of the session. Gufo honors the prompt: without
@@ -2189,12 +2189,12 @@ sandbox, it ran in a headless chora session with <code>chora-tiling</code>.</p>
 <td>Silero VAD in pure Rust. 0.23 needs Rust 1.91; the workspace has 1.89</td>
 </tr>
 <tr>
-<td><code>tokio-tungstenite</code> 0.28 (default features: no TLS; WP4)</td>
+<td><code>tokio-tungstenite</code> 0.28 (<code>rustls-tls-native-roots</code>; WP4)</td>
 <td>ASR and TTS websockets, fake servers</td>
 </tr>
 <tr>
-<td><code>reqwest</code> 0.13 (no defaults; <code>stream</code>; WP5)</td>
-<td>LLM SSE; chunked HTTP by hand is a bug source. It brings <code>hyper</code>, <code>tower</code> and <code>tower-http</code> (MIT); 0.13 is the version of the optional <code>rmcp</code> dependency</td>
+<td><code>reqwest</code> 0.13 (no defaults; <code>stream</code>, <code>rustls-no-provider</code>; WP5)</td>
+<td>LLM SSE and TLS (system roots through <code>rustls-platform-verifier</code>, the <code>rustls</code> ring provider is installed in <code>main</code>); chunked HTTP by hand is a bug source. It brings <code>hyper</code>, <code>tower</code> and <code>tower-http</code> (MIT); 0.13 is the version of the optional <code>rmcp</code> dependency</td>
 </tr>
 </tbody>
 </table>
