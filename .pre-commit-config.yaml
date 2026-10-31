@@ -30,6 +30,11 @@ repos:
     language: system
     files: ^(docs/.*|plans/.*|README)\.md$
     types: [markdown]
+  - id: vale
+    name: vale (prose rules of .vale/ in docs/*.md; errors fail, see .vale.ini)
+    entry: vale --minAlertLevel=error
+    language: system
+    files: ^docs/.*\.md$
 
 # Python: lint with the complexity guards of ruff.toml, and format.
 - repo: https://github.com/astral-sh/ruff-pre-commit

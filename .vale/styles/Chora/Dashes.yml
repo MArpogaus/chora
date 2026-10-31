@@ -1,0 +1,7 @@
+extends: existence
+message: Do not use an em or en dash. Use a comma, a colon or a new sentence.
+level: error
+nonword: true
+tokens:
+- —
+- –
