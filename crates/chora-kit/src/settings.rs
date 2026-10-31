@@ -6,6 +6,14 @@
 //! caller gets the error. Edits by hand apply with `settings.reload`, which
 //! reads the file again, or at the next start.
 //!
+//! A file that does not parse or check, for example after an update that
+//! removed a key, does not stop the plugin: it starts with the default
+//! settings, logs the error and leaves the file as it is. As long as the
+//! last read of the file, at the start or by `settings.reload`, failed,
+//! `settings.set` and every other save refuse, so that no save writes the
+//! defaults and a change over the edits of the user; a `settings.reload`
+//! that succeeds ends that.
+//!
 //! A key of a struct that the file leaves out takes its value of the
 //! default file; a map in the file replaces the default map. A change of
 //! `settings.set` is a JSON merge patch (RFC 7386): structs and maps merge,
@@ -45,6 +53,9 @@ pub struct File<S> {
     default: &'static str,
     /// The settings before the last `set` or `reload`, for `undo`.
     previous: Option<S>,
+    /// The error of the last read of the file, while it is broken; then
+    /// `set` refuses, so that a save keeps the file.
+    broken: Option<String>,
 }
 
 /// The settings behind `settings.get` and `settings.set`, for the runtime.
@@ -57,14 +68,14 @@ pub trait Store {
     ///
     /// # Errors
     ///
-    /// A change is wrong; the settings stay.
+    /// A change is wrong, or the file is broken; the settings stay.
     fn set(&mut self, changes: Value) -> Result<Value, RpcError>;
 
     /// Writes the settings to the file.
     ///
     /// # Errors
     ///
-    /// The file cannot be written.
+    /// The file cannot be written, or is broken: its last read failed.
     fn save(&self) -> Result<(), RpcError>;
 
     /// Reads the file again and takes its settings; answers them.
@@ -82,30 +93,53 @@ pub trait Store {
 
 impl<S: Settings> File<S> {
     /// Reads the settings at `path`, or `default` without a file there.
-    /// A key that the file leaves out takes its value of `default`.
+    /// A key that the file leaves out takes its value of `default`. A
+    /// file that cannot be read, or has wrong settings, gives `default`
+    /// and a warning on stderr; [`File::broken`] then has the error.
     ///
     /// # Errors
     ///
-    /// The file cannot be read, or its settings are wrong.
+    /// The settings of `default` are wrong.
     pub fn load(path: PathBuf, default: &'static str) -> Result<Self, String> {
-        let text = match crate::read_text(&path, crate::MAX_TEXT) {
-            Ok(text) => text,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => default.into(),
-            Err(e) => return Err(format!("{}: {e}", path.display())),
+        let (value, broken) = match read(&path, default) {
+            Ok(value) => (value, None),
+            Err(err) => {
+                eprintln!("{err}; the default settings apply, the file stays as it is");
+                (parse(default)?, Some(err))
+            }
         };
-        // One path for every file, so that a key it leaves out takes its
-        // default also where the type has an `Option`. A wrong value then
-        // has no line number; a wrong YAML still has one.
-        let value = serde_saphyr::from_str_with_options(&text, options())
-            .map_err(|e| e.to_string())
-            .and_then(|v| complete(v, default))
-            .map_err(|e| format!("{}: {e}", path.display()))?;
         Ok(Self {
             value,
             path,
             default,
             previous: None,
+            broken,
         })
+    }
+
+    /// Refuses a change while the file is broken, so that no save writes
+    /// over it.
+    fn unbroken(&self) -> Result<(), RpcError> {
+        let Some(err) = &self.broken else {
+            return Ok(());
+        };
+        // The fix comes first, since the answer may be cut.
+        Err(RpcError::new(
+            RpcError::REJECTED,
+            format!(
+                "the settings file {} is broken and stays: fix it and call \
+                 settings.reload; {err}",
+                self.path.display()
+            ),
+        ))
+    }
+
+    /// The error of the settings file while it is broken: the plugin
+    /// runs with other settings than the file has, and `settings.set`
+    /// refuses.
+    #[must_use]
+    pub fn broken(&self) -> Option<&str> {
+        self.broken.as_deref()
     }
 
     /// The file that `--config` names, else `chora/NAME.yaml` in
@@ -200,6 +234,7 @@ impl<S: Settings> Store for File<S> {
         let Value::Object(changes) = changes else {
             return Err(invalid("settings.set takes an object".into()));
         };
+        self.unbroken()?;
         let mut merged = self.get();
         let schema = schema::<S>();
         merge(&mut merged, Value::Object(changes), &schema, &schema);
@@ -209,14 +244,17 @@ impl<S: Settings> Store for File<S> {
     }
 
     fn save(&self) -> Result<(), RpcError> {
+        self.unbroken()?;
         self.write()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e))
     }
 
     fn reload(&mut self) -> Result<Value, RpcError> {
-        let value = Self::load(self.path.clone(), self.default)
-            .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e))?
-            .value;
+        let value = read(&self.path, self.default).map_err(|e| {
+            self.broken = Some(e.clone());
+            RpcError::new(RpcError::INVALID_PARAMS, e)
+        })?;
+        self.broken = None;
         self.previous = Some(std::mem::replace(&mut self.value, value));
         Ok(self.get())
     }
@@ -226,6 +264,22 @@ impl<S: Settings> Store for File<S> {
             self.value = previous;
         }
     }
+}
+
+/// Reads the settings at `path`, or `default` without a file there.
+fn read<S: Settings>(path: &Path, default: &str) -> Result<S, String> {
+    let text = match crate::read_text(path, crate::MAX_TEXT) {
+        Ok(text) => text,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => default.into(),
+        Err(e) => return Err(format!("{}: {e}", path.display())),
+    };
+    // One path for every file, so that a key it leaves out takes its
+    // default also where the type has an `Option`. A wrong value then
+    // has no line number; a wrong YAML still has one.
+    serde_saphyr::from_str_with_options(&text, options())
+        .map_err(|e| e.to_string())
+        .and_then(|v| complete(v, default))
+        .map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// Creates a temporary file of mode 0600 with a new name next to `path`;
@@ -563,17 +617,60 @@ pub(crate) mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
-    #[test]
-    fn a_wrong_file_fails_with_its_path() {
-        let dir = dir("load");
+    /// A file with a key that an update removed, as the `grid` of
+    /// chora-mc: the plugin starts with the defaults, the file stays.
+    const STALE: &str = "gap: 9\ngrid: 3\n";
+
+    fn stale(name: &str) -> (PathBuf, File<Demo>) {
+        let dir = dir(name);
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("demo.yaml");
-        std::fs::write(&path, "gap: 4\nopacity: 3\nbindings: {}\n").unwrap();
-        let err = File::<Demo>::load(path.clone(), DEFAULT).err().unwrap();
+        std::fs::write(&path, STALE).unwrap();
+        let file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+        (path, file)
+    }
+
+    #[test]
+    fn a_wrong_file_loads_the_defaults_and_stays() {
+        let (path, file) = stale("stale-load");
+        assert_eq!(file.value, parse::<Demo>(DEFAULT).unwrap());
+        let err = file.broken().unwrap();
+        assert!(err.contains("demo.yaml") && err.contains("grid"), "{err}");
+        let err = file.save().unwrap_err();
+        assert!(err.message.contains("settings.reload"), "{}", err.message);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), STALE);
+        std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn set_refuses_while_the_file_is_wrong() {
+        let (path, mut file) = stale("stale-set");
+        let err = file.set(json!({"opacity": 0.5})).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(err.message.contains("demo.yaml"), "{}", err.message);
+        assert_eq!(file.value.opacity, 1.0, "the settings stay");
+        std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    /// A reload of a wrong file keeps the settings and refuses `set`; a
+    /// reload after the fix takes the file and allows `set` again.
+    #[test]
+    fn a_reload_after_the_fix_ends_the_refusal() {
+        let (path, mut file) = stale("stale-reload");
+        let err = file.reload().unwrap_err();
+        assert_eq!(err.code, RpcError::INVALID_PARAMS);
+        assert_eq!(file.value.gap, 4);
+        std::fs::write(&path, "gap: 9\n").unwrap();
+        assert_eq!(file.reload().unwrap()["gap"], 9);
+        assert!(file.broken().is_none());
+        file.set(json!({"opacity": 0.5})).unwrap();
+        std::fs::write(&path, STALE).unwrap();
+        file.reload().unwrap_err();
         assert!(
-            err.contains("demo.yaml") && err.contains("opacity"),
-            "{err}"
+            file.set(json!({"gap": 1})).is_err(),
+            "a wrong reload refuses too"
         );
-        std::fs::remove_dir_all(dir).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), STALE);
+        std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
     }
 }
