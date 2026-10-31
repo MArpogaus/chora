@@ -265,7 +265,9 @@ seconds ends too, and all clients get `surface.detached`, so that no
 window stays hidden.
 
 Every window manager of the repository exports `window.give` with `to`
-and an optional `surface`, by default its focused window. It hands the
+and an optional `surface`, by default its focused window. The method is
+privileged, because the receiver can focus, close or configure the
+window. It hands the
 window over with a `remove` with `to`, and the receiver focuses it. A
 `to` that is not connected fails, and the window stays. `choractl give
 TO [--surface ID]` calls `window.give` of the owner of the window, by

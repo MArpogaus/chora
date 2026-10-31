@@ -2586,7 +2586,8 @@ mod tests {
                 "app.open",
                 "region.toggle",
                 "region.put",
-                "region.solo"
+                "region.solo",
+                "window.give"
             ]
         );
     }

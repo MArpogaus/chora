@@ -25,10 +25,12 @@ pub struct Give {
     pub to: String,
 }
 
-/// The export of `window.give`, with its description and schema.
+/// The export of `window.give`, with its description and schema. It is
+/// privileged: a give hides a window from view and hands it to another
+/// client, which may then focus, close or configure it.
 #[must_use]
 pub fn method() -> ExportMethod {
-    runtime::method(
+    runtime::privileged(runtime::method(
         METHOD,
         "Hands a window to another window manager (D55). Without surface: the focused window.",
         json!({
@@ -36,7 +38,7 @@ pub fn method() -> ExportMethod {
             "to": {"type": "string", "description": "The client name of the window manager."},
         }),
         &["to"],
-    )
+    ))
 }
 
 impl Conn {
@@ -81,4 +83,14 @@ impl Conn {
 
 fn rejected(err: impl std::fmt::Display) -> RpcError {
     RpcError::new(RpcError::REJECTED, err.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use chora_scene::ipc::ExportMethod;
+
+    #[test]
+    fn window_give_is_privileged() {
+        assert!(matches!(super::method(), ExportMethod::Described(d) if d.privileged));
+    }
 }
