@@ -29,6 +29,32 @@ pub fn run(command: &str) {
     }
 }
 
+/// Starts a shell command as an app with `choractl run` (D42), and
+/// answers the activation token that finds its window and the pid of
+/// the app, if `choractl` knows it.
+#[must_use]
+pub fn launch(command: &str) -> Option<(String, Option<u32>)> {
+    let run = std::process::Command::new("choractl")
+        .args(["run", "--", "sh", "-c", command])
+        .stdin(std::process::Stdio::null())
+        .output();
+    let line = match run {
+        Ok(out) if out.status.success() => out.stdout,
+        Ok(out) => {
+            let err = String::from_utf8_lossy(&out.stderr);
+            eprintln!("cannot run {command:?}: {}", err.trim());
+            return None;
+        }
+        Err(err) => {
+            eprintln!("cannot run {command:?}: choractl run: {err}");
+            return None;
+        }
+    };
+    let answer: serde_json::Value = serde_json::from_slice(&line).unwrap_or_default();
+    let pid = answer["pid"].as_u64().and_then(|p| u32::try_from(p).ok());
+    Some((answer["token"].as_str()?.into(), pid))
+}
+
 /// The most bytes of a picture file that a plugin reads.
 pub const MAX_PICTURE: u64 = 64 << 20;
 /// The most bytes of a text file, such as settings, that a plugin reads.

@@ -1041,7 +1041,7 @@ impl Construct {
     fn start_terminal(&mut self) {
         self.waiting.retain(|w| !w.stale());
         let command = self.settings.value.terminal.clone();
-        let token = launch(&command);
+        let token = chora_kit::launch(&command).map(|(t, _)| t);
         self.waiting.push(Waiting::new(
             token,
             PaneFile {
@@ -1058,7 +1058,7 @@ impl Construct {
     /// Starts the launcher. Its own window, if it has one and the
     /// token, is no pane; the next window after it is.
     fn start_launcher(&mut self) {
-        self.launcher = launch(&self.settings.value.launcher);
+        self.launcher = chora_kit::launch(&self.settings.value.launcher).map(|(t, _)| t);
         self.launched = Some(Instant::now());
     }
 
@@ -1501,7 +1501,8 @@ impl Construct {
         for pane in file.panes {
             match pane.kind {
                 Kind::Program => {
-                    let token = launch(pane.command.as_deref().unwrap_or_default());
+                    let token = chora_kit::launch(pane.command.as_deref().unwrap_or_default())
+                        .map(|(t, _)| t);
                     self.waiting.push(Waiting::new(token, pane));
                 }
                 Kind::Plugin => {
@@ -1728,29 +1729,6 @@ fn configure(surface: &str, size: [f64; 2]) -> Command {
         size: Some(size),
         states: vec![ToplevelState::Maximized],
     }
-}
-
-/// Starts a shell command with `choractl run`, as mc does, and answers
-/// the activation token that finds its window.
-fn launch(command: &str) -> Option<String> {
-    let run = std::process::Command::new("choractl")
-        .args(["run", "--", "sh", "-c", command])
-        .stdin(std::process::Stdio::null())
-        .output();
-    let out = match run {
-        Ok(out) if out.status.success() => out.stdout,
-        Ok(out) => {
-            let err = String::from_utf8_lossy(&out.stderr);
-            eprintln!("chora-construct: {command}: {}", err.trim());
-            return None;
-        }
-        Err(err) => {
-            eprintln!("chora-construct: choractl run: {err}");
-            return None;
-        }
-    };
-    let answer: Value = serde_json::from_slice(&out).unwrap_or_default();
-    answer["token"].as_str().map(String::from)
 }
 
 #[cfg(test)]

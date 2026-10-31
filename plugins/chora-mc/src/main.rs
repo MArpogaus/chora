@@ -27,6 +27,7 @@ use std::{
 };
 
 use chora_kit::{
+    launch,
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
 };
@@ -2445,30 +2446,6 @@ fn alive(pid: u32) -> bool {
     stat.ok()
         .and_then(|s| Some(s[s.rfind(')')? + 1..].trim_start().starts_with('Z')))
         .is_some_and(|zombie| !zombie)
-}
-
-/// Starts a shell command with `choractl run`, and answers the activation
-/// token that finds its window again, and the process, if it is known.
-fn launch(command: &str) -> Option<(String, Option<u32>)> {
-    let run = std::process::Command::new("choractl")
-        .args(["run", "--", "sh", "-c", command])
-        .stdin(std::process::Stdio::null())
-        .output();
-    let line = match run {
-        Ok(out) if out.status.success() => out.stdout,
-        Ok(out) => {
-            let err = String::from_utf8_lossy(&out.stderr);
-            eprintln!("chora-mc: {command}: {}", err.trim());
-            return None;
-        }
-        Err(err) => {
-            eprintln!("chora-mc: choractl run: {err}");
-            return None;
-        }
-    };
-    let answer: Value = serde_json::from_slice(&line).unwrap_or_default();
-    let pid = answer["pid"].as_u64().and_then(|p| u32::try_from(p).ok());
-    Some((answer["token"].as_str()?.into(), pid))
 }
 
 #[cfg(test)]
