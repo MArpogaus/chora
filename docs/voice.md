@@ -141,13 +141,15 @@ Each heard text that is not a command word shows first in the HUD, as
 
 Speech while `thinking`, `tool` or `confirming`: each utterance goes to
 the ASR at once. A cancel word cancels. In `confirming`, the text is the
-answer. Other text goes into the next LLM round of the running reply,
+answer, but only speech that starts after the question starts to
+play. Other text goes into the next LLM round of the running reply,
 as a user message (`Inject`; the chat reports it back as `Heard`). This
 also holds after the answer of a round: when new words came while the
 LLM answered, one more round hears them. After the last round of
 `tool_rounds`, new words get `tool_rounds` more rounds in the same turn;
-they do not wait until the reply is said. A yes or no waits in the queue
-for a question. A call that would ask does not ask while new words wait:
+they do not wait until the reply is said. Short text goes in too
+("Und größer.", "Nein, rot."). Only a pure yes or no waits in the queue.
+It never answers a question. A call that would ask does not ask while new words wait:
 it does not run, and its result is "Not confirmed: the user said
 something new; nothing happened". Texts that no round heard start the
 next reply together, as one message (`queued` in the state record). No
@@ -258,15 +260,17 @@ number and boolean arguments in place of `{args}` ("Shall I change the
 screen to output winit, scale 1.5?"), and waits for
 yes or no. The method `confirm` answers from a key or the HUD (WP5;
 privileged, so a confined client needs `methods.privileged`),
-the spoken yes and no since WP6. A spoken answer is yes when its first
-word after the fillers is a yes word ("Ja, die Skalierung"), likewise
-no ("Nein, lieber nicht"). A short answer (four words at most) without
-such a first word counts by its yes or no word, and is unclear with
-both or none ("Bitte nicht" is a no; a text of fillers only, such as
-"Bitte.", counts with them). Two unclear answers are a no. A longer
-text without a yes or no word is a new request: a no, and the text
-starts the next turn. A yes or no text queued while the reply thought
-answers the question when it comes. No answer within
+the spoken yes and no since WP6. Only speech that starts after the
+question starts to play is an answer. A queued text never answers.
+Without speaker sound, the question counts from when it is asked.
+Only a pure yes or no answers: one or two yes phrases, or one or two
+no phrases, and filler words. Examples are "Ja, bitte.", "Ja, mach
+das." and "Nein, lieber nicht." A text of fillers only, such as
+"Bitte.", counts with them. Other text of at most two words is
+unclear ("1.5", "Ja, nein"). Two unclear answers are a no. A longer
+text is a new request, also with a yes word in it ("Mach das andere
+Fenster zu."). A new request is a no, and the text starts the next
+turn. No answer within
 `confirm_timeout_ms` from the end of the sound of the question is a no
 (a question that is never said waits 30 s longer). The LLM gets the
 reason as the result:
@@ -424,7 +428,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `sleep_words`, `wake_words` | `[sleep, go to sleep, schlaf, schlaf jetzt]`, `[hey chora, listen, hallo chora, hör zu]` |
 | `cancel_words` | `[stop, cancel, never mind, stopp, abbrechen, halt, vergiss es]` |
 | `code_cancel_words` | `[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
-| `yes_words`, `no_words` | `[yes, yeah, yep, yup, okay, ok, do it, please, sure, go ahead, ja, jo, jap, jep, klar, gern, gerne, genau, mach, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
+| `yes_words`, `no_words` | `[yes, yeah, yep, yup, okay, ok, do it, please, sure, go ahead, ja, jo, jap, jep, klar, gern, gerne, genau, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
 | `filler_words` | `[please, now, bitte, jetzt, mal]` |
 | `confirm`, `confirm_timeout_ms` | rules below, `15000` (from the end of the question) |
 | `earcons`, `earcon_volume` | `true`, `0.3` |

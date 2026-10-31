@@ -110,10 +110,17 @@ pub fn matches(config: &Config, text: &str, speech_ms: u32, confirming: bool) ->
 pub enum Answer {
     Yes,
     No,
-    /// A short text without a clear yes or no.
+    /// At most two words without a pure yes or no.
     Unclear,
-    /// A long text without a yes or no word: a new request.
+    /// A longer text that is not a pure yes or no: a new request.
     Request,
+}
+
+impl Answer {
+    /// A pure yes or no.
+    pub fn pure(self) -> bool {
+        matches!(self, Self::Yes | Self::No)
+    }
 }
 
 /// Whether two words are near: equal, or one edit apart from five
@@ -122,37 +129,46 @@ fn close(a: &str, b: &str) -> bool {
     a == b || (a.chars().count().min(b.chars().count()) >= 5 && near(a, b))
 }
 
-/// Whether a phrase of `list` starts `words` at `at`.
-fn has_at(words: &[String], at: usize, list: &[String]) -> bool {
-    list.iter().any(|p| {
-        let want = normalize(p);
-        !want.is_empty()
-            && words.len() >= at + want.len()
-            && want.iter().zip(&words[at..]).all(|(w, x)| close(w, x))
-    })
+/// The number of words of the longest phrase of `list` that starts
+/// `words` at `at`; 0 without one.
+fn has_at(words: &[String], at: usize, list: &[String]) -> usize {
+    list.iter()
+        .map(|p| normalize(p))
+        .filter(|want| {
+            words.len() >= at + want.len()
+                && want.iter().zip(&words[at..]).all(|(w, x)| close(w, x))
+        })
+        .map(|want| want.len())
+        .max()
+        .unwrap_or(0)
 }
 
-/// The answer in `text`: a yes or no word first counts whatever
-/// follows ("Ja, die Skalierung"), unless a short answer also has the
-/// other ("Ja, aber nicht"); a short answer (at most four words) counts
-/// by the yes or no word in it. A text of filler words only is read with
-/// them ("Bitte.").
+/// The answer in `text`. Only a pure yes or no answers: one or two yes
+/// or no phrases and filler words ("Ja, bitte.", "Ja, mach das.",
+/// "Nein, lieber nicht."). Any other text of at most two words is
+/// unclear, a longer one is a request ("Mach das andere Fenster zu.").
 pub fn answer(config: &Config, text: &str) -> Answer {
     let mut words = content(config, text);
     if words.is_empty() {
         words = normalize(text);
     }
-    let anywhere = |list| (0..words.len()).any(|at| has_at(&words, at, list));
-    let (yes, no) = (anywhere(&config.yes_words), anywhere(&config.no_words));
-    let short = words.len() <= MAX_WORDS;
-    let first_no = has_at(&words, 0, &config.no_words);
-    let first_yes = has_at(&words, 0, &config.yes_words) && !(short && no);
-    match (first_no, first_yes, short, yes, no) {
-        (true, ..) => Answer::No,
-        (_, true, ..) | (_, _, true, true, false) => Answer::Yes,
-        (_, _, true, false, true) => Answer::No,
-        (_, _, false, false, false) => Answer::Request,
-        _ => Answer::Unclear,
+    let (mut at, mut yes, mut no) = (0, 0, 0);
+    while at < words.len() {
+        let y = has_at(&words, at, &config.yes_words);
+        let n = has_at(&words, at, &config.no_words);
+        match (y, n) {
+            (0, 0) => break,
+            (y, n) if y >= n => yes += 1,
+            _ => no += 1,
+        }
+        at += y.max(n);
+    }
+    let whole = at == words.len() && yes + no <= 2;
+    match (whole, yes, no) {
+        (true, 1.., 0) => Answer::Yes,
+        (true, 0, 1..) => Answer::No,
+        _ if normalize(text).len() <= 2 => Answer::Unclear,
+        _ => Answer::Request,
     }
 }
 
@@ -265,23 +281,31 @@ mod tests {
     }
 
     #[test]
-    fn a_confirmation_answer_counts_by_its_first_or_only_yes_or_no() {
+    fn only_a_pure_yes_answers_a_confirmation() {
         let config = Config::default();
         let a = |text| answer(&config, text);
         for text in [
-            "Ja, die Skalierung des Bildschirms.",
+            "Ja, bitte.",
             "Bitte.",
-            "Ja, versuche es bitte noch mal.",
             "Yes, do it",
             "Please.",
             "Sure.",
             "Go ahead.",
-            "Mach.",
-            "Okay, mach mal.",
-            "Genau so",
-            "Das passt, genau.",
+            "Okay, mach das.",
+            "Genau, jetzt.",
         ] {
             assert_eq!(a(text), Answer::Yes, "{text}");
+        }
+        // Review 0.9.0-rc.3: a request with a yes word in it is no yes.
+        for (text, want) in [
+            ("Mach das andere Fenster zu.", Answer::Request),
+            ("Ja, die Skalierung des Bildschirms.", Answer::Request),
+            ("Ja, versuche es bitte noch mal.", Answer::Request),
+            ("Okay, mach mal.", Answer::Request),
+            ("Mach.", Answer::Unclear),
+            ("Genau so", Answer::Unclear),
+        ] {
+            assert_eq!(a(text), want, "{text}");
         }
     }
 
@@ -302,7 +326,7 @@ mod tests {
             }
         }
         assert_eq!(answer(&config, "Yeah."), Answer::Yes);
-        assert_eq!(answer(&config, "Klar, aber nicht"), Answer::Unclear);
+        assert_eq!(answer(&config, "Klar, aber nicht"), Answer::Request);
     }
 
     #[test]
@@ -311,27 +335,30 @@ mod tests {
         let a = |text| answer(&config, text);
         for (text, want) in [
             ("Nein, lieber nicht", Answer::No),
-            ("No, leave the screen as it is.", Answer::No),
+            ("No, leave the screen as it is.", Answer::Request),
             ("Nein.", Answer::No),
             ("Bitte nicht.", Answer::No),
-            ("Ja, aber nicht", Answer::Unclear),
+            ("Ja, nein", Answer::Unclear),
+            ("Nein, rot.", Answer::Unclear),
+            ("Und größer.", Answer::Unclear),
+            ("Ja, aber nicht", Answer::Request),
             ("1.5", Answer::Unclear),
-            ("Lass mich kurz", Answer::Unclear),
-            ("Die Skalierung, ja, die vom Bildschirm.", Answer::Unclear),
+            ("Lass mich kurz", Answer::Request),
+            ("Die Skalierung, ja, die vom Bildschirm.", Answer::Request),
             ("Zeig mir die Agenda für heute.", Answer::Request),
         ] {
             assert_eq!(a(text), want, "{text}");
         }
         // As a command word in a confirmation, of any length.
         let m = |text, ms, confirming| matches(&config, text, ms, confirming);
-        let long = "Ja, die Skalierung des Bildschirms.";
         assert_eq!(
             [
-                m(long, 2500, true),
+                m("Ja, mach das.", 2500, true),
+                m("Ja, die Skalierung des Bildschirms.", 2500, true),
                 m("Bitte.", 600, true),
                 m("Bitte.", 600, false)
             ],
-            [Some(Word::Yes), Some(Word::Yes), None]
+            [Some(Word::Yes), None, Some(Word::Yes), None]
         );
     }
 

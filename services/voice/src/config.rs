@@ -669,8 +669,7 @@ impl Default for Config {
             ]),
             yes_words: words(&[
                 "yes", "yeah", "yep", "yup", "okay", "ok", "do it", "please", "sure", "go ahead",
-                "ja", "jo", "jap", "jep", "klar", "gern", "gerne", "genau", "mach", "mach das",
-                "bitte",
+                "ja", "jo", "jap", "jep", "klar", "gern", "gerne", "genau", "mach das", "bitte",
             ]),
             no_words: words(&["no", "rather not", "nein", "nicht", "lieber nicht"]),
             filler_words: words(&["please", "now", "bitte", "jetzt", "mal"]),
