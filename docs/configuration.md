@@ -326,6 +326,8 @@ clients use `agent.set` and `hud.say`.
 | `scene.show` | `name`; the scene fades in, the old one fades out |
 | `scene.list` | none; answers `scenes` in their order and `current` |
 | `scene.save` | privileged. `name`, `grid`, `panels` or `app`: a shell command or the name of a content of kind `app`, such as `shell`; writes the file |
+| `scene.rename` | privileged. `name` and `to`: renames the scene file and its entry in `order`; a built-in scene without a file has none to rename |
+| `scene.move` | privileged. `name` and `to`, the new number from 1: the scene moves there in `order`, which the settings file keeps, and every number shows anew at once. The scene of an app stays at the end |
 | `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab puts the part before the first tab in the margin |
 | `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line. The line shows the last 160 characters of the text, from a word on |
 | `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it; past 160 characters the first words leave the line |

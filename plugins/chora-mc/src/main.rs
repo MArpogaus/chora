@@ -21,7 +21,7 @@ mod scene;
 mod testing;
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     path::PathBuf,
     process::ExitCode,
 };
@@ -242,6 +242,11 @@ struct Mc {
     appeared: Vec<String>,
     /// The window of an app scene, by scene.
     windows: HashMap<String, String>,
+    /// The scenes that go when their app ends: those of `app.open` and of
+    /// a window that no scene started.
+    transient: BTreeSet<String>,
+    /// The process of the app of a scene, if it is known.
+    pids: HashMap<String, Option<u32>>,
     /// Where an app that starts goes, by its activation token.
     starting: HashMap<String, Target>,
     /// The app scenes that wait for their window, with the process of
@@ -364,6 +369,8 @@ impl Mc {
             settings,
             dir,
             windows: HashMap::new(),
+            transient: BTreeSet::new(),
+            pids: HashMap::new(),
             starting: HashMap::new(),
             launched: Vec::new(),
             current: None,
@@ -443,6 +450,19 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "app": {"type": "string", "description": "a shell command whose window fills the text block, or the name of a content of kind app, such as shell"},
             }),
             &["name"],
+        )),
+        runtime::privileged(runtime::method(
+            "scene.rename",
+            "Renames a scene: its file, its entry in the order and the scene.",
+            json!({"name": {"type": "string"}, "to": {"type": "string"}}),
+            &["name", "to"],
+        )),
+        runtime::privileged(runtime::method(
+            "scene.move",
+            "Moves a scene to the number to, from 1, and saves the order; the scenes \
+             between move by one.",
+            json!({"name": {"type": "string"}, "to": {"type": "integer", "minimum": 1}}),
+            &["name", "to"],
         )),
         runtime::method(
             "panel.set",
@@ -649,6 +669,14 @@ impl Plugin for Mc {
                 scene::save(&self.dir, &name, &scene).map_err(invalid)?;
                 self.add_scene(&name, scene);
                 self.build().map_err(rejected)?;
+                Ok(Value::Null)
+            }
+            "scene.rename" => {
+                self.rename_scene(runtime::params(params)?)?;
+                Ok(Value::Null)
+            }
+            "scene.move" => {
+                self.move_scene(runtime::params(params)?)?;
                 Ok(Value::Null)
             }
             "panel.set" => {
@@ -1902,6 +1930,7 @@ impl Mc {
             }
         }
         self.add_scene(&name, Scene::app(command));
+        self.transient.insert(name.clone());
         let group = create(
             &scene_id(&name),
             NodeKind::Group,
@@ -1947,6 +1976,7 @@ impl Mc {
                     name = format!("{name}-{surface}");
                 }
                 self.add_scene(&name, Scene::default());
+                self.transient.insert(name.clone());
                 commands.push(create(
                     &scene_id(&name),
                     NodeKind::Group,
@@ -2438,6 +2468,8 @@ mod tests {
             privileged,
             [
                 "scene.save",
+                "scene.rename",
+                "scene.move",
                 "app.open",
                 "region.toggle",
                 "region.put",
