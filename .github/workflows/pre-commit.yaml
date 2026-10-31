@@ -12,4 +12,7 @@ jobs:
         python-version: '3.12'
     - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd   # v3.0.1
       env:
-        SKIP: cargo-clippy   # needs the system libraries; ci.yaml runs it in Fedora
+        SKIP: cargo-clippy,lychee   # clippy needs the system libraries (ci.yaml runs it in Fedora); lychee runs below
+    - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8   # v2.9.0
+      with:
+        args: --config lychee.toml docs README.md plans

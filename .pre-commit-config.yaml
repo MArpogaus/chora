@@ -24,6 +24,12 @@ repos:
     entry: tests/no-agent-trailers.sh
     language: script
     stages: [commit-msg]
+  - id: lychee
+    name: lychee (offline links in the Markdown files)
+    entry: lychee --config lychee.toml
+    language: system
+    files: ^(docs/.*|plans/.*|README)\.md$
+    types: [markdown]
 
 # Python: lint with the complexity guards of ruff.toml, and format.
 - repo: https://github.com/astral-sh/ruff-pre-commit
