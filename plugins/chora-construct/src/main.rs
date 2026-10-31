@@ -249,9 +249,10 @@ struct Construct {
     fog_shader: String,
     pane_shader: String,
     mirror_shader: String,
-    /// The launcher: the token of its own window, which is no pane,
+    /// The launcher: the token and the process of its own window, which
+    /// is no pane,
     /// that window, and when it started.
-    launcher: Option<String>,
+    launcher: Option<(String, Option<u32>)>,
     launcher_window: Option<String>,
     launched: Option<Instant>,
     output: Option<OutputInfo>,
@@ -462,11 +463,12 @@ impl Plugin for Construct {
                 app_id,
                 title,
                 to,
+                pid,
                 token,
                 ..
             } => {
                 let label = app_id.or(title).unwrap_or_default();
-                self.created(&surface, &label, to.as_deref(), token.as_deref())
+                self.created(&surface, &label, to.as_deref(), pid, token.as_deref())
             }
             Event::SurfaceDetached { surface } if !self.overlay => {
                 self.forget(&surface)?;
@@ -985,19 +987,27 @@ impl Construct {
 
     /// A new window: the launcher's own window, a pane of the construct,
     /// the program of the launcher, or, for the flavor, a free window.
+    #[allow(clippy::too_many_arguments, reason = "the fields of surface.created")]
     fn created(
         &mut self,
         surface: &str,
         label: &str,
         to: Option<&str>,
+        pid: Option<u32>,
         token: Option<&str>,
     ) -> Result<(), ClientError> {
         // A free window with the token of the launcher is the launcher
         // itself: it shows, but is no pane.
         let free = to.is_none_or(|t| t == NAME);
         self.waiting.retain(|w| !w.stale());
-        if token.is_some() && token == self.launcher.as_deref() {
+        let started = (self.launcher.as_ref()).filter(|(t, _)| token == Some(t.as_str()));
+        if let Some(&(_, launcher_pid)) = started {
             self.launcher = None;
+            if !launchers_own(pid, launcher_pid) {
+                // fuzzel passes its own token on to the program it starts.
+                self.launched = None;
+                return self.adopt(surface, label, None);
+            }
             if free && !self.overlay {
                 return self.show_launcher(surface);
             }
@@ -1058,7 +1068,7 @@ impl Construct {
     /// Starts the launcher. Its own window, if it has one and the
     /// token, is no pane; the next window after it is.
     fn start_launcher(&mut self) {
-        self.launcher = chora_kit::launch(&self.settings.value.launcher).map(|(t, _)| t);
+        self.launcher = chora_kit::launch(&self.settings.value.launcher);
         self.launched = Some(Instant::now());
     }
 
@@ -1721,6 +1731,16 @@ fn exported_methods() -> Vec<ExportMethod> {
     ]
 }
 
+/// Whether a window with the token of the launcher is the launcher's own:
+/// a launcher without a window, such as fuzzel, may pass its token on to
+/// the program that it starts, another process. Without both pids, the
+/// window is the launcher's.
+// ponytail: pids only; a launcher started through a wrapper shell with
+// more than one command then has a window of another process, a pane.
+fn launchers_own(window: Option<u32>, launcher: Option<u32>) -> bool {
+    window.zip(launcher).is_none_or(|(w, l)| w == l)
+}
+
 fn configure(surface: &str, size: [f64; 2]) -> Command {
     #[allow(clippy::cast_possible_truncation, reason = "clamped to PANE_MAX")]
     let size = size.map(|s| s.round().clamp(1.0, PANE_MAX) as i32);
@@ -1769,6 +1789,16 @@ mod tests {
         });
         assert_eq!(plugin.node(), "construct-plugin-foot");
         assert_eq!(plugin.file().unwrap().scene.as_deref(), Some("mission"));
+    }
+
+    /// The launcher's token on the window of another process is the
+    /// program of the launcher, as fuzzel passes it on.
+    #[test]
+    fn a_window_of_another_process_is_not_the_launcher() {
+        assert!(launchers_own(Some(7), Some(7)));
+        assert!(!launchers_own(Some(8), Some(7)));
+        assert!(launchers_own(None, Some(7)));
+        assert!(launchers_own(Some(8), None));
     }
 
     /// A program that waits longer than [`LAUNCHED`] goes, and no program

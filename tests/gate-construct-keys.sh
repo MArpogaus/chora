@@ -6,7 +6,8 @@
 # again; x asks the window of the pane ahead to close, and its pane goes;
 # pane.remove asks as well, and a window that refuses stays a pane; a
 # radius of settings.set leashes the panes at once.
-# The launcher here is a foot window that starts a second foot.
+# The launcher here is a foot window that starts a second foot; where
+# fuzzel is installed, the programs that it starts become panes too.
 #
 # Usage: tests/gate-construct-keys.sh   BIN: directory with the binaries
 # shellcheck disable=SC2016 # until_ok evaluates its code later
@@ -25,6 +26,21 @@ cat >"$work/chora/chora-construct.yaml" <<EOF
 terminal: foot -a term -f '$font' sh -c 'sleep 600'
 launcher: foot -a launcher -f '$font' sh -c 'sleep 1; setsid foot -a launched -f "$font" sh -c "sleep 600" & sleep 2'
 EOF
+# fuzzel, where it is installed, finds these entries. For one of them it
+# asks for no token of its own, and the program inherits the token of
+# fuzzel. fuzzel 1.14 reads StartupNotify inverted, so the gate has both.
+export XDG_DATA_HOME=$work/data
+mkdir -p "$XDG_DATA_HOME/applications" "$work/fuzzel"
+for notify in true false; do
+    cat >"$XDG_DATA_HOME/applications/notify-$notify.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Notify$notify
+Exec=foot -a notify-$notify -f '$font' sh -c 'sleep 600'
+StartupNotify=$notify
+EOF
+done
+printf '[main]\nfont=%s\n' "$font" >"$work/fuzzel/fuzzel.ini"
 # A debug core on the software renderer is slow for the space (as K1).
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 session_start 1280x800 -- "$bin/chora-construct"
@@ -81,3 +97,21 @@ import json, math, sys
 print(round(next(math.hypot(*p["at"]) for p in json.load(sys.stdin)["panes"] if p["name"] == "chora-probe")))')
 [ "$far" -le 1000 ] || fail "settings.set radius 1000 did not leash: a pane at $far"
 ok "settings.set radius 1000 leashed the pane at $far"
+
+# fuzzel, a layer-shell launcher, may pass its own token on to the
+# program that it starts; that program's window is a pane all the same.
+if ! command -v fuzzel >/dev/null; then
+    echo "skip: fuzzel is not installed here"
+    exit 0
+fi
+ctl call construct settings.set '{"launcher": "fuzzel"}' >/dev/null || fail "settings.set launcher"
+for notify in true false; do
+    key space
+    sleep 2
+    echo "[{\"text\": {\"text\": \"Notify$notify\"}}]" | ctl inject || fail "inject Notify$notify"
+    sleep 0.5
+    key Return
+    until_ok "panes | grep -qw notify-$notify" || fail "the program notify-$notify of fuzzel is no pane: $(panes)"
+    until_ok 'test "$(focused id:construct-look)" = True' || fail "the walk has no keyboard after fuzzel"
+done
+ok "the programs that fuzzel started became panes, with or without the token of fuzzel"
