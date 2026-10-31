@@ -63,6 +63,10 @@ const LAST_ROUND: &str = "(The agent: you reached the limit of tool calls for th
 const NUDGE: &str = "(The agent: you announced an action but called no tool, and your turn \
     would end here. Call the tool now, or say in one short sentence that you will not.)";
 
+/// The note of the round after a cut answer; it does not stay in the
+/// history. The same request gave the same fragment (dump 2026-10-31).
+const RETRY: &str = "[Your last answer stopped mid-sentence. Answer again in full.]";
+
 /// Whether the last sentence of an answer announces an action in the
 /// first person, in an explicit form only: "let me", "I'll", "I will"
 /// or "I'm going to" before a verb of action, "ich werde", "lass mich"
@@ -509,17 +513,16 @@ impl Chat {
         let mut report = Report::default();
         let mut limit = self.config.tool_rounds;
         let mut nudged = false;
-        // The words of a cut answer, once per turn; its next round does
-        // not say them again.
-        let mut cut_said: Option<String> = None;
+        // Cut answers in a row, and the sentences that they said: the
+        // next round does not say them again.
+        let mut cuts = 0;
+        let mut skip = String::new();
         for round in 0.. {
             let last = round == limit;
             self.listen(out);
             out(Event::Thinking);
             report.rounds += 1;
-            let hold = !last && cut_said.is_none();
-            let skip = cut_said.clone().unwrap_or_default();
-            let (said, result) = self.round(last, hold, &skip, out).await;
+            let (said, result) = self.round(last, cuts > 0, &skip, out).await;
             report.reply += &said;
             let r = match result {
                 Ok(r) => r,
@@ -530,9 +533,18 @@ impl Chat {
             };
             report.first(start, &r);
             if r.cut {
-                cut_said = Some(said);
+                cuts += 1;
+                skip += &said;
+                if self.brake(cuts, out) {
+                    report.outcome = "cut";
+                    break;
+                }
+                // A cut round is no tool round.
+                limit += 1;
                 continue;
             }
+            cuts = 0;
+            skip.clear();
             if last || r.round.calls.is_empty() {
                 report.outcome = self.answered(&r.round, last, said.is_empty(), out);
                 if self.more(&r.round.text, last || report.tools > 0, &mut nudged) {
@@ -544,12 +556,8 @@ impl Chat {
                 }
                 break;
             }
-            if round == 0 && said.is_empty() {
-                // No silence while the tools run.
-                out(Event::Sentence(self.config.phrases.ack.clone()));
-            }
             let tools_start = Instant::now();
-            report.tools += self.run(r.round, out).await;
+            report.tools += self.run(r.round, round == 0 && said.is_empty(), out).await;
             report.tools_time += tools_start.elapsed();
         }
         self.open = None;
@@ -580,7 +588,7 @@ impl Chat {
             crate::log::info("llm: the user said more; one more round");
             return true;
         }
-        if last || *nudged || !announces(answer) {
+        if last || *nudged || cut(answer) || !announces(answer) {
             return false;
         }
         crate::log::info("llm: an announced tool without a call; one more round");
@@ -673,6 +681,28 @@ impl Chat {
         }
     }
 
+    /// After the `cuts`-th cut answer in a row: the second drops the
+    /// history before the last words of the user, the third says
+    /// `phrases.lost`. Answers whether the turn ends.
+    fn brake(&mut self, cuts: u32, out: &impl Fn(Event)) -> bool {
+        if cuts >= 3 {
+            crate::log::warn("llm: three cut answers; the turn ends");
+            out(Event::Sentence(self.config.phrases.lost.clone()));
+            return true;
+        }
+        if cuts == 2 {
+            let start = self.history.iter().rposition(|m| {
+                m["role"] == "user" && m["content"] != NUDGE && m["content"] != STOPPED
+            });
+            let start = start.unwrap_or(0);
+            crate::log::warn(&format!(
+                "llm: two cut answers; dropped {start} messages of the history"
+            ));
+            self.history.drain(..start);
+        }
+        false
+    }
+
     /// Says that the LLM failed.
     fn failed(&self, e: &llm::Error, out: &impl Fn(Event)) -> &'static str {
         crate::log::error(&format!("llm: {e}"));
@@ -711,8 +741,12 @@ impl Chat {
     }
 
     /// Runs the calls of a round and commits it with the results;
-    /// answers the number of calls.
-    async fn run(&mut self, round: Round, out: &(impl Fn(Event) + Sync)) -> u32 {
+    /// answers the number of calls. With `ack`, says `phrases.ack` first:
+    /// no silence while the tools run.
+    async fn run(&mut self, round: Round, ack: bool, out: &(impl Fn(Event) + Sync)) -> u32 {
+        if ack {
+            out(Event::Sentence(self.config.phrases.ack.clone()));
+        }
         let calls: Vec<Value> = round
             .calls
             .iter()
@@ -732,12 +766,13 @@ impl Chat {
 
     /// One request with retries: once more after a connect error, and
     /// with half the budget after a context error. Answers the words that
-    /// went out as sentences. With `hold`, the last words of a [`cut`]
-    /// answer do not go out. Sentences in `skip` went out before.
+    /// went out as sentences. The last words of a [`cut`] answer never go
+    /// out. Sentences in `skip` went out before. A `retry` asks with
+    /// `RETRY` for the whole answer.
     async fn round(
         &mut self,
         last: bool,
-        hold: bool,
+        retry: bool,
         skip: &str,
         out: &(impl Fn(Event) + Sync),
     ) -> (String, Result<Timed, llm::Error>) {
@@ -748,7 +783,7 @@ impl Chat {
         let mut retried = false;
         loop {
             let (body, messages, chars) =
-                self.request(last, if retried { budget / 2 } else { budget });
+                self.request(last, retry, if retried { budget / 2 } else { budget });
             let mut splitter = Splitter::default();
             let start = Instant::now();
             let result = self
@@ -762,12 +797,11 @@ impl Chat {
                     }
                 })
                 .await;
-            let cut = hold
-                && matches!(&result, Ok(r) if r.finish == "stop"
+            let cut = matches!(&result, Ok(r) if r.finish == "stop"
                     && r.calls.is_empty() && cut(&strip_notes(&r.text)));
             let rest = splitter.finish();
             if cut {
-                crate::log::info(&format!("llm: cut answer, held {rest:?}; one more round"));
+                crate::log::info(&format!("llm: cut answer, dropped {rest:?}"));
             }
             // The words before the tool calls are spoken while they run.
             if let Some(sentence) = rest.filter(|s| !cut && !skip.contains(s)) {
@@ -801,7 +835,7 @@ impl Chat {
 
     /// The body of a request in `budget` tokens, its messages and their
     /// characters.
-    fn request(&mut self, last: bool, budget: u32) -> (Value, Vec<Value>, usize) {
+    fn request(&mut self, last: bool, retry: bool, budget: u32) -> (Value, Vec<Value>, usize) {
         let tools = self.tools.specs.clone();
         let fixed = self.system.len() + serde_json::to_string(&tools).map_or(0, |t| t.len());
         self.fit(budget, fixed);
@@ -809,6 +843,9 @@ impl Chat {
         messages.extend(self.history.iter().cloned());
         if last {
             messages.push(json!({"role": "user", "content": LAST_ROUND}));
+        }
+        if retry {
+            messages.push(json!({"role": "user", "content": RETRY}));
         }
         let mut body = self.llm.body(&messages, &tools);
         if last && !tools.is_empty() {
@@ -1114,7 +1151,8 @@ impl Chat {
 struct Timed {
     round: Round,
     elapsed: Duration,
-    /// The answer stopped mid-sentence; its last words did not go out.
+    /// The answer stopped mid-sentence; its last words did not go out,
+    /// and it does not go into the history.
     cut: bool,
 }
 
@@ -1689,11 +1727,11 @@ mod tests {
         }
     }
 
-    /// An answer cut by the server gets one more round with the same
-    /// history, once per turn; its last words are not spoken, and the
-    /// sentences spoken before it are not spoken again (dump 2026-10-31).
+    /// An answer cut by the server gets one more round; its last words
+    /// are not spoken, and the sentences spoken before it are not spoken
+    /// again (dump 2026-10-31).
     #[tokio::test]
-    async fn a_cut_answer_gets_one_more_round_once() {
+    async fn a_cut_answer_gets_one_more_round() {
         let script = vec![
             Reply::Text("I'll set the scale to 1.5 and switch"),
             Reply::Text("I'll set the scale to 1.5 and switch the theme to light."),
@@ -1701,10 +1739,8 @@ mod tests {
             Reply::Text("Okay. I’m setting the theme now."),
             Reply::Text("I’ll apply"),
             Reply::Text("Done, the scale is 1.5."),
-            Reply::Text("Die Skalierung ist"),
-            Reply::Text("Die Skalierung ist"),
         ];
-        let (mut chat, server) = chat(script, Config::default()).await;
+        let (mut chat, _server) = chat(script, Config::default()).await;
         let said = |events: &[String]| -> Vec<String> {
             events
                 .iter()
@@ -1718,7 +1754,6 @@ mod tests {
             said(&events),
             ["say I'll set the scale to 1.5 and switch the theme to light."]
         );
-        assert_eq!(last_user(&server, 1), "Stelle das Scaling auf 1,5.");
         let (_, events) = turn(&mut chat, "Das ist noch nicht passiert.", true).await;
         assert_eq!(
             said(&events),
@@ -1726,9 +1761,85 @@ mod tests {
         );
         let (_, events) = turn(&mut chat, "Bitte umsetzen.", true).await;
         assert_eq!(said(&events), ["say Done, the scale is 1.5."]);
-        let (report, events) = turn(&mut chat, "Und?", true).await;
-        assert_eq!(report.rounds, 2, "the second cut ends the turn: {events:?}");
-        assert_eq!(said(&events), ["say Die Skalierung ist"]);
+    }
+
+    /// The words of the turn that went out as sentences.
+    fn said(events: &[String]) -> Vec<&str> {
+        events
+            .iter()
+            .filter_map(|e| e.strip_prefix("say "))
+            .collect()
+    }
+
+    /// The fragment of a cut answer is never spoken nor kept, and gets
+    /// no nudge (log 2026-10-31: "cut answer, held \"I’ll send Alt\"",
+    /// then "say: I’ll send Alt" and a nudge).
+    #[tokio::test]
+    async fn a_cut_fragment_is_not_spoken() {
+        let script = vec![
+            Reply::Text("I’ll send Alt"),
+            Reply::Text("I’ll send Alt"),
+            Reply::Text("Sent."),
+        ];
+        let (mut chat, server) = chat(script, Config::default()).await;
+        let (report, events) = turn(&mut chat, "Schick Alt+Tab.", true).await;
+        assert_eq!(
+            (report.rounds, report.outcome),
+            (3, "answered"),
+            "{events:?}"
+        );
+        assert_eq!(said(&events), ["Sent."]);
+        let texts: Vec<&Value> = chat.history.iter().map(|m| &m["content"]).collect();
+        assert_eq!(texts, ["Schick Alt+Tab.", "Sent."]);
+        let seen = server.seen.lock().unwrap();
+        assert!(
+            !seen
+                .iter()
+                .any(|s| s.to_string().contains("announced an action"))
+        );
+    }
+
+    /// The round after a cut answer asks with a note of its own, which
+    /// does not stay in the history: the same request gave the same
+    /// fragment (dump 2026-10-31).
+    #[tokio::test]
+    async fn the_retry_of_a_cut_answer_asks_with_a_note() {
+        let script = vec![Reply::Text("Because"), Reply::Text("Because it is late.")];
+        let (mut chat, server) = chat(script, Config::default()).await;
+        let (_, events) = turn(&mut chat, "Warum?", true).await;
+        assert_eq!(said(&events), ["Because it is late."]);
+        assert_eq!(last_user(&server, 0), "Warum?");
+        assert_eq!(last_user(&server, 1), RETRY);
+        assert!(chat.history.iter().all(|m| m["content"] != RETRY));
+    }
+
+    /// After two cut answers in a row, the third round has only the last
+    /// words of the user; a third cut says `phrases.lost` and ends the
+    /// turn.
+    #[tokio::test]
+    async fn two_cut_answers_pull_the_emergency_brake() {
+        let script = vec![
+            Reply::Text("Eins."),
+            Reply::Text("The"),
+            Reply::Text("I can't"),
+            Reply::Text("The"),
+        ];
+        let (mut chat, server) = chat(script, Config::default()).await;
+        turn(&mut chat, "Zähl.", true).await;
+        let (report, events) = turn(&mut chat, "Weiter.", true).await;
+        assert_eq!((report.rounds, report.outcome), (3, "cut"), "{events:?}");
+        assert_eq!(said(&events), [Config::default().phrases.lost.as_str()]);
+        let seen = server.seen.lock().unwrap();
+        let contents = |i: usize| -> Vec<String> {
+            let messages = seen[i]["messages"].as_array().unwrap();
+            messages
+                .iter()
+                .map(|m| m["content"].as_str().unwrap_or_default().into())
+                .collect()
+        };
+        assert_eq!(contents(2).len(), 5, "{:?}", contents(2));
+        assert_eq!(contents(3)[1..], ["Weiter.", RETRY]);
+        assert_eq!(chat.history.len(), 1);
     }
 
     /// A German announcement without a tool name gets one more round,
@@ -2039,7 +2150,9 @@ mod tests {
         for (i, m) in history.iter().enumerate() {
             if m["role"] == "tool" {
                 let id = &m["tool_call_id"];
-                let calls = history[..i].iter().flat_map(|m| m["tool_calls"].as_array());
+                let calls = history[..i]
+                    .iter()
+                    .filter_map(|m| m["tool_calls"].as_array());
                 assert!(calls.flatten().any(|c| c["id"] == *id), "{id}");
             }
         }

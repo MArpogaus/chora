@@ -101,6 +101,8 @@ pub struct Phrases {
     pub ready: String,
     /// Said after an always word allowed an action for the session.
     pub allowed: String,
+    /// Said when three answers of a turn stopped mid-sentence.
+    pub lost: String,
 }
 
 impl Default for Phrases {
@@ -120,6 +122,7 @@ impl Default for Phrases {
             ack: "One moment.".into(),
             ready: "Ready.".into(),
             allowed: "Allowed for this session.".into(),
+            lost: "I lost the thread, please say it again.".into(),
         }
     }
 }
@@ -463,6 +466,7 @@ impl Config {
             &mut p.ack,
             &mut p.ready,
             &mut p.allowed,
+            &mut p.lost,
         ];
         let prompts = out.confirm.iter_mut().map(|r| &mut r.prompt);
         for text in texts.into_iter().chain(prompts) {
@@ -587,7 +591,7 @@ pub fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 23] = [
+const GERMAN: [(&str, &str); 24] = [
     ("One moment.", "Moment."),
     ("Allowed for this session.", "Für diese Sitzung erlaubt."),
     ("Ready.", "Bereit."),
@@ -609,6 +613,10 @@ const GERMAN: [(&str, &str); 23] = [
         "Ich habe dich nicht verstanden.",
     ),
     ("Details on the screen.", "Details auf dem Bildschirm."),
+    (
+        "I lost the thread, please say it again.",
+        "Ich habe den Faden verloren, sag es bitte noch einmal.",
+    ),
     (
         "{name} wants to {what}. Allow?",
         "{name} möchte {what}. Erlauben?",

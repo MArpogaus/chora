@@ -169,12 +169,18 @@ Loader.").
 
 An answer that ends with `stop`, calls no tool, and whose words do not
 end with `.`, `!`, `?` or `…` (also before a closing quote) is cut: Gufo
-0.27 ended rounds after 3-12 tokens ("I’m setting the", "I’ll apply",
-2026-10-31), and the same request again gave the whole answer. Its last
-words after the last spoken sentence do not play and do not go into the
-history; one more round runs with the same history, once per turn. That
-round does not say again the sentences that already played. The check
-comes before the announcement check.
+0.27 ended rounds after 1-12 tokens ("I’m setting the", "I’ll send Alt",
+2026-10-31). Its last words after the last spoken sentence never play
+and never go into the history. One more round runs with the note
+"[Your last answer stopped mid-sentence. Answer again in full.]" at the
+end of the request; the note does not go into the history, because the
+same request gave the same fragment again. That round does not say again
+the sentences that already played, and a cut round does not count
+toward `tool_rounds`. After two cut rounds in a row, the emergency brake
+drops the history before the last words of the user, and one more round
+runs. A third cut says `phrases.lost` ("I lost the thread, please say it
+again.") and ends the turn. The cut check comes before the announcement
+check, and a cut answer never gets the announcement round.
 
 Cancel stops only the current turn: the reply task drops the SSE request
 and the MCP call in flight (rmcp sends `notifications/cancelled`), the
