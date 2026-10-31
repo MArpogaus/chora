@@ -91,6 +91,12 @@ styles:
     color: muted
     letter_spacing: 0.2
     uppercase: true
+    features: {tnum: 1}
+  # The lead of a scene: one step over the heading, at most one a page.
+  lead:
+    base: body
+    step: 2
+    line_height: 1.3
   # Notes in the margin, the regions and the HUD, with tabular figures.
   margin:
     family: Inter

@@ -22,7 +22,7 @@ change it there, not here.
     | -1 | margin notes, regions, HUD, code | `margin`, `hud`, `mono` |
     | 0 | body text and data | `body`, `data` |
     | 1 | panel titles | `heading` |
-    | 2 | the lead of a scene, at most one | a panel `style: {step: 2}` |
+    | 2 | the lead of a scene, at most one | `lead` |
     | 3 | the scene title and its number | `chapter`, `chapter_number` |
 
     Do not set Pagella below step 0. The labels of the regions are the
@@ -43,11 +43,12 @@ change it there, not here.
 
 ## Color
 
-6. **Four roles.** `text` is for content. `muted` is for panel titles,
+6. **Three roles.** `text` is for content. `muted` is for panel titles,
    labels, notes, the scene number and its bar. `faint` is for hairlines
    and for an agent that rests. Do not set text that people must read in
    `faint`.
-7. **One accent.** The `accent` color is on the scene title only. The
+7. **One accent.** The `accent` color is on the scene title and on the
+   state of the voice agent only. The
    colors `green`, `amber`, `blue` and `red` show a state, for example of
    an agent or an error; do not use them for decoration.
 
@@ -84,7 +85,7 @@ change it there, not here.
 ## New scenes and contents
 
 15. **Use the named styles.** A scene or a content uses `body`,
-    `heading`, `data`, `margin` or `mono`. It changes a style only with
+    `heading`, `lead`, `data`, `margin` or `mono`. It changes a style only with
     `base` and a color or a step of the table above. Do not set a family,
     a size in pixels or a letter spacing in a scene file. A new role gets
     a named style in `mc.yaml` and a rule on this page. Before a merge,
