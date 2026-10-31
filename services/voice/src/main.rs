@@ -257,6 +257,10 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
                 let _runtime = agent.net.enter();
                 let _ = reply.send(agents.call(&tool, &args));
             }
+            Ok(Input::Claimed(claimed)) => {
+                agent.claimed = claimed;
+                agent.report();
+            }
             Ok(input) => {
                 if let Err(e) = agent.step(input) {
                     break Err(e);
@@ -295,8 +299,10 @@ struct Agent {
     reported: [Option<serde_json::Value>; 2],
     /// The last reports of the sub-agents.
     reported_subs: std::collections::BTreeMap<String, serde_json::Value>,
-    /// The state that the indicator shows; none without it.
-    dot: Option<core::State>,
+    /// The state that the indicator shows and its place; none without it.
+    dot: Option<(core::State, mc::Place)>,
+    /// A plugin that shows the state claimed the indicator: no dot.
+    claimed: bool,
     /// The ASR and the TTS for the health probes.
     probe: tokio::sync::watch::Sender<health::Probed>,
     coder: Option<coder::Coder>,
@@ -324,6 +330,7 @@ impl Agent {
             reported: [None, None],
             reported_subs: std::collections::BTreeMap::new(),
             dot: None,
+            claimed: false,
             probe: tokio::sync::watch::Sender::new([Err(String::new()), Err(String::new())]),
             coder: None,
             agents: None,
@@ -392,7 +399,10 @@ impl Agent {
             }
         }
         self.reported_subs.clone_from(subs);
-        let dot = self.core.config().indicator.then(|| self.core.state());
+        let place = self.core.config().indicator.place();
+        let dot = place
+            .filter(|_| !self.claimed)
+            .map(|place| (self.core.state(), place));
         if dot != self.dot {
             let _ = mc.send(mc::Report::State(dot));
             self.dot = dot;

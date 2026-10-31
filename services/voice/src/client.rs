@@ -40,6 +40,27 @@ struct Client {
     rt: Runtime<()>,
     settings: settings::File<Config>,
     tx: Sender<Input>,
+    claims: Claims,
+}
+
+/// The clients that show the state of the agent themselves and claimed
+/// the indicator: while one is connected, the dot hides. The claims of a
+/// session end with it; the plugins claim again when `voice` connects.
+#[derive(Default)]
+struct Claims(std::collections::BTreeSet<String>);
+
+impl Claims {
+    /// A client claims the indicator; answers whether the dot hides.
+    fn claim(&mut self, client: &str) -> bool {
+        self.0.insert(client.to_owned());
+        true
+    }
+
+    /// A client is gone; answers whether the dot still hides.
+    fn gone(&mut self, client: &str) -> bool {
+        self.0.remove(client);
+        !self.0.is_empty()
+    }
 }
 
 /// The parameters of `confirm`.
@@ -107,12 +128,15 @@ fn session(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut methods = exported_methods();
     methods.extend(settings::File::<Config>::methods());
-    let rt = Runtime::start(name, Vec::new(), &[], methods)?;
+    let rt = Runtime::start(name, Vec::new(), &["client.disconnected"], methods)?;
     let mut client = Client {
         rt,
         settings,
         tx: tx.clone(),
+        claims: Claims::default(),
     };
+    // The claims of the session before are gone.
+    let _ = tx.send(Input::Claimed(false));
     // A new session reads the file again, which an edit may have changed.
     client.apply().map_err(|e| e.message)?;
     crate::log::info(&format!("connected to chora as {name}"));
@@ -135,8 +159,19 @@ fn serve(
 ) -> Result<(), ClientError> {
     let mut held = Held::default();
     loop {
-        if let Some(event) = client.rt.conn.next_event_timeout(EMIT_POLL)? {
-            runtime::dispatch(client, event)?;
+        match client.rt.conn.next_event_timeout(EMIT_POLL)? {
+            // The runtime drops the caller, which a claim needs.
+            Some(Event::MethodCalled {
+                call,
+                caller,
+                method,
+                ..
+            }) if method == "indicator.claim" => {
+                let _ = client.tx.send(Input::Claimed(client.claims.claim(&caller)));
+                client.rt.conn.answer(call, Ok(json!({})))?;
+            }
+            Some(event) => runtime::dispatch(client, event)?,
+            None => {}
         }
         held.emit(emits.try_iter(), Instant::now(), |event, data| {
             let emit = Emit {
@@ -263,6 +298,13 @@ fn exported_methods() -> Vec<ExportMethod> {
             &["tool"],
         )),
         runtime::method(
+            "indicator.claim",
+            "Hides the state dot of the agent while the calling client is connected: the \
+             caller shows the state itself. Call it again after the voice client connects.",
+            none.clone(),
+            &[],
+        ),
+        runtime::method(
             "restart",
             "Reads the settings file again, for example after an edit by hand.",
             none,
@@ -311,6 +353,11 @@ impl Plugin for Client {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if let Event::ClientDisconnected { name } = &event
+            && self.claims.0.contains(name)
+        {
+            let _ = self.tx.send(Input::Claimed(self.claims.gone(name)));
+        }
         if let Event::InputKey { binding, state } = event
             && self.rt.action(&binding).is_some()
         {
@@ -385,7 +432,21 @@ mod tests {
     use chora_scene::ipc::{ClientError, ExportMethod, RpcError};
     use serde_json::{Value, json};
 
-    use super::{Held, RESEND};
+    use super::{Claims, Held, RESEND};
+
+    /// A claim hides the dot, the claimer's disconnect shows it again,
+    /// and a second claimer keeps it hidden.
+    #[test]
+    fn claims_hide_the_dot_while_a_claimer_is_connected() {
+        let mut claims = Claims::default();
+        assert!(claims.claim("mc"));
+        assert!(!claims.gone("mc"), "the dot shows again");
+        assert!(claims.claim("mc"));
+        assert!(claims.claim("xp"));
+        assert!(claims.gone("mc"), "xp still claims");
+        assert!(claims.gone("other"), "not a claimer");
+        assert!(!claims.gone("xp"));
+    }
 
     /// Emits `new` at `now`; the core takes them or refuses them over its
     /// rate limit. Answers what it took.

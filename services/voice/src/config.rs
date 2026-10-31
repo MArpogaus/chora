@@ -27,6 +27,47 @@ pub struct Confirm {
     pub prompt: String,
 }
 
+/// The state dot: `false` hides it, `true` shows it at its default
+/// place, and `{corner, offset}` places it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum Indicator {
+    On(bool),
+    At {
+        #[serde(default)]
+        corner: Corner,
+        /// The distance of the dot from the corner, in pixels.
+        #[serde(default = "default_offset")]
+        offset: [i32; 2],
+    },
+}
+
+/// A corner of the first output.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum Corner {
+    #[default]
+    BottomRight,
+    BottomLeft,
+    TopRight,
+    TopLeft,
+}
+
+fn default_offset() -> [i32; 2] {
+    [12, 12]
+}
+
+impl Indicator {
+    /// Where the dot goes; none when it is off.
+    pub fn place(self) -> Option<(Corner, [i32; 2])> {
+        match self {
+            Self::On(false) => None,
+            Self::On(true) => Some((Corner::default(), default_offset())),
+            Self::At { corner, offset } => Some((corner, offset)),
+        }
+    }
+}
+
 /// The canned sentences of the agent, in English; `reply_language: de`
 /// turns each one that keeps its default into German.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
@@ -172,8 +213,10 @@ pub struct Config {
     pub earcons: bool,
     /// From 0 to 1.
     pub earcon_volume: f64,
-    /// A state dot under `screen:OUTPUT`.
-    pub indicator: bool,
+    /// A state dot under `screen:OUTPUT`: `false`, `true` or
+    /// `{corner, offset}`. A plugin that shows the state hides it with
+    /// `indicator.claim`.
+    pub indicator: Indicator,
     /// Empty: the built-in prompt.
     pub system_prompt: String,
     /// Empty: the built-in documents.
@@ -732,7 +775,7 @@ impl Default for Config {
             confirm_timeout_ms: 15_000,
             earcons: true,
             earcon_volume: 0.3,
-            indicator: true,
+            indicator: Indicator::On(true),
             system_prompt: String::new(),
             context_docs: Vec::new(),
             prompt_file: "~/.config/chora/voice-prompt.md".into(),
@@ -909,6 +952,24 @@ mod tests {
     use chora_kit::settings::parse;
 
     use super::*;
+
+    #[test]
+    fn the_indicator_is_off_on_or_placed() {
+        let place = |yaml: &str| parse::<Config>(yaml).map(|c| c.indicator.place());
+        assert_eq!(place("indicator: false"), Ok(None));
+        let default = Some((Corner::BottomRight, [12, 12]));
+        assert_eq!(place("indicator: true"), Ok(default));
+        assert_eq!(place("{}"), Ok(default));
+        assert_eq!(
+            place("indicator: {corner: top-left, offset: [4, 8]}"),
+            Ok(Some((Corner::TopLeft, [4, 8])))
+        );
+        assert_eq!(
+            place("indicator: {corner: bottom-left}"),
+            Ok(Some((Corner::BottomLeft, [12, 12])))
+        );
+        assert!(place("indicator: {corner: middle}").is_err());
+    }
 
     #[test]
     fn an_empty_file_gives_the_defaults() {

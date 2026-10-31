@@ -447,7 +447,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `filler_words` | `[please, now, bitte, jetzt, mal]` |
 | `confirm`, `confirm_timeout_ms` | rules below, `15000` (from the end of the question) |
 | `earcons`, `earcon_volume` | `true`, `0.3` |
-| `indicator` | `true` (state dot under `screen:OUTPUT`) |
+| `indicator` | `true` (state dot under `screen:OUTPUT`); `false` turns it off; `{corner: bottom-right\|bottom-left\|top-right\|top-left, offset: [x, y]}` places it, `true` is `{corner: bottom-right, offset: [12, 12]}` |
 | `system_prompt`, `context_docs` | `""`: the built-in prompt and documents |
 | `prompt_file` | `~/.config/chora/voice-prompt.md` |
 | `context_tokens`, `reply_reserve_tokens` | `0` (ask the server), `1024` |
@@ -527,6 +527,7 @@ both a key variable and a key file for one server.
 | `state` | none | the state record below |
 | `cancel`, `sleep`, `wake` | none | the new state record |
 | `mute` | `mic: bool`, `speaker: bool`, each optional | the new state record |
+| `indicator.claim` | none | `{}`; hides the dot while the caller is connected |
 | `restart` | none | reads the settings file again |
 | `settings.get`, `settings.set` | D62 | D62 |
 | `talk` | `down: bool` | PTT from another client, for example `chora-mc` |
@@ -545,9 +546,19 @@ HUD: the agent emits client events (D65) on its connection `NAME`, so
 a HUD subscribes to `voice.*` and needs no polling. The method `state`
 stays for a full state record. The
 indicator node signals without a HUD: with `indicator`, a dot of 12
-pixels at the bottom right of the first output, under `screen:OUTPUT`,
-in the color of the state (input `pass`). The `hud` thread places it
-once per connection.
+pixels in a corner of the first output, under `screen:OUTPUT`, in the
+color of the state (input `pass`). `offset` is its distance from the
+corner. The `hud` thread places it once per connection, and again
+when `indicator` changes.
+
+A plugin that shows the state itself hides the dot with the method
+`indicator.claim {}` of the client `voice`. The agent records the
+client name of the caller. The dot hides while one claimer or more is
+connected. On `client.disconnected` of a claimer, the agent drops its
+claim. When no claimer is left, the dot comes back. `indicator: false`
+turns the dot off for good. The claims do not survive a restart of
+the agent. So a plugin claims again on `client.connected` with the
+name `voice`, or when it gets its first `voice.*` event.
 
 The events (D65): `voice.state {state, task, said}` on each change
 (`state` mapped to the states of mc: `asleep`, `listening`, `thinking`,

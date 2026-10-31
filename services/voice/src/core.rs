@@ -125,6 +125,8 @@ pub enum Input {
     /// The method `agent`: a tool of the ACP agents and its arguments;
     /// the text of its answer goes to the channel.
     AgentCall(String, Value, Sender<Value>),
+    /// Whether a plugin that shows the state claimed the indicator.
+    Claimed(bool),
 }
 
 /// What the core asks the other actors to do.
@@ -512,7 +514,7 @@ impl Core {
             Input::Agent(event) => self.sub(event),
             Input::Ready => self.ready(),
             // The loop of the agent takes them before.
-            Input::Quit | Input::AgentCall(..) => Vec::new(),
+            Input::Quit | Input::AgentCall(..) | Input::Claimed(_) => Vec::new(),
         };
         // A barge-in that came to nothing: the speech goes on.
         if self.paused && self.gate.pcm().is_none() && self.pending.is_empty() {

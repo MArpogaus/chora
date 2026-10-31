@@ -3,9 +3,9 @@
 //! `NAME.remove` when a sub-agent is gone, and
 //! `NAME.say` for each spoken sentence when its sound starts. The `chora`
 //! thread emits them on the connection of the agent's name. Also the
-//! indicator: a dot in the color of the state, at the bottom right of the
-//! first output, under `screen:OUTPUT`, on a connection of its own
-//! (`NAME-hud`). A thread of its own, so that it never holds up the
+//! indicator: a dot in the color of the state, in a corner of the first
+//! output (`indicator`), under `screen:OUTPUT`, on a connection of its
+//! own (`NAME-hud`). A thread of its own, so that it never holds up the
 //! agent; errors only log.
 
 use std::{
@@ -19,7 +19,7 @@ use chora_kit::conn::Conn;
 use chora_scene::ipc::ClientError;
 use serde_json::{Value, json};
 
-use crate::core::State;
+use crate::{config::Corner, core::State};
 
 /// An event for the `chora` thread: the name after `NAME.` and the data.
 pub type Emit = (&'static str, Value);
@@ -28,9 +28,11 @@ pub type Emit = (&'static str, Value);
 const RETRY: Duration = Duration::from_secs(5);
 /// The node of the indicator.
 const DOT: &str = "voice-indicator";
-/// The size of the dot and its distance from the corner.
+/// The size of the dot.
 const DOT_SIZE: i32 = 12;
-const DOT_MARGIN: i32 = 12;
+
+/// The corner of the dot and its distance from it.
+pub type Place = (Corner, [i32; 2]);
 
 pub enum Report {
     /// The state of the agent: `state`, `task` and `said`; with a `name`,
@@ -44,8 +46,9 @@ pub enum Report {
         at: Instant,
         len: Duration,
     },
-    /// The state of the agent for the indicator; none removes the dot.
-    State(Option<State>),
+    /// The state of the agent for the indicator, and its place; none
+    /// removes the dot.
+    State(Option<(State, Place)>),
 }
 
 /// The color of the dot in a state.
@@ -58,6 +61,18 @@ fn color(state: State) -> [f64; 4] {
         State::Confirming => [0.8, 0.45, 1.0, 1.0],
         State::Speaking => [0.3, 0.85, 0.5, 1.0],
         State::Working => [0.2, 0.8, 0.8, 1.0],
+    }
+}
+
+/// The top left of the dot `offset` away from `corner` of an output of
+/// `size`.
+fn at(corner: Corner, [x, y]: [i32; 2], [w, h]: [i64; 2]) -> [i64; 2] {
+    let far = |side: i64, off: i32| side - i64::from(DOT_SIZE + off);
+    match corner {
+        Corner::BottomRight => [far(w, x), far(h, y)],
+        Corner::BottomLeft => [x.into(), far(h, y)],
+        Corner::TopRight => [far(w, x), y.into()],
+        Corner::TopLeft => [x.into(), y.into()],
     }
 }
 
@@ -77,8 +92,8 @@ struct Reporter {
     failed: Option<Instant>,
     /// The last call failed; the next error does not log.
     quiet: bool,
-    /// The dot is there on this connection.
-    dot: bool,
+    /// The place of the dot on this connection.
+    dot: Option<Place>,
 }
 
 impl Reporter {
@@ -89,7 +104,7 @@ impl Reporter {
             conn: None,
             failed: None,
             quiet: false,
-            dot: false,
+            dot: None,
         }
     }
 
@@ -138,7 +153,7 @@ impl Reporter {
     fn rpc(&mut self, method: &str, params: impl serde::Serialize) -> Option<Value> {
         if self.conn.is_none() && self.failed.is_none_or(|t| t.elapsed() >= RETRY) {
             match Conn::connect(&self.client) {
-                Ok(conn) => (self.conn, self.failed, self.dot) = (Some(conn), None, false),
+                Ok(conn) => (self.conn, self.failed, self.dot) = (Some(conn), None, None),
                 Err(e) => {
                     self.failed = Some(Instant::now());
                     self.log(&format!("mc: {e}"));
@@ -164,15 +179,16 @@ impl Reporter {
         }
     }
 
-    /// Shows the state in the dot; creates it on the first output.
-    fn indicate(&mut self, state: Option<State>) {
+    /// Shows the state in the dot; creates it on the first output, again
+    /// at a new place.
+    fn indicate(&mut self, state: Option<(State, Place)>) {
         let commands = match state {
-            None if !self.dot => return,
+            None if self.dot.is_none() => return,
             None => json!([{"remove": {"id": DOT}}]),
-            Some(state) if self.dot => {
+            Some((state, place)) if self.dot == Some(place) => {
                 json!([{"update": {"id": DOT, "props": {"color": color(state)}}}])
             }
-            Some(state) => {
+            Some((state, (corner, offset))) => {
                 // ponytail: placed once; a new output size moves it on the
                 // next connection only.
                 let Some(outputs) = self.rpc("output.list", Value::Null) else {
@@ -186,18 +202,22 @@ impl Reporter {
                 ) else {
                     return;
                 };
-                let at = |side: i64| side - i64::from(DOT_SIZE + DOT_MARGIN);
-                json!([{"create": {"id": DOT, "kind": "rect", "parent": format!("screen:{name}"),
+                let create = json!({"create": {"id": DOT, "kind": "rect",
+                    "parent": format!("screen:{name}"),
                     "props": {"size": [DOT_SIZE, DOT_SIZE], "radius": DOT_SIZE / 2,
                         "color": color(state), "input": "pass",
-                        "transform": {"translate": [at(w), at(h)]}}}}])
+                        "transform": {"translate": at(corner, offset, [w, h])}}}});
+                match self.dot {
+                    Some(_) => json!([{"remove": {"id": DOT}}, create]),
+                    None => json!([create]),
+                }
             }
         };
         if self
             .rpc("scene.apply", json!({"commands": commands}))
             .is_some()
         {
-            self.dot = state.is_some();
+            self.dot = state.map(|(_, place)| place);
         }
     }
 
@@ -219,7 +239,16 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{Report, start};
+    use super::{Corner, Report, at, start};
+
+    #[test]
+    fn the_dot_sits_in_its_corner() {
+        let size = [1000, 600];
+        assert_eq!(at(Corner::BottomRight, [12, 12], size), [976, 576]);
+        assert_eq!(at(Corner::BottomLeft, [20, 10], size), [20, 578]);
+        assert_eq!(at(Corner::TopRight, [0, 0], size), [988, 0]);
+        assert_eq!(at(Corner::TopLeft, [5, 6], size), [5, 6]);
+    }
 
     /// The state goes out at once, a sentence when its sound starts, both
     /// as events of the agent (D65); no connection to chora is needed.
