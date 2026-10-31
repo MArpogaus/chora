@@ -5,7 +5,7 @@
 # 1. chora-mc runs, and chora-construct runs beside it as the flavor. The
 #    construct k2a with a foot pane and a pane of the mc scene mission
 #    loads, and both panes show within 10 s.
-# 2. Panes move and resize by method and by Ctrl with a drag and the
+# 2. Panes move and resize by method and by Super with a drag and the
 #    wheel; the construct saves; the session quits. A new session starts
 #    the flavor into the saved construct, with the same poses.
 # 3. chora-tiling runs with a window; chora-construct --overlay loads a
@@ -118,16 +118,16 @@ call pane.move '{"name": "foot", "right": -100, "ahead": 300}' >/dev/null || fai
 call pane.resize '{"name": "foot", "scale": 1.2}' >/dev/null || fail "pane.resize"
 centre=$(node id:construct-plugin-mission '"%d, %d" % (lambda r: (r[0] + r[2] / 2, r[1] + r[3] / 2))(list(n[0]["rects"].values())[0])')
 before=$(poses | grep '^mission')
-echo "[{\"key\": {\"key\": \"Control_L\", \"state\": \"pressed\"}},
+echo "[{\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
   {\"pointer_move\": {\"position\": [$centre]}}, {\"button\": {\"state\": \"pressed\"}},
   {\"pointer_move\": {\"position\": [${centre%,*}, 300]}}, {\"button\": {\"state\": \"released\"}},
-  {\"scroll\": {\"dy\": -40}}, {\"key\": {\"key\": \"Control_L\", \"state\": \"released\"}}]" |
+  {\"scroll\": {\"dy\": -40}}, {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]" |
     ctl inject || fail "inject the drag"
 sleep 1
 after=$(poses | grep '^mission')
-[ "$after" != "$before" ] || fail "a drag and the wheel with Ctrl changed nothing: $after"
+[ "$after" != "$before" ] || fail "a drag and the wheel with Super changed nothing: $after"
 [ "$(node 'kind:surface owner:construct' 'n[0]["opacity"]')" = 0.0 ] || fail "the drag flew into a pane"
-ok "Ctrl with a drag and the wheel moved the mc pane: $before -> $after"
+ok "Super with a drag and the wheel moved the mc pane: $before -> $after"
 sleep 1
 saved=$(poses)
 shot "$shots/construct-k2a-moved.png"

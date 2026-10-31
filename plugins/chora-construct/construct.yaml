@@ -57,5 +57,6 @@ launcher: fuzzel
 fly_out: Alt+Escape
 # The modifier that moves a pane: a drag with it held moves the pane
 # under the pointer, and the wheel with it held resizes the pane. Ctrl,
-# Alt, Shift or Super.
-modifier: Ctrl
+# Alt, Shift or Super. A drop on a plugin pane gives the window to that
+# plugin, and a drop on another output to its window manager.
+modifier: Super
