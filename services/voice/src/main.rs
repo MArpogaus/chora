@@ -229,12 +229,13 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     tools.coder = Some(coder.clone());
     let agents = agents::Agents::new(&config, coder::data_dir(), tx.clone());
     tools.agents = Some(agents.clone());
-    let chat = net.block_on(Chat::start(
+    let mut chat = net.block_on(Chat::start(
         config.clone(),
         mcp,
         tools,
         chat::history_file(),
     ))?;
+    chat.settings_file = Some(settings.file().to_path_buf());
     let mut agent = Agent::new(config.clone(), chat, net, tx.clone());
     agent.coder = Some(coder);
     agent.agents = Some(agents.clone());

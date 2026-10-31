@@ -359,6 +359,8 @@ impl Report {
 pub struct Chat {
     /// The client name of the tools in chora.
     name: String,
+    /// The settings file that `settings.reload` reads.
+    pub settings_file: Option<PathBuf>,
     llm: Llm,
     pub tools: Tools,
     config: Config,
@@ -425,6 +427,7 @@ impl Chat {
         let requests = file.as_deref().map(load).unwrap_or_default();
         let mut chat = Self {
             name,
+            settings_file: None,
             llm,
             tools,
             system: String::new(),
@@ -994,6 +997,26 @@ impl Chat {
         content
     }
 
+    /// Whether the settings file differs from the running settings in a
+    /// security key. A file that cannot be read or parsed counts as
+    /// different: the reload will refuse it anyway.
+    fn reload_is_security(&self) -> bool {
+        let Some(file) = &self.settings_file else {
+            return true;
+        };
+        let new = std::fs::read_to_string(file)
+            .map_err(|e| e.to_string())
+            .and_then(|text| chora_kit::settings::parse::<Config>(&text))
+            .map(|c| serde_json::to_value(c.localized()));
+        let old = serde_json::to_value(&self.config);
+        let (Ok(Ok(new)), Ok(old)) = (new, old) else {
+            return true;
+        };
+        let keys = new.as_object().into_iter().flatten().map(|(k, _)| k);
+        keys.filter(|k| crate::config::security_key(k))
+            .any(|k| new[k] != old[k])
+    }
+
     /// Asks the user when a rule of `confirm` matches, and before each
     /// change of the agent's own settings; else, or on a no, the reason
     /// for the LLM.
@@ -1007,10 +1030,15 @@ impl Chat {
             return Ok(());
         };
         let own = self.tools.own_settings_set(&name, args);
-        // A security setting takes only a key press (`confirm_keys`).
-        let physical = own
-            .and_then(Value::as_object)
-            .is_some_and(|p| p.keys().any(|k| crate::config::security_key(k)));
+        // A security setting takes only a key press (`confirm_keys`). A
+        // reload takes it when the file differs from the running
+        // settings in a security key: the LLM may have written the file
+        // (review rc3 round 3, 2.4).
+        let reload = self.tools.own_settings_reload(&name, args) && self.reload_is_security();
+        let physical = reload
+            || own
+                .and_then(Value::as_object)
+                .is_some_and(|p| p.keys().any(|k| crate::config::security_key(k)));
         let detail = detail(&name, own, args);
         let prompt = if let Some(patch) = own {
             self.config.settings_question(patch)
@@ -1025,7 +1053,7 @@ impl Chat {
             return Ok(());
         };
         let key = session_key(&name, own, args);
-        if own.is_none() && listed(&self.config, &name, args) {
+        if own.is_none() && !reload && listed(&self.config, &name, args) {
             crate::log::info(&format!("confirm {name}: in allow, no question"));
             return Ok(());
         }
@@ -2384,6 +2412,46 @@ mod tests {
         }
     }
 
+    /// Review rc3 round 3, 2.4: a reload of a file that differs in a
+    /// security key asks for a key press; any other reload, a spoken yes.
+    #[tokio::test]
+    async fn a_reload_with_a_new_security_key_asks_for_a_key() {
+        let script = [
+            Reply::Tool("voice__settings__reload", "{}"),
+            Reply::Text("Erledigt."),
+            Reply::Tool("voice__settings__reload", "{}"),
+            Reply::Text("Erledigt."),
+        ];
+        let server = fake::llm(script.to_vec()).await;
+        let (mut tools, _) = tools::tests::fake(0);
+        tools.own = "voice".into();
+        let config = Config {
+            llm_url: server.url.clone(),
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        let file = temp("reload.yaml");
+        chat.settings_file = Some(file.clone());
+        let asked = Mutex::new(Vec::new());
+        let url = chat.config.llm_url.clone();
+        for yaml in ["allow_programs: [sh]", "barge_in_ms: 300"] {
+            std::fs::write(&file, format!("{{llm_url: '{url}', {}}}", &yaml)).unwrap();
+            chat.turn("Lade neu.", &|event| {
+                if let Event::Confirm {
+                    physical, answer, ..
+                } = event
+                {
+                    asked.lock().unwrap().push(physical);
+                    let _ = answer.send(Some(true));
+                }
+            })
+            .await;
+        }
+        assert_eq!(asked.into_inner().unwrap(), [true, false]);
+    }
+
     /// Review rc3 round 2, 4.2: the screen and the event get no secret.
     #[test]
     fn the_detail_hides_secrets() {
@@ -2531,6 +2599,7 @@ mod tests {
         let old = format!(r#"{{"name": "b.frag", "data": "{}"}}"#, "y".repeat(600));
         let mut chat = Chat {
             name: String::new(),
+            settings_file: None,
             llm: Llm::new(&Config::default()),
             tools: tools::tests::fake(0).0,
             config: Config::default(),

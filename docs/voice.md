@@ -389,6 +389,11 @@ the user agrees:
 The client `NAME-mcp`
 needs `methods.privileged` for `settings.set` and `settings.reload`.
 Its own `settings.reload` asks with the rule of `*.settings.reload`.
+A reload can also apply a file that the LLM wrote (review rc3 round 3,
+2.4). So the agent reads the file before it asks and compares each
+security key with the running settings. When one differs, or the file
+cannot be read, the question is physical (key or button), as for
+`settings.set`, and neither `allow_methods` nor an always word skips it.
 
 Reading files: the built-in tool `read {path, line?}` lists a folder
 (sorted names, a folder with a trailing `/`, at most 200) or answers

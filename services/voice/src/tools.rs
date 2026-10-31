@@ -141,6 +141,17 @@ impl Tools {
         (method == "settings.set" && self.own_settings(client, method)).then_some(patch)
     }
 
+    /// Whether a call is the `settings.reload` of the agent itself.
+    pub fn own_settings_reload(&self, tool: &str, args: &Value) -> bool {
+        let field = |k: &str| args[k].as_str().unwrap_or_default();
+        let (client, method) = if tool == "call_method" {
+            (field("client"), field("method"))
+        } else {
+            tool.split_once('.').unwrap_or((tool, ""))
+        };
+        method == "settings.reload" && self.own_settings(client, method)
+    }
+
     /// Whether a call of `tool` (its MCP name) reaches a client of the
     /// agent itself: by `call_method` or as a plugin tool `CLIENT.METHOD`.
     /// The settings methods of the agent itself are allowed.
@@ -652,6 +663,7 @@ pub mod tests {
                 "capture",
                 "voice.state",
                 "voice.settings.set",
+                "voice.settings.reload",
             ]
             .map(|name| Tool::new(name, format!("the tool {name}"), schema.clone()));
             std::future::ready(Ok(ListToolsResult::with_all_items(tools.to_vec())))
