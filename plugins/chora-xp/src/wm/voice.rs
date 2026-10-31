@@ -20,7 +20,7 @@ impl Wm {
         self.claim_indicator(false);
         // Without the agent, the call fails quietly.
         if let Ok(state) = self.voice_call("state", &json!({})) {
-            let pose = state["state"].as_str().and_then(assistant::pose);
+            let pose = state["state"].as_str().map(assistant::pose);
             self.voice = pose.map(|p| (VOICE.to_owned(), p));
             let commands = self.sync_assistant(Instant::now());
             self.apply(commands)?;
@@ -33,9 +33,12 @@ impl Wm {
     /// with its full detail until its answer. The events of sub-agents, which carry
     /// a name of their own, leave the paperclip alone.
     pub(super) fn voice_event(&mut self, event: &str, client: &str, data: &Value) -> Vec<Command> {
-        if client == VOICE {
-            self.claim_indicator(true);
+        // `voice.*` also matches a client named `voice.evil`: only the
+        // agent itself drives the paperclip (review 4.9).
+        if client != VOICE {
+            return Vec::new();
         }
+        self.claim_indicator(true);
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
         let name = data.get("name").and_then(Value::as_str);
         if name.is_some_and(|n| n != client) {
@@ -45,7 +48,7 @@ impl Wm {
         let now = Instant::now();
         match kind {
             Some("state") => {
-                self.voice = assistant::pose(state).map(|p| (client.to_owned(), p));
+                self.voice = Some((client.to_owned(), assistant::pose(state)));
                 self.sync_assistant(now)
             }
             Some("say") => {
@@ -64,11 +67,16 @@ impl Wm {
                 let Some(a) = self.assistant.as_mut() else {
                     return Vec::new();
                 };
-                let id = data.get("id").and_then(Value::as_str).unwrap_or("");
+                // A string or a number: the agent sent numbers before.
+                let id = match data.get("id") {
+                    Some(Value::String(id)) => id.clone(),
+                    Some(Value::Number(n)) => n.to_string(),
+                    _ => String::new(),
+                };
                 if let Some(text) = confirm_text(data) {
-                    return a.ask(&mut self.theme, id, &text, now);
+                    return a.ask(&mut self.theme, &id, &text, now);
                 }
-                a.answered(id, now);
+                a.answered(&id, now);
                 Vec::new()
             }
             _ => Vec::new(),

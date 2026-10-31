@@ -46,8 +46,9 @@ session:
   restart: systemctl reboot
   stand_by: systemctl suspend
   log_off: choractl quit
-# The paperclip above the taskbar that shows the voice agent while it is
-# awake: its state, and its sentences in a balloon. A click on it mutes or
+# The paperclip above the taskbar that shows the voice agent: its state,
+# and its sentences in a balloon; dimmed with its eyes shut while the
+# agent sleeps and listens for its wake words. A click on it mutes or
 # unmutes the mic.
 assistant:
   enabled: true

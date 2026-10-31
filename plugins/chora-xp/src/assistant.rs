@@ -44,7 +44,7 @@ const FADE: f64 = 600.0;
 )]
 #[serde(deny_unknown_fields)]
 pub struct Settings {
-    /// The paperclip shows while the voice agent is awake.
+    /// The paperclip shows while the voice agent is connected.
     pub enabled: bool,
 }
 
@@ -61,19 +61,25 @@ pub enum Pose {
     Speaking,
     /// Raised eyebrows.
     Asking,
+    /// Eyes shut, dimmed: the agent sleeps, and its mic still listens
+    /// for the wake words.
+    Sleeping,
 }
 
+/// The opacity of the paperclip while the agent sleeps.
+const DIM: f64 = 0.55;
+
 /// The pose for a state of the voice agent: the state of `voice.state`
-/// or of the method `state`; none while it sleeps.
-pub fn pose(state: &str) -> Option<Pose> {
-    Some(match state {
-        "sleeping" | "asleep" => return None,
+/// or of the method `state`.
+pub fn pose(state: &str) -> Pose {
+    match state {
+        "sleeping" | "asleep" => Pose::Sleeping,
         "listening" | "recording" => Pose::Listening,
         "transcribing" | "thinking" | "tool" | "working" => Pose::Thinking,
         "speaking" => Pose::Speaking,
         "question" | "confirming" => Pose::Asking,
         _ => Pose::Idle,
-    })
+    }
 }
 
 /// The face of a pose.
@@ -94,8 +100,14 @@ impl Pose {
             Self::Thinking => (1.0, [2.0, -3.6], [-1.0, 3.5]),
             Self::Speaking => (1.0, [-2.0, 0.5], [1.0, 1.0]),
             Self::Asking => (1.1, [0.0, -0.5], [6.0, 6.0]),
+            Self::Sleeping => (1.0, [0.0, 0.0], [-1.5, -1.5]),
         };
         Face { eyes, look, brows }
+    }
+
+    /// The opacity of the picture: dimmed while the agent sleeps.
+    fn opacity(self) -> f64 {
+        if self == Self::Sleeping { DIM } else { 1.0 }
     }
 
     /// How far the picture leans, in degrees, to the right.
@@ -103,6 +115,7 @@ impl Pose {
         match self {
             Self::Listening => -6.0,
             Self::Asking => 4.0,
+            Self::Sleeping => 3.0,
             _ => 0.0,
         }
     }
@@ -132,6 +145,7 @@ const WIRE: &str =
 /// The paperclip in a pose, with its eyes open or shut.
 fn draw(pose: Pose, shut: bool) -> Picture {
     use std::fmt::Write as _;
+    let shut = shut || pose == Pose::Sleeping;
     let face = pose.face();
     let (tilt, [px, py]) = (pose.tilt(), PIVOT);
     let mut svg = format!(
@@ -257,6 +271,7 @@ impl Assistant {
                 parent: BODY.into(),
                 props: PropsUpdate {
                     image: Some(theme.render(&draw(pose, false))),
+                    opacity: Some(pose.opacity()),
                     input: Some(InputMode::Accept),
                     ..PropsUpdate::default()
                 },
@@ -294,6 +309,7 @@ impl Assistant {
             id: CLIP.into(),
             props: PropsUpdate {
                 image: Some(theme.render(&draw(self.pose, self.shut))),
+                opacity: Some(self.pose.opacity()),
                 ..PropsUpdate::default()
             },
         }
@@ -420,21 +436,52 @@ mod tests {
     #[test]
     fn each_state_has_its_pose() {
         let cases = [
-            ("idle", Some(Pose::Idle)),
-            ("listening", Some(Pose::Listening)),
-            ("recording", Some(Pose::Listening)),
-            ("thinking", Some(Pose::Thinking)),
-            ("working", Some(Pose::Thinking)),
-            ("speaking", Some(Pose::Speaking)),
-            ("question", Some(Pose::Asking)),
-            ("confirming", Some(Pose::Asking)),
-            ("sleeping", None),
-            ("asleep", None),
-            ("", Some(Pose::Idle)),
+            ("idle", Pose::Idle),
+            ("listening", Pose::Listening),
+            ("recording", Pose::Listening),
+            ("thinking", Pose::Thinking),
+            ("working", Pose::Thinking),
+            ("speaking", Pose::Speaking),
+            ("question", Pose::Asking),
+            ("confirming", Pose::Asking),
+            ("sleeping", Pose::Sleeping),
+            ("asleep", Pose::Sleeping),
+            ("", Pose::Idle),
         ];
         for (state, want) in cases {
             assert_eq!(pose(state), want, "{state}");
         }
+    }
+
+    /// While the agent sleeps, the paperclip stays, dimmed and with its
+    /// eyes shut, so that the mic that waits for the wake words shows.
+    #[test]
+    fn a_sleeping_agent_shows_a_dim_paperclip() {
+        let (mut theme, _) = crate::theme::tests::theme("sleeping");
+        let bar_less = Assistant {
+            origin: [800, 500],
+            screen: 1024,
+            pose: Pose::Idle,
+            shut: false,
+            step: 0,
+            blinks: 0,
+            moves_at: None,
+            blinks_at: Instant::now(),
+            speech: false,
+            fades_at: None,
+            asking: None,
+        };
+        let mut a = bar_less;
+        let commands = a.set_pose(&mut theme, Pose::Sleeping, Instant::now());
+        let dim = commands
+            .iter()
+            .any(|c| matches!(c, Command::Update { props, .. } if props.opacity == Some(DIM)));
+        assert!(dim, "{commands:?}");
+        assert_eq!(
+            draw(Pose::Sleeping, false),
+            draw(Pose::Sleeping, true),
+            "eyes shut"
+        );
     }
 
     #[test]

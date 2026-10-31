@@ -1351,8 +1351,11 @@ dismisses it too. If another server, such as GNOME Shell, owns the name
 on the bus, `chora-xp` logs one line and shows no balloons; it never
 takes the name from its owner.
 
-While the voice agent is connected and awake, a paperclip with eyes and
-eyebrows stands above the right end of the taskbar of the first output.
+While the voice agent is connected, a paperclip with eyes and eyebrows
+stands above the right end of the taskbar of the first output. While the
+agent sleeps, the paperclip shows dimmed with its eyes shut: the mic
+still listens for the wake words. Only the events of the client `voice`
+itself move it.
 `chora-xp` subscribes to `voice.*` (D65): the paperclip blinks while the
 agent is idle, leans in while it listens, looks up and sways while it
 thinks, bounces while it speaks and raises its eyebrows when it asks. Each
