@@ -606,7 +606,7 @@ mod tests {
         let on = |reply| {
             let line = match reply {
                 Reply::Chat(Event::Confirm { answer, .. }) => {
-                    let _ = answer.send(true);
+                    let _ = answer.send(Some(true));
                     "confirm".into()
                 }
                 Reply::Chat(event) => format!("{event:?}"),

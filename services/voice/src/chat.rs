@@ -90,11 +90,11 @@ pub enum Event {
     Tool(String),
     /// A sentence to speak.
     Sentence(String),
-    /// A call waits for yes (true) or no; the prompt is spoken too. A
-    /// dropped sender is a no.
+    /// A call waits for yes (`Some(true)`), no, or an unclear answer
+    /// (`None`); the prompt is spoken too. A dropped sender is no answer.
     Confirm {
         prompt: String,
-        answer: oneshot::Sender<bool>,
+        answer: oneshot::Sender<Option<bool>>,
     },
 }
 
@@ -539,7 +539,9 @@ impl Chat {
             };
             let content = if args.is_null() {
                 Value::from(format!("error: the arguments are no JSON: {}", call.args))
-            } else if self.confirmed(&call.name, &args, out).await {
+            } else if let Err(no) = self.confirmed(&call.name, &args, out).await {
+                Value::from(format!("{no}; nothing happened"))
+            } else {
                 out(Event::Tool(call.name.clone()));
                 let start = Instant::now();
                 let content = self.tools.call(&call.name, &args).await;
@@ -551,21 +553,25 @@ impl Chat {
                     short(&text_of(&content), 300)
                 ));
                 content
-            } else {
-                "declined by the user; nothing happened".into()
             };
             results.push(json!({"role": "tool", "tool_call_id": call.id, "content": content}));
         }
         results
     }
 
-    /// Asks the user when a rule of `confirm` matches; a timeout is a no.
-    async fn confirmed(&self, function: &str, args: &Value, out: &(impl Fn(Event) + Sync)) -> bool {
+    /// Asks the user when a rule of `confirm` matches; else, or on a
+    /// no, the reason for the LLM.
+    async fn confirmed(
+        &self,
+        function: &str,
+        args: &Value,
+        out: &(impl Fn(Event) + Sync),
+    ) -> Result<(), String> {
         let Some(name) = self.tools.mcp_name(function) else {
-            return true;
+            return Ok(());
         };
         let Some(rule) = tools::rule(&self.config.confirm, name, args) else {
-            return true;
+            return Ok(());
         };
         let (answer, rx) = oneshot::channel();
         let program = tools::program(args).unwrap_or_default();
@@ -574,12 +580,21 @@ impl Chat {
             answer,
         });
         let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
-        let yes = matches!(tokio::time::timeout(wait, rx).await, Ok(Ok(true)));
+        // The agent itself asks: the LLM must not look for a dialog.
+        let result = match tokio::time::timeout(wait, rx).await {
+            Ok(Ok(Some(true))) => Ok(()),
+            Ok(Ok(Some(false))) => Err("The user declined the spoken confirmation".to_owned()),
+            Ok(Ok(None)) => Err("The answer to the spoken confirmation was not understood".into()),
+            Ok(Err(_)) | Err(_) => Err(format!(
+                "The user did not answer the spoken confirmation in time ({} s)",
+                wait.as_secs()
+            )),
+        };
         crate::log::info(&format!(
             "confirm {name}: {}",
-            if yes { "yes" } else { "no" }
+            result.as_ref().map_or_else(String::as_str, |()| "yes")
         ));
-        yes
+        result
     }
 
     /// Drops the oldest whole turns until the estimate fits `budget`;
@@ -798,7 +813,7 @@ mod tests {
                     Event::Tool(name) => format!("tool {name}"),
                     Event::Sentence(s) => format!("say {s}"),
                     Event::Confirm { prompt, answer } => {
-                        let _ = answer.send(yes);
+                        let _ = answer.send(Some(yes));
                         format!("confirm {prompt}")
                     }
                 };
@@ -924,14 +939,19 @@ mod tests {
         );
     }
 
+    /// Answers a confirmation with `answer` (yes, no or unclear), or
+    /// drops it.
+    fn answer_with(event: Event, answer: Result<Option<bool>, ()>) {
+        if let Event::Confirm { answer: tx, .. } = event
+            && let Ok(a) = answer
+        {
+            let _ = tx.send(a);
+        }
+    }
+
     #[tokio::test]
     async fn a_declined_call_does_not_run() {
-        let script = vec![
-            Reply::Tool("echo", "{}"),
-            Reply::Text("Gut."),
-            Reply::Tool("echo", "{}"),
-            Reply::Text("Gut."),
-        ];
+        let script = [Reply::Tool("echo", "{}"), Reply::Text("Gut.")].repeat(4);
         let server = fake::llm(script).await;
         let (tools, calls) = tools::tests::fake(0);
         let config = Config {
@@ -953,10 +973,32 @@ mod tests {
         assert_eq!(calls.load(Ordering::SeqCst), 0);
         assert_eq!(
             chat.history[2]["content"],
-            "declined by the user; nothing happened"
+            "The user declined the spoken confirmation; nothing happened"
         );
         let (_, events) = turn(&mut chat, "Echo.", true).await;
         assert_eq!(events[1..3], ["confirm Wirklich?", "tool echo"]);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        // Not understood, and no answer: the LLM learns which.
+        for (answer, says) in [
+            (
+                Ok(None),
+                "The answer to the spoken confirmation was not understood",
+            ),
+            (
+                Err(()),
+                "The user did not answer the spoken confirmation in time (0 s)",
+            ),
+        ] {
+            chat.config.confirm_timeout_ms = 50;
+            // A dropped answer counts as none, as a timeout.
+            chat.turn("Echo.", &|event| answer_with(event, answer))
+                .await;
+            let last = chat.history.iter().rev().find(|m| m["role"] == "tool");
+            assert_eq!(
+                last.unwrap()["content"],
+                format!("{says}; nothing happened")
+            );
+        }
         assert_eq!(calls.load(Ordering::SeqCst), 1);
     }
 

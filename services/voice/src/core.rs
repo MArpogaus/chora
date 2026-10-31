@@ -237,7 +237,7 @@ pub struct Core {
     doing: State,
     /// The answer of the confirmation that waits, and the unclear
     /// answers so far.
-    confirm: Option<oneshot::Sender<bool>>,
+    confirm: Option<oneshot::Sender<Option<bool>>>,
     unclear: u32,
     /// The utterances whose final text waits.
     pending: Vec<Pending>,
@@ -646,16 +646,25 @@ impl Core {
         self.confirm.is_some() || self.sub_confirm.is_some()
     }
 
-    /// Answers the confirmation that waits; that of the reply first.
-    fn answer(&mut self, yes: bool) {
-        let said = if yes { "yes" } else { "no" };
+    /// Answers the confirmation that waits, that of the reply first: yes,
+    /// no, or unclear (`None`, a no to a sub-agent).
+    fn answer(&mut self, yes: Option<bool>) {
+        let said = match yes {
+            Some(true) => "yes",
+            Some(false) => "no",
+            None => "unclear",
+        };
         if let Some(answer) = self.confirm.take() {
             crate::log::info(&format!("confirm: {said}"));
             let _ = answer.send(yes);
-            self.doing = if yes { State::Tool } else { State::Thinking };
+            self.doing = if yes == Some(true) {
+                State::Tool
+            } else {
+                State::Thinking
+            };
         } else if let Some((name, answer)) = self.sub_confirm.take() {
             crate::log::info(&format!("confirm {name}: {said}"));
-            let _ = answer.send(yes);
+            let _ = answer.send(yes == Some(true));
         }
     }
 
@@ -688,6 +697,20 @@ impl Core {
             Reply::Chat(chat::Event::Confirm { answer, .. }) => {
                 self.confirm = Some(answer);
                 self.unclear = 0;
+                // A yes or no said while the reply thought answers it.
+                let at = (self.queue.iter()).rposition(|t| {
+                    matches!(
+                        words::answer(&self.config, t),
+                        words::Answer::Yes | words::Answer::No
+                    )
+                });
+                if let Some(at) = at {
+                    let text = self.queue.remove(at);
+                    crate::log::info(&format!("confirm: the queued answer {text:?}"));
+                    self.answer(Some(
+                        words::answer(&self.config, &text) == words::Answer::Yes,
+                    ));
+                }
             }
             Reply::Failed if self.tts_failed != Some(reply) => {
                 self.tts_failed = Some(reply);
@@ -825,7 +848,7 @@ impl Core {
 
     /// A spoken yes or no: the cut prompt does not play again.
     fn yes_no(&mut self, yes: bool) -> Vec<Effect> {
-        self.answer(yes);
+        self.answer(Some(yes));
         if !self.paused {
             return Vec::new();
         }
@@ -843,12 +866,18 @@ impl Core {
             return self.address(name, rest);
         }
         if self.confirming() {
-            self.unclear += 1;
-            crate::log::info(&format!("confirm: unclear answer {}", self.unclear));
-            if self.unclear >= 2 {
-                self.answer(false);
+            if words::answer(&self.config, &text) == words::Answer::Request {
+                // A new request: a no, and the text starts the next turn.
+                crate::log::info("confirm: a new request");
+                self.answer(Some(false));
+            } else {
+                self.unclear += 1;
+                crate::log::info(&format!("confirm: unclear answer {}", self.unclear));
+                if self.unclear >= 2 {
+                    self.answer(None);
+                }
+                return Vec::new();
             }
-            return Vec::new();
         }
         if self.asking.is_none() {
             return self.ask(text, false);
@@ -1326,7 +1355,7 @@ mod tests {
         let (effects, record) = call(&mut core, Call::Confirm(true));
         assert_eq!(effects, []);
         assert_eq!(record["state"], "tool");
-        assert_eq!(rx.try_recv(), Ok(true));
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
         core.handle(sound(1, 2000));
         assert_eq!(core.state(), State::Speaking, "the sound plays");
         core.handle(reply(1, chat::Event::Thinking));
@@ -1463,18 +1492,48 @@ mod tests {
             rx
         };
         let mut core = asking();
+        // The answers of the first live test (2026-10-31).
+        for text in [
+            "Ja, bitte.",
+            "Ja, die Skalierung des Bildschirms.",
+            "Bitte.",
+            "Ja, versuche es bitte noch mal.",
+        ] {
+            let mut rx = confirming(&mut core);
+            say(&mut core, text);
+            assert_eq!(rx.try_recv(), Ok(Some(true)), "{text}");
+            assert_eq!(core.state(), State::Tool);
+        }
         let mut rx = confirming(&mut core);
-        say(&mut core, "Ja, bitte.");
-        assert_eq!(rx.try_recv(), Ok(true));
-        assert_eq!(core.state(), State::Tool);
+        say(&mut core, "Nein, lieber nicht.");
+        assert_eq!(rx.try_recv(), Ok(Some(false)));
         let mut rx = confirming(&mut core);
-        say(&mut core, "Lieber nicht.");
-        assert_eq!(rx.try_recv(), Ok(false));
-        let mut rx = confirming(&mut core);
-        say(&mut core, "Was meinst du?");
+        say(&mut core, "1.5");
         assert!(rx.try_recv().is_err(), "one unclear answer waits");
         say(&mut core, "Keine Ahnung.");
-        assert_eq!(rx.try_recv(), Ok(false));
+        assert_eq!(rx.try_recv(), Ok(None), "two: not understood");
+        assert_eq!(call(&mut core, Call::State).1["queued"], 0);
+        // A new request is a no and the next turn.
+        let mut rx = confirming(&mut core);
+        say(&mut core, "Zeig mir lieber die Agenda für heute.");
+        assert_eq!(rx.try_recv(), Ok(Some(false)));
+        assert_eq!(call(&mut core, Call::State).1["queued"], 1);
+    }
+
+    #[test]
+    fn a_yes_said_before_the_question_comes_answers_it() {
+        let mut core = asking();
+        say(&mut core, "Ja.");
+        assert_eq!(call(&mut core, Call::State).1["queued"], 1);
+        let (answer, mut rx) = oneshot::channel();
+        core.handle(reply(
+            1,
+            chat::Event::Confirm {
+                prompt: "Soll ich den Bildschirm ändern?".into(),
+                answer,
+            },
+        ));
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
         assert_eq!(call(&mut core, Call::State).1["queued"], 0);
     }
 

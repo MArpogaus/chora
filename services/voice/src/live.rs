@@ -123,7 +123,7 @@ pub fn ask(config: &Config, name: &str, text: &str, speak: bool, yes: bool) -> R
             Reply::Chat(Event::Tool(name)) => println!("{:>6}ms tool {name}", at()),
             Reply::Chat(Event::Confirm { prompt, answer }) => {
                 println!("{:>6}ms confirm {prompt:?}: {}", at(), if yes { "yes" } else { "no" });
-                let _ = answer.send(yes);
+                let _ = answer.send(Some(yes));
             }
             Reply::Said { text, .. } => println!("{:>6}ms say {text:?}", at()),
             _ => {}
