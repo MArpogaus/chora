@@ -40,14 +40,17 @@ scale:
   baseline: 27
 # The styles of text. Each has a family, a weight (300 light, 400 normal,
 # 700 bold), a style (normal or italic), a size in pixels, in em of
-# scale.base or as a step of the scale, a color, a line_height, a letter_spacing in em, OpenType features
-# (smcp small caps, c2sc capitals as small caps, onum old-style figures,
-# tnum tabular figures) and uppercase. A style with a base changes it.
+# scale.base or as a step of the scale, a color, a line_height, a
+# letter_spacing in em, OpenType features (smcp small caps, c2sc
+# capitals as small caps, onum old-style figures, tnum tabular figures)
+# and uppercase. A style with a base changes it.
 # TeX Gyre Pagella is in the Fedora package texlive-tex-gyre, outside the
-# font directories: add its directory to CHORA_FONT_DIRS of chora, for
-# example /usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre.
-# Inter is in the package rsms-inter-fonts. Without a family, a system
-# font shows.
+# font directories. The RPM of chora adds that directory to fontconfig
+# with /etc/fonts/conf.d/09-chora-tex-gyre.conf. Without the RPM, add
+# /usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre to
+# CHORA_FONT_DIRS of chora. On Arch Linux, tex-gyre-fonts needs neither.
+# Inter is in the package rsms-inter-fonts, on Arch Linux inter-font.
+# Without a family, a system font shows.
 # docs/mc-style.md has the rules that these styles follow.
 styles:
   # Text to read: Pagella with old-style figures.
