@@ -74,10 +74,9 @@ impl Wm {
                     _ => String::new(),
                 };
                 if let Some(text) = confirm_text(data) {
-                    return a.ask(&mut self.theme, &id, &text, now);
+                    return a.ask(&mut self.theme, &id, &text, &offer(data));
                 }
-                a.answered(&id, now);
-                Vec::new()
+                a.answered(&id, now)
             }
             _ => Vec::new(),
         }
@@ -181,11 +180,39 @@ impl Wm {
         })
     }
 
+    /// A press on a button of the question in the balloon answers it
+    /// with `confirm.answer`; a refusal, as for an old id, only logs.
+    /// True when `node` was such a button.
+    pub(super) fn press_answer(&mut self, node: &str) -> bool {
+        let Some(params) = self.assistant.as_ref().and_then(|a| a.answer(node)) else {
+            return false;
+        };
+        if let Err(err) = self.voice_call("confirm.answer", &params) {
+            eprintln!("chora-xp: voice: confirm.answer: {err}");
+        }
+        true
+    }
+
     /// Calls a method of the voice agent.
     fn voice_call(&mut self, method: &str, params: &Value) -> Result<Value, ClientError> {
         let client = self.voice.as_ref().map_or(VOICE, |(c, _)| c.as_str());
         let call = json!({"client": client, "method": method, "params": params});
         self.rt.conn.call("methods.call", call)
+    }
+}
+
+/// What `voice.confirm` offers besides the voice: buttons while xp may
+/// answer by `confirm.answer`, and the keys of a question about a
+/// security key.
+fn offer(data: &Value) -> assistant::Offer {
+    let key = |k: &str| data["keys"][k].as_str().map(String::from);
+    let physical = data["physical"].as_bool().unwrap_or(false);
+    assistant::Offer {
+        buttons: data["buttons"].as_bool().unwrap_or(false),
+        keys: key("yes")
+            .zip(key("no"))
+            .filter(|_| physical)
+            .map(|(y, n)| [y, n]),
     }
 }
 

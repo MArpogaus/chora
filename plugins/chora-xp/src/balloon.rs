@@ -34,6 +34,8 @@ const CLOSE: i32 = 14;
 const RADIUS: i32 = 7;
 /// The height of the tail and the width of its base.
 pub const TAIL: i32 = 18;
+/// The inner margin of a balloon.
+pub const BALLOON_PAD: i32 = PAD;
 const TAIL_BASE: i32 = 16;
 const MIN_WIDTH: i32 = 120;
 const GROUP: &str = "xp-balloon";
@@ -227,13 +229,21 @@ fn shape([w, h]: [i32; 2], tail: i32) -> String {
 
 /// A balloon with text only, as the assistant speaks: its picture and its
 /// top-left corner, for a tail tip at a point of a screen of a width.
-pub fn speech(theme: &mut Theme, text: &str, tip: [i32; 2], screen: i32) -> (Picture, [i32; 2]) {
+/// `room` is a width that the inside keeps at least and a height under
+/// the text, for the buttons of a question.
+pub fn speech(
+    theme: &mut Theme,
+    text: &str,
+    tip: [i32; 2],
+    screen: i32,
+    [room_w, room_h]: [i32; 2],
+) -> (Picture, [i32; 2]) {
     let width = |s: &str| theme.text_width(s, Font::Ui);
     let lines = wrap(text, MAX_SPEECH, width);
     let text_width = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
     #[allow(clippy::cast_possible_truncation)]
-    let w = (PAD + text_width.ceil() as i32 + PAD).max(MIN_WIDTH);
-    let h = PAD + i32::try_from(lines.len()).unwrap_or(0) * LINE + PAD;
+    let w = (PAD + (text_width.ceil() as i32).max(room_w) + PAD).max(MIN_WIDTH);
+    let h = PAD + i32::try_from(lines.len()).unwrap_or(0) * LINE + room_h + PAD;
     let (origin, tail) = place([w, h], tip, screen);
     let file = theme
         .cache_file(&format!("balloon-{w}x{h}-{tail}.svg"), &shape([w, h], tail))

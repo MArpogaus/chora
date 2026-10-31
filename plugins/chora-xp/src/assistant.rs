@@ -10,6 +10,7 @@ use chora_scene::{Command, Easing, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
     balloon,
+    dialog::{BUTTON, Control},
     taskbar::Bar,
     theme::{Picture, Theme},
 };
@@ -22,6 +23,13 @@ const BODY: &str = "xp-assistant-body";
 const CLIP: &str = "xp-assistant-clip";
 /// The balloon of the spoken sentence.
 const SPEECH: &str = "xp-assistant-speech";
+/// The buttons of a question in the balloon: a click answers it with
+/// `voice.confirm.answer`.
+const YES: &str = "xp-assistant-yes";
+const NO: &str = "xp-assistant-no";
+/// The gap between the buttons and above them.
+const BUTTON_GAP: i32 = 6;
+
 /// The size of the picture.
 const SIZE: [i32; 2] = [80, 116];
 /// The point that the body turns around: the bottom of the wire.
@@ -224,6 +232,25 @@ pub struct Assistant {
     /// The id of the spoken confirmation that the balloon shows until
     /// its answer.
     asking: Option<String>,
+    /// The confirmation has the buttons Ja and Nein.
+    buttons: bool,
+}
+
+/// What a question in the balloon offers besides the voice: the buttons
+/// Ja and Nein, and the keys of a question about a security key.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Offer {
+    pub buttons: bool,
+    /// The key of yes and of no, such as `Alt+y`.
+    pub keys: Option<[String; 2]>,
+}
+
+/// A key as XP writes it: `Alt+y` as `Alt+Y`.
+fn key_name(key: &str) -> String {
+    match key.rsplit_once('+') {
+        Some((m, k)) if k.chars().count() == 1 => format!("{m}+{}", k.to_uppercase()),
+        _ => key.to_owned(),
+    }
 }
 
 impl Assistant {
@@ -247,6 +274,7 @@ impl Assistant {
             speech: false,
             fades_at: None,
             asking: None,
+            buttons: false,
         };
         let group = |id: &str, parent: String, transform| Command::Create {
             id: id.into(),
@@ -323,17 +351,64 @@ impl Assistant {
         time: Duration,
         now: Instant,
     ) -> Vec<Command> {
+        self.fades_at = Some(now + time + LINGER);
+        self.balloon(theme, text, false)
+    }
+
+    /// The balloon of a sentence or of a question, with room for the
+    /// buttons of a question.
+    fn balloon(&mut self, theme: &mut Theme, text: &str, buttons: bool) -> Vec<Command> {
         let [x, y] = self.origin;
         let tip = [x + HEAD[0], y + HEAD[1]];
-        let (picture, [bx, by]) = balloon::speech(theme, text, tip, self.screen);
-        self.fades_at = Some(now + time + LINGER);
+        let room = if buttons {
+            [2 * BUTTON[0] + BUTTON_GAP, BUTTON[1] + BUTTON_GAP]
+        } else {
+            [0, 0]
+        };
+        let (picture, [bx, by]) = balloon::speech(theme, text, tip, self.screen, room);
+        let mut commands = Vec::new();
+        if std::mem::replace(&mut self.buttons, buttons) {
+            commands.extend([YES, NO].map(|id| Command::Remove {
+                id: id.into(),
+                to: None,
+            }));
+        }
+        if buttons {
+            // At the bottom right inside the balloon, XP's push buttons.
+            let pad = balloon::BALLOON_PAD;
+            let top = by - y + picture.size[1] - balloon::TAIL - pad - BUTTON[1];
+            let right = bx - x + picture.size[0] - pad;
+            let lefts = [right - 2 * BUTTON[0] - BUTTON_GAP, right - BUTTON[0]];
+            for ((id, label), left) in [(YES, "Ja"), (NO, "Nein")].into_iter().zip(lefts) {
+                let control = Control::push(id, label, [0, 0]);
+                commands.push(Command::Create {
+                    id: id.into(),
+                    kind: NodeKind::Image,
+                    parent: GROUP.into(),
+                    props: PropsUpdate {
+                        image: Some(theme.render(&control.picture(false, false))),
+                        transform: Some(Transform::translate(f64::from(left), f64::from(top), 0.0)),
+                        input: Some(InputMode::Accept),
+                        ..PropsUpdate::default()
+                    },
+                });
+            }
+        }
+        let mut speech = self.speech_node(theme, &picture, [bx - x, by - y]);
+        speech.extend(commands);
+        speech
+    }
+
+    /// The node of the balloon picture at `at` in the group.
+    fn speech_node(
+        &mut self,
+        theme: &mut Theme,
+        picture: &Picture,
+        [bx, by]: [i32; 2],
+    ) -> Vec<Command> {
         let props = PropsUpdate {
-            image: Some(theme.render(&picture)),
-            transform: Some(Transform::translate(
-                f64::from(bx - x),
-                f64::from(by - y),
-                0.0,
-            )),
+            image: Some(theme.render(picture)),
+            transform: Some(Transform::translate(f64::from(bx), f64::from(by), 0.0)),
             opacity: Some(1.0),
             visible: Some(true),
             input: Some(InputMode::Pass),
@@ -354,20 +429,50 @@ impl Assistant {
     }
 
     /// Shows the question of a spoken confirmation in the balloon until
-    /// [`Self::answered`] with the same id.
-    pub fn ask(&mut self, theme: &mut Theme, id: &str, text: &str, now: Instant) -> Vec<Command> {
-        let commands = self.say(theme, text, Duration::ZERO, now);
+    /// [`Self::answered`] with the same id: with the buttons Ja and Nein
+    /// when the agent takes clicks, and with one line of the keys of a
+    /// question about a security key.
+    pub fn ask(&mut self, theme: &mut Theme, id: &str, text: &str, offer: &Offer) -> Vec<Command> {
+        let text = match &offer.keys {
+            Some([yes, no]) => format!("{text}\n{} = Ja, {} = Nein", key_name(yes), key_name(no)),
+            None => text.to_owned(),
+        };
+        let commands = self.balloon(theme, &text, offer.buttons);
         self.fades_at = None;
         self.asking = Some(id.into());
         commands
     }
 
-    /// The confirmation `id` is answered or timed out: its balloon fades.
-    pub fn answered(&mut self, id: &str, now: Instant) {
-        if self.asking.as_deref() == Some(id) {
-            self.asking = None;
-            self.fades_at = Some(now);
+    /// The confirmation `id` is answered or timed out: its balloon fades,
+    /// and its buttons go.
+    pub fn answered(&mut self, id: &str, now: Instant) -> Vec<Command> {
+        if self.asking.as_deref() != Some(id) {
+            return Vec::new();
         }
+        self.asking = None;
+        self.fades_at = Some(now);
+        if !std::mem::replace(&mut self.buttons, false) {
+            return Vec::new();
+        }
+        [YES, NO]
+            .map(|id| Command::Remove {
+                id: id.into(),
+                to: None,
+            })
+            .into()
+    }
+
+    /// The parameters of `voice.confirm.answer` for a press on `node`: a
+    /// button of the open question. Only a pointer press on the button
+    /// calls it; no method of xp does.
+    pub fn answer(&self, node: &str) -> Option<serde_json::Value> {
+        let yes = match node {
+            YES => true,
+            NO => false,
+            _ => return None,
+        };
+        let id = self.asking.as_ref().filter(|_| self.buttons)?;
+        Some(serde_json::json!({"id": id, "yes": yes}))
     }
 
     /// Whether the balloon shows a confirmation.
@@ -470,6 +575,7 @@ mod tests {
             speech: false,
             fades_at: None,
             asking: None,
+            buttons: false,
         };
         let mut a = bar_less;
         let commands = a.set_pose(&mut theme, Pose::Sleeping, Instant::now());
@@ -499,6 +605,7 @@ mod tests {
 
     /// A confirmation stays until its own answer, then fades.
     #[test]
+    #[allow(clippy::cognitive_complexity, reason = "one answer after the other")]
     fn a_confirmation_stays_until_its_answer() {
         let (mut theme, _) = crate::theme::tests::theme("confirm");
         let now = Instant::now();
@@ -514,16 +621,39 @@ mod tests {
             speech: false,
             fades_at: None,
             asking: None,
+            buttons: false,
         };
+        let none = Offer::default();
         assert_eq!(
-            a.ask(&mut theme, "c1", "Run it?\nrm -r build", now).len(),
+            a.ask(&mut theme, "c1", "Run it?\nrm -r build", &none).len(),
             1
         );
         assert!(a.asking() && a.fades_at.is_none());
+        assert_eq!(a.answer(YES), None, "no buttons");
         a.answered("c2", now);
         assert!(a.asking(), "another id");
         a.answered("c1", now);
         assert!(!a.asking() && a.fades_at == Some(now));
+        // With buttons: a click on Ja or Nein maps to confirm.answer, and
+        // the answer removes the buttons.
+        let offer = Offer {
+            buttons: true,
+            keys: Some(["Alt+y".into(), "Alt+n".into()]),
+        };
+        let commands = a.ask(&mut theme, "c3", "Set allow?", &offer);
+        let made: Vec<&str> = (commands.iter())
+            .filter_map(|c| match c {
+                Command::Create { id, .. } => Some(id.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert!(made.contains(&YES) && made.contains(&NO), "{made:?}");
+        let json = |yes| serde_json::json!({"id": "c3", "yes": yes});
+        assert_eq!(a.answer(YES), Some(json(true)));
+        assert_eq!(a.answer(NO), Some(json(false)));
+        assert_eq!(a.answer(CLIP), None);
+        assert_eq!(a.answered("c3", now).len(), 2, "the buttons go");
+        assert_eq!(a.answer(YES), None, "answered");
     }
 
     #[test]

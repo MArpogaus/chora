@@ -1376,11 +1376,17 @@ thinks, bounces while it speaks and raises its eyebrows when it asks. Each
 sentence of `voice.say` shows in a balloon above it, which fades out three
 seconds after the sentence ends. The balloon shows the `prompt` and the
 `detail` of `voice.confirm` until the event with `done` and the same `id`.
+With `buttons`, the balloon has XP's push buttons Ja and Nein; a click
+calls `voice.confirm.answer {id, yes}`. A question about a security key
+(`physical`) shows one more line with its `keys`, such as "Alt+Y = Ja,
+Alt+N = Nein". Only a pointer press on a button answers; no method of
+xp calls `confirm.answer`, but xp cannot tell an injected click
+(`input.inject`) from a real one.
 While the paperclip is enabled, `chora-xp` calls `indicator.claim` of the
 agent at its start and after the agent connects.
 A click on the paperclip mutes the mic of
 the agent through its method `mute`, and a second click unmutes it. The
-paperclip goes when the agent sleeps or disconnects, and `assistant:
+paperclip goes when the agent disconnects, and `assistant:
 {enabled: false}` turns it off.
 
 The effects run in the plugin, which computes their meshes and

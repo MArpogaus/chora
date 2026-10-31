@@ -1609,6 +1609,9 @@ impl Wm {
         if Assistant::owns(node) {
             return self.press_assistant();
         }
+        if self.press_answer(node) {
+            return Vec::new();
+        }
         if self.dialog.is_some() {
             return self.press_dialog(node);
         }
