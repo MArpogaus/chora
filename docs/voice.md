@@ -459,10 +459,17 @@ are synthesized tones: wake, sleep, cancel, error.
   picture counts as 4000), divided by the characters per token of the
   last request: its length over its `usage.prompt_tokens` (3.0 at the
   start; requests with a picture teach nothing). No tokenizer.
-- `history_tokens` (default 12000) bounds the messages after the
+- `history_tokens` (default 24000) bounds the messages after the
   system prompt, estimated as characters / 4; `0` keeps only the
   context budget. A long session (dump 2026-10-31: 221 messages, 33k
   tokens, full of cut answers) made the LLM copy its old answers.
+- The dropped turns stay as one system note after the system prompt: a
+  line each for the requests of the user and the final answers, cut to
+  160 characters, 3000 characters in all (oldest first out). Only the
+  latest picture of a tool stays in the history; older ones become
+  `[image dropped]`. The text of a tool answer is cut to 6000
+  characters, and `query_scene` keeps the useful fields of at most 60
+  nodes.
 - Before each request, drop the oldest whole turns until the estimate
   fits the budget and `history_tokens`; the last turn stays. A turn
   starts at a user message, so a tool call and its results go
@@ -555,7 +562,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `system_prompt`, `context_docs` | `""`: the built-in prompt and documents |
 | `prompt_file` | `~/.config/chora/voice-prompt.md` |
 | `context_tokens`, `reply_reserve_tokens` | `0` (ask the server), `1024` |
-| `tool_rounds`, `old_tool_chars`, `history_tokens`, `saved_requests` | `10`, `500`, `12000`, `20` |
+| `tool_rounds`, `old_tool_chars`, `history_tokens`, `saved_requests` | `10`, `500`, `24000`, `20` |
 | `reasoning_effort` | `none` (`""`: not in the request) |
 | `asr_timeout_s`, `tts_timeout_s`, `tool_timeout_s` | `15`, `10`, `30` |
 | `llm_first_token_s`, `llm_idle_s`, `llm_total_s` | `30`, `20`, `120` |
