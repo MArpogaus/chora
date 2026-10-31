@@ -773,6 +773,20 @@ pub mod tests {
             assert!(answer.as_str().unwrap().starts_with("error:"), "{answer}");
         }
         assert_eq!(calls.load(Ordering::SeqCst), 2);
+        // The LLM never presses a button of a question: not by its plugin
+        // tool, which `skipped_tools` hides, nor by `call_method`.
+        assert_eq!(tools.mcp_name("voice__confirm__answer"), None, "skipped");
+        let button = "voice__confirm__answer".to_owned();
+        tools
+            .names
+            .insert(button.clone(), "voice.confirm.answer".into());
+        let yes = json!({"id": "1", "yes": true});
+        let answer = tools.call(&button, &yes).await;
+        assert!(answer.as_str().unwrap().starts_with("error:"), "{answer}");
+        let args = json!({"client": "voice", "method": "confirm.answer", "params": yes});
+        let answer = tools.call("call_method", &args).await;
+        assert!(answer.as_str().unwrap().starts_with("error:"), "{answer}");
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
         let set = json!({"client": "voice", "method": "settings.set", "params": patch});
         assert_eq!(tools.own_settings_set("call_method", &set), Some(&patch));
         assert_eq!(
