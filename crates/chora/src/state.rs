@@ -142,10 +142,22 @@ pub enum Suppressed {
 /// run.
 const POINTER_REFRESH: std::time::Duration = std::time::Duration::from_millis(8);
 
-/// How long a surface stays reserved for a window manager that does not
-/// attach it (D55). Then the reservation ends and every client hears
-/// `surface.detached`, so that no window stays hidden.
+/// How long a free surface waits for a window manager to attach it (D55).
+/// Then the core hands it to a definite window manager; when that one
+/// does not attach it either, or none exists, the core shows it itself, so
+/// that no window stays hidden.
 pub const RESERVATION: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// A free surface that waits for a window manager, see [`RESERVATION`].
+struct Waiting {
+    until: Instant,
+    /// The client that gave the surface away, the first choice when the
+    /// receiver does not take it.
+    giver: Option<String>,
+    /// The core chose the window manager; at the deadline it shows the
+    /// surface itself.
+    chosen: bool,
+}
 
 /// The state of the compositor, passed to every callback of the event loop.
 #[allow(clippy::struct_field_names)] // the names of Smithay's handler traits
@@ -222,9 +234,9 @@ pub struct State {
     /// Toplevels after their first commit whose `surface.created` waits
     /// for the end of the batch of requests, with their window manager.
     pub unannounced: Vec<(String, Option<String>)>,
-    /// The deadline of each reservation of a surface for a window manager
-    /// (D55); see [`RESERVATION`].
-    reserved_until: HashMap<String, Instant>,
+    /// The free surfaces that wait for a window manager (D55); see
+    /// [`RESERVATION`].
+    waiting: HashMap<String, Waiting>,
 
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
@@ -361,7 +373,7 @@ impl State {
             activation_state: XdgActivationState::new::<Self>(&dh),
             early_requests: HashMap::new(),
             unannounced: Vec::new(),
-            reserved_until: HashMap::new(),
+            waiting: HashMap::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
             pending_activations: Vec::new(),
@@ -516,29 +528,141 @@ impl State {
         })
     }
 
-    /// Starts the deadline of a reservation of a surface, see
-    /// [`RESERVATION`].
-    pub fn reserved(&mut self, surface: &str) {
-        let deadline = self.time.now() + RESERVATION;
-        self.reserved_until.insert(surface.to_owned(), deadline);
-        let _ = self.expire_at(deadline);
+    /// Starts the deadline of a free surface, see [`RESERVATION`]. A
+    /// surface that waits already keeps its giver.
+    pub fn reserved(&mut self, surface: &str, giver: Option<&str>, chosen: bool) {
+        let until = self.time.now() + RESERVATION;
+        let giver = giver
+            .map(String::from)
+            .or_else(|| self.waiting.remove(surface).and_then(|w| w.giver));
+        let waiting = Waiting {
+            until,
+            giver,
+            chosen,
+        };
+        self.waiting.insert(surface.to_owned(), waiting);
+        let _ = self.expire_at(until);
     }
 
-    /// Ends the reservations whose deadline passed and that no window
-    /// manager attached: every client hears `surface.detached`.
+    /// Whether a surface has neither an owner nor a parent.
+    fn free(&self, surface: &str) -> bool {
+        (self.scene.node(surface)).is_some_and(|n| n.owner.is_none() && n.parent.is_none())
+    }
+
+    /// Handles the free surfaces whose deadline passed: the core hands
+    /// each to a definite window manager, or shows it when the one it
+    /// chose did not attach it either.
     pub fn expire_reservations(&mut self, now: Instant) {
-        let due: Vec<String> = (self.reserved_until.iter())
-            .filter(|(_, deadline)| **deadline <= now)
+        let due: Vec<String> = (self.waiting.iter())
+            .filter(|(_, w)| w.until <= now)
             .map(|(surface, _)| surface.clone())
             .collect();
         for surface in due {
-            self.reserved_until.remove(&surface);
-            let waits = (self.scene.node(&surface)).is_some_and(|n| n.to.is_some());
-            if waits {
-                self.scene.reserve(&surface, None);
-                self.emit(&Event::SurfaceDetached { surface });
+            let Some(waiting) = self.waiting.remove(&surface) else {
+                continue;
+            };
+            if !self.free(&surface) {
+                continue;
+            }
+            if waiting.chosen {
+                self.place_free(&surface);
+            } else {
+                let late = self.scene.node(&surface).and_then(|n| n.to.clone());
+                self.hand_over(&surface, waiting.giver.as_deref(), late.as_deref());
             }
         }
+    }
+
+    /// Hands a free surface to a definite window manager (D55): the
+    /// giver, else the one that a new window would go to, else any client
+    /// with a claim; never `except`, and only connected clients with a
+    /// claim. Only that one hears `surface.detached`. Without one, the core
+    /// shows the surface itself.
+    pub fn hand_over(&mut self, surface: &str, giver: Option<&str>, except: Option<&str>) {
+        if !self.free(surface) {
+            return;
+        }
+        let client = (self.scene.node(surface)).and_then(|n| n.surface.as_ref()?.client.clone());
+        let pointer = self
+            .spot(self.pointer_layout)
+            .map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
+        let focused = self.focused_surface().map(String::from);
+        let (ipc, scene) = (&self.ipc, &self.scene);
+        // A client socket manages only the windows of its own name.
+        let manager = |n: &str| {
+            Some(n) != except
+                && ipc.has_client(n)
+                && (!ipc.has_socket(n) || client.as_deref() == Some(n))
+                && scene.holds_claim(n)
+        };
+        let to = (giver.filter(|g| manager(g)))
+            .or_else(|| scene.manager_of_new(None, focused.as_deref(), pointer, manager))
+            .or_else(|| {
+                (scene.nodes())
+                    .filter(|n| n.props.claim.is_some())
+                    .filter_map(|n| n.owner.as_deref())
+                    .find(|o| manager(o))
+            })
+            .map(String::from);
+        let Some(to) = to else {
+            self.place_free(surface);
+            return;
+        };
+        self.scene.reserve(surface, Some(&to));
+        self.reserved(surface, giver, true);
+        if self.focused_surface() == Some(surface) {
+            self.focus(None);
+        }
+        let scene = &self.scene;
+        let event = Event::SurfaceDetached {
+            surface: surface.into(),
+        };
+        (self.ipc).send_subscribed(Some(&to), &event, |s| window_client(scene, s));
+    }
+
+    /// Shows a free surface that no window manager takes at the top left
+    /// of the first output, without an owner.
+    fn place_free(&mut self, surface: &str) {
+        self.waiting.remove(surface);
+        let [x, y, ..] = self.reset_area();
+        self.scene.place_free(surface, [x, y]);
+        tracing::info!(
+            surface,
+            "no window manager takes the window; the core shows it"
+        );
+    }
+
+    /// Executes the effects of a client that went: each surface it frees
+    /// goes to a definite window manager that is still connected, not to
+    /// the first client that takes it (D55). When that one goes too
+    /// before it attaches the surface, this runs again for it.
+    pub fn execute_gone(&mut self, effects: Vec<Effect>) {
+        for effect in effects {
+            if let Effect::Detached(surface) = effect {
+                let giver = self.waiting.get(&surface).and_then(|w| w.giver.clone());
+                self.hand_over(&surface, giver.as_deref(), None);
+            } else {
+                self.execute(vec![effect]);
+            }
+        }
+    }
+
+    /// A surface that became free: one that a client gave away or that
+    /// waited for a window manager goes to a definite window manager at
+    /// once, as its receiver went (D55); every other one is free to take
+    /// for every client, and waits.
+    pub fn freed(&mut self, surface: &str) {
+        if let Some(giver) = self.waiting.get(surface).map(|w| w.giver.clone()) {
+            self.hand_over(surface, giver.as_deref(), None);
+            return;
+        }
+        if self.focused_surface() == Some(surface) {
+            self.focus(None);
+        }
+        self.reserved(surface, None, false);
+        self.emit(&Event::SurfaceDetached {
+            surface: surface.into(),
+        });
     }
 
     /// Sends an event to all subscribed clients.
@@ -549,6 +673,9 @@ impl State {
 
     /// Executes the effects of an applied transaction.
     pub fn execute(&mut self, effects: Vec<Effect>) {
+        // A surface that a window manager attached waits no more.
+        let scene = &self.scene;
+        (self.waiting).retain(|s, _| scene.node(s).is_some_and(|n| n.owner.is_none()));
         for effect in effects {
             match effect {
                 // The transaction sent its configure events when it started.
@@ -559,17 +686,12 @@ impl State {
                         t.send_close();
                     }
                 }
-                Effect::Detached(surface) => {
+                Effect::Detached(surface) => self.freed(&surface),
+                Effect::Reserved { surface, to, from } => {
                     if self.focused_surface() == Some(surface.as_str()) {
                         self.focus(None);
                     }
-                    self.emit(&Event::SurfaceDetached { surface });
-                }
-                Effect::Reserved(surface, to) => {
-                    if self.focused_surface() == Some(surface.as_str()) {
-                        self.focus(None);
-                    }
-                    self.reserved(&surface);
+                    self.reserved(&surface, Some(&from), false);
                     let scene = &self.scene;
                     let event = Event::SurfaceDetached { surface };
                     (self.ipc).send_subscribed(Some(&to), &event, |s| window_client(scene, s));

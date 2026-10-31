@@ -87,9 +87,9 @@ print(rows.index('$1'))") || { finding "$WF: $1 is not in the window list" endan
   for _ in $(seq "$row"); do key Down; done
 }
 # no_lost <step>: every surface shows or is in the window list. A
-# surface without an owner, one reserved for a client that did not attach
-# it, one of the construct without a pane, and a hidden one that is not
-# listed are lost (the no_lost of tests/gate-construct-windows.sh). Also
+# surface without an owner that the core does not show, one reserved for
+# a client that did not attach it, one of the construct without a pane,
+# and a hidden one that is not listed are lost (the no_lost of tests/gate-construct-windows.sh). Also
 # fails when a window that the workflow knows is gone ($WINDOWS holds
 # app ids that must still exist unless the step killed them).
 no_lost() {
@@ -116,7 +116,9 @@ for n in load("surfaces"):
     elif n.get("to"):
         bad.append(f"{sid} ({app}): reserved for {n['to']}, which did not attach it")
     elif owner is None:
-        bad.append(f"{sid} ({app}): no owner")
+        # the core shows a window that no window manager takes
+        if not shows:
+            bad.append(f"{sid} ({app}): no owner, not shown by the core")
     elif owner == "construct":
         pane = nodes.get(f"construct-pane-{sid}", {})
         if sid not in panes:

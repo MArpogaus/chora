@@ -101,9 +101,9 @@ for n in sorted(json.load(sys.stdin), key=lambda n: n["surface"].get("app_id") o
     print(n["surface"].get("app_id"), n.get("owner"), n["rects"], n["opacity"], n["visible"], n["transform"])'
 }
 # no_lost STEP: every surface shows or is in the window list (F31). A
-# surface without an owner, one reserved for a client that did not
-# attach it, and one of the construct without a pane are lost: the
-# window list lists every surface, also these.
+# surface without an owner that the core does not show, one reserved
+# for a client that did not attach it, and one of the construct without
+# a pane are lost: the window list lists every surface, also these.
 no_lost() {
     ctl query kind:surface >"$work/surfaces.json" || fail "$1: query"
     ctl query owner:construct >"$work/nodes.json" 2>/dev/null || echo '[]' >"$work/nodes.json"
@@ -126,7 +126,9 @@ for n in load("surfaces"):
     elif n.get("to"):
         bad.append(f"{sid}: reserved for {n['to']}, which did not attach it")
     elif owner is None:
-        bad.append(f"{sid}: no owner")
+        # the core shows a window that no window manager takes
+        if not shows:
+            bad.append(f"{sid}: no owner, not shown by the core")
     elif owner == "construct":
         pane = nodes.get(f"construct-pane-{sid}", {})
         if sid not in panes:

@@ -1086,7 +1086,7 @@ impl State {
     pub fn drop_nodes(&mut self, name: &str) {
         self.ipc.graces.remove(name);
         let effects = self.scene.disconnect(name);
-        self.execute(effects);
+        self.execute_gone(effects);
         self.ipc.uploads.drop_client(name);
     }
 
@@ -1359,7 +1359,7 @@ impl State {
         } else {
             // Kept nodes stay, but a surface reserved for the name is free.
             let effects = self.scene.unreserve(&name);
-            self.execute(effects);
+            self.execute_gone(effects);
         }
         self.emit(&Event::ClientDisconnected { name });
     }
@@ -2748,6 +2748,33 @@ mod tests {
         assert_eq!(reserved_for(&core, "s3").as_deref(), Some("a"), "the focus");
     }
 
+    /// Where a surface is: `(owner, parent, reserved for)`.
+    fn whereabouts(core: &Core, surface: &str) -> (Option<String>, Option<String>, Option<String>) {
+        let node = core.state.scene.node(surface).unwrap();
+        (node.owner.clone(), node.parent.clone(), node.to.clone())
+    }
+
+    /// Whether a client heard `surface.detached` of s1.
+    fn heard_s1(client: &mut Client, core: &mut Core) -> bool {
+        client
+            .events_now(core)
+            .iter()
+            .any(|e| e["params"]["event"] == "surface.detached" && e["params"]["surface"] == "s1")
+    }
+
+    /// The core shows a free surface itself at the top left of the first
+    /// output when no window manager is left; it is still free to take.
+    fn placed_by_the_core(core: &Core) -> bool {
+        let shown = whereabouts(core, "s1") == (None, Some(chora_scene::ROOT.into()), None);
+        shown
+            && core
+                .state
+                .scene
+                .draw_list()
+                .iter()
+                .any(|p| p.node.id == "s1")
+    }
+
     #[test]
     fn a_reservation_for_a_keep_nodes_client_ends_with_it() {
         let mut core = Core::new();
@@ -2762,33 +2789,111 @@ mod tests {
             "parent": "root", "props": {"claim": [0, 0, 10, 10]}}}]});
         agent.ok(&mut core, "scene.apply", group);
         let mut other = core.named("other");
-        other.ok(&mut core, "events.subscribe", json!({"events": []}));
         wm.ok(&mut core, "scene.apply", remove_s1_to("agent"));
         drop(agent);
         core.dispatch();
-        let names = other.event_names(&mut core);
-        assert!(names.contains(&"surface.detached".to_owned()), "{names:?}");
+        // No window manager is left: the core shows the window.
+        assert!(placed_by_the_core(&core), "{:?}", whereabouts(&core, "s1"));
         other.ok(&mut core, "scene.apply", attach_s1("root"));
     }
 
     /// A window manager that never attaches a surface given to it does not
-    /// hide it for good: the reservation ends after a while (D55).
+    /// hide it for good (D55): after a while it goes back to the giver,
+    /// and when the giver does not take it either, the core shows it.
     #[test]
-    fn a_reservation_that_nobody_attaches_ends() {
+    fn a_reservation_that_nobody_attaches_goes_back_to_the_giver_then_shows() {
         let mut core = Core::new();
         core.state.time.stop();
         let (mut wm, _wayland) = resumable(&mut core);
-        let _wm2 = claimer(&mut core, "wm2", [0.0, 0.0, 10.0, 10.0]);
-        let mut other = core.named("other");
+        let claim =
+            json!({"commands": [{"update": {"id": "g", "props": {"claim": [0, 0, 10, 10]}}}]});
+        wm.ok(&mut core, "scene.apply", claim);
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut wm2 = claimer(&mut core, "wm2", [0.0, 0.0, 10.0, 10.0]);
+        wm2.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut other = claimer(&mut core, "other", [0.0, 0.0, 5.0, 5.0]);
         other.ok(&mut core, "events.subscribe", json!({"events": []}));
         wm.ok(&mut core, "scene.apply", remove_s1_to("wm2"));
+        assert!(heard_s1(&mut wm2, &mut core));
         core.advance(crate::state::RESERVATION / 2);
         assert_eq!(reserved_for(&core, "s1").as_deref(), Some("wm2"));
         core.advance(crate::state::RESERVATION);
-        assert_eq!(reserved_for(&core, "s1"), None);
-        let names = other.event_names(&mut core);
-        assert!(names.contains(&"surface.detached".to_owned()), "{names:?}");
-        other.ok(&mut core, "scene.apply", attach_s1("root"));
+        assert_eq!(
+            reserved_for(&core, "s1").as_deref(),
+            Some("wm"),
+            "the giver first"
+        );
+        assert!(heard_s1(&mut wm, &mut core));
+        assert!(!heard_s1(&mut other, &mut core), "no race of all managers");
+        core.advance(crate::state::RESERVATION * 2);
+        assert!(placed_by_the_core(&core), "{:?}", whereabouts(&core, "s1"));
+        other.ok(&mut core, "scene.apply", attach_s1("other"));
+    }
+
+    /// A window that no window manager takes shows after a while, also
+    /// one that never had a window manager.
+    #[test]
+    fn a_new_window_without_a_window_manager_shows() {
+        let mut core = Core::new();
+        core.state.time.stop();
+        core.add_output("A", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "foot");
+        assert_eq!(whereabouts(&core, "s1"), (None, None, None));
+        core.advance(crate::state::RESERVATION * 2);
+        assert!(placed_by_the_core(&core), "{:?}", whereabouts(&core, "s1"));
+    }
+
+    /// A receiver that goes between the give and the attach: the window
+    /// goes back to the giver at once, not to the first manager.
+    #[test]
+    fn a_window_given_to_a_client_that_goes_returns_to_the_giver() {
+        let mut core = Core::new();
+        let (mut wm, _wayland) = resumable(&mut core);
+        let claim =
+            json!({"commands": [{"update": {"id": "g", "props": {"claim": [0, 0, 10, 10]}}}]});
+        wm.ok(&mut core, "scene.apply", claim);
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut other = claimer(&mut core, "other", [0.0, 0.0, 5.0, 5.0]);
+        other.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let receiver = claimer(&mut core, "receiver", [0.0, 0.0, 10.0, 10.0]);
+        wm.ok(&mut core, "scene.apply", remove_s1_to("receiver"));
+        drop(receiver);
+        core.dispatch();
+        assert_eq!(reserved_for(&core, "s1").as_deref(), Some("wm"));
+        assert!(heard_s1(&mut wm, &mut core));
+        assert!(!heard_s1(&mut other, &mut core));
+        wm.ok(&mut core, "scene.apply", attach_s1("g"));
+    }
+
+    /// Battle W14: several window managers die in one tick. The windows of
+    /// a dead one go only to a connected one, again when that one dies
+    /// before it attaches them, and the core shows them after the last.
+    #[test]
+    fn the_windows_of_a_dead_manager_go_to_a_live_one_until_none_is_left() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "foot");
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 800.0, 600.0]);
+        a.ok(&mut core, "scene.apply", attach_s1("a"));
+        let b = claimer(&mut core, "b", [0.0, 0.0, 400.0, 600.0]);
+        let mut c = claimer(&mut core, "c", [400.0, 0.0, 400.0, 600.0]);
+        c.ok(&mut core, "events.subscribe", json!({"events": []}));
+        core.state.pointer_layout = (100.0, 100.0).into();
+        // b is under the pointer, but it dies in the same tick.
+        drop(a);
+        drop(b);
+        core.dispatch();
+        assert_eq!(
+            reserved_for(&core, "s1").as_deref(),
+            Some("c"),
+            "the live one"
+        );
+        assert!(heard_s1(&mut c, &mut core));
+        drop(c);
+        core.dispatch();
+        assert!(placed_by_the_core(&core), "{:?}", whereabouts(&core, "s1"));
     }
 
     #[test]

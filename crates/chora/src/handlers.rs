@@ -205,9 +205,7 @@ impl State {
                 })
                 .map(String::from);
             self.scene.reserve(id, to.as_deref());
-            if to.is_some() {
-                self.reserved(id);
-            }
+            self.reserved(id, None, false);
             self.list_toplevel(id);
             // A client often activates right after its first commit, in
             // the same batch, as foot does: the event waits for the end of

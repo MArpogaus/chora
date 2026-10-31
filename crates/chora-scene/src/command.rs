@@ -157,7 +157,14 @@ pub enum Effect {
     Detached(String),
     /// A surface lost its parent and its owner, reserved for a client
     /// name; tell that client.
-    Reserved(String, String),
+    Reserved {
+        /// The surface node.
+        surface: String,
+        /// The client name that may attach it.
+        to: String,
+        /// The client that gave it.
+        from: String,
+    },
     /// The camera of an output changed; tell the clients.
     Camera(String),
     /// A client asked to change a node of another client (D31); tell the

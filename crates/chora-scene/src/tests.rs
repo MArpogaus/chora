@@ -1486,3 +1486,21 @@ fn the_smallest_claim_under_a_point_wins() {
     assert_eq!(at([10.0, 10.0], "tiling"), Some("xp"));
     assert_eq!(at([3000.0, 10.0], "xp"), None);
 }
+
+/// A free surface that no window manager takes shows at the root, and a
+/// window manager can still attach it; an owned surface stays where it is.
+#[test]
+fn a_free_surface_placed_by_the_core_shows_and_stays_free_to_take() {
+    let mut scene = scene_with_surface();
+    scene.place_free("s1", [10.0, 20.0]);
+    let node = scene.node("s1").unwrap();
+    assert_eq!(
+        (node.owner.as_deref(), node.parent.as_deref()),
+        (None, Some(ROOT))
+    );
+    assert_eq!(node.props.transform, Transform::translate(10.0, 20.0, 0.0));
+    assert_eq!(scene.draw_list().len(), 1, "it shows");
+    (scene.apply("wm", &[group("a", ROOT), attach("s1", "a")])).unwrap();
+    scene.place_free("s1", [0.0, 0.0]);
+    assert_eq!(scene.node("s1").unwrap().parent.as_deref(), Some("a"));
+}

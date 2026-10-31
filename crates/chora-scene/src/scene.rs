@@ -379,6 +379,23 @@ impl Scene {
         }
     }
 
+    /// Shows a free surface at the root without an owner, at `at`, as
+    /// the emergency reset does: no window manager took it. Any window
+    /// manager can attach it later.
+    pub fn place_free(&mut self, surface: &str, at: [f64; 2]) {
+        let free =
+            (self.nodes.get(surface)).is_some_and(|n| n.owner.is_none() && n.parent.is_none());
+        if !free {
+            return;
+        }
+        self.link(surface, ROOT, None);
+        if let Some(node) = self.nodes.get_mut(surface) {
+            node.to = None;
+            node.props = Props::default();
+            node.props.transform = Transform::translate(at[0], at[1], 0.0);
+        }
+    }
+
     fn apply_one(
         &mut self,
         owner: &str,
@@ -426,7 +443,11 @@ impl Scene {
                 }
                 self.remove_subtree(id);
                 self.reserve(id, Some(to));
-                effects.push(Effect::Reserved(id.clone(), to.clone()));
+                effects.push(Effect::Reserved {
+                    surface: id.clone(),
+                    to: to.clone(),
+                    from: owner.into(),
+                });
                 Ok(())
             }
             Command::Configure { .. } => self.configure_command(owner, command, effects),
