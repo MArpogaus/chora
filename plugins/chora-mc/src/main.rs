@@ -354,6 +354,16 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let rt = Runtime::connect(NAME, Vec::new())?;
     let mut mc = Mc::new(rt, settings, dir, [shader, blur]);
     mc.start(methods)?;
+    // The kit logged it; the defaults that apply show notify.
+    if let Some(err) = mc.settings.broken() {
+        let push = json!({"title": "Settings", "body": err, "urgency": "critical"});
+        let shown = serde_json::from_value(push)
+            .map_err(|e| e.to_string())
+            .and_then(|push| mc.push(push).map_err(|e| e.message));
+        if let Err(err) = shown {
+            eprintln!("chora-mc: notify: {err}");
+        }
+    }
     Ok(runtime::serve(&mut mc)?)
 }
 
