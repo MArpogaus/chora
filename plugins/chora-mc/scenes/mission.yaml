@@ -3,7 +3,7 @@
 # collectors/system.py fills the panels every few seconds.
 grid: [4, 2]
 page: {measure: 21, margin: 6, gap: 1.5}
-chapter: {title: Mission Control, layout: caps}
+chapter: {title: Mission Control}
 panels:
 - {id: load, cell: [0, 0, 1, 1], title: Load, style: {family: Inter, features: {tnum: 1}}}
 - {id: top, cell: [1, 0, 1, 1], title: Busy, rule: faint, style: {family: Inter, features: {tnum: 1}}}

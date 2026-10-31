@@ -14,10 +14,9 @@ use crate::region::{self, Content, Preset, Region, Regions, Rule};
 pub const DEFAULT: &str = include_str!("../mc.yaml");
 
 /// The styles that the plugin uses itself.
-const NEEDED: [&str; 8] = [
+const NEEDED: [&str; 7] = [
     "chapter_number",
     "chapter",
-    "chapter_large",
     "running_head",
     "heading",
     "body",
@@ -199,12 +198,9 @@ pub struct Scale {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Layout {
-    /// A large number, the title below it in small caps.
+    /// The number in the margin column, flush right, the title on its
+    /// baseline in the text column.
     Number,
-    /// The title in small caps.
-    Caps,
-    /// One large title.
-    Large,
     /// No head: the panels start under the header.
     None,
 }

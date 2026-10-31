@@ -56,19 +56,12 @@ styles:
     features: {smcp: 1, c2sc: 1, onum: 1}
   chapter:
     base: heading
-    step: 1
+    step: 3
     letter_spacing: 0.14
   chapter_number:
-    family: TeX Gyre Pagella
-    step: 5
-    line_height: 1.0
+    base: chapter
     color: faint
-  chapter_large:
-    family: Inter
-    weight: 200
-    step: 5
-    line_height: 1.25
-    letter_spacing: -0.02
+    letter_spacing: 0
   running_head:
     family: Inter
     weight: 500
@@ -86,9 +79,8 @@ styles:
   mono:
     family: DejaVu Sans Mono
     step: -1
-# The head of each scene: number (a large number, the title in small caps
-# below it), caps (the title in small caps), large (one large title) or
-# none.
+# The head of each scene: number (the number in the margin column, flush
+# right, the title on its baseline in the text column) or none.
 chapter:
   layout: number
 # The text block: the width of a column of text, about 65 letters, the

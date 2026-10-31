@@ -358,15 +358,15 @@ hand apply with `settings.reload`:
   `step` of the scale, `color` (a name of the theme
   or RGBA), `line_height`, `letter_spacing` in em, OpenType `features` and
   `uppercase`. The plugin uses `chapter_number`, `chapter`,
-  `chapter_large`, `running_head`, `heading`, `body`, `margin` and `hud`.
+  `running_head`, `heading`, `body`, `margin` and `hud`.
   The default sets TeX Gyre Pagella with small caps and old-style figures
   for the text, from the Fedora package `texlive-tex-gyre`, whose
   directory `/usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre`
   must be in `CHORA_FONT_DIRS`, and Inter with tabular figures for the
   running head, the notes and the HUD.
-- `chapter.layout`: `number` (a large light number, the title in spaced
-  small caps below), `caps` (the title only), `large` (one large light
-  title) or `none`.
+- `chapter.layout`: `number` (the number in the margin column, flush
+  right, and the title in spaced small caps on the same baseline in the
+  text column) or `none`.
 - `page`: the `measure` of a column of text, the `margin` column and the
   `gap`, in em of `scale.base`.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).

@@ -6,7 +6,7 @@
 # agent-1 and its transcript in the other agent-N columns.
 grid: [4, 3]
 page: {measure: 24, margin: 0, gap: 1.5}
-chapter: {title: Agents, layout: caps}
+chapter: {title: Agents}
 panels:
 - {id: agent-1, cell: [0, 0, 1, 2]}
 - {id: agent-2, cell: [1, 0, 1, 2], rule: faint}

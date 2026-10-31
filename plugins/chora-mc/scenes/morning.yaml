@@ -3,7 +3,7 @@
 # read. The collector collectors/morning.py fills the panels.
 grid: [4, 3]
 page: {measure: 24, margin: 0, gap: 1.5}
-chapter: {title: The Morning, layout: large}
+chapter: {title: The Morning}
 panels:
 - id: lead
   cell: [0, 0, 2, 2]
