@@ -14,7 +14,8 @@
 # 2. Overlay lose cases: pane.remove of an own window that closes and of
 #    one that refuses; kill -9 of a taken window while flown in and while
 #    hidden; pane.remove of a taken window gives it back; a second
-#    construct.load; kill -9 of chora-construct.
+#    construct.load; a load keeps a window that tiling gave to the
+#    overlay; kill -9 of chora-construct.
 # 3. Flavor: a pane far behind the camera shows in the list, and
 #    window.show flies to it; the window list flies to it as well; lose
 #    cases as in 2; window.give and the give rows of the list hand panes
@@ -99,7 +100,10 @@ import json, sys
 for n in sorted(json.load(sys.stdin), key=lambda n: n["surface"].get("app_id") or ""):
     print(n["surface"].get("app_id"), n.get("owner"), n["rects"], n["opacity"], n["visible"], n["transform"])'
 }
-# no_lost STEP: every surface shows or is in the window list (F31).
+# no_lost STEP: every surface shows or is in the window list (F31). A
+# surface without an owner, one reserved for a client that did not
+# attach it, and one of the construct without a pane are lost: the
+# window list lists every surface, also these.
 no_lost() {
     ctl query kind:surface >"$work/surfaces.json" || fail "$1: query"
     ctl query owner:construct >"$work/nodes.json" 2>/dev/null || echo '[]' >"$work/nodes.json"
@@ -115,17 +119,24 @@ listed = {w["surface"] for w in load("windows")["windows"] if w["pane"] != "show
 bad = []
 for n in load("surfaces"):
     sid, size = n["id"], n["surface"].get("size") or [0, 0]
-    shows = n.get("owner") and n["visible"] and n["opacity"] > 0 and n["rects"]
+    owner = n.get("owner")
+    shows = n["visible"] and n["opacity"] > 0 and n["rects"]
     if min(size) <= 0:
         bad.append(f"{sid}: size {size}")
-    elif n.get("owner") not in (None, "construct") and (n["opacity"] <= 0 or not n["visible"]):
-        bad.append(f"{sid} of {n['owner']}: opacity {n['opacity']}, visible {n['visible']}")
-    elif sid in panes:
+    elif n.get("to"):
+        bad.append(f"{sid}: reserved for {n['to']}, which did not attach it")
+    elif owner is None:
+        bad.append(f"{sid}: no owner")
+    elif owner == "construct":
         pane = nodes.get(f"construct-pane-{sid}", {})
-        if not (pane.get("visible") and pane.get("rects")) and sid not in listed:
+        if sid not in panes:
+            bad.append(f"{sid}: owned by the construct without a pane")
+        elif not (pane.get("visible") and pane.get("rects")) and sid not in listed:
             bad.append(f"{sid}: a pane that neither shows nor is listed")
+    elif n["opacity"] <= 0 or not n["visible"]:
+        bad.append(f"{sid} of {owner}: opacity {n['opacity']}, visible {n['visible']}")
     elif not shows and sid not in listed:
-        bad.append(f"{sid} of {n.get('owner')}: neither shows nor is listed")
+        bad.append(f"{sid} of {owner}: neither shows nor is listed")
 if bad:
     print(f"{step}:", *bad, sep="\n  ", file=sys.stderr)
     sys.exit(1)
@@ -276,6 +287,16 @@ until_ok 'test -z "$(panes)"' || fail "the second load kept panes: $(panes)"
 no_lost "overlay second load"
 ok "overlay: pane.remove gave t1 back; a second load gave t2 back and left the own o2 to tiling"
 
+ctl call tiling window.give "{\"surface\": \"$t1\", \"to\": \"construct\"}" >/dev/null || fail "tiling window.give t1"
+until_ok 'panes | grep -qw t1' || fail "the given t1 became no pane: $(panes)"
+[ "$(owner "$t1")" = construct ] || fail "t1 is not with the overlay: $(owner "$t1")"
+call construct.load '{"name": "empty"}' >/dev/null || fail "the load after the give"
+sleep 1
+panes | grep -qw t1 || fail "the load dropped the given t1: $(panes)"
+[ "$(owner "$t1")" = construct ] || fail "the load moved t1 to $(owner "$t1")"
+no_lost "overlay load after a give"
+ok "overlay: a window given to it stays its pane over a load"
+
 call window.show '{"name": "t1"}' >/dev/null || fail "window.show t1 before the kill"
 call window.show '{"name": "t2"}' >/dev/null || fail "window.show t2 before the kill"
 key Tab
@@ -284,8 +305,8 @@ kill -9 "$cpid"
 wait "$cpid" 2>/dev/null
 # The core keeps the nodes of a plugin with resume for 10 s.
 until_ok 'test "$(ctl query owner:construct)" = "[]"' 80 || fail "construct nodes stay after the kill"
+until_ok 'test "$(owner "$t1")/$(owner "$t2")" = tiling/tiling' || fail "after the kill: $(owner "$t1") $(owner "$t2")"
 no_lost "overlay kill -9 construct"
-[ "$(owner "$t1")/$(owner "$t2")" = tiling/tiling ] || fail "after the kill: $(owner "$t1") $(owner "$t2")"
 ok "kill -9 of the overlay left every window shown and with tiling"
 quit
 
