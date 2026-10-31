@@ -354,7 +354,16 @@ again changes nothing. The effect is `plugins/chora-mc/write.frag`, and
 the `animate` of the core moves its uniform `progress` from 0 to 1.
 
 A window that no scene started, for example from a launcher, gets a scene
-of its own without a head, which goes with the window. The settings of D62 are in `chora/chora-mc.yaml`; edits by
+of its own without a head, which goes with the window.
+
+Only the user moves the keyboard: a binding that shows a scene gives it
+to the window of that scene, or to none; so does a click on a line of
+the overview. A click on a window or a docked app gives it that window,
+a toggle or a solo by key gives it to the docked app or back, and the
+first window of a `run` binding takes it. Methods and events never take
+the keyboard from a window: not `scene.show`, `app.open`, `agent.focus`,
+`region.toggle`, `region.solo`, `content.set`, `hud.say` or
+`agent.set`. A window of `app.open` takes the keyboard with a click. The settings of D62 are in `chora/chora-mc.yaml`; edits by
 hand apply with `settings.reload`:
 
 - `theme` (`light` or `dark`) and the colors of each theme by name, at

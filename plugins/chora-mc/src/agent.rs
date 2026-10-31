@@ -213,7 +213,7 @@ impl Mc {
         }
         self.fill_agents()?;
         if self.scenes.contains_key(SCENE) {
-            self.show(SCENE)?;
+            self.show(SCENE, false)?;
         }
         self.render().map_err(crate::rejected)
     }

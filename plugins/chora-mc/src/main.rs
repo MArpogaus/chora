@@ -290,6 +290,12 @@ struct Mc {
     shape: Option<Value>,
     /// The surface that the plugin gave the keyboard last.
     focused: Option<String>,
+    /// The activation tokens of the apps that the user started with a
+    /// binding: their first window takes the keyboard.
+    focus_tokens: BTreeSet<String>,
+    /// The docked app that the user started with a toggle: it takes the
+    /// keyboard when its window fits.
+    dock_focus: Option<String>,
     /// The text of each clock.
     clocks: BTreeMap<String, String>,
     /// The title and the lines of each text content.
@@ -395,6 +401,8 @@ impl Mc {
             shape: None,
             rendered: None,
             focused: None,
+            focus_tokens: BTreeSet::new(),
+            dock_focus: None,
             clocks: BTreeMap::new(),
             texts: BTreeMap::new(),
             agents: Vec::new(),
@@ -649,10 +657,7 @@ impl Plugin for Mc {
                 data,
             } => self.follow(&event, &client, data),
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
-            Event::PointerPressed { node, position, .. } => {
-                self.click(&node, position);
-                Ok(())
-            }
+            Event::PointerPressed { node, position, .. } => self.click(&node, position),
             _ => Ok(()),
         }
     }
@@ -662,7 +667,7 @@ impl Plugin for Mc {
         match method {
             "scene.show" => {
                 let Show { name } = runtime::params(params)?;
-                self.show(&name)?;
+                self.show(&name, false)?;
                 Ok(Value::Null)
             }
             "scene.list" => Ok(json!({
@@ -705,7 +710,7 @@ impl Plugin for Mc {
             "app.open" => {
                 let Open { command } = runtime::params(params)?;
                 let name = self.app_scene(&command)?;
-                self.show(&name)?;
+                self.show(&name, false)?;
                 Ok(json!({"scene": name}))
             }
             _ => self.region_method(method, params),
@@ -751,7 +756,7 @@ impl Mc {
             "region.list" => Ok(self.list()),
             "region.toggle" => {
                 let Toggle { region, shown } = runtime::params(params)?;
-                let shown = self.toggle(region, shown).map_err(rejected)?;
+                let shown = self.toggle(region, shown, false).map_err(rejected)?;
                 Ok(json!({"shown": shown}))
             }
             "region.put" => {
@@ -787,7 +792,7 @@ impl Mc {
                 let found = (self.settings.value.contents.get(&content))
                     .ok_or_else(|| invalid(format!("no content {content}")))?;
                 region::put_check(found, region).map_err(invalid)?;
-                let shown = self.solo(&content, region, shown).map_err(rejected)?;
+                let shown = (self.solo(&content, region, shown, false)).map_err(rejected)?;
                 Ok(json!({"shown": shown}))
             }
             _ => self.agent_method(method, params),
@@ -1054,7 +1059,7 @@ impl Mc {
             .filter(|v| self.scenes.contains_key(v))
             .or(first);
         if let Some(name) = default
-            && let Err(err) = self.show(&name)
+            && let Err(err) = self.show(&name, false)
         {
             eprintln!("chora-mc: {name}: {}", err.message);
         }
@@ -1810,7 +1815,10 @@ impl Mc {
         commands
     }
 
-    fn show(&mut self, name: &str) -> Result<(), RpcError> {
+    /// Shows a scene. Only a switch of the user, by a binding or a click,
+    /// gives the keyboard to the window of the scene, or to none: a
+    /// method or an event never takes it from a window.
+    fn show(&mut self, name: &str, user: bool) -> Result<(), RpcError> {
         let Some(scene) = self.scenes.get(name) else {
             return Err(invalid(format!("no scene {name}")));
         };
@@ -1849,10 +1857,12 @@ impl Mc {
             commands.extend(self.write(name, &panels));
         }
         let window = self.windows.get(name).cloned();
-        self.focused.clone_from(&window);
-        commands.push(Command::Focus {
-            surface: window.clone(),
-        });
+        if user {
+            self.focused.clone_from(&window);
+            commands.push(Command::Focus {
+                surface: window.clone(),
+            });
+        }
         if self.current.as_deref() != Some(name) {
             self.previous = self.current.replace(name.into());
         }
@@ -1963,6 +1973,7 @@ impl Mc {
             return Ok(());
         }
         let started = token.and_then(|t| self.starting.remove(t));
+        let user = token.is_some_and(|t| self.focus_tokens.remove(t));
         if let Some(Target::Dock(content)) = &started
             && !self.docks.contains_key(content)
         {
@@ -1996,7 +2007,7 @@ impl Mc {
         commands.extend(self.place_window(&name, surface, true));
         self.apply(commands)?;
         self.windows.insert(name.clone(), surface.into());
-        if let Err(err) = self.show(&name) {
+        if let Err(err) = self.show(&name, user) {
             eprintln!("chora-mc: {name}: {}", err.message);
         }
         if new {
@@ -2038,14 +2049,22 @@ impl Mc {
     }
 
     /// A docked app that waited parked goes into its region, with the
-    /// keyboard. A new dock changes the items, so the render draws anew.
+    /// keyboard when the user started it. A new dock changes the items,
+    /// so the render draws anew.
     fn fit(&mut self, surface: &str) -> Result<(), ClientError> {
         let Some((content, _)) = self.fitting.remove(surface) else {
             return Ok(());
         };
+        let user = self.dock_focus.as_ref() == Some(&content);
+        if user {
+            self.dock_focus = None;
+        }
         self.docks.insert(content, surface.into());
         self.render()?;
-        self.focus(Some(surface.into()))
+        if user {
+            self.focus(Some(surface.into()))?;
+        }
+        Ok(())
     }
 
     /// A surface lost its parent and its owner. One of the plugin, for
@@ -2320,23 +2339,25 @@ impl Mc {
             Action::PreviousScene => names[(at + names.len() - 1) % names.len()].clone(),
             Action::Scene(name) => name,
             Action::Run(command) => {
-                chora_kit::run(&command);
+                if let Some((token, _)) = launch(&command) {
+                    self.focus_tokens.insert(token);
+                }
                 return;
             }
             Action::Toggle(region) => {
-                if let Err(err) = self.toggle(region, None) {
+                if let Err(err) = self.toggle(region, None, true) {
                     eprintln!("chora-mc: toggle {}: {err}", region.name());
                 }
                 return;
             }
             Action::Solo { content, region } => {
-                if let Err(err) = self.solo(&content, region, None) {
+                if let Err(err) = self.solo(&content, region, None, true) {
                     eprintln!("chora-mc: solo {content}: {err}");
                 }
                 return;
             }
         };
-        if let Err(err) = self.show(&next) {
+        if let Err(err) = self.show(&next, true) {
             eprintln!("chora-mc: {next}: {}", err.message);
         }
     }
@@ -2478,5 +2499,38 @@ mod tests {
                 "region.solo"
             ]
         );
+    }
+
+    /// Live: the cursor jumped out of the terminal while the voice agent
+    /// changed scenes, regions and contents. Methods never move the
+    /// keyboard; a switch of the user does.
+    #[test]
+    fn only_the_user_moves_the_keyboard() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, model) = crate::testing::mc("focus", [1920, 1080]);
+        let focuses = || model.lock().unwrap().focuses.len();
+        mc.show("agenda", true).unwrap();
+        let before = focuses();
+        assert_eq!(before, 1);
+        for (method, params) in [
+            ("scene.show", json!({"name": "morning"})),
+            ("content.set", json!({"content": "notes", "lines": ["x"]})),
+            ("hud.say", json!({"text": "one two", "duration_ms": 100})),
+            ("agent.set", json!({"name": "ada", "state": "working"})),
+            ("agent.focus", json!({"name": "ada"})),
+            ("region.put", json!({"content": "notes", "region": "left"})),
+            ("region.toggle", json!({"region": "right"})),
+            (
+                "region.solo",
+                json!({"content": "notes", "region": "drawer"}),
+            ),
+            ("scene.move", json!({"name": "agenda", "to": 3})),
+        ] {
+            mc.method(method, params).unwrap();
+        }
+        assert_eq!(focuses(), before);
+        mc.show("agenda", true).unwrap();
+        assert_eq!(focuses(), before + 1);
     }
 }

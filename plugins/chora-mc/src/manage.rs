@@ -117,7 +117,7 @@ impl Mc {
         let back = (self.previous.clone())
             .filter(|p| p != name && self.scenes.contains_key(p))
             .unwrap_or_else(|| self.settings.value.default_scene.clone());
-        if let Err(err) = self.show(&back) {
+        if let Err(err) = self.show(&back, false) {
             eprintln!("chora-mc: {back}: {}", err.message);
         }
     }
@@ -142,13 +142,27 @@ impl Mc {
         self.renumber()
     }
 
+    /// A click of the user: on a window or a docked app it gives that the
+    /// keyboard, on a line of the overview it shows that scene.
+    pub fn click(&mut self, node: &str, at: [f64; 2]) -> Result<(), ClientError> {
+        let mut ours = self.windows.values().chain(self.docks.values());
+        if ours.any(|s| s == node) {
+            if self.focused.as_deref() != Some(node) {
+                self.focus(Some(node.into()))?;
+            }
+            return Ok(());
+        }
+        self.click_overview(node, at);
+        Ok(())
+    }
+
     /// A click on a line of the overview shows that scene.
     #[allow(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
         reason = "a row of a screen"
     )]
-    pub fn click(&mut self, node: &str, [_, y]: [f64; 2]) {
+    fn click_overview(&mut self, node: &str, [_, y]: [f64; 2]) {
         let on = self.current.as_deref() == Some(OVERVIEW) && node == wheel_id(OVERVIEW);
         let (Some(panel), true) = (self.overview_panel(), on) else {
             return;
@@ -164,7 +178,7 @@ impl Mc {
             .then(|| self.order().get((at / line) as usize).cloned())
             .flatten();
         if let Some(name) = name
-            && let Err(err) = self.show(&name)
+            && let Err(err) = self.show(&name, true)
         {
             eprintln!("chora-mc: {name}: {}", err.message);
         }
@@ -288,7 +302,7 @@ mod tests {
         assert_eq!(mc.number("terminal"), "5");
         assert_eq!(mc.number("news"), "7");
         assert_eq!(mc.number("alpha"), "8", "in the order it appeared");
-        mc.show("agenda").unwrap();
+        mc.show("agenda", true).unwrap();
         mc.settings.value.order = vec!["mission".into(), "agenda".into()];
         mc.renumber().unwrap();
         assert_eq!(mc.number("agents"), "3", "alphabetical among the rest");
@@ -333,7 +347,7 @@ mod tests {
     #[test]
     fn a_move_renumbers_and_saves_the_order() {
         let (mut mc, model) = testing::mc("move", [1920, 1080]);
-        mc.show("agenda").unwrap();
+        mc.show("agenda", true).unwrap();
         let to = |name: &str, to| Move {
             name: name.into(),
             to,
@@ -372,7 +386,7 @@ mod tests {
             first.starts_with("1 | Agenda\n2 | The Morning\n3 | Agents"),
             "{first}"
         );
-        mc.show(super::OVERVIEW).unwrap();
+        mc.show(super::OVERVIEW, true).unwrap();
         mc.move_scene(Move {
             name: "agents".into(),
             to: 1,
@@ -382,7 +396,8 @@ mod tests {
         let panel = mc.overview_panel().unwrap();
         let [_, top, _, _] = mc.place(super::OVERVIEW, &panel).unwrap();
         let line = mc.ty("body", None).line;
-        mc.click(&crate::wheel_id(super::OVERVIEW), [400.0, top + 1.5 * line]);
+        mc.click(&crate::wheel_id(super::OVERVIEW), [400.0, top + 1.5 * line])
+            .unwrap();
         assert_eq!(mc.current.as_deref(), Some("agenda"));
     }
 

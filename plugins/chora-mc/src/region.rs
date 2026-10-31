@@ -401,12 +401,14 @@ impl Mc {
     }
 
     /// Shows a content alone in a region, or hides it again: the region
-    /// then shows as before. Answers whether it shows.
+    /// then shows as before. Answers whether it shows. Only for the user
+    /// the keyboard leaves a docked app that the solo hides.
     pub fn solo(
         &mut self,
         content: &str,
         region: Region,
         shown: Option<bool>,
+        user: bool,
     ) -> Result<bool, ClientError> {
         let on = (self.solo.as_ref()).is_some_and(|s| s.content == content && s.region == region);
         let new = shown.unwrap_or(!on);
@@ -425,10 +427,7 @@ impl Mc {
             self.toggled.insert(region, true);
             // A docked app of the region waits hidden: the keyboard goes
             // back to the scene.
-            if self
-                .focused
-                .as_ref()
-                .is_some_and(|f| self.docks.values().any(|d| d == f))
+            if user && (self.focused.as_ref()).is_some_and(|f| self.docks.values().any(|d| d == f))
             {
                 let name = self.current.clone().unwrap_or_default();
                 let window = self.windows.get(&name).cloned();
@@ -1041,8 +1040,14 @@ impl Mc {
 
     /// Shows or hides a region, by key or by method. Without `shown`, a
     /// region whose docked app has no focus takes it first; a second
-    /// press hides it. Answers whether it shows.
-    pub fn toggle(&mut self, region: Region, shown: Option<bool>) -> Result<bool, ClientError> {
+    /// press hides it. Answers whether it shows. Only a toggle of the
+    /// user moves the keyboard.
+    pub fn toggle(
+        &mut self,
+        region: Region,
+        shown: Option<bool>,
+        user: bool,
+    ) -> Result<bool, ClientError> {
         let name = self.current.clone().unwrap_or_default();
         let items = self.items(&name);
         let visible = self.visible(&items).contains(&region);
@@ -1053,7 +1058,8 @@ impl Mc {
                 .map(|(_, c)| c.clone())
         });
         let surface = app.as_ref().and_then(|a| self.docks.get(a)).cloned();
-        if shown.is_none()
+        if user
+            && shown.is_none()
             && visible
             && let Some(surface) = &surface
             && self.focused.as_ref() != Some(surface)
@@ -1065,11 +1071,17 @@ impl Mc {
         self.toggled.insert(region, new);
         if new && let Some(app) = &app {
             match &surface {
-                Some(surface) => self.focus(Some(surface.clone()))?,
-                None => self.start_dock(app),
+                Some(surface) if user => self.focus(Some(surface.clone()))?,
+                Some(_) => {}
+                None => {
+                    self.start_dock(app);
+                    if user {
+                        self.dock_focus = Some(app.clone());
+                    }
+                }
             }
         }
-        if !new && surface.is_some() && self.focused == surface {
+        if user && !new && surface.is_some() && self.focused == surface {
             let window = self.windows.get(&name).cloned();
             self.focus(window)?;
         }
@@ -1330,7 +1342,7 @@ mod tests {
     #[test]
     fn the_sides_show_on_a_narrow_output() {
         let (mut mc, model) = crate::testing::mc("narrow", [1156, 1115]);
-        mc.show("agenda").unwrap();
+        mc.show("agenda", true).unwrap();
         mc.set_text("notes", None, |_| vec!["Call Lena".into()])
             .unwrap();
         let id = format!("{}-notes", mc.region_id(Region::Right));
@@ -1347,7 +1359,7 @@ mod tests {
     #[test]
     fn the_probe_goes_also_when_the_update_is_dropped() {
         let (mut mc, model) = crate::testing::mc("probe", [1920, 1080]);
-        mc.show("agenda").unwrap();
+        mc.show("agenda", true).unwrap();
         let dropped = mc.regions().unwrap();
         assert!(!dropped.is_empty(), "an update of the same regions");
         assert!(!crate::testing::has(&model, PROBE));

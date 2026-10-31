@@ -15,7 +15,15 @@ use serde_json::{Value, json};
 use crate::{Mc, NAME, config};
 
 /// The scene model of the fake core, shared with the test.
-pub type Model = Arc<Mutex<chora_scene::Scene>>;
+pub type Model = Arc<Mutex<Core>>;
+
+/// What the fake core keeps of a connection.
+#[derive(Default)]
+pub struct Core {
+    pub scene: chora_scene::Scene,
+    /// The focus commands that the plugin sent.
+    pub focuses: Vec<Option<String>>,
+}
 
 /// The model of each connection, in the order of the connections.
 static MODELS: Mutex<Vec<Model>> = Mutex::new(Vec::new());
@@ -59,8 +67,12 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
         "scene.apply" => {
             let commands: Vec<Command> =
                 serde_json::from_value(params["commands"].clone()).unwrap();
-            let mut scene = model.lock().unwrap();
-            match scene.apply(NAME, &commands) {
+            let mut core = model.lock().unwrap();
+            core.focuses.extend(commands.iter().filter_map(|c| match c {
+                Command::Focus { surface } => Some(surface.clone()),
+                _ => None,
+            }));
+            match core.scene.apply(NAME, &commands) {
                 Ok(_) => Ok(Value::Null),
                 Err(e) => Err((
                     RpcError::REJECTED,
@@ -72,9 +84,9 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
             let id = params["selector"]
                 .as_str()
                 .and_then(|s| s.strip_prefix("id:"));
-            let scene = model.lock().unwrap();
+            let core = model.lock().unwrap();
             let found = id
-                .and_then(|id| scene.node(id))
+                .and_then(|id| core.scene.node(id))
                 .map(|n| json!({"id": n.id}));
             Ok(found.into_iter().collect())
         }
@@ -117,10 +129,10 @@ pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
 
 /// Whether the model has a node.
 pub fn has(model: &Model, id: &str) -> bool {
-    model.lock().unwrap().node(id).is_some()
+    model.lock().unwrap().scene.node(id).is_some()
 }
 
 /// The text of a text node of the model.
 pub fn text(model: &Model, id: &str) -> Option<String> {
-    model.lock().unwrap().node(id)?.props.text.clone()
+    model.lock().unwrap().scene.node(id)?.props.text.clone()
 }
