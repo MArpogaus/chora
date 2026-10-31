@@ -222,6 +222,11 @@ impl Mc {
         if self.scenes.contains_key(&to) {
             return Err(invalid(format!("a scene {to} exists")));
         }
+        let path = self.dir.join(format!("{to}.yaml"));
+        if path.exists() {
+            // A file that did not parse is no scene, but it is a file.
+            return Err(invalid(format!("{} exists", path.display())));
+        }
         if !self.transient.contains(&name) {
             let from = self.dir.join(format!("{name}.yaml"));
             if !from.exists() {
@@ -229,7 +234,6 @@ impl Mc {
                     "{name} is built in and has no file; scene.save it first"
                 )));
             }
-            let path = self.dir.join(format!("{to}.yaml"));
             std::fs::rename(&from, &path).map_err(|e| {
                 RpcError::new(RpcError::REJECTED, format!("{}: {e}", path.display()))
             })?;
@@ -340,6 +344,20 @@ mod tests {
         assert!(mc.rename_scene(rename("agenda", "today")).is_err());
         assert!(mc.rename_scene(rename("week", "agents")).is_err());
         assert!(mc.rename_scene(rename("week", "../x")).is_err());
+    }
+
+    /// A file that did not parse is no scene, but a rename keeps it.
+    #[test]
+    fn a_rename_keeps_a_file_that_did_not_parse() {
+        let (mut mc, _) = testing::mc("rename-broken", [1920, 1080]);
+        let day = Scene::app("foot");
+        scene::save(&mc.dir, "day", &day).unwrap();
+        mc.add_scene("day", day);
+        std::fs::write(mc.dir.join("broken.yaml"), "panels: [").unwrap();
+        assert!(mc.rename_scene(rename("day", "broken")).is_err());
+        assert!(mc.dir.join("day.yaml").exists());
+        let broken = std::fs::read_to_string(mc.dir.join("broken.yaml")).unwrap();
+        assert_eq!(broken, "panels: [");
     }
 
     /// A move saves the whole order and shows the new numbers at once;
