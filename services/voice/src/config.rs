@@ -549,7 +549,10 @@ impl Default for Config {
                 "coding-aufgabe abbrechen",
                 "programmieraufgabe abbrechen",
             ]),
-            yes_words: words(&["yes", "okay", "do it", "ja", "genau", "mach das"]),
+            yes_words: words(&[
+                "yes", "okay", "ok", "do it", "please", "sure", "go ahead", "ja", "genau", "mach",
+                "mach das", "bitte",
+            ]),
             no_words: words(&["no", "rather not", "nein", "nicht", "lieber nicht"]),
             filler_words: words(&["please", "now", "bitte", "jetzt", "mal"]),
             confirm: default_confirm(),
@@ -677,8 +680,10 @@ impl Config {
                 if word.is_empty() {
                     return Err(format!("{key}: an empty word"));
                 }
+                // A filler word may answer a confirmation ("Bitte.").
                 if let Some(other) = seen.insert(word.clone(), key)
                     && other != key
+                    && ![key, other].contains(&"filler_words")
                 {
                     return Err(format!("{key}: {word:?} is in {other} too"));
                 }

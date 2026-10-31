@@ -112,7 +112,7 @@ after it.
 | `thinking` | Other tool call | `tool` |
 | `tool` | Result or timeout | `thinking` |
 | `confirming` | Yes | `tool` |
-| `confirming` | No, two unclear answers, or timeout | `thinking`; result "declined by the user" |
+| `confirming` | No, two unclear answers, a new request, or timeout | `thinking`; the result says which |
 | `speaking` | Audio and LLM done | `listening` or `working` |
 | busy states | Cancel word, `voice.cancel`, PTT down | `listening`, earcon |
 | any | Sleep word or `voice.sleep` | `sleeping`, earcon |
@@ -183,7 +183,8 @@ Word matcher (no LLM):
    differ by one edit; words written together also match
    ("Codingaufgabe").
 5. Order: code cancel, cancel, sleep, wake, yes, no. Yes and no count
-   only in `confirming`.
+   only in `confirming`, by the answer rules of section 5 and without
+   the limits of rule 1.
 
 While asleep, each short utterance goes to the ASR to find a wake word.
 A keyword-spotting model can replace this later.
@@ -196,9 +197,19 @@ A rule matches by `tool` (glob), and optionally by the command kinds of
 program of `run_program` in place of `{program}`, and waits for
 yes or no. The method `confirm` answers from a key or the HUD (WP5;
 privileged, so a confined client needs `methods.privileged`),
-the spoken yes and no since WP6; two unclear answers are a no. No
-answer within `confirm_timeout_ms` is a no. A no gives the LLM the result "declined by
-the user; nothing happened".
+the spoken yes and no since WP6. A spoken answer is yes when its first
+word after the fillers is a yes word ("Ja, die Skalierung"), likewise
+no ("Nein, lieber nicht"). A short answer (four words at most) without
+such a first word counts by its yes or no word, and is unclear with
+both or none ("Bitte nicht" is a no; a text of fillers only, such as
+"Bitte.", counts with them). Two unclear answers are a no. A longer
+text without a yes or no word is a new request: a no, and the text
+starts the next turn. A yes or no text queued while the reply thought
+answers the question when it comes. No answer within
+`confirm_timeout_ms` is a no. The LLM gets the reason as the result:
+"The user declined the spoken confirmation", "The user did not answer
+the spoken confirmation in time (8 s)" or "The answer to the spoken
+confirmation was not understood", each with "; nothing happened".
 
 ## 6. Error handling
 
@@ -315,7 +326,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `sleep_words`, `wake_words` | `[sleep, go to sleep, schlaf, schlaf jetzt]`, `[hey chora, listen, hallo chora, hör zu]` |
 | `cancel_words` | `[stop, cancel, never mind, stopp, abbrechen, halt, vergiss es]` |
 | `code_cancel_words` | `[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
-| `yes_words`, `no_words` | `[yes, okay, do it, ja, genau, mach das]`, `[no, rather not, nein, nicht, lieber nicht]` |
+| `yes_words`, `no_words` | `[yes, okay, ok, do it, please, sure, go ahead, ja, genau, mach, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
 | `filler_words` | `[please, now, bitte, jetzt, mal]` |
 | `confirm`, `confirm_timeout_ms` | rules below, `8000` |
 | `earcons`, `earcon_volume` | `true`, `0.3` |
