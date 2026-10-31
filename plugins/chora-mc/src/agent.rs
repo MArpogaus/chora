@@ -81,6 +81,8 @@ pub struct Push {
 /// confirmation, or with `done` the question ended.
 #[derive(Deserialize)]
 pub struct Confirm {
+    /// A string or a number: the agent sent numbers before.
+    #[serde(deserialize_with = "id_text")]
     id: String,
     #[serde(default)]
     prompt: String,
@@ -89,6 +91,20 @@ pub struct Confirm {
     detail: String,
     #[serde(default)]
     done: bool,
+}
+
+/// An id as text, from a string or a number.
+fn id_text<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Id {
+        Text(String),
+        Number(serde_json::Number),
+    }
+    Ok(match Id::deserialize(d)? {
+        Id::Text(text) => text,
+        Id::Number(n) => n.to_string(),
+    })
 }
 
 /// As in the freedesktop notifications: critical breaks through in red.
@@ -498,6 +514,21 @@ mod tests {
         assert!(mc.solo.is_some(), "another id");
         mc.follow("voice.confirm", "voice", done("c1")).unwrap();
         assert!(mc.texts["confirm"].1.is_empty() && mc.solo.is_none());
+    }
+
+    /// The agent sent the id as a number: the question showed on no
+    /// screen (review 1.1).
+    #[test]
+    fn a_confirmation_with_a_numeric_id_shows() {
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("confirm-number", [1920, 1080]);
+        let ask = json!({"id": 7, "prompt": "Start foot?", "detail": "foot"});
+        mc.follow("voice.confirm", "voice", ask).unwrap();
+        assert_eq!(mc.texts["confirm"].0, "Start foot?");
+        assert!(mc.solo.as_ref().is_some_and(|s| s.content == "confirm"));
+        mc.follow("voice.confirm", "voice", json!({"id": 7, "done": true}))
+            .unwrap();
+        assert!(mc.solo.is_none(), "the done of the number closes it");
     }
 
     #[test]
