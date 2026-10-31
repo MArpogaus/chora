@@ -20,6 +20,10 @@
 #    cases as in 2; window.give and the give rows of the list hand panes
 #    to tiling; kill -9 of the flavor leaves its windows to tiling.
 # 4. One adoption and leave round over chora-xp and over chora-mc.
+# 5. Drops with Super: the flavor on one output, tiling on a second and
+#    mc. A pane dropped on the tiling output goes to tiling, one dropped
+#    on the pane of an mc scene goes to mc, both visible; a drop on empty
+#    space only moves the pane; a refused give leaves the pane.
 #
 # Usage: tests/gate-construct-windows.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the captures as construct-windows-*.png
@@ -407,3 +411,98 @@ ctl wait --timeout 10 'owner:mc meta:pane=mission' >/dev/null || fail "mc shows 
 ctl call mc scene.show '{"name": "terminal"}' >/dev/null || fail "scene.show terminal"
 until_ok 'ctl query "kind:surface owner:mc" | grep -q app_id' || fail "mc took no window"
 round mc
+
+# 5. Drops with Super (D55): the flavor on the first output, tiling on a
+# second.
+cat >"$work/chora/constructs/drop.yaml" <<EOF
+radius: 5000
+panes:
+- kind: program
+  command: sh $work/foot.sh d1
+  at: [-700, 1800]
+  size: [480, 300]
+- kind: program
+  command: sh $work/foot.sh d2
+  at: [-100, 1800]
+  size: [480, 300]
+- kind: program
+  command: sh $work/foot.sh d3
+  at: [-700, 3200]
+  size: [480, 300]
+- kind: plugin
+  plugin: mc
+  scene: mission
+  at: [900, 2600]
+EOF
+session
+construct drop
+ctl wait --timeout 10 id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$work/construct-drop.log")"
+ctl add-output 1280x800+1280+0 >/dev/null || fail "add-output"
+mapfile -t outs < <(ctl outputs | python3 -I -c 'import json, sys; print(*[o["name"] for o in sorted(json.load(sys.stdin), key=lambda o: o["position"][0])], sep="\n")')
+"$bin/chora-mc" --output "${outs[0]}" >"$work/mc.log" 2>&1 &
+pids+=($!)
+"$bin/chora-tiling" --output "${outs[1]}" >"$work/tiling.log" 2>&1 &
+pids+=($!)
+ctl wait --timeout 10 'owner:mc meta:pane=mission' >/dev/null || fail "mc shows no page"
+ctl wait --timeout 10 owner:tiling >/dev/null || fail "tiling does not start"
+call construct.load '{"name": "drop"}' >/dev/null || fail "construct.load drop"
+until_ok 'test "$(panes)" = "d1 d2 d3 mission"' 80 || fail "drop: the panes are $(panes)"
+sleep 1
+no_lost "drop load"
+# The centre of the pane node $1 on the first output.
+centre() { ctl query "id:$1" | python3 -I -c 'import json, sys; r = list(json.load(sys.stdin)[0]["rects"].values())[0]; print(round(r[0] + r[2] / 2), round(r[1] + r[3] / 2), sep=", ")'; }
+# super_drag FROM OUTPUT TO: a drag with Super and the left button from
+# FROM on the first output to TO on OUTPUT.
+super_drag() {
+    echo "[{\"pointer_move\": {\"position\": [$1], \"output\": \"${outs[0]}\"}},
+  {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
+  {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+  {\"pointer_move\": {\"position\": [$3], \"output\": \"$2\"}},
+  {\"button\": {\"state\": \"released\"}},
+  {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]" | ctl inject >/dev/null || fail "inject the drag"
+}
+# shown ID OWNER: the window shows, and OWNER owns it.
+shown() {
+    ctl query "id:$1" | python3 -I -c "import json, sys; n = json.load(sys.stdin); sys.exit(not (n and n[0].get('owner') == '$2' and n[0]['visible'] and n[0]['opacity'] > 0 and n[0]['rects']))"
+}
+at_of() { call construct.list | python3 -I -c "import json, sys; print(next(p['at'] for p in json.load(sys.stdin)['panes'] if p['name'] == '$1'))"; }
+drop_shot() { for o in "${outs[@]}"; do shot "$shots/construct-windows-drop-$1-$o.png" --output "$o"; done; }
+drop_shot 0-load
+
+d1=$(surface d1)
+super_drag "$(centre "construct-pane-$d1")" "${outs[1]}" "640, 400"
+until_ok 'shown "$d1" tiling' || fail "d1 is not shown with tiling: $(owner "$d1")"
+panes | grep -qw d1 && fail "d1 stays a pane"
+no_lost "drop on tiling"
+drop_shot 1-tiling
+ok "a Super drag of the pane d1 to the tiling output: tiling owns d1, and it shows"
+
+d2=$(surface d2)
+super_drag "$(centre "construct-pane-$d2")" "${outs[0]}" "$(centre construct-plugin-mission)"
+until_ok 'shown "$d2" mc' || fail "d2 is not shown with mc: $(owner "$d2")"
+panes | grep -qw d2 && fail "d2 stays a pane"
+no_lost "drop on mc"
+drop_shot 2-mc
+ok "a Super drag of the pane d2 onto the mc pane: mc owns d2"
+
+d3=$(surface d3)
+before=$(at_of d3)
+from=$(centre "construct-pane-$d3")
+super_drag "$from" "${outs[0]}" "$((${from%,*} - 150)), ${from#*, }"
+sleep 1
+after=$(at_of d3)
+[ "$after" != "$before" ] || fail "the drop on empty space did not move d3: $after"
+[ "$(owner "$d3")" = construct ] || fail "the drop on empty space gave d3 to $(owner "$d3")"
+no_lost "drop on space"
+drop_shot 3-space
+ok "a Super drag of d3 onto empty space moved the pane ($before -> $after) and gave nothing"
+
+if call window.give "{\"surface\": \"$d3\", \"to\": \"nobody\"}" >/dev/null 2>&1; then
+    fail "a give to nobody was accepted"
+fi
+panes | grep -qw d3 || fail "the refused give removed the pane d3"
+[ "$(owner "$d3")" = construct ] || fail "the refused give moved d3 to $(owner "$d3")"
+no_lost "drop refused"
+drop_shot 4-refused
+ok "a refused give left the pane d3 with the construct"
+quit
