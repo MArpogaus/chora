@@ -805,6 +805,11 @@ fn panels_id(name: &str) -> String {
     format!("mc-s-{name}-panels")
 }
 
+/// The id of the page of a scene: its head and its panels, clipped.
+fn page_id(name: &str) -> String {
+    format!("{}-page", scene_id(name))
+}
+
 /// The id of the rect under the page of a scene that takes the wheel.
 fn wheel_id(name: &str) -> String {
     format!("mc-s-{name}-wheel")
@@ -1247,7 +1252,7 @@ impl Mc {
         // and takes the wheel; the panels move up in it as it scrolls.
         let [w, h] = (self.output.as_ref()).map_or([0.0; 2], |o| o.size.map(f64::from));
         let b = self.settings.value.scale.baseline;
-        let page = format!("{}-page", scene_id(name));
+        let page = page_id(name);
         let scroll = self.scroll.get(name).copied().unwrap_or_default();
         let mut commands = vec![
             create(
@@ -1287,7 +1292,7 @@ impl Mc {
     /// finds one to replace.
     fn rule(&self, name: &str, panel: &Panel) -> Option<Command> {
         let ([x, y, _, h], geo) = (self.place(name, panel)?, self.geometry(name)?);
-        let shown = x > geo.text[0] && !(panel.title.is_empty() && panel.lines.is_empty());
+        let shown = x > geo.text[0] && !panel.is_empty();
         let color = (panel.rule.as_ref().filter(|_| shown))
             .and_then(|c| self.settings.value.colors().get(c))
             .copied()
@@ -1479,8 +1484,7 @@ impl Mc {
             let cells: Vec<_> = (scene.panels.iter())
                 .map(|p| {
                     let [x, y, w, h] = p.cell;
-                    let empty = p.title.is_empty() && p.lines.is_empty();
-                    [x, y, w, if empty { 0 } else { h }]
+                    [x, y, w, if p.is_empty() { 0 } else { h }]
                 })
                 .collect();
             let (flowed, flowed_rows) = scene::flow(&cells, fit);
@@ -2170,28 +2174,45 @@ impl Mc {
         if found == new {
             return Ok(());
         }
+        // A panel that moves, fills or empties moves the panels after it
+        // on a narrow page: the page builds anew.
+        let moved = found.cell != new.cell || found.is_empty() != new.is_empty();
         let old = std::mem::replace(found, new.clone());
         let scene = scene.to_owned();
-        let created = self.panel(&scene, new);
-        let updates = (!write)
-            .then(|| in_place(&self.panel(&scene, &old), &created))
-            .flatten();
-        let mut commands = updates.unwrap_or_else(|| {
+        let shown = self.current.as_deref() == Some(&scene);
+        let commands = if moved {
             let mut commands = vec![Command::Remove {
-                id: panel_id(&scene, &new.id),
+                id: page_id(&scene),
                 to: None,
             }];
-            commands.extend(created);
-            if write && self.current.as_deref() == Some(&scene) {
+            commands.extend(self.panels(&scene));
+            if write && shown {
                 commands.extend(self.write(&scene, &[new]));
             }
             commands
-        });
-        commands.push(Command::Remove {
-            id: format!("{}-rule", panel_id(&scene, &new.id)),
-            to: None,
-        });
-        commands.extend(self.rule(&scene, new));
+        } else {
+            let created = self.panel(&scene, new);
+            let updates = (!write)
+                .then(|| in_place(&self.panel(&scene, &old), &created))
+                .flatten();
+            let mut commands = updates.unwrap_or_else(|| {
+                let mut commands = vec![Command::Remove {
+                    id: panel_id(&scene, &new.id),
+                    to: None,
+                }];
+                commands.extend(created);
+                if write && shown {
+                    commands.extend(self.write(&scene, &[new]));
+                }
+                commands
+            });
+            commands.push(Command::Remove {
+                id: format!("{}-rule", panel_id(&scene, &new.id)),
+                to: None,
+            });
+            commands.extend(self.rule(&scene, new));
+            commands
+        };
         self.apply(commands)
             .and_then(|()| self.align(&scene))
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))

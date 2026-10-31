@@ -177,6 +177,11 @@ impl Panel {
         self.lines.join("\n")
     }
 
+    /// Whether the panel has neither a title nor lines.
+    pub fn is_empty(&self) -> bool {
+        self.title.is_empty() && self.lines.is_empty()
+    }
+
     /// With a tab in a line, the parts before and after the first tab
     /// of each line: a note in the margin and its line.
     pub fn columns(&self) -> Option<Vec<(&str, &str)>> {
