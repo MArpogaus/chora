@@ -2,12 +2,14 @@
 //! first, then the other scenes in the order they appeared. The number of
 //! a scene is its place in that order.
 
+use chora_kit::give::Give;
 use chora_kit::settings::Store as _;
 use chora_scene::{
     Command,
     ipc::{ClientError, RpcError},
 };
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::{Mc, chapter_id, config::Layout, invalid, rejected, scene, title_of, wheel_id};
 
@@ -109,23 +111,49 @@ impl Mc {
     }
 
     /// Shows the scene before `name`, or the default scene, when `name`
-    /// shows; that scene takes the keyboard.
-    pub fn leave(&mut self, name: &str) {
+    /// shows; that scene takes the keyboard when `keyboard` says so.
+    pub fn leave(&mut self, name: &str, keyboard: bool) {
         if self.current.as_deref() != Some(name) {
             return;
         }
         let back = (self.previous.clone())
             .filter(|p| p != name && self.scenes.contains_key(p))
             .unwrap_or_else(|| self.settings.value.default_scene.clone());
-        if let Err(err) = self.show(&back, true) {
+        if let Err(err) = self.show(&back, keyboard) {
             eprintln!("chora-mc: {back}: {}", err.message);
         }
+    }
+
+    /// `window.give`: hands the window of a scene, the focused one by
+    /// default, to another window manager (D55). The scene of an app goes
+    /// with it; another scene stays without its window.
+    pub fn give(&mut self, give: Give) -> Result<Value, RpcError> {
+        let Give { surface, to } = give;
+        let surface = (surface.or_else(|| self.focused.clone()))
+            .ok_or_else(|| RpcError::new(RpcError::REJECTED, "no focused window"))?;
+        let name = (self.windows.iter())
+            .find(|(_, s)| **s == surface)
+            .map(|(n, _)| n.clone())
+            .ok_or_else(|| {
+                RpcError::new(RpcError::REJECTED, format!("mc has no window {surface}"))
+            })?;
+        self.rt.conn.give(&surface, &to)?;
+        self.windows.remove(&name);
+        if self.focused.as_deref() == Some(surface.as_str()) {
+            self.focused = None;
+        }
+        // The receiver focuses the window; mc takes no keyboard.
+        self.leave(&name, false);
+        if self.transient.contains(&name) {
+            self.remove_scene(&name).map_err(rejected)?;
+        }
+        Ok(Value::String(surface))
     }
 
     /// Removes a scene whose app ended, with its nodes; the scenes after
     /// it move up.
     pub fn remove_scene(&mut self, name: &str) -> Result<(), ClientError> {
-        self.leave(name);
+        self.leave(name, true);
         self.scenes.remove(name);
         self.appeared.retain(|n| n != name);
         self.transient.remove(name);

@@ -87,6 +87,10 @@ struct Args {
     /// without it.
     #[arg(long)]
     scenes: Option<PathBuf>,
+    /// Fills only this output, by name, and leaves the others to other
+    /// window managers; the first output without it.
+    #[arg(long = "output", value_name = "NAME")]
+    output: Option<String>,
 }
 
 /// Where the parts of the page of a scene go, in logical pixels.
@@ -357,7 +361,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         write().map(|()| path)
     });
     let (shader, blur) = (shader?, blur?);
-    let rt = Runtime::connect(NAME, Vec::new())?;
+    let rt = Runtime::connect(NAME, args.output.clone().into_iter().collect())?;
     let mut mc = Mc::new(rt, settings, dir, [shader, blur]);
     mc.start(methods)?;
     // The kit logged it; the defaults that apply show notify.
@@ -622,6 +626,7 @@ fn exported_methods() -> Vec<ExportMethod> {
             &["title"],
         ),
         runtime::method("notify.clear", "Empties the notifications.", json!({}), &[]),
+        chora_kit::give::method(),
     ]
 }
 
@@ -746,6 +751,7 @@ impl Plugin for Mc {
                 self.quiet.extend(tokens.map(|(token, _)| token.clone()));
                 Ok(json!({"scene": name}))
             }
+            chora_kit::give::METHOD => self.give(runtime::params(params)?),
             _ => self.region_method(method, params),
         }
     }
@@ -1977,7 +1983,7 @@ impl Mc {
             if self.transient.contains(&name) {
                 self.remove_scene(&name)?;
             } else {
-                self.leave(&name);
+                self.leave(&name, true);
             }
         }
         if self.launched.is_empty() {
@@ -2062,7 +2068,16 @@ impl Mc {
         };
         let new = !commands.is_empty();
         commands.extend(self.place_window(&name, surface, true));
-        self.apply(commands)?;
+        if let Some(err) = self.rt.conn.try_apply(commands)? {
+            // Another window manager took it first; the new scene goes.
+            eprintln!("chora-mc: {surface}: {err}");
+            if new {
+                self.scenes.remove(&name);
+                self.transient.remove(&name);
+                self.appeared.retain(|n| *n != name);
+            }
+            return Ok(());
+        }
         self.windows.insert(name.clone(), surface.into());
         if let Err(err) = self.show(&name, user) {
             eprintln!("chora-mc: {name}: {}", err.message);
@@ -2146,7 +2161,11 @@ impl Mc {
             }
             return self.render();
         }
-        self.adopt(surface, None, None)
+        // Given to mc (D55) or free: the app id names its scene.
+        let nodes: Vec<Value> =
+            (self.rt.conn).call("scene.query", Query::new(format!("id:{surface}")))?;
+        let app_id = nodes.first().and_then(|n| n["surface"]["app_id"].as_str());
+        self.adopt(surface, app_id, None)
     }
 
     /// A window closed: the scene before shows instead of a scene without
@@ -2182,7 +2201,7 @@ impl Mc {
             return Ok(());
         };
         self.windows.remove(&name);
-        self.leave(&name);
+        self.leave(&name, true);
         if !self.transient.contains(&name) {
             return Ok(());
         }
