@@ -5,8 +5,8 @@ Status: draft for review, 2026-10-31. Source: the interview of
 
 ## 1. Goal
 
-A spatial desktop for chora. The user stands in a white, empty space
-with a soft, foggy horizon. There is no grid and no floor pattern.
+A spatial desktop for chora. The user stands in a light, foggy space
+with a bright horizon. There is no grid and no floor pattern.
 Content floats in the space as **panes**. Each pane faces the camera.
 A pane can hold a plugin, a program, a nested desktop session, or a
 prompt in which an agent builds a program or game live.
@@ -35,7 +35,7 @@ the prototype into a real plugin.
 | C13 | Language | Rust with chora-kit, like mc, tiling and xp. The Python prototype is a reference only. |
 | C14 | Outputs | Panorama: one space; each output shows its own view direction, side by side as one wide field of view. |
 | C15 | Term | Pane. "View" stays the name of the configuration views. |
-| C16 | Dark theme | A black void with dark fog; the light theme is white. |
+| C16 | Dark theme | A black void over a dim ground; the light theme is a pale sky over a warmer ground. |
 | C17 | Donut | Not in v1; system values come from the mission scene of mc as a pane. |
 
 C8 and C10: a nested GNOME session runs today (`gnome-shell --devkit`,
@@ -61,7 +61,7 @@ The host keymap (#12) stays a limit of v1.
 
 ### v1 (0.10)
 
-- The space: white, empty, foggy horizon, soft leash border.
+- The space: a light, foggy space, a bright horizon, a soft leash border.
 - Walking and looking (keyboard, mouse; later voice).
 - Panes of four kinds: plugin node trees, Wayland programs, nested
   GNOME session, prompt pane.
@@ -86,9 +86,10 @@ The host keymap (#12) stays a limit of v1.
 
 ### 5.1 The space
 
-- **F1** The background is white with a foggy horizon: a gradient with
-  slow, soft noise. No grid, no floor lines. The dark theme is a black
-  void with dark fog (C16).
+- **F1** The background is a light, foggy space: a pale sky over a warmer
+  ground with a bright horizon, a gradient with slow, soft noise. No
+  grid, no floor lines. The dark theme is a black void over a dim
+  ground (C16).
 - **F2** Panes far away fade into the fog with distance (depth cue
   without lines).
 - **F3** The leash: walking slows down near R and stops at R. The fog

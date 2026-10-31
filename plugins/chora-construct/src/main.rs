@@ -1,4 +1,4 @@
-//! chora-construct, steps K1 and K2a (D66): a white space with a foggy
+//! chora-construct, steps K1 and K2a (D66): a light, foggy space with a
 //! horizon, a walk on a leash, and panes that face the camera: windows,
 //! and node trees of other plugins such as mc scenes. A click or a key
 //! flies into a pane until it covers the output at 1:1; then the window

@@ -486,8 +486,8 @@ speech to text, a language model and text to speech, served by
 
 ## Track: construct
 
-`chora-construct` is a spatial flavor and overlay: a white space with a
-foggy horizon, where programs, plugins, nested sessions and agent
+`chora-construct` is a spatial flavor and overlay: a light, foggy space,
+where programs, plugins, nested sessions and agent
 prompts float as panes that face the camera (D66). It grows from the
 loader prototype in `examples/loader/`. The requirements are in
 `plans/construct-requirements.md`. It runs beside milestone 0.10 and
@@ -495,7 +495,7 @@ needs no change of the core unless the focus check finds a gap.
 
 | Step | Goal | Gate |
 |------|------|------|
-| K1 Space | walk on a leash in the white space, fly in and out of program panes | a terminal pane takes typed text after a fly-in, pixel-sharp at 1:1 |
+| K1 Space | walk on a leash in the light, foggy space, fly in and out of program panes | a terminal pane takes typed text after a fly-in, pixel-sharp at 1:1 |
 | K2a Panes | program and plugin panes, constructs as files, overlay (done) | a program pane and a plugin pane show live within 10 s after the start |
 | K2b More panes | GNOME and prompt panes | four panes of the four kinds show live within 10 s after the start |
 | K3 Live | LOD, voice tools, prompt panes with ACP agents | 8 live panes at 60 fps for 60 s; "build me a snake game in a new pane" by voice shows the game running |
