@@ -574,8 +574,26 @@ impl Rpc {
     }
 }
 
+/// The spoken question of a permission request: `asks`, or "Always
+/// allow?" when the only allowing option is `allow_always`, so that a
+/// yes never allows always unheard.
+fn question(asks: &str, name: &str, what: &str, options: &[Value], german: bool) -> String {
+    let has = |kind: &str| options.iter().any(|o| o["kind"] == kind);
+    if !has("allow_once") && has("allow_always") {
+        // ponytail: English and German, as the verbs of `asked`.
+        return if german {
+            format!("{} möchte {what}. Immer erlauben?", title(name))
+        } else {
+            format!("{} wants to {what}. Always allow?", title(name))
+        };
+    }
+    asks.replace("{name}", &title(name)).replace("{what}", what)
+}
+
 /// The answer to a permission request: the first option of an allowing
-/// kind for yes, of a rejecting kind for no; cancelled without one.
+/// kind for yes, of a rejecting kind for no; cancelled without one. Yes
+/// takes `allow_always` only without `allow_once`, after `question`
+/// asked for it.
 fn outcome(options: &[Value], yes: bool) -> Value {
     let kinds = if yes {
         ["allow_once", "allow_always"]
@@ -891,16 +909,15 @@ impl Actor {
             (settings.asks.clone(), settings.german)
         };
         let what = asked(&params["toolCall"], german);
+        let options = params["options"].as_array().cloned().unwrap_or_default();
+        let prompt = question(&asks, name, &what, &options, german);
         let (answer, rx) = oneshot::channel();
         session.question = Some(Permission {
             id: rpc_id,
-            options: params["options"].as_array().cloned().unwrap_or_default(),
+            options,
             answer: rx,
             deadline: tokio::time::Instant::now() + self.permission,
         });
-        let prompt = asks
-            .replace("{name}", &title(name))
-            .replace("{what}", &what);
         self.agents.update(name, id, |s| {
             s.state = "question";
             s.note(&format!("? {what}"));
@@ -1094,6 +1111,28 @@ mod tests {
             outcome(&options[..2], false)["outcome"]["outcome"],
             "cancelled"
         );
+    }
+
+    /// A yes allows always only when the question said so.
+    #[test]
+    fn only_a_question_for_always_allows_always() {
+        let asks = "{name} möchte {what}. Erlauben?";
+        let both = [
+            json!({"optionId": "a", "kind": "allow_always"}),
+            json!({"optionId": "o", "kind": "allow_once"}),
+        ];
+        let ask = |options: &[Value]| question(asks, "atlas", "x ändern", options, true);
+        assert_eq!(ask(&both), "Atlas möchte x ändern. Erlauben?");
+        let always = [
+            json!({"optionId": "a", "kind": "allow_always"}),
+            json!({"optionId": "r", "kind": "reject_once"}),
+        ];
+        assert_eq!(ask(&always), "Atlas möchte x ändern. Immer erlauben?");
+        assert_eq!(
+            question("", "atlas", "edit x", &always, false),
+            "Atlas wants to edit x. Always allow?"
+        );
+        assert_eq!(outcome(&always, true)["outcome"]["optionId"], "a");
     }
 
     /// The next event of the agents, within 10 s.

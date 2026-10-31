@@ -942,9 +942,11 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   and a verb for the kind). It waits from when it is spoken; the state
   is `confirming`. Yes and no words, `voice.confirm`, or "NAME, ja"
   answer it; two unclear answers or `agent_permission_s` without one
-  are a no. Yes picks an `allow_once` option (else `allow_always`), no
-  a `reject_once` one; without a fitting option the outcome is
-  `cancelled`.
+  are a no. Yes picks an `allow_once` option, no a `reject_once` one;
+  without a fitting option the outcome is `cancelled`. A request whose
+  only allowing option is `allow_always` is spoken as "Atlas wants to
+  edit notes.txt. Always allow?" ("… Immer erlauben?" with
+  `reply_language: de`), and only then a yes picks `allow_always`.
 - Routing: the LLM gets `agent_list`, `agent_start {project, name?,
   voice?}`, `agent_say {name, text}`, `agent_stop {name}` and
   `agent_status {name?}`, and a part of the prompt. `agent_start` asks
