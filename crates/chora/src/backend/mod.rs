@@ -105,10 +105,11 @@ impl Backend {
 
 /// Starts the backend that fits: headless with virtual outputs if the
 /// command line asks for it, winit inside another session, else the tty
-/// backend.
+/// backend. The startup command names the window of winit.
 pub fn init(
     state: &mut State,
     headless: Option<&[headless::Spec]>,
+    command: &[String],
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(specs) = headless {
         return headless::init(state, specs);
@@ -117,7 +118,7 @@ pub fn init(
         .iter()
         .any(|v| std::env::var_os(v).is_some());
     if nested {
-        winit::init(state)
+        winit::init(state, command)
     } else {
         tty::init(state)
     }

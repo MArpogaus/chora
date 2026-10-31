@@ -168,7 +168,7 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             })
             .map_err(|e| e.error)?;
     }
-    backend::init(&mut state, headless.as_deref())?;
+    backend::init(&mut state, headless.as_deref(), command)?;
     input::log_layout(&mut state);
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
     hang::run(&mut event_loop, &mut state, State::after_events)?;

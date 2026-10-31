@@ -39,8 +39,14 @@ pub struct Winit {
 }
 
 /// Opens the window, creates its output and starts the render loop.
-pub fn init(state: &mut State) -> Result<(), Box<dyn std::error::Error>> {
-    let (mut graphics, events) = winit::init::<GlesRenderer>()?;
+pub fn init(state: &mut State, command: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let attributes = smithay::reexports::winit::window::WindowAttributes::default()
+        .with_surface_size(smithay::reexports::winit::dpi::LogicalSize::new(
+            1280.0, 800.0,
+        ))
+        .with_title(title(command, &state.socket_name.to_string_lossy()))
+        .with_visible(true);
+    let (mut graphics, events) = winit::init_from_attributes::<GlesRenderer>(attributes)?;
     let mode = Mode {
         size: graphics.window_size(),
         refresh: REFRESH,
@@ -314,9 +320,31 @@ impl Winit {
     }
 }
 
+/// The title of the window: the program of the startup command, else the
+/// Wayland socket, so that a window list tells nested sessions apart.
+fn title(command: &[String], socket: &str) -> String {
+    let program = command.first().map(|c| c.rsplit('/').next().unwrap_or(c));
+    match program {
+        Some(program) => format!("chora: {program}"),
+        None => format!("chora ({socket})"),
+    }
+}
+
 fn winit(state: &State) -> Option<&Winit> {
     match &state.backend {
         Some(Backend::Winit(winit)) => Some(winit),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::title;
+
+    #[test]
+    fn the_window_title_names_the_startup_program_or_the_socket() {
+        let command = ["/usr/bin/chora-tiling".to_string(), "--x".to_string()];
+        assert_eq!(title(&command, "wayland-2"), "chora: chora-tiling");
+        assert_eq!(title(&[], "wayland-2"), "chora (wayland-2)");
     }
 }

@@ -29,7 +29,7 @@ export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 foot=$(command -v foot)
 
 call() { ctl call construct "$@"; }
-panes() { call construct.list | python3 -I -c 'import json, sys; print(" ".join(sorted(p["name"] for p in json.load(sys.stdin)["panes"])))'; }
+panes() { call construct.list | python3 -I -c 'import json, sys; print("\n".join(sorted(p["name"] for p in json.load(sys.stdin)["panes"])))'; }
 until_ok() {
     for _ in $(seq "${2:-40}"); do
         eval "$1" && return 0
@@ -58,7 +58,7 @@ nested() {
     test -S "$XDG_RUNTIME_DIR/wayland-$n" || fail "$name: no Wayland socket wayland-$n"
     CHORA_SOCKET=$outer ctl query id:construct-look >/dev/null || fail "$name: the outer session does not answer"
     until_ok 'test "$(panes)" != "$before"' 80 || fail "$name: the nested window became no pane"
-    pane=$(comm -13 <(tr ' ' '\n' <<<"$before") <(panes | tr ' ' '\n'))
+    pane=$(comm -13 <(printf '%s\n' "$before") <(panes))
     ok "$name: the nested chora opened wayland-$n and its own IPC socket; its window is the pane $pane"
 
     WAYLAND_DISPLAY=$XDG_RUNTIME_DIR/wayland-$n CHORA_SOCKET=$sock \
