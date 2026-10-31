@@ -116,45 +116,44 @@ fn announces(answer: &str) -> bool {
     })
 }
 
-/// What a yes with an always word allows for the session: the settings
-/// keys of the agent, the program of `run_program`, the method
-/// `CLIENT.METHOD`, or the tool. None for a security setting and for
-/// `settings.set` of another plugin: they always ask.
+/// What a yes with an always word allows for the session: the same
+/// full argv of `run_program`, or the same method `CLIENT.METHOD` with
+/// the same parameters. None for every other call, such as
+/// `inject_input`, `apply_commands`, `code_task`, `agent_start` or
+/// `configure_output`, and for each settings change: for them, an always
+/// word is a single yes.
 fn session_key(tool: &str, patch: Option<&Value>, args: &Value) -> Option<String> {
-    if let Some(patch) = patch {
-        let keys: Vec<&String> = patch.as_object()?.keys().collect();
-        if keys.iter().any(|k| crate::config::security_key(k)) {
-            return None;
-        }
-        return Some(format!(
-            "settings {}",
-            keys.iter()
-                .map(|k| k.as_str())
-                .collect::<Vec<_>>()
-                .join(",")
-        ));
+    if patch.is_some() {
+        return None;
     }
-    let method = match tool {
-        "run_program" => return Some(format!("run_program {}", tools::program(args)?)),
-        "call_method" => format!("{}.{}", args["client"].as_str()?, args["method"].as_str()?),
-        _ if tool.contains('.') => tool.to_owned(),
-        _ => return Some(tool.to_owned()),
+    // serde_json sorts the keys of an object: the text is canonical.
+    let (method, params) = match tool {
+        "run_program" => return Some(format!("run_program {}", args.get("argv")?)),
+        "call_method" => (
+            format!("{}.{}", args["client"].as_str()?, args["method"].as_str()?),
+            &args["params"],
+        ),
+        _ if tool.contains('.') => (tool.to_owned(), args),
+        _ => return None,
     };
-    (!method.ends_with(".settings.set")).then_some(method)
+    let settings = [".settings.set", ".settings.reload"];
+    (!settings.iter().any(|s| method.ends_with(s))).then(|| format!("{method} {params}"))
 }
 
-/// Whether `allow` lists the program of `run_program` or the method
+/// Whether `allow_programs` lists the program of `run_program`, a bare
+/// name equal to its argv[0], or `allow_methods` the method
 /// `CLIENT.METHOD` of a call.
-fn listed(allow: &[String], tool: &str, args: &Value) -> bool {
-    let entry = match tool {
-        "run_program" => tools::program(args).map(str::to_owned),
+fn listed(config: &Config, tool: &str, args: &Value) -> bool {
+    let has = |list: &[String], entry: &str| list.iter().any(|e| e == entry);
+    match tool {
+        "run_program" => (args["argv"][0].as_str())
+            .is_some_and(|p| !p.contains('/') && has(&config.allow_programs, p)),
         "call_method" => (args["client"].as_str())
             .zip(args["method"].as_str())
-            .map(|(c, m)| format!("{c}.{m}")),
-        _ if tool.contains('.') => Some(tool.to_owned()),
-        _ => None,
-    };
-    entry.is_some_and(|e| allow.contains(&e))
+            .is_some_and(|(c, m)| has(&config.allow_methods, &format!("{c}.{m}"))),
+        _ if tool.contains('.') => has(&config.allow_methods, tool),
+        _ => false,
+    }
 }
 
 /// The full command or value of a call that asks, for the screen: the
@@ -934,7 +933,7 @@ impl Chat {
             return Ok(());
         };
         let key = session_key(&name, own, args);
-        if own.is_none() && listed(&self.config.allow, &name, args) {
+        if own.is_none() && listed(&self.config, &name, args) {
             crate::log::info(&format!("confirm {name}: in allow, no question"));
             return Ok(());
         }
@@ -951,8 +950,8 @@ impl Chat {
             return Err(SAID_NEW.into());
         }
         let (result, always) = self.ask(&name, prompt, detail, out).await;
-        // A security setting or the settings of another plugin take an
-        // always word as a single yes.
+        // A call without a session key takes an always word as a single
+        // yes.
         if let (Ok(()), true, Some(key)) = (&result, always, key) {
             crate::log::info(&format!("confirm {name}: allowed for the session as {key}"));
             self.allowed.insert(key);
@@ -1477,26 +1476,9 @@ mod tests {
         }
     }
 
-    /// An always word allows the same action until the agent restarts.
-    #[tokio::test]
-    async fn an_always_yes_allows_the_action_for_the_session() {
-        let script = [Reply::Tool("echo", "{}"), Reply::Text("Gut.")].repeat(2);
-        let server = fake::llm(script).await;
-        let (tools, calls) = tools::tests::fake(0);
-        let config = Config {
-            llm_url: server.url.clone(),
-            confirm: vec![Confirm {
-                tool: "echo".into(),
-                commands: Vec::new(),
-                argv0: Vec::new(),
-                method: None,
-                prompt: "Wirklich?".into(),
-            }],
-            ..Config::default()
-        };
-        let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
-            .await
-            .unwrap();
+    /// Runs the turn "Echo." with an always yes to each question;
+    /// answers what it said.
+    async fn always(chat: &mut Chat) -> Vec<String> {
         let events = Mutex::new(Vec::new());
         chat.turn("Echo.", &|event| {
             if let Event::Confirm { always, answer, .. } = event {
@@ -1507,7 +1489,43 @@ mod tests {
             }
         })
         .await;
-        let said = events.into_inner().unwrap();
+        events.into_inner().unwrap()
+    }
+
+    /// An always word allows the same method with the same parameters
+    /// until the agent restarts; another tool asks again.
+    #[tokio::test]
+    async fn an_always_yes_allows_the_action_for_the_session() {
+        let args = r#"{"layout": "grid"}"#;
+        let script = [
+            Reply::Tool("tiling__set_layout", args),
+            Reply::Text("Gut."),
+            Reply::Tool("tiling__set_layout", args),
+            Reply::Text("Gut."),
+            Reply::Tool("echo", "{}"),
+            Reply::Text("Gut."),
+            Reply::Tool("echo", "{}"),
+            Reply::Text("Gut."),
+        ];
+        let server = fake::llm(script.into()).await;
+        let (tools, calls) = tools::tests::fake(0);
+        let config = Config {
+            llm_url: server.url.clone(),
+            confirm: ["tiling.set_layout", "echo"]
+                .map(|tool| Confirm {
+                    tool: tool.into(),
+                    commands: Vec::new(),
+                    argv0: Vec::new(),
+                    method: None,
+                    prompt: "Wirklich?".into(),
+                })
+                .into(),
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        let said = always(&mut chat).await;
         assert!(
             said.contains(&"Allowed for this session.".to_owned()),
             "{said:?}"
@@ -1518,46 +1536,92 @@ mod tests {
             "{events:?}"
         );
         assert_eq!(calls.load(Ordering::SeqCst), 2);
+        // Review rc3 round 2, 1.4: a tool such as inject_input takes an
+        // always word as a single yes.
+        let said = always(&mut chat).await;
+        assert!(!said.iter().any(|s| s.starts_with("Allowed")), "{said:?}");
+        let (_, events) = turn(&mut chat, "Noch mal.", false).await;
+        assert!(
+            events.contains(&"confirm Wirklich?".to_owned()),
+            "{events:?}"
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 3);
     }
 
-    /// Security settings and the settings of other plugins always ask.
+    /// Review rc3 round 2, 1.4 and 4.1: "always" covers the same full
+    /// argv or the same method with the same parameters; settings
+    /// changes and the other tools take it as a single yes.
     #[test]
-    fn what_always_and_allow_cover() {
+    fn what_always_covers() {
         let key =
             |tool, patch: Option<Value>, args: Value| session_key(tool, patch.as_ref(), &args);
         let patch = |k: &str| Some(json!({ k: 1 }));
-        assert_eq!(
-            key("x", patch("barge_in_ms"), json!({})).as_deref(),
-            Some("settings barge_in_ms")
-        );
-        for k in ["allow", "llm_url", "confirm", "always_words"] {
+        for k in ["barge_in_ms", "allow_programs", "llm_url", "confirm"] {
             assert_eq!(key("x", patch(k), json!({})), None, "{k}");
+        }
+        for tool in [
+            "inject_input",
+            "apply_commands",
+            "code_task",
+            "agent_start",
+            "configure_output",
+        ] {
+            assert_eq!(key(tool, None, json!({"text": "ls"})), None, "{tool}");
         }
         let run = json!({"argv": ["/usr/bin/foot", "-e", "sh"]});
         assert_eq!(
-            key("run_program", None, run.clone()).as_deref(),
-            Some("run_program foot")
+            key("run_program", None, run).as_deref(),
+            Some(r#"run_program ["/usr/bin/foot","-e","sh"]"#)
         );
-        let set = json!({"client": "xp", "method": "settings.set"});
-        assert_eq!(key("call_method", None, set), None);
-        assert_eq!(key("xp.settings.set", None, json!({})), None);
-        let open = json!({"client": "mc", "method": "app.open"});
+        assert_ne!(
+            key("run_program", None, json!({"argv": ["foot"]})),
+            key("run_program", None, json!({"argv": ["foot", "-e", "sh"]}))
+        );
+        for method in ["settings.set", "settings.reload"] {
+            let call = json!({"client": "xp", "method": method});
+            assert_eq!(key("call_method", None, call), None);
+            let tool = format!("xp.{method}");
+            assert_eq!(session_key(&tool, None, &json!({})), None);
+        }
+        let open = |params: Value| json!({"client": "mc", "method": "app.open", "params": params});
+        let one = key("call_method", None, open(json!({"app": "foot", "at": 1})));
+        assert_eq!(one.as_deref(), Some(r#"mc.app.open {"app":"foot","at":1}"#));
+        // The parameters are canonical: their order does not count.
+        let other: Value = serde_json::from_str(r#"{"at": 1, "app": "foot"}"#).unwrap();
+        assert_eq!(key("call_method", None, open(other)), one);
         assert_eq!(
-            key("call_method", None, open.clone()).as_deref(),
-            Some("mc.app.open")
+            key("mc.app.open", None, json!({"at": 1, "app": "foot"})),
+            one
         );
+        assert_ne!(key("call_method", None, open(json!({"app": "sh"}))), one);
     }
 
+    /// Review rc3 round 2, 1.2: a program matches its bare name only, and
+    /// programs and methods are separate lists.
     #[test]
-    fn allow_lists_programs_and_methods() {
-        let run = json!({"argv": ["/usr/bin/foot", "-e", "sh"]});
+    fn allow_lists_programs_and_methods_apart() {
+        let config = Config {
+            allow_programs: vec!["foot".into()],
+            allow_methods: vec!["mc.app.open".into()],
+            ..Config::default()
+        };
+        let run = |argv0: &str| json!({"argv": [argv0, "-e", "sh"]});
         let open = json!({"client": "mc", "method": "app.open"});
-        let allow = ["foot".to_owned(), "mc.app.open".to_owned()];
-        assert!(listed(&allow, "run_program", &run));
-        assert!(listed(&allow, "call_method", &open));
-        assert!(listed(&allow, "mc.app.open", &json!({})));
-        assert!(!listed(&allow, "mc.scene.save", &json!({})));
-        assert!(!listed(&allow, "run_program", &json!({"argv": ["sh"]})));
+        assert!(listed(&config, "run_program", &run("foot")));
+        assert!(listed(&config, "call_method", &open));
+        assert!(listed(&config, "mc.app.open", &json!({})));
+        assert!(!listed(&config, "mc.scene.save", &json!({})));
+        for argv0 in [
+            "/usr/bin/foot",
+            "./foot",
+            "/home/u/proj/foot",
+            "sh",
+            "mc.app.open",
+        ] {
+            assert!(!listed(&config, "run_program", &run(argv0)), "{argv0}");
+        }
+        let foot = json!({"client": "x", "method": "foot"});
+        assert!(!listed(&config, "call_method", &foot));
     }
 
     #[tokio::test]

@@ -222,9 +222,12 @@ pub struct Config {
     pub no_words: Vec<String>,
     pub filler_words: Vec<String>,
     pub confirm: Vec<Confirm>,
-    /// Programs (`argv0`, such as `foot`) and methods (`CLIENT.METHOD`,
-    /// such as `mc.scene.show`) that never ask; no glob.
-    pub allow: Vec<String>,
+    /// Programs that never ask: a bare name, such as `foot`, equal to
+    /// argv[0] of `run_program`; no path, no glob.
+    pub allow_programs: Vec<String>,
+    /// Methods `CLIENT.METHOD`, such as `mc.scene.show`, that never ask;
+    /// no glob.
+    pub allow_methods: Vec<String>,
     pub confirm_timeout_ms: u32,
     pub earcons: bool,
     /// From 0 to 1.
@@ -568,8 +571,9 @@ fn spoken(v: &serde_json::Value) -> String {
 /// Whether a settings key decides what the agent may do or run, or
 /// where its data goes.
 pub fn security_key(key: &str) -> bool {
-    const KEYS: [&str; 19] = [
-        "allow",
+    const KEYS: [&str; 20] = [
+        "allow_programs",
+        "allow_methods",
         "always_words",
         "confirm",
         "agent_projects",
@@ -801,7 +805,8 @@ impl Default for Config {
             no_words: words(&["no", "rather not", "nein", "nicht", "lieber nicht"]),
             filler_words: words(&["please", "now", "bitte", "jetzt", "mal"]),
             confirm: default_confirm(),
-            allow: Vec::new(),
+            allow_programs: Vec::new(),
+            allow_methods: Vec::new(),
             confirm_timeout_ms: 15_000,
             earcons: true,
             earcon_volume: 0.3,
@@ -937,13 +942,20 @@ impl Config {
                 }
             }
         }
-        // A glob would allow whole groups, such as `*.settings.set`.
-        if let Some(entry) =
-            (self.allow.iter()).find(|a| a.trim().is_empty() || a.contains(['*', '?', '[']))
-        {
-            return Err(format!(
-                "allow: {entry:?} is no program or CLIENT.METHOD; globs are refused"
-            ));
+        // A glob would allow whole groups, such as `*.settings.set`; a
+        // path or a space could never match, or match a file of the coder.
+        let bad = |e: &String| {
+            e.is_empty() || e.contains(char::is_whitespace) || e.contains(['*', '?', '['])
+        };
+        if let Some(entry) = (self.allow_programs.iter()).find(|e| bad(e) || e.contains('/')) {
+            return Err(format!("allow_programs: {entry:?} is no bare program name"));
+        }
+        let method = |e: &String| {
+            e.split_once('.')
+                .is_some_and(|(c, m)| !c.is_empty() && !m.is_empty())
+        };
+        if let Some(entry) = (self.allow_methods.iter()).find(|e| bad(e) || !method(e)) {
+            return Err(format!("allow_methods: {entry:?} is no CLIENT.METHOD"));
         }
         if let Some(rule) = self.confirm.iter().find(|r| r.prompt.trim().is_empty()) {
             return Err(format!("confirm: the rule of {} has no prompt", rule.tool));
@@ -993,17 +1005,33 @@ mod tests {
 
     use super::*;
 
+    /// Review rc3 round 2, 1.2 and 1.6: bare program names and exact
+    /// methods only.
     #[test]
-    fn allow_takes_programs_and_methods_but_no_globs() {
-        let allow = parse::<Config>("allow: [foot, mc.scene.show]")
-            .unwrap()
-            .allow;
-        assert_eq!(allow, ["foot", "mc.scene.show"]);
-        for yaml in ["allow: ['*.settings.set']", "allow: [mc.?]", "allow: ['']"] {
+    fn allow_takes_bare_programs_and_methods_but_no_globs() {
+        let config =
+            parse::<Config>("{allow_programs: [foot], allow_methods: [mc.scene.show]}").unwrap();
+        assert_eq!(config.allow_programs, ["foot"]);
+        assert_eq!(config.allow_methods, ["mc.scene.show"]);
+        for yaml in [
+            "allow_programs: ['']",
+            "allow_programs: [/usr/bin/foot]",
+            "allow_programs: [./foot]",
+            "allow_programs: [' foot']",
+            "allow_programs: ['foot ']",
+            "allow_programs: ['foot -e']",
+            "allow_programs: ['fo*']",
+            "allow_methods: ['*.settings.set']",
+            "allow_methods: [mc.?]",
+            "allow_methods: [foot]",
+            "allow_methods: [.x]",
+            "allow_methods: ['mc. x']",
+            "allow: [foot]",
+        ] {
             let err = parse::<Config>(yaml).unwrap_err();
             assert!(err.contains("allow"), "{yaml}: {err}");
         }
-        assert!(security_key("allow") && security_key("always_words"));
+        assert!(security_key("allow_programs") && security_key("allow_methods"));
     }
 
     #[test]

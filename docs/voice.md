@@ -289,17 +289,22 @@ confirmation was not understood", each with "; nothing happened".
 A yes with an `always_words` phrase ("Ja, immer.", "Always.") allows
 the same action until the agent restarts. Then the agent says
 `phrases.allowed` ("Allowed for this session."). The same action is
-the same program (`argv0`) of `run_program`, the same `CLIENT.METHOD`,
-the same keys of the agent's own settings, or else the same tool. A
-security setting and `settings.set` of another plugin always ask: for
-them, an always word is a single yes. A question of a sub-agent takes
-an always word as a yes.
+the same full argv of `run_program`, or the same method `CLIENT.METHOD`
+with the same parameters (as canonical JSON, keys sorted). For every
+other call, an always word is a single yes: `inject_input`,
+`apply_commands`, `code_task`, `agent_start`, `configure_output`, the
+other built-in tools, each `settings.set` and `settings.reload`, and
+each change of the agent's own settings. A question of a sub-agent
+takes an always word as a yes.
 
-The setting `allow` lists the actions that never ask: program names
-(`argv0`), such as `foot`, and methods `CLIENT.METHOD`, such as
-`mc.scene.show`. An entry matches exactly. The agent refuses a glob
-(`*`, `?`, `[`) at load, so `*.settings.set` cannot go in. `allow`
-does not apply to the agent's own settings, which always ask.
+Two settings list the actions that never ask. `allow_programs` lists
+bare program names, such as `foot`. An entry matches only an argv[0]
+that is exactly this name, so `/home/u/proj/foot` asks. `allow_methods`
+lists methods `CLIENT.METHOD`, such as `mc.scene.show`, matched
+exactly. At load, the agent refuses an empty entry, an entry with a
+space, a glob (`*`, `?`, `[`), a program with a `/`, and a method
+without a `.`. So `*.settings.set` cannot go in. Neither list applies
+to the agent's own settings, which always ask.
 
 Each question also goes out as the event `voice.confirm {prompt,
 detail, id}`; `id` is a text, such as `"3"`. `detail` is the full command or value, never cut: the
@@ -330,7 +335,7 @@ Each `settings.set` asks with its keys and values
 (`phrases.settings_set`, "Shall I set barge in min rms to 15?"). A
 security key asks with `phrases.settings_security` ("Security setting!
 Shall I set llm url? The full value is on the screen."). The security
-keys are `allow`, `confirm`, `agent_projects`, `yes_words`, `always_words`, `no_words`,
+keys are `allow_programs`, `allow_methods`, `confirm`, `agent_projects`, `yes_words`, `always_words`, `no_words`,
 `phrases`, `record_dir`, `sandbox_cmd`, `unsandboxed`, `agent_cmd`,
 `coder_cmd`, `chora_mcp`, `capture_cmd`, `playback_cmd`,
 `skipped_tools`, `system_prompt`, `prompt_file`, `context_docs`, each
@@ -482,7 +487,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `sleep_words`, `wake_words` | `[sleep, go to sleep, schlaf, schlaf jetzt]`, `[hey chora, listen, hallo chora, hör zu]` |
 | `cancel_words` | `[stop, cancel, never mind, stopp, abbrechen, halt, vergiss es]` |
 | `code_cancel_words` | `[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
-| `allow` | `[]` (programs and `CLIENT.METHOD` that never ask; no glob) |
+| `allow_programs`, `allow_methods` | `[]`, `[]` (bare program names and `CLIENT.METHOD` that never ask; section 5) |
 | `always_words` | `[immer, ja immer, always, yes always]` (a yes for the session; may be empty) |
 | `yes_words`, `no_words` | `[yes, yeah, yep, yup, okay, ok, do it, please, sure, go ahead, ja, jo, jap, jep, klar, gern, gerne, genau, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
 | `filler_words` | `[please, now, bitte, jetzt, mal]` |
