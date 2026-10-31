@@ -4,6 +4,10 @@
 //! the freedesktop files that a shell reads, such as icon themes and
 //! desktop entries, the start of apps, and the runtime of a plugin with
 //! its settings.
+#![allow(
+    clippy::print_stderr,
+    reason = "a plugin logs to stderr, which the session keeps"
+)]
 pub mod conn;
 pub mod desktop_entry;
 pub mod icons;

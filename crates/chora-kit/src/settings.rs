@@ -190,6 +190,7 @@ impl<S: Settings> File<S> {
 }
 
 impl<S: Settings> Store for File<S> {
+    #[allow(clippy::expect_used, reason = "Settings types have string keys only")]
     fn get(&self) -> Value {
         serde_json::to_value(&self.value).expect("settings serialize to JSON")
     }
