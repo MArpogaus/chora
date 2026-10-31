@@ -942,8 +942,8 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   `phrases.details`. The history of the LLM gets the spoken text.
 - Questions: a permission request is spoken as `agent_asks` ("Atlas
   möchte notes.txt ändern. Erlauben?": the file name of a path title
-  and a verb for the kind). It waits from when it is spoken; the state
-  is `confirming`. Yes and no words, `voice.confirm`, or "NAME, ja"
+  and a verb for the kind). It waits from when it is spoken, so it
+  also waits while the agent sleeps; the state is `confirming`. Yes and no words, `voice.confirm`, or "NAME, ja"
   answer it; two unclear answers or `agent_permission_s` without one
   are a no. Yes picks an `allow_once` option, no a `reject_once` one;
   without a fitting option the outcome is `cancelled`. A request whose

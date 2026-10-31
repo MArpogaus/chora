@@ -271,8 +271,10 @@ pub struct Core {
     tts_failed: Option<u64>,
     /// The ACP agents by name: the parameters of `mc agent.set`.
     subs: BTreeMap<String, Value>,
-    /// The question of a sub-agent that waits for yes or no.
+    /// The question of a sub-agent that waits for yes or no, and until
+    /// when: `agent_permission_s` from when it is spoken.
     sub_confirm: Option<(String, oneshot::Sender<bool>)>,
+    sub_until: Instant,
 }
 
 /// A text to say when the agent listens.
@@ -332,6 +334,7 @@ impl Core {
             tts_failed: None,
             subs: BTreeMap::new(),
             sub_confirm: None,
+            sub_until: now,
         }
     }
 
@@ -390,12 +393,9 @@ impl Core {
     /// The state from what goes on: an utterance first, then its text,
     /// then the reply.
     fn refresh(&mut self) {
-        // A question of a sub-agent that timed out is gone.
-        if self
-            .sub_confirm
-            .as_ref()
-            .is_some_and(|(_, a)| a.is_closed())
-        {
+        // A question of a sub-agent that timed out is gone: a no.
+        let late = Instant::now() >= self.sub_until;
+        if (self.sub_confirm.as_ref()).is_some_and(|(_, a)| late || a.is_closed()) {
             self.sub_confirm = None;
         }
         let working =
@@ -486,6 +486,8 @@ impl Core {
             effects.extend(ask);
             // The question waits from when it is spoken.
             self.sub_confirm = note.ask;
+            self.sub_until =
+                Instant::now() + Duration::from_secs(self.config.agent_permission_s.into());
             self.unclear = 0;
             self.refresh();
         }
@@ -1221,6 +1223,29 @@ mod tests {
         let (effects, _) = call(&mut core, Call::Wake);
         assert!(no_ask(&effects), "{effects:?}");
         assert!(core.notes.is_empty());
+    }
+
+    /// A spoken question of a sub-agent is a no after
+    /// `agent_permission_s`.
+    #[test]
+    fn a_spoken_question_times_out() {
+        let mut core = with_coder();
+        let (answer, mut rx) = oneshot::channel();
+        let ask = agents::Event::Ask {
+            name: "coder".into(),
+            voice: "ryan".into(),
+            prompt: "Darf ich?".into(),
+            answer,
+        };
+        assert_eq!(asks(&core.handle(Input::Agent(ask))), [(1, "Darf ich?")]);
+        core.handle(Input::Reply(1, Reply::Done("Darf ich?".into())));
+        assert_eq!(core.state(), State::Confirming);
+        let wait = Duration::from_secs(core.config.agent_permission_s.into());
+        assert!(core.sub_until > Instant::now() + wait - Duration::from_secs(1));
+        core.sub_until = Instant::now();
+        core.handle(Input::MicDown);
+        assert_eq!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed));
+        assert_eq!(core.state(), State::Working);
     }
 
     /// The name of an ACP agent addresses it without the LLM.

@@ -424,7 +424,7 @@ Use it like this:
 - A permission request of an agent is spoken as "Atlas wants to edit
   notes.txt. Allow?". Say yes or no (or "Atlas, yes"), or call
   `voice.confirm` (privileged). No answer within `agent_permission_s`
-  (120 s) is a no.
+  (120 s) from when it is spoken is a no.
 - "Was macht Atlas?" The LLM calls `agent_status`: state, task, plan,
   question and last words. `agent_stop` ends the agent.
 

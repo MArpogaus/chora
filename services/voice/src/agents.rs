@@ -95,7 +95,6 @@ struct Settings {
     details: String,
     asks: String,
     ended: String,
-    permission: Duration,
     /// German verbs in a question, for `reply_language: de`.
     german: bool,
 }
@@ -110,7 +109,6 @@ impl Settings {
             details: config.phrases.details.clone(),
             asks: config.phrases.agent_asks.clone(),
             ended: config.phrases.agent_ended.clone(),
-            permission: Duration::from_secs(config.agent_permission_s.into()),
             german: config.reply_language == "de",
         }
     }
@@ -392,7 +390,6 @@ impl Agents {
             agents: self.clone(),
             name: name.clone(),
             id,
-            permission: inner.settings.permission,
         };
         tokio::spawn(actor.run(command, dir.clone(), log.clone(), rx));
         format!(
@@ -538,8 +535,9 @@ impl Agents {
 struct Permission {
     id: Value,
     options: Vec<Value>,
+    /// The core drops its sender after `agent_permission_s` from when
+    /// it spoke the question, or when it drops the question.
     answer: oneshot::Receiver<bool>,
-    deadline: tokio::time::Instant,
 }
 
 /// The JSON-RPC side of the connection: requests out, and the log.
@@ -661,7 +659,6 @@ struct Actor {
     agents: Agents,
     name: String,
     id: u64,
-    permission: Duration,
 }
 
 /// The state of the conversation of the actor.
@@ -919,7 +916,6 @@ impl Actor {
             id: rpc_id,
             options,
             answer: rx,
-            deadline: tokio::time::Instant::now() + self.permission,
         });
         self.agents.update(name, id, |s| {
             s.state = "question";
@@ -982,14 +978,11 @@ impl Actor {
     }
 }
 
-/// The answer to the question that waits: yes, or no after its timeout
-/// or when the core dropped it. Without a question, never.
+/// The answer to the question that waits: yes, or no when the core
+/// dropped it, also after its timeout. Without a question, never.
 async fn decided(question: &mut Option<Permission>) -> bool {
     match question {
-        Some(q) => matches!(
-            tokio::time::timeout_at(q.deadline, &mut q.answer).await,
-            Ok(Ok(true))
-        ),
+        Some(q) => matches!((&mut q.answer).await, Ok(true)),
         None => std::future::pending().await,
     }
 }
@@ -1131,7 +1124,6 @@ mod tests {
             agents,
             name: "a".into(),
             id: 1,
-            permission: Duration::from_secs(1),
         };
         let mut session = Session::default();
         let chunk = json!({"sessionUpdate": "agent_message_chunk",
@@ -1140,6 +1132,42 @@ mod tests {
             actor.update(&mut session, &chunk);
         }
         assert_eq!(session.message.len(), MESSAGE_BYTES);
+    }
+
+    /// The question waits for the core, which times it out from when it
+    /// is spoken: a late yes still allows.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_question_waits_until_it_is_spoken() {
+        let data = std::env::temp_dir().join(format!("chora-voice-wait-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let project = data.join("demo");
+        std::fs::create_dir_all(&project).unwrap();
+        let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
+        let config = Config {
+            agent_cmd: vec!["sh".into(), script.display().to_string()],
+            unsandboxed: true,
+            agent_projects: [("demo".into(), project.display().to_string())].into(),
+            agent_permission_s: 1,
+            ..Config::default()
+        };
+        let (tx, rx) = mpsc::channel();
+        let agents = Agents::new(&config, data.clone(), tx);
+        agents.start("demo", None, None);
+        let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
+        agents.prompt("demo", "Schreib notes.txt");
+        let (rx, mut events) = until(rx, |e| matches!(e, Event::Ask { .. })).await;
+        let Some(Event::Ask { answer, .. }) = events.pop() else {
+            unreachable!()
+        };
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+        let _ = answer.send(true);
+        let (_rx, events) = until(rx, |e| matches!(e, Event::Said { .. })).await;
+        let Some(Event::Said { text, .. }) = events.last() else {
+            unreachable!()
+        };
+        assert!(text.starts_with("Erlaubt"), "{text}");
+        agents.shutdown();
+        let _ = std::fs::remove_dir_all(&data);
     }
 
     /// A yes allows always only when the question said so.
