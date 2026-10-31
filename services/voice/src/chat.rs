@@ -412,10 +412,10 @@ impl Chat {
         let start = Instant::now();
         self.begin(text).await;
         let mut report = Report::default();
-        let rounds = self.config.tool_rounds;
+        let mut limit = self.config.tool_rounds;
         let mut nudged = false;
-        for round in 0..=rounds {
-            let last = round == rounds;
+        for round in 0.. {
+            let last = round == limit;
             self.listen(out);
             out(Event::Thinking);
             report.rounds += 1;
@@ -434,7 +434,11 @@ impl Chat {
             }
             if last || r.round.calls.is_empty() {
                 report.outcome = self.answered(&r.round, last, said.is_empty(), out);
-                if !last && self.more(&r.round.text, &mut nudged) {
+                if self.more(&r.round.text, last, &mut nudged) {
+                    // New words in the last round get rounds of their
+                    // own now, not after the reply is said (log
+                    // 2026-10-31: 49 s).
+                    limit += u32::from(last) * (self.config.tool_rounds + 1);
                     continue;
                 }
                 break;
@@ -467,13 +471,14 @@ impl Chat {
     }
 
     /// Whether an answer needs one more round: the user said more while
-    /// the LLM answered, or the answer announced a tool that it did not
-    /// call (once per turn, with `NUDGE`).
-    fn more(&mut self, answer: &str, nudged: &mut bool) -> bool {
+    /// the LLM answered, also in the `last` round, or the answer announced
+    /// an action and called no tool (once per turn, with `NUDGE`).
+    fn more(&mut self, answer: &str, last: bool, nudged: &mut bool) -> bool {
         if self.take_inbox() {
+            crate::log::info("llm: the user said more; one more round");
             return true;
         }
-        if *nudged || !announces(answer) {
+        if last || *nudged || !announces(answer) {
             return false;
         }
         crate::log::info("llm: an announced tool without a call; one more round");
@@ -1373,6 +1378,42 @@ mod tests {
         let (report, events) = turn(&mut chat, "Du hast nichts gemacht.", true).await;
         assert_eq!((report.rounds, report.tools), (2, 0), "{events:?}");
         assert_eq!(last_user(&server, 1), NUDGE);
+    }
+
+    /// Words of the user during the last round get rounds of their own
+    /// in the same turn, with tools (log 2026-10-31: "hallo, hast du
+    /// mich?" waited 49 s for the end of a reply at the round limit).
+    #[tokio::test]
+    async fn words_during_the_last_round_get_rounds_of_their_own() {
+        let script = vec![
+            Reply::Tool("echo", "{}"),
+            Reply::Text("Ich habe es versucht."),
+            Reply::Tool("echo", "{}"),
+            Reply::Text("Ja, ich höre dich."),
+        ];
+        let config = Config {
+            tool_rounds: 1,
+            ..Config::default()
+        };
+        let (mut chat, server) = chat(script, config).await;
+        let events = interrupted(&mut chat, "say Ich habe es versucht.", "Hast du mich?").await;
+        assert_eq!(
+            events,
+            [
+                "thinking",
+                "say One moment.",
+                "tool echo",
+                "thinking",
+                "say Ich habe es versucht.",
+                "heard Hast du mich?",
+                "thinking",
+                "tool echo",
+                "thinking",
+                "say Ja, ich höre dich."
+            ]
+        );
+        assert_eq!(server.seen.lock().unwrap().len(), 4);
+        assert_eq!(last_user(&server, 2), "Hast du mich?");
     }
 
     /// Runs a turn whose user says `said` when `when` matches an event;

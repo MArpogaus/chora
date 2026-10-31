@@ -144,7 +144,9 @@ the ASR at once. A cancel word cancels. In `confirming`, the text is the
 answer. Other text goes into the next LLM round of the running reply,
 as a user message (`Inject`; the chat reports it back as `Heard`). This
 also holds after the answer of a round: when new words came while the
-LLM answered, one more round hears them. A yes or no waits in the queue
+LLM answered, one more round hears them. After the last round of
+`tool_rounds`, new words get `tool_rounds` more rounds in the same turn;
+they do not wait until the reply is said. A yes or no waits in the queue
 for a question. A call that would ask does not ask while new words wait:
 it does not run, and its result is "Not confirmed: the user said
 something new; nothing happened". Texts that no round heard start the
@@ -295,7 +297,7 @@ at most a short summary of it.
 | LLM | Connect error | One retry, then `phrases.llm_down` ("The language model does not answer.") |
 | LLM | First token, idle or total timeout | Abort, keep the rounds so far, say so |
 | LLM | Context error | Trim the history to half the budget, one retry |
-| LLM | `tool_rounds` reached | A final round with `tool_choice: none` and a note: sum up in the reply language; without words, `phrases.tool_rounds`; history stays |
+| LLM | `tool_rounds` reached | A final round with `tool_choice: none` and a note: sum up in the reply language; without words, `phrases.tool_rounds`; history stays; new words of the user during that round get `tool_rounds` more rounds |
 | MCP | Child exits | Restart with backoff; call in flight gets "connection lost, result unknown"; tools reload |
 | MCP | `tool_timeout_s` | Cancel the call; result "timeout, result unknown" |
 | chora | Connection closed | Runtime reconnects and grabs PTT again; after 30 s, exit 1 |
