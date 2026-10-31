@@ -26,6 +26,9 @@ optdepends=(
   'xwayland-satellite: X11 programs'
   'xdg-desktop-portal-wlr: screen sharing'
   'xdg-desktop-portal-gtk: the other portals, such as the file chooser'
+  'inter-font: the labels of chora-mc (experimental)'
+  'tex-gyre-fonts: the text of chora-mc, TeX Gyre Pagella'
+  'python: the collectors of chora-mc'
 )
 backup=(etc/xdg/uwsm/env-chora etc/xdg/xdg-desktop-portal-wlr/chora)
 options=(!lto !debug)
@@ -38,7 +41,7 @@ build() {
 package() {
   cd "$CHORA_SOURCE"
   local bin
-  for bin in chora choractl chora-tiling chora-xp; do
+  for bin in chora choractl chora-tiling chora-xp chora-mc; do
     install -Dm755 "target/release/$bin" "$pkgdir/usr/bin/$bin"
   done
   install -Dm755 dist/session/chora-session dist/session/chora-flavor -t "$pkgdir/usr/bin/"
@@ -59,6 +62,9 @@ package() {
   install -Dm644 flavors/tiling/waybar/* -t "$pkgdir/usr/share/chora/flavors/tiling/waybar/"
   install -Dm644 dist/shaders/* -t "$pkgdir/usr/share/chora/shaders/"
   install -Dm644 dist/plugins/* -t "$pkgdir/usr/share/chora/plugins/"
+  # chora-mc has its scenes, settings and shaders built in; the collectors
+  # that fill the scenes run from here.
+  install -Dm755 plugins/chora-mc/collectors/* -t "$pkgdir/usr/share/chora/mc/collectors/"
   install -Dm644 flavors/xp/chora-xp* -t "$pkgdir/usr/share/chora/flavors/xp/"
   local dir
   for dir in . expose fonts wallpaper winxp; do

@@ -39,6 +39,11 @@ assets = [
   { source = "target/release/choractl", dest = "/usr/bin/choractl", mode = "755" },
   { source = "target/release/chora-tiling", dest = "/usr/bin/chora-tiling", mode = "755" },
   { source = "target/release/chora-xp", dest = "/usr/bin/chora-xp", mode = "755" },
+  { source = "target/release/chora-mc", dest = "/usr/bin/chora-mc", mode = "755" },
+  # chora-mc has its scenes, settings and shaders built in; the collectors
+  # that fill the scenes run from here.
+  { source = "../../plugins/chora-mc/collectors/*", dest = "/usr/share/chora/mc/collectors/", mode = "755" },
+  { source = "../../dist/fonts/09-chora-tex-gyre.conf", dest = "/etc/fonts/conf.d/09-chora-tex-gyre.conf", mode = "644", config = "noreplace" },
   { source = "../../LICENSE", dest = "/usr/share/licenses/chora/LICENSE", mode = "644" },
   { source = "../../README.md", dest = "/usr/share/doc/chora/README.md", mode = "644", doc = true },
   { source = "../../LICENSES/MIT-Smithay.txt", dest = "/usr/share/licenses/chora/MIT-Smithay.txt", mode = "644" },
@@ -73,8 +78,8 @@ auto-req = "auto"
 license = "GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND OFL-1.1 AND CC-BY-SA-4.0"
 # uwsm for the sessions it manages (D50; not in Fedora 44 yet), the tools
 # of the tiling flavor (D51), X11 programs, and the portals for screen
-# sharing (D37) and the rest.
-recommends = { uwsm = "*", foot = "*", fuzzel = "*", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*" }
+# sharing (D37) and the rest, and the fonts of chora-mc.
+recommends = { uwsm = "*", foot = "*", fuzzel = "*", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*", rsms-inter-fonts = "*", texlive-tex-gyre = "*" }
 # Smithay loads libEGL at runtime, so auto-req does not see it.
 requires = { mesa-libEGL = "*" }
 summary = "Wayland compositor without policy, programmable by plugins and agents"

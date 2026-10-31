@@ -15,6 +15,7 @@ sed "s/@VERSION@/${version//-/}/" dist/arch/PKGBUILD >"$work/PKGBUILD"
 # Every file of the RPM is in the package too.
 package=$(ls "$work"/chora-*.pkg.tar.zst)
 for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
+    usr/bin/chora-mc usr/share/chora/mc/collectors/agenda.sh \
     usr/share/wayland-sessions/chora.desktop usr/share/wayland-sessions/chora-uwsm.desktop \
     etc/xdg/uwsm/env-chora usr/share/chora/flavors/tiling/waybar/config.jsonc \
     usr/share/xdg-desktop-portal/chora-portals.conf etc/xdg/xdg-desktop-portal-wlr/chora \
