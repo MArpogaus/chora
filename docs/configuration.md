@@ -104,6 +104,22 @@ input:
 keys, duplicate keys and unknown tags are errors. Only `true` and `false`
 are booleans, so `no` stays the string `no`.
 
+### A broken settings file
+
+The plugins `chora-tiling`, `chora-xp`, `chora-mc` and `chora-construct`
+read their settings file (D62) as strict YAML too. If the file does not
+parse or check, for example because an update removed a key, the plugin
+does not stop. It starts with its default settings, writes the error to
+its log and does not change the file. `chora-mc` also shows the error as
+a critical notification.
+
+While the file is broken, `settings.set` and each other save of the
+settings fail with an error that names the file. Thus no save writes the
+defaults over your edits. Correct the file and call `settings.reload`.
+When the reload succeeds, the plugin applies the file and saves again. A
+`settings.reload` of a broken file keeps the running settings, returns
+the error and also stops the saves until the file is correct.
+
 ### Plugin manifests
 
 A manifest tells `choractl` how to start and how to configure a plugin. It
