@@ -48,7 +48,9 @@ async def tts(http: aiohttp.ClientSession, url: str, voice: str, text: str) -> n
             if msg.type == aiohttp.WSMsgType.BINARY:
                 pcm += msg.data
                 continue
-            kind = json.loads(msg.data).get("type", "") if msg.type == aiohttp.WSMsgType.TEXT else ""
+            kind = (
+                json.loads(msg.data).get("type", "") if msg.type == aiohttp.WSMsgType.TEXT else ""
+            )
             if kind == "session.done" or "error" in kind or not kind:
                 break
     return np.frombuffer(pcm, np.int16).astype(np.float64)
@@ -106,7 +108,9 @@ class Session:
         self.labels.append(f"turn {at + start:.3f} {at + end:.3f}")
         return at + start, at + end
 
-    def play(self, at: float, sound: np.ndarray, coupling: float, barge: float | None = None) -> None:
+    def play(
+        self, at: float, sound: np.ndarray, coupling: float, barge: float | None = None
+    ) -> None:
         """The agent plays SOUND from AT; its echo is SOUND times
         COUPLING. A barge-in at BARGE stops it 0.8 s later, as the agent
         would."""
