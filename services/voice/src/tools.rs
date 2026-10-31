@@ -24,6 +24,10 @@ type Connecting = Pin<Box<dyn Future<Output = Result<Service, String>> + Send>>;
 /// Opens a new MCP session: `choractl mcp` as a child, or a fake.
 pub type Connect = Box<dyn Fn() -> Connecting + Send + Sync>;
 
+/// The settings methods of the agent's own client that the LLM may call
+/// (D62).
+const SETTINGS: [&str; 3] = ["settings.get", "settings.set", "settings.reload"];
+
 /// The longest wait between two connection attempts.
 const MAX_BACKOFF: Duration = Duration::from_secs(5);
 
@@ -46,7 +50,9 @@ pub struct Tools {
     /// The tools of the ACP agents, when `agent_cmd` has a command.
     pub agents: Option<Agents>,
     /// The client name of the agent: the LLM calls no method of it, nor
-    /// of `NAME-hud` and `NAME-mcp`, whatever `skipped` hides.
+    /// of `NAME-hud` and `NAME-mcp`, whatever `skipped` hides; only its
+    /// `settings.get`, `settings.set` and `settings.reload`, which
+    /// `skipped` does not hide.
     pub own: String,
 }
 
@@ -94,22 +100,42 @@ impl Tools {
         }
     }
 
+    /// Whether `method` of `client` is a settings method of the agent
+    /// itself.
+    fn own_settings(&self, client: &str, method: &str) -> bool {
+        !self.own.is_empty() && client == self.own && SETTINGS.contains(&method)
+    }
+
+    /// The patch of a `settings.set` of the agent itself (`tool` is the
+    /// MCP name), as a plugin tool or by `call_method`; none for another
+    /// call.
+    pub fn own_settings_set<'a>(&self, tool: &str, args: &'a Value) -> Option<&'a Value> {
+        let (client, method, patch) = if tool == "call_method" {
+            let field = |k: &str| args[k].as_str().unwrap_or_default();
+            (field("client"), field("method"), &args["params"])
+        } else {
+            let (client, method) = tool.split_once('.')?;
+            (client, method, args)
+        };
+        (method == "settings.set" && self.own_settings(client, method)).then_some(patch)
+    }
+
     /// Whether a call of `tool` (its MCP name) reaches a client of the
     /// agent itself: by `call_method` or as a plugin tool `CLIENT.METHOD`.
+    /// The settings methods of the agent itself are allowed.
     fn own_client(&self, tool: &str, args: &serde_json::Map<String, Value>) -> bool {
         if self.own.is_empty() {
             return false;
         }
         let own = &self.own;
         let names = [own.clone(), format!("{own}-hud"), format!("{own}-mcp")];
-        if tool == "call_method" {
-            let client = args.get("client").and_then(Value::as_str);
-            return client.is_some_and(|c| names.iter().any(|n| n == c));
-        }
-        (names.iter()).any(|n| {
-            tool.strip_prefix(n.as_str())
-                .is_some_and(|r| r.starts_with('.'))
-        })
+        let (client, method) = if tool == "call_method" {
+            let field = |k: &str| args.get(k).and_then(Value::as_str).unwrap_or_default();
+            (field("client"), field("method"))
+        } else {
+            tool.split_once('.').unwrap_or((tool, ""))
+        };
+        names.iter().any(|n| n == client) && !self.own_settings(client, method)
     }
 
     fn connected(&self) -> Option<&Service> {
@@ -166,7 +192,11 @@ impl Tools {
             Ok(tools) => {
                 let tools: Vec<_> = tools
                     .into_iter()
-                    .filter(|t| !self.skipped.iter().any(|s| glob(s, &t.name)))
+                    .filter(|t| {
+                        let (client, method) = t.name.split_once('.').unwrap_or_default();
+                        self.own_settings(client, method)
+                            || !self.skipped.iter().any(|s| glob(s, &t.name))
+                    })
                     .collect();
                 self.names.clear();
                 self.specs = tools
@@ -375,6 +405,8 @@ pub mod tests {
                 "quit",
                 "tiling.set_layout",
                 "capture",
+                "voice.state",
+                "voice.settings.set",
             ]
             .map(|name| Tool::new(name, format!("the tool {name}"), schema.clone()));
             std::future::ready(Ok(ListToolsResult::with_all_items(tools.to_vec())))
@@ -469,6 +501,36 @@ pub mod tests {
         assert_eq!(calls.load(Ordering::SeqCst), 0);
         let args = json!({"client": "tilingx", "method": "x"});
         assert_eq!(tools.call("call_method", &args).await, args.to_string());
+    }
+
+    /// The LLM changes the settings of the agent itself: `skipped` does
+    /// not hide them, and no other method of the agent's client opens.
+    #[tokio::test]
+    async fn the_agent_calls_its_own_settings_methods() {
+        let (mut tools, calls) = fake(0);
+        tools.own = "voice".into();
+        tools.refresh().await;
+        assert_eq!(tools.mcp_name("voice__state"), None, "skipped");
+        let patch = json!({"barge_in_min_rms": 15});
+        let answer = tools.call("voice__settings__set", &patch).await;
+        assert_eq!(answer, patch.to_string());
+        let call_method = "call_method".to_owned();
+        tools.names.insert(call_method.clone(), call_method);
+        let get = json!({"client": "voice", "method": "settings.get"});
+        assert_eq!(tools.call("call_method", &get).await, get.to_string());
+        for (client, method) in [("voice", "state"), ("voice-hud", "settings.get")] {
+            let args = json!({"client": client, "method": method});
+            let answer = tools.call("call_method", &args).await;
+            assert!(answer.as_str().unwrap().starts_with("error:"), "{answer}");
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        let set = json!({"client": "voice", "method": "settings.set", "params": patch});
+        assert_eq!(tools.own_settings_set("call_method", &set), Some(&patch));
+        assert_eq!(
+            tools.own_settings_set("voice.settings.set", &patch),
+            Some(&patch)
+        );
+        assert_eq!(tools.own_settings_set("mc.settings.set", &patch), None);
     }
 
     #[tokio::test]

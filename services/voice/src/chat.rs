@@ -240,7 +240,9 @@ impl Chat {
     fn prompt(&self) -> Result<String, String> {
         let config = &self.config;
         let mut parts = vec![if config.system_prompt.trim().is_empty() {
-            SYSTEM.replace("{name}", &self.name)
+            SYSTEM
+                .replace("{name}", &self.name)
+                .replace("{own}", &self.tools.own)
         } else {
             config.system_prompt.clone()
         }];
@@ -559,8 +561,9 @@ impl Chat {
         results
     }
 
-    /// Asks the user when a rule of `confirm` matches; else, or on a
-    /// no, the reason for the LLM.
+    /// Asks the user when a rule of `confirm` matches, and before each
+    /// change of the agent's own settings; else, or on a no, the reason
+    /// for the LLM.
     async fn confirmed(
         &self,
         function: &str,
@@ -570,15 +573,16 @@ impl Chat {
         let Some(name) = self.tools.mcp_name(function) else {
             return Ok(());
         };
-        let Some(rule) = tools::rule(&self.config.confirm, name, args) else {
+        let prompt = if let Some(patch) = self.tools.own_settings_set(name, args) {
+            self.config.settings_question(patch)
+        } else if let Some(rule) = tools::rule(&self.config.confirm, name, args) {
+            let program = tools::program(args).unwrap_or_default();
+            rule.prompt.replace("{program}", program)
+        } else {
             return Ok(());
         };
         let (answer, rx) = oneshot::channel();
-        let program = tools::program(args).unwrap_or_default();
-        out(Event::Confirm {
-            prompt: rule.prompt.replace("{program}", program),
-            answer,
-        });
+        out(Event::Confirm { prompt, answer });
         let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
         // The agent itself asks: the LLM must not look for a dialog.
         let result = match tokio::time::timeout(wait, rx).await {
@@ -1000,6 +1004,40 @@ mod tests {
             );
         }
         assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    /// Each change of the agent's own settings asks with its key and
+    /// value; a security setting says so (log 2026-10-31: "set the
+    /// barge-in RMS to 15").
+    #[tokio::test]
+    async fn a_change_of_the_own_settings_asks_with_key_and_value() {
+        let script = vec![
+            Reply::Tool("voice__settings__set", r#"{"barge_in_min_rms": 15}"#),
+            Reply::Tool("voice__settings__set", r#"{"llm_url": "http://x/v1"}"#),
+            Reply::Text("Erledigt."),
+        ];
+        let server = fake::llm(script).await;
+        let (mut tools, calls) = tools::tests::fake(0);
+        tools.own = "voice".into();
+        let config = Config {
+            llm_url: server.url.clone(),
+            confirm: Vec::new(),
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        assert!(chat.system.contains("voice.settings.set changes keys"));
+        let (_, events) = turn(&mut chat, "Setz den Barge-in auf 15.", true).await;
+        let asked: Vec<_> = events.iter().filter(|e| e.starts_with("confirm")).collect();
+        assert_eq!(
+            asked,
+            [
+                "confirm Shall I set barge in min rms to 15?",
+                "confirm Security setting! Shall I set llm url to http://x/v1?"
+            ]
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
     }
 
     #[tokio::test]

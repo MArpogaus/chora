@@ -45,6 +45,11 @@ pub struct Phrases {
     pub agent_asks: String,
     /// A sub-agent ended by itself: `{name}`.
     pub agent_ended: String,
+    /// The question before a change of the agent's own settings: `{key}`
+    /// and `{value}`.
+    pub settings_set: String,
+    /// The same for a security setting, such as `confirm` or a URL.
+    pub settings_security: String,
 }
 
 impl Default for Phrases {
@@ -57,6 +62,8 @@ impl Default for Phrases {
             details: "Details on the screen.".into(),
             agent_asks: "{name} wants to {what}. Allow?".into(),
             agent_ended: "{name} has ended.".into(),
+            settings_set: "Shall I set {key} to {value}?".into(),
+            settings_security: "Security setting! Shall I set {key} to {value}?".into(),
         }
     }
 }
@@ -359,6 +366,8 @@ impl Config {
             &mut p.details,
             &mut p.agent_asks,
             &mut p.agent_ended,
+            &mut p.settings_set,
+            &mut p.settings_security,
         ];
         let prompts = out.confirm.iter_mut().map(|r| &mut r.prompt);
         for text in texts.into_iter().chain(prompts) {
@@ -378,10 +387,60 @@ impl Config {
         // phrase per state in the settings when another language needs it.
         (CODE_GERMAN.iter()).fold(said.to_owned(), |s, (en, de)| s.replacen(en, de, 1))
     }
+
+    /// The spoken question before a `settings.set` of the agent itself
+    /// with `patch`: its keys and values, as a security setting when one
+    /// key is.
+    pub fn settings_question(&self, patch: &serde_json::Value) -> String {
+        let empty = serde_json::Map::new();
+        let patch = patch.as_object().unwrap_or(&empty);
+        let value = |v: &serde_json::Value| {
+            let text = v.as_str().map_or_else(|| v.to_string(), str::to_owned);
+            let mut short: String = text.chars().take(60).collect();
+            if short.len() < text.len() {
+                short.push_str(" …");
+            }
+            short
+        };
+        // Underscores would go: the TTS hears the words.
+        let keys: Vec<String> = patch.keys().map(|k| k.replace('_', " ")).collect();
+        let values: Vec<String> = patch.values().map(value).collect();
+        let template = if patch.keys().any(|k| security_key(k)) {
+            &self.phrases.settings_security
+        } else {
+            &self.phrases.settings_set
+        };
+        template
+            .replace("{key}", &keys.join(", "))
+            .replace("{value}", &values.join(", "))
+    }
+}
+
+/// Whether a settings key decides what the agent may do or run, or
+/// where its data goes.
+fn security_key(key: &str) -> bool {
+    const KEYS: [&str; 12] = [
+        "confirm",
+        "sandbox_cmd",
+        "unsandboxed",
+        "agent_cmd",
+        "coder_cmd",
+        "chora_mcp",
+        "capture_cmd",
+        "playback_cmd",
+        "skipped_tools",
+        "system_prompt",
+        "prompt_file",
+        "context_docs",
+    ];
+    KEYS.contains(&key)
+        || key.ends_with("_url")
+        || key.ends_with("_headers")
+        || key.contains("api_key")
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 15] = [
+const GERMAN: [(&str, &str); 17] = [
     (
         "The language model does not answer.",
         "Das Sprachmodell antwortet nicht.",
@@ -404,6 +463,14 @@ const GERMAN: [(&str, &str); 15] = [
         "{name} möchte {what}. Erlauben?",
     ),
     ("{name} has ended.", "{name} hat sich beendet."),
+    (
+        "Shall I set {key} to {value}?",
+        "Soll ich {key} auf {value} setzen?",
+    ),
+    (
+        "Security setting! Shall I set {key} to {value}?",
+        "Sicherheitseinstellung! Soll ich {key} auf {value} setzen?",
+    ),
     ("Shall I remove that?", "Soll ich das entfernen?"),
     (
         "Shall I remove the view?",
