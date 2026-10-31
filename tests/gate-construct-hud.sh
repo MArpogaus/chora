@@ -278,4 +278,4 @@ call window.show '{"name": "third"}'
 until_ok 'ctl call construct construct.list | grep -q "\"name\": \"third\""' || fail "window.show made no pane"
 ok "with the view full, a new window waited in the list, and window.show made its pane"
 kill "$session"
-wait "$session" 2>/dev/null
+wait "$session" 2>/dev/null || true

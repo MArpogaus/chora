@@ -1758,8 +1758,8 @@ impl Construct {
         self.rt.conn.apply(commands)?;
         self.flown = Some(flown);
         self.draw_hud()?;
-        let label = self.label_commands();
-        self.rt.conn.apply(label)?;
+        // The label hides, and the focus moves to the pane flown into.
+        self.frame()?;
         self.regrab()
     }
 
