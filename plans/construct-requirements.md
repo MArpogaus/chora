@@ -1,6 +1,6 @@
 # chora-construct: requirements
 
-Status: draft for review, 2026-10-31. Source: the interview of
+Status: K1 and K2a built; the rest open. Source: the interview of
 2026-10-31 and the loader prototype in `examples/loader/`.
 
 ## 1. Goal
@@ -24,7 +24,7 @@ the prototype into a real plugin.
 | C2 | Movement | Free walk on a leash: at most radius R from the start point. The leash ends softly in the fog. |
 | C3 | Prompt pane | An ACP agent (as `agent_start` of chora-voice, in the sandbox container) builds a program. The pane shows the running result and the progress. |
 | C4 | Leash | A soft border at radius R around the origin. Panes can stand anywhere inside it. |
-| C5 | Use of a pane | Both: use it in the space (focus follows the pane under the pointer or gaze), and fly in for focused work (1:1 pixels, full screen, Esc flies out). |
+| C5 | Use of a pane | Both: use it in the space (focus follows the pane under the pointer or gaze), and fly in for focused work (1:1 pixels, full screen, Alt+Escape flies out by default). |
 | C6 | Persistence | A construct is a YAML file: panes with kind, content and pose. Mouse, voice and API change it live, and it can be saved. Like the mc scenes. |
 | C7 | New panes | They appear in the view direction at a fixed distance and face the camera. They move aside to the left or right of panes in the way. The user can move them later. |
 | C8 | Nested sessions | A nested GNOME session as a pane is a must for v1. |
@@ -136,8 +136,8 @@ The host keymap (#12) stays a limit of v1.
   `node.requested` to the owner, D31).
 - **F15** Fly-in: a click with a modifier, a key or voice flies the
   camera in front of the pane. At the end, the pane covers the output at
-  1:1 pixels (no blur) and gets the keyboard. Esc or a key flies back
-  to the last pose in the space.
+  1:1 pixels (no blur) and gets the keyboard. Alt+Escape, the default of
+  the setting `fly_out`, flies back to the last pose in the space.
 - **F16** While flown in, the walk keys go to the program, not to the
   camera.
 
@@ -271,8 +271,7 @@ The host keymap (#12) stays a limit of v1.
 0. Focus check: walk, fly in and type into a terminal and a nested
    GNOME pane, as flavor and as overlay over tiling. A core change, with
    a decision record, only for a gap that this test shows.
-1. Space and camera: fog shader, walk with leash, home, camera
-   ownership and reset.
+1. Space and camera: fog shader, walk with leash, home.
 2. Panes: billboard poses, program panes with node textures, pointer
    mapping, move and resize.
 3. Fly-in and fly-out, 1:1 snapping, focus by click.
