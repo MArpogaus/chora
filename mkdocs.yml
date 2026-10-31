@@ -27,6 +27,7 @@ nav:
   - Architecture: architecture.md
   - API: api.md
   - Configuration: configuration.md
+  - chora-mc style guide: mc-style.md
   - Project structure: project-structure.md
   - Voice agent (draft): voice.md
 - Context:

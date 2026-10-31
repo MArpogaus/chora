@@ -302,7 +302,8 @@ settings) and `grid`, but then its text block and its number move against
 the other scenes; the built-in scenes set neither and only choose their
 cells. A scene may also set `chapter.layout`, also `none` for a scene without a head. Columns of a
 grid leave room for the margin of the column to their right. A panel may
-set a `rule`, a color of the theme for a hairline left of it, an
+set a `rule`, a color of the theme for a hairline left of it (none at
+the left edge of the text block and none beside an empty panel), an
 `opacity` from 0 to 1 and a `blur` radius in pixels up to 16, for
 context that steps back (`plugins/chora-mc/blur.frag`).
 
@@ -333,7 +334,7 @@ clients use `agent.set` and `hud.say`.
 | `content.set` | `content`, `lines` and an optional `title` of a text content |
 | `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines |
 | `region.solo` | privileged. `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
-| `agent.set` | `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words |
+| `agent.set` | `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words, in as many columns as agents: one agent takes the whole width, two take half each |
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
@@ -358,21 +359,30 @@ hand apply with `settings.reload`:
   (`normal` or `italic`), `size` in pixels, `em` of `scale.base` or
   `step` of the scale, `color` (a name of the theme
   or RGBA), `line_height`, `letter_spacing` in em, OpenType `features` and
-  `uppercase`. The plugin uses `chapter`, `chapter_number`, `running_head`, `heading`, `body`, `margin` and `hud`.
+  `uppercase`. The plugin uses `chapter`, `chapter_number`, `running_head`, `heading`, `body`, `margin` and `hud`;
+  the built-in scenes also use `data` and `mono`. The
+  [style guide](mc-style.md) gives the rules that the styles follow.
   The default sets TeX Gyre Pagella with small caps and old-style figures
   for the text, from the Fedora package `texlive-tex-gyre`, whose
   directory `/usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre`
   must be in `CHORA_FONT_DIRS`, and Inter with tabular figures for the
   running head, the notes and the HUD.
-- `chapter.layout`: `number` (the number and a bar in the style
-  `chapter_number`, then the title in spaced small caps on the same
-  baseline, such as `3 | Agenda`, at the left edge of the text column) or
-  `none`.
+- `chapter.layout`: `number` (the number in the style
+  `chapter_number`, a hairline bar from the baseline to the capitals,
+  then the title in spaced capitals on the same baseline, such as
+  `3 | AGENDA`, at the left edge of the text column) or `none`.
 - `page`: the `measure` of a column of the grid, the `margin` column and
   the `gap`, in em of `scale.base`.
 - `grid`: the columns and rows of every scene without its own (default
   `[4, 3]`). All scenes share it and `page`, so the text block and the
   number stay in place from scene to scene.
+- `min_panel`: the least width and height of a panel, in em of
+  `scale.base` (default `[14, 8]`). Where the columns of the grid would
+  be narrower, the page shows fewer columns and the panels wrap into new
+  rows in reading order, each at the top-most, then left-most place
+  below the panels before it; an empty panel takes no room. A row is
+  never lower than the least height. A page that is longer than the
+  output scrolls with the wheel between the header and the footer.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `toggle: REGION` and
