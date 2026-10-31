@@ -44,8 +44,8 @@ sudo pacman -S --asdeps uwsm foot fuzzel waybar mako swaybg swayidle swaylock ka
 describes the sessions and the flavors. The packages also hold the voice
 agent `chora-voice` with its user unit, and the experiments `chora-mc`
 and `chora-construct`. chora-mc uses the fonts Inter and TeX Gyre
-Pagella; the RPM recommends them, on Arch Linux install `inter-font` and
-`tex-gyre-fonts`.
+Pagella. The RPM recommends them. On Arch Linux, install `inter-font`
+and `tex-gyre-fonts`.
 
 ### Fedora Atomic and secureblue
 
