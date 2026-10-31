@@ -1,0 +1,401 @@
+#!/bin/bash
+# Gate of step K2b of the construct track: the window list, windows of
+# other clients as panes on request, and the hand-over back (F29-F31).
+# No window gets lost: after each step, every surface that exists shows
+# on the output (with an owner, visible, opaque and of a nonzero size) or
+# is in the window list, and no surface of another owner has a prop that
+# the construct changed.
+#
+# 1. Overlay over tiling with two foot windows: the load makes no pane
+#    for them; window.list shows both; window.show takes one as a pane,
+#    flies to it, and typed text arrives; construct.leave with one window
+#    flown in and one hidden behind the camera gives both back with their
+#    old geometry, and the keyboard to the window that had it.
+# 2. Overlay lose cases: pane.remove of an own window that closes and of
+#    one that refuses; kill -9 of a taken window while flown in and while
+#    hidden; pane.remove of a taken window gives it back; a second
+#    construct.load; kill -9 of chora-construct.
+# 3. Flavor: a pane far behind the camera shows in the list, and
+#    window.show flies to it; the window list flies to it as well; lose
+#    cases as in 2; window.give and the give rows of the list hand panes
+#    to tiling; kill -9 of the flavor leaves its windows to tiling.
+# 4. One adoption and leave round over chora-xp and over chora-mc.
+#
+# Usage: tests/gate-construct-windows.sh   BIN: directory with the binaries
+#   SHOTS  a directory that keeps the captures as construct-windows-*.png
+# shellcheck disable=SC2016 # until_ok evaluates its code later
+set -u
+. "$(dirname "$0")/gate-lib.sh"
+need_bins chora choractl chora-construct chora-mc chora-tiling chora-xp chora-probe
+need foot
+temp_config
+work=$XDG_CONFIG_HOME
+shots=${SHOTS:-$work}
+mkdir -p "$work/chora/constructs" "$shots"
+# chora-construct starts its programs with `choractl run`.
+export PATH=$bin:$PATH
+export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
+foot=$(command -v foot)
+
+shot() { ctl capture "$@" >/dev/null || fail "capture $*"; }
+call() { ctl call construct "$@"; }
+key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject || fail "inject $1"; }
+# shellcheck disable=SC2028 # \n is the JSON escape, for the core
+type_text() { echo "[{\"text\": {\"text\": \"$1\\n\"}}]" | ctl inject || fail "inject text"; }
+# until_ok CODE [N]: waits up to N/4 s, 10 s by default, for the shell
+# code to succeed.
+until_ok() {
+    for _ in $(seq "${2:-40}"); do
+        eval "$1" && return 0
+        sleep 0.25
+    done
+    return 1
+}
+# sh $work/foot.sh NAME: a foot with the app id NAME that writes its pid
+# to $work/NAME.pid and a typed line to $work/NAME.typed.
+cat >"$work/foot.sh" <<EOF
+echo \$\$ >"$work/\$1.pid"
+exec "$foot" -a "\$1" -f "DejaVu Sans Mono:size=10" sh -c 'echo \$0; read l; printf %s "\$l" >"$work/\$0.typed"; sleep 600' "\$1"
+EOF
+foot_bg() {
+    sh "$work/foot.sh" "$1" &
+    pids+=($!)
+}
+kill9() { kill -9 "$(cat "$work/$1.pid")" || fail "kill -9 $1"; }
+end_foots() {
+    local f
+    for f in "$work"/*.pid; do
+        [ -s "$f" ] && kill "$(cat "$f")" 2>/dev/null
+        rm -f "$f"
+    done
+}
+# The surface id of the window with the app id $1.
+surface() { ctl query kind:surface | python3 -I -c "import json, sys; print(next((n['id'] for n in json.load(sys.stdin) if n['surface'].get('app_id') == '$1'), ''))"; }
+owner() { ctl query "id:$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("owner") if n else "gone")'; }
+panes() { call construct.list | python3 -I -c 'import json, sys; print(" ".join(sorted(p["name"] for p in json.load(sys.stdin)["panes"])))'; }
+# The pane state of the window $1 in window.list.
+state() { call window.list | python3 -I -c "import json, sys; print(next((w['pane'] for w in json.load(sys.stdin)['windows'] if w['name'] == '$1'), 'missing'))"; }
+focused() { ctl query "$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("focused") if n else "")'; }
+# The geometry and the props of the surfaces, by app id.
+geometry() {
+    ctl query kind:surface | python3 -I -c '
+import json, sys
+for n in sorted(json.load(sys.stdin), key=lambda n: n["surface"].get("app_id") or ""):
+    print(n["surface"].get("app_id"), n.get("owner"), n["rects"], n["opacity"], n["visible"], n["transform"])'
+}
+# no_lost STEP: every surface shows or is in the window list (F31).
+no_lost() {
+    ctl query kind:surface >"$work/surfaces.json" || fail "$1: query"
+    ctl query owner:construct >"$work/nodes.json" 2>/dev/null || echo '[]' >"$work/nodes.json"
+    call construct.list >"$work/panes.json" 2>/dev/null || echo '{"panes": []}' >"$work/panes.json"
+    call window.list >"$work/windows.json" 2>/dev/null || echo '{"windows": []}' >"$work/windows.json"
+    python3 -I - "$work" "$1" <<'EOF' || fail "$1: a window is lost"
+import json, sys
+work, step = sys.argv[1], sys.argv[2]
+load = lambda f: json.load(open(f"{work}/{f}.json"))
+nodes = {n["id"]: n for n in load("nodes")}
+panes = {p["surface"] for p in load("panes")["panes"] if "surface" in p}
+listed = {w["surface"] for w in load("windows")["windows"] if w["pane"] != "shown"}
+bad = []
+for n in load("surfaces"):
+    sid, size = n["id"], n["surface"].get("size") or [0, 0]
+    shows = n.get("owner") and n["visible"] and n["opacity"] > 0 and n["rects"]
+    if min(size) <= 0:
+        bad.append(f"{sid}: size {size}")
+    elif n.get("owner") not in (None, "construct") and (n["opacity"] <= 0 or not n["visible"]):
+        bad.append(f"{sid} of {n['owner']}: opacity {n['opacity']}, visible {n['visible']}")
+    elif sid in panes:
+        pane = nodes.get(f"construct-pane-{sid}", {})
+        if not (pane.get("visible") and pane.get("rects")) and sid not in listed:
+            bad.append(f"{sid}: a pane that neither shows nor is listed")
+    elif not shows and sid not in listed:
+        bad.append(f"{sid} of {n.get('owner')}: neither shows nor is listed")
+if bad:
+    print(f"{step}:", *bad, sep="\n  ", file=sys.stderr)
+    sys.exit(1)
+EOF
+}
+# construct NAME [ARGS]: chora-construct in the background, its pid in $cpid.
+construct() {
+    local name=$1
+    shift
+    "$bin/chora-construct" "$@" >"$work/construct-$name.log" 2>&1 &
+    cpid=$!
+    pids+=("$cpid")
+}
+# session STARTUP: a headless session, its pid in $spid.
+session() {
+    session_start 1280x800 -- "$@"
+    spid=${pids[-1]}
+    # shellcheck disable=SC2154 # the trap sets s itself
+    trap 's=$?; end_foots; gate_cleanup $s' EXIT
+    grant screen.capture input.inject
+}
+quit() {
+    end_foots
+    kill "$cpid" "$spid" 2>/dev/null
+    wait "$cpid" "$spid" 2>/dev/null
+}
+probe="$bin/chora-probe window 200 40 40"
+printf 'panes: []\n' >"$work/chora/constructs/empty.yaml"
+cat >"$work/chora/constructs/own.yaml" <<EOF
+panes:
+- kind: program
+  command: sh $work/foot.sh o1
+  size: [640, 400]
+- kind: program
+  command: sh $work/foot.sh o2
+EOF
+cat >"$work/chora/constructs/flav.yaml" <<EOF
+radius: 6000
+panes:
+$(for f in f1 f2 f3 f4 f5 f6; do printf -- '- kind: program\n  command: sh %s/foot.sh %s\n  size: [640, 400]\n' "$work" "$f"; done)
+- kind: program
+  command: $probe
+EOF
+
+# 1. Overlay over tiling.
+session "$bin/chora-tiling"
+foot_bg t1
+until_ok 'test -n "$(surface t1)"' || fail "no t1"
+foot_bg t2
+until_ok 'test "$(ctl query "kind:surface owner:tiling" | grep -c app_id)" = 2' || fail "tiling took not both windows"
+sleep 1
+t1=$(surface t1)
+t2=$(surface t2)
+before=$(geometry)
+had=$(ctl query kind:surface | python3 -I -c 'import json, sys; print(next(n["surface"]["app_id"] for n in json.load(sys.stdin) if n.get("focused")))')
+construct overlay --overlay
+until_ok 'call construct.list >/dev/null 2>&1' || fail "the overlay does not answer"
+call construct.load '{"name": "empty"}' >/dev/null || fail "construct.load"
+ctl wait --timeout 10 id:construct-look >/dev/null || fail "no space over tiling"
+sleep 1
+[ -z "$(panes)" ] || fail "the load made panes: $(panes)"
+[ "$(state t1)/$(state t2)" = none/none ] || fail "window.list: t1 $(state t1), t2 $(state t2)"
+no_lost "overlay load"
+ok "the overlay load made no pane for the tiling windows; window.list shows both without a pane"
+
+key Tab
+ctl wait --timeout 5 id:construct-list >/dev/null || fail "Tab opened no list"
+key Down
+sleep 0.5
+shot "$shots/construct-windows-overlay.png"
+key Escape
+ctl wait --gone --timeout 5 id:construct-list >/dev/null || fail "Escape left the list open"
+ok "Tab opened the window list, Escape closed it"
+
+call window.show '{"name": "t2"}' >/dev/null || fail "window.show t2"
+until_ok 'test "$(panes)" = t2' || fail "t2 became no pane: $(panes)"
+sleep 1
+call pane.move '{"name": "t2", "ahead": -4000}' >/dev/null || fail "pane.move t2"
+call window.show '{"name": "t1"}' >/dev/null || fail "window.show t1"
+sleep 1.5
+[ "$(state t2)" != shown ] || fail "t2 behind the camera is shown"
+type_text "hello t1"
+until_ok 'test "$(cat "$work/t1.typed" 2>/dev/null)" = "hello t1"' || fail "t1 got: $(cat "$work/t1.typed" 2>/dev/null)"
+[ "$(owner "$t1")/$(owner "$t2")" = tiling/tiling ] || fail "the owners changed: $(owner "$t1") $(owner "$t2")"
+no_lost "overlay show"
+shot "$shots/construct-windows-overlay-flown.png"
+ok "window.show took t1 as a pane and flew to it, and the text arrived; t2 waits behind the camera"
+
+call construct.leave >/dev/null || fail "construct.leave"
+ctl wait --gone --timeout 5 owner:construct >/dev/null || fail "construct nodes stay"
+sleep 1
+after=$(geometry)
+[ "$after" = "$before" ] || fail "the windows changed: before
+$before
+after
+$after"
+until_ok 'test "$(focused "id:$(surface "$had")")" = True' || fail "the keyboard did not go back to $had"
+type_text "back"
+until_ok 'test "$(cat "$work/$had.typed" 2>/dev/null)" = back' || fail "$had got no text after the leave"
+no_lost "overlay leave"
+shot "$shots/construct-windows-left.png"
+ok "construct.leave gave back t1 (flown in) and t2 (hidden) with their geometry, and the keyboard to $had"
+
+# 2. Overlay lose cases.
+foot_bg k1
+foot_bg k2
+until_ok 'test -n "$(surface k2)"' || fail "no k2"
+call construct.load '{"name": "own"}' >/dev/null || fail "construct.load own"
+until_ok 'test "$(panes)" = "o1 o2"' || fail "own: the panes are $(panes)"
+no_lost "overlay own"
+call pane.remove '{"name": "o1"}' >/dev/null || fail "pane.remove o1"
+until_ok 'test "$(panes)" = o2' || fail "o1 did not close: $(panes)"
+no_lost "overlay remove o1"
+ok "overlay: pane.remove closed the own window o1"
+
+call window.show '{"name": "k1"}' >/dev/null || fail "window.show k1"
+sleep 1.5
+kill9 k1
+until_ok 'test "$(panes)" = o2' || fail "the pane of the killed k1 stays: $(panes)"
+# The owner may give the keyboard to another of its windows; a press on
+# the space takes it back.
+sleep 1
+echo '[{"pointer_move": {"position": [4, 4]}}, {"click": {}}]' | ctl inject || fail "inject click"
+until_ok 'test "$(focused id:construct-look)" = True' || fail "the space has no keyboard after k1 died and a click"
+no_lost "overlay kill flown"
+call window.show '{"name": "k2"}' >/dev/null || fail "window.show k2"
+call pane.move '{"name": "k2", "ahead": -4000}' >/dev/null || fail "pane.move k2"
+sleep 1
+kill9 k2
+until_ok 'test "$(panes)" = o2' || fail "the pane of the killed k2 stays: $(panes)"
+no_lost "overlay kill hidden"
+ok "overlay: kill -9 of a taken window flown in and hidden removed its pane"
+
+call window.show '{"name": "t1"}' >/dev/null || fail "window.show t1 again"
+sleep 1.5
+call pane.remove '{"name": "t1"}' >/dev/null || fail "pane.remove t1"
+until_ok 'test "$(panes)" = o2' || fail "t1 stays a pane: $(panes)"
+[ "$(owner "$t1")" = tiling ] || fail "t1 is not with tiling: $(owner "$t1")"
+no_lost "overlay give back t1"
+call window.show '{"name": "t2"}' >/dev/null || fail "window.show t2 again"
+call construct.load '{"name": "empty"}' >/dev/null || fail "the second construct.load"
+until_ok 'test -z "$(panes)"' || fail "the second load kept panes: $(panes)"
+[ "$(owner "$t2")" = tiling ] || fail "t2 is not with tiling: $(owner "$t2")"
+[ "$(owner "$(surface o2)")" = tiling ] || fail "the own window o2 is not with tiling: $(owner "$(surface o2)")"
+no_lost "overlay second load"
+ok "overlay: pane.remove gave t1 back; a second load gave t2 back and left the own o2 to tiling"
+
+call window.show '{"name": "t1"}' >/dev/null || fail "window.show t1 before the kill"
+call window.show '{"name": "t2"}' >/dev/null || fail "window.show t2 before the kill"
+key Tab
+sleep 1
+kill -9 "$cpid"
+wait "$cpid" 2>/dev/null
+# The core keeps the nodes of a plugin with resume for 10 s.
+until_ok 'test "$(ctl query owner:construct)" = "[]"' 80 || fail "construct nodes stay after the kill"
+no_lost "overlay kill -9 construct"
+[ "$(owner "$t1")/$(owner "$t2")" = tiling/tiling ] || fail "after the kill: $(owner "$t1") $(owner "$t2")"
+ok "kill -9 of the overlay left every window shown and with tiling"
+quit
+
+# 3. Flavor.
+session
+construct flavor
+ctl wait --timeout 10 id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$work/construct-flavor.log")"
+call construct.load '{"name": "flav"}' >/dev/null || fail "construct.load flav"
+until_ok 'test "$(panes)" = "chora-probe f1 f2 f3 f4 f5 f6"' 80 || fail "flav: the panes are $(panes); windows: $(geometry)"
+sleep 1
+no_lost "flavor load"
+call pane.move '{"name": "f1", "ahead": -6000}' >/dev/null || fail "pane.move f1"
+sleep 0.5
+[ "$(state f1)" = behind ] || fail "f1 far behind the camera is $(state f1)"
+key Tab
+ctl wait --timeout 5 id:construct-list >/dev/null || fail "Tab opened no list"
+sleep 0.5
+shot "$shots/construct-windows-flavor.png"
+key Return
+sleep 1.5
+[ "$(state f1)" = shown ] || fail "the list did not fly to f1: $(state f1)"
+key Alt+Escape
+sleep 1
+call pane.move '{"name": "f1", "ahead": -6000}' >/dev/null || fail "pane.move f1 again"
+sleep 0.5
+call window.show '{"name": "f1"}' >/dev/null || fail "window.show f1"
+sleep 1.5
+[ "$(state f1)" = shown ] || fail "window.show did not fly to f1: $(state f1)"
+type_text "hello f1"
+until_ok 'test "$(cat "$work/f1.typed" 2>/dev/null)" = "hello f1"' || fail "f1 got: $(cat "$work/f1.typed" 2>/dev/null)"
+key Alt+Escape
+sleep 1
+no_lost "flavor show"
+ok "flavor: f1 far behind the camera is in the list; Return and window.show flew to it, and text arrived"
+
+call pane.remove '{"name": "f2"}' >/dev/null || fail "pane.remove f2"
+until_ok '! panes | grep -qw f2' || fail "f2 did not close"
+no_lost "flavor remove f2"
+call pane.remove '{"name": "chora-probe"}' >/dev/null || fail "pane.remove chora-probe"
+sleep 1
+panes | grep -qw chora-probe || fail "the probe that refuses lost its pane"
+no_lost "flavor remove probe"
+kill9 f3
+until_ok '! panes | grep -qw f3' || fail "the pane of the killed f3 stays"
+no_lost "flavor kill pane"
+call window.show '{"name": "f4"}' >/dev/null || fail "window.show f4"
+sleep 1.5
+kill9 f4
+until_ok '! panes | grep -qw f4' || fail "the pane of the killed f4 stays"
+until_ok 'test "$(focused id:construct-look)" = True' || fail "the space has no keyboard after f4 died"
+no_lost "flavor kill flown"
+call pane.move '{"name": "f5", "ahead": -6000}' >/dev/null || fail "pane.move f5"
+sleep 0.5
+kill9 f5
+until_ok '! panes | grep -qw f5' || fail "the pane of the killed f5 stays"
+no_lost "flavor kill hidden"
+call construct.load '{"name": "empty"}' >/dev/null || fail "construct.load empty"
+sleep 1
+[ "$(panes)" = "chora-probe f1 f6" ] || fail "the flavor lost window panes on a load: $(panes)"
+no_lost "flavor second load"
+ok "flavor: pane.remove closed f2, the probe refused; kill -9 flown, hidden and shown; a second load kept the windows"
+
+"$bin/chora-tiling" >"$work/tiling.log" 2>&1 &
+pids+=($!)
+sleep 2
+# The list first: the window that tiling takes then takes the keyboard.
+probe_id=$(surface chora-probe)
+call pane.move '{"name": "chora-probe", "ahead": -6000}' >/dev/null || fail "pane.move probe"
+sleep 0.5
+row=$(call window.list | python3 -I -c '
+import json, sys
+rows = [w["name"] for w in json.load(sys.stdin)["windows"] if w["pane"] != "shown"]
+print(rows.index("chora-probe"))')
+key Tab
+ctl wait --timeout 5 id:construct-list >/dev/null || fail "Tab opened no list"
+for _ in $(seq "$row"); do key Down; done
+key g
+sleep 0.5
+shot "$shots/construct-windows-give.png"
+key Return
+until_ok 'test "$(owner "$probe_id")" = tiling' || fail "the give row did not give the probe to tiling: $(owner "$probe_id")"
+no_lost "flavor give probe"
+f1=$(surface f1)
+call window.give "{\"surface\": \"$f1\", \"to\": \"tiling\"}" >/dev/null || fail "window.give f1"
+until_ok 'test "$(owner "$f1")" = tiling' || fail "f1 is not with tiling: $(owner "$f1")"
+panes | grep -qw f1 && fail "f1 stays a pane"
+no_lost "flavor give f1"
+ok "the give rows of the list and window.give handed chora-probe and f1 to tiling"
+
+f6=$(surface f6)
+kill -9 "$cpid"
+wait "$cpid" 2>/dev/null
+# After the grace time of resume (10 s), the core frees the windows.
+until_ok 'test "$(owner "$f6")" = tiling' 80 || fail "f6 is not with tiling after the kill: $(owner "$f6")"
+no_lost "flavor kill -9 construct"
+ok "kill -9 of the flavor freed f6, and tiling took it"
+quit
+
+# 4. Over chora-xp and chora-mc: one adoption and leave round each.
+round() {
+    local wm=$1 id
+    sleep 1
+    before=$(geometry)
+    construct "over-$wm" --overlay
+    until_ok 'call construct.list >/dev/null 2>&1' || fail "$wm: the overlay does not answer"
+    call construct.load '{"name": "empty"}' >/dev/null || fail "$wm: construct.load"
+    id=$(call window.list | python3 -I -c "import json, sys; print(next(w['surface'] for w in json.load(sys.stdin)['windows'] if w['owner'] == '$wm'))") ||
+        fail "$wm: window.list has no window of $wm"
+    call window.show "{\"name\": \"$id\"}" >/dev/null || fail "$wm: window.show"
+    sleep 1.5
+    [ -n "$(panes)" ] || fail "$wm: no pane"
+    no_lost "$wm show"
+    call construct.leave >/dev/null || fail "$wm: construct.leave"
+    ctl wait --gone --timeout 5 owner:construct >/dev/null || fail "$wm: construct nodes stay"
+    sleep 1
+    [ "$(geometry)" = "$before" ] || fail "$wm: the windows changed: before
+$before
+after
+$(geometry)"
+    no_lost "$wm leave"
+    ok "over $wm: window.show took its window as a pane, and construct.leave gave it back as it was"
+    quit
+}
+session "$bin/chora-xp" --theme "$repo/flavors/xp/theme"
+foot_bg x1
+until_ok 'test "$(owner "$(surface x1)")" = xp' || fail "xp took no window"
+round xp
+session "$bin/chora-mc"
+ctl wait --timeout 10 'owner:mc meta:pane=mission' >/dev/null || fail "mc shows no page"
+ctl call mc scene.show '{"name": "terminal"}' >/dev/null || fail "scene.show terminal"
+until_ok 'ctl query "kind:surface owner:mc" | grep -q app_id' || fail "mc took no window"
+round mc
