@@ -208,6 +208,9 @@ const SOUND_GAP: Duration = Duration::from_millis(1500);
 
 /// Words that played within this time count for the echo filter.
 const ECHO_MEMORY: Duration = Duration::from_secs(3);
+/// The most texts that wait to be said: a flood of a looping sub-agent
+/// drops the oldest.
+const NOTES: usize = 8;
 
 pub struct Core {
     config: Config,
@@ -474,7 +477,7 @@ impl Core {
         // A coding result waits for the agent to listen: it cuts no
         // speech of the user.
         if matches!(self.state, State::Listening | State::Working)
-            && let Some(note) = self.notes.pop_front()
+            && let Some(note) = self.next_note()
         {
             let mut ask = self.ask(note.text, true);
             if let Some(Effect::Ask { voice, .. }) = ask.first_mut() {
@@ -487,6 +490,30 @@ impl Core {
             self.refresh();
         }
         effects
+    }
+
+    /// A text to say when the agent listens. A question replaces the
+    /// questions of the same sub-agent that wait, which are a no.
+    fn note(&mut self, note: Note) {
+        if let Some((name, _)) = &note.ask {
+            (self.notes).retain(|n| n.ask.as_ref().is_none_or(|(other, _)| other != name));
+        }
+        self.notes.push_back(note);
+        while self.notes.len() > NOTES {
+            self.notes.pop_front();
+        }
+    }
+
+    /// The next text to say; a question that its agent dropped, for
+    /// example after a cancel, is gone.
+    fn next_note(&mut self) -> Option<Note> {
+        let closed = |n: &Note| n.ask.as_ref().is_some_and(|(_, a)| a.is_closed());
+        while let Some(note) = self.notes.pop_front() {
+            if !closed(&note) {
+                return Some(note);
+            }
+        }
+        None
     }
 
     /// The sub-agents by name, for the HUD.
@@ -506,7 +533,7 @@ impl Core {
                     self.sub_confirm = None;
                 }
             }
-            agents::Event::Said { voice, text } => self.notes.push_back(Note {
+            agents::Event::Said { voice, text } => self.note(Note {
                 text,
                 voice: Some(voice),
                 ask: None,
@@ -516,7 +543,7 @@ impl Core {
                 voice,
                 prompt,
                 answer,
-            } => self.notes.push_back(Note {
+            } => self.note(Note {
                 text: prompt,
                 voice: Some(voice),
                 ask: Some((name, answer)),
@@ -549,7 +576,7 @@ impl Core {
             coder::Event::Done { ok, said } => {
                 self.code.1 = if ok { "done" } else { "blocked" };
                 self.code.2.clone_from(&said);
-                self.notes.push_back(said.into());
+                self.note(said.into());
             }
         }
         self.seq += 1;
@@ -762,7 +789,7 @@ impl Core {
                 // A request says so when the agent listens again.
                 let phrase = &self.config.phrases.asr_failed;
                 if heard && !self.notes.iter().any(|n| n.text == *phrase) {
-                    self.notes.push_back(phrase.clone().into());
+                    self.note(phrase.clone().into());
                 }
                 return self.earcon(Earcon::Error).into_iter().collect();
             }
@@ -1148,6 +1175,52 @@ mod tests {
         say(&mut core, "Ja.");
         assert_eq!(rx.try_recv(), Ok(true));
         assert_eq!(core.state(), State::Working);
+    }
+
+    /// A looping sub-agent: its new question replaces its old ones, a
+    /// dropped question is not spoken, and the texts that wait are few.
+    #[test]
+    fn the_texts_of_sub_agents_are_bounded() {
+        let mut core = with_coder();
+        call(&mut core, Call::Sleep);
+        let ask = |prompt: &str| {
+            let (answer, rx) = oneshot::channel();
+            let name = "coder".into();
+            let (voice, prompt) = ("ryan".into(), prompt.into());
+            let ask = agents::Event::Ask {
+                name,
+                voice,
+                prompt,
+                answer,
+            };
+            (Input::Agent(ask), rx)
+        };
+        let (first, mut rx1) = ask("Eins?");
+        core.handle(first);
+        let (second, mut rx2) = ask("Zwei?");
+        core.handle(second);
+        let closed = Err(oneshot::error::TryRecvError::Closed);
+        assert_eq!(rx1.try_recv(), closed, "replaced: a no");
+        for i in 0..20 {
+            let said = agents::Event::Said {
+                voice: "ryan".into(),
+                text: format!("Satz {i}."),
+            };
+            core.handle(Input::Agent(said));
+        }
+        assert_eq!(core.notes.len(), NOTES);
+        assert_eq!(rx2.try_recv(), closed, "the oldest went");
+        let (third, rx3) = ask("Drei?");
+        core.handle(third);
+        drop(rx3);
+        let texts: Vec<&str> = core.notes.iter().map(|n| n.text.as_str()).collect();
+        assert_eq!(texts.last(), Some(&"Drei?"));
+        // Awake, it says the sentences one by one, but not the dropped
+        // question.
+        core.notes.retain(|n| n.ask.is_some());
+        let (effects, _) = call(&mut core, Call::Wake);
+        assert!(no_ask(&effects), "{effects:?}");
+        assert!(core.notes.is_empty());
     }
 
     /// The name of an ACP agent addresses it without the LLM.

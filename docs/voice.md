@@ -935,6 +935,9 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
 - Speech: at the end of a turn, its last message is spoken in the voice
   of the agent (`agent_voices` in turn, or the `voice` of
   `agent_start`), queued as the coder results: never over the user.
+  At most 8 texts wait; more drop the oldest. A new question of an
+  agent replaces its question that waits, and a question that the
+  agent dropped is not spoken.
   More than `agent_said_chars` characters speak the first sentence and
   `phrases.details`. The history of the LLM gets the spoken text.
 - Questions: a permission request is spoken as `agent_asks` ("Atlas
