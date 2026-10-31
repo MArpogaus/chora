@@ -475,28 +475,15 @@ impl Agents {
         lines.join("\n")
     }
 
-    /// Stops all agents and waits up to 5 s for their processes, then
-    /// kills what is left: at the exit of the voice agent.
+    /// Stops all agents and ends their process groups and those of the
+    /// coder (`coder::end_groups`): at the exit of the voice agent.
     pub fn shutdown(&self) {
         let pids: Vec<u32> = {
             let mut inner = self.lock();
             let subs = std::mem::take(&mut inner.subs);
             subs.into_values().filter_map(|s| s.pid).collect()
         };
-        let alive = |pid: &u32| {
-            std::fs::read_to_string(format!("/proc/{pid}/stat"))
-                .is_ok_and(|stat| !stat.contains(") Z "))
-        };
-        let start = Instant::now();
-        while pids.iter().any(alive) && start.elapsed() < Duration::from_secs(5) {
-            std::thread::sleep(Duration::from_millis(50));
-        }
-        for pid in pids.iter().filter(|p| alive(p)) {
-            crate::log::warn(&format!("agent pid {pid} ignored TERM; KILL"));
-            let _ = std::process::Command::new("kill")
-                .args(["-s", "KILL", "--", &format!("-{pid}")])
-                .status();
-        }
+        crate::coder::end_groups(&pids);
     }
 
     /// Changes the agent of actor `id` and reports it.
@@ -712,7 +699,7 @@ impl Actor {
         mut cmds: mpsc::UnboundedReceiver<Cmd>,
     ) -> Result<bool, String> {
         let (mut child, mut rpc) = spawn(command, dir, log).await?;
-        let _group = Group(child.id());
+        let _group = Group::new(child.id());
         let pid = child.id();
         self.agents.update(&self.name, self.id, |s| s.pid = pid);
         let mut lines = read_lines(child.stdout.take().expect("piped"));
@@ -1115,6 +1102,36 @@ mod tests {
         );
     }
 
+    /// At the exit, the group of an agent ends also when its leader has
+    /// ended already: the other processes of the group count. Not through
+    /// `shutdown`, which would end the agents of the other tests.
+    #[test]
+    fn shutdown_ends_the_group_without_its_leader() {
+        use std::os::unix::process::CommandExt;
+        let mut leader = std::process::Command::new("sh")
+            .args(["-c", "sleep 30 & exit 0"])
+            .process_group(0)
+            .spawn()
+            .unwrap();
+        let pgid = leader.id();
+        leader.wait().unwrap();
+        let group = format!("-{pgid}");
+        let signal = |signal: &str| {
+            std::process::Command::new("kill")
+                .args(["-s", signal, "--", &group])
+                .stderr(Stdio::null())
+                .status()
+                .unwrap()
+                .success()
+        };
+        assert!(signal("0"), "the sleep runs");
+        crate::coder::end(vec![pgid]);
+        let ended = !crate::coder::group_alive(pgid);
+        // Never leave the sleep behind.
+        signal("KILL");
+        assert!(ended, "the group runs on");
+    }
+
     /// The words of an agent that talks on and on are cut.
     #[test]
     fn a_long_message_is_cut() {
@@ -1166,7 +1183,7 @@ mod tests {
             unreachable!()
         };
         assert!(text.starts_with("Erlaubt"), "{text}");
-        agents.shutdown();
+        agents.stop("demo");
         let _ = std::fs::remove_dir_all(&data);
     }
 
@@ -1256,7 +1273,7 @@ exec cat >/dev/null"#;
         });
         let _ = until(rx, |e| is_state(e, "idle")).await;
         poke.await.unwrap();
-        agents.shutdown();
+        agents.stop("split");
         let _ = std::fs::remove_dir_all(&data);
     }
 

@@ -968,7 +968,9 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   and every message (`>` sent, `<` received).
 - Lifetime: `agent_stop` and the end of the voice agent (an error,
   `SIGTERM`, `SIGINT`) send `TERM` to the process group of each agent
-  and `KILL` after 5 s. The agents do not survive a restart.
+  and `KILL` after 5 s. At the end, the voice agent waits until no
+  process of these groups and of the coder runs; a zombie counts as
+  ended. The agents do not survive a restart.
 
 Tests: `tests/fake-acp.sh` is a fake agent (plan, tool call, question,
 long answer); the unit test of `agents.rs` runs it through a prompt, a

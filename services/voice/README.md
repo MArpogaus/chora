@@ -437,7 +437,8 @@ Each agent logs its stderr and all ACP messages (`>` sent, `<`
 received) to `~/.local/share/chora/agents/NAME.log`. The agents end
 with the voice agent: a stop, `SIGTERM` or `SIGINT` sends `TERM` to
 the process group of each agent (`podman run --rm` then removes its
-container), and `KILL` after 5 s. They do not survive a restart of the
+container), and `KILL` after 5 s; the voice agent exits once the
+groups ended. They do not survive a restart of the
 voice agent; start them again.
 
 chora-mc shows each agent in the status line and in the `agents` scene:
