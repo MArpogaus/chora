@@ -292,8 +292,10 @@ impl Theme {
             scale: 1.0,
             pictures: HashMap::new(),
         };
+        #[allow(clippy::expect_used, reason = "a 1x1 pixmap has a valid size")]
+        let blank = Pixmap::new(1, 1).expect("one pixel");
         theme.blank = theme
-            .write(0, &Pixmap::new(1, 1).expect("one pixel"))
+            .write(0, &blank)
             .map_err(|e| format!("{}: {e}", cache.display()))?;
         Ok(theme)
     }

@@ -470,6 +470,7 @@ impl Wm {
         commands
     }
 
+    #[allow(clippy::expect_used, reason = "KEYS holds valid bindings")]
     fn grab(&mut self) -> Result<(), ClientError> {
         for (binding, fallback, key) in KEYS {
             for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
@@ -1455,9 +1456,16 @@ impl Wm {
         if on == self.system_key.is_some() {
             return;
         }
-        let binding = match self.system_key.take() {
-            Some(held) => held.parse().expect("the binding of the grab"),
-            None => "Alt+space".parse().expect("a valid binding"),
+        let parsed: Result<Binding, _> = match self.system_key.take() {
+            Some(held) => held.parse(),
+            None => "Alt+space".parse(),
+        };
+        let binding = match parsed {
+            Ok(binding) => binding,
+            Err(err) => {
+                eprintln!("chora-xp: {err}");
+                return;
+            }
         };
         if on {
             match self
@@ -1505,7 +1513,13 @@ impl Wm {
     /// Takes Alt+Escape from the clients only while the switcher shows,
     /// so that it cancels the switch.
     fn grab_switch_escape(&mut self) {
-        let binding = "Alt+Escape".parse().expect("a valid binding");
+        let binding = match "Alt+Escape".parse() {
+            Ok(binding) => binding,
+            Err(err) => {
+                eprintln!("chora-xp: {err}");
+                return;
+            }
+        };
         match self
             .rt
             .conn
@@ -1518,13 +1532,16 @@ impl Wm {
 
     /// Closes the switcher and gives Alt+Escape back.
     fn end_switch(&mut self) -> Option<Switcher> {
-        if let Some(binding) = self.switch_escape.take() {
-            let binding = binding.parse().expect("the binding of the grab");
-            if let Err(err) = self
-                .rt
-                .conn
-                .call::<_, Value>("input.ungrab", Grab { binding })
-            {
+        if let Some(normal) = self.switch_escape.take() {
+            let ungrab = normal
+                .parse::<Binding>()
+                .map_err(|e| e.to_string())
+                .and_then(|binding| {
+                    (self.rt.conn)
+                        .call::<_, Value>("input.ungrab", Grab { binding })
+                        .map_err(|e| e.to_string())
+                });
+            if let Err(err) = ungrab {
                 eprintln!("chora-xp: {err}");
             }
         }
