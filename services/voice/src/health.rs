@@ -95,12 +95,19 @@ const PROBE: Duration = Duration::from_secs(30);
 pub type Socket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
+/// Installs the ring crypto provider of rustls for the https and wss
+/// clients. Err: a provider is set already, which is fine.
+pub fn install_tls() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
 /// A websocket to the server `b`, with its headers.
 ///
 /// # Errors
 ///
 /// A wrong URL or header, or no connection.
 pub async fn connect(b: &Backend) -> Result<Socket, String> {
+    install_tls();
     let fail = |e: &dyn std::fmt::Display| format!("{}: {e}", b.url);
     let mut request = b.url.as_str().into_client_request().map_err(|e| fail(&e))?;
     for (name, value) in &b.headers {

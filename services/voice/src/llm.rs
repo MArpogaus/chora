@@ -75,13 +75,14 @@ fn secs(s: u32) -> Duration {
 
 impl Llm {
     pub fn new(config: &Config) -> Self {
+        crate::health::install_tls();
         Self {
             // The server is on the local network: no proxy.
             http: reqwest::Client::builder()
                 .no_proxy()
                 .connect_timeout(Duration::from_secs(5))
                 .build()
-                .expect("a client without TLS builds"),
+                .expect("the client builds"),
             url: config.llm_url.trim_end_matches('/').to_owned(),
             model: config.llm_model.clone(),
             headers: config.llm().map(|b| b.headers),
