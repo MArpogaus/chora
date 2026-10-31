@@ -4,7 +4,7 @@
 pkgname=chora
 pkgver=@VERSION@
 pkgrel=1
-pkgdesc='Wayland compositor without policy, programmable by plugins and agents'
+pkgdesc='Wayland compositor without policy, programmable by plugins and agents (chora-mc and chora-construct experimental)'
 arch=(x86_64)
 url='https://github.com/MArpogaus/chora'
 # The code is GPL-3.0-or-later; the theme of the XP flavor adds artwork,
@@ -44,7 +44,7 @@ build() {
 package() {
   cd "$CHORA_SOURCE"
   local bin
-  for bin in chora choractl chora-tiling chora-xp chora-mc chora-voice; do
+  for bin in chora choractl chora-tiling chora-xp chora-mc chora-voice chora-construct; do
     install -Dm755 "target/release/$bin" "$pkgdir/usr/bin/$bin"
   done
   install -Dm755 dist/session/chora-session dist/session/chora-flavor -t "$pkgdir/usr/bin/"
@@ -80,6 +80,7 @@ package() {
   # chora-mc has its scenes, settings and shaders built in; the collectors
   # that fill the scenes run from here.
   install -Dm755 plugins/chora-mc/collectors/* -t "$pkgdir/usr/share/chora/mc/collectors/"
+  install -Dm644 flavors/construct/* -t "$pkgdir/usr/share/chora/flavors/construct/"
   install -Dm644 flavors/xp/chora-xp* -t "$pkgdir/usr/share/chora/flavors/xp/"
   local dir
   for dir in . expose fonts wallpaper winxp; do

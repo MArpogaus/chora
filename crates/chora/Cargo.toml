@@ -73,6 +73,8 @@ assets = [
   { source = "../../flavors/tiling/waybar/*", dest = "/usr/share/chora/flavors/tiling/waybar/", mode = "644" },
   { source = "../../dist/shaders/*", dest = "/usr/share/chora/shaders/", mode = "644" },
   { source = "../../dist/plugins/*", dest = "/usr/share/chora/plugins/", mode = "644" },
+  { source = "target/release/chora-construct", dest = "/usr/bin/chora-construct", mode = "755" },
+  { source = "../../flavors/construct/*", dest = "/usr/share/chora/flavors/construct/", mode = "644" },
   { source = "../../flavors/xp/chora-xp*", dest = "/usr/share/chora/flavors/xp/", mode = "644" },
   { source = "../../flavors/xp/theme/*", dest = "/usr/share/chora/flavors/xp/theme/", mode = "644" },
   { source = "../../flavors/xp/theme/expose/*", dest = "/usr/share/chora/flavors/xp/theme/expose/", mode = "644" },
@@ -94,4 +96,6 @@ license = "GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-o
 recommends = { pipewire-utils = "*", podman = "*", uwsm = "*", foot = "*", fuzzel = "*", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*", rsms-inter-fonts = "*", texlive-tex-gyre = "*" }
 # Smithay loads libEGL at runtime, so auto-req does not see it.
 requires = { mesa-libEGL = "*" }
-summary = "Wayland compositor without policy, programmable by plugins and agents"
+# cargo-generate-rpm has no long description; the summary names the
+# experiments, whose methods and files change without notice.
+summary = "Wayland compositor without policy, programmable by plugins and agents (chora-mc and chora-construct experimental)"

@@ -18,6 +18,7 @@ for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
     usr/bin/chora-mc usr/share/chora/mc/collectors/agenda.sh \
     usr/bin/chora-voice usr/lib/systemd/user/chora-voice.service \
     usr/share/chora/voice/quadlets/gufo-llm.container \
+    usr/bin/chora-construct usr/share/chora/flavors/construct/chora-construct.target \
     usr/share/wayland-sessions/chora.desktop usr/share/wayland-sessions/chora-uwsm.desktop \
     etc/xdg/uwsm/env-chora usr/share/chora/flavors/tiling/waybar/config.jsonc \
     usr/share/xdg-desktop-portal/chora-portals.conf etc/xdg/xdg-desktop-portal-wlr/chora \
