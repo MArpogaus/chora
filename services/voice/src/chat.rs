@@ -1010,13 +1010,21 @@ impl Chat {
             .all(|t| node(t).is_some_and(own) && nodes.iter().all(|n| own(n) || !under(n, t)))
     }
 
-    /// Drops the oldest whole turns until the estimate fits `budget`;
-    /// the turn in progress stays.
+    /// Drops the oldest whole turns until the estimate fits `budget` and
+    /// the history fits `history_tokens` (characters / 4); a turn starts
+    /// at a user message, so a tool call keeps its results. The last turn
+    /// stays (dump 2026-10-31: 220 messages of cut answers, and the LLM
+    /// copied them).
     fn fit(&mut self, budget: u32, fixed: usize) {
+        let limit = match self.config.history_tokens {
+            0 => usize::MAX,
+            n => n as usize * 4,
+        };
         loop {
+            let history = size(&self.history);
             #[allow(clippy::cast_precision_loss)]
-            let tokens = (fixed + size(&self.history)) as f64 / self.chars_per_token;
-            if tokens <= f64::from(budget) {
+            let tokens = (fixed + history) as f64 / self.chars_per_token;
+            if tokens <= f64::from(budget) && history <= limit {
                 return;
             }
             let Some(next) = self
@@ -2000,6 +2008,41 @@ mod tests {
             "{}",
             chat.chars_per_token
         );
+    }
+
+    /// `history_tokens` drops the oldest whole turns, each with its tool
+    /// calls and their results, also within the context budget (dump
+    /// 2026-10-31: 221 messages, 33k tokens).
+    #[tokio::test]
+    async fn history_tokens_drops_whole_turns_with_their_tool_pairs() {
+        let config = Config {
+            history_tokens: 150,
+            ..Config::default()
+        };
+        let (mut chat, _server) = chat(Vec::new(), config).await;
+        for i in 0..6 {
+            let id = format!("call{i}");
+            chat.history.extend([
+                json!({"role": "user", "content": format!("Bitte {i}.")}),
+                json!({"role": "assistant", "content": "", "tool_calls": [
+                    {"id": id, "type": "function",
+                     "function": {"name": "echo", "arguments": "{}"}}]}),
+                json!({"role": "tool", "tool_call_id": id, "content": "x".repeat(100)}),
+                json!({"role": "assistant", "content": "Fertig."}),
+            ]);
+        }
+        chat.fit(u32::MAX, 0);
+        let history = &chat.history;
+        assert!(history.len() < 24 && history.len() >= 4, "{history:?}");
+        assert!(size(history) <= 600);
+        assert_eq!(history[0]["role"], "user");
+        for (i, m) in history.iter().enumerate() {
+            if m["role"] == "tool" {
+                let id = &m["tool_call_id"];
+                let calls = history[..i].iter().flat_map(|m| m["tool_calls"].as_array());
+                assert!(calls.flatten().any(|c| c["id"] == *id), "{id}");
+            }
+        }
     }
 
     #[tokio::test]

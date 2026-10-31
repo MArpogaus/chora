@@ -235,6 +235,9 @@ pub struct Config {
     pub reply_reserve_tokens: u32,
     pub tool_rounds: u32,
     pub old_tool_chars: u32,
+    /// The messages after the system prompt keep at most this many
+    /// tokens, estimated as characters / 4; 0: only the context budget.
+    pub history_tokens: u32,
     pub saved_requests: u32,
     pub reasoning_effort: String,
     pub phrases: Phrases,
@@ -797,6 +800,7 @@ impl Default for Config {
             reply_reserve_tokens: 1024,
             tool_rounds: 10,
             old_tool_chars: 500,
+            history_tokens: 12_000,
             saved_requests: 20,
             reasoning_effort: "none".into(),
             phrases: Phrases::default(),
