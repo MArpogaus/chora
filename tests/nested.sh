@@ -98,13 +98,14 @@ jq -e '
   | any | not' "$out/tiled.json" >/dev/null || fail "windows overlap: $out/tiled.json"
 test "$(colors "$out/tiled.png")" -gt 3 || fail "the screenshot is empty"
 
-step "3. a crash of chora-tiling leaves chora running and detaches the surfaces"
+step "3. a crash of chora-tiling leaves chora running and shows the free surfaces"
 # Only the plugin of this core: other sessions may run on the host.
 pkill -KILL -P "$chora_pid" -x chora-tiling
 # chora-tiling connects with resume: the core keeps its nodes for the
-# grace time of 10 s, then detaches the surfaces.
+# grace time of 10 s, then frees the surfaces. With no manager left, the
+# core shows each free surface at the root.
 sleep 10
-wait_for count_is 3 '.parent == null and .owner == null'
+wait_for count_is 3 '.parent == "root" and .owner == null'
 kill -0 "$chora_pid" || fail "chora died"
 
 # Sends a hello as "e2e" and one scene.apply per argument on one
