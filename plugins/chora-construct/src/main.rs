@@ -409,22 +409,28 @@ fn main() -> ExitCode {
     runtime::run(NAME, || play(&args))
 }
 
-/// Writes a shader to the runtime directory when it differs.
-fn shader_file(name: &str, text: &str) -> std::io::Result<String> {
-    let runtime =
-        std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, PathBuf::from);
-    let path = runtime.join(format!("chora-construct/{name}"));
+/// Writes a shader to `$XDG_RUNTIME_DIR/{dir}/{name}` when it differs,
+/// through a new file of mode 0600. Without an absolute runtime
+/// directory it refuses: the shared temporary directory would let another
+/// local user plant the shader first.
+fn shader_file(
+    runtime: Option<std::ffi::OsString>,
+    dir: &str,
+    name: &str,
+    text: &str,
+) -> std::io::Result<PathBuf> {
+    let runtime = (runtime.map(PathBuf::from))
+        .filter(|p| p.is_absolute())
+        .ok_or_else(|| std::io::Error::other("no absolute $XDG_RUNTIME_DIR for the shaders"))?;
+    let path = runtime.join(dir).join(name);
     if chora_kit::read_text(&path, chora_kit::MAX_TEXT)
         .ok()
         .as_deref()
         != Some(text)
     {
-        if let Some(dir) = path.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
-        std::fs::write(&path, text)?;
+        chora_kit::write_file(&path, text.as_bytes())?;
     }
-    Ok(path.to_string_lossy().into_owned())
+    Ok(path)
 }
 
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
@@ -432,6 +438,11 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
     let rt = Runtime::connect(NAME, Vec::new())?;
     let start = Pose::default();
+    let shader = |name: &str, text: &str| {
+        let runtime = std::env::var_os("XDG_RUNTIME_DIR");
+        shader_file(runtime, "chora-construct", name, text)
+            .map(|p| p.to_string_lossy().into_owned())
+    };
     let mut construct = Construct {
         rt,
         settings,
@@ -441,10 +452,10 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         radius: None,
         waiting: Vec::new(),
         moving: None,
-        fog_shader: shader_file("fog.frag", FOG_SHADER)?,
-        pane_shader: shader_file("pane.frag", PANE_SHADER)?,
-        mirror_shader: shader_file("mirror.frag", MIRROR_SHADER)?,
-        glass_shader: shader_file("glass.frag", GLASS_SHADER)?,
+        fog_shader: shader("fog.frag", FOG_SHADER)?,
+        pane_shader: shader("pane.frag", PANE_SHADER)?,
+        mirror_shader: shader("mirror.frag", MIRROR_SHADER)?,
+        glass_shader: shader("glass.frag", GLASS_SHADER)?,
         launcher: None,
         launcher_window: None,
         launched: None,
@@ -2974,6 +2985,18 @@ fn configure(surface: &str, size: [f64; 2]) -> Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A shader goes to the runtime directory only, never to the shared
+    /// temporary directory.
+    #[test]
+    fn a_shader_needs_the_runtime_dir() {
+        assert!(shader_file(None, "d", "x.frag", "void main() {}").is_err());
+        assert!(shader_file(Some("rel".into()), "d", "x.frag", "void main() {}").is_err());
+        let dir = std::env::temp_dir().join(format!("chora-shader-test-{}", std::process::id()));
+        let path = shader_file(Some(dir.clone().into()), "d", "x.frag", "void main() {}").unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "void main() {}");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     /// A pane keeps its pose in the file, and a construct file gives it
     /// back unchanged; a window that the construct did not start has no
