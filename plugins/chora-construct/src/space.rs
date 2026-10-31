@@ -277,6 +277,13 @@ pub fn fly_in(lens: &Lens, at: [f64; 2], yaw: f64) -> Pose {
     }
 }
 
+/// Whether the whole pane lies in front of the eye. A corner at or behind
+/// it has `w <= 0`, and the core would stretch the quad over the output.
+#[must_use]
+pub fn in_front(lens: &Lens, pose: &Pose, at: [f64; 2], size: [f64; 2], yaw: f64) -> bool {
+    screen_box(lens, pose, at, size, yaw).is_some()
+}
+
 /// The box of a pane on the output: left, top, right, bottom; `None`
 /// when a corner lies at or behind the eye.
 fn screen_box(
@@ -609,6 +616,23 @@ mod tests {
             height(0.0),
             height(size[0])
         );
+    }
+
+    /// Walking sideways past a pane puts its near corner level with or
+    /// behind the eye while its centre is still ahead: it must not show.
+    #[test]
+    fn a_pane_with_a_corner_behind_the_eye_does_not_show() {
+        let at = [0.0, 2000.0];
+        let size = [1280.0, 800.0];
+        let yaw = facing([0.0, 0.0], at);
+        assert!(in_front(&LENS, &Pose::default(), at, size, yaw));
+        let beside = Pose {
+            x: 670.0,
+            z: 1900.0,
+            ..Pose::default()
+        };
+        assert!(depth(&beside, at) > LENS.focal * 0.1);
+        assert!(!in_front(&LENS, &beside, at, size, 0.5));
     }
 
     #[test]

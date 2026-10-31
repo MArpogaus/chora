@@ -1979,8 +1979,9 @@ impl Construct {
         let mut glow = None;
         for (pane, depth) in &sorted {
             let focused = focus.as_deref() == Some(pane.name.as_str());
-            // A pane at or behind the eye does not show.
-            let shown = *depth > self.lens.focal * 0.1;
+            // A pane with a corner at or behind the eye does not show.
+            let shown = *depth > self.lens.focal * 0.1
+                && space::in_front(&self.lens, &self.pose, pane.at, pane.size, pane.yaw);
             let mut props = PropsUpdate {
                 visible: Some(shown),
                 ..PropsUpdate::default()
