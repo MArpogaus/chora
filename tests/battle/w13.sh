@@ -119,9 +119,12 @@ expect "pane.remove of the taken t1 did not give it back: $(owner "$t1")" breaks
 no_lost "overlay pane.remove taken"
 call window.show '{"name": "t2"}' > /dev/null
 expect "t2 became no pane" breaks 'panes | grep -qw t2'
-expect "t2 is a pane but still owned by $(owner "$t2")" endangers 'test "$(owner "$t2")" = construct'
-out=$(call window.give "{\"surface\": \"$t2\", \"to\": \"tiling\"}" 2>&1) || finding "W13: window.give t2 to tiling refused by the overlay: ${out:0:150}; owner $(owner "$t2"), panes: $(panes)" endangers "window.give"
-expect "t2 is not with tiling after the give: $(owner "$t2")" breaks 'test "$(owner "$t2")" = tiling'
+# a taken window stays with its owner (F30): the pane only shows it, so
+# there is nothing to give back and window.give refuses
+expect "t2 is a pane but owned by $(owner "$t2"), not tiling" breaks 'test "$(owner "$t2")" = tiling'
+if call window.give "{\"surface\": \"$t2\", \"to\": \"tiling\"}" > /dev/null 2>&1; then
+  finding "W13: window.give of the taken t2 was not refused" nit "window.give of a taken window"
+fi
 no_lost "overlay window.give"
 
 # kill -9 of chora-construct with windows flown in and hidden
