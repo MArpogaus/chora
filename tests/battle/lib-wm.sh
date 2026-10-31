@@ -101,12 +101,20 @@ print(rows.index('$1'))") || { finding "$WF: $1 is not in the window list" endan
 # fails when a window that the workflow knows is gone ($WINDOWS holds
 # app ids that must still exist unless the step killed them).
 no_lost() {
-  ctl query kind:surface > "$work/surfaces.json" || { finding "$WF: query failed at $1" breaks "no_lost $1"; return 1; }
+  # The pane of a killed program goes with the destroy event, a moment
+  # after the surface: look again before a pane counts as lost (W13).
+  local out
+  out=$(no_lost_once "$1") && { step "no_lost ok: $1"; return 0; }
+  sleep 1
+  out=$(no_lost_once "$1") || { finding "$WF: a window is lost after '$1': ${out:0:300}" breaks "no_lost after $1"; return 1; }
+  step "no_lost ok after a second look: $1"
+}
+no_lost_once() {
+  ctl query kind:surface > "$work/surfaces.json" || { echo "query failed"; return 1; }
   ctl query owner:construct > "$work/nodes.json" 2>/dev/null || echo '[]' > "$work/nodes.json"
   call construct.list > "$work/panes.json" 2>/dev/null || echo '{"panes": []}' > "$work/panes.json"
   call window.list > "$work/windows.json" 2>/dev/null || echo '{"windows": []}' > "$work/windows.json"
-  local out
-  out=$(python3 -I - "$work" "$1" 2>&1 <<'EOF'
+  python3 -I - "$work" "$1" 2>&1 <<'EOF'
 import json, sys
 work, step = sys.argv[1], sys.argv[2]
 load = lambda f: json.load(open(f"{work}/{f}.json"))
@@ -138,8 +146,6 @@ if bad:
     print(f"{step}: " + "; ".join(bad))
     sys.exit(1)
 EOF
-  ) || { finding "$WF: a window is lost after '$1': ${out:0:300}" breaks "no_lost after $1"; return 1; }
-  step "no_lost ok: $1"
 }
 # alive <what>: the core answers, no panic so far
 alive() { health "$1"; }
