@@ -71,7 +71,8 @@ const FOG_SHADER: &str = include_str!("../fog.frag");
 const PANE_SHADER: &str = include_str!("../pane.frag");
 const MIRROR_SHADER: &str = include_str!("../mirror.frag");
 /// How long after the launcher starts its first new window becomes a
-/// pane also beside another flavor.
+/// pane also beside another flavor, and how long a program pane waits
+/// for its window.
 const LAUNCHED: Duration = Duration::from_secs(60);
 /// One step of a walk key, in logical pixels, and one turn, in radians.
 const STEP: f64 = 90.0;
@@ -182,6 +183,30 @@ impl Pane {
 struct Waiting {
     token: Option<String>,
     pane: PaneFile,
+    since: Instant,
+}
+
+impl Waiting {
+    fn new(token: Option<String>, pane: PaneFile) -> Self {
+        Self {
+            token,
+            pane,
+            since: Instant::now(),
+        }
+    }
+
+    /// A program whose window did not come within [`LAUNCHED`]: a window
+    /// without the token, such as one of X11 or of D-Bus activation,
+    /// never matches. A plugin pane waits for its plugin.
+    fn stale(&self) -> bool {
+        self.pane.kind == Kind::Program && self.since.elapsed() >= LAUNCHED
+    }
+
+    /// The pane to save: a plugin pane only. A program that waits may
+    /// already show in a window without the token.
+    fn file(&self) -> Option<&PaneFile> {
+        (self.pane.kind == Kind::Plugin).then_some(&self.pane)
+    }
 }
 
 /// A drag with the modifier: the pane, the press and its centre then.
@@ -486,6 +511,7 @@ impl Plugin for Construct {
 
     #[allow(clippy::too_many_lines, reason = "one arm per method")]
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        self.waiting.retain(|w| !w.stale());
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         let invalid = |e: String| RpcError::new(RpcError::INVALID_PARAMS, e);
         match method {
@@ -969,6 +995,7 @@ impl Construct {
         // A free window with the token of the launcher is the launcher
         // itself: it shows, but is no pane.
         let free = to.is_none_or(|t| t == NAME);
+        self.waiting.retain(|w| !w.stale());
         if token.is_some() && token == self.launcher.as_deref() {
             self.launcher = None;
             if free && !self.overlay {
@@ -1012,11 +1039,12 @@ impl Construct {
     /// Starts the program of the key `terminal`; its window becomes a
     /// pane ahead, as a program pane of a construct.
     fn start_terminal(&mut self) {
+        self.waiting.retain(|w| !w.stale());
         let command = self.settings.value.terminal.clone();
         let token = launch(&command);
-        self.waiting.push(Waiting {
+        self.waiting.push(Waiting::new(
             token,
-            pane: PaneFile {
+            PaneFile {
                 kind: Kind::Program,
                 command: Some(command),
                 plugin: None,
@@ -1024,7 +1052,7 @@ impl Construct {
                 at: None,
                 size: None,
             },
-        });
+        ));
     }
 
     /// Starts the launcher. Its own window, if it has one and the
@@ -1474,11 +1502,11 @@ impl Construct {
             match pane.kind {
                 Kind::Program => {
                     let token = launch(pane.command.as_deref().unwrap_or_default());
-                    self.waiting.push(Waiting { token, pane });
+                    self.waiting.push(Waiting::new(token, pane));
                 }
                 Kind::Plugin => {
                     if let Some(pane) = self.show_plugin(pane)? {
-                        self.waiting.push(Waiting { token: None, pane });
+                        self.waiting.push(Waiting::new(None, pane));
                     }
                 }
             }
@@ -1545,9 +1573,9 @@ impl Construct {
             .partition(|w| w.pane.kind == Kind::Plugin);
         self.waiting = programs;
         let mut shown = false;
-        for Waiting { token, pane } in plugins {
+        for Waiting { token, pane, since } in plugins {
             match self.show_plugin(pane)? {
-                Some(pane) => self.waiting.push(Waiting { token, pane }),
+                Some(pane) => self.waiting.push(Waiting { token, pane, since }),
                 None => shown = true,
             }
         }
@@ -1555,14 +1583,14 @@ impl Construct {
     }
 
     /// The construct as a file: the camera, the radius, the panes and the
-    /// panes that wait.
+    /// plugin panes that wait.
     fn snapshot(&self) -> file::File {
         let camera = self
             .flown
             .as_ref()
             .map_or_else(|| self.target(), |f| f.back);
         let panes = (self.panes.iter().filter_map(Pane::file))
-            .chain(self.waiting.iter().map(|w| w.pane.clone()))
+            .chain(self.waiting.iter().filter_map(Waiting::file).cloned())
             .collect();
         file::File {
             camera,
@@ -1763,5 +1791,28 @@ mod tests {
         });
         assert_eq!(plugin.node(), "construct-plugin-foot");
         assert_eq!(plugin.file().unwrap().scene.as_deref(), Some("mission"));
+    }
+
+    /// A program that waits longer than [`LAUNCHED`] goes, and no program
+    /// that waits is saved; a plugin pane waits and saves.
+    #[test]
+    fn a_waiting_program_expires_and_is_not_saved() {
+        let pane = |kind| PaneFile {
+            kind,
+            command: Some("xterm".into()),
+            plugin: None,
+            scene: None,
+            at: None,
+            size: None,
+        };
+        let old = |kind| Waiting {
+            since: Instant::now().checked_sub(LAUNCHED).unwrap(),
+            ..Waiting::new(None, pane(kind))
+        };
+        assert!(!Waiting::new(None, pane(Kind::Program)).stale());
+        assert!(old(Kind::Program).stale());
+        assert!(!old(Kind::Plugin).stale());
+        assert!(Waiting::new(None, pane(Kind::Program)).file().is_none());
+        assert!(old(Kind::Plugin).file().is_some());
     }
 }
