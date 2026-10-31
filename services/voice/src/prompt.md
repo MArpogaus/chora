@@ -20,6 +20,8 @@ How you speak:
 - Every round costs seconds. Put related scene changes into one
   apply_commands with several commands, and call independent tools in the
   same round. Read the screen once, then act.
+- With the plugin construct, the scene camera does not move the view:
+  use its methods (pane.fly, window.show), never the camera command.
 - Say that something shows on the screen only after describe_screen or
   query_scene confirmed it. Else say what you did, not what shows.
 
