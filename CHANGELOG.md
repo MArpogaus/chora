@@ -1,3 +1,50 @@
+## v0.9.0-rc.2 (2026-10-31)
+
+### BREAKING CHANGE
+
+- model is llm_model, language is asr_language.
+
+### Feat
+
+- **voice**: TLS for https and wss with rustls, ring, system roots
+- **voice**: per-server settings, languages and the ASR prompt
+- **voice**: ask before agent_start
+- **voice**: method agent runs the agent tools without the LLM
+- **mc**: plan, question, transcript and focus of sub-agents
+- **voice**: ACP sub-agents, one per project, by name and voice
+- **voice**: run the coder in sandbox_cmd unless unsandboxed
+
+### Fix
+
+- **voice**: wait for the process groups of agents at the exit
+- **voice**: time a question of an agent from when it is spoken
+- **voice**: cut the words of an agent at 16 KiB per message
+- **voice**: bound the texts that wait, replace old questions
+- **voice**: ask "Immer erlauben?" before a yes allows always
+- **voice**: resend the last refused state after the rate window
+- **voice**: the LLM calls no method of the agent's own clients
+- **voice**: voice.confirm is privileged
+- **choractl**: confine the view connection of the MCP tools
+- **voice**: read agent lines in a task, safe against select
+- **voice**: make tests/fake-acp.sh executable
+- **voice**: ruff docstring findings in corpus.py
+- **voice**: the language rule closes the prompt, empty asr_prompt
+- **voice**: find the project of agent_start in any case
+- **voice**: a name word differs by one edit only from 5 letters
+- **voice**: mark the spoken answer, ask "NAME möchte ..."
+- **voice**: speak a short question: file name and verb
+
+### Refactor
+
+- **voice**: drop expect outside the agent and client files
+- **choractl**: allow CLI prints at the crate level
+- **mc**: drop expect on agent push and shader path
+- **xp**: log a binding that does not parse
+- **tiling**: drop expect on window lookups and index math
+- **kit**: return an error for an unparsable grab
+- **scene**: document the expect invariants
+- **core**: handle or document unwrap and expect
+
 ## v0.9.0-rc.1 (2026-10-30)
 
 ### Feat
