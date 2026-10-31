@@ -109,7 +109,12 @@ impl State {
             png: STANDARD.encode(png),
             left_out: self.left_out_of(&shot),
         };
-        Ok(serde_json::to_value(picture).expect("pictures always serialize"))
+        #[allow(
+            clippy::expect_used,
+            reason = "a picture has no map with non-string keys"
+        )]
+        let value = serde_json::to_value(picture).expect("pictures always serialize");
+        Ok(value)
     }
 
     /// The nodes that the last frame left out of the output of a capture,
@@ -380,6 +385,7 @@ fn encode(pixels: &Pixels) -> Result<Vec<u8>, String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::print_stdout, reason = "a test without fonts prints SKIP")]
 mod tests {
     use serde_json::json;
 

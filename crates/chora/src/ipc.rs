@@ -580,6 +580,10 @@ impl Conn {
 }
 
 fn line(message: &Message) -> Vec<u8> {
+    #[allow(
+        clippy::expect_used,
+        reason = "a message has no map with non-string keys"
+    )]
     let mut bytes = serde_json::to_vec(message).expect("messages always serialize");
     bytes.push(b'\n');
     bytes

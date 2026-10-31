@@ -4,7 +4,7 @@
 //! The theme loading follows `cursor.rs` of Smithay's anvil, MIT License
 //! (see `LICENSES/MIT-Smithay.txt`).
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::PoisonError};
 
 use smithay::{
     backend::{
@@ -117,7 +117,7 @@ where
                 states
                     .data_map
                     .get::<CursorImageSurfaceData>()
-                    .map(|d| d.lock().expect("not poisoned").hotspot)
+                    .map(|d| d.lock().unwrap_or_else(PoisonError::into_inner).hotspot)
             })
             .unwrap_or_default();
             let location = position - hotspot.to_f64().to_physical(scale);

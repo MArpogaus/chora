@@ -115,6 +115,7 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let (headless, args) = headless_outputs(args)?;
     let command = match args.split_first() {
         None => &[][..],
+        #[allow(clippy::print_stdout, reason = "the answer to --version")]
         Some((first, _)) if first == "--version" => {
             println!("chora {}", chora_scene::ipc::VERSION);
             return Ok(());

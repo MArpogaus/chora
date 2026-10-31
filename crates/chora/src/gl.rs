@@ -384,7 +384,10 @@ unsafe fn compile(gl: &ffi::Gles2, fragment: &str) -> Result<Program, String> {
             return Err(log);
         }
         let location = |name: &str, uniform: bool| {
-            let name = CString::new(name).expect("no nul");
+            // -1 is the location of an unknown name.
+            let Ok(name) = CString::new(name) else {
+                return -1;
+            };
             if uniform {
                 gl.GetUniformLocation(program, name.as_ptr())
             } else {

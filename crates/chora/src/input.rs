@@ -69,7 +69,7 @@ fn keyboard<I: InputBackend>(state: &mut State, event: &I::KeyboardKeyEvent) {
 /// Logs the layouts of the keymap of the seat, so that a wrong layout
 /// shows.
 pub fn log_layout(state: &mut State) {
-    let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+    let keyboard = state.keyboard();
     let layouts = keyboard.with_xkb_state(state, |context| {
         let xkb = context.xkb().lock().ok()?;
         let names: Vec<_> = xkb
@@ -87,7 +87,7 @@ pub fn log_layout(state: &mut State) {
 /// Releases every key that is down, for example when the window of a
 /// nested chora loses the focus and the host keeps the releases.
 pub fn release_keys(state: &mut State) {
-    let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+    let keyboard = state.keyboard();
     for code in keyboard.pressed_keys() {
         key(state, code, KeyState::Released, InputTime::now(), false);
     }
@@ -96,7 +96,7 @@ pub fn release_keys(state: &mut State) {
 /// A key goes down or up: the safety layer first, then the grabs, then a
 /// node with the keyboard focus, then the focused surface. An injected key never reaches the safety layer (D23).
 pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTime, injected: bool) {
-    let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+    let keyboard = state.keyboard();
     // A grab that a client took in this loop iteration, for example of an
     // input method, must not see a key of the lock screen.
     if state.lock.is_some() && keyboard.is_grabbed() {
@@ -331,7 +331,7 @@ fn node_key(
 
 /// The names of the modifiers of the keyboard that are down.
 fn modifiers(state: &State) -> Vec<String> {
-    let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+    let keyboard = state.keyboard();
     modifier_names(&keyboard.modifier_state())
 }
 
@@ -394,7 +394,7 @@ fn grab_action(state: &State, mods: &ModifiersState, syms: &[Keysym]) -> Option<
 /// Relative motion, as from a mouse on real hardware. The pointer stays on
 /// the outputs.
 fn relative_motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionEvent) {
-    let pointer = state.seat.get_pointer().expect("the seat has a pointer");
+    let pointer = state.pointer();
     // A grabbed button keeps the motion from the surfaces.
     let under = state
         .spot(state.pointer_layout)
@@ -539,7 +539,7 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
     } else {
         render::surface_under(state, &spot).map(|u| (u.surface, u.location))
     };
-    let pointer = state.seat.get_pointer().expect("the seat has a pointer");
+    let pointer = state.pointer();
     pointer.motion(
         state,
         under.clone(),
@@ -567,7 +567,7 @@ pub fn press_button(state: &mut State, code: u32, button_state: ButtonState, tim
     if grab_button(state, code, button_state, time) {
         return;
     }
-    let pointer = state.seat.get_pointer().expect("the seat has a pointer");
+    let pointer = state.pointer();
     let serial = SERIAL_COUNTER.next_serial();
     if button_state == ButtonState::Pressed {
         click_focus(state);
@@ -598,7 +598,7 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
         if state.button_grab.is_some() || state.lock.is_some() {
             return false;
         }
-        let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+        let keyboard = state.keyboard();
         let mods = keyboard.modifier_state();
         let Some((conn, binding)) = state.ipc.button_grab_for(&mods, code) else {
             return false;
@@ -643,7 +643,7 @@ pub fn scroll(state: &mut State, dx: f64, dy: f64, time: InputTime) {
             frame = frame.value(axis, amount);
         }
     }
-    let pointer = state.seat.get_pointer().expect("the seat has a pointer");
+    let pointer = state.pointer();
     pointer.axis(state, frame);
     pointer.frame(state);
 }
@@ -832,7 +832,7 @@ fn axis<I: InputBackend>(state: &mut State, event: &I::PointerAxisEvent) {
         }
     }
     scroll_node(state, delta, steps, source);
-    let pointer = state.seat.get_pointer().expect("the seat has a pointer");
+    let pointer = state.pointer();
     pointer.axis(state, frame);
     pointer.frame(state);
 }
