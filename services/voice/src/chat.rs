@@ -105,6 +105,17 @@ fn announces(answer: &str) -> bool {
     })
 }
 
+/// Whether an answer stops mid-sentence: its words do not end with
+/// `.!?…`, also before a closing quote. Gufo 0.27 ended rounds with
+/// `stop` after 3-12 tokens ("I’m setting the", dump 2026-10-31); the
+/// same request again gave the whole answer.
+fn cut(answer: &str) -> bool {
+    let text = answer
+        .trim_end()
+        .trim_end_matches(['"', '\'', '»', '«', '“', '”', '’', ')', '*', '`']);
+    !text.is_empty() && !text.ends_with(['.', '!', '?', '…'])
+}
+
 /// The part of the prompt for the coding tools, with a `coder_cmd`.
 const CODING: &str = "# Coding tasks\n\n\
 - Hand a task that needs code, a program or many steps to code_task. It runs in the \
@@ -215,6 +226,16 @@ pub struct Report {
     /// From the start of the turn to the first token.
     pub llm_first: Option<Duration>,
     pub outcome: &'static str,
+}
+
+impl Report {
+    /// Notes the first token of a round, the first of the turn only.
+    fn first(&mut self, start: Instant, r: &Timed) {
+        if let Some(first) = r.round.first {
+            let begun = start.elapsed().saturating_sub(r.elapsed);
+            self.llm_first.get_or_insert(begun + first);
+        }
+    }
 }
 
 pub struct Chat {
@@ -414,12 +435,17 @@ impl Chat {
         let mut report = Report::default();
         let mut limit = self.config.tool_rounds;
         let mut nudged = false;
+        // The words of a cut answer, once per turn; its next round does
+        // not say them again.
+        let mut cut_said: Option<String> = None;
         for round in 0.. {
             let last = round == limit;
             self.listen(out);
             out(Event::Thinking);
             report.rounds += 1;
-            let (said, result) = self.round(last, out).await;
+            let hold = !last && cut_said.is_none();
+            let skip = cut_said.clone().unwrap_or_default();
+            let (said, result) = self.round(last, hold, &skip, out).await;
             report.reply += &said;
             let r = match result {
                 Ok(r) => r,
@@ -428,9 +454,10 @@ impl Chat {
                     break;
                 }
             };
-            if let Some(first) = r.round.first {
-                let begun = start.elapsed().saturating_sub(r.elapsed);
-                report.llm_first.get_or_insert(begun + first);
+            report.first(start, &r);
+            if r.cut {
+                cut_said = Some(said);
+                continue;
             }
             if last || r.round.calls.is_empty() {
                 report.outcome = self.answered(&r.round, last, said.is_empty(), out);
@@ -630,10 +657,13 @@ impl Chat {
 
     /// One request with retries: once more after a connect error, and
     /// with half the budget after a context error. Answers the words that
-    /// went out as sentences.
+    /// went out as sentences. With `hold`, the last words of a [`cut`]
+    /// answer do not go out. Sentences in `skip` went out before.
     async fn round(
         &mut self,
         last: bool,
+        hold: bool,
+        skip: &str,
         out: &(impl Fn(Event) + Sync),
     ) -> (String, Result<Timed, llm::Error>) {
         let budget = self
@@ -642,36 +672,30 @@ impl Chat {
         let mut said = String::new();
         let mut retried = false;
         loop {
-            let tools = self.tools.specs.clone();
-            let fixed = self.system.len() + serde_json::to_string(&tools).map_or(0, |t| t.len());
-            let budget = if retried { budget / 2 } else { budget };
-            self.fit(budget, fixed);
-            let mut messages = vec![json!({"role": "system", "content": self.system})];
-            messages.extend(self.history.iter().cloned());
-            if last {
-                messages.push(json!({"role": "user", "content": LAST_ROUND}));
-            }
-            let mut body = self.llm.body(&messages, &tools);
-            if last && !tools.is_empty() {
-                // The tools stay in the request, so the server keeps the
-                // prompt in its cache; without them it reads it again.
-                body["tool_choice"] = "none".into();
-            }
-            let chars = fixed + size(&messages[1..]);
+            let (body, messages, chars) =
+                self.request(last, if retried { budget / 2 } else { budget });
             let mut splitter = Splitter::default();
             let start = Instant::now();
             let result = self
                 .llm
                 .chat(&body, |words| {
-                    for sentence in splitter.push(words) {
+                    let new = splitter.push(words).into_iter();
+                    for sentence in new.filter(|s| !skip.contains(s)) {
                         said += &sentence;
                         said.push(' ');
                         out(Event::Sentence(sentence));
                     }
                 })
                 .await;
+            let cut = hold
+                && matches!(&result, Ok(r) if r.finish == "stop"
+                    && r.calls.is_empty() && cut(&strip_notes(&r.text)));
+            let rest = splitter.finish();
+            if cut {
+                crate::log::info(&format!("llm: cut answer, held {rest:?}; one more round"));
+            }
             // The words before the tool calls are spoken while they run.
-            if let Some(sentence) = splitter.finish() {
+            if let Some(sentence) = rest.filter(|s| !cut && !skip.contains(s)) {
                 said += &sentence;
                 out(Event::Sentence(sentence));
             }
@@ -687,10 +711,38 @@ impl Chat {
                     crate::health::ok("llm");
                     self.learn(&round, chars, &messages);
                     let elapsed = start.elapsed();
-                    return (said, Ok(Timed { round, elapsed }));
+                    return (
+                        said,
+                        Ok(Timed {
+                            round,
+                            elapsed,
+                            cut,
+                        }),
+                    );
                 }
             }
         }
+    }
+
+    /// The body of a request in `budget` tokens, its messages and their
+    /// characters.
+    fn request(&mut self, last: bool, budget: u32) -> (Value, Vec<Value>, usize) {
+        let tools = self.tools.specs.clone();
+        let fixed = self.system.len() + serde_json::to_string(&tools).map_or(0, |t| t.len());
+        self.fit(budget, fixed);
+        let mut messages = vec![json!({"role": "system", "content": self.system})];
+        messages.extend(self.history.iter().cloned());
+        if last {
+            messages.push(json!({"role": "user", "content": LAST_ROUND}));
+        }
+        let mut body = self.llm.body(&messages, &tools);
+        if last && !tools.is_empty() {
+            // The tools stay in the request, so the server keeps the
+            // prompt in its cache; without them it reads it again.
+            body["tool_choice"] = "none".into();
+        }
+        let chars = fixed + size(&messages[1..]);
+        (body, messages, chars)
     }
 
     /// Learns the characters per token from `usage.prompt_tokens`; not
@@ -943,6 +995,8 @@ impl Chat {
 struct Timed {
     round: Round,
     elapsed: Duration,
+    /// The answer stopped mid-sentence; its last words did not go out.
+    cut: bool,
 }
 
 /// `$XDG_STATE_HOME/chora/voice-history.json`.
@@ -1080,7 +1134,7 @@ mod tests {
             Reply::Tool("sleep", "{}"),
             Reply::Silent,
             // The LLM copied the old note of the answer.
-            Reply::Text("Gut. Ich warte (cancelled by the user; result unknown)"),
+            Reply::Text("Gut. Ich warte. (cancelled by the user; result unknown)"),
         ];
         let (mut chat, server) = chat(script, Config::default()).await;
         let stop = Duration::from_millis(150);
@@ -1090,8 +1144,12 @@ mod tests {
         }
         chat.cancelled("Ich warte. Auf de");
         let (report, events) = turn(&mut chat, "Und?", true).await;
-        assert_eq!(events, ["thinking", "say Gut.", "say Ich warte"], "no note");
-        assert_eq!(report.reply, "Gut. Ich warte");
+        assert_eq!(
+            events,
+            ["thinking", "say Gut.", "say Ich warte."],
+            "no note"
+        );
+        assert_eq!(report.reply, "Gut. Ich warte. ");
         let seen = server.seen.lock().unwrap();
         let messages = &seen.last().unwrap()["messages"].as_array().unwrap()[1..];
         let roles: Vec<_> = messages
@@ -1117,7 +1175,7 @@ mod tests {
             "the whole played sentences"
         );
         assert_eq!(messages[5]["content"], STOPPED);
-        assert_eq!(chat.history.last().unwrap()["content"], "Gut. Ich warte");
+        assert_eq!(chat.history.last().unwrap()["content"], "Gut. Ich warte.");
     }
 
     #[test]
@@ -1363,6 +1421,72 @@ mod tests {
         ] {
             assert!(!announces(text), "{text}");
         }
+    }
+
+    #[test]
+    fn answers_that_stop_mid_sentence_are_cut() {
+        for text in [
+            "I'll set the scale to 1.5 and switch",
+            "I’m setting the",
+            "I’ll apply",
+            "Hier sind die Optionen:",
+        ] {
+            assert!(cut(text), "{text}");
+        }
+        for text in [
+            "",
+            "Fertig.",
+            "Gute Nacht! ",
+            "Soll ich?",
+            "Er sagte „Ja.“",
+            "Done.\"",
+            "Na ja…",
+            "**Fertig.**",
+        ] {
+            assert!(!cut(text), "{text}");
+        }
+    }
+
+    /// An answer cut by the server gets one more round with the same
+    /// history, once per turn; its last words are not spoken, and the
+    /// sentences spoken before it are not spoken again (dump 2026-10-31).
+    #[tokio::test]
+    async fn a_cut_answer_gets_one_more_round_once() {
+        let script = vec![
+            Reply::Text("I'll set the scale to 1.5 and switch"),
+            Reply::Text("I'll set the scale to 1.5 and switch the theme to light."),
+            Reply::Text("Okay. I’m setting the"),
+            Reply::Text("Okay. I’m setting the theme now."),
+            Reply::Text("I’ll apply"),
+            Reply::Text("Done, the scale is 1.5."),
+            Reply::Text("Die Skalierung ist"),
+            Reply::Text("Die Skalierung ist"),
+        ];
+        let (mut chat, server) = chat(script, Config::default()).await;
+        let said = |events: &[String]| -> Vec<String> {
+            events
+                .iter()
+                .filter(|e| e.starts_with("say "))
+                .cloned()
+                .collect()
+        };
+        let (report, events) = turn(&mut chat, "Stelle das Scaling auf 1,5.", true).await;
+        assert_eq!(report.rounds, 2, "{events:?}");
+        assert_eq!(
+            said(&events),
+            ["say I'll set the scale to 1.5 and switch the theme to light."]
+        );
+        assert_eq!(last_user(&server, 1), "Stelle das Scaling auf 1,5.");
+        let (_, events) = turn(&mut chat, "Das ist noch nicht passiert.", true).await;
+        assert_eq!(
+            said(&events),
+            ["say Okay.", "say I’m setting the theme now."]
+        );
+        let (_, events) = turn(&mut chat, "Bitte umsetzen.", true).await;
+        assert_eq!(said(&events), ["say Done, the scale is 1.5."]);
+        let (report, events) = turn(&mut chat, "Und?", true).await;
+        assert_eq!(report.rounds, 2, "the second cut ends the turn: {events:?}");
+        assert_eq!(said(&events), ["say Die Skalierung ist"]);
     }
 
     /// A German announcement without a tool name gets one more round,
