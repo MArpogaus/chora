@@ -287,6 +287,12 @@ the running head and the clock, what the voice agent does, notes and a
 docked terminal. The voice agent and small collector scripts fill the
 scenes through methods; the plugin reads no sources itself.
 
+By default mc claims no windows: it shows its scenes, for example as the
+source of a plugin pane beside chora-construct or chora-tiling. With
+`--manage-windows` it is a window manager: it claims the work area of its
+output, below the header and above the footer, and the core gives it the
+new windows there.
+
 A scene of `chora-mc` is not a view of D35. It is a YAML file
 `NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/scenes/`: a grid of panels, each
 with a title and lines, or one app (a shell command, or a content of kind `app`) whose window

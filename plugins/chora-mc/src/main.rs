@@ -91,6 +91,11 @@ struct Args {
     /// window managers; the first output without it.
     #[arg(long = "output", value_name = "NAME")]
     output: Option<String>,
+    /// Manages the windows of its output: claims the work area, so that
+    /// the core gives it new windows. Without it mc only shows its
+    /// scenes, as the source of the panes of another plugin.
+    #[arg(long)]
+    manage_windows: bool,
 }
 
 /// Where the parts of the page of a scene go, in logical pixels.
@@ -238,6 +243,8 @@ enum Target {
 
 struct Mc {
     rt: Runtime<Action>,
+    /// Whether mc claims its output (`--manage-windows`).
+    manage_windows: bool,
     settings: settings::File<Config>,
     /// The directory of the scene files.
     dir: PathBuf,
@@ -372,6 +379,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let (shader, blur) = (shader?, blur?);
     let rt = Runtime::connect(NAME, args.output.clone().into_iter().collect())?;
     let mut mc = Mc::new(rt, settings, dir, [shader, blur]);
+    mc.manage_windows = args.manage_windows;
     mc.start(methods)?;
     // The kit logged it; the defaults that apply show notify.
     if let Some(err) = mc.settings.broken() {
@@ -426,6 +434,7 @@ impl Mc {
         let scenes = scene::load(&dir);
         let mut mc = Self {
             rt,
+            manage_windows: false,
             appeared: scenes.keys().cloned().collect(),
             scenes,
             settings,
@@ -1312,9 +1321,9 @@ impl Mc {
             ROOT,
             PropsUpdate {
                 transform: Some(translate(x, y)),
-                // mc manages the windows of its output: only a window
+                // mc as a window manager claims its output: only a window
                 // manager with a claim receives windows (D55).
-                claim: Some(Some(work)),
+                claim: self.manage_windows.then_some(Some(work)),
                 // Other plugins find mc by this tag and show the whole
                 // output, the regions with the page, through its node
                 // texture, as chora-construct does; it names the scene
@@ -2643,10 +2652,23 @@ mod tests {
     }
 
     /// mc claims the work area of its output, so that other window managers can give it
-    /// windows (D55).
+    /// windows (D55), when it manages windows; else it claims nothing.
     #[test]
-    fn mc_claims_its_output() {
-        let (_mc, model) = crate::testing::mc("output-claim", [1920, 1080]);
+    fn mc_claims_its_output_only_as_a_window_manager() {
+        let (mut mc, model) = crate::testing::mc("output-claim", [1920, 1080]);
+        assert_eq!(
+            model
+                .lock()
+                .unwrap()
+                .scene
+                .node(super::NAME)
+                .unwrap()
+                .props
+                .claim,
+            None
+        );
+        mc.manage_windows = true;
+        mc.build().unwrap();
         let claim = model
             .lock()
             .unwrap()

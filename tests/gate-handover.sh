@@ -57,7 +57,7 @@ plugin() {
 # Both grab Super+BTN_LEFT: tiling for its drag, xp for its cube (D55).
 plugin tiling --output "$tiling_out"
 plugin xp --theme "$theme" --output "$xp_out"
-plugin mc --output "$mc_out"
+plugin mc --manage-windows --output "$mc_out"
 for c in tiling xp mc; do
     ctl wait "owner:$c" --timeout 20 >/dev/null || fail "$c does not start: $(tail -n 3 "$shots/$c.log")"
 done

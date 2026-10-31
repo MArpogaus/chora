@@ -8,7 +8,7 @@ WF=w12; STOP_ON_DEATH=1; . "$(dirname "$0")/lib.sh"
 config_home
 pwned=/tmp/bt-$WF-pwned
 rm -f "$pwned".*
-session_start "1280x800,1280x800+1280+0" sh -c "tests/battle/keep.sh /tmp/bt-$WF-mc.pid $bin/chora-mc & tests/battle/keep.sh /tmp/bt-$WF-tiling.pid $bin/chora-tiling --output HEADLESS-2 & wait" || exit 1
+session_start "1280x800,1280x800+1280+0" sh -c "tests/battle/keep.sh /tmp/bt-$WF-mc.pid $bin/chora-mc --manage-windows & tests/battle/keep.sh /tmp/bt-$WF-tiling.pid $bin/chora-tiling --output HEADLESS-2 & wait" || exit 1
 ready mc scene.list '{}' || finding "W12: mc silent at start" wrong "start mc + tiling"
 ready tiling get_layout '{}' || finding "W12: tiling silent at start" wrong "start mc + tiling"
 rss_note start

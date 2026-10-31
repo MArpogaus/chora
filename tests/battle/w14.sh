@@ -19,7 +19,7 @@ mapfile -t outs < <(ctl outputs | py 'import json, sys; print(*[o["name"] for o 
 c_out=${outs[0]} xp_out=${outs[1]} tiling_out=${outs[2]} mc_out=${outs[3]}
 start_xp() { bg "$bin/chora-xp" --theme "$theme" --output "$xp_out"; xp_pid=$bgpid; }
 start_tiling() { bg "$bin/chora-tiling" --output "$tiling_out"; tiling_pid=$bgpid; }
-start_mc() { bg "$bin/chora-mc" --output "$mc_out"; mc_pid=$bgpid; }
+start_mc() { bg "$bin/chora-mc" --manage-windows --output "$mc_out"; mc_pid=$bgpid; }
 start_xp; start_tiling; start_mc
 for c in xp tiling mc; do ctl wait "owner:$c" --timeout 20 > /dev/null || finding "W14: $c does not start" breaks "chora-$c --output"; done
 inj() { echo "$1" | ctl inject > /dev/null; }

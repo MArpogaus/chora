@@ -8,7 +8,7 @@ WF=w11; STOP_ON_DEATH=1; . "$(dirname "$0")/lib.sh"
 config_home
 scenes=$XDG_CONFIG_HOME/chora/mc/scenes
 mkdir -p "$scenes"
-session_start "640x480" tests/battle/keep.sh "/tmp/bt-$WF-mc.pid" "$bin/chora-mc" || exit 1
+session_start "640x480" tests/battle/keep.sh "/tmp/bt-$WF-mc.pid" "$bin/chora-mc" --manage-windows || exit 1
 ready mc scene.list '{}' || finding "W11: mc silent at start" wrong "start mc"
 rss_note start
 c0=$(rss chora); m0=$(rss chora-mc)
