@@ -77,7 +77,26 @@ pub async fn transcribe(
         Ok(_) => crate::health::ok("asr"),
         Err(e) => drop(crate::health::down("asr", e)),
     }
-    result
+    result.map(|mut t| {
+        if echoes(&request.prompt, &t.text) {
+            crate::log::info(&format!("asr: the prompt came back, dropped: {:?}", t.text));
+            t.text.clear();
+        }
+        t
+    })
+}
+
+/// Whether `text` is the prompt that came back, as the ASR does on short
+/// or quiet sound (log 2026-10-31): it holds at least half of the words
+/// of the prompt, and at least 4. A user who says a wake word and a
+/// stop word holds far fewer.
+fn echoes(prompt: &str, text: &str) -> bool {
+    let mut words = crate::words::normalize(prompt);
+    words.sort_unstable();
+    words.dedup();
+    let text = crate::words::normalize(text);
+    let found = words.iter().filter(|w| text.contains(w)).count();
+    found >= 4 && found * 2 >= words.len()
 }
 
 async fn once(request: &Request, pcm: &[i16], timeout: Duration) -> Result<Transcript, String> {
@@ -191,6 +210,27 @@ mod tests {
         let server = fake::asr(fake::Asr::Error).await;
         let e = transcribe(&req(&server.url), &[0; 100], Duration::from_secs(5)).await;
         assert!(e.unwrap_err().contains("invalid_audio"));
+    }
+
+    /// Log 2026-10-31, turn 1: the ASR answered its own prompt.
+    #[tokio::test]
+    async fn a_transcript_that_is_the_prompt_is_dropped() {
+        let request = req("ws://unused");
+        let echo = "Hey Chora, Coder, hey chora, listen, hallo chora, hör zu, sleep, go to \
+                    sleep, schlaf, schlaf jetzt, stop, cancel, never mind, stopp, abbrechen, \
+                    halt, vergiss";
+        assert!(echoes(&request.prompt, echo));
+        for said in [
+            "Hey Chora, schlaf jetzt.",
+            "Stopp, abbrechen, vergiss es.",
+            "Chora",
+        ] {
+            assert!(!echoes(&request.prompt, said), "{said}");
+        }
+        assert!(!echoes("", "a b c d"), "no prompt, no echo");
+        let server = fake::asr(fake::Asr::Text(echo)).await;
+        let t = transcribe(&req(&server.url), &[0; 100], Duration::from_secs(5)).await;
+        assert_eq!(t.unwrap().text, "");
     }
 
     #[tokio::test]

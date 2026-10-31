@@ -423,7 +423,9 @@ The ASR gets no language with `asr_language: auto`, and `asr_prompt`
 with the wake, sleep and stop words and the project names as the
 `transcription.prompt` of the session. Gufo honors the prompt: without
 it, a TTS clip of "Hallo Chora" came back as "Hello, Cora", with it as
-"Hello, Chora" (3 of 3 tries each, 2026-10-31). The system prompt ends
+"Hello, Chora" (3 of 3 tries each, 2026-10-31). On short or quiet sound the ASR
+may answer the prompt itself; a transcript with at least half of the
+words of the prompt, and at least 4, is dropped as such an echo. The system prompt ends
 with a rule to answer in `reply_language`. With `reply_language: de`,
 each phrase, confirm prompt, verb of an agent question and coding result
 that keeps its English default is German; other languages keep the
