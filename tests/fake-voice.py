@@ -42,6 +42,10 @@ def serve():
         if "error" in message:
             print(f"fake-voice: {message['error']}", file=sys.stderr)
         params = message.get("params") or {}
+        if message.get("method") == "event" and params.get("event") == "input.key" and claims_file != os.devnull:
+            # FAKE_VOICE_KEYS=1: the grabbed Alt+y and Alt+n of a physical question
+            with open(claims_file + ".keys", "a", encoding="utf-8") as f:
+                f.write(json.dumps(params, sort_keys=True) + "\n")
         if message.get("method") == "event" and params.get("event") == "method.called":
             if params.get("method") == "indicator.claim":
                 claims += 1
@@ -54,8 +58,17 @@ def serve():
     os._exit(0)
 
 
-send("hello", {"name": "voice"})
-send("methods.export", {"names": ["indicator.claim", "confirm.answer"]})
+# FAKE_VOICE_NAME: another client name, for example `voice.evil` (W15);
+# FAKE_VOICE_PRIVILEGED=1: both methods are privileged, as in the agent.
+send("hello", {"name": os.environ.get("FAKE_VOICE_NAME", "voice")})
+privileged = os.environ.get("FAKE_VOICE_PRIVILEGED") == "1"
+send(
+    "methods.export",
+    {"names": [{"name": n, "privileged": True} if privileged else n for n in ["indicator.claim", "confirm.answer"]]},
+)
+if os.environ.get("FAKE_VOICE_KEYS") == "1":
+    for binding in ("Alt+y", "Alt+n"):
+        send("input.grab", {"binding": binding})
 threading.Thread(target=serve, daemon=True).start()
 for line in sys.stdin:
     event, _, data = line.strip().partition(" ")
