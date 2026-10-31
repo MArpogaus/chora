@@ -58,6 +58,8 @@ styles:
     base: heading
     step: 4
     letter_spacing: 0.14
+    # Lining figures: the number stands on the baseline of the caps.
+    features: {smcp: 1, c2sc: 1, lnum: 1}
   running_head:
     family: Inter
     weight: 500
