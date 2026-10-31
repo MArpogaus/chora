@@ -7,7 +7,6 @@ bt=$repo/tests/battle
 state=$repo/target/review-loop/state.txt
 log=$bt/log.txt
 export PATH=/home/agent/.local/share/mamba/envs/chora/bin:$PATH
-sdir=/home/agent/.pi/agent/sessions/--home-marcel-Projekte-chora--
 stopped() { grep -q PHASE=done "$state"; }
 say() { echo "$(date -Is) | $*" >> "$log"; }
 nfind() { grep -c '^## ' "$bt/findings.md" 2>/dev/null; true; }
@@ -31,12 +30,13 @@ while ! stopped; do
     stopped && break
     run=$bt/run-$pass-w$w.md
     echo "# pass $pass W$w $(date -Is)" > "$run"
+    # shellcheck disable=SC2094 # the run file is only appended to
     RUN="$run" timeout 1200 bash "$bt/w$w.sh" >> "$run" 2>&1; rc=$?
     echo "exit=$rc" >> "$run"
     if [ $rc = 124 ]; then
       timeouts[$w]=$(( ${timeouts[$w]:-0} + 1 ))
       say "W$w timed out (${timeouts[$w]} in a row)"
-      [ ${timeouts[$w]} -ge 3 ] && { say "THE END: W$w timed out 3 passes in a row"; break 2; }
+      [ "${timeouts[$w]}" -ge 3 ] && { say "THE END: W$w timed out 3 passes in a row"; break 2; }
     else
       timeouts[$w]=0
     fi
@@ -51,7 +51,6 @@ while ! stopped; do
     # one sub-agent per open finding, small fixes only (spec's fix rule)
     while read -r -d '' title; do
       stopped && break
-      before_s=$(ls "$sdir" | sort)
       timeout 1200 pi --model gufo/gufo -p "In /home/marcel/Projekte/chora: the battle finding '$title' in tests/battle/findings.md. Fix it ONLY if the fix is small: at most 1 file and 20 lines, and you can write a test that fails without the fix. Before committing run: cargo fmt, cargo clippy --workspace -- -D warnings, cargo test --workspace. Conventional commit, stage files by name, never push, never touch services/voice/. Then set the finding's status line to 'fixed in <commit>'. If it is not small or you cannot write the test, change nothing and set the status line to 'open (not small)'." >> "$bt/fix.log" 2>&1 < /dev/null
       say "fix attempt for: $title (pi exit $?)"
     done < <(python3 - "$bt/findings.md" <<'PY'
@@ -70,6 +69,7 @@ pkill -f 'sleep 1200' 2>/dev/null
 {
   echo "# Review loop and battle test: summary"
   echo
+  # shellcheck disable=SC2010 # the names are plain round-N.md files
   echo "- Review rounds: $(ls $repo/target/review-loop/round-*.md 2>/dev/null | grep -vc bad) (reports: target/review-loop/)"
   echo "- Battle passes: $pass, clean passes at the end: $clean_passes"
   echo "- Findings: $(nfind); open:"

@@ -14,6 +14,7 @@ for wf in "$@"; do
     sleep 1
     kill -KILL -- "-$core" 2>/dev/null
   fi
+  # shellcheck disable=SC2013 # pids contain no blanks
   for pid in $(cat "/tmp/bt-$wf.pids" 2>/dev/null); do kill "$pid" 2>/dev/null; done
   rm -f "/tmp/bt-$wf.core" "/tmp/bt-$wf.pids"
 done

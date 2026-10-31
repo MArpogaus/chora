@@ -41,6 +41,6 @@ for i in $(seq 20); do
   health "restart $i"
 done
 c=$(count_windows)
-[ $c -ge $((N-2)) ] || finding "W8: $c windows left after the stress" wrong "$N windows, 36x3 layouts, 50 hotplug, 20 restarts"
+[ "$c" -ge $((N-2)) ] || finding "W8: $c windows left after the stress" wrong "$N windows, 36x3 layouts, 50 hotplug, 20 restarts"
 ctl capture "$repo/tests/battle/w8-final.png" --output HEADLESS-1 >> "$RUN" 2>&1
 session_stop
