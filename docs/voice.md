@@ -224,7 +224,10 @@ A keyword-spotting model can replace this later.
 A rule matches by `tool` (glob), and optionally by the command kinds of
 `apply_commands`, by `argv0` of `run_program`, or by `method` (glob) of
 `call_method`. The agent speaks the `prompt` of the rule, with the
-program of `run_program` in place of `{program}`, and waits for
+program of `run_program` in place of `{program}`, the argument `NAME`
+in place of `{NAME}` (a missing one stays as it is) and all text,
+number and boolean arguments in place of `{args}` ("Shall I change the
+screen to output winit, scale 1.5?"), and waits for
 yes or no. The method `confirm` answers from a key or the HUD (WP5;
 privileged, so a confined client needs `methods.privileged`),
 the spoken yes and no since WP6. A spoken answer is yes when its first
@@ -405,14 +408,14 @@ device.
 ```yaml
 confirm:
   - {tool: apply_commands, commands: [remove, close], prompt: "Shall I remove that?"}
-  - {tool: unload_view, prompt: "Shall I remove the view?"}
+  - {tool: unload_view, prompt: "Shall I remove the view {name}?"}
   - {tool: inject_input, prompt: "Shall I type or click?"}
   - {tool: code_task, prompt: "Shall I start the coding task?"}
-  - {tool: agent_start, prompt: "Shall I start the agent?"}
+  - {tool: agent_start, prompt: "Shall I start an agent for {project}?"}
   - {tool: run_program, prompt: "Shall I start the program {program}?"}
-  - {tool: configure_output, prompt: "Shall I change the screen?"}
+  - {tool: configure_output, prompt: "Shall I change the screen to {args}?"}
   - {tool: "*.restart", prompt: "Shall I restart the plugin?"}
-  - {tool: call_method, method: "*.restart", prompt: "Shall I restart the plugin?"}
+  - {tool: call_method, method: "*.restart", prompt: "Shall I restart the plugin {client}?"}
 ```
 
 Each server (ASR, TTS, LLM) has its own URL, model, key and headers, so

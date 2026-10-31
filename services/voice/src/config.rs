@@ -22,7 +22,8 @@ pub struct Confirm {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
     /// What the agent asks; `{program}` stands for the program of
-    /// `run_program`.
+    /// `run_program`, `{NAME}` for the argument `NAME` and `{args}` for
+    /// all short arguments (`Confirm::question`).
     pub prompt: String,
 }
 
@@ -250,23 +251,22 @@ fn rule(tool: &str, prompt: &str) -> Confirm {
 
 /// The tools that ask first (docs/voice.md section 9).
 fn default_confirm() -> Vec<Confirm> {
-    let restart = "Shall I restart the plugin?";
     vec![
         Confirm {
             commands: words(&["remove", "close"]),
             ..rule("apply_commands", "Shall I remove that?")
         },
-        rule("unload_view", "Shall I remove the view?"),
+        rule("unload_view", "Shall I remove the view {name}?"),
         rule("inject_input", "Shall I type or click?"),
         rule("code_task", "Shall I start the coding task?"),
-        rule("agent_start", "Shall I start the agent?"),
+        rule("agent_start", "Shall I start an agent for {project}?"),
         // A program can do all that the user can (D42).
         rule("run_program", "Shall I start the program {program}?"),
-        rule("configure_output", "Shall I change the screen?"),
-        rule("*.restart", restart),
+        rule("configure_output", "Shall I change the screen to {args}?"),
+        rule("*.restart", "Shall I restart the plugin?"),
         Confirm {
             method: Some("*.restart".into()),
-            ..rule("call_method", restart)
+            ..rule("call_method", "Shall I restart the plugin {client}?")
         },
     ]
 }
@@ -402,17 +402,9 @@ impl Config {
     pub fn settings_question(&self, patch: &serde_json::Value) -> String {
         let empty = serde_json::Map::new();
         let patch = patch.as_object().unwrap_or(&empty);
-        let value = |v: &serde_json::Value| {
-            let text = v.as_str().map_or_else(|| v.to_string(), str::to_owned);
-            let mut short: String = text.chars().take(60).collect();
-            if short.len() < text.len() {
-                short.push_str(" …");
-            }
-            short
-        };
         // Underscores would go: the TTS hears the words.
         let keys: Vec<String> = patch.keys().map(|k| k.replace('_', " ")).collect();
-        let values: Vec<String> = patch.values().map(value).collect();
+        let values: Vec<String> = patch.values().map(spoken).collect();
         let template = if patch.keys().any(|k| security_key(k)) {
             &self.phrases.settings_security
         } else {
@@ -422,6 +414,39 @@ impl Config {
             .replace("{key}", &keys.join(", "))
             .replace("{value}", &values.join(", "))
     }
+}
+
+impl Confirm {
+    /// The question for a call with `args`: `{program}` is the program of
+    /// `run_program`, `{NAME}` the argument `NAME` and `{args}` all
+    /// arguments that are a text, a number or a boolean.
+    pub fn question(&self, args: &serde_json::Value) -> String {
+        let program = crate::tools::program(args).unwrap_or_default();
+        let mut text = self.prompt.replace("{program}", program);
+        let scalars = args
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter(|(_, v)| v.is_string() || v.is_number() || v.is_boolean());
+        let mut all = Vec::new();
+        for (name, value) in scalars {
+            let value = spoken(value);
+            text = text.replace(&format!("{{{name}}}"), &value);
+            all.push(format!("{} {value}", name.replace('_', " ")));
+        }
+        text.replace("{args}", &all.join(", "))
+    }
+}
+
+/// A value as the TTS says it: a text without quotes, at most 60
+/// characters.
+fn spoken(v: &serde_json::Value) -> String {
+    let text = v.as_str().map_or_else(|| v.to_string(), str::to_owned);
+    let mut short: String = text.chars().take(60).collect();
+    if short.len() < text.len() {
+        short.push_str(" …");
+    }
+    short
 }
 
 /// Whether a settings key decides what the agent may do or run, or
@@ -448,7 +473,7 @@ fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 19] = [
+const GERMAN: [(&str, &str); 20] = [
     ("One moment.", "Moment."),
     ("Heard: {text}", "Gehört: {text}"),
     (
@@ -483,26 +508,33 @@ const GERMAN: [(&str, &str); 19] = [
     ),
     ("Shall I remove that?", "Soll ich das entfernen?"),
     (
-        "Shall I remove the view?",
-        "Soll ich die Ansicht entfernen?",
+        "Shall I remove the view {name}?",
+        "Soll ich die Ansicht {name} entfernen?",
     ),
     ("Shall I type or click?", "Soll ich tippen oder klicken?"),
     (
         "Shall I start the coding task?",
         "Soll ich die Programmieraufgabe starten?",
     ),
-    ("Shall I start the agent?", "Soll ich den Agenten starten?"),
+    (
+        "Shall I start an agent for {project}?",
+        "Soll ich einen Agenten für {project} starten?",
+    ),
     (
         "Shall I start the program {program}?",
         "Soll ich das Programm {program} starten?",
     ),
     (
-        "Shall I change the screen?",
-        "Soll ich den Bildschirm ändern?",
+        "Shall I change the screen to {args}?",
+        "Soll ich den Bildschirm auf {args} ändern?",
     ),
     (
         "Shall I restart the plugin?",
         "Soll ich das Plugin neu starten?",
+    ),
+    (
+        "Shall I restart the plugin {client}?",
+        "Soll ich das Plugin {client} neu starten?",
     ),
 ];
 
@@ -921,6 +953,30 @@ mod tests {
         assert_eq!(
             config.code_said("The coding task in demo-1 is done. All good."),
             "Die Programmieraufgabe in demo-1 ist fertig. All good."
+        );
+    }
+
+    #[test]
+    fn confirm_questions_name_the_arguments() {
+        let question = |tool: &str, args: serde_json::Value| {
+            let config = Config::default();
+            let rule = config.confirm.iter().find(|r| r.tool == tool).unwrap();
+            rule.question(&args)
+        };
+        let screen = serde_json::json!({"output": "winit", "scale": 1.5});
+        assert_eq!(
+            question("configure_output", screen),
+            "Shall I change the screen to output winit, scale 1.5?"
+        );
+        let view = serde_json::json!({"name": "desk"});
+        assert_eq!(
+            question("unload_view", view),
+            "Shall I remove the view desk?"
+        );
+        let argv = serde_json::json!({"argv": ["/usr/bin/foot", "-e"]});
+        assert_eq!(
+            question("run_program", argv),
+            "Shall I start the program foot?"
         );
     }
 
