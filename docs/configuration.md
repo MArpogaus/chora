@@ -596,8 +596,13 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 `chora-construct` connects with the client name `construct`. It is a
 flavor: `chora -- chora-construct` starts into it, and the directory
 `flavors/construct/` holds its target and service. The first output shows
-a space without a grid: white with a foggy horizon in the light theme, a
-black void with dark fog in the dark theme. Each new window becomes a
+a space without a grid and without lines. In the light theme, a pale sky
+lies over a ground that is a little darker and warmer, with a soft bright
+band at the horizon. In the dark theme, a black void lies over a dim
+ground, with a faint glow at the horizon. Sparse fine dust on the ground
+moves with each step and turn and fades into the fog. Each pane has a
+soft shadow on the ground under it, and a blurred mirror image that fades
+downwards, as on a satin floor. Each new window becomes a
 pane ahead of the camera, at the size of the output. A pane turns to face
 the camera and shows the window through its node texture. A new pane
 moves aside, right first, from the panes in its way. The space lies on
@@ -612,6 +617,16 @@ pane nearest the middle of the view, flies into the pane. At the end of
 the fly-in, the window itself shows at 1:1 pixels and takes the keyboard
 and the pointer. `Alt+Escape` flies back to the pose before.
 
+`t` starts the terminal, and its window becomes a pane in the view
+direction. `space` starts the launcher. The launcher itself is no pane:
+a layer-shell launcher such as fuzzel shows over the space, and a
+launcher window that maps with the activation token of its start shows
+in the middle of the output. The first other window after the launcher
+becomes a pane, also beside another flavor. `x` asks the window of the
+pane nearest the middle of the view to close, as a close button does, so
+a program can ask about unsaved work first; the pane goes when the
+window closes. `tests/gate-construct-keys.sh` checks the three keys.
+
 The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 `chora-construct --print-config` prints the default with comments:
 
@@ -621,7 +636,9 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home` or `fly_in` |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `t`, `space`, `x` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher` or `close` |
+| `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
+| `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Ctrl` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
 
