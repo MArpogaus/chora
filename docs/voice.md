@@ -247,7 +247,10 @@ another client under it; the agent reads the owners and parents with
 Own settings: the LLM may call `settings.get`, `settings.set` and
 `settings.reload` of the agent's own client NAME, also when
 `skipped_tools` hides NAME; no other method of NAME, NAME-hud or
-NAME-mcp. Each `settings.set` asks with its keys and values
+NAME-mcp. The tool of its own `settings.set` takes `{"patch": ...}`
+without the schema of the settings, which is about 14 KB and made the
+LLM narrate; the agent hands the patch on and the client checks it.
+Each `settings.set` asks with its keys and values
 (`phrases.settings_set`, "Shall I set barge in min rms to 15?"). A
 security key asks with `phrases.settings_security` ("Security setting!
 ..."): `confirm`, `sandbox_cmd`, `unsandboxed`, `agent_cmd`,

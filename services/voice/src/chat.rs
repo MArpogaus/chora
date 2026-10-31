@@ -1326,8 +1326,14 @@ mod tests {
     #[tokio::test]
     async fn a_change_of_the_own_settings_asks_with_key_and_value() {
         let script = vec![
-            Reply::Tool("voice__settings__set", r#"{"barge_in_min_rms": 15}"#),
-            Reply::Tool("voice__settings__set", r#"{"llm_url": "http://x/v1"}"#),
+            Reply::Tool(
+                "voice__settings__set",
+                r#"{"patch": {"barge_in_min_rms": 15}}"#,
+            ),
+            Reply::Tool(
+                "voice__settings__set",
+                r#"{"patch": {"llm_url": "http://x/v1"}}"#,
+            ),
             Reply::Text("Erledigt."),
         ];
         let server = fake::llm(script).await;

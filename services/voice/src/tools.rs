@@ -107,15 +107,15 @@ impl Tools {
     }
 
     /// The patch of a `settings.set` of the agent itself (`tool` is the
-    /// MCP name), as a plugin tool or by `call_method`; none for another
-    /// call.
+    /// MCP name), as a plugin tool (its `patch`, see `own_settings_spec`)
+    /// or by `call_method`; none for another call.
     pub fn own_settings_set<'a>(&self, tool: &str, args: &'a Value) -> Option<&'a Value> {
         let (client, method, patch) = if tool == "call_method" {
             let field = |k: &str| args[k].as_str().unwrap_or_default();
             (field("client"), field("method"), &args["params"])
         } else {
             let (client, method) = tool.split_once('.')?;
-            (client, method, args)
+            (client, method, args.get("patch").unwrap_or(args))
         };
         (method == "settings.set" && self.own_settings(client, method)).then_some(patch)
     }
@@ -204,6 +204,9 @@ impl Tools {
                     .map(|tool| {
                         let name = tool.name.replace('.', "__");
                         self.names.insert(name.clone(), tool.name.to_string());
+                        if self.own_settings_set(&tool.name, &Value::Null).is_some() {
+                            return own_settings_spec(&name);
+                        }
                         json!({"type": "function", "function": {
                             "name": name,
                             "description": tool.description,
@@ -248,6 +251,11 @@ impl Tools {
         {
             return agents.call(&name, &Value::Object(args));
         }
+        // The plugin tool of the own settings takes `{"patch": ...}`.
+        let args = match self.own_settings_set(&name, &Value::Object(args.clone())) {
+            Some(Value::Object(patch)) => patch.clone(),
+            _ => args,
+        };
         self.refresh().await;
         let Some(service) = self.connected() else {
             return "error: chora is not connected".into();
@@ -271,6 +279,26 @@ impl Tools {
             Ok(Ok(_)) => "error: the tool asked for input, which the agent cannot give".into(),
         }
     }
+}
+
+/// The spec of the agent's own `settings.set` for the LLM: a patch,
+/// without the schema of the settings. That schema (about 14 KB, the
+/// configuration docs) talks of "the user" throughout and made the LLM
+/// narrate in the third person; the core still checks the patch.
+fn own_settings_spec(name: &str) -> Value {
+    json!({"type": "function", "function": {
+        "name": name,
+        "description": "Changes your own settings. The user confirms each change by voice.",
+        "parameters": {
+            "type": "object",
+            "properties": {"patch": {
+                "type": "object",
+                "description": "The keys to change with their new values, as settings.get \
+                    answers them; objects merge, null resets a key to its default.",
+            }},
+            "required": ["patch"],
+        },
+    }})
 }
 
 /// The text of the blocks (or `done`), and the pictures as `image_url`
@@ -525,9 +553,18 @@ pub mod tests {
         tools.own = "voice".into();
         tools.refresh().await;
         assert_eq!(tools.mcp_name("voice__state"), None, "skipped");
+        // The LLM sees a lean patch, not the schema of the settings.
+        let spec = tools
+            .specs
+            .iter()
+            .find(|s| s["function"]["name"] == "voice__settings__set")
+            .unwrap();
+        assert_eq!(spec, &own_settings_spec("voice__settings__set"));
+        assert!(spec.to_string().len() < 600, "{spec}");
         let patch = json!({"barge_in_min_rms": 15});
-        let answer = tools.call("voice__settings__set", &patch).await;
-        assert_eq!(answer, patch.to_string());
+        let wrapped = json!({"patch": patch});
+        let answer = tools.call("voice__settings__set", &wrapped).await;
+        assert_eq!(answer, patch.to_string(), "the core gets the patch");
         let call_method = "call_method".to_owned();
         tools.names.insert(call_method.clone(), call_method);
         let get = json!({"client": "voice", "method": "settings.get"});
@@ -541,7 +578,7 @@ pub mod tests {
         let set = json!({"client": "voice", "method": "settings.set", "params": patch});
         assert_eq!(tools.own_settings_set("call_method", &set), Some(&patch));
         assert_eq!(
-            tools.own_settings_set("voice.settings.set", &patch),
+            tools.own_settings_set("voice.settings.set", &wrapped),
             Some(&patch)
         );
         assert_eq!(tools.own_settings_set("mc.settings.set", &patch), None);
