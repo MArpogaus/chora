@@ -65,6 +65,8 @@ const WRITE_SHADER: &str = include_str!("../write.frag");
 const BLUR_SHADER: &str = include_str!("../blur.frag");
 /// The lines of the baseline grid above the head of a scene.
 const HEAD: f64 = 3.0;
+/// The space on each side of the bar of a head, in em of its title.
+const BAR_SPACE: f64 = 0.4;
 
 /// One scene at a time on the whole screen, driven by voice.
 #[derive(Parser)]
@@ -1293,9 +1295,24 @@ impl Mc {
     fn chapter_height(&self, scene: &Scene) -> f64 {
         let b = self.settings.value.scale.baseline;
         match self.layout(scene) {
-            Layout::Number => self.ty("chapter", None).line + b,
+            Layout::Number => {
+                let line = |name| self.ty(name, None).line;
+                line("chapter").max(line("chapter_number")) + b
+            }
             Layout::None => 0.0,
         }
+    }
+
+    /// The bar between the number and the title of a head at `x`: a
+    /// hairline from the baseline of the title up to its capitals.
+    // ponytail: tuned by eye for TeX Gyre Pagella, as `baseline_shift`;
+    // read the metrics of the font when another font is off.
+    fn bar(&self, x: f64) -> [f64; 4] {
+        let title = self.ty("chapter", None);
+        let baseline = HEAD * self.settings.value.scale.baseline + title.line / 2.0;
+        let baseline = baseline + 0.21 * title.size;
+        let cap = 0.69 * title.size;
+        [x, (baseline - cap).round(), 1.0, cap.round()]
     }
 
     /// Where the parts of the page of a scene go on the output.
@@ -1354,14 +1371,20 @@ impl Mc {
         let mut commands = Vec::new();
         match self.layout(scene) {
             Layout::Number => {
-                // The title starts after the number and its bar; `align`
-                // moves it there once the core knows their width.
+                // The bar and the title follow the number; `align` moves
+                // them there once the core knows its width.
                 let (number_ty, title_ty) =
                     (self.ty("chapter_number", None), self.ty("chapter", None));
-                let chars: f64 = number.chars().map(|_| 1.0).sum::<f64>() + 2.0;
+                let chars: f64 = number.chars().map(|_| 1.0).sum();
                 let guess = x + 0.6 * number_ty.size * chars;
+                commands.push(region::rect(
+                    &chapter_id(name, "bar"),
+                    &panels_id(name),
+                    self.bar(guess),
+                    number_ty.color,
+                ));
                 let parts = [
-                    ("number", number_ty, format!("{number} |"), x),
+                    ("number", number_ty, number, x),
                     ("title", title_ty, title, guess),
                 ];
                 for (part, ty, text, x) in parts {
@@ -1488,9 +1511,10 @@ impl Mc {
             && self.layout(&scene) == Layout::Number
             && let Some([_, _, width, _]) = self.rect(&chapter_id(name, "number"))?
         {
-            // A word space of the title after the bar.
-            let space = 0.25 * self.ty("chapter", None).size;
-            let x = (geo.text[0] + width + space).round();
+            let space = BAR_SPACE * self.ty("chapter", None).size;
+            let bar = self.bar((geo.text[0] + width + space).round());
+            commands.push(move_to(chapter_id(name, "bar"), bar[0], bar[1]));
+            let x = bar[0] + bar[2] + space.round();
             commands.push(move_to(chapter_id(name, "title"), x, HEAD * geo.baseline));
         }
         for panel in &scene.panels {
