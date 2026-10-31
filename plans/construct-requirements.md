@@ -1,6 +1,6 @@
 # chora-construct: requirements
 
-Status: K1 and K2a built; the rest open. Source: the interview of
+Status: K1, K2a and K2b (F29 to F31) built; the rest open. Source: the interview of
 2026-10-31 and the loader prototype in `examples/loader/`.
 
 ## 1. Goal
@@ -199,6 +199,16 @@ The host keymap (#12) stays a limit of v1.
   its size, place and focus as before. No window stays hidden or
   ownerless. Step K2b.
 
+K2b, built: `Tab` and `window.list` show the windows without a visible
+pane; `window.show` flies to a pane or takes a window of any owner as a
+pane, which shows it through its node texture only. The construct
+changes no prop of such a window, so nothing needs a restore: the owner
+has it back when the pane, the construct or its process goes. The
+keyboard goes back to the window that had it before the load.
+`window.give` and the give rows of the list hand own windows to another
+window manager (D55), and the construct takes windows given to it.
+`tests/gate-construct-windows.sh` checks every way a pane can go.
+
 ## 6. Non-functional requirements
 
 - **N1 Performance:** 8 live panes at 60 fps on the reference hardware
@@ -260,6 +270,8 @@ The host keymap (#12) stays a limit of v1.
 | Layer budget 64 Mi px | Limits live panes at scale 3. | budget per output, mipmaps |
 | One camera owner (D40) | None since K2a: the space uses the screen root. It covers the first output only, and layer-shell panels show above it. | none needed |
 | Hidden windows | A program pane of an overlay is empty while its owner hides the window, for example on another tiling tag. | none; the owner decides |
+| Free windows | When the construct flavor ends, its windows are free (the core resets their props) until a window manager takes them; with none running, they do not show. When the owner of a taken window ends, its pane shows a free window. | none; any window manager takes free windows |
+| Keyboard of an overlay | The owner of a taken window may give the keyboard to another of its windows, for example when the window closes; a click on the space takes it back. | none |
 | Shader limits (#16) | No `fwidth`; `mediump` breaks hashes. | none needed |
 
 ## 10. Risks

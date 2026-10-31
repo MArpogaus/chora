@@ -611,7 +611,7 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 ## chora-construct (experimental)
 
 !!! warning "Experimental"
-    `chora-construct` is step K2a of the construct track (D66). The
+    `chora-construct` is step K2b of the construct track (D66). The
     packages install it, but its settings and files change without notice.
 
 `chora-construct` connects with the client name `construct`. It is a
@@ -657,7 +657,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `t`, `space`, `x` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher` or `close` |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `t`, `space`, `x`, `Tab` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close` or `windows` |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
@@ -728,10 +728,45 @@ windows of the other flavor.
 | `pane.resize` | `name` and `scale`, for example 1.25 |
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
+| `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
+| `window.show` | `name`, a label or a surface of `window.list`: flies to the pane of the window; a window without a pane becomes one first |
+| `window.give` | `to`, a window manager, and `surface`, else the window flown into or ahead: gives an own window to `to` (D55); its pane goes |
 
 The name of a pane is a short label for voice: the app id or the title of
 the window, or the scene of a plugin pane, with `-2`, `-3` for a second
 and a third. `tests/gate-construct-k2a.sh` checks the step.
+
+### The window list
+
+In the construct, every window is a pane. `Tab`, the key `windows`,
+opens the window list over the space. It shows the windows that have no
+visible pane: a pane behind the camera, beyond the leash radius, or out
+of the view, and every window without a pane, of any owner. Each row has
+the label of the window, its owner and the place of its pane. `Up` and
+`Down` move the selection, and `Return` or a click chooses. A choice
+flies to the pane. A window of another client, such as tiling, xp or mc,
+first becomes a pane at its own size. `Escape` or `Tab` closes the list.
+`g` on an own window shows the other window managers, the clients with a
+claim (D55); `Return` gives the window to the one selected.
+
+A load never makes panes for the windows of other clients: they become
+panes only from the list or by `window.show`. Such a pane shows the
+window only through its node texture, and the keyboard goes to it
+through its owner (`node.requested`, D31). The construct changes no prop
+of such a window, so the owner has it back in full when the pane goes,
+when the construct leaves or loads another construct, and when the
+construct ends or crashes. `pane.remove` and `x` give such a window back
+without a close request. `construct.leave` also gives the keyboard back
+to the window that had it before the load. The windows that an overlay
+starts belong to the other flavor from the start and stay there. A
+window that another window manager gives to the construct (`remove` with
+`to`, D55) becomes a pane in the view direction; on a leave or a crash
+the core frees it again, and a window manager takes it.
+
+The construct works with any window manager; the construct changes only
+what it gives back. `tests/gate-construct-windows.sh` checks the list,
+the hand-over over tiling, xp and mc, and that no window gets lost when
+a pane goes in any way.
 
 ## Flavors
 
