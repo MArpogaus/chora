@@ -1,6 +1,6 @@
 # chora-construct: the voice HUD and the style (step K3, F28)
 
-Status: plan, not started. The rules and the values come from
+Status: built. The rules and the values come from
 `docs/construct-style.md`; this plan does not repeat them. Read that page
 first, then `plans/construct-requirements.md` (F26 to F31) and
 `docs/voice.md` section 10.

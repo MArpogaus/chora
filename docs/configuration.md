@@ -612,7 +612,7 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 ## chora-construct (experimental)
 
 !!! warning "Experimental"
-    `chora-construct` is step K2b of the construct track (D66). The
+    `chora-construct` is step K3 of the construct track (D66). The
     packages install it, but its settings and files change without notice.
 
 `chora-construct` connects with the client name `construct`. It is a
@@ -667,6 +667,8 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
+| `voice_hud` | `true` | draw the voice HUD and hide the dot of the voice agent |
+| `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
 While the camera is in a pane, the window has the keyboard, so `fly_out`
 is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
@@ -819,6 +821,33 @@ The construct works with any window manager; the construct changes only
 what it gives back. `tests/gate-construct-windows.sh` checks the list,
 the hand-over over tiling, xp and mc, and that no window gets lost when
 a pane goes in any way.
+
+### The voice HUD
+
+With `voice_hud`, the construct shows the voice agent
+([voice](voice.md), section 10) at the bottom centre of the output, from its first
+`voice.state` on. A glass panel holds a ring in the accent and the state
+as a label: a thin, dim ring asleep, a full ring listening, a turning arc
+thinking and working, a pulse at a question, and five moving bars while
+a sentence plays. While thinking or working, the task shows under the
+label; a spoken sentence shows in two lines at most, keeps its end, and
+fades out 2 s after its sound. Flown into a pane, the HUD shrinks to the
+ring and the label at the bottom right. `voice.confirm` opens a question
+at the top centre with the prompt and the whole detail; the wheel
+scrolls a long one, and its `done` closes it. The answer is by voice.
+The construct claims the indicator of the agent (`indicator.claim`) at
+the start and on each connection of the agent, and hides the HUD while
+the agent is away.
+
+Under the pane ahead, or under the pane where the pointer last pressed or
+let go, a pill names the pane. The core tells the pointer only from a
+press to its release, so the label does not follow a hover.
+
+The ring, the bars and the glow are one shader, `glass.frag`. When the
+watchdog takes the shaders (`effects.dropped`), the panels and their
+labels stay, without the ring, until the settings change.
+`tests/gate-construct-hud.sh` checks the HUD with a fake agent,
+`tests/fake-voice.py`, and captures each state in both themes.
 
 ## Flavors
 

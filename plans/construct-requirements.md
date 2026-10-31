@@ -1,6 +1,7 @@
 # chora-construct: requirements
 
-Status: K1, K2a and K2b (F29 to F31) built; the rest open. Source: the interview of
+Status: K1, K2a, K2b (F29 to F31) and K3 (F28, the voice HUD) built; the
+rest open. Source: the interview of
 2026-10-31 and the loader prototype in `examples/loader/`.
 
 ## 1. Goal
@@ -186,7 +187,10 @@ The host keymap (#12) stays a limit of v1.
 - **F28** The construct draws its own voice HUD from the `voice.*`
   events (D65): a holographic HUD in the style of a science fiction
   game, with a waveform, a state ring and the spoken text in the
-  space. It belongs to step K3.
+  space. It belongs to step K3. Built: a glass HUD at the bottom of the
+  output with the state ring, the state as a label, a waveform while a
+  sentence plays, the sentence, and the questions with their whole
+  detail (`plans/construct-hud.md`).
 - **F29** In the construct, every window is a pane; there is no other
   form of a window. A window list (key `Tab` and a voice tool) shows the
   windows that have no visible pane: lost, hidden or far away. A choice
@@ -228,9 +232,10 @@ window manager (D55), and the construct takes windows given to it.
   did not save themselves. K2a: as for mc scene files, a file in
   `~/.config/chora/constructs/` counts as the user's own, so it needs no
   confirmation; `construct.load` and `construct.save` are privileged.
-- **N6 Style:** the colours and type follow the style guide of mc
-  (`docs/mc-style.md`) where text shows, such as labels and the strip of
-  prompt panes.
+- **N6 Style:** the elements over the space, such as the HUD, the labels
+  and the strip of prompt panes, follow the construct style guide
+  (`docs/construct-style.md`); the section `style` of `construct.yaml`
+  holds its values.
 
 ## 7. Interfaces with the core (as it is)
 
