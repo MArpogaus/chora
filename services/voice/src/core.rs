@@ -1471,10 +1471,7 @@ mod tests {
         assert_eq!(core.state(), State::Transcribing);
         let effects = core.handle(text(1, false, Err("timeout")));
         assert_eq!(effects[0], Effect::Earcon(Earcon::Error));
-        assert_eq!(
-            asks(&effects[1..]),
-            [(1, "I did not understand you.")]
-        );
+        assert_eq!(asks(&effects[1..]), [(1, "I did not understand you.")]);
         core.handle(Input::Reply(1, Reply::Done(String::new())));
         assert_eq!(core.state(), State::Listening, "said once");
     }
