@@ -811,12 +811,11 @@ impl Chat {
                 out(Event::Tool(call.name.clone()));
                 let start = Instant::now();
                 let content = self.tools.call(&call.name, &args).await;
+                let (args, result) = journal(&call.name, &args, &text_of(&content));
                 crate::log::info(&format!(
-                    "tool {} {} {}ms -> {}",
+                    "tool {} {args} {}ms -> {result}",
                     call.name,
-                    call.args,
                     start.elapsed().as_millis(),
-                    short(&text_of(&content), 300)
                 ));
                 content
             };
@@ -1081,6 +1080,40 @@ fn text_of(content: &Value) -> String {
             .join(" "),
         _ => String::new(),
     }
+}
+
+/// The arguments and the result of a tool call for the journal,
+/// without secrets: of `read` only the path and the byte count, and no
+/// value of a key such as `llm_headers` or `tts_api_key_file`.
+fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
+    fn hide(value: &mut Value) {
+        match value {
+            Value::Object(map) => {
+                for (key, value) in map {
+                    let key = key.to_lowercase().replace('-', "_");
+                    let secret = ["api_key", "apikey", "secret", "password"];
+                    if key.ends_with("_headers")
+                        || key.ends_with("token")
+                        || key == "authorization"
+                        || secret.iter().any(|s| key.contains(s))
+                    {
+                        *value = "(hidden)".into();
+                    } else {
+                        hide(value);
+                    }
+                }
+            }
+            Value::Array(items) => items.iter_mut().for_each(hide),
+            _ => {}
+        }
+    }
+    if tool == "read" {
+        let path = args["path"].as_str().unwrap_or_default();
+        return (path.to_owned(), format!("{} bytes", result.len()));
+    }
+    let mut args = args.clone();
+    hide(&mut args);
+    (args.to_string(), short(result, 300))
 }
 
 /// The first `n` characters.
@@ -1720,6 +1753,20 @@ mod tests {
             ]
         );
         assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    /// Review 0.9.0-rc.3: the journal gets no secret of a tool call.
+    #[test]
+    fn the_journal_hides_secrets() {
+        let (args, result) = journal("read", &json!({"path": "proj/.env"}), "KEY=sk-1\n");
+        assert_eq!((args.as_str(), result.as_str()), ("proj/.env", "9 bytes"));
+        let set = json!({"patch": {"llm_headers": {"X-Key": "sk-2"}, "llm_api_key_file": "/k",
+            "asr_url": "http://x", "list": [{"token": "t"}]}});
+        let (args, _) = journal("voice__settings__set", &set, "ok");
+        for secret in ["sk-2", "/k", "\"t\""] {
+            assert!(!args.contains(secret), "{args}");
+        }
+        assert!(args.contains("http://x"), "{args}");
     }
 
     /// Review 0.9.0-rc.3: a security value is never cut; the question

@@ -580,7 +580,11 @@ macros out of the other functions, because clippy counts their expansion
 into the cognitive complexity. With `CHORA_VOICE_LLM_DUMP=FILE` the agent
 appends each LLM request body and the raw lines of its stream to FILE
 (mode 0600), to see what the server got and sent. Each stage logs start
-and end with the turn number. One summary per turn:
+and end with the turn number. A tool call logs its arguments and the
+start of its result, without secrets. Of `read`, the log has only the
+path and the byte count. The values of each `*_headers` key, of each
+key with `api_key`, `apikey`, `secret` or `password`, of each key that
+ends with `token`, and of `authorization` show as "(hidden)". One summary per turn:
 
 ```
 turn=17 speech=2.1s asr=380ms llm_first=650ms tts_first=310ms
