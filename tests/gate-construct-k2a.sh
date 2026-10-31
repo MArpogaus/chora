@@ -183,6 +183,12 @@ owners=$(ctl query kind:surface | python3 -I -c 'import json, sys; print(sorted(
 shot "$shots/construct-k2a-overlay.png"
 ok "construct.load over tiling shows the pane $pane; tiling keeps the windows and the cameras"
 
+pane_rects() {
+    ctl query owner:construct | python3 -I -c '
+import json, sys
+print([n["rects"] for n in json.load(sys.stdin) if n["id"].startswith("construct-pane-")])'
+}
+walk=$(pane_rects)
 call pane.fly "{\"name\": \"$pane\"}" >/dev/null || fail "pane.fly"
 sleep 1.5
 # shellcheck disable=SC2028 # \n is the JSON escape, for the core
@@ -198,9 +204,14 @@ sleep 0.5
 shot "$shots/construct-k2a-flown.png"
 ok "after pane.fly, tiling gave the keyboard to the window of the pane, and the text arrived"
 
+# A click into the pane that the camera is in keeps the way back.
+echo '[{"pointer_move": {"position": [640, 400]}}, {"click": {}}]' | ctl inject || fail "inject click"
+sleep 1.5
 echo '[{"shortcut": {"keys": "Alt+Escape"}}]' | ctl inject || fail "inject Alt+Escape"
 sleep 1
 [ "$(node id:construct-look 'n[0]["focused"]')" = True ] || fail "the space has no keyboard after the fly-out"
+[ "$(pane_rects)" = "$walk" ] || fail "after a click inside, the fly-out went to $(pane_rects), not back to $walk"
+ok "after a click inside the pane, Alt+Escape flew back to the pose before"
 call construct.leave >/dev/null || fail "construct.leave"
 ctl wait --gone --timeout 5 owner:construct >/dev/null || fail "construct nodes stay: $(ctl query owner:construct)"
 [ "$(ctl outputs)" = "$cameras" ] || fail "the cameras did not come back: $(ctl outputs)"

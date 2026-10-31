@@ -1188,11 +1188,13 @@ impl Construct {
     }
 
     /// Flies in front of a pane. The window of a window pane then takes
-    /// over; a plugin pane stays a pane, at 1:1.
+    /// over; a plugin pane stays a pane, at 1:1. A fly-in from inside a
+    /// pane, or during a fly-in, keeps the pose of the first to go back to.
     fn fly_in(&mut self, i: usize) {
         let pane = &self.panes[i];
         let to = space::fly_in(&self.lens, [self.pose.x, self.pose.z], pane.at);
-        let back = self.target();
+        let gliding_in = self.glide.as_ref().and_then(|g| g.into.as_ref());
+        let back = (self.flown.as_ref().or(gliding_in)).map_or_else(|| self.target(), |f| f.back);
         let into = (pane.window()).map(|surface| Flown {
             surface: surface.into(),
             back,
