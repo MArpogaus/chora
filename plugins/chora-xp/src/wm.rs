@@ -86,7 +86,7 @@ const FADE: Duration = Duration::from_millis(1500);
 const HANDOVER: &str = "tiling";
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 21] = [
+const EVENTS: [&str; 22] = [
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -106,6 +106,7 @@ const EVENTS: [&str; 21] = [
     "input.moved",
     "effects.dropped",
     "node.requested",
+    "client.connected",
     "client.disconnected",
     // The events of the voice agent (D65).
     "voice.*",
@@ -273,6 +274,9 @@ pub struct Wm {
     /// The client name of the voice agent and its pose, while it is
     /// connected and awake.
     voice: Option<(String, crate::assistant::Pose)>,
+    /// Whether xp claims the state indicator of the voice agent at its
+    /// next event: after the start and after the agent connected.
+    claim_due: bool,
 }
 
 impl Plugin for Wm {
@@ -359,6 +363,7 @@ impl Wm {
             kept: HashMap::new(),
             assistant: None,
             voice: None,
+            claim_due: true,
         };
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
@@ -602,6 +607,10 @@ impl Wm {
                 client,
                 data,
             } => self.voice_event(&event, &client, &data),
+            Event::ClientConnected { name } => {
+                self.voice_connected(&name);
+                Vec::new()
+            }
             Event::ClientDisconnected { name } => self.voice_gone(&name),
             event @ (Event::InputKey { .. }
             | Event::InputButton { .. }

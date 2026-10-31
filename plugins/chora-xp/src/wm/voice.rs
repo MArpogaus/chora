@@ -17,6 +17,7 @@ impl Wm {
     /// Asks the voice agent for its state, so that the paperclip shows
     /// after a start or restart of chora-xp while the agent is awake.
     pub(super) fn ask_voice(&mut self) -> Result<(), ClientError> {
+        self.claim_indicator(false);
         // Without the agent, the call fails quietly.
         if let Ok(state) = self.voice_call("state", &json!({})) {
             let pose = state["state"].as_str().and_then(assistant::pose);
@@ -32,6 +33,9 @@ impl Wm {
     /// with its full detail until its answer. The events of sub-agents, which carry
     /// a name of their own, leave the paperclip alone.
     pub(super) fn voice_event(&mut self, event: &str, client: &str, data: &Value) -> Vec<Command> {
+        if client == VOICE {
+            self.claim_indicator(true);
+        }
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
         let name = data.get("name").and_then(Value::as_str);
         if name.is_some_and(|n| n != client) {
@@ -71,8 +75,33 @@ impl Wm {
         }
     }
 
+    /// The voice agent connected: it shows its own state indicator until
+    /// a claim.
+    pub(super) fn voice_connected(&mut self, name: &str) {
+        if name == VOICE {
+            self.claim_due = true;
+            self.claim_indicator(false);
+        }
+    }
+
+    /// Asks the voice agent to hide its own state indicator, since the
+    /// paperclip shows the state, while one is due and the paperclip is
+    /// enabled. An error, such as no agent or an agent without the
+    /// method, only leaves it due; after an event of the agent (`last`)
+    /// it is no longer due.
+    fn claim_indicator(&mut self, last: bool) {
+        if !self.claim_due || !self.settings.value.assistant.enabled {
+            return;
+        }
+        let done = self.voice_call("indicator.claim", &json!({})).is_ok();
+        self.claim_due = !done && !last;
+    }
+
     /// The voice agent closed its connection.
     pub(super) fn voice_gone(&mut self, name: &str) -> Vec<Command> {
+        if name == VOICE {
+            self.claim_due = true;
+        }
         if self.voice.as_ref().is_none_or(|(client, _)| client != name) {
             return Vec::new();
         }

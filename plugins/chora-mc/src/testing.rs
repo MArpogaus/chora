@@ -23,6 +23,8 @@ pub struct Core {
     pub scene: chora_scene::Scene,
     /// The focus commands that the plugin sent.
     pub focuses: Vec<Option<String>>,
+    /// The methods that the plugin called through `methods.call`.
+    pub calls: Vec<String>,
 }
 
 /// The model of each connection, in the order of the connections.
@@ -79,6 +81,11 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
                     format!("command {}: {}", e.index, e.error),
                 )),
             }
+        }
+        "methods.call" => {
+            let method = params["method"].as_str().unwrap_or_default().to_owned();
+            model.lock().unwrap().calls.push(method);
+            Ok(Value::Null)
         }
         "scene.query" => {
             let id = params["selector"]

@@ -308,6 +308,9 @@ struct Mc {
     solo: Option<Solo>,
     /// The id of the spoken confirmation that shows, until its answer.
     confirming: Option<String>,
+    /// Whether mc claims the state indicator of the voice agent at its
+    /// next event: after the start and after the agent connected.
+    claim_due: bool,
     /// How far the page of a scene scrolled down, by scene.
     scroll: BTreeMap<String, f64>,
 }
@@ -421,6 +424,7 @@ impl Mc {
             agent_focus: None,
             solo: None,
             confirming: None,
+            claim_due: true,
             scroll: BTreeMap::new(),
         };
         mc.keep_texts();
@@ -428,9 +432,14 @@ impl Mc {
     }
 }
 
+/// The client name of the voice agent.
+const VOICE: &str = "voice";
+
 /// The events; `voice.*` are those of the voice agent (D65).
-const EVENTS: [&str; 10] = [
+const EVENTS: [&str; 12] = [
     "voice.*",
+    "client.connected",
+    "client.disconnected",
     "pointer.scroll",
     "pointer.pressed",
     "animation.done",
@@ -657,6 +666,13 @@ impl Plugin for Mc {
             Event::AnimationDone {
                 node: Some(node), ..
             } => self.timer(&node),
+            Event::ClientConnected { name } | Event::ClientDisconnected { name }
+                if name == VOICE =>
+            {
+                self.claim_due = true;
+                self.claim_indicator(false);
+                Ok(())
+            }
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
@@ -821,6 +837,9 @@ impl Mc {
     /// as `hud.say` does. Wrong data only logs, since the emitter gets no
     /// answer; other events do nothing.
     fn follow(&mut self, event: &str, client: &str, mut data: Value) -> Result<(), ClientError> {
+        if client == VOICE {
+            self.claim_indicator(true);
+        }
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
         let done = match kind {
             Some("state") => {
@@ -841,6 +860,19 @@ impl Mc {
             eprintln!("chora-mc: {event}: {e}");
         }
         Ok(())
+    }
+
+    /// Asks the voice agent to hide its own state indicator, since mc
+    /// shows the state, while one is due. An error, such as no agent or
+    /// an agent without the method, only leaves it due; after an event
+    /// of the agent (`last`) it is no longer due.
+    fn claim_indicator(&mut self, last: bool) {
+        if !self.claim_due {
+            return;
+        }
+        let call = json!({"client": VOICE, "method": "indicator.claim", "params": {}});
+        let done = self.rt.conn.call::<_, Value>("methods.call", call).is_ok();
+        self.claim_due = !done && !last;
     }
 
     /// The methods of the agents and the notifications.
@@ -1081,6 +1113,7 @@ impl Mc {
             eprintln!("chora-mc: {name}: {}", err.message);
         }
         self.autostart();
+        self.claim_indicator(false);
         let free: Vec<Value> = self
             .rt
             .conn
@@ -2498,6 +2531,26 @@ mod tests {
     fn a_running_process_is_alive_and_a_missing_one_not() {
         assert!(super::alive(std::process::id()));
         assert!(!super::alive(u32::MAX));
+    }
+
+    /// The claim of the indicator of the voice agent goes out at the
+    /// start, again after the agent connected, and with its first event
+    /// after a failed claim; then no more.
+    #[test]
+    fn mc_claims_the_indicator_of_voice_once_per_connection() {
+        let (mut mc, model) = crate::testing::mc("claim", [1920, 1080]);
+        let claims = || model.lock().unwrap().calls.len();
+        mc.claim_indicator(false);
+        assert_eq!(claims(), 1);
+        mc.follow("voice.state", "voice", serde_json::json!({}))
+            .unwrap();
+        assert_eq!(claims(), 1, "claimed already");
+        let connected = chora_scene::Event::ClientConnected {
+            name: "voice".into(),
+        };
+        chora_kit::runtime::Plugin::event(&mut mc, connected).unwrap();
+        assert_eq!(claims(), 2);
+        assert!(!mc.claim_due);
     }
 
     /// A client with `methods.call` alone ran commands through app.open and

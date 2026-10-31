@@ -340,7 +340,9 @@ ACP agent of the voice agent; `voice.remove {name}` removes such a
 sub-agent.
 `voice.say` shows a sentence as `hud.say` does. `voice.confirm` shows its
 `prompt` and its whole `detail` in mono alone in the drawer until the
-event with `done` and the same `id`. Data that mc does not
+event with `done` and the same `id`. At its start and after the agent
+connects, mc calls the method `indicator.claim` of the agent, so that the
+agent hides its own state dot. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
 clients use `agent.set` and `hud.say`.
 
@@ -1205,6 +1207,8 @@ thinks, bounces while it speaks and raises its eyebrows when it asks. Each
 sentence of `voice.say` shows in a balloon above it, which fades out three
 seconds after the sentence ends. The balloon shows the `prompt` and the
 `detail` of `voice.confirm` until the event with `done` and the same `id`.
+While the paperclip is enabled, `chora-xp` calls `indicator.claim` of the
+agent at its start and after the agent connects.
 A click on the paperclip mutes the mic of
 the agent through its method `mute`, and a second click unmutes it. The
 paperclip goes when the agent sleeps or disconnects, and `assistant:
