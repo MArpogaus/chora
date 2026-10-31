@@ -275,7 +275,7 @@ impl Mc {
             panels.push(new);
         }
         for panel in panels {
-            self.replace_panel(SCENE, &panel)?;
+            self.replace_panel(SCENE, &panel, false)?;
         }
         Ok(())
     }

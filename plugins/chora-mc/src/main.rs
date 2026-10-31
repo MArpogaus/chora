@@ -885,6 +885,45 @@ fn create(id: &str, kind: NodeKind, parent: &str, props: PropsUpdate) -> Command
     }
 }
 
+/// The creates of the same nodes as updates, so that they change in
+/// place; `None` when a node comes or goes, or a prop would stay that the
+/// new props leave out.
+fn in_place(old: &[Command], new: &[Command]) -> Option<Vec<Command>> {
+    let keys = |props: &PropsUpdate| {
+        let value = serde_json::to_value(props).unwrap_or_default();
+        (value
+            .as_object()
+            .into_iter()
+            .flat_map(|o| o.keys().cloned()))
+        .collect::<Vec<_>>()
+    };
+    if old.len() != new.len() {
+        return None;
+    }
+    let pairs = old.iter().zip(new);
+    pairs
+        .map(|pair| match pair {
+            (
+                Command::Create {
+                    id: a,
+                    kind: ka,
+                    props: pa,
+                    ..
+                },
+                Command::Create {
+                    id, kind, props, ..
+                },
+            ) if a == id && ka == kind && keys(pa).iter().all(|k| keys(props).contains(k)) => {
+                Some(Command::Update {
+                    id: id.clone(),
+                    props: props.clone(),
+                })
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 fn translate(x: f64, y: f64) -> Transform {
     Transform::translate(x, y, 0.0)
 }
@@ -1976,12 +2015,14 @@ impl Mc {
             lines,
             ..found.clone()
         };
-        self.replace_panel(&scene, &new)
+        self.replace_panel(&scene, &new, true)
     }
 
     /// Puts a changed panel into its scene, by its id; it writes itself
     /// when the scene shows.
-    fn replace_panel(&mut self, scene: &str, new: &Panel) -> Result<(), RpcError> {
+    /// Without `write` the panel changes in place when it keeps its nodes,
+    /// so that an agent state does not blank and write its column anew.
+    pub fn replace_panel(&mut self, scene: &str, new: &Panel, write: bool) -> Result<(), RpcError> {
         new.check_text().map_err(invalid)?;
         let found = (self.scenes.get_mut(scene))
             .and_then(|v| v.panels.iter_mut().find(|p| p.id == new.id))
@@ -1990,16 +2031,23 @@ impl Mc {
         if found == new {
             return Ok(());
         }
-        *found = new.clone();
+        let old = std::mem::replace(found, new.clone());
         let scene = scene.to_owned();
-        let mut commands = vec![Command::Remove {
-            id: panel_id(&scene, &new.id),
-            to: None,
-        }];
-        commands.extend(self.panel(&scene, new));
-        if self.current.as_deref() == Some(&scene) {
-            commands.extend(self.write(&scene, &[new]));
-        }
+        let created = self.panel(&scene, new);
+        let updates = (!write)
+            .then(|| in_place(&self.panel(&scene, &old), &created))
+            .flatten();
+        let commands = updates.unwrap_or_else(|| {
+            let mut commands = vec![Command::Remove {
+                id: panel_id(&scene, &new.id),
+                to: None,
+            }];
+            commands.extend(created);
+            if write && self.current.as_deref() == Some(&scene) {
+                commands.extend(self.write(&scene, &[new]));
+            }
+            commands
+        });
         self.apply(commands)
             .and_then(|()| self.align(&scene))
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
@@ -2147,6 +2195,49 @@ fn launch(command: &str) -> Option<(String, Option<u32>)> {
 
 #[cfg(test)]
 mod tests {
+    use chora_scene::{Command, NodeKind, PropsUpdate};
+
+    fn text(id: &str, text: &str, color: Option<[f64; 4]>) -> Command {
+        super::create(
+            id,
+            NodeKind::Text,
+            "panel",
+            PropsUpdate {
+                text: Some(text.into()),
+                color,
+                ..PropsUpdate::default()
+            },
+        )
+    }
+
+    /// A new state of an agent changes the text of its column in place:
+    /// updates only, no remove and no new node that blanks it.
+    #[test]
+    fn the_same_nodes_change_in_place() {
+        let old = [
+            text("a-title", "Voice", None),
+            text("a-lines", "listening", None),
+        ];
+        let new = [
+            text("a-title", "Voice", Some([1.0; 4])),
+            text("a-lines", "thinking", None),
+        ];
+        let updates = super::in_place(&old, &new).expect("the same nodes");
+        assert_eq!(updates.len(), 2);
+        assert!(matches!(&updates[1], Command::Update { id, props }
+            if id == "a-lines" && props.text.as_deref() == Some("thinking")));
+    }
+
+    /// A node that comes or goes, or a prop that an update cannot clear,
+    /// needs the panel anew.
+    #[test]
+    fn other_nodes_or_a_cleared_prop_build_anew() {
+        let old = [text("a-lines", "x", Some([1.0; 4]))];
+        assert!(super::in_place(&old, &[text("a-lines", "x", None)]).is_none());
+        assert!(super::in_place(&old, &[text("a-title", "x", Some([1.0; 4]))]).is_none());
+        assert!(super::in_place(&old, &[]).is_none());
+    }
+
     #[test]
     fn the_hud_keeps_the_end_of_a_long_text() {
         let mut text = String::new();
