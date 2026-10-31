@@ -375,7 +375,6 @@ pub mod tests {
                 "quit",
                 "tiling.set_layout",
                 "capture",
-                "call_method",
             ]
             .map(|name| Tool::new(name, format!("the tool {name}"), schema.clone()));
             std::future::ready(Ok(ListToolsResult::with_all_items(tools.to_vec())))
@@ -456,6 +455,9 @@ pub mod tests {
         let (mut tools, calls) = fake(0);
         tools.own = "tiling".into();
         tools.refresh().await;
+        // The fake has no call_method: it echoes it as any tool.
+        let call_method = "call_method".to_owned();
+        tools.names.insert(call_method.clone(), call_method);
         for client in ["tiling", "tiling-hud", "tiling-mcp"] {
             let answer = tools
                 .call("call_method", &json!({"client": client, "method": "x"}))
@@ -480,14 +482,7 @@ pub mod tests {
             .collect();
         assert_eq!(
             names,
-            [
-                "echo",
-                "sleep",
-                "picture",
-                "quit",
-                "tiling__set_layout",
-                "call_method"
-            ]
+            ["echo", "sleep", "picture", "quit", "tiling__set_layout"]
         );
         assert_eq!(
             tools.mcp_name("tiling__set_layout"),
@@ -511,11 +506,11 @@ pub mod tests {
         );
         tools.coder = Some(coder.clone());
         tools.refresh().await;
-        assert_eq!(tools.specs.len(), 6, "no harness, no coding tools");
+        assert_eq!(tools.specs.len(), 5, "no harness, no coding tools");
         coder.set_cmd(vec!["true".into()]);
         tools.refresh().await;
         tools.refresh().await;
-        let names: Vec<_> = tools.specs[6..]
+        let names: Vec<_> = tools.specs[5..]
             .iter()
             .map(|s| s["function"]["name"].as_str().unwrap())
             .collect();
