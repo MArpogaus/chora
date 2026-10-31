@@ -1,0 +1,38 @@
+# The settings of chora-construct. `chora-construct --print-config`
+# prints this file. Copy it to ~/.config/chora/chora-construct.yaml and
+# change it there, or change it with the method settings.set, which
+# rewrites the file. Edits by hand apply on the method settings.reload.
+
+# The space: light (white with a soft horizon) or dark (a black void
+# with dark fog).
+theme: light
+# The leash: the walk slows near this radius around the start point and
+# stops at it, in logical pixels.
+radius: 6000
+# How far ahead of the camera a new pane appears, in logical pixels. At
+# about 0.65 times the width of the output a pane shows at 1:1.
+pane_distance: 2000
+# The keys in the space, by their keysym name, and what each does:
+# forward, back, left, right (steps aside), turn_left, turn_right,
+# look_up, look_down, home (back to the start point) or fly_in (into the
+# pane nearest the middle of the view). The space takes the keyboard, so
+# the keys need no modifier.
+keys:
+  w: forward
+  s: back
+  a: left
+  d: right
+  Up: forward
+  Down: back
+  q: turn_left
+  e: turn_right
+  Left: turn_left
+  Right: turn_right
+  r: look_up
+  f: look_down
+  h: home
+  Return: fly_in
+# The binding that flies out of a pane. The pane has the keyboard then,
+# so this key is a grab, and a grab needs Ctrl, Alt or Super. Escape
+# alone works after `choractl grant construct input.grab-any`.
+fly_out: Alt+Escape

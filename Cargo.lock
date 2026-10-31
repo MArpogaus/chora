@@ -526,6 +526,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "chora-construct"
+version = "0.9.0-rc.2"
+dependencies = [
+ "chora-kit",
+ "chora-scene",
+ "clap",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "chora-kit"
 version = "0.9.0-rc.2"
 dependencies = [
