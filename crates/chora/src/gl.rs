@@ -15,7 +15,13 @@ use std::{
 };
 
 use chora_scene::Uniform;
-use smithay::backend::renderer::gles::{Capability, GlesError, GlesFrame, GlesRenderer, ffi};
+use smithay::{
+    backend::renderer::{
+        Color32F, Frame,
+        gles::{Capability, GlesError, GlesFrame, GlesRenderer, ffi},
+    },
+    utils::{Physical, Rectangle},
+};
 
 /// The largest shader file.
 const MAX_SOURCE: u64 = 64 << 10;
@@ -165,6 +171,24 @@ pub fn draw(
         gl.ActiveTexture(ffi::TEXTURE0);
         gl.BindTexture(ffi::TEXTURE_2D, 0);
     })
+}
+
+/// Sets alpha 1 in rectangles of the target of a frame and keeps their
+/// colors.
+pub fn make_opaque(
+    frame: &mut GlesFrame<'_, '_>,
+    at: &[Rectangle<i32, Physical>],
+) -> Result<(), GlesError> {
+    // SAFETY: plain GL calls on the current context.
+    frame.with_context(|gl| unsafe {
+        gl.ColorMask(ffi::FALSE, ffi::FALSE, ffi::FALSE, ffi::TRUE);
+    })?;
+    let cleared = frame.clear(Color32F::new(0.0, 0.0, 0.0, 1.0), at);
+    // SAFETY: as above.
+    frame.with_context(|gl| unsafe {
+        gl.ColorMask(ffi::TRUE, ffi::TRUE, ffi::TRUE, ffi::TRUE);
+    })?;
+    cleared
 }
 
 /// Binds more textures to the units after 0 and points their samplers at

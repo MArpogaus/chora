@@ -208,7 +208,7 @@ pub fn pixel_size([w, h]: [f64; 2], scale: f64) -> Option<Size<i32, BufferCoords
 }
 
 /// Renders elements into a layer texture, transparent where they leave it
-/// empty.
+/// empty, and opaque where an element says it is opaque.
 pub fn render_into<E>(
     gles: &mut GlesRenderer,
     texture: &mut GlesTexture,
@@ -224,8 +224,33 @@ where
         OutputDamageTracker::new((size.w, size.h), scale, smithay::utils::Transform::Normal);
     tracker
         .render_output(gles, &mut target, 0, elements, [0.0; 4])
-        .map(drop)
-        .map_err(|e| format!("{e:?}"))
+        .map_err(|e| format!("{e:?}"))?;
+    // An output shows no alpha, so a window that says it is opaque shows
+    // there whatever alpha it draws, for example a GL client with the 2
+    // bits of alpha of ARGB2101010. A texture keeps that alpha; alpha 1
+    // makes it show what an output shows.
+    let scale = Scale::from(scale);
+    let opaque: Vec<Rectangle<i32, Physical>> = elements
+        .iter()
+        .flat_map(|e| {
+            let at = e.geometry(scale).loc;
+            e.opaque_regions(scale)
+                .into_iter()
+                .map(move |r| Rectangle::new(r.loc + at, r.size))
+        })
+        .collect();
+    if opaque.is_empty() {
+        return Ok(());
+    }
+    let mut frame = gles
+        .render(
+            &mut target,
+            (size.w, size.h).into(),
+            smithay::utils::Transform::Normal,
+        )
+        .map_err(|e| e.to_string())?;
+    gl::make_opaque(&mut frame, &opaque).map_err(|e| e.to_string())?;
+    frame.finish().map(drop).map_err(|e| e.to_string())
 }
 
 /// A vertex of a mesh: the position in physical output coordinates in

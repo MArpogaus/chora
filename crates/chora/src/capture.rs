@@ -571,6 +571,68 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// A window shows through the node texture of a shader node as it
+    /// shows on the output: in each format, also with 10 bits a channel,
+    /// and opaque where it says it is opaque, whatever its alpha.
+    #[test]
+    fn a_window_shows_through_a_node_texture_in_each_format() {
+        use smithay::reexports::wayland_server::protocol::wl_shm::Format as Server;
+        use wayland_client::protocol::wl_shm::Format;
+
+        let dir = std::env::temp_dir().join(format!("chora-win-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let shader = dir.join("win.frag");
+        std::fs::write(
+            &shader,
+            "precision mediump float;\nuniform sampler2D win;\nvarying vec2 v_uv;\n\
+             void main() { gl_FragColor = texture2D(win, v_uv); }\n",
+        )
+        .unwrap();
+        // Red in each format, in an opaque region: also without alpha, as a
+        // GL client may draw where it does not care about alpha (2 bits in
+        // ARGB2101010).
+        let reds = [
+            (Format::Argb8888, 0xFFFF_0000),
+            (Format::Abgr2101010, 0xC000_03FF),
+            (Format::Abgr2101010, 0x0000_03FF),
+        ];
+        for (format, red) in reds {
+            let mut core = Core::with_renderer();
+            core.state.shm_state.update_formats([Server::Abgr2101010]);
+            core.add_output("test-1", (64, 48));
+            let mut wayland = crate::testing::wayland::Wayland::connect(&mut core);
+            let window = wayland.toplevel(&mut core, "window");
+            wayland.opaque(&window, (32, 32));
+            wayland.attach_filled(&mut core, &window, (32, 32), (format, red));
+            let mut wm = core.named("wm");
+            let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+            core.admin().ok(&mut core, "grants.set", grant);
+            // On white, so that a pane without alpha does not show; the
+            // window shows itself too, at the top left.
+            let white = json!({"size": [64, 48], "color": [1.0, 1.0, 1.0, 1.0]});
+            let pane = json!({"size": [32, 32], "shader": shader,
+                "uniforms": {"win": {"node": "s1"}}, "transform": {"translate": [16, 8]}});
+            let commands = json!({"commands": [
+                {"create": {"id": "white", "kind": "rect", "parent": "root", "props": white}},
+                {"attach": {"surface": "s1", "parent": "root"}},
+                {"create": {"id": "pane", "kind": "shader", "parent": "root", "props": pane}},
+            ]});
+            wm.ok(&mut core, "scene.apply", commands);
+            let picture = wm.ok(&mut core, "screen.capture", json!({"output": "test-1"}));
+            let (width, rgba) = decode(&picture);
+            let pixel = |x: usize, y: usize| &rgba[(y * width + x) * 4..][..4];
+            assert_eq!(pixel(60, 44), [255; 4], "{format:?}: beside both");
+            // An output shows no alpha.
+            assert_eq!(pixel(4, 4)[..3], [255, 0, 0], "{format:?}: {red:#x} itself");
+            assert_eq!(
+                pixel(40, 36),
+                [255, 0, 0, 255],
+                "{format:?}: {red:#x} in the pane"
+            );
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn a_text_node_without_color_draws_white() {
         if !crate::text::fonts_present() {

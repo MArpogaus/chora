@@ -15,6 +15,7 @@ use wayland_client::{
         wl_compositor::WlCompositor,
         wl_keyboard::{self, WlKeyboard},
         wl_output::{self, WlOutput},
+        wl_region::WlRegion,
         wl_registry::{self, WlRegistry},
         wl_seat::{self, WlSeat},
         wl_shm::{self, WlShm},
@@ -387,22 +388,45 @@ impl Wayland {
 
     /// Acks the newest configure of a toplevel, if any, and commits a
     /// transparent buffer of a size.
-    pub fn attach(&mut self, core: &mut Core, toplevel: &Toplevel, (w, h): (i32, i32)) {
+    pub fn attach(&mut self, core: &mut Core, toplevel: &Toplevel, size: (i32, i32)) {
+        self.attach_filled(core, toplevel, size, (wl_shm::Format::Argb8888, 0));
+    }
+
+    /// As [`Self::attach`], with a buffer of a 32 bit format whose pixels
+    /// all hold one value.
+    pub fn attach_filled(
+        &mut self,
+        core: &mut Core,
+        toplevel: &Toplevel,
+        (w, h): (i32, i32),
+        (format, pixel): (wl_shm::Format, u32),
+    ) {
         if let Some(serial) = self.app.surfaces[toplevel.index].pending.take() {
             toplevel.xdg.ack_configure(serial);
         }
-        let file = tempfile();
-        file.set_len(u64::try_from(w * h * 4).expect("a size"))
-            .expect("the file grows");
+        let mut file = tempfile();
+        let pixels = usize::try_from(w * h).expect("a size");
+        std::io::Write::write_all(&mut file, &pixel.to_le_bytes().repeat(pixels))
+            .expect("the file takes the pixels");
         let qh = self.queue.handle();
         let shm = self.app.shm.as_ref().expect("wl_shm");
         let pool = shm.create_pool(file.as_fd(), w * h * 4, &qh, ());
-        let buffer = pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Argb8888, &qh, ());
+        let buffer = pool.create_buffer(0, w, h, w * 4, format, &qh, ());
         pool.destroy();
         toplevel.surface.attach(Some(&buffer), 0, 0);
         toplevel.surface.damage(0, 0, w, h);
         toplevel.surface.commit();
         self.roundtrip(core);
+    }
+
+    /// Marks a rectangle of a toplevel opaque from its next commit, as a
+    /// window that is not transparent does.
+    pub fn opaque(&self, toplevel: &Toplevel, (w, h): (i32, i32)) {
+        let compositor = self.app.compositor.as_ref().expect("wl_compositor");
+        let region = compositor.create_region(&self.queue.handle(), ());
+        region.add(0, 0, w, h);
+        toplevel.surface.set_opaque_region(Some(&region));
+        region.destroy();
     }
 
     /// Asks for a frame callback of a toplevel and commits.
@@ -767,6 +791,7 @@ fn tempfile() -> std::fs::File {
     file
 }
 delegate_noop!(App: ignore WlSurface);
+delegate_noop!(App: WlRegion);
 delegate_noop!(App: ZwpTextInputManagerV3);
 delegate_noop!(App: ZwlrLayerShellV1);
 delegate_noop!(App: ExtSessionLockManagerV1);
