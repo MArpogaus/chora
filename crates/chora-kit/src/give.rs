@@ -13,6 +13,11 @@ use crate::{conn::Conn, runtime};
 /// The name of the method that hands a window to another window manager.
 pub const METHOD: &str = "window.give";
 
+/// The binding of the `input.button` and `input.moved` events of an
+/// interactive move: a client asked to move its window, for example from
+/// its title bar, and the window manager of the window gets the drag.
+pub const MOVE: &str = "move";
+
 /// The parameters of `window.give`.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]

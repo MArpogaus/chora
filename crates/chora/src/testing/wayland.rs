@@ -411,6 +411,13 @@ impl Wayland {
         self.commit(core, toplevel);
     }
 
+    /// Asks for an interactive move of a toplevel, as a title bar does.
+    pub fn request_move(&mut self, core: &mut Core, toplevel: &Toplevel, serial: u32) {
+        let seat = self.app.seat.as_ref().expect("wl_seat");
+        toplevel.role._move(seat, serial);
+        self.roundtrip(core);
+    }
+
     /// Unmaps a toplevel with a commit without a buffer.
     pub fn unmap(&mut self, core: &mut Core, toplevel: &Toplevel) {
         toplevel.surface.attach(None, 0, 0);

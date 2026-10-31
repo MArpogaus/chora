@@ -18,7 +18,7 @@ use std::{
 };
 
 use chora_scene::{
-    Binding, Event, Node, NodeKind, Placed, Scene, Selector, Transform,
+    Binding, Event, Modifiers, Node, NodeKind, Placed, Scene, Selector, Transform,
     ipc::{
         Apply, Capability, Edges, Emit, Grab, Hello, Message, Query, Request, RpcError, Subscribe,
     },
@@ -98,6 +98,8 @@ pub struct Ipc {
 enum Trigger {
     Key(Keysym),
     Button(u32),
+    /// The interactive moves of the own windows (`xdg_toplevel.move`).
+    Move,
 }
 
 /// The names of the pointer buttons of a binding, with their Linux codes.
@@ -131,8 +133,11 @@ fn holds_claim(scene: &Scene, name: &str) -> bool {
         .any(|n| n.owner.as_deref() == Some(name) && n.props.claim.is_some())
 }
 
-/// The key or the button of a binding.
+/// The key or the button of a binding, or the moves of `move`.
 fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
+    if binding.key == crate::input::MOVE && binding.mods == Modifiers::default() {
+        return Ok(Trigger::Move);
+    }
     if let Some((_, code)) = BUTTONS
         .iter()
         .find(|(name, _)| name.eq_ignore_ascii_case(&binding.key))
@@ -371,8 +376,9 @@ impl Ipc {
     /// Drops the registrations of a connection for bindings without Ctrl,
     /// Alt or Super, as happens when `input.grab-any` is revoked.
     pub fn drop_free_grabs(&mut self, conn: u64) {
-        self.grabs
-            .retain(|(b, _, c)| !(*c == conn && crate::input::free_binding(b)));
+        self.grabs.retain(|(b, t, c)| {
+            !(*c == conn && *t != Trigger::Move && crate::input::free_binding(b))
+        });
     }
 
     /// The connection that grabbed the pressed binding, and the binding.
@@ -381,6 +387,13 @@ impl Ipc {
             mods,
             |t| matches!(t, Trigger::Key(sym) if syms.contains(&sym)),
         )
+    }
+
+    /// The connection of a client name that grabbed the interactive moves.
+    pub fn move_grab_of(&self, name: &str) -> Option<u64> {
+        (self.grabs.iter())
+            .find(|(_, t, c)| *t == Trigger::Move && self.name(*c) == Some(name))
+            .map(|(_, _, c)| *c)
     }
 
     /// The connection that grabbed a pressed pointer button with the
@@ -1275,13 +1288,14 @@ impl State {
             return Err(rejected("send hello first"));
         };
         let m = binding.mods;
-        if !(m.ctrl || m.alt || m.logo || self.grants.allows(&name, Capability::GrabAny)) {
+        let trigger = trigger(&binding)?;
+        let free = trigger == Trigger::Move || self.grants.allows(&name, Capability::GrabAny);
+        if !(m.ctrl || m.alt || m.logo || free) {
             return Err(RpcError::new(
                 RpcError::MISSING_CAPABILITY,
                 format!("{binding} needs Ctrl, Alt or Super or the capability input.grab-any"),
             ));
         }
-        let trigger = trigger(&binding)?;
         if m.ctrl && m.alt && matches!(trigger, Trigger::Key(sym) if is_safety_key(sym)) {
             return Err(rejected(format!("{binding} belongs to the safety layer")));
         }
@@ -1292,8 +1306,10 @@ impl State {
                 .name(c)
                 .is_some_and(|n| holds_claim(&self.scene, n))
         };
+        // Each window manager gets the moves of its own windows.
+        let own = trigger == Trigger::Move;
         let mut holders = (self.ipc.grabs.iter())
-            .filter(|(b, t, _)| b.mods == binding.mods && *t == trigger)
+            .filter(|(b, t, c)| b.mods == binding.mods && *t == trigger && (!own || *c == conn))
             .map(|(_, _, c)| *c)
             .peekable();
         let shared = matches!(trigger, Trigger::Button(_)) && claims(conn);

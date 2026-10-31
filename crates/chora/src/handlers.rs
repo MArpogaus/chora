@@ -319,6 +319,17 @@ impl XdgShellHandler for State {
         Self::answer(&surface);
     }
 
+    /// An interactive move, for example from a title bar of the client:
+    /// the press becomes a drag of the owner of the window.
+    fn move_request(&mut self, surface: ToplevelSurface, _seat: WlSeat, serial: Serial) {
+        if !self.pressed(surface.wl_surface(), serial) {
+            return;
+        }
+        if let Some(id) = self.surface_id(surface.wl_surface()) {
+            crate::input::start_move(self, &id);
+        }
+    }
+
     fn unfullscreen_request(&mut self, surface: ToplevelSurface) {
         self.request(&surface, SurfaceRequest::Unfullscreen);
         Self::answer(&surface);
