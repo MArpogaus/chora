@@ -370,6 +370,7 @@ at most a short summary of it.
 | LLM | First token, idle or total timeout | Abort, keep the rounds so far, say so |
 | LLM | Context error | Trim the history to half the budget, one retry |
 | LLM | `tool_rounds` reached | A final round with `tool_choice: none` and a note: sum up in the reply language; without words, `phrases.tool_rounds`; history stays; new words of the user during that round get `tool_rounds` more rounds |
+| LLM | Three cut answers in a row | A retry with a note after the first, the emergency brake after the second, `phrases.lost` after the third (section 3) |
 | MCP | Child exits | Restart with backoff; call in flight gets "connection lost, result unknown"; tools reload |
 | MCP | `tool_timeout_s` | Cancel the call; result "timeout, result unknown" |
 | chora | Connection closed | Runtime reconnects and grabs PTT again; after 30 s, exit 1 |
@@ -501,7 +502,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
