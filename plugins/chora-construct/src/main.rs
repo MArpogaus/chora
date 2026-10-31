@@ -24,6 +24,7 @@
 
 mod config;
 mod file;
+mod hud;
 mod space;
 
 use std::{
@@ -51,6 +52,7 @@ use serde_json::{Value, json};
 use crate::{
     config::{Action, Config, Theme},
     file::{Kind, PaneFile},
+    hud::{Claim, LIST, LIST_LINE, LIST_ROWS, Look, Voice},
     space::{Lens, Pose},
 };
 
@@ -74,16 +76,14 @@ const WINDOWS: &str = "construct-windows";
 /// A clear rect over the space: it takes the drags, clicks, the wheel
 /// and, through `focus_node`, the keys of the walk.
 const LOOK: &str = "construct-look";
-/// The window list over the space, and the prefix of its rows (F29).
-const LIST: &str = "construct-list";
+/// The prefix of the rows of the window list (F29).
 const LIST_ROW: &str = "construct-list-row-";
-/// The rows that the list shows at most, its width and its line.
-const LIST_ROWS: usize = 12;
-const LIST_WIDTH: f64 = 560.0;
-const LIST_LINE: f64 = 24.0;
 const FOG_SHADER: &str = include_str!("../fog.frag");
 const PANE_SHADER: &str = include_str!("../pane.frag");
 const MIRROR_SHADER: &str = include_str!("../mirror.frag");
+const GLASS_SHADER: &str = include_str!("../glass.frag");
+/// The client name of the voice agent (docs/voice.md, section 10).
+const VOICE: &str = "voice";
 /// How long after the launcher starts its first new window becomes a
 /// pane also beside another flavor, and how long a program pane waits
 /// for its window.
@@ -338,6 +338,7 @@ struct Construct {
     fog_shader: String,
     pane_shader: String,
     mirror_shader: String,
+    glass_shader: String,
     /// The launcher: the token and the process of its own window, which
     /// is no pane,
     /// that window, and when it started.
@@ -359,6 +360,18 @@ struct Construct {
     /// The window that had the keyboard when an overlay took the output;
     /// it gets it back on leave (F31).
     focus_before: Option<String>,
+    /// The voice agent: its state, sentence and question (F28), and the
+    /// claim of its indicator.
+    voice: Voice,
+    claim: Claim,
+    glass: Glass,
+    /// The last point of the pointer over the space that the core told:
+    /// it tells the place only from a press to its release.
+    // ponytail: the label follows the pointer from the last press, drag
+    // or release; a hover needs a pointer position event of the core.
+    pointer: Option<[f64; 2]>,
+    /// The pane that the label names, if it shows.
+    labelled: Option<String>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -406,6 +419,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         fog_shader: shader_file("fog.frag", FOG_SHADER)?,
         pane_shader: shader_file("pane.frag", PANE_SHADER)?,
         mirror_shader: shader_file("mirror.frag", MIRROR_SHADER)?,
+        glass_shader: shader_file("glass.frag", GLASS_SHADER)?,
         launcher: None,
         launcher_window: None,
         launched: None,
@@ -419,6 +433,11 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         drag: None,
         list: None,
         focus_before: None,
+        voice: Voice::default(),
+        claim: Claim { due: true },
+        glass: Glass::default(),
+        pointer: None,
+        labelled: None,
     };
     construct.start()?;
     construct.serve()?;
@@ -426,7 +445,12 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The events of the plugin.
-const EVENTS: [&str; 11] = [
+const EVENTS: [&str; 16] = [
+    "voice.*",
+    "client.connected",
+    "client.disconnected",
+    "effects.dropped",
+    "layers.dropped",
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -540,6 +564,16 @@ fn mirror_size(size: [f64; 2]) -> [f64; 2] {
     size.map(|s| (s / MIRROR_SCALE).ceil())
 }
 
+/// The glow nodes of the panels.
+#[derive(Default)]
+struct Glass {
+    /// After the watchdog took the shaders: no more glow nodes until the
+    /// settings change (D57).
+    plain: bool,
+    /// They hide while a layer of the elements stays out.
+    hidden: bool,
+}
+
 /// A drag with the button held, in output coordinates.
 struct Drag {
     press: [f64; 2],
@@ -622,7 +656,7 @@ impl Plugin for Construct {
                 }
                 Ok(())
             }
-            event => self.input(event),
+            event => self.other(event),
         }
     }
 
@@ -737,12 +771,67 @@ impl Plugin for Construct {
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
+        self.glass.plain = false;
         self.regrab().map_err(rejected)?;
+        self.restyle().map_err(rejected)?;
         self.frame().map_err(rejected)
     }
 }
 
 impl Construct {
+    /// The events of the voice agent and of the watchdog, then the input.
+    fn other(&mut self, event: Event) -> Result<(), ClientError> {
+        match event {
+            Event::Emitted {
+                event,
+                client,
+                data,
+            } if client == VOICE => self.follow(&event, data),
+            Event::ClientConnected { name } if name == VOICE => {
+                self.claim.due = true;
+                self.claim_indicator(false);
+                Ok(())
+            }
+            Event::ClientDisconnected { name } if name == VOICE => {
+                self.claim.due = true;
+                self.voice = Voice::default();
+                self.rt
+                    .conn
+                    .try_apply(vec![hud::fade(hud::HUD, 0.0, hud::FADE_OUT)])?;
+                self.draw_ask()
+            }
+            Event::EffectsDropped { client } if client == NAME => {
+                if !self.glass.plain {
+                    eprintln!(
+                        "chora-construct: the watchdog took the shaders; the panels stay \
+                         plain until the settings change"
+                    );
+                }
+                self.glass.plain = true;
+                self.draw_hud()
+            }
+            Event::LayersDropped { nodes, .. } => {
+                if !nodes.is_empty() {
+                    eprintln!("chora-construct: layers stay out: {}", nodes.join(" "));
+                }
+                let ours = [
+                    "construct-hud",
+                    "construct-ask",
+                    "construct-list",
+                    "construct-label",
+                ];
+                let hide = nodes.iter().any(|n| ours.iter().any(|o| n.starts_with(o)));
+                if hide != self.glass.hidden {
+                    self.glass.hidden = hide;
+                    self.draw_hud()?;
+                    self.draw_ask()?;
+                }
+                Ok(())
+            }
+            event => self.input(event),
+        }
+    }
+
     /// The keys and the pointer of the walk, and the fly-out binding.
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn input(&mut self, event: Event) -> Result<(), ClientError> {
@@ -794,6 +883,11 @@ impl Construct {
             Event::PointerReleased { node, position, .. } if node == LOOK => {
                 return self.release(position);
             }
+            Event::PointerScroll { node, dy, .. } if node == hud::ASK_GLASS => {
+                if let Some(command) = self.voice.scroll(dy) {
+                    self.rt.conn.apply(vec![command])?;
+                }
+            }
             Event::PointerScroll {
                 node,
                 position,
@@ -815,6 +909,7 @@ impl Construct {
     /// A press on the space at a point of the output: with the modifier
     /// on a pane, it starts to move the pane; else a drag looks around.
     fn press(&mut self, at: [f64; 2], held: bool) -> Result<(), ClientError> {
+        self.pointer = Some(at);
         // A window of an overlay may have taken the keyboard; a press on
         // the space takes it back.
         if self.overlay && self.flown.is_none() {
@@ -840,6 +935,7 @@ impl Construct {
     }
 
     fn moved(&mut self, at: [f64; 2]) -> Result<(), ClientError> {
+        self.pointer = Some(at);
         if self.moving.is_some() {
             return self.drag_pane(at);
         }
@@ -848,14 +944,17 @@ impl Construct {
 
     /// The end of a press: a moved pane drops, a click flies in.
     fn release(&mut self, at: [f64; 2]) -> Result<(), ClientError> {
+        self.pointer = Some(at);
         if let Some(moving) = self.moving.take() {
             return self.drop_pane(&moving, at);
         }
         let click = self.drag.take().is_some_and(|d| !d.moved);
         if let Some(i) = self.pane_at(at).filter(|_| click) {
             self.fly_in(i);
+            return Ok(());
         }
-        Ok(())
+        let commands = self.label_commands();
+        self.rt.conn.apply(commands)
     }
 
     /// The top left corner of the output in the scene.
@@ -1051,6 +1150,7 @@ impl Construct {
         self.active = true;
         self.build()?;
         self.regrab()?;
+        self.claim_indicator(false);
         for node in self.rt.conn.query("kind:surface")? {
             let ours = node.to.as_deref().is_none_or(|t| t == NAME);
             if node.owner.is_none() && ours {
@@ -1080,11 +1180,15 @@ impl Construct {
             } else {
                 Duration::from_secs(3600)
             };
+            let wait = (self.voice.deadline()).map_or(wait, |t| {
+                wait.min(t.saturating_duration_since(Instant::now()))
+            });
             match self.rt.conn.next_event_timeout(wait)? {
                 Some(event) => runtime::dispatch(self, event)?,
                 None if plugins => self.retry_plugins()?,
                 None => {}
             }
+            self.tick()?;
             if self.glide.is_some() {
                 self.step_glide()?;
             }
@@ -1095,6 +1199,7 @@ impl Construct {
     /// on the screen root of the output, at its size; the windows stay.
     /// As a flavor, it claims the output, so that new windows come to it
     /// also beside another window manager (D55).
+    #[allow(clippy::too_many_lines, reason = "one node after the other")]
     fn build(&mut self) -> Result<(), ClientError> {
         let Some(output) = &self.output else {
             return Ok(());
@@ -1108,7 +1213,11 @@ impl Construct {
         let root = overlay_id(&output.name);
         let mut commands = Vec::new();
         match self.rt.conn.query(&format!("id:{NAME}"))?.first() {
-            None => commands = space_nodes(&self.fog_shader, &root),
+            None => {
+                commands = space_nodes(&self.fog_shader, &root);
+                commands.extend(self.styled().groups(NAME));
+                self.labelled = None;
+            }
             Some(node) if node.parent.as_deref() != Some(root.as_str()) => {
                 commands.push(Command::Move {
                     id: NAME.into(),
@@ -1151,6 +1260,8 @@ impl Construct {
             ),
         ]);
         self.rt.conn.apply(commands)?;
+        self.draw_hud()?;
+        self.draw_ask()?;
         self.frame()
     }
 
@@ -1603,6 +1714,9 @@ impl Construct {
         };
         self.rt.conn.apply(commands)?;
         self.flown = Some(flown);
+        self.draw_hud()?;
+        let label = self.label_commands();
+        self.rt.conn.apply(label)?;
         self.regrab()
     }
 
@@ -1666,6 +1780,7 @@ impl Construct {
             return Ok(());
         };
         self.unsnap(flown.attached.then_some(&flown.surface))?;
+        self.draw_hud()?;
         self.glide_to(flown.back, FLY_MS, None);
         self.frame()
     }
@@ -1783,6 +1898,7 @@ impl Construct {
             }));
             self.order = order;
         }
+        commands.extend(self.label_commands());
         self.rt.conn.apply(commands)
     }
 
@@ -1854,6 +1970,7 @@ impl Construct {
             }])?;
         }
         self.list = None;
+        self.labelled = None;
         self.rt.ungrab_all()?;
         self.active = false;
         self.current = None;
@@ -2053,14 +2170,14 @@ impl Construct {
             return self.close_list();
         }
         self.list = Some(ListState { sel: 0, give: None });
-        self.draw_list()
+        self.draw_list(true)
     }
 
     fn select(&mut self, sel: usize) -> Result<(), ClientError> {
         if let Some(list) = &mut self.list {
             list.sel = sel;
         }
-        self.draw_list()
+        self.draw_list(false)
     }
 
     /// The rows of the window managers to give the window of row `sel`
@@ -2075,7 +2192,7 @@ impl Construct {
                 sel: 0,
                 give: Some(row.target),
             };
-            return self.draw_list();
+            return self.draw_list(false);
         }
         Ok(())
     }
@@ -2107,10 +2224,9 @@ impl Construct {
 
     fn close_list(&mut self) -> Result<(), ClientError> {
         if self.list.take().is_some() {
-            self.rt.conn.try_apply(vec![Command::Remove {
-                id: LIST.into(),
-                to: None,
-            }])?;
+            let mut commands = vec![hud::fade(LIST, 0.0, hud::FADE_OUT)];
+            commands.extend(self.label_commands());
+            self.rt.conn.try_apply(commands)?;
         }
         Ok(())
     }
@@ -2192,13 +2308,12 @@ impl Construct {
         self.adopt(surface, &label, None, Hold::Own)
     }
 
-    /// The window list as a panel in the middle of the output, in the
-    /// style of mc (docs/mc-style.md): a label of spaced capitals, then
-    /// one row per window with its label, and its owner and the place of
-    /// its pane as a muted note. A hairline marks the selected row.
-    #[allow(clippy::cast_precision_loss, reason = "a dozen rows")]
-    #[allow(clippy::too_many_lines, reason = "one node after the other")]
-    fn draw_list(&mut self) -> Result<(), ClientError> {
+    /// The window list as a glass panel in the middle of the output
+    /// (docs/construct-style.md): the label `WINDOWS` or `GIVE TO`, then
+    /// one row per window with its name and, as a note in data, its owner
+    /// and the place of its pane. An accent mark shows the selected row.
+    /// `open` fades the panel in; a new selection only makes the rows anew.
+    fn draw_list(&mut self, open: bool) -> Result<(), ClientError> {
         let Some(sel) = self.list.as_ref().map(|l| l.sel) else {
             return Ok(());
         };
@@ -2208,135 +2323,238 @@ impl Construct {
             l.sel = sel;
             l.give.is_some()
         });
-        let style = &self.settings.value.style;
-        let colors = style.colors(self.settings.value.theme);
-        let rgba = |c: [f64; 3], a| Some([c[0], c[1], c[2], a]);
-        let pad = LIST_LINE;
+        let look = self.styled();
+        let unit = look.style.unit;
         // ponytail: a window of 12 rows that follows the selection; a
         // scroll bar when lists grow long.
         let first = (sel + 1).saturating_sub(LIST_ROWS);
         let shown = rows.len().saturating_sub(first).clamp(1, LIST_ROWS);
-        let h = pad * 2.0 + LIST_LINE * (shown as f64 + 1.5);
-        let x = ((self.lens.w - LIST_WIDTH) / 2.0).round();
-        let y = ((self.lens.h - h) / 2.0).round();
-        let at = |x: f64, y: f64| Some(Transform::translate(x, y, 0.0));
-        let text = |id: &str, text: &str, pos: [f64; 2], mono: bool, color: [f64; 3]| {
-            create(
-                id,
-                NodeKind::Text,
-                LIST,
-                PropsUpdate {
-                    transform: at(pos[0], pos[1]),
-                    text: Some(text.into()),
-                    family: Some(if mono { &style.mono } else { &style.font }.clone()),
-                    font_size: Some(if mono { 12.0 } else { 16.0 }),
-                    color: rgba(color, 1.0),
-                    ..PropsUpdate::default()
-                },
-            )
-        };
+        let size = hud::list_size(unit, shown);
+        let place = [
+            ((self.lens.w - size[0]) / 2.0).round(),
+            ((self.lens.h - size[1]) / 2.0).round(),
+        ];
+        let label = if giving { "GIVE TO" } else { "WINDOWS" };
         let mut commands = vec![
             Command::Remove {
-                id: LIST.into(),
+                id: hud::LIST_ROWS_GROUP.into(),
                 to: None,
             },
             create(
-                LIST,
+                hud::LIST_ROWS_GROUP,
                 NodeKind::Group,
-                NAME,
-                PropsUpdate {
-                    transform: at(x, y),
-                    ..PropsUpdate::default()
-                },
-            ),
-            create(
-                "construct-list-ground",
-                NodeKind::Rect,
                 LIST,
-                PropsUpdate {
-                    size: Some([LIST_WIDTH, h]),
-                    color: Some(colors.glass),
-                    ..PropsUpdate::default()
-                },
-            ),
-            create(
-                "construct-list-label",
-                NodeKind::Text,
-                LIST,
-                PropsUpdate {
-                    transform: at(pad, pad),
-                    text: Some(if giving { "GIVE TO" } else { "WINDOWS" }.into()),
-                    family: Some(style.font.clone()),
-                    font_size: Some(11.0),
-                    weight: Some(500),
-                    letter_spacing: Some(0.16),
-                    color: rgba(colors.muted, 1.0),
-                    ..PropsUpdate::default()
-                },
+                PropsUpdate::default(),
             ),
         ];
+        commands.extend(look.list(size, place, label, open));
+        let top = hud::list_top(unit);
         if rows.is_empty() {
-            let pos = [pad, pad + LIST_LINE * 1.5];
-            commands.push(text(
-                &format!("{LIST_ROW}none"),
-                if giving {
-                    "no other window manager runs"
-                } else {
-                    "every window shows"
-                },
-                pos,
-                false,
-                colors.muted,
-            ));
+            let none = if giving {
+                "no other window manager runs"
+            } else {
+                "every window shows"
+            };
+            commands.extend(look.row(&format!("{LIST_ROW}none"), top, none, "", false));
         }
-        for (k, row_of) in rows.iter().enumerate().skip(first).take(LIST_ROWS) {
-            let top = pad + LIST_LINE * (1.5 + (k - first) as f64);
-            let row = format!("{LIST_ROW}{k}");
-            commands.push(create(
-                &row,
-                NodeKind::Rect,
-                LIST,
-                PropsUpdate {
-                    transform: at(0.0, top),
-                    size: Some([LIST_WIDTH, LIST_LINE]),
-                    color: Some([0.0; 4]),
-                    ..PropsUpdate::default()
-                },
-            ));
-            let color = if k == sel { colors.text } else { colors.muted };
-            commands.push(text(
-                &format!("{row}-name"),
-                &row_of.label,
-                [pad, top],
-                false,
-                color,
-            ));
-            commands.push(text(
-                &format!("{row}-note"),
-                &row_of.note,
-                [LIST_WIDTH * 0.62, top + 3.0],
-                true,
-                colors.muted,
-            ));
-            if k == sel {
-                commands.push(create(
-                    "construct-list-mark",
-                    NodeKind::Rect,
-                    LIST,
-                    PropsUpdate {
-                        transform: at(pad - 10.0, top + 4.0),
-                        size: Some([1.0, LIST_LINE - 8.0]),
-                        color: rgba(colors.text, 1.0),
-                        ..PropsUpdate::default()
-                    },
-                ));
-            }
+        for (k, row) in rows.iter().enumerate().skip(first).take(LIST_ROWS) {
+            #[allow(clippy::cast_precision_loss, reason = "a dozen rows")]
+            let y = top + LIST_LINE * (k - first) as f64;
+            let id = format!("{LIST_ROW}{k}");
+            commands.extend(look.row(&id, y, &row.label, &row.note, k == sel));
         }
-        // The first draw has no list to remove.
-        if self.rt.conn.query(&format!("id:{LIST}"))?.is_empty() {
+        commands.extend(self.label_commands());
+        // The first draw has no rows to remove.
+        if self
+            .rt
+            .conn
+            .query(&format!("id:{}", hud::LIST_ROWS_GROUP))?
+            .is_empty()
+        {
             commands.remove(0);
         }
         self.rt.conn.apply(commands)
+    }
+
+    /// What the elements over the space draw with.
+    fn styled(&self) -> Look<'_> {
+        let style = &self.settings.value.style;
+        Look {
+            style,
+            colors: style.colors(self.settings.value.theme),
+            plain: self.glass.plain,
+            shader: &self.glass_shader,
+        }
+    }
+
+    /// The elements anew in the style of the settings, which changed.
+    fn restyle(&mut self) -> Result<(), ClientError> {
+        if !self.active || self.output.is_none() {
+            return Ok(());
+        }
+        let mut commands: Vec<Command> = [hud::LABEL, hud::HUD, LIST]
+            .map(|id| Command::Remove {
+                id: id.into(),
+                to: None,
+            })
+            .into();
+        commands.extend(self.styled().groups(NAME));
+        self.rt.conn.try_apply(commands)?;
+        self.labelled = None;
+        self.draw_hud()?;
+        self.draw_ask()?;
+        if self.list.is_some() {
+            self.draw_list(true)?;
+        }
+        Ok(())
+    }
+
+    /// Asks the voice agent to hide its dot while the HUD shows its
+    /// state, once per connection of the agent (docs/voice.md, 10).
+    fn claim_indicator(&mut self, last: bool) {
+        if !self.settings.value.voice_hud || !self.active {
+            return;
+        }
+        let conn = &mut self.rt.conn;
+        self.claim.claim(last, || {
+            let call = json!({"client": VOICE, "method": "indicator.claim", "params": {}});
+            conn.call::<_, Value>("methods.call", call).is_ok()
+        });
+    }
+
+    /// An event `voice.KIND` of the voice agent. Wrong data only log.
+    fn follow(&mut self, event: &str, data: Value) -> Result<(), ClientError> {
+        self.claim_indicator(true);
+        let kind = event.strip_prefix("voice.").unwrap_or_default();
+        match self.voice.follow(kind, data, Instant::now()) {
+            Ok(changed) => {
+                if changed.hud {
+                    self.draw_hud()?;
+                }
+                if changed.ask {
+                    self.draw_ask()?;
+                }
+                Ok(())
+            }
+            Err(err) => {
+                eprintln!("chora-construct: {event}: {err}");
+                Ok(())
+            }
+        }
+    }
+
+    /// The deadlines of the sentence: the waveform stops at its end, the
+    /// sentence fades out 2 s later, and then the panel fits again.
+    fn tick(&mut self) -> Result<(), ClientError> {
+        let now = Instant::now();
+        let due = |t: Option<Instant>| t.is_some_and(|t| t <= now);
+        if due(self.voice.say_until) {
+            self.voice.say_until = None;
+            self.draw_hud()?;
+        }
+        if due(self.voice.fade_at) {
+            self.voice.fade_at = None;
+            self.voice.drop_at = Some(now + Duration::from_millis(120));
+            if self.shows_hud() {
+                let fade = hud::fade(hud::HUD_SAY, 0.0, hud::FADE_OUT);
+                self.rt.conn.try_apply(vec![fade])?;
+            }
+        }
+        if due(self.voice.drop_at) {
+            self.voice.drop_at = None;
+            self.voice.say = None;
+            self.draw_hud()?;
+        }
+        Ok(())
+    }
+
+    fn shows_hud(&self) -> bool {
+        self.settings.value.voice_hud && self.active && self.output.is_some()
+    }
+
+    /// The voice HUD: at the bottom centre, or compact at the bottom
+    /// right while flown into a pane.
+    fn draw_hud(&mut self) -> Result<(), ClientError> {
+        if !self.shows_hud() {
+            return Ok(());
+        }
+        let out = [self.lens.w, self.lens.h];
+        let level = self.voice.level(Instant::now());
+        let commands = self.voice.hud(
+            &self.styled(),
+            out,
+            self.flown.is_some(),
+            level,
+            !self.glass.hidden,
+        );
+        if commands.is_empty() {
+            return Ok(());
+        }
+        self.rt.conn.apply(commands)
+    }
+
+    /// The question of the voice agent, on top, made anew.
+    fn draw_ask(&mut self) -> Result<(), ClientError> {
+        if !self.shows_hud() {
+            return Ok(());
+        }
+        let out = [self.lens.w, self.lens.h];
+        let look = Look {
+            style: &self.settings.value.style,
+            colors: self.settings.value.style.colors(self.settings.value.theme),
+            plain: self.glass.plain,
+            shader: &self.glass_shader,
+        };
+        let mut commands = self.voice.ask(&look, out, !self.glass.hidden);
+        if self.rt.conn.query(&format!("id:{}", hud::ASK))?.is_empty() {
+            commands.remove(0);
+        }
+        self.rt.conn.apply(commands)
+    }
+
+    /// The pane label: the name of the pane under the pointer, else of the
+    /// pane ahead, 8 below its bottom edge; hidden while flown in, while
+    /// the list is open, and when the pane does not show. The text and the
+    /// pill change only with the pane.
+    fn label_commands(&mut self) -> Vec<Command> {
+        let pick = if self.flown.is_some()
+            || self.list.is_some()
+            || self.glide.as_ref().is_some_and(|g| g.into.is_some())
+        {
+            None
+        } else {
+            (self.pointer.and_then(|p| self.pane_at(p)))
+                .or_else(|| self.pane_ahead())
+                .filter(|&i| {
+                    let far = self.radius();
+                    space::sight(&self.lens, &self.pose, self.panes[i].at, far) == "shown"
+                })
+        };
+        let Some(k) = pick else {
+            return match self.labelled.take() {
+                Some(_) => Look::label_hide(),
+                None => Vec::new(),
+            };
+        };
+        let pane = &self.panes[k];
+        let fresh = self.labelled.is_none();
+        let (label, pill) = self.styled().label(&pane.name, fresh);
+        let matrix = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size);
+        let [x, y] = space::project(&matrix, pane.size[0] / 2.0, pane.size[1]);
+        let unit = self.settings.value.style.unit;
+        let place = Transform::translate((x - pill / 2.0).round(), (y + unit).round(), 0.0);
+        let mut commands = vec![update(
+            hud::LABEL,
+            PropsUpdate {
+                transform: Some(place),
+                ..PropsUpdate::default()
+            },
+        )];
+        if self.labelled.as_deref() != Some(pane.name.as_str()) {
+            self.labelled = Some(pane.name.clone());
+            commands.extend(label);
+        }
+        commands
     }
 }
 

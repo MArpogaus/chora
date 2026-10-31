@@ -164,6 +164,16 @@ fn to_screen(lens: &Lens, pose: &Pose, model: &Mat) -> [f64; 16] {
     out
 }
 
+/// The point (u, v) of a node on the output, through the column-major
+/// matrix of [`pane_matrix`].
+#[must_use]
+pub fn project(m: &[f64; 16], u: f64, v: f64) -> [f64; 2] {
+    let x = m[0] * u + m[4] * v + m[12];
+    let y = m[1] * u + m[5] * v + m[13];
+    let w = m[3] * u + m[7] * v + m[15];
+    [x / w, y / w]
+}
+
 /// The depth of a point in front of the camera, in camera space.
 #[must_use]
 pub fn depth(pose: &Pose, at: [f64; 2]) -> f64 {
@@ -298,13 +308,6 @@ mod tests {
         ground: 560.0,
     };
 
-    fn project(m: &[f64; 16], u: f64, v: f64) -> [f64; 2] {
-        let x = m[0] * u + m[4] * v + m[12];
-        let y = m[1] * u + m[5] * v + m[13];
-        let w = m[3] * u + m[7] * v + m[15];
-        [x / w, y / w]
-    }
-
     fn close(a: [f64; 2], b: [f64; 2]) -> bool {
         (a[0] - b[0]).abs() < 1e-6 && (a[1] - b[1]).abs() < 1e-6
     }
@@ -367,6 +370,16 @@ mod tests {
         let screen = |y: f64| [640.0, 400.0 - y * 832.0 / 2000.0];
         assert!(close(project(&m, 160.0, 200.0), screen(-1120.0 + 400.0)));
         assert!(close(project(&m, 160.0, 0.0), screen(-1120.0 - 400.0)));
+    }
+
+    /// The label of a pane straight ahead sits centred under it.
+    #[test]
+    fn the_label_place_of_a_pane_ahead_is_centred_under_it() {
+        let size = [1280.0, 800.0];
+        let m = pane_matrix(&LENS, &Pose::default(), [0.0, 1664.0], size);
+        let [x, y] = project(&m, size[0] / 2.0, size[1]);
+        assert!((x - 640.0).abs() < 1e-9, "{x}");
+        assert!((y - 600.0).abs() < 1e-9, "{y}");
     }
 
     #[test]
