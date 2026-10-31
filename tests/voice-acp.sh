@@ -95,7 +95,7 @@ ctl call voice agent '{"tool": "agent_say", "name": "coder", "text": "Schreib no
 expect working
 expect question
 ctl call voice confirm '{"answer": "yes"}' >/dev/null
-expect done
+expect "done"
 ctl call voice agent '{"tool": "agent_stop", "name": "coder"}' >/dev/null
 expect none
 grep -q '"method":"session/request_permission"' "$tmp/data/chora/agents/coder.log" || {

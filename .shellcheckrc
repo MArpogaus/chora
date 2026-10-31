@@ -1,0 +1,5 @@
+# Scripts source their libraries by relative path.
+external-sources=true
+source-path=SCRIPTDIR
+# mcp_py of tests/gate-lib.sh takes optional arguments.
+disable=SC2119

@@ -39,6 +39,7 @@ fi
 runtime=$(mktemp -d /tmp/chora-hl.XXXXXX)
 log=${CHORA_LOG:-$runtime/chora.log}
 pid=
+# shellcheck disable=SC2329 # runs as the EXIT trap
 cleanup() {
     trap - EXIT INT TERM HUP
     if [[ -n $pid ]]; then

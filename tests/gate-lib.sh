@@ -48,6 +48,7 @@ temp_config() {
 }
 session_start() {
     local env_file=${env_file:-$(mktemp /tmp/gate-env.XXXXXX)}
+    # shellcheck disable=SC2034 # read by the gate scripts that source this file
     GATE_ENV=$env_file
     "$repo/tests/headless-session.sh" "$@" >"$env_file" 2>&1 &
     pids+=($!)
@@ -57,8 +58,9 @@ session_start() {
         sleep 0.5
     done
     grep -q CHORA_SOCKET "$env_file" || fail "no core: $(tail -n 3 "$env_file")"
-    export CHORA_SOCKET=$(sed -n 's/^CHORA_SOCKET=//p' "$env_file")
-    export WAYLAND_DISPLAY=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$env_file")
+    CHORA_SOCKET=$(sed -n 's/^CHORA_SOCKET=//p' "$env_file")
+    WAYLAND_DISPLAY=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$env_file")
+    export CHORA_SOCKET WAYLAND_DISPLAY
     sleep 2 # the plugin needs a moment before its nodes answer queries
 }
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }
