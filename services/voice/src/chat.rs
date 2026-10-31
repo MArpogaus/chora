@@ -60,18 +60,26 @@ const NUDGE: &str = "(The agent: you announced an action but called no tool, and
     would end here. Call the tool now, or say in one short sentence that you will not.)";
 
 /// Whether the last sentence of an answer announces an action in the
-/// first person: "let me use `put_asset` instead", "Ich schaue kurz, was
-/// mit den Rändern los ist." (logs 2026-10-31). A German clause that
-/// starts with "ich" announces unless its verb states the past or a
-/// state ("Ich habe …", "Ich bin …"), or it says no ("nicht", "kein").
-/// A question, "let me know" and "I won't" announce nothing.
+/// first person, in an explicit form only: "let me", "I'll", "I will"
+/// or "I'm going to" before a verb of action, "ich werde", "lass mich"
+/// and "ich schaue nach", "mal" or "kurz" (logs 2026-10-31). Closing
+/// lines announce nothing ("Ich helfe dir gern.", "I'll be here if you
+/// need anything."), nor do a question, "let me know" and a no ("I
+/// won't", "nicht", "kein").
 fn announces(answer: &str) -> bool {
-    // ponytail: English and German; the state verbs in the settings when
-    // another language needs them.
-    const ENGLISH: [&str; 4] = ["let me ", "i'll ", "i will ", "i'm going to "];
-    const STATES: [&str; 19] = [
-        "habe", "hab", "hatte", "bin", "war", "wäre", "kann", "konnte", "könnte", "weiß", "sehe",
-        "höre", "glaube", "denke", "finde", "verstehe", "warte", "hoffe", "fürchte",
+    // ponytail: English and German forms; a setting when another
+    // language needs them.
+    const ENGLISH: [&str; 4] = ["let me", "i'll", "i will", "i'm going to"];
+    const GERMAN: [&str; 5] = [
+        "ich werde",
+        "lass mich",
+        "ich schaue nach",
+        "ich schaue mal",
+        "ich schaue kurz",
+    ];
+    /// Words after an English form that are no action.
+    const NO_ACTION: [&str; 8] = [
+        "know", "be", "not", "never", "stay", "wait", "remember", "keep",
     ];
     let text = answer.to_lowercase().replace('’', "'");
     let text = text.trim_end_matches(|c: char| c.is_whitespace() || ".!…\"»“”".contains(c));
@@ -79,29 +87,24 @@ fn announces(answer: &str) -> bool {
         return false;
     }
     let last = text.rsplit(['.', '!', '?']).next().unwrap_or_default();
-    let spaced = format!(" {}", last.replace("let me know", ""));
-    if ENGLISH
-        .iter()
-        .any(|m| spaced.contains(&format!(" {m}")) && !spaced.contains(&format!(" {m}not ")))
-    {
-        return true;
-    }
-    let words = |clause: &str| -> Vec<String> {
-        clause
-            .split_whitespace()
-            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_owned())
-            .collect()
-    };
-    if words(last)
-        .iter()
-        .any(|w| w == "nicht" || w.starts_with("kein"))
-    {
+    let words: Vec<&str> = last
+        .split_whitespace()
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric() && c != '\''))
+        .collect();
+    if words.iter().any(|w| *w == "nicht" || w.starts_with("kein")) {
         return false;
     }
-    last.split([',', ';', ':', '—', '–']).any(|clause| {
-        let words = words(clause);
-        matches!(words.as_slice(), [ich, verb, ..] if ich == "ich" && !STATES.contains(&verb.as_str()))
-            || clause.trim_start().starts_with("lass mich ")
+    let at = |form: &str, k: usize| {
+        let form: Vec<&str> = form.split(' ').collect();
+        words[k..]
+            .starts_with(&form)
+            .then(|| words.get(k + form.len()))
+    };
+    (0..words.len()).any(|k| {
+        ENGLISH
+            .iter()
+            .any(|f| at(f, k).is_some_and(|next| next.is_some_and(|n| !NO_ACTION.contains(n))))
+            || GERMAN.iter().any(|f| at(f, k).is_some())
     })
 }
 
@@ -461,7 +464,7 @@ impl Chat {
             }
             if last || r.round.calls.is_empty() {
                 report.outcome = self.answered(&r.round, last, said.is_empty(), out);
-                if self.more(&r.round.text, last, &mut nudged) {
+                if self.more(&r.round.text, last || report.tools > 0, &mut nudged) {
                     // New words in the last round get rounds of their
                     // own now, not after the reply is said (log
                     // 2026-10-31: 49 s).
@@ -499,7 +502,8 @@ impl Chat {
 
     /// Whether an answer needs one more round: the user said more while
     /// the LLM answered, also in the `last` round, or the answer announced
-    /// an action and called no tool (once per turn, with `NUDGE`).
+    /// an action and called no tool (once per turn, with `NUDGE`); `last`
+    /// also when the turn already ran a tool: no nudge then.
     fn more(&mut self, answer: &str, last: bool, nudged: &mut bool) -> bool {
         if self.take_inbox() {
             crate::log::info("llm: the user said more; one more round");
@@ -1371,6 +1375,8 @@ mod tests {
             Reply::Tool("echo", "{}"),
             Reply::Text("Fertig."),
             Reply::Text("Let me know if you need more."),
+            Reply::Tool("echo", "{}"),
+            Reply::Text("Let me check the scene."),
         ];
         let (mut chat, server) = chat(script, Config::default()).await;
         let (report, events) = turn(&mut chat, "Mach was.", true).await;
@@ -1378,26 +1384,24 @@ mod tests {
         assert_eq!(last_user(&server, 1), NUDGE);
         let (report, _) = turn(&mut chat, "Danke.", true).await;
         assert_eq!(report.rounds, 1);
+        // Review 0.9.0-rc.3: a turn that ran a tool gets no nudge.
+        let (report, events) = turn(&mut chat, "Noch mal.", true).await;
+        assert_eq!((report.rounds, report.tools), (2, 1), "{events:?}");
     }
 
     #[test]
     fn first_person_announcements_count_without_a_tool_name() {
         for text in [
-            "Ich starte den Loader.",
-            "Ich starte jetzt den Loader.",
-            "Ich trage es in die Notizen ein.",
             "Okay. I'll open the editor.",
             "I will start the loader.",
             "Let me check the scene.",
+            "I'm going to open the file.",
             "Gut, ich werde das Fenster schließen.",
-            "Ich öffne die Datei.",
-            "Ich zeige dir die Agenda.",
-            "Ich schreibe die Notiz.",
-            "Ich mache das Fenster größer.",
+            "Lass mich die Ränder prüfen.",
             "Ich schaue kurz, was mit den Rändern los ist.",
             "Ich schaue nach.",
+            "Ich schaue mal in die Notizen.",
             "I'll check the margins.",
-            "Okay, ich prüfe die Ränder.",
         ] {
             assert!(announces(text), "{text}");
         }
@@ -1418,6 +1422,12 @@ mod tests {
             "I did open it.",
             "I will not open it.",
             "Sag Bescheid, wenn ich weitermachen soll.",
+            // Closing lines (review 0.9.0-rc.3).
+            "Ich helfe dir gern.",
+            "Ich heiße Chora.",
+            "Ich empfehle eine Skalierung von 1,5.",
+            "I'll be here if you need anything.",
+            "Ich zeige Fenster, starte Programme und lese Dateien.",
         ] {
             assert!(!announces(text), "{text}");
         }
@@ -1495,8 +1505,8 @@ mod tests {
     #[tokio::test]
     async fn a_german_announcement_gets_one_more_round_once() {
         let script = vec![
-            Reply::Text("Ich starte den Loader."),
-            Reply::Text("Ich starte jetzt den Loader."),
+            Reply::Text("Ich werde den Loader starten."),
+            Reply::Text("Lass mich den Loader starten."),
         ];
         let (mut chat, server) = chat(script, Config::default()).await;
         let (report, events) = turn(&mut chat, "Du hast nichts gemacht.", true).await;

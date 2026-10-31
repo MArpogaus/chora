@@ -158,12 +158,14 @@ speech is dropped.
 A turn whose first round calls tools without words says `phrases.ack`
 ("One moment.") once. An answer whose last sentence announces an action
 in the first person, but calls no tool, gets one more round per turn
-with a note to call it or to say that it will not. An announcement is
-"let me ...", "I'll ...", "I will ...", "I'm going to ...", or a German
-clause that starts with "ich" ("Ich schaue nach.", "ich werde ...").
-These are no announcement: a question, "let me know", a negation ("I will
-not", "nicht", "kein"), and a German verb of the past or of a state
-("Ich habe ...", "Ich bin ...", "Ich kann ...", "Ich höre ...").
+with a note to call it or to say that it will not. A turn that already
+ran a tool gets no such round. Only explicit forms announce: "let me
+...", or "I'll", "I will" or "I'm going to" before a verb of action.
+In German, these are "ich werde ...", "lass mich ..." and "ich schaue
+nach", "mal" or "kurz". These are no announcement: a question, "let me
+know", "I'll be here", a negation ("I will not", "nicht", "kein"), and
+other German "ich" sentences ("Ich helfe dir gern.", "Ich starte den
+Loader.").
 
 An answer that ends with `stop`, calls no tool, and whose words do not
 end with `.`, `!`, `?` or `…` (also before a closing quote) is cut: Gufo
