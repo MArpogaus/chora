@@ -600,7 +600,13 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
         }
         let keyboard = state.keyboard();
         let mods = keyboard.modifier_state();
-        let Some((conn, binding)) = state.ipc.button_grab_for(&mods, code) else {
+        // As for a new toplevel: without an output, the pointer is in no claim.
+        let pointer =
+            (state.spot(state.pointer_layout)).map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
+        let Some((conn, binding)) = state
+            .ipc
+            .button_grab_for(&mods, code, &state.scene, pointer)
+        else {
             return false;
         };
         let binding = binding.to_string();
@@ -1215,6 +1221,95 @@ mod tests {
         click(&mut core, false);
         let pressed = named(&events(&mut wm, &mut core), "pointer.pressed");
         assert_eq!(pressed[0]["node"], "s1");
+    }
+
+    /// A window manager whose group claims an area.
+    fn claimer(core: &mut Core, name: &str, claim: [f64; 4]) -> Client {
+        let mut wm = core.named(name);
+        apply(
+            &mut wm,
+            core,
+            &json!([{"create": {"id": name, "kind": "group", "parent": "root",
+                "props": {"claim": claim}}}]),
+        );
+        wm.ok(core, "events.subscribe", json!({"events": []}));
+        wm
+    }
+
+    /// The `state` of the `input.button` events and the moves of a client.
+    fn buttons(client: &mut Client, core: &mut Core) -> Vec<String> {
+        events(client, core)
+            .iter()
+            .filter(|e| e["event"] == "input.button" || e["event"] == "input.moved")
+            .map(|e| e["state"].as_str().unwrap_or("moved").to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn a_shared_button_grab_goes_to_the_claim_under_the_pointer() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let grab = json!({"binding": "Super+BTN_LEFT"});
+        let mut left = claimer(&mut core, "left", [0.0, 0.0, 400.0, 600.0]);
+        let mut right = claimer(&mut core, "right", [400.0, 0.0, 400.0, 600.0]);
+        let mut inner = claimer(&mut core, "inner", [500.0, 100.0, 100.0, 100.0]);
+        left.ok(&mut core, "input.grab", grab.clone());
+        right.ok(&mut core, "input.grab", grab.clone());
+        inner.ok(&mut core, "input.grab", grab.clone());
+        let drag = |core: &mut Core, from: (f64, f64), to: (f64, f64)| {
+            move_to(core, from.0, from.1);
+            press(core, SUPER, true);
+            click(core, true);
+            move_to(core, to.0, to.1);
+            click(core, false);
+            press(core, SUPER, false);
+        };
+        let all = ["pressed", "moved", "released"];
+        // The drag stays with the client of the press, across claims.
+        drag(&mut core, (100.0, 100.0), (700.0, 500.0));
+        assert_eq!(buttons(&mut left, &mut core), all);
+        assert_eq!(buttons(&mut right, &mut core), Vec::<String>::new());
+        drag(&mut core, (700.0, 500.0), (100.0, 100.0));
+        assert_eq!(buttons(&mut right, &mut core), all);
+        assert_eq!(buttons(&mut left, &mut core), Vec::<String>::new());
+        // The smallest claim wins.
+        drag(&mut core, (550.0, 150.0), (560.0, 160.0));
+        assert_eq!(buttons(&mut inner, &mut core), all);
+        assert_eq!(buttons(&mut right, &mut core), Vec::<String>::new());
+        // No claim under the pointer: the first grab.
+        apply(
+            &mut right,
+            &mut core,
+            &json!([{"update": {"id": "right", "props": {"claim": null}}}]),
+        );
+        drag(&mut core, (700.0, 500.0), (710.0, 510.0));
+        assert_eq!(buttons(&mut left, &mut core), all);
+        assert_eq!(buttons(&mut right, &mut core), Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_button_grab_without_a_claim_has_one_owner() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let grab = json!({"binding": "Super+BTN_LEFT"});
+        let mut plain = core.named("plain");
+        let mut claimed = claimer(&mut core, "claimed", [0.0, 0.0, 400.0, 600.0]);
+        let mut other = claimer(&mut core, "other", [400.0, 0.0, 400.0, 600.0]);
+        // A first grab without a claim keeps the binding to itself.
+        plain.ok(&mut core, "input.grab", grab.clone());
+        let (_, message) = claimed.fails(&mut core, "input.grab", grab.clone());
+        assert_eq!(message, "Super+BTN_LEFT is grabbed already");
+        plain.ok(&mut core, "input.ungrab", grab.clone());
+        // A second grab needs a claim too.
+        claimed.ok(&mut core, "input.grab", grab.clone());
+        let (_, message) = plain.fails(&mut core, "input.grab", grab.clone());
+        assert_eq!(message, "Super+BTN_LEFT is grabbed already");
+        other.ok(&mut core, "input.grab", grab);
+        // Key bindings stay with the first grab, claims or not.
+        let key = json!({"binding": "Super+a"});
+        claimed.ok(&mut core, "input.grab", key.clone());
+        let (_, message) = other.fails(&mut core, "input.grab", key);
+        assert_eq!(message, "Super+a is grabbed already");
     }
 
     #[test]
