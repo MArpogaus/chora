@@ -7,6 +7,8 @@ ags = "ags"
 alle = "alle"
 # The start of a commit hash in the plan reports.
 ba = "ba"
+# A Latin-1 "café" in a test of the read tool.
+caf = "caf"
 # A deliberate misspelling in the tests of the event names.
 creatd = "creatd"
 dokument = "dokument"
@@ -16,6 +18,8 @@ habe = "habe"
 ist = "ist"
 # Pixel box names in the icon code (iy), and PNGs split at the s (pn).
 iy = "iy"
+# Level of detail of the construct panes.
+lod = "lod"
 oder = "oder"
 offen = "offen"
 oktober = "oktober"

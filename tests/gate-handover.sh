@@ -223,6 +223,7 @@ ok "8. the title bar of a csd foot moves $c in tiling ($before to $after) and gi
 # 10 s keeps the window, then another window manager takes it.
 ctl call xp window.give "{\"surface\": \"$w\", \"to\": \"tiling\"}" >/dev/null ||
     fail "xp window.give to tiling"
+# shellcheck disable=SC2154 # printf -v in the start sets it
 kill "$pid_tiling"
 for _ in $(seq 100); do
     owner=$(ctl query "id:$w" | jq -r '.[0].owner')

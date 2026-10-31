@@ -5,7 +5,7 @@
 
 # The construct that the flavor starts into, a file NAME.yaml in
 # ~/.config/chora/constructs/; empty for an empty space.
-start: ""
+start: ''
 # The space: light (a pale sky over a warmer ground, a bright horizon)
 # or dark (a black void over a dim ground, a faint horizon glow).
 theme: light
