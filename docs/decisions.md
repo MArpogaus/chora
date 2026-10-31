@@ -157,6 +157,11 @@ claims, any window manager can take the new surface.
 owner of the smallest other claim that holds the drop point; without one
 there, the surface stays with A.
 
+**Shared pointer bindings.** Window managers that each hold a claim can
+grab the same pointer button binding, and a press goes to the grab of the
+smallest claim under the pointer, else to the first grab, with its moves
+and release; key bindings keep one owner.
+
 **Out of scope for now.**
 
 - The drop position: B places the surface by its own rules.
