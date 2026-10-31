@@ -382,6 +382,12 @@ the user agrees:
 - The event `voice.confirm` has `physical: true` and `keys: {yes, no}`,
   so a HUD shows "Alt+y = yes, Alt+n = no". The agent's own HUD text
   shows that line too.
+- A holder of `indicator.claim` is trusted like the keyboard: its
+  `confirm.answer` counts as a physical answer (review rc3 round 3,
+  2.6). A confined client with `methods.privileged` can claim the
+  indicator and then answer every key question. So grant
+  `methods.privileged`, and with it the claim, only to a HUD that the
+  user trusts as the keyboard.
 - An injected key could answer the question. So the agent refuses
   `inject_input` while such a question waits. Besides, `inject_input`
   always asks by the default rules and never takes an always word.
