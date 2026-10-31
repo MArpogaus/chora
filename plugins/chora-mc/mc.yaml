@@ -56,12 +56,8 @@ styles:
     features: {smcp: 1, c2sc: 1, onum: 1}
   chapter:
     base: heading
-    step: 3
+    step: 4
     letter_spacing: 0.14
-  chapter_number:
-    base: chapter
-    color: faint
-    letter_spacing: 0
   running_head:
     family: Inter
     weight: 500
@@ -79,8 +75,8 @@ styles:
   mono:
     family: DejaVu Sans Mono
     step: -1
-# The head of each scene: number (the number in the margin column, flush
-# right, the title on its baseline in the text column) or none.
+# The head of each scene: number ("3 | Agenda" in small caps, one line at
+# the left edge of the text column) or none.
 chapter:
   layout: number
 # The text block of every scene: the width of one column of the grid,

@@ -15,8 +15,7 @@ use crate::scene;
 pub const DEFAULT: &str = include_str!("../mc.yaml");
 
 /// The styles that the plugin uses itself.
-const NEEDED: [&str; 7] = [
-    "chapter_number",
+const NEEDED: [&str; 6] = [
     "chapter",
     "running_head",
     "heading",
@@ -199,8 +198,8 @@ pub struct Scale {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Layout {
-    /// The number in the margin column, flush right, the title on its
-    /// baseline in the text column.
+    /// The number, a bar and the title on one line at the left edge of
+    /// the text column.
     Number,
     /// No head: the panels start under the header.
     None,
