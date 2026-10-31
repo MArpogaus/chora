@@ -55,6 +55,8 @@ set -a
 # shellcheck disable=SC1091
 . "$tmp/env"
 set +a
+# The main socket, unconfined: voice.agent and voice.confirm are
+# privileged.
 ctl() { "$bin/choractl" --name check "$@"; }
 until ctl call mc agent.list >/dev/null 2>&1; do sleep 0.2; done
 PATH=$bin:$PATH "$bin/chora-voice" >"$tmp/voice.log" 2>&1 &

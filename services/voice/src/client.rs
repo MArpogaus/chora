@@ -178,13 +178,14 @@ fn exported_methods() -> Vec<ExportMethod> {
             json!({"mic": {"type": "boolean"}, "speaker": {"type": "boolean"}}),
             &[],
         ),
-        runtime::method(
+        // Privileged: a yes runs programs and allows what sub-agents ask.
+        runtime::privileged(runtime::method(
             "confirm",
             "Answers the question of the agent before a tool call: yes runs the call, no \
              declines it.",
             json!({"answer": {"type": "string", "enum": ["yes", "no"]}}),
             &["answer"],
-        ),
+        )),
         runtime::method(
             "talk",
             "The push-to-talk key of another client: down stops a reply and records, up \
@@ -323,5 +324,23 @@ impl Plugin for Client {
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         self.apply()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chora_scene::ipc::ExportMethod;
+
+    /// A yes and the agent tools start programs: a confined client needs
+    /// `methods.privileged` for them.
+    #[test]
+    fn confirm_and_agent_are_privileged() {
+        let privileged: Vec<String> = (super::exported_methods().into_iter())
+            .filter_map(|m| match m {
+                ExportMethod::Described(d) if d.privileged => Some(d.name),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(privileged, ["confirm", "agent"]);
     }
 }

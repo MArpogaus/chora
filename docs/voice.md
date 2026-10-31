@@ -194,7 +194,8 @@ A rule matches by `tool` (glob), and optionally by the command kinds of
 `apply_commands`, by `argv0` of `run_program`, or by `method` (glob) of
 `call_method`. The agent speaks the `prompt` of the rule, with the
 program of `run_program` in place of `{program}`, and waits for
-yes or no. The method `confirm` answers from a key or the HUD (WP5),
+yes or no. The method `confirm` answers from a key or the HUD (WP5;
+privileged, so a confined client needs `methods.privileged`),
 the spoken yes and no since WP6; two unclear answers are a no. No
 answer within `confirm_timeout_ms` is a no. A no gives the LLM the result "declined by
 the user; nothing happened".
@@ -387,7 +388,7 @@ both a key variable and a key file for one server.
 | `restart` | none | reads the settings file again |
 | `settings.get`, `settings.set` | D62 | D62 |
 | `talk` | `down: bool` | PTT from another client, for example `chora-mc` |
-| `confirm` (WP5) | `answer: yes\|no` | the new state record |
+| `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
 
