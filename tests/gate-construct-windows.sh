@@ -76,6 +76,18 @@ panes() { call construct.list | python3 -I -c 'import json, sys; print(" ".join(
 # The pane state of the window $1 in window.list.
 state() { call window.list | python3 -I -c "import json, sys; print(next((w['pane'] for w in json.load(sys.stdin)['windows'] if w['name'] == '$1'), 'missing'))"; }
 focused() { ctl query "$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("focused") if n else "")'; }
+# open_at NAME: opens the window list with Tab and selects the row of
+# the window NAME.
+open_at() {
+    local row
+    row=$(call window.list | python3 -I -c "
+import json, sys
+rows = [w['name'] for w in json.load(sys.stdin)['windows'] if w['pane'] != 'shown']
+print(rows.index('$1'))") || fail "$1 is not in the window list"
+    key Tab
+    ctl wait --timeout 5 id:construct-list >/dev/null || fail "Tab opened no list"
+    for _ in $(seq "$row"); do key Down; done
+}
 # The geometry and the props of the surfaces, by app id.
 geometry() {
     ctl query kind:surface | python3 -I -c '
@@ -136,7 +148,10 @@ quit() {
     kill "$cpid" "$spid" 2>/dev/null
     wait "$cpid" "$spid" 2>/dev/null
 }
-probe="$bin/chora-probe window 200 40 40"
+# chora-probe refuses to close; `choractl run` starts it outside the
+# session, so it writes its pid for end_foots, as foot.sh does.
+printf 'echo $$ >"%s/probe.pid"\nexec "%s/chora-probe" window 200 40 40\n' "$work" "$bin" >"$work/probe.sh"
+probe="sh $work/probe.sh"
 printf 'panes: []\n' >"$work/chora/constructs/empty.yaml"
 cat >"$work/chora/constructs/own.yaml" <<EOF
 panes:
@@ -281,8 +296,7 @@ no_lost "flavor load"
 call pane.move '{"name": "f1", "ahead": -6000}' >/dev/null || fail "pane.move f1"
 sleep 0.5
 [ "$(state f1)" = behind ] || fail "f1 far behind the camera is $(state f1)"
-key Tab
-ctl wait --timeout 5 id:construct-list >/dev/null || fail "Tab opened no list"
+open_at f1
 sleep 0.5
 shot "$shots/construct-windows-flavor.png"
 key Return
@@ -336,13 +350,7 @@ sleep 2
 probe_id=$(surface chora-probe)
 call pane.move '{"name": "chora-probe", "ahead": -6000}' >/dev/null || fail "pane.move probe"
 sleep 0.5
-row=$(call window.list | python3 -I -c '
-import json, sys
-rows = [w["name"] for w in json.load(sys.stdin)["windows"] if w["pane"] != "shown"]
-print(rows.index("chora-probe"))')
-key Tab
-ctl wait --timeout 5 id:construct-list >/dev/null || fail "Tab opened no list"
-for _ in $(seq "$row"); do key Down; done
+open_at chora-probe
 key g
 sleep 0.5
 shot "$shots/construct-windows-give.png"
