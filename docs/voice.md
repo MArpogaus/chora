@@ -528,14 +528,20 @@ confirm:
   - {tool: call_method, method: "*restart", prompt: "Shall I restart the plugin {client}?"}
   # Then two rules for each privileged method METHOD of a plugin:
   # settings.set, settings.reload, app.open, scene.save, scene.rename,
-  # scene.move, construct.load, construct.save and pane.remove.
+  # scene.move, construct.load, construct.save, region.toggle,
+  # region.put and region.solo; and for window.give, agent.set and
+  # notify.push, which are not privileged.
   - {tool: "*.METHOD", prompt: "Shall I run {method} of the plugin {client}?"}
   - {tool: call_method, method: METHOD, prompt: "Shall I run {method} of the plugin {client}?"}
 ```
 
 The grant `methods.privileged` opens every privileged method of every
 plugin. The export flag `privileged` does not reach the agent, so the
-default rules ask before each privileged method of the plugins. In a
+default rules ask before each privileged method of the plugins, from a
+list kept by hand that must follow the plugins. `window.give` also
+asks: it hides a window in another client. So do `agent.set` and
+`notify.push` of chora-mc: they show what the user trusts as the state
+of the agent or as a notification. In a
 prompt, `{client}` and `{method}` name the plugin and the method, also
 for a plugin tool `CLIENT.METHOD`. The method is said with spaces
 ("app open").

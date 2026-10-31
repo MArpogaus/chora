@@ -873,7 +873,9 @@ pub mod tests {
     }
 
     /// Review 0.9.0-rc.3: `methods.privileged` opens every privileged
-    /// method without a question, so each asks first, in both forms.
+    /// method without a question, so each method of the hand-kept list
+    /// in config.rs asks first, in both forms. The list can lag behind
+    /// the plugins (review rc3 round 2, 3.1).
     #[test]
     fn privileged_methods_ask_by_client_and_method() {
         let rules = Config::default().confirm;
@@ -896,7 +898,12 @@ pub mod tests {
             "scene.move",
             "construct.load",
             "construct.save",
-            "pane.remove",
+            "region.toggle",
+            "region.put",
+            "region.solo",
+            "window.give",
+            "agent.set",
+            "notify.push",
         ] {
             assert!(
                 ask(&format!("xp.{method}"), json!({})).is_some(),
@@ -906,6 +913,8 @@ pub mod tests {
             assert!(ask("call_method", args).is_some(), "{method}");
         }
         assert_eq!(ask("mc.scene.show", json!({})), None);
+        // Not privileged in construct.
+        assert_eq!(ask("construct.pane.remove", json!({})), None);
         assert_eq!(
             ask("voice.settings.reload", json!({})).as_deref(),
             Some("Shall I run settings reload of the plugin voice?")

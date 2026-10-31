@@ -341,8 +341,9 @@ fn default_confirm() -> Vec<Confirm> {
         },
     ];
     // The privileged methods of the plugins: `methods.privileged` opens
-    // them all, and their export flag does not reach the agent.
-    for method in PRIVILEGED {
+    // them all, and their export flag does not reach the agent. Then the
+    // methods that ask although they are not privileged.
+    for &method in PRIVILEGED.iter().chain(&SENSITIVE) {
         rules.push(rule(&format!("*.{method}"), PRIVILEGED_PROMPT));
         rules.push(Confirm {
             method: Some(method.into()),
@@ -352,8 +353,10 @@ fn default_confirm() -> Vec<Confirm> {
     rules
 }
 
-/// The privileged methods of the plugins that ask first.
-const PRIVILEGED: [&str; 9] = [
+/// The privileged methods of the plugins that ask first: a hand-kept
+/// copy of their export flags.
+// ponytail: a copy; `choractl mcp` could pass the export flag through.
+const PRIVILEGED: [&str; 11] = [
     "settings.set",
     "settings.reload",
     "app.open",
@@ -362,8 +365,15 @@ const PRIVILEGED: [&str; 9] = [
     "scene.move",
     "construct.load",
     "construct.save",
-    "pane.remove",
+    "region.toggle",
+    "region.put",
+    "region.solo",
 ];
+
+/// Methods that are not privileged but ask first: `window.give` hides a
+/// window in another client, `agent.set` and `notify.push` of chora-mc
+/// show what the user trusts as the voice agent or a notification.
+const SENSITIVE: [&str; 3] = ["window.give", "agent.set", "notify.push"];
 
 const PRIVILEGED_PROMPT: &str = "Shall I run {method} of the plugin {client}?";
 
