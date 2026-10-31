@@ -195,7 +195,7 @@ pub struct Muted {
 /// An utterance whose final text waits.
 struct Pending {
     turn: u64,
-    length_ms: u32,
+    speech_ms: u32,
     /// Awake or by the key: the text is a request, not only a wake word.
     heard: bool,
 }
@@ -861,9 +861,9 @@ impl Core {
         // The final text of an older utterance still counts: no speech is
         // dropped.
         let at = self.pending.iter().position(|p| p.turn == turn);
-        let (length_ms, heard) = at.map_or((u32::MAX, self.awake), |at| {
+        let (speech_ms, heard) = at.map_or((u32::MAX, self.awake), |at| {
             let p = self.pending.remove(at);
-            (p.length_ms, p.heard)
+            (p.speech_ms, p.heard)
         });
         let text = match result {
             Ok(t) => {
@@ -886,7 +886,7 @@ impl Core {
                 return self.earcon(Earcon::Error).into_iter().collect();
             }
         };
-        let word = words::matches(&self.config, &text, length_ms, self.confirming());
+        let word = words::matches(&self.config, &text, speech_ms, self.confirming());
         if let Some(word) = word {
             crate::log::info(&format!("turn={turn} word={word:?}"));
         }
@@ -1075,11 +1075,9 @@ impl Core {
                 self.turn += 1;
                 self.ended = now;
                 self.barge.heard(&pcm);
-                let length_ms =
-                    u32::try_from(pcm.len() * 1000 / crate::pcm::RATE as usize).unwrap_or(u32::MAX);
                 self.pending.push(Pending {
                     turn: self.turn,
-                    length_ms,
+                    speech_ms,
                     heard: self.awake || std::mem::take(&mut self.key.used),
                 });
                 vec![
@@ -1776,6 +1774,27 @@ mod tests {
         let effects = say(&mut core, "Coding-Aufgabe abbrechen.");
         assert!(effects.contains(&Effect::StopCode), "{effects:?}");
         assert!(no_ask(&effects), "{effects:?}");
+    }
+
+    #[test]
+    fn a_slow_sleep_word_during_a_reply_acts_at_once() {
+        // Live 2026-10-31: 1856 ms of speech in 2848 ms went to the LLM.
+        let mut core = asking();
+        let mut effects = speak(&mut core, 58);
+        effects.extend(quiet(&mut core, 26));
+        let turn = effects
+            .iter()
+            .find_map(|e| match e {
+                Effect::Utterance { turn, .. } => Some(*turn),
+                _ => None,
+            })
+            .expect("an utterance");
+        let effects = core.handle(text(turn, false, Ok("Schlaf jetzt.")));
+        assert!(effects.contains(&stop()), "{effects:?}");
+        assert!(effects.contains(&Effect::Earcon(Earcon::Sleep)));
+        assert!(!effects.iter().any(|e| matches!(e, Effect::Inject(_))));
+        assert_eq!(core.state(), State::Sleeping);
+        assert_eq!(call(&mut core, Call::State).1["queued"], 0);
     }
 
     #[test]

@@ -79,9 +79,10 @@ fn content(config: &Config, text: &str) -> Vec<String> {
         .collect()
 }
 
-/// The command word of an utterance of `length_ms`, if it is one. Yes
-/// and no count only when `confirming`, as the [`answer`] of any length.
-pub fn matches(config: &Config, text: &str, length_ms: u32, confirming: bool) -> Option<Word> {
+/// The command word of an utterance with `speech_ms` of speech, if it
+/// is one. Yes and no count only when `confirming`, as the [`answer`] of
+/// any length.
+pub fn matches(config: &Config, text: &str, speech_ms: u32, confirming: bool) -> Option<Word> {
     let words = content(config, text);
     let lists = [
         (Word::CodeCancel, &config.code_cancel_words),
@@ -89,7 +90,7 @@ pub fn matches(config: &Config, text: &str, length_ms: u32, confirming: bool) ->
         (Word::Sleep, &config.sleep_words),
         (Word::Wake, &config.wake_words),
     ];
-    let command = (length_ms <= config.word_max_ms && (1..=MAX_WORDS).contains(&words.len()))
+    let command = (speech_ms <= config.word_max_ms && (1..=MAX_WORDS).contains(&words.len()))
         .then(|| {
             lists
                 .into_iter()
@@ -257,7 +258,7 @@ mod tests {
         assert_eq!(m("Lieber nicht.", true), Some(Word::No));
         assert_eq!(m("Stopp.", true), Some(Word::Cancel), "cancel comes first");
         assert_eq!(
-            matches(&config, "Stopp.", 2500, false),
+            matches(&config, "Stopp.", 3500, false),
             None,
             "longer than word_max_ms"
         );

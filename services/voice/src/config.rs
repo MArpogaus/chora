@@ -156,7 +156,8 @@ pub struct Config {
     /// learns it while it speaks. The default assumes the echo canceller
     /// of `PipeWire`.
     pub barge_in_coupling: f64,
-    /// The longest utterance that can be a command word.
+    /// The most speech (VAD frames, without pre-roll and end wait) of
+    /// an utterance that can be a command word.
     pub word_max_ms: u32,
     pub sleep_words: Vec<String>,
     pub wake_words: Vec<String>,
@@ -649,7 +650,7 @@ impl Default for Config {
             barge_in_echo_ratio: 2.0,
             barge_in_min_rms: 0.0,
             barge_in_coupling: 0.1,
-            word_max_ms: 2000,
+            word_max_ms: 3000,
             sleep_words: words(&["sleep", "go to sleep", "schlaf", "schlaf jetzt"]),
             wake_words: words(&["hey chora", "listen", "hallo chora", "hör zu"]),
             cancel_words: words(&[
