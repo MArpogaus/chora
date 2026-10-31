@@ -261,6 +261,16 @@ When a window manager removes its last claim, its reservations end too. A
 `remove` with `to` hands a surface to another window manager in the same
 way.
 
+Every window manager of the repository exports `window.give` with `to`
+and an optional `surface`, by default its focused window. It hands the
+window over with a `remove` with `to`, and the receiver focuses it. A
+`to` that is not connected fails, and the window stays. `choractl give
+TO [--surface ID]` calls `window.give` of the owner of the window, by
+default of the focused one. A window dropped outside the claim of its
+window manager goes to the owner of the smallest other claim that holds
+the drop point, as for a new toplevel; `chora_kit::give` finds it in
+the claims of `scene.query`.
+
 ## Selectors
 
 A selector finds nodes: `id:work`, `kind:surface`, `owner:tiling`,
@@ -989,7 +999,7 @@ lists all of its methods:
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
 | `get_tags` | none | `outputs`: for each output its `name`, `focused` when it has the focus, and `tags`: for each tag its number `tag`, `shown`, `focused` (shown on the focused output), `occupied` (a window of the output is on it) and `urgent` (such a window asked for attention) |
-| `give` | `to`: a client name | hands the focused window to `to` with a `remove` with `to`, and answers with its surface id |
+| `window.give` | `to`: a client name; `surface`, the focused window of tiling without it | hands the window to `to` with a `remove` with `to`, and answers with its surface id |
 
 A plugin with settings exports `settings.get`, `settings.set` and
 `settings.reload` through the runtime of `chora-kit` (D62). `settings.get`

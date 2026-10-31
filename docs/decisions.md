@@ -153,6 +153,10 @@ itself. The core
 reserves the surface for that client, as at a handover. Outside of all
 claims, any window manager can take the new surface.
 
+**The drop target.** A drag that ends outside the claim of A goes to the
+owner of the smallest other claim that holds the drop point; without one
+there, the surface stays with A.
+
 **Out of scope for now.**
 
 - The drop position: B places the surface by its own rules.

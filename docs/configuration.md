@@ -220,8 +220,11 @@ A window can be on several tags, and an output can show several tags. A
 floating, maximized or fullscreen window leaves the tiles. A click or a
 binding raises the window that it focuses; the focus that follows the
 pointer raises nothing. The binding
-`MOD+Ctrl+r` reads the file again. Mouse moves and resizes of floating
-windows do not exist.
+`MOD+Ctrl+r` reads the file again. `MOD+BTN_LEFT` (`drag`) holds the
+window under the pointer. A drop outside the claim of tiling hands it to
+the window manager whose claim holds the drop point (D55). Without one
+there, the window stays. Mouse moves and resizes of floating windows do
+not exist.
 
 `chora-tiling` exports methods for other clients (see
 [Plugin methods](api.md#plugin-methods)). Every method but `get_layout`
@@ -234,7 +237,7 @@ the gap of the file again.
 |--------|------------|------------------|
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
 | `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
-| `give` | `to`: a client name | handing the focused window to another client |
+| `window.give` | `to`: a client name; `surface`, the focused window without it | `MOD+BTN_LEFT` with a drop on another window manager: hands the window to `to` (D55), and answers with its id |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
 | `move_to_tag` | `surface`, `tag` | `MOD+Shift+1` to `MOD+Shift+9`, for this window |
 | `focus` | `surface` | a click: focuses and raises the window, and its output; a window that shows nowhere only gets the urgent mark |
@@ -382,7 +385,13 @@ with the selector `owner:mc meta:pane=NAME` and shows it through its node
 texture; chora-construct does so for a plugin pane.
 
 A window that no scene started, for example from a launcher, gets a scene
-of its own without a head, which goes with the window.
+of its own without a head, which goes with the window. So does a window
+that another window manager gives to `mc` (D55). `window.give` with
+`to` and an optional `surface`, by default the focused window, hands the
+window of a scene to another window manager. The scene of the window
+goes with it, and the scene before shows, without the keyboard.
+`--output NAME` puts the scenes on that output instead of the first
+one, and leaves the others to other window managers.
 
 A new window takes the keyboard. The exception is a window that an
 `app.open` call started: voice and agents make these calls, and such a
@@ -936,8 +945,9 @@ reads the insets of a slice in pixels of the file. The pictures:
 A click on a window raises and focuses it. A drag of a title bar moves the
 window, and a double click maximizes it. `chora-xp` claims the box around the work areas
 of its outputs (D55). `--output NAME` limits it to some outputs. A window
-dragged out of these work areas goes to the window manager `tiling` with
-`remove` and `to`. Without `tiling`, the window stays. A drag of the border of the frame
+dragged out of these work areas goes to the window manager whose claim
+holds the drop point, with `remove` and `to`. Without one there, or when
+the core refuses, the window stays. A drag of the border of the frame
 resizes the window: the 4 pixel border and 6 pixels of the shadow outside
 it take the press, and the corners reach 16 pixels along both edges. The
 client gets the new size once per frame while the button is down, and the
@@ -1257,6 +1267,7 @@ these bindings, Super+Ctrl with the arrows stands in.
 | `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
 | `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
 | `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button |
+| `window.give` | `to`: a client name; `surface`, the focused window without it | a drag of the window out of the work areas: hands it to `to` (D55) |
 | `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | the dialogs and an edit of the file with `restart` |
 
 | Option | Default | Meaning |
