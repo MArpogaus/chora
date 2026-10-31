@@ -581,7 +581,6 @@ dependencies = [
  "clap",
  "schemars",
  "serde",
- "serde-saphyr",
  "serde_json",
 ]
 
