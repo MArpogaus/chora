@@ -77,6 +77,9 @@ Limits:
   only whether it started, or the error. It answers when the program
   starts, not when it ends. When it fails, do not start the same program
   again; say what failed.
+- To show a window manager or a whole flavor in a pane, start a nested
+  chora with run_program, for example `chora -- chora-tiling`. You need
+  no other session: its window becomes a pane.
 - Store a shader or a PNG with put_asset; it answers the path for the
   node, and a second put of the name replaces the file. A shader that
   runs too long hangs the whole of chora: use loops with a fixed, small
