@@ -725,6 +725,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#panes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Panes
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1060,6 +1071,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#panes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Panes
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1085,7 +1107,7 @@
 space: the voice HUD, the window list, the pane labels and the
 confirmation questions. The space is a calm 3D void. The light theme has
 a white glossy floor, a crisp horizon and a pale sky. The dark theme has
-a black void over a black glossy floor. Panes float and face the camera.
+a black void over a black glossy floor. Panes float with a fixed turn; walking past one shows it at an angle.
 All elements share one visual language: floating glass, few sizes, one
 accent and calm motion.</p>
 <p>This page gives the rules. The section <code>style</code> of
@@ -1152,12 +1174,12 @@ a window name. Do not use bold, italic or other sizes.</p>
 <tbody>
 <tr>
 <td><code>glass</code></td>
-<td><code>[1.00, 1.00, 1.00, 0.86]</code></td>
+<td><code>[1.00, 0.99, 0.975, 0.94]</code>, a warm white</td>
 <td><code>[0.04, 0.05, 0.07, 0.86]</code></td>
 </tr>
 <tr>
 <td><code>edge</code></td>
-<td><code>[0.08, 0.09, 0.12, 0.16]</code></td>
+<td><code>[0.08, 0.09, 0.12, 0.24]</code></td>
 <td><code>[1.00, 1.00, 1.00, 0.16]</code></td>
 </tr>
 <tr>
@@ -1181,7 +1203,8 @@ a window name. Do not use bold, italic or other sizes.</p>
 <li>
 <p><strong>One accent for both themes.</strong> <code>accent</code> is <code>[0.15, 0.50, 0.71]</code>
    (#2680B4). It colours the state ring, the waveform, the selection
-   mark and the glow. It never colours text. Do not use other hues.</p>
+   mark, the glow and the edge of the focused pane. It never colours
+   text. Do not use other hues.</p>
 </li>
 <li>
 <p><strong>Contrast.</strong> Check each colour on the glass over the worst
@@ -1199,19 +1222,19 @@ a window name. Do not use bold, italic or other sizes.</p>
 <tbody>
 <tr>
 <td><code>text</code></td>
-<td>12.9</td>
+<td>15.4</td>
 <td>11.6</td>
 <td>7.0</td>
 </tr>
 <tr>
 <td><code>muted</code></td>
-<td>5.7</td>
+<td>6.8</td>
 <td>5.7</td>
 <td>4.5</td>
 </tr>
 <tr>
 <td><code>accent</code></td>
-<td>3.1</td>
+<td>3.8</td>
 <td>3.1</td>
 <td>3.0 (graphics only)</td>
 </tr>
@@ -1229,7 +1252,9 @@ fails below a threshold.</p>
    <code>accent</code> surrounds it and falls to zero within 16. Panes behind the
    panel do not blur. A node texture of the pane group renders the pane
    shaders without their node textures, so a blur shows empty panes.
-   The opacity of 0.86 keeps the text readable instead.</li>
+   The opacity keeps the text readable instead: 0.94 in the light
+   theme, so that the glass over a black pane stays a clean warm white
+   (#F0EDEA) and not a flat grey, and 0.86 in the dark theme.</li>
 <li><strong>The glow is the only shader.</strong> The rect carries the fill and the
    hairline as core props. A shader node above it draws only the glow,
    the state ring and the waveform. When the watchdog removes the
@@ -1251,8 +1276,13 @@ fails below a threshold.</p>
     that point, not a projected one, so it stays sharp. Only the pane
     ahead and the pane under the pointer show a label.</li>
 <li><strong>Text only on glass.</strong> Text never sits on the bare space or on a
-    pane. A spoken sentence wraps at 480 and shows at most two lines.
-    Longer text keeps its end and starts with an ellipsis.</li>
+    pane. Every text stays inside its panel, within the padding, as
+    the core measures it. A spoken sentence wraps at 480, or narrower on
+    a small output, and shows at most two lines. Longer text keeps its
+    end and starts with an ellipsis. A question wraps, and its panel
+    grows with it. A text that must stay on one line, such as a row of
+    the window list or a pane label (at most 320 wide), ends with an
+    ellipsis.</li>
 </ol>
 <h2 id="motion">Motion<a class="headerlink" href="#motion" title="Permanent link">&para;</a></h2>
 <ol>
@@ -1334,6 +1364,13 @@ fails below a threshold.</p>
     <code>style</code> and a rule on this page. Before a merge, capture it at
     1920x1080 and 1280x720, in both themes, over a white and a black
     pane, and compare it with these rules.</li>
+</ol>
+<h2 id="panes">Panes<a class="headerlink" href="#panes" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>The focused pane.</strong> The focused pane has full opacity and an accent
+    hairline with a soft glow. It is the pane flown into, else the pane
+    under the pointer or ahead, as the pane label picks it. The other
+    panes fade into the fog with their distance.</li>
 </ol>
 
 

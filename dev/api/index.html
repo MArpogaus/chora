@@ -1594,7 +1594,7 @@ path.</p>
 </tr>
 <tr>
 <td><code>remove</code></td>
-<td>Remove a node. A removed surface becomes detached. With <code>to</code>, only the client <code>to</code> can attach the surface and gets <code>surface.detached</code>. <code>to</code> must have a connection (D55).</td>
+<td>Remove a node. A removed surface becomes detached. With <code>to</code>, only the client <code>to</code> can attach the surface and gets <code>surface.detached</code>. <code>to</code> must have a connection and hold a claim (D55).</td>
 </tr>
 <tr>
 <td><code>configure</code></td>
@@ -1703,16 +1703,24 @@ connection of the client closes, the reservation ends with
 <code>surface.detached</code>. With <code>resume</code>, it ends at the end of the grace time.
 When a window manager removes its last claim, its reservations end too. A
 <code>remove</code> with <code>to</code> hands a surface to another window manager in the same
-way.</p>
-<p>Every window manager of the repository exports <code>window.give</code> with <code>to</code>
-and an optional <code>surface</code>, by default its focused window. It hands the
-window over with a <code>remove</code> with <code>to</code>, and the receiver focuses it. A
-<code>to</code> that is not connected fails, and the window stays. <code>choractl give
+way; <code>to</code> must hold a claim, because only window managers receive
+windows. A reservation that its window manager does not attach within 5
+seconds ends too, and all clients get <code>surface.detached</code>, so that no
+window stays hidden.</p>
+<p>Every window manager of the repository exports <code>window.give</code> with
+<code>surface</code> and <code>to</code>, and answers with the surface id. The method is
+privileged, because the receiver can focus, close or configure the
+window. It hands the window over with a <code>remove</code> with <code>to</code>, and the
+receiver focuses it. A <code>to</code> that is not connected or holds no claim
+fails, and the window stays. <code>choractl give
 TO [--surface ID]</code> calls <code>window.give</code> of the owner of the window, by
 default of the focused one. A window dropped outside the claim of its
 window manager goes to the owner of the smallest other claim that holds
 the drop point, as for a new toplevel; <code>chora_kit::give</code> finds it in
-the claims of <code>scene.query</code>.</p>
+the claims of <code>scene.query</code>. chora-tiling claims one box around all its
+outputs, so it tests a drop against the outputs themselves: a drop on an
+output of another window manager between two tiling outputs hands the
+window over.</p>
 <h2 id="selectors">Selectors<a class="headerlink" href="#selectors" title="Permanent link">&para;</a></h2>
 <p>A selector finds nodes: <code>id:work</code>, <code>kind:surface</code>, <code>owner:tiling</code>,
 <code>app_id:firefox</code>, <code>title:"make test"</code> (exact), <code>title~:Inbox</code> (contains),
@@ -1753,7 +1761,7 @@ by default; a timeout exits 1 with the reason on stderr.</p>
 </tr>
 <tr>
 <td><code>surface.destroyed</code>, <code>surface.detached</code></td>
-<td>surface id. <code>surface.destroyed</code> follows only a <code>surface.created</code>. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends <code>surface.created</code> with the same id. After a <code>remove</code> with <code>to</code>, only <code>to</code> gets <code>surface.detached</code>. When <code>to</code> disconnects, the surface is free again, and all clients get <code>surface.detached</code>. With <code>resume</code>, this occurs at the end of the grace time.</td>
+<td>surface id. <code>surface.destroyed</code> follows only a <code>surface.created</code>. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends <code>surface.created</code> with the same id. After a <code>remove</code> with <code>to</code>, only <code>to</code> gets <code>surface.detached</code>. When <code>to</code> disconnects, or does not attach the surface within 5 seconds, the surface is free again, and all clients get <code>surface.detached</code>. With <code>resume</code>, a disconnect frees it at the end of the grace time.</td>
 </tr>
 <tr>
 <td><code>focus.changed</code></td>
@@ -1773,7 +1781,7 @@ by default; a timeout exits 1 with the reason on stderr.</p>
 </tr>
 <tr>
 <td><code>input.button</code>, <code>input.moved</code></td>
-<td>the button of a grabbed button binding went down or up, or the pointer moved while it is down: <code>binding</code>, <code>state</code> (not for <code>input.moved</code>), <code>position</code> in scene coordinates, <code>output</code> and <code>local</code>, the position in the output; only to the connection of the grab</td>
+<td>the button of a grabbed button binding went down or up, or the pointer moved while it is down: <code>binding</code>, <code>state</code> (not for <code>input.moved</code>), <code>position</code> in scene coordinates, <code>output</code> and <code>local</code>, the position in the output; at the press of <code>move</code>, <code>surface</code>, the window that asked for the move; only to the connection of the grab</td>
 </tr>
 <tr>
 <td><code>node.key</code></td>
@@ -1986,7 +1994,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>input.grab(binding)</code></td>
-<td>get the events of a key or a pointer button with modifiers, for example <code>Super+Return</code> or <code>Super+BTN_LEFT</code>, or <code>move</code> for the interactive moves of the own windows; a binding needs Ctrl, Alt or Super unless the client has the capability <code>input.grab-any</code>; window managers with claims can share a button binding (D55); <code>Ctrl+Alt</code> with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as <code>input.key</code> and <code>input.button</code> name it</td>
+<td>get the events of a key or a pointer button with modifiers, for example <code>Super+Return</code> or <code>Super+BTN_LEFT</code>, or <code>move</code> for the interactive moves of the own windows; a binding needs Ctrl, Alt or Super unless the client has the capability <code>input.grab-any</code>; window managers with claims on the main socket can share a button binding (D55); <code>Ctrl+Alt</code> with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as <code>input.key</code> and <code>input.button</code> name it</td>
 </tr>
 <tr>
 <td><code>input.ungrab(binding)</code></td>
@@ -2139,7 +2147,8 @@ stays. <code>choractl reserve --top 30</code> holds a reserve until it ends.</p>
 the client holds <code>input.grab-any</code> (D45). The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape, i or F1 to
 F12, belong to no client. A key binding has one owner at a time. A pointer button binding has one
-owner too, unless each client that grabs it holds a claim (D55): then a
+owner too, unless each client that grabs it holds a claim and is on the
+main socket (D55): then a
 press goes to the client of the smallest claim that contains the pointer,
 as for a new toplevel, else to the first grab, and the moves and the
 release of that press go to the same client. Revoking
@@ -2171,8 +2180,12 @@ window manager that grabs it gets the interactive moves of its own
 windows. When a client asks for a move during a press, for example
 <code>xdg_toplevel.move</code> from its title bar, the owner of the window gets the
 press, the moves and the release as <code>input.button</code> and <code>input.moved</code>
-with the binding <code>move</code>, and the window gets a leave. Without a grab of
-<code>move</code>, the press stays with the client.</p>
+with the binding <code>move</code>, and the window gets a leave. The press names
+the window in <code>surface</code>, so that the window manager drags that window
+and not the one under the pointer. Without a grab of
+<code>move</code>, the press stays with the client. The serial of the move must be
+the one of the press that still holds the pointer on that window; a move
+with an old serial does nothing.</p>
 <p>The core implements <code>wlr-output-management</code>, so kanshi and wlr-randr
 configure the outputs (see
 <a href="../architecture/#output-configuration">Architecture</a>). <code>output.configure</code>
@@ -2664,7 +2677,7 @@ lists all of its methods:</p>
 </tr>
 <tr>
 <td><code>window.give</code></td>
-<td><code>to</code>: a client name; <code>surface</code>, the focused window of tiling without it</td>
+<td><code>surface</code>, and <code>to</code>: a client name</td>
 <td>hands the window to <code>to</code> with a <code>remove</code> with <code>to</code>, and answers with its surface id</td>
 </tr>
 </tbody>

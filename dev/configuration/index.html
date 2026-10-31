@@ -738,10 +738,43 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#window-managers-in-panes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Window managers in panes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-help-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The help panel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-window-list" class="md-nav__link">
     <span class="md-ellipsis">
       
         The window list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-voice-hud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The voice HUD
       
     </span>
   </a>
@@ -1296,10 +1329,43 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#window-managers-in-panes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Window managers in panes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-help-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The help panel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-window-list" class="md-nav__link">
     <span class="md-ellipsis">
       
         The window list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-voice-hud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The voice HUD
       
     </span>
   </a>
@@ -1676,10 +1742,13 @@ floating, maximized or fullscreen window leaves the tiles. A click or a
 binding raises the window that it focuses; the focus that follows the
 pointer raises nothing. The binding
 <code>MOD+Ctrl+r</code> reads the file again. <code>MOD+BTN_LEFT</code> (<code>drag</code>) holds the
-window under the pointer, and a floating window follows the pointer. A
-title bar of a client-side decoration drags in the same way. A drop
-outside the claim of tiling hands the window to the window manager whose
-claim holds the drop point (D55). Without one there, the window stays.
+window under the pointer, and a floating window follows the pointer
+within the work area of the tiling output under the pointer. A title bar
+of a client-side decoration drags its own window in the same way. A drop
+outside the outputs of tiling hands the window to the window manager
+whose claim holds the drop point (D55). Without one there, or when the
+hand-over fails, the window stays and goes back to the middle of its
+output.
 Mouse resizes of floating windows do not exist.</p>
 <p><code>chora-tiling</code> exports methods for other clients (see
 <a href="../api/#plugin-methods">Plugin methods</a>). Every method but <code>get_layout</code>
@@ -1708,7 +1777,7 @@ the gap of the file again.</p>
 </tr>
 <tr>
 <td><code>window.give</code></td>
-<td><code>to</code>: a client name; <code>surface</code>, the focused window without it</td>
+<td><code>surface</code>, and <code>to</code>: a client name</td>
 <td><code>MOD+BTN_LEFT</code> with a drop on another window manager: hands the window to <code>to</code> (D55), and answers with its id</td>
 </tr>
 <tr>
@@ -1831,7 +1900,13 @@ ACP agent of the voice agent; <code>voice.remove {name}</code> removes such a
 sub-agent.
 <code>voice.say</code> shows a sentence as <code>hud.say</code> does. <code>voice.confirm</code> shows its
 <code>prompt</code> and its whole <code>detail</code> in mono alone in the drawer until the
-event with <code>done</code> and the same <code>id</code>. At its start and after the agent
+event with <code>done</code> and the same <code>id</code>. With <code>buttons</code>, the words Ja and
+Nein stand flush right on its title line, each with a hairline under
+it; a click calls <code>voice.confirm.answer {id, yes}</code>. A question about a
+security key (<code>physical</code>) shows its <code>keys</code>, such as Alt+Y and Alt+N,
+before them. Only a pointer press on a word answers; no method of mc
+calls <code>confirm.answer</code>, but mc cannot tell an injected click
+(<code>input.inject</code>) from a real one. At its start and after the agent
 connects, mc calls the method <code>indicator.claim</code> of the agent, so that the
 agent hides its own state dot. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
@@ -1941,10 +2016,10 @@ with the selector <code>owner:mc meta:pane=NAME</code> and shows it through its 
 texture; chora-construct does so for a plugin pane.</p>
 <p>A window that no scene started, for example from a launcher, gets a scene
 of its own without a head, which goes with the window. So does a window
-that another window manager gives to <code>mc</code> (D55). <code>window.give</code> with
-<code>to</code> and an optional <code>surface</code>, by default the focused window, hands the
-window of a scene to another window manager. The scene of the window
-goes with it, and the scene before shows, without the keyboard.
+that another window manager gives to <code>mc</code> (D55): mc claims its whole
+output, as a window manager does. <code>window.give</code> with <code>surface</code> and <code>to</code>
+hands the window of a scene to another window manager. The scene of the
+window goes with it, and the scene before shows, without the keyboard.
 <code>--output NAME</code> puts the scenes on that output instead of the first
 one, and leaves the others to other window managers.</p>
 <p>A new window takes the keyboard. The exception is a window that an
@@ -1971,7 +2046,7 @@ with <code>settings.reload</code>:</p>
   <code>step</code> of the scale, <code>color</code> (a name of the theme
   or RGBA), <code>line_height</code>, <code>letter_spacing</code> in em, OpenType <code>features</code> and
   <code>uppercase</code>. The plugin uses <code>chapter</code>, <code>chapter_number</code>, <code>running_head</code>, <code>heading</code>, <code>body</code>, <code>margin</code> and <code>hud</code>;
-  the built-in scenes also use <code>data</code> and <code>mono</code>. The
+  the built-in scenes also use <code>data</code>, <code>mono</code> and <code>lead</code>. The
   <a href="../mc-style/">style guide</a> gives the rules that the styles follow.
   The default sets TeX Gyre Pagella with small caps and old-style figures
   for the text, from the Fedora package <code>texlive-tex-gyre</code>, whose
@@ -2211,8 +2286,9 @@ choractl<span class="w"> </span>call<span class="w"> </span>mc<span class="w"> <
 <h2 id="chora-construct-experimental">chora-construct (experimental)<a class="headerlink" href="#chora-construct-experimental" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Experimental</p>
-<p><code>chora-construct</code> is step K2b of the construct track (D66). The
-packages install it, but its settings and files change without notice.</p>
+<p><code>chora-construct</code> grows along the construct track of the roadmap
+(D66): steps K1 and K2a are done, K2b (GNOME and prompt panes) and K3
+are open. The packages install it, but its settings and files change without notice.</p>
 </div>
 <p><code>chora-construct</code> connects with the client name <code>construct</code>. It is a
 flavor: <code>chora -- chora-construct</code> starts into it, and the directory
@@ -2223,11 +2299,21 @@ dark theme, a black void lies over a black glossy floor. A crisp
 horizon line separates floor and sky. The floor mirrors the sky, more
 at grazing angles, and a broad soft light band glints in it and turns
 with the view. Each pane has a soft shadow on the floor under it, and a
-clear mirror image that fades downwards and with the distance. Each new
-window becomes a
-pane ahead of the camera, at the size of the output. A pane turns to face
-the camera and shows the window through its node texture. A new pane
-moves aside, right first, from the panes in its way. The space lies on
+clear mirror image that fades downwards and with the distance. A new
+window becomes a pane in the view direction, at the size of the output.
+A pane faces the camera where it comes and shows the window through its
+node texture. It keeps that turn while you walk, so you see it at an
+angle when you walk past it; a move turns it to the camera again, and a
+fly-in goes in front of its face. A new pane goes ahead at <code>pane_distance</code> when it is free there.
+Else it goes a little to the side, nearer or farther, but only to a spot
+where its whole face shows in the view and covers no other pane. When no
+spot in the view is free, the window becomes no pane: it waits in the
+window list, and the HUD shows "No room in view: in the window list
+(Tab)". Turn, then choose it with <code>Tab</code> or <code>window.show</code>. The keys <code>t</code>
+and <code>space</code> and a window that another window manager gives to the
+construct follow the same rule. A pane of a construct file and a choice
+in the window list come also when the view is full, beside the panes in
+the way. The space lies on
 the screen root of the output (<code>screen:NAME</code>), not under <code>root</code>, so it
 needs no camera. As the flavor, it claims the output (D55), so that new
 windows come to it also when another window manager runs beside it.</p>
@@ -2281,8 +2367,8 @@ window closes. <code>tests/gate-construct-keys.sh</code> checks the three keys.<
 </tr>
 <tr>
 <td><code>keys</code></td>
-<td><code>w a s d</code>, arrows, <code>q e</code>, <code>r f</code>, <code>h</code>, <code>Return</code>, <code>t</code>, <code>space</code>, <code>x</code>, <code>Tab</code></td>
-<td>keysym name to <code>forward</code>, <code>back</code>, <code>left</code>, <code>right</code>, <code>turn_left</code>, <code>turn_right</code>, <code>look_up</code>, <code>look_down</code>, <code>home</code>, <code>fly_in</code>, <code>terminal</code>, <code>launcher</code>, <code>close</code> or <code>windows</code></td>
+<td><code>w a s d</code>, arrows, <code>q e</code>, <code>r f</code>, <code>h</code>, <code>Return</code>, <code>t</code>, <code>space</code>, <code>x</code>, <code>Tab</code>, <code>F1</code></td>
+<td>keysym name to <code>forward</code>, <code>back</code>, <code>left</code>, <code>right</code>, <code>turn_left</code>, <code>turn_right</code>, <code>look_up</code>, <code>look_down</code>, <code>home</code>, <code>fly_in</code>, <code>terminal</code>, <code>launcher</code>, <code>close</code>, <code>windows</code> or <code>help</code></td>
 </tr>
 <tr>
 <td><code>terminal</code></td>
@@ -2303,6 +2389,16 @@ window closes. <code>tests/gate-construct-keys.sh</code> checks the three keys.<
 <td><code>modifier</code></td>
 <td><code>Super</code></td>
 <td><code>Ctrl</code>, <code>Alt</code>, <code>Shift</code> or <code>Super</code>: with a drag it moves a pane, with the wheel it resizes one</td>
+</tr>
+<tr>
+<td><code>voice_hud</code></td>
+<td><code>true</code></td>
+<td>draw the voice HUD and hide the dot of the voice agent</td>
+</tr>
+<tr>
+<td><code>style</code></td>
+<td>see the file</td>
+<td>the elements over the space: <code>unit</code>, <code>radius</code> and <code>glow</code> in logical pixels, the families <code>font</code> and <code>mono</code>, the <code>accent</code>, and per theme the colours <code>glass</code>, <code>edge</code>, <code>text</code>, <code>muted</code> and the alpha of the <code>glow</code> (<a href="../construct-style/">construct style guide</a>); a colour below the contrast of rule 5 is an error</td>
 </tr>
 </tbody>
 </table>
@@ -2337,16 +2433,18 @@ start pose of the camera, the leash radius R and the panes. A pane has a
 which starts with <code>choractl run</code>. A plugin pane has a <code>plugin</code>, the client
 name, and a <code>scene</code>. It shows the node that the plugin tags
 <code>meta:pane=SCENE</code> through its node texture, for example the page of an mc
-scene. The pose is <code>at</code>, the centre on the ground as <code>[x, z]</code>, and
-<code>size</code>, in logical pixels. Without <code>at</code>, the pane goes ahead of the
-camera; without <code>size</code>, a program pane has the size of the output and a
-plugin pane the size of the node.</p>
+scene. The pose is <code>at</code>, the centre on the ground as <code>[x, z]</code>, <code>yaw</code>,
+the turn of its face in radians (0 faces along +z), and <code>size</code>, in
+logical pixels. Without <code>at</code>, the pane goes ahead of the camera; without
+<code>yaw</code>, it faces the camera where it comes; without <code>size</code>, a program
+pane has the size of the output and a plugin pane the size of the node.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">camera</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">x</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nt"> z</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nt"> yaw</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nt"> pitch</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">}</span>
 <span class="nt">radius</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5000</span>
 <span class="nt">panes</span><span class="p">:</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">program</span>
 <span class="w">  </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">foot</span>
 <span class="w">  </span><span class="nt">at</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">-650</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2000</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">yaw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.3</span>
 <span class="w">  </span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1000</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">640</span><span class="p p-Indicator">]</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plugin</span>
 <span class="w">  </span><span class="nt">plugin</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mc</span>
@@ -2386,7 +2484,7 @@ windows of the other flavor.</p>
 </tr>
 <tr>
 <td><code>construct.list</code></td>
-<td>none; answers <code>constructs</code>, the <code>current</code> one, <code>overlay</code>, <code>shown</code>, the <code>panes</code> with <code>name</code>, <code>kind</code>, content, <code>at</code> and <code>size</code>, and the panes that still wait</td>
+<td>none; answers <code>constructs</code>, the <code>current</code> one, <code>overlay</code>, <code>shown</code>, the <code>panes</code> with <code>name</code>, <code>kind</code>, content, <code>at</code>, <code>yaw</code> and <code>size</code>, and the panes that still wait</td>
 </tr>
 <tr>
 <td><code>construct.leave</code></td>
@@ -2394,7 +2492,7 @@ windows of the other flavor.</p>
 </tr>
 <tr>
 <td><code>pane.move</code></td>
-<td><code>name</code>, <code>right</code> and <code>ahead</code> in logical pixels as the camera looks; inside the leash</td>
+<td><code>name</code>, and <code>right</code> and <code>ahead</code>: an offset in logical pixels as the camera looks, which adds to the place; inside the leash. The pane then faces the camera; answers the new <code>at</code></td>
 </tr>
 <tr>
 <td><code>pane.resize</code></td>
@@ -2409,6 +2507,10 @@ windows of the other flavor.</p>
 <td><code>name</code>: flies into the pane</td>
 </tr>
 <tr>
+<td><code>help.toggle</code></td>
+<td>none; shows or hides the help panel, as the key <code>help</code> does, and answers <code>shown</code></td>
+</tr>
+<tr>
 <td><code>window.list</code></td>
 <td>none; answers all <code>windows</code> with <code>name</code>, <code>surface</code>, <code>owner</code> and <code>pane</code>: <code>shown</code>, <code>behind</code>, <code>far</code>, <code>aside</code> or <code>none</code></td>
 </tr>
@@ -2418,13 +2520,45 @@ windows of the other flavor.</p>
 </tr>
 <tr>
 <td><code>window.give</code></td>
-<td><code>to</code>, a window manager or a plugin such as mc, and <code>surface</code>, else the window flown into or ahead: gives an own window to <code>to</code> (D55); its pane goes</td>
+<td><code>surface</code>, and <code>to</code>, a window manager such as tiling or mc: gives an own window to <code>to</code> (D55), and answers with its id; its pane goes</td>
 </tr>
 </tbody>
 </table>
 <p>The name of a pane is a short label for voice: the app id or the title of
 the window, or the scene of a plugin pane, with <code>-2</code>, <code>-3</code> for a second
 and a third. <code>tests/gate-construct-k2a.sh</code> checks the step.</p>
+<h3 id="window-managers-in-panes">Window managers in panes<a class="headerlink" href="#window-managers-in-panes" title="Permanent link">&para;</a></h3>
+<p>chora runs nested as a Wayland client. So a window manager, or a whole
+flavor, shows in a program pane: the command <code>chora -- chora-tiling</code> or
+<code>chora -- chora-xp --theme flavors/xp/theme</code> starts a nested chora. It
+opens its own window, and that window becomes a pane. The nested chora
+takes the next free Wayland socket (<code>wayland-2</code>, <code>wayland-3</code> ...) and its
+own IPC socket next to it. It gives its window manager its own
+<code>WAYLAND_DISPLAY</code> and <code>CHORA_SOCKET</code>, so the variables of the outer
+session do not reach it. A fly-in gives the nested session the keyboard;
+the programs that its window manager shows get the keys.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">radius</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5000</span>
+<span class="nt">panes</span><span class="p">:</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">program</span>
+<span class="w">  </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora -- chora-tiling</span>
+<span class="w">  </span><span class="nt">at</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">-700</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2000</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1280</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">800</span><span class="p p-Indicator">]</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">program</span>
+<span class="w">  </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">chora -- chora-xp --theme /usr/share/chora/flavors/xp/theme</span>
+<span class="w">  </span><span class="nt">at</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">700</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2200</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1280</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">800</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<p>The nested session translates the keys with the keymap of the outer
+session (#12). The pane takes the title of the window, which is
+<code>Smithay</code> for now. <code>tests/gate-construct-nested.sh</code> checks that a nested
+tiling and a nested chora-xp become panes, and that typed text reaches a
+terminal inside them.</p>
+<h3 id="the-help-panel">The help panel<a class="headerlink" href="#the-help-panel" title="Permanent link">&para;</a></h3>
+<p><code>F1</code>, the key <code>help</code>, shows a glass panel in the middle of the output
+with the bindings of the settings: the keys of each action, the fly-out
+binding, and the drag and the wheel with the <code>modifier</code>. A change of the
+settings, for example <code>modifier: Alt</code>, shows at once. <code>F1</code> again hides
+it. The voice agent shows it with the method <code>help.toggle</code>.</p>
 <h3 id="the-window-list">The window list<a class="headerlink" href="#the-window-list" title="Permanent link">&para;</a></h3>
 <p>In the construct, every window is a pane. <code>Tab</code>, the key <code>windows</code>,
 opens the window list over the space. It shows the windows that have no
@@ -2453,6 +2587,38 @@ the core frees it again, and a window manager takes it.</p>
 what it gives back. <code>tests/gate-construct-windows.sh</code> checks the list,
 the hand-over over tiling, xp and mc, and that no window gets lost when
 a pane goes in any way.</p>
+<h3 id="the-voice-hud">The voice HUD<a class="headerlink" href="#the-voice-hud" title="Permanent link">&para;</a></h3>
+<p>With <code>voice_hud</code>, the construct shows the voice agent
+(<a href="../voice/">voice</a>, section 10) at the bottom centre of the output, from its first
+<code>voice.state</code> on. A glass panel holds a ring in the accent and the state
+as a label: a thin, dim ring asleep, a full ring listening, a turning arc
+thinking and working, a pulse at a question, and five moving bars while
+a sentence plays. While thinking or working, the task shows under the
+label; a spoken sentence shows in two lines at most, keeps its end, and
+fades out 2 s after its sound. Flown into a pane, the HUD shrinks to the
+ring and the label at the bottom right. <code>voice.confirm</code> opens a question
+at the top centre with the prompt and the whole detail; the wheel
+scrolls a long one, and its <code>done</code> closes it. The answer is by voice.
+With <code>buttons</code>, the question has the glass buttons Ja and Nein at its
+bottom; a click calls <code>voice.confirm.answer {id, yes}</code>. A question about
+a security key (<code>physical</code>) shows the key caps of its <code>keys</code>, such as
+Alt+Y and Alt+N, beside them, after an accent mark, and says that it
+needs a key press or a click. Only a pointer press on a button answers;
+no method of the construct calls <code>confirm.answer</code>, but the construct
+cannot tell an injected click (<code>input.inject</code>) from a real one.
+The construct claims the indicator of the agent (<code>indicator.claim</code>) at
+the start and on each connection of the agent, and hides the HUD while
+the agent is away.</p>
+<p>Under the pane ahead, or under the pane where the pointer last pressed or
+let go, a pill names the pane. The core tells the pointer only from a
+press to its release, so the label does not follow a hover. That pane,
+or the pane flown into, is the focused pane: it shows clear, without the
+fog of its distance, with an accent hairline and a soft glow under it.</p>
+<p>The ring, the bars and the glow are one shader, <code>glass.frag</code>. When the
+watchdog takes the shaders (<code>effects.dropped</code>), the panels and their
+labels stay, without the ring, until the settings change.
+<code>tests/gate-construct-hud.sh</code> checks the HUD with a fake agent,
+<code>tests/fake-voice.py</code>, and captures each state in both themes.</p>
 <h2 id="flavors">Flavors<a class="headerlink" href="#flavors" title="Permanent link">&para;</a></h2>
 <p>A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target <code>chora-&lt;name&gt;.target</code>. <code>chora-flavor &lt;name&gt;</code> looks for
@@ -2476,11 +2642,11 @@ its variables would reach the units of the host session.</p>
 </thead>
 <tbody>
 <tr>
-<td>chora (uwsm), chora (Windows XP, uwsm)</td>
+<td>chora (uwsm), chora (Windows XP, uwsm), chora (construct, uwsm)</td>
 <td><code>uwsm start -e -D chora -N chora -- chora -- chora-flavor &lt;name&gt;</code> (D50)</td>
 </tr>
 <tr>
-<td>chora, chora (Windows XP)</td>
+<td>chora, chora (Windows XP), chora (construct)</td>
 <td><code>chora-session &lt;name&gt;</code>, without uwsm</td>
 </tr>
 </tbody>
@@ -2931,19 +3097,28 @@ invokes the action <code>default</code> of the notification, if it has one, and
 dismisses it too. If another server, such as GNOME Shell, owns the name
 on the bus, <code>chora-xp</code> logs one line and shows no balloons; it never
 takes the name from its owner.</p>
-<p>While the voice agent is connected and awake, a paperclip with eyes and
-eyebrows stands above the right end of the taskbar of the first output.
+<p>While the voice agent is connected, a paperclip with eyes and eyebrows
+stands above the right end of the taskbar of the first output. While the
+agent sleeps, the paperclip shows dimmed with its eyes shut: the mic
+still listens for the wake words. Only the events of the client <code>voice</code>
+itself move it.
 <code>chora-xp</code> subscribes to <code>voice.*</code> (D65): the paperclip blinks while the
 agent is idle, leans in while it listens, looks up and sways while it
 thinks, bounces while it speaks and raises its eyebrows when it asks. Each
 sentence of <code>voice.say</code> shows in a balloon above it, which fades out three
 seconds after the sentence ends. The balloon shows the <code>prompt</code> and the
 <code>detail</code> of <code>voice.confirm</code> until the event with <code>done</code> and the same <code>id</code>.
+With <code>buttons</code>, the balloon has XP's push buttons Ja and Nein; a click
+calls <code>voice.confirm.answer {id, yes}</code>. A question about a security key
+(<code>physical</code>) shows one more line with its <code>keys</code>, such as "Alt+Y = Ja,
+Alt+N = Nein". Only a pointer press on a button answers; no method of
+xp calls <code>confirm.answer</code>, but xp cannot tell an injected click
+(<code>input.inject</code>) from a real one.
 While the paperclip is enabled, <code>chora-xp</code> calls <code>indicator.claim</code> of the
 agent at its start and after the agent connects.
 A click on the paperclip mutes the mic of
 the agent through its method <code>mute</code>, and a second click unmutes it. The
-paperclip goes when the agent sleeps or disconnects, and <code>assistant:
+paperclip goes when the agent disconnects, and <code>assistant:
 {enabled: false}</code> turns it off.</p>
 <p>The effects run in the plugin, which computes their meshes and
 transforms at 60 Hz:</p>
@@ -3048,8 +3223,8 @@ these bindings, Super+Ctrl with the arrows stands in.</p>
 </tr>
 <tr>
 <td><code>window.give</code></td>
-<td><code>to</code>: a client name; <code>surface</code>, the focused window without it</td>
-<td>a drag of the window out of the work areas: hands it to <code>to</code> (D55)</td>
+<td><code>surface</code>, and <code>to</code>: a client name</td>
+<td>a drag of the window out of the work areas: hands it to <code>to</code> (D55), and answers with its id</td>
 </tr>
 <tr>
 <td><code>settings.get</code>, <code>settings.set</code>, <code>settings.reload</code></td>

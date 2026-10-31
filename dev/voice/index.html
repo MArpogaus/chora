@@ -1653,12 +1653,18 @@ other German "ich" sentences ("Ich helfe dir gern.", "Ich starte den
 Loader.").</p>
 <p>An answer that ends with <code>stop</code>, calls no tool, and whose words do not
 end with <code>.</code>, <code>!</code>, <code>?</code> or <code>…</code> (also before a closing quote) is cut: Gufo
-0.27 ended rounds after 3-12 tokens ("I’m setting the", "I’ll apply",
-2026-10-31), and the same request again gave the whole answer. Its last
-words after the last spoken sentence do not play and do not go into the
-history; one more round runs with the same history, once per turn. That
-round does not say again the sentences that already played. The check
-comes before the announcement check.</p>
+0.27 ended rounds after 1-12 tokens ("I’m setting the", "I’ll send Alt",
+2026-10-31). Its last words after the last spoken sentence never play
+and never go into the history. One more round runs with the note
+"[Your last answer stopped mid-sentence. Answer again in full.]" at the
+end of the request; the note does not go into the history, because the
+same request gave the same fragment again. That round does not say again
+the sentences that already played, and a cut round does not count
+toward <code>tool_rounds</code>. After two cut rounds in a row, the emergency brake
+drops the history before the last words of the user, and one more round
+runs. A third cut says <code>phrases.lost</code> ("I lost the thread, please say it
+again.") and ends the turn. The cut check comes before the announcement
+check, and a cut answer never gets the announcement round.</p>
 <p>Cancel stops only the current turn: the reply task drops the SSE request
 and the MCP call in flight (rmcp sends <code>notifications/cancelled</code>), the
 history gets the words that played, cut back to the last whole
@@ -1756,22 +1762,33 @@ reason as the result:
 the spoken confirmation in time (15 s)" or "The answer to the spoken
 confirmation was not understood", each with "; nothing happened".</p>
 <p>A yes with an <code>always_words</code> phrase ("Ja, immer.", "Always.") allows
-the same action until the agent restarts. Then the agent says
+the same action until the agent restarts or takes settings: each
+<code>settings.set</code>, each <code>settings.reload</code> and each new connection to
+chora ends all of them, so a stricter <code>confirm</code> applies at once. Then the agent says
 <code>phrases.allowed</code> ("Allowed for this session."). The same action is
-the same program (<code>argv0</code>) of <code>run_program</code>, the same <code>CLIENT.METHOD</code>,
-the same keys of the agent's own settings, or else the same tool. A
-security setting and <code>settings.set</code> of another plugin always ask: for
-them, an always word is a single yes. A question of a sub-agent takes
-an always word as a yes.</p>
-<p>The setting <code>allow</code> lists the actions that never ask: program names
-(<code>argv0</code>), such as <code>foot</code>, and methods <code>CLIENT.METHOD</code>, such as
-<code>mc.scene.show</code>. An entry matches exactly. The agent refuses a glob
-(<code>*</code>, <code>?</code>, <code>[</code>) at load, so <code>*.settings.set</code> cannot go in. <code>allow</code>
-does not apply to the agent's own settings, which always ask.</p>
+the same full argv of <code>run_program</code>, or the same method <code>CLIENT.METHOD</code>
+with the same parameters (as canonical JSON, keys sorted). For every
+other call, an always word is a single yes: <code>inject_input</code>,
+<code>apply_commands</code>, <code>code_task</code>, <code>agent_start</code>, <code>configure_output</code>, the
+other built-in tools, each <code>settings.set</code> and <code>settings.reload</code>, and
+each change of the agent's own settings. A question of a sub-agent
+takes an always word as a yes.</p>
+<p>Two settings list the actions that never ask. <code>allow_programs</code> lists
+bare program names, such as <code>foot</code>. An entry matches only an argv[0]
+that is exactly this name, so <code>/home/u/proj/foot</code> asks. <code>allow_methods</code>
+lists methods <code>CLIENT.METHOD</code>, such as <code>mc.scene.show</code>, matched
+exactly. At load, the agent refuses an empty entry, an entry with a
+space, a glob (<code>*</code>, <code>?</code>, <code>[</code>), a program with a <code>/</code>, and a method
+without a <code>.</code>. So <code>*.settings.set</code> cannot go in. Neither list applies
+to the agent's own settings, which always ask.</p>
 <p>Each question also goes out as the event <code>voice.confirm {prompt,
-detail, id}</code>. <code>detail</code> is the full command or value, never cut: the
+detail, id}</code>; <code>id</code> is a text, such as <code>"3"</code>. A question about a
+security key also has <code>physical: true</code> and <code>keys: {yes, no}</code>. <code>detail</code> is the full command or value, never cut: the
 settings keys and values, the program and its arguments, or the method
-and its parameters. A question of a sub-agent has its prompt as
+and its parameters. Every subscriber of <code>voice.*</code> gets it, so secrets
+are hidden as in the journal: the value of each <code>*_headers</code> key, of
+<code>authorization</code>, of a key that ends in <code>token</code>, and of a key with
+<code>api_key</code>, <code>secret</code> or <code>password</code> shows as <code>(hidden)</code>. A question of a sub-agent has its prompt as
 <code>detail</code>. When the question gets its answer, ends or times out, the
 agent emits <code>voice.confirm {id, done: true}</code>. chora-mc shows the
 question as a notification, chora-xp as a balloon. The agent cannot
@@ -1781,6 +1798,14 @@ a text node <code>voice-question</code> at the top left of the first output, on
 <code>NAME-hud</code>. A text node holds 4 KiB, so a longer <code>detail</code> shows only
 its start there; the event has all of it. Over the rate limit, the
 last <code>voice.confirm</code> goes again after 1 s.</p>
+<p>While a claimer of the indicator (section 10) is connected, the event
+also has <code>buttons: true</code>. A HUD can then show Yes and No buttons. A
+click calls <code>voice.confirm.answer {id, yes}</code> with the <code>id</code> of the
+event. Only a client that holds <code>indicator.claim</code> may call it, and
+only for the question that is open now. An old or wrong <code>id</code> is
+refused. A click is a physical act, as a key press is. So a button
+also answers a question about a security key. The LLM never reaches
+the method: it calls no method of NAME (see "Own settings").</p>
 <p>The rule of <code>apply_commands</code> with <code>remove</code> asks only when a target is
 not a node of the agent's own client (<code>NAME-mcp</code>), or has a node of
 another client under it; the agent reads the owners and parents with
@@ -1794,15 +1819,40 @@ LLM narrate; the agent hands the patch on and the client checks it.
 Each <code>settings.set</code> asks with its keys and values
 (<code>phrases.settings_set</code>, "Shall I set barge in min rms to 15?"). A
 security key asks with <code>phrases.settings_security</code> ("Security setting!
-Shall I set llm url? The full value is on the screen."). The security
-keys are <code>allow</code>, <code>confirm</code>, <code>agent_projects</code>, <code>yes_words</code>, <code>always_words</code>, <code>no_words</code>,
-<code>phrases</code>, <code>record_dir</code>, <code>sandbox_cmd</code>, <code>unsandboxed</code>, <code>agent_cmd</code>,
-<code>coder_cmd</code>, <code>chora_mcp</code>, <code>capture_cmd</code>, <code>playback_cmd</code>,
-<code>skipped_tools</code>, <code>system_prompt</code>, <code>prompt_file</code>, <code>context_docs</code>, each
+Shall I set llm url? The full value is on the screen. Press Alt+y for
+yes or Alt+n for no."). The security keys are <code>allow_programs</code>,
+<code>allow_methods</code>, <code>confirm</code>, <code>confirm_keys</code>, <code>agent_projects</code>,
+<code>yes_words</code>, <code>always_words</code>, <code>no_words</code>, <code>phrases</code>, <code>record_dir</code>,
+<code>sandbox_cmd</code>, <code>unsandboxed</code>, <code>agent_cmd</code>, <code>coder_cmd</code>, <code>chora_mcp</code>,
+<code>capture_cmd</code>, <code>playback_cmd</code>, <code>skipped_tools</code>, <code>system_prompt</code>,
+<code>prompt_file</code>, <code>context_docs</code>, <code>indicator</code>, <code>earcons</code>,
+<code>confirm_timeout_ms</code>, <code>ptt_key</code>, <code>wake_words</code>, <code>sleep_words</code>, each
 <code>*_url</code>, <code>*_headers</code> and each key with <code>api_key</code>. The agent never cuts
-a security value. The question says only the key. The screen shows the
-full value through the <code>voice.confirm</code> event. Only other values are cut to 60
-characters for speech. The client <code>NAME-mcp</code>
+a security value. The question says only the key and that the full
+value is on the screen. The screen shows it through the <code>voice.confirm</code>
+event (secrets hidden, see above). Only other values are cut to 60
+characters for speech.</p>
+<p>Security keys take a key press, never a voice (the user's decision,
+review rc3 round 2, 4.4). A voice can be played from a speaker, and a
+text that the LLM reads can steer it, so a spoken yes is no proof that
+the user agrees:</p>
+<ul>
+<li>While such a question waits, the client <code>NAME</code> grabs the two keys of
+  <code>confirm_keys</code> (default <code>{yes: Alt+y, no: Alt+n}</code>) with <code>input.grab</code>
+  on its own connection. It lets them go when the question ends.</li>
+<li>Only these keys and the buttons of a HUD (<code>voice.confirm.answer</code>)
+  answer it. A spoken yes, an always word and a yes of
+  the method <code>voice.confirm</code> count as nothing. A spoken no, a new
+  request, two unclear answers or <code>voice.confirm no</code> are a no.</li>
+<li>No key press within <code>confirm_timeout_ms</code> is a no.</li>
+<li>The event <code>voice.confirm</code> has <code>physical: true</code> and <code>keys: {yes, no}</code>,
+  so a HUD shows "Alt+y = yes, Alt+n = no". The agent's own HUD text
+  shows that line too.</li>
+<li>An injected key could answer the question. So the agent refuses
+  <code>inject_input</code> while such a question waits. Besides, <code>inject_input</code>
+  always asks by the default rules and never takes an always word.</li>
+</ul>
+<p>The client <code>NAME-mcp</code>
 needs <code>methods.privileged</code> for <code>settings.set</code> and <code>settings.reload</code>.
 Its own <code>settings.reload</code> asks with the rule of <code>*.settings.reload</code>.</p>
 <p>Reading files: the built-in tool <code>read {path, line?}</code> lists a folder
@@ -1843,7 +1893,7 @@ at most a short summary of it.</p>
 <tr>
 <td>Settings</td>
 <td>The settings file is broken</td>
-<td>At start: exit 1 with an error that names the file. On <code>restart</code>: the error, and the settings stay. A new connection to chora fails until the file is fixed. The agent never takes the defaults instead</td>
+<td>At start: exit 1 with an error that names the file. On <code>settings.reload</code>: the error, and the settings stay. A new connection to chora fails until the file is fixed. The agent never takes the defaults instead</td>
 </tr>
 <tr>
 <td>ASR</td>
@@ -1876,6 +1926,11 @@ at most a short summary of it.</p>
 <td>A final round with <code>tool_choice: none</code> and a note: sum up in the reply language; without words, <code>phrases.tool_rounds</code>; history stays; new words of the user during that round get <code>tool_rounds</code> more rounds</td>
 </tr>
 <tr>
+<td>LLM</td>
+<td>Three cut answers in a row</td>
+<td>A retry with a note after the first, the emergency brake after the second, <code>phrases.lost</code> after the third (section 3)</td>
+</tr>
+<tr>
 <td>MCP</td>
 <td>Child exits</td>
 <td>Restart with backoff; call in flight gets "connection lost, result unknown"; tools reload</td>
@@ -1884,6 +1939,11 @@ at most a short summary of it.</p>
 <td>MCP</td>
 <td><code>tool_timeout_s</code></td>
 <td>Cancel the call; result "timeout, result unknown"</td>
+</tr>
+<tr>
+<td>Tool</td>
+<td>A call fails the same way twice in a row in a turn: the same error, or the same tool with arguments of the same form (keys and types)</td>
+<td>The error stays whole, plus "This failed twice the same way; stop and tell the user what failed."; a third such call does not run and gets that note as its error</td>
 </tr>
 <tr>
 <td>chora</td>
@@ -1918,8 +1978,14 @@ are synthesized tones: wake, sleep, cancel, error.</p>
   picture counts as 4000), divided by the characters per token of the
   last request: its length over its <code>usage.prompt_tokens</code> (3.0 at the
   start; requests with a picture teach nothing). No tokenizer.</li>
+<li><code>history_tokens</code> (default 12000) bounds the messages after the
+  system prompt, estimated as characters / 4; <code>0</code> keeps only the
+  context budget. A long session (dump 2026-10-31: 221 messages, 33k
+  tokens, full of cut answers) made the LLM copy its old answers.</li>
 <li>Before each request, drop the oldest whole turns until the estimate
-  fits; the turn in progress stays. Before a new turn, old tool texts
+  fits the budget and <code>history_tokens</code>; the last turn stays. A turn
+  starts at a user message, so a tool call and its results go
+  together. Before a new turn, old tool texts
   shrink to <code>old_tool_chars</code> and lose their pictures, and long arguments
   of old calls become <code>{"shortened": true}</code>; the last <code>put_asset</code> of
   each name stays whole.</li>
@@ -1964,7 +2030,7 @@ are synthesized tones: wake, sleep, cancel, error.</p>
 <p>File <code>$XDG_CONFIG_HOME/chora/chora-voice.yaml</code>. A missing key takes its
 default, so an empty file is valid. <code>settings.set</code> applies at once (a
 new <code>capture_cmd</code> restarts capture, a new <code>ptt_key</code> grabs again; WP5: a
-new prompt warms the cache). Edits by hand apply on <code>voice.restart</code>. The
+new prompt warms the cache). Edits by hand apply on <code>voice.settings.reload</code>. The
 client name is the flag <code>--name</code> (default <code>voice</code>). <code>chora-voice
 --print-config</code> prints all defaults.</p>
 <table>
@@ -2072,8 +2138,8 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 <td><code>[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]</code></td>
 </tr>
 <tr>
-<td><code>allow</code></td>
-<td><code>[]</code> (programs and <code>CLIENT.METHOD</code> that never ask; no glob)</td>
+<td><code>allow_programs</code>, <code>allow_methods</code></td>
+<td><code>[]</code>, <code>[]</code> (bare program names and <code>CLIENT.METHOD</code> that never ask; section 5)</td>
 </tr>
 <tr>
 <td><code>always_words</code></td>
@@ -2090,6 +2156,10 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 <tr>
 <td><code>confirm</code>, <code>confirm_timeout_ms</code></td>
 <td>rules below, <code>15000</code> (from the end of the question)</td>
+</tr>
+<tr>
+<td><code>confirm_keys</code></td>
+<td><code>{yes: Alt+y, no: Alt+n}</code> (the only answer to a question about a security key, section 5; two keys, other than <code>ptt_key</code>)</td>
 </tr>
 <tr>
 <td><code>earcons</code>, <code>earcon_volume</code></td>
@@ -2112,8 +2182,8 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 <td><code>0</code> (ask the server), <code>1024</code></td>
 </tr>
 <tr>
-<td><code>tool_rounds</code>, <code>old_tool_chars</code>, <code>saved_requests</code></td>
-<td><code>10</code>, <code>500</code>, <code>20</code></td>
+<td><code>tool_rounds</code>, <code>old_tool_chars</code>, <code>history_tokens</code>, <code>saved_requests</code></td>
+<td><code>10</code>, <code>500</code>, <code>12000</code>, <code>20</code></td>
 </tr>
 <tr>
 <td><code>reasoning_effort</code></td>
@@ -2153,7 +2223,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>phrases</code></td>
-<td><code>llm_down</code>, <code>llm_slow</code>, <code>tool_rounds</code>, <code>asr_failed</code>, <code>details</code>, <code>agent_asks</code>, <code>agent_ended</code>, <code>settings_set</code>, <code>settings_security</code>, <code>heard</code>, <code>ack</code>, <code>ready</code>, <code>allowed</code>: English sentences, German with <code>reply_language: de</code></td>
+<td><code>llm_down</code>, <code>llm_slow</code>, <code>tool_rounds</code>, <code>asr_failed</code>, <code>details</code>, <code>agent_asks</code>, <code>agent_ended</code>, <code>settings_set</code>, <code>settings_security</code>, <code>heard</code>, <code>ack</code>, <code>ready</code>, <code>allowed</code>, <code>lost</code>: English sentences, German with <code>reply_language: de</code></td>
 </tr>
 <tr>
 <td><code>record_dir</code></td>
@@ -2175,13 +2245,19 @@ device.</p>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">call_method</span><span class="p p-Indicator">,</span><span class="nt"> method</span><span class="p">:</span><span class="w"> </span><span class="s">"*restart"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">restart</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">plugin</span><span class="nv"> </span><span class="s">{client}?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="c1"># Then two rules for each privileged method METHOD of a plugin:</span>
 <span class="w">  </span><span class="c1"># settings.set, settings.reload, app.open, scene.save, scene.rename,</span>
-<span class="w">  </span><span class="c1"># scene.move, construct.load, construct.save and pane.remove.</span>
+<span class="w">  </span><span class="c1"># scene.move, construct.load, construct.save, region.toggle,</span>
+<span class="w">  </span><span class="c1"># region.put and region.solo; and for window.give, agent.set and</span>
+<span class="w">  </span><span class="c1"># notify.push, which are not privileged.</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="s">"*.METHOD"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">run</span><span class="nv"> </span><span class="s">{method}</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">plugin</span><span class="nv"> </span><span class="s">{client}?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">call_method</span><span class="p p-Indicator">,</span><span class="nt"> method</span><span class="p">:</span><span class="w"> </span><span class="nv">METHOD</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">run</span><span class="nv"> </span><span class="s">{method}</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">plugin</span><span class="nv"> </span><span class="s">{client}?"</span><span class="p p-Indicator">}</span>
 </code></pre></div>
 <p>The grant <code>methods.privileged</code> opens every privileged method of every
 plugin. The export flag <code>privileged</code> does not reach the agent, so the
-default rules ask before each privileged method of the plugins. In a
+default rules ask before each privileged method of the plugins, from a
+list kept by hand that must follow the plugins. <code>window.give</code> also
+asks: it hides a window in another client. So do <code>agent.set</code> and
+<code>notify.push</code> of chora-mc: they show what the user trusts as the state
+of the agent or as a notification. In a
 prompt, <code>{client}</code> and <code>{method}</code> name the plugin and the method, also
 for a plugin tool <code>CLIENT.METHOD</code>. The method is said with spaces
 ("app open").</p>
@@ -2231,34 +2307,34 @@ both a key variable and a key file for one server.</p>
 <td>the new state record</td>
 </tr>
 <tr>
-<td><code>mute</code></td>
+<td><code>mute</code> (privileged)</td>
 <td><code>mic: bool</code>, <code>speaker: bool</code>, each optional</td>
 <td>the new state record</td>
 </tr>
 <tr>
-<td><code>indicator.claim</code></td>
+<td><code>indicator.claim</code> (privileged)</td>
 <td>none</td>
 <td><code>{}</code>; hides the dot while the caller is connected</td>
 </tr>
 <tr>
-<td><code>restart</code></td>
-<td>none</td>
-<td>reads the settings file again</td>
+<td><code>settings.get</code>, <code>settings.set</code>, <code>settings.reload</code></td>
+<td>D62</td>
+<td>D62; <code>settings.get</code> shows each value of a <code>*_headers</code> key as <code>(hidden)</code>; <code>settings.reload</code> reads the file again after an edit by hand</td>
 </tr>
 <tr>
-<td><code>settings.get</code>, <code>settings.set</code></td>
-<td>D62</td>
-<td>D62</td>
-</tr>
-<tr>
-<td><code>talk</code></td>
+<td><code>talk</code> (privileged)</td>
 <td><code>down: bool</code></td>
 <td>PTT from another client, for example <code>chora-mc</code></td>
 </tr>
 <tr>
 <td><code>confirm</code> (WP5, privileged)</td>
 <td><code>answer: yes\|no</code></td>
-<td>the new state record</td>
+<td>the new state record; a yes does not answer a question about a security key</td>
+</tr>
+<tr>
+<td><code>confirm.answer</code> (privileged)</td>
+<td><code>id</code> (the text of <code>voice.confirm</code>), <code>yes: bool</code></td>
+<td><code>{}</code>; answers the open question <code>id</code>, also one about a security key; refused for a caller without <code>indicator.claim</code> and for any other <code>id</code> (section 5)</td>
 </tr>
 <tr>
 <td><code>health</code> (WP8)</td>
@@ -2272,14 +2348,24 @@ both a key variable and a key file for one server.</p>
 </tr>
 </tbody>
 </table>
+<p><code>mute</code>, <code>talk</code>, <code>indicator.claim</code> and <code>confirm.answer</code> are privileged: with them, a
+client could unmute the mic, record, or hide the dot, so that the agent
+listens without a sign. A client socket needs <code>methods.privileged</code> for
+them. The export flag cannot depend on <code>mic</code>, so muting needs it too.
+The plugins chora-mc, chora-xp and chora-construct connect to the main
+socket, which may call privileged methods.</p>
 <p>The state record: <code>state</code>, <code>since_ms</code> (time in the state), <code>seq</code> (one
 more per change), <code>awake</code>, <code>muted: {mic, speaker}</code>, <code>turn</code>,
 <code>last_transcript</code>, <code>last_reply</code>, <code>queued</code> (texts that wait), <code>coder</code>
 (the parameters of <code>agent.set</code> for the coder, or null before the first
 task), <code>agents</code> (the parameters of <code>agent.set</code> of each ACP agent) and
 <code>health</code> (section 6).</p>
-<p>HUD: the agent emits client events (D65) on its connection <code>NAME</code>, so
-a HUD subscribes to <code>voice.*</code> and needs no polling. The method <code>state</code>
+<p>HUD: the agent emits client events (D65) on its connection <code>voice</code>, so
+a HUD subscribes to <code>voice.*</code> and needs no polling. Only the client
+named <code>voice</code> emits them; under another <code>--name</code>, the agent emits
+none. The subscription <code>voice.*</code> also matches a client such as
+<code>voice.evil</code>, so a subscriber must check that the <code>client</code> of each
+event is exactly <code>voice</code>. The method <code>state</code>
 stays for a full state record. The
 indicator node signals without a HUD: with <code>indicator</code>, a dot of 12
 pixels in a corner of the first output, under <code>screen:OUTPUT</code>, in the

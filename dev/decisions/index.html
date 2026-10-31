@@ -1631,8 +1631,10 @@ routing of new toplevels.</p>
 <ol>
 <li>A owns <code>s1</code>, for example at the end of a drag out of its area. A knows
    B by a fixed name or by a <code>meta</code> tag on the root group of B.</li>
-<li>A sends <code>remove: {id: s1, to: B}</code>. <code>to</code> must name a connected client.
-   As at every <code>remove</code>, the surface becomes detached and loses the
+<li>A sends <code>remove: {id: s1, to: B}</code>. <code>to</code> must name a connected client
+   that holds a claim, because only window managers receive windows, and
+   a reservation that B does not attach within 5 seconds ends as in
+   item 5. As at every <code>remove</code>, the surface becomes detached and loses the
    keyboard focus.</li>
 <li>The core reserves <code>s1</code> for B and sends <code>surface.detached</code>, which
    carries the surface alone. An <code>attach</code> of another client fails.</li>
@@ -1669,9 +1671,12 @@ claims, any window manager can take the new surface.</p>
 owner of the smallest other claim that holds the drop point; without one
 there, the surface stays with A.</p>
 <p><strong>Shared pointer bindings.</strong> Window managers that each hold a claim can
-grab the same pointer button binding, and a press goes to the grab of the
-smallest claim under the pointer, else to the first grab, with its moves
-and release; key bindings keep one owner.</p>
+grab the same pointer button binding, but only on the main socket: a
+client of a client socket may set a claim for its own windows, and with
+a claim a little smaller than an output it would win every press. A
+press of a shared binding goes to the grab of the smallest claim under
+the pointer, else to the first grab, with its moves and release; key
+bindings keep one owner.</p>
 <p><strong>Out of scope for now.</strong></p>
 <ul>
 <li>The drop position: B places the surface by its own rules.</li>
