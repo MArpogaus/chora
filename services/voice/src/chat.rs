@@ -146,8 +146,13 @@ fn session_key(tool: &str, patch: Option<&Value>, args: &Value) -> Option<String
 fn listed(config: &Config, tool: &str, args: &Value) -> bool {
     let has = |list: &[String], entry: &str| list.iter().any(|e| e == entry);
     match tool {
-        "run_program" => (args["argv"][0].as_str())
-            .is_some_and(|p| !p.contains('/') && has(&config.allow_programs, p)),
+        "run_program" => args["argv"].as_array().is_some_and(|argv| {
+            let argv: Vec<&str> = argv.iter().filter_map(Value::as_str).collect();
+            // An entry is the whole argv: a bare name only allows the
+            // program without arguments (`foot -e sh` is a shell).
+            (config.allow_programs.iter()).any(|e| e.split(' ').eq(argv.iter().copied()))
+                && argv.first().is_some_and(|p| !p.contains('/'))
+        }),
         "call_method" => (args["client"].as_str())
             .zip(args["method"].as_str())
             .is_some_and(|(c, m)| has(&config.allow_methods, &format!("{c}.{m}"))),
@@ -1799,7 +1804,7 @@ mod tests {
             allow_methods: vec!["mc.app.open".into()],
             ..Config::default()
         };
-        let run = |argv0: &str| json!({"argv": [argv0, "-e", "sh"]});
+        let run = |argv0: &str| json!({"argv": [argv0]});
         let open = json!({"client": "mc", "method": "app.open"});
         assert!(listed(&config, "run_program", &run("foot")));
         assert!(listed(&config, "call_method", &open));
@@ -1816,6 +1821,24 @@ mod tests {
         }
         let foot = json!({"client": "x", "method": "foot"});
         assert!(!listed(&config, "call_method", &foot));
+    }
+
+    /// Review rc3 round 3, 2.3: a bare entry allows the program with no
+    /// argument; an entry with arguments matches the whole argv.
+    #[test]
+    fn allow_programs_matches_the_whole_argv() {
+        let config = Config {
+            allow_programs: vec!["foot".into(), "xterm -e htop".into()],
+            ..Config::default()
+        };
+        let ok = |argv: Value| listed(&config, "run_program", &json!({ "argv": argv }));
+        assert!(ok(json!(["foot"])));
+        assert!(!ok(json!(["foot", "-e", "sh", "-c", "curl x|sh"])));
+        assert!(!ok(json!(["foot", "-e"])));
+        assert!(ok(json!(["xterm", "-e", "htop"])));
+        assert!(!ok(json!(["xterm", "-e", "htop", "x"])));
+        assert!(!ok(json!(["xterm", "-e", "sh"])));
+        assert!(!ok(json!(["xterm"])));
     }
 
     #[tokio::test]

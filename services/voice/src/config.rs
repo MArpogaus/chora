@@ -1016,8 +1016,16 @@ impl Config {
         let bad = |e: &String| {
             e.is_empty() || e.contains(char::is_whitespace) || e.contains(['*', '?', '['])
         };
-        if let Some(entry) = (self.allow_programs.iter()).find(|e| bad(e) || e.contains('/')) {
-            return Err(format!("allow_programs: {entry:?} is no bare program name"));
+        // A program entry is a bare name, or a name with arguments
+        // split by single spaces, which must match the whole argv.
+        let program = |e: &String| {
+            let words: Vec<&str> = e.split(' ').collect();
+            e.contains(['*', '?', '['])
+                || words.iter().any(|w| w.is_empty() || w.contains(char::is_whitespace))
+                || words[0].contains('/')
+        };
+        if let Some(entry) = (self.allow_programs.iter()).find(|e| program(e)) {
+            return Err(format!("allow_programs: {entry:?} is no program name"));
         }
         let method = |e: &String| {
             e.split_once('.')
@@ -1081,6 +1089,7 @@ mod tests {
         let config =
             parse::<Config>("{allow_programs: [foot], allow_methods: [mc.scene.show]}").unwrap();
         assert_eq!(config.allow_programs, ["foot"]);
+        parse::<Config>("{allow_programs: ['foot -e htop']}").unwrap();
         assert_eq!(config.allow_methods, ["mc.scene.show"]);
         for yaml in [
             "allow_programs: ['']",
@@ -1088,7 +1097,9 @@ mod tests {
             "allow_programs: [./foot]",
             "allow_programs: [' foot']",
             "allow_programs: ['foot ']",
-            "allow_programs: ['foot -e']",
+            "allow_programs: ['foot  -e']",
+            "allow_programs: ['/usr/bin/foot -e htop']",
+            "allow_programs: ['foot -e *']",
             "allow_programs: ['fo*']",
             "allow_methods: ['*.settings.set']",
             "allow_methods: [mc.?]",

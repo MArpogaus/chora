@@ -300,11 +300,14 @@ each change of the agent's own settings. A question of a sub-agent
 takes an always word as a yes.
 
 Two settings list the actions that never ask. `allow_programs` lists
-bare program names, such as `foot`. An entry matches only an argv[0]
-that is exactly this name, so `/home/u/proj/foot` asks. `allow_methods`
+programs. A bare name, such as `foot`, allows only the argv `["foot"]`
+with no argument: `foot -e sh -c ...` asks, as `foot -e` runs any
+command. An entry with arguments, such as `foot -e htop`, matches the
+whole argv exactly, split by single spaces. The name must be exactly
+the argv[0], so `/home/u/proj/foot` asks. `allow_methods`
 lists methods `CLIENT.METHOD`, such as `mc.scene.show`, matched
 exactly. At load, the agent refuses an empty entry, an entry with a
-space, a glob (`*`, `?`, `[`), a program with a `/`, and a method
+leading or trailing space, a glob (`*`, `?`, `[`), a double space, a program with a `/`, and a method
 without a `.`. So `*.settings.set` cannot go in. Neither list applies
 to the agent's own settings, which always ask.
 
@@ -530,7 +533,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `sleep_words`, `wake_words` | `[sleep, go to sleep, schlaf, schlaf jetzt]`, `[hey chora, listen, hallo chora, hör zu]` |
 | `cancel_words` | `[stop, cancel, never mind, stopp, abbrechen, halt, vergiss es]` |
 | `code_cancel_words` | `[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
-| `allow_programs`, `allow_methods` | `[]`, `[]` (bare program names and `CLIENT.METHOD` that never ask; section 5) |
+| `allow_programs`, `allow_methods` | `[]`, `[]` (whole argvs, such as `foot` or `foot -e htop`, and `CLIENT.METHOD` that never ask; section 5) |
 | `always_words` | `[immer, ja immer, always, yes always]` (a yes for the session; may be empty) |
 | `yes_words`, `no_words` | `[yes, yeah, yep, yup, okay, ok, do it, please, sure, go ahead, ja, jo, jap, jep, klar, gern, gerne, genau, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
 | `filler_words` | `[please, now, bitte, jetzt, mal]` |
