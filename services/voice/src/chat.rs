@@ -59,13 +59,13 @@ const LAST_ROUND: &str = "(The agent: you reached the limit of tool calls for th
 const NUDGE: &str = "(The agent: you announced an action but called no tool, and your turn \
     would end here. Call the tool now, or say in one short sentence that you will not.)";
 
-/// Whether the last sentence of an answer announces an action, and the
-/// answer names one of the tools: "`put_asset` stores shaders directly,
-/// let me use that instead" (log 2026-10-31).
-fn announces(answer: &str, specs: &[Value]) -> bool {
+/// Whether the last sentence of an answer announces an action in the
+/// first person: "let me use `put_asset` instead", "Ich starte jetzt den
+/// Loader." (logs 2026-10-31). "Let me know" is no action.
+fn announces(answer: &str) -> bool {
     // ponytail: English and German markers; a word list in the settings
     // when another language needs it.
-    const MARKERS: [&str; 8] = [
+    const MARKERS: [&str; 16] = [
         "let me ",
         "i'll ",
         "i will ",
@@ -74,15 +74,20 @@ fn announces(answer: &str, specs: &[Value]) -> bool {
         "ich werde ",
         "ich versuche ",
         "ich probiere ",
+        "ich starte ",
+        "ich öffne ",
+        "ich zeige ",
+        "ich trage ",
+        "ich schreibe ",
+        "ich mache ",
+        "ich lege ",
+        "ich speichere ",
     ];
-    let text = answer.to_lowercase();
+    let text = answer.to_lowercase().replace('’', "'");
     let trimmed = text.trim_end_matches(|c: char| ".!?… ".contains(c));
     let last = trimmed.rsplit(['.', '!', '?']).next().unwrap_or_default();
-    let names = specs.iter().filter_map(|s| s["function"]["name"].as_str());
-    let mentioned = names
-        .flat_map(|n| [n.to_owned(), n.replace("__", ".")])
-        .any(|n| text.contains(&n));
-    mentioned && MARKERS.iter().any(|m| last.contains(m))
+    let last = format!(" {}", last.replace("let me know", ""));
+    MARKERS.iter().any(|m| last.contains(&format!(" {m}")))
 }
 
 /// The part of the prompt for the coding tools, with a `coder_cmd`.
@@ -453,7 +458,7 @@ impl Chat {
         if self.take_inbox() {
             return true;
         }
-        if *nudged || !announces(answer, &self.tools.specs) {
+        if *nudged || !announces(answer) {
             return false;
         }
         crate::log::info("llm: an announced tool without a call; one more round");
@@ -1295,6 +1300,50 @@ mod tests {
         assert_eq!(last_user(&server, 1), NUDGE);
         let (report, _) = turn(&mut chat, "Danke.", true).await;
         assert_eq!(report.rounds, 1);
+    }
+
+    #[test]
+    fn first_person_announcements_count_without_a_tool_name() {
+        for text in [
+            "Ich starte den Loader.",
+            "Ich starte jetzt den Loader.",
+            "Ich trage es in die Notizen ein.",
+            "Okay. I'll open the editor.",
+            "I will start the loader.",
+            "Let me check the scene.",
+            "Gut, ich werde das Fenster schließen.",
+            "Ich öffne die Datei.",
+            "Ich zeige dir die Agenda.",
+            "Ich schreibe die Notiz.",
+            "Ich mache das Fenster größer.",
+        ] {
+            assert!(announces(text), "{text}");
+        }
+        for text in [
+            "Let me know if you need more.",
+            "Let me know.",
+            "Ich habe den Loader gestartet.",
+            "I'll start it. Done, the loader runs.",
+            "Willst du, dass ich starte?",
+            "Dich starte ich nicht.",
+        ] {
+            assert!(!announces(text), "{text}");
+        }
+    }
+
+    /// A German announcement without a tool name gets one more round,
+    /// and only one per turn (log 2026-10-31, after "Du hast nichts
+    /// gemacht.").
+    #[tokio::test]
+    async fn a_german_announcement_gets_one_more_round_once() {
+        let script = vec![
+            Reply::Text("Ich starte den Loader."),
+            Reply::Text("Ich starte jetzt den Loader."),
+        ];
+        let (mut chat, server) = chat(script, Config::default()).await;
+        let (report, events) = turn(&mut chat, "Du hast nichts gemacht.", true).await;
+        assert_eq!((report.rounds, report.tools), (2, 0), "{events:?}");
+        assert_eq!(last_user(&server, 1), NUDGE);
     }
 
     /// Runs a turn whose user says `said` when `when` matches an event;

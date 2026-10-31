@@ -153,8 +153,9 @@ speech is dropped.
 
 A turn whose first round calls tools without words says `phrases.ack`
 ("One moment.") once. An answer whose last sentence announces an action
-("let me ...") and names a tool, but calls none, gets one more round
-with a note to call it or to say that it will not.
+in the first person ("let me ...", "I'll ...", "Ich starte ...", "ich
+werde ..."; not "let me know"), but calls no tool, gets one more round
+per turn with a note to call it or to say that it will not.
 
 Cancel stops only the current turn: the reply task drops the SSE request
 and the MCP call in flight (rmcp sends `notifications/cancelled`), the
