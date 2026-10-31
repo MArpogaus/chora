@@ -76,6 +76,13 @@ repos:
     types: [file]
     files: ^(.*\.sh|dist/session/(chora-session|chora-flavor|chora-xwayland|env-chora))$
 
+# Allowed words are in _typos.toml, next to the German voice phrases.
+- repo: https://github.com/crate-ci/typos
+  rev: v1.51.1
+  hooks:
+  - id: typos
+    args: [--force-exclude]   # pre-commit passes the file names
+
 - repo: https://github.com/rhysd/actionlint
   rev: v1.7.12
   hooks:
