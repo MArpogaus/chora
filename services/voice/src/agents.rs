@@ -17,7 +17,7 @@ use std::{
 use serde_json::{Value, json};
 use tokio::{
     io::{AsyncWriteExt, BufReader},
-    process::ChildStdin,
+    process::{ChildStdin, ChildStdout},
     sync::{mpsc, oneshot},
 };
 
@@ -697,12 +697,12 @@ impl Actor {
         let _group = Group(child.id());
         let pid = child.id();
         self.agents.update(&self.name, self.id, |s| s.pid = pid);
-        let mut out = BufReader::new(child.stdout.take().expect("piped"));
+        let mut lines = read_lines(child.stdout.take().expect("piped"));
         let mut session = Session::default();
         loop {
             tokio::select! {
-                line = read_line(&mut out) => {
-                    let Some(line) = line? else { return Ok(false) };
+                line = lines.recv() => {
+                    let Some(line) = line.transpose()? else { return Ok(false) };
                     self.line(&mut rpc, &mut session, &line, dir).await?;
                 }
                 cmd = cmds.recv() => {
@@ -968,6 +968,23 @@ async fn decided(question: &mut Option<Permission>) -> bool {
     }
 }
 
+/// The lines of the agent from a task of their own, so that a select
+/// that takes another branch loses no part of a line; the channel ends
+/// after the last line or an error.
+fn read_lines(stdout: ChildStdout) -> mpsc::Receiver<Result<Vec<u8>, String>> {
+    let (tx, rx) = mpsc::channel(16);
+    tokio::spawn(async move {
+        let mut out = BufReader::new(stdout);
+        while let Some(line) = read_line(&mut out).await.transpose() {
+            let failed = line.is_err();
+            if tx.send(line).await.is_err() || failed {
+                return;
+            }
+        }
+    });
+    rx
+}
+
 /// Starts the agent in its own process group, so that a stop ends the
 /// sandbox and its children, with stderr and the messages in `log`;
 /// sends `initialize`.
@@ -1110,6 +1127,41 @@ mod tests {
 
     fn is_state(event: &Event, want: &str) -> bool {
         matches!(event, Event::State(r) if r["state"] == want)
+    }
+
+    /// A line that comes in pieces while commands arrive is read whole:
+    /// a command between two pieces loses none of it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_line_in_pieces_survives_commands() {
+        let data = std::env::temp_dir().join(format!("chora-voice-split-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let project = data.join("demo");
+        std::fs::create_dir_all(&project).unwrap();
+        let script = r#"read -r _ || exit 0
+printf '{"jsonrpc":"2.0","id":1,'; sleep 0.3; printf '"result":{"protocolVersion":1}}\n'
+read -r _ || exit 0
+printf '{"jsonrpc":"2.0","id":2,'; sleep 0.3; printf '"result":{"sessionId":"s1"}}\n'
+exec cat >/dev/null"#;
+        let config = Config {
+            agent_cmd: vec!["sh".into(), "-c".into(), script.into()],
+            unsandboxed: true,
+            agent_projects: [("demo".into(), project.display().to_string())].into(),
+            ..Config::default()
+        };
+        let (tx, rx) = mpsc::channel();
+        let agents = Agents::new(&config, data.clone(), tx);
+        assert!(agents.start("demo", Some("split"), None).contains("starts"));
+        let pokes = agents.clone();
+        let poke = tokio::spawn(async move {
+            for _ in 0..40 {
+                pokes.cancel("split");
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        });
+        let _ = until(rx, |e| is_state(e, "idle")).await;
+        poke.await.unwrap();
+        agents.shutdown();
+        let _ = std::fs::remove_dir_all(&data);
     }
 
     /// The fake agent of `tests/fake-acp.sh`: a prompt, its plan, its
