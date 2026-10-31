@@ -187,6 +187,17 @@ The host keymap (#12) stays a limit of v1.
   events (D65): a holographic HUD in the style of a science fiction
   game, with a waveform, a state ring and the spoken text in the
   space. It belongs to step K3.
+- **F29** In the construct, every window is a pane; there is no other
+  form of a window. A window list (key `Tab` and a voice tool) shows the
+  windows that have no visible pane: lost, hidden or far away. A choice
+  flies to the pane, or makes a pane for the window. Step K2b.
+- **F30** Windows of other clients, such as tiling, become panes only on
+  request, from the window list or by voice; never automatically when a
+  construct loads. Step K2b.
+- **F31** When a pane closes or the construct ends, each window that the
+  construct took from another client goes back to that client in full:
+  its size, place and focus as before. No window stays hidden or
+  ownerless. Step K2b.
 
 ## 6. Non-functional requirements
 
