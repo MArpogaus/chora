@@ -354,7 +354,8 @@ hand apply with `settings.reload`:
 - `scale`: the font sizes as steps of a modular scale (`base`, `ratio`),
   and the `baseline` grid; each line of text is whole lines of the grid.
 - `styles`: named styles with `base`, `family`, `weight`, `style`
-  (`normal` or `italic`), `size` or `step`, `color` (a name of the theme
+  (`normal` or `italic`), `size` in pixels, `em` of `scale.base` or
+  `step` of the scale, `color` (a name of the theme
   or RGBA), `line_height`, `letter_spacing` in em, OpenType `features` and
   `uppercase`. The plugin uses `chapter_number`, `chapter`,
   `chapter_large`, `running_head`, `heading`, `body`, `margin` and `hud`.

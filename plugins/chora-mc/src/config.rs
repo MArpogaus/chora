@@ -99,9 +99,12 @@ pub struct Style {
     pub weight: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<FontStyle>,
-    /// The font size in logical pixels; `step` without it.
+    /// The font size in logical pixels; `em` or `step` without it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<f64>,
+    /// The font size in em of `scale.base`: it grows with the base.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub em: Option<f64>,
     /// The font size as a step of the modular scale: `scale.base` times
     /// `scale.ratio` to the power of the step.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -126,14 +129,16 @@ pub struct Style {
 impl Style {
     /// This style over `under`: the fields that this one sets win.
     fn over(&self, under: Self) -> Self {
+        let sized = self.size.is_some() || self.em.is_some() || self.step.is_some();
         Self {
             base: None,
             family: self.family.clone().or(under.family),
             weight: self.weight.or(under.weight),
             style: self.style.or(under.style),
-            // A size and a step replace each other.
-            size: self.size.or(under.size.filter(|_| self.step.is_none())),
-            step: self.step.or(under.step),
+            // A size, an em and a step replace each other.
+            size: if sized { self.size } else { under.size },
+            em: if sized { self.em } else { under.em },
+            step: if sized { self.step } else { under.step },
             color: self.color.clone().or(under.color),
             line_height: self.line_height.or(under.line_height),
             letter_spacing: self.letter_spacing.or(under.letter_spacing),
@@ -319,7 +324,9 @@ impl Config {
             ratio,
             baseline,
         } = self.scale;
-        let size = (style.size).unwrap_or_else(|| base * ratio.powi(style.step.unwrap_or(0)));
+        let size = (style.size)
+            .or(style.em.map(|em| base * em))
+            .unwrap_or_else(|| base * ratio.powi(style.step.unwrap_or(0)));
         if !(4.0..=512.0).contains(&size) {
             return Err(format!("styles.{name}: a size from 4 to 512"));
         }
@@ -485,6 +492,12 @@ mod tests {
             ..Style::default()
         };
         assert_eq!(config.resolve("margin", Some(&sized)).unwrap().size, 12.0);
+        // An em follows the base: the running head of the default.
+        let mut config = parse::<Config>(DEFAULT).unwrap();
+        let head = |c: &Config| c.resolve("running_head", None).unwrap().size;
+        assert!((head(&config) - 11.0).abs() < 0.01, "{}", head(&config));
+        config.scale.base = 27.0;
+        assert!((head(&config) - 16.5).abs() < 0.01, "{}", head(&config));
         let caps = Style {
             uppercase: Some(true),
             ..Style::default()
