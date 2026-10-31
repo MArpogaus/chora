@@ -750,12 +750,6 @@ impl Plugin for Mc {
                 self.show(&name, false)?;
                 Ok(Value::Null)
             }
-            "pane.focus" => {
-                let Show { name } = runtime::params(params)?;
-                self.focus_scene(&name)
-                    .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
-                Ok(Value::Null)
-            }
             "scene.list" => Ok(json!({
                 "scenes": self.order(),
                 "current": self.current,
@@ -843,6 +837,12 @@ impl Mc {
     fn region_method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         match method {
+            "pane.focus" => {
+                let Show { name } = runtime::params(params)?;
+                self.focus_scene(&name)
+                    .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+                Ok(Value::Null)
+            }
             "region.list" => Ok(self.list()),
             "region.toggle" => {
                 let Toggle { region, shown } = runtime::params(params)?;
@@ -971,6 +971,16 @@ fn panels_id(name: &str) -> String {
 /// The tag `pane` of the root group: the scene that shows.
 fn pane_tag(scene: Option<&str>) -> BTreeMap<String, String> {
     BTreeMap::from([("pane".into(), scene.unwrap_or_default().into())])
+}
+
+fn pane_tag_update(scene: &str) -> Command {
+    Command::Update {
+        id: NAME.into(),
+        props: PropsUpdate {
+            meta: Some(pane_tag(Some(scene))),
+            ..PropsUpdate::default()
+        },
+    }
 }
 
 fn page_id(name: &str) -> String {
@@ -1202,6 +1212,16 @@ impl Mc {
         Ok(())
     }
 
+    /// The claim: the work area of an output, below the header and above
+    /// the footer. Another manager on the same output has the smaller
+    /// claim only if mc's is not the whole output (review 2.10).
+    fn work_area(&self, [x, y, w, h]: [f64; 4]) -> [f64; 4] {
+        let config = &self.settings.value;
+        let line = |r| config.regions.get(r).size * config.scale.baseline;
+        let (head, foot) = (line(Region::Header), line(Region::Footer));
+        [x, y + head, w, (h - head - foot).max(0.0)]
+    }
+
     /// The keyboard goes to the window of a scene, else to its page.
     fn focus_scene(&mut self, name: &str) -> Result<(), ClientError> {
         let command = match self.windows.get(name) {
@@ -1285,14 +1305,7 @@ impl Mc {
         self.finish_typing();
         let [w, h] = output.size.map(f64::from);
         let [x, y] = output.position.map(f64::from);
-        let background = self.settings.value.background();
-        // The claim is the work area, below the header and above the
-        // footer: another manager on the same output has the smaller
-        // claim only if mc's is not the whole output (review 2.10).
-        let config = &self.settings.value;
-        let line = |r| config.regions.get(r).size * config.scale.baseline;
-        let (head, foot) = (line(Region::Header), line(Region::Footer));
-        let work = [x, y + head, w, (h - head - foot).max(0.0)];
+        let work = self.work_area([x, y, w, h]);
         commands.push(create(
             NAME,
             NodeKind::Group,
@@ -1311,9 +1324,9 @@ impl Mc {
                 ..PropsUpdate::default()
             },
         ));
-        commands.push(create(TICK, NodeKind::Group, NAME, PropsUpdate::default()));
-        commands.push(create(CLOCK, NodeKind::Group, NAME, PropsUpdate::default()));
-        commands.push(create(WAIT, NodeKind::Group, NAME, PropsUpdate::default()));
+        for id in [TICK, CLOCK, WAIT] {
+            commands.push(create(id, NodeKind::Group, NAME, PropsUpdate::default()));
+        }
         // A build ends the wait of the old node.
         commands.extend((!self.launched.is_empty()).then(wait));
         commands.extend(self.tick_clocks());
@@ -1323,7 +1336,7 @@ impl Mc {
             NAME,
             PropsUpdate {
                 size: Some([w, h]),
-                color: Some(background),
+                color: Some(self.settings.value.background()),
                 ..PropsUpdate::default()
             },
         ));
@@ -2011,13 +2024,7 @@ impl Mc {
         if self.current.as_deref() != Some(name) {
             self.previous = self.current.replace(name.into());
         }
-        commands.push(Command::Update {
-            id: NAME.into(),
-            props: PropsUpdate {
-                meta: Some(pane_tag(Some(name))),
-                ..PropsUpdate::default()
-            },
-        });
+        commands.push(pane_tag_update(name));
         // The regions switch in the same transaction as the scene.
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         commands.extend(self.regions().map_err(rejected)?);
@@ -2650,7 +2657,10 @@ mod tests {
             .claim;
         let [x, y, w, h] = claim.unwrap();
         assert_eq!([x, w], [0.0, 1920.0]);
-        assert!(y > 0.0 && y + h < 1080.0, "below the header, above the footer");
+        assert!(
+            y > 0.0 && y + h < 1080.0,
+            "below the header, above the footer"
+        );
     }
 
     /// The claim of the indicator of the voice agent goes out at the
