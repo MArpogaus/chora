@@ -330,6 +330,10 @@ mod tests {
             contrast(c, std::array::from_fn(|i| g[i] * g[3] + (1.0 - g[3])))
         };
         assert!(over_white(light.text) > 12.0, "{}", over_white(light.text));
+        // Over a black pane the light glass stays a clean white, not grey.
+        let over_black: [f64; 3] = std::array::from_fn(|i| light.glass[i] * light.glass[3]);
+        assert!(over_black.iter().all(|c| *c > 0.9), "{over_black:?}");
+        assert!(contrast(light.text, over_black) > 15.0);
         let mut pale = config.clone();
         pale.style.themes.light.muted = [0.6, 0.6, 0.6];
         assert!(pale.check().unwrap_err().contains("muted of light"));

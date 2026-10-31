@@ -39,8 +39,8 @@ rule 5. `plans/construct-hud.md` adds the section.
 
     | Role | Light | Dark |
     |------|-------|------|
-    | `glass` | `[1.00, 1.00, 1.00, 0.86]` | `[0.04, 0.05, 0.07, 0.86]` |
-    | `edge` | `[0.08, 0.09, 0.12, 0.16]` | `[1.00, 1.00, 1.00, 0.16]` |
+    | `glass` | `[1.00, 0.99, 0.975, 0.94]`, a warm white | `[0.04, 0.05, 0.07, 0.86]` |
+    | `edge` | `[0.08, 0.09, 0.12, 0.24]` | `[1.00, 1.00, 1.00, 0.16]` |
     | `text` | `[0.08, 0.09, 0.12]` (#14181E) | `[0.93, 0.93, 0.95]` (#ECEEF2) |
     | `muted` | `[0.29, 0.32, 0.38]` (#4A5260) | `[0.64, 0.67, 0.71]` (#A3AAB5) |
     | glow | `accent` at 0.10 | `accent` at 0.22 |
@@ -55,9 +55,9 @@ rule 5. `plans/construct-hud.md` adds the section.
 
     | Role | Light | Dark | Threshold |
     |------|-------|------|-----------|
-    | `text` | 12.9 | 11.6 | 7.0 |
-    | `muted` | 5.7 | 5.7 | 4.5 |
-    | `accent` | 3.1 | 3.1 | 3.0 (graphics only) |
+    | `text` | 15.4 | 11.6 | 7.0 |
+    | `muted` | 6.8 | 5.7 | 4.5 |
+    | `accent` | 3.8 | 3.1 | 3.0 (graphics only) |
 
     On the bare floor and the sky, `accent` reaches 3.8 or more in both
     themes. A unit test computes these ratios from `construct.yaml` and
@@ -70,7 +70,9 @@ rule 5. `plans/construct-hud.md` adds the section.
    `accent` surrounds it and falls to zero within 16. Panes behind the
    panel do not blur. A node texture of the pane group renders the pane
    shaders without their node textures, so a blur shows empty panes.
-   The opacity of 0.86 keeps the text readable instead.
+   The opacity keeps the text readable instead: 0.94 in the light
+   theme, so that the glass over a black pane stays a clean warm white
+   (#F0EDEA) and not a flat grey, and 0.86 in the dark theme.
 7. **The glow is the only shader.** The rect carries the fill and the
    hairline as core props. A shader node above it draws only the glow,
    the state ring and the waveform. When the watchdog removes the
