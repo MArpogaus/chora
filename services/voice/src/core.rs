@@ -296,6 +296,8 @@ pub struct Core {
     /// The question of the confirmation, and until when it waits:
     /// `confirm_timeout_ms` from the end of its sound.
     confirm_prompt: String,
+    /// The prompt of a question that ended: its speech stops.
+    cancel_prompt: Option<String>,
     confirm_until: Instant,
     /// When the question of the confirmation that waits started to play:
     /// only speech from then on answers it.
@@ -388,6 +390,7 @@ impl Core {
             physical: false,
             unclear: 0,
             confirm_prompt: String::new(),
+            cancel_prompt: None,
             confirm_until: now,
             confirm_from: None,
             onset: now,
@@ -510,6 +513,7 @@ impl Core {
         if self.confirm.is_some() && Instant::now() >= until && !in_time {
             crate::log::info("confirm: no answer in time");
             self.confirm = None;
+            self.cancel_prompt = Some(self.confirm_prompt.clone());
             self.doing = State::Thinking;
         }
     }
@@ -567,6 +571,11 @@ impl Core {
             effects.push(Effect::Speech(Control::Resume { skip: false }));
         }
         self.refresh();
+        // The question that ended is not read on: not its sound, not
+        // its sentence in the queue.
+        if let Some(prompt) = self.cancel_prompt.take() {
+            effects.insert(0, Effect::Speech(Control::Cancel(prompt)));
+        }
         effects.extend(self.say_note());
         if let Some(id) = self.shown.filter(|_| !self.confirming()) {
             self.shown = None;
@@ -793,6 +802,7 @@ impl Core {
         if let Some(answer) = self.confirm.take() {
             crate::log::info(&format!("confirm: {said}"));
             let _ = answer.send(yes);
+            self.cancel_prompt = Some(self.confirm_prompt.clone());
             self.doing = if yes == Some(true) {
                 State::Tool
             } else {
@@ -1607,7 +1617,13 @@ mod tests {
         ));
         assert_eq!(core.state(), State::Confirming);
         let (effects, record) = call(&mut core, Call::Confirm(true));
-        assert_eq!(effects, [Effect::ConfirmDone(1)]);
+        assert_eq!(
+            effects,
+            [
+                Effect::Speech(Control::Cancel("Wirklich?".into())),
+                Effect::ConfirmDone(1)
+            ]
+        );
         assert_eq!(record["state"], "tool");
         assert_eq!(rx.try_recv(), Ok(Some(true)));
         core.handle(sound(1, 2000));
@@ -1964,6 +1980,38 @@ mod tests {
         assert_eq!(rx.try_recv(), Ok(Some(true)));
     }
 
+    /// An answer, by button, key or voice, stops the speech of the
+    /// question at once.
+    #[test]
+    fn an_answer_cancels_the_speech_of_the_question() {
+        let mut core = asking();
+        let (answer, _rx) = oneshot::channel();
+        let prompt = "Shall I set allow programs?";
+        let event = chat::Event::Confirm {
+            prompt: prompt.into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: true,
+            answer,
+        };
+        let effects = core.handle(reply(1, event));
+        let id = effects.iter().find_map(|e| match e {
+            Effect::Confirm { id, .. } => Some(*id),
+            _ => None,
+        });
+        let (open, _) = std::sync::mpsc::channel();
+        let effects = core.handle(Input::ConfirmButton {
+            id: id.unwrap(),
+            yes: false,
+            open,
+        });
+        assert_eq!(
+            effects.first(),
+            Some(&Effect::Speech(Control::Cancel(prompt.into()))),
+            "{effects:?}"
+        );
+    }
+
     /// A button of a HUD answers the question on the screen by its id,
     /// also one that waits for a key; a stale id answers nothing.
     #[test]
@@ -2085,7 +2133,13 @@ mod tests {
         let mut rx = confirm(&mut core, "Wirklich?");
         core.confirm_until = Instant::now();
         let effects = core.handle(frame(0.0));
-        assert_eq!(effects, [Effect::ConfirmDone(2)]);
+        assert_eq!(
+            effects,
+            [
+                Effect::Speech(Control::Cancel("Wirklich?".into())),
+                Effect::ConfirmDone(2)
+            ]
+        );
         assert!(rx.try_recv().is_err());
     }
 

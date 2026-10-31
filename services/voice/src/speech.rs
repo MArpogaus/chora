@@ -129,10 +129,14 @@ pub enum Out {
 
 /// A barge-in pauses the speech; the agent then resumes it from the cut
 /// sentence, or after it with `skip`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Control {
     Pause,
     Resume { skip: bool },
+    /// The question with this prompt got its answer: its sentence stops
+    /// at once, also its sound, and never plays again. The other
+    /// sentences go on.
+    Cancel(String),
 }
 
 /// A piece of the TTS for the player.
@@ -222,19 +226,24 @@ struct Player<F> {
     buffer: usize,
     paused: bool,
     first_sound: Option<Instant>,
+    /// Prompts of answered questions whose sentence has not started.
+    cancelled: Vec<String>,
 }
 
 impl<F: FnMut(Out)> Player<F> {
     fn piece(&mut self, piece: Piece) {
         match piece {
             Piece::Start(text) => self.sents.push(Sent {
+                skip: self.cancelled.iter().position(|c| *c == text).is_some_and(|i| {
+                    self.cancelled.remove(i);
+                    true
+                }),
                 text,
                 pcm: Vec::new(),
                 done: false,
                 written: 0,
                 at: None,
                 said: false,
-                skip: false,
             }),
             Piece::Pcm(pcm) => {
                 if let Some(s) = self.sents.last_mut() {
@@ -312,8 +321,40 @@ impl<F: FnMut(Out)> Player<F> {
                     s.skip = true;
                 }
             }
+            Control::Cancel(text) => self.cancel(text),
             _ => {}
         }
+    }
+
+    /// Drops the last sentence `text` that has not played to its end, or
+    /// the one that is yet to come (ponytail: an earlier equal prompt
+    /// that played decides "nothing to drop").
+    fn cancel(&mut self, text: String) {
+        let now = Instant::now();
+        let over = |s: &Sent| s.done && s.at.is_some_and(|at| at + duration(s.pcm.len()) <= now);
+        let Some(i) = self.sents.iter().rposition(|s| s.text == text) else {
+            self.cancelled.push(text);
+            return;
+        };
+        if self.sents[i].skip || over(&self.sents[i]) {
+            return;
+        }
+        let sounding = self.sents[i].written > 0;
+        self.sents[i].skip = true;
+        if !sounding || self.paused {
+            return;
+        }
+        // As a pause: the sound stops, what was written after it plays
+        // again.
+        (self.out)(Out::Stop);
+        let cut = (self.sents.iter())
+            .position(|s| !s.skip && s.at.is_none_or(|at| at + duration(s.written) > now))
+            .unwrap_or(self.sents.len());
+        for s in &mut self.sents[cut..] {
+            (s.written, s.at, s.said) = (0, None, false);
+        }
+        self.next = cut;
+        self.end = now;
     }
 
     fn written(&self) -> bool {
@@ -342,6 +383,7 @@ pub async fn speak(
         buffer: usize::try_from(config.playback_buffer_ms * RATE / 1000).unwrap_or(usize::MAX),
         paused: false,
         first_sound: None,
+        cancelled: Vec::new(),
     };
     let play = async {
         let (mut fetching, mut controlled) = (true, true);
@@ -552,6 +594,43 @@ mod tests {
         })
         .await;
         log
+    }
+
+    /// A cancel stops the sound of the question and drops its sentence;
+    /// the other sentences play.
+    #[tokio::test]
+    async fn a_cancel_drops_the_question_and_keeps_the_other_sentences() {
+        let server = fake::tts(fake::Tts::Speak).await;
+        let config = Config {
+            tts_url: server.url,
+            playback_buffer_ms: 900,
+            ..Config::default()
+        };
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        tx.send("Eins zwei drei.".into()).unwrap();
+        tx.send("Vier.".into()).unwrap();
+        drop(tx);
+        let (control, controls) = tokio::sync::mpsc::unbounded_channel();
+        let mut log = Vec::new();
+        speak(&config, rx, controls, |out| {
+            if log.is_empty() {
+                control.send(Control::Cancel("Eins zwei drei.".into())).unwrap();
+            }
+            log.push(match out {
+                Out::Pcm { pcm, .. } => format!("pcm {}", pcm.len()),
+                Out::Said { text, .. } => format!("said {text}"),
+                Out::Stop => "stop".into(),
+                Out::Failed => "failed".into(),
+            });
+        })
+        .await;
+        assert!(log.contains(&"stop".to_owned()), "{log:?}");
+        assert!(log.iter().any(|l| l == "said Vier."), "{log:?}");
+        let after: usize = log[log.iter().position(|l| l == "stop").unwrap()..]
+            .iter()
+            .filter_map(|l| l.strip_prefix("pcm ")?.parse::<usize>().ok())
+            .sum();
+        assert_eq!(after, 5 * 1440, "{log:?}");
     }
 
     #[tokio::test]
