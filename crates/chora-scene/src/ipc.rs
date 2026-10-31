@@ -219,6 +219,7 @@ impl Message {
     ///
     /// Never: events always serialize.
     #[must_use]
+    #[allow(clippy::expect_used, reason = "events have string keys only")]
     pub fn event(event: &Event) -> Self {
         Self {
             jsonrpc: "2.0".into(),
@@ -1030,6 +1031,7 @@ impl Client {
     /// # Errors
     ///
     /// The `hello` request fails.
+    #[allow(clippy::print_stderr, reason = "a version mismatch warns once")]
     pub fn from_stream(writer: UnixStream, hello: &Hello) -> Result<Self, ClientError> {
         let reader = BufReader::new(writer.try_clone()?);
         let mut client = Self {
