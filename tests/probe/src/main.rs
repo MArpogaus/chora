@@ -34,6 +34,12 @@
 //!   size of each configure, until it is killed. With `--exit-on-close`,
 //!   it exits with 0 when the compositor asks it to close.
 
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "the probe reports to the test script"
+)]
+
 mod capture;
 mod sandbox;
 
@@ -157,6 +163,10 @@ enum Feedback {
 
 type Queue = EventQueue<Probe>;
 
+#[allow(
+    clippy::expect_used,
+    reason = "a probe without a display has nothing to test"
+)]
 fn main() -> ExitCode {
     let mode = std::env::args().nth(1).unwrap_or_default();
     let conn = Connection::connect_to_env().expect("a Wayland display");
