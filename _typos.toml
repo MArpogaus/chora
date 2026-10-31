@@ -1,37 +1,37 @@
 # Settings of the typos hook. Run: typos
 
+[default.extend-words]
+abd = "abd"
+ags = "ags"
+# German words of the voice phrases, word lists and docs.
+alle = "alle"
+# The start of a commit hash in the plan reports.
+ba = "ba"
+# A deliberate misspelling in the tests of the event names.
+creatd = "creatd"
+dokument = "dokument"
+ein = "ein"
+ende = "ende"
+habe = "habe"
+ist = "ist"
+# Pixel box names in the icon code (iy), and PNGs split at the s (pn).
+iy = "iy"
+oder = "oder"
+offen = "offen"
+oktober = "oktober"
+pn = "pn"
+programm = "programm"
+stopp = "stopp"
+termine = "termine"
+ue = "ue"  # the transliteration of the umlaut u
+vor = "vor"
+# The WebAssembly interface language, and the GTK shell of Aylur.
+wit = "wit"
+
 [files]
 extend-exclude = [
   # The German logs of one overnight run, kept as a record.
   "tests/battle/reviews/",
   # The theme of the XP flavor stays as upstream.
-  "flavors/xp/theme/",
+  "flavors/xp/theme/"
 ]
-
-[default.extend-words]
-# German words of the voice phrases, word lists and docs.
-alle = "alle"
-ist = "ist"
-ein = "ein"
-oder = "oder"
-habe = "habe"
-offen = "offen"
-vor = "vor"
-ende = "ende"
-stopp = "stopp"
-termine = "termine"
-programm = "programm"
-dokument = "dokument"
-oktober = "oktober"
-ue = "ue"       # the transliteration of the umlaut u
-abd = "abd"
-# The WebAssembly interface language, and the GTK shell of Aylur.
-wit = "wit"
-ags = "ags"
-# Pixel box names in the icon code (iy), and PNGs split at the s (pn).
-iy = "iy"
-pn = "pn"
-# The start of a commit hash in the plan reports.
-ba = "ba"
-# A deliberate misspelling in the tests of the event names.
-creatd = "creatd"
