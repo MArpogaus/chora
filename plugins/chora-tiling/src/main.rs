@@ -266,10 +266,13 @@ impl Tiling {
                 self.adopt(id)?;
             }
         }
+        // The relayout grabs when it sets the claim: with a claim, a
+        // pointer binding can be shared with another window manager (D55).
         self.relayout()?;
-        // After the claim: with a claim, a pointer binding can be shared
-        // with another window manager (D55).
-        self.grab_all()
+        if self.claimed.is_none() {
+            self.grab_all()?;
+        }
+        Ok(())
     }
 
     /// Rebuilds the model from the meta of the kept nodes. A kept window
@@ -801,6 +804,7 @@ impl Tiling {
         if commands.is_empty() {
             return Ok(());
         }
+        let gained = self.claimed.is_none() && claim.is_some();
         self.saved = saved;
         self.claimed = claim;
         self.sent = placements.into_iter().map(|p| (p.id.clone(), p)).collect();
@@ -808,7 +812,15 @@ impl Tiling {
         if send_focus {
             self.focus.sent(focus);
         }
-        self.apply(commands)
+        self.apply(commands)?;
+        // A grab of a pointer binding that another window manager holds
+        // succeeds only with a claim, for example with `--output` for an
+        // output that came later (D55).
+        if gained && self.claimed.is_some() {
+            self.rt.ungrab_all()?;
+            self.grab_all()?;
+        }
+        Ok(())
     }
 
     /// The meta of the group and of each window, by node.
@@ -1215,7 +1227,84 @@ impl ShownFocus {
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        os::unix::net::UnixListener,
+        sync::{Arc, Mutex},
+    };
+
+    use chora_kit::conn::Conn;
+
     use super::*;
+
+    /// A tiling on a fake core that answers every request, `input.grab`
+    /// with its binding, and keeps the names of the methods called.
+    fn on_fake_core(tag: &str) -> (Tiling, Arc<Mutex<Vec<String>>>) {
+        let dir = std::env::temp_dir().join(format!("chora-tiling-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("core.sock");
+        let listener = UnixListener::bind(&path).unwrap();
+        let methods = Arc::new(Mutex::new(Vec::new()));
+        let seen = methods.clone();
+        std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut writer = stream.try_clone().unwrap();
+            for line in BufReader::new(&stream).lines().map_while(Result::ok) {
+                let request: Value = serde_json::from_str(&line).unwrap();
+                let method = request["method"].as_str().unwrap_or_default().to_owned();
+                let result = match method.as_str() {
+                    "hello" => json!({"version": chora_scene::ipc::VERSION}),
+                    "input.grab" => request["params"]["binding"].clone(),
+                    _ => Value::Null,
+                };
+                seen.lock().unwrap().push(method);
+                let answer = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
+                writeln!(writer, "{answer}").unwrap();
+            }
+        });
+        let conn = Conn::connect_at(NAME, &path).unwrap();
+        let file = dir.join("chora-tiling.yaml");
+        let settings = settings::File::<Config>::load(file, config::DEFAULT).unwrap();
+        let tiling = Tiling {
+            rt: Runtime::with(conn, NAME, Vec::new()),
+            wm: Wm::new(settings.value.clone()),
+            settings,
+            ignore: Vec::new(),
+            sent: HashMap::new(),
+            order: Vec::new(),
+            focus: ShownFocus::default(),
+            saved: HashMap::new(),
+            claimed: None,
+            dragged: None,
+        };
+        (tiling, methods)
+    }
+
+    /// With `--output X` before X exists, the grab of a pointer binding
+    /// that another window manager holds fails; tiling grabs again once
+    /// its claim appears (2.7).
+    #[test]
+    fn tiling_grabs_again_when_its_claim_appears() {
+        let (mut tiling, methods) = on_fake_core("regrab");
+        let grabs = || {
+            methods
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|m| *m == "input.grab")
+                .count()
+        };
+        tiling.relayout().unwrap();
+        assert_eq!(grabs(), 0, "no output, no claim");
+        tiling.wm.set_output("X", [0, 0, 100, 60], [0, 0, 100, 80]);
+        tiling.relayout().unwrap();
+        assert!(tiling.claimed.is_some());
+        assert!(grabs() > 0, "the claim came, and tiling grabbed");
+        let before = grabs();
+        tiling.relayout().unwrap();
+        assert_eq!(grabs(), before, "only when the claim appears");
+    }
 
     #[test]
     fn a_window_passed_on_is_free_for_any_window_manager() {
