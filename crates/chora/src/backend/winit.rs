@@ -320,12 +320,12 @@ impl Winit {
     }
 }
 
-/// The title of the window: the program of the startup command, else the
+/// The title of the window: the program of the startup command and the
 /// Wayland socket, so that a window list tells nested sessions apart.
 fn title(command: &[String], socket: &str) -> String {
     let program = command.first().map(|c| c.rsplit('/').next().unwrap_or(c));
     match program {
-        Some(program) => format!("chora: {program}"),
+        Some(program) => format!("chora: {program} ({socket})"),
         None => format!("chora ({socket})"),
     }
 }
@@ -344,7 +344,10 @@ mod tests {
     #[test]
     fn the_window_title_names_the_startup_program_or_the_socket() {
         let command = ["/usr/bin/chora-tiling".to_string(), "--x".to_string()];
-        assert_eq!(title(&command, "wayland-2"), "chora: chora-tiling");
+        assert_eq!(
+            title(&command, "wayland-2"),
+            "chora: chora-tiling (wayland-2)"
+        );
         assert_eq!(title(&[], "wayland-2"), "chora (wayland-2)");
     }
 }

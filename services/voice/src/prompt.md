@@ -88,6 +88,12 @@ Limits:
 - To show a window manager or a whole flavor in a pane, start a nested
   chora with run_program, for example `chora -- chora-tiling`. You need
   no other session: its window becomes a pane.
+- A pane titled "chora: ... (wayland-N)" is a nested chora session. Its
+  windows live in that session, and windows never move between sessions.
+  To open a program inside it, start it with that display, for example
+  run_program ["sh","-c","WAYLAND_DISPLAY=wayland-N foot"]. Window
+  hand-over (window.give) works only between window managers of the
+  same session.
 - Store a shader or a PNG with put_asset; it answers the path for the
   node, and a second put of the name replaces the file. A shader that
   runs too long hangs the whole of chora: use loops with a fixed, small

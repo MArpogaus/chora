@@ -794,6 +794,11 @@ own IPC socket next to it. It gives its window manager its own
 session do not reach it. A fly-in gives the nested session the keyboard;
 the programs that its window manager shows get the keys.
 
+The title of the nested window is `chora: <program> (<socket>)`, such as
+`chora: chora-tiling (wayland-2)`. A window belongs to one session and
+never moves to another; to open a program in a nested session, start it
+with that `WAYLAND_DISPLAY`.
+
 ```yaml
 radius: 5000
 panes:
