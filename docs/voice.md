@@ -423,8 +423,10 @@ state, task, said, voice, plan, question, log}`, and `voice.remove
 The `hud` thread waits for the sound of a sentence and hands the events
 to the `chora` thread, which emits them on the connection of the
 methods: only that connection has the name `voice`. The `chora` thread
-looks for them every 50 ms between the events of chora. A refused event,
-for example over the rate limit of the core, logs at debug level.
+looks for them every 50 ms between the events of chora. Over the rate
+limit of the core (D65), the last `state` or `remove` of each name
+waits 1 s and goes again, with the states that come meanwhile; a
+refused `say` is gone. Another refused event logs at debug level.
 
 ## 11. Logging and latency
 
