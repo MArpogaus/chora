@@ -1476,6 +1476,16 @@ impl Mc {
         Ok(rect)
     }
 
+    /// The rect of an item, or of its hidden copy when `probed`.
+    fn measure(&mut self, id: &str, probed: bool) -> Result<[f64; 4], ClientError> {
+        let rect = if probed {
+            self.rect(&region::probe(id))
+        } else {
+            self.rect(id)
+        };
+        Ok(rect?.unwrap_or_default())
+    }
+
     /// The effect of the blur of a panel, if it has one.
     fn blur_effect(&self, panel: &Panel) -> Option<ShaderEffect> {
         let radius = panel.blur.filter(|r| *r > 0.0)?;

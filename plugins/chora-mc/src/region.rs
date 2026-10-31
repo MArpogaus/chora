@@ -27,6 +27,13 @@ pub const REGIONS: &str = "mc-regions";
 /// a new docked app until its first size fits. Its empty animation times
 /// the wait for that size.
 pub const PARKED: &str = "mc-parked";
+/// A hidden group of copies of the items, to measure their new texts.
+const PROBE: &str = "mc-probe";
+
+/// The id of the hidden copy of an item.
+pub fn probe(id: &str) -> String {
+    format!("{id}-probe")
+}
 /// How long a new docked app waits for a size that fits, in milliseconds.
 pub const FIT_MS: f64 = 1000.0;
 /// The most lines that `content.add` keeps.
@@ -696,25 +703,20 @@ impl Mc {
             return Ok(Vec::new());
         };
         items.retain(|r, _| visible.contains(r));
+        // The ids without the set, which alternates with each new set.
+        let set = format!("mc-r{}-", self.set);
         let key: Vec<String> = std::iter::once(name.clone())
             .chain(visible.iter().map(|r| r.name().into()))
-            .chain(
-                items
-                    .values()
-                    .flat_map(|(i, d)| i.iter().map(|i| i.id.clone()).chain(d.iter().cloned())),
-            )
+            .chain(items.values().flat_map(|(i, d)| {
+                (i.iter().map(|i| i.id.replacen(&set, "", 1))).chain(d.iter().cloned())
+            }))
             .collect();
         let sigs: BTreeMap<Region, String> = (items.iter())
             .map(|(r, plan)| (*r, signature(plan, boxes.regions[r])))
             .collect();
         if self.rendered.as_ref() == Some(&key) {
-            let updates = (items.values().flat_map(|(i, _)| i)).map(|i| Command::Update {
-                id: i.id.clone(),
-                props: i.props.clone(),
-            });
-            self.apply(updates.collect())?;
             self.sigs = sigs;
-            return self.arrange(&items, &boxes);
+            return self.update(&items, &boxes);
         }
         let old = self.rendered.is_some().then(|| set_id(self.set));
         let items = self.prepare(&name, &visible, &boxes, &sigs)?;
@@ -744,6 +746,42 @@ impl Mc {
             commands.extend(place(surface, boxes.window, self.output_size()));
         }
         Ok(commands)
+    }
+
+    /// The same items with new texts: measured on hidden copies first, so
+    /// that their texts change and they move in one transaction, without
+    /// a fade.
+    fn update(&mut self, items: &Plan, boxes: &Boxes) -> Result<Vec<Command>, ClientError> {
+        let hidden = PropsUpdate {
+            opacity: Some(0.0),
+            ..PropsUpdate::default()
+        };
+        let mut probes = vec![create(PROBE, NodeKind::Group, REGIONS, hidden)];
+        let mut updates = vec![Command::Remove {
+            id: PROBE.into(),
+            to: None,
+        }];
+        for (region, (region_items, _)) in items {
+            let width = boxes.regions[region][2];
+            for item in region_items {
+                let props = PropsUpdate {
+                    max_width: (!region.is_line()).then_some(width),
+                    ..item.props.clone()
+                };
+                probes.push(create(&probe(&item.id), NodeKind::Text, PROBE, props));
+                updates.push(Command::Update {
+                    id: item.id.clone(),
+                    props: item.props.clone(),
+                });
+            }
+        }
+        self.apply(probes)?;
+        let moves = self.arrange(items, boxes, true);
+        if moves.is_err() {
+            self.apply(updates.drain(..1).collect())?;
+        }
+        updates.extend(moves?);
+        Ok(updates)
     }
 
     /// Creates the new set of the regions, invisible, so that the core
@@ -797,7 +835,7 @@ impl Mc {
         boxes: &Boxes,
         sigs: &BTreeMap<Region, String>,
     ) -> Result<(Vec<Command>, Vec<String>), ClientError> {
-        let mut commands = self.arrange(items, boxes)?;
+        let mut commands = self.arrange(items, boxes, false)?;
         commands.push(Command::Update {
             id: set_id(self.set),
             props: PropsUpdate {
@@ -902,13 +940,18 @@ impl Mc {
 
     /// Moves the items of the regions to their places, as the core lays
     /// them out: side by side in a line, else one under the other.
-    fn arrange(&mut self, items: &Plan, boxes: &Boxes) -> Result<Vec<Command>, ClientError> {
+    fn arrange(
+        &mut self,
+        items: &Plan,
+        boxes: &Boxes,
+        probed: bool,
+    ) -> Result<Vec<Command>, ClientError> {
         let baseline = self.settings.value.scale.baseline;
         let mut commands = Vec::new();
         for (region, (items, _)) in items {
             let [_, _, width, height] = boxes.regions[region];
             if region.is_line() {
-                commands.extend(self.line(items, [width, height])?);
+                commands.extend(self.line(items, [width, height], probed)?);
                 continue;
             }
             let mut y = 0.0;
@@ -917,7 +960,7 @@ impl Mc {
                     y += baseline;
                 }
                 commands.push(move_to(item.id.clone(), 0.0, y));
-                let [_, _, _, item_height] = self.rect(&item.id)?.unwrap_or_default();
+                let [_, _, _, item_height] = self.measure(&item.id, probed)?;
                 y += item_height.max(baseline);
             }
         }
@@ -931,12 +974,13 @@ impl Mc {
         &mut self,
         items: &[Item],
         [width, height]: [f64; 2],
+        probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
         let config = &self.settings.value;
         let (baseline, gap) = (config.scale.baseline, config.page.gap * config.scale.base);
         let mut sizes = Vec::new();
         for item in items {
-            let [_, _, w, h] = self.rect(&item.id)?.unwrap_or_default();
+            let [_, _, w, h] = self.measure(&item.id, probed)?;
             sizes.push((item, w, h));
         }
         let group = |pick: fn(i32) -> bool| -> Vec<(&Item, f64, f64)> {
