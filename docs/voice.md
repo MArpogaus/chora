@@ -580,13 +580,20 @@ both a key variable and a key file for one server.
 |---|---|---|
 | `state` | none | the state record below |
 | `cancel`, `sleep`, `wake` | none | the new state record |
-| `mute` | `mic: bool`, `speaker: bool`, each optional | the new state record |
-| `indicator.claim` | none | `{}`; hides the dot while the caller is connected |
+| `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record |
+| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected |
 | `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.reload` reads the file again after an edit by hand |
-| `talk` | `down: bool` | PTT from another client, for example `chora-mc` |
+| `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc` |
 | `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
+
+`mute`, `talk` and `indicator.claim` are privileged: with them, a
+client could unmute the mic, record, or hide the dot, so that the agent
+listens without a sign. A client socket needs `methods.privileged` for
+them. The export flag cannot depend on `mic`, so muting needs it too.
+The plugins chora-mc, chora-xp and chora-construct connect to the main
+socket, which may call privileged methods.
 
 The state record: `state`, `since_ms` (time in the state), `seq` (one
 more per change), `awake`, `muted: {mic, speaker}`, `turn`,

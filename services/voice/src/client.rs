@@ -263,13 +263,16 @@ fn exported_methods() -> Vec<ExportMethod> {
             &[],
         ),
         runtime::method("wake", "Wakes the agent up.", none.clone(), &[]),
-        runtime::method(
+        // Privileged (review rc3 round 2, 4.5): an unmuted mic, a pressed
+        // key or a hidden dot lets a client record without a sign. The
+        // export flag cannot depend on `mic`, so all of `mute` is.
+        runtime::privileged(runtime::method(
             "mute",
             "Mutes or unmutes the mic and the speaker, each on its own; a muted mic still \
              records with the push-to-talk key.",
             json!({"mic": {"type": "boolean"}, "speaker": {"type": "boolean"}}),
             &[],
-        ),
+        )),
         // Privileged: a yes runs programs and allows what sub-agents ask.
         runtime::privileged(runtime::method(
             "confirm",
@@ -278,13 +281,13 @@ fn exported_methods() -> Vec<ExportMethod> {
             json!({"answer": {"type": "string", "enum": ["yes", "no"]}}),
             &["answer"],
         )),
-        runtime::method(
+        runtime::privileged(runtime::method(
             "talk",
             "The push-to-talk key of another client: down stops a reply and records, up \
              ends the utterance.",
             json!({"down": {"type": "boolean"}}),
             &["down"],
-        ),
+        )),
         runtime::method(
             "health",
             "Answers the health of the servers asr, tts, llm, mcp and chora: status ok, down \
@@ -303,13 +306,13 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "text": {"type": "string"}}),
             &["tool"],
         )),
-        runtime::method(
+        runtime::privileged(runtime::method(
             "indicator.claim",
             "Hides the state dot of the agent while the calling client is connected: the \
              caller shows the state itself. Call it again after the voice client connects.",
             none,
             &[],
-        ),
+        )),
     ]
 }
 
@@ -495,17 +498,21 @@ mod tests {
         assert_eq!(emit(&mut held, vec![], t0 + RESEND * 2, false), none);
     }
 
-    /// A yes and the agent tools start programs: a confined client needs
-    /// `methods.privileged` for them.
+    /// A yes and the agent tools start programs; mute, talk and the
+    /// claim of the dot can record without a sign (review rc3 round 2,
+    /// 4.5): a confined client needs `methods.privileged` for them.
     #[test]
-    fn confirm_and_agent_are_privileged() {
+    fn the_methods_that_run_or_record_are_privileged() {
         let privileged: Vec<String> = (super::exported_methods().into_iter())
             .filter_map(|m| match m {
                 ExportMethod::Described(d) if d.privileged => Some(d.name),
                 _ => None,
             })
             .collect();
-        assert_eq!(privileged, ["confirm", "agent"]);
+        assert_eq!(
+            privileged,
+            ["mute", "confirm", "talk", "agent", "indicator.claim"]
+        );
     }
 
     /// Review rc3 round 2, 3.2: no unprivileged `restart` beside the
