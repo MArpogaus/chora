@@ -103,6 +103,7 @@ show("box1 methods.call tiling set_layout", b1("methods.call", {"client": "tilin
 time.sleep(3)
 sys.exit(1 if leaks else 0)
 EOF
+# shellcheck disable=SC2181 # the status is that of the here-document command above
 [ $? = 0 ] || finding "W12: a confined client got through a refusal" crash "see LEAKED lines in $RUN"
 grep -q "SLOW" "$RUN" && finding "W12: a confined client stalls the core with 5000 nested groups ($(grep -o "took [0-9.]* s SLOW" "$RUN" | tail -1))" slow "box0 scene.apply: chain of 5000 nested create group"
 for f in "$pwned".*; do

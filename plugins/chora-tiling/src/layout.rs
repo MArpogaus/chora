@@ -166,7 +166,9 @@ fn magnifier(count: usize, area: Rect, focused: Option<usize>, share: f64) -> Ve
 
 /// Splits an area into `n` equal columns, or rows.
 pub fn split(n: usize, [left, top, width, height]: Rect, columns: bool) -> Vec<Rect> {
-    let n = i32::try_from(n).expect("a few windows");
+    let Ok(n) = i32::try_from(n) else {
+        return Vec::new();
+    };
     (0..n)
         .map(|i| {
             if columns {

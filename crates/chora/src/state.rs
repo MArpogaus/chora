@@ -3,7 +3,7 @@
 use std::{
     collections::HashMap,
     ffi::OsString,
-    sync::{Arc, atomic::AtomicU32},
+    sync::{Arc, PoisonError, atomic::AtomicU32},
     time::Instant,
 };
 
@@ -15,7 +15,7 @@ use smithay::{
     input::{
         Seat, SeatState,
         keyboard::{KeyboardHandle, Keycode},
-        pointer::CursorImageStatus,
+        pointer::{CursorImageStatus, PointerHandle},
     },
     output::Output,
     reexports::{
@@ -263,6 +263,7 @@ fn create_globals(dh: &DisplayHandle, clock: &Clock<Monotonic>) {
 }
 
 /// The assets, with the worker that decodes images for the event loop.
+#[allow(clippy::expect_used, reason = "a new event loop takes a source")]
 fn new_assets(loop_handle: &LoopHandle<'static, State>) -> Assets {
     let mut assets = Assets::default();
     let (done, decoded) = channel::channel();
@@ -278,6 +279,7 @@ fn new_assets(loop_handle: &LoopHandle<'static, State>) -> Assets {
 }
 
 /// The one seat, with a keyboard of the default keymap and a pointer.
+#[allow(clippy::expect_used, reason = "the default keymap is built in")]
 fn new_seat(dh: &DisplayHandle) -> (SeatState<State>, Seat<State>) {
     let mut seat_state = SeatState::new();
     let mut seat = seat_state.new_wl_seat(dh, "seat0");
@@ -365,6 +367,18 @@ impl State {
             input_settings: crate::devices::defaults(),
             input_devices: Vec::new(),
         }
+    }
+
+    /// The keyboard of the seat.
+    #[allow(clippy::expect_used, reason = "new_seat adds the keyboard")]
+    pub fn keyboard(&self) -> KeyboardHandle<State> {
+        self.seat.get_keyboard().expect("the seat has a keyboard")
+    }
+
+    /// The pointer of the seat.
+    #[allow(clippy::expect_used, reason = "new_seat adds the pointer")]
+    pub fn pointer(&self) -> PointerHandle<State> {
+        self.seat.get_pointer().expect("the seat has a pointer")
     }
 
     /// The work after each turn of the event loop: animations, errors of
@@ -476,12 +490,13 @@ impl State {
             .ok()
             .and_then(|c| c.get_data::<ClientState>()?.name.clone());
         with_states(toplevel.wl_surface(), |states| {
+            #[allow(clippy::expect_used, reason = "smithay adds the role data")]
             let data = states
                 .data_map
                 .get::<XdgToplevelSurfaceData>()
                 .expect("every toplevel has role data")
                 .lock()
-                .expect("not poisoned");
+                .unwrap_or_else(PoisonError::into_inner);
             SurfaceInfo {
                 app_id: data.app_id.clone(),
                 title: data.title.clone(),
@@ -637,7 +652,7 @@ impl State {
     /// node. A popup grab keeps the keyboard, unless the session locks, a
     /// layer surface takes it or a node gets the focus.
     pub fn update_focus(&mut self) {
-        let keyboard = self.seat.get_keyboard().expect("the seat has a keyboard");
+        let keyboard = self.keyboard();
         // A clicked layer surface keeps the keyboard only while it accepts it.
         self.layer_focus = self
             .layer_focus
@@ -729,6 +744,7 @@ fn xdg_states() -> [(ToplevelState, &'static [xdg_toplevel::State]); 4] {
 
 /// Adds the display to the event loop, so that it dispatches the requests
 /// of the clients.
+#[allow(clippy::expect_used, reason = "a new event loop takes a source")]
 fn add_display(display: Display<State>, loop_handle: &LoopHandle<'static, State>) {
     loop_handle
         .insert_source(

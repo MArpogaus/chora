@@ -11,7 +11,7 @@
 use std::{
     path::{Path, PathBuf},
     process::Stdio,
-    sync::{Arc, Mutex, mpsc::Sender},
+    sync::{Arc, Mutex, PoisonError, mpsc::Sender},
     time::{Duration, Instant},
 };
 
@@ -288,7 +288,7 @@ impl Coder {
             .kill_on_drop(true)
             .spawn()
             .map_err(|e| format!("{program}: {e}"))?;
-        let group = Group(child.id());
+        let group = Group::new(child.id());
         let out = BufReader::new(child.stdout.take().expect("piped"));
         let result = self.read(out, tokio::fs::File::from_std(log)).await?;
         let status = child.wait().await.map_err(|e| e.to_string())?;
@@ -337,34 +337,94 @@ async fn clone(source: Option<&Path>, dir: &Path, number: u32) -> Result<(), Str
 
 /// The process group of the harness: its drop ends what is left of it,
 /// also after a stop, so that no coder runs on next to the next task.
-struct Group(Option<u32>);
+pub struct Group(Option<u32>);
+
+/// The groups that may run, for `end_groups` at the exit.
+static GROUPS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
+
+impl Group {
+    pub fn new(pid: Option<u32>) -> Self {
+        if let Some(pid) = pid {
+            let mut groups = GROUPS.lock().unwrap_or_else(PoisonError::into_inner);
+            groups.retain(|g| group_alive(*g));
+            groups.push(pid);
+        }
+        Self(pid)
+    }
+}
+
+/// Sends `signal` to the group `pgid`; false when no process got it.
+fn kill_group(pgid: u32, signal: &str) -> bool {
+    std::process::Command::new("kill")
+        .args(["-s", signal, "--", &format!("-{pgid}")])
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|s| s.success())
+}
 
 impl Drop for Group {
     fn drop(&mut self) {
         let Some(pid) = self.0 else { return };
-        let group = format!("-{pid}");
-        let kill = |signal: &str| {
-            std::process::Command::new("kill")
-                .args(["-s", signal, "--", &group])
-                .stderr(Stdio::null())
-                .status()
-                .is_ok_and(|s| s.success())
-        };
-        if kill("TERM") {
-            // ponytail: a fixed grace in a thread; the group may ignore TERM.
+        if kill_group(pid, "TERM") {
+            // ponytail: a fixed grace in a thread; the group may ignore
+            // TERM. At the exit `end_groups` waits instead.
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_secs(5));
-                let _ = std::process::Command::new("kill")
-                    .args(["-s", "KILL", "--", &group])
-                    .stderr(Stdio::null())
-                    .status();
+                kill_group(pid, "KILL");
             });
         }
     }
 }
 
+/// At the exit: ends the groups of `Group` and `more`.
+pub fn end_groups(more: &[u32]) {
+    let mut groups = std::mem::take(&mut *GROUPS.lock().unwrap_or_else(PoisonError::into_inner));
+    groups.extend(more);
+    end(groups);
+}
+
+/// TERM to `groups`, up to 5 s for all of their processes to end, then
+/// KILL to the rest and up to 1 s more.
+pub(crate) fn end(mut groups: Vec<u32>) {
+    groups.sort_unstable();
+    groups.dedup();
+    groups.retain(|g| group_alive(*g));
+    let wait = |groups: &[u32], limit: Duration| {
+        let start = Instant::now();
+        while groups.iter().any(|g| group_alive(*g)) && start.elapsed() < limit {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    };
+    for g in &groups {
+        kill_group(*g, "TERM");
+    }
+    wait(&groups, Duration::from_secs(5));
+    groups.retain(|g| group_alive(*g));
+    for g in &groups {
+        crate::log::warn(&format!("process group {g} ignored TERM; KILL"));
+        kill_group(*g, "KILL");
+    }
+    wait(&groups, Duration::from_secs(1));
+}
+
+/// Whether a process of the group `pgid` runs; a zombie has ended.
+pub fn group_alive(pgid: u32) -> bool {
+    let pgid = pgid.to_string();
+    let entries = std::fs::read_dir("/proc").into_iter().flatten().flatten();
+    entries
+        .filter_map(|e| std::fs::read_to_string(e.path().join("stat")).ok())
+        .any(|stat| {
+            // After the name: the state, the parent and the group.
+            let rest = stat.rsplit_once(") ").map_or("", |(_, r)| r);
+            let fields: Vec<&str> = rest.split(' ').take(3).collect();
+            fields.len() == 3 && fields[0] != "Z" && fields[2] == pgid
+        })
+}
+
 /// One line of at most `LINE_LIMIT` bytes; none at the end.
-async fn read_line(out: &mut (impl AsyncBufReadExt + Unpin)) -> Result<Option<Vec<u8>>, String> {
+pub async fn read_line(
+    out: &mut (impl AsyncBufReadExt + Unpin),
+) -> Result<Option<Vec<u8>>, String> {
     let mut line = Vec::new();
     let n = out
         .take(LINE_LIMIT + 1)

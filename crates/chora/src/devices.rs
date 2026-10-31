@@ -239,7 +239,7 @@ impl State {
         settings.merge(&new);
         self.input_settings = settings;
         let (rate, delay) = self.repeat();
-        let keyboard = self.seat.get_keyboard().expect("the seat has a keyboard");
+        let keyboard = self.keyboard();
         #[allow(clippy::cast_possible_wrap)] // checked ranges
         keyboard.change_repeat_info(rate as i32, delay as i32);
         for device in &mut self.input_devices {

@@ -3,7 +3,7 @@
 //! IO, so the tests drive it directly.
 
 use std::{
-    collections::VecDeque,
+    collections::{BTreeMap, VecDeque},
     sync::mpsc::Sender,
     time::{Duration, Instant},
 };
@@ -14,6 +14,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::{
+    agents,
     asr::Transcript,
     chat, coder,
     config::Config,
@@ -114,6 +115,13 @@ pub enum Input {
     Reply(u64, Reply),
     /// The coding task.
     Code(coder::Event),
+    /// An ACP agent.
+    Agent(agents::Event),
+    /// A signal: the agent stops its sub-agents and exits.
+    Quit,
+    /// The method `agent`: a tool of the ACP agents and its arguments;
+    /// the text of its answer goes to the channel.
+    AgentCall(String, Value, Sender<Value>),
 }
 
 /// What the core asks the other actors to do.
@@ -145,6 +153,8 @@ pub enum Effect {
         speak: bool,
         ended: Instant,
         say: bool,
+        /// The voice of a sub-agent, else that of the settings.
+        voice: Option<String>,
     },
     /// Stops the reply in progress and its sound; the words that played
     /// go into its note in the history.
@@ -153,6 +163,13 @@ pub enum Effect {
     Speech(Control),
     /// Stops the coding task.
     StopCode,
+    /// A prompt for a sub-agent, said to it by name.
+    AgentPrompt {
+        name: String,
+        text: String,
+    },
+    /// Cancels the request of a sub-agent.
+    AgentCancel(String),
     /// A sentence for the HUD: it plays from `at` for `len`.
     Say {
         text: String,
@@ -191,6 +208,9 @@ const SOUND_GAP: Duration = Duration::from_millis(1500);
 
 /// Words that played within this time count for the echo filter.
 const ECHO_MEMORY: Duration = Duration::from_secs(3);
+/// The most texts that wait to be said: a flood of a looping sub-agent
+/// drops the oldest.
+const NOTES: usize = 8;
 
 pub struct Core {
     config: Config,
@@ -244,11 +264,36 @@ pub struct Core {
     /// `done` or `blocked`; empty before the first task) and its last
     /// step or result.
     code: (String, &'static str, String),
-    /// Texts to say when the agent listens: the coding results and the
-    /// spoken errors.
-    notes: VecDeque<String>,
+    /// Texts to say when the agent listens: the coding results, the
+    /// spoken errors, and the words and questions of the sub-agents.
+    notes: VecDeque<Note>,
     /// The reply in which the TTS failed; the error earcon sounded.
     tts_failed: Option<u64>,
+    /// The ACP agents by name: the parameters of `mc agent.set`.
+    subs: BTreeMap<String, Value>,
+    /// The question of a sub-agent that waits for yes or no, and until
+    /// when: `agent_permission_s` from when it is spoken.
+    sub_confirm: Option<(String, oneshot::Sender<bool>)>,
+    sub_until: Instant,
+}
+
+/// A text to say when the agent listens.
+struct Note {
+    text: String,
+    /// The voice of a sub-agent.
+    voice: Option<String>,
+    /// A question of a sub-agent: its name and the answer.
+    ask: Option<(String, oneshot::Sender<bool>)>,
+}
+
+impl From<String> for Note {
+    fn from(text: String) -> Self {
+        Self {
+            text,
+            voice: None,
+            ask: None,
+        }
+    }
 }
 
 impl Core {
@@ -287,6 +332,9 @@ impl Core {
             code: (String::new(), "", String::new()),
             notes: VecDeque::new(),
             tts_failed: None,
+            subs: BTreeMap::new(),
+            sub_confirm: None,
+            sub_until: now,
         }
     }
 
@@ -329,6 +377,7 @@ impl Core {
             "last_reply": self.last_reply,
             "queued": self.queue.len(),
             "coder": self.coder(),
+            "agents": self.subs.values().collect::<Vec<_>>(),
             "health": crate::health::record(),
         })
     }
@@ -344,6 +393,13 @@ impl Core {
     /// The state from what goes on: an utterance first, then its text,
     /// then the reply.
     fn refresh(&mut self) {
+        // A question of a sub-agent that timed out is gone: a no.
+        let late = Instant::now() >= self.sub_until;
+        if (self.sub_confirm.as_ref()).is_some_and(|(_, a)| late || a.is_closed()) {
+            self.sub_confirm = None;
+        }
+        let working =
+            self.code.1 == "working" || self.subs.values().any(|s| s["state"] == "working");
         let state = if self.gate.pcm().is_some() {
             State::Recording
         } else if self.pending.iter().any(|p| p.heard) {
@@ -356,7 +412,9 @@ impl Core {
             } else {
                 self.doing
             }
-        } else if self.awake && self.code.1 == "working" {
+        } else if self.sub_confirm.is_some() {
+            State::Confirming
+        } else if self.awake && working {
             State::Working
         } else if self.awake {
             State::Listening
@@ -406,6 +464,9 @@ impl Core {
             } => self.transcript(turn, interim, result),
             Input::Reply(reply, event) => self.reply(reply, event),
             Input::Code(event) => self.code(event),
+            Input::Agent(event) => self.sub(event),
+            // The loop of the agent takes them before.
+            Input::Quit | Input::AgentCall(..) => Vec::new(),
         };
         // A barge-in that came to nothing: the speech goes on.
         if self.paused && self.gate.pcm().is_none() && self.pending.is_empty() {
@@ -416,12 +477,98 @@ impl Core {
         // A coding result waits for the agent to listen: it cuts no
         // speech of the user.
         if matches!(self.state, State::Listening | State::Working)
-            && let Some(note) = self.notes.pop_front()
+            && let Some(note) = self.next_note()
         {
-            effects.extend(self.ask(note, true));
+            let mut ask = self.ask(note.text, true);
+            if let Some(Effect::Ask { voice, .. }) = ask.first_mut() {
+                *voice = note.voice;
+            }
+            effects.extend(ask);
+            // The question waits from when it is spoken.
+            self.sub_confirm = note.ask;
+            self.sub_until =
+                Instant::now() + Duration::from_secs(self.config.agent_permission_s.into());
+            self.unclear = 0;
             self.refresh();
         }
         effects
+    }
+
+    /// A text to say when the agent listens. A question replaces the
+    /// questions of the same sub-agent that wait, which are a no.
+    fn note(&mut self, note: Note) {
+        if let Some((name, _)) = &note.ask {
+            (self.notes).retain(|n| n.ask.as_ref().is_none_or(|(other, _)| other != name));
+        }
+        self.notes.push_back(note);
+        while self.notes.len() > NOTES {
+            self.notes.pop_front();
+        }
+    }
+
+    /// The next text to say; a question that its agent dropped, for
+    /// example after a cancel, is gone.
+    fn next_note(&mut self) -> Option<Note> {
+        let closed = |n: &Note| n.ask.as_ref().is_some_and(|(_, a)| a.is_closed());
+        while let Some(note) = self.notes.pop_front() {
+            if !closed(&note) {
+                return Some(note);
+            }
+        }
+        None
+    }
+
+    /// The sub-agents by name, for the HUD.
+    pub fn subs(&self) -> &BTreeMap<String, Value> {
+        &self.subs
+    }
+
+    fn sub(&mut self, event: agents::Event) -> Vec<Effect> {
+        match event {
+            agents::Event::State(record) => {
+                let name = record["name"].as_str().unwrap_or_default().to_owned();
+                self.subs.insert(name, record);
+            }
+            agents::Event::Gone(name) => {
+                self.subs.remove(&name);
+                if self.sub_confirm.as_ref().is_some_and(|(n, _)| *n == name) {
+                    self.sub_confirm = None;
+                }
+            }
+            agents::Event::Said { voice, text } => self.note(Note {
+                text,
+                voice: Some(voice),
+                ask: None,
+            }),
+            agents::Event::Ask {
+                name,
+                voice,
+                prompt,
+                answer,
+            } => self.note(Note {
+                text: prompt,
+                voice: Some(voice),
+                ask: Some((name, answer)),
+            }),
+        }
+        self.seq += 1;
+        Vec::new()
+    }
+
+    /// An utterance that starts with the name of a sub-agent goes to it
+    /// without the LLM: a cancel word cancels its request, yes or no
+    /// answers its question, else the rest is its prompt.
+    fn address(&mut self, name: String, rest: String) -> Vec<Effect> {
+        let asks = self.sub_confirm.as_ref().is_some_and(|(n, _)| *n == name);
+        crate::log::info(&format!("to {name}: {rest:?}"));
+        match words::matches(&self.config, &rest, 0, asks) {
+            Some(Word::Cancel | Word::CodeCancel) => std::iter::once(Effect::AgentCancel(name))
+                .chain(self.earcon(Earcon::Cancel))
+                .collect(),
+            Some(yes @ (Word::Yes | Word::No)) => self.yes_no(yes == Word::Yes),
+            _ if rest.is_empty() => Vec::new(),
+            _ => vec![Effect::AgentPrompt { name, text: rest }],
+        }
     }
 
     fn code(&mut self, event: coder::Event) -> Vec<Effect> {
@@ -431,7 +578,7 @@ impl Core {
             coder::Event::Done { ok, said } => {
                 self.code.1 = if ok { "done" } else { "blocked" };
                 self.code.2.clone_from(&said);
-                self.notes.push_back(said);
+                self.note(said.into());
             }
         }
         self.seq += 1;
@@ -490,15 +637,25 @@ impl Core {
             speak: !self.muted.speaker,
             ended: self.ended,
             say,
+            voice: None,
         }]
     }
 
-    /// Answers the confirmation that waits.
+    /// Whether a confirmation waits: of the reply or of a sub-agent.
+    fn confirming(&self) -> bool {
+        self.confirm.is_some() || self.sub_confirm.is_some()
+    }
+
+    /// Answers the confirmation that waits; that of the reply first.
     fn answer(&mut self, yes: bool) {
+        let said = if yes { "yes" } else { "no" };
         if let Some(answer) = self.confirm.take() {
-            crate::log::info(&format!("confirm: {}", if yes { "yes" } else { "no" }));
+            crate::log::info(&format!("confirm: {said}"));
             let _ = answer.send(yes);
             self.doing = if yes { State::Tool } else { State::Thinking };
+        } else if let Some((name, answer)) = self.sub_confirm.take() {
+            crate::log::info(&format!("confirm {name}: {said}"));
+            let _ = answer.send(yes);
         }
     }
 
@@ -633,13 +790,13 @@ impl Core {
                 crate::log::error(&format!("turn={turn} asr: {e}"));
                 // A request says so when the agent listens again.
                 let phrase = &self.config.phrases.asr_failed;
-                if heard && !self.notes.contains(phrase) {
-                    self.notes.push_back(phrase.clone());
+                if heard && !self.notes.iter().any(|n| n.text == *phrase) {
+                    self.note(phrase.clone().into());
                 }
                 return self.earcon(Earcon::Error).into_iter().collect();
             }
         };
-        let word = words::matches(&self.config, &text, length_ms, self.confirm.is_some());
+        let word = words::matches(&self.config, &text, length_ms, self.confirming());
         if let Some(word) = word {
             crate::log::info(&format!("turn={turn} word={word:?}"));
         }
@@ -682,7 +839,10 @@ impl Core {
             crate::log::info("empty or echo");
             return Vec::new();
         }
-        if self.confirm.is_some() {
+        if let Some((name, rest)) = words::addressed(&text, self.subs.keys()) {
+            return self.address(name, rest);
+        }
+        if self.confirming() {
             self.unclear += 1;
             crate::log::info(&format!("confirm: unclear answer {}", self.unclear));
             if self.unclear >= 2 {
@@ -970,6 +1130,149 @@ mod tests {
         core.handle(Input::Reply(2, Reply::Done("Fertig.".into())));
         assert_eq!(core.state(), State::Listening);
         assert_eq!(core.record()["last_reply"], "Fertig.");
+    }
+
+    /// A core with the working ACP agent `coder`.
+    fn with_coder() -> Core {
+        let mut core = Core::new(Config::default());
+        let record = json!({"name": "coder", "state": "working"});
+        core.handle(Input::Agent(agents::Event::State(record)));
+        core
+    }
+
+    /// An ACP agent: its state shows, its question is spoken in its voice
+    /// when the user is done and waits for yes or no.
+    #[test]
+    fn a_sub_agent_asks_in_its_voice_when_the_user_is_done() {
+        let mut core = with_coder();
+        assert_eq!(core.state(), State::Working);
+        assert_eq!(core.record()["agents"][0]["name"], "coder");
+        speak(&mut core, 10);
+        let (answer, mut rx) = oneshot::channel();
+        let ask = agents::Event::Ask {
+            name: "coder".into(),
+            voice: "ryan".into(),
+            prompt: "Coder fragt: Write x. Erlauben?".into(),
+            answer,
+        };
+        assert!(no_ask(&core.handle(Input::Agent(ask))), "no cut speech");
+        quiet(&mut core, 26);
+        let effects = core.handle(text(1, false, Ok("Wie spät ist es?")));
+        assert_eq!(asks(&effects), [(1, "Wie spät ist es?")]);
+        let effects = core.handle(Input::Reply(1, Reply::Done("Zehn.".into())));
+        let [
+            Effect::Ask {
+                reply: 2,
+                voice,
+                say: true,
+                ..
+            },
+        ] = &effects[..]
+        else {
+            panic!("{effects:?}");
+        };
+        assert_eq!(voice.as_deref(), Some("ryan"));
+        core.handle(Input::Reply(2, Reply::Done("Coder fragt".into())));
+        assert_eq!(core.state(), State::Confirming);
+        say(&mut core, "Ja.");
+        assert_eq!(rx.try_recv(), Ok(true));
+        assert_eq!(core.state(), State::Working);
+    }
+
+    /// A looping sub-agent: its new question replaces its old ones, a
+    /// dropped question is not spoken, and the texts that wait are few.
+    #[test]
+    fn the_texts_of_sub_agents_are_bounded() {
+        let mut core = with_coder();
+        call(&mut core, Call::Sleep);
+        let ask = |prompt: &str| {
+            let (answer, rx) = oneshot::channel();
+            let name = "coder".into();
+            let (voice, prompt) = ("ryan".into(), prompt.into());
+            let ask = agents::Event::Ask {
+                name,
+                voice,
+                prompt,
+                answer,
+            };
+            (Input::Agent(ask), rx)
+        };
+        let (first, mut rx1) = ask("Eins?");
+        core.handle(first);
+        let (second, mut rx2) = ask("Zwei?");
+        core.handle(second);
+        let closed = Err(oneshot::error::TryRecvError::Closed);
+        assert_eq!(rx1.try_recv(), closed, "replaced: a no");
+        for i in 0..20 {
+            let said = agents::Event::Said {
+                voice: "ryan".into(),
+                text: format!("Satz {i}."),
+            };
+            core.handle(Input::Agent(said));
+        }
+        assert_eq!(core.notes.len(), NOTES);
+        assert_eq!(rx2.try_recv(), closed, "the oldest went");
+        let (third, rx3) = ask("Drei?");
+        core.handle(third);
+        drop(rx3);
+        let texts: Vec<&str> = core.notes.iter().map(|n| n.text.as_str()).collect();
+        assert_eq!(texts.last(), Some(&"Drei?"));
+        // Awake, it says the sentences one by one, but not the dropped
+        // question.
+        core.notes.retain(|n| n.ask.is_some());
+        let (effects, _) = call(&mut core, Call::Wake);
+        assert!(no_ask(&effects), "{effects:?}");
+        assert!(core.notes.is_empty());
+    }
+
+    /// A spoken question of a sub-agent is a no after
+    /// `agent_permission_s`.
+    #[test]
+    fn a_spoken_question_times_out() {
+        let mut core = with_coder();
+        let (answer, mut rx) = oneshot::channel();
+        let ask = agents::Event::Ask {
+            name: "coder".into(),
+            voice: "ryan".into(),
+            prompt: "Darf ich?".into(),
+            answer,
+        };
+        assert_eq!(asks(&core.handle(Input::Agent(ask))), [(1, "Darf ich?")]);
+        core.handle(Input::Reply(1, Reply::Done("Darf ich?".into())));
+        assert_eq!(core.state(), State::Confirming);
+        let wait = Duration::from_secs(core.config.agent_permission_s.into());
+        assert!(core.sub_until + Duration::from_secs(1) > Instant::now() + wait);
+        core.sub_until = Instant::now();
+        core.handle(Input::MicDown);
+        assert_eq!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed));
+        assert_eq!(core.state(), State::Working);
+    }
+
+    /// The name of an ACP agent addresses it without the LLM.
+    #[test]
+    fn a_sub_agent_hears_its_name() {
+        let mut core = with_coder();
+        let effects = say(&mut core, "Koder, schreib noch Tests.");
+        assert!(
+            effects.contains(&Effect::AgentPrompt {
+                name: "coder".into(),
+                text: "schreib noch Tests.".into()
+            }),
+            "{effects:?}"
+        );
+        let effects = say(&mut core, "Coder, stopp!");
+        assert!(
+            effects.contains(&Effect::AgentCancel("coder".into())),
+            "{effects:?}"
+        );
+        core.handle(Input::Agent(agents::Event::Gone("coder".into())));
+        assert_eq!(core.state(), State::Listening);
+        let effects = say(&mut core, "Coder, hallo");
+        assert_eq!(
+            asks(&effects),
+            [(1, "Coder, hallo")],
+            "a gone agent: the LLM"
+        );
     }
 
     #[test]
@@ -1266,10 +1569,7 @@ mod tests {
         assert_eq!(core.state(), State::Transcribing);
         let effects = core.handle(text(1, false, Err("timeout")));
         assert_eq!(effects[0], Effect::Earcon(Earcon::Error));
-        assert_eq!(
-            asks(&effects[1..]),
-            [(1, "Ich habe dich nicht verstanden.")]
-        );
+        assert_eq!(asks(&effects[1..]), [(1, "I did not understand you.")]);
         core.handle(Input::Reply(1, Reply::Done(String::new())));
         assert_eq!(core.state(), State::Listening, "said once");
     }

@@ -62,6 +62,10 @@ impl CompositorHandler for State {
         &mut self.compositor_state
     }
 
+    #[allow(
+        clippy::expect_used,
+        reason = "each client gets a ClientState on insert"
+    )]
     fn client_compositor_state<'a>(&self, client: &'a Client) -> &'a CompositorClientState {
         &client
             .get_data::<ClientState>()
@@ -87,6 +91,7 @@ impl CompositorHandler for State {
         if let Some(PopupKind::Xdg(popup)) = self.popups.find_popup(surface)
             && !popup.is_initial_configure_sent()
         {
+            #[allow(clippy::expect_used, reason = "the initial configure is not sent yet")]
             popup
                 .send_configure()
                 .expect("initial configure is always allowed");
@@ -163,6 +168,7 @@ impl State {
     /// Handles a commit of a toplevel: the initial configure, and
     /// `surface.created` at the end of the batch.
     fn toplevel_committed(&mut self, id: &str) {
+        #[allow(clippy::expect_used, reason = "windows holds xdg toplevels only")]
         let toplevel = self.windows[id]
             .toplevel()
             .expect("windows are toplevels")
@@ -371,8 +377,7 @@ impl XdgShellHandler for State {
         };
         if let Ok(mut grab) = self.popups.grab_popup(root, kind, &seat, serial) {
             let previous = grab.previous_serial().unwrap_or(serial);
-            let keyboard = seat.get_keyboard().expect("the seat has a keyboard");
-            let pointer = seat.get_pointer().expect("the seat has a pointer");
+            let (keyboard, pointer) = (self.keyboard(), self.pointer());
             let keyboard_busy = crate::state::popup_grabbed(&keyboard)
                 && !(keyboard.has_grab(serial) || keyboard.has_grab(previous));
             let pointer_busy =

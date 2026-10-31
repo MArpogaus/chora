@@ -17,7 +17,7 @@ use rmcp::{
 };
 use serde_json::{Value, json};
 
-use crate::{coder::Coder, config::Confirm};
+use crate::{agents::Agents, coder::Coder, config::Confirm};
 
 pub type Service = RunningService<RoleClient, ()>;
 type Connecting = Pin<Box<dyn Future<Output = Result<Service, String>> + Send>>;
@@ -43,6 +43,11 @@ pub struct Tools {
     retry_at: Instant,
     /// The coding tools, when `coder_cmd` has a harness.
     pub coder: Option<Coder>,
+    /// The tools of the ACP agents, when `agent_cmd` has a command.
+    pub agents: Option<Agents>,
+    /// The client name of the agent: the LLM calls no method of it, nor
+    /// of `NAME-hud` and `NAME-mcp`, whatever `skipped` hides.
+    pub own: String,
 }
 
 /// `CMD --name NAME mcp` as a child process; its stderr goes to ours.
@@ -84,7 +89,27 @@ impl Tools {
             backoff: Duration::ZERO,
             retry_at: Instant::now(),
             coder: None,
+            agents: None,
+            own: String::new(),
         }
+    }
+
+    /// Whether a call of `tool` (its MCP name) reaches a client of the
+    /// agent itself: by `call_method` or as a plugin tool `CLIENT.METHOD`.
+    fn own_client(&self, tool: &str, args: &serde_json::Map<String, Value>) -> bool {
+        if self.own.is_empty() {
+            return false;
+        }
+        let own = &self.own;
+        let names = [own.clone(), format!("{own}-hud"), format!("{own}-mcp")];
+        if tool == "call_method" {
+            let client = args.get("client").and_then(Value::as_str);
+            return client.is_some_and(|c| names.iter().any(|n| n == c));
+        }
+        (names.iter()).any(|n| {
+            tool.strip_prefix(n.as_str())
+                .is_some_and(|r| r.starts_with('.'))
+        })
     }
 
     fn connected(&self) -> Option<&Service> {
@@ -96,11 +121,13 @@ impl Tools {
     /// stay while chora is away. The coding tools come last.
     pub async fn refresh(&mut self) {
         self.load().await;
-        let coder = self.coder.as_ref().map(Coder::specs).unwrap_or_default();
+        let mut own = self.coder.as_ref().map(Coder::specs).unwrap_or_default();
+        own.extend(self.agents.as_ref().map(Agents::specs).unwrap_or_default());
         self.specs.retain(|s| {
-            !crate::coder::TOOLS.contains(&s["function"]["name"].as_str().unwrap_or_default())
+            let name = s["function"]["name"].as_str().unwrap_or_default();
+            !crate::coder::TOOLS.contains(&name) && !crate::agents::TOOLS.contains(&name)
         });
-        for spec in coder {
+        for spec in own {
             let name = spec["function"]["name"]
                 .as_str()
                 .unwrap_or_default()
@@ -174,10 +201,22 @@ impl Tools {
         let Value::Object(args) = args.clone() else {
             return "error: the arguments are no JSON object".into();
         };
+        if self.own_client(&name, &args) {
+            return format!(
+                "error: the agent calls no method of its own client {}",
+                self.own
+            )
+            .into();
+        }
         if let Some(coder) = &self.coder
             && crate::coder::TOOLS.contains(&name.as_str())
         {
             return coder.call(&name, &Value::Object(args));
+        }
+        if let Some(agents) = &self.agents
+            && crate::agents::TOOLS.contains(&name.as_str())
+        {
+            return agents.call(&name, &Value::Object(args));
         }
         self.refresh().await;
         let Some(service) = self.connected() else {
@@ -409,6 +448,29 @@ pub mod tests {
         (tools, calls)
     }
 
+    /// The LLM calls no method of the agent itself, also not through
+    /// `call_method`; other clients it calls.
+    #[tokio::test]
+    async fn the_agent_calls_no_method_of_its_own_clients() {
+        let (mut tools, calls) = fake(0);
+        tools.own = "tiling".into();
+        tools.refresh().await;
+        // The fake has no call_method: it echoes it as any tool.
+        let call_method = "call_method".to_owned();
+        tools.names.insert(call_method.clone(), call_method);
+        for client in ["tiling", "tiling-hud", "tiling-mcp"] {
+            let answer = tools
+                .call("call_method", &json!({"client": client, "method": "x"}))
+                .await;
+            assert!(answer.as_str().unwrap().starts_with("error:"), "{answer}");
+        }
+        let answer = tools.call("tiling__set_layout", &json!({})).await;
+        assert!(answer.as_str().unwrap().starts_with("error:"), "{answer}");
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        let args = json!({"client": "tilingx", "method": "x"});
+        assert_eq!(tools.call("call_method", &args).await, args.to_string());
+    }
+
     #[tokio::test]
     async fn tools_load_without_the_skipped_and_dots_become_two_underscores() {
         let (mut tools, _) = fake(0);
@@ -506,7 +568,7 @@ pub mod tests {
         let remove = json!({"commands": [{"create": {}}, {"remove": {"id": "x"}}]});
         assert_eq!(
             prompt("apply_commands", remove),
-            Some("Soll ich das entfernen?")
+            Some("Shall I remove that?")
         );
         assert_eq!(
             prompt("apply_commands", json!({"commands": [{"create": {}}]})),
@@ -515,12 +577,12 @@ pub mod tests {
         for argv in [json!(["/usr/bin/systemctl", "poweroff"]), json!(["foot"])] {
             assert_eq!(
                 prompt("run_program", json!({ "argv": argv })),
-                Some("Soll ich das Programm {program} starten?")
+                Some("Shall I start the program {program}?")
             );
         }
         assert_eq!(
             prompt("tiling.restart", json!({})),
-            Some("Soll ich das Plugin neu starten?")
+            Some("Shall I restart the plugin?")
         );
         assert!(
             prompt(

@@ -120,6 +120,94 @@ tts_url: ws://HOST:8882/v1/audio/speech/stream
 llm_url: http://HOST:8888/v1
 ```
 
+### Servers and providers
+
+Each server has its own settings: `asr_url`, `asr_model`, `tts_url`,
+`tts_model`, `llm_url` and `llm_model`, an API key and extra headers.
+The defaults are the local Gufo servers. Do not put a key into the
+settings file. Give the name of an environment variable
+(`llm_api_key_env`) or the path of a file (`llm_api_key_file`); `%d` in
+the path is the credentials directory of systemd. The agent sends the key
+as `Authorization: Bearer KEY`. `llm_headers`, `asr_headers` and
+`tts_headers` add headers, for example the app name for OpenRouter.
+
+The LLM must have an OpenAI-compatible `/chat/completions` endpoint.
+`reasoning_effort: ""` leaves that key out, for a server that refuses
+it. The agent connects to `http://` and `ws://` URLs in plain text, and
+to `https://` and `wss://` URLs with TLS (rustls with ring). It trusts
+the root certificates of the system, so a CA that you added to the
+system store also works.
+
+A local llama.cpp server (`llama-server -m MODEL.gguf --port 8080
+--jinja`; `--jinja` enables tool calls):
+
+```yaml
+llm_url: http://127.0.0.1:8080/v1
+llm_model: local             # llama-server serves one model under any name
+```
+
+Ollama:
+
+```yaml
+llm_url: http://127.0.0.1:11434/v1
+llm_model: qwen3:8b          # a model of `ollama list` with tool support
+reasoning_effort: ""
+```
+
+OpenRouter:
+
+```yaml
+llm_url: https://openrouter.ai/api/v1
+llm_model: anthropic/claude-haiku-5.5
+llm_api_key_env: OPENROUTER_API_KEY
+llm_headers: {HTTP-Referer: "https://github.com/MArpogaus/chora", X-Title: chora}
+reasoning_effort: ""
+```
+
+OpenAI:
+
+```yaml
+llm_url: https://api.openai.com/v1
+llm_model: gpt-4.1-mini
+llm_api_key_env: OPENAI_API_KEY
+reasoning_effort: ""
+```
+
+For the systemd unit, keep the key in a credential instead of the
+environment: `LoadCredential=llm-key:%h/.config/chora/llm-key` in a
+drop-in of `chora-voice.service`, and `llm_api_key_file: "%d/llm-key"`.
+
+A Claude Pro or Max subscription is not an API key, and this agent
+cannot use it. For a Claude model here, use an API key: from OpenRouter
+as above, or from the Anthropic API through an OpenAI-compatible
+endpoint. Coding agents over ACP (`agent_cmd`, such as Claude Code) are
+different: they run as their own program and log in with their own
+account, so Claude Code can use the subscription there.
+
+### Languages
+
+The ASR finds the language of the speaker (`asr_language: auto`); set a
+code such as `de` to fix it. `asr_prompt` tells the ASR the words that it
+must know, by default "Chora, Coder"; the agent adds the wake, sleep and
+stop words and the names of the projects. An empty `asr_prompt` sends no
+prompt. Gufo honors it: without it, "Hallo Chora" came back as "Hello,
+Cora".
+
+The agent answers in `reply_language` (`en`), also to a question in
+another language, unless you ask for another one. The TTS speaks that
+language unless `tts_language` is set. With `reply_language: de`, the
+spoken errors, the confirm prompts and the questions of the agents are
+German; any other language keeps them English unless `phrases` and
+`confirm` set them. The word lists hold English and German words.
+
+### From 0.9.0-rc.1
+
+`model` is now `llm_model`, and `language` is now `asr_language`; an old
+key stops the agent with an error. The agent now answers in English: set
+`reply_language: de` for German answers and phrases. To keep the old ASR
+behavior, set `asr_language: de`. `asr_model` and `tts_model` keep
+`gufo`.
+
 The built-in system prompt explains chora and the limits of the tools.
 The context documents (`context_docs`) follow it: `README.md`,
 `docs/glossary.md` and sections of `docs/api.md`. The agent sends the
@@ -143,11 +231,11 @@ fine, so the ASR's "Hallo Cora" is "Hallo Chora".
 
 | Words | Effect |
 |---|---|
-| `stopp`, `abbrechen`, `halt`, `vergiss es` | Stops the current turn: the reply, its sound and its tool call |
-| `schlaf`, `schlaf jetzt` | The agent sleeps: it hears only its wake words and the key |
-| `hör zu`, `hallo chora` | The agent wakes up |
-| `ja`, `okay`, `genau`, `mach das` / `nein`, `nicht`, `lieber nicht` | The answer to a question before a tool call |
-| `coding-aufgabe abbrechen` | Stops the coding task |
+| `stop`, `cancel`, `never mind`, `stopp`, `abbrechen`, `halt`, `vergiss es` | Stops the current turn: the reply, its sound and its tool call |
+| `sleep`, `go to sleep`, `schlaf`, `schlaf jetzt` | The agent sleeps: it hears only its wake words and the key |
+| `hey chora`, `listen`, `hallo chora`, `hör zu` | The agent wakes up |
+| `yes`, `okay`, `do it`, `ja`, `genau`, `mach das` / `no`, `rather not`, `nein`, `nicht`, `lieber nicht` | The answer to a question before a tool call |
+| `cancel the coding task`, `coding-aufgabe abbrechen` | Stops the coding task |
 
 While the agent speaks, you can talk over it (barge-in): the sound
 pauses, and your words decide. A stop word ends the reply. Echo of the
@@ -177,7 +265,7 @@ its latency and one summary per reply.
 `mcp` and `chora`) as `ok`, `down` or `unknown`, with its last error.
 The agent probes the websockets of the ASR and the TTS every 30 s, and
 sooner while one is down. When a server fails, you hear it: the ASR
-sounds the error earcon and says "Ich habe dich nicht verstanden.", the
+sounds the error earcon and says "I did not understand you.", the
 LLM says that it does not answer, and the TTS sounds the error earcon;
 its text still goes to the HUD. A TTS that is down gets no request for
 1 s to 30 s.
@@ -212,7 +300,9 @@ echo level over the played level.
 
 The LLM gets the tools of `choractl --name voice-mcp mcp`, except the
 event tools, `capture` and the methods of the agent itself
-(`skipped_tools`). `chora_mcp` is the command of `choractl`, so that the
+(`skipped_tools`). `skipped_tools` only hides tools: the agent itself
+refuses a call of its own clients `voice`, `voice-hud` and `voice-mcp`,
+also through `call_method`. `chora_mcp` is the command of `choractl`, so that the
 tools run in another place, for example `[podman, exec, -i, NAME,
 choractl]` in a container. Its programs then start in the container.
 When the LLM reads images and `voice-mcp` has the grant
@@ -262,16 +352,17 @@ chora-voice` stops the agent.
 An empty `coder_cmd` (the default) turns the coding tools off. With a
 harness in `coder_cmd`, the LLM gets the tools `code_task`,
 `code_status`, `code_cancel` and `list_projects`. The harness is any
-command that takes the task as its last argument. Make it a sandbox
-wrapper, such as `agent-sandbox.sh` (a podman container, read-only,
-without capabilities), around the coding agent:
+command that takes the task as its last argument. The agent starts it
+in `sandbox_cmd` (default `[agent-sandbox.sh]`: a podman container,
+read-only, without capabilities), in the directory of the task:
 
 ```yaml
-coder_cmd: [agent-sandbox.sh, claude, -p, --output-format, stream-json, --verbose]
+coder_cmd: [claude, -p, --output-format, stream-json, --verbose]
 ```
 
-Do not give a bare command such as `[claude, -p, ...]`. The task comes
-from the LLM, and so from any voice or text that steers it. A bare
+`unsandboxed: true` starts `coder_cmd` and `agent_cmd` without the
+sandbox. Do not set it on your host. The task comes from the LLM, and
+so from any voice or text that steers it. Without the sandbox, the
 harness runs that task as you, with access to all your files and keys.
 The clone below does not protect your home directory.
 
@@ -290,6 +381,77 @@ result once you and its reply are done, and keeps it in the history.
 `code_status` repeats the last result. "Coding-Aufgabe abbrechen" stops
 the task and all processes of its process group.
 
+## Agents
+
+Agents are long-lived coding agents that speak the Agent Client
+Protocol (ACP), one per project, each with a name and a voice of its
+own. An empty `agent_cmd` (the default) turns them off. Set the ACP
+command of your agent; the voice agent starts it in `sandbox_cmd`, in
+the directory of the project:
+
+```yaml
+agent_cmd: [opencode, acp]
+agent_projects: {chora: ~/Projekte/chora, notes: ~/Notes}
+agent_voices: [ryan, vivian, serena, eric]
+```
+
+So the command line of an agent is `agent-sandbox.sh opencode acp`,
+started in `~/Projekte/chora`. `agent-sandbox.sh` mounts the current
+directory into its container, keeps ACP on stdin and stdout without a
+tty, and has its own home in `~/.config/sandbox-agent-home`. Configure
+the agent there, for example the model of opencode. Note: the version
+of `agent-sandbox.sh` of 2026-10-31 drops the arguments after the
+command (its option loop never fills `ARGS`), so `acp` and the task of
+`coder_cmd` do not reach the container. Its `case` needs a last branch
+`*) ARGS+=("$1") ;;`. `{dir}` and
+`{project}` in `agent_cmd` are replaced by the project. The projects
+are those of `agent_projects` and the directories of
+`~/.local/share/chora/inventory`.
+
+Use it like this:
+
+- "Starte einen Agenten für chora mit dem Namen Atlas." The LLM calls
+  `agent_start` (it asks first, the `confirm` rule of `agent_start`).
+- "Atlas, schreib Tests für den Parser." An utterance that starts with
+  the name of an agent goes to that agent at once, without the LLM.
+  The LLM can also send work with `agent_say`.
+- "Atlas, stopp." cancels the request of Atlas and the requests that
+  wait. Requests to a busy agent wait for its turn.
+- The answer of an agent is spoken in its voice when you and the voice
+  agent are quiet. A long answer speaks its first sentence and
+  `phrases.details` ("Details on the screen."); chora-mc shows all
+  of it.
+- A permission request of an agent is spoken as "Atlas wants to edit
+  notes.txt. Allow?". Say yes or no (or "Atlas, yes"), or call
+  `voice.confirm` (privileged). No answer within `agent_permission_s`
+  (120 s) from when it is spoken is a no.
+- "Was macht Atlas?" The LLM calls `agent_status`: state, task, plan,
+  question and last words. `agent_stop` ends the agent.
+
+Pick names that the ASR hears well and that are not wake words or
+common first words: a name of five letters or more may differ by one
+letter, a shorter one must be exact. If the ASR mishears a name, the
+utterance goes to the LLM, which can still route it with `agent_say`.
+
+Each agent logs its stderr and all ACP messages (`>` sent, `<`
+received) to `~/.local/share/chora/agents/NAME.log`. The agents end
+with the voice agent: a stop, `SIGTERM` or `SIGINT` sends `TERM` to
+the process group of each agent (`podman run --rm` then removes its
+container), and `KILL` after 5 s; the voice agent exits once the
+groups ended. They do not survive a restart of the
+voice agent; start them again.
+
+chora-mc shows each agent in the status line and in the `agents` scene:
+its state, its question, its task, its plan and its last words.
+`mc agent.focus {name: atlas}` shows one agent with its transcript.
+The method `voice.agent {tool, ...}` runs the agent tools without the
+LLM, for example from a key binding:
+
+```bash
+choractl call voice agent '{"tool": "agent_start", "project": "chora", "name": "atlas"}'
+choractl call voice agent '{"tool": "agent_say", "name": "atlas", "text": "Lies das README."}'
+```
+
 ## Tests
 
 `cargo test -p chora-voice` runs the unit tests, the replay of the
@@ -297,6 +459,11 @@ corpus in `tests/data/corpus` and an end-to-end replay through the whole
 agent with fake servers. `chora-voice replay DIR...` replays recordings
 of `record_dir`. `tests/corpus.py TTS_URL` writes the corpus again with
 the live TTS, and `tests/live.py TTS_URL ASR_URL` checks the servers.
+
+`tests/voice-acp.sh` (in the repository root) runs the fake ACP agent
+`tests/fake-acp.sh` through chora-voice and chora-mc in a headless
+session: start, work, question, yes, done, stop. `SHOTS=DIR` saves a
+screenshot of the agents scene at each step.
 
 `tests/live-gate.sh [TEXT]` runs one voice turn through the whole agent
 in the running chora session, against the servers of your settings,

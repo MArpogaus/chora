@@ -14,19 +14,24 @@
 Install the hooks once in every fresh clone:
 
 ```bash
-pre-commit install --install-hooks -t pre-commit -t commit-msg
+pre-commit install --install-hooks -t pre-commit -t commit-msg -t pre-push
 ```
 
 Plain `pre-commit install` activates the `pre-commit` stage only. Check that
-`.git/hooks/` contains `pre-commit` and `commit-msg`.
+`.git/hooks/` contains `pre-commit`, `commit-msg` and `pre-push`. CI also
+runs `cargo machete`, which fails on an unused dependency.
 
 The hooks run:
 
 - `cargo fmt` and `cargo clippy` with `-D warnings`. `clippy.toml` sets the
-  complexity guards. Split a function instead of raising a limit.
+  complexity guards. Split a function instead of raising a limit. See
+  [Lints](#lints).
 - `ruff check` and `ruff format` on `services/voice/`. `ruff.toml`
   selects the rules and the complexity guards.
-- file hygiene, YAML and TOML formatting, and a spell check
+- file hygiene, YAML and TOML formatting, and `typos` (allowed
+  words are in `_typos.toml`)
+- `shellcheck` on all shell scripts (`.shellcheckrc` sets the source path).
+  Fix a finding, or add `# shellcheck disable=SCxxxx` with a reason
 - `actionlint` on the workflows
 - `commitizen` on every commit message
 
@@ -49,6 +54,54 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo deny check
 ```
+
+### Lints
+
+`[workspace.lints]` in `Cargo.toml` sets the lints of all crates. Clippy
+runs with `pedantic` and these further lints:
+
+- `unwrap_used` and `expect_used`. Tests can use both (`clippy.toml`).
+- `print_stdout` and `print_stderr`. The core logs with `tracing`.
+- `dbg_macro`, `todo` and `unimplemented`.
+
+`rustdoc::broken_intra_doc_links` is `deny`. Clippy does not run it, so
+CI also runs `cargo doc --workspace --no-deps`.
+
+Handle an error with `?`, or log it and continue. Allow a lint only where
+the code cannot fail or must print. Put the `allow` on the smallest item,
+and give a reason:
+
+```rust
+#[allow(clippy::expect_used, reason = "new_seat adds the keyboard")]
+pub fn keyboard(&self) -> KeyboardHandle<State> {
+    self.seat.get_keyboard().expect("the seat has a keyboard")
+}
+```
+
+A program that writes its output or its log to the terminal allows the
+print lints for its crate or module, for example `choractl` and the
+plugins, which log to stderr. Use `unwrap_or_else(PoisonError::into_inner)`
+for a lock.
+
+`services/voice` and `choractl` still allow `unwrap_used` and `expect_used`
+for the whole crate, until a later change removes the remaining calls.
+
+### Coverage
+
+The `coverage` job of CI runs the tests with
+[cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov). The job
+summary shows the line coverage per crate, and the `lcov` artifact holds
+`lcov.info`. There is no threshold. To measure locally, with the
+`llvm-tools` component of rustup:
+
+```bash
+cargo llvm-cov nextest --workspace --no-report
+cargo llvm-cov report --json --summary-only --output-path coverage.json
+tests/coverage-summary.sh coverage.json  # needs jq
+cargo llvm-cov report --html             # target/llvm-cov/html
+```
+
+### Tests
 
 The unit tests of the core run a core without a backend in the test
 process. `crates/chora/src/testing.rs` gives them IPC clients on socket

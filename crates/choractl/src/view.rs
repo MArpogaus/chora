@@ -166,10 +166,15 @@ fn owner(view: &str) -> String {
     format!("view-{view}")
 }
 
-fn connect(view: &str) -> Result<Client, String> {
+/// The connection of a view. A `confined` one, from `choractl mcp`, has
+/// the rules of a client socket with the grants of `view-NAME`: an agent
+/// changes the input and starts plugins only when the user granted that
+/// name.
+fn connect(view: &str, confined: bool) -> Result<Client, String> {
     let hello = Hello {
         name: owner(view),
         keep_nodes: true,
+        confined,
         ..Hello::default()
     };
     Client::from_env(&hello)
@@ -180,13 +185,13 @@ fn connect(view: &str) -> Result<Client, String> {
 /// `input.configure`: the input settings of the core.
 /// A path loads the file; a name loads `NAME.yaml`, which must name the
 /// same view.
-pub fn load(name: &str) -> Result<Value, String> {
+pub fn load(name: &str, confined: bool) -> Result<Value, String> {
     let view: View = read_yaml(&find("views", name)?)?;
     if !is_path(name) && view.name != name {
         return Err(format!("{name}.yaml names the view {:?}", view.name));
     }
     check(&view)?;
-    let mut client = connect(&view.name)?;
+    let mut client = connect(&view.name, confined)?;
     let input = match &view.input {
         Some(input) => client
             .call::<_, Value>("input.configure", input)
@@ -213,9 +218,9 @@ pub fn load(name: &str) -> Result<Value, String> {
 }
 
 /// Removes the nodes of a view.
-pub fn unload(name: &str) -> Result<Value, String> {
+pub fn unload(name: &str, confined: bool) -> Result<Value, String> {
     check_name(name)?;
-    let mut client = connect(name)?;
+    let mut client = connect(name, confined)?;
     let commands = removals(&mut client, name)?;
     let removed = commands.len();
     if !commands.is_empty() {
@@ -228,7 +233,7 @@ pub fn unload(name: &str) -> Result<Value, String> {
 
 /// Writes the current nodes of a view to its file, with the plugins of
 /// the file that was there. Returns the path.
-pub fn save(name: &str, file: Option<&str>) -> Result<Value, String> {
+pub fn save(name: &str, file: Option<&str>, confined: bool) -> Result<Value, String> {
     check_name(name)?;
     let path = match file {
         Some(f) => PathBuf::from(f),
@@ -239,7 +244,7 @@ pub fn save(name: &str, file: Option<&str>) -> Result<Value, String> {
         .and_then(|p| read_yaml::<View>(&p).ok())
         .map(|v| (v.plugins, v.input))
         .unwrap_or_default();
-    let mut client = connect(name)?;
+    let mut client = connect(name, confined)?;
     let nodes = owned(&mut client, name)?;
     let view = View {
         name: name.into(),

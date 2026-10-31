@@ -397,7 +397,7 @@ struct Keys {
 
 impl Keys {
     fn of(state: &mut State) -> Result<Self, String> {
-        let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+        let keyboard = state.keyboard();
         let source = keyboard
             .with_xkb_state(state, |context| {
                 context.xkb().lock().map(|xkb| xkb.keymap_as_string()).ok()

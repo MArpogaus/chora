@@ -343,7 +343,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
         depth: 0,
     };
     let elements = render::output_elements(&mut parts, gles, output, &view);
-    let texture = target.texture.as_mut().expect("the texture was created");
+    let texture = target.texture.as_mut().ok_or("no texture")?;
     let mut framebuffer = gles.bind(texture).map_err(|e| e.to_string())?;
     let result = target
         .damage_tracker

@@ -7,7 +7,7 @@
 
 use std::{
     collections::{BTreeMap, HashMap},
-    sync::Mutex,
+    sync::{Mutex, PoisonError},
     thread::JoinHandle,
 };
 
@@ -149,7 +149,7 @@ impl Texts {
     /// like an image without a size.
     pub fn size(&self, node: &Node) -> Option<[f64; 2]> {
         let key = props_key(node)?;
-        let mut cache = self.cache.lock().expect("the text cache lock");
+        let mut cache = self.cache.lock().unwrap_or_else(PoisonError::into_inner);
         cache.entry(&node.id, key).1.size
     }
 
@@ -157,7 +157,7 @@ impl Texts {
     pub fn retain(&self, keep: impl Fn(&str) -> bool) {
         self.cache
             .lock()
-            .expect("the text cache lock")
+            .unwrap_or_else(PoisonError::into_inner)
             .nodes
             .retain(|id, _| keep(id));
     }
@@ -171,7 +171,7 @@ impl Texts {
     ) -> Option<(MemoryRenderBuffer, [f64; 2], [f32; 2])> {
         let key = props_key(node)?;
         let scale_key = scale.to_bits();
-        let mut cache = self.cache.lock().expect("the text cache lock");
+        let mut cache = self.cache.lock().unwrap_or_else(PoisonError::into_inner);
         let (fonts, entry) = cache.entry(&node.id, key);
         let size = entry.size?;
         if let Some(raster) = entry.rasters.get(&scale_key) {
@@ -615,6 +615,7 @@ fn has_fonts(dir: &std::path::Path, depth: u8) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::print_stdout, reason = "a test without fonts prints SKIP")]
 mod tests {
     use chora_scene::{NodeKind, Props};
     use cosmic_text::{Placement, SwashContent, SwashImage};

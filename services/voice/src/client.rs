@@ -3,10 +3,11 @@
 //! on the `chora-kit` runtime.
 
 use std::{
+    collections::BTreeMap,
     path::PathBuf,
     sync::mpsc::{self, Receiver, Sender},
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use chora_kit::{
@@ -31,6 +32,9 @@ const ANSWER: Duration = Duration::from_secs(1);
 // ponytail: one thread cannot block on the socket and the channel at once,
 // so it polls; a wake-up fd if the idle wake-ups ever matter.
 const EMIT_POLL: Duration = Duration::from_millis(50);
+/// The wait before a state that the core refused goes again: the core
+/// counts its rate per second.
+const RESEND: Duration = Duration::from_secs(1);
 
 struct Client {
     rt: Runtime<()>,
@@ -123,30 +127,78 @@ fn session(
 }
 
 /// Handles the events of chora and emits the events of the HUD until the
-/// connection fails. A refused event, for example over the rate limit of
-/// the core, only logs.
+/// connection fails.
 fn serve(
     client: &mut Client,
     name: &str,
     emits: &Receiver<crate::mc::Emit>,
 ) -> Result<(), ClientError> {
+    let mut held = Held::default();
     loop {
         if let Some(event) = client.rt.conn.next_event_timeout(EMIT_POLL)? {
             runtime::dispatch(client, event)?;
         }
-        while let Ok((event, data)) = emits.try_recv() {
+        held.emit(emits.try_iter(), Instant::now(), |event, data| {
             let emit = Emit {
                 event: format!("{name}.{event}"),
-                data,
+                data: data.clone(),
             };
-            match client.rt.conn.call::<_, Value>("events.emit", emit) {
-                Err(ClientError::Rpc(e)) => crate::log::debug(&format!("events.emit: {e}")),
-                other => drop(other?),
-            }
-        }
+            client
+                .rt
+                .conn
+                .call::<_, Value>("events.emit", emit)
+                .map(drop)
+        })?;
     }
 }
 
+/// The states that the core refused over its rate limit (D65): the last
+/// `state` or `remove` of each name waits for `RESEND` and goes again,
+/// and so do the states that come meanwhile. A refused `say` is gone, as
+/// its sound plays now; another refusal only logs.
+#[derive(Default)]
+struct Held {
+    events: BTreeMap<String, crate::mc::Emit>,
+    until: Option<Instant>,
+}
+
+impl Held {
+    fn emit(
+        &mut self,
+        new: impl Iterator<Item = crate::mc::Emit>,
+        now: Instant,
+        mut send: impl FnMut(&str, &Value) -> Result<(), ClientError>,
+    ) -> Result<(), ClientError> {
+        let mut out: Vec<crate::mc::Emit> = Vec::new();
+        if self.until.is_some_and(|t| now >= t) {
+            self.until = None;
+            out.extend(std::mem::take(&mut self.events).into_values());
+        }
+        out.extend(new);
+        for (event, data) in out {
+            // The sub-agent of the state, or none for the agent.
+            let key = matches!(event, "state" | "remove")
+                .then(|| data["name"].as_str().unwrap_or_default().to_owned());
+            if let (Some(key), Some(_)) = (&key, self.until) {
+                self.events.insert(key.clone(), (event, data));
+                continue;
+            }
+            match send(event, &data) {
+                Err(ClientError::Rpc(e)) if e.code == RpcError::LIMIT_REACHED => {
+                    if let Some(key) = key {
+                        self.events.insert(key, (event, data));
+                        self.until = Some(now + RESEND);
+                    }
+                }
+                Err(ClientError::Rpc(e)) => crate::log::debug(&format!("events.emit: {e}")),
+                other => other?,
+            }
+        }
+        Ok(())
+    }
+}
+
+#[allow(clippy::too_many_lines)] // one entry per method
 fn exported_methods() -> Vec<ExportMethod> {
     let none = json!({});
     vec![
@@ -177,13 +229,14 @@ fn exported_methods() -> Vec<ExportMethod> {
             json!({"mic": {"type": "boolean"}, "speaker": {"type": "boolean"}}),
             &[],
         ),
-        runtime::method(
+        // Privileged: a yes runs programs and allows what sub-agents ask.
+        runtime::privileged(runtime::method(
             "confirm",
             "Answers the question of the agent before a tool call: yes runs the call, no \
              declines it.",
             json!({"answer": {"type": "string", "enum": ["yes", "no"]}}),
             &["answer"],
-        ),
+        )),
         runtime::method(
             "talk",
             "The push-to-talk key of another client: down stops a reply and records, up \
@@ -198,6 +251,17 @@ fn exported_methods() -> Vec<ExportMethod> {
             none.clone(),
             &[],
         ),
+        // Privileged (D62): it starts programs.
+        runtime::privileged(runtime::method(
+            "agent",
+            "Runs a tool of the ACP agents without the LLM: tool is agent_list, agent_start \
+             (project, name, voice), agent_say (name, text), agent_stop (name) or \
+             agent_status (name); answers its text.",
+            json!({"tool": {"type": "string"}, "project": {"type": "string"},
+                "name": {"type": "string"}, "voice": {"type": "string"},
+                "text": {"type": "string"}}),
+            &["tool"],
+        )),
         runtime::method(
             "restart",
             "Reads the settings file again, for example after an edit by hand.",
@@ -263,6 +327,20 @@ impl Plugin for Client {
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         let call = match method {
             "health" => return Ok(crate::health::record()),
+            "agent" => {
+                let tool = params["tool"].as_str().unwrap_or_default().to_owned();
+                if !crate::agents::TOOLS.contains(&tool.as_str()) {
+                    let tools = crate::agents::TOOLS.join(", ");
+                    return Err(RpcError::new(
+                        RpcError::INVALID_PARAMS,
+                        format!("tool: one of {tools}"),
+                    ));
+                }
+                let (tx, rx) = mpsc::channel();
+                let gone = || RpcError::new(RpcError::REJECTED, "the agent does not answer");
+                (self.tx.send(Input::AgentCall(tool, params, tx))).map_err(|_| gone())?;
+                return rx.recv_timeout(ANSWER).map_err(|_| gone());
+            }
             "state" => Call::State,
             "cancel" => Call::Cancel,
             "sleep" => Call::Sleep,
@@ -297,5 +375,82 @@ impl Plugin for Client {
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         self.apply()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, Instant};
+
+    use chora_scene::ipc::{ClientError, ExportMethod, RpcError};
+    use serde_json::{Value, json};
+
+    use super::{Held, RESEND};
+
+    /// Emits `new` at `now`; the core takes them or refuses them over its
+    /// rate limit. Answers what it took.
+    fn emit(
+        held: &mut Held,
+        new: Vec<(&'static str, Value)>,
+        now: Instant,
+        refuse: bool,
+    ) -> Vec<(String, Value)> {
+        let mut sent: Vec<(String, Value)> = Vec::new();
+        held.emit(new.into_iter(), now, |event, data| {
+            if refuse {
+                let e = RpcError::new(RpcError::LIMIT_REACHED, "too many");
+                return Err(ClientError::Rpc(e));
+            }
+            sent.push((event.to_owned(), data.clone()));
+            Ok(())
+        })
+        .unwrap();
+        sent
+    }
+
+    /// A burst over the rate limit: the last state of each name goes
+    /// again after the wait, a removal too; a refused sentence is gone.
+    #[test]
+    fn refused_states_go_again_after_the_wait() {
+        let mut held = Held::default();
+        let none: Vec<(String, Value)> = Vec::new();
+        let t0 = Instant::now();
+        let state = |name: &str, s: &str| ("state", json!({"name": name, "state": s}));
+        let burst = vec![
+            state("a", "working"),
+            ("say", json!({"text": "Hallo"})),
+            state("b", "idle"),
+            ("remove", json!({"name": "b"})),
+            ("state", json!({"state": "listening"})),
+        ];
+        assert_eq!(emit(&mut held, burst, t0, true), none);
+        // Within the wait a new state waits behind the others.
+        assert_eq!(emit(&mut held, vec![state("a", "done")], t0, false), none);
+        let before = t0 + RESEND.saturating_sub(Duration::from_millis(1));
+        assert_eq!(emit(&mut held, vec![], before, false), none);
+        let mut sent = emit(&mut held, vec![], t0 + RESEND, false);
+        sent.sort_by_key(|(_, d)| d.to_string());
+        let want = [
+            ("remove", json!({"name": "b"})),
+            ("state", json!({"name": "a", "state": "done"})),
+            ("state", json!({"state": "listening"})),
+        ];
+        let mut want: Vec<(String, Value)> = want.map(|(e, d)| (e.to_owned(), d)).into();
+        want.sort_by_key(|(_, d)| d.to_string());
+        assert_eq!(sent, want);
+        assert_eq!(emit(&mut held, vec![], t0 + RESEND * 2, false), none);
+    }
+
+    /// A yes and the agent tools start programs: a confined client needs
+    /// `methods.privileged` for them.
+    #[test]
+    fn confirm_and_agent_are_privileged() {
+        let privileged: Vec<String> = (super::exported_methods().into_iter())
+            .filter_map(|m| match m {
+                ExportMethod::Described(d) if d.privileged => Some(d.name),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(privileged, ["confirm", "agent"]);
     }
 }

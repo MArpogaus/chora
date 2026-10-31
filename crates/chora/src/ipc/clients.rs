@@ -391,7 +391,10 @@ impl ClientSocket {
 /// Creates the private directories of a client and binds its IPC and its
 /// Wayland socket. A failure leaves no socket or directory of the client.
 fn open(dir: &Path) -> std::io::Result<(UnixListener, UnixListener)> {
-    private_dir(dir.parent().expect("clients/"))?;
+    let parent = dir
+        .parent()
+        .ok_or_else(|| std::io::Error::other("no clients/"))?;
+    private_dir(parent)?;
     private_dir(dir)?;
     let bound = bind(&dir.join(IPC)).and_then(|ipc| Ok((ipc, bind(&dir.join(WAYLAND))?)));
     if bound.is_err() {

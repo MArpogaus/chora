@@ -4,6 +4,11 @@
 //! Exposé theme and of the Windows XP pack. Windows wobble, minimize
 //! through a magic lamp, and live on the four faces of a desktop cube.
 
+#![allow(
+    clippy::print_stderr,
+    reason = "a plugin logs to stderr, which the session keeps"
+)]
+
 mod apps;
 mod balloon;
 mod cascade;

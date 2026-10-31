@@ -37,6 +37,7 @@ for i, (name, cmd) in enumerate(tries()):
         leak += 1
 sys.exit(1 if leak else 0)
 EOF
+# shellcheck disable=SC2181 # the status is that of the here-document command above
 if [ $? != 0 ]; then
   finding "W6: client socket box accepted a forbidden command" crash "see try lines in $RUN"
 fi

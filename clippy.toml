@@ -1,3 +1,7 @@
+# unwrap and expect are fine in tests. Elsewhere, handle the error, or
+# allow the lint with a reason where the call cannot fail.
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true
 # Complexity guards. Split a function instead of raising a limit.
 # A nesting limit of 5 allows the impl > fn > loop > match > arm shape
 # of an event handler.

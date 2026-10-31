@@ -696,7 +696,9 @@ impl Wm {
         }
         let next = &self.outputs[next];
         let (name, tags) = (next.name.clone(), nonzero(next.selected));
-        let window = self.window_mut(&id).expect("focused");
+        let Some(window) = self.window_mut(&id) else {
+            return;
+        };
         (window.output, window.tags) = (name, tags);
         self.focus(&id);
     }
@@ -717,8 +719,10 @@ impl Wm {
                     .is_some_and(|w| w.minimized && w.output == name && w.tags & selected != 0)
             })
             .cloned();
-        if let Some(id) = restored {
-            self.window_mut(&id).expect("found").minimized = false;
+        if let Some(id) = restored
+            && let Some(window) = self.window_mut(&id)
+        {
+            window.minimized = false;
             self.focus(&id);
         }
     }
@@ -729,8 +733,10 @@ impl Wm {
     }
 
     fn with_focused(&mut self, change: impl FnOnce(&mut Window)) {
-        if let Some(id) = self.focused().map(String::from) {
-            change(self.window_mut(&id).expect("focused"));
+        if let Some(id) = self.focused().map(String::from)
+            && let Some(window) = self.window_mut(&id)
+        {
+            change(window);
         }
     }
 
@@ -893,6 +899,7 @@ impl Wm {
     }
 }
 
+#[allow(clippy::expect_used, reason = "the model has string keys only")]
 fn json(value: &impl Serialize) -> String {
     serde_json::to_string(value).expect("the model always serializes")
 }
@@ -991,15 +998,26 @@ fn nonzero(tags: u16) -> u16 {
 
 /// An index `step` places further, wrapping around.
 fn wrap(index: usize, step: isize, len: usize) -> usize {
-    let len = isize::try_from(len).expect("a few windows");
-    let index = isize::try_from(index).expect("a few windows");
-    usize::try_from((index + step).rem_euclid(len)).expect("rem_euclid is not negative")
+    let step_len = step.unsigned_abs() % len;
+    if step < 0 {
+        (index + len - step_len) % len
+    } else {
+        (index + step_len) % len
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config::DEFAULT;
+
+    #[test]
+    fn wrap_goes_around_both_ways() {
+        assert_eq!(wrap(2, 1, 3), 0);
+        assert_eq!(wrap(0, -1, 3), 2);
+        assert_eq!(wrap(1, -4, 3), 0);
+        assert_eq!(wrap(1, 5, 3), 0);
+    }
 
     fn wm(windows: &[&str]) -> Wm {
         let mut wm = Wm::new(chora_kit::settings::parse::<Config>(DEFAULT).unwrap());

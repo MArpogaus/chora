@@ -11,6 +11,7 @@ step "opened 10 probe windows, count=$(count_windows)"
 
 layouts="tile tile_left tile_bottom tile_top fair fair_horizontal spiral dwindle max fullscreen magnifier floating"
 for i in $(seq 20); do
+  # shellcheck disable=SC2086 # a list of words
   l=$(echo $layouts | cut -d' ' -f$((i % 12 + 1)))
   ctl call tiling set_layout "{\"layout\": \"$l\"}" > /dev/null 2>&1 || finding "W1: set_layout $l refused" wrong "choractl call tiling set_layout $l"
   health "layout change $i to $l"

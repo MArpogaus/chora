@@ -140,7 +140,7 @@ fn chunk(data: &[u8], at: usize) -> Option<(&[u8], &[u8], usize)> {
 fn format(body: &[u8]) -> Option<u32> {
     let field = |at: usize| u16::from_le_bytes([body[at], body[at + 1]]);
     let pcm16 = body.len() >= 16 && (field(0), field(2), field(14)) == (1, 1, 16);
-    pcm16.then(|| u32::from_le_bytes(body[4..8].try_into().expect("4 bytes")))
+    pcm16.then(|| u32::from_le_bytes([body[4], body[5], body[6], body[7]]))
 }
 
 /// The header of a WAV file of 16 bit mono PCM; `len` is the number of

@@ -43,6 +43,7 @@ echo "[{\"update\": {\"id\": \"$id\", \"props\": {\"opacity\": 0.5}}}]" | ctl ap
 opacity "the requested opacity"
 ctl call tiling set_layout '{"layout": "max"}' >/dev/null || fail "the relayout"
 opacity "after the relayout"
+# shellcheck disable=SC2015 # C runs when A or B fails, which is the intent
 ctl call tiling move_to_tag "{\"surface\": \"$id\", \"tag\": 2}" >/dev/null &&
     ctl call tiling view_tag '{"tag": 2}' >/dev/null || fail "the move to tag 2"
 opacity "after the move to tag 2"
@@ -53,7 +54,7 @@ for _ in $(seq 50); do
     sleep 0.2
 done
 ctl call tiling get_layout >/dev/null 2>&1 || fail "tiling did not come back"
-echo "$(ctl query "id:$id")" | grep -q '"owner": *"tiling"' || fail "the window after the restart"
+grep -q '"owner": *"tiling"' <<<"$(ctl query "id:$id")" || fail "the window after the restart"
 opacity "after the restart"
 rm -rf "$config"
 ok "the requested opacity 0.5 stays over a relayout, a tag move and a restart"

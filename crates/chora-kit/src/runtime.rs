@@ -179,14 +179,13 @@ impl<A> Runtime<A> {
     ///
     /// # Errors
     ///
-    /// The socket fails, or the core refuses an ungrab.
-    ///
-    /// # Panics
-    ///
-    /// The core named a grabbed binding that does not parse.
+    /// The socket fails, the core refuses an ungrab, or the core named a
+    /// grabbed binding that does not parse.
     pub fn ungrab_all(&mut self) -> Result<(), ClientError> {
         for (normal, _) in std::mem::take(&mut self.grabs) {
-            let binding = normal.parse().expect("the core names valid bindings");
+            let binding = normal.parse().map_err(|err| {
+                RpcError::new(RpcError::INVALID_PARAMS, format!("{normal}: {err}"))
+            })?;
             self.conn
                 .call::<_, Value>("input.ungrab", Grab { binding })?;
         }

@@ -12,7 +12,7 @@
 //! configuration. The backends have no adaptive sync, so the global has
 //! version 3.
 
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 
 use smithay::{
     output::{Mode, Output, PhysicalProperties},
@@ -402,7 +402,7 @@ impl Pending {
                         object
                             .data::<Mutex<OutputChanges>>()?
                             .lock()
-                            .expect("not poisoned")
+                            .unwrap_or_else(PoisonError::into_inner)
                             .clone(),
                     ),
                 };
@@ -421,7 +421,10 @@ impl State {
         head: &ZwlrOutputHeadV1,
         choice: Choice,
     ) {
-        let mut pending = configuration.pending.lock().expect("not poisoned");
+        let mut pending = configuration
+            .pending
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         if !self
             .output_management
             .usable(object, configuration.serial, &mut pending)
@@ -448,7 +451,10 @@ impl State {
         apply: bool,
     ) {
         let config = {
-            let mut pending = configuration.pending.lock().expect("not poisoned");
+            let mut pending = configuration
+                .pending
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
             if !self
                 .output_management
                 .usable(object, configuration.serial, &mut pending)
@@ -637,7 +643,7 @@ impl Dispatch<ZwlrOutputConfigurationHeadV1, Mutex<OutputChanges>> for State {
         _handle: &DisplayHandle,
         _data_init: &mut DataInit<'_, Self>,
     ) {
-        let mut changes = changes.lock().expect("not poisoned");
+        let mut changes = changes.lock().unwrap_or_else(PoisonError::into_inner);
         match request {
             config_head::Request::SetMode { mode } => {
                 if let Some(mode) = mode.data::<Mode>() {

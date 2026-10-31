@@ -36,7 +36,8 @@ for _ in $(seq 50); do
 done
 CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock") ||
     fail "no chora socket: $(cat "$out/chora.log")"
-export CHORA_SOCKET WAYLAND_DISPLAY=$(basename "$CHORA_SOCKET" .sock)
+WAYLAND_DISPLAY=$(basename "$CHORA_SOCKET" .sock)
+export CHORA_SOCKET WAYLAND_DISPLAY
 foot --title=gate4 sh -c "read line; printf %s \"\$line\" >$out/typed.txt" &
 pids+=($!)
 sleep 3

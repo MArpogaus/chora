@@ -2,6 +2,10 @@
 //! through a speech gate with Silero VAD; the agent is a chora client
 //! with methods, settings and a push-to-talk key.
 
+// Some modules still unwrap; they are cleaned in the follow-up package.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
+mod agents;
 mod asr;
 mod audio;
 mod chat;
@@ -116,6 +120,11 @@ enum Command {
     Levels,
 }
 
+#[allow(
+    clippy::print_stdout,
+    clippy::expect_used,
+    reason = "the subcommands print their results; the defaults serialize"
+)]
 fn main() -> ExitCode {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -136,22 +145,25 @@ fn main() -> ExitCode {
     }
     let result = settings::File::<Config>::path(args.config.clone(), "chora-voice")
         .and_then(|path| settings::File::load(path, "{}"))
-        .and_then(|settings| match &args.command {
-            Some(Command::Gate { file }) => gate(&settings.value, file),
-            Some(Command::Replay { dirs }) => {
-                let dirs: Vec<&Path> = dirs.iter().map(AsRef::as_ref).collect();
-                let (lines, _) = replay::run(&settings.value, &dirs)?;
-                println!("{}", lines.join("\n"));
-                Ok(())
+        .and_then(|settings: settings::File<Config>| {
+            let config = settings.value.localized();
+            match &args.command {
+                Some(Command::Gate { file }) => gate(&config, file),
+                Some(Command::Replay { dirs }) => {
+                    let dirs: Vec<&Path> = dirs.iter().map(AsRef::as_ref).collect();
+                    let (lines, _) = replay::run(&config, &dirs)?;
+                    println!("{}", lines.join("\n"));
+                    Ok(())
+                }
+                Some(Command::Asr { file }) => live::asr(&config, file),
+                Some(Command::Tts { text, out }) => live::tts(&config, text, out.as_deref()),
+                Some(Command::Roundtrip { text }) => live::roundtrip(&config, text),
+                Some(Command::Ask { text, speak, yes }) => {
+                    live::ask(&config, &mcp_name(&args.name), text, *speak, *yes)
+                }
+                Some(Command::Levels) => live::levels(&config),
+                None => run(args.name, settings),
             }
-            Some(Command::Asr { file }) => live::asr(&settings.value, file),
-            Some(Command::Tts { text, out }) => live::tts(&settings.value, text, out.as_deref()),
-            Some(Command::Roundtrip { text }) => live::roundtrip(&settings.value, text),
-            Some(Command::Ask { text, speak, yes }) => {
-                live::ask(&settings.value, &mcp_name(&args.name), text, *speak, *yes)
-            }
-            Some(Command::Levels) => live::levels(&settings.value),
-            None => run(args.name, settings),
         });
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -168,17 +180,41 @@ fn mcp_name(name: &str) -> String {
     format!("{name}-mcp")
 }
 
+/// SIGTERM and SIGINT quit the loop of the agent, which then stops its
+/// sub-agents.
+async fn quit_on_signal(tx: mpsc::Sender<Input>) {
+    use tokio::signal::unix::{SignalKind, signal};
+    let (Ok(mut term), Ok(mut int)) = (
+        signal(SignalKind::terminate()),
+        signal(SignalKind::interrupt()),
+    ) else {
+        return;
+    };
+    tokio::select! {
+        _ = term.recv() => {}
+        _ = int.recv() => {}
+    }
+    let _ = tx.send(Input::Quit);
+}
+
 /// Runs the agent until chora stays away or a thread ends.
 fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
-    let config = settings.value.clone();
+    let config = settings.value.localized();
     log::info(&format!("settings: {}", settings.file().display()));
     let vad = Vad::new().map_err(|e| format!("the VAD model: {e}"))?;
     let net = tokio::runtime::Runtime::new().map_err(|e| format!("tokio: {e}"))?;
     let (tx, rx) = mpsc::channel();
     let mcp = mcp_name(&name);
     let mut tools = Tools::chora(&config, &mcp);
-    let coder = coder::Coder::new(config.coder_cmd.clone(), coder::data_dir(), tx.clone());
+    tools.own.clone_from(&name);
+    let coder = coder::Coder::new(
+        config.spawn(&config.coder_cmd),
+        coder::data_dir(),
+        tx.clone(),
+    );
     tools.coder = Some(coder.clone());
+    let agents = agents::Agents::new(&config, coder::data_dir(), tx.clone());
+    tools.agents = Some(agents.clone());
     let chat = net.block_on(Chat::start(
         config.clone(),
         mcp,
@@ -187,7 +223,9 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     ))?;
     let mut agent = Agent::new(config.clone(), chat, net, tx.clone());
     agent.coder = Some(coder);
+    agent.agents = Some(agents.clone());
     agent.warm();
+    agent.net.spawn(quit_on_signal(tx.clone()));
     agent.mic = Some(Mic::start(
         config.capture_cmd,
         Analyzer::new(vad),
@@ -197,10 +235,25 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     agent.mc = Some(mc::start(&name, emits));
     client::start(name, settings, tx, emitted);
     log::info(&format!("started, {:?}", agent.core.state()));
-    while let Ok(input) = rx.recv() {
-        agent.step(input)?;
-    }
-    Err("an audio thread ended".into())
+    let result = loop {
+        match rx.recv() {
+            Ok(Input::Quit) => break Ok(()),
+            Ok(Input::AgentCall(tool, args, reply)) => {
+                // agent_start spawns its actor on the runtime.
+                let _runtime = agent.net.enter();
+                let _ = reply.send(agents.call(&tool, &args));
+            }
+            Ok(input) => {
+                if let Err(e) = agent.step(input) {
+                    break Err(e);
+                }
+            }
+            Err(_) => break Err("an audio thread ended".into()),
+        }
+    };
+    // The sub-agents end with the agent.
+    agents.shutdown();
+    result
 }
 
 /// The core and the actors that run its effects.
@@ -222,11 +275,14 @@ struct Agent {
     /// its coder.
     mc: Option<mpsc::Sender<mc::Report>>,
     reported: [Option<serde_json::Value>; 2],
+    /// The last reports of the sub-agents.
+    reported_subs: std::collections::BTreeMap<String, serde_json::Value>,
     /// The state that the indicator shows; none without it.
     dot: Option<core::State>,
-    /// The URLs of the ASR and the TTS for the health probes.
-    probe: tokio::sync::watch::Sender<[String; 2]>,
+    /// The ASR and the TTS for the health probes.
+    probe: tokio::sync::watch::Sender<health::Probed>,
     coder: Option<coder::Coder>,
+    agents: Option<agents::Agents>,
 }
 
 impl Agent {
@@ -248,9 +304,11 @@ impl Agent {
             reply: None,
             mc: None,
             reported: [None, None],
+            reported_subs: std::collections::BTreeMap::new(),
             dot: None,
-            probe: tokio::sync::watch::Sender::new([String::new(), String::new()]),
+            probe: tokio::sync::watch::Sender::new([Err(String::new()), Err(String::new())]),
             coder: None,
+            agents: None,
         }
     }
 
@@ -259,8 +317,7 @@ impl Agent {
     /// Starts the health probes of the ASR and the TTS.
     fn warm(&self) {
         let config = self.core.config();
-        self.probe
-            .send_replace([config.asr_url.clone(), config.tts_url.clone()]);
+        let _ = self.probe.send_replace([config.asr(), config.tts()]);
         self.net.spawn(health::probe(self.probe.subscribe()));
         let chat = self.chat.clone();
         self.net.spawn(async move {
@@ -271,7 +328,15 @@ impl Agent {
     }
 
     /// Runs an input through the core and its effects.
-    fn step(&mut self, input: Input) -> Result<(), String> {
+    fn step(&mut self, mut input: Input) -> Result<(), String> {
+        // The agent works with the phrases of `reply_language`.
+        match &mut input {
+            Input::Settings(config) => **config = config.localized(),
+            Input::Code(coder::Event::Done { said, .. }) => {
+                *said = self.core.config().code_said(said);
+            }
+            _ => {}
+        }
         self.input(&input);
         for effect in self.core.handle(input) {
             self.effect(effect)?;
@@ -295,6 +360,18 @@ impl Agent {
                 *reported = Some(report);
             }
         }
+        let subs = self.core.subs();
+        for (name, record) in subs {
+            if self.reported_subs.get(name) != Some(record) {
+                let _ = mc.send(mc::Report::Agent(record.clone()));
+            }
+        }
+        for name in self.reported_subs.keys() {
+            if !subs.contains_key(name) {
+                let _ = mc.send(mc::Report::Gone(name.clone()));
+            }
+        }
+        self.reported_subs.clone_from(subs);
         let dot = self.core.config().indicator.then(|| self.core.state());
         if dot != self.dot {
             let _ = mc.send(mc::Report::State(dot));
@@ -331,9 +408,9 @@ impl Agent {
                     self.recorder = start_recording(&new.record_dir);
                 }
                 self.speaker.set_cmd(new.playback_cmd.clone());
-                self.probe.send_if_modified(|urls| {
-                    let new = [new.asr_url.clone(), new.tts_url.clone()];
-                    std::mem::replace(urls, new.clone()) != new
+                self.probe.send_if_modified(|servers| {
+                    let new = [new.asr(), new.tts()];
+                    std::mem::replace(servers, new.clone()) != new
                 });
                 let (chat, config) = (self.chat.clone(), (**new).clone());
                 self.net.spawn(async move {
@@ -397,6 +474,8 @@ impl Agent {
                 }
             }
             Effect::StopCode => self.stop_code(),
+            Effect::AgentPrompt { name, text } => self.to_agent(&name, Some(&text)),
+            Effect::AgentCancel(name) => self.to_agent(&name, None),
             Effect::Say { text, at, len } => {
                 if let Some(mc) = &self.mc {
                     let _ = mc.send(mc::Report::Say { text, at, len });
@@ -418,12 +497,16 @@ impl Agent {
             speak,
             ended,
             say,
+            voice,
         } = ask
         else {
             return;
         };
         let (chat, tx) = (self.chat.clone(), self.tx.clone());
-        let config = self.core.config().clone();
+        let mut config = self.core.config().clone();
+        if let Some(voice) = voice.filter(|v| !v.is_empty()) {
+            config.voice = voice;
+        }
         let speaker = speak.then(|| self.speaker.clone());
         let (speech, control) = tokio::sync::mpsc::unbounded_channel();
         let (stop, mut stopped) = oneshot::channel::<String>();
@@ -468,6 +551,15 @@ impl Agent {
         self.reply = Some((speech, stop));
     }
 
+    /// A prompt for a sub-agent said to it by name; none cancels.
+    fn to_agent(&self, name: &str, text: Option<&str>) {
+        let Some(agents) = &self.agents else { return };
+        log::info(&match text {
+            Some(text) => agents.prompt(name, text),
+            None => agents.cancel(name),
+        });
+    }
+
     fn stop_code(&self) {
         let said = self.coder.as_ref().map(coder::Coder::cancel);
         log::info(&format!(
@@ -479,11 +571,11 @@ impl Agent {
     /// Sends `pcm` to the ASR; the text comes back as an input.
     fn transcribe(&self, turn: u64, interim: bool, pcm: Vec<i16>) {
         let config = self.core.config();
-        let (url, language) = (config.asr_url.clone(), config.language.clone());
+        let request = asr::Request::new(config, &projects(config));
         let timeout = Duration::from_secs(config.asr_timeout_s.into());
         let (tx, busy) = (self.tx.clone(), self.interim_busy.clone());
         self.net.spawn(async move {
-            let result = asr::transcribe(&url, &language, &pcm, timeout).await;
+            let result = asr::transcribe(&request, &pcm, timeout).await;
             if interim {
                 busy.store(false, Ordering::SeqCst);
             }
@@ -514,6 +606,20 @@ fn start_recording(dir: &str) -> Option<Recorder> {
     }
 }
 
+/// The projects of the agents for the prompt of the ASR: those of
+/// `agent_projects` and of the inventory.
+fn projects(config: &Config) -> Vec<String> {
+    let inventory = std::fs::read_dir(coder::data_dir().join("inventory"));
+    let inventory = (inventory.into_iter().flatten().flatten())
+        .map(|e| e.file_name().to_string_lossy().into_owned());
+    config
+        .agent_projects
+        .keys()
+        .cloned()
+        .chain(inventory)
+        .collect()
+}
+
 /// A leading `~/` is the home directory.
 fn expand(path: &str) -> PathBuf {
     match (path.strip_prefix("~/"), std::env::var_os("HOME")) {
@@ -523,6 +629,7 @@ fn expand(path: &str) -> PathBuf {
 }
 
 /// `chora-voice gate FILE`: the utterances of a file, with their times.
+#[allow(clippy::print_stdout, reason = "the result of the subcommand")]
 fn gate(config: &Config, file: &Path) -> Result<(), String> {
     for line in utterances(config, file)? {
         println!("{line}");

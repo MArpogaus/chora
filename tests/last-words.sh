@@ -2,8 +2,8 @@
 # The core's last words: a faulting signal leaves a backtrace in the log.
 set -u
 repo=$(cd "$(dirname "$0")/.." && pwd)
-bin=${BIN:-$repo/target/debug}
-export CHORA_LOG=$(mktemp -t last-words.XXXXXX)
+CHORA_LOG=$(mktemp -t last-words.XXXXXX)
+export CHORA_LOG
 "$repo/tests/headless-session.sh" 800x600 > /tmp/last-words.env 2>&1 &
 for _ in $(seq 60); do grep -q CHORA_SOCKET /tmp/last-words.env && break; sleep 0.5; done
 core=$(pgrep -x chora | tail -1)

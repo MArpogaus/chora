@@ -52,7 +52,7 @@ const FILES: [(&str, &str); 3] = [
 /// The note of the final round when `tool_rounds` is reached; it does
 /// not stay in the history.
 const LAST_ROUND: &str = "(The agent: you reached the limit of tool calls for this request. \
-    Call no tool. In the language of the user, say in one or two short sentences what you did \
+    Call no tool. In your reply language, say in one or two short sentences what you did \
     and what is left.)";
 
 /// The part of the prompt for the coding tools, with a `coder_cmd`.
@@ -64,6 +64,15 @@ const CODING: &str = "# Coding tasks\n\n\
   clone keeps it uncommitted. One task runs at a time; code_status says how far it is, \
   code_cancel stops it.\n\
 - When the user asks about a spoken coding result, call code_status.";
+
+/// The part of the prompt for the ACP agents, with an `agent_cmd`.
+const AGENTS: &str = "# Agents\n\n\
+- Coding agents work in the projects of agent_list, one per project, each with its own \
+  name and voice. agent_start starts one; it keeps its conversation until agent_stop.\n\
+- Hand work in a project to its agent with agent_say, in full: it hears nothing else. \
+  Its answer is spoken in its voice when it is done; you need not repeat it.\n\
+- The user can also talk to an agent directly by its name; agent_status tells what each \
+  agent does, its plan and its last words.";
 
 /// The characters that a picture counts for in the estimate, instead of
 /// its base64 text.
@@ -194,7 +203,10 @@ impl Chat {
         };
         self.llm = Llm::new(&self.config);
         if let Some(coder) = &self.tools.coder {
-            coder.set_cmd(self.config.coder_cmd.clone());
+            coder.set_cmd(self.config.spawn(&self.config.coder_cmd));
+        }
+        if let Some(agents) = &self.tools.agents {
+            agents.configure(&self.config);
         }
         self.tools.timeout = Duration::from_secs(self.config.tool_timeout_s.into());
         self.tools.skipped.clone_from(&self.config.skipped_tools);
@@ -251,11 +263,15 @@ impl Chat {
         if !config.coder_cmd.is_empty() {
             parts.push(CODING.into());
         }
+        if !config.agent_cmd.is_empty() {
+            parts.push(AGENTS.into());
+        }
         if let Ok(text) =
             chora_kit::read_text(&crate::expand(&config.prompt_file), chora_kit::MAX_TEXT)
         {
             parts.push(text);
         }
+        parts.push(format!("# Language\n\n{}", config.reply_rule()));
         if !self.earlier.is_empty() {
             let lines: Vec<String> = self
                 .earlier
@@ -850,7 +866,12 @@ mod tests {
         let seen = server.seen.lock().unwrap();
         let system = seen[0]["messages"][0]["content"].as_str().unwrap();
         assert!(
-            system.starts_with("Du bist ein Test.\n\n# File "),
+            system.starts_with("Du bist ein Test.\n\n# File ")
+                && system.ends_with(
+                    "# Language\n\nAlways answer in English, even when the user \
+                                     speaks another language. Change the language only when \
+                                     the user asks for it."
+                ),
             "{system}"
         );
         assert!(seen[0]["tools"].as_array().unwrap().len() > 3);
@@ -899,7 +920,7 @@ mod tests {
         let (_, events) = turn(&mut chat, "Such.", true).await;
         assert_eq!(
             events.last().unwrap(),
-            "say Ich habe nach zu vielen Werkzeugaufrufen aufgehört."
+            "say I stopped after too many tool calls."
         );
     }
 
@@ -948,7 +969,7 @@ mod tests {
             Reply::Text("Drei."),
         ];
         let config = Config {
-            context_tokens: 400,
+            context_tokens: 430,
             reply_reserve_tokens: 0,
             ..Config::default()
         };
@@ -990,7 +1011,7 @@ mod tests {
         assert_eq!(report.outcome, "llm_error");
         assert_eq!(
             events.last().unwrap(),
-            "say Das Sprachmodell antwortet nicht."
+            "say The language model does not answer."
         );
     }
 

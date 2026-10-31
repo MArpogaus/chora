@@ -1052,6 +1052,12 @@ units `chora-NAME.service` instead. A view whose plugin unit runs
 already, for example while the plugin starts, waits for that plugin.
 `choractl view load` works only from the main socket: a view connects
 as `view-NAME`, and a client socket refuses any name but its own.
+The MCP tools `load_view`, `save_view` and `unload_view` confine the
+connection `view-NAME` as `choractl mcp` confines its own. So the
+rules above hold for it with the grants of `view-NAME`: `input` needs
+`methods.privileged`, a plugin start `activation.token` and a `config`
+`methods.call`. A view of nodes only needs no grant. The user grants
+them to the name of a view that an agent may load in full.
 
 ## MCP tools
 

@@ -95,7 +95,7 @@ fn take_host_keymap(state: &mut State) {
         return;
     }
     let keymap = super::host_keymap::fetch().ok_or("the host sent no keymap");
-    let keyboard = state.seat.get_keyboard().expect("the seat has a keyboard");
+    let keyboard = state.keyboard();
     let taken = keymap.and_then(|k| {
         keyboard
             .set_keymap_from_string(state, k)

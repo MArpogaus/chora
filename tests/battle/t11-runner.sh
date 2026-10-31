@@ -8,6 +8,7 @@ echo "$(date -Is) runner start (core dead findings before: $base)" >> "$bt/t11-r
 for i in $(seq 10); do
   run=$bt/run-t11-w5-$i.md
   echo "# T11 W5 iteration $i $(date -Is)" > "$run"
+  # shellcheck disable=SC2094 # the run file is only appended to
   RUN="$run" timeout 1800 bash "$bt/w5.sh" >> "$run" 2>&1
   echo "exit=$?" >> "$run"
   now=$(grep -c '^## core dead' "$bt/findings.md")

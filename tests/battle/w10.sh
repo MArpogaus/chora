@@ -36,7 +36,7 @@ pids=()
 for i in $(seq 8); do pids+=("$(open $((i*30)) 60 $((250-i*30)) --server-deco)"); done
 wait_count "app_id:chora-probe kind:surface" 8 || finding "W10: $(count_windows) of 8 windows" wrong "8 runs on xp"
 ids=$(surfaces)
-for round in 1 2 3; do
+for _ in 1 2 3; do
   for s in $ids; do ctl call xp minimize "{\"surface\": \"$s\"}" >/dev/null 2>&1 & done
   wait_bg
   for s in $ids; do ctl call xp restore "{\"surface\": \"$s\"}" >/dev/null 2>&1 & done
@@ -51,8 +51,10 @@ for s in $ids; do
 done
 [ $hidden = 0 ] || finding "W10: $hidden of 8 windows stay hidden after minimize/restore bursts" wrong "3x parallel minimize, restore, activate of 8 windows"
 # maximize two windows with their max button, twice (maximize, restore)
+# shellcheck disable=SC2086 # a list of words
 for s in $(echo $ids | cut -d' ' -f1-2); do
   for _ in 1 2; do
+    # shellcheck disable=SC2086 # $xy is the pair x y
     xy=$(center "xp-max-$s"); [ -n "$xy" ] && click $xy
     sleep 0.5
   done
@@ -62,9 +64,11 @@ health "minimize/restore/maximize bursts"
 # 2. cube turns while windows move and restore
 for i in $(seq 12); do
   ctl call xp turn_to "{\"desktop\": $((i % 4))}" >/dev/null 2>&1 &
+  # shellcheck disable=SC2086 # a list of words
   s=$(echo $ids | cut -d' ' -f$((i % 8 + 1)))
   xy=$(center "xp-title-$s")
   if [ -n "$xy" ]; then
+    # shellcheck disable=SC2086 # $xy is the pair x y
     set -- $xy
     inject "[{\"pointer_move\": {\"position\": [$1, $2], \"output\": \"HEADLESS-1\"}}, {\"button\": {\"state\": \"pressed\"}}, {\"pointer_move\": {\"position\": [$(($1+40)), $(($2+30))], \"output\": \"HEADLESS-1\"}}, {\"button\": {\"state\": \"released\"}}]" >/dev/null
   fi
@@ -163,6 +167,7 @@ inject '[{"key": {"key": "u", "state": "pressed"}}, {"key": {"key": "u", "state"
 sleep 0.5
 inject '[{"key": {"key": "Return", "state": "pressed"}}, {"key": {"key": "Return", "state": "released"}}]' >/dev/null
 sleep 2
+# shellcheck disable=SC2012 # plain file names
 step "session marks: $(ls "$mark".* 2>/dev/null | tr '\n' ' ')"
 health "Turn Off dialog"
 

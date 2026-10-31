@@ -6,6 +6,8 @@
 //! in place when a plugin pans the scene. Panels reserve exclusive zones;
 //! the rest of an output is its work area.
 
+use std::sync::PoisonError;
+
 use smithay::{
     desktop::{LayerSurface, WindowSurfaceType, layer_map_for_output},
     output::Output,
@@ -95,10 +97,11 @@ impl State {
             return false;
         };
         let configured = with_states(surface, |states| {
-            states
-                .data_map
-                .get::<LayerSurfaceData>()
-                .is_some_and(|d| d.lock().expect("not poisoned").initial_configure_sent)
+            states.data_map.get::<LayerSurfaceData>().is_some_and(|d| {
+                d.lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .initial_configure_sent
+            })
         });
         // A client of a client socket that moves its layer surface to the
         // overlay layer loses it.

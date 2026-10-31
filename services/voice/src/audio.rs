@@ -5,7 +5,7 @@ use std::{
     io::{self, Read, Write},
     process::{Child, Command, Stdio},
     sync::{
-        Arc, Mutex,
+        Arc, Mutex, PoisonError,
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Sender},
     },
@@ -101,7 +101,7 @@ impl Mic {
         thread::spawn(move || {
             let mut backoff = Duration::from_millis(500);
             loop {
-                let cmd = cmd.lock().expect("no panic with the lock").clone();
+                let cmd = cmd.lock().unwrap_or_else(PoisonError::into_inner).clone();
                 let started = Instant::now();
                 let ended = capture(&cmd, &slot, &mut analyzer, &tx);
                 if matches!(ended, Err(Ended::CoreGone)) {
@@ -131,9 +131,14 @@ impl Mic {
 
     /// Starts the capture again with a new command.
     pub fn restart(&self, cmd: Vec<String>) {
-        *self.cmd.lock().expect("no panic with the lock") = cmd;
+        *self.cmd.lock().unwrap_or_else(PoisonError::into_inner) = cmd;
         self.restarting.store(true, Ordering::SeqCst);
-        if let Some(child) = self.child.lock().expect("no panic with the lock").as_mut() {
+        if let Some(child) = self
+            .child
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_mut()
+        {
             let _ = child.kill();
         }
     }
@@ -153,8 +158,9 @@ fn capture(
 ) -> Result<(), Ended> {
     let mut child =
         spawn(cmd, Stdio::null(), Stdio::piped()).map_err(|e| Ended::Mic(e.to_string()))?;
+    #[allow(clippy::expect_used, reason = "spawned with a piped stdout")]
     let mut out = child.stdout.take().expect("piped");
-    *slot.lock().expect("no panic with the lock") = Some(child);
+    *slot.lock().unwrap_or_else(PoisonError::into_inner) = Some(child);
     let mut bytes = vec![0; FRAME * 2];
     let result = loop {
         if let Err(e) = out.read_exact(&mut bytes) {
@@ -168,7 +174,7 @@ fn capture(
             break Err(Ended::CoreGone);
         }
     };
-    if let Some(mut child) = slot.lock().expect("no panic with the lock").take() {
+    if let Some(mut child) = slot.lock().unwrap_or_else(PoisonError::into_inner).take() {
         let _ = child.kill();
         let _ = child.wait();
     }
@@ -220,9 +226,10 @@ impl Speaker {
     pub fn stream(&self) -> io::Result<Player> {
         self.stop();
         let mut child = spawn(&self.cmd, Stdio::piped(), Stdio::null())?;
+        #[allow(clippy::expect_used, reason = "spawned with a piped stdin")]
         let mut stdin = child.stdin.take().expect("piped");
         let id = child.id();
-        *self.child.lock().expect("no panic with the lock") = Some(child);
+        *self.child.lock().unwrap_or_else(PoisonError::into_inner) = Some(child);
         let slot = self.child.clone();
         let (tx, rx) = mpsc::channel::<Vec<i16>>();
         thread::spawn(move || {
@@ -240,7 +247,7 @@ impl Speaker {
             drop(stdin);
             let end = end + Duration::from_secs(1);
             loop {
-                let mut slot = slot.lock().expect("no panic with the lock");
+                let mut slot = slot.lock().unwrap_or_else(PoisonError::into_inner);
                 let Some(child) = slot.as_mut().filter(|c| c.id() == id) else {
                     return;
                 };
@@ -259,7 +266,12 @@ impl Speaker {
 
     /// Stops the sound at once.
     pub fn stop(&self) {
-        if let Some(mut child) = self.child.lock().expect("no panic with the lock").take() {
+        if let Some(mut child) = self
+            .child
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take()
+        {
             let _ = child.kill();
             let _ = child.wait();
         }

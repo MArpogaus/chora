@@ -317,6 +317,7 @@ click 280 $((menu_y + 85)) || fail "the click failed"
 wait_for menu_visible false
 wait_for count_is 3
 # The event can reach the file after the window shows.
+# shellcheck disable=SC2016 # a jq program, $app is a jq variable
 created='select(.event == "surface.created" and (.app_id // "" | ascii_downcase) == $app)'
 wait_for jq -e --arg app "${file_manager%% *}" "$created" "$out/fm-created.jsonl"
 kill "$fm_job" 2>/dev/null || true

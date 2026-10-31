@@ -1,6 +1,8 @@
 //! The subcommands that check the servers of the settings by hand:
 //! `asr FILE`, `tts TEXT`, `roundtrip [TEXT]`, `ask TEXT` and `levels`.
 
+#![allow(clippy::print_stdout, reason = "the subcommands print their results")]
+
 use std::{
     path::Path,
     time::{Duration, Instant},
@@ -52,12 +54,8 @@ fn speak(config: &Config, text: &str) -> Result<Vec<i16>, String> {
 
 fn transcribe(config: &Config, pcm: &[i16]) -> Result<(), String> {
     let timeout = Duration::from_secs(config.asr_timeout_s.into());
-    let t = runtime()?.block_on(asr::transcribe(
-        &config.asr_url,
-        &config.language,
-        pcm,
-        timeout,
-    ))?;
+    let request = asr::Request::new(config, &crate::projects(config));
+    let t = runtime()?.block_on(asr::transcribe(&request, pcm, timeout))?;
     println!(
         "asr after_commit={}ms audio={}ms text={:?}",
         t.after_commit.as_millis(),

@@ -653,6 +653,10 @@ impl Scene {
         index: Option<usize>,
     ) -> Result<(), SceneError> {
         let node = self.owned_mut(owner, id)?;
+        #[allow(
+            clippy::expect_used,
+            reason = "only the root has no parent, and no client owns it"
+        )]
         let parent = parent
             .map(str::to_owned)
             .or_else(|| node.parent.clone())
@@ -751,6 +755,7 @@ impl Scene {
                 node.children.clear();
             }
         }
+        #[allow(clippy::expect_used, reason = "the root is never removed")]
         let root = self.nodes.get_mut(ROOT).expect("the root always exists");
         root.children.clone_from(&surfaces);
         root.props = Props::default();
@@ -764,6 +769,7 @@ impl Scene {
             .iter()
             .zip(cells)
             .map(|(id, [x, y, w, h])| {
+                #[allow(clippy::expect_used, reason = "collected above")]
                 let node = self.nodes.get_mut(id).expect("collected above");
                 node.owner = None;
                 node.to = None;
@@ -981,6 +987,7 @@ impl Scene {
             let node = &self.nodes[id];
             check_props(id, node.kind, props)?;
             check_meta(id, &node.props.meta, props)?;
+            #[allow(clippy::expect_used, reason = "props have string keys only")]
             let args = serde_json::to_value(props).expect("props serialize");
             effects.push(request(owner, id, other, "update", args));
             return Ok(());
@@ -989,6 +996,7 @@ impl Scene {
         check_props(id, node.kind, props)?;
         check_meta(id, &node.props.meta, props)?;
         self.animations.remove(id);
+        #[allow(clippy::expect_used, reason = "checked above")]
         let node = self.nodes.get_mut(id).expect("owned above");
         let Some((duration, easing)) = timing else {
             node.props.apply(props);
@@ -1129,6 +1137,7 @@ impl Scene {
         detached
     }
 
+    #[allow(clippy::expect_used, reason = "the caller checks both nodes")]
     fn link(&mut self, id: &str, parent: &str, index: Option<usize>) {
         let siblings = &mut self
             .nodes
@@ -1704,6 +1713,7 @@ fn configure(surface: &str, size: Option<[i32; 2]>, states: Vec<ToplevelState>) 
 /// The error of an `update` of a foreign node that mixes the look, which
 /// the owner gets as a request, with props that only the owner changes.
 fn mixed_request(id: &str, owner: &str, props: &PropsUpdate) -> SceneError {
+    #[allow(clippy::expect_used, reason = "props have string keys only")]
     let props = serde_json::to_value(props).expect("props serialize");
     let owner_only: Vec<&str> = (props.as_object().into_iter().flatten())
         .map(|(key, _)| key.as_str())

@@ -1,5 +1,13 @@
 //! Command line client for the chora IPC socket.
 
+// Some modules still unwrap; they are cleaned in the follow-up package.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "choractl answers on stdout and reports errors on stderr"
+)]
+
 #[cfg(test)]
 mod docs;
 mod events;
@@ -854,9 +862,9 @@ fn asset(client: &mut Client, action: AssetCmd) -> Result<(), String> {
 /// Runs a view command with the client of the view.
 fn view_command(action: &ViewCmd) -> Result<(), String> {
     let result = match action {
-        ViewCmd::Load { view } => view::load(view),
-        ViewCmd::Unload { view } => view::unload(view),
-        ViewCmd::Save { view, file } => view::save(view, file.as_deref()),
+        ViewCmd::Load { view } => view::load(view, false),
+        ViewCmd::Unload { view } => view::unload(view, false),
+        ViewCmd::Save { view, file } => view::save(view, file.as_deref(), false),
     }?;
     print(&result);
     Ok(())
