@@ -222,6 +222,12 @@ const AGENTS: &str = "# Agents\n\n\
 /// The characters that a picture counts for in the estimate, instead of
 /// its base64 text.
 const PICTURE_CHARS: usize = 4000;
+/// The note for the turns that left the history.
+const DROPPED_NOTE: &str = "Earlier in this talk, shortened; the full text is gone, so \
+    say so when you are asked for details that are not here:";
+/// Characters of one line of the note, and of the whole note.
+const DROPPED_LINE: usize = 160;
+const DROPPED_CHARS: usize = 3000;
 
 /// The result of a tool call that the user stopped.
 pub const CANCELLED: &str = "cancelled by the user; result unknown";
@@ -357,6 +363,9 @@ pub struct Chat {
     config: Config,
     /// The system prompt with the documents and the earlier requests.
     system: String,
+    /// What the dropped turns said, one short line each: the requests and
+    /// the final answers; sent as a system note.
+    dropped: String,
     /// The messages after the system prompt.
     history: Vec<Value>,
     chars_per_token: f64,
@@ -422,6 +431,7 @@ impl Chat {
             llm,
             tools,
             system: String::new(),
+            dropped: String::new(),
             history: Vec::new(),
             chars_per_token: 3.0,
             context_tokens,
@@ -887,8 +897,13 @@ impl Chat {
     fn request(&mut self, last: bool, retry: bool, budget: u32) -> (Value, Vec<Value>, usize) {
         let tools = self.tools.specs.clone();
         let fixed = self.system.len() + serde_json::to_string(&tools).map_or(0, |t| t.len());
+        self.drop_old_images();
         self.fit(budget, fixed);
         let mut messages = vec![json!({"role": "system", "content": self.system})];
+        if !self.dropped.is_empty() {
+            let note = format!("{DROPPED_NOTE}\n{}", self.dropped);
+            messages.push(json!({"role": "system", "content": note}));
+        }
         messages.extend(self.history.iter().cloned());
         if last {
             messages.push(json!({"role": "user", "content": LAST_ROUND}));
@@ -904,6 +919,24 @@ impl Chat {
         }
         let chars = fixed + size(&messages[1..]);
         (body, messages, chars)
+    }
+
+    /// Only the latest picture stays in the history: it is a screen
+    /// that is gone, and a picture costs seconds of prompt time.
+    fn drop_old_images(&mut self) {
+        let is_image = |p: &Value| p["type"] == "image_url";
+        let mut seen = false;
+        for m in self.history.iter_mut().rev() {
+            let Some(parts) = m["content"].as_array_mut() else {
+                continue;
+            };
+            for p in parts.iter_mut().rev().filter(|p| is_image(p)) {
+                if seen {
+                    *p = json!({"type": "text", "text": "[image dropped]"});
+                }
+                seen = true;
+            }
+        }
     }
 
     /// Learns the characters per token from `usage.prompt_tokens`; not
@@ -1188,7 +1221,20 @@ impl Chat {
                 return;
             };
             crate::log::info(&format!("history: dropped a turn, ~{tokens:.0} tokens"));
-            self.history.drain(..=next);
+            for m in self.history.drain(..=next) {
+                let (who, text) = match (m["role"].as_str(), m["tool_calls"].is_null()) {
+                    (Some("user"), _) => ("user", text_of(&m["content"])),
+                    (Some("assistant"), true) => ("you", text_of(&m["content"])),
+                    _ => continue,
+                };
+                if !text.trim().is_empty() && text != NUDGE && text != STOPPED {
+                    let line = format!("{who}: {}\n", short(text.trim(), DROPPED_LINE));
+                    self.dropped.push_str(&line);
+                }
+            }
+            // The oldest lines go first. ponytail: cuts at a char, not a line.
+            let extra = self.dropped.chars().count().saturating_sub(DROPPED_CHARS);
+            self.dropped = self.dropped.chars().skip(extra).collect();
         }
     }
 
@@ -2619,6 +2665,51 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn dropped_turns_stay_as_a_short_note_and_old_pictures_go() {
+        let config = Config {
+            history_tokens: 100,
+            ..Config::default()
+        };
+        let (mut chat, _server) = chat(Vec::new(), config).await;
+        let long = "Punkt eins bis zehn. ".repeat(50);
+        for i in 0..4 {
+            chat.history.extend([
+                json!({"role": "user", "content": format!("Bitte {i}.")}),
+                json!({"role": "assistant", "content": "", "tool_calls": [
+                    {"id": "c", "type": "function",
+                     "function": {"name": "echo", "arguments": "{}"}}]}),
+                json!({"role": "tool", "tool_call_id": "c", "content": [
+                    {"type": "text", "text": "t"},
+                    {"type": "image_url", "image_url": {"url": "data:x"}}]}),
+                json!({"role": "assistant", "content": long}),
+            ]);
+        }
+        let (body, ..) = chat.request(false, false, u32::MAX);
+        let messages = body["messages"].as_array().unwrap();
+        let note = messages[1]["content"].as_str().unwrap();
+        assert_eq!(messages[1]["role"], "system");
+        assert!(note.contains("user: Bitte 0.\nyou: Punkt eins"), "{note}");
+        assert!(!note.contains("tool"), "{note}");
+        assert!(note.lines().all(|l| l.chars().count() <= DROPPED_LINE + 6));
+    }
+
+    #[tokio::test]
+    async fn only_the_latest_picture_stays_in_the_history() {
+        let (mut chat, _server) = chat(Vec::new(), Config::default()).await;
+        for i in 0..3 {
+            chat.history
+                .push(json!({"role": "tool", "tool_call_id": i, "content": [
+                {"type": "text", "text": "t"},
+                {"type": "image_url", "image_url": {"url": "data:x"}}]}));
+        }
+        chat.drop_old_images();
+        let all = serde_json::to_string(&chat.history).unwrap();
+        assert_eq!(all.matches("\"type\":\"image_url").count(), 1, "{all}");
+        assert_eq!(all.matches("[image dropped]").count(), 2);
+        assert!(chat.history[2]["content"][1]["image_url"].is_object());
+    }
+
+    #[tokio::test]
     async fn an_llm_that_is_away_says_so() {
         let (tools, _) = tools::tests::fake(0);
         let config = Config {
@@ -2648,6 +2739,7 @@ mod tests {
             tools: tools::tests::fake(0).0,
             config: Config::default(),
             system: String::new(),
+            dropped: String::new(),
             history: vec![
                 json!({"role": "user", "content": "Shader."}),
                 json!({"role": "assistant", "content": "", "tool_calls": [
