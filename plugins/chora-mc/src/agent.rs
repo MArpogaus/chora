@@ -238,10 +238,12 @@ impl Mc {
             Some(agent) => format!("Agents  ·  {}", crate::title_of(&agent.name)),
             None => format!("Agents  ·  {running} running"),
         });
-        let columns = (scene.panels.iter())
+        let slots = (scene.panels.iter())
             .filter(|p| p.id.starts_with("agent-"))
-            .count()
-            .saturating_sub(1);
+            .count();
+        let columns = slots.saturating_sub(1);
+        let grid = scene.grid.unwrap_or(self.settings.value.grid)[0];
+        let count = (focused.as_ref()).map_or(shown.len(), |_| slots);
         let transcript = focused
             .as_ref()
             .map(|a| transcript(&a.log, columns))
@@ -253,6 +255,10 @@ impl Mc {
                 continue;
             };
             let agent = n.checked_sub(1).and_then(|i| shown.get(i));
+            let panel = &Panel {
+                cell: agent_cell(panel.cell, n, count.min(slots), grid),
+                ..panel.clone()
+            };
             let new = match (kind, agent) {
                 ("agent", None) if focused.is_some() => Panel {
                     title: if n == 2 {
@@ -373,6 +379,17 @@ impl Mc {
     }
 }
 
+/// The cell of the `n`-th column of the agents, for `count` agents on a
+/// grid of `grid` columns: one agent takes the whole width, two take half
+/// each, more take a column each. A column without an agent lies under
+/// the last one with an agent.
+fn agent_cell([_, y, _, h]: [u32; 4], n: usize, count: usize, grid: u32) -> [u32; 4] {
+    let (n, count) = (n.min(count).max(1), count.max(1));
+    let span = u32::try_from(count).map_or(1, |c| (grid / c).max(1));
+    let at = u32::try_from(n - 1).unwrap_or_default() * span;
+    [at.min(grid.saturating_sub(span)), y, span, h]
+}
+
 /// The transcript in `columns` columns of about the same length, the
 /// newest line last in the last column; an empty line between two.
 fn transcript(log: &[String], columns: usize) -> Vec<Vec<String>> {
@@ -403,6 +420,16 @@ fn band(agent: &Agent) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn one_agent_takes_the_whole_width_two_half_each() {
+        let cell = [0, 0, 1, 2];
+        assert_eq!(super::agent_cell(cell, 1, 1, 4), [0, 0, 4, 2]);
+        assert_eq!(super::agent_cell(cell, 3, 1, 4), [0, 0, 4, 2]);
+        assert_eq!(super::agent_cell(cell, 2, 2, 4), [2, 0, 2, 2]);
+        assert_eq!(super::agent_cell(cell, 3, 3, 4), [2, 0, 1, 2]);
+        assert_eq!(super::agent_cell(cell, 4, 4, 4), [3, 0, 1, 2]);
+    }
+
     #[test]
     fn the_transcript_flows_into_columns_newest_last() {
         let log: Vec<String> = ["a", "b", "c", "d", "e"].map(Into::into).to_vec();

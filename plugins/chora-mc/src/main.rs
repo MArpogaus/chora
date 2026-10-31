@@ -1282,16 +1282,19 @@ impl Mc {
 
     /// The hairline of a panel, in the middle of the space before its
     /// margin; outside the panel, which `panel.set` replaces.
+    /// A rule shows beside a panel with text, not at the left edge of the
+    /// text block; else it is clear, so that `replace_panel` always
+    /// finds one to replace.
     fn rule(&self, name: &str, panel: &Panel) -> Option<Command> {
-        let color = self.settings.value.colors().get(panel.rule.as_ref()?)?;
         let ([x, y, _, h], geo) = (self.place(name, panel)?, self.geometry(name)?);
-        // No rule at the left edge of the text block.
-        if x <= geo.text[0] {
-            return None;
-        }
+        let shown = x > geo.text[0] && !(panel.title.is_empty() && panel.lines.is_empty());
+        let color = (panel.rule.as_ref().filter(|_| shown))
+            .and_then(|c| self.settings.value.colors().get(c))
+            .copied()
+            .unwrap_or_default();
         let line = [(x - geo.note - 1.5 * geo.gap).round(), y, 1.0, h];
         let id = format!("{}-rule", panel_id(name, &panel.id));
-        Some(region::rect(&id, &panels_id(name), line, *color))
+        Some(region::rect(&id, &panels_id(name), line, color))
     }
 
     /// A style of the settings, changed by a scene; a change that fails
@@ -1472,10 +1475,20 @@ impl Mc {
         let (cell, grid) = if fit >= cols {
             (panel.cell, [cols, rows])
         } else {
-            let cells: Vec<_> = scene.panels.iter().map(|p| p.cell).collect();
+            // An empty panel takes no room.
+            let cells: Vec<_> = (scene.panels.iter())
+                .map(|p| {
+                    let [x, y, w, h] = p.cell;
+                    let empty = p.title.is_empty() && p.lines.is_empty();
+                    [x, y, w, if empty { 0 } else { h }]
+                })
+                .collect();
             let (flowed, flowed_rows) = scene::flow(&cells, fit);
             let at = scene.panels.iter().position(|p| p.id == panel.id)?;
-            (flowed[at], [fit, flowed_rows])
+            // It still gets its own height: a node of no size stalls the
+            // shader of the write.
+            let [x, y, w, _] = flowed[at];
+            ([x, y, w, panel.cell[3]], [fit, flowed_rows.max(1)])
         };
         let row = ((h - gap[1] * f64::from(rows - 1)) / f64::from(rows)).max(min_h);
         let shown = f64::from(grid[1]);
@@ -2163,7 +2176,7 @@ impl Mc {
         let updates = (!write)
             .then(|| in_place(&self.panel(&scene, &old), &created))
             .flatten();
-        let commands = updates.unwrap_or_else(|| {
+        let mut commands = updates.unwrap_or_else(|| {
             let mut commands = vec![Command::Remove {
                 id: panel_id(&scene, &new.id),
                 to: None,
@@ -2174,6 +2187,11 @@ impl Mc {
             }
             commands
         });
+        commands.push(Command::Remove {
+            id: format!("{}-rule", panel_id(&scene, &new.id)),
+            to: None,
+        });
+        commands.extend(self.rule(&scene, new));
         self.apply(commands)
             .and_then(|()| self.align(&scene))
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
