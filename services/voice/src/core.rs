@@ -509,8 +509,12 @@ impl Core {
         // answer tells the LLM so. Speech that started in time still
         // answers while it records or waits for its text.
         let until = self.confirm_until;
-        let in_time = (self.gate.pcm().is_some() && self.onset <= until)
-            || self.pending.iter().any(|p| p.onset <= until);
+        // It also started after the question did: an older text, still
+        // in the ASR, answers nothing and keeps nothing open.
+        let from = self.confirm_from;
+        let in_time = |onset: Instant| from.is_some_and(|f| onset >= f) && onset <= until;
+        let in_time = (self.gate.pcm().is_some() && in_time(self.onset))
+            || self.pending.iter().any(|p| in_time(p.onset));
         if self.confirm.is_some() && Instant::now() >= until && !in_time {
             crate::log::info("confirm: no answer in time");
             self.confirm = None;
@@ -2065,6 +2069,21 @@ mod tests {
         assert!(!effects.iter().any(|e| matches!(e, Effect::ConfirmDone(_))));
         core.handle(text(turn.expect("an utterance"), false, Ok("Ja.")));
         assert_eq!(rx.try_recv(), Ok(Some(true)));
+    }
+
+    /// Review rc3 round 3, 2.12: a text said before the question, still
+    /// in the ASR, does not keep the question open after its deadline.
+    #[test]
+    fn an_older_utterance_does_not_keep_a_question_open() {
+        let mut core = asking();
+        speak(&mut core, 10);
+        quiet(&mut core, 26);
+        assert_eq!(core.pending.len(), 1);
+        let mut rx = confirm(&mut core, "Wirklich?");
+        core.confirm_until = Instant::now();
+        let effects = core.handle(frame(0.0));
+        assert!(effects.iter().any(|e| matches!(e, Effect::ConfirmDone(_))), "{effects:?}");
+        assert_eq!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed));
     }
 
     /// Review 0.9.0-rc.3: a text said before the question plays never
