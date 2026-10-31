@@ -26,7 +26,8 @@ pub struct Confirm {
     pub prompt: String,
 }
 
-/// The canned sentences of the agent.
+/// The canned sentences of the agent, in English; `reply_language: de`
+/// turns each one that keeps its default into German.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct Phrases {
@@ -49,13 +50,13 @@ pub struct Phrases {
 impl Default for Phrases {
     fn default() -> Self {
         Self {
-            llm_down: "Das Sprachmodell antwortet nicht.".into(),
-            llm_slow: "Das Sprachmodell braucht zu lange.".into(),
-            tool_rounds: "Ich habe nach zu vielen Werkzeugaufrufen aufgehört.".into(),
-            asr_failed: "Ich habe dich nicht verstanden.".into(),
-            details: "Details auf dem Bildschirm.".into(),
-            agent_asks: "{name} möchte {what}. Erlauben?".into(),
-            agent_ended: "{name} hat sich beendet.".into(),
+            llm_down: "The language model does not answer.".into(),
+            llm_slow: "The language model takes too long.".into(),
+            tool_rounds: "I stopped after too many tool calls.".into(),
+            asr_failed: "I did not understand you.".into(),
+            details: "Details on the screen.".into(),
+            agent_asks: "{name} wants to {what}. Allow?".into(),
+            agent_ended: "{name} has ended.".into(),
         }
     }
 }
@@ -64,18 +65,43 @@ impl Default for Phrases {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
+    /// The realtime transcription websocket of the ASR.
     pub asr_url: String,
+    /// The served name of the ASR model.
+    pub asr_model: String,
+    /// The environment variable with the API key of the ASR; empty: none.
+    pub asr_api_key_env: String,
+    /// The file with the API key of the ASR; `%d` is the credentials
+    /// directory of systemd, `~/` the home directory; empty: none.
+    pub asr_api_key_file: String,
+    /// Extra headers of the ASR requests.
+    pub asr_headers: BTreeMap<String, String>,
+    /// The language of the speaker, for example `de`; `auto` lets the ASR
+    /// find it.
+    pub asr_language: String,
+    /// The words that the ASR must know; the agent adds the wake and stop
+    /// words and the projects.
+    pub asr_prompt: String,
+    /// The speech websocket of the TTS.
     pub tts_url: String,
-    pub llm_url: String,
-    /// The served name of the models.
-    pub model: String,
+    pub tts_model: String,
+    pub tts_api_key_env: String,
+    pub tts_api_key_file: String,
+    pub tts_headers: BTreeMap<String, String>,
     /// A voice of the TTS server.
     pub voice: String,
-    /// The language of the ASR.
-    pub language: String,
     /// The language of the TTS, for example `German`; `auto` lets the
-    /// model choose; empty follows `language`.
+    /// model choose; empty follows `reply_language`.
     pub tts_language: String,
+    /// The OpenAI-compatible base URL of the LLM.
+    pub llm_url: String,
+    pub llm_model: String,
+    pub llm_api_key_env: String,
+    pub llm_api_key_file: String,
+    pub llm_headers: BTreeMap<String, String>,
+    /// The language of the answers, for example `en` or `de`; `de` also
+    /// turns the default phrases and confirm prompts into German.
+    pub reply_language: String,
     /// The interval of the interim transcripts while the user speaks, in
     /// ms; 0 turns them off.
     pub asr_interim_ms: u32,
@@ -209,19 +235,19 @@ fn rule(tool: &str, prompt: &str) -> Confirm {
 
 /// The tools that ask first (docs/voice.md section 9).
 fn default_confirm() -> Vec<Confirm> {
-    let restart = "Soll ich das Plugin neu starten?";
+    let restart = "Shall I restart the plugin?";
     vec![
         Confirm {
             commands: words(&["remove", "close"]),
-            ..rule("apply_commands", "Soll ich das entfernen?")
+            ..rule("apply_commands", "Shall I remove that?")
         },
-        rule("unload_view", "Soll ich die Ansicht entfernen?"),
-        rule("inject_input", "Soll ich tippen oder klicken?"),
-        rule("code_task", "Soll ich die Programmieraufgabe starten?"),
-        rule("agent_start", "Soll ich den Agenten starten?"),
+        rule("unload_view", "Shall I remove the view?"),
+        rule("inject_input", "Shall I type or click?"),
+        rule("code_task", "Shall I start the coding task?"),
+        rule("agent_start", "Shall I start the agent?"),
         // A program can do all that the user can (D42).
-        rule("run_program", "Soll ich das Programm {program} starten?"),
-        rule("configure_output", "Soll ich den Bildschirm ändern?"),
+        rule("run_program", "Shall I start the program {program}?"),
+        rule("configure_output", "Shall I change the screen?"),
         rule("*.restart", restart),
         Confirm {
             method: Some("*.restart".into()),
@@ -241,26 +267,227 @@ impl Config {
     }
 
     /// The language of the TTS: `tts_language`, else the one of
-    /// `language`. With `auto`, the TTS made short German clips hard to
-    /// understand (WP6).
+    /// `reply_language`. With `auto`, the TTS made short German clips hard
+    /// to understand (WP6).
     pub fn tts_language(&self) -> &str {
         if !self.tts_language.is_empty() {
             return &self.tts_language;
         }
-        match self.language.as_str() {
-            "de" => "German",
-            "en" => "English",
-            "fr" => "French",
-            "it" => "Italian",
-            "es" => "Spanish",
-            "pt" => "Portuguese",
-            "ru" => "Russian",
-            "zh" => "Chinese",
-            "ja" => "Japanese",
-            "ko" => "Korean",
-            _ => "auto",
-        }
+        language_name(&self.reply_language).unwrap_or("auto")
     }
+
+    /// The ASR server, with its key and headers.
+    ///
+    /// # Errors
+    ///
+    /// The key is not there.
+    pub fn asr(&self) -> Result<Backend, String> {
+        let (env, file) = (&self.asr_api_key_env, &self.asr_api_key_file);
+        let server = [&self.asr_url, &self.asr_model, env, file];
+        backend("asr", server, &self.asr_headers)
+    }
+
+    /// The TTS server, with its key and headers.
+    ///
+    /// # Errors
+    ///
+    /// The key is not there.
+    pub fn tts(&self) -> Result<Backend, String> {
+        let (env, file) = (&self.tts_api_key_env, &self.tts_api_key_file);
+        let server = [&self.tts_url, &self.tts_model, env, file];
+        backend("tts", server, &self.tts_headers)
+    }
+
+    /// The LLM server, with its key and headers.
+    ///
+    /// # Errors
+    ///
+    /// The key is not there.
+    pub fn llm(&self) -> Result<Backend, String> {
+        let (env, file) = (&self.llm_api_key_env, &self.llm_api_key_file);
+        let server = [&self.llm_url, &self.llm_model, env, file];
+        backend("llm", server, &self.llm_headers)
+    }
+
+    /// The prompt of the ASR: `asr_prompt`, the wake, sleep and stop words
+    /// and `names`, each once.
+    pub fn asr_prompt<'a>(&'a self, names: impl IntoIterator<Item = &'a String>) -> String {
+        let words = (self.wake_words.iter())
+            .chain(&self.sleep_words)
+            .chain(&self.cancel_words)
+            .chain(names);
+        let mut out = self.asr_prompt.trim().to_owned();
+        for word in words {
+            if !out.to_lowercase().contains(&word.to_lowercase()) {
+                if !out.is_empty() {
+                    out.push_str(", ");
+                }
+                out.push_str(word);
+            }
+        }
+        out
+    }
+
+    /// The sentence of the system prompt about the language of the
+    /// answers.
+    pub fn reply_rule(&self) -> String {
+        let lang = language_name(&self.reply_language).unwrap_or(&self.reply_language);
+        format!(
+            "Answer in {lang}, also when the user speaks another language, unless the user \
+             asks for another one."
+        )
+    }
+
+    /// The settings as the agent uses them: with `reply_language: de`,
+    /// the phrases and confirm prompts that keep their English default
+    /// in German.
+    #[must_use]
+    pub fn localized(&self) -> Self {
+        let mut out = self.clone();
+        if self.reply_language != "de" {
+            return out;
+        }
+        let p = &mut out.phrases;
+        let texts = [
+            &mut p.llm_down,
+            &mut p.llm_slow,
+            &mut p.tool_rounds,
+            &mut p.asr_failed,
+            &mut p.details,
+            &mut p.agent_asks,
+            &mut p.agent_ended,
+        ];
+        let prompts = out.confirm.iter_mut().map(|r| &mut r.prompt);
+        for text in texts.into_iter().chain(prompts) {
+            if let Some((_, de)) = GERMAN.iter().find(|(en, _)| en == text) {
+                *text = (*de).into();
+            }
+        }
+        out
+    }
+
+    /// The spoken result of a coding task in `reply_language`.
+    pub fn code_said(&self, said: &str) -> String {
+        if self.reply_language != "de" {
+            return said.into();
+        }
+        // ponytail: the English sentence of `coder.rs` piece by piece; a
+        // phrase per state in the settings when another language needs it.
+        (CODE_GERMAN.iter()).fold(said.to_owned(), |s, (en, de)| s.replacen(en, de, 1))
+    }
+}
+
+/// The default phrases and confirm prompts, and their German.
+const GERMAN: [(&str, &str); 15] = [
+    (
+        "The language model does not answer.",
+        "Das Sprachmodell antwortet nicht.",
+    ),
+    (
+        "The language model takes too long.",
+        "Das Sprachmodell braucht zu lange.",
+    ),
+    (
+        "I stopped after too many tool calls.",
+        "Ich habe nach zu vielen Werkzeugaufrufen aufgehört.",
+    ),
+    (
+        "I did not understand you.",
+        "Ich habe dich nicht verstanden.",
+    ),
+    ("Details on the screen.", "Details auf dem Bildschirm."),
+    (
+        "{name} wants to {what}. Allow?",
+        "{name} möchte {what}. Erlauben?",
+    ),
+    ("{name} has ended.", "{name} hat sich beendet."),
+    ("Shall I remove that?", "Soll ich das entfernen?"),
+    (
+        "Shall I remove the view?",
+        "Soll ich die Ansicht entfernen?",
+    ),
+    ("Shall I type or click?", "Soll ich tippen oder klicken?"),
+    (
+        "Shall I start the coding task?",
+        "Soll ich die Programmieraufgabe starten?",
+    ),
+    ("Shall I start the agent?", "Soll ich den Agenten starten?"),
+    (
+        "Shall I start the program {program}?",
+        "Soll ich das Programm {program} starten?",
+    ),
+    (
+        "Shall I change the screen?",
+        "Soll ich den Bildschirm ändern?",
+    ),
+    (
+        "Shall I restart the plugin?",
+        "Soll ich das Plugin neu starten?",
+    ),
+];
+
+/// The pieces of the spoken coding result of `coder.rs`, and their German.
+const CODE_GERMAN: [(&str, &str); 4] = [
+    ("The coding task in ", "Die Programmieraufgabe in "),
+    (" is done.", " ist fertig."),
+    (" failed.", " ist fehlgeschlagen."),
+    (" was cancelled.", " wurde abgebrochen."),
+];
+
+/// The English name of a language code, as the TTS and the LLM take it.
+fn language_name(code: &str) -> Option<&'static str> {
+    Some(match code {
+        "de" => "German",
+        "en" => "English",
+        "fr" => "French",
+        "it" => "Italian",
+        "es" => "Spanish",
+        "pt" => "Portuguese",
+        "ru" => "Russian",
+        "zh" => "Chinese",
+        "ja" => "Japanese",
+        "ko" => "Korean",
+        _ => return None,
+    })
+}
+
+/// A server of the agent: its URL, its model and the headers of each
+/// request.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Backend {
+    pub url: String,
+    pub model: String,
+    pub headers: Vec<(String, String)>,
+}
+
+/// The server `name` of URL, model, key variable and key file: the key
+/// goes into `Authorization: Bearer`, as `OpenAI` takes it over HTTP and on
+/// its realtime websocket.
+fn backend(
+    name: &str,
+    [url, model, env, file]: [&String; 4],
+    headers: &BTreeMap<String, String>,
+) -> Result<Backend, String> {
+    let key = if !env.is_empty() {
+        Some(std::env::var(env).map_err(|_| format!("{name}_api_key_env: no {env}"))?)
+    } else if !file.is_empty() {
+        let dir = std::env::var("CREDENTIALS_DIRECTORY").unwrap_or_default();
+        let path = crate::expand(&file.replace("%d", &dir));
+        let key = std::fs::read_to_string(&path)
+            .map_err(|e| format!("{name}_api_key_file: {}: {e}", path.display()))?;
+        Some(key)
+    } else {
+        None
+    };
+    let mut out: Vec<(String, String)> = headers.clone().into_iter().collect();
+    if let Some(key) = key {
+        out.push(("Authorization".into(), format!("Bearer {}", key.trim())));
+    }
+    Ok(Backend {
+        url: url.into(),
+        model: model.into(),
+        headers: out,
+    })
 }
 
 impl Default for Config {
@@ -268,12 +495,25 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             asr_url: "ws://127.0.0.1:8881/v1/realtime?intent=transcription".into(),
+            asr_model: "gufo".into(),
+            asr_api_key_env: String::new(),
+            asr_api_key_file: String::new(),
+            asr_headers: BTreeMap::new(),
+            asr_language: "auto".into(),
+            asr_prompt: "Chora, Coder".into(),
             tts_url: "ws://127.0.0.1:8882/v1/audio/speech/stream".into(),
-            llm_url: "http://127.0.0.1:8888/v1".into(),
-            model: "gufo".into(),
+            tts_model: "gufo".into(),
+            tts_api_key_env: String::new(),
+            tts_api_key_file: String::new(),
+            tts_headers: BTreeMap::new(),
             voice: "aiden".into(),
-            language: "de".into(),
             tts_language: String::new(),
+            llm_url: "http://127.0.0.1:8888/v1".into(),
+            llm_model: "gufo".into(),
+            llm_api_key_env: String::new(),
+            llm_api_key_file: String::new(),
+            llm_headers: BTreeMap::new(),
+            reply_language: "en".into(),
             asr_interim_ms: 0,
             capture_cmd: pcm_cmd("pw-record"),
             playback_cmd: pcm_cmd("pw-play"),
@@ -292,13 +532,25 @@ impl Default for Config {
             barge_in_min_rms: 300.0,
             barge_in_coupling: 0.1,
             word_max_ms: 2000,
-            sleep_words: words(&["schlaf", "schlaf jetzt"]),
-            wake_words: words(&["hör zu", "hallo chora"]),
-            cancel_words: words(&["stopp", "stop", "abbrechen", "halt", "vergiss es"]),
-            code_cancel_words: words(&["coding-aufgabe abbrechen", "programmieraufgabe abbrechen"]),
-            yes_words: words(&["ja", "okay", "genau", "mach das"]),
-            no_words: words(&["nein", "nicht", "lieber nicht"]),
-            filler_words: words(&["bitte", "jetzt", "mal"]),
+            sleep_words: words(&["sleep", "go to sleep", "schlaf", "schlaf jetzt"]),
+            wake_words: words(&["hey chora", "listen", "hallo chora", "hör zu"]),
+            cancel_words: words(&[
+                "stop",
+                "cancel",
+                "never mind",
+                "stopp",
+                "abbrechen",
+                "halt",
+                "vergiss es",
+            ]),
+            code_cancel_words: words(&[
+                "cancel the coding task",
+                "coding-aufgabe abbrechen",
+                "programmieraufgabe abbrechen",
+            ]),
+            yes_words: words(&["yes", "okay", "do it", "ja", "genau", "mach das"]),
+            no_words: words(&["no", "rather not", "nein", "nicht", "lieber nicht"]),
+            filler_words: words(&["please", "now", "bitte", "jetzt", "mal"]),
             confirm: default_confirm(),
             confirm_timeout_ms: 8000,
             earcons: true,
@@ -458,6 +710,17 @@ impl Config {
         if self.agent_said_chars == 0 || self.agent_permission_s == 0 {
             return Err("agent_said_chars, agent_permission_s: at least 1".into());
         }
+        for (name, env, file) in [
+            ("asr", &self.asr_api_key_env, &self.asr_api_key_file),
+            ("tts", &self.tts_api_key_env, &self.tts_api_key_file),
+            ("llm", &self.llm_api_key_env, &self.llm_api_key_file),
+        ] {
+            if !env.is_empty() && !file.is_empty() {
+                return Err(format!(
+                    "{name}_api_key_env, {name}_api_key_file: one of them"
+                ));
+            }
+        }
         Ok(())
     }
 }
@@ -496,10 +759,10 @@ mod tests {
     }
 
     #[test]
-    fn the_tts_language_follows_the_language() {
+    fn the_tts_language_follows_the_reply_language() {
         let mut config = Config::default();
-        assert_eq!(config.tts_language(), "German");
-        config.language = "xx".into();
+        assert_eq!(config.tts_language(), "English");
+        config.reply_language = "xx".into();
         assert_eq!(config.tts_language(), "auto");
         config.tts_language = "English".into();
         assert_eq!(config.tts_language(), "English");
@@ -523,9 +786,72 @@ mod tests {
                 "{sandbox_cmd: [], agent_cmd: [opencode, acp]}",
                 "sandbox_cmd",
             ),
+            ("{llm_api_key_env: K, llm_api_key_file: k}", "llm_api_key"),
+            ("model: gufo", "model"),
         ] {
             let err = parse::<Config>(yaml).unwrap_err();
             assert!(err.contains(key), "{yaml}: {err}");
         }
+    }
+
+    #[test]
+    fn a_key_goes_into_the_bearer_header() {
+        let mut config = Config::default();
+        assert_eq!(config.llm().unwrap().headers, []);
+        let file = std::env::temp_dir().join(format!("chora-voice-key-{}", std::process::id()));
+        std::fs::write(&file, "sk-1\n").unwrap();
+        config.llm_api_key_file = file.to_string_lossy().into();
+        config.llm_headers.insert("X-Title".into(), "chora".into());
+        let llm = config.llm().unwrap();
+        std::fs::remove_file(&file).unwrap();
+        assert_eq!(llm.model, "gufo");
+        assert_eq!(
+            llm.headers,
+            [
+                ("X-Title".to_owned(), "chora".to_owned()),
+                ("Authorization".to_owned(), "Bearer sk-1".to_owned()),
+            ]
+        );
+        assert_eq!(config.asr().unwrap().headers, [], "per server");
+        config.tts_api_key_env = "CHORA_VOICE_NO_SUCH_KEY".into();
+        assert!(
+            config
+                .tts()
+                .unwrap_err()
+                .contains("CHORA_VOICE_NO_SUCH_KEY")
+        );
+    }
+
+    #[test]
+    fn german_replies_get_the_german_defaults_only() {
+        let mut config = Config::default();
+        assert_eq!(config.localized(), config, "English stays");
+        config.reply_language = "de".into();
+        config.phrases.llm_slow = "Zu langsam.".into();
+        let de = config.localized();
+        assert_eq!(de.phrases.details, "Details auf dem Bildschirm.");
+        assert_eq!(de.phrases.agent_asks, "{name} möchte {what}. Erlauben?");
+        assert_eq!(de.phrases.llm_slow, "Zu langsam.", "the user's own");
+        assert!(de.confirm.iter().all(|r| r.prompt.starts_with("Soll ich")));
+        assert_eq!(
+            config.code_said("The coding task in demo-1 is done. All good."),
+            "Die Programmieraufgabe in demo-1 ist fertig. All good."
+        );
+    }
+
+    #[test]
+    fn the_asr_prompt_adds_the_words_and_names_once() {
+        let config = Config {
+            asr_prompt: "Chora".into(),
+            wake_words: words(&["hey chora", "listen"]),
+            sleep_words: words(&["sleep"]),
+            cancel_words: words(&["stop"]),
+            ..Config::default()
+        };
+        let names = words(&["atlas", "Listen"]);
+        assert_eq!(
+            config.asr_prompt(&names),
+            "Chora, hey chora, listen, sleep, stop, atlas"
+        );
     }
 }

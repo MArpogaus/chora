@@ -137,22 +137,25 @@ fn main() -> ExitCode {
     }
     let result = settings::File::<Config>::path(args.config.clone(), "chora-voice")
         .and_then(|path| settings::File::load(path, "{}"))
-        .and_then(|settings| match &args.command {
-            Some(Command::Gate { file }) => gate(&settings.value, file),
-            Some(Command::Replay { dirs }) => {
-                let dirs: Vec<&Path> = dirs.iter().map(AsRef::as_ref).collect();
-                let (lines, _) = replay::run(&settings.value, &dirs)?;
-                println!("{}", lines.join("\n"));
-                Ok(())
+        .and_then(|settings: settings::File<Config>| {
+            let config = settings.value.localized();
+            match &args.command {
+                Some(Command::Gate { file }) => gate(&config, file),
+                Some(Command::Replay { dirs }) => {
+                    let dirs: Vec<&Path> = dirs.iter().map(AsRef::as_ref).collect();
+                    let (lines, _) = replay::run(&config, &dirs)?;
+                    println!("{}", lines.join("\n"));
+                    Ok(())
+                }
+                Some(Command::Asr { file }) => live::asr(&config, file),
+                Some(Command::Tts { text, out }) => live::tts(&config, text, out.as_deref()),
+                Some(Command::Roundtrip { text }) => live::roundtrip(&config, text),
+                Some(Command::Ask { text, speak, yes }) => {
+                    live::ask(&config, &mcp_name(&args.name), text, *speak, *yes)
+                }
+                Some(Command::Levels) => live::levels(&config),
+                None => run(args.name, settings),
             }
-            Some(Command::Asr { file }) => live::asr(&settings.value, file),
-            Some(Command::Tts { text, out }) => live::tts(&settings.value, text, out.as_deref()),
-            Some(Command::Roundtrip { text }) => live::roundtrip(&settings.value, text),
-            Some(Command::Ask { text, speak, yes }) => {
-                live::ask(&settings.value, &mcp_name(&args.name), text, *speak, *yes)
-            }
-            Some(Command::Levels) => live::levels(&settings.value),
-            None => run(args.name, settings),
         });
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -188,7 +191,7 @@ async fn quit_on_signal(tx: mpsc::Sender<Input>) {
 
 /// Runs the agent until chora stays away or a thread ends.
 fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
-    let config = settings.value.clone();
+    let config = settings.value.localized();
     log::info(&format!("settings: {}", settings.file().display()));
     let vad = Vad::new().map_err(|e| format!("the VAD model: {e}"))?;
     let net = tokio::runtime::Runtime::new().map_err(|e| format!("tokio: {e}"))?;
@@ -267,8 +270,8 @@ struct Agent {
     reported_subs: std::collections::BTreeMap<String, serde_json::Value>,
     /// The state that the indicator shows; none without it.
     dot: Option<core::State>,
-    /// The URLs of the ASR and the TTS for the health probes.
-    probe: tokio::sync::watch::Sender<[String; 2]>,
+    /// The ASR and the TTS for the health probes.
+    probe: tokio::sync::watch::Sender<health::Probed>,
     coder: Option<coder::Coder>,
     agents: Option<agents::Agents>,
 }
@@ -294,7 +297,7 @@ impl Agent {
             reported: [None, None],
             reported_subs: std::collections::BTreeMap::new(),
             dot: None,
-            probe: tokio::sync::watch::Sender::new([String::new(), String::new()]),
+            probe: tokio::sync::watch::Sender::new([Err(String::new()), Err(String::new())]),
             coder: None,
             agents: None,
         }
@@ -305,8 +308,7 @@ impl Agent {
     /// Starts the health probes of the ASR and the TTS.
     fn warm(&self) {
         let config = self.core.config();
-        self.probe
-            .send_replace([config.asr_url.clone(), config.tts_url.clone()]);
+        let _ = self.probe.send_replace([config.asr(), config.tts()]);
         self.net.spawn(health::probe(self.probe.subscribe()));
         let chat = self.chat.clone();
         self.net.spawn(async move {
@@ -317,7 +319,15 @@ impl Agent {
     }
 
     /// Runs an input through the core and its effects.
-    fn step(&mut self, input: Input) -> Result<(), String> {
+    fn step(&mut self, mut input: Input) -> Result<(), String> {
+        // The agent works with the phrases of `reply_language`.
+        match &mut input {
+            Input::Settings(config) => **config = config.localized(),
+            Input::Code(coder::Event::Done { said, .. }) => {
+                *said = self.core.config().code_said(said);
+            }
+            _ => {}
+        }
         self.input(&input);
         for effect in self.core.handle(input) {
             self.effect(effect)?;
@@ -389,9 +399,9 @@ impl Agent {
                     self.recorder = start_recording(&new.record_dir);
                 }
                 self.speaker.set_cmd(new.playback_cmd.clone());
-                self.probe.send_if_modified(|urls| {
-                    let new = [new.asr_url.clone(), new.tts_url.clone()];
-                    std::mem::replace(urls, new.clone()) != new
+                self.probe.send_if_modified(|servers| {
+                    let new = [new.asr(), new.tts()];
+                    std::mem::replace(servers, new.clone()) != new
                 });
                 let (chat, config) = (self.chat.clone(), (**new).clone());
                 self.net.spawn(async move {
@@ -552,11 +562,11 @@ impl Agent {
     /// Sends `pcm` to the ASR; the text comes back as an input.
     fn transcribe(&self, turn: u64, interim: bool, pcm: Vec<i16>) {
         let config = self.core.config();
-        let (url, language) = (config.asr_url.clone(), config.language.clone());
+        let request = asr::Request::new(config, &projects(config));
         let timeout = Duration::from_secs(config.asr_timeout_s.into());
         let (tx, busy) = (self.tx.clone(), self.interim_busy.clone());
         self.net.spawn(async move {
-            let result = asr::transcribe(&url, &language, &pcm, timeout).await;
+            let result = asr::transcribe(&request, &pcm, timeout).await;
             if interim {
                 busy.store(false, Ordering::SeqCst);
             }
@@ -585,6 +595,20 @@ fn start_recording(dir: &str) -> Option<Recorder> {
             None
         }
     }
+}
+
+/// The projects of the agents for the prompt of the ASR: those of
+/// `agent_projects` and of the inventory.
+fn projects(config: &Config) -> Vec<String> {
+    let inventory = std::fs::read_dir(coder::data_dir().join("inventory"));
+    let inventory = (inventory.into_iter().flatten().flatten())
+        .map(|e| e.file_name().to_string_lossy().into_owned());
+    config
+        .agent_projects
+        .keys()
+        .cloned()
+        .chain(inventory)
+        .collect()
 }
 
 /// A leading `~/` is the home directory.

@@ -52,7 +52,7 @@ const FILES: [(&str, &str); 3] = [
 /// The note of the final round when `tool_rounds` is reached; it does
 /// not stay in the history.
 const LAST_ROUND: &str = "(The agent: you reached the limit of tool calls for this request. \
-    Call no tool. In the language of the user, say in one or two short sentences what you did \
+    Call no tool. In your reply language, say in one or two short sentences what you did \
     and what is left.)";
 
 /// The part of the prompt for the coding tools, with a `coder_cmd`.
@@ -244,6 +244,7 @@ impl Chat {
         } else {
             config.system_prompt.clone()
         }];
+        parts[0] = format!("{}\n\n{}", parts[0].trim_end(), config.reply_rule());
         let builtin = CONTEXT_DOCS.map(String::from);
         let docs = if config.context_docs.is_empty() {
             &builtin[..]
@@ -865,7 +866,11 @@ mod tests {
         let seen = server.seen.lock().unwrap();
         let system = seen[0]["messages"][0]["content"].as_str().unwrap();
         assert!(
-            system.starts_with("Du bist ein Test.\n\n# File "),
+            system.starts_with(
+                "Du bist ein Test.\n\nAnswer in English, also when the user \
+                                speaks another language, unless the user asks for another \
+                                one.\n\n# File "
+            ),
             "{system}"
         );
         assert!(seen[0]["tools"].as_array().unwrap().len() > 3);
@@ -914,7 +919,7 @@ mod tests {
         let (_, events) = turn(&mut chat, "Such.", true).await;
         assert_eq!(
             events.last().unwrap(),
-            "say Ich habe nach zu vielen Werkzeugaufrufen aufgehört."
+            "say I stopped after too many tool calls."
         );
     }
 
@@ -963,7 +968,7 @@ mod tests {
             Reply::Text("Drei."),
         ];
         let config = Config {
-            context_tokens: 400,
+            context_tokens: 430,
             reply_reserve_tokens: 0,
             ..Config::default()
         };
@@ -1005,7 +1010,7 @@ mod tests {
         assert_eq!(report.outcome, "llm_error");
         assert_eq!(
             events.last().unwrap(),
-            "say Das Sprachmodell antwortet nicht."
+            "say The language model does not answer."
         );
     }
 

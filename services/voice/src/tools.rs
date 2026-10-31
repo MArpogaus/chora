@@ -516,7 +516,7 @@ pub mod tests {
         let remove = json!({"commands": [{"create": {}}, {"remove": {"id": "x"}}]});
         assert_eq!(
             prompt("apply_commands", remove),
-            Some("Soll ich das entfernen?")
+            Some("Shall I remove that?")
         );
         assert_eq!(
             prompt("apply_commands", json!({"commands": [{"create": {}}]})),
@@ -525,12 +525,12 @@ pub mod tests {
         for argv in [json!(["/usr/bin/systemctl", "poweroff"]), json!(["foot"])] {
             assert_eq!(
                 prompt("run_program", json!({ "argv": argv })),
-                Some("Soll ich das Programm {program} starten?")
+                Some("Shall I start the program {program}?")
             );
         }
         assert_eq!(
             prompt("tiling.restart", json!({})),
-            Some("Soll ich das Plugin neu starten?")
+            Some("Shall I restart the plugin?")
         );
         assert!(
             prompt(

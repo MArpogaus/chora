@@ -1473,7 +1473,7 @@ mod tests {
         assert_eq!(effects[0], Effect::Earcon(Earcon::Error));
         assert_eq!(
             asks(&effects[1..]),
-            [(1, "Ich habe dich nicht verstanden.")]
+            [(1, "I did not understand you.")]
         );
         core.handle(Input::Reply(1, Reply::Done(String::new())));
         assert_eq!(core.state(), State::Listening, "said once");

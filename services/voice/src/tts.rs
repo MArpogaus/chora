@@ -44,14 +44,14 @@ pub struct Timing {
 pub async fn speak(config: &Config, text: &str, tx: UnboundedSender<Event>) -> Result<(), String> {
     let wait = Duration::from_secs(config.tts_timeout_s.into());
     let timeout = || format!("no answer within {wait:?}");
-    let (mut ws, _) = tokio::time::timeout(wait, tokio_tungstenite::connect_async(&config.tts_url))
+    let backend = config.tts()?;
+    let mut ws = tokio::time::timeout(wait, crate::health::connect(&backend))
         .await
-        .map_err(|_| timeout())?
-        .map_err(|e| format!("{}: {e}", config.tts_url))?;
+        .map_err(|_| timeout())??;
     let out = [
         json!({
             "type": "session.config",
-            "model": config.model,
+            "model": backend.model,
             "voice": config.voice,
             "response_format": "pcm",
             "stream_audio": true,

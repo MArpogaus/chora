@@ -10,6 +10,12 @@ use std::{
 };
 
 use serde_json::{Value, json};
+use tokio_tungstenite::tungstenite::{
+    client::IntoClientRequest,
+    http::{HeaderName, HeaderValue},
+};
+
+use crate::config::Backend;
 
 /// The servers and connections of `voice.health`.
 pub const SERVERS: [&str; 5] = ["asr", "tts", "llm", "mcp", "chora"];
@@ -85,19 +91,49 @@ pub fn wait(server: &'static str) -> Duration {
 /// The interval of the probes of a server that is up.
 const PROBE: Duration = Duration::from_secs(30);
 
-/// Probes the websockets of the ASR and the TTS (`urls`) at the start,
-/// after a change of `urls`, every 30 s, and when the backoff of a server
-/// that is down ends: a connect without a request, so that
+/// The websocket of a server.
+pub type Socket =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+
+/// A websocket to the server `b`, with its headers.
+///
+/// # Errors
+///
+/// A wrong URL or header, or no connection.
+pub async fn connect(b: &Backend) -> Result<Socket, String> {
+    let fail = |e: &dyn std::fmt::Display| format!("{}: {e}", b.url);
+    let mut request = b.url.as_str().into_client_request().map_err(|e| fail(&e))?;
+    for (name, value) in &b.headers {
+        let name = HeaderName::from_bytes(name.as_bytes()).map_err(|e| fail(&e))?;
+        let value = HeaderValue::from_str(value).map_err(|e| fail(&e))?;
+        request.headers_mut().insert(name, value);
+    }
+    let (ws, _) = tokio_tungstenite::connect_async(request)
+        .await
+        .map_err(|e| fail(&e))?;
+    Ok(ws)
+}
+
+/// The ASR and the TTS of the probes.
+pub type Probed = [Result<Backend, String>; 2];
+
+/// Probes the websockets of the ASR and the TTS (`servers`) at the start,
+/// after a change of `servers`, every 30 s, and when the backoff of a
+/// server that is down ends: a connect without a request, so that
 /// `voice.health` shows an outage and its end without a turn.
-pub async fn probe(mut urls: tokio::sync::watch::Receiver<[String; 2]>) {
+pub async fn probe(mut servers: tokio::sync::watch::Receiver<Probed>) {
     loop {
-        let now = urls.borrow_and_update().clone();
-        for (server, url) in ["asr", "tts"].into_iter().zip(now) {
-            let connect = tokio_tungstenite::connect_async(url.as_str());
-            match tokio::time::timeout(Duration::from_secs(5), connect).await {
-                Ok(Ok(_)) => ok(server),
-                Ok(Err(e)) => drop(down(server, &format!("{url}: {e}"))),
-                Err(_) => drop(down(server, &format!("{url}: no answer within 5 s"))),
+        let now = servers.borrow_and_update().clone();
+        for (server, backend) in ["asr", "tts"].into_iter().zip(now) {
+            let result = match backend {
+                Ok(b) => tokio::time::timeout(Duration::from_secs(5), connect(&b))
+                    .await
+                    .unwrap_or_else(|_| Err(format!("{}: no answer within 5 s", b.url))),
+                Err(e) => Err(e),
+            };
+            match result {
+                Ok(_) => ok(server),
+                Err(e) => drop(down(server, &e)),
             }
         }
         let next = ["asr", "tts"]
@@ -107,7 +143,7 @@ pub async fn probe(mut urls: tokio::sync::watch::Receiver<[String; 2]>) {
             .min();
         tokio::select! {
             () = tokio::time::sleep(next.unwrap_or(PROBE)) => {}
-            changed = urls.changed() => if changed.is_err() { return },
+            changed = servers.changed() => if changed.is_err() { return },
         }
     }
 }

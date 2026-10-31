@@ -93,6 +93,8 @@ struct Settings {
     asks: String,
     ended: String,
     permission: Duration,
+    /// German verbs in a question, for `reply_language: de`.
+    german: bool,
 }
 
 impl Settings {
@@ -106,6 +108,7 @@ impl Settings {
             asks: config.phrases.agent_asks.clone(),
             ended: config.phrases.agent_ended.clone(),
             permission: Duration::from_secs(config.agent_permission_s.into()),
+            german: config.reply_language == "de",
         }
     }
 }
@@ -590,7 +593,7 @@ fn outcome(options: &[Value], yes: bool) -> Value {
 
 /// What a permission request asks, short enough to speak: the title of
 /// its tool call, a path as its file name, and the kind as a verb.
-fn asked(tool: &Value) -> String {
+fn asked(tool: &Value, german: bool) -> String {
     let title = tool["title"].as_str().unwrap_or_default().trim();
     let title = if title.starts_with('/') {
         Path::new(title)
@@ -600,22 +603,25 @@ fn asked(tool: &Value) -> String {
         title.into()
     };
     let title: String = title.chars().take(80).collect();
-    // ponytail: German verbs, as the default phrases; a phrase per kind
-    // in the settings when another language needs it.
-    let verb = match tool["kind"].as_str() {
-        Some("edit") => "ändern",
-        Some("delete") => "löschen",
-        Some("move") => "verschieben",
-        Some("execute") => "ausführen",
-        Some("fetch") => "abrufen",
-        Some("read") => "lesen",
-        _ => "",
+    // ponytail: English and German verbs, as the default phrases; a
+    // phrase per kind in the settings when another language needs it.
+    let (en, de) = match tool["kind"].as_str() {
+        Some("edit") => ("edit", "ändern"),
+        Some("delete") => ("delete", "löschen"),
+        Some("move") => ("move", "verschieben"),
+        Some("execute") => ("run", "ausführen"),
+        Some("fetch") => ("fetch", "abrufen"),
+        Some("read") => ("read", "lesen"),
+        _ => ("", ""),
     };
-    match (title.is_empty(), verb.is_empty()) {
-        (true, true) => "etwas tun".into(),
-        (true, false) => verb.into(),
-        (false, true) => title,
-        (false, false) => format!("{title} {verb}"),
+    match (title.is_empty(), en.is_empty(), german) {
+        (true, true, false) => "do something".into(),
+        (true, true, true) => "etwas tun".into(),
+        (true, false, false) => en.into(),
+        (true, false, true) => de.into(),
+        (false, true, _) => title,
+        (false, false, false) => format!("{en} {title}"),
+        (false, false, true) => format!("{title} {de}"),
     }
 }
 
@@ -880,7 +886,11 @@ impl Actor {
             rpc.respond(old.id, json!({"outcome": {"outcome": "cancelled"}}))
                 .await?;
         }
-        let what = asked(&params["toolCall"]);
+        let (asks, german) = {
+            let settings = &self.agents.lock().settings;
+            (settings.asks.clone(), settings.german)
+        };
+        let what = asked(&params["toolCall"], german);
         let (answer, rx) = oneshot::channel();
         session.question = Some(Permission {
             id: rpc_id,
@@ -888,7 +898,6 @@ impl Actor {
             answer: rx,
             deadline: tokio::time::Instant::now() + self.permission,
         });
-        let asks = self.agents.lock().settings.asks.clone();
         let prompt = asks
             .replace("{name}", &title(name))
             .replace("{what}", &what);
@@ -1040,7 +1049,10 @@ mod tests {
 
     #[test]
     fn a_question_is_short_to_speak() {
-        let ask = |tool| asked(&tool);
+        let ask = |tool| asked(&tool, true);
+        let edit = json!({"title": "/a/b/notes.txt", "kind": "edit"});
+        assert_eq!(asked(&edit, false), "edit notes.txt");
+        assert_eq!(asked(&json!({}), false), "do something");
         assert_eq!(
             ask(json!({"title": "/a/b/notes.txt", "kind": "edit"})),
             "notes.txt ändern"
@@ -1143,13 +1155,13 @@ mod tests {
             unreachable!()
         };
         assert_eq!((name.as_str(), voice.as_str()), ("coder", "ryan"));
-        assert_eq!(prompt, "Coder möchte notes.txt ändern. Erlauben?");
+        assert_eq!(prompt, "Coder wants to edit notes.txt. Allow?");
         let status = agents.call("agent_status", &json!({"name": "coder"}));
         assert!(
             status
                 .as_str()
                 .unwrap()
-                .contains("question: notes.txt ändern"),
+                .contains("question: edit notes.txt"),
             "{status}"
         );
         answer.send(true).unwrap();
@@ -1169,7 +1181,7 @@ mod tests {
                 "› Schreib notes.txt",
                 "Ich lese den Code.",
                 "⚙ Read src/main.rs",
-                "? notes.txt ändern",
+                "? edit notes.txt",
                 "› ja"
             ]
         );
@@ -1183,7 +1195,7 @@ mod tests {
         assert_eq!(voice, "ryan");
         assert_eq!(
             text,
-            "Erlaubt: die Datei ist fertig. Details auf dem Bildschirm."
+            "Erlaubt: die Datei ist fertig. Details on the screen."
         );
         let pid = agents.lock().subs["coder"].pid.unwrap();
         assert_eq!(agents.stop("coder"), "coder stops");

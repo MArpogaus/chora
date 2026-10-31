@@ -61,6 +61,8 @@ pub struct Llm {
     http: reqwest::Client,
     url: String,
     model: String,
+    /// The key and the extra headers, or why the key is missing.
+    headers: Result<Vec<(String, String)>, String>,
     reasoning_effort: String,
     first: Duration,
     idle: Duration,
@@ -81,12 +83,26 @@ impl Llm {
                 .build()
                 .expect("a client without TLS builds"),
             url: config.llm_url.trim_end_matches('/').to_owned(),
-            model: config.model.clone(),
+            model: config.llm_model.clone(),
+            headers: config.llm().map(|b| b.headers),
             reasoning_effort: config.reasoning_effort.clone(),
             first: secs(config.llm_first_token_s),
             idle: secs(config.llm_idle_s),
             total: secs(config.llm_total_s),
         }
+    }
+
+    /// `request` with the key and the extra headers.
+    fn request(&self, request: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder, String> {
+        let headers = self.headers.as_ref()?;
+        Ok((headers.iter()).fold(request, |r, (name, value)| r.header(name, value)))
+    }
+
+    /// A JSON request to `/chat/completions`.
+    fn post(&self) -> Result<reqwest::RequestBuilder, String> {
+        let url = format!("{}/chat/completions", self.url);
+        let request = self.request(self.http.post(url))?;
+        Ok(request.header("content-type", "application/json"))
     }
 
     /// The context and the image input of the model from `/models`.
@@ -96,8 +112,7 @@ impl Llm {
     /// The server is away or answers no list.
     pub async fn info(&self) -> Result<Info, String> {
         let models: Value = self
-            .http
-            .get(format!("{}/models", self.url))
+            .request(self.http.get(format!("{}/models", self.url)))?
             .timeout(Duration::from_secs(5))
             .send()
             .await
@@ -133,8 +148,11 @@ impl Llm {
             "messages": messages,
             "stream": true,
             "stream_options": {"include_usage": true},
-            "reasoning_effort": self.reasoning_effort,
         });
+        // Empty for a server that refuses the key.
+        if !self.reasoning_effort.is_empty() {
+            body["reasoning_effort"] = self.reasoning_effort.as_str().into();
+        }
         if !tools.is_empty() {
             body["tools"] = tools.into();
         }
@@ -149,23 +167,17 @@ impl Llm {
     pub async fn chat(&self, body: &Value, mut words: impl FnMut(&str)) -> Result<Round, Error> {
         let start = Instant::now();
         let deadline = start + self.total;
-        let response = tokio::time::timeout(
-            self.first,
-            self.http
-                .post(format!("{}/chat/completions", self.url))
-                .header("content-type", "application/json")
-                .body(body.to_string())
-                .send(),
-        )
-        .await
-        .map_err(|_| Error::Timeout(format!("no answer within {:?}", self.first)))?
-        .map_err(|e| {
-            if e.is_connect() {
-                Error::Connect(format!("{}: {e}", self.url))
-            } else {
-                Error::Other(e.to_string())
-            }
-        })?;
+        let request = self.post().map_err(Error::Other)?;
+        let response = tokio::time::timeout(self.first, request.body(body.to_string()).send())
+            .await
+            .map_err(|_| Error::Timeout(format!("no answer within {:?}", self.first)))?
+            .map_err(|e| {
+                if e.is_connect() {
+                    Error::Connect(format!("{}: {e}", self.url))
+                } else {
+                    Error::Other(e.to_string())
+                }
+            })?;
         let status = response.status();
         if !status.is_success() {
             let text = response.text().await.unwrap_or_default();
@@ -228,9 +240,7 @@ impl Llm {
             .expect("an object")
             .remove("stream_options");
         let response = self
-            .http
-            .post(format!("{}/chat/completions", self.url))
-            .header("content-type", "application/json")
+            .post()?
             .body(body.to_string())
             .timeout(self.total)
             .send()
