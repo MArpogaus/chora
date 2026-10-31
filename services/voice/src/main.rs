@@ -507,14 +507,29 @@ impl Agent {
             Effect::StopCode => self.stop_code(),
             Effect::AgentPrompt { name, text } => self.to_agent(&name, Some(&text)),
             Effect::AgentCancel(name) => self.to_agent(&name, None),
-            Effect::Say { text, at, len } => {
-                if let Some(mc) = &self.mc {
-                    let _ = mc.send(mc::Report::Say { text, at, len });
-                }
-            }
             Effect::Exit => return Err("chora stays away".into()),
+            hud => self.hud(hud),
         }
         Ok(())
+    }
+
+    /// The effects for the HUD thread: a sentence and the questions.
+    fn hud(&self, effect: Effect) {
+        let report = match effect {
+            Effect::Say { text, at, len } => mc::Report::Say { text, at, len },
+            // A plugin that claimed the dot shows the question.
+            Effect::Confirm { id, prompt, detail } => mc::Report::Confirm {
+                id,
+                prompt,
+                detail,
+                hud: !self.claimed,
+            },
+            Effect::ConfirmDone(id) => mc::Report::ConfirmDone(id),
+            _ => return,
+        };
+        if let Some(mc) = &self.mc {
+            let _ = mc.send(report);
+        }
     }
 }
 

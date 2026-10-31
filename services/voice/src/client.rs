@@ -190,8 +190,9 @@ fn serve(
 
 /// The states that the core refused over its rate limit (D65): the last
 /// `state` or `remove` of each name waits for `RESEND` and goes again,
-/// and so do the states that come meanwhile. A refused `say` is gone, as
-/// its sound plays now; another refusal only logs.
+/// and so do the states that come meanwhile. The last `confirm` waits
+/// the same way. A refused `say` is gone, as its sound plays now; another
+/// refusal only logs.
 #[derive(Default)]
 struct Held {
     events: BTreeMap<String, crate::mc::Emit>,
@@ -212,9 +213,13 @@ impl Held {
         }
         out.extend(new);
         for (event, data) in out {
-            // The sub-agent of the state, or none for the agent.
-            let key = matches!(event, "state" | "remove")
-                .then(|| data["name"].as_str().unwrap_or_default().to_owned());
+            // The sub-agent of the state, or none for the agent; a NUL
+            // is in no name.
+            let key = match event {
+                "state" | "remove" => Some(data["name"].as_str().unwrap_or_default().to_owned()),
+                "confirm" => Some("\0confirm".to_owned()),
+                _ => None,
+            };
             if let (Some(key), Some(_)) = (&key, self.until) {
                 self.events.insert(key.clone(), (event, data));
                 continue;

@@ -279,9 +279,19 @@ reason as the result:
 "The user declined the spoken confirmation", "The user did not answer
 the spoken confirmation in time (15 s)" or "The answer to the spoken
 confirmation was not understood", each with "; nothing happened".
-When the question is asked, a `say` event shows the full command or
-value: the settings keys and values, the program and its arguments, or
-the method and its parameters. The text is never cut.
+Each question also goes out as the event `voice.confirm {prompt,
+detail, id}`. `detail` is the full command or value, never cut: the
+settings keys and values, the program and its arguments, or the method
+and its parameters. A question of a sub-agent has its prompt as
+`detail`. When the question gets its answer, ends or times out, the
+agent emits `voice.confirm {id, done: true}`. chora-mc shows the
+question as a notification, chora-xp as a balloon. The agent cannot
+see the subscribers of an event. So, while no plugin claims the
+indicator (section 10), the agent shows the prompt and `detail` itself:
+a text node `voice-question` at the top left of the first output, on
+`NAME-hud`. A text node holds 4 KiB, so a longer `detail` shows only
+its start there; the event has all of it. Over the rate limit, the
+last `voice.confirm` goes again after 1 s.
 
 The rule of `apply_commands` with `remove` asks only when a target is
 not a node of the agent's own client (`NAME-mcp`), or has a node of
@@ -304,7 +314,7 @@ keys are `confirm`, `agent_projects`, `yes_words`, `no_words`,
 `skipped_tools`, `system_prompt`, `prompt_file`, `context_docs`, each
 `*_url`, `*_headers` and each key with `api_key`. The agent never cuts
 a security value. The question says only the key. The screen shows the
-full value through the `say` event. Only other values are cut to 60
+full value through the `voice.confirm` event. Only other values are cut to 60
 characters for speech. The client `NAME-mcp`
 needs `methods.privileged` for `settings.set` and `settings.reload`.
 Its own `settings.reload` asks with the rule of `*.settings.reload`.

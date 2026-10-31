@@ -184,6 +184,15 @@ pub enum Effect {
         at: Instant,
         len: Duration,
     },
+    /// A question waits: its spoken prompt and the full command or
+    /// value, for the screen (`voice.confirm`).
+    Confirm {
+        id: u64,
+        prompt: String,
+        detail: String,
+    },
+    /// The question `id` got its answer or timed out.
+    ConfirmDone(u64),
     Exit,
 }
 
@@ -306,6 +315,9 @@ pub struct Core {
     /// when: `agent_permission_s` from when it is spoken.
     sub_confirm: Option<(String, oneshot::Sender<bool>)>,
     sub_until: Instant,
+    /// The questions so far, and the one on the screen.
+    confirms: u64,
+    shown: Option<u64>,
 }
 
 /// A text to say when the agent listens.
@@ -370,6 +382,8 @@ impl Core {
             subs: BTreeMap::new(),
             sub_confirm: None,
             sub_until: now,
+            confirms: 0,
+            shown: None,
         }
     }
 
@@ -522,11 +536,22 @@ impl Core {
             effects.push(Effect::Speech(Control::Resume { skip: false }));
         }
         self.refresh();
-        // A coding result waits for the agent to listen: it cuts no
-        // speech of the user.
+        effects.extend(self.say_note());
+        if let Some(id) = self.shown.filter(|_| !self.confirming()) {
+            self.shown = None;
+            effects.push(Effect::ConfirmDone(id));
+        }
+        effects
+    }
+
+    /// Says the next note when the agent listens: a coding result waits,
+    /// so it cuts no speech of the user.
+    fn say_note(&mut self) -> Vec<Effect> {
+        let mut effects = Vec::new();
         if matches!(self.state, State::Listening | State::Working)
             && let Some(note) = self.next_note()
         {
+            let text = note.text.clone();
             let mut ask = self.ask(note.text, true);
             if let Some(Effect::Ask { voice, .. }) = ask.first_mut() {
                 *voice = note.voice;
@@ -535,6 +560,7 @@ impl Core {
             // The question waits from when it is spoken.
             if note.ask.is_some() {
                 self.confirm_from = Some(Instant::now());
+                effects.extend(self.show(text.clone(), text));
             }
             self.sub_confirm = note.ask;
             self.sub_until =
@@ -542,6 +568,25 @@ impl Core {
             self.unclear = 0;
             self.refresh();
         }
+        effects
+    }
+
+    /// Shows a new question on the screen, after the end of the one
+    /// before.
+    fn show(&mut self, prompt: String, detail: String) -> Vec<Effect> {
+        let mut effects: Vec<Effect> = self
+            .shown
+            .take()
+            .map(Effect::ConfirmDone)
+            .into_iter()
+            .collect();
+        self.confirms += 1;
+        self.shown = Some(self.confirms);
+        effects.push(Effect::Confirm {
+            id: self.confirms,
+            prompt,
+            detail,
+        });
         effects
     }
 
@@ -764,16 +809,12 @@ impl Core {
             UNSPOKEN
         };
         self.confirm_until = Instant::now() + wait + unspoken;
-        self.confirm_prompt = prompt;
+        self.confirm_prompt.clone_from(&prompt);
         // Only speech after the question started answers it: a queued
         // text never does (review 0.9.0-rc.3). Without its sound, the
         // question shows now.
         self.confirm_from = self.muted.speaker.then(Instant::now);
-        vec![Effect::Say {
-            text: detail,
-            at: Instant::now(),
-            len: wait,
-        }]
+        self.show(prompt, detail)
     }
 
     /// Whether speech that started at `onset` answers the confirmation
@@ -1323,6 +1364,7 @@ mod tests {
                 say: true,
                 ..
             },
+            Effect::Confirm { id: 1, .. },
         ] = &effects[..]
         else {
             panic!("{effects:?}");
@@ -1482,7 +1524,7 @@ mod tests {
         ));
         assert_eq!(core.state(), State::Confirming);
         let (effects, record) = call(&mut core, Call::Confirm(true));
-        assert_eq!(effects, []);
+        assert_eq!(effects, [Effect::ConfirmDone(1)]);
         assert_eq!(record["state"], "tool");
         assert_eq!(rx.try_recv(), Ok(Some(true)));
         core.handle(sound(1, 2000));
@@ -1515,7 +1557,8 @@ mod tests {
                 },
             ));
             let effects = core.handle(input);
-            assert_eq!(effects, [stop(), Effect::Earcon(Earcon::Cancel)]);
+            let done = Effect::ConfirmDone(1);
+            assert_eq!(effects, [stop(), Effect::Earcon(Earcon::Cancel), done]);
             assert_eq!(core.state(), State::Listening);
             assert!(rx.try_recv().is_err(), "a dropped answer is a no");
             core.handle(sound(1, 1000));
@@ -1824,6 +1867,40 @@ mod tests {
         assert!(rx.try_recv().is_err(), "said before the question");
         say(&mut core, "Ja.");
         assert_eq!(rx.try_recv(), Ok(Some(true)));
+    }
+
+    /// Each question goes out with its full command, and its end when
+    /// it is answered or dropped.
+    #[test]
+    fn a_question_shows_its_full_command_until_it_ends() {
+        let mut core = asking();
+        let (answer, _rx) = oneshot::channel();
+        let event = chat::Event::Confirm {
+            prompt: "Soll ich das Programm foot starten?".into(),
+            detail: "foot -e sh".into(),
+            answer,
+        };
+        let effects = core.handle(reply(1, event));
+        let shown = Effect::Confirm {
+            id: 1,
+            prompt: "Soll ich das Programm foot starten?".into(),
+            detail: "foot -e sh".into(),
+        };
+        assert_eq!(effects, [shown]);
+        let said = Reply::Said {
+            text: "Soll ich das Programm foot starten?".into(),
+            at: Instant::now(),
+            len: Duration::from_millis(500),
+        };
+        core.handle(Input::Reply(1, said));
+        let effects = say(&mut core, "Ja.");
+        assert!(effects.contains(&Effect::ConfirmDone(1)), "{effects:?}");
+        // A timeout ends it too.
+        let mut rx = confirm(&mut core, "Wirklich?");
+        core.confirm_until = Instant::now();
+        let effects = core.handle(frame(0.0));
+        assert_eq!(effects, [Effect::ConfirmDone(2)]);
+        assert!(rx.try_recv().is_err());
     }
 
     /// Review 0.9.0-rc.3: any text but a pure yes or no goes into the

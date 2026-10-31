@@ -28,6 +28,8 @@ pub type Emit = (&'static str, Value);
 const RETRY: Duration = Duration::from_secs(5);
 /// The node of the indicator.
 const DOT: &str = "voice-indicator";
+/// The text node of a question on the HUD of the agent.
+const QUESTION: &str = "voice-question";
 /// The size of the dot.
 const DOT_SIZE: i32 = 12;
 
@@ -46,6 +48,16 @@ pub enum Report {
         at: Instant,
         len: Duration,
     },
+    /// A question waits: `voice.confirm {prompt, detail, id}`; with
+    /// `hud`, the HUD of the agent shows it too.
+    Confirm {
+        id: u64,
+        prompt: String,
+        detail: String,
+        hud: bool,
+    },
+    /// The question `id` is over: `voice.confirm {id, done: true}`.
+    ConfirmDone(u64),
     /// The state of the agent for the indicator, and its place; none
     /// removes the dot.
     State(Option<(State, Place)>),
@@ -94,6 +106,8 @@ struct Reporter {
     quiet: bool,
     /// The place of the dot on this connection.
     dot: Option<Place>,
+    /// A question shows on this connection.
+    question: bool,
 }
 
 impl Reporter {
@@ -105,6 +119,7 @@ impl Reporter {
             failed: None,
             quiet: false,
             dot: None,
+            question: false,
         }
     }
 
@@ -134,6 +149,24 @@ impl Reporter {
                 }
                 Some(Report::Say { text, at, len }) => says.push_back((at, text, len)),
                 Some(Report::State(state)) => self.indicate(state),
+                Some(Report::Confirm {
+                    id,
+                    prompt,
+                    detail,
+                    hud,
+                }) => {
+                    if hud {
+                        self.question(Some(&format!("{prompt}\n{detail}")));
+                    }
+                    let data = json!({"id": id, "prompt": prompt, "detail": detail});
+                    let _ = self.emits.send(("confirm", data));
+                }
+                Some(Report::ConfirmDone(id)) => {
+                    self.question(None);
+                    let _ = self
+                        .emits
+                        .send(("confirm", json!({"id": id, "done": true})));
+                }
                 None => {
                     let Some((at, text, len)) = says.pop_front() else {
                         continue;
@@ -153,7 +186,10 @@ impl Reporter {
     fn rpc(&mut self, method: &str, params: impl serde::Serialize) -> Option<Value> {
         if self.conn.is_none() && self.failed.is_none_or(|t| t.elapsed() >= RETRY) {
             match Conn::connect(&self.client) {
-                Ok(conn) => (self.conn, self.failed, self.dot) = (Some(conn), None, None),
+                Ok(conn) => {
+                    (self.conn, self.failed) = (Some(conn), None);
+                    (self.dot, self.question) = (None, false);
+                }
                 Err(e) => {
                     self.failed = Some(Instant::now());
                     self.log(&format!("mc: {e}"));
@@ -221,6 +257,48 @@ impl Reporter {
         }
     }
 
+    /// Shows a question and its full command on the first output, or
+    /// removes it.
+    fn question(&mut self, text: Option<&str>) {
+        let remove = json!({"remove": {"id": QUESTION}});
+        let commands = match text {
+            None if !self.question => return,
+            None => json!([remove]),
+            Some(text) => {
+                // ponytail: a text node holds 4 KiB; a longer command
+                // shows its start, and voice.confirm carries it whole.
+                let mut end = text.len().min(4000);
+                while !text.is_char_boundary(end) {
+                    end -= 1;
+                }
+                let Some(outputs) = self.rpc("output.list", Value::Null) else {
+                    return;
+                };
+                let (Some(name), Some(w)) =
+                    (outputs[0]["name"].as_str(), outputs[0]["size"][0].as_i64())
+                else {
+                    return;
+                };
+                let create = json!({"create": {"id": QUESTION, "kind": "text",
+                    "parent": format!("screen:{name}"),
+                    "props": {"text": &text[..end], "font_size": 18, "max_width": w - 48,
+                        "color": [1.0, 0.85, 0.4, 1.0], "input": "pass",
+                        "transform": {"translate": [24, 24]}}}});
+                if self.question {
+                    json!([remove, create])
+                } else {
+                    json!([create])
+                }
+            }
+        };
+        if self
+            .rpc("scene.apply", json!({"commands": commands}))
+            .is_some()
+        {
+            self.question = text.is_some();
+        }
+    }
+
     /// Logs the first error of a run of errors.
     fn log(&mut self, line: &str) {
         if !self.quiet {
@@ -270,5 +348,18 @@ mod tests {
         assert_eq!(data["text"], "Hallo Welt");
         assert_eq!(data["state"], "speaking");
         assert!(data["duration_ms"].as_u64().unwrap() <= 1500);
+        let detail = "x".repeat(5000);
+        let confirm = Report::Confirm {
+            id: 3,
+            prompt: "Wirklich?".into(),
+            detail: detail.clone(),
+            hud: false,
+        };
+        reports.send(confirm).unwrap();
+        let shown = json!({"id": 3, "prompt": "Wirklich?", "detail": detail});
+        assert_eq!(emitted.recv_timeout(wait).unwrap(), ("confirm", shown));
+        reports.send(Report::ConfirmDone(3)).unwrap();
+        let done = json!({"id": 3, "done": true});
+        assert_eq!(emitted.recv_timeout(wait).unwrap(), ("confirm", done));
     }
 }
