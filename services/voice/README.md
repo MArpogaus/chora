@@ -74,7 +74,16 @@ the digest in the three quadlets. The models load for some minutes. A
 model is ready when its log, for example `journalctl --user -u
 gufo-tts`, shows `event=listening`.
 
-Then install the agent and its unit. The build needs `ar` (binutils)
+The packages of chora install `chora-voice` in `/usr/bin`, its unit
+`chora-voice.service` as a user unit, and the quadlets, networks and
+`pipewire/echo-cancel.conf` as examples in `/usr/share/chora/voice/`.
+With the package, link the quadlets from there and skip the build below:
+`ln -s /usr/share/chora/voice/quadlets/* ~/.config/containers/systemd/`.
+The packages leave out `gufo.sh` and `agent-sandbox.sh`, the default
+`sandbox_cmd`, which is not part of chora: put your own sandbox on the
+`PATH` of the unit, or set `sandbox_cmd`.
+
+Without the package, install the agent and its unit. The build needs `ar` (binutils)
 and a C compiler for the kernels of `tract`. `choractl` comes with
 chora:
 

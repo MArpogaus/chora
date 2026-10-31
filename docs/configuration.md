@@ -267,7 +267,7 @@ tiling needs `modifier: Super`: with `Alt`, tiling grabs Alt+Space for
 ## chora-mc (experimental)
 
 !!! warning "Experimental"
-    `chora-mc` is an experiment. It is not in the packages, and its
+    `chora-mc` is an experiment. The packages install it, but its
     methods and files change without notice.
 
 `chora-mc` connects with the client name `mc`. It is a voice-first
@@ -396,8 +396,11 @@ hand apply with `settings.reload`:
   The default sets TeX Gyre Pagella with small caps and old-style figures
   for the text, from the Fedora package `texlive-tex-gyre`, whose
   directory `/usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre`
-  must be in `CHORA_FONT_DIRS`, and Inter with tabular figures for the
-  running head, the notes and the HUD.
+  is not a font directory. The RPM adds it to fontconfig with
+  `/etc/fonts/conf.d/09-chora-tex-gyre.conf`; without the RPM, add it to
+  `CHORA_FONT_DIRS`. On Arch Linux, `tex-gyre-fonts` needs neither. Inter
+  with tabular figures (`rsms-inter-fonts`, on Arch `inter-font`) sets
+  the running head, the notes and the HUD.
 - `chapter.layout`: `number` (the number in the style
   `chapter_number`, a hairline bar from the baseline to the capitals,
   then the title in spaced capitals on the same baseline, such as
@@ -551,6 +554,8 @@ tasks scheduled or due today, each as a time in the margin and a text.
 It leaves out overdue, upcoming and done tasks. `ORG_TODO` sets the TODO
 keywords, by default `PROJ TODO NEXT WAIT | DONE KILL`.
 
+The packages install the collectors in `/usr/share/chora/mc/collectors/`.
+
 The other collectors in `plugins/chora-mc/collectors/` are Python 3
 scripts without dependencies. They only read their sources, and a source
 that is missing leaves a short note or nothing. Each takes `--print` to
@@ -579,8 +584,8 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 ## chora-construct (experimental)
 
 !!! warning "Experimental"
-    `chora-construct` is step K1 of the construct track (D66). It is not
-    in the packages, and its settings change without notice.
+    `chora-construct` is step K1 of the construct track (D66). The
+    packages install it, but its settings change without notice.
 
 `chora-construct` connects with the client name `construct`. It is a
 flavor: `chora -- chora-construct` starts into it, and the directory
