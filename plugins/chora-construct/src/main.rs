@@ -65,8 +65,8 @@ const SKY: &str = "construct-sky";
 const FOG_SCALE: f64 = 4.0;
 /// The mirror images of the panes in the ground, under the panes.
 const MIRRORS: &str = "construct-mirrors";
-/// A mirror image renders at this fraction of its pane: it is blurred.
-const MIRROR_SCALE: f64 = 4.0;
+/// A mirror image renders at this fraction of its pane: a little soft.
+const MIRROR_SCALE: f64 = 2.0;
 /// The fog shader draws the shadows of this many panes, the nearest.
 const SHADOWS: usize = 8;
 const PANES: &str = "construct-panes";
@@ -1667,7 +1667,7 @@ impl Construct {
             ("sky".into(), vec3(palette.sky)),
             ("fog".into(), vec3(palette.horizon)),
             ("ground".into(), vec3(palette.ground)),
-            ("dust".into(), vec3(palette.dust)),
+            ("sheen".into(), vec3(palette.sheen)),
         ]);
         for k in 0..SHADOWS {
             let shadow = near.get(k).map_or(vec![0.0; 4], |p| {
@@ -1704,8 +1704,8 @@ impl Construct {
         let theme = self.settings.value.theme;
         let fog = theme.palette().horizon;
         let gloss = match theme {
-            Theme::Light => 0.13,
-            Theme::Dark => 0.3,
+            Theme::Light => 0.4,
+            Theme::Dark => 0.55,
         };
         let radius = self.radius();
         let mut sorted: Vec<(&Pane, f64)> = (self.panes.iter())
@@ -1736,7 +1736,11 @@ impl Construct {
                 let k = pane.size[0] / mirror_size(pane.size)[0];
                 let matrix = space::mirror_matrix(&self.lens, &self.pose, pane.at, pane.size, k);
                 mirror.transform = Some(Transform::from_matrix(matrix));
-                mirror.uniforms = Some(mirror_uniforms(&pane.source, gloss * (1.0 - haze)));
+                // Fresnel: the floor mirrors more at a grazing view.
+                let grazing = 1.0 - self.lens.ground / self.lens.ground.hypot(*depth);
+                let fresnel = 0.05 + 0.95 * grazing.powi(5);
+                let strength = gloss * (0.4 + 0.6 * fresnel) * (1.0 - haze);
+                mirror.uniforms = Some(mirror_uniforms(&pane.source, strength));
             }
             commands.push(update(&pane.node(), props));
             commands.push(update(&pane.mirror(), mirror));
