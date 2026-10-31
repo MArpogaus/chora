@@ -311,8 +311,8 @@ struct Mc {
     agent_focus: Option<String>,
     /// The content of `region.solo` that shows alone in its region.
     solo: Option<Solo>,
-    /// The id of the spoken confirmation that shows, until its answer.
-    confirming: Option<String>,
+    /// The spoken confirmation that shows, until its answer.
+    confirming: Option<agent::Confirming>,
     /// Whether mc claims the state indicator of the voice agent at its
     /// next event: after the start and after the agent connected.
     claim_due: bool,

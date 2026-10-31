@@ -171,6 +171,9 @@ impl Mc {
     /// A click of the user: on a window or a docked app it gives that the
     /// keyboard, on a line of the overview it shows that scene.
     pub fn click(&mut self, node: &str, at: [f64; 2]) -> Result<(), ClientError> {
+        if self.press_answer(node) {
+            return Ok(());
+        }
         let mut ours = self.windows.values().chain(self.docks.values());
         if ours.any(|s| s == node) {
             if self.focused.as_deref() != Some(node) {

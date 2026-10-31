@@ -347,7 +347,13 @@ ACP agent of the voice agent; `voice.remove {name}` removes such a
 sub-agent.
 `voice.say` shows a sentence as `hud.say` does. `voice.confirm` shows its
 `prompt` and its whole `detail` in mono alone in the drawer until the
-event with `done` and the same `id`. At its start and after the agent
+event with `done` and the same `id`. With `buttons`, the words Ja and
+Nein stand flush right on its title line, each with a hairline under
+it; a click calls `voice.confirm.answer {id, yes}`. A question about a
+security key (`physical`) shows its `keys`, such as Alt+Y and Alt+N,
+before them. Only a pointer press on a word answers; no method of mc
+calls `confirm.answer`, but mc cannot tell an injected click
+(`input.inject`) from a real one. At its start and after the agent
 connects, mc calls the method `indicator.claim` of the agent, so that the
 agent hides its own state dot. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other

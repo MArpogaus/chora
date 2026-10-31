@@ -675,6 +675,18 @@ impl Mc {
         self.visible_in(&name, items)
     }
 
+    /// The box of the drawer of the current scene, while it shows.
+    pub fn drawer_box(&self) -> Option<[f64; 4]> {
+        let name = self.current.clone()?;
+        let items = self.items(&name);
+        let visible = self.visible(&items);
+        visible.contains(&Region::Drawer).then_some(())?;
+        self.boxes(&name, &visible)?
+            .regions
+            .get(&Region::Drawer)
+            .copied()
+    }
+
     /// The regions with `items` that show in a scene.
     fn visible_in(&self, name: &str, items: &Plan) -> Vec<Region> {
         (items.keys().copied())

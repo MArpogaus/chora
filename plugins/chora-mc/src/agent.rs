@@ -2,9 +2,12 @@
 //! line of the regions and the agents scene, and the notifications of
 //! `notify.push`.
 
-use chora_scene::ipc::RpcError;
+use chora_scene::{
+    Command, InputMode, NodeKind, PropsUpdate, Transform,
+    ipc::{ClientError, RpcError},
+};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::{
     Mc,
@@ -91,6 +94,70 @@ pub struct Confirm {
     detail: String,
     #[serde(default)]
     done: bool,
+    /// A question about a security key: only `keys` or a button answer.
+    #[serde(default)]
+    physical: bool,
+    #[serde(default)]
+    keys: Option<Keys>,
+    /// mc may show buttons that answer by `confirm.answer`.
+    #[serde(default)]
+    buttons: bool,
+}
+
+/// The keys of a physical question, such as `Alt+y`.
+#[derive(Clone, Debug, Deserialize)]
+pub struct Keys {
+    yes: String,
+    no: String,
+}
+
+/// The confirmation that shows: its id, whether it has buttons, and the
+/// keys of a physical one.
+#[derive(Clone, Debug)]
+pub struct Confirming {
+    id: String,
+    buttons: bool,
+    keys: Option<Keys>,
+}
+
+/// The group of the answers of a confirmation, over the regions.
+const ANSWERS: &str = "mc-answers";
+/// The click areas of the answers.
+pub const ANSWER_YES: &str = "mc-answer-yes";
+pub const ANSWER_NO: &str = "mc-answer-no";
+
+impl Confirming {
+    /// The parameters of `voice.confirm.answer` for a press on `node`:
+    /// an answer of a confirmation with buttons. Only a pointer press on
+    /// the node calls it; no method of mc does.
+    pub fn answer(&self, node: &str) -> Option<Value> {
+        let yes = match node {
+            ANSWER_YES => true,
+            ANSWER_NO => false,
+            _ => return None,
+        };
+        self.buttons.then(|| json!({"id": self.id, "yes": yes}))
+    }
+
+    /// The answers as margin notes, right to left from the right edge:
+    /// per answer its key in the style `margin` and its word in `body`,
+    /// the word with a hairline under it while it takes a click.
+    fn parts(&self) -> Vec<(String, &'static str, String)> {
+        let key = |k: &str| match k.rsplit_once('+') {
+            Some((m, c)) if c.chars().count() == 1 => format!("{m}+{}", c.to_uppercase()),
+            _ => k.to_owned(),
+        };
+        [(true, "Ja"), (false, "Nein")]
+            .into_iter()
+            .map(|(yes, word)| {
+                let id = if yes { ANSWER_YES } else { ANSWER_NO };
+                let k = (self.keys.as_ref())
+                    .map(|k| key(if yes { &k.yes } else { &k.no }))
+                    .unwrap_or_default();
+                (id.to_owned(), word, k)
+            })
+            .collect()
+    }
 }
 
 /// An id as text, from a string or a number.
@@ -409,14 +476,22 @@ impl Mc {
             prompt,
             detail,
             done,
+            physical,
+            keys,
+            buttons,
         } = confirm;
         let rejected =
             |e: chora_scene::ipc::ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         if done {
-            if self.confirming.as_deref() != Some(&id) {
+            if self.confirming.as_ref().is_none_or(|c| c.id != id) {
                 return Ok(());
             }
             self.confirming = None;
+            self.apply(vec![Command::Remove {
+                id: ANSWERS.into(),
+                to: None,
+            }])
+            .map_err(rejected)?;
             self.set_text(CONFIRM, None, |_| Vec::new())?;
             if self.solo.as_ref().is_some_and(|s| s.content == CONFIRM) {
                 self.solo(CONFIRM, Region::Drawer, Some(false), false)
@@ -426,12 +501,160 @@ impl Mc {
         }
         let lines = detail.lines().map(Into::into).collect();
         self.set_text(CONFIRM, Some(prompt), |_| lines)?;
-        self.confirming = Some(id);
+        let had = self.confirming.replace(Confirming {
+            id,
+            buttons,
+            keys: keys.filter(|_| physical),
+        });
         // ponytail: it takes the place of a solo of the user, which does
         // not come back after the answer.
         self.solo(CONFIRM, Region::Drawer, Some(true), false)
             .map_err(rejected)?;
-        Ok(())
+        self.show_answers(had.is_some()).map_err(rejected)
+    }
+
+    /// The answers of the confirmation at the top right of the drawer, on
+    /// the line of its title, flush right as margin notes: Ja and Nein
+    /// while the agent takes clicks, each with the key of a physical
+    /// question before it.
+    #[allow(clippy::too_many_lines, reason = "the nodes, then their places")]
+    fn show_answers(&mut self, had: bool) -> Result<(), ClientError> {
+        let mut commands = Vec::new();
+        if had {
+            commands.push(Command::Remove {
+                id: ANSWERS.into(),
+                to: None,
+            });
+        }
+        let Some(c) = self
+            .confirming
+            .clone()
+            .filter(|c| c.buttons || c.keys.is_some())
+        else {
+            return self.apply(commands);
+        };
+        let Some([x, top, w, _]) = self.drawer_box() else {
+            return self.apply(commands);
+        };
+        let config = &self.settings.value;
+        let b = config.scale.baseline;
+        let (Ok(word), Ok(data)) = (config.resolve("body", None), config.resolve("margin", None))
+        else {
+            return self.apply(commands);
+        };
+        let faint = config.colors().get("faint").copied().unwrap_or([0.5; 4]);
+        let muted = config.colors().get("muted").copied().unwrap_or([0.5; 4]);
+        let hidden = PropsUpdate {
+            opacity: Some(0.0),
+            ..PropsUpdate::default()
+        };
+        commands.push(crate::create(
+            ANSWERS,
+            NodeKind::Group,
+            crate::region::REGIONS,
+            hidden,
+        ));
+        let parts = c.parts();
+        for (id, w, k) in &parts {
+            let mut props = word.props(w);
+            if c.buttons {
+                props.input = Some(InputMode::Pass);
+            } else {
+                props.color = Some(muted);
+            }
+            commands.push(crate::create(
+                &format!("{id}-word"),
+                NodeKind::Text,
+                ANSWERS,
+                props,
+            ));
+            if !k.is_empty() {
+                let props = PropsUpdate {
+                    color: Some(muted),
+                    ..data.props(k)
+                };
+                commands.push(crate::create(
+                    &format!("{id}-key"),
+                    NodeKind::Text,
+                    ANSWERS,
+                    props,
+                ));
+            }
+        }
+        self.apply(commands)?;
+        // Right to left, by the widths that the core measured.
+        let mut right = x + w;
+        let mut moves = Vec::new();
+        let place = |id: &str, x: f64, y: f64| Command::Update {
+            id: id.into(),
+            props: PropsUpdate {
+                transform: Some(Transform::translate(x.round(), y.round(), 0.0)),
+                ..PropsUpdate::default()
+            },
+        };
+        for (id, _, k) in parts.iter().rev() {
+            let width = |s: &mut Self, node: &str| -> Result<f64, ClientError> {
+                Ok(s.rect(node)?.map_or(0.0, |r| r[2]))
+            };
+            let ww = width(self, &format!("{id}-word"))?;
+            right -= ww;
+            moves.push(place(&format!("{id}-word"), right, top));
+            if c.buttons {
+                // A click area over the word, and a hairline under it.
+                let area = PropsUpdate {
+                    transform: Some(Transform::translate(right, top, 0.0)),
+                    size: Some([ww, word.line]),
+                    color: Some([0.0; 4]),
+                    input: Some(InputMode::Accept),
+                    ..PropsUpdate::default()
+                };
+                moves.push(crate::create(id, NodeKind::Rect, ANSWERS, area));
+                let rule = PropsUpdate {
+                    transform: Some(Transform::translate(right, top + word.line, 0.0)),
+                    size: Some([ww, 1.0]),
+                    color: Some(faint),
+                    ..PropsUpdate::default()
+                };
+                moves.push(crate::create(
+                    &format!("{id}-rule"),
+                    NodeKind::Rect,
+                    ANSWERS,
+                    rule,
+                ));
+            }
+            if !k.is_empty() {
+                let kw = width(self, &format!("{id}-key"))?;
+                right -= kw + b;
+                moves.push(place(
+                    &format!("{id}-key"),
+                    right,
+                    top + word.line - data.line,
+                ));
+            }
+            right -= 2.0 * b;
+        }
+        moves.push(Command::Update {
+            id: ANSWERS.into(),
+            props: PropsUpdate {
+                opacity: Some(1.0),
+                ..PropsUpdate::default()
+            },
+        });
+        self.apply(moves)
+    }
+
+    /// Answers the confirmation by the click on `node`, with
+    /// `voice.confirm.answer`; a refusal, as for an old id, only logs.
+    /// True when `node` was an answer.
+    pub fn press_answer(&mut self, node: &str) -> bool {
+        let Some(params) = self.confirming.as_ref().and_then(|c| c.answer(node)) else {
+            return false;
+        };
+        let call = json!({"client": crate::VOICE, "method": "confirm.answer", "params": params});
+        if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
+            eprintln!("chora-mc: confirm.answer: {err}");
+        }
+        true
     }
 
     /// Empties the notifications.
@@ -514,6 +737,39 @@ mod tests {
         assert!(mc.solo.is_some(), "another id");
         mc.follow("voice.confirm", "voice", done("c1")).unwrap();
         assert!(mc.texts["confirm"].1.is_empty() && mc.solo.is_none());
+    }
+
+    /// A click on Ja or Nein maps to `confirm.answer` with the id as
+    /// text, only while the confirmation has buttons.
+    #[test]
+    fn a_click_on_an_answer_maps_to_confirm_answer() {
+        use serde_json::json;
+        let with = super::Confirming {
+            id: "4".into(),
+            buttons: true,
+            keys: None,
+        };
+        assert_eq!(
+            with.answer(super::ANSWER_YES),
+            Some(json!({"id": "4", "yes": true}))
+        );
+        assert_eq!(
+            with.answer(super::ANSWER_NO),
+            Some(json!({"id": "4", "yes": false}))
+        );
+        assert_eq!(with.answer("mc-answer-yes-word"), None);
+        let without = super::Confirming {
+            buttons: false,
+            ..with
+        };
+        assert_eq!(without.answer(super::ANSWER_YES), None);
+        let (mut mc, _) = crate::testing::mc("answers", [1920, 1080]);
+        let ask = json!({"id": "5", "prompt": "Set allow?", "detail": "allow: [sh]",
+            "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
+        mc.follow("voice.confirm", "voice", ask).unwrap();
+        let parts = mc.confirming.as_ref().unwrap().parts();
+        assert_eq!(parts[0].2, "Alt+Y");
+        assert_eq!(parts[1].1, "Nein");
     }
 
     /// The agent sent the id as a number: the question showed on no
