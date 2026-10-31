@@ -815,7 +815,7 @@ impl Chat {
         let prompt = if let Some(patch) = self.tools.own_settings_set(&name, args) {
             self.config.settings_question(patch)
         } else if let Some(rule) = tools::rule(&self.config.confirm, &name, args) {
-            let (prompt, kinds) = (rule.question(args), rule.commands.clone());
+            let (prompt, kinds) = (rule.question(&name, args), rule.commands.clone());
             if name == "apply_commands" && self.removes_own(&kinds, args).await {
                 crate::log::info("confirm apply_commands: own nodes, no question");
                 return Ok(());

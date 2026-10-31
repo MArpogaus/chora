@@ -841,6 +841,46 @@ pub mod tests {
         assert_eq!(prompt("query_scene", json!({})), None);
     }
 
+    /// Review 0.9.0-rc.3: `methods.privileged` opens every privileged
+    /// method without a question, so each asks first, in both forms.
+    #[test]
+    fn privileged_methods_ask_by_client_and_method() {
+        let rules = Config::default().confirm;
+        let ask =
+            |tool: &str, args: Value| rule(&rules, tool, &args).map(|r| r.question(tool, &args));
+        for (tool, args) in [
+            ("mc.app.open", json!({"app": "foot"})),
+            ("call_method", json!({"client": "mc", "method": "app.open"})),
+        ] {
+            assert_eq!(
+                ask(tool, args).as_deref(),
+                Some("Shall I run app open of the plugin mc?")
+            );
+        }
+        for method in [
+            "settings.set",
+            "settings.reload",
+            "scene.save",
+            "scene.rename",
+            "scene.move",
+            "construct.load",
+            "construct.save",
+            "pane.remove",
+        ] {
+            assert!(
+                ask(&format!("xp.{method}"), json!({})).is_some(),
+                "{method}"
+            );
+            let args = json!({"client": "xp", "method": method});
+            assert!(ask("call_method", args).is_some(), "{method}");
+        }
+        assert_eq!(ask("mc.scene.show", json!({})), None);
+        assert_eq!(
+            ask("voice.settings.reload", json!({})).as_deref(),
+            Some("Shall I run settings reload of the plugin voice?")
+        );
+    }
+
     /// A project `proj` with `a.txt`, `sub/`, `bin`, `latin1`, `big.txt`
     /// and a link `link` to the folder `outside` next to it, which has
     /// `secret.txt`.

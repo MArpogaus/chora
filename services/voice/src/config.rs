@@ -256,7 +256,7 @@ fn rule(tool: &str, prompt: &str) -> Confirm {
 
 /// The tools that ask first (docs/voice.md section 9).
 fn default_confirm() -> Vec<Confirm> {
-    vec![
+    let mut rules = vec![
         Confirm {
             commands: words(&["remove", "close"]),
             ..rule("apply_commands", "Shall I remove that?")
@@ -270,11 +270,36 @@ fn default_confirm() -> Vec<Confirm> {
         rule("configure_output", "Shall I change the screen to {args}?"),
         rule("*.restart", "Shall I restart the plugin?"),
         Confirm {
-            method: Some("*.restart".into()),
+            method: Some("*restart".into()),
             ..rule("call_method", "Shall I restart the plugin {client}?")
         },
-    ]
+    ];
+    // The privileged methods of the plugins: `methods.privileged` opens
+    // them all, and their export flag does not reach the agent.
+    for method in PRIVILEGED {
+        rules.push(rule(&format!("*.{method}"), PRIVILEGED_PROMPT));
+        rules.push(Confirm {
+            method: Some(method.into()),
+            ..rule("call_method", PRIVILEGED_PROMPT)
+        });
+    }
+    rules
 }
+
+/// The privileged methods of the plugins that ask first.
+const PRIVILEGED: [&str; 9] = [
+    "settings.set",
+    "settings.reload",
+    "app.open",
+    "scene.save",
+    "scene.rename",
+    "scene.move",
+    "construct.load",
+    "construct.save",
+    "pane.remove",
+];
+
+const PRIVILEGED_PROMPT: &str = "Shall I run {method} of the plugin {client}?";
 
 impl Config {
     /// The command line of a harness: in `sandbox_cmd`, unless
@@ -425,10 +450,21 @@ impl Config {
 impl Confirm {
     /// The question for a call with `args`: `{program}` is the program of
     /// `run_program`, `{NAME}` the argument `NAME` and `{args}` all
-    /// arguments that are a text, a number or a boolean.
-    pub fn question(&self, args: &serde_json::Value) -> String {
+    /// arguments that are a text, a number or a boolean. `{client}` and
+    /// `{method}` also name the plugin tool `tool` of a rule `*.METHOD`.
+    pub fn question(&self, tool: &str, args: &serde_json::Value) -> String {
         let program = crate::tools::program(args).unwrap_or_default();
         let mut text = self.prompt.replace("{program}", program);
+        let named = (args["client"].as_str()).zip(args["method"].as_str());
+        let from_tool = || {
+            let method = self.tool.strip_prefix("*.")?;
+            Some((tool.strip_suffix(method)?.strip_suffix('.')?, method))
+        };
+        if let Some((client, method)) = named.or_else(from_tool) {
+            text = text
+                .replace("{client}", client)
+                .replace("{method}", &method.replace(['.', '_'], " "));
+        }
         let scalars = args
             .as_object()
             .into_iter()
@@ -479,7 +515,7 @@ fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 21] = [
+const GERMAN: [(&str, &str); 22] = [
     ("One moment.", "Moment."),
     ("Ready.", "Bereit."),
     ("Heard: {text}", "Gehört: {text}"),
@@ -542,6 +578,10 @@ const GERMAN: [(&str, &str); 21] = [
     (
         "Shall I restart the plugin {client}?",
         "Soll ich das Plugin {client} neu starten?",
+    ),
+    (
+        PRIVILEGED_PROMPT,
+        "Soll ich {method} des Plugins {client} ausführen?",
     ),
 ];
 
@@ -969,7 +1009,7 @@ mod tests {
         let question = |tool: &str, args: serde_json::Value| {
             let config = Config::default();
             let rule = config.confirm.iter().find(|r| r.tool == tool).unwrap();
-            rule.question(&args)
+            rule.question("", &args)
         };
         let screen = serde_json::json!({"output": "winit", "scale": 1.5});
         assert_eq!(
