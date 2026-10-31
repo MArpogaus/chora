@@ -532,14 +532,12 @@ impl Mc {
             }
         }
         // The sides show only where they fit.
-        if let Some(scene) = self.scenes.get(name) {
-            let [left, right] = self.side_widths(name, scene);
-            out.retain(|region, _| match region {
-                Region::Left => left > 0.0,
-                Region::Right => right > 0.0,
-                _ => true,
-            });
-        }
+        let [left, right] = self.side_widths(name);
+        out.retain(|region, _| match region {
+            Region::Left => left > 0.0,
+            Region::Right => right > 0.0,
+            _ => true,
+        });
         out
     }
 
@@ -584,8 +582,8 @@ impl Mc {
 
     /// The widths of the left and the right side of a scene, 0 for a side
     /// without contents, and both 0 when the sides would leave the text
-    /// less than three quarters of its measure.
-    pub fn side_widths(&self, name: &str, scene: &Scene) -> [f64; 2] {
+    /// less than three quarters of the measure of a column.
+    pub fn side_widths(&self, name: &str) -> [f64; 2] {
         let Some(output) = &self.output else {
             return [0.0, 0.0];
         };
@@ -593,8 +591,6 @@ impl Mc {
         let (em, b) = (config.scale.base, config.scale.baseline);
         let page = &config.page;
         let gap = page.gap * em;
-        let cols = f64::from(scene.grid()[0]);
-        let want = cols * page.measure * em + (cols - 1.0) * (page.margin * em + 2.0 * gap);
         let room = f64::from(output.size[0]) - 4.0 * b - 2.0 * (page.margin * em + gap);
         let placed = self.placed(name);
         let sides = [Region::Left, Region::Right].map(|region| {
@@ -605,7 +601,9 @@ impl Mc {
             }
         });
         let need: f64 = sides.iter().filter(|w| **w > 0.0).map(|w| w + gap).sum();
-        if room - need < 0.75 * want {
+        // One column of text, since the columns of the grid wrap where
+        // they do not fit; all of them hid the sides below 1900 pixels.
+        if room - need < 0.75 * page.measure * em {
             [0.0, 0.0]
         } else {
             sides
@@ -649,7 +647,7 @@ impl Mc {
         let frame = [x - note - gap, width + 2.0 * (note + gap)];
         let drawer_top = h - foot - drawer;
         regions.insert(Region::Drawer, [frame[0], drawer_top, frame[1], drawer]);
-        let [lw, rw] = self.side_widths(name, self.scenes.get(name)?);
+        let [lw, rw] = self.side_widths(name);
         let side_top = if app { head + b } else { top };
         let side_h = (drawer_top - b - side_top).max(b);
         let mut window = [0.0, head, w, (drawer_top - head).max(b)];
@@ -1315,6 +1313,23 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    /// Live at 1156 logical pixels (scale 1.5): the right side showed
+    /// as open but drew nothing, since the sides had to leave room for
+    /// all four columns of the grid, which wrap there anyway.
+    #[test]
+    fn the_sides_show_on_a_narrow_output() {
+        let (mut mc, model) = crate::testing::mc("narrow", [1156, 1115]);
+        mc.show("agenda").unwrap();
+        mc.set_text("notes", None, |_| vec!["Call Lena".into()])
+            .unwrap();
+        let id = format!("{}-notes", mc.region_id(Region::Right));
+        assert!(crate::testing::has(&model, &id), "{id}");
+        assert!(mc.side_widths("agenda")[1] > 0.0);
+        // A side that does not leave a column of text still hides.
+        let (mc, _) = crate::testing::mc("tiny", [700, 700]);
+        assert_eq!(mc.side_widths("agenda"), [0.0, 0.0]);
     }
 
     #[test]

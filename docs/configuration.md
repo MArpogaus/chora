@@ -424,7 +424,8 @@ region. The page itself never moves when a region shows.
   contents one under the other with a title in the style `running_head`.
   The page leaves room for a side that has contents, so that its text
   never moves; where both sides would leave the text less than three
-  quarters of its measure, the sides do not show.
+  quarters of the measure of one column, the sides do not show. The
+  columns of the grid that do not fit wrap into new rows.
 - `drawer` is a sheet of `size` lines over the bottom of the page, with a
   hairline above it, for a docked app.
 

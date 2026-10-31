@@ -16,6 +16,8 @@ mod agent;
 mod config;
 mod region;
 mod scene;
+#[cfg(test)]
+mod testing;
 
 use std::{
     collections::{BTreeMap, HashMap},
@@ -1378,7 +1380,7 @@ impl Mc {
         // A margin column on both sides, so that the text stays centered,
         // and room for the sides, so that the text never moves when one
         // shows: centered where it fits, else beside the sides.
-        let [left, right] = self.side_widths(name, scene);
+        let [left, right] = self.side_widths(name);
         let need = |side: f64| if side > 0.0 { side + gap } else { 0.0 };
         let (lneed, rneed) = (note + gap + need(left), (note + gap).max(need(right)));
         let width = want.min(w - lneed - rneed - 4.0 * b).max(b);

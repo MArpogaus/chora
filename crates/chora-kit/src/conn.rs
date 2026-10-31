@@ -25,13 +25,24 @@ impl Conn {
     ///
     /// The socket is missing or fails, or the core refuses the `hello`.
     pub fn connect(name: &str) -> Result<Self, ClientError> {
+        let path = std::env::var_os(chora_scene::ipc::SOCKET_ENV).ok_or(ClientError::NoSocket)?;
+        Self::connect_at(name, path.as_ref())
+    }
+
+    /// Connects as [`Self::connect`] does, to the socket at `path`; for
+    /// the tests of a plugin against a fake core.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails, or the core refuses the `hello`.
+    pub fn connect_at(name: &str, path: &std::path::Path) -> Result<Self, ClientError> {
         let hello = Hello {
             name: name.into(),
             resume: true,
             ..Hello::default()
         };
         Ok(Self {
-            client: Client::from_env(&hello)?,
+            client: Client::connect(path, &hello)?,
             name: name.into(),
         })
     }
