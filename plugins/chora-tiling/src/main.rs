@@ -683,11 +683,17 @@ impl Tiling {
         if self.without_outputs() {
             return self.pass_on_reserved(surface);
         }
-        let ignored = self.query(&format!("id:{surface}"))?.iter().any(|node| {
+        let nodes = self.query(&format!("id:{surface}"))?;
+        let ignored = nodes.iter().any(|node| {
             node["surface"]["app_id"]
                 .as_str()
                 .is_some_and(|app| self.ignore.iter().any(|i| i == app))
         });
+        // The size of a window that comes with one, as from another window
+        // manager: it floats at that size, centered, and a drag hits it.
+        let size = nodes
+            .first()
+            .and_then(|n| serde_json::from_value(n["surface"]["size"].clone()).ok());
         if ignored {
             return self.pass_on_reserved(surface);
         }
@@ -699,6 +705,9 @@ impl Tiling {
             Ok(()) => {
                 // A new window of tiling takes the focus.
                 self.wm.add_window(surface);
+                if let Some(size) = size {
+                    self.wm.set_size(surface, size);
+                }
                 self.focus.take();
                 self.style(surface)
             }
