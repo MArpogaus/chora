@@ -133,9 +133,10 @@ as `Authorization: Bearer KEY`. `llm_headers`, `asr_headers` and
 
 The LLM must have an OpenAI-compatible `/chat/completions` endpoint.
 `reasoning_effort: ""` leaves that key out, for a server that refuses
-it. Note: the agent has no TLS yet. It connects only to `http://` and
-`ws://` URLs. For a provider on `https://`, run a local TLS proxy and
-point `llm_url` at it, until TLS comes in.
+it. The agent connects to `http://` and `ws://` URLs in plain text, and
+to `https://` and `wss://` URLs with TLS (rustls with ring). It trusts
+the root certificates of the system, so a CA that you added to the
+system store also works.
 
 A local llama.cpp server (`llama-server -m MODEL.gguf --port 8080
 --jinja`; `--jinja` enables tool calls):
@@ -153,20 +154,20 @@ llm_model: qwen3:8b          # a model of `ollama list` with tool support
 reasoning_effort: ""
 ```
 
-OpenRouter (through a TLS proxy on port 8443, see the note above):
+OpenRouter:
 
 ```yaml
-llm_url: http://127.0.0.1:8443/api/v1   # proxy to https://openrouter.ai
-llm_model: anthropic/claude-sonnet-4.5
+llm_url: https://openrouter.ai/api/v1
+llm_model: anthropic/claude-haiku-4.5
 llm_api_key_env: OPENROUTER_API_KEY
 llm_headers: {HTTP-Referer: "https://github.com/MArpogaus/chora", X-Title: chora}
 reasoning_effort: ""
 ```
 
-OpenAI (through a TLS proxy to `https://api.openai.com`):
+OpenAI:
 
 ```yaml
-llm_url: http://127.0.0.1:8444/v1
+llm_url: https://api.openai.com/v1
 llm_model: gpt-4.1-mini
 llm_api_key_env: OPENAI_API_KEY
 reasoning_effort: ""

@@ -358,9 +358,9 @@ the settings file, and goes into `Authorization: Bearer KEY`: over HTTP
 for the LLM, and in the websocket handshake of the ASR and the TTS, as
 the realtime API of OpenAI takes it. The health probes and the live
 commands use the same settings. The LLM must speak the OpenAI chat
-completions API; other protocols come later. The build has no TLS yet:
-only `http://` and `ws://` URLs work, so a provider on `https://` needs
-a local proxy until TLS comes in.
+completions API; other protocols come later. `https://` and `wss://` URLs use TLS
+(rustls with ring, system root certificates); `http://` and `ws://` stay
+in plain text.
 
 The ASR gets no language with `asr_language: auto`, and `asr_prompt`
 with the wake, sleep and stop words and the project names as the
@@ -550,8 +550,8 @@ Reused from `Cargo.lock`: `serde`, `serde_json`, `schemars`,
 | New crate | Why |
 |---|---|
 | `tract-onnx` 0.22 | Silero VAD in pure Rust. 0.23 needs Rust 1.91; the workspace has 1.89 |
-| `tokio-tungstenite` 0.28 (default features: no TLS; WP4) | ASR and TTS websockets, fake servers |
-| `reqwest` 0.13 (no defaults; `stream`; WP5) | LLM SSE; chunked HTTP by hand is a bug source. It brings `hyper`, `tower` and `tower-http` (MIT); 0.13 is the version of the optional `rmcp` dependency |
+| `tokio-tungstenite` 0.28 (`rustls-tls-native-roots`; WP4) | ASR and TTS websockets, fake servers |
+| `reqwest` 0.13 (no defaults; `stream`, `rustls-no-provider`; WP5) | LLM SSE and TLS (system roots through `rustls-platform-verifier`, the `rustls` ring provider is installed in `main`); chunked HTTP by hand is a bug source. It brings `hyper`, `tower` and `tower-http` (MIT); 0.13 is the version of the optional `rmcp` dependency |
 
 `tract-linalg` builds its kernels with `cc` and needs `ar` at build time.
 
