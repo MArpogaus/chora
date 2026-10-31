@@ -206,6 +206,10 @@ struct Key {
 /// up between sentences, still counts as speaking.
 const SOUND_GAP: Duration = Duration::from_millis(1500);
 
+/// A question of the reply that is not yet said waits at most this long
+/// besides `confirm_timeout_ms`, for example when its TTS fails.
+const UNSPOKEN: Duration = Duration::from_secs(30);
+
 /// Words that played within this time count for the echo filter.
 const ECHO_MEMORY: Duration = Duration::from_secs(3);
 /// The most texts that wait to be said: a flood of a looping sub-agent
@@ -239,6 +243,10 @@ pub struct Core {
     /// answers so far.
     confirm: Option<oneshot::Sender<Option<bool>>>,
     unclear: u32,
+    /// The question of the confirmation, and until when it waits:
+    /// `confirm_timeout_ms` from the end of its sound.
+    confirm_prompt: String,
+    confirm_until: Instant,
     /// The utterances whose final text waits.
     pending: Vec<Pending>,
     /// A barge-in paused the speech.
@@ -319,6 +327,8 @@ impl Core {
             doing: State::Thinking,
             confirm: None,
             unclear: 0,
+            confirm_prompt: String::new(),
+            confirm_until: now,
             pending: Vec::new(),
             paused: false,
             levels: VecDeque::new(),
@@ -397,6 +407,13 @@ impl Core {
         let late = Instant::now() >= self.sub_until;
         if (self.sub_confirm.as_ref()).is_some_and(|(_, a)| late || a.is_closed()) {
             self.sub_confirm = None;
+        }
+        // A question of the reply without an answer in time: the dropped
+        // answer tells the LLM so.
+        if self.confirm.is_some() && Instant::now() >= self.confirm_until {
+            crate::log::info("confirm: no answer in time");
+            self.confirm = None;
+            self.doing = State::Thinking;
         }
         let working =
             self.code.1 == "working" || self.subs.values().any(|s| s["state"] == "working");
@@ -694,9 +711,19 @@ impl Core {
         match event {
             Reply::Chat(chat::Event::Thinking) => self.doing = State::Thinking,
             Reply::Chat(chat::Event::Tool(_)) => self.doing = State::Tool,
-            Reply::Chat(chat::Event::Confirm { answer, .. }) => {
+            Reply::Chat(chat::Event::Confirm { prompt, answer }) => {
                 self.confirm = Some(answer);
                 self.unclear = 0;
+                // The wait starts when the question is said; until then,
+                // or without its sound, at most `UNSPOKEN` longer.
+                let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
+                let unspoken = if self.muted.speaker {
+                    Duration::ZERO
+                } else {
+                    UNSPOKEN
+                };
+                self.confirm_until = Instant::now() + wait + unspoken;
+                self.confirm_prompt = prompt;
                 // A yes or no said while the reply thought answers it.
                 let at = (self.queue.iter()).rposition(|t| {
                     matches!(
@@ -727,6 +754,10 @@ impl Core {
                 }
             }
             Reply::Said { text, at, len } => {
+                if self.confirm.is_some() && text == self.confirm_prompt {
+                    let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
+                    self.confirm_until = at + len + wait;
+                }
                 self.said.push_back((at + len, text.clone()));
                 self.played.push_str(&text);
                 self.played.push(' ');
@@ -1519,6 +1550,38 @@ mod tests {
         say(&mut core, "Zeig mir lieber die Agenda für heute.");
         assert_eq!(rx.try_recv(), Ok(Some(false)));
         assert_eq!(call(&mut core, Call::State).1["queued"], 1);
+    }
+
+    /// The confirmation waits `confirm_timeout_ms` from the end of the
+    /// spoken question, not from when the reply asks (log 2026-10-31: the
+    /// question played for 3 s of the 8 s), then it is no answer.
+    #[test]
+    fn the_confirmation_times_out_from_the_end_of_its_question() {
+        let mut core = asking();
+        let (answer, mut rx) = oneshot::channel();
+        let prompt = "Soll ich das entfernen?";
+        let confirm = chat::Event::Confirm {
+            prompt: prompt.into(),
+            answer,
+        };
+        core.handle(reply(1, confirm));
+        let wait = Duration::from_millis(core.config.confirm_timeout_ms.into());
+        assert_eq!(wait, Duration::from_secs(15));
+        assert!(core.confirm_until > Instant::now() + wait, "not yet said");
+        let at = Instant::now() + Duration::from_secs(2);
+        let len = Duration::from_secs(3);
+        let said = Reply::Said {
+            text: prompt.into(),
+            at,
+            len,
+        };
+        core.handle(Input::Reply(1, said));
+        assert_eq!(core.confirm_until, at + len + wait);
+        assert_eq!(core.state(), State::Confirming);
+        core.confirm_until = Instant::now();
+        core.handle(frame(0.0));
+        assert_eq!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed));
+        assert_eq!(core.state(), State::Thinking);
     }
 
     #[test]

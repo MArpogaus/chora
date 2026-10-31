@@ -625,7 +625,7 @@ impl Default for Config {
             no_words: words(&["no", "rather not", "nein", "nicht", "lieber nicht"]),
             filler_words: words(&["please", "now", "bitte", "jetzt", "mal"]),
             confirm: default_confirm(),
-            confirm_timeout_ms: 8000,
+            confirm_timeout_ms: 15_000,
             earcons: true,
             earcon_volume: 0.3,
             indicator: true,

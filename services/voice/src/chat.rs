@@ -584,8 +584,11 @@ impl Chat {
         let (answer, rx) = oneshot::channel();
         out(Event::Confirm { prompt, answer });
         let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
+        // The core times the answer from the end of the spoken question
+        // and drops it then; this is only a backstop.
+        let backstop = wait + Duration::from_secs(60);
         // The agent itself asks: the LLM must not look for a dialog.
-        let result = match tokio::time::timeout(wait, rx).await {
+        let result = match tokio::time::timeout(backstop, rx).await {
             Ok(Ok(Some(true))) => Ok(()),
             Ok(Ok(Some(false))) => Err("The user declined the spoken confirmation".to_owned()),
             Ok(Ok(None)) => Err("The answer to the spoken confirmation was not understood".into()),
