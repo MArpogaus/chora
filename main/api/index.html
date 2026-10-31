@@ -2643,7 +2643,13 @@ starts its own plugins. A flavor starts its plugins as its own systemd
 units <code>chora-NAME.service</code> instead. A view whose plugin unit runs
 already, for example while the plugin starts, waits for that plugin.
 <code>choractl view load</code> works only from the main socket: a view connects
-as <code>view-NAME</code>, and a client socket refuses any name but its own.</p>
+as <code>view-NAME</code>, and a client socket refuses any name but its own.
+The MCP tools <code>load_view</code>, <code>save_view</code> and <code>unload_view</code> confine the
+connection <code>view-NAME</code> as <code>choractl mcp</code> confines its own. So the
+rules above hold for it with the grants of <code>view-NAME</code>: <code>input</code> needs
+<code>methods.privileged</code>, a plugin start <code>activation.token</code> and a <code>config</code>
+<code>methods.call</code>. A view of nodes only needs no grant. The user grants
+them to the name of a view that an agent may load in full.</p>
 <h2 id="mcp-tools">MCP tools<a class="headerlink" href="#mcp-tools" title="Permanent link">&para;</a></h2>
 <p><code>choractl mcp</code> serves the API as MCP tools over stdio (D34). It connects
 as the client <code>agent</code>, or under <code>--name</code>. An MCP client starts it, for
