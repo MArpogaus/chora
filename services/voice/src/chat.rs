@@ -929,11 +929,12 @@ impl Chat {
     ) -> Vec<Value> {
         let mut results = Vec::new();
         for call in calls {
-            let args: Value = if call.args.trim().is_empty() {
+            let mut args: Value = if call.args.trim().is_empty() {
                 json!({})
             } else {
                 serde_json::from_str(&call.args).unwrap_or(Value::Null)
             };
+            unwrap_patch(&mut args);
             let again =
                 (self.failed.as_ref()).is_some_and(|f| f.times >= 2 && f.like(&call.name, &args));
             let content = if args.is_null() {
@@ -1315,6 +1316,19 @@ fn text_of(content: &Value) -> String {
             .collect::<Vec<_>>()
             .join(" "),
         _ => String::new(),
+    }
+}
+
+/// The own settings tool takes `{patch}`, and the LLM copies that to
+/// `call_method`, where the params of `settings.set` are the patch itself:
+/// `{"patch": {...}}` there becomes `{...}`.
+fn unwrap_patch(args: &mut Value) {
+    if args["method"].as_str().is_some_and(|m| m.ends_with("settings.set"))
+        && let Some(params) = args.get_mut("params")
+        && let Some(patch) = params.as_object().filter(|p| p.len() == 1).and_then(|p| p.get("patch"))
+        && patch.is_object()
+    {
+        *params = patch.clone();
     }
 }
 
@@ -2409,6 +2423,23 @@ mod tests {
         ] {
             assert!(crate::config::security_key(key), "{key}");
         }
+    }
+
+    /// The LLM wraps the patch of another plugin's `settings.set` as in
+    /// its own settings tool; the wrapper goes.
+    #[test]
+    fn call_method_settings_set_takes_the_patch_unwrapped() {
+        let mut args = json!({"client": "mc", "method": "settings.set",
+            "params": {"patch": {"font_size": 12}}});
+        unwrap_patch(&mut args);
+        assert_eq!(args["params"], json!({"font_size": 12}));
+        let mut other = json!({"client": "mc", "method": "scene.set", "params": {"patch": {"a": 1}}});
+        let same = other.clone();
+        unwrap_patch(&mut other);
+        assert_eq!(other, same);
+        let mut direct = json!({"client": "mc", "method": "settings.set", "params": {"a": 1}});
+        unwrap_patch(&mut direct);
+        assert_eq!(direct["params"], json!({"a": 1}));
     }
 
     /// Review rc3 round 3, 2.4: a reload of a file that differs in a
