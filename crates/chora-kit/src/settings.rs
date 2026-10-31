@@ -20,6 +20,10 @@
 //! lists and other values replace, also an enum in an object, and `null`
 //! removes the key, so that a map loses the entry and a field of a struct
 //! takes its default again.
+//!
+//! A save writes only the keys that differ from the default file: a
+//! changed map whole, and `null` for an option that the user cleared. A
+//! key that an update removes or renames then stays out of most files.
 
 use std::{
     io::Write as _,
@@ -201,7 +205,11 @@ impl<S: Settings> File<S> {
     /// never a part. A symlink, for example into a dotfiles repository,
     /// stays: the file that it points to takes the settings.
     fn write(&self) -> Result<(), String> {
-        let text = serde_saphyr::to_string(&self.value).map_err(|e| e.to_string())?;
+        let value = serde_json::to_value(&self.value).map_err(|e| e.to_string())?;
+        let default = serde_json::to_value(parse::<S>(self.default)?).map_err(|e| e.to_string())?;
+        let schema = schema::<S>();
+        let text = serde_saphyr::to_string(&diff(value, &default, &schema, &schema))
+            .map_err(|e| e.to_string())?;
         let write = || -> std::io::Result<()> {
             let dir = self.path.parent().unwrap_or(Path::new("."));
             std::fs::create_dir_all(dir)?;
@@ -359,6 +367,37 @@ fn fill(value: &mut Value, default: &Value, schema: &Value, root: &Value) {
     }
 }
 
+/// The keys of `value` that differ from `default`, the inverse of
+/// [`fill`]: a struct keeps its changed keys only, and `null` for a key
+/// that `value` leaves out; any other value, such as a map, stays whole,
+/// since a map in the file replaces the default map.
+fn diff(value: Value, default: &Value, schema: &Value, root: &Value) -> Value {
+    let schema = resolve(schema, root);
+    let (Some(properties), Value::Object(value), Value::Object(default)) =
+        (schema.get("properties"), &value, default)
+    else {
+        return value;
+    };
+    let mut changed: Map<String, Value> = default
+        .keys()
+        .filter(|k| !value.contains_key(*k))
+        .map(|k| (k.clone(), Value::Null))
+        .collect();
+    for (key, value) in value {
+        match default.get(key) {
+            Some(default) if default == value => {}
+            Some(default) => {
+                let value = diff(value.clone(), default, &properties[key], root);
+                changed.insert(key.clone(), value);
+            }
+            None => {
+                changed.insert(key.clone(), value.clone());
+            }
+        }
+    }
+    Value::Object(changed)
+}
+
 /// The schema behind a `$ref`, or the struct of an `Option`.
 fn resolve<'a>(schema: &'a Value, root: &'a Value) -> &'a Value {
     if let Some(name) = schema["$ref"]
@@ -481,6 +520,48 @@ pub(crate) mod tests {
         let names: Vec<_> = std::fs::read_dir(dir.join("chora")).unwrap().collect();
         assert_eq!(names.len(), 1, "no temporary file stays: {names:?}");
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A save writes the keys that differ from the default file only: a
+    /// changed nested key, a changed map whole, and `null` for an option
+    /// that the user cleared; the file round-trips.
+    #[test]
+    fn a_save_writes_the_changes_only() {
+        let path = dir("diff").join("demo.yaml");
+        let mut file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+        file.set(json!({"frame": {"width": 3}, "bindings": {"MOD+x": "close"}}))
+            .unwrap();
+        file.value.frame.title = None;
+        file.save().unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        let saved: Value = serde_saphyr::from_str(&text).unwrap();
+        assert_eq!(
+            saved,
+            json!({
+                "bindings": {"MOD+q": "close", "MOD+r": {"run": "foot"}, "MOD+x": "close"},
+                "frame": {"width": 3, "title": null},
+            }),
+            "{text}"
+        );
+        let loaded = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+        assert!(loaded.broken().is_none());
+        assert_eq!(loaded.value, file.value, "the file round-trips");
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    /// Settings without a change save an empty mapping, which loads as
+    /// the defaults.
+    #[test]
+    fn unchanged_settings_save_an_empty_mapping() {
+        let path = dir("empty").join("demo.yaml");
+        let file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+        file.save().unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(text.trim(), "{}");
+        let loaded = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+        assert!(loaded.broken().is_none());
+        assert_eq!(loaded.value, parse::<Demo>(DEFAULT).unwrap());
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
     }
 
     /// The saved file has mode 0600, and a symlink to the settings, for
