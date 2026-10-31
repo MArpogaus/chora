@@ -286,6 +286,7 @@ impl Tools {
     /// Runs a tool and answers the content of the tool message: the text,
     /// and the pictures when the LLM reads them. An error is a text that
     /// starts with `error:`, which the LLM reads.
+    #[allow(clippy::too_many_lines)] // one early return per own tool
     pub async fn call(&mut self, function: &str, args: &Value) -> Value {
         let Some(name) = self.mcp_name(function).map(str::to_owned) else {
             return format!("error: no tool {function}").into();
@@ -342,15 +343,20 @@ impl Tools {
                 "error: the connection to chora was lost; the result is unknown".into()
             }
             Ok(Err(e)) => format!("error: {e}").into(),
-            Ok(Ok(CallToolResponse::Complete(result))) => {
-                let answer = content(&result.content, result.is_error == Some(true), self.vision);
-                match answer {
-                    Value::String(text) if secret => without_secrets(&text).into(),
-                    other => other,
-                }
-            }
+            Ok(Ok(CallToolResponse::Complete(r))) => redacted(
+                content(&r.content, r.is_error == Some(true), self.vision),
+                secret,
+            ),
             Ok(Ok(_)) => "error: the tool asked for input, which the agent cannot give".into(),
         }
+    }
+}
+
+/// The answer of an own settings call without header values.
+fn redacted(answer: Value, secret: bool) -> Value {
+    match answer {
+        Value::String(text) if secret => without_secrets(&text).into(),
+        other => other,
     }
 }
 
@@ -358,8 +364,10 @@ impl Tools {
 /// `settings.get` answers (review rc3 round 3, 2.1); a text that is no
 /// JSON stays.
 fn without_secrets(text: &str) -> String {
-    serde_json::from_str(text)
-        .map_or_else(|_| text.to_owned(), |v| crate::client::without_headers(v).to_string())
+    serde_json::from_str(text).map_or_else(
+        |_| text.to_owned(),
+        |v| crate::client::without_headers(v).to_string(),
+    )
 }
 
 /// The spec of the agent's own `settings.set` for the LLM: a patch,

@@ -2082,7 +2082,10 @@ mod tests {
         let mut rx = confirm(&mut core, "Wirklich?");
         core.confirm_until = Instant::now();
         let effects = core.handle(frame(0.0));
-        assert!(effects.iter().any(|e| matches!(e, Effect::ConfirmDone(_))), "{effects:?}");
+        assert!(
+            effects.iter().any(|e| matches!(e, Effect::ConfirmDone(_))),
+            "{effects:?}"
+        );
         assert_eq!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed));
     }
 
@@ -2385,8 +2388,11 @@ mod tests {
             listen: Listen::PushToTalk,
             ..Config::default()
         });
-        assert!(speak(&mut core, 10).is_empty(), "speech alone starts no turn");
-        assert!(quiet(&mut core, 30).is_empty());
+        assert!(
+            speak(&mut core, 10).is_empty(),
+            "speech alone starts no turn"
+        );
+        assert_eq!(quiet(&mut core, 30), vec![]);
         core.handle(Input::PttDown);
         assert_eq!(speak(&mut core, 1), [Effect::Mark("onset")]);
         core.handle(Input::PttUp);

@@ -1021,7 +1021,9 @@ impl Config {
         let program = |e: &String| {
             let words: Vec<&str> = e.split(' ').collect();
             e.contains(['*', '?', '['])
-                || words.iter().any(|w| w.is_empty() || w.contains(char::is_whitespace))
+                || words
+                    .iter()
+                    .any(|w| w.is_empty() || w.contains(char::is_whitespace))
                 || words[0].contains('/')
         };
         if let Some(entry) = (self.allow_programs.iter()).find(|e| program(e)) {

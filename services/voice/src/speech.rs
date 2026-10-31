@@ -132,7 +132,9 @@ pub enum Out {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Control {
     Pause,
-    Resume { skip: bool },
+    Resume {
+        skip: bool,
+    },
     /// The question with this prompt got its answer: its sentence stops
     /// at once, also its sound, and never plays again. The other
     /// sentences go on.
@@ -234,10 +236,14 @@ impl<F: FnMut(Out)> Player<F> {
     fn piece(&mut self, piece: Piece) {
         match piece {
             Piece::Start(text) => self.sents.push(Sent {
-                skip: self.cancelled.iter().position(|c| *c == text).is_some_and(|i| {
-                    self.cancelled.remove(i);
-                    true
-                }),
+                skip: self
+                    .cancelled
+                    .iter()
+                    .position(|c| *c == text)
+                    .is_some_and(|i| {
+                        self.cancelled.remove(i);
+                        true
+                    }),
                 text,
                 pcm: Vec::new(),
                 done: false,
@@ -614,7 +620,9 @@ mod tests {
         let mut log = Vec::new();
         speak(&config, rx, controls, |out| {
             if log.is_empty() {
-                control.send(Control::Cancel("Eins zwei drei.".into())).unwrap();
+                control
+                    .send(Control::Cancel("Eins zwei drei.".into()))
+                    .unwrap();
             }
             log.push(match out {
                 Out::Pcm { pcm, .. } => format!("pcm {}", pcm.len()),
