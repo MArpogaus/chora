@@ -41,7 +41,7 @@ jobs:
     # Clippy does not run the rustdoc lints, such as broken links.
     - run: cargo doc --workspace --no-deps --locked
     - if: always()
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
       with:
         name: nextest-junit
         path: target/nextest/ci/junit.xml
@@ -77,7 +77,7 @@ jobs:
     - run: cargo llvm-cov report --lcov --output-path lcov.info
     - run: cargo llvm-cov report --json --summary-only --output-path coverage.json
     - run: tests/coverage-summary.sh coverage.json >>"$GITHUB_STEP_SUMMARY"
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
       with:
         name: lcov
         path: lcov.info
@@ -167,7 +167,7 @@ jobs:
     - name: settings.set changes the XP wallpaper and saves it
       run: tests/gate-0.8-xp-settings.sh
     - if: failure()
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
       with:
         name: e2e-logs
         path: e2e
@@ -233,7 +233,7 @@ jobs:
         sudo LIBSEAT_BACKEND=seatd BIN="$PWD/target/debug" SHOTS="$PWD/hotplug" \
             tests/gate-0.9-vkms-hotplug.sh
     - if: always()
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
       with:
         name: vkms-hotplug
         path: hotplug
