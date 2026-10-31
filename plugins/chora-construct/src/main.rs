@@ -70,6 +70,9 @@ const LOOK: &str = "construct-look";
 const FOG_SHADER: &str = include_str!("../fog.frag");
 const PANE_SHADER: &str = include_str!("../pane.frag");
 const MIRROR_SHADER: &str = include_str!("../mirror.frag");
+/// How long after the launcher starts its first new window becomes a
+/// pane also beside another flavor.
+const LAUNCHED: Duration = Duration::from_secs(60);
 /// One step of a walk key, in logical pixels, and one turn, in radians.
 const STEP: f64 = 90.0;
 const TURN: f64 = 0.06;
@@ -220,6 +223,11 @@ struct Construct {
     fog_shader: String,
     pane_shader: String,
     mirror_shader: String,
+    /// The launcher: the token of its own window, which is no pane,
+    /// that window, and when it started.
+    launcher: Option<String>,
+    launcher_window: Option<String>,
+    launched: Option<Instant>,
     output: Option<OutputInfo>,
     lens: Lens,
     pose: Pose,
@@ -278,6 +286,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         fog_shader: shader_file("fog.frag", FOG_SHADER)?,
         pane_shader: shader_file("pane.frag", PANE_SHADER)?,
         mirror_shader: shader_file("mirror.frag", MIRROR_SHADER)?,
+        launcher: None,
+        launcher_window: None,
+        launched: None,
         output: None,
         lens: Lens::new(1280.0, 800.0),
         pose: start,
@@ -429,20 +440,20 @@ impl Plugin for Construct {
                 token,
                 ..
             } => {
-                let i = (self.waiting.iter()).position(|w| w.token.is_some() && w.token == token);
-                let pane = i.map(|i| self.waiting.remove(i).pane);
-                // A flavor takes the free windows; an overlay only shows
-                // those of its construct, which the other flavor takes.
-                let free = to.as_deref().is_none_or(|t| t == NAME);
-                if pane.is_some() || (free && !self.overlay) {
-                    let label = app_id.or(title).unwrap_or_default();
-                    return self.adopt(&surface, &label, pane.as_ref());
-                }
-                Ok(())
+                let label = app_id.or(title).unwrap_or_default();
+                self.created(&surface, &label, to.as_deref(), token.as_deref())
             }
             Event::SurfaceDetached { surface } if !self.overlay => {
                 self.forget(&surface)?;
                 self.adopt(&surface, "", None)
+            }
+            Event::SurfaceDestroyed { surface }
+                if self.launcher_window.as_deref() == Some(&surface) =>
+            {
+                self.launcher_window = None;
+                self.rt.conn.apply(vec![Command::FocusNode {
+                    node: Some(LOOK.into()),
+                }])
             }
             Event::SurfaceDestroyed { surface } => self.forget(&surface),
             Event::SurfaceChanged {
@@ -568,11 +579,13 @@ impl Construct {
                 key,
                 state: PressState::Pressed,
                 ..
-            } if node == LOOK => {
-                if let Some(&action) = self.settings.value.keys.get(&key) {
-                    self.act(action);
-                }
-            }
+            } if node == LOOK => match self.settings.value.keys.get(&key) {
+                Some(Action::Terminal) => self.start_terminal(),
+                Some(Action::Launcher) => self.start_launcher(),
+                Some(Action::Close) => return self.close_ahead(),
+                Some(&action) => self.act(action),
+                None => {}
+            },
             Event::InputKey {
                 state: PressState::Pressed,
                 ..
@@ -944,7 +957,102 @@ impl Construct {
         self.frame()
     }
 
+    /// A new window: the launcher's own window, a pane of the construct,
+    /// the program of the launcher, or, for the flavor, a free window.
+    fn created(
+        &mut self,
+        surface: &str,
+        label: &str,
+        to: Option<&str>,
+        token: Option<&str>,
+    ) -> Result<(), ClientError> {
+        // A free window with the token of the launcher is the launcher
+        // itself: it shows, but is no pane.
+        let free = to.is_none_or(|t| t == NAME);
+        if token.is_some() && token == self.launcher.as_deref() {
+            self.launcher = None;
+            if free && !self.overlay {
+                return self.show_launcher(surface);
+            }
+            return Ok(());
+        }
+        let i = (self.waiting.iter()).position(|w| token.is_some() && w.token.as_deref() == token);
+        let pane = i.map(|i| self.waiting.remove(i).pane);
+        // The first other window after the launcher is its program.
+        let launched =
+            pane.is_none() && (self.launched.take()).is_some_and(|t| t.elapsed() < LAUNCHED);
+        // A flavor takes the free windows; an overlay only shows those of
+        // its construct, which the other flavor takes.
+        if pane.is_some() || launched || (free && !self.overlay) {
+            return self.adopt(surface, label, pane.as_ref());
+        }
+        Ok(())
+    }
+
+    /// The window of a launcher shows over the space, in the middle of
+    /// the output once its size comes, with the keyboard; its close gives
+    /// the keyboard back to the walk.
+    fn show_launcher(&mut self, surface: &str) -> Result<(), ClientError> {
+        self.launcher_window = Some(surface.into());
+        let commands = vec![
+            Command::Attach {
+                surface: surface.into(),
+                parent: NAME.into(),
+            },
+            Command::Focus {
+                surface: Some(surface.into()),
+            },
+        ];
+        if let Some(err) = self.rt.conn.try_apply(commands)? {
+            eprintln!("chora-construct: launcher {surface}: {err}");
+        }
+        Ok(())
+    }
+
+    /// Starts the program of the key `terminal`; its window becomes a
+    /// pane ahead, as a program pane of a construct.
+    fn start_terminal(&mut self) {
+        let command = self.settings.value.terminal.clone();
+        let token = launch(&command);
+        self.waiting.push(Waiting {
+            token,
+            pane: PaneFile {
+                kind: Kind::Program,
+                command: Some(command),
+                plugin: None,
+                scene: None,
+                at: None,
+                size: None,
+            },
+        });
+    }
+
+    /// Starts the launcher. Its own window, if it has one and the
+    /// token, is no pane; the next window after it is.
+    fn start_launcher(&mut self) {
+        self.launcher = launch(&self.settings.value.launcher);
+        self.launched = Some(Instant::now());
+    }
+
+    /// Asks the window of the pane ahead to close; its pane goes when
+    /// it does. A plugin pane goes at once.
+    fn close_ahead(&mut self) -> Result<(), ClientError> {
+        let Some(i) = self.pane_ahead() else {
+            return Ok(());
+        };
+        let Some(surface) = self.panes[i].window().map(String::from) else {
+            return self.remove_pane(i);
+        };
+        if let Some(err) = self.rt.conn.try_apply(vec![Command::Close { surface }])? {
+            eprintln!("chora-construct: close: {err}");
+        }
+        Ok(())
+    }
+
     fn resize(&mut self, surface: &str, size: [f64; 2]) -> Result<(), ClientError> {
+        if self.launcher_window.as_deref() == Some(surface) {
+            return self.rt.conn.apply(vec![self.snap_place(size, surface)]);
+        }
         let Some(pane) = (self.panes.iter_mut()).find(|p| p.window() == Some(surface)) else {
             return Ok(());
         };
@@ -1020,6 +1128,8 @@ impl Construct {
                 };
                 return self.glide_to(home, FLY_MS, None);
             }
+            // input() handles them.
+            Action::Terminal | Action::Launcher | Action::Close => return,
             Action::FlyIn => {
                 if let Some(i) = self.pane_ahead() {
                     self.fly_in(i);

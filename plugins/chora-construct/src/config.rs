@@ -25,6 +25,12 @@ pub enum Action {
     LookDown,
     Home,
     FlyIn,
+    /// Starts the setting `terminal`.
+    Terminal,
+    /// Starts the setting `launcher`.
+    Launcher,
+    /// Asks the window of the pane in the middle of the view to close.
+    Close,
 }
 
 /// Light or dark.
@@ -78,6 +84,10 @@ pub struct Config {
     pub pane_distance: f64,
     /// Keysym name to action.
     pub keys: BTreeMap<String, Action>,
+    /// The shell command of the action `terminal`.
+    pub terminal: String,
+    /// The shell command of the action `launcher`.
+    pub launcher: String,
     /// The grabbed binding that flies out of a pane.
     pub fly_out: String,
     /// The modifier of a drag that moves a pane and of the wheel that
@@ -121,5 +131,6 @@ mod tests {
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
         config.check().unwrap();
         assert_eq!(config.keys["Return"], Action::FlyIn);
+        assert_eq!(config.keys["space"], Action::Launcher);
     }
 }

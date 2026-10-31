@@ -17,9 +17,11 @@ radius: 6000
 pane_distance: 2000
 # The keys in the space, by their keysym name, and what each does:
 # forward, back, left, right (steps aside), turn_left, turn_right,
-# look_up, look_down, home (back to the start point) or fly_in (into the
-# pane nearest the middle of the view). The space takes the keyboard, so
-# the keys need no modifier.
+# look_up, look_down, home (back to the start point), fly_in (into the
+# pane nearest the middle of the view), terminal (starts the terminal),
+# launcher (starts the launcher) or close (asks the window of the pane
+# nearest the middle of the view to close). The space takes the
+# keyboard, so the keys need no modifier.
 keys:
   w: forward
   s: back
@@ -35,6 +37,17 @@ keys:
   f: look_down
   h: home
   Return: fly_in
+  t: terminal
+  space: launcher
+  x: close
+# The shell command of the key terminal; its window becomes a pane in
+# the view direction.
+terminal: foot
+# The shell command of the key launcher. The launcher itself is no pane:
+# a layer-shell launcher such as fuzzel shows over the space, and a
+# window of a launcher shows in the middle of the output. The first
+# window that it starts becomes a pane.
+launcher: fuzzel
 # The binding that flies out of a pane. The pane has the keyboard then,
 # so this key is a grab, and a grab needs Ctrl, Alt or Super. Escape
 # alone works after `choractl grant construct input.grab-any`.

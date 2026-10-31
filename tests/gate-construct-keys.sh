@@ -1,0 +1,62 @@
+#!/bin/bash
+# Gate of the keys that create and close panes in chora-construct:
+# t starts the terminal, and its window becomes a pane; space starts the
+# launcher, whose own window shows without a pane, and the program that
+# it starts becomes a pane; after the launcher the walk has the keyboard
+# again; x asks the window of the pane ahead to close, and its pane goes.
+# The launcher here is a foot window that starts a second foot.
+#
+# Usage: tests/gate-construct-keys.sh   BIN: directory with the binaries
+# shellcheck disable=SC2016 # until_ok evaluates its code later
+set -u
+. "$(dirname "$0")/gate-lib.sh"
+need_bins chora choractl chora-construct
+need foot
+need setsid
+temp_config
+work=$XDG_CONFIG_HOME
+mkdir -p "$work/chora"
+# chora-construct starts its programs with `choractl run`.
+export PATH=$bin:$PATH
+font='DejaVu Sans Mono:size=10'
+cat >"$work/chora/chora-construct.yaml" <<EOF
+terminal: foot -a term -f '$font' sh -c 'sleep 600'
+launcher: foot -a launcher -f '$font' sh -c 'sleep 1; setsid foot -a launched -f "$font" sh -c "sleep 600" & sleep 2'
+EOF
+# A debug core on the software renderer is slow for the space (as K1).
+export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
+session_start 1280x800 -- "$bin/chora-construct"
+grant input.inject
+key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject || fail "inject $1"; }
+panes() {
+    ctl call construct construct.list |
+        python3 -I -c 'import json, sys; print(" ".join(sorted(p["name"] for p in json.load(sys.stdin)["panes"])))'
+}
+focused() { ctl query "$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("focused") if n else "")'; }
+# until_ok CODE: waits up to 10 s for the shell code to succeed.
+until_ok() {
+    for _ in $(seq 40); do
+        eval "$1" && return 0
+        sleep 0.25
+    done
+    return 1
+}
+
+ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
+key t
+until_ok 'test "$(panes)" = term' || fail "t: the panes are '$(panes)'"
+ok "t made the terminal the pane term"
+
+key space
+until_ok 'ctl query kind:surface | grep -q \"launcher\"' ||
+    fail "the launcher showed no window"
+[ "$(panes)" = term ] || fail "the launcher became a pane: $(panes)"
+until_ok 'test "$(panes)" = "launched term"' || fail "the program of the launcher is no pane: $(panes)"
+ok "the launcher showed without a pane, and its program became the pane launched"
+until_ok 'test "$(focused id:construct-look)" = True' || fail "the walk has no keyboard after the launcher"
+ok "the walk has the keyboard again"
+
+before=$(panes)
+key x
+until_ok 'test "$(panes)" != "$before"' || fail "x closed no pane: $(panes)"
+ok "x closed a pane: $before -> $(panes)"
