@@ -10,7 +10,14 @@
 #    button from tiling to the xp output: xp owns it;
 # 5. a give to a client that does not exist is refused, and the window
 #    stays with xp;
-# 6. tiling ends right after a give to it: the window is not lost.
+# 6. Super and the left button on the xp output turn the cube of xp: both
+#    window managers grab the binding, and the claim under the pointer
+#    picks one;
+# 7. a Super drag moves a floating window of tiling, and a drop on the xp
+#    output gives it to xp;
+# 8. a foot with client-side decorations drags its title bar
+#    (xdg_toplevel.move) from tiling to the xp output: xp owns it;
+# 9. tiling ends right after a give to it: the window is not lost.
 #
 # After each step every surface is attached, visible and owned, and the
 # window that moved has the keyboard focus. Captures go to SHOTS as
@@ -46,7 +53,7 @@ plugin() {
     pids+=($!)
     printf -v "pid_$name" %s $!
 }
-# Tiling first: it grabs Super+BTN_LEFT for its drag before the cube of xp.
+# Both grab Super+BTN_LEFT: tiling for its drag, xp for its cube (D55).
 plugin tiling --output "$tiling_out"
 plugin xp --theme "$theme" --output "$xp_out"
 plugin mc --output "$mc_out"
@@ -62,10 +69,10 @@ run_pid $!
 w=$(ctl wait "app_id:foot kind:surface owner:xp" --timeout 20 | jq -r '.[0].id') ||
     fail "foot does not show in xp"
 
-# settled OWNER: within 20 s every surface is attached, visible and owned,
-# and $w belongs to OWNER and has the focus.
+# settled OWNER [WINDOW]: within 20 s every surface is attached, visible
+# and owned, and WINDOW, $w by default, belongs to OWNER and has the focus.
 settled() {
-    local all
+    local all w=${2:-$w}
     for _ in $(seq 100); do
         all=$(ctl query kind:surface)
         echo "$all" | jq -e --arg w "$w" --arg o "$1" '
@@ -129,7 +136,90 @@ fi
 settled xp
 ok "5. a give to a client that does not exist is refused; xp keeps $w"
 
-# 6. The target ends right after the give. With resume its grace time of
+# rect WINDOW: where a window shows.
+rect() { ctl query "id:$1" | jq -c '.[0].rects'; }
+# super_drag WINDOW X Y OUTPUT: a drag with Super and the left button from
+# a point of a window to a point of an output.
+super_drag() {
+    inject "[{\"pointer_move\": {\"node\": \"$1\", \"point\": [100, 60]}},
+      {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
+      {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+      {\"pointer_move\": {\"position\": [$2, $3], \"output\": \"$4\"}},
+      {\"button\": {\"state\": \"released\"}},
+      {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]"
+}
+
+# 6. The cube of xp: its faces show while Super and the button are down.
+faces() { ctl query owner:xp | jq '[.[] | select(.id | startswith("xp-face"))] | length'; }
+inject "[{\"pointer_move\": {\"position\": [1000, 150], \"output\": \"$xp_out\"}},
+  {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
+  {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+  {\"pointer_move\": {\"position\": [700, 150], \"output\": \"$xp_out\"}}]"
+for _ in $(seq 50); do
+    [ "$(faces)" -gt 0 ] && break
+    sleep 0.2
+done
+[ "$(faces)" -gt 0 ] || fail "Super and the button on the xp output turn no cube"
+shot 6-cube
+inject "[{\"button\": {\"state\": \"released\"}},
+  {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]"
+for _ in $(seq 100); do
+    [ "$(faces)" = 0 ] && break
+    sleep 0.2
+done
+[ "$(faces)" = 0 ] || fail "the cube does not end"
+settled xp
+ok "6. Super and the left button on the xp output turn the cube of xp"
+
+# 7. tiling floats its windows; a Super drag moves $w on the tiling
+# output, a second one to the xp output gives it to xp.
+ctl call xp window.give "{\"surface\": \"$w\", \"to\": \"tiling\"}" >/dev/null ||
+    fail "xp window.give to tiling"
+settled tiling
+ctl call tiling set_layout '{"layout": "floating"}' >/dev/null || fail "tiling set_layout"
+settled tiling
+before=$(rect "$w")
+super_drag "$w" 300 200 "$tiling_out"
+settled tiling
+after=$(rect "$w")
+[ "$before" != "$after" ] || fail "a Super drag does not move $w: $after"
+shot 7-moved
+super_drag "$w" 640 400 "$xp_out"
+settled xp
+ok "7. a Super drag moves $w in tiling ($before to $after), a drop on xp gives it to xp"
+
+# 8. A foot with client-side decorations: a press on its title bar asks
+# for an interactive move.
+foot -o csd.preferred=client -f "DejaVu Sans Mono:size=10" -a csd \
+    sh -c 'echo csd; sleep 600' >"$shots/foot-csd.log" 2>&1 &
+run_pid $!
+# The focus is with xp, so the new window goes to xp first.
+c=$(ctl wait "app_id:csd kind:surface owner:xp" --timeout 20 | jq -r '.[0].id') ||
+    fail "the csd foot does not show"
+ctl call xp window.give "{\"surface\": \"$c\", \"to\": \"tiling\"}" >/dev/null ||
+    fail "xp window.give of $c to tiling"
+settled tiling "$c"
+shot 8-csd
+before=$(rect "$c")
+# foot answers the press with the move request, so the pointer waits.
+inject "[{\"pointer_move\": {\"node\": \"$c\", \"point\": [150, 12]}},
+  {\"button\": {\"state\": \"pressed\", \"hold\": true}}]"
+sleep 0.5
+inject "[{\"pointer_move\": {\"position\": [500, 300], \"output\": \"$tiling_out\"}}]"
+for _ in $(seq 25); do
+    after=$(rect "$c")
+    [ "$before" != "$after" ] && break
+    sleep 0.2
+done
+shot 8-csd-drag
+[ "$before" != "$after" ] || fail "the title bar does not move $c: $after"
+inject "[{\"pointer_move\": {\"position\": [640, 400], \"output\": \"$xp_out\"}},
+  {\"button\": {\"state\": \"released\"}}]"
+settled xp "$c"
+shot 8-csd-xp
+ok "8. the title bar of a csd foot moves $c in tiling ($before to $after) and gives it to xp"
+
+# 9. The target ends right after the give. With resume its grace time of
 # 10 s keeps the window, then another window manager takes it.
 ctl call xp window.give "{\"surface\": \"$w\", \"to\": \"tiling\"}" >/dev/null ||
     fail "xp window.give to tiling"
@@ -141,6 +231,6 @@ for _ in $(seq 100); do
 done
 [ "$owner" = xp ] || [ "$owner" = mc ] || fail "$w is with ${owner:-nobody} 20 s after tiling ended"
 settled "$owner"
-shot 6-killed
-ok "6. tiling ended after the give: $owner adopted $w"
+shot 9-killed
+ok "9. tiling ended after the give: $owner adopted $w"
 echo "ok: gate-handover; captures in $shots"
