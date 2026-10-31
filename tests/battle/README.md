@@ -18,6 +18,12 @@ past 1 GB. Run with the binaries of another target dir:
 
     BIN=$PWD/target/wt/debug CHORA_BIN=$PWD/target/wt/debug RUN=/tmp/w9.log bash tests/battle/w9.sh
 
+W16 runs the real `chora-voice` beside `chora-mc` against fake ASR, TTS
+and LLM servers (`w16-fakes.py`, a Python copy of the test-only fakes of
+`services/voice/src/fake.rs`). The mic plays a recorded sentence on
+request, the speaker logs what it plays, and the ASR and the LLM follow a
+script that `w16.sh` pushes. It needs no GPU, no audio and no network.
+
 Run the overnight driver (all workflows per pass, small-fix sub-agents
 per new finding, ends after two clean passes; it waits until
 `target/review-loop/state.txt` holds `PHASE=battle`):

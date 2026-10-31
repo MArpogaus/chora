@@ -24,6 +24,14 @@ wm_session() {
   session_start "$@" || return 1
   admin grant agent screen.capture input.inject methods.call >> "$RUN" 2>&1
   foot=$(command -v foot)
+  # no foot on the host (the sandbox): the one of ~/.local/opt/clients needs
+  # its libraries, which a wrapper adds for foot alone
+  clients=$HOME/.local/opt/clients/usr
+  if [ -z "$foot" ] && [ -x "$clients/bin/foot" ]; then
+    printf '#!/bin/sh\nLD_LIBRARY_PATH=%s${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} exec %s "$@"\n' "$clients/lib64" "$clients/bin/foot" > "$work/foot-bin"
+    chmod +x "$work/foot-bin"
+    foot=$work/foot-bin
+  fi
   # sh foot.sh NAME: a foot with the app id NAME that writes its pid to
   # $work/NAME.pid and a typed line to $work/NAME.typed
   cat > "$work/foot.sh" <<EOF
