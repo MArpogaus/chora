@@ -68,8 +68,9 @@ impl Splitter {
         }
     }
 
-    /// The end of the first sentence in the buffer: after `.!?:;` and a
-    /// space, or at a line break.
+    /// The end of the first sentence in the buffer: after `.!?;` and a
+    /// space, or at a line break. A colon ends none: it stands in inline
+    /// code too ("set `modifier: Alt`", review 0.9.0-rc.3).
     fn boundary(&self, text: &str) -> Option<usize> {
         let mut chars = text.char_indices().peekable();
         while let Some((i, c)) = chars.next() {
@@ -77,7 +78,7 @@ impl Splitter {
                 return Some(i + 1);
             }
             let next = chars.peek().map(|&(_, n)| n);
-            if ".!?:;".contains(c) && next.is_some_and(char::is_whitespace) {
+            if ".!?;".contains(c) && next.is_some_and(char::is_whitespace) {
                 let word = text[..i].rsplit(char::is_whitespace).next().unwrap_or("");
                 let word = word.rsplit('.').next().unwrap_or(word).to_lowercase();
                 let number = !word.is_empty() && word.chars().all(|c| c.is_ascii_digit());
@@ -478,6 +479,10 @@ mod tests {
         assert_eq!(
             split(&["Eins:\nzwei; **drei**"]),
             ["Eins:", "zwei;", "drei"]
+        );
+        assert_eq!(
+            split(&["You'd need to set `modifier: Alt` in its config file."]),
+            ["You'd need to set modifier: Alt in its config file."]
         );
         assert_eq!(split(&["Ende."]), ["Ende."], "the last period ends it");
         assert_eq!(split(&["  \n "]), Vec::<String>::new());

@@ -830,10 +830,11 @@ WP5, the LLM and the tool loop:
   rules), `chat.rs` (prompt, history, budget, tool loop), `speech.rs`
   (sentence splitter, speech with playback buffer), and the reply states
   in `core.rs`.
-- The splitter ends a sentence after `.!?:;` and a space, or at a line
+- The splitter ends a sentence after `.!?;` and a space, or at a line
   break; not after a number ("3. Oktober") or a short abbreviation ("z.
   B."). The first piece of a reply may end at a comma after 40
-  characters. It drops the marks of markdown.
+  characters. It drops the marks of markdown, also backticks. A colon
+  ends no sentence: it stands in inline code too ("`modifier: Alt`").
 - One TTS socket per sentence, one after the other: the next sentence
   starts when the one before has all its sound, which is while it plays.
 - MCP: a call has `tool_timeout_s`; a dropped call sends
