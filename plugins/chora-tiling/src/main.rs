@@ -4,6 +4,11 @@
 //! the layout and drive the windows through the exported `tiling.*`
 //! methods (see `docs/configuration.md`).
 
+#![allow(
+    clippy::print_stderr,
+    reason = "a plugin logs to stderr, which the session keeps"
+)]
+
 mod config;
 mod layout;
 mod wm;
@@ -124,6 +129,7 @@ struct Tiling {
     claimed: Option<[f64; 4]>,
 }
 
+#[allow(clippy::print_stdout, reason = "--print-config prints the default")]
 fn main() -> ExitCode {
     let args = Args::try_parse().unwrap_or_else(|err| {
         if err.kind() == clap::error::ErrorKind::UnknownArgument {
@@ -295,6 +301,7 @@ impl Tiling {
 
     /// Grabs every binding of the configuration. A binding that another
     /// client holds only logs.
+    #[allow(clippy::expect_used, reason = "the configuration checks its bindings")]
     fn grab_all(&mut self) -> Result<(), ClientError> {
         let bindings = self.wm.config.bindings.clone();
         for (text, action) in bindings {
@@ -462,7 +469,9 @@ impl Tiling {
             columns: params.columns,
             windows: self.wm.shown_windows(),
         };
-        Ok(serde_json::to_value(info).expect("layouts always serialize"))
+        #[allow(clippy::expect_used, reason = "a layout has string keys only")]
+        let value = serde_json::to_value(info).expect("layouts always serialize");
+        Ok(value)
     }
 
     /// Changes what a method other than `give` and `get_layout` names.
