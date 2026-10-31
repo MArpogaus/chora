@@ -70,6 +70,7 @@ impl Vad {
     }
 
     /// Forgets the state, for example after a gap in the audio.
+    #[allow(clippy::expect_used, reason = "STATE is a fixed shape")]
     pub fn reset(&mut self) {
         self.state = Tensor::zero::<f32>(&STATE).expect("a fixed shape");
         self.context = [0.0; CONTEXT];

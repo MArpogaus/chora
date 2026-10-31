@@ -74,6 +74,7 @@ fn secs(s: u32) -> Duration {
 }
 
 impl Llm {
+    #[allow(clippy::expect_used, reason = "a client without TLS builds")]
     pub fn new(config: &Config) -> Self {
         crate::health::install_tls();
         Self {
@@ -237,9 +238,9 @@ impl Llm {
         let mut body = self.body(&messages, tools);
         body["stream"] = false.into();
         body["max_tokens"] = 1.into();
-        body.as_object_mut()
-            .expect("an object")
-            .remove("stream_options");
+        if let Some(body) = body.as_object_mut() {
+            body.remove("stream_options");
+        }
         let response = self
             .post()?
             .body(body.to_string())

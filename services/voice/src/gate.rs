@@ -180,7 +180,7 @@ impl Gate {
         if !ended {
             return None;
         }
-        let u = self.utterance.take().expect("in progress");
+        let u = self.utterance.take()?;
         let speech_ms = u.speech * FRAME_MS;
         if u.speech < l.min_speech {
             return Some(Event::Noise { speech_ms });

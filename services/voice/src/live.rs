@@ -1,6 +1,8 @@
 //! The subcommands that check the servers of the settings by hand:
 //! `asr FILE`, `tts TEXT`, `roundtrip [TEXT]`, `ask TEXT` and `levels`.
 
+#![allow(clippy::print_stdout, reason = "the subcommands print their results")]
+
 use std::{
     path::Path,
     time::{Duration, Instant},
