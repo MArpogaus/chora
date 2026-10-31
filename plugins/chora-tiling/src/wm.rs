@@ -44,7 +44,9 @@ pub struct Window {
     pub urgent: bool,
     /// The size that the client chose.
     pub size: Option<[i32; 2]>,
-    /// Where a drag put a window that does not tile; centered without.
+    /// Where a drag put a window that does not tile, relative to the work
+    /// area of its output; centered without. The placement clamps it into
+    /// the work area, so that it never ends off-screen.
     #[serde(default)]
     pub at: Option<[i32; 2]>,
 }
@@ -259,14 +261,38 @@ impl Wm {
         changed && floats
     }
 
-    /// Puts a window that does not tile at a point, for a drag. False for a
-    /// window that tiles.
-    pub fn place(&mut self, id: &str, at: [i32; 2]) -> bool {
-        if self.window(id).is_none_or(|w| self.tiles(w)) {
+    /// Puts a window that does not tile at a point in scene coordinates,
+    /// for a drag: the output of tiling under the `pointer` takes it, else
+    /// it stays on its own. False for a window that tiles, and without a
+    /// change.
+    pub fn place(&mut self, id: &str, [x, y]: [i32; 2], pointer: [f64; 2]) -> bool {
+        let Some(window) = self.window(id).filter(|w| !self.tiles(w)) else {
+            return false;
+        };
+        let own = self.outputs.iter().position(|o| o.name == window.output);
+        let Some(output) = self.output_at(pointer).or(own).map(|i| &self.outputs[i]) else {
+            return false;
+        };
+        let (name, tags, [ax, ay, ..]) = (output.name.clone(), output.selected, output.area);
+        let Some(window) = self.window_mut(id) else {
+            return false;
+        };
+        let at = Some([x - ax, y - ay]);
+        if window.output != name {
+            (window.output, window.tags) = (name, nonzero(tags));
+        } else if window.at == at {
             return false;
         }
-        self.window_mut(id)
-            .is_some_and(|w| w.at.replace(at) != Some(at))
+        window.at = at;
+        true
+    }
+
+    /// Centers a window that a drag put somewhere, for example after a
+    /// hand-over that failed.
+    pub fn unplace(&mut self, id: &str) {
+        if let Some(window) = self.window_mut(id) {
+            window.at = None;
+        }
     }
 
     /// The focused window: the top window of the current output.
@@ -959,7 +985,11 @@ fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, P
     let (mx, my) = window.maximized;
     let (w, h) = (if mx { aw } else { sw }, if my { ah } else { sh });
     let at = match window.at {
-        Some(at) if !(mx || my) => at,
+        // Inside the work area; a window larger than it at its top left.
+        Some([x, y]) if !(mx || my) => [
+            (ax + x).min(ax + aw - w).max(ax),
+            (ay + y).min(ay + ah - h).max(ay),
+        ],
         _ => [ax + (aw - w) / 2, ay + (ah - h) / 2],
     };
     let states = States {
@@ -1268,11 +1298,36 @@ mod tests {
     #[test]
     fn a_drag_places_only_a_window_that_does_not_tile() {
         let mut wm = wm(&["a"]);
-        assert!(!wm.place("a", [5, 6]), "a tiles");
+        let pointer = [10.0, 10.0];
+        assert!(!wm.place("a", [5, 6], pointer), "a tiles");
         wm.act(&Action::ToggleFloating);
-        assert!(wm.place("a", [5, 6]));
-        assert!(!wm.place("a", [5, 6]), "no change");
+        assert!(wm.place("a", [5, 6], pointer));
+        assert!(!wm.place("a", [5, 6], pointer), "no change");
         assert_eq!(wm.arrange().pop().unwrap().at, Some([5, 6]));
+    }
+
+    /// A floating window stays in the work area of its output: after a
+    /// drag past its edge, a move of the output, a drag onto another
+    /// output that then goes, and a failed hand-over (2.4).
+    #[test]
+    fn a_floating_window_never_ends_off_screen() {
+        let mut wm = wm(&["a"]);
+        wm.act(&Action::ToggleFloating);
+        let at = |wm: &Wm| wm.arrange().pop().unwrap().at;
+        // 50 x 30, half the work area: dragged past the right edge.
+        wm.place("a", [500, 6], [99.0, 10.0]);
+        assert_eq!(at(&wm), Some([50, 6]));
+        wm.set_output("A", [1000, 0, 100, 60], [1000, 0, 100, 80]);
+        assert_eq!(at(&wm), Some([1050, 6]), "it moves with its output");
+        wm.set_output("B", [0, 0, 100, 60], [0, 0, 100, 80]);
+        assert!(wm.place("a", [10, 20], [20.0, 20.0]));
+        assert_eq!(wm.windows[0].output, "B");
+        assert_eq!(at(&wm), Some([10, 20]));
+        wm.remove_output("B");
+        assert_eq!(at(&wm), Some([1025, 15]), "centered on A");
+        wm.place("a", [1060, 6], [1070.0, 10.0]);
+        wm.unplace("a");
+        assert_eq!(at(&wm), Some([1025, 15]));
     }
 
     #[test]

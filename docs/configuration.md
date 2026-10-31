@@ -221,10 +221,13 @@ floating, maximized or fullscreen window leaves the tiles. A click or a
 binding raises the window that it focuses; the focus that follows the
 pointer raises nothing. The binding
 `MOD+Ctrl+r` reads the file again. `MOD+BTN_LEFT` (`drag`) holds the
-window under the pointer, and a floating window follows the pointer. A
-title bar of a client-side decoration drags in the same way. A drop
-outside the claim of tiling hands the window to the window manager whose
-claim holds the drop point (D55). Without one there, the window stays.
+window under the pointer, and a floating window follows the pointer
+within the work area of the tiling output under the pointer. A title bar
+of a client-side decoration drags its own window in the same way. A drop
+outside the outputs of tiling hands the window to the window manager
+whose claim holds the drop point (D55). Without one there, or when the
+hand-over fails, the window stays and goes back to the middle of its
+output.
 Mouse resizes of floating windows do not exist.
 
 `chora-tiling` exports methods for other clients (see

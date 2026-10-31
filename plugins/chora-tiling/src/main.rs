@@ -618,6 +618,8 @@ impl Tiling {
         };
         if let Err(err) = given {
             eprintln!("chora-tiling: {surface} stays: {}", err.message);
+            // Back from where the pointer left it.
+            self.wm.unplace(&surface);
         }
     }
 
@@ -629,7 +631,7 @@ impl Tiling {
             return false;
         };
         let at = [(px - dx).round() as i32, (py - dy).round() as i32];
-        self.wm.place(&id, at)
+        self.wm.place(&id, at, [px, py])
     }
 
     /// The topmost shown window at a point in scene coordinates.
