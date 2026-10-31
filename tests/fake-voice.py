@@ -2,12 +2,14 @@
 """A fake voice agent for the gates.
 
 It connects to CHORA_SOCKET as the client `voice`, exports
-`indicator.claim`, and emits the events of stdin.
+`indicator.claim` and `confirm.answer`, and emits the events of stdin.
 
 Each line of stdin is `EVENT JSON`, for example
 `voice.state {"state": "listening"}`; the event goes out with
 `events.emit`. The count of the calls of `indicator.claim` goes to the
-file of the first argument after each call.
+file of the first argument after each call; the parameters of each
+call of `confirm.answer` go as a line of JSON to that file plus
+`.answers`.
 """
 
 import json
@@ -45,12 +47,15 @@ def serve():
                 claims += 1
                 with open(claims_file, "w", encoding="utf-8") as f:
                     f.write(f"{claims}\n")
+            if params.get("method") == "confirm.answer" and claims_file != os.devnull:
+                with open(claims_file + ".answers", "a", encoding="utf-8") as f:
+                    f.write(json.dumps(params.get("params"), sort_keys=True) + "\n")
             send("methods.return", {"call": params["call"], "result": {}})
     os._exit(0)
 
 
 send("hello", {"name": "voice"})
-send("methods.export", {"names": ["indicator.claim"]})
+send("methods.export", {"names": ["indicator.claim", "confirm.answer"]})
 threading.Thread(target=serve, daemon=True).start()
 for line in sys.stdin:
     event, _, data = line.strip().partition(" ")

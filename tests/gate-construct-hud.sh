@@ -167,6 +167,25 @@ print("\n".join(nodes[f"construct-ask-detail-{k}"] for k in range(len(nodes))))'
     until_ok 'test -z "$(node id:construct-ask "n[0][\"id\"]")"' || fail "$tag: the done did not close it"
     ok "$tag: the question showed its whole detail until its done"
 
+    # A question about a security key, with buttons: the caps of its
+    # keys beside Ja and Nein; a click on Ja calls confirm.answer.
+    rm -f "$work/claims.answers"
+    emit voice.confirm '{"id": "43", "prompt": "Set allow to [sh]?", "detail": "allow: [sh]", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true}'
+    until_ok 'test -n "$(node id:construct-ask-yes "n[0][\"id\"]")"' || fail "$tag: no button Ja"
+    [ "$(node id:construct-ask-no-key-text 'n[0]["text"]')" = Alt+N ] || fail "$tag: no key cap Alt+N"
+    for t in construct-ask-yes construct-ask-no construct-ask-yes-key construct-ask-no-key; do
+        fits "$t" construct-ask-glass || fail "$tag: $t runs out of the question"
+    done
+    sleep 0.4
+    shot "$shots/construct-hud-$tag-confirm.png"
+    read -r bx by < <(node id:construct-ask-yes '"%d %d" % (lambda r: (r[0] + r[2] / 2, r[1] + r[3] / 2))(list(n[0]["rects"].values())[0])')
+    echo "[{\"pointer_move\": {\"position\": [$bx, $by]}}, {\"click\": {}}]" | ctl inject || fail "inject the click on Ja"
+    until_ok 'grep -qx "{\"id\": \"43\", \"yes\": true}" "$work/claims.answers"' ||
+        fail "$tag: the click on Ja gave $(cat "$work/claims.answers" 2>/dev/null)"
+    emit voice.confirm '{"id": "43", "done": true}'
+    until_ok 'test -z "$(node id:construct-ask "n[0][\"id\"]")"' || fail "$tag: the done did not close the buttons"
+    ok "$tag: a key question shows Ja and Nein with Alt+Y and Alt+N, and a click on Ja answers it"
+
     state listening
     key Tab
     until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list"

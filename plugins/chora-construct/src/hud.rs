@@ -50,6 +50,9 @@ pub const ASK_GLASS: &str = "construct-ask-glass";
 pub const ASK_GLOW: &str = "construct-ask-glow";
 const ASK_VIEW: &str = "construct-ask-view";
 pub const ASK_BODY: &str = "construct-ask-body";
+/// The buttons of a question; a click answers it (`voice.confirm.answer`).
+pub const ASK_YES: &str = "construct-ask-yes";
+pub const ASK_NO: &str = "construct-ask-no";
 
 /// The three roles of type (rule 2): the size and the line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -635,6 +638,109 @@ impl Look<'_> {
         commands
     }
 
+    /// The row of answers at the bottom of a question, `top` from its
+    /// top: per answer a button with "Ja" or "Nein" while the agent takes
+    /// clicks, and the key cap of a physical question beside it, after an
+    /// accent mark that says a key is needed.
+    fn answers(&self, ask: &Ask, top: f64, wrap: f64) -> Vec<Command> {
+        let (u, pad) = (self.style.unit, self.pad());
+        let h = 4.0 * u;
+        let mut commands = Vec::new();
+        if ask.keys.is_some() {
+            // The accent marks the row, as it marks a selection; text
+            // never takes it (rule 4).
+            commands.push(create(
+                "construct-ask-mark",
+                NodeKind::Rect,
+                ASK,
+                PropsUpdate {
+                    transform: at(pad / 2.0 - 1.0, top + u),
+                    size: Some([2.0, h - 2.0 * u]),
+                    color: rgba(self.style.accent, 1.0),
+                    radius: Some(1.0),
+                    ..PropsUpdate::default()
+                },
+            ));
+        }
+        // A small glass box at `x`, with a text in it.
+        let boxed = |id: &str, x: f64, role, text: &str, color, input| {
+            let w = (self.size(role, text, None)[0] + 4.0 * u).ceil();
+            let dy = if matches!(role, Role::Text) {
+                u - 4.0
+            } else {
+                u
+            };
+            let commands = vec![
+                self.glass(id, ASK, input),
+                update(
+                    id,
+                    PropsUpdate {
+                        transform: at(x, top),
+                        size: Some([w, h]),
+                        radius: Some(u),
+                        ..PropsUpdate::default()
+                    },
+                ),
+                create(
+                    &format!("{id}-text"),
+                    NodeKind::Text,
+                    ASK,
+                    PropsUpdate {
+                        transform: at(x + 2.0 * u, top + dy),
+                        input: Some(InputMode::Pass),
+                        ..self.text_props(role, text, color)
+                    },
+                ),
+            ];
+            (commands, w)
+        };
+        let half = (wrap - 2.0 * u) / 2.0;
+        let mut x = pad;
+        for (yes, id, label) in [(true, ASK_YES, "Ja"), (false, ASK_NO, "Nein")] {
+            let start = x;
+            if ask.buttons {
+                let (c, w) = boxed(
+                    id,
+                    x,
+                    Role::Text,
+                    label,
+                    self.colors.text,
+                    Some(InputMode::Accept),
+                );
+                commands.extend(c);
+                x += w + u;
+            }
+            if let Some(keys) = &ask.keys {
+                let key = cap(if yes { &keys.yes } else { &keys.no });
+                let key = self.one_line(Role::Data, &key, half / 2.0);
+                let (c, w) = boxed(
+                    &format!("{id}-key"),
+                    x,
+                    Role::Data,
+                    &key,
+                    self.colors.text,
+                    None,
+                );
+                commands.extend(c);
+                x += w + u;
+                if !ask.buttons {
+                    commands.push(create(
+                        &format!("{id}-what"),
+                        NodeKind::Text,
+                        ASK,
+                        PropsUpdate {
+                            transform: at(x, top + u - 4.0),
+                            ..self.text_props(Role::Text, label, self.colors.muted)
+                        },
+                    ));
+                    x += self.size(Role::Text, label, None)[0] + u;
+                }
+            }
+            x = (start + half + 2.0 * u).max(x + u);
+        }
+        commands
+    }
+
     /// The help panel in the middle of an output of `out`, made anew: the
     /// label `KEYS`, then a row per binding, its keys in data and what
     /// it does, each on one line within the panel. `fresh` fades it in.
@@ -851,6 +957,29 @@ struct Confirm {
     detail: String,
     #[serde(default)]
     done: bool,
+    /// A question about a security key: only `keys` or a button answer.
+    #[serde(default)]
+    physical: bool,
+    #[serde(default)]
+    keys: Option<Keys>,
+    /// The HUD may show buttons that answer by `confirm.answer`.
+    #[serde(default)]
+    buttons: bool,
+}
+
+/// The keys of a physical question, such as `Alt+y`.
+#[derive(Clone, Deserialize)]
+pub struct Keys {
+    pub yes: String,
+    pub no: String,
+}
+
+/// A key as a cap shows it: `Alt+y` as `Alt+Y`.
+fn cap(key: &str) -> String {
+    match key.rsplit_once('+') {
+        Some((mods, k)) if k.chars().count() == 1 => format!("{mods}+{}", k.to_uppercase()),
+        _ => key.to_owned(),
+    }
 }
 
 /// An open question.
@@ -858,6 +987,9 @@ pub struct Ask {
     pub id: Value,
     pub prompt: String,
     pub detail: String,
+    /// The keys of a physical question.
+    pub keys: Option<Keys>,
+    pub buttons: bool,
     /// How far the wheel scrolled it, and how far it can.
     pub scroll: f64,
     pub scroll_max: f64,
@@ -933,6 +1065,8 @@ impl Voice {
                     id: c.id,
                     prompt: c.prompt,
                     detail: c.detail,
+                    keys: c.keys.filter(|_| c.physical),
+                    buttons: c.buttons,
                     scroll: 0.0,
                     scroll_max: 0.0,
                 });
@@ -1129,18 +1263,29 @@ impl Voice {
             }
             y += u;
         }
+        let hint = match (&ask.keys, ask.buttons) {
+            (Some(_), _) => "NEEDS A KEY PRESS OR A CLICK, NOT A SPOKEN YES",
+            (None, true) => "ANSWER YES OR NO, OR CLICK",
+            (None, false) => "ANSWER YES OR NO",
+        };
+        let hint = look.one_line(Role::Label, hint, wrap);
         body.push(text(
             "construct-ask-hint",
             Role::Label,
-            "ANSWER YES OR NO",
+            &hint,
             look.colors.muted,
             y,
         ));
         let full = (y + 16.0 + pad).ceil();
+        // The answers stay at the bottom, also while the body scrolls.
+        let row = ask.keys.is_some() || ask.buttons;
+        let footer = if row { 5.0 * u + pad } else { 0.0 };
         // At most the output minus 32 above and below, and minus the room
         // of the HUD with two lines, which stays in sight under it.
-        let h = full.min(out[1] - 8.0 * u - (2.0 * pad + 16.0 + 48.0 + 2.0 * u));
-        ask.scroll_max = full - h;
+        let room = out[1] - 8.0 * u - (2.0 * pad + 16.0 + 48.0 + 2.0 * u);
+        let body_h = full.min(room - footer);
+        let h = body_h + footer;
+        ask.scroll_max = full - body_h;
         ask.scroll = ask.scroll.clamp(0.0, ask.scroll_max);
         let x = ((out[0] - w) / 2.0).round();
         commands.extend([
@@ -1167,13 +1312,16 @@ impl Voice {
         let clip = (ask.scroll_max > 0.0).then_some(Clip {
             radius: look.style.radius,
         });
+        if row {
+            commands.extend(look.answers(ask, body_h, wrap));
+        }
         commands.extend([
             create(
                 ASK_VIEW,
                 NodeKind::Group,
                 ASK,
                 PropsUpdate {
-                    size: clip.map(|_| [w, h]),
+                    size: clip.map(|_| [w, body_h]),
                     clip: clip.map(Some),
                     input: Some(InputMode::Pass),
                     ..PropsUpdate::default()
@@ -1193,6 +1341,24 @@ impl Voice {
         commands.push(fade(ASK, 1.0, FADE_IN));
         commands.extend(look.glow_update(ASK_GLOW, [w, h], [0.0; 4], 0.0, glow));
         commands
+    }
+
+    /// The parameters of `voice.confirm.answer` for a press on `node`: a
+    /// button of the open question that has buttons. Only a pointer press
+    /// on the node calls it; no method of the construct does.
+    #[must_use]
+    pub fn answer(&self, node: &str) -> Option<Value> {
+        let ask = self.ask.as_ref().filter(|a| a.buttons)?;
+        let yes = match node {
+            ASK_YES => true,
+            ASK_NO => false,
+            _ => return None,
+        };
+        let id = match &ask.id {
+            Value::String(id) => id.clone(),
+            other => other.to_string(),
+        };
+        Some(serde_json::json!({"id": id, "yes": yes}))
     }
 
     /// Scrolls the open question by `dy`; answers the move of its body.
@@ -1419,6 +1585,40 @@ mod tests {
             .unwrap();
         let tall = height(&mut voice).unwrap();
         assert!(tall >= short + 24.0, "{short} {tall}");
+    }
+
+    /// A click on Ja or Nein maps to `confirm.answer` with the id as
+    /// text; without buttons, or on another node, nothing; a physical
+    /// question shows its key caps beside the buttons.
+    #[test]
+    fn a_click_on_a_button_answers_the_question() {
+        let config = config();
+        let metrics = Metrics::default();
+        let look = look(&config, &metrics);
+        let mut voice = Voice::default();
+        let now = Instant::now();
+        let ask = json!({"id": "4", "prompt": "Set allow?", "detail": "allow: [sh]",
+            "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
+        voice.follow("confirm", ask, now).unwrap();
+        assert_eq!(voice.answer(ASK_YES), Some(json!({"id": "4", "yes": true})));
+        assert_eq!(voice.answer(ASK_NO), Some(json!({"id": "4", "yes": false})));
+        assert_eq!(voice.answer(ASK_GLASS), None);
+        let commands = measured(&metrics, || voice.ask(&look, [1280.0, 720.0], true));
+        assert_eq!(text_of(&commands, "construct-ask-yes-text"), Some("Ja"));
+        assert_eq!(
+            text_of(&commands, "construct-ask-no-key-text"),
+            Some("Alt+N")
+        );
+        let numeric = json!({"id": 9, "prompt": "Run?", "buttons": true});
+        voice.follow("confirm", numeric, now).unwrap();
+        assert_eq!(voice.answer(ASK_YES), Some(json!({"id": "9", "yes": true})));
+        let plain = json!({"id": "5", "prompt": "Run?"});
+        voice.follow("confirm", plain, now).unwrap();
+        assert_eq!(voice.answer(ASK_YES), None, "no buttons");
+        voice
+            .follow("confirm", json!({"id": "5", "done": true}), now)
+            .unwrap();
+        assert_eq!(voice.answer(ASK_NO), None, "closed");
     }
 
     #[test]

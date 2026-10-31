@@ -90,6 +90,8 @@ const GLASS_SHADER: &str = include_str!("../glass.frag");
 const NO_ROOM: &str = "No room in view: in the window list (Tab)";
 /// The client name of the voice agent (docs/voice.md, section 10).
 const VOICE: &str = "voice";
+/// The left button, as Linux names it.
+const BTN_LEFT: u32 = 272;
 /// How long after the launcher starts its first new window becomes a
 /// pane also beside another flavor, and how long a program pane waits
 /// for its window.
@@ -928,6 +930,14 @@ impl Construct {
                 };
             }
             Event::InputMoved { position, .. } => return self.moved(self.local(position)),
+            // A button of a question: only a press of the pointer on it
+            // answers, and no method of the construct does.
+            Event::PointerPressed { node, button, .. }
+                if button == BTN_LEFT && self.voice.answer(&node).is_some() =>
+            {
+                self.answer(&node);
+                return Ok(());
+            }
             Event::PointerPressed {
                 node,
                 position,
@@ -2733,6 +2743,18 @@ impl Construct {
                 eprintln!("chora-construct: {event}: {err}");
                 Ok(())
             }
+        }
+    }
+
+    /// Answers the open question of the voice agent by the button `node`
+    /// with `confirm.answer`; a refusal, as for an old id, only logs.
+    fn answer(&mut self, node: &str) {
+        let Some(params) = self.voice.answer(node) else {
+            return;
+        };
+        let call = json!({"client": VOICE, "method": "confirm.answer", "params": params});
+        if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
+            eprintln!("chora-construct: confirm.answer: {err}");
         }
     }
 

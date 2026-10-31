@@ -860,6 +860,13 @@ fades out 2 s after its sound. Flown into a pane, the HUD shrinks to the
 ring and the label at the bottom right. `voice.confirm` opens a question
 at the top centre with the prompt and the whole detail; the wheel
 scrolls a long one, and its `done` closes it. The answer is by voice.
+With `buttons`, the question has the glass buttons Ja and Nein at its
+bottom; a click calls `voice.confirm.answer {id, yes}`. A question about
+a security key (`physical`) shows the key caps of its `keys`, such as
+Alt+Y and Alt+N, beside them, after an accent mark, and says that it
+needs a key press or a click. Only a pointer press on a button answers;
+no method of the construct calls `confirm.answer`, but the construct
+cannot tell an injected click (`input.inject`) from a real one.
 The construct claims the indicator of the agent (`indicator.claim`) at
 the start and on each connection of the agent, and hides the HUD while
 the agent is away.
