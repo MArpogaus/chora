@@ -484,6 +484,21 @@ speech to text, a language model and text to speech, served by
 | V2 Control | the voice agent drives chora through MCP | "move the terminal to the right" works in 18 of 20 tries | 0.7 (read model, text injection) |
 | V3 Views | a morning view and task views | "show my tasks for today" opens a view with the tasks of an MCP source; "open a view for the first task" opens a view with two surfaces | 0.7 |
 
+## Track: construct
+
+`chora-construct` is a spatial flavor and overlay: a white space with a
+foggy horizon, where programs, plugins, nested sessions and agent
+prompts float as panes that face the camera (D66). It grows from the
+loader prototype in `examples/loader/`. The requirements are in
+`plans/construct-requirements.md`. It runs beside milestone 0.10 and
+needs no change of the core unless the focus check finds a gap.
+
+| Step | Goal | Gate |
+|------|------|------|
+| K1 Space | walk on a leash in the white space, fly in and out of program panes | a terminal pane takes typed text after a fly-in, pixel-sharp at 1:1 |
+| K2 Panes | program, plugin, GNOME and prompt panes; constructs as files | four panes of the four kinds show live within 10 s after the start |
+| K3 Live | LOD, voice tools, prompt panes with ACP agents | 8 live panes at 60 fps for 60 s; "build me a snake game in a new pane" by voice shows the game running |
+
 ## After 1.0
 
 - The organization `chora-desktop` (D36). The core repository moves
