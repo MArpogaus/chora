@@ -392,7 +392,12 @@ the `animate` of the core moves its uniform `progress` from 0 to 1.
 The page of each scene, with its head and its panels, carries the tag
 `meta:pane=NAME`, also while the scene is hidden. Another plugin finds it
 with the selector `owner:mc meta:pane=NAME` and shows it through its node
-texture; chora-construct does so for a plugin pane.
+texture; chora-construct does so for a plugin pane. The root group `mc`
+carries the same tag with the scene that shows: it holds the regions and
+the background too, so a pane of it shows the whole output of mc, and the
+construct prefers it. While such a pane is flown into, the construct calls
+`pane.focus` of mc, which gives the keyboard to the app of the scene, else
+to its page.
 
 A window that no scene started, for example from a launcher, gets a scene
 of its own without a head, which goes with the window. So does a window

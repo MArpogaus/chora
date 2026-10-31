@@ -2208,7 +2208,9 @@ impl Construct {
             return Ok(None);
         };
         let nodes = (self.rt.conn).query(&format!("owner:{plugin} meta:pane={scene}"))?;
-        let Some(node) = nodes.first() else {
+        // The node of the plugin itself shows all that the plugin shows on
+        // its output; the page of a scene that hides is the fallback.
+        let Some(node) = nodes.iter().find(|n| n.id == plugin).or(nodes.first()) else {
             return Ok(Some(file));
         };
         let size = (file.size)

@@ -968,6 +968,11 @@ fn panels_id(name: &str) -> String {
 }
 
 /// The id of the page of a scene: its head and its panels, clipped.
+/// The tag `pane` of the root group: the scene that shows.
+fn pane_tag(scene: Option<&str>) -> BTreeMap<String, String> {
+    BTreeMap::from([("pane".into(), scene.unwrap_or_default().into())])
+}
+
 fn page_id(name: &str) -> String {
     format!("{}-page", scene_id(name))
 }
@@ -1297,6 +1302,12 @@ impl Mc {
                 // mc manages the windows of its output: only a window
                 // manager with a claim receives windows (D55).
                 claim: Some(Some(work)),
+                // Other plugins find mc by this tag and show the whole
+                // output, the regions with the page, through its node
+                // texture, as chora-construct does; it names the scene
+                // that shows. The page of every scene has its own tag.
+                size: Some([w, h]),
+                meta: Some(pane_tag(self.current.as_deref())),
                 ..PropsUpdate::default()
             },
         ));
@@ -2000,6 +2011,13 @@ impl Mc {
         if self.current.as_deref() != Some(name) {
             self.previous = self.current.replace(name.into());
         }
+        commands.push(Command::Update {
+            id: NAME.into(),
+            props: PropsUpdate {
+                meta: Some(pane_tag(Some(name))),
+                ..PropsUpdate::default()
+            },
+        });
         // The regions switch in the same transaction as the scene.
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         commands.extend(self.regions().map_err(rejected)?);
