@@ -132,7 +132,7 @@ default_scene: agenda
 # The order of the scenes, and so their numbers. The scenes that the list
 # leaves out, such as new ones and those of app.open, follow in the order
 # they appear. The method scene.move changes the list.
-order: [agenda, morning, agents, mission, terminal]
+order: [agenda, morning, agents, mission, terminal, overview]
 # A binding and its action: next_scene, previous_scene, {scene: NAME},
 # {run: COMMAND}, which starts a shell command whose window gets a scene
 # of its own, {toggle: REGION}, which shows or hides a region; a docked
@@ -143,6 +143,7 @@ bindings:
   Super+Right: next_scene
   Super+Left: previous_scene
   Super+a: {scene: agenda}
+  Super+o: {scene: overview}
   Super+space: {run: fuzzel}
   Super+Return: {toggle: drawer}
   Super+n: {toggle: right}

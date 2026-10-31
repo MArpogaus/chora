@@ -408,9 +408,10 @@ impl Mc {
 }
 
 /// The events; `voice.*` are those of the voice agent (D65).
-const EVENTS: [&str; 9] = [
+const EVENTS: [&str; 10] = [
     "voice.*",
     "pointer.scroll",
+    "pointer.pressed",
     "animation.done",
     "surface.created",
     "surface.destroyed",
@@ -648,6 +649,10 @@ impl Plugin for Mc {
                 data,
             } => self.follow(&event, &client, data),
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
+            Event::PointerPressed { node, position, .. } => {
+                self.click(&node, position);
+                Ok(())
+            }
             _ => Ok(()),
         }
     }

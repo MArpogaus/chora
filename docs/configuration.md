@@ -266,7 +266,9 @@ A scene of `chora-mc` is not a view of D35. It is a YAML file
 with a title and lines, or one app (a shell command, or a content of kind `app`) whose window
 fills the text block below the head, without
 a frame. The plugin has the built-in scenes `agenda`, `agents`, `mission`
-(Mission Control), `morning` (the morning paper) and `terminal`. A file of
+(Mission Control), `morning` (the morning paper), `overview` (all
+scenes in their order as `N | Title`; `Super+o` shows it, and a click on
+a line shows that scene) and `terminal`. A file of
 the same name replaces a built-in scene. A grid has 1 to 24 columns and
 rows; without `grid`, a scene has 4 columns and 3 rows. A wrong file, or
 a scene that the core refuses, is left out with a line in the log; the

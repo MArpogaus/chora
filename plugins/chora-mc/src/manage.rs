@@ -9,7 +9,7 @@ use chora_scene::{
 };
 use serde::Deserialize;
 
-use crate::{Mc, chapter_id, config::Layout, invalid, rejected, scene, title_of};
+use crate::{Mc, chapter_id, config::Layout, invalid, rejected, scene, title_of, wheel_id};
 
 /// The scene that lists all scenes.
 pub const OVERVIEW: &str = "overview";
@@ -106,6 +106,34 @@ impl Mc {
             heads.iter().try_for_each(|name| self.align(name))?;
         }
         self.render()
+    }
+
+    /// A click on a line of the overview shows that scene.
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a row of a screen"
+    )]
+    pub fn click(&mut self, node: &str, [_, y]: [f64; 2]) {
+        let on = self.current.as_deref() == Some(OVERVIEW) && node == wheel_id(OVERVIEW);
+        let (Some(panel), true) = (self.overview_panel(), on) else {
+            return;
+        };
+        let (Some([_, top, _, _]), Some(output)) = (self.place(OVERVIEW, &panel), &self.output)
+        else {
+            return;
+        };
+        let scroll = self.scroll.get(OVERVIEW).copied().unwrap_or_default();
+        let line = self.ty("body", panel.style.as_ref()).line;
+        let at = y - f64::from(output.position[1]) + scroll - top - self.lines_top(&panel);
+        let name = (at >= 0.0)
+            .then(|| self.order().get((at / line) as usize).cloned())
+            .flatten();
+        if let Some(name) = name
+            && let Err(err) = self.show(&name)
+        {
+            eprintln!("chora-mc: {name}: {}", err.message);
+        }
     }
 
     /// Moves a scene to the number `to` and saves the order.
@@ -216,14 +244,16 @@ mod tests {
         let (mut mc, model) = testing::mc("order", [1920, 1080]);
         assert_eq!(
             mc.order(),
-            ["agenda", "morning", "agents", "mission", "terminal"]
+            [
+                "agenda", "morning", "agents", "mission", "terminal", "overview"
+            ]
         );
         mc.add_scene("news", Scene::app("foot"));
         mc.add_scene("alpha", Scene::app("foot"));
         mc.build().unwrap();
         assert_eq!(mc.number("terminal"), "5");
-        assert_eq!(mc.number("news"), "6");
-        assert_eq!(mc.number("alpha"), "7", "in the order it appeared");
+        assert_eq!(mc.number("news"), "7");
+        assert_eq!(mc.number("alpha"), "8", "in the order it appeared");
         mc.show("agenda").unwrap();
         mc.settings.value.order = vec!["mission".into(), "agenda".into()];
         mc.renumber().unwrap();
@@ -275,7 +305,9 @@ mod tests {
             to,
         };
         mc.move_scene(to("mission", 1)).unwrap();
-        let order = ["mission", "agenda", "morning", "agents", "terminal"];
+        let order = [
+            "mission", "agenda", "morning", "agents", "terminal", "overview",
+        ];
         assert_eq!(mc.settings.value.order, order);
         let saved = std::fs::read_to_string(mc.settings.file()).unwrap();
         assert!(saved.contains("- mission\n- agenda"), "{saved}");
@@ -288,5 +320,35 @@ mod tests {
         mc.transient.insert("agenda".into());
         assert!(mc.move_scene(to("agenda", 1)).is_err());
         assert!(mc.move_scene(to("nothing", 1)).is_err());
+    }
+
+    /// The overview lists every scene as `N | Title`, anew after a move,
+    /// and a click on a line shows its scene.
+    #[test]
+    fn the_overview_lists_the_scenes_and_a_click_shows_one() {
+        let (mut mc, model) = testing::mc("overview", [1920, 1080]);
+        let lines = || {
+            testing::text(
+                &model,
+                &format!("{}-lines", crate::panel_id(super::OVERVIEW, super::LIST)),
+            )
+        };
+        let first = lines().unwrap();
+        assert!(
+            first.starts_with("1 | Agenda\n2 | The Morning\n3 | Agents"),
+            "{first}"
+        );
+        mc.show(super::OVERVIEW).unwrap();
+        mc.move_scene(Move {
+            name: "agents".into(),
+            to: 1,
+        })
+        .unwrap();
+        assert!(lines().unwrap().starts_with("1 | Agents\n2 | Agenda"));
+        let panel = mc.overview_panel().unwrap();
+        let [_, top, _, _] = mc.place(super::OVERVIEW, &panel).unwrap();
+        let line = mc.ty("body", None).line;
+        mc.click(&crate::wheel_id(super::OVERVIEW), [400.0, top + 1.5 * line]);
+        assert_eq!(mc.current.as_deref(), Some("agenda"));
     }
 }
