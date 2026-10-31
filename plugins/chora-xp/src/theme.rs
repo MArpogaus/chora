@@ -309,7 +309,7 @@ impl Theme {
     /// and returns its path.
     pub fn cache_file(&self, name: &str, data: &str) -> std::io::Result<PathBuf> {
         let path = self.cache.join(name);
-        fs::write(&path, data)?;
+        chora_kit::write_file(&path, data.as_bytes())?;
         Ok(path)
     }
 
@@ -473,10 +473,8 @@ impl Theme {
 
     fn write(&self, key: u64, pixmap: &Pixmap) -> Result<String, String> {
         let path = self.cache.join(format!("{key:016x}.png"));
-        let partial = path.with_extension("part");
         let data = pixmap.encode_png().map_err(|e| e.to_string())?;
-        fs::write(&partial, data).map_err(|e| e.to_string())?;
-        fs::rename(&partial, &path).map_err(|e| e.to_string())?;
+        chora_kit::write_file(&path, &data).map_err(|e| e.to_string())?;
         path.into_os_string()
             .into_string()
             .map_err(|p| format!("not UTF-8: {}", p.display()))

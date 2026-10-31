@@ -97,7 +97,7 @@ fn main() -> ExitCode {
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = settings::File::<Config>::path(args.config.clone(), "chora-xp")?;
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
-    let theme = Theme::load(&args.theme, &cache_dir()).map_err(|e| format!("theme: {e}"))?;
+    let theme = Theme::load(&args.theme, &cache_dir()?).map_err(|e| format!("theme: {e}"))?;
     let mut wm = Wm::start(args.outputs.clone(), theme, settings, args.slow_motion)?;
     event_loop(&mut wm)?;
     if wm.restart {
@@ -176,12 +176,16 @@ fn last_move(wm: &mut Wm, mut event: Event) -> Result<(Event, Option<Event>), Cl
 
 /// The directory of the rendered files: one per chora instance, below
 /// `$XDG_RUNTIME_DIR/chora-xp`, which the core can read.
-fn cache_dir() -> PathBuf {
-    let runtime =
-        std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, PathBuf::from);
+fn cache_dir() -> Result<PathBuf, String> {
+    // No fallback to the shared temporary directory: another local user
+    // could plant files there first.
+    let runtime = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .ok_or("no absolute $XDG_RUNTIME_DIR for the cache")?;
     let instance = std::env::var_os(chora_scene::ipc::SOCKET_ENV)
         .map(PathBuf::from)
         .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().into_owned()))
         .unwrap_or_else(|| "default".into());
-    runtime.join("chora-xp").join(instance)
+    Ok(runtime.join("chora-xp").join(instance))
 }
