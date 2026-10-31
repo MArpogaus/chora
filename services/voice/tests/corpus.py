@@ -101,7 +101,7 @@ class Session:
         self.played: list[np.ndarray] = []
 
     def say(self, at: float, speech: np.ndarray) -> tuple[float, float]:
-        """The user speaks from AT; returns the labelled turn."""
+        """Speak SPEECH from AT as the user; return the labelled turn."""
         i = int(at * RATE)
         self.mic[i : i + len(speech)] += speech
         start, end = bounds(speech)
@@ -111,9 +111,11 @@ class Session:
     def play(
         self, at: float, sound: np.ndarray, coupling: float, barge: float | None = None
     ) -> None:
-        """The agent plays SOUND from AT; its echo is SOUND times
-        COUPLING. A barge-in at BARGE stops it 0.8 s later, as the agent
-        would."""
+        """Play SOUND as the agent from AT.
+
+        Its echo is SOUND times COUPLING. A barge-in at BARGE stops it
+        0.8 s later, as the agent would.
+        """
         n = len(sound) if barge is None else int((barge + 0.8 - at) * RATE)
         i = int(at * RATE)
         self.mic[i : i + n] += sound[:n] * coupling
@@ -124,6 +126,7 @@ class Session:
             self.labels.append(f"barge {barge:.3f}")
 
     def write(self, root: Path, name: str, note: str) -> None:
+        """Write the mic WAV, the events and the labels under ROOT/NAME."""
         out = root / name
         out.mkdir(parents=True, exist_ok=True)
         with wave.open(str(out / "mic.wav"), "wb") as wav:
