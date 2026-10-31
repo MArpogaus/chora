@@ -110,7 +110,7 @@ chapter:
 # The text block of every scene: the width of one column of the grid,
 # the margin column left of each column for the number of the scene and
 # notes such as times, and the space between them, all in em of
-# scale.base. On a narrow output the columns get narrower.
+# scale.base. On a narrow output fewer columns show; see min_panel.
 page:
   measure: 18
   margin: 4
