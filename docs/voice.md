@@ -326,6 +326,15 @@ a text node `voice-question` at the top left of the first output, on
 its start there; the event has all of it. Over the rate limit, the
 last `voice.confirm` goes again after 1 s.
 
+While a claimer of the indicator (section 10) is connected, the event
+also has `buttons: true`. A HUD can then show Yes and No buttons. A
+click calls `voice.confirm.answer {id, yes}` with the `id` of the
+event. Only a client that holds `indicator.claim` may call it, and
+only for the question that is open now. An old or wrong `id` is
+refused. A click is a physical act, as a key press is. So a button
+also answers a question about a security key. The LLM never reaches
+the method: it calls no method of NAME (see "Own settings").
+
 The rule of `apply_commands` with `remove` asks only when a target is
 not a node of the agent's own client (`NAME-mcp`), or has a node of
 another client under it; the agent reads the owners and parents with
@@ -362,7 +371,8 @@ the user agrees:
 - While such a question waits, the client `NAME` grabs the two keys of
   `confirm_keys` (default `{yes: Alt+y, no: Alt+n}`) with `input.grab`
   on its own connection. It lets them go when the question ends.
-- Only these keys answer it. A spoken yes, an always word and a yes of
+- Only these keys and the buttons of a HUD (`voice.confirm.answer`)
+  answer it. A spoken yes, an always word and a yes of
   the method `voice.confirm` count as nothing. A spoken no, a new
   request, two unclear answers or `voice.confirm no` are a no.
 - No key press within `confirm_timeout_ms` is a no.
@@ -616,10 +626,11 @@ both a key variable and a key file for one server.
 | `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand |
 | `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc` |
 | `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key |
+| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a caller without `indicator.claim` and for any other `id` (section 5) |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
 
-`mute`, `talk` and `indicator.claim` are privileged: with them, a
+`mute`, `talk`, `indicator.claim` and `confirm.answer` are privileged: with them, a
 client could unmute the mic, record, or hide the dot, so that the agent
 listens without a sign. A client socket needs `methods.privileged` for
 them. The export flag cannot depend on `mic`, so muting needs it too.
