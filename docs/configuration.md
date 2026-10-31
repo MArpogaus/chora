@@ -387,7 +387,8 @@ texture; chora-construct does so for a plugin pane.
 
 A window that no scene started, for example from a launcher, gets a scene
 of its own without a head, which goes with the window. So does a window
-that another window manager gives to `mc` (D55). `window.give` with
+that another window manager gives to `mc` (D55): mc claims its whole
+output, as a window manager does. `window.give` with
 `to` and an optional `surface`, by default the focused window, hands the
 window of a scene to another window manager. The scene of the window
 goes with it, and the scene before shows, without the keyboard.

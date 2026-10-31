@@ -1223,6 +1223,9 @@ impl Mc {
             ROOT,
             PropsUpdate {
                 transform: Some(translate(x, y)),
+                // mc manages the windows of its output: only a window
+                // manager with a claim receives windows (D55).
+                claim: Some(Some([x, y, w, h])),
                 ..PropsUpdate::default()
             },
         ));
@@ -2527,6 +2530,22 @@ mod tests {
     fn a_running_process_is_alive_and_a_missing_one_not() {
         assert!(super::alive(std::process::id()));
         assert!(!super::alive(u32::MAX));
+    }
+
+    /// mc claims its output, so that other window managers can give it
+    /// windows (D55).
+    #[test]
+    fn mc_claims_its_output() {
+        let (_mc, model) = crate::testing::mc("output-claim", [1920, 1080]);
+        let claim = model
+            .lock()
+            .unwrap()
+            .scene
+            .node(super::NAME)
+            .unwrap()
+            .props
+            .claim;
+        assert_eq!(claim, Some([0.0, 0.0, 1920.0, 1080.0]));
     }
 
     /// The claim of the indicator of the voice agent goes out at the
