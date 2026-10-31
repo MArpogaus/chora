@@ -146,6 +146,29 @@ pub fn mirror_matrix(lens: &Lens, pose: &Pose, at: [f64; 2], size: [f64; 2], k: 
     to_screen(lens, pose, &mul(&flip, &mul(&pane, &scale)))
 }
 
+/// The matrix of the glow node behind a pane: a node of the pane's size
+/// plus `reach` on each side, divided by `k`, so that its point (0, 0)
+/// lies at (-reach, -reach) of the pane.
+#[must_use]
+#[allow(clippy::too_many_arguments, reason = "the pane and its glow")]
+pub fn glow_matrix(
+    lens: &Lens,
+    pose: &Pose,
+    at: [f64; 2],
+    size: [f64; 2],
+    reach: f64,
+    k: f64,
+) -> [f64; 16] {
+    let scale = [
+        [k, 0.0, 0.0, -reach],
+        [0.0, k, 0.0, -reach],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
+    let pane = billboard(at, size, [pose.x, pose.z]);
+    to_screen(lens, pose, &mul(&pane, &scale))
+}
+
 /// The projection of a model to the output, column-major.
 fn to_screen(lens: &Lens, pose: &Pose, model: &Mat) -> [f64; 16] {
     let proj = [

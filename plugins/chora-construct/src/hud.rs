@@ -284,8 +284,28 @@ impl Look<'_> {
     /// of `size`, with the ring of the HUD.
     fn glow_props(&self, size: [f64; 2], ring: [f64; 4], level: f64) -> PropsUpdate {
         let reach = self.style.glow;
+        let uniforms = self.glow_uniforms(size, self.style.radius, reach, ring, level);
+        PropsUpdate {
+            size: Some([size[0] + 2.0 * reach, size[1] + 2.0 * reach]),
+            transform: at(-reach, -reach),
+            uniforms: Some(uniforms),
+            ..PropsUpdate::default()
+        }
+    }
+
+    /// The uniforms of `glass.frag` for a box of `size` with corners of
+    /// `radius` and a glow that reaches `reach` out of it.
+    #[must_use]
+    pub fn glow_uniforms(
+        &self,
+        size: [f64; 2],
+        radius: f64,
+        reach: f64,
+        ring: [f64; 4],
+        level: f64,
+    ) -> BTreeMap<String, Uniform> {
         let accent = self.style.accent;
-        let uniforms = BTreeMap::from([
+        BTreeMap::from([
             (
                 "accent".into(),
                 Uniform::Vector(vec![accent[0], accent[1], accent[2], self.colors.glow]),
@@ -293,17 +313,11 @@ impl Look<'_> {
             ("muted".into(), Uniform::Vector(self.colors.muted.to_vec())),
             (
                 "box".into(),
-                Uniform::Vector(vec![size[0], size[1], self.style.radius, reach]),
+                Uniform::Vector(vec![size[0], size[1], radius, reach]),
             ),
             ("ring".into(), Uniform::Vector(ring.to_vec())),
             ("level".into(), Uniform::Float(level)),
-        ]);
-        PropsUpdate {
-            size: Some([size[0] + 2.0 * reach, size[1] + 2.0 * reach]),
-            transform: at(-reach, -reach),
-            uniforms: Some(uniforms),
-            ..PropsUpdate::default()
-        }
+        ])
     }
 
     /// The glow of a panel of `size`: the update, then the rise to full

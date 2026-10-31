@@ -73,6 +73,10 @@ const MIRROR_SCALE: f64 = 2.0;
 const SHADOWS: usize = 8;
 const PANES: &str = "construct-panes";
 const WINDOWS: &str = "construct-windows";
+/// The glow of the focused pane, under it in the group of the panes; it
+/// renders at this fraction of its size and scales up.
+const FOCUS: &str = "construct-focus";
+const FOCUS_SCALE: f64 = 4.0;
 /// A clear rect over the space: it takes the drags, clicks, the wheel
 /// and, through `focus_node`, the keys of the walk.
 const LOOK: &str = "construct-look";
@@ -530,7 +534,12 @@ fn space_nodes(fog_shader: &str, root: &str) -> Vec<Command> {
 
 /// The uniforms of a pane; an update replaces all of them, so each
 /// carries the node that the pane shows.
-fn pane_uniforms(source: &str, haze: f64, fog: [f64; 3]) -> BTreeMap<String, Uniform> {
+fn pane_uniforms(
+    source: &str,
+    haze: f64,
+    fog: [f64; 3],
+    edge: [f64; 4],
+) -> BTreeMap<String, Uniform> {
     let win = Uniform::Texture(NodeTexture {
         node: source.into(),
     });
@@ -538,6 +547,7 @@ fn pane_uniforms(source: &str, haze: f64, fog: [f64; 3]) -> BTreeMap<String, Uni
         ("win".into(), win),
         ("haze".into(), Uniform::Float(haze)),
         ("fog".into(), vec3(fog)),
+        ("edge".into(), Uniform::Vector(edge.to_vec())),
     ])
 }
 
@@ -1221,6 +1231,19 @@ impl Construct {
         match self.rt.conn.query(&format!("id:{NAME}"))?.first() {
             None => {
                 commands = space_nodes(&self.fog_shader, &root);
+                if !self.glass.plain {
+                    commands.push(create(
+                        FOCUS,
+                        NodeKind::Shader,
+                        PANES,
+                        PropsUpdate {
+                            shader: Some(self.glass_shader.clone()),
+                            visible: Some(false),
+                            ..PropsUpdate::default()
+                        },
+                    ));
+                }
+                self.order.clear();
                 commands.extend(self.styled().groups(NAME));
                 self.labelled = None;
             }
@@ -1320,7 +1343,7 @@ impl Construct {
                 PANES,
                 pane.size,
                 &self.pane_shader,
-                pane_uniforms(&pane.source, 0.0, fog),
+                pane_uniforms(&pane.source, 0.0, fog, [0.0; 4]),
             ),
         ]
     }
@@ -1861,6 +1884,7 @@ impl Construct {
 
     /// Sends the pose: the matrix and the haze of each pane and its
     /// mirror image, back to front, and the camera of the fog.
+    #[allow(clippy::too_many_lines, reason = "each pane, its mirror and the focus")]
     fn frame(&mut self) -> Result<(), ClientError> {
         if self.output.is_none() || !self.active {
             return Ok(());
@@ -1883,7 +1907,11 @@ impl Construct {
             .map(|(p, _)| *p)
             .collect();
         let mut commands = self.space_frame(&near);
+        let focus = self.focus().map(|k| self.panes[k].name.clone());
+        let accent = self.settings.value.style.accent;
+        let mut glow = None;
         for (pane, depth) in &sorted {
+            let focused = focus.as_deref() == Some(pane.name.as_str());
             // A pane at or behind the eye does not show.
             let shown = *depth > self.lens.focal * 0.1;
             let mut props = PropsUpdate {
@@ -1894,9 +1922,24 @@ impl Construct {
             if shown {
                 let matrix = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size);
                 let far = (depth - self.lens.focal).max(0.0) / radius;
-                let haze = (1.0 - (-far * 1.5).exp()) * 0.9;
+                // The focused pane shows clear, with an accent edge of
+                // about 1.5 pixels on the output.
+                let haze = if focused {
+                    0.0
+                } else {
+                    (1.0 - (-far * 1.5).exp()) * 0.9
+                };
+                let px = depth / self.lens.focal;
+                let edge = if focused {
+                    [accent[0], accent[1], accent[2], (1.5 * px).max(1.0)]
+                } else {
+                    [0.0; 4]
+                };
                 props.transform = Some(Transform::from_matrix(matrix));
-                props.uniforms = Some(pane_uniforms(&pane.source, haze, fog));
+                props.uniforms = Some(pane_uniforms(&pane.source, haze, fog, edge));
+                if focused {
+                    glow = Some(self.focus_glow(pane, px));
+                }
                 let k = pane.size[0] / mirror_size(pane.size)[0];
                 let matrix = space::mirror_matrix(&self.lens, &self.pose, pane.at, pane.size, k);
                 mirror.transform = Some(Transform::from_matrix(matrix));
@@ -1909,7 +1952,22 @@ impl Construct {
             commands.push(update(&pane.node(), props));
             commands.push(update(&pane.mirror(), mirror));
         }
-        let order: Vec<String> = sorted.iter().map(|(p, _)| p.node()).collect();
+        let shows_glow = glow.is_some() && self.flown.is_none();
+        if !self.glass.plain {
+            let props = glow.filter(|_| shows_glow).unwrap_or(PropsUpdate {
+                visible: Some(false),
+                ..PropsUpdate::default()
+            });
+            commands.push(update(FOCUS, props));
+        }
+        // The glow of the focused pane lies right under it.
+        let order: Vec<String> = (sorted.iter())
+            .flat_map(|(p, _)| {
+                let under = (shows_glow && focus.as_deref() == Some(p.name.as_str()))
+                    .then(|| FOCUS.to_owned());
+                under.into_iter().chain([p.node()])
+            })
+            .collect();
         if order != self.order {
             commands.extend(order.iter().map(|id| Command::Move {
                 id: id.clone(),
@@ -1920,6 +1978,50 @@ impl Construct {
         }
         commands.extend(self.label_commands());
         self.rt.conn.apply(commands)
+    }
+
+    /// The pane in focus: the pane flown into, else the pane under the
+    /// pointer or ahead, as the label picks it.
+    fn focus(&self) -> Option<usize> {
+        if let Some(flown) = &self.flown {
+            return self
+                .panes
+                .iter()
+                .position(|p| p.window() == Some(&flown.surface));
+        }
+        (self.pointer.and_then(|p| self.pane_at(p)))
+            .or_else(|| self.pane_ahead())
+            .filter(|&i| {
+                let far = self.radius();
+                space::sight(&self.lens, &self.pose, self.panes[i].at, far) == "shown"
+            })
+    }
+
+    /// The soft accent glow behind the focused pane, as the glass of a
+    /// panel has it: a node of a quarter of the size, scaled up, whose
+    /// glow reaches 16 pixels of the output. `px` is the size of a pixel
+    /// of the output in pixels of the pane.
+    fn focus_glow(&self, pane: &Pane, px: f64) -> PropsUpdate {
+        let reach = self.settings.value.style.glow * px;
+        let [w, h] = pane.size;
+        let size = [w / FOCUS_SCALE, h / FOCUS_SCALE];
+        let r = reach / FOCUS_SCALE;
+        let uniforms = self.styled().glow_uniforms(size, 0.0, r, [0.0; 4], 0.0);
+        let matrix = space::glow_matrix(
+            &self.lens,
+            &self.pose,
+            pane.at,
+            pane.size,
+            reach,
+            FOCUS_SCALE,
+        );
+        PropsUpdate {
+            size: Some([size[0] + 2.0 * r, size[1] + 2.0 * r]),
+            transform: Some(Transform::from_matrix(matrix)),
+            uniforms: Some(uniforms),
+            visible: Some(true),
+            ..PropsUpdate::default()
+        }
     }
 
     /// Loads a construct (F18). An overlay takes the output now; a
@@ -2545,19 +2647,10 @@ impl Construct {
     /// the list is open, and when the pane does not show. The text and the
     /// pill change only with the pane.
     fn label_commands(&mut self) -> Vec<Command> {
-        let pick = if self.flown.is_some()
+        let hidden = self.flown.is_some()
             || self.list.is_some()
-            || self.glide.as_ref().is_some_and(|g| g.into.is_some())
-        {
-            None
-        } else {
-            (self.pointer.and_then(|p| self.pane_at(p)))
-                .or_else(|| self.pane_ahead())
-                .filter(|&i| {
-                    let far = self.radius();
-                    space::sight(&self.lens, &self.pose, self.panes[i].at, far) == "shown"
-                })
-        };
+            || self.glide.as_ref().is_some_and(|g| g.into.is_some());
+        let pick = if hidden { None } else { self.focus() };
         let Some(k) = pick else {
             return match self.labelled.take() {
                 Some(_) => Look::label_hide(),

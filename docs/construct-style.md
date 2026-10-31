@@ -47,7 +47,8 @@ rule 5. `plans/construct-hud.md` adds the section.
 
 4. **One accent for both themes.** `accent` is `[0.15, 0.50, 0.71]`
    (#2680B4). It colours the state ring, the waveform, the selection
-   mark and the glow. It never colours text. Do not use other hues.
+   mark, the glow and the edge of the focused pane. It never colours
+   text. Do not use other hues.
 5. **Contrast.** Check each colour on the glass over the worst
    background: a black pane and a white pane. The minimum contrast
    ratios of the defaults are:
@@ -129,3 +130,10 @@ rule 5. `plans/construct-hud.md` adds the section.
     `style` and a rule on this page. Before a merge, capture it at
     1920x1080 and 1280x720, in both themes, over a white and a black
     pane, and compare it with these rules.
+
+## Panes
+
+16. **The focused pane.** The focused pane has full opacity and an accent
+    hairline with a soft glow. It is the pane flown into, else the pane
+    under the pointer or ahead, as the pane label picks it. The other
+    panes fade into the fog with their distance.

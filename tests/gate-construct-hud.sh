@@ -225,6 +225,37 @@ for theme in ${THEMES:-light dark}; do
     wait "$session" 2>/dev/null
 done
 
+# The focused pane (rule 16 of the guide): the pane ahead shows clear,
+# with an accent hairline and a soft glow under it; two others beside.
+for theme in ${THEMES:-light dark}; do
+    printf 'theme: %s\n' "$theme" >"$work/chora/chora-construct.yaml"
+    CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
+    session=${pids[-1]}
+    grant screen.capture input.inject
+    ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
+    for f in one two three; do
+        foot_pane "$f" 1e2430 eceef2 "pane $f"
+        call pane.resize "{\"name\": \"$f\", \"scale\": 0.5}"
+    done
+    # The camera looks along +z: right is +x, ahead +z.
+    for spot in 'one 0 2000' 'two -800 2700' 'three 800 2700'; do
+        read -r f x z <<<"$spot"
+        ctl call construct construct.list | python3 -I -c '
+import json, sys
+f, x, z = sys.argv[1], float(sys.argv[2]), float(sys.argv[3])
+at = next(p["at"] for p in json.load(sys.stdin)["panes"] if p["name"] == f)
+print(json.dumps({"name": f, "right": x - at[0], "ahead": z - at[1]}))' "$f" "$x" "$z" >"$work/move.json"
+        call pane.move "$(cat "$work/move.json")"
+    done
+    sleep 1
+    focused=$(ctl query id:construct-focus | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0]["visible"] if n else "")')
+    [ "$focused" = True ] || fail "$theme: no glow under the focused pane"
+    shot "$shots/construct-hud-focus-$theme.png"
+    ok "$theme: the focused pane has its edge and glow"
+    kill "$session"
+    wait "$session" 2>/dev/null
+done
+
 # No room in view (C7): a pane fills the view, so a new window becomes no
 # pane; it waits in the window list, the HUD says so, and window.show
 # makes its pane. No window gets lost.

@@ -849,7 +849,9 @@ the agent is away.
 
 Under the pane ahead, or under the pane where the pointer last pressed or
 let go, a pill names the pane. The core tells the pointer only from a
-press to its release, so the label does not follow a hover.
+press to its release, so the label does not follow a hover. That pane,
+or the pane flown into, is the focused pane: it shows clear, without the
+fog of its distance, with an accent hairline and a soft glow under it.
 
 The ring, the bars and the glow are one shader, `glass.frag`. When the
 watchdog takes the shaders (`effects.dropped`), the panels and their
