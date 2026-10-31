@@ -547,7 +547,9 @@ mod tests {
         let server = fake::tts(fake::Tts::Speak).await;
         let config = Config {
             tts_url: server.url,
-            playback_buffer_ms: 0,
+            // The first write holds the whole first sentence, so the
+            // pause cuts it however late the player sees the control.
+            playback_buffer_ms: 900,
             ..Config::default()
         };
         // 60 ms of sound per character: 0.9 s and 0.3 s.
@@ -560,7 +562,9 @@ mod tests {
                 .filter_map(|l| l.strip_prefix("pcm ")?.parse::<usize>().ok())
                 .sum();
             assert_eq!(played, after, "skip={skip}: {log:?}");
-            let said: Vec<_> = log.iter().filter(|l| l.starts_with("said")).collect();
+            // The player may name the sentence once before the pause, as
+            // it names a sentence when it writes it.
+            let said: Vec<_> = log[stop..].iter().filter(|l| l.starts_with("said")).collect();
             let want: &[&str] = if skip {
                 &["said Vier. 300"]
             } else {
