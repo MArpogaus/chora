@@ -373,8 +373,9 @@ impl Tiling {
                 binding,
                 state,
                 position,
+                surface,
                 ..
-            } => self.drag(&binding, state, position),
+            } => self.drag(&binding, state, position, surface),
             // A window that follows the pointer.
             Event::InputMoved {
                 binding, position, ..
@@ -586,15 +587,17 @@ impl Tiling {
         matches!(self.rt.action(binding), Some(Action::Drag))
     }
 
-    /// A drag: the press takes the window under the pointer, and a release
-    /// outside the claim of tiling hands it to the window manager whose
-    /// claim holds the point (D55). Without one there, the window stays.
-    fn drag(&mut self, binding: &str, state: PressState, point: [f64; 2]) {
+    /// A drag: the press takes the window that asked for a move, else the
+    /// window under the pointer, and a release outside the claim of tiling
+    /// hands it to the window manager whose claim holds the point (D55).
+    /// Without one there, the window stays.
+    fn drag(&mut self, binding: &str, state: PressState, point: [f64; 2], asked: Option<String>) {
         if !self.drags(binding) {
             return;
         }
         if state == PressState::Pressed {
-            self.dragged = self.window_at(point).map(|id| {
+            let grabbed = taken(asked, |id| self.wm.has(id), || self.window_at(point));
+            self.dragged = grabbed.map(|id| {
                 let [x, y] = (self.sent.get(&id))
                     .and_then(|p| p.at)
                     .map_or(point, |at| at.map(f64::from));
@@ -891,6 +894,20 @@ impl Tiling {
             Ok(()) => Ok(true),
             Err(err) => Err(err),
         }
+    }
+}
+
+/// The window that a drag takes: the window of tiling that asked for a
+/// move, from its title bar for example, else the window `under` the
+/// pointer, which may be another window where windows overlap.
+fn taken(
+    asked: Option<String>,
+    ours: impl Fn(&str) -> bool,
+    under: impl FnOnce() -> Option<String>,
+) -> Option<String> {
+    match asked {
+        Some(id) => ours(&id).then_some(id),
+        None => under(),
     }
 }
 
@@ -1207,6 +1224,15 @@ mod tests {
                 Command::Remove { id, to: None },
             ] if surface == "s1" && parent == NAME && id == "s1"
         ));
+    }
+
+    #[test]
+    fn a_move_drags_the_window_that_asked_for_it() {
+        let under = || Some("s2".to_owned());
+        let ours = |id: &str| id != "x";
+        assert_eq!(taken(Some("s1".into()), ours, under).as_deref(), Some("s1"));
+        assert_eq!(taken(Some("x".into()), ours, under), None);
+        assert_eq!(taken(None, ours, under).as_deref(), Some("s2"));
     }
 
     #[test]
