@@ -120,7 +120,7 @@ fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
             .join("\n");
     }
     match (tool, args["argv"].as_array()) {
-        ("run_program", Some(argv)) => argv.iter().map(text).collect::<Vec<_>>().join(" "),
+        ("run_program", Some(items)) => items.iter().map(text).collect::<Vec<_>>().join(" "),
         ("call_method", _) => format!(
             "{}.{} {}",
             text(&args["client"]),

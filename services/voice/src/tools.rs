@@ -412,6 +412,11 @@ fn read_path(roots: &BTreeMap<String, PathBuf>, path: &str, line: usize) -> Resu
         return Err(format!("{path} is a binary file"));
     }
     let text = String::from_utf8(bytes).map_err(|_| format!("{path} is no UTF-8 text"))?;
+    Ok(page(&text, line))
+}
+
+/// The text from `line` on, at most `READ_BYTES`, cut at a line.
+fn page(text: &str, line: usize) -> String {
     let start: usize = text
         .split_inclusive('\n')
         .take(line - 1)
@@ -419,7 +424,7 @@ fn read_path(roots: &BTreeMap<String, PathBuf>, path: &str, line: usize) -> Resu
         .sum();
     let rest = &text[start..];
     if rest.len() <= READ_BYTES {
-        return Ok(rest.to_owned());
+        return rest.to_owned();
     }
     let mut end = READ_BYTES;
     while !rest.is_char_boundary(end) {
@@ -429,10 +434,10 @@ fn read_path(roots: &BTreeMap<String, PathBuf>, path: &str, line: usize) -> Resu
         end = newline + 1;
     }
     let next = line + rest[..end].matches('\n').count().max(1);
-    Ok(format!(
+    format!(
         "{}\n[cut after {READ_BYTES} bytes; read on with line {next}]",
         &rest[..end]
-    ))
+    )
 }
 
 /// The sorted names in `dir`, a folder with a `/`, at most `READ_NAMES`.

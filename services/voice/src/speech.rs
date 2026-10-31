@@ -401,19 +401,12 @@ pub async fn reply(
         }
         chat.turn(text, &|event| match event {
             Event::Sentence(sentence) => say(sentence),
-            Event::Confirm {
-                prompt,
-                detail,
-                answer,
-            } => {
-                say(prompt.clone());
-                on(Reply::Chat(Event::Confirm {
-                    prompt,
-                    detail,
-                    answer,
-                }));
+            event => {
+                if let Event::Confirm { prompt, .. } = &event {
+                    say(prompt.clone());
+                }
+                on(Reply::Chat(event));
             }
-            event => on(Reply::Chat(event)),
         })
         .await
     };

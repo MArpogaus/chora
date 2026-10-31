@@ -1059,6 +1059,23 @@ impl Core {
         self.sound_end.is_some_and(|end| now < end + gap)
     }
 
+    /// Speech over the agent's sound pauses it and starts an utterance.
+    fn barge_in(&mut self, now: Instant, level: f64) -> Vec<Effect> {
+        crate::log::info(&format!(
+            "barge-in played={level:.0} coupling={:.3}",
+            self.barge.coupling()
+        ));
+        self.paused = true;
+        self.sound_end = Some(now);
+        let barge = Duration::from_millis(self.config.barge_in_ms.into());
+        self.onset = now.checked_sub(barge).unwrap_or(now);
+        // The speech that made the barge-in, and the pre-roll before it.
+        self.gate
+            .open(self.config.barge_in_ms + self.config.preroll_ms);
+        self.recorded = 0;
+        vec![Effect::Speech(Control::Pause), Effect::Mark("barge")]
+    }
+
     fn frame(&mut self, frame: &Frame) -> Vec<Effect> {
         let now = Instant::now();
         let playing = self.asking.is_some() && !self.paused && self.sounding(now);
@@ -1066,19 +1083,7 @@ impl Core {
             // Only the barge-in gate listens over the agent's sound.
             let level = self.played_level(now);
             if !self.muted.mic && self.barge.push(frame, level) {
-                crate::log::info(&format!(
-                    "barge-in played={level:.0} coupling={:.3}",
-                    self.barge.coupling()
-                ));
-                self.paused = true;
-                self.sound_end = Some(now);
-                let barge = Duration::from_millis(self.config.barge_in_ms.into());
-                self.onset = now.checked_sub(barge).unwrap_or(now);
-                // The speech that made the barge-in, and the pre-roll before it.
-                self.gate
-                    .open(self.config.barge_in_ms + self.config.preroll_ms);
-                self.recorded = 0;
-                return vec![Effect::Speech(Control::Pause), Effect::Mark("barge")];
+                return self.barge_in(now, level);
             }
             // The gate keeps its pre-roll.
             self.gate.push(frame, false, false);
@@ -1715,8 +1720,13 @@ mod tests {
         say(&mut core, "Keine Ahnung.");
         assert_eq!(rx.try_recv(), Ok(None), "two: not understood");
         assert_eq!(call(&mut core, Call::State).1["queued"], 0);
-        // A new request is a no and the next turn, also with a yes word
-        // in it (review 0.9.0-rc.3).
+    }
+
+    /// A new request is a no and the next turn, also with a yes word in
+    /// it (review 0.9.0-rc.3).
+    #[test]
+    fn a_new_request_in_a_confirmation_is_a_no() {
+        let mut core = asking();
         for text in [
             "Zeig mir lieber die Agenda für heute.",
             "Ja, die Skalierung des Bildschirms.",
