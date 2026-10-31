@@ -1644,7 +1644,7 @@ the user; nothing happened".</p>
 <tr>
 <td>ASR</td>
 <td>Error or timeout</td>
-<td>One retry with the same audio, then earcon and <code>phrases.asr_failed</code> ("Ich habe dich nicht verstanden.") when the agent listens again; a wake word asleep only sounds the earcon</td>
+<td>One retry with the same audio, then earcon and <code>phrases.asr_failed</code> ("I did not understand you.") when the agent listens again; a wake word asleep only sounds the earcon</td>
 </tr>
 <tr>
 <td>TTS</td>
@@ -1654,7 +1654,7 @@ the user; nothing happened".</p>
 <tr>
 <td>LLM</td>
 <td>Connect error</td>
-<td>One retry, then "Das Sprachmodell antwortet nicht."</td>
+<td>One retry, then <code>phrases.llm_down</code> ("The language model does not answer.")</td>
 </tr>
 <tr>
 <td>LLM</td>
@@ -1669,7 +1669,7 @@ the user; nothing happened".</p>
 <tr>
 <td>LLM</td>
 <td><code>tool_rounds</code> reached</td>
-<td>A final round with <code>tool_choice: none</code> and a note: sum up in the language of the user; without words, <code>phrases.tool_rounds</code>; history stays</td>
+<td>A final round with <code>tool_choice: none</code> and a note: sum up in the reply language; without words, <code>phrases.tool_rounds</code>; history stays</td>
 </tr>
 <tr>
 <td>MCP</td>
@@ -1770,24 +1770,44 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </thead>
 <tbody>
 <tr>
-<td><code>asr_url</code></td>
-<td><code>ws://127.0.0.1:8881/v1/realtime?intent=transcription</code></td>
+<td><code>asr_url</code>, <code>asr_model</code></td>
+<td><code>ws://127.0.0.1:8881/v1/realtime?intent=transcription</code>, <code>gufo</code></td>
 </tr>
 <tr>
-<td><code>tts_url</code></td>
-<td><code>ws://127.0.0.1:8882/v1/audio/speech/stream</code></td>
+<td><code>tts_url</code>, <code>tts_model</code></td>
+<td><code>ws://127.0.0.1:8882/v1/audio/speech/stream</code>, <code>gufo</code></td>
 </tr>
 <tr>
-<td><code>llm_url</code></td>
-<td><code>http://127.0.0.1:8888/v1</code></td>
+<td><code>llm_url</code>, <code>llm_model</code></td>
+<td><code>http://127.0.0.1:8888/v1</code>, <code>gufo</code></td>
 </tr>
 <tr>
-<td><code>model</code>, <code>voice</code></td>
-<td><code>gufo</code>, <code>aiden</code></td>
+<td><code>asr_api_key_env</code>, <code>tts_api_key_env</code>, <code>llm_api_key_env</code></td>
+<td><code>""</code> (no key; else the environment variable with the key)</td>
 </tr>
 <tr>
-<td><code>language</code>, <code>tts_language</code></td>
-<td><code>de</code>, <code>""</code> (follows <code>language</code>: <code>de</code> gives <code>German</code>)</td>
+<td><code>asr_api_key_file</code>, <code>tts_api_key_file</code>, <code>llm_api_key_file</code></td>
+<td><code>""</code> (no key; else the file with the key, <code>%d</code> is <code>$CREDENTIALS_DIRECTORY</code>)</td>
+</tr>
+<tr>
+<td><code>asr_headers</code>, <code>tts_headers</code>, <code>llm_headers</code></td>
+<td><code>{}</code> (extra headers, name: value)</td>
+</tr>
+<tr>
+<td><code>asr_language</code></td>
+<td><code>auto</code> (the ASR finds the language; else a code such as <code>de</code>)</td>
+</tr>
+<tr>
+<td><code>asr_prompt</code></td>
+<td><code>Chora, Coder</code> (plus the wake, sleep and stop words and the projects; <code>""</code>: no prompt)</td>
+</tr>
+<tr>
+<td><code>reply_language</code></td>
+<td><code>en</code> (the language of the answers; <code>de</code> also gives German phrases and prompts)</td>
+</tr>
+<tr>
+<td><code>voice</code>, <code>tts_language</code></td>
+<td><code>aiden</code>, <code>""</code> (follows <code>reply_language</code>: <code>en</code> gives <code>English</code>)</td>
 </tr>
 <tr>
 <td><code>asr_interim_ms</code></td>
@@ -1835,23 +1855,23 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>sleep_words</code>, <code>wake_words</code></td>
-<td><code>[schlaf, schlaf jetzt]</code>, <code>[hör zu, hallo chora]</code></td>
+<td><code>[sleep, go to sleep, schlaf, schlaf jetzt]</code>, <code>[hey chora, listen, hallo chora, hör zu]</code></td>
 </tr>
 <tr>
 <td><code>cancel_words</code></td>
-<td><code>[stopp, stop, abbrechen, halt, vergiss es]</code></td>
+<td><code>[stop, cancel, never mind, stopp, abbrechen, halt, vergiss es]</code></td>
 </tr>
 <tr>
 <td><code>code_cancel_words</code></td>
-<td><code>[coding-aufgabe abbrechen, programmieraufgabe abbrechen]</code></td>
+<td><code>[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]</code></td>
 </tr>
 <tr>
 <td><code>yes_words</code>, <code>no_words</code></td>
-<td><code>[ja, okay, genau, mach das]</code>, <code>[nein, nicht, lieber nicht]</code></td>
+<td><code>[yes, okay, do it, ja, genau, mach das]</code>, <code>[no, rather not, nein, nicht, lieber nicht]</code></td>
 </tr>
 <tr>
 <td><code>filler_words</code></td>
-<td><code>[bitte, jetzt, mal]</code></td>
+<td><code>[please, now, bitte, jetzt, mal]</code></td>
 </tr>
 <tr>
 <td><code>confirm</code>, <code>confirm_timeout_ms</code></td>
@@ -1883,7 +1903,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>reasoning_effort</code></td>
-<td><code>none</code></td>
+<td><code>none</code> (<code>""</code>: not in the request)</td>
 </tr>
 <tr>
 <td><code>asr_timeout_s</code>, <code>tts_timeout_s</code>, <code>tool_timeout_s</code></td>
@@ -1919,7 +1939,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>phrases</code></td>
-<td><code>llm_down</code>, <code>llm_slow</code>, <code>tool_rounds</code>, <code>asr_failed</code>, <code>details</code>, <code>agent_asks</code>, <code>agent_ended</code>: German sentences</td>
+<td><code>llm_down</code>, <code>llm_slow</code>, <code>tool_rounds</code>, <code>asr_failed</code>, <code>details</code>, <code>agent_asks</code>, <code>agent_ended</code>: English sentences, German with <code>reply_language: de</code></td>
 </tr>
 <tr>
 <td><code>record_dir</code></td>
@@ -1930,18 +1950,39 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 <p><code>--target NAME</code> in <code>capture_cmd</code> or <code>playback_cmd</code> picks a PipeWire
 device.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">confirm</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">apply_commands</span><span class="p p-Indicator">,</span><span class="nt"> commands</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">remove</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">close</span><span class="p p-Indicator">],</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">das</span><span class="nv"> </span><span class="s">entfernen?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">unload_view</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">die</span><span class="nv"> </span><span class="s">Ansicht</span><span class="nv"> </span><span class="s">entfernen?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">inject_input</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">tippen</span><span class="nv"> </span><span class="s">oder</span><span class="nv"> </span><span class="s">klicken?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">code_task</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">die</span><span class="nv"> </span><span class="s">Programmieraufgabe</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">agent_start</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">den</span><span class="nv"> </span><span class="s">Agenten</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">run_program</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">das</span><span class="nv"> </span><span class="s">Programm</span><span class="nv"> </span><span class="s">{program}</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">configure_output</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">den</span><span class="nv"> </span><span class="s">Bildschirm</span><span class="nv"> </span><span class="s">ändern?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="s">"*.restart"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">das</span><span class="nv"> </span><span class="s">Plugin</span><span class="nv"> </span><span class="s">neu</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">call_method</span><span class="p p-Indicator">,</span><span class="nt"> method</span><span class="p">:</span><span class="w"> </span><span class="s">"*.restart"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Soll</span><span class="nv"> </span><span class="s">ich</span><span class="nv"> </span><span class="s">das</span><span class="nv"> </span><span class="s">Plugin</span><span class="nv"> </span><span class="s">neu</span><span class="nv"> </span><span class="s">starten?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">apply_commands</span><span class="p p-Indicator">,</span><span class="nt"> commands</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">remove</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">close</span><span class="p p-Indicator">],</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">remove</span><span class="nv"> </span><span class="s">that?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">unload_view</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">remove</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">view?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">inject_input</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">type</span><span class="nv"> </span><span class="s">or</span><span class="nv"> </span><span class="s">click?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">code_task</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">start</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">coding</span><span class="nv"> </span><span class="s">task?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">agent_start</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">start</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">agent?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">run_program</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">start</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">program</span><span class="nv"> </span><span class="s">{program}?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">configure_output</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">change</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">screen?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="s">"*.restart"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">restart</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">plugin?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">call_method</span><span class="p p-Indicator">,</span><span class="nt"> method</span><span class="p">:</span><span class="w"> </span><span class="s">"*.restart"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">restart</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">plugin?"</span><span class="p p-Indicator">}</span>
 </code></pre></div>
+<p>Each server (ASR, TTS, LLM) has its own URL, model, key and headers, so
+that each one can move to another provider. The key comes from the
+variable of <code>*_api_key_env</code> or the file of <code>*_api_key_file</code>, never from
+the settings file, and goes into <code>Authorization: Bearer KEY</code>: over HTTP
+for the LLM, and in the websocket handshake of the ASR and the TTS, as
+the realtime API of OpenAI takes it. The health probes and the live
+commands use the same settings. The LLM must speak the OpenAI chat
+completions API; other protocols come later. The build has no TLS yet:
+only <code>http://</code> and <code>ws://</code> URLs work, so a provider on <code>https://</code> needs
+a local proxy until TLS comes in.</p>
+<p>The ASR gets no language with <code>asr_language: auto</code>, and <code>asr_prompt</code>
+with the wake, sleep and stop words and the project names as the
+<code>transcription.prompt</code> of the session. Gufo honors the prompt: without
+it, a TTS clip of "Hallo Chora" came back as "Hello, Cora", with it as
+"Hello, Chora" (3 of 3 tries each, 2026-10-31). The system prompt ends
+with a rule to answer in <code>reply_language</code>. With <code>reply_language: de</code>,
+each phrase, confirm prompt, verb of an agent question and coding result
+that keeps its English default is German; other languages keep the
+English phrases until the settings set them. The default word lists
+hold English and German words.</p>
 <p><code>check()</code> rejects wrong ranges, empty commands and word lists, a word in
-two lists, a <code>ptt_key</code> that does not parse, and a rule without a prompt.</p>
+two lists, a <code>ptt_key</code> that does not parse, a rule without a prompt, and
+both a key variable and a key file for one server.</p>
 <h2 id="10-methods-and-events">10. Methods and events<a class="headerlink" href="#10-methods-and-events" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
