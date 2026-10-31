@@ -87,6 +87,28 @@ pub fn rms(samples: &[i16]) -> f64 {
     (sum / n).sqrt()
 }
 
+/// The peak an utterance gets for the ASR: -3 dBFS.
+const ASR_PEAK: f64 = 23_197.0;
+
+/// The largest gain for the ASR: 40 dB.
+const ASR_MAX_GAIN: f64 = 100.0;
+
+/// An utterance for the ASR: scaled so its peak reaches -3 dBFS, by at
+/// most 40 dB. A louder one stays as it is; no sample clips.
+#[must_use]
+pub fn normalized(samples: &[i16]) -> Vec<i16> {
+    let peak = samples.iter().map(|s| s.unsigned_abs()).max().unwrap_or(0);
+    let gain = (ASR_PEAK / f64::from(peak.max(1))).min(ASR_MAX_GAIN);
+    if gain <= 1.0 {
+        return samples.to_vec();
+    }
+    #[allow(clippy::cast_possible_truncation)]
+    samples
+        .iter()
+        .map(|&s| (f64::from(s) * gain).round() as i16)
+        .collect()
+}
+
 /// Samples to little-endian bytes.
 #[must_use]
 pub fn bytes(samples: &[i16]) -> Vec<u8> {
@@ -200,6 +222,25 @@ mod tests {
         assert!((out[1000] - out[1016]).abs() < 0.02);
         let alias = level(&down(&sine(10_000.0, 7_680))[100..]);
         assert!(alias < 0.1, "10 kHz would fold to 6 kHz: {alias}");
+    }
+
+    #[test]
+    fn quiet_speech_reaches_minus_3_dbfs_for_the_asr_without_clipping() {
+        // Behind the echo canceller (live 2026-10-31): peak 23 at -63 dBFS.
+        let quiet = [0i16, 23, -23, 5, i16::MIN / 2000];
+        assert_eq!(
+            normalized(&quiet),
+            [0, 2300, -2300, 500, -1600],
+            "40 dB at most"
+        );
+        let soft = [0i16, 2000, -1000];
+        let out = normalized(&soft);
+        assert_eq!(out[1], 23_197, "the peak at -3 dBFS");
+        assert_eq!(out.len(), soft.len(), "the onset and pre-roll stay");
+        let loud = [i16::MIN, i16::MAX, 30_000];
+        assert_eq!(normalized(&loud), loud, "no gain under 1, no clipping");
+        assert_eq!(normalized(&[]), [0i16; 0]);
+        assert_eq!(normalized(&[0; 3]), [0; 3]);
     }
 
     #[test]

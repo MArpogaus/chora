@@ -66,6 +66,8 @@ pub async fn transcribe(
     pcm: &[i16],
     timeout: Duration,
 ) -> Result<Transcript, String> {
+    // Behind the echo canceller speech can be as quiet as -80 dBFS.
+    let pcm = &pcm::normalized(pcm);
     let result = match once(request, pcm, timeout).await {
         Ok(t) => Ok(t),
         Err(first) => {
