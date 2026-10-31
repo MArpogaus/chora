@@ -79,8 +79,8 @@ pub struct Config {
     /// The language of the speaker, for example `de`; `auto` lets the ASR
     /// find it.
     pub asr_language: String,
-    /// The words that the ASR must know; the agent adds the wake and stop
-    /// words and the projects.
+    /// The words that the ASR must know; the agent adds the wake, sleep
+    /// and stop words and the projects. Empty: no prompt at all.
     pub asr_prompt: String,
     /// The speech websocket of the TTS.
     pub tts_url: String,
@@ -310,18 +310,19 @@ impl Config {
     }
 
     /// The prompt of the ASR: `asr_prompt`, the wake, sleep and stop words
-    /// and `names`, each once.
+    /// and `names`, each once; none for an empty `asr_prompt`.
     pub fn asr_prompt<'a>(&'a self, names: impl IntoIterator<Item = &'a String>) -> String {
         let words = (self.wake_words.iter())
             .chain(&self.sleep_words)
             .chain(&self.cancel_words)
             .chain(names);
         let mut out = self.asr_prompt.trim().to_owned();
+        if out.is_empty() {
+            return out;
+        }
         for word in words {
             if !out.to_lowercase().contains(&word.to_lowercase()) {
-                if !out.is_empty() {
-                    out.push_str(", ");
-                }
+                out.push_str(", ");
                 out.push_str(word);
             }
         }
@@ -333,8 +334,8 @@ impl Config {
     pub fn reply_rule(&self) -> String {
         let lang = language_name(&self.reply_language).unwrap_or(&self.reply_language);
         format!(
-            "Answer in {lang}, also when the user speaks another language, unless the user \
-             asks for another one."
+            "Always answer in {lang}, even when the user speaks another language. Change the \
+             language only when the user asks for it."
         )
     }
 
@@ -853,5 +854,10 @@ mod tests {
             config.asr_prompt(&names),
             "Chora, hey chora, listen, sleep, stop, atlas"
         );
+        let off = Config {
+            asr_prompt: " ".into(),
+            ..config
+        };
+        assert_eq!(off.asr_prompt(&names), "");
     }
 }

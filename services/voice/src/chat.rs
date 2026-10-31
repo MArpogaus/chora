@@ -244,7 +244,6 @@ impl Chat {
         } else {
             config.system_prompt.clone()
         }];
-        parts[0] = format!("{}\n\n{}", parts[0].trim_end(), config.reply_rule());
         let builtin = CONTEXT_DOCS.map(String::from);
         let docs = if config.context_docs.is_empty() {
             &builtin[..]
@@ -272,6 +271,7 @@ impl Chat {
         {
             parts.push(text);
         }
+        parts.push(format!("# Language\n\n{}", config.reply_rule()));
         if !self.earlier.is_empty() {
             let lines: Vec<String> = self
                 .earlier
@@ -866,11 +866,12 @@ mod tests {
         let seen = server.seen.lock().unwrap();
         let system = seen[0]["messages"][0]["content"].as_str().unwrap();
         assert!(
-            system.starts_with(
-                "Du bist ein Test.\n\nAnswer in English, also when the user \
-                                speaks another language, unless the user asks for another \
-                                one.\n\n# File "
-            ),
+            system.starts_with("Du bist ein Test.\n\n# File ")
+                && system.ends_with(
+                    "# Language\n\nAlways answer in English, even when the user \
+                                     speaks another language. Change the language only when \
+                                     the user asks for it."
+                ),
             "{system}"
         );
         assert!(seen[0]["tools"].as_array().unwrap().len() > 3);
