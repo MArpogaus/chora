@@ -15,8 +15,9 @@ chora/
 ├── plugins/
 │   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome
 │   ├── chora-xp/      # stacking window manager in the style of Windows XP
-│   └── chora-mc/      # experimental: a voice-first desktop, one full-screen scene at a time
-├── flavors/           # systemd units of the flavors; the theme of the XP flavor
+│   ├── chora-mc/      # experimental: a voice-first desktop, one full-screen scene at a time
+│   └── chora-construct/ # experimental: a spatial desktop with panes that face the camera
+├── flavors/           # systemd units of the flavors (tiling, xp, construct); the theme of the XP flavor
 ├── examples/          # loader prototype and showcase apps over the API
 ├── services/voice/    # the voice agent and the quadlets of its models
 ├── dist/              # RPM build script, Fedora build requirements, session files, Quadlet examples
