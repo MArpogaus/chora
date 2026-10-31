@@ -97,6 +97,9 @@ pub enum Action {
     ViewBack,
     /// Reads the configuration file again.
     Reload,
+    /// On a pointer button: drags the window under the pointer. Dropped
+    /// in the claim of another window manager, it goes there (D55).
+    Drag,
 }
 
 /// How a new window looks (#99).
