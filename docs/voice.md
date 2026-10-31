@@ -493,8 +493,10 @@ stderr is no terminal. `RUST_LOG` filters; the default is
 `info,tract_linalg=warn`. The lines are plain text in the form
 `key=value`: one call site per level in `log.rs` keeps the `tracing`
 macros out of the other functions, because clippy counts their expansion
-into the cognitive complexity. Each stage logs start and end with the
-turn number. One summary per turn:
+into the cognitive complexity. With `CHORA_VOICE_LLM_DUMP=FILE` the agent
+appends each LLM request body and the raw lines of its stream to FILE
+(mode 0600), to see what the server got and sent. Each stage logs start
+and end with the turn number. One summary per turn:
 
 ```
 turn=17 speech=2.1s asr=380ms llm_first=650ms tts_first=310ms
