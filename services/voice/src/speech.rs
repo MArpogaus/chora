@@ -627,7 +627,7 @@ mod tests {
         )
         .await;
         assert_eq!(report.reply, "Gut. Fertig.");
-        assert_eq!((spoken.sentences, spoken.errors), (3, 0));
+        assert_eq!((spoken.sentences, spoken.errors), (4, 0));
         let texts: Vec<_> = tts
             .seen
             .lock()
@@ -635,7 +635,7 @@ mod tests {
             .iter()
             .filter_map(|m| m["text"].as_str().map(str::to_owned))
             .collect();
-        assert_eq!(texts, ["Wirklich?", "Gut.", "Fertig."], "one socket each");
+        assert_eq!(texts[1..], ["Wirklich?", "Gut.", "Fertig."], "one each");
         let events = events.into_inner().unwrap();
         assert_eq!(events[..3], ["Thinking", "confirm", "Tool(\"echo\")"]);
         assert!(events.contains(&"sound".to_owned()), "{events:?}");

@@ -52,6 +52,8 @@ pub struct Phrases {
     pub settings_security: String,
     /// A text of the user in the HUD before the agent handles it: `{text}`.
     pub heard: String,
+    /// Said before the first tool round of a turn without words.
+    pub ack: String,
 }
 
 impl Default for Phrases {
@@ -67,6 +69,7 @@ impl Default for Phrases {
             settings_set: "Shall I set {key} to {value}?".into(),
             settings_security: "Security setting! Shall I set {key} to {value}?".into(),
             heard: "Heard: {text}".into(),
+            ack: "One moment.".into(),
         }
     }
 }
@@ -372,6 +375,7 @@ impl Config {
             &mut p.settings_set,
             &mut p.settings_security,
             &mut p.heard,
+            &mut p.ack,
         ];
         let prompts = out.confirm.iter_mut().map(|r| &mut r.prompt);
         for text in texts.into_iter().chain(prompts) {
@@ -444,7 +448,8 @@ fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 18] = [
+const GERMAN: [(&str, &str); 19] = [
+    ("One moment.", "Moment."),
     ("Heard: {text}", "Gehört: {text}"),
     (
         "The language model does not answer.",

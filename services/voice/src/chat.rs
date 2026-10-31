@@ -55,6 +55,36 @@ const LAST_ROUND: &str = "(The agent: you reached the limit of tool calls for th
     Call no tool. In your reply language, say in one or two short sentences what you did \
     and what is left.)";
 
+/// The note after an answer that announced a tool but called none.
+const NUDGE: &str = "(The agent: you announced an action but called no tool, and your turn \
+    would end here. Call the tool now, or say in one short sentence that you will not.)";
+
+/// Whether the last sentence of an answer announces an action, and the
+/// answer names one of the tools: "`put_asset` stores shaders directly,
+/// let me use that instead" (log 2026-10-31).
+fn announces(answer: &str, specs: &[Value]) -> bool {
+    // ponytail: English and German markers; a word list in the settings
+    // when another language needs it.
+    const MARKERS: [&str; 8] = [
+        "let me ",
+        "i'll ",
+        "i will ",
+        "i'm going to ",
+        "lass mich ",
+        "ich werde ",
+        "ich versuche ",
+        "ich probiere ",
+    ];
+    let text = answer.to_lowercase();
+    let trimmed = text.trim_end_matches(|c: char| ".!?… ".contains(c));
+    let last = trimmed.rsplit(['.', '!', '?']).next().unwrap_or_default();
+    let names = specs.iter().filter_map(|s| s["function"]["name"].as_str());
+    let mentioned = names
+        .flat_map(|n| [n.to_owned(), n.replace("__", ".")])
+        .any(|n| text.contains(&n));
+    mentioned && MARKERS.iter().any(|m| last.contains(m))
+}
+
 /// The part of the prompt for the coding tools, with a `coder_cmd`.
 const CODING: &str = "# Coding tasks\n\n\
 - Hand a task that needs code, a program or many steps to code_task. It runs in the \
@@ -309,19 +339,10 @@ impl Chat {
     /// tools. `out` gets the events. The history commits per round.
     pub async fn turn(&mut self, text: &str, out: &(impl Fn(Event) + Sync)) -> Report {
         let start = Instant::now();
-        if self.open.is_some() {
-            self.cancelled("");
-        }
-        self.answer = None;
-        self.shrink();
-        self.open = Some(Vec::new());
-        self.history.push(json!({"role": "user", "content": text}));
-        self.tools.refresh().await;
-        self.requests.push(text.to_owned());
-        self.save();
-        self.heard.clear();
+        self.begin(text).await;
         let mut report = Report::default();
         let rounds = self.config.tool_rounds;
+        let mut nudged = false;
         for round in 0..=rounds {
             let last = round == rounds;
             self.listen(out);
@@ -342,12 +363,14 @@ impl Chat {
             }
             if last || r.round.calls.is_empty() {
                 report.outcome = self.answered(&r.round, last, said.is_empty(), out);
-                // The user said more while the LLM answered: one more
-                // round hears it.
-                if !last && self.take_inbox() {
+                if !last && self.more(&r.round.text, &mut nudged) {
                     continue;
                 }
                 break;
+            }
+            if round == 0 && said.is_empty() {
+                // No silence while the tools run.
+                out(Event::Sentence(self.config.phrases.ack.clone()));
             }
             let tools_start = Instant::now();
             report.tools += self.run(r.round, out).await;
@@ -355,6 +378,37 @@ impl Chat {
         }
         self.open = None;
         report
+    }
+
+    /// Starts a turn with the text of the user.
+    async fn begin(&mut self, text: &str) {
+        if self.open.is_some() {
+            self.cancelled("");
+        }
+        self.answer = None;
+        self.shrink();
+        self.open = Some(Vec::new());
+        self.history.push(json!({"role": "user", "content": text}));
+        self.tools.refresh().await;
+        self.requests.push(text.to_owned());
+        self.save();
+        self.heard.clear();
+    }
+
+    /// Whether an answer needs one more round: the user said more while
+    /// the LLM answered, or the answer announced a tool that it did not
+    /// call (once per turn, with `NUDGE`).
+    fn more(&mut self, answer: &str, nudged: &mut bool) -> bool {
+        if self.take_inbox() {
+            return true;
+        }
+        if *nudged || !announces(answer, &self.tools.specs) {
+            return false;
+        }
+        crate::log::info("llm: an announced tool without a call; one more round");
+        *nudged = true;
+        self.history.push(json!({"role": "user", "content": NUDGE}));
+        true
     }
 
     /// Moves the texts of the inbox to `heard`; answers whether texts
@@ -931,6 +985,7 @@ mod tests {
             events,
             [
                 "thinking",
+                "say One moment.",
                 "tool echo",
                 "thinking",
                 "say Fertig.",
@@ -977,6 +1032,8 @@ mod tests {
         let (report, events) = turn(&mut chat, "Such.", true).await;
         assert_eq!(report.outcome, "tool_rounds");
         assert_eq!(events.last().unwrap(), "say Ich habe zweimal gesucht.");
+        let acks = events.iter().filter(|e| *e == "say One moment.").count();
+        assert_eq!(acks, 1, "one per turn");
         {
             let seen = server.seen.lock().unwrap();
             assert_eq!(seen.len(), 3);
@@ -1032,14 +1089,14 @@ mod tests {
             .await
             .unwrap();
         let (_, events) = turn(&mut chat, "Echo.", false).await;
-        assert_eq!(events[1], "confirm Wirklich?");
+        assert_eq!(events[2], "confirm Wirklich?");
         assert_eq!(calls.load(Ordering::SeqCst), 0);
         assert_eq!(
             chat.history[2]["content"],
             "The user declined the spoken confirmation; nothing happened"
         );
         let (_, events) = turn(&mut chat, "Echo.", true).await;
-        assert_eq!(events[1..3], ["confirm Wirklich?", "tool echo"]);
+        assert_eq!(events[2..4], ["confirm Wirklich?", "tool echo"]);
         assert_eq!(calls.load(Ordering::SeqCst), 1);
         // Not understood, and no answer: the LLM learns which.
         for (answer, says) in [
@@ -1063,6 +1120,25 @@ mod tests {
             );
         }
         assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    /// An answer that announces a tool but calls none gets one more
+    /// round (log 2026-10-31: "let me use `put_asset` instead", then the
+    /// turn ended); a plain "let me know" does not.
+    #[tokio::test]
+    async fn an_announced_tool_without_a_call_gets_one_more_round() {
+        let script = vec![
+            Reply::Text("The picture tool works too, let me use that instead."),
+            Reply::Tool("echo", "{}"),
+            Reply::Text("Fertig."),
+            Reply::Text("Let me know if you need more."),
+        ];
+        let (mut chat, server) = chat(script, Config::default()).await;
+        let (report, events) = turn(&mut chat, "Mach was.", true).await;
+        assert_eq!((report.rounds, report.tools), (3, 1), "{events:?}");
+        assert_eq!(last_user(&server, 1), NUDGE);
+        let (report, _) = turn(&mut chat, "Danke.", true).await;
+        assert_eq!(report.rounds, 1);
     }
 
     /// Runs a turn whose user says `said` when `when` matches an event;
@@ -1117,6 +1193,7 @@ mod tests {
             events,
             [
                 "thinking",
+                "say One moment.",
                 "tool echo",
                 "heard Und größer.",
                 "thinking",
