@@ -25,7 +25,8 @@
 #
 # Usage: tests/gate-handover.sh   BIN: directory with the binaries
 #   SHOTS: directory for the captures (default: a temp dir)
-set -u
+# pipefail: a `ctl wait` that times out fails the `ctl ... | jq`.
+set -uo pipefail
 . "$(dirname "$0")/gate-lib.sh"
 need jq
 need foot
