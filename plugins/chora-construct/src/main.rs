@@ -2021,8 +2021,9 @@ impl Construct {
     }
 
     /// Loads a construct (F18). An overlay takes the output now; a
-    /// flavor keeps the windows that it has as panes. The plugin panes
-    /// and the panes of the construct before go.
+    /// flavor keeps the windows that it has as panes, and an overlay the
+    /// windows that it owns, which were given to it: no window gets lost.
+    /// The other panes of the construct before go.
     fn load(&mut self, name: &str, file: file::File) -> Result<(), ClientError> {
         if self.flown.is_some() {
             self.fly_out()?;
@@ -2032,15 +2033,11 @@ impl Construct {
             self.focus_before = self.focused_surface()?;
         }
         self.glide = None;
-        let gone: Vec<Pane> = if self.overlay {
-            std::mem::take(&mut self.panes)
-        } else {
-            let (plugins, windows) = std::mem::take(&mut self.panes)
-                .into_iter()
-                .partition(|p| p.window().is_none());
-            self.panes = windows;
-            plugins
-        };
+        let overlay = self.overlay;
+        let (kept, gone): (Vec<Pane>, Vec<Pane>) = std::mem::take(&mut self.panes)
+            .into_iter()
+            .partition(|p| p.window().is_some() && (p.attached || !overlay));
+        self.panes = kept;
         let commands: Vec<Command> = gone.iter().flat_map(Pane::remove).collect();
         self.rt.conn.apply(commands)?;
         self.active = true;
