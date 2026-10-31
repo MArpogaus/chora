@@ -1315,6 +1315,21 @@ impl State {
         Ok(Value::Null)
     }
 
+    /// Ends a connection for good with an error: the core reads no more
+    /// of it, the client reads the error, then the connection closes
+    /// without a grace time.
+    pub fn ipc_end(&mut self, conn: u64, error: &RpcError) {
+        self.ipc
+            .respond(conn, &Message::error(Value::Null, error.clone()));
+        let Some(c) = self.ipc.conns.get_mut(&conn) else {
+            return;
+        };
+        (c.keep_nodes, c.resume) = (false, false);
+        if let Some(reader) = c.reader.take() {
+            self.loop_handle.remove(reader);
+        }
+    }
+
     /// Closes a connection. Without `keep_nodes`, the nodes and the assets
     /// of its name go when the last connection of the name closes; with
     /// `resume`, they go after the grace time.

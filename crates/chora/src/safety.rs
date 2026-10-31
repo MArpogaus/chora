@@ -20,7 +20,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_scene::{Effect, Event};
+use chora_scene::{Effect, Event, ipc::RpcError};
 
 use crate::state::State;
 
@@ -245,8 +245,12 @@ impl State {
             .into_iter()
             .filter(|c| self.ipc.name(*c) == Some(client))
             .collect();
+        let error = RpcError::new(
+            RpcError::LIMIT_REACHED,
+            "frames stay slow; the watchdog disconnects this client and removes its nodes",
+        );
         for conn in conns {
-            self.ipc_close(conn);
+            self.ipc_end(conn, &error);
         }
         self.drop_nodes(client);
     }
@@ -589,6 +593,10 @@ mod tests {
     fn frames_that_stay_slow_disconnect_only_that_client() {
         let (mut core, mut wm, mut loader, mut heavy) = three_clients();
         slow_frames(&mut core, 4200);
+        // Battle W12: the client reads why, then the end of the stream.
+        let said = heavy.responses();
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert_eq!(said[0]["error"]["code"], RpcError::LIMIT_REACHED);
         assert!(heavy.closed(&mut core));
         let gone = core.state.scene.node("h0").is_none();
         assert!(gone, "its nodes go, also with keep_nodes");
@@ -602,6 +610,7 @@ mod tests {
         let hello = json!({"name": "heavy", "resume": true});
         let (mut core, _wm, _loader, mut heavy) = three_clients_with(&hello);
         slow_frames(&mut core, 4200);
+        assert_eq!(heavy.responses().len(), 1, "the error");
         assert!(heavy.closed(&mut core));
         assert!(core.state.scene.node("h0").is_none(), "no grace time");
     }
