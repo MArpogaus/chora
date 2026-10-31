@@ -50,8 +50,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# The server keys of the settings; the rest takes the defaults.
-keys='asr_url|tts_url|llm_url|model|language|tts_language|context_tokens|reasoning_effort|chora_mcp'
+# The server keys of the settings, one line each (headers in flow style
+# such as `{X-Title: chora}`); the rest takes the defaults.
+keys='(asr|tts|llm)_[a-z_]+|reply_language|context_tokens|reasoning_effort|chora_mcp'
 {
     [[ -f $base ]] && grep -E "^($keys):" "$base" || true
     echo "indicator: false"
