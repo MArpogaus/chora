@@ -612,6 +612,15 @@ fn turn(pose: &mut Pose, glide: Option<&mut Glide>, dx: f64, dy: f64) {
     }
 }
 
+/// A place moved by `right` and `ahead` as a camera that looks
+/// `forward` sees them.
+fn moved(at: [f64; 2], [fx, fz]: [f64; 2], right: f64, ahead: f64) -> [f64; 2] {
+    [
+        at[0] + fx * ahead + fz * right,
+        at[1] + fz * ahead - fx * right,
+    ]
+}
+
 /// The eased share of a glide after `k` of its time.
 fn ease(k: f64) -> f64 {
     1.0 - (1.0 - k).powi(3)
@@ -711,14 +720,9 @@ impl Plugin for Construct {
             "pane.move" => {
                 let MovePane { name, right, ahead } = runtime::params(params)?;
                 let i = self.pane_named(&name)?;
-                let [fx, fz] = self.pose.forward();
-                let at = self.panes[i].at;
-                let to = [
-                    at[0] + fx * ahead + fz * right,
-                    at[1] + fz * ahead - fx * right,
-                ];
+                let to = moved(self.panes[i].at, self.pose.forward(), right, ahead);
                 self.move_pane(i, to).map_err(rejected)?;
-                Ok(Value::Null)
+                Ok(json!({"at": self.panes[i].at}))
             }
             "pane.resize" => {
                 let ResizePane { name, scale } = runtime::params(params)?;
@@ -2739,8 +2743,10 @@ fn exported_methods() -> Vec<ExportMethod> {
         ),
         runtime::method(
             "pane.move",
-            "Moves a pane by its name: right and ahead, in logical pixels, as the camera \
-             looks; negative values move it left or nearer.",
+            "Moves the pane NAME by an offset from where it is: right and ahead, in \
+             logical pixels, as the camera looks; negative values move it left or \
+             nearer. Moves add up: right 1800 and then right -1800 bring it back. \
+             The leash radius stops it. Answers its new place.",
             json!({
                 "name": {"type": "string"},
                 "right": {"type": "number"},
@@ -2882,6 +2888,32 @@ mod tests {
         );
         assert!((pose.yaw - 70.0 * LOOK_RATE).abs() < 1e-9);
         assert!((pose.pitch - 5.0 * LOOK_RATE).abs() < 1e-9);
+    }
+
+    /// The offsets of `pane.move` add up, as the camera looks.
+    #[test]
+    fn pane_moves_add_up() {
+        let near =
+            |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).abs() < 1e-9 && (a[1] - b[1]).abs() < 1e-9;
+        let start = [3150.0, 2000.0];
+        let ahead = Pose::default().forward();
+        let there = moved(start, ahead, 1800.0, 0.0);
+        assert!(
+            near(there, [4950.0, 2000.0]),
+            "right is +x at yaw 0: {there:?}"
+        );
+        assert!(near(moved(there, ahead, -1800.0, 0.0), start));
+        let twice = moved(moved(start, ahead, 900.0, 100.0), ahead, 900.0, 100.0);
+        assert!(near(twice, moved(start, ahead, 1800.0, 200.0)));
+        // Turned right a quarter, the camera looks along +x; its right is -z.
+        let turned = Pose {
+            yaw: std::f64::consts::FRAC_PI_2,
+            ..Pose::default()
+        };
+        assert!(near(
+            moved([0.0, 0.0], turned.forward(), 100.0, 0.0),
+            [0.0, -100.0]
+        ));
     }
 
     /// The launcher's token on the window of another process is the

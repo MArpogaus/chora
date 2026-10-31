@@ -755,7 +755,7 @@ windows of the other flavor.
 | `construct.save` | privileged. `name`: writes the camera, R and the panes. A window that the construct did not start has no command and stays out |
 | `construct.list` | none; answers `constructs`, the `current` one, `overlay`, `shown`, the `panes` with `name`, `kind`, content, `at` and `size`, and the panes that still wait |
 | `construct.leave` | none; an overlay gives the output and the keyboard back. The flavor refuses it |
-| `pane.move` | `name`, `right` and `ahead` in logical pixels as the camera looks; inside the leash |
+| `pane.move` | `name`, and `right` and `ahead`: an offset in logical pixels as the camera looks, which adds to the place; inside the leash; answers the new `at` |
 | `pane.resize` | `name` and `scale`, for example 1.25 |
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
