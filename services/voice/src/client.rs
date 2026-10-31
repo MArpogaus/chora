@@ -26,6 +26,16 @@ use crate::{
     core::{Call, Input},
 };
 
+/// The only client name that emits the events of the HUD: subscribers
+/// check `client == "voice"`, so an agent under another name emits none
+/// (review rc3 round 2, 4.9).
+const VOICE: &str = "voice";
+
+/// Whether the agent under the client name `name` emits HUD events.
+fn hud_client(name: &str) -> bool {
+    name == VOICE
+}
+
 /// How long a method waits for the core.
 const ANSWER: Duration = Duration::from_secs(1);
 /// How often the thread looks for events to emit.
@@ -179,9 +189,10 @@ fn serve(
             Some(event) => runtime::dispatch(client, event)?,
             None => {}
         }
-        held.emit(emits.try_iter(), Instant::now(), |event, data| {
+        let new = emits.try_iter().filter(|_| hud_client(name));
+        held.emit(new, Instant::now(), |event, data| {
             let emit = Emit {
-                event: format!("{name}.{event}"),
+                event: format!("{VOICE}.{event}"),
                 data: data.clone(),
             };
             client
@@ -449,6 +460,14 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::{Claims, Held, RESEND, without_headers};
+
+    #[test]
+    fn only_the_client_voice_emits() {
+        assert!(super::hud_client("voice"));
+        for name in ["voice-test", "voice.evil", "chora"] {
+            assert!(!super::hud_client(name), "{name}");
+        }
+    }
 
     #[test]
     fn settings_get_hides_the_header_values() {

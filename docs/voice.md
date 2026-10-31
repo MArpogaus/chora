@@ -616,8 +616,12 @@ more per change), `awake`, `muted: {mic, speaker}`, `turn`,
 task), `agents` (the parameters of `agent.set` of each ACP agent) and
 `health` (section 6).
 
-HUD: the agent emits client events (D65) on its connection `NAME`, so
-a HUD subscribes to `voice.*` and needs no polling. The method `state`
+HUD: the agent emits client events (D65) on its connection `voice`, so
+a HUD subscribes to `voice.*` and needs no polling. Only the client
+named `voice` emits them; under another `--name`, the agent emits
+none. The subscription `voice.*` also matches a client such as
+`voice.evil`, so a subscriber must check that the `client` of each
+event is exactly `voice`. The method `state`
 stays for a full state record. The
 indicator node signals without a HUD: with `indicator`, a dot of 12
 pixels in a corner of the first output, under `screen:OUTPUT`, in the
