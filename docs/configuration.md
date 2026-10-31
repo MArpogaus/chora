@@ -619,12 +619,13 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 flavor: `chora -- chora-construct` starts into it, and the directory
 `flavors/construct/` holds its target and service. The first output shows
 a space without a grid and without lines. In the light theme, a pale sky
-lies over a ground that is a little darker and warmer, with a soft bright
-band at the horizon. In the dark theme, a black void lies over a dim
-ground, with a faint glow at the horizon. Sparse fine dust on the ground
-moves with each step and turn and fades into the fog. Each pane has a
-soft shadow on the ground under it, and a blurred mirror image that fades
-downwards, as on a satin floor. Each new window becomes a
+lies over a smooth, white, glossy floor, as in a photo studio. In the
+dark theme, a black void lies over a black glossy floor. A crisp
+horizon line separates floor and sky. The floor mirrors the sky, more
+at grazing angles, and a broad soft light band glints in it and turns
+with the view. Each pane has a soft shadow on the floor under it, and a
+clear mirror image that fades downwards and with the distance. Each new
+window becomes a
 pane ahead of the camera, at the size of the output. A pane turns to face
 the camera and shows the window through its node texture. A new pane
 moves aside, right first, from the panes in its way. The space lies on
