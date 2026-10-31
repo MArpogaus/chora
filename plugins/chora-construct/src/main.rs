@@ -1425,6 +1425,26 @@ impl Construct {
         ]
     }
 
+    /// Attaches a window under the construct, hidden, with no pane.
+    fn attach_hidden(&mut self, surface: &str) -> Result<(), ClientError> {
+        let hidden = PropsUpdate {
+            opacity: Some(0.0),
+            ..PropsUpdate::default()
+        };
+        let attach = Command::Attach {
+            surface: surface.into(),
+            parent: WINDOWS.into(),
+        };
+        if let Some(err) = self
+            .rt
+            .conn
+            .try_apply(vec![attach, update(surface, hidden)])?
+        {
+            eprintln!("chora-construct: {surface}: {err}");
+        }
+        Ok(())
+    }
+
     /// A new window becomes a pane, ahead of the camera or where its file
     /// puts it. The construct hides its own window under the space, and
     /// the pane shows it through a node texture; a window of another owner
@@ -1443,8 +1463,13 @@ impl Construct {
         }
         let size = (file.and_then(|f| f.size)).unwrap_or([self.lens.w, self.lens.h]);
         let Some(at) = self.place(file.and_then(|f| f.at), size, force) else {
-            // No room in the view: the window waits in the window list.
+            // No room in the view: the window waits in the window list. A
+            // window that the construct owns is attached and hidden, so
+            // that the core does not show it ownerless (W14).
             self.voice.notice(NO_ROOM, Instant::now());
+            if hold == Hold::Own {
+                self.attach_hidden(surface)?;
+            }
             return self.draw_hud();
         };
         let pane = Pane {
