@@ -1053,7 +1053,9 @@ connects with the client name `xp`.
 The session "chora (Windows XP)" on the login screen starts it with the XP
 cursors, which the package installs to `/usr/share/icons/ModernXP`.
 `theme/README.md` lists the source and the license of every file of the
-theme.
+theme. Without `--theme` or `CHORA_XP_THEME`, `chora-xp` uses this installed
+theme, else the `flavors/xp/theme` of the source tree when the binary runs
+from `target/<profile>/`.
 
 When the files of Windows XP are installed in the XDG data directory, as
 `get-microsoft-files.sh` of `kde-plasma-winxp-launcher` does, `chora-xp`
