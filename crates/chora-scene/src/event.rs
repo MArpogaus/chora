@@ -118,6 +118,10 @@ pub enum Event {
         output: String,
         /// The pointer in the logical coordinates of the output.
         local: [f64; 2],
+        /// The window that asked for the drag: only at the press of the
+        /// binding `move`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        surface: Option<String>,
     },
     /// The pointer moved while the button of a grabbed binding is down.
     #[serde(rename = "input.moved")]

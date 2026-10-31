@@ -624,7 +624,7 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
     };
     let (conn, binding, press) = grab;
     let moved = binding == MOVE;
-    send_button(state, conn, binding, press);
+    send_button(state, conn, binding, press, None);
     if moved {
         // The press of a move reached the pointer, so its release does too,
         // to no surface.
@@ -681,12 +681,19 @@ pub fn start_move(state: &mut State, toplevel: &WlSurface, surface: &str, serial
         binding: MOVE.into(),
         button,
     });
-    send_button(state, conn, MOVE.into(), PressState::Pressed);
+    send_button(state, conn, MOVE.into(), PressState::Pressed, Some(surface));
     move_pointer(state, state.pointer_layout, InputTime::now());
 }
 
-/// Sends `input.button` to the connection of a button grab.
-fn send_button(state: &mut State, conn: u64, binding: String, press: PressState) {
+/// Sends `input.button` to the connection of a button grab, with the
+/// window of a move.
+fn send_button(
+    state: &mut State,
+    conn: u64,
+    binding: String,
+    press: PressState,
+    surface: Option<&str>,
+) {
     let Some(spot) = state.spot(state.pointer_layout) else {
         return;
     };
@@ -696,6 +703,7 @@ fn send_button(state: &mut State, conn: u64, binding: String, press: PressState)
         position: [spot.scene.x, spot.scene.y],
         output: spot.output.name(),
         local: [spot.local.x, spot.local.y],
+        surface: surface.map(String::from),
     };
     state.ipc.send_to(conn, &event);
 }
@@ -1404,10 +1412,17 @@ mod tests {
             "move"
         );
         drag(&mut core, &mut wayland);
-        assert_eq!(
-            buttons(&mut wm, &mut core),
-            ["pressed", "moved", "released"]
-        );
+        let grabbed = events(&mut wm, &mut core);
+        let grabbed: Vec<&Value> = (grabbed.iter())
+            .filter(|e| e["event"] == "input.button" || e["event"] == "input.moved")
+            .collect();
+        let states: Vec<&str> = (grabbed.iter())
+            .map(|e| e["state"].as_str().unwrap_or("moved"))
+            .collect();
+        assert_eq!(states, ["pressed", "moved", "released"]);
+        // The press names the window that asked for the move.
+        assert_eq!(grabbed[0]["surface"], "s1");
+        assert!(grabbed[2].get("surface").is_none());
         assert!(pointer_focused(&core), "the window gets an enter");
         // A second press works as before.
         click(&mut core, true);

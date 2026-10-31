@@ -312,7 +312,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize`, `close` and `update`, with the arguments of the command; the arguments of `update` are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An `update` of an owner that does not subscribe to `node.requested` fails with the error `belongs to`. Other changes of a foreign node stay refused. |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up (see [IPC methods](#ipc-methods)) |
-| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; only to the connection of the grab |
+| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move; only to the connection of the grab |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, and the `modifiers` that are down |
@@ -597,7 +597,9 @@ window manager that grabs it gets the interactive moves of its own
 windows. When a client asks for a move during a press, for example
 `xdg_toplevel.move` from its title bar, the owner of the window gets the
 press, the moves and the release as `input.button` and `input.moved`
-with the binding `move`, and the window gets a leave. Without a grab of
+with the binding `move`, and the window gets a leave. The press names
+the window in `surface`, so that the window manager drags that window
+and not the one under the pointer. Without a grab of
 `move`, the press stays with the client. The serial of the move must be
 the one of the press that still holds the pointer on that window; a move
 with an old serial does nothing.
