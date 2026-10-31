@@ -7,7 +7,7 @@ resvg = { version = "0.48", default-features = false, features = ["memmap-fonts"
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-zbus = "5.19"
+zbus = "6.1"
 zune-jpeg = "0.5"
 
 [lints]
