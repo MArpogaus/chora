@@ -270,7 +270,7 @@ fn serve(
 
 /// The settings with each value of a `*_headers` key hidden (review rc3
 /// round 2, 4.2): a header such as `Authorization` carries a key.
-fn without_headers(mut settings: Value) -> Value {
+pub fn without_headers(mut settings: Value) -> Value {
     for (key, headers) in settings.as_object_mut().into_iter().flatten() {
         if key.ends_with("_headers") {
             headers

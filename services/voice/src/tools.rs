@@ -169,6 +169,18 @@ impl Tools {
         self.retry_at = Instant::now();
     }
 
+    /// Whether a call is a settings method of the agent itself, whose
+    /// answer holds the settings.
+    fn own_settings_call(&self, tool: &str, args: &serde_json::Map<String, Value>) -> bool {
+        let field = |k: &str| args.get(k).and_then(Value::as_str).unwrap_or_default();
+        let (client, method) = if tool == "call_method" {
+            (field("client"), field("method"))
+        } else {
+            tool.split_once('.').unwrap_or((tool, ""))
+        };
+        self.own_settings(client, method)
+    }
+
     fn connected(&self) -> Option<&Service> {
         self.service.as_ref().filter(|s| !s.is_transport_closed())
     }
@@ -301,6 +313,7 @@ impl Tools {
             Some(Value::Object(patch)) => patch.clone(),
             _ => args,
         };
+        let secret = self.own_settings_call(&name, &args);
         self.refresh().await;
         let Some(service) = self.connected() else {
             return "error: chora is not connected".into();
@@ -319,11 +332,23 @@ impl Tools {
             }
             Ok(Err(e)) => format!("error: {e}").into(),
             Ok(Ok(CallToolResponse::Complete(result))) => {
-                content(&result.content, result.is_error == Some(true), self.vision)
+                let answer = content(&result.content, result.is_error == Some(true), self.vision);
+                match answer {
+                    Value::String(text) if secret => without_secrets(&text).into(),
+                    other => other,
+                }
             }
             Ok(Ok(_)) => "error: the tool asked for input, which the agent cannot give".into(),
         }
     }
+}
+
+/// The text of an answer with the header values hidden, as
+/// `settings.get` answers (review rc3 round 3, 2.1); a text that is no
+/// JSON stays.
+fn without_secrets(text: &str) -> String {
+    serde_json::from_str(text)
+        .map_or_else(|_| text.to_owned(), |v| crate::client::without_headers(v).to_string())
 }
 
 /// The spec of the agent's own `settings.set` for the LLM: a patch,
@@ -879,6 +904,22 @@ pub mod tests {
             answer[1]["image_url"]["url"], "data:image/png;base64,UE5H",
             "{answer}"
         );
+    }
+
+    /// Review rc3 round 3, 2.1: the answer of the own `settings.set`
+    /// holds no header value.
+    #[tokio::test]
+    async fn the_answer_of_settings_set_hides_the_headers() {
+        let (mut tools, _) = fake(0);
+        tools.own = "voice".into();
+        tools.refresh().await;
+        let name = "voice__settings__set";
+        tools.names.insert(name.into(), "voice.settings.set".into());
+        let patch = json!({"patch": {"asr_headers": {"Authorization": "Bearer sk-9"}, "a": 1}});
+        let answer = tools.call(name, &patch).await;
+        let answer = answer.as_str().unwrap();
+        assert!(!answer.contains("sk-9"), "{answer}");
+        assert!(answer.contains("\"a\":1"), "{answer}");
     }
 
     #[tokio::test]

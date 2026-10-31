@@ -1304,7 +1304,15 @@ fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
     }
     let mut args = args.clone();
     hide(&mut args);
-    (args.to_string(), short(result, 300))
+    // A result that is JSON, such as the answer of `settings.set`.
+    let result = serde_json::from_str::<Value>(result).map_or_else(
+        |_| result.to_owned(),
+        |mut v| {
+            hide(&mut v);
+            v.to_string()
+        },
+    );
+    (args.to_string(), short(&result, 300))
 }
 
 /// Hides the value of each key such as `llm_headers`, `token`,
@@ -2297,6 +2305,9 @@ mod tests {
             assert!(!args.contains(secret), "{args}");
         }
         assert!(args.contains("http://x"), "{args}");
+        let answer = r#"{"llm_headers":{"X-Key":"sk-3"},"asr_url":"http://x"}"#;
+        let (_, result) = journal("voice__settings__set", &set, answer);
+        assert!(!result.contains("sk-3") && result.contains("http://x"), "{result}");
     }
 
     /// Review rc3 round 2, 4.4, the user's decision: a security setting
