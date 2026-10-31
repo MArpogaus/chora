@@ -103,9 +103,7 @@ impl Mc {
             return Err(invalid(format!("no state {state}; one of {known:?}")));
         }
         let at = self.agents.iter().position(|a| a.name == set.name);
-        let agent = if let Some(at) = at {
-            &mut self.agents[at]
-        } else {
+        let at = at.unwrap_or_else(|| {
             self.agents.push(Agent {
                 name: set.name.clone(),
                 state: "idle".into(),
@@ -117,8 +115,9 @@ impl Mc {
                 log: Vec::new(),
                 since: region::date("%H:%M"),
             });
-            self.agents.last_mut().expect("just pushed")
-        };
+            self.agents.len() - 1
+        });
+        let agent = &mut self.agents[at];
         let fields = [
             (&mut agent.state, set.state),
             (&mut agent.task, set.task),

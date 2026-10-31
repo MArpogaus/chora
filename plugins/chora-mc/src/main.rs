@@ -7,6 +7,11 @@
 //! the regions through the exported methods; the plugin reads no sources
 //! itself.
 
+#![allow(
+    clippy::print_stderr,
+    reason = "a plugin logs to stderr, which the session keeps"
+)]
+
 mod agent;
 mod config;
 mod region;
@@ -284,6 +289,7 @@ struct Mc {
     solo: Option<Solo>,
 }
 
+#[allow(clippy::print_stdout, reason = "--print-config prints the default")]
 fn main() -> ExitCode {
     let args = Args::parse();
     if args.print_config {
@@ -315,7 +321,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
                 .as_deref()
                 != Some(text)
             {
-                std::fs::create_dir_all(path.parent().expect("a file in a directory"))?;
+                if let Some(dir) = path.parent() {
+                    std::fs::create_dir_all(dir)?;
+                }
                 std::fs::write(&path, text)?;
             }
             Ok(())
@@ -956,6 +964,7 @@ impl Mc {
 
     /// Grabs the bindings of the settings; one that another client holds
     /// only logs.
+    #[allow(clippy::expect_used, reason = "the settings check their bindings")]
     fn grab_all(&mut self) -> Result<(), ClientError> {
         for (text, action) in self.settings.value.bindings.clone() {
             let binding = text.parse().expect("the settings check their bindings");
@@ -1204,6 +1213,7 @@ impl Mc {
 
     /// A style of the settings, changed by a scene; a change that fails
     /// logs and leaves the style as it is.
+    #[allow(clippy::expect_used, reason = "the settings check their styles")]
     fn ty(&self, name: &str, local: Option<&Style>) -> Type {
         let config = &self.settings.value;
         config

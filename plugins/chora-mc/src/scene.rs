@@ -230,6 +230,7 @@ pub fn parse(text: &str) -> Result<Scene, String> {
 }
 
 /// The built-in scenes and the files in `dir`. A wrong file only logs.
+#[allow(clippy::expect_used, reason = "a test parses the built-in scenes")]
 pub fn load(dir: &Path) -> BTreeMap<String, Scene> {
     let mut scenes: BTreeMap<String, Scene> = BUILT_IN
         .iter()
