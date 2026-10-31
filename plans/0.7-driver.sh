@@ -8,7 +8,6 @@ d=$repo/plans
 state=$d/0.7-state.md
 log=$d/0.7-log.txt
 audit=/home/agent/.agents/skills/local-pi-session/tools/audit.py
-kills=/home/agent/.agents/skills/local-pi-session/tools/kill-loop.py
 export PATH=/home/agent/.local/bin:$PATH
 
 say() { echo "$(date -Is) | $*" >> "$log"; }
@@ -33,7 +32,7 @@ healthy() { # block until the provider answers a ping
 pi_task() { # $1=timeout $2=prompt $3=logsuffix
   healthy
   timeout "$1" pi --model gufo/gufo -p "$2" >> "plans/0.7-agent-$3.log" 2>&1
-  echo $? >> plans/0.7-agent-$3.log
+  echo "$?" >> "plans/0.7-agent-$3.log"
 }
 crashed() { tail -c 300 "plans/0.7-agent-$1.log" 2>/dev/null | grep -q "Connection error"; }
 
@@ -106,6 +105,7 @@ Read-only review: compare HEAD against commit ${base} with git log --oneline ${b
     if [ -n "${sj:-}" ]; then
       python3 "$audit" "$sj" > "$d/0.7-audit-T${n}-r${round}.txt" 2>&1
       # allowed mutations: the round's report file, /tmp, the agent home, target/
+      # shellcheck disable=SC2126 # a grep -v filter chain, counted at the end
       bad=$(sed -n '/^MUTATING actions:/,$p' "$d/0.7-audit-T${n}-r${round}.txt" | grep -E '^  ' | grep -vE '0\.7-review|/tmp/|/home/agent|target/' | wc -l)
       if [ "$bad" = 0 ] && grep -q 'git \(show\|diff\|log\)' "$sj"; then audit_ok=1; fi
     fi
@@ -116,7 +116,7 @@ Read-only review: compare HEAD against commit ${base} with git log --oneline ${b
       git add "$state" && git commit -q -m "docs(plans): T$n done ($(git rev-parse --short HEAD))"
       break
     fi
-    [ "$round" = 3 ] && { set_status "T$n" "open (3 rounds, no CLEAN)"; git add "$state" plans/0.7-review-T${n}-r3.md 2>/dev/null && git commit -q -m "docs(plans): T$n open after 3 review rounds"; }
+    [ "$round" = 3 ] && { set_status "T$n" "open (3 rounds, no CLEAN)"; git add "$state" "plans/0.7-review-T${n}-r3.md" 2>/dev/null && git commit -q -m "docs(plans): T$n open after 3 review rounds"; }
     round=$((round+1))
   done
 done
