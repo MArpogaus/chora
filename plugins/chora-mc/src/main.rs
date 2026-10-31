@@ -1334,6 +1334,9 @@ impl Mc {
                     transform: Some(translate(0.0, 2.0 * b)),
                     size: Some([w, (h - 4.0 * b).max(b)]),
                     clip: Some(Some(chora_scene::Clip { radius: 0.0 })),
+                    // Other plugins find the page by this tag and show it
+                    // through its node texture, as chora-construct does.
+                    meta: Some(BTreeMap::from([("pane".into(), name.into())])),
                     ..PropsUpdate::default()
                 },
             ),

@@ -370,6 +370,11 @@ shows and when `panel.set` changes the text of a panel; the same text
 again changes nothing. The effect is `plugins/chora-mc/write.frag`, and
 the `animate` of the core moves its uniform `progress` from 0 to 1.
 
+The page of each scene, with its head and its panels, carries the tag
+`meta:pane=NAME`, also while the scene is hidden. Another plugin finds it
+with the selector `owner:mc meta:pane=NAME` and shows it through its node
+texture; chora-construct does so for a plugin pane.
+
 A window that no scene started, for example from a launcher, gets a scene
 of its own without a head, which goes with the window.
 
