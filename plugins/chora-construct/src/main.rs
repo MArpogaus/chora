@@ -710,7 +710,8 @@ impl Construct {
 
     /// Removes a pane; its window gets a close request, so a program with
     /// unsaved state can ask the user first (F13). The window of another
-    /// flavor's owner gets it through `node.requested`.
+    /// flavor's owner gets it through `node.requested`. The pane goes
+    /// when the window does: a window that refuses stays a pane.
     fn remove_pane(&mut self, i: usize) -> Result<(), ClientError> {
         let Some(surface) = self.panes[i].window().map(String::from) else {
             let pane = self.panes.remove(i);
@@ -718,7 +719,6 @@ impl Construct {
             self.rt.conn.apply(pane.remove().into())?;
             return self.frame();
         };
-        self.forget(&surface)?;
         if let Some(err) = self.rt.conn.try_apply(vec![Command::Close { surface }])? {
             eprintln!("chora-construct: close: {err}");
         }
@@ -1037,16 +1037,10 @@ impl Construct {
     /// Asks the window of the pane ahead to close; its pane goes when
     /// it does. A plugin pane goes at once.
     fn close_ahead(&mut self) -> Result<(), ClientError> {
-        let Some(i) = self.pane_ahead() else {
-            return Ok(());
-        };
-        let Some(surface) = self.panes[i].window().map(String::from) else {
-            return self.remove_pane(i);
-        };
-        if let Some(err) = self.rt.conn.try_apply(vec![Command::Close { surface }])? {
-            eprintln!("chora-construct: close: {err}");
+        match self.pane_ahead() {
+            Some(i) => self.remove_pane(i),
+            None => Ok(()),
         }
-        Ok(())
     }
 
     fn resize(&mut self, surface: &str, size: [f64; 2]) -> Result<(), ClientError> {

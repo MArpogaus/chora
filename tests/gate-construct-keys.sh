@@ -3,14 +3,15 @@
 # t starts the terminal, and its window becomes a pane; space starts the
 # launcher, whose own window shows without a pane, and the program that
 # it starts becomes a pane; after the launcher the walk has the keyboard
-# again; x asks the window of the pane ahead to close, and its pane goes.
+# again; x asks the window of the pane ahead to close, and its pane goes;
+# pane.remove asks as well, and a window that refuses stays a pane.
 # The launcher here is a foot window that starts a second foot.
 #
 # Usage: tests/gate-construct-keys.sh   BIN: directory with the binaries
 # shellcheck disable=SC2016 # until_ok evaluates its code later
 set -u
 . "$(dirname "$0")/gate-lib.sh"
-need_bins chora choractl chora-construct
+need_bins chora choractl chora-construct chora-probe
 need foot
 need setsid
 temp_config
@@ -60,3 +61,13 @@ before=$(panes)
 key x
 until_ok 'test "$(panes)" != "$before"' || fail "x closed no pane: $(panes)"
 ok "x closed a pane: $before -> $(panes)"
+
+# pane.remove only asks the window to close, as x does: a window that
+# refuses, as chora-probe does, stays a pane, and shows.
+"$bin/chora-probe" window 200 40 40 &
+pids+=($!)
+until_ok 'panes | grep -qw chora-probe' || fail "chora-probe became no pane: $(panes)"
+ctl call construct pane.remove '{"name": "chora-probe"}' >/dev/null || fail "pane.remove"
+sleep 1
+panes | grep -qw chora-probe || fail "pane.remove dropped the pane of a window that stays: $(panes)"
+ok "pane.remove asked chora-probe to close; it refused and stays a pane"
