@@ -9,7 +9,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::region::{self, Content, Preset, Region, Regions, Rule};
-use crate::scene;
 
 /// The default settings.
 pub const DEFAULT: &str = include_str!("../mc.yaml");
@@ -263,8 +262,6 @@ pub struct Config {
     pub styles: BTreeMap<String, Style>,
     pub chapter: Chapter,
     pub page: Page,
-    /// Columns and rows of the grid of each scene without its own.
-    pub grid: [u32; 2],
     /// The least width and height of a panel, in em of `scale.base`. A
     /// narrow output shows fewer columns, a short one scrolls.
     pub min_panel: [f64; 2],
@@ -364,7 +361,7 @@ impl Config {
 }
 
 impl Config {
-    /// The scale, the page, the grid and the least size of a panel.
+    /// The scale, the page and the least size of a panel.
     fn check_layout(&self) -> Result<(), String> {
         let Scale {
             base,
@@ -379,7 +376,7 @@ impl Config {
                 "scale: a base from 4 to 128, a ratio from 1 to 3, a baseline from 4 to 256".into(),
             );
         }
-        (self.page.check()).and(scene::check_default_grid(self.grid))?;
+        self.page.check()?;
         if self.min_panel.iter().any(|m| !(1.0..=200.0).contains(m)) {
             return Err("min_panel: a width and a height from 1 to 200".into());
         }

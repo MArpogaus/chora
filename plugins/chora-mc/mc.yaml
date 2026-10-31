@@ -108,16 +108,15 @@ styles:
 chapter:
   layout: number
 # The text block of every scene: the width of one column of the grid,
-# the margin column left of each column for the number of the scene and
-# notes such as times, and the space between them, all in em of
-# scale.base. On a narrow output fewer columns show; see min_panel.
+# the margin column left of each column for notes such as times, and the
+# space between them, all in em of scale.base. All scenes share it, so
+# the text and the head stay in place from scene to scene. A grid has 4
+# columns and 3 rows; a scene file can set its own grid. On a narrow
+# output fewer columns show; see min_panel.
 page:
   measure: 18
   margin: 4
   gap: 1.5
-# The columns and rows of the panels of every scene. A scene file can set
-# its own grid and page, but then its text and its number move.
-grid: [4, 3]
 # The least width and height of a panel, in em of scale.base. Where the
 # columns of the grid would be narrower, the page shows fewer of them and
 # the panels that do not fit wrap into new rows, in reading order; a row

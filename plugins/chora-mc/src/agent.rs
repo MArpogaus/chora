@@ -242,7 +242,7 @@ impl Mc {
             .filter(|p| p.id.starts_with("agent-"))
             .count();
         let columns = slots.saturating_sub(1);
-        let grid = scene.grid.unwrap_or(self.settings.value.grid)[0];
+        let grid = scene.grid()[0];
         let count = (focused.as_ref()).map_or(shown.len(), |_| slots);
         let transcript = focused
             .as_ref()

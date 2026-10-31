@@ -37,7 +37,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{
-    config::{Action, Config, Layout, Page, Style, Type},
+    config::{Action, Config, Layout, Style, Type},
     region::{FIT_MS, Kind, MAX_LINES, PARKED, REGIONS, Region, Rule},
     scene::{Panel, Scene},
 };
@@ -303,7 +303,6 @@ fn main() -> ExitCode {
     runtime::run(NAME, || play(&args))
 }
 
-#[allow(clippy::too_many_lines)] // one line per field of the plugin
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = settings::File::<Config>::path(args.config.clone(), "chora-mc")?;
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
@@ -336,46 +335,61 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     });
     let (shader, blur) = (shader?, blur?);
     let rt = Runtime::connect(NAME, Vec::new())?;
-    let mut mc = Mc {
-        rt,
-        scenes: scene::load(&dir, settings.value.grid),
-        settings,
-        dir,
-        windows: HashMap::new(),
-        starting: HashMap::new(),
-        launched: Vec::new(),
-        current: None,
-        previous: None,
-        output: None,
-        built: false,
-        hud: SetHud {
-            state: String::new(),
-            text: String::new(),
-        },
-        typing: None,
-        shader,
-        blur,
-        put: Vec::new(),
-        toggled: BTreeMap::new(),
-        docks: HashMap::new(),
-        set: 0,
-        fade: FADE,
-        left: None,
-        sigs: BTreeMap::new(),
-        fitting: HashMap::new(),
-        shape: None,
-        rendered: None,
-        focused: None,
-        clocks: BTreeMap::new(),
-        texts: BTreeMap::new(),
-        agents: Vec::new(),
-        agent_focus: None,
-        solo: None,
-        scroll: BTreeMap::new(),
-    };
-    mc.keep_texts();
+    let mut mc = Mc::new(rt, settings, dir, [shader, blur]);
     mc.start(methods)?;
     Ok(runtime::serve(&mut mc)?)
+}
+
+impl Mc {
+    /// The plugin before its start: no nodes, no scene shown. `effects`
+    /// are the files of the shaders that write and that blur.
+    #[allow(clippy::too_many_lines)] // one line per field of the plugin
+    fn new(
+        rt: Runtime<Action>,
+        settings: settings::File<Config>,
+        dir: PathBuf,
+        [shader, blur]: [PathBuf; 2],
+    ) -> Self {
+        let mut mc = Self {
+            rt,
+            scenes: scene::load(&dir),
+            settings,
+            dir,
+            windows: HashMap::new(),
+            starting: HashMap::new(),
+            launched: Vec::new(),
+            current: None,
+            previous: None,
+            output: None,
+            built: false,
+            hud: SetHud {
+                state: String::new(),
+                text: String::new(),
+            },
+            typing: None,
+            shader,
+            blur,
+            put: Vec::new(),
+            toggled: BTreeMap::new(),
+            docks: HashMap::new(),
+            set: 0,
+            fade: FADE,
+            left: None,
+            sigs: BTreeMap::new(),
+            fitting: HashMap::new(),
+            shape: None,
+            rendered: None,
+            focused: None,
+            clocks: BTreeMap::new(),
+            texts: BTreeMap::new(),
+            agents: Vec::new(),
+            agent_focus: None,
+            solo: None,
+            scroll: BTreeMap::new(),
+        };
+        mc.keep_texts();
+        mc
+    }
 }
 
 /// The events; `voice.*` are those of the voice agent (D65).
@@ -416,7 +430,7 @@ fn exported_methods() -> Vec<ExportMethod> {
             "Saves a scene in its file and shows the change: a grid of panels, or an app.",
             json!({
                 "name": {"type": "string"},
-                "grid": {"type": "array", "items": {"type": "integer"}, "description": "columns and rows, over grid of the settings"},
+                "grid": {"type": "array", "items": {"type": "integer"}, "description": "columns and rows, by default [4, 3]"},
                 "panels": panels,
                 "app": {"type": "string", "description": "a shell command whose window fills the text block"},
             }),
@@ -624,7 +638,7 @@ impl Plugin for Mc {
             })),
             "scene.save" => {
                 let Save { name, scene } = runtime::params(params)?;
-                scene::save(&self.dir, &name, &scene, self.settings.value.grid).map_err(invalid)?;
+                scene::save(&self.dir, &name, &scene).map_err(invalid)?;
                 self.scenes.insert(name.clone(), scene);
                 self.build().map_err(rejected)?;
                 Ok(Value::Null)
@@ -662,11 +676,6 @@ impl Plugin for Mc {
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
-        // A new grid of the settings may leave a cell of a scene outside.
-        for (name, scene) in &self.scenes {
-            (scene.check(self.settings.value.grid))
-                .map_err(|e| RpcError::new(RpcError::REJECTED, format!("scene {name}: {e}")))?;
-        }
         self.keep_texts();
         let contents = &self.settings.value.contents;
         (self.put).retain(|r| (r.content.as_ref()).is_some_and(|c| contents.contains_key(c)));
@@ -1326,16 +1335,6 @@ impl Mc {
         (scene.chapter.layout).unwrap_or(self.settings.value.chapter.layout)
     }
 
-    /// The text block of a scene: its own, else the settings.
-    pub fn page<'a>(&'a self, scene: &'a Scene) -> &'a Page {
-        scene.page.as_ref().unwrap_or(&self.settings.value.page)
-    }
-
-    /// The grid of a scene: its own or the one of the settings.
-    pub fn grid(&self, scene: &Scene) -> [u32; 2] {
-        scene.grid.unwrap_or(self.settings.value.grid)
-    }
-
     /// The height of the head of a chapter, with the line under it.
     fn chapter_height(&self, scene: &Scene) -> f64 {
         let b = self.settings.value.scale.baseline;
@@ -1372,9 +1371,9 @@ impl Mc {
         let [w, h] = output.size.map(f64::from);
         let config = &self.settings.value;
         let (em, b) = (config.scale.base, config.scale.baseline);
-        let page = self.page(scene);
+        let page = &config.page;
         let (note, gap) = (page.margin * em, page.gap * em);
-        let cols = f64::from(self.grid(scene)[0]);
+        let cols = f64::from(scene.grid()[0]);
         let want = cols * page.measure * em + (cols - 1.0) * (note + 2.0 * gap);
         // A margin column on both sides, so that the text stays centered,
         // and room for the sides, so that the text never moves when one
@@ -1475,7 +1474,7 @@ impl Mc {
         let [min_w, min_h] = config.min_panel.map(|m| m * config.scale.base);
         let gap = [geo.columns(), geo.baseline];
         let [x, y, w, h] = geo.text;
-        let [cols, rows] = self.grid(scene);
+        let [cols, rows] = scene.grid();
         let fit = ((w + gap[0]) / (min_w + gap[0])).floor().max(1.0) as u32;
         let (cell, grid) = if fit >= cols {
             (panel.cell, [cols, rows])

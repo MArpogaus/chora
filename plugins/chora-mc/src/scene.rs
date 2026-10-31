@@ -7,7 +7,7 @@ use std::{collections::BTreeMap, io::Write as _, path::Path};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::{Layout, Page, Style},
+    config::{Layout, Style},
     region::Region,
 };
 
@@ -27,12 +27,15 @@ pub const MAX_TEXT: usize = 4096;
 /// The most columns and rows of the grid of a scene.
 pub const MAX_GRID: u32 = 24;
 
+/// The columns and rows of the grid of a scene without its own `grid`.
+pub const GRID: [u32; 2] = [4, 3];
+
 /// A scene as its file has it.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Scene {
-    /// Columns and rows of the grid of the panels, over `grid` of the
-    /// settings.
+    /// Columns and rows of the grid of the panels, over the default
+    /// `GRID`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grid: Option<[u32; 2]>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -46,10 +49,6 @@ pub struct Scene {
     /// Whether a region shows in this scene, over the settings.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub regions: BTreeMap<Region, bool>,
-    /// The text block of this scene, over `page` of the settings: for
-    /// example narrow columns side by side on a wide screen.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub page: Option<Page>,
 }
 
 /// The head of a scene. Without them, the number is the place of the
@@ -115,7 +114,6 @@ impl Default for Scene {
             app: None,
             chapter: Chapter::default(),
             regions: BTreeMap::new(),
-            page: None,
         }
     }
 }
@@ -129,10 +127,14 @@ impl Scene {
         }
     }
 
-    /// Checks what serde cannot; `grid` is the grid of the settings, for
-    /// a scene without its own.
-    pub fn check(&self, grid: [u32; 2]) -> Result<(), String> {
-        let [cols, rows] = self.grid.unwrap_or(grid);
+    /// The columns and rows of the grid: its own, else `GRID`.
+    pub fn grid(&self) -> [u32; 2] {
+        self.grid.unwrap_or(GRID)
+    }
+
+    /// Checks what serde cannot.
+    pub fn check(&self) -> Result<(), String> {
+        let [cols, rows] = self.grid();
         check_grid([cols, rows])?;
         if self.app.as_deref().is_some_and(|a| a.trim().is_empty()) {
             return Err("app: an empty command".into());
@@ -154,9 +156,6 @@ impl Scene {
             {
                 return Err(format!("panel {id}: an opacity from 0 to 1, a blur to 16"));
             }
-        }
-        if let Some(page) = &self.page {
-            page.check()?;
         }
         let chapter = &self.chapter;
         let texts = [&chapter.number, &chapter.title, &chapter.running_head];
@@ -213,15 +212,6 @@ pub fn check_grid([cols, rows]: [u32; 2]) -> Result<(), String> {
     Ok(())
 }
 
-/// The grid of the settings: a grid that the built-in scenes fit.
-pub fn check_default_grid(grid: [u32; 2]) -> Result<(), String> {
-    check_grid(grid)?;
-    for (name, text) in BUILT_IN {
-        parse(text, grid).map_err(|e| format!("grid: the built-in scene {name}: {e}"))?;
-    }
-    Ok(())
-}
-
 /// A name of a scene or a panel is a file name and part of a node id.
 pub fn check_name(name: &str) -> Result<(), String> {
     let ok = (1..=64).contains(&name.len())
@@ -237,26 +227,25 @@ pub fn check_name(name: &str) -> Result<(), String> {
 }
 
 /// Parses and checks a scene.
-pub fn parse(text: &str, grid: [u32; 2]) -> Result<Scene, String> {
+pub fn parse(text: &str) -> Result<Scene, String> {
     let mut options = serde_saphyr::Options::default();
     options.strict_booleans = true;
     options.reject_unsupported_tags = true;
     let scene: Scene =
         serde_saphyr::from_str_with_options(text, options).map_err(|e| e.to_string())?;
-    scene.check(grid)?;
+    scene.check()?;
     Ok(scene)
 }
 
-/// The built-in scenes and the files in `dir`, on the `grid` of the
-/// settings. A wrong file only logs.
-#[allow(clippy::expect_used, reason = "the settings check the built-in scenes")]
-pub fn load(dir: &Path, grid: [u32; 2]) -> BTreeMap<String, Scene> {
+/// The built-in scenes and the files in `dir`. A wrong file only logs.
+#[allow(clippy::expect_used, reason = "a test checks the built-in scenes")]
+pub fn load(dir: &Path) -> BTreeMap<String, Scene> {
     let mut scenes: BTreeMap<String, Scene> = BUILT_IN
         .iter()
         .map(|(name, text)| {
             (
                 (*name).into(),
-                parse(text, grid).expect("the built-in scenes fit the grid"),
+                parse(text).expect("the built-in scenes are valid"),
             )
         })
         .collect();
@@ -272,7 +261,7 @@ pub fn load(dir: &Path, grid: [u32; 2]) -> BTreeMap<String, Scene> {
             continue;
         };
         let read = chora_kit::read_text(&path, chora_kit::MAX_TEXT).map_err(|e| e.to_string());
-        match read.and_then(|text| parse(&text, grid)) {
+        match read.and_then(|text| parse(&text)) {
             Ok(scene) if check_name(name).is_ok() => {
                 scenes.insert(name.into(), scene);
             }
@@ -285,9 +274,9 @@ pub fn load(dir: &Path, grid: [u32; 2]) -> BTreeMap<String, Scene> {
 
 /// Writes `NAME.yaml` in `dir` through a temporary file, so that a crash
 /// leaves the old file or the new one.
-pub fn save(dir: &Path, name: &str, scene: &Scene, grid: [u32; 2]) -> Result<(), String> {
+pub fn save(dir: &Path, name: &str, scene: &Scene) -> Result<(), String> {
     check_name(name)?;
-    scene.check(grid)?;
+    scene.check()?;
     let text = serde_saphyr::to_string(scene).map_err(|e| e.to_string())?;
     let path = dir.join(format!("{name}.yaml"));
     let tmp = dir.join(format!(".{name}.yaml.tmp"));
@@ -344,8 +333,6 @@ pub fn flow(cells: &[[u32; 4]], cols: u32) -> (Vec<[u32; 4]>, u32) {
 mod tests {
     use super::*;
 
-    const GRID: [u32; 2] = [4, 3];
-
     fn dir(name: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!("chora-mc-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -375,16 +362,11 @@ mod tests {
                 ..Chapter::default()
             },
             regions: [(Region::Right, true)].into(),
-            page: Some(Page {
-                measure: 20.0,
-                margin: 0.0,
-                gap: 2.0,
-            }),
         };
-        save(&dir, "agenda", &scene, GRID).unwrap();
-        save(&dir, "news", &Scene::app("foot"), GRID).unwrap();
+        save(&dir, "agenda", &scene).unwrap();
+        save(&dir, "news", &Scene::app("foot")).unwrap();
         std::fs::write(dir.join("broken.yaml"), "grid: [0, 1]\n").unwrap();
-        let scenes = load(&dir, GRID);
+        let scenes = load(&dir);
         assert_eq!(scenes["agenda"], scene);
         assert_eq!(scenes["news"].app.as_deref(), Some("foot"));
         assert!(scenes.contains_key("terminal"), "the built-in scenes stay");
@@ -395,19 +377,23 @@ mod tests {
 
     #[test]
     fn mistakes_fail() {
+        for (name, text) in BUILT_IN {
+            assert!(parse(text).is_ok(), "{name}");
+        }
         let dir = dir("wrong");
-        assert!(save(&dir, "../evil", &Scene::app("foot"), GRID).is_err());
+        assert!(save(&dir, "../evil", &Scene::app("foot")).is_err());
         assert!(!dir.exists(), "a wrong scene writes nothing");
         for wrong in [
             "grid: [0, 1]\n",
-            // Without a grid of its own, the cell is outside the grid of
-            // the settings.
+            // Without a grid of its own, the cell is outside the default
+            // grid.
             "panels: [{id: a, cell: [4, 0, 1, 1]}]\n",
             "panels: [{id: a, cell: [0, 0, 1, 1]}, {id: a, cell: [0, 0, 1, 1]}]\n",
             "panels: [{id: a/b, cell: [0, 0, 1, 1]}]\n",
             "app: ' '\n",
             "frame: true\n",
-            "page: {measure: 5, margin: 0, gap: 1}\n",
+            // The page is one for all scenes, in the settings.
+            "page: {measure: 20, margin: 4, gap: 1}\n",
             "panels: [{id: a, cell: [0, 0, 1, 1], opacity: 2}]\n",
             // W11: a huge grid blanked mc, a cell near u32::MAX overflowed.
             "grid: [4294967295, 4294967295]\n",
@@ -415,7 +401,7 @@ mod tests {
             "grid: [2, 1]\npanels: [{id: a, cell: [4294967295, 0, 1, 1]}]\n",
             "grid: [2, 1]\npanels: [{id: a, cell: [1, 0, 4294967295, 1]}]\n",
         ] {
-            assert!(parse(wrong, GRID).is_err(), "{wrong}");
+            assert!(parse(wrong).is_err(), "{wrong}");
         }
         let long = Panel {
             lines: vec!["x".repeat(MAX_TEXT + 1)],

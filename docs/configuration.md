@@ -267,12 +267,13 @@ with a title and lines, or one app whose window fills the text block below the h
 a frame. The plugin has the built-in scenes `agenda`, `agents`, `mission`
 (Mission Control), `morning` (the morning paper) and `terminal`. A file of
 the same name replaces a built-in scene. A grid has 1 to 24 columns and
-rows; without `grid`, a scene takes the `grid` of the settings. A wrong file, or a scene that the core refuses, is left out with a
-line in the log; the other scenes stay.
+rows; without `grid`, a scene has 4 columns and 3 rows. A wrong file, or
+a scene that the core refuses, is left out with a line in the log; the
+other scenes stay.
 
 ```yaml
 # ~/.config/chora/mc/scenes/day.yaml
-grid: [2, 2]          # optional: columns and rows, over the settings
+grid: [2, 2]          # optional: columns and rows, [4, 3] without it
 chapter:              # all optional: the place, the name, the date
   number: "2"
   title: Day
@@ -297,11 +298,11 @@ styles of its lines, its title and its notes with `style`, `title_style`
 and `note_style`; each takes a `base` (by default `body`, `heading` and
 `margin`) and changes single fields.
 
-A scene may set its own `page` (`measure`, `margin` and `gap`, as in the
-settings) and `grid`, but then its text block and its number move against
-the other scenes; the built-in scenes set neither and only choose their
-cells. A scene may also set `chapter.layout`, also `none` for a scene without a head. Columns of a
-grid leave room for the margin of the column to their right. A panel may
+All scenes share the `page` of the settings, so that the text block
+and the head stay in place from scene to scene. A scene may set its own
+`grid`, and `chapter.layout`, also `none` for a scene without a head.
+Columns of a grid leave room for the margin of the column to their
+right. A panel may
 set a `rule`, a color of the theme for a hairline left of it (none at
 the left edge of the text block and none beside an empty panel), an
 `opacity` from 0 to 1 and a `blur` radius in pixels up to 16, for
@@ -372,10 +373,7 @@ hand apply with `settings.reload`:
   then the title in spaced capitals on the same baseline, such as
   `3 | AGENDA`, at the left edge of the text column) or `none`.
 - `page`: the `measure` of a column of the grid, the `margin` column and
-  the `gap`, in em of `scale.base`.
-- `grid`: the columns and rows of every scene without its own (default
-  `[4, 3]`). All scenes share it and `page`, so the text block and the
-  number stay in place from scene to scene.
+  the `gap`, in em of `scale.base`. All scenes share it.
 - `min_panel`: the least width and height of a panel, in em of
   `scale.base` (default `[14, 8]`). Where the columns of the grid would
   be narrower, the page shows fewer columns and the panels wrap into new

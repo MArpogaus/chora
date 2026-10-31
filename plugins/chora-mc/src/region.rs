@@ -591,9 +591,9 @@ impl Mc {
         };
         let config = &self.settings.value;
         let (em, b) = (config.scale.base, config.scale.baseline);
-        let page = self.page(scene);
+        let page = &config.page;
         let gap = page.gap * em;
-        let cols = f64::from(self.grid(scene)[0]);
+        let cols = f64::from(scene.grid()[0]);
         let want = cols * page.measure * em + (cols - 1.0) * (page.margin * em + 2.0 * gap);
         let room = f64::from(output.size[0]) - 4.0 * b - 2.0 * (page.margin * em + gap);
         let placed = self.placed(name);

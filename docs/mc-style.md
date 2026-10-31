@@ -5,7 +5,7 @@ scenes and new kinds of content. The model is a calm book page: few
 sizes, one weight, a clear hierarchy and the same space everywhere.
 
 This page gives the rules. `plugins/chora-mc/mc.yaml` holds the values:
-the styles, the colors, the scale and the grid. When a value changes,
+the styles, the colors, the scale and the page. When a value changes,
 change it there, not here.
 
 ## Type
