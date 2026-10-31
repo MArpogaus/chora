@@ -437,6 +437,7 @@ impl Look<'_> {
                 PropsUpdate {
                     transform: at(place[0], place[1]),
                     visible: Some(true),
+                    meta: Some(list_meta("open")),
                     ..PropsUpdate::default()
                 },
             ),
@@ -523,6 +524,28 @@ impl Look<'_> {
         }
         commands
     }
+}
+
+/// The meta `state` of the list: `open`, or empty, which removes it. The
+/// group stays for its fade, so tests find an open list by it.
+#[must_use]
+pub fn list_meta(state: &str) -> BTreeMap<String, String> {
+    BTreeMap::from([("state".into(), state.into())])
+}
+
+/// Closes the window list: the meta goes at once, the panel fades out.
+#[must_use]
+pub fn list_close() -> Vec<Command> {
+    vec![
+        update(
+            LIST,
+            PropsUpdate {
+                meta: Some(list_meta("")),
+                ..PropsUpdate::default()
+            },
+        ),
+        fade(LIST, 0.0, FADE_OUT),
+    ]
 }
 
 /// The size of the window list panel with `rows` rows shown.

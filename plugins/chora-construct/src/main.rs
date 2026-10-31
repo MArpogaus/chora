@@ -2224,7 +2224,7 @@ impl Construct {
 
     fn close_list(&mut self) -> Result<(), ClientError> {
         if self.list.take().is_some() {
-            let mut commands = vec![hud::fade(LIST, 0.0, hud::FADE_OUT)];
+            let mut commands = hud::list_close();
             commands.extend(self.label_commands());
             self.rt.conn.try_apply(commands)?;
         }

@@ -89,7 +89,7 @@ import json, sys
 rows = [w['name'] for w in json.load(sys.stdin)['windows'] if w['pane'] != 'shown']
 print(rows.index('$1'))") || fail "$1 is not in the window list"
     key Tab
-    ctl wait --timeout 5 id:construct-list >/dev/null || fail "Tab opened no list"
+    ctl wait --timeout 5 "id:construct-list meta:state=open" >/dev/null || fail "Tab opened no list"
     for _ in $(seq "$row"); do key Down; done
 }
 # The geometry and the props of the surfaces, by app id.
@@ -195,12 +195,12 @@ no_lost "overlay load"
 ok "the overlay load made no pane for the tiling windows; window.list shows both without a pane"
 
 key Tab
-ctl wait --timeout 5 id:construct-list >/dev/null || fail "Tab opened no list"
+ctl wait --timeout 5 "id:construct-list meta:state=open" >/dev/null || fail "Tab opened no list"
 key Down
 sleep 0.5
 shot "$shots/construct-windows-overlay.png"
 key Escape
-ctl wait --gone --timeout 5 id:construct-list >/dev/null || fail "Escape left the list open"
+ctl wait --gone --timeout 5 "id:construct-list meta:state=open" >/dev/null || fail "Escape left the list open"
 ok "Tab opened the window list, Escape closed it"
 
 call window.show '{"name": "t2"}' >/dev/null || fail "window.show t2"
